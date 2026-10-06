@@ -147,13 +147,33 @@ describe('when it speaks', () => {
         expect(written().checks.vision).toMatchObject({ status: 'down', detail: 'gemini=quota_exceeded, groq=timeout' });
     });
 
+    it('counts only what people asked for, not the blog\'s own requests', async () => {
+        mockRunAiTask.mockImplementation(async (task) => {
+            if (task.capabilities.includes('text')) throw allProvidersFailed();
+            return answer(task);
+        });
+        mockReadTelemetry.mockResolvedValue({
+            entries: [
+                { taskType: 'application_document_extraction', capability: 'text' },
+                // The blog runs at :15 with nobody waiting on it.
+                { taskType: 'article_generation', capability: 'article_generation' },
+                { taskType: 'article_fact_check', capability: 'text' },
+                { taskType: 'topic_selection', capability: 'classification' },
+            ],
+        });
+
+        await runWatch({ now: NOW });
+
+        expect(mockSendMessage.mock.calls[0][2]).toContain('Ошибок у пользователей за последний час: 1.');
+    });
+
     it('says "at least" when there were more failures than one read holds', async () => {
         mockRunAiTask.mockImplementation(async (task) => {
             if (task.capabilities.includes('text')) throw allProvidersFailed();
             return answer(task);
         });
         mockReadTelemetry.mockResolvedValue({
-            entries: [{ taskType: 'article_generation', capability: 'article_generation' }],
+            entries: [{ taskType: 'application_document_extraction', capability: 'text' }],
             truncated: true,
         });
 

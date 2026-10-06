@@ -90,22 +90,27 @@ function chatTitle(chat) {
 }
 
 /**
- * The chat that most recently wrote to the bot, or null.
+ * The chat that sent `/start <code>`, or null.
  *
- * This is how the operator is found without typing a chat id: they send the bot
- * any message, `/start` included, and the newest message names their chat.
- * Telegram keeps undelivered updates for 24 hours and, by default, answers with
- * the oldest; a negative offset asks for the newest ten instead (and forgets the
- * rest, which nothing else reads). Ten, not one, so that an update that is not a
- * message, such as the bot being unblocked, cannot hide the `/start` before it.
+ * The code comes from a one-time link the console hands the person connecting
+ * (`t.me/<bot>?start=<code>`), so nobody else who writes to the bot, however
+ * often, is connected in their place. Telegram keeps undelivered updates for 24
+ * hours and, by default, answers with the oldest; a negative offset asks for the
+ * newest hundred instead (and forgets the rest, which nothing else reads).
  */
-async function latestChat(token, deps) {
-    const updates = await callTelegram(token, 'getUpdates', { offset: -10, limit: 10, allowed_updates: ['message'] }, deps);
-    const chats = (Array.isArray(updates) ? updates : [])
-        .map((update) => update?.message?.chat)
-        .filter((chat) => chat && (typeof chat.id === 'number' || typeof chat.id === 'string'));
-    const chat = chats[chats.length - 1];
-    return chat ? { id: chat.id, title: chatTitle(chat) } : null;
+async function chatThatStarted(token, code, deps) {
+    if (!code) return null;
+    const updates = await callTelegram(token, 'getUpdates', { offset: -100, limit: 100, allowed_updates: ['message'] }, deps);
+    const started = (Array.isArray(updates) ? updates : [])
+        .map((update) => update?.message)
+        .filter((message) => {
+            const [command, payload, extra] = String(message?.text || '').trim().split(/\s+/);
+            const chatId = message?.chat?.id;
+            return /^\/start(?:@\w+)?$/.test(command) && payload === code && extra === undefined
+                && (typeof chatId === 'number' || typeof chatId === 'string');
+        });
+    const message = started[started.length - 1];
+    return message ? { id: message.chat.id, title: chatTitle(message.chat) } : null;
 }
 
 async function sendMessage(token, chatId, text, deps) {
@@ -122,6 +127,6 @@ module.exports = {
     TelegramError,
     callTelegram,
     getBot,
-    latestChat,
+    chatThatStarted,
     sendMessage,
 };

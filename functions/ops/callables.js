@@ -2,12 +2,14 @@
  * Super Admin → System Health → Telegram alerts.
  *
  * Connects the hourly watcher (`./watcher.js`) to the operator's Telegram:
- * save a bot token, connect the chat that wrote to the bot, send a test, or
- * remove it all. The environment vault's guards apply as everywhere else in the
- * console: the exact super-admin role, recent sign-in for changes, rate limits,
- * and a value-free audit record. No response carries the token or the chat id.
+ * save a bot token, connect a chat through a one-time Start link, send a test,
+ * or remove it all. The environment vault's guards apply as everywhere else in
+ * the console: the exact super-admin role, recent sign-in for changes, rate
+ * limits, and a value-free audit record. No response carries the token or the
+ * chat id.
  */
 
+const crypto = require('crypto');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 
 const { guardPrivileged, assertSuperAdmin, assertWithinRateLimit } = require('../environmentVault/guards');
@@ -18,6 +20,7 @@ const telegram = require('./telegram');
 const INTEGRATION = 'Telegram alerts';
 const CONNECTED_TEXT = 'SafeHaul: уведомления подключены. Сюда придёт сообщение, если ИИ или блог перестанут работать, и ещё одно, когда всё восстановится.';
 const TEST_TEXT = 'SafeHaul: тестовое сообщение. Уведомления работают.';
+const START_LINK_TTL_MS = 15 * 60 * 1000;
 
 /** Telegram's refusal, in the operator's terms. Its own text never reaches here. */
 function telegramFailure(error) {
@@ -29,7 +32,7 @@ function telegramFailure(error) {
             return new HttpsError('failed-precondition', 'Telegram did not accept this token. Copy it again from @BotFather.');
         case 'blocked':
         case 'bad_request':
-            return new HttpsError('failed-precondition', 'The bot cannot write to that chat. Send /start to the bot again, then press Connect chat.');
+            return new HttpsError('failed-precondition', 'The bot cannot write to that chat. If you blocked the bot in Telegram, unblock it, then press Reconnect chat.');
         case 'webhook_set':
             return new HttpsError('failed-precondition', 'This bot is connected to another service. Create a new bot with @BotFather for SafeHaul alerts.');
         case 'rate_limited':
@@ -57,6 +60,16 @@ async function audit(request, action, metadata) {
     });
 }
 
+/** The one-time Start link still waiting to be used, or null. */
+function pendingStart(connection, now = Date.now()) {
+    const pending = connection?.pendingStart;
+    return pending?.code && Date.parse(pending.expiresAt) > now ? pending : null;
+}
+
+function startLink(connection, pending) {
+    return { link: `https://t.me/${connection.botUsername}?start=${pending.code}`, expiresAt: pending.expiresAt };
+}
+
 async function requireConnection() {
     const saved = await settings.readSettings();
     const token = await settings.readBotToken();
@@ -74,11 +87,13 @@ exports.getPlatformAlerts = onCall({ cors: true }, async (request) => {
         for (const [id, check] of Object.entries(watch.checks || {})) {
             checks[id] = { status: check?.status === 'down' ? 'down' : 'ok', since: check?.since || null };
         }
+        const pending = pendingStart(connection);
         return {
             bot: connection.botUsername ? { username: connection.botUsername } : null,
             chat: connection.chatId !== undefined && connection.chatId !== null
                 ? { title: connection.chatTitle || 'Telegram chat' }
                 : null,
+            pending: pending && connection.botUsername ? startLink(connection, pending) : null,
             watch: {
                 lastRunAt: watch.lastRunAt || null,
                 checks,
@@ -103,8 +118,11 @@ exports.savePlatformAlertToken = onCall({ cors: true }, async (request) => {
         const bot = await telegram.getBot(token);
         const saved = await settings.writeBotToken(token);
         // The whole connection is replaced: a chat belongs to the bot it wrote to.
+        // So is what the watcher last told it, so the next chat hears of anything
+        // already down instead of a recovery it never heard begin.
         await settings.replaceSettings({
             telegram: { botUsername: bot.username, tokenSavedAt: new Date().toISOString() },
+            watch: {},
         });
         await audit(request, ACTIONS.UPDATE, {
             setting: 'bot-token', key: saved.secretId, valueLength: saved.valueLength, sensitivity: 'sensitive',
@@ -120,20 +138,31 @@ exports.connectPlatformAlertChat = onCall({ cors: true }, async (request) => {
 
     try {
         const { saved, token } = await requireConnection();
-        const chat = await telegram.latestChat(token);
-        if (!chat) {
-            const bot = saved.telegram?.botUsername ? `@${saved.telegram.botUsername}` : 'the bot';
-            throw new HttpsError('failed-precondition', `Open Telegram, send /start to ${bot}, then press Connect chat again.`);
+        const connection = saved.telegram || {};
+        const pending = pendingStart(connection);
+        if (!pending) {
+            // First press: a code only this console has seen, in a link that sends
+            // it to the bot. Bot names are public, so "whoever wrote last" is not
+            // proof of who the operator is; this code is.
+            const fresh = {
+                code: crypto.randomBytes(12).toString('base64url'),
+                expiresAt: new Date(Date.now() + START_LINK_TTL_MS).toISOString(),
+            };
+            await settings.replaceSettings({ telegram: { ...connection, pendingStart: fresh } });
+            return { pending: startLink(connection, fresh) };
         }
+
+        const chat = await telegram.chatThatStarted(token, pending.code);
+        if (!chat) return { pending: startLink(connection, pending) };
+
         // Sent before it is saved, so a connected chat is one that was reached.
         await telegram.sendMessage(token, chat.id, CONNECTED_TEXT);
+        const rest = { ...connection };
+        delete rest.pendingStart;
         await settings.replaceSettings({
-            telegram: {
-                ...(saved.telegram || {}),
-                chatId: chat.id,
-                chatTitle: chat.title,
-                connectedAt: new Date().toISOString(),
-            },
+            telegram: { ...rest, chatId: chat.id, chatTitle: chat.title, connectedAt: new Date().toISOString() },
+            // A new destination starts from "all well", so it hears about anything already down.
+            watch: {},
         });
         await audit(request, ACTIONS.UPDATE, { setting: 'chat' });
         return { chat: { title: chat.title } };

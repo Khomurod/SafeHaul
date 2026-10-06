@@ -35,14 +35,14 @@ const mockSettings = {
 };
 jest.mock('../../ops/alertSettings', () => mockSettings);
 
-const mockTelegram = { getBot: jest.fn(), latestChat: jest.fn(), sendMessage: jest.fn() };
+const mockTelegram = { getBot: jest.fn(), chatThatStarted: jest.fn(), sendMessage: jest.fn() };
 jest.mock('../../ops/telegram', () => {
     const actual = jest.requireActual('../../ops/telegram');
     return {
         TOKEN_PATTERN: actual.TOKEN_PATTERN,
         TelegramError: actual.TelegramError,
         getBot: (...args) => mockTelegram.getBot(...args),
-        latestChat: (...args) => mockTelegram.latestChat(...args),
+        chatThatStarted: (...args) => mockTelegram.chatThatStarted(...args),
         sendMessage: (...args) => mockTelegram.sendMessage(...args),
     };
 });
@@ -66,7 +66,7 @@ beforeEach(() => {
     mockSettings.destroyBotToken.mockResolvedValue({ secretId: 'SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN', destroyed: 1 });
     mockSettings.replaceSettings.mockResolvedValue(undefined);
     mockTelegram.getBot.mockResolvedValue({ username: 'safehaul_alerts_bot', id: 1 });
-    mockTelegram.latestChat.mockResolvedValue({ id: 222, title: 'Dana Alvarez' });
+    mockTelegram.chatThatStarted.mockResolvedValue({ id: 222, title: 'Dana Alvarez' });
     mockTelegram.sendMessage.mockResolvedValue(undefined);
 });
 
@@ -102,19 +102,24 @@ describe('saving the bot token', () => {
         expect(mockSettings.writeBotToken).not.toHaveBeenCalled();
     });
 
-    it('stores a working token, names the bot, and forgets the old bot\'s chat', async () => {
+    it('stores a working token, names the bot, and forgets the old bot\'s chat and what the watcher told it', async () => {
         const response = await callables.savePlatformAlertToken(REQUEST({ token: `  ${TOKEN}  ` }));
 
         expect(mockSettings.writeBotToken).toHaveBeenCalledWith(TOKEN);
         expect(response).toEqual({ bot: { username: 'safehaul_alerts_bot' } });
         const [patch] = mockSettings.replaceSettings.mock.calls[0];
-        expect(Object.keys(patch)).toEqual(['telegram']);
         expect(patch.telegram).toEqual({ botUsername: 'safehaul_alerts_bot', tokenSavedAt: expect.any(String) });
+        // A check already down must reach the next chat as news, not as an unexplained recovery.
+        expect(patch.watch).toEqual({});
         expect(everythingSaid(response)).not.toContain(TOKEN);
     });
 });
 
 describe('connecting the chat', () => {
+    const LATER = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const EARLIER = new Date(Date.now() - 60 * 1000).toISOString();
+    const withPending = (pendingStart) => ({ telegram: { botUsername: 'safehaul_alerts_bot', pendingStart } });
+
     beforeEach(() => {
         mockSettings.readBotToken.mockResolvedValue(TOKEN);
         mockSettings.readSettings.mockResolvedValue({ telegram: { botUsername: 'safehaul_alerts_bot' } });
@@ -125,28 +130,58 @@ describe('connecting the chat', () => {
         await expect(callables.connectPlatformAlertChat(REQUEST())).rejects.toMatchObject({ code: 'failed-precondition' });
     });
 
-    it('says what to do when nobody has written to the bot yet', async () => {
-        mockTelegram.latestChat.mockResolvedValue(null);
-        await expect(callables.connectPlatformAlertChat(REQUEST()))
-            .rejects.toMatchObject({ message: 'Open Telegram, send /start to @safehaul_alerts_bot, then press Connect chat again.' });
-        expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
-    });
-
-    it('saves a chat only once a message reached it, and returns its name, not its id', async () => {
+    it('first hands out a one-time Start link, and connects nobody yet', async () => {
         const response = await callables.connectPlatformAlertChat(REQUEST());
 
+        const { code, expiresAt } = mockSettings.replaceSettings.mock.calls[0][0].telegram.pendingStart;
+        expect(code).toMatch(/^[A-Za-z0-9_-]{16,64}$/);
+        expect(Date.parse(expiresAt)).toBeGreaterThan(Date.now());
+        expect(response).toEqual({ pending: { link: `https://t.me/safehaul_alerts_bot?start=${code}`, expiresAt } });
+        expect(mockTelegram.chatThatStarted).not.toHaveBeenCalled();
+        expect(mockTelegram.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('connects only the chat that pressed Start on that link, and returns its name, not its id', async () => {
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+
+        const response = await callables.connectPlatformAlertChat(REQUEST());
+
+        expect(mockTelegram.chatThatStarted).toHaveBeenCalledWith(TOKEN, 'CODE123');
         expect(mockTelegram.sendMessage).toHaveBeenCalledWith(TOKEN, 222, expect.stringMatching(/уведомления подключены/));
-        expect(mockSettings.replaceSettings.mock.calls[0][0].telegram).toMatchObject({
-            botUsername: 'safehaul_alerts_bot', chatId: 222, chatTitle: 'Dana Alvarez',
+        const [patch] = mockSettings.replaceSettings.mock.calls[0];
+        expect(patch.telegram).toEqual({
+            botUsername: 'safehaul_alerts_bot', chatId: 222, chatTitle: 'Dana Alvarez', connectedAt: expect.any(String),
         });
+        // A new destination starts from "all well", so it hears about anything already down.
+        expect(patch.watch).toEqual({});
         expect(response).toEqual({ chat: { title: 'Dana Alvarez' } });
     });
 
+    it('keeps the same link while nobody has pressed Start on it', async () => {
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+        mockTelegram.chatThatStarted.mockResolvedValue(null);
+
+        await expect(callables.connectPlatformAlertChat(REQUEST())).resolves.toEqual({
+            pending: { link: 'https://t.me/safehaul_alerts_bot?start=CODE123', expiresAt: LATER },
+        });
+        expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+    });
+
+    it('hands out a new link once the old one has expired', async () => {
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: EARLIER }));
+
+        const response = await callables.connectPlatformAlertChat(REQUEST());
+
+        expect(mockTelegram.chatThatStarted).not.toHaveBeenCalled();
+        expect(response.pending.link).not.toContain('CODE123');
+    });
+
     it('does not save a chat the bot could not write to', async () => {
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
         mockTelegram.sendMessage.mockRejectedValue(new TelegramError('blocked', 'Telegram refused the request (403).'));
 
         await expect(callables.connectPlatformAlertChat(REQUEST()))
-            .rejects.toMatchObject({ message: expect.stringMatching(/Send \/start to the bot again/) });
+            .rejects.toMatchObject({ message: expect.stringMatching(/cannot write to that chat/) });
         expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
     });
 });
@@ -177,6 +212,7 @@ describe('the test message and the status', () => {
         expect(response).toEqual({
             bot: { username: 'safehaul_alerts_bot' },
             chat: { title: 'Dana Alvarez' },
+            pending: null,
             watch: {
                 lastRunAt: '2026-08-02T15:40:00.000Z',
                 checks: { vision: { status: 'down', since: '2026-08-02T14:40:00.000Z' } },
@@ -184,6 +220,16 @@ describe('the test message and the status', () => {
             },
         });
         expect(JSON.stringify(response)).not.toContain('222');
+    });
+
+    it('keeps an unused Start link on screen until it expires', async () => {
+        const expiresAt = new Date(Date.now() + 60 * 1000).toISOString();
+        mockSettings.readSettings.mockResolvedValue({ telegram: { botUsername: 'safehaul_alerts_bot', pendingStart: { code: 'CODE123', expiresAt } } });
+        expect((await callables.getPlatformAlerts(REQUEST())).pending)
+            .toEqual({ link: 'https://t.me/safehaul_alerts_bot?start=CODE123', expiresAt });
+
+        mockSettings.readSettings.mockResolvedValue({ telegram: { botUsername: 'safehaul_alerts_bot', pendingStart: { code: 'CODE123', expiresAt: '2020-01-01T00:00:00.000Z' } } });
+        expect((await callables.getPlatformAlerts(REQUEST())).pending).toBeNull();
     });
 });
 

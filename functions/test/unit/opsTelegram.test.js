@@ -75,24 +75,26 @@ describe('callTelegram', () => {
 });
 
 describe('finding the operator\'s chat', () => {
-    it('takes the newest chat that wrote to the bot, named as a person would be', async () => {
+    it('takes only the chat that pressed Start on the one-time link, named as a person would be', async () => {
         const fetchImpl = respond(200, {
             ok: true,
             result: [
-                { update_id: 1, message: { chat: { id: 111, first_name: 'Old' } } },
-                { update_id: 2, message: { chat: { id: 222, first_name: 'Dana', last_name: 'Alvarez' } } },
-                { update_id: 3, my_chat_member: { chat: { id: 333, first_name: 'Not a message' } } },
+                { update_id: 1, message: { text: '/start CODE123', chat: { id: 222, first_name: 'Dana', last_name: 'Alvarez' } } },
+                // Whoever else writes to the bot, later or guessing, is not connected.
+                { update_id: 2, message: { text: 'hello', chat: { id: 333, first_name: 'Stranger' } } },
+                { update_id: 3, message: { text: '/start WRONG', chat: { id: 444, first_name: 'Guess' } } },
+                { update_id: 4, message: { text: '/start', chat: { id: 555, first_name: 'Bare' } } },
             ],
         });
-        await expect(telegram.latestChat(TOKEN, { fetchImpl })).resolves.toEqual({ id: 222, title: 'Dana Alvarez' });
-        // By default Telegram answers with the oldest updates; the newest ten are asked for.
-        expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toMatchObject({ offset: -10, limit: 10 });
+        await expect(telegram.chatThatStarted(TOKEN, 'CODE123', { fetchImpl })).resolves.toEqual({ id: 222, title: 'Dana Alvarez' });
+        // By default Telegram answers with the oldest updates; the newest hundred are asked for.
+        expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toMatchObject({ offset: -100, limit: 100 });
     });
 
-    it('names a group by its title, and finds nothing when nobody has written', async () => {
-        const group = respond(200, { ok: true, result: [{ message: { chat: { id: -5, title: 'Dispatch' } } }] });
-        await expect(telegram.latestChat(TOKEN, { fetchImpl: group })).resolves.toEqual({ id: -5, title: 'Dispatch' });
-        await expect(telegram.latestChat(TOKEN, { fetchImpl: respond(200, { ok: true, result: [] }) }))
+    it('names a group by its title, and finds nothing until the link was used', async () => {
+        const group = respond(200, { ok: true, result: [{ message: { text: '/start@safehaul_alerts_bot CODE123', chat: { id: -5, title: 'Dispatch' } } }] });
+        await expect(telegram.chatThatStarted(TOKEN, 'CODE123', { fetchImpl: group })).resolves.toEqual({ id: -5, title: 'Dispatch' });
+        await expect(telegram.chatThatStarted(TOKEN, 'CODE123', { fetchImpl: respond(200, { ok: true, result: [] }) }))
             .resolves.toBeNull();
     });
 });

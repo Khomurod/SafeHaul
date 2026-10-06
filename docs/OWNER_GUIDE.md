@@ -58,7 +58,8 @@
 
 1. В Telegram откройте @BotFather, отправьте /newbot и скопируйте токен из ответа.
 2. Super Admin → **System Health** → **Telegram alerts** → **Add token**.
-3. Отправьте своему боту /start, затем нажмите **Connect chat**.
+3. Нажмите **Connect chat**, откройте появившуюся ссылку, в Telegram нажмите Start,
+   затем снова **Connect chat**.
 4. Нажмите **Send test** и проверьте, что сообщение пришло.
 
 ## Если что-то сломалось

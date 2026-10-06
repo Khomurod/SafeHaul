@@ -78,7 +78,7 @@ describe('setting it up', () => {
 
         await waitFor(() => expect(services.savePlatformAlertToken).toHaveBeenCalledWith(TOKEN));
         await waitFor(() => expect(toast.showSuccess).toHaveBeenCalledWith(
-            'Token saved. In Telegram, send /start to @safehaul_alerts_bot, then press Connect chat.',
+            'Token saved for @safehaul_alerts_bot. Now press Connect chat.',
         ));
         expect(services.getPlatformAlerts).toHaveBeenCalledTimes(2);
     });
@@ -113,6 +113,21 @@ describe('setting it up', () => {
         ));
         expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(2);
         expect(toast.showError).not.toHaveBeenCalled();
+    });
+
+    it('hands out a one-time Start link, and shows it until the chat is connected', async () => {
+        const link = 'https://t.me/safehaul_alerts_bot?start=CODE123';
+        services.getPlatformAlerts
+            .mockResolvedValueOnce({ ...NOTHING, bot: { username: 'safehaul_alerts_bot' } })
+            .mockResolvedValue({ ...NOTHING, bot: { username: 'safehaul_alerts_bot' }, pending: { link } });
+        services.connectPlatformAlertChat.mockResolvedValue({ pending: { link } });
+        render(<TelegramAlertsCard />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Connect chat' }));
+
+        const opener = await screen.findByRole('link', { name: /Open @safehaul_alerts_bot in Telegram/ });
+        expect(opener.getAttribute('href')).toBe(link);
+        expect(toast.showInfo).toHaveBeenCalledWith('Open the link in Telegram, press Start, then press Connect chat again.');
+        expect(toast.showSuccess).not.toHaveBeenCalled();
     });
 
     it('says nothing failed when the password prompt is dismissed', async () => {

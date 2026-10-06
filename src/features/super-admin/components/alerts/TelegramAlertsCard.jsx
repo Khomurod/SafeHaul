@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useState } from 'react';
 import { Icon, Bell } from '@design-system/icons';
-import { Badge, Button, Card, FieldMessage } from '@/design-system/components';
+import { Badge, Button, Card, FieldMessage, Link } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -22,8 +22,9 @@ import {
  * Super Admin → System Health → Telegram alerts.
  *
  * Three steps, in the order a person takes them: add a bot token from
- * @BotFather, write /start to the bot and connect that chat, send a test. Then
- * the hourly watcher (`functions/ops/watcher.js`) reports what it last saw.
+ * @BotFather, connect a chat by pressing Start on a one-time link to the bot,
+ * send a test. Then the hourly watcher (`functions/ops/watcher.js`) reports
+ * what it last saw.
  * Changes need a recent sign-in, as everywhere in this console, so a stale
  * session gets the password prompt and the action is retried once.
  */
@@ -54,7 +55,7 @@ function Step({ number, title, children, actions }) {
 
 export function TelegramAlertsCard() {
     const headingId = useId();
-    const { showSuccess, showError } = useToast();
+    const { showSuccess, showError, showInfo } = useToast();
     const [state, setState] = useState(null);
     const [loadError, setLoadError] = useState(null);
     const [busy, setBusy] = useState(null);
@@ -89,11 +90,10 @@ export function TelegramAlertsCard() {
         }
     }, [requestReauth]);
 
-    const act = async (name, operation, success) => {
+    const act = async (name, operation, announce) => {
         setBusy(name);
         try {
-            const result = await runGuarded(operation);
-            showSuccess(success(result));
+            announce(await runGuarded(operation));
             await load();
         } catch (error) {
             if (!isReauthCancelled(error)) showError(describeAlertsError(error));
@@ -106,7 +106,7 @@ export function TelegramAlertsCard() {
         try {
             const result = await runGuarded(() => savePlatformAlertToken(token));
             setTokenMode(null);
-            showSuccess(`Token saved. In Telegram, send /start to @${result.bot.username}, then press Connect chat.`);
+            showSuccess(`Token saved for @${result.bot.username}. Now press Connect chat.`);
             await load();
         } catch (error) {
             // A dismissed password prompt leaves the dialog open, saving nothing.
@@ -132,6 +132,7 @@ export function TelegramAlertsCard() {
 
     const bot = state?.bot || null;
     const chat = state?.chat || null;
+    const pending = state?.pending || null;
     const watch = state?.watch || {};
     const lastRun = when(watch.lastRunAt);
 
@@ -186,14 +187,23 @@ export function TelegramAlertsCard() {
                                     variant="secondary"
                                     disabled={!bot}
                                     loading={busy === 'connect'}
-                                    onClick={() => act('connect', connectPlatformAlertChat,
-                                        (result) => `Connected to ${result.chat.title}. A confirmation is in your Telegram.`)}
+                                    onClick={() => act('connect', connectPlatformAlertChat, (result) => (result.chat
+                                        ? showSuccess(`Connected to ${result.chat.title}. A confirmation is in your Telegram.`)
+                                        : showInfo('Open the link in Telegram, press Start, then press Connect chat again.')))}
                                 >
                                     {chat ? 'Reconnect chat' : 'Connect chat'}
                                 </Button>
                             )}
                         >
-                            {bot ? `Send /start to @${bot.username}, then press Connect chat.` : 'Add the token first.'}
+                            {!bot && 'Add the token first.'}
+                            {bot && !pending && 'Press Connect chat for a one-time link to your bot.'}
+                            {bot && pending && (
+                                <>
+                                    <Link href={pending.link} external>Open @{bot.username} in Telegram</Link>, press
+                                    Start, then press {chat ? 'Reconnect chat' : 'Connect chat'} again. The link works
+                                    once, for 15 minutes.
+                                </>
+                            )}
                         </Step>
                         <Step
                             number={3}
@@ -204,7 +214,7 @@ export function TelegramAlertsCard() {
                                     variant="secondary"
                                     disabled={!chat}
                                     loading={busy === 'test'}
-                                    onClick={() => act('test', sendPlatformAlertTest, () => 'Test message sent. Check your Telegram.')}
+                                    onClick={() => act('test', sendPlatformAlertTest, () => showSuccess('Test message sent. Check your Telegram.'))}
                                 >
                                     Send test
                                 </Button>
@@ -239,8 +249,8 @@ export function TelegramAlertsCard() {
 
                 {watch.lastDeliveryError && (
                     <FieldMessage tone="error">
-                        The last alert could not be delivered. Send /start to the bot again, press Reconnect chat,
-                        and it will be sent at the next check.
+                        The last alert could not be delivered. Press Reconnect chat and follow its link, and the
+                        next check will send it.
                     </FieldMessage>
                 )}
             </Stack>

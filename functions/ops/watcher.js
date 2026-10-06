@@ -73,6 +73,16 @@ const LANES = Object.freeze([
 
 const CHECK_IDS = Object.freeze([...LANES.map((lane) => lane.id), 'blog']);
 
+/** The tasks a person waits on. The blog's tasks and these probes run with nobody waiting. */
+const USER_TASKS = new Set([
+    TASK_TYPES.CDL_EXTRACTION,
+    TASK_TYPES.MEDICAL_CARD_EXTRACTION,
+    TASK_TYPES.PSP_REPORT_EXTRACTION,
+    TASK_TYPES.MVR_EXTRACTION,
+    TASK_TYPES.APPLICATION_DOCUMENT_EXTRACTION,
+    TASK_TYPES.EDOC_FIELD_PLACEMENT,
+]);
+
 /** Why the blog refused, in the owner's words. */
 const BLOG_REASONS = Object.freeze({
     skipped_no_sources: 'нет свежих источников',
@@ -153,8 +163,7 @@ async function userFailuresLastHour(now) {
     });
     const counts = { vision: 0, text: 0 };
     for (const entry of entries) {
-        if (entry.taskType === TASK_TYPES.HEALTH_CHECK) continue;
-        counts[laneForCapability(entry.capability)] += 1;
+        if (USER_TASKS.has(entry.taskType)) counts[laneForCapability(entry.capability)] += 1;
     }
     // A full page is a floor, not a count.
     const shown = (count) => (truncated ? `${count}+` : String(count));
