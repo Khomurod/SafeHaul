@@ -183,10 +183,19 @@ describe('application PDF — agreements and signatures', () => {
         expect(text).toMatch(/MOTOR VEHICLE RECORD \(MVR\) AUTHORIZATION/);
         expect(text).toMatch(/AGREEMENT TO CONDUCT TRANSACTION ELECTRONICALLY/);
         expect(text).toMatch(/BACKGROUND CHECK DISCLOSURE AND AUTHORIZATION/);
-        // That heading wraps mid-phrase, so this matches the body's own text.
-        expect(text).toMatch(/Pre-Employment Screening Program \(PSP\)/);
+        // That heading wraps mid-phrase, so this matches the body's own text,
+        // which itself may wrap: compared with its line breaks folded.
+        expect(text.replace(/\s+/g, ' ')).toMatch(/Pre-Employment Screening Program \(PSP\)/);
         expect(text).toMatch(/Clearinghouse/);
         expect(text).toMatch(/AGREEMENT 5 OF 5/);
+    });
+
+    it('prints what was provided beside a document, such as the FCRA summary of rights', async () => {
+        const { text } = await render();
+        expect(text).toMatch(/PROVIDED WITH THIS DOCUMENT/);
+        expect(text.replace(/\s+/g, ' ')).toMatch(/A Summary of Your Rights Under the Fair Credit Reporting Act/);
+        // A URL longer than the line is split by character, so compared unspaced.
+        expect(text.replace(/\s+/g, '')).toContain('files.consumerfinance.gov/f/documents/bcfp_consumer-rights-summary_2018-09.pdf');
     });
 
     it('keeps the paragraph structure of the legal text', async () => {

@@ -138,7 +138,7 @@ describe('every submission states whether it was preserved', () => {
     expect(record.sequence).toBe(1);
     expect(record.isOriginal).toBe(true);
     expect(record.definitionVersion).toMatch(/^[a-f0-9]{16}$/);
-    expect(record.agreementVersion).toBe('v1');
+    expect(record.agreementVersion).toBe('v2');
     expect(record.submissionAttemptId).toBe('sub_ok');
     expect(record.recordedAt).toEqual(expect.any(String));
   });

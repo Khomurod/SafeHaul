@@ -72,6 +72,19 @@ function drawAgreement(doc, agreement, { signatureImage, applicantName, index, t
     });
     doc.moveDown(10);
 
+    // What was presented beside the document, such as the FCRA summary of rights.
+    const links = Array.isArray(agreement.links) ? agreement.links : [];
+    if (links.length > 0) {
+        doc.line('PROVIDED WITH THIS DOCUMENT', { size: TYPE.LABEL, font: doc.font.bold, color: INK.MUTED });
+        doc.moveDown(2);
+        for (const link of links) {
+            doc.paragraph(`${clean(link.label)}: ${clean(link.url)}`, { size: TYPE.SMALL });
+            if (clean(link.note)) doc.paragraph(clean(link.note), { size: TYPE.SMALL, color: INK.MUTED });
+            doc.moveDown(4);
+        }
+        doc.moveDown(6);
+    }
+
     doc.ensure(120);
     doc.rule();
     doc.moveDown(10);

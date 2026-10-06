@@ -180,6 +180,98 @@ I understand that Prospective Employer will use this record to evaluate my quali
 
 I understand that I have the right to review the information obtained and to dispute its accuracy with the state agency that issued it.`;
 
+// ---------------------------------------------------------------------------
+// v2 — current wording (2026-10-06).
+//
+// Three agreements change, each to a primary source. The other two keep their
+// v1 body word for word: a set is versioned as a whole, so they move to v2
+// unchanged.
+//
+// * PSP — FMCSA's mandatory Disclosure and Authorization language, word for
+//   word: https://www.psp.fmcsa.dot.gov/PspApi/documents/PSPDisclosureandAuthorizationForm.pdf
+//   ("LAST UPDATED 2/11/2016"). The form says the language "must be used in
+//   whole, exactly as provided" and "must exist as one stand-alone document".
+//   v1 was a paraphrase about a sixth of its length. The two blanks are the
+//   carrier's name. The form's Date, Signature and printed-name lines are
+//   collected electronically. Its closing NOTICEs speak to account holders, not
+//   applicants, so they are not presented. `legalAgreements.test.js` pins the
+//   words against the official text.
+// * FCRA — a disclosure and authorization with nothing else in the document
+//   (15 U.S.C. 1681b(b)(2)(A); Syed v. M-I, 9th Cir. 2017). v1's
+//   authorization of third parties "without reservation", its investigative-report
+//   rights sentence and its acknowledgement of a summary the app never gave are
+//   dropped. The CFPB summary of rights a driver applying online must be given
+//   (1681b(b)(2)(B)) is linked beside the document, not inside it.
+// * Clearinghouse — FMCSA's sample "General Consent for Limited Queries", with
+//   the scope the sample asks the employer to state. A full-query consent can
+//   only be given by the driver inside the Clearinghouse (49 CFR 382.703(b), (d)),
+//   so v1's "general consent for full query" granted nothing. The page now says
+//   where the full-query consent is given.
+// ---------------------------------------------------------------------------
+
+const V2_FCRA_DISCLOSURE = `BACKGROUND CHECK DISCLOSURE AND AUTHORIZATION
+
+{{companyName}} ("Prospective Employer") may obtain one or more consumer reports about you from a consumer reporting agency for employment purposes: to decide whether to hire you and, if you are hired, during your employment.
+
+These reports may include information about your character, general reputation, personal characteristics, mode of living, driving record, criminal history and employment history.
+
+AUTHORIZATION
+I authorize Prospective Employer to obtain consumer reports about me for employment purposes, now and, if I am hired, at any time during my employment.`;
+
+const V2_PSP_DISCLOSURE = `IMPORTANT DISCLOSURE REGARDING BACKGROUND REPORTS FROM THE PSP Online Service
+
+In connection with your application for employment with {{companyName}} (“Prospective Employer”), Prospective Employer, its employees, agents or contractors may obtain one or more reports regarding your driving, and safety inspection history from the Federal Motor Carrier Safety Administration (FMCSA).
+
+When the application for employment is submitted in person, if the Prospective Employer uses any information it obtains from FMCSA in a decision to not hire you or to make any other adverse employment decision regarding you, the Prospective Employer will provide you with a copy of the report upon which its decision was based and a written summary of your rights under the Fair Credit Reporting Act before taking any final adverse action. If any final adverse action is taken against you based upon your driving history or safety report, the Prospective Employer will notify you that the action has been taken and that the action was based in part or in whole on this report.
+
+When the application for employment is submitted by mail, telephone, computer, or other similar means, if the Prospective Employer uses any information it obtains from FMCSA in a decision to not hire you or to make any other adverse employment decision regarding you, the Prospective Employer must provide you within three business days of taking adverse action oral, written or electronic notification: that adverse action has been taken based in whole or in part on information obtained from FMCSA; the name, address, and the toll free telephone number of FMCSA; that the FMCSA did not make the decision to take the adverse action and is unable to provide you the specific reasons why the adverse action was taken; and that you may, upon providing proper identification, request a free copy of the report and may dispute with the FMCSA the accuracy or completeness of any information or report. If you request a copy of a driver record from the Prospective Employer who procured the report, then, within 3 business days of receiving your request, together with proper identification, the Prospective Employer must send or provide to you a copy of your report and a summary of your rights under the Fair Credit Reporting Act.
+
+Neither the Prospective Employer nor the FMCSA contractor supplying the crash and safety information has the capability to correct any safety data that appears to be incorrect. You may challenge the accuracy of the data by submitting a request to https://dataqs.fmcsa.dot.gov. If you challenge crash or inspection information reported by a State, FMCSA cannot change or correct this data. Your request will be forwarded by the DataQs system to the appropriate State for adjudication.
+
+Any crash or inspection in which you were involved will display on your PSP report. Since the PSP report does not report, or assign, or imply fault, it will include all Commercial Motor Vehicle (CMV) crashes where you were a driver or co-driver and where those crashes were reported to FMCSA, regardless of fault. Similarly, all inspections, with or without violations, appear on the PSP report. State citations associated with Federal Motor Carrier Safety Regulations (FMCSR) violations that have been adjudicated by a court of law will also appear, and remain, on a PSP report.
+
+The Prospective Employer cannot obtain background reports from FMCSA without your authorization.
+
+AUTHORIZATION
+
+If you agree that the Prospective Employer may obtain such background reports, please read the following and sign below:
+
+I authorize {{companyName}} (“Prospective Employer”) to access the FMCSA Pre-Employment Screening Program (PSP) system to seek information regarding my commercial driving safety record and information regarding my safety inspection history. I understand that I am authorizing the release of safety performance information including crash data from the previous five (5) years and inspection history from the previous three (3) years. I understand and acknowledge that this release of information may assist the Prospective Employer to make a determination regarding my suitability as an employee.
+
+I further understand that neither the Prospective Employer nor the FMCSA contractor supplying the crash and safety information has the capability to correct any safety data that appears to be incorrect. I understand I may challenge the accuracy of the data by submitting a request to https://dataqs.fmcsa.dot.gov. If I challenge crash or inspection information reported by a State, FMCSA cannot change or correct this data. I understand my request will be forwarded by the DataQs system to the appropriate State for adjudication.
+
+I understand that any crash or inspection in which I was involved will display on my PSP report. Since the PSP report does not report, or assign, or imply fault, I acknowledge it will include all CMV crashes where I was a driver or co-driver and where those crashes were reported to FMCSA, regardless of fault. Similarly, I understand all inspections, with or without violations, will appear on my PSP report, and State citations associated with FMCSR violations that have been adjudicated by a court of law will also appear, and remain, on my PSP report.
+
+I have read the above Disclosure Regarding Background Reports provided to me by Prospective Employer and I understand that if I sign this Disclosure and Authorization, Prospective Employer may obtain a report of my crash and inspection history. I hereby authorize Prospective Employer and its employees, authorized agents, and/or affiliates to obtain the information authorized above.`;
+
+const V2_CLEARINGHOUSE_CONSENT = `GENERAL CONSENT FOR LIMITED QUERIES OF THE FMCSA DRUG AND ALCOHOL CLEARINGHOUSE
+
+I hereby provide consent to {{companyName}} to conduct limited queries of the FMCSA Commercial Driver's License Drug and Alcohol Clearinghouse (Clearinghouse) to determine whether drug or alcohol violation information about me exists in the Clearinghouse. This consent covers multiple limited queries for the duration of my employment with {{companyName}}.
+
+I understand that if a limited query conducted by {{companyName}} indicates that drug or alcohol violation information about me exists in the Clearinghouse, FMCSA will not disclose that information to {{companyName}} without first obtaining additional specific consent from me.
+
+I further understand that if I refuse to provide consent for {{companyName}} to conduct a limited query of the Clearinghouse, {{companyName}} must prohibit me from performing safety-sensitive functions, including driving a commercial motor vehicle, as required by FMCSA's drug and alcohol program regulations.`;
+
+/**
+ * What a v2 page presents beside the document, never inside it: a separate
+ * document the law requires, or where the next consent is given. Frozen into
+ * the snapshot with the text, so the PDF shows what was provided.
+ */
+// The CFPB's current Appendix K model form: the file keeps its 2018-09 name,
+// but its content is the March 2023 revision (mandatory from March 20, 2024),
+// titled "Summary of Consumer Rights Model Form (Mar. 2023)", and the CFPB's own
+// model-forms page links it as the current form.
+const CFPB_SUMMARY_OF_RIGHTS = Object.freeze({
+    label: 'A Summary of Your Rights Under the Fair Credit Reporting Act',
+    url: 'https://files.consumerfinance.gov/f/documents/bcfp_consumer-rights-summary_2018-09.pdf',
+    note: 'Provided with this disclosure. Please read it before you agree.',
+});
+const CLEARINGHOUSE_FULL_QUERY = Object.freeze({
+    label: 'FMCSA Drug and Alcohol Clearinghouse',
+    url: 'https://clearinghouse.fmcsa.dot.gov',
+    note: 'Before you can drive for {{companyName}}, it must also run a full query of the Clearinghouse. You give that consent yourself, in the Clearinghouse, when {{companyName}} requests it.',
+});
+
 /**
  * Every agreement, keyed by stable id. `order` fixes presentation sequence so
  * the driver, the on-screen review and the PDF cannot disagree about it.
@@ -211,6 +303,7 @@ const AGREEMENTS = Object.freeze({
         title: 'MOTOR VEHICLE RECORD (MVR) AUTHORIZATION',
         versions: {
             v1: { body: V1_MVR_AUTHORIZATION },
+            v2: { body: V1_MVR_AUTHORIZATION },
         },
     },
     electronicSignature: {
@@ -223,6 +316,7 @@ const AGREEMENTS = Object.freeze({
         versions: {
             'legacy-1': { body: LEGACY_ELECTRONIC_SIG, legacy: true },
             v1: { body: V1_ELECTRONIC_SIG },
+            v2: { body: V1_ELECTRONIC_SIG },
         },
     },
     fcraDisclosure: {
@@ -235,6 +329,7 @@ const AGREEMENTS = Object.freeze({
         versions: {
             'legacy-1': { body: LEGACY_FCRA_DISCLOSURE, legacy: true },
             v1: { body: V1_FCRA_DISCLOSURE },
+            v2: { body: V2_FCRA_DISCLOSURE, links: [CFPB_SUMMARY_OF_RIGHTS] },
         },
     },
     pspDisclosure: {
@@ -247,6 +342,7 @@ const AGREEMENTS = Object.freeze({
         versions: {
             'legacy-1': { body: LEGACY_PSP_DISCLOSURE, legacy: true },
             v1: { body: V1_PSP_DISCLOSURE },
+            v2: { body: V2_PSP_DISCLOSURE },
         },
     },
     clearinghouseConsent: {
@@ -255,6 +351,8 @@ const AGREEMENTS = Object.freeze({
         order: 4,
         required: true,
         requiresSignature: true,
+        // The title v1 was shown under. A version may name its own, and a
+        // submission still bound to v1 freezes the title v1 was presented with.
         title: 'FMCSA CLEARINGHOUSE FULL QUERY CONSENT',
         // DELIBERATELY NO `legacy-1`. The pre-modernization consent screen
         // presented exactly three agreements — electronic signature, FCRA and
@@ -267,12 +365,19 @@ const AGREEMENTS = Object.freeze({
         // historical record say, truthfully, that consent was never obtained.
         versions: {
             v1: { body: V1_CLEARINGHOUSE_CONSENT },
+            // Not "full query": v2 is a limited-query consent, and a full-query
+            // consent is given only in the Clearinghouse.
+            v2: {
+                body: V2_CLEARINGHOUSE_CONSENT,
+                title: 'FMCSA DRUG AND ALCOHOL CLEARINGHOUSE CONSENT',
+                links: [CLEARINGHOUSE_FULL_QUERY],
+            },
         },
     },
 });
 
 /** Version every NEW submission presents. Historical records keep their own. */
-const CURRENT_AGREEMENT_VERSION = 'v1';
+const CURRENT_AGREEMENT_VERSION = 'v2';
 
 /**
  * Versions a NEW submission may legitimately claim to have displayed.
@@ -321,14 +426,28 @@ function resolveAgreement(agreementId, version, { companyName } = {}) {
     return {
         id: agreement.id,
         version,
-        title: agreement.title,
+        // A version's own title, where it has one, is part of what it presents.
+        title: entry.title || agreement.title,
         body,
         requiresSignature: agreement.requiresSignature,
         // Which page of the application shows it: `consent` (the final
         // agreements step) or `drivingRecord` (the MVR step).
         presentedOn: agreement.presentedOn || 'consent',
         legacy: Boolean(entry.legacy),
+        links: renderAgreementLinks(entry.links, { companyName }),
     };
+}
+
+/**
+ * A version's companion links, presented beside the document and never inside
+ * it, with the carrier named in their notes.
+ */
+function renderAgreementLinks(links, { companyName } = {}) {
+    return (Array.isArray(links) ? links : []).map((link) => ({
+        label: link.label,
+        url: link.url,
+        note: link.note ? renderAgreementBody(link.note, { companyName }) : null,
+    }));
 }
 
 /**
@@ -353,6 +472,7 @@ module.exports = {
     CURRENT_AGREEMENT_VERSION,
     legacySubstitution,
     renderAgreementBody,
+    renderAgreementLinks,
     requiredAgreementIds,
     submittableVersions,
     resolveAgreement,

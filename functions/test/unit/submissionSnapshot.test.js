@@ -397,3 +397,15 @@ describe('provenance distinguishes a live submission from a reconstruction', () 
     expect(snap.provenance.notes).toEqual(['Per-agreement acceptance was not captured at submission.']);
   });
 });
+
+describe('what was presented beside a document is frozen with it', () => {
+  it('records the FCRA summary of rights with the v2 disclosure, and nothing beside the others', () => {
+    const records = snapshot().agreements;
+    const fcra = records.find((a) => a.id === 'fcraDisclosure');
+    expect(fcra.version).toBe('v2');
+    expect(fcra.links.map((link) => link.url))
+      .toEqual(['https://files.consumerfinance.gov/f/documents/bcfp_consumer-rights-summary_2018-09.pdf']);
+    expect(records.find((a) => a.id === 'pspDisclosure').links).toEqual([]);
+  });
+});
+

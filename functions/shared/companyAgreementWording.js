@@ -18,7 +18,10 @@
 // changing the wording later can never change what an older applicant signed.
 //
 // Stored at `companies/{companyId}/legal_agreements/{agreementId}`:
-//   { currentVersion, versions: { [versionId]: { body, createdAt, createdBy, note } } }
+//   { currentVersion, versions: { [versionId]: { body, links, createdAt, createdBy, note } } }
+// `links` are the companions presented beside the text (the FCRA summary of
+// rights), copied from the platform's current version when the wording is
+// published and covered by the id, so a version never gains or loses one.
 // No client may read or write it (no Firestore rule = default deny); the two
 // callables in `functions/companyAgreements.js` are the only way in, and only a
 // super admin may publish. Legal wording is a super-admin responsibility.
@@ -27,7 +30,7 @@
 // snapshot tests can drive it directly.
 
 const crypto = require('crypto');
-const { AGREEMENTS, renderAgreementBody } = require('./legalAgreements');
+const { AGREEMENTS, CURRENT_AGREEMENT_VERSION, renderAgreementBody, renderAgreementLinks } = require('./legalAgreements');
 
 /** Company version ids start with this, so they can never collide with `v1` / `legacy-1`. */
 const COMPANY_VERSION_PREFIX = 'c-';
@@ -47,10 +50,24 @@ function normalizeWordingBody(body) {
     return normalized;
 }
 
-/** Content-addressed: the same text for the same agreement is always the same version. */
-function companyVersionId(agreementId, body) {
-    const digest = crypto.createHash('sha256').update(`${agreementId}\n${body}`).digest('hex');
+/**
+ * Content-addressed: the same text, with the same companions, for the same
+ * agreement is always the same version. A version without companions (every
+ * one published before they existed) keeps the id it always had.
+ */
+function companyVersionId(agreementId, body, links = []) {
+    const companions = links.length > 0
+        ? `\n${JSON.stringify(links.map((link) => [link.label, link.url, link.note]))}`
+        : '';
+    const digest = crypto.createHash('sha256').update(`${agreementId}\n${body}${companions}`).digest('hex');
     return `${COMPANY_VERSION_PREFIX}${digest.slice(0, 12)}`;
+}
+
+/** Companions in their stored shape; anything malformed is dropped, which the id then refuses. */
+function normalizeLinks(raw) {
+    return (Array.isArray(raw) ? raw : [])
+        .filter((link) => link && typeof link.label === 'string' && typeof link.url === 'string')
+        .map((link) => ({ label: link.label, url: link.url, note: typeof link.note === 'string' ? link.note : null }));
 }
 
 /**
@@ -65,9 +82,11 @@ function normalizeWordingDoc(agreementId, raw) {
     const rawVersions = raw.versions && typeof raw.versions === 'object' ? raw.versions : {};
     for (const [id, entry] of Object.entries(rawVersions)) {
         if (!entry || typeof entry !== 'object' || typeof entry.body !== 'string') continue;
-        if (companyVersionId(agreementId, entry.body) !== id) continue;
+        const links = normalizeLinks(entry.links);
+        if (companyVersionId(agreementId, entry.body, links) !== id) continue;
         versions[id] = {
             body: entry.body,
+            links,
             createdAt: typeof entry.createdAt === 'string' ? entry.createdAt : null,
             createdBy: typeof entry.createdBy === 'string' ? entry.createdBy : null,
             note: typeof entry.note === 'string' ? entry.note : null,
@@ -97,10 +116,14 @@ function publishWordingVersion(existingRaw, agreementId, body, { createdBy = nul
     if (!AGREEMENTS[agreementId]) throw new Error(`Unknown legal agreement: ${agreementId}`);
     const normalizedBody = normalizeWordingBody(body);
     const existing = normalizeWordingDoc(agreementId, existingRaw) || { versions: {} };
-    const version = companyVersionId(agreementId, normalizedBody);
+    // The companions a document needs (the FCRA summary of rights) do not depend
+    // on its wording, so the company's text takes the platform's current ones,
+    // fixed into this version from now on.
+    const links = normalizeLinks(AGREEMENTS[agreementId].versions[CURRENT_AGREEMENT_VERSION]?.links);
+    const version = companyVersionId(agreementId, normalizedBody, links);
     const versions = { ...existing.versions };
     if (!versions[version]) {
-        versions[version] = { body: normalizedBody, createdAt: now, createdBy, note };
+        versions[version] = { body: normalizedBody, links, createdAt: now, createdBy, note };
     }
     return { agreementId, currentVersion: version, versions, updatedAt: now };
 }
@@ -132,6 +155,9 @@ function resolveCompanyAgreement(agreementId, version, wordingDocs, { companyNam
         presentedOn: agreement.presentedOn || 'consent',
         legacy: false,
         companyWording: true,
+        // The companions this version was published with, never the platform's
+        // current ones: what a version presents does not change after the fact.
+        links: renderAgreementLinks(entry.links, { companyName }),
     };
 }
 

@@ -142,6 +142,7 @@ exports.getApplicationAgreements = functions
                 requiresSignature: agreement.requiresSignature,
                 presentedOn: agreement.presentedOn,
                 companyWording: Boolean(agreement.companyWording),
+                links: agreement.links || [],
             })),
         };
     });

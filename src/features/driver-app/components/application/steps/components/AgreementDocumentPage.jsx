@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Checkbox } from '@/design-system/components';
+import { Checkbox, Link } from '@/design-system/components';
 import { StepNavigation } from './StepNavigation';
 
 /**
@@ -11,6 +11,10 @@ import { StepNavigation } from './StepNavigation';
  * consent forms or any other language". So each agreement gets a page of its
  * own, holding the document, its one acknowledgement and the way on, and no
  * other text shares it.
+ *
+ * A version's `links` (the FCRA summary of rights; where the Clearinghouse's own
+ * full-query consent is given) are listed under the document, outside its text,
+ * so the document still consists solely of itself.
  *
  * Next is never disabled for an unticked box: pressed, it says what is missing
  * under the box and moves focus to it (the design system's "explain rather than
@@ -66,6 +70,16 @@ export function AgreementDocumentPage({
                     {agreement.body}
                 </p>
             </div>
+            {Array.isArray(agreement.links) && agreement.links.length > 0 && (
+                <ul className="space-y-ds-2 text-ds-sm text-ds-content-secondary">
+                    {agreement.links.map((link) => (
+                        <li key={link.url}>
+                            {link.note && <span>{link.note} </span>}
+                            <Link href={link.url} external>{link.label}</Link>
+                        </li>
+                    ))}
+                </ul>
+            )}
             <div className="rounded-ds-md bg-ds-surface-subtle p-ds-4">
                 <Checkbox
                     ref={checkboxRef}
