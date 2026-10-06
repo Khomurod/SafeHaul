@@ -191,11 +191,23 @@ describe('application PDF — agreements and signatures', () => {
     });
 
     it('prints what was provided beside a document, such as the FCRA summary of rights', async () => {
-        const { text } = await render();
+        // The acceptance says the page drew the version's links; only then are
+        // they recorded, and so printed.
+        const definition = buildApplicationDefinition({ company: company() });
+        const acceptances = Object.fromEntries(definition.agreements.map((a) => [a.id, {
+            accepted: true, acceptedAt: SUBMITTED_AT, ip: '203.0.113.42', linksShown: true,
+        }]));
+        const { text } = await render({}, { acceptanceOver: acceptances });
         expect(text).toMatch(/PROVIDED WITH THIS DOCUMENT/);
         expect(text.replace(/\s+/g, ' ')).toMatch(/A Summary of Your Rights Under the Fair Credit Reporting Act/);
         // A URL longer than the line is split by character, so compared unspaced.
         expect(text.replace(/\s+/g, '')).toContain('files.consumerfinance.gov/f/documents/bcfp_consumer-rights-summary_2018-09.pdf');
+    });
+
+    it('prints nothing beside a document the page did not say it showed', async () => {
+        const { text } = await render();
+        expect(text).not.toMatch(/PROVIDED WITH THIS DOCUMENT/);
+        expect(text.replace(/\s+/g, '')).not.toContain('bcfp_consumer-rights-summary');
     });
 
     it('keeps the paragraph structure of the legal text', async () => {

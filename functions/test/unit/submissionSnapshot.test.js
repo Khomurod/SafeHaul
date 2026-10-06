@@ -428,13 +428,27 @@ describe('provenance distinguishes a live submission from a reconstruction', () 
 });
 
 describe('what was presented beside a document is frozen with it', () => {
+  // The acceptance says whether the page drew the version's links. Testing and
+  // Production share this backend, and a frontend that never drew them must not
+  // get a record saying they were provided.
+  const shownBeside = (def) => Object.fromEntries(Object.entries(acceptAll(def))
+    .map(([id, evidence]) => [id, { ...evidence, linksShown: true }]));
+
   it('records the FCRA summary of rights with the v2 disclosure, and nothing beside the others', () => {
-    const records = snapshot().agreements;
+    const def = definition();
+    const records = snapshot({ definition: def, acceptances: shownBeside(def) }).agreements;
     const fcra = records.find((a) => a.id === 'fcraDisclosure');
     expect(fcra.version).toBe('v2');
     expect(fcra.links.map((link) => link.url))
       .toEqual(['https://files.consumerfinance.gov/f/documents/bcfp_consumer-rights-summary_2018-09.pdf']);
     expect(records.find((a) => a.id === 'pspDisclosure').links).toEqual([]);
+  });
+
+  it('records no link an acceptance does not say was shown', () => {
+    const fcra = snapshot().agreements.find((a) => a.id === 'fcraDisclosure');
+    expect(fcra.version).toBe('v2');
+    expect(fcra.accepted).toBe(true);
+    expect(fcra.links).toEqual([]);
   });
 });
 

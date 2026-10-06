@@ -109,6 +109,8 @@ const acceptances = Object.fromEntries(definition.agreements.map((agreement) => 
     acceptedAt: SUBMITTED_AT,
     ip: '203.0.113.42',
     userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) Safari/605.1.15',
+    // As the current wizard records it: the page drew each version's links.
+    linksShown: true,
 }]));
 
 const snapshot = buildSubmissionSnapshot({
