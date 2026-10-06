@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { Checkbox } from '@/design-system/components';
 import { StepNavigation } from './StepNavigation';
 
@@ -11,6 +11,10 @@ import { StepNavigation } from './StepNavigation';
  * consent forms or any other language". So each agreement gets a page of its
  * own, holding the document, its one acknowledgement and the way on, and no
  * other text shares it.
+ *
+ * Next is never disabled for an unticked box: pressed, it says what is missing
+ * under the box and moves focus to it (the design system's "explain rather than
+ * prevent"), so a keyboard user learns why it did not go on.
  *
  * Frozen: the `agreement-<id>` checkbox ids and the "<title> full text" group.
  * `e2e/helpers/wizardHelpers.cjs` and `e2e/public-application-responsive.spec.cjs`
@@ -29,6 +33,18 @@ export function AgreementDocumentPage({
 }) {
     const checkboxId = `agreement-${agreement.id}`;
     const headingId = `agreement-${agreement.id}-heading`;
+    const checkboxRef = useRef(null);
+    const [refused, setRefused] = useState(false);
+
+    const handleNext = () => {
+        if (!accepted) {
+            setRefused(true);
+            checkboxRef.current?.focus();
+            return;
+        }
+        onNext();
+    };
+
     return (
         <section aria-labelledby={headingId} className="space-y-ds-4">
             <p className="text-ds-sm text-ds-content-muted">Document {position} of {total}</p>
@@ -52,6 +68,7 @@ export function AgreementDocumentPage({
             </div>
             <div className="rounded-ds-md bg-ds-surface-subtle p-ds-4">
                 <Checkbox
+                    ref={checkboxRef}
                     id={checkboxId}
                     name={checkboxId}
                     label="I have read and agree"
@@ -59,13 +76,13 @@ export function AgreementDocumentPage({
                     required
                     checked={accepted}
                     onChange={(e) => onAcceptedChange(e.target.checked)}
+                    error={refused && !accepted ? 'Tick "I have read and agree" to go on.' : undefined}
                 />
             </div>
             <StepNavigation
                 onBack={onBack}
-                onContinue={onNext}
+                onContinue={handleNext}
                 continueLabel={position === total ? 'Continue to signature' : 'Next document'}
-                continueDisabled={!accepted}
             />
         </section>
     );

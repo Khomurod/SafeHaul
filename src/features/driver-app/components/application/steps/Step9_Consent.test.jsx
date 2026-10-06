@@ -89,12 +89,19 @@ describe('Step9_Consent', () => {
         render(<Harness />);
         await waitFor(() => expect(box('electronicSignature')).toBeInTheDocument());
 
-        expect(nextButton()).toBeDisabled();
+        // Pressable, and it explains itself: the box is named, flagged and focused.
+        expect(nextButton()).toBeEnabled();
+        fireEvent.click(nextButton());
+        expect(box('electronicSignature')).toBeInTheDocument();
+        expect(screen.getByText('Tick "I have read and agree" to go on.')).toBeInTheDocument();
+        expect(box('electronicSignature')).toHaveAttribute('aria-invalid', 'true');
+        expect(box('electronicSignature')).toHaveFocus();
+
         fireEvent.click(box('electronicSignature'));
-        // Still the same document until the driver goes on.
+        // Still the same document until the driver goes on, and the message is gone.
         expect(box('electronicSignature')).toBeChecked();
         expect(screen.getByText(AGREEMENTS[0].body)).toBeInTheDocument();
-        expect(nextButton()).toBeEnabled();
+        expect(screen.queryByText('Tick "I have read and agree" to go on.')).not.toBeInTheDocument();
 
         fireEvent.click(nextButton());
         await waitFor(() => expect(box('fcraDisclosure')).toBeInTheDocument());
@@ -129,7 +136,9 @@ describe('Step9_Consent', () => {
         render(<Harness initial={{ 'final-certification': 'agreed', signature: 'sig', agreementAcceptances: accepted('v0') }} />);
         await waitFor(() => expect(box('electronicSignature')).toBeInTheDocument());
         expect(box('electronicSignature')).not.toBeChecked();
-        expect(nextButton()).toBeDisabled();
+        fireEvent.click(nextButton());
+        expect(box('electronicSignature')).toBeInTheDocument();
+        expect(box('electronicSignature')).toHaveAttribute('aria-invalid', 'true');
     });
 
     it('records per-agreement acceptance evidence with the version accepted', async () => {
@@ -154,7 +163,9 @@ describe('Step9_Consent', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Back' }));
         await waitFor(() => expect(box('clearinghouseConsent')).toBeChecked());
         fireEvent.click(box('clearinghouseConsent'));
-        expect(nextButton()).toBeDisabled();
+        fireEvent.click(nextButton());
+        expect(box('clearinghouseConsent')).toBeInTheDocument();
+        expect(screen.queryByText('Final Certification & Signature')).not.toBeInTheDocument();
     });
 
     it('refuses to let the driver sign when the agreements could not load', async () => {
