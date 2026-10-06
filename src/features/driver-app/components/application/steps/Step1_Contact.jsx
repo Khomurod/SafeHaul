@@ -3,7 +3,7 @@ import InputField from '@shared/components/form/InputField';
 import { useFieldValidation } from '@shared/hooks/useFieldValidation';
 import { required, email as emailRule, phone as phoneRule, PHONE_RULE_MESSAGE } from '@shared/utils/fieldValidators';
 import { isValidPhone } from '@shared/utils/validation';
-import DateTripletField from '@shared/components/form/DateTripletField';
+import TypedDateField from './components/TypedDateField';
 import { ageFromIsoDate } from '@shared/utils/dateFormHelpers';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import { useUtils } from '@shared/hooks/useUtils';
@@ -70,6 +70,8 @@ const FIELD_ID_BY_NAME = {
  * fields carry autofill tokens, so a phone can fill them from the saved contact
  * card, and SSN and ZIP open the number pad. The SSN stays a masked field with
  * autofill off. `applicationAutofill.test.jsx` pins which fields may be filled.
+ * The date of birth is typed on the number pad (`TypedDateField`) instead of
+ * picked from three lists; it is stored as the same `YYYY-MM-DD`.
  */
 const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const ty = new Date().getFullYear();
@@ -282,7 +284,7 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                     {/* DOB Field - Configurable */}
                     {!dobConfig.hidden && (
                         <div>
-                            <DateTripletField
+                            <TypedDateField
                                 label="Date of Birth"
                                 idPrefix="dob"
                                 name="dob"
@@ -291,7 +293,7 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                                 onChange={updateFormData}
                                 maxToday={true}
                                 minYear={1920}
-                                helpText="Select month, day, and year — easier than scrolling a calendar."
+                                helpText="Type the month, day and year in numbers, for example 03 14 1984."
                                 autoComplete="bday"
                             />
                             {dobUnder21 && (

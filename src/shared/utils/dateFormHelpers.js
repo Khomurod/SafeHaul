@@ -47,11 +47,15 @@ export function buildIsoDate(y, m, d) {
     return `${y}-${String(m).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
 }
 
-/** @param {string} value — YYYY-MM or legacy mm/yyyy, MM/YYYY */
+/**
+ * @param {string} value — YYYY-MM, legacy mm/yyyy or MM/YYYY, or a full
+ *   YYYY-MM-DD (its month and year: employment and school dates were stored
+ *   with a day until 2026-10-06, and a row saved then still shows its month)
+ */
 export function parseMonthYear(value) {
     if (!value || typeof value !== 'string') return { year: '', month: '' };
     const t = value.trim();
-    const iso = t.match(/^(\d{4})-(\d{2})$/);
+    const iso = t.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
     if (iso) {
         const year = Number(iso[1]);
         const month = Number(iso[2]);

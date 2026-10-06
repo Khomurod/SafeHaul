@@ -34,6 +34,8 @@ describe('dateFormHelpers', () => {
     it('parseMonthYear accepts YYYY-MM and legacy mm/yyyy', () => {
         expect(parseMonthYear('2021-03')).toEqual({ year: 2021, month: 3 });
         expect(parseMonthYear('11/2019')).toEqual({ year: 2019, month: 11 });
+        // A date stored with its day still shows its month and year.
+        expect(parseMonthYear('2020-03-15')).toEqual({ year: 2020, month: 3 });
         expect(parseMonthYear('')).toEqual({ year: '', month: '' });
     });
 

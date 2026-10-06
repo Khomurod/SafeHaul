@@ -105,12 +105,30 @@ async function fillDateTriplet(page, prefix, { month, day, year }) {
   await expect(page.locator(`#${prefix}-day`)).toHaveValue(String(day));
 }
 
+/** The typed Month / Day / Year boxes (`TypedDateField`), as a driver types them. */
+async function fillTypedDate(page, prefix, { month, day, year }) {
+  await page.locator(`#${prefix}-month`).waitFor({ state: 'visible', timeout: 15_000 });
+  await page.fill(`#${prefix}-month`, String(month));
+  await page.fill(`#${prefix}-day`, String(day));
+  await page.fill(`#${prefix}-year`, String(year));
+  await expect(page.locator(`#${prefix}-year`)).toHaveValue(String(year));
+}
+
+/** The month and year selects (`MonthYearField`). */
+async function fillMonthYear(page, prefix, { month, year }) {
+  await page.locator(`#${prefix}-year`).waitFor({ state: 'visible', timeout: 15_000 });
+  await page.selectOption(`#${prefix}-year`, String(year));
+  await page.selectOption(`#${prefix}-month`, String(month));
+  await expect(page.locator(`#${prefix}-year`)).toHaveValue(String(year));
+  await expect(page.locator(`#${prefix}-month`)).toHaveValue(String(month));
+}
+
 async function fillStep1(page, suffix = '') {
   await expectStep(page, 'Personal Information');
   await page.fill('#first-name', `Test${suffix}`);
   await page.fill('#last-name', 'Driver');
   await page.fill('#ssn', '123-45-6789');
-  await fillDateTriplet(page, 'dob', { month: 1, day: 1, year: 1990 });
+  await fillTypedDate(page, 'dob', { month: 1, day: 1, year: 1990 });
   await page.fill('#phone', '5555551234');
   await page.fill('#email', `test${suffix || 'guest'}@example.com`);
   await page.fill('#street', '123 Main St');
@@ -215,6 +233,8 @@ module.exports = {
   waitForUploads,
   uploadStandardDocuments,
   fillDateTriplet,
+  fillTypedDate,
+  fillMonthYear,
   fillStep1,
   fillStep2,
   fillStep3RequiredFields,

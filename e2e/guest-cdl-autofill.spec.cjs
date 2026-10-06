@@ -133,9 +133,9 @@ test.describe('CDL photo auto-fill', () => {
         await page.fill('#street', '2210 Elm St');
         await page.fill('#city', 'Austin');
         await page.fill('#zip', '78701');
-        await page.selectOption('#dob-month', '3');
-        await page.selectOption('#dob-day', '14');
-        await page.selectOption('#dob-year', '1984');
+        await page.fill('#dob-month', '03');
+        await page.fill('#dob-day', '14');
+        await page.fill('#dob-year', '1984');
 
         await continueToLicenseStep(page);
         await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'uploaded');
