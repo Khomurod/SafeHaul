@@ -10,7 +10,7 @@ import { useApplicationRules, useStepGate } from '@features/driver-app/hooks/use
  * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
  * primitives and the shared `RadioGroup` adapter (2026-07-27). Field keys,
  * `YES_NO_OPTIONS` / `EXPERIENCE_OPTIONS`, the conditional drug-test
- * explanation, the frozen DOT question wording, and the VAL-1
+ * explanation, the DOT question wording (except as noted below), and the VAL-1
  * `form.checkValidity()` gate are unchanged.
  *
  * The per-step "Step 2 of 9" heading was removed: `Stepper` renders the
@@ -23,6 +23,10 @@ import { useApplicationRules, useStepGate } from '@features/driver-app/hooks/use
  * change — only which of them are offered. An answer a company has since hidden
  * is not rendered, so the applicant must choose again; the rule engine refuses it
  * at submission for the same reason, on the same page.
+ *
+ * 2026-10-06: the drug and alcohol question is now the one 49 CFR 40.25(j)
+ * requires, in its own terms: pre-employment tests in the past two years. It
+ * asked "ever", and about any DOT test, which is wider than the rule.
  */
 const Step2_Qualifications = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const yesNoOptions = YES_NO_OPTIONS;
@@ -70,10 +74,10 @@ const Step2_Qualifications = ({ formData, updateFormData, onNavigate, onPartialS
 
             <FormSection title="Drug & Alcohol History">
                 <p className="text-ds-sm text-ds-content-secondary">
-                    Have you ever tested positive, or refused to test on a pre-employment drug or alcohol test by an employer to whom you applied, but did not obtain safety-sensitive transportation work covered by DOT drug and alcohol testing regulations, or have you ever tested positive or refused to test on any DOT-mandated drug or alcohol test?
+                    In the past two years, have you tested positive, or refused to test, on any pre-employment drug or alcohol test administered by an employer to which you applied for, but did not obtain, safety-sensitive transportation work covered by DOT agency drug and alcohol testing rules?
                 </p>
                 <RadioGroup
-                    label="Drug and alcohol positive tests or refusals?"
+                    label="Positive pre-employment test or refusal in the past two years?"
                     name="drug-test-positive"
                     options={yesNoOptions}
                     value={formData['drug-test-positive']}

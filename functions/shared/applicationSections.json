@@ -141,7 +141,7 @@
             },
             {
                 "id": "drug-test-positive",
-                "label": "Positive Drug or Alcohol Test / Refusal"
+                "label": "Positive Pre-Employment Test / Refusal (Past 2 Years)"
             },
             {
                 "id": "drug-test-explanation",
