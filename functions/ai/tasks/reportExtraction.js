@@ -26,6 +26,10 @@ const { runAiTask } = require('../router/router');
 const MAX_ITEMS = 25;
 const MAX_TEXT = 200;
 const REPORT_TOTAL_DEADLINE_MS = 45000;
+// Below the total, so a stalled provider fails over instead of taking the whole
+// budget (see `CDL_PER_ATTEMPT_MS`). Longer than a single photo's 20s because a
+// report sends up to five pages; 25s still leaves 20s for the next provider.
+const REPORT_PER_ATTEMPT_MS = 25000;
 
 const VIOLATION_SCHEMA = Object.freeze({
     type: 'object',
@@ -217,6 +221,7 @@ async function extractReportSuggestions({ kind, imageDataUrls }, deps = {}) {
         maxOutputTokens: 2500,
         privacy: PRIVACY.RESTRICTED,
         totalDeadlineMs: REPORT_TOTAL_DEADLINE_MS,
+        perAttemptDeadlineMs: REPORT_PER_ATTEMPT_MS,
     });
 
     const result = await runAiTask(task, deps);
@@ -236,6 +241,7 @@ module.exports = {
     MVR_JSON_SCHEMA,
     PSP_JSON_SCHEMA,
     REPORT_TOTAL_DEADLINE_MS,
+    REPORT_PER_ATTEMPT_MS,
     extractReportSuggestions,
     looseDateToIso,
     normalizeMvrOutput,

@@ -358,6 +358,16 @@ async function runAiTask(task, deps = {}) {
                     // a single adapter bug disable all nine providers, which is
                     // exactly what the fallback order exists to prevent.
                     if (!providerError.retryable) break;
+
+                    // A retry is still this provider's turn, so under a ceiling
+                    // it has to leave a full slice for the next provider as well.
+                    // Otherwise a provider with a retry policy, placed first,
+                    // spends two ceilings on one stall and starves the fallback.
+                    if (perAttemptDeadlineMs !== Infinity && attempt < maxAttempts - 1) {
+                        const leftMs = totalDeadlineMs - (Date.now() - startedAt);
+                        const backoffMs = provider.retryPolicy?.backoffMs || 0;
+                        if (leftMs - backoffMs - perAttemptDeadlineMs < perAttemptDeadlineMs) break;
+                    }
                 }
             }
 

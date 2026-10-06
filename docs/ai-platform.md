@@ -336,6 +336,18 @@ timeouts are named constants and the tests assert at least 10s of headroom,
 because the relationship broke while the two numbers were literals in separate
 files.
 
+Every task that reads a driver's document also caps one provider's attempt below
+its total: 20s for a CDL photo or the carrier's text reader, 25s for a medical
+card, PSP report or MVR of up to five pages. The first provider in the order has
+a 45s timeout of its own, the whole budget, so without the cap a stalled one
+spent it all: the read timed out with other providers unused, and the total
+deadline, being task-fatal, ended the walk before the stall could count against
+that provider, so the next request waited on it again. With the cap a stall is a
+`timeout`, which fails over and is recorded like any other failure, and a
+provider whose policy allows a retry (Hugging Face) retries only when a full
+slice would still be left for the next provider. `aiReadingDeadlines.test.js`
+pins the cap on each of them.
+
 ### "Do not retry this provider" is not "do not try the others"
 
 `retryable: false` answers only the first question. The router originally treated
@@ -643,6 +655,8 @@ Every AI use in the repository, as of this document:
 | --- | --- | --- | --- | --- |
 | CDL photo auto-fill | `parseCdlWithGroq` (name retained for deployed clients) | `cdlExtraction` | vision + structured JSON | `restricted` |
 | AI Field Assistant | `analyzeEdocFieldPlacement` | `edocFieldPlacement` | vision + structured JSON (+ multi-image for >1 page) | `restricted` |
+| Applicant's own PSP report or MVR import | `extractApplicationReport` | `reportExtraction` | vision + structured JSON (+ multi-image for >1 page) | `restricted` |
+| Carrier's document reader | `extractCompanyApplicationDocuments` | `applicationDocumentExtraction`, then `cdlExtraction`, `medicalCardExtraction` or `reportExtraction` for a document its text did not cover | text + structured JSON + long context; vision for the fallback | `restricted` |
 | News & Insights topic choice | `publishScheduledBlogPosts` | `selectTopic` | text + structured JSON + classification | `public` |
 | News & Insights drafting | `publishScheduledBlogPosts` | `articleGeneration` | article writing + structured JSON + long context | `public` |
 | News & Insights fact check | `publishScheduledBlogPosts` | `verifyArticleClaims` | text + structured JSON + long context | `public` |

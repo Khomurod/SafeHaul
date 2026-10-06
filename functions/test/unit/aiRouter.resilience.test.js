@@ -249,6 +249,52 @@ describe('a per-attempt deadline lets a task fail over before the total runs out
         expect(firstCall[1].timeoutMs).toBeLessThanOrEqual(45000);
     });
 
+    it('does not retry a stalled provider into the time kept for the next one', async () => {
+        // Hugging Face is the provider whose policy allows a retry. Placed first
+        // by an operator, a stall spent two ceilings (20s + 0.75s + 20s of 45s)
+        // and left the next provider almost nothing. Each attempt here advances
+        // the clock by its whole ceiling, as a stall does.
+        let now = Date.now();
+        const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+        mockExecute.mockImplementation(async (providerId, context) => {
+            if (providerId === 'huggingface') {
+                now += context.timeoutMs;
+                throw new AiError('timeout', `No response within ${context.timeoutMs}ms.`, { providerId });
+            }
+            return { text: 'ok', model: 'test/model' };
+        });
+
+        try {
+            const result = await runAiTask(
+                textTask({ totalDeadlineMs: 45000, perAttemptDeadlineMs: 20000 }),
+                { providerOrder: ['huggingface', 'groq'] },
+            );
+
+            expect(result.providerId).toBe('groq');
+            expect(mockExecute.mock.calls.filter(([id]) => id === 'huggingface')).toHaveLength(1);
+        } finally {
+            clock.mockRestore();
+        }
+    });
+
+    it('still retries a provider that failed fast, when the reserve allows it', async () => {
+        let huggingfaceCalls = 0;
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'huggingface' && (huggingfaceCalls += 1) === 1) {
+                throw new AiError('provider_unavailable', 'HTTP 503', { providerId });
+            }
+            return { text: 'ok', model: 'test/model' };
+        });
+
+        const result = await runAiTask(
+            textTask({ totalDeadlineMs: 45000, perAttemptDeadlineMs: 20000 }),
+            { providerOrder: ['huggingface', 'groq'] },
+        );
+
+        expect(result.providerId).toBe('huggingface');
+        expect(huggingfaceCalls).toBe(2);
+    });
+
     it('will not honour a stated retry wait that would consume the failover reserve', async () => {
         const { AiError } = require('../../ai/router/errors');
         // Gemini asks for a 30s wait (the max) — honouring it under a 20s ceiling

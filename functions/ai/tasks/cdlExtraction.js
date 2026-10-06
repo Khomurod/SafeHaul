@@ -65,6 +65,17 @@ function normalizeFields(raw) {
 const CDL_TOTAL_DEADLINE_MS = 45000;
 
 /**
+ * Ceiling for one provider's attempt, below the total on purpose.
+ *
+ * The first provider in the routing order has a timeout as long as the whole
+ * budget, so without this a stalled one took all 45s: the driver got a timeout
+ * while the other providers sat unused, and the stall ended the task before it
+ * could count against that provider, so the next driver waited on it too. A
+ * stall now fails over with time to spare and is recorded like any failure.
+ */
+const CDL_PER_ATTEMPT_MS = 20000;
+
+/**
  * @param {object} params
  * @param {string} params.imageDataUrl a `data:image/...;base64,...` URL
  * @param {object} [deps] injection seam for tests
@@ -92,6 +103,7 @@ async function extractCdlFields({ imageDataUrl }, deps = {}) {
         // 45s leaves room for the callable to map the error and for the
         // telemetry write to land.
         totalDeadlineMs: CDL_TOTAL_DEADLINE_MS,
+        perAttemptDeadlineMs: CDL_PER_ATTEMPT_MS,
     });
 
     const result = await runAiTask(task, deps);
@@ -109,6 +121,7 @@ module.exports = {
     CDL_JSON_SCHEMA,
     CDL_PROMPT,
     CDL_TOTAL_DEADLINE_MS,
+    CDL_PER_ATTEMPT_MS,
     normalizeFields,
     FIELD_KEYS,
 };
