@@ -3,7 +3,7 @@ import InputField from '@shared/components/form/InputField';
 import { useFieldValidation } from '@shared/hooks/useFieldValidation';
 import { required, email as emailRule, phone as phoneRule, PHONE_RULE_MESSAGE } from '@shared/utils/fieldValidators';
 import { isValidPhone } from '@shared/utils/validation';
-import TypedDateField from '@shared/components/form/TypedDateField';
+import TypedDateField from './components/TypedDateField';
 import { ageFromIsoDate } from '@shared/utils/dateFormHelpers';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import { useUtils } from '@shared/hooks/useUtils';

@@ -66,6 +66,11 @@ function isoOf(parts) {
  *
  * Frozen like `DateTripletField`'s: the `${idPrefix}-month|day|year` element
  * ids, and `autoComplete="bday"` giving `bday-month`, `bday-day`, `bday-year`.
+ *
+ * Private to the application wizard, which asks the date of birth with it. It is
+ * not a shared primitive: a second use belongs in the design system, with the
+ * documentation, stories and catalog entry an approved component carries
+ * (roadmap, "Layer contracts").
  */
 export default function TypedDateField({
     label,
