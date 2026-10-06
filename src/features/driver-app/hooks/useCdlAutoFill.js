@@ -27,6 +27,7 @@ import { ref, uploadBytes } from 'firebase/storage';
 import { functions, storage } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { parseAddressPartsFromCdl } from '@shared/utils/parseCdlAddress';
+import { aiReadErrorMessage } from '@shared/utils/aiReadErrors';
 import { toUsStateName } from '@shared/utils/usStates';
 import { resolveApplicationGate } from '@/config/applicationGates';
 import {
@@ -132,13 +133,13 @@ export function useCdlAutoFill({ companyId, applicationConfig, onAutoFilled, onR
       console.error('[useCdlAutoFill] CDL auto-fill failed:', err);
       if (cdlFront) {
         // The photo is in Storage and is the CDL front either way, so the driver
-        // goes on by hand with it attached instead of taking it again.
-        showError('We could not read your CDL. Your photo is attached; please fill in the form.');
+        // goes on by hand with it attached instead of taking it again. Nothing
+        // here says the licence was unreadable: the service may simply be down.
+        showError('Auto-fill did not work this time. Your photo is attached; please fill in the form.');
         onAutoFilled((prev) => ({ ...prev, 'cdl-front': prev['cdl-front'] || cdlFront }));
         return;
       }
-      const msg = err?.message || 'Could not auto-fill from CDL. You can continue manually.';
-      showError(msg);
+      showError(aiReadErrorMessage(err, 'Auto-fill did not work this time. You can continue manually.'));
       // Nothing was kept, so the driver stays on the choice screen rather than
       // being force-routed into the full manual wizard unexpectedly.
       onReturnToChooser();

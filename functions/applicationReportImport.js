@@ -19,13 +19,15 @@ const { db } = require('./firebaseAdmin');
 const { checkRateLimit } = require('./shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
 const { extractReportSuggestions, KINDS } = require('./ai/tasks/reportExtraction');
+const { failureKind } = require('./ai/router/errors');
 
 const MAX_PAGES = 5;
 const MAX_IMAGE_CHARS = 4 * 1024 * 1024;
 const IMAGE_DATA_URL_PREFIX = /^data:image\/(png|jpeg|jpg|webp);base64,/;
 const FUNCTION_TIMEOUT_SECONDS = 60;
 
-function toHttpsError(category) {
+function toHttpsError(error) {
+    const category = error?.category;
     switch (category) {
         case 'not_configured':
         case 'capability_unavailable':
@@ -39,7 +41,16 @@ function toHttpsError(category) {
         case 'schema_validation_failed':
             return new functions.https.HttpsError('internal', 'The report could not be read. Please retry, or continue and enter the details yourself.');
         default:
-            return new functions.https.HttpsError('internal', 'Reading the report failed. Please retry with clearer pages.');
+            // The services, not the pages, unless every answer was unusable: see
+            // `failureKind`. This used to ask for clearer pages on an outage.
+            switch (failureKind(error)) {
+                case 'unreadable':
+                    return new functions.https.HttpsError('internal', 'The report could not be read. Please retry, or continue and enter the details yourself.');
+                case 'unavailable':
+                    return new functions.https.HttpsError('unavailable', 'Report import is temporarily unavailable. Please try again in a few minutes, or continue and enter the details yourself.');
+                default:
+                    return new functions.https.HttpsError('internal', 'Reading the report did not work this time. Please retry, or continue and enter the details yourself.');
+            }
     }
 }
 
@@ -96,7 +107,7 @@ exports.extractApplicationReport = functions
             result = await extractReportSuggestions({ kind, imageDataUrls: pages });
         } catch (error) {
             console.error(`[extractApplicationReport] AI task failed kind=${kind} category=${error?.category || 'internal'} provider=${error?.providerId || 'none'}`);
-            throw toHttpsError(error?.category);
+            throw toHttpsError(error);
         }
 
         return {

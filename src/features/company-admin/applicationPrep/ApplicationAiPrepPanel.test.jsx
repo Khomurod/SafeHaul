@@ -177,6 +177,32 @@ describe('reading what is attached', () => {
         expect(applyExtraction).not.toHaveBeenCalled();
     });
 
+    it("shows the reader's own limit, not the draft's", async () => {
+        const failure = new Error('That is a lot of reading in one hour. Please try again later.');
+        failure.code = 'functions/resource-exhausted';
+        mocks.call.mockRejectedValue(failure);
+        renderPanel();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(/a lot of reading in one hour/);
+        expect(alert).not.toHaveTextContent(/saves/);
+    });
+
+    it('says the read did not finish when the server never answered, instead of a bare code', async () => {
+        const failure = new Error('deadline-exceeded');
+        failure.code = 'functions/deadline-exceeded';
+        mocks.call.mockRejectedValue(failure);
+        renderPanel();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(/did not finish/);
+        expect(alert).not.toHaveTextContent('deadline-exceeded');
+    });
+
     it('says so when none of the files could even be opened', async () => {
         mocks.extractDocuments.mockResolvedValue({ documents: {}, methods: {}, failures: { psp: 'broken' } });
         renderPanel();

@@ -39,6 +39,7 @@ const { extractApplicationDocuments, DOCUMENT_KINDS } = require('../ai/tasks/app
 const { extractReportSuggestions, looseDateToIso } = require('../ai/tasks/reportExtraction');
 const { extractCdlFields } = require('../ai/tasks/cdlExtraction');
 const { extractMedicalCardFields } = require('../ai/tasks/medicalCardExtraction');
+const { failureKind } = require('../ai/router/errors');
 
 const MAX_PAGES_PER_DOCUMENT = 5;
 const MAX_IMAGE_CHARS = 4 * 1024 * 1024;
@@ -49,7 +50,8 @@ const FUNCTION_TIMEOUT_SECONDS = 120;
 /** Generous for staff, bounded because every call spends a vendor request. */
 const EXTRACT_LIMIT = Object.freeze({ limit: 20, windowSeconds: 3600 });
 
-function toHttpsError(category) {
+function toHttpsError(error) {
+    const category = error?.category;
     switch (category) {
         case 'not_configured':
         case 'capability_unavailable':
@@ -63,7 +65,16 @@ function toHttpsError(category) {
         case 'schema_validation_failed':
             return new functions.https.HttpsError('internal', 'The documents could not be read. Please try again, or type the details in.');
         default:
-            return new functions.https.HttpsError('internal', 'Reading the documents failed. Please try again.');
+            // The services, not the documents, unless every answer was unusable:
+            // see `failureKind`.
+            switch (failureKind(error)) {
+                case 'unreadable':
+                    return new functions.https.HttpsError('internal', 'The documents could not be read. Please try again, or type the details in.');
+                case 'unavailable':
+                    return new functions.https.HttpsError('unavailable', 'Document reading is temporarily unavailable. Please try again in a few minutes, or type the details in.');
+                default:
+                    return new functions.https.HttpsError('internal', 'Reading the documents failed. Please try again.');
+            }
     }
 }
 
@@ -229,7 +240,7 @@ exports.extractCompanyApplicationDocuments = functions
         // returning: the recruiter confirms every field anyway, and the ones that
         // did read save them the typing.
         if (Object.values(methods).every((method) => method === 'failed')) {
-            throw toHttpsError(failure?.category);
+            throw toHttpsError(failure);
         }
 
         return { success: true, extracted, methods };

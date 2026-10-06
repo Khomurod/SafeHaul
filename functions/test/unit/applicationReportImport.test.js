@@ -203,6 +203,27 @@ describe('extractApplicationReport', () => {
             expect(logged).not.toMatch(/AAAA/);
         });
 
+        it('says import is temporarily unavailable, not "clearer pages", when every provider failed', async () => {
+            const exhausted = Object.assign(new AiError('all_providers_failed', '3 attempted'), {
+                failureCategories: ['quota_exceeded', 'timeout', 'rate_limited'],
+            });
+            mockExtractReportSuggestions.mockRejectedValue(exhausted);
+            const error = await extractApplicationReport({ companyId: 'co1', kind: 'psp', pages: [PAGE] }, GUEST_CONTEXT).catch((e) => e);
+            expect(error.code).toBe('unavailable');
+            expect(error.message).toMatch(/temporarily unavailable/i);
+            expect(error.message).not.toMatch(/clearer pages/i);
+        });
+
+        it('says the report could not be read when every provider answered unusably', async () => {
+            const exhausted = Object.assign(new AiError('all_providers_failed', '2 attempted'), {
+                failureCategories: ['schema_validation_failed', 'output_truncated'],
+            });
+            mockExtractReportSuggestions.mockRejectedValue(exhausted);
+            const error = await extractApplicationReport({ companyId: 'co1', kind: 'psp', pages: [PAGE] }, GUEST_CONTEXT).catch((e) => e);
+            expect(error.code).toBe('internal');
+            expect(error.message).toMatch(/could not be read/i);
+        });
+
         it('maps a plain Error to internal', async () => {
             mockExtractReportSuggestions.mockRejectedValue(new Error('boom'));
             await expect(extractApplicationReport({ companyId: 'co1', kind: 'mvr', pages: [PAGE] }, GUEST_CONTEXT))

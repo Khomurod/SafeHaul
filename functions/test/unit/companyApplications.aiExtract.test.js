@@ -198,6 +198,27 @@ describe('the vision fallback', () => {
         spy.mockRestore();
     });
 
+    it('says reading is temporarily unavailable when every provider failed', async () => {
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockText.mockRejectedValue(Object.assign(new AiError('all_providers_failed', '2 attempted'), {
+            failureCategories: ['quota_exceeded', 'provider_unavailable'],
+        }));
+
+        await expect(call({ psp: { text: 'a' } })).rejects.toMatchObject({
+            code: 'unavailable',
+            message: expect.stringMatching(/temporarily unavailable/i),
+        });
+        spy.mockRestore();
+    });
+
+    it('says the same, not "not available", when every provider is resting', async () => {
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockText.mockRejectedValue(new AiError('provider_unavailable', 'cooling down'));
+
+        await expect(call({ psp: { text: 'a' } })).rejects.toMatchObject({ code: 'unavailable' });
+        spy.mockRestore();
+    });
+
     it('never leaks document content into an error or a log', async () => {
         const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
         mockText.mockRejectedValue(new AiError('internal', 'SSN 123-45-6789 was unreadable'));

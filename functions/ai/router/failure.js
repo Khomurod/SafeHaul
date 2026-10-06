@@ -36,9 +36,13 @@ function buildTerminalFailure({ attempted, skipped, lastError, failures = [] }) 
         const trail = failures.length
             ? failures.map((entry) => `${entry.providerId}=${entry.category}`).join(', ')
             : attempted.join(', ');
-        return new AiError('all_providers_failed',
+        const exhausted = new AiError('all_providers_failed',
             `${attempted.length} provider(s) attempted [${trail}];`
             + ` last failure ${lastError?.category || 'unknown'}.`);
+        // Each provider's category, so a caller can tell an outage from an
+        // answer no model could give (`failureKind`).
+        exhausted.failureCategories = failures.map((entry) => entry.category);
+        return exhausted;
     }
     // Distinct from "nothing is configured": the configuration exists and could
     // not be read, so pointing an operator at credentials would waste their time.
@@ -66,6 +70,14 @@ function buildTerminalFailure({ attempted, skipped, lastError, failures = [] }) 
         return new AiError('credential_error',
             `Credentials unreadable for ${affected || 'every eligible provider'};`
             + ' check Secret Manager access for the Functions runtime.');
+    }
+
+    // Every provider able to do this is resting after recent failures or a spent
+    // allowance. That clears on its own; it is not a missing configuration.
+    // Reported as `not_configured`, it told a driver "AI auto-fill is not
+    // configured on the server" and sent an operator to check keys.
+    if (skipped.some((entry) => entry.reason === SKIP_REASONS.COOLDOWN)) {
+        return new AiError('provider_unavailable', 'Every capable provider is cooling down after recent failures.');
     }
 
     const onlyIncapable = skipped.length > 0

@@ -86,6 +86,43 @@ function isTaskFatal(category) {
     return TASK_FATAL_CATEGORIES.includes(category);
 }
 
+/** A provider answered, but not in a shape SafeHaul could use. */
+const OUTPUT_CATEGORIES = Object.freeze(['malformed_response', 'schema_validation_failed', 'output_truncated']);
+
+/** The services failed: down, over quota, too slow, or SafeHaul cannot reach them. */
+const UNAVAILABLE_CATEGORIES = Object.freeze([
+    'timeout', 'network', 'provider_unavailable', 'quota_exceeded', 'rate_limited',
+    'model_unavailable', 'deadline_exceeded', 'credential_error', 'unauthorized',
+]);
+
+/**
+ * What a failed task means to the person who asked, in one word, so every
+ * callable words its message from the same reading.
+ *
+ * - `not_configured`: nothing is set up to do this.
+ * - `unreadable`: every provider tried answered, and none in a usable shape.
+ * - `unavailable`: the services failed, or every one able to do this is resting
+ *   after recent failures. Trying again later may work.
+ * - `failed`: anything else, such as a SafeHaul bug.
+ *
+ * `all_providers_failed` alone cannot tell an outage from an answer no model
+ * could give, so its trail (`failureCategories`) decides. Callers that read it
+ * as "the document" told drivers to retake a photo when the services were down.
+ */
+function failureKind(error) {
+    const category = error?.category;
+    if (category === 'not_configured' || category === 'capability_unavailable') return 'not_configured';
+    if (OUTPUT_CATEGORIES.includes(category)) return 'unreadable';
+    if (UNAVAILABLE_CATEGORIES.includes(category)) return 'unavailable';
+    if (category === 'all_providers_failed') {
+        const trail = Array.isArray(error.failureCategories) ? error.failureCategories : [];
+        return trail.length > 0 && trail.every((entry) => OUTPUT_CATEGORIES.includes(entry))
+            ? 'unreadable'
+            : 'unavailable';
+    }
+    return 'failed';
+}
+
 /**
  * Safe, user-facing text per category. Deliberately vague about vendors: an
  * operator learns which provider failed from the AI Integrations console and
@@ -234,6 +271,7 @@ module.exports = {
     TERMINAL_CATEGORIES,
     TASK_FATAL_CATEGORIES,
     isTaskFatal,
+    failureKind,
     SAFE_MESSAGES,
     categorizeHttpFailure,
 };

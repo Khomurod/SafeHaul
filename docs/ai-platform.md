@@ -388,6 +388,33 @@ each rediscover the same exhausted quota.
 **When everything fails** the caller gets a safe categorised error. Nothing is
 fabricated.
 
+### What the person who asked is told
+
+`failureKind` in `router/errors.js` reads a failure as one of four words, and the
+CDL, report-import, document-reader and E-Doc callables word their messages from
+it, so they agree on what a failure means:
+
+- `unavailable`: the services failed, or every provider able to do the task is
+  resting in a cooldown. The message says to try again in a few minutes or to
+  enter the details by hand.
+- `unreadable`: every provider tried answered, and none in a usable shape.
+- `not_configured`: nothing is set up to do this.
+- `failed`: anything else, such as a SafeHaul bug. The message blames neither
+  the services nor the document.
+
+`all_providers_failed` cannot say which of the first two it is, so the router
+attaches each provider's category to it (`failureCategories`) and the trail
+decides. The callables used to read it as the document's fault: a driver whose
+photo was fine, during an outage, was asked for "a clearer photo". A walk that
+found every capable provider cooling down now ends `provider_unavailable`, not
+`not_configured`, which told a driver that AI was "not configured on the server"
+and sent an operator to check keys.
+
+In the browser, `aiReadErrorMessage` shows the callable's sentence and replaces
+a bare code the server never sent ("deadline-exceeded", "internal") with the
+caller's own words. A CDL photo that is kept as the CDL front says auto-fill did
+not work, not that the licence could not be read.
+
 ### A cooldown sized to the vendor's cap, not to a round number
 
 The quota cooldown was a flat 30 minutes. Gemini's free tier is 20 requests per

@@ -154,13 +154,58 @@ describe('parseCdlWithGroq', () => {
     )).rejects.toMatchObject({ code: 'unavailable' });
   });
 
-  it('reports exhaustion of every provider as internal', async () => {
-    mockExtractCdlFields.mockRejectedValue(new AiError('all_providers_failed', '5 attempted'));
+  // An exhausted walk is the services failing unless every answer was unusable;
+  // the trail on the error, as the router builds it, says which.
+  const exhausted = (...trail) => Object.assign(new AiError('all_providers_failed', `${trail.length} attempted`), {
+    failureCategories: trail,
+  });
+
+  it('tells a driver the service is down, not that the photo is unclear, when every provider failed', async () => {
+    mockExtractCdlFields.mockRejectedValue(exhausted('quota_exceeded', 'timeout', 'provider_unavailable'));
+
+    const thrown = await parseCdlWithGroq(
+      { companyId: 'co1', imageDataUrl: 'data:image/png;base64,AAAA' },
+      GUEST_CONTEXT,
+    ).catch((err) => err);
+
+    expect(thrown.code).toBe('unavailable');
+    expect(thrown.message).toMatch(/temporarily unavailable/i);
+    expect(thrown.message).toMatch(/manually/i);
+    expect(thrown.message).not.toMatch(/clearer photo/i);
+  });
+
+  it('says the same, not "not configured", when every provider able to read photos is resting', async () => {
+    mockExtractCdlFields.mockRejectedValue(new AiError('provider_unavailable', 'cooling down'));
+
+    const thrown = await parseCdlWithGroq(
+      { companyId: 'co1', imageDataUrl: 'data:image/png;base64,AAAA' },
+      GUEST_CONTEXT,
+    ).catch((err) => err);
+
+    expect(thrown.code).toBe('unavailable');
+    expect(thrown.message).toMatch(/temporarily unavailable/i);
+    expect(thrown.message).not.toMatch(/not configured/i);
+  });
+
+  it('reports unusable answers from every provider as unreadable data', async () => {
+    mockExtractCdlFields.mockRejectedValue(exhausted('schema_validation_failed', 'malformed_response'));
 
     await expect(parseCdlWithGroq(
       { companyId: 'co1', imageDataUrl: 'data:image/png;base64,AAAA' },
       GUEST_CONTEXT,
-    )).rejects.toMatchObject({ code: 'internal' });
+    )).rejects.toMatchObject({ code: 'internal', message: expect.stringMatching(/unreadable data/i) });
+  });
+
+  it('never blames the photo for a failure of SafeHaul\'s own', async () => {
+    mockExtractCdlFields.mockRejectedValue(new Error('TypeError in a normaliser'));
+
+    const thrown = await parseCdlWithGroq(
+      { companyId: 'co1', imageDataUrl: 'data:image/png;base64,AAAA' },
+      GUEST_CONTEXT,
+    ).catch((err) => err);
+
+    expect(thrown.code).toBe('internal');
+    expect(thrown.message).not.toMatch(/clearer photo/i);
   });
 
   it('never logs the provider error detail, which can quote the licence', async () => {
