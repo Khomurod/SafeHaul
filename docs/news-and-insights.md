@@ -67,11 +67,12 @@ produces identical slot keys for both occurrences of 01:30.
 ## Idempotency
 
 The unique key for a publication is `${publicationDate}_${themeId}`, and that key
-**is the Firestore document id**. Creation uses `create()`, which fails if the
-document exists, so a scheduler retry, a duplicated delivery and a catch-up run
-all lose the race rather than producing a second article. There is no
-check-then-write window to lose. The scheduler treats the day as closed once any
-of its three keys exists.
+**is the Firestore document id**. Creation is a transaction that reads the day's
+three keys and creates the post only if none exists, so a scheduler retry, a
+duplicated delivery, a catch-up run and two manual runs either side of an hour all
+lose the race rather than producing a second article. There is no check-then-write
+window to lose. The scheduler also treats the day as closed once any of its three
+keys exists, before it spends anything on generation.
 
 ## Research source policy
 
@@ -497,13 +498,13 @@ produce a replacement. The ledger records a row saying exactly that when an
 article is deleted, so the behaviour is visible instead of being discovered.
 
 Freeing the slot safely was considered and **deliberately not done here.** The
-`create()` on that document id is the *only* thing preventing a double
-publication, and the tombstone is also what stops the generator rewriting the same
-topic the same day. Reopening a slot means a transaction that removes the post
-while moving the duplicate-prevention record somewhere that survives, which is a
-change to the anti-double-publish guarantee and needs its own justification and
-its own tests. Until then: delete removes the article from every public surface,
-and that day has no article.
+transaction that reads the day's keys and `create()`s on that document id is the
+*only* thing preventing a double publication, and the tombstone is also what
+stops the generator rewriting the same topic the same day. Reopening a slot means
+a transaction that removes the post while moving the duplicate-prevention record
+somewhere that survives, which is a change to the anti-double-publish guarantee
+and needs its own justification and its own tests. Until then: delete removes
+the article from every public surface, and that day has no article.
 
 ## Super Admin operation
 

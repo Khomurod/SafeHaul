@@ -134,6 +134,17 @@ describe('idempotency and retry safety', () => {
         expect(mockPosts.size).toBe(1);
     });
 
+    it('refuses a second theme\'s article on a day that has one, even past the day check', async () => {
+        // Two manual runs either side of an hour offer the day to different
+        // themes, and both pass the scheduler's day check before either writes.
+        const first = { title: 'A', slug: 'a', theme: 'industry-news', publicationDate: '2026-08-02', status: 'published' };
+        const second = { ...first, title: 'B', slug: 'b', theme: 'recruitment' };
+
+        expect((await store.createPost(first)).created).toBe(true);
+        expect((await store.createPost(second)).created).toBe(false);
+        expect([...mockPosts.keys()]).toEqual(['2026-08-02_industry-news']);
+    });
+
     it('publishes one article a day, and nothing more once it has', async () => {
         const morning = await publishDueSlots({ now: Date.parse('2026-08-02T12:30:00Z'), fetchImpl: researchFetch() });
         const evening = await publishDueSlots({ now: Date.parse('2026-08-02T23:30:00Z'), fetchImpl: researchFetch() });

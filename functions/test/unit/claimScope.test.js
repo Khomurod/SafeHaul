@@ -19,6 +19,9 @@ describe('a limitation is not a claim', () => {
         'SafeHaul does not run MVR, PSP or Clearinghouse checks.',
         'Two-way conversation threads and automated drip sequences are not available.',
         "A job board isn't part of SafeHaul.",
+        // The negation nearest the claim decides, and "or" stays inside it.
+        'SafeHaul does not monitor expiry dates and does not send renewal reminders.',
+        'SafeHaul neither pulls MVRs nor orders PSP reports.',
     ])('accepts %p', (text) => {
         expect(ok(text)).toBe(true);
     });
@@ -41,6 +44,12 @@ describe('a claim is still a claim', () => {
         ['SafeHaul runs drip campaigns that are not spammy.', 'SafeHaul runs drip campaigns'],
         ['SafeHaul sends automated expiry reminders for every driver document.', 'SafeHaul sends expiry reminders'],
         ['We give you legal advice on every hire.', 'SafeHaul provides legal advice'],
+        // A negation denies its own predicate, not every claim after it in the
+        // clause: "and", or a comma and a new subject, starts another predicate.
+        ['SafeHaul is not a staffing agency and pulls MVRs automatically.', 'SafeHaul runs MVR or PSP checks'],
+        ['SafeHaul does not replace your compliance team, and it sends automated expiry reminders.', 'SafeHaul sends expiry reminders'],
+        ["SafeHaul isn't a background-check vendor, it pulls MVRs straight from the states.", 'SafeHaul runs MVR or PSP checks'],
+        ['SafeHaul runs drip campaigns and texting is not available.', 'SafeHaul runs drip campaigns'],
     ])('refuses %p', (text, claim) => {
         expect(knowledge.checkClaims(text).violations).toContainEqual({ claim });
     });

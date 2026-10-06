@@ -13,9 +13,12 @@
  *
  * So the text is read sentence by sentence, and each sentence clause by clause:
  * a clause ends at a semicolon, a colon, a dash, or a "but" or "however". A match
- * counts unless a negation comes before it in its clause, or its own predicate
- * denies it ("drip sequences are not available"). "SafeHaul does not run MVR
- * checks, but it integrates with PSP screening" still makes a claim.
+ * counts unless the nearest negation before it in its clause reaches it, or its
+ * own predicate denies it ("drip sequences are not available"). A negation's
+ * reach ends at an "and" or at a comma and a new subject, where another predicate
+ * starts: "SafeHaul is not a staffing agency and pulls MVRs" still claims, while
+ * "does not monitor expiry dates or send reminders" denies both. "SafeHaul does
+ * not run MVR checks, but it integrates with PSP screening" still makes a claim.
  *
  * Which sentences are about SafeHaul depends on who is speaking. On SafeHaul's
  * own pages and in an article about SafeHaul, every sentence is (`scope: 'all'`,
@@ -30,11 +33,15 @@
  */
 
 const NAMES_SAFEHAUL = /\bsafe\s?haul\b/i;
-const NEGATION = /\b(?:not|no|never|neither|nor|cannot|without)\b|n['’]t\b/i;
+const NEGATION = /\b(?:not|no|never|neither|nor|cannot|without)\b|n['’]t\b/gi;
+// Where a negation stops reaching: another predicate, after "and" or after a
+// comma and a new subject ("isn't a vendor, it pulls MVRs").
+const NEGATION_ENDS = /\band\b|,\s*(?:it|we|they|safe\s?haul)\b/i;
 // What follows a match and denies it: the rest of its word, up to three more that
-// do not open a relative clause, then "is not", "are never", "isn't", "is
-// unavailable". "Drip campaigns that are not spammy" is still a claim.
-const DENIED_AFTER = /^\w*(?:\s+(?!(?:that|which|who)\b)\w+){0,3}?\s+(?:(?:is|are|was|were)\s+(?:not|never|unavailable)\b|(?:is|are|was|were)n['’]t\b)/i;
+// open neither a relative clause nor another predicate, then "is not", "are
+// never", "isn't", "is unavailable". "Drip campaigns that are not spammy" and
+// "drip campaigns and texting is not available" are still claims.
+const DENIED_AFTER = /^\w*(?:\s+(?!(?:that|which|who|and|or)\b)\w+){0,3}?\s+(?:(?:is|are|was|were)\s+(?:not|never|unavailable)\b|(?:is|are|was|were)n['’]t\b)/i;
 const CLAUSE_BREAK = /[;:]|\s[-–—]\s|[–—]|,?\s+\b(?:but|however|yet|whereas|although|though)\b/i;
 
 function sentencesOf(text) {
@@ -43,6 +50,13 @@ function sentencesOf(text) {
 
 function globalCopy(pattern) {
     return new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`);
+}
+
+/** Whether the nearest negation in `before` reaches its end, where the match starts. */
+function deniedBefore(before) {
+    const negations = [...before.matchAll(NEGATION)];
+    const nearest = negations[negations.length - 1];
+    return Boolean(nearest) && !NEGATION_ENDS.test(before.slice(nearest.index + nearest[0].length));
 }
 
 /**
@@ -62,9 +76,9 @@ function claimsMade(text, patterns, { scope = 'all' } = {}) {
         for (const clause of sentence.split(CLAUSE_BREAK)) {
             for (const { pattern, claim } of patterns) {
                 for (const match of clause.matchAll(globalCopy(pattern))) {
-                    const deniedBefore = NEGATION.test(clause.slice(0, match.index));
-                    const deniedAfter = DENIED_AFTER.test(clause.slice(match.index + match[0].length));
-                    if (!deniedBefore && !deniedAfter) made.add(claim);
+                    const denied = deniedBefore(clause.slice(0, match.index))
+                        || DENIED_AFTER.test(clause.slice(match.index + match[0].length));
+                    if (!denied) made.add(claim);
                 }
             }
         }
