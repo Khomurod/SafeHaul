@@ -116,7 +116,8 @@ function visionReaderFor(kind) {
     switch (kind) {
         case 'cdl':
             return async (imageDataUrls) => {
-                const result = await extractCdlFields({ imageDataUrl: imageDataUrls[0] });
+                // Every page: a licence attached back first prints its fields on the second.
+                const result = await extractCdlFields({ imageDataUrls });
                 const fields = result.fields || {};
                 // The licence reader keeps dates "exactly as printed" — its own prompt
                 // asks for that — so they are normalised here, as every other reader's

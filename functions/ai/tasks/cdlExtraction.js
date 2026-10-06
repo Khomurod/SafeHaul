@@ -6,7 +6,8 @@
  * That is deliberate: this change is meant to alter *which vendor may answer*,
  * not what SafeHaul asks for or what the driver-application wizard receives.
  * Any behavioural drift here would show up as different extracted fields on a
- * live driver application.
+ * live driver application. The one addition is for the carrier's reader, which
+ * can send a licence's two sides: with more than one page, one sentence says so.
  *
  * Privacy: a CDL photograph is `restricted`. Nothing about its content is
  * logged anywhere on this path.
@@ -41,6 +42,9 @@ const CDL_PROMPT = [
     'For fullAddress, prefer USPS-style with commas: street line, city, ST ZIP (ZIP+4 ok).',
     'If the card prints on one line with no commas, keep that single line; do not invent commas.',
 ].join(' ');
+
+/** Added only when there is more than one page, so the driver's request is unchanged. */
+const CDL_PAGES_NOTE = 'The images are the pages of one license, front and back: read each field from whichever page prints it.';
 
 const FIELD_KEYS = Object.freeze([
     'firstName', 'lastName', 'dateOfBirth', 'fullAddress', 'cdlNumber', 'expirationDate',
@@ -77,16 +81,21 @@ const CDL_PER_ATTEMPT_MS = 20000;
 
 /**
  * @param {object} params
- * @param {string} params.imageDataUrl a `data:image/...;base64,...` URL
+ * @param {string} [params.imageDataUrl] a `data:image/...;base64,...` URL: the driver's one photo
+ * @param {string[]} [params.imageDataUrls] the pages of one licence, in the order attached
  * @param {object} [deps] injection seam for tests
  * @returns {Promise<{ fields: object, providerId: string, model: string, latencyMs: number, fallbackCount: number }>}
  */
-async function extractCdlFields({ imageDataUrl }, deps = {}) {
+async function extractCdlFields({ imageDataUrl, imageDataUrls }, deps = {}) {
+    const pages = Array.isArray(imageDataUrls) && imageDataUrls.length > 0 ? imageDataUrls : [imageDataUrl];
+    const capabilities = [CAPABILITIES.VISION, CAPABILITIES.STRUCTURED_JSON];
+    if (pages.length > 1) capabilities.push(CAPABILITIES.MULTI_IMAGE);
+
     const task = defineTask({
         taskType: TASK_TYPES.CDL_EXTRACTION,
-        capabilities: [CAPABILITIES.VISION, CAPABILITIES.STRUCTURED_JSON],
-        inputText: CDL_PROMPT,
-        images: [{ dataUrl: imageDataUrl }],
+        capabilities,
+        inputText: pages.length > 1 ? `${CDL_PROMPT} ${CDL_PAGES_NOTE}` : CDL_PROMPT,
+        images: pages.map((dataUrl) => ({ dataUrl })),
         outputSchema: CDL_JSON_SCHEMA,
         schemaName: 'cdl_extraction',
         temperature: 0,

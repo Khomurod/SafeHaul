@@ -154,6 +154,15 @@ describe('the vision fallback', () => {
         expect(result.extracted.license.cdlExpiration).toBe('2030-12-31');
     });
 
+    it('reads every page of a licence, whichever side comes first', async () => {
+        // Only the first page used to reach the licence reader, so a licence
+        // attached back first lost the side that prints the fields.
+        const back = 'data:image/jpeg;base64,BBBB';
+        await call({ cdl: { pages: [back, PAGE] } });
+
+        expect(mockCdl).toHaveBeenCalledWith({ imageDataUrls: [back, PAGE] });
+    });
+
     it('mixes both routes in one request and reports which was used for what', async () => {
         const result = await call({ psp: { text: 'PSP body' }, medical: { pages: [PAGE] } });
 
