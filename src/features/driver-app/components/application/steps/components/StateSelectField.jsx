@@ -25,6 +25,10 @@ import { FormField, Select } from '@/design-system/components';
  * required check passed because the field was not empty (found 2026-10-01). The
  * writers now normalise to listed names (`toUsStateName`); this is what keeps a
  * value they could not normalise, or one saved before they did, honest on screen.
+ *
+ * `autoComplete` has no default: only the applicant's own current address passes
+ * `address-level1`. A built-in token would let the browser put that state into
+ * every employer, accident and licence row too.
  */
 export function StateSelectField({
     id,
@@ -34,11 +38,12 @@ export function StateSelectField({
     states,
     label = 'State',
     required = true,
+    autoComplete,
 }) {
     const unlisted = typeof value === 'string' && value && !states.includes(value) ? value : null;
     return (
         <FormField id={id} label={label} required={required}>
-            <Select name={name} value={value || ''} onChange={onChange}>
+            <Select name={name} value={value || ''} onChange={onChange} autoComplete={autoComplete}>
                 <option value="" disabled>Select State</option>
                 {unlisted && <option value={unlisted}>{unlisted}</option>}
                 {states.map((state) => <option key={state} value={state}>{state}</option>)}

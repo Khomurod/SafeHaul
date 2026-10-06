@@ -43,6 +43,17 @@ describe('EmployerNameAutocomplete', () => {
     expect(onChange).toHaveBeenCalledWith('companyName', 'Acme');
   });
 
+  it('keeps browser autofill off in both modes, so the applicant\'s own details never land here', () => {
+    const { unmount } = render(<EmployerNameAutocomplete id="co" value="" onChange={vi.fn()} />);
+    // The lookup draws its own listbox; the browser's list would cover it.
+    expect(screen.getByRole('combobox')).toHaveAttribute('autocomplete', 'off');
+    unmount();
+
+    vi.stubEnv('VITE_SOCRATA_APP_TOKEN', '');
+    render(<EmployerNameAutocomplete id="co" value="" onChange={vi.fn()} />);
+    expect(screen.getByLabelText(/company name/i)).toHaveAttribute('autocomplete', 'off');
+  });
+
   it('debounces fetch and autofills fields on selection', async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve({

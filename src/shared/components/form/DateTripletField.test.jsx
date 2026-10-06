@@ -291,6 +291,23 @@ describe('DateTripletField — presentation and accessibility', () => {
     });
 });
 
+describe('DateTripletField — autofill tokens', () => {
+    it('adds none by default, because it also records employment and licence dates', () => {
+        renderField();
+        for (const select of Object.values(selects())) {
+            expect(select).not.toHaveAttribute('autocomplete');
+        }
+    });
+
+    it('tags the three selects as a birthday when asked', () => {
+        renderField({ autoComplete: 'bday' });
+        const { month, day, year } = selects();
+        expect(month).toHaveAttribute('autocomplete', 'bday-month');
+        expect(day).toHaveAttribute('autocomplete', 'bday-day');
+        expect(year).toHaveAttribute('autocomplete', 'bday-year');
+    });
+});
+
 describe('DateTripletField — the year is never clipped (2026-09-02)', () => {
     // On a phone the three selects shared one `grid-cols-3` row, and the year
     // select — the widest of the three — was cut to "20…" by its cell. The year

@@ -160,6 +160,7 @@ export default function EmployerNameAutocomplete({
         onChange={handleInputChange}
         required={required}
         placeholder="Employer legal name"
+        autoComplete="off"
       />
     );
   }
@@ -178,7 +179,8 @@ export default function EmployerNameAutocomplete({
           type="text"
           id={id}
           name="companyName"
-          autoComplete="organization"
+          // The lookup has its own listbox; the browser's list would cover it.
+          autoComplete="off"
           required={required}
           aria-required={required || undefined}
           aria-expanded={open}

@@ -210,12 +210,13 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     />
                 </>
             )}
-            <InputField label="Street Address" id={'emp-street-' + index} name="address" value={item.address} onChange={handleChange} required={empHistoryConfig.required} />
+            <InputField label="Street Address" id={'emp-street-' + index} name="address" autoComplete="off" value={item.address} onChange={handleChange} required={empHistoryConfig.required} />
             <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-3">
-                <InputField label="City" id={'emp-city-' + index} name="city" value={item.city} onChange={handleChange} required={empHistoryConfig.required} />
+                <InputField label="City" id={'emp-city-' + index} name="city" autoComplete="off" value={item.city} onChange={handleChange} required={empHistoryConfig.required} />
                 <StateSelectField
                     id={'emp-state-' + index}
                     name="state"
+                    autoComplete="off"
                     states={states}
                     required={empHistoryConfig.required}
                     value={item.state}
@@ -223,8 +224,8 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                 />
             </div>
             <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
-                <InputField label="Company Phone" id={'emp-phone-' + index} name="phone" type="tel" value={item.phone} onChange={handleChange} placeholder="(555) 555-5555" />
-                <InputField label="Company Email" id={'emp-co-email-' + index} name="companyEmail" type="email" value={item.companyEmail} onChange={handleChange} placeholder="hr@company.com" />
+                <InputField label="Company Phone" id={'emp-phone-' + index} name="phone" type="tel" autoComplete="off" value={item.phone} onChange={handleChange} placeholder="(555) 555-5555" />
+                <InputField label="Company Email" id={'emp-co-email-' + index} name="companyEmail" type="email" autoComplete="off" value={item.companyEmail} onChange={handleChange} placeholder="hr@company.com" />
             </div>
             <p className="text-ds-xs text-ds-content-muted">
                 Provide at least one way to reach someone who can verify this job: company phone (10 digits), company email, or supervisor phone/email below.
@@ -256,10 +257,10 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                 />
             </div>
             <InputField label="Reason for Leaving" id={'emp-reason-' + index} name="reasonForLeaving" value={item.reasonForLeaving} onChange={handleChange} />
-            <InputField label="Supervisor Name" id={'emp-supervisor-' + index} name="supervisorName" value={item.supervisorName} onChange={handleChange} />
+            <InputField label="Supervisor Name" id={'emp-supervisor-' + index} name="supervisorName" autoComplete="off" value={item.supervisorName} onChange={handleChange} />
             <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
-                <InputField label="Supervisor Phone" id={'emp-sup-phone-' + index} name="supervisorPhone" type="tel" value={item.supervisorPhone} onChange={handleChange} placeholder="Direct line or mobile" />
-                <InputField label="Supervisor Email" id={'emp-sup-email-' + index} name="supervisorEmail" type="email" value={item.supervisorEmail} onChange={handleChange} placeholder="supervisor@company.com" />
+                <InputField label="Supervisor Phone" id={'emp-sup-phone-' + index} name="supervisorPhone" type="tel" autoComplete="off" value={item.supervisorPhone} onChange={handleChange} placeholder="Direct line or mobile" />
+                <InputField label="Supervisor Email" id={'emp-sup-email-' + index} name="supervisorEmail" type="email" autoComplete="off" value={item.supervisorEmail} onChange={handleChange} placeholder="supervisor@company.com" />
             </div>
             <RadioGroup
                 label="May we contact this employer?"

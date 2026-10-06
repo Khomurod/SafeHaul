@@ -37,3 +37,16 @@ describe('StateSelectField shows the value the form holds', () => {
         expect(screen.queryByRole('option', { name: 'TX' })).toBeNull();
     });
 });
+
+describe('StateSelectField autofill token', () => {
+    it('has none unless the caller passes one', () => {
+        expect(renderPicker('')).not.toHaveAttribute('autocomplete');
+    });
+
+    it('passes the token the current address asks for', () => {
+        render(
+            <StateSelectField id="state" name="state" value="" onChange={vi.fn()} states={US_STATE_NAMES} autoComplete="address-level1" />,
+        );
+        expect(screen.getByLabelText(/State/)).toHaveAttribute('autocomplete', 'address-level1');
+    });
+});
