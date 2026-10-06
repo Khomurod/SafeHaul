@@ -138,9 +138,10 @@ test.describe('@a11y mobile-critical journeys (no serious/critical violations)',
 
         await page.getByRole('button', { name: 'Confirm & Proceed' }).click();
         await expect(page.locator('#step-title')).toContainText('Agreements & Signature');
-        expect(await seriousViolations(page)).toEqual([]);
+        expect(await seriousViolations(page)).toEqual([]);   // the first agreement's own page
 
         await applySignature(page);
+        expect(await seriousViolations(page)).toEqual([]);   // certification and signature
         await submitApplication(page);
         await expect(page.getByText('Application Submitted!')).toBeVisible();
         // Success screen with the blocking required-documents checklist.

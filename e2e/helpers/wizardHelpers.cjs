@@ -174,18 +174,26 @@ async function completeRemainingSteps(page) {
 
 async function applySignature(page) {
   // Every presented agreement must be individually accepted before Submit
-  // enables. The ids are derived from the agreement registry (`agreement-<id>`),
-  // so this discovers whatever the step actually rendered rather than naming a
-  // fixed pair — naming a fixed pair is exactly how this helper silently stopped
-  // accepting anything when the step grew from two agreements to four.
-  const boxes = page.locator('input[type="checkbox"][id^="agreement-"]');
-  const count = await boxes.count();
-  expect(count, 'the consent step presented no agreements to accept').toBeGreaterThan(0);
-  for (let i = 0; i < count; i += 1) {
-    const box = boxes.nth(i);
+  // enables, and each is on a page of its own. The ids are derived from the
+  // agreement registry (`agreement-<id>`), so this accepts whatever the step
+  // actually presents rather than naming a fixed set — naming a fixed pair is
+  // exactly how this helper silently stopped accepting anything when the step
+  // grew from two agreements to four.
+  const box = page.locator('input[type="checkbox"][id^="agreement-"]');
+  const signaturePage = page.getByText('Final Certification & Signature');
+  let accepted = 0;
+  for (;;) {
+    // A document page or the signature page, never neither.
+    await expect(box.or(signaturePage)).toBeVisible();
+    if (await box.count() === 0) break;
+    const id = await box.getAttribute('id');
     await box.check();
     await expect(box).toBeChecked();
+    await page.getByRole('button', { name: /^(Next document|Continue to signature)$/ }).click();
+    await expect(page.locator(`#${id}`)).toHaveCount(0);
+    accepted += 1;
   }
+  expect(accepted, 'the consent step presented no agreements to accept').toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Use Test Signature' }).click();
   await expect(page.getByText('Signature Saved & Locked')).toBeVisible();
 }
