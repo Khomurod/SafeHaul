@@ -1,6 +1,7 @@
 // firestore.rules security, part 2 of 4: the default-denied server-only
 // collections — ledgers, the AI platform, unfinished applications, blog,
-// landing settings, captured leads — and lead companyId immutability.
+// landing settings, operator alerts, captured leads — and lead companyId
+// immutability.
 // Split from the original single-file `firestore.rules.security.test.js`;
 // every test body is verbatim, and the shared harness (rules text, emulator
 // gate, environment boot) lives in `firestoreRules.support.js`. The describe
@@ -194,6 +195,25 @@ describeFirestore('firestore.rules security regressions', () => {
       // encrypted Telegram credentials, so a direct read hands over the ciphertext.
       await assertFails(getDoc(doc(db, 'platform_settings', 'landing_page')));
       await assertFails(setDoc(doc(db, 'platform_settings', 'landing_page'), { telegram: { enabled: false } }));
+    }
+  });
+
+  it('blocks all client access to the operator alert settings, including Super Admins', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'system_jobs', 'platformAlerts'), {
+        telegram: { botUsername: 'safehaul_alerts_bot', chatId: 222, chatTitle: 'Dana' },
+        watch: { lastRunAt: '2026-08-02T15:40:00.000Z', checks: {} },
+      });
+    });
+
+    const superDb = testEnv.authenticatedContext('super-1', { globalRole: 'super_admin' }).firestore();
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+
+    for (const db of [superDb, anonDb]) {
+      // Super Admin included: its screen reads this through `getPlatformAlerts`,
+      // which leaves the chat id out. A chat id written here would redirect alerts.
+      await assertFails(getDoc(doc(db, 'system_jobs', 'platformAlerts')));
+      await assertFails(setDoc(doc(db, 'system_jobs', 'platformAlerts'), { telegram: { chatId: 333 } }));
     }
   });
 

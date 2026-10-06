@@ -34,6 +34,10 @@ vi.mock('../hooks/useSystemHealth', () => ({
     useSystemHealth: () => hookState.current,
 }));
 
+// The Telegram alerts card loads its own settings and has its own suite,
+// `alerts/TelegramAlertsCard.test.jsx`; this file freezes the diagnostics.
+vi.mock('./alerts/TelegramAlertsCard', () => ({ TelegramAlertsCard: () => null }));
+
 import { SystemHealthView } from './SystemHealthView';
 
 const STEP = { id: 'init', label: '1. Initializing Environment' };

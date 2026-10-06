@@ -691,6 +691,7 @@ Every AI use in the repository, as of this document:
 | News & Insights drafting | `publishScheduledBlogPosts` | `articleGeneration` | article writing + structured JSON + long context | `public` |
 | News & Insights fact check | `publishScheduledBlogPosts` | `verifyArticleClaims` | text + structured JSON + long context | `public` |
 | Connection test | `testAiProvider` | `healthCheck` | every capability the provider declares | constant prompts, generated images |
+| Hourly watcher (Telegram alerts) | `watchAiAndBlog` (scheduled, `functions/ops/watcher.js`) | a `health_check` task through the router, one per lane | vision + structured JSON; text + structured JSON | constant prompts, a generated image |
 | Model pin check | `diagnoseAiModelPins` | — | none (catalogue listing only) | no prompt at all |
 | AI logs | `listAiTelemetry` | — | none (reads `ai_telemetry`) | metadata only |
 | Credential access check | `diagnoseAiCredentialAccess` (2nd gen) and `diagnoseAiCredentialAccessV1` (1st gen) | — | none (Secret Manager reachability only) | no prompt at all; no credential value read |
@@ -906,6 +907,12 @@ The two live pathways are deliberately separate, operator-invoked and outside
 CI: **Test connection** (`testAiProvider`) and **Verify model pins**
 (`diagnoseAiModelPins`). Both run server-side with the managed credential and
 neither returns, logs or echoes it.
+
+A third runs on a schedule once a Telegram chat is connected: the hourly watcher
+(`watchAiAndBlog`) sends one constant probe per lane through the router itself,
+so it measures what users get from whichever provider answers, not one provider.
+Its requests are recorded as connection tests (`health_check`) and count towards
+provider health like any other. It alerts on a change only.
 
 ### What the capability probes prove, and what they do not
 

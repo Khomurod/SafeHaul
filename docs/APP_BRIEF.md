@@ -911,7 +911,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (admin-only subcollection); password encrypted with an `enc:v1:` prefix and **never returned to the browser**. A legacy fallback still reads `companies/{id}.emailSettings` for pre-migration tenants — do not delete it without migrating them |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`: one text task over whichever documents were attached, with a per-document vision fallback) | Secret Manager via the frozen registry in `functions/ai/registry` |
-| **Telegram** | **Retired** with the marketing-site lead form (`LD-R3`); no callable in `functions/index.js` sends to it. Its six landing callables were deleted by the first promotion carrying `LD-R3`; `promote-production.yml` still runs `scripts/retire-landing-functions.mjs` after each promotion (idempotent, now a no-op, and it never touches `listLandingLeads`). A rollback to a pre-`LD-R3` release would call functions that no longer exist; the procedure is in `docs/FIREBASE_HOSTING_RUNBOOK.md` | Secrets unbound; rotate the bot token (runbook) |
+| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health (the bot token is checked with Telegram before it is stored). The marketing-site bot is **retired** (`LD-R3`): its six landing callables were deleted by the first promotion carrying `LD-R3`, and `promote-production.yml` still runs `scripts/retire-landing-functions.mjs` after each promotion (idempotent, now a no-op, and it never touches `listLandingLeads`). A rollback to a pre-`LD-R3` release would call functions that no longer exist; the procedure is in `docs/FIREBASE_HOSTING_RUNBOOK.md` | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
 | **Socrata / Transportation.gov** | FMCSA employer autocomplete | Public app token |
 | **Sentry** | Error monitoring for the browser app (`@sentry/react`); Cloud Functions log to Cloud Logging only | DSN |
 | **GitHub API** | Release promotion from the Super Admin UI | GitHub App credential, server-side only |
@@ -963,6 +963,7 @@ released if the connect then fails.
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response` and notifies the carrier, documenting the good-faith effort |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing — without it, signature-image PII accumulates in Storage |
+| `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, never otherwise, and runs nothing until a chat is connected |
 | Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is actually live and opens/closes a GitHub issue |
 
 The blog publishes one article a day, and its scheduler runs hourly on purpose:
@@ -1066,12 +1067,11 @@ unparseable number — but nothing populates them from a recipient's reply (§12
 - **The blog owns its stylesheet.** `/news`, `/news/{slug}` and `/news/feed.xml`
   are rendered by `serveBlogPublic` and styled by five files in
   `web/assets/css/`, cut from the retired marketing site's single sheet at its
-  section boundaries and kept in its source order. **They are one stylesheet;
-  the `<link>` order in the shell is the cascade** — moving a rule between files
-  or re-ordering the tags can make a late override lose to an early rule. The
-  parts from the old sections 6, 16 and 18 style the navbar, cards and footer
-  the blog function emits; nothing in them may assume the homepage's markup
-  exists.
+  section boundaries and kept in its source order. **They are one stylesheet; the
+  `<link>` order in the shell is the cascade** — moving a rule between files or
+  re-ordering the tags can make a late override lose to an early rule. The parts
+  from the old sections 6, 16 and 18 style the navbar, cards and footer the blog
+  function emits; nothing in them may assume the homepage's markup exists.
 
 ---
 

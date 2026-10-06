@@ -11,6 +11,7 @@ This runbook defines operations ownership, alerting responses, quota controls, a
 
 ## Alert Triggers
 
+- AI reading (photos or text) stops working for users, or the blog has no article from yesterday or today: the hourly watcher (`watchAiAndBlog`) messages the Telegram chat connected under Super Admin → System Health, and again on recovery. This is the one trigger here that is automated; the ones below are watched by hand.
 - Function error rate > 5% for 10 minutes
 - `permission-denied` spikes on sensitive callables
 - SMS send failures > 20% for 10 minutes
