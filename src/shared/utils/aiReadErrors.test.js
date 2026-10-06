@@ -16,6 +16,15 @@ describe('aiReadErrorMessage', () => {
         },
     );
 
+    it.each([['internal', 'INTERNAL'], ['deadline-exceeded', 'DEADLINE_EXCEEDED']])(
+        'replaces "%s" spelt as the status the server sent, "%s"',
+        (code, status) => {
+            // An unhandled error in a function reaches the browser as message
+            // "INTERNAL"; a status with no message, as the status itself.
+            expect(aiReadErrorMessage({ code: `functions/${code}`, message: status }, FALLBACK)).toBe(FALLBACK);
+        },
+    );
+
     it('replaces an empty or missing message', () => {
         expect(aiReadErrorMessage({ code: 'functions/internal', message: '  ' }, FALLBACK)).toBe(FALLBACK);
         expect(aiReadErrorMessage(undefined, FALLBACK)).toBe(FALLBACK);

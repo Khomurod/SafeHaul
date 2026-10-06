@@ -269,6 +269,16 @@ describe('what a failed task means to the person who asked', () => {
         expect(failureKind(new AiError('internal', 'TypeError'))).toBe('failed');
         expect(failureKind(new Error('no category'))).toBe('failed');
         expect(failureKind(undefined)).toBe('failed');
+        // Every adapter threw, or every vendor refused the request: waiting will
+        // not fix that. One outage on the trail still might.
+        const walk = (...categories) => terminal({
+            attempted: categories.map((_, index) => `p${index}`),
+            lastError: new AiError(categories[0], 'x'),
+            failures: categories.map((category, index) => ({ providerId: `p${index}`, category })),
+        });
+        expect(failureKind(walk('internal', 'internal'))).toBe('failed');
+        expect(failureKind(walk('provider_request_rejected', 'internal'))).toBe('failed');
+        expect(failureKind(walk('internal', 'timeout'))).toBe('unavailable');
     });
 });
 

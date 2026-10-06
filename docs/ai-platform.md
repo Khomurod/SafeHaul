@@ -402,17 +402,21 @@ it, so they agree on what a failure means:
 - `failed`: anything else, such as a SafeHaul bug. The message blames neither
   the services nor the document.
 
-`all_providers_failed` cannot say which of the first two it is, so the router
-attaches each provider's category to it (`failureCategories`) and the trail
-decides. The callables used to read it as the document's fault: a driver whose
-photo was fine, during an outage, was asked for "a clearer photo". A walk that
+`all_providers_failed` cannot say which it is, so the router attaches each
+provider's category to it (`failureCategories`) and the trail decides: all
+unusable answers is `unreadable`, any outage on it is `unavailable`, and a trail
+with no outage (every adapter threw, every vendor rejected the request) is
+`failed`, because waiting will not fix a bug. The callables used to read it as
+the document's fault: a driver whose photo was fine, during an outage, was asked
+for "a clearer photo". A walk that
 found every capable provider cooling down now ends `provider_unavailable`, not
 `not_configured`, which told a driver that AI was "not configured on the server"
 and sent an operator to check keys.
 
 In the browser, `aiReadErrorMessage` shows the callable's sentence and replaces
-a bare code the server never sent ("deadline-exceeded", "internal") with the
-caller's own words. A CDL photo that is kept as the CDL front says auto-fill did
+a bare code the server never sent ("deadline-exceeded", "internal", or the
+status the runtime sends for an unhandled error, "INTERNAL") with the caller's
+own words. A CDL photo that is kept as the CDL front says auto-fill did
 not work, not that the licence could not be read.
 
 ### A cooldown sized to the vendor's cap, not to a round number

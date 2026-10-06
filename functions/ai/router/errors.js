@@ -106,8 +106,11 @@ const UNAVAILABLE_CATEGORIES = Object.freeze([
  * - `failed`: anything else, such as a SafeHaul bug.
  *
  * `all_providers_failed` alone cannot tell an outage from an answer no model
- * could give, so its trail (`failureCategories`) decides. Callers that read it
- * as "the document" told drivers to retake a photo when the services were down.
+ * could give, or from a fault of SafeHaul's own, so its trail
+ * (`failureCategories`) decides. Callers that read it as "the document" told
+ * drivers to retake a photo when the services were down. A trail with no outage
+ * on it (every adapter threw `internal`, every vendor rejected the request) is
+ * a bug, and "try again in a few minutes" would only send people back to it.
  */
 function failureKind(error) {
     const category = error?.category;
@@ -116,9 +119,8 @@ function failureKind(error) {
     if (UNAVAILABLE_CATEGORIES.includes(category)) return 'unavailable';
     if (category === 'all_providers_failed') {
         const trail = Array.isArray(error.failureCategories) ? error.failureCategories : [];
-        return trail.length > 0 && trail.every((entry) => OUTPUT_CATEGORIES.includes(entry))
-            ? 'unreadable'
-            : 'unavailable';
+        if (trail.length > 0 && trail.every((entry) => OUTPUT_CATEGORIES.includes(entry))) return 'unreadable';
+        return trail.some((entry) => UNAVAILABLE_CATEGORIES.includes(entry)) ? 'unavailable' : 'failed';
     }
     return 'failed';
 }

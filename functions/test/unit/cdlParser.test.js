@@ -208,6 +208,19 @@ describe('parseCdlWithGroq', () => {
     expect(thrown.message).not.toMatch(/clearer photo/i);
   });
 
+  it('does not ask a driver to wait out a fault of SafeHaul\'s own on every provider', async () => {
+    mockExtractCdlFields.mockRejectedValue(exhausted('internal', 'provider_request_rejected'));
+
+    const thrown = await parseCdlWithGroq(
+      { companyId: 'co1', imageDataUrl: 'data:image/png;base64,AAAA' },
+      GUEST_CONTEXT,
+    ).catch((err) => err);
+
+    expect(thrown.code).toBe('internal');
+    expect(thrown.message).toMatch(/did not work this time/i);
+    expect(thrown.message).not.toMatch(/few minutes/i);
+  });
+
   it('never logs the provider error detail, which can quote the licence', async () => {
     const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
     mockExtractCdlFields.mockRejectedValue(
