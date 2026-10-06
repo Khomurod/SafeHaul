@@ -130,11 +130,11 @@ client write.
 SSN and ZIP open the number pad, and the SSN stays masked. The SSN, previous
 addresses, employers and the FMCSA lookup set `autocomplete="off"`, a request
 that some browsers and password managers ignore, not a guarantee.
-The auto-fill CDL photo is the CDL front, even when unreadable, unless the
-company hides that upload; what the AI reads fills only empty fields. Continue on
-a page opened by Edit on Review goes straight back to Review; the submission
-pre-flight and the server still check the whole application. The date of birth
-is typed on the number pad; employment and school dates are a month and a year
+The auto-fill CDL photo is the CDL front, even when unreadable, unless the company
+hides that upload (then it is read, not stored); the AI fills only empty fields.
+Continue on a page opened by Edit on Review returns to Review; the submission
+pre-flight and the server still check the whole application. The date of birth is
+typed on the number pad; employment and school dates are a month and a year
 (`YYYY-MM`, as on FMCSA's form), and every reader still accepts older full dates.
 
 **The company shapes what the wizard asks, without code.** Company Settings →
@@ -1114,9 +1114,9 @@ unparseable number — but nothing populates them from a recipient's reply (§12
   applicant uploads yields suggestions with their own Add buttons. Nothing
   entered is overwritten, nothing is added twice, and a PSP carrier sighting
   becomes an employer row holding only the name and USDOT number — **PSP data is
-  inspection and crash history, never employment dates**, and the UI says so.
-  Nothing from either document is stored or logged; the pages live in memory for
-  one request.
+  inspection and crash history, never employment dates or convictions**: the UI
+  says so, and violations come from the MVR alone (the carrier's reader too).
+  Neither document is stored or logged; its pages live in memory for one request.
 - **The public site stays dependency-free**: no framework, no build step, no
   application or design-system imports. `web/privacy.html` ships no `<script>`
   at all, asserted by `src/tests/hostingConfig.test.js`.

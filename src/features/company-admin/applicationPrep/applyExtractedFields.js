@@ -144,7 +144,7 @@ export function applyExtractedFields(formData, extracted, options = {}) {
     });
     next.employers = employers;
 
-    // --- violations, from either report ---------------------------------------
+    // --- violations: the motor vehicle record's convictions -------------------
     const violations = Array.isArray(current.violations) ? [...current.violations] : [];
     (extracted?.violations || []).forEach((violation, index) => {
         if (violationAlreadyListed(violations, violation)) return;

@@ -136,8 +136,8 @@ const DOCUMENT_PROMPT = [
     'endorsement letters, and medicalCardExpiration from the medical examiner certificate.',
     'carriers: every motor carrier named in PSP crash or inspection records — carrierName, usdotNumber (digits only),',
     'earliestDate and latestDate of records mentioning it as printed, and recordType (inspection, crash, or both).',
-    'violations: every violation or conviction in the PSP report or the motor vehicle record, with source set to',
-    '"psp" or "mvr" for the document it came from.',
+    'violations: every conviction in the motor vehicle record, with source set to "mvr". Never list the PSP',
+    'report\'s inspection violations: they are roadside findings, not convictions.',
     'unreadable: the heading name of any document whose text was too garbled or too sparse to read.',
     'Report only what is printed. Never infer employment dates from inspection dates. Leave anything missing empty.',
 ].join(' ');
@@ -190,12 +190,20 @@ function normalizeUnreadable(raw) {
  * One shape for both routes.
  *
  * The carrier and violation normalisers are the vision task's own, imported rather
- * than reimplemented: a PSP violation read from a text layer and one read from a
- * page image must produce the same row, or accepting a suggestion would depend on
- * which route happened to answer.
+ * than reimplemented: a conviction read from a text layer and one read from a page
+ * image must produce the same row, or what is filled in would depend on which
+ * route happened to answer.
+ *
+ * Violations are convictions, so they come from the motor vehicle record alone: the
+ * application asks what the driver was convicted of (49 CFR 391.21(b)(8)), and a
+ * PSP report's violations are roadside inspection findings. A row the model says
+ * came from the PSP report is dropped before normalising, which also drops rows and
+ * so must not be followed by a lookup by index.
  */
 function normalizeDocumentOutput(raw) {
-    const psp = normalizePspOutput({ carriers: raw?.carriers, violations: [] });
+    const psp = normalizePspOutput({ carriers: raw?.carriers });
+    const convictions = (Array.isArray(raw?.violations) ? raw.violations : [])
+        .filter((row) => text(row?.source, 8).toLowerCase() === 'mvr');
     const endorsements = (Array.isArray(raw?.license?.endorsements) ? raw.license.endorsements : [])
         .map((code) => text(code, 3).toUpperCase().replace(/[^A-Z]/g, ''))
         .filter((code) => code.length === 1);
@@ -217,10 +225,7 @@ function normalizeDocumentOutput(raw) {
             medCardExpiration: looseDateToIso(raw?.license?.medicalCardExpiration),
         },
         carriers: psp.carriers,
-        violations: normalizeViolations(raw?.violations).map((row, index) => ({
-            ...row,
-            source: text(raw?.violations?.[index]?.source, 8).toLowerCase() === 'mvr' ? 'mvr' : 'psp',
-        })),
+        violations: normalizeViolations(convictions).map((row) => ({ ...row, source: 'mvr' })),
         unreadable: normalizeUnreadable(raw?.unreadable),
     };
 }
@@ -249,8 +254,11 @@ async function extractApplicationDocuments({ documents }, deps = {}) {
     });
 
     const result = await runAiTask(task, deps);
+    const extracted = normalizeDocumentOutput(result.output);
+    // No record, no convictions: a violation listed without one came from elsewhere.
+    if (typeof documents?.mvr !== 'string' || !documents.mvr.trim()) extracted.violations = [];
     return {
-        extracted: normalizeDocumentOutput(result.output),
+        extracted,
         // Read only in part: said so on screen, so a recruiter checks the rest.
         truncated,
         providerId: result.providerId,

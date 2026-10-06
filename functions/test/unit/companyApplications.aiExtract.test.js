@@ -51,7 +51,7 @@ const TEXT_RESULT = {
         driver: { firstName: 'Dana', lastName: 'Alvarez', dateOfBirth: '1988-03-11', fullAddress: '1 Main St' },
         license: { cdlNumber: 'TX1234567', cdlState: 'TX', cdlClass: 'Class A', cdlExpiration: '2030-12-31', endorsements: ['H'], medCardExpiration: '' },
         carriers: [{ name: 'Acme Trucking', dotNumber: '123456', firstSeen: '2024-03', lastSeen: '2025-01', recordType: 'inspection' }],
-        violations: [{ date: '2023-07-04', charge: 'Speeding', location: 'Dallas, TX', source: 'psp' }],
+        violations: [{ date: '2023-07-04', charge: 'Failure to yield', location: 'Dallas, TX', source: 'mvr' }],
         unreadable: [],
     },
     providerId: 'gemini', model: 'm', latencyMs: 5, fallbackCount: 0,
@@ -140,7 +140,21 @@ describe('the vision fallback', () => {
         expect(mockText).not.toHaveBeenCalled();
         expect(result.methods).toEqual({ psp: 'vision' });
         expect(result.extracted.carriers[0].name).toBe('Beta Freight');
-        expect(result.extracted.violations[0].source).toBe('psp');
+        // Inspection findings, not convictions: none reach the moving violations.
+        expect(result.extracted.violations).toEqual([]);
+    });
+
+    it('fills violations from a motor vehicle record read as pages, tagged as its own', async () => {
+        mockReport.mockResolvedValue({
+            suggestions: { carriers: [], violations: [{ date: '2024-01-01', charge: 'Failure to yield', location: '' }], license: {} },
+        });
+
+        const result = await call({ mvr: { pages: [PAGE] } });
+
+        expect(mockReport).toHaveBeenCalledWith({ kind: 'mvr', imageDataUrls: [PAGE] });
+        expect(result.extracted.violations).toEqual([
+            { date: '2024-01-01', charge: 'Failure to yield', location: '', source: 'mvr' },
+        ]);
     });
 
     it('returns a licence photo\'s dates as dates, not as printed', async () => {

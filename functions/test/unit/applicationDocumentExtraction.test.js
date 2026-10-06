@@ -12,6 +12,7 @@ jest.mock('../../ai/router/router', () => ({ runAiTask: (...args) => mockRunAiTa
 
 const {
     DOCUMENT_KINDS,
+    DOCUMENT_PROMPT,
     MAX_TOTAL_CHARS,
     buildDocumentText,
     shareDocumentText,
@@ -151,11 +152,32 @@ describe('what it returns', () => {
         }]);
     });
 
-    it('tags each violation with the document it came from', async () => {
+    it('fills violations from the motor vehicle record only, never from a PSP report', async () => {
+        // The application asks for convictions (49 CFR 391.21(b)(8)). A PSP
+        // report's violations are roadside inspection findings, and filled in as
+        // moving violations they became something the driver declared.
         const { extracted } = await extractApplicationDocuments({ documents: { psp: 'b', mvr: 'c' } });
 
         expect(extracted.violations).toEqual([
-            { date: '2023-07-04', charge: 'Speeding 15 over', location: 'Dallas, TX', source: 'psp' },
+            { date: '2024-05-01', charge: 'Failure to yield', location: 'Austin, TX', source: 'mvr' },
+        ]);
+        expect(DOCUMENT_PROMPT).toMatch(/conviction in the motor vehicle record/);
+    });
+
+    it('fills no violations when no motor vehicle record was sent, whatever the model listed', async () => {
+        const { extracted } = await extractApplicationDocuments({ documents: { cdl: 'a', psp: 'b' } });
+        expect(extracted.violations).toEqual([]);
+    });
+
+    it('keeps the record\'s convictions in order when a blank row comes first', () => {
+        const normalized = normalizeDocumentOutput({
+            violations: [
+                { date: '', description: '', location: '', source: 'mvr' },
+                { date: '07/04/2023', description: 'Speeding 15 over', location: 'Dallas, TX', source: 'psp' },
+                { date: '2024-05-01', description: 'Failure to yield', location: 'Austin, TX', source: 'mvr' },
+            ],
+        });
+        expect(normalized.violations).toEqual([
             { date: '2024-05-01', charge: 'Failure to yield', location: 'Austin, TX', source: 'mvr' },
         ]);
     });

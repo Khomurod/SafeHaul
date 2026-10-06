@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     normalizePostApplicationTemplates,
     buildPostApplyDocErrorMessage,
+    parseIsoFromLooseDate,
 } from './publicApplyHelpers';
 
 describe('normalizePostApplicationTemplates', () => {
@@ -83,5 +84,23 @@ describe('buildPostApplyDocErrorMessage', () => {
     it('falls back to a generic retry message', () => {
         expect(buildPostApplyDocErrorMessage({})).toMatch(/try again/i);
         expect(buildPostApplyDocErrorMessage(new Error('boom'))).toBe('boom');
+    });
+});
+
+describe('parseIsoFromLooseDate', () => {
+    it('reads a two-digit year in the nearer century, so a birth year is not in the future', () => {
+        // A licence's "03/11/88" used to fill 2088, and the wizard then told the
+        // driver they must be at least 21.
+        const year = new Date().getFullYear();
+        const twoDigits = (value) => String(value % 100).padStart(2, '0');
+        expect(parseIsoFromLooseDate('03/11/88')).toBe('1988-03-11');
+        expect(parseIsoFromLooseDate(`06/30/${twoDigits(year + 3)}`)).toBe(`${year + 3}-06-30`);
+        expect(parseIsoFromLooseDate(`06/30/${twoDigits(year + 20)}`)).toBe(`${year + 20 - 100}-06-30`);
+    });
+
+    it('still reads four-digit years and ISO dates as printed', () => {
+        expect(parseIsoFromLooseDate('03/11/1988')).toBe('1988-03-11');
+        expect(parseIsoFromLooseDate('2030-12-31')).toBe('2030-12-31');
+        expect(parseIsoFromLooseDate('')).toBe('');
     });
 });

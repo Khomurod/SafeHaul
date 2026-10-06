@@ -23,7 +23,8 @@ import { mergeExtractionResults } from './mergeExtractionResults';
  * it left. Adds carriers the PSP report named as employer rows holding a name and
  * a USDOT number — never dates, which the report does not contain — and locks
  * them, because being on that report is exactly the claim a lock makes. Adds
- * violations from either report.
+ * the convictions the motor vehicle record lists, never a PSP report's inspection
+ * violations.
  *
  * ## The second pass
  *

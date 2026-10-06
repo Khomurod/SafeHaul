@@ -21,7 +21,7 @@ const SOURCES = [
     {
         id: 'psp',
         title: 'FMCSA PSP report import',
-        help: 'Applicants can upload their PSP report. Carriers and violations it mentions are suggested for the applicant to confirm — never added on their behalf.',
+        help: 'Applicants can upload their PSP report. Carriers it mentions are suggested for the applicant to confirm — never added on their behalf.',
     },
     {
         id: 'mvr',

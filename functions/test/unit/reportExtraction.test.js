@@ -48,6 +48,21 @@ describe('looseDateToIso', () => {
         expect(looseDateToIso(raw)).toBe(expected);
     });
 
+    it('reads a two-digit year in the nearer century, so a birth year is not in the future', () => {
+        // "03/11/88" used to become 2088, and a driver read from their own
+        // licence was told they were too young to apply.
+        const soon = String((new Date().getFullYear() + 3) % 100).padStart(2, '0');
+        const later = String((new Date().getFullYear() + 20) % 100).padStart(2, '0');
+        expect(looseDateToIso('03/11/88')).toBe('1988-03-11');
+        expect(looseDateToIso(`06/30/${soon}`)).toBe(`${new Date().getFullYear() + 3}-06-30`);
+        expect(looseDateToIso(`06/30/${later}`)).toBe(`${new Date().getFullYear() + 20 - 100}-06-30`);
+    });
+
+    it('offers a month or day that cannot exist blank rather than inventing a date', () => {
+        expect(looseDateToIso('13/45/2024')).toBe('');
+        expect(looseDateToIso('00/10/2024')).toBe('');
+    });
+
     it.each([['', ''], ['unknown', ''], ['N/A', ''], [null, ''], [42, ''], ['12/31', '']])(
         'offers %p blank rather than guessing',
         (raw, expected) => {
@@ -113,17 +128,29 @@ describe('normalizePspOutput', () => {
         expect(out.carriers[0].name).toBe('Carrier 0');
     });
 
-    it('keeps violations with a description and blanks a date it cannot read', () => {
+    it('offers no violations: a PSP report lists inspection findings, not convictions', () => {
+        // The application asks for convictions (49 CFR 391.21(b)(8)). Offering a
+        // roadside inspection's findings, a lamp out included, as moving
+        // violations invited a driver to declare what the question does not ask.
         const out = normalizePspOutput({
+            violations: [{ date: '07/04/2023', description: 'Speeding 15 over', location: 'Dallas, TX' }],
+        });
+        expect(out.violations).toEqual([]);
+        expect(KINDS.psp.schema.properties).not.toHaveProperty('violations');
+        expect(KINDS.psp.prompt).not.toMatch(/violation/i);
+    });
+
+    it('still reads violations from a motor vehicle record, which lists convictions', () => {
+        const out = normalizeMvrOutput({
             violations: [
                 { date: '07/04/2023', description: 'Speeding 15 over', location: 'Dallas, TX' },
-                { date: 'unknown', description: 'Log not current', location: '' },
+                { date: 'unknown', description: 'Failure to yield', location: '' },
                 { date: '2023-01-01', description: '', location: 'Somewhere' },
             ],
         });
         expect(out.violations).toEqual([
             { date: '2023-07-04', charge: 'Speeding 15 over', location: 'Dallas, TX' },
-            { date: '', charge: 'Log not current', location: '' },
+            { date: '', charge: 'Failure to yield', location: '' },
         ]);
     });
 
