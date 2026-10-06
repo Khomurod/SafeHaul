@@ -86,6 +86,46 @@ describe('runSubmissionPreflight', () => {
         expect(showError).toHaveBeenCalledWith('Please answer the drug and alcohol testing question on Qualifications to submit.');
     });
 
+    // The Employment page requires the reason for leaving and, for a job of the
+    // past three years, the two 49 CFR 391.21(b)(10)(iv) answers. A draft saved
+    // before it did, and resumed past that page, never met that requirement.
+    describe('what the Employment page requires of each employer', () => {
+        const REQUIRED = { employmentHistory: { hidden: false, required: true } };
+        const employer = (over = {}) => ({
+            companyName: 'Acme Freight', startDate: '2020-01', endDate: `${TODAY.getFullYear()}-01`,
+            reasonForLeaving: 'Moved', subjectToFmcsrs: 'yes', subjectToDotTesting: 'no', ...over,
+        });
+        const UNANSWERED = { reasonForLeaving: '', subjectToFmcsrs: '', subjectToDotTesting: '' };
+
+        it('sends a draft whose employer lacks them back to Employment, naming what is missing', () => {
+            const { result, setCurrentStep, showError } = run({
+                formData: completeForm({ employers: [employer(), employer(UNANSWERED)] }),
+                company: { applicationConfig: REQUIRED },
+            });
+            expect(result.ok).toBe(false);
+            expect(setCurrentStep).toHaveBeenCalledWith('employment');
+            expect(showError).toHaveBeenCalledWith(
+                'Employer 2: please add the reason for leaving, whether you were subject to the FMCSRs and whether the job was subject to DOT drug and alcohol testing to submit.',
+            );
+        });
+
+        it('asks only the reason for leaving of a job that ended before the three years', () => {
+            const { showError } = run({
+                formData: completeForm({ employers: [employer({ ...UNANSWERED, endDate: '2015-06' })] }),
+                company: { applicationConfig: REQUIRED },
+            });
+            expect(showError).toHaveBeenCalledWith('Employer 1: please add the reason for leaving to submit.');
+        });
+
+        it('passes an employer with every answer, and leaves them optional where the history is', () => {
+            expect(run({ formData: completeForm({ employers: [employer()] }), company: { applicationConfig: REQUIRED } }).result.ok).toBe(true);
+            expect(run({
+                formData: completeForm({ employers: [employer(UNANSWERED)] }),
+                company: { applicationConfig: { employmentHistory: { hidden: false, required: false } } },
+            }).result.ok).toBe(true);
+        });
+    });
+
     it('walks the applicant to the page whose rule fails, with the page\'s own sentence', () => {
         const { result, setCurrentStep, showError } = run({
             formData: completeForm({ cdlExpiration: LAST_YEAR }),
@@ -210,7 +250,10 @@ describe('employers the carrier locked', () => {
         const { result } = run({
             formData: completeForm({
                 lockedEmployers: locked,
-                employers: [{ ...acme, startDate: '2023-01-01', endDate: '2024-06-30', reasonForLeaving: 'Pay' }],
+                employers: [{
+                    ...acme, startDate: '2023-01-01', endDate: '2024-06-30', reasonForLeaving: 'Pay',
+                    subjectToFmcsrs: 'yes', subjectToDotTesting: 'yes',
+                }],
             }),
         });
 

@@ -32,3 +32,21 @@ export function endedBeforeLastThreeYears(employer, today = new Date()) {
     const end = Number(match[1]) * 12 + month - 1;
     return end < today.getFullYear() * 12 + today.getMonth() - 36;
 }
+
+const isBlankAnswer = (value) => String(value ?? '').trim() === '';
+
+/**
+ * What an employer row still owes the questions the Employment page requires:
+ * the reason for leaving, and the two 49 CFR 391.21(b)(10)(iv) answers for a
+ * job of the past three years. The page asks them; the submission pre-flight
+ * uses this for a draft resumed past the page before it asked them.
+ */
+export function employerRowMissingAnswers(employer, today = new Date()) {
+    const missing = [];
+    if (isBlankAnswer(employer?.reasonForLeaving)) missing.push('the reason for leaving');
+    if (!endedBeforeLastThreeYears(employer, today)) {
+        if (isBlankAnswer(employer?.subjectToFmcsrs)) missing.push('whether you were subject to the FMCSRs');
+        if (isBlankAnswer(employer?.subjectToDotTesting)) missing.push('whether the job was subject to DOT drug and alcohol testing');
+    }
+    return missing;
+}
