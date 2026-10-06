@@ -184,6 +184,20 @@ describe('Step9_Consent', () => {
         expect(submitButton()).toBeDisabled();
     });
 
+    it('replaces Save with a new Clear button once signed, rather than restyling it in place', async () => {
+        render(<Harness />);
+        await acceptAll();
+        const save = screen.getByRole('button', { name: /Save Signature/ });
+
+        fireEvent.click(save);
+
+        const clear = await screen.findByRole('button', { name: /Clear \/ Re-draw Signature/ });
+        // A reused element would carry the primary button's colours into a
+        // transition towards the secondary's, unreadable half-way.
+        expect(clear).not.toBe(save);
+        expect(save).not.toBeInTheDocument();
+    });
+
     it('ends the certification with the 391.21(b)(12) sentence, word for word, and certifies against it', async () => {
         render(<Harness />);
         await acceptAll();

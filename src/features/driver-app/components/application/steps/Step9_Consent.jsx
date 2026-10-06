@@ -306,19 +306,23 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
                             </div>
 
                             <div className="mt-ds-4 flex flex-col gap-ds-3 sm:flex-row">
+                                {/* Keyed, so saving mounts a new Clear button instead of
+                                    restyling the Save button in place: that element's colour
+                                    transition ran from primary to secondary and, mid-way,
+                                    its label read at under 2:1. */}
                                 {!isSigned ? (
                                     <>
-                                        <Button variant="primary" size="lg" fullWidth onClick={handleSaveSignature}>
+                                        <Button key="save-signature" variant="primary" size="lg" fullWidth onClick={handleSaveSignature}>
                                             <Icon icon={Save} size="lg" /> Save Signature
                                         </Button>
                                         {isE2ETestMode && (
-                                            <Button variant="secondary" size="lg" fullWidth onClick={handleUseE2ESignature}>
+                                            <Button key="test-signature" variant="secondary" size="lg" fullWidth onClick={handleUseE2ESignature}>
                                                 Use Test Signature
                                             </Button>
                                         )}
                                     </>
                                 ) : (
-                                    <Button variant="secondary" size="lg" fullWidth onClick={handleClearSignature}>
+                                    <Button key="clear-signature" variant="secondary" size="lg" fullWidth onClick={handleClearSignature}>
                                         <Icon icon={Eraser} size="lg" /> Clear / Re-draw Signature
                                     </Button>
                                 )}
