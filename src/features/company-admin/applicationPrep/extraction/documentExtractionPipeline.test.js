@@ -9,7 +9,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-pdf', () => ({ pdfjs: { getDocument: vi.fn() } }));
-vi.mock('@features/signing/utils/pdfPageRasterizer', () => ({ renderPageToDataUrl: vi.fn() }));
+vi.mock('@features/signing/utils/pdfPageRasterizer', () => ({ renderPageToDataUrl: vi.fn(), compressImageFile: vi.fn() }));
 
 import { DOCUMENT_FIELD_KINDS, extractDocuments, extractOneDocument } from './documentExtractionPipeline';
 
@@ -25,6 +25,8 @@ beforeEach(() => {
         load: vi.fn().mockResolvedValue({ numPages: 2, destroy: vi.fn() }),
         renderPage: vi.fn(async (_doc, page) => `data:image/jpeg;base64,p${page}`),
         readImage: vi.fn().mockResolvedValue('data:image/jpeg;base64,photo'),
+        // Re-encoding needs a canvas; null is what it answers without one.
+        compressImage: vi.fn().mockResolvedValue(null),
         recognize: vi.fn().mockResolvedValue({ text: LONG_TEXT, pages: 1 }),
     };
 });
@@ -97,6 +99,27 @@ describe('one document at a time', () => {
         expect(result.method).toBe('ocr');
     });
 
+    it('reads a photograph at the size a page is rendered, not the size the phone took it', async () => {
+        // Sent raw, a phone photo of a few megabytes is past the callable's 4 MiB
+        // page ceiling once base64 grows it, and the whole read is refused.
+        deps.compressImage.mockResolvedValue('data:image/jpeg;base64,small');
+        deps.recognize.mockResolvedValue({ text: 'too short', pages: 1 });
+
+        const result = await extractOneDocument({ kind: 'cdl', file: PHOTO }, deps);
+
+        expect(deps.compressImage).toHaveBeenCalledWith(PHOTO);
+        expect(deps.readImage).not.toHaveBeenCalled();
+        expect(result).toMatchObject({ method: 'pages', pages: ['data:image/jpeg;base64,small'] });
+    });
+
+    it('falls back to the photo itself where it cannot be re-encoded', async () => {
+        deps.recognize.mockResolvedValue({ text: 'too short', pages: 1 });
+
+        const result = await extractOneDocument({ kind: 'cdl', file: PHOTO }, deps);
+
+        expect(result.pages).toEqual(['data:image/jpeg;base64,photo']);
+    });
+
     it('refuses a file that is neither a PDF nor a photo, and says why', async () => {
         const result = await extractOneDocument(
             { kind: 'psp', file: new File(['x'], 'notes.txt', { type: 'text/plain' }) }, deps,
@@ -147,6 +170,28 @@ describe('everything the carrier attached', () => {
         ], deps);
 
         expect(result.documents.cdl.text.split('ACME TRUCKING').length - 1).toBeGreaterThan(10);
+    });
+
+    it('sends both sides of a licence as pages when one read as text and the other did not', async () => {
+        // The callable takes a document as text or as pages, not both. Joined as
+        // they came, a readable front and an unreadable back lost one side: text
+        // then pages dropped the text, and pages then text sent "[object Object]".
+        const FRONT = new File(['f'], 'front.jpg', { type: 'image/jpeg' });
+        const BACK = new File(['b'], 'back.jpg', { type: 'image/jpeg' });
+        deps.readImage.mockImplementation(async (file) => `data:image/jpeg;base64,${file.name}`);
+        deps.recognize.mockImplementation(async (pages) => ({
+            text: pages[0].includes('front') ? LONG_TEXT : 'too short',
+            pages: 1,
+        }));
+
+        for (const order of [[FRONT, BACK], [BACK, FRONT]]) {
+            const result = await extractDocuments(order.map((file) => ({ kind: 'cdl', file })), deps);
+
+            expect(result.methods.cdl).toBe('pages');
+            expect(result.documents.cdl).toEqual({
+                pages: order.map((file) => `data:image/jpeg;base64,${file.name}`),
+            });
+        }
     });
 
     it('keeps going when one document fails, and names the one that did', async () => {

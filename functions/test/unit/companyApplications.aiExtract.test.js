@@ -154,6 +154,15 @@ describe('the vision fallback', () => {
         expect(result.extracted.license.cdlExpiration).toBe('2030-12-31');
     });
 
+    it('reads every page of a licence, whichever side comes first', async () => {
+        // Only the first page used to reach the licence reader, so a licence
+        // attached back first lost the side that prints the fields.
+        const back = 'data:image/jpeg;base64,BBBB';
+        await call({ cdl: { pages: [back, PAGE] } });
+
+        expect(mockCdl).toHaveBeenCalledWith({ imageDataUrls: [back, PAGE] });
+    });
+
     it('mixes both routes in one request and reports which was used for what', async () => {
         const result = await call({ psp: { text: 'PSP body' }, medical: { pages: [PAGE] } });
 
@@ -162,6 +171,14 @@ describe('the vision fallback', () => {
         // fields the text pass found rather than replacing them.
         expect(result.extracted.license.medCardExpiration).toBe('2027-06-30');
         expect(result.extracted.license.cdlNumber).toBe('TX1234567');
+    });
+
+    it('says which documents were too long to read in full, and none when nothing was cut', async () => {
+        mockText.mockResolvedValue({ ...TEXT_RESULT, truncated: ['psp'] });
+        expect((await call({ psp: { text: 'long' } })).truncated).toEqual(['psp']);
+
+        mockText.mockResolvedValue(TEXT_RESULT);
+        expect((await call({ psp: { text: 'short' } })).truncated).toEqual([]);
     });
 
     it('names the documents the model itself could not read', async () => {

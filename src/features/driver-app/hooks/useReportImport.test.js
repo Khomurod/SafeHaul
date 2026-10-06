@@ -8,6 +8,7 @@ const callableMocks = vi.hoisted(() => ({
 const rasterMocks = vi.hoisted(() => ({
     loadPdfDocument: vi.fn(),
     renderPageToDataUrl: vi.fn(),
+    compressImageFile: vi.fn(async () => null),
 }));
 
 vi.mock('firebase/functions', () => ({ httpsCallable: callableMocks.httpsCallable }));
@@ -15,6 +16,7 @@ vi.mock('@lib/firebase', () => ({ functions: {} }));
 vi.mock('@features/signing/utils/pdfPageRasterizer', () => ({
     loadPdfDocument: rasterMocks.loadPdfDocument,
     renderPageToDataUrl: rasterMocks.renderPageToDataUrl,
+    compressImageFile: (...args) => rasterMocks.compressImageFile(...args),
 }));
 
 import { REPORT_MAX_PAGES, REPORT_MAX_PAGE_CHARS, fileToPageImages, useReportImport } from './useReportImport';

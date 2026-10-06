@@ -29,6 +29,7 @@ const FAILOVER_RESERVE_MS = 15000;
 
 const READS = [
     ['a CDL photo', () => extractCdlFields({ imageDataUrl: PAGE })],
+    ['both sides of a licence', () => extractCdlFields({ imageDataUrls: [PAGE, PAGE] })],
     ['a medical card', () => extractMedicalCardFields({ imageDataUrls: [PAGE] })],
     ['a PSP report', () => extractReportSuggestions({ kind: 'psp', imageDataUrls: [PAGE, PAGE] })],
     ['an MVR', () => extractReportSuggestions({ kind: 'mvr', imageDataUrls: [PAGE] })],

@@ -107,6 +107,8 @@ export function ApplicationAiPrepPanel({
     const [error, setError] = useState(null);
     const [methods, setMethods] = useState({});
     const [summary, setSummary] = useState(null);
+    // Documents too long to be read in full, which the recruiter is asked to check.
+    const [readInPart, setReadInPart] = useState([]);
 
     /**
      * Still on screen.
@@ -204,6 +206,7 @@ export function ApplicationAiPrepPanel({
 
             const applied = onApplyExtraction(extracted);
             setMethods(readMethods);
+            setReadInPart(Array.isArray(first.truncated) ? first.truncated : []);
             setSummary(applied);
             setState('done');
         } catch (readError) {
@@ -278,6 +281,12 @@ export function ApplicationAiPrepPanel({
                         {summary.kept.length > 0 && (
                             <p className="text-ds-xs text-ds-content-muted">
                                 Kept what you had already typed in: {summary.kept.join(', ')}.
+                            </p>
+                        )}
+                        {readInPart.length > 0 && (
+                            <p className="text-ds-xs text-ds-content-muted" data-testid="read-in-part">
+                                Too long to read in full, so only the first part was read:
+                                {' '}{readInPart.map((kind) => DOCUMENT_LABELS[kind] || kind).join(', ')}. Check the rest yourself.
                             </p>
                         )}
                     </div>

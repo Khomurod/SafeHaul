@@ -165,6 +165,15 @@ describe('reading what is attached', () => {
         await waitFor(() => expect(mocks.call).toHaveBeenCalledTimes(1));
     });
 
+    it('says which long documents were read only in part', async () => {
+        mocks.call.mockResolvedValue({ data: { success: true, extracted: EXTRACTED, methods: { psp: 'text' }, truncated: ['psp'] } });
+        renderPanel();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+
+        expect(await screen.findByTestId('read-in-part')).toHaveTextContent(/only the first part was read: PSP report/);
+    });
+
     it('leaves the recruiter able to type when the reader fails', async () => {
         const failure = new Error('nope');
         failure.code = 'functions/failed-precondition';

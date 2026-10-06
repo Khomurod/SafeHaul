@@ -116,7 +116,8 @@ function visionReaderFor(kind) {
     switch (kind) {
         case 'cdl':
             return async (imageDataUrls) => {
-                const result = await extractCdlFields({ imageDataUrl: imageDataUrls[0] });
+                // Every page: a licence attached back first prints its fields on the second.
+                const result = await extractCdlFields({ imageDataUrls });
                 const fields = result.fields || {};
                 // The licence reader keeps dates "exactly as printed" — its own prompt
                 // asks for that — so they are normalised here, as every other reader's
@@ -202,12 +203,14 @@ exports.extractCompanyApplicationDocuments = functions
 
         const methods = {};
         let extracted = { ...EMPTY_EXTRACTION };
+        let truncated = [];
         let failure = null;
 
         if (Object.keys(text).length > 0) {
             try {
                 const result = await extractApplicationDocuments({ documents: text });
                 extracted = result.extracted;
+                truncated = Array.isArray(result.truncated) ? result.truncated : [];
                 for (const kind of Object.keys(text)) {
                     methods[kind] = extracted.unreadable.includes(kind) ? 'unreadable' : 'text';
                 }
@@ -243,7 +246,9 @@ exports.extractCompanyApplicationDocuments = functions
             throw toHttpsError(failure);
         }
 
-        return { success: true, extracted, methods };
+        // `truncated`: documents too long to read in full, which the screen says
+        // so a recruiter checks the rest themselves.
+        return { success: true, extracted, methods, truncated };
     });
 
 exports.__private = {

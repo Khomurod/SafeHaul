@@ -687,7 +687,7 @@ Every AI use in the repository, as of this document:
 | CDL photo auto-fill | `parseCdlWithGroq` (name retained for deployed clients) | `cdlExtraction` | vision + structured JSON | `restricted` |
 | AI Field Assistant | `analyzeEdocFieldPlacement` | `edocFieldPlacement` | vision + structured JSON (+ multi-image for >1 page) | `restricted` |
 | Applicant's own PSP report or MVR import | `extractApplicationReport` | `reportExtraction` | vision + structured JSON (+ multi-image for >1 page) | `restricted` |
-| Carrier's document reader | `extractCompanyApplicationDocuments` | `applicationDocumentExtraction`, then `cdlExtraction`, `medicalCardExtraction` or `reportExtraction` for a document its text did not cover | text + structured JSON + long context; vision for the fallback | `restricted` |
+| Carrier's document reader | `extractCompanyApplicationDocuments` | `applicationDocumentExtraction`, then `cdlExtraction`, `medicalCardExtraction` or `reportExtraction` for a document its text did not cover | text + structured JSON + long context; vision for the fallback (+ multi-image for >1 page) | `restricted` |
 | News & Insights topic choice | `publishScheduledBlogPosts` | `selectTopic` | text + structured JSON + classification | `public` |
 | News & Insights drafting | `publishScheduledBlogPosts` | `articleGeneration` | article writing + structured JSON + long context | `public` |
 | News & Insights fact check | `publishScheduledBlogPosts` | `verifyArticleClaims` | text + structured JSON + long context | `public` |
