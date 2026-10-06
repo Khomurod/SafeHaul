@@ -17,14 +17,25 @@ const {
     submitApplication,
 } = require('./helpers/wizardHelpers.cjs');
 
-/** Return the ids (with impact) of serious/critical axe violations on the page. */
+/**
+ * Each failing node, as much as finds it without the trace: its selector and, for
+ * contrast, the colours measured. CI's Chromium can measure a node the local one
+ * passes, and the bare rule id said only that something failed.
+ */
+function describeNode(node) {
+    const measured = node.any.map((check) => check.data).find((data) => data && data.contrastRatio);
+    const colours = measured ? ` ${measured.fgColor} on ${measured.bgColor} = ${measured.contrastRatio}:1` : '';
+    return `${node.target.join(' ')}${colours}`;
+}
+
+/** Return the ids (with impact and the nodes) of serious/critical axe violations on the page. */
 async function seriousViolations(page) {
     const { violations } = await new AxeBuilder({ page })
         // Scan the rendered document; tag-filtering kept default (WCAG 2.x A/AA).
         .analyze();
     return violations
         .filter((v) => v.impact === 'serious' || v.impact === 'critical')
-        .map((v) => `${v.id} [${v.impact}] x${v.nodes.length}`);
+        .map((v) => `${v.id} [${v.impact}] x${v.nodes.length}: ${v.nodes.map(describeNode).join('; ')}`);
 }
 
 // Tagged @a11y for grouping only. These specs run inside the BLOCKING
