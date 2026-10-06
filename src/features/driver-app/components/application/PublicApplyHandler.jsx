@@ -160,6 +160,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   } = useInviteIdentityCheck({
     slug,
     companyId: company?.id,
+    applicationConfig: company?.applicationConfig,
     searchParams,
     inviteOutcome,
     setInviteOutcome,

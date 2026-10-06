@@ -52,6 +52,7 @@ import {
   callableSpy,
   stubDraftCallables,
   makeRenderers,
+  profileOverride,
 } from './PublicApplyHandler.contract.support';
 
 const { renderHandler } = makeRenderers({ PublicApplyHandler, MemoryRouter, Route, Routes });
@@ -197,6 +198,40 @@ describe('a replacement link for a driver who already started', () => {
     // An empty answer is filled from the claim; an existing one is not replaced.
     expect(sent.dob).toBe('1988-03-11');
     expect(sent.lastName).toBe('Alvarez-Ruiz');
+  });
+
+  it('leaves out an SSN or date of birth the company does not ask for', async () => {
+    profileOverride.current = {
+      applicationConfig: {
+        cdlUpload: { hidden: false, required: true },
+        medCardUpload: { hidden: false, required: true },
+        ssn: { hidden: true },
+        dob: { hidden: true },
+      },
+    };
+    try {
+      exchangeInviteSpy.mockImplementation(async (payload) => (payload?.identity ? CONTINUED : NEEDS_IDENTITY));
+
+      renderHandler(LINK);
+      await screen.findByRole('heading', { name: /Confirm it’s you/i });
+      fillTheClaim();
+      fireEvent.click(confirmButton());
+      await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('5'));
+
+      fireEvent.click(screen.getByRole('button', { name: 'probe-next' }));
+      await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+      const [sent] = saveProgressSpy.mock.calls.at(-1);
+
+      // Typed only to check who the driver is: never part of this application.
+      expect(sent.ssn || '').toBe('');
+      expect(sent.dob || '').toBe('');
+      expect(sent.formData).not.toHaveProperty('ssn');
+      expect(sent.formData).not.toHaveProperty('dob');
+      // The last name has no gate; every application asks it.
+      expect(sent.lastName).toBe('Alvarez');
+    } finally {
+      profileOverride.current = null;
+    }
   });
 
   it('keeps the screen up with the server’s sentence when the details do not match', async () => {

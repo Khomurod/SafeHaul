@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 
+import { resolveApplicationGate } from '@/config/applicationGates';
 import {
     INVITE_OUTCOMES,
     adoptOpenedApplication,
@@ -43,6 +44,7 @@ import {
 export function useInviteIdentityCheck({
     slug,
     companyId,
+    applicationConfig,
     searchParams,
     inviteOutcome,
     setInviteOutcome,
@@ -129,11 +131,14 @@ export function useInviteIdentityCheck({
             // stores the SSN (`NEVER_STORED`, and a save sends it outside
             // `formData`), so it lasts as long as this tab, as if typed on page
             // one. Only where empty, so an answer already on the application is
-            // never overwritten.
+            // never overwritten, and only what the company's application asks
+            // for: a hidden SSN or date of birth was collected to check identity,
+            // and would otherwise be submitted with the application.
+            const asked = (gate) => !resolveApplicationGate(applicationConfig, gate).hidden;
             setFormData((prev) => ({
                 ...prev,
-                ssn: prev.ssn || identity.ssn,
-                dob: prev.dob || identity.dob,
+                ...(asked('ssn') ? { ssn: prev.ssn || identity.ssn } : {}),
+                ...(asked('dob') ? { dob: prev.dob || identity.dob } : {}),
                 lastName: prev.lastName || identity.lastName,
             }));
             // Last, so the screen does not come down until the answers are on it.
@@ -142,7 +147,7 @@ export function useInviteIdentityCheck({
             setBusy(false);
         }
     }, [
-        companyId, slug, searchParams, setInviteOutcome, adoptResumeToken,
+        companyId, applicationConfig, slug, searchParams, setInviteOutcome, adoptResumeToken,
         restoredFromDraftRef, draftIdRef, setFormData, setCurrentStep, setIntakeMode,
     ]);
 

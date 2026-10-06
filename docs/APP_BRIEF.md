@@ -676,9 +676,9 @@ already on record — what `InviteLinkPanel` tells recruiters.
 - None, **carrier-prepared** → `unverifiable` (the carrier typed those facts);
   the driver continues on the device where they started, which is asked nothing
   (§12).
-- On success the claim's SSN goes into the form in memory, and so do its date of
-  birth and last name where the application has none. Page one does not ask
-  again, and no draft ever holds the SSN.
+- On success the claim fills the form in memory where it is empty: the SSN and
+  date of birth only if the company asks for them, the last name always. Page
+  one does not ask again, and no draft ever holds the SSN.
 - Refusals are `permission-denied` with an actionable sentence, rate-limited per
   targeted draft and per caller, audited as `invite_identity_refused`, and
   disclose nothing beyond the `requiresIdentity` already given.
