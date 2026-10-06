@@ -1,5 +1,6 @@
 // After Edit on the Review page, Continue on the edited step goes straight back to
-// Review instead of walking every later page again — once, and only from that step.
+// Review instead of walking every later page again — once, only from that step, and
+// only while that application lasts.
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -19,6 +20,7 @@ const REVIEW = 8;
 function wizardAt(startStep) {
     let step = startStep;
     const saveDraftToServer = vi.fn();
+    const discardMarkRef = { current: 'mark-1' };
     const props = () => ({
         slug: 'acme',
         sandbox: false,
@@ -26,7 +28,7 @@ function wizardAt(startStep) {
         currentStep: step,
         draftIdRef: { current: null },
         restoredFromDraftRef: { current: false },
-        discardMarkRef: { current: null },
+        discardMarkRef,
         discardedElsewhere: () => false,
         handleDiscardedElsewhere: vi.fn(),
         continueExisting: vi.fn(),
@@ -46,7 +48,13 @@ function wizardAt(startStep) {
         hook.rerender();
         return step;
     };
-    return { go, saveDraftToServer };
+    /** What a discard elsewhere or a Start Over does: a new mark, and the wizard reset. */
+    const reset = (toStep) => {
+        discardMarkRef.current = 'mark-2';
+        step = toStep;
+        hook.rerender();
+    };
+    return { go, reset, saveDraftToServer };
 }
 
 describe('Continue after Edit on Review', () => {
@@ -73,6 +81,15 @@ describe('Continue after Edit on Review', () => {
         expect(go('back')).toBe(1);
         expect(go('next')).toBe(2);
         expect(go('next')).toBe(3);
+    });
+
+    it('is forgotten when that application ends, so a fresh page one walks forward', () => {
+        const { go, reset } = wizardAt(REVIEW);
+
+        go(0);
+        reset(0);
+
+        expect(go('next')).toBe(1);
     });
 
     it('never applies without an Edit', () => {

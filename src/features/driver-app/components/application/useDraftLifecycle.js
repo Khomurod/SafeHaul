@@ -69,9 +69,12 @@ export function useDraftLifecycle({
    * is remembered with the Review step it was opened from, and Continue on that
    * same step returns to Review instead of walking every later page again. The
    * edited step still validates first: a step calls `onNavigate('next')` only once
-   * its own checks pass. Any other navigation forgets it. A later page the edit
-   * left incomplete is still caught: the submission pre-flight and the server
-   * check the whole application and route the applicant to what is missing.
+   * its own checks pass. Any other navigation forgets it, and so does the end of
+   * that application: a discard (here or in another tab) or a Start Over changes
+   * the discard mark, and the wizard they reset is a new application whose page
+   * one must not jump to the old Review. A later page the edit left incomplete is
+   * still caught: the submission pre-flight and the server check the whole
+   * application and route the applicant to what is missing.
    */
   const reviewReturnRef = useRef(null);
 
@@ -80,11 +83,13 @@ export function useDraftLifecycle({
     const reviewReturn = reviewReturnRef.current;
     reviewReturnRef.current = null;
     if (direction === 'next') {
-      nextStep = reviewReturn?.editedStep === currentStep ? reviewReturn.reviewStep : currentStep + 1;
+      const returnsToReview = reviewReturn?.editedStep === currentStep
+        && reviewReturn.discardMark === discardMarkRef.current;
+      nextStep = returnsToReview ? reviewReturn.reviewStep : currentStep + 1;
     } else if (direction === 'back') nextStep = Math.max(0, currentStep - 1);
     else if (typeof direction === 'number') {
       nextStep = direction;
-      reviewReturnRef.current = { editedStep: direction, reviewStep: currentStep };
+      reviewReturnRef.current = { editedStep: direction, reviewStep: currentStep, discardMark: discardMarkRef.current };
     }
 
     // Before the step moves, not just before the write. Advancing and then
