@@ -37,6 +37,10 @@ const MEDICAL_CARD_PROMPT = [
 ].join(' ');
 
 const MEDICAL_CARD_TOTAL_DEADLINE_MS = 45000;
+// Below the total, so a stalled provider fails over instead of taking the whole
+// budget (see `CDL_PER_ATTEMPT_MS`). Up to five pages, like a report: 25s still
+// leaves 20s for the next provider.
+const MEDICAL_CARD_PER_ATTEMPT_MS = 25000;
 
 function normalizeMedicalCardOutput(raw) {
     return { medCardExpiration: looseDateToIso(raw?.expirationDate) };
@@ -62,6 +66,7 @@ async function extractMedicalCardFields({ imageDataUrls }, deps = {}) {
         maxOutputTokens: 200,
         privacy: PRIVACY.RESTRICTED,
         totalDeadlineMs: MEDICAL_CARD_TOTAL_DEADLINE_MS,
+        perAttemptDeadlineMs: MEDICAL_CARD_PER_ATTEMPT_MS,
     });
 
     const result = await runAiTask(task, deps);
@@ -78,6 +83,7 @@ module.exports = {
     MEDICAL_CARD_JSON_SCHEMA,
     MEDICAL_CARD_PROMPT,
     MEDICAL_CARD_TOTAL_DEADLINE_MS,
+    MEDICAL_CARD_PER_ATTEMPT_MS,
     extractMedicalCardFields,
     normalizeMedicalCardOutput,
 };

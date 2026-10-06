@@ -30,6 +30,8 @@ import { loadPdfDocument, renderPageToDataUrl } from '@features/signing/utils/pd
 
 /** Pages per callable request. The backend hard-caps this at 5. */
 export const PAGES_PER_REQUEST = 3;
+// The callable's function timeout: a read may take 100s, past the browser default of 70s.
+export const ANALYZE_TIMEOUT_MS = 120000;
 
 /**
  * Most pages one scan may cover.
@@ -232,7 +234,7 @@ export function useAiFieldAssistant({ companyId, file, numPages, activePage, fie
 
                 if (visionPages.length > 0) {
                     const functions = getFunctions();
-                    const analyze = httpsCallable(functions, 'analyzeEdocFieldPlacement');
+                    const analyze = httpsCallable(functions, 'analyzeEdocFieldPlacement', { timeout: ANALYZE_TIMEOUT_MS });
                     const batches = chunk(visionPages, PAGES_PER_REQUEST);
                     let completed = pages.length - visionPages.length;
 

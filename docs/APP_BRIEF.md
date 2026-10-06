@@ -928,8 +928,8 @@ projection, and `/apply/:slug` is not gated by any flag. See
   lane** (text / vision), which reach different models on different entitlements
   and fail independently. A task may set `perAttemptDeadlineMs` below its total
   so one stalled provider cannot spend the whole budget (`deadline_exceeded`)
-  before a healthy one is tried; the document reader does. See
-  [`docs/ai-platform.md`](./ai-platform.md).
+  before a healthy one is tried; every task that reads a driver's document does.
+  See [`docs/ai-platform.md`](./ai-platform.md).
 - **Credential access differs by function generation; grant both.** 1st- and
   2nd-generation functions default to *different* runtime service accounts (App
   Engine and Compute Engine), so `roles/secretmanager.secretAccessor` is needed

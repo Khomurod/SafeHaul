@@ -11,7 +11,8 @@ vi.mock('firebase/functions', async () => (await import('./useAiFieldAssistant.s
 vi.mock('@features/signing/utils/pdfPageRasterizer', async () => (await import('./useAiFieldAssistant.support')).pdfPageRasterizerMock());
 vi.mock('@features/signing/utils/pdfFieldInspector', async (importOriginal) => (await import('./useAiFieldAssistant.support')).pdfFieldInspectorMock(importOriginal));
 
-import { MAX_SCAN_PAGES, resolveScanPages, useAiFieldAssistant } from './useAiFieldAssistant';
+import { httpsCallable } from 'firebase/functions';
+import { ANALYZE_TIMEOUT_MS, MAX_SCAN_PAGES, resolveScanPages, useAiFieldAssistant } from './useAiFieldAssistant';
 import {
     makeSetup,
     resetHarness,
@@ -90,6 +91,18 @@ describe('hybrid analysis', () => {
         expect(payload.companyId).toBe('co-1');
         expect(payload.scanId).toEqual(expect.any(String));
         expect(payload.pages).toEqual([{ pageNumber: 2, imageDataUrl: 'data:image/jpeg;base64,AAA' }]);
+    });
+
+    it('waits as long as the server may take to answer', async () => {
+        // The server reads for up to 100s inside a 120s function. The browser's
+        // default of 70s gave up on slow scans that went on to succeed.
+        const { result } = setup();
+        await act(async () => {
+            await result.current.startScan({ scope: 'current' });
+        });
+
+        expect(ANALYZE_TIMEOUT_MS).toBe(120000);
+        expect(httpsCallable).toHaveBeenCalledWith(expect.anything(), 'analyzeEdocFieldPlacement', { timeout: ANALYZE_TIMEOUT_MS });
     });
 
     it('skips the vision pass for a page fully described by embedded form widgets', async () => {
