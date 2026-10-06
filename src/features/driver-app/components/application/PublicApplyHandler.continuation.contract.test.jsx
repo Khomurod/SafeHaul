@@ -52,6 +52,7 @@ import {
   callableSpy,
   stubDraftCallables,
   makeRenderers,
+  profileOverride,
 } from './PublicApplyHandler.contract.support';
 
 const { renderHandler } = makeRenderers({ PublicApplyHandler, MemoryRouter, Route, Routes });
@@ -165,6 +166,72 @@ describe('a replacement link for a driver who already started', () => {
       resumeToken: 'resume-token-9',
       applicantKey: 'applicant-key-1',
     });
+  });
+
+  it('keeps the SSN just typed for page one, in memory only, and fills nothing already answered', async () => {
+    // The application already holds a last name that differs from the claim's; the
+    // claim brings a date of birth the application lacks.
+    const continued = {
+      data: { ...CONTINUED.data, formData: { ...CONTINUED.data.formData, lastName: 'Alvarez-Ruiz' } },
+    };
+    exchangeInviteSpy.mockImplementation(async (payload) => (payload?.identity ? continued : NEEDS_IDENTITY));
+
+    renderHandler(LINK);
+    await screen.findByRole('heading', { name: /Confirm it’s you/i });
+    fillTheClaim();
+    fireEvent.click(confirmButton());
+    await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('5'));
+
+    // A forward step saves, which is where the form leaves the browser.
+    fireEvent.click(screen.getByRole('button', { name: 'probe-next' }));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    const [sent] = saveProgressSpy.mock.calls.at(-1);
+
+    // The form holds the SSN, so page one does not ask for it again. It travels
+    // only as the identity field the server hashes and never stores ...
+    expect(sent.ssn).toBe('123-45-6789');
+    // ... and nothing that is stored holds it, here or on the server.
+    expect(sent.formData).not.toHaveProperty('ssn');
+    for (const key of Object.keys(localStorage)) {
+      expect(localStorage.getItem(key)).not.toMatch(/123-?45-?6789/);
+    }
+    // An empty answer is filled from the claim; an existing one is not replaced.
+    expect(sent.dob).toBe('1988-03-11');
+    expect(sent.lastName).toBe('Alvarez-Ruiz');
+  });
+
+  it('leaves out an SSN or date of birth the company does not ask for', async () => {
+    profileOverride.current = {
+      applicationConfig: {
+        cdlUpload: { hidden: false, required: true },
+        medCardUpload: { hidden: false, required: true },
+        ssn: { hidden: true },
+        dob: { hidden: true },
+      },
+    };
+    try {
+      exchangeInviteSpy.mockImplementation(async (payload) => (payload?.identity ? CONTINUED : NEEDS_IDENTITY));
+
+      renderHandler(LINK);
+      await screen.findByRole('heading', { name: /Confirm it’s you/i });
+      fillTheClaim();
+      fireEvent.click(confirmButton());
+      await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('5'));
+
+      fireEvent.click(screen.getByRole('button', { name: 'probe-next' }));
+      await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+      const [sent] = saveProgressSpy.mock.calls.at(-1);
+
+      // Typed only to check who the driver is: never part of this application.
+      expect(sent.ssn || '').toBe('');
+      expect(sent.dob || '').toBe('');
+      expect(sent.formData).not.toHaveProperty('ssn');
+      expect(sent.formData).not.toHaveProperty('dob');
+      // The last name has no gate; every application asks it.
+      expect(sent.lastName).toBe('Alvarez');
+    } finally {
+      profileOverride.current = null;
+    }
   });
 
   it('keeps the screen up with the server’s sentence when the details do not match', async () => {
