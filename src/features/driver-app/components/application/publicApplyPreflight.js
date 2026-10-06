@@ -55,6 +55,18 @@ export function runSubmissionPreflight({
   }
 
   /**
+   * The 49 CFR 40.25(j) drug and alcohol question. A draft saved before it
+   * replaced the broader question was never asked it, and one resumed past
+   * Qualifications would never reach it. The server cannot require it while
+   * the Production frontend still asks the broader question.
+   */
+  if (!String(formData?.['pre-employment-test-positive'] ?? '').trim()) {
+    showError('Please answer the drug and alcohol testing question on Qualifications to submit.');
+    goTo('qualifications');
+    return { ok: false, formData };
+  }
+
+  /**
    * The company's Application Rules, and any impossible date, over the whole
    * application. A resumed draft may never have revisited the page whose rule
    * now fails — the licence expired last week, the company turned a rule on

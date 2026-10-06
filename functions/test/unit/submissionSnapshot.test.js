@@ -149,6 +149,35 @@ describe('standard answers carry real labels', () => {
   });
 });
 
+// Testing and Production share this backend, and the Production frontend asks the
+// broader drug and alcohol question until it is promoted past the 49 CFR
+// 40.25(j) one. Each answer is recorded under the question it answered, and the
+// question a frontend did not ask is not recorded as unanswered.
+describe('the drug and alcohol question each frontend asked', () => {
+  it('records the broader question under its own label, and not the 40.25(j) one', () => {
+    const snap = snapshot({ formData: { 'drug-test-positive': 'yes', 'drug-test-explanation': 'A refusal in 2015.' } });
+    expect(answerFor(snap, 'drug-test-positive')).toMatchObject({
+      label: 'Positive Drug or Alcohol Test / Refusal', presented: true, displayValue: 'Yes',
+    });
+    expect(answerFor(snap, 'drug-test-explanation')).toMatchObject({ presented: true, displayValue: 'A refusal in 2015.' });
+    expect(answerFor(snap, 'pre-employment-test-positive')).toMatchObject({ presented: false, value: null });
+  });
+
+  it('records the 40.25(j) question under its own label, and not the broader one', () => {
+    const snap = snapshot({
+      formData: { 'pre-employment-test-positive': 'yes', 'pre-employment-test-explanation': 'A refusal in March 2025.' },
+    });
+    expect(answerFor(snap, 'pre-employment-test-positive')).toMatchObject({
+      label: 'Positive Pre-Employment Test / Refusal (Past 2 Years)', presented: true, displayValue: 'Yes',
+    });
+    expect(answerFor(snap, 'pre-employment-test-explanation')).toMatchObject({
+      label: 'Pre-Employment Test Explanation', presented: true, displayValue: 'A refusal in March 2025.',
+    });
+    expect(answerFor(snap, 'drug-test-positive')).toMatchObject({ presented: false, value: null });
+    expect(answerFor(snap, 'drug-test-explanation')).toMatchObject({ presented: false, value: null });
+  });
+});
+
 describe('display formatting never shows raw infrastructure values', () => {
   it('normalizes yes/no answers', () => {
     expect(formatAnswerForDisplay('yes')).toBe('Yes');

@@ -140,8 +140,22 @@
                 "label": "Years of CDL Experience"
             },
             {
+                "id": "pre-employment-test-positive",
+                "label": "Positive Pre-Employment Test / Refusal (Past 2 Years)",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "pre-employment-test-explanation",
+                "label": "Pre-Employment Test Explanation",
+                "dependsOn": {
+                    "field": "pre-employment-test-positive",
+                    "equals": "yes"
+                }
+            },
+            {
                 "id": "drug-test-positive",
-                "label": "Positive Pre-Employment Test / Refusal (Past 2 Years)"
+                "label": "Positive Drug or Alcohol Test / Refusal",
+                "presentWhenAnswered": true
             },
             {
                 "id": "drug-test-explanation",

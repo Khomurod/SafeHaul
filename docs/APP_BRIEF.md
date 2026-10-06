@@ -138,14 +138,14 @@ pre-flight and the server still check the whole application.
 Company Profile has five tabs: *Standard Questions* (show / hide / require the
 DOT questions), *Application Rules* (§5), *Custom Questions*, *Agreements*
 (versioned legal wording) and *Integrations* (optional PSP-report and MVR
-import). Qualifications asks 49 CFR 40.25(j)'s own drug and alcohol question
-(pre-employment tests, past two years); Violations carries the one **MVR
-authorization** question (a versioned agreement answered Yes/No); a Yes/No
-question precedes the moving-violations and the accidents lists; Employment can
-offer PSP-report import and License MVR import, both only *suggesting* entries
-accepted one by one (§10); General can carry an optional **Hours of Service
-statement** (last seven days, last relieved). A company that configures nothing
-sees exactly the application it had before 2026-09-02.
+import). Qualifications asks 49 CFR 40.25(j)'s drug and alcohol question
+(pre-employment, past two years), kept apart from the broader one it replaced
+(Production asks it until promoted); a draft lacking its answer goes back there.
+Violations carries the one **MVR authorization** question (a versioned agreement
+answered Yes/No); a Yes/No question precedes the moving-violations and the
+accidents lists; Employment can offer PSP-report import and License MVR import,
+both only *suggesting* entries accepted one by one (§10); General can carry an
+optional **Hours of Service statement** (last seven days, last relieved).
 
 **Progress survives from the first page.** Every forward step writes a local
 copy synchronously and a server draft in the background, so a closed tab, a
