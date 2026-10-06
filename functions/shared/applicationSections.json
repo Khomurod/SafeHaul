@@ -476,6 +476,14 @@
                     {
                         "id": "reasonForLeaving",
                         "label": "Reason for Leaving"
+                    },
+                    {
+                        "id": "subjectToFmcsrs",
+                        "label": "Subject to FMCSRs"
+                    },
+                    {
+                        "id": "subjectToDotTesting",
+                        "label": "Safety-Sensitive (DOT Drug & Alcohol Testing)"
                     }
                 ]
             },

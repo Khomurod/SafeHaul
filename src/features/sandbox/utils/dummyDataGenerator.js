@@ -126,6 +126,8 @@ function patchStep6Employment() {
         supervisorPhone: '2145550101',
         supervisorEmail: 'pat@acmetransport.test',
         mayContact: 'yes',
+        subjectToFmcsrs: 'yes',
+        subjectToDotTesting: 'yes',
       },
     ],
   };

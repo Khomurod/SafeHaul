@@ -273,7 +273,7 @@ export const ACCIDENTS_SECTION = {
 
 export const EMPLOYMENT_SECTION = {
     id: 'employmentHistory',
-    title: 'Employment History (Past 10 Years)',
+    title: 'Employment History',
     stepNumber: 6,
     type: 'array',
     itemFields: [

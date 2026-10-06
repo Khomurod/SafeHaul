@@ -621,7 +621,12 @@ Employment, unemployment, schooling and military service all count; a gap is
 only a gap when nothing explains it. `employmentHistoryMinimumYears` (1–10,
 default 3) sets the window; `employmentHistoryEnforcement` ignores, warns once
 or blocks. The calculation is calendar-month based and pure (injected reference
-date), so a recorded result never drifts.
+date), so a recorded result never drifts. The page asks what (b)(10)–(11) ask:
+every employer of three years and, for a CDL job, the CMV employers of the seven
+before (and says so when the company's period is longer). The reason for leaving
+is required, and each employer not ended before the three years answers the two
+(b)(10)(iv) questions (`subjectToFmcsrs`, `subjectToDotTesting`, the portal's
+names), never pre-selected; like the rest of the row, only the page checks them.
 
 **Change both or neither.** The SPA cannot import the CommonJS backend, so
 coverage exists twice — `functions/shared/employmentCoverage.js` and
@@ -1406,20 +1411,11 @@ re-scanned, never stepped over.
   owner rotation.
 
 **Source size.** 400 physical lines asks a file to justify its shape; 500 is the
-hard maximum, for tests and tooling as for runtime code, in every handwritten
-source language (JS/TS, CSS, HTML, Firestore rules). `npm run check:source-size`
-prints the inventory and fails on an offender. There is no backlog
-(`.github/source-size-backlog.json` is gone): nothing may exceed 500 except, by
-owner ruling, `src/firestore.rules`, measured every run against a 689-line
-ceiling that may never grow and may only move down. The comparison base is a
-pull request's own base or the newest ancestor GitHub says carried a fully
-validated release — never the branch's own history, nor a manually named commit
-that does not contain that base; with no earlier backlog, each entry must name a
-file the base already carried at that size, so a bootstrap cannot exempt debt it
-created. Workflows, JSON, Markdown and the one MDX story are deliberately
-unmeasured (reasons in the checker), and a test refuses any tracked format in
-none of its lists. See `.claude/rules/source-size.md`; the finished campaign's
-plan and tracker are in `docs/archive/source-size-refactor/`.
+hard maximum for every handwritten source file, tests and tooling included, with
+one owner-ruled exception: `src/firestore.rules`, held under a 689-line ceiling
+that may only move down. `npm run check:source-size` enforces it against the
+pull request's base or the last fully validated release; the details are in
+`.claude/rules/source-size.md`.
 
 **Instructions for AI agents stay small.** `AGENTS.md` is one page every agent
 reads; `.claude/rules/` holds topic rules loaded per area; history lives in

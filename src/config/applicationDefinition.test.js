@@ -114,6 +114,19 @@ describe('the two resolvers agree', () => {
             .toEqual(serverSnapshot.buildRepeatingRows(FORM.employers, employers.columns));
     });
 
+    it('prints an employer\'s two 49 CFR 391.21(b)(10)(iv) answers under their own labels', () => {
+        const rows = [{ companyName: 'Acme Freight', reasonForLeaving: 'Pay', subjectToFmcsrs: 'yes', subjectToDotTesting: 'no' }];
+        const definition = serverDefinition.buildApplicationDefinition({ company: { applicationConfig: {} } });
+        const employers = serverDefinition.visibleFields(definition).find((f) => f.id === 'employers');
+        const [cells] = serverSnapshot.buildRepeatingRows(rows, employers.columns);
+        expect(cells).toEqual(expect.arrayContaining([
+            { label: 'Reason for Leaving', displayValue: 'Pay' },
+            { label: 'Subject to FMCSRs', displayValue: 'Yes' },
+            { label: 'Safety-Sensitive (DOT Drug & Alcohol Testing)', displayValue: 'No' },
+        ]));
+        expect(buildRepeatingRows(rows, employers.columns)).toEqual(serverSnapshot.buildRepeatingRows(rows, employers.columns));
+    });
+
     it('formats dates, files, lists and yes/no identically', () => {
         const cases = [
             ['2026-07-14', { type: 'date' }],

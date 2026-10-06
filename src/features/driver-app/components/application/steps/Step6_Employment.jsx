@@ -16,6 +16,7 @@ import { StepIssues } from './components/StepIssues';
 import { makeEmploymentRowRenderers } from './components/EmploymentHistoryRows';
 import { EMPTY_EMPLOYER } from './components/employmentRowShapes';
 import { LockedEmployerIdentity } from './components/LockedEmployerIdentity';
+import { EmployerDotQuestions } from './components/EmployerDotQuestions';
 import { isLockedEmployerRow } from '@/config/applicationLockedFields';
 import { ReportImportPanel } from './components/ReportImportPanel';
 import { integrationEnabled } from '../reportSuggestions';
@@ -37,8 +38,8 @@ const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * Unchanged: the `employers` / `unemployment` / `schools` / `military` row
  * shapes, the `employmentHistory` config resolution, the per-employer email
  * format checks and their exact "Employer N: …" toast strings, the
- * `employerRowHasVerifierContact` requirement, the frozen 49 CFR 391.21 /
- * 391.23 explanatory copy, and the `form.checkValidity()` gate.
+ * `employerRowHasVerifierContact` requirement and the `form.checkValidity()`
+ * gate.
  *
  * DEFECT FIXED (2026-07-27): the per-row radio groups (`mayContact`, `branch`,
  * `heavyEq`, `honorable`) used the bare field name, so every row emitted the same
@@ -53,6 +54,13 @@ const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * the same panel without that escape until the months are accounted for, and the
  * server refuses the same submission. `allow` never interrupts. The schooling,
  * gap and military row renderers moved to `EmploymentHistoryRows.jsx` unchanged.
+ *
+ * 2026-10-06 — the page asks what 49 CFR 391.21(b)(10)-(11) asks: every
+ * employer of the past three years and, for a CDL job, the employers of the
+ * seven years before that the applicant drove a CMV for. It asked for every
+ * employer of ten. Each employer of the three years answers the two
+ * (b)(10)(iv) questions (`EmployerDotQuestions`), and the reason for leaving is
+ * required with the rest of the row.
  */
 const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const { showError } = useToast();
@@ -256,7 +264,8 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     helpText="Month / Day / Year."
                 />
             </div>
-            <InputField label="Reason for Leaving" id={'emp-reason-' + index} name="reasonForLeaving" value={item.reasonForLeaving} onChange={handleChange} />
+            <InputField label="Reason for Leaving" id={'emp-reason-' + index} name="reasonForLeaving" value={item.reasonForLeaving} onChange={handleChange} required={empHistoryConfig.required} />
+            <EmployerDotQuestions index={index} item={item} required={empHistoryConfig.required} onChange={handleChange} />
             <InputField label="Supervisor Name" id={'emp-supervisor-' + index} name="supervisorName" autoComplete="off" value={item.supervisorName} onChange={handleChange} />
             <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
                 <InputField label="Supervisor Phone" id={'emp-sup-phone-' + index} name="supervisorPhone" type="tel" autoComplete="off" value={item.supervisorPhone} onChange={handleChange} placeholder="Direct line or mobile" />
@@ -279,13 +288,14 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
             <StepIssues ref={issuesRef} blocking={otherBlocking} showBlocking={attempted} />
             <div className="space-y-ds-2 text-ds-sm text-ds-content-secondary">
                 <p>
-                    <strong className="text-ds-content">Application (49 CFR 391.21):</strong> provide a complete employment history for the <strong className="text-ds-content">past 10 years</strong> — all employers (driving and non-driving),
-                    unemployment gaps of 30+ days, military service, and driving schools. Incomplete history may delay hiring.
+                    <strong className="text-ds-content">Past 3 years:</strong> list every employer, driving or not, and explain any gap of 30 days or more. Military service and driving school count too.
                 </p>
                 <p>
-                    <strong className="text-ds-content">Verification (49 CFR 391.23):</strong> carriers typically contact prior employers for the <strong className="text-ds-content">previous 3 years</strong> for safety verification.
-                    That is separate from this longer application timeline — list the full 10 years here either way.
+                    <strong className="text-ds-content">Years 4 to 10:</strong> if this job needs a CDL, also list each employer you drove a commercial motor vehicle for (49 CFR 391.21).
                 </p>
+                {rules.employmentHistoryMinimumYears > 3 && (
+                    <p>This company asks you to account for the past {rules.employmentHistoryMinimumYears} years.</p>
+                )}
             </div>
 
             <EmploymentCoverageSummary coverage={coverage} />
