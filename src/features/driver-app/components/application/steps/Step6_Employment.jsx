@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import InputField from '@shared/components/form/InputField';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import DynamicRow from '@shared/components/form/DynamicRow';
-import DateTripletField from '@shared/components/form/DateTripletField';
+import MonthYearField from '@shared/components/form/MonthYearField';
 import { useUtils } from '@shared/hooks/useUtils';
 import { useData } from '@/context/DataContext';
 import { YES_NO_OPTIONS } from '@/config/form-options';
@@ -60,7 +60,9 @@ const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * seven years before that the applicant drove a CMV for. It asked for every
  * employer of ten. Each employer of the three years answers the two
  * (b)(10)(iv) questions (`EmployerDotQuestions`), and the reason for leaving is
- * required with the rest of the row.
+ * required with the rest of the row. Employment dates are a month and a year
+ * (`YYYY-MM`), as on FMCSA's own application form; rows saved with a full
+ * `YYYY-MM-DD` keep it until changed, and every reader accepts both.
  */
 const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const { showError } = useToast();
@@ -241,8 +243,8 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
             </p>
             <InputField label="Position Held" id={'emp-position-' + index} name="position" value={item.position} onChange={handleChange} />
             <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
-                <DateTripletField
-                    label="Start Date"
+                <MonthYearField
+                    label="Start Date (month / year)"
                     idPrefix={'emp-start-' + index}
                     name="startDate"
                     value={item.startDate}
@@ -250,10 +252,9 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     required={empHistoryConfig.required}
                     maxToday={true}
                     minYear={ty - 40}
-                    helpText="Month / Day / Year."
                 />
-                <DateTripletField
-                    label="End Date"
+                <MonthYearField
+                    label="End Date (month / year)"
                     idPrefix={'emp-end-' + index}
                     name="endDate"
                     value={item.endDate}
@@ -264,7 +265,6 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     required={empHistoryConfig.required}
                     maxToday={true}
                     minYear={ty - 40}
-                    helpText="Month / Day / Year."
                 />
             </div>
             <InputField label="Reason for Leaving" id={'emp-reason-' + index} name="reasonForLeaving" value={item.reasonForLeaving} onChange={handleChange} required={empHistoryConfig.required} />

@@ -1,7 +1,6 @@
 import React from 'react';
 import InputField from '@shared/components/form/InputField';
 import RadioGroup from '@shared/components/form/RadioGroup';
-import DateTripletField from '@shared/components/form/DateTripletField';
 import MonthYearField from '@shared/components/form/MonthYearField';
 import { MILITARY_BRANCH_OPTIONS } from '@/config/form-options';
 import { FormField, Textarea } from '@/design-system/components';
@@ -15,14 +14,17 @@ import { FormField, Textarea } from '@/design-system/components';
  * every saved key and every required flag is exactly what the step rendered.
  * The per-row radio groups scope their ids and grouping name by index while
  * `name` (the saved key) stays bare.
+ *
+ * 2026-10-06: school dates are a month and a year (`YYYY-MM`), like the gap and
+ * military dates beside them.
  */
 export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
     const renderSchoolRow = (index, item, handleChange) => (
         <div className="space-y-ds-3">
             <InputField label="School Name" id={'school-name-' + index} name="name" value={item.name} onChange={handleChange} required={true} />
             <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
-                <DateTripletField
-                    label="Start Date"
+                <MonthYearField
+                    label="Start Date (month / year)"
                     idPrefix={'school-start-' + index}
                     name="startDate"
                     value={item.startDate}
@@ -30,10 +32,9 @@ export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
                     required={true}
                     maxToday={true}
                     minYear={ty - 40}
-                    helpText="Month / Day / Year."
                 />
-                <DateTripletField
-                    label="End Date"
+                <MonthYearField
+                    label="End Date (month / year)"
                     idPrefix={'school-end-' + index}
                     name="endDate"
                     value={item.endDate}
@@ -41,7 +42,6 @@ export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
                     required={true}
                     maxToday={true}
                     minYear={ty - 40}
-                    helpText="Month / Day / Year."
                 />
             </div>
             <InputField label="Location (City, State)" id={'school-location-' + index} name="location" value={item.location} onChange={handleChange} />

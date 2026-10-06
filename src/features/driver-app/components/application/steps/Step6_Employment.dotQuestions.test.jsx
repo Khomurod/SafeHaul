@@ -147,6 +147,25 @@ describe('Step6_Employment — what 49 CFR 391.21 asks', () => {
         expect(first.subjectToFmcsrs).toBe('');
     });
 
+    it('asks employment and school dates as a month and a year, and shows a date saved with its day', () => {
+        const { updateFormData } = renderStep({
+            employers: [employer({ startDate: '2020-03-15', endDate: '' })],
+            schools: [{ name: 'Artificial Driving School', startDate: '2019-01-10', endDate: '2019-06', location: '' }],
+        });
+
+        expect(document.getElementById('emp-start-0-day')).toBeNull();
+        expect(document.getElementById('emp-start-0-month')).toHaveValue('3');
+        expect(document.getElementById('emp-start-0-year')).toHaveValue('2020');
+        expect(document.getElementById('school-start-0-day')).toBeNull();
+        expect(document.getElementById('school-start-0-month')).toHaveValue('1');
+        expect(document.getElementById('school-end-0-month')).toHaveValue('6');
+
+        fireEvent.change(document.getElementById('emp-end-0-year'), { target: { value: '2026' } });
+        fireEvent.change(document.getElementById('emp-end-0-month'), { target: { value: '9' } });
+        const update = updateFormData.mock.calls.at(-1)[1];
+        expect(update([employer()])[0].endDate).toBe('2026-09');
+    });
+
     it('leaves the questions optional where the company made employment history optional', () => {
         company.profile = { applicationConfig: { employmentHistory: { hidden: false, required: false } } };
         renderStep({ employers: [employer()] });

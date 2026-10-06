@@ -8,7 +8,7 @@ const {
   continueToStep,
   expectStep,
   chooseRadio,
-  fillDateTriplet,
+  fillMonthYear,
   completeStepsToReview,
   completeRemainingSteps,
   applySignature,
@@ -88,8 +88,8 @@ test.describe('guest public application', () => {
     await page.fill('#emp-city-0', 'Springfield');
     await page.selectOption('#emp-state-0', 'Texas');
     await page.fill('#emp-phone-0', '5555550100');
-    await fillDateTriplet(page, 'emp-start-0', { month: 1, day: 1, year: today.getFullYear() - 4 });
-    await fillDateTriplet(page, 'emp-end-0', { month: today.getMonth() + 1, day: today.getDate(), year: today.getFullYear() });
+    await fillMonthYear(page, 'emp-start-0', { month: 1, year: today.getFullYear() - 4 });
+    await fillMonthYear(page, 'emp-end-0', { month: today.getMonth() + 1, year: today.getFullYear() });
 
     // Unanswered, the page does not move on, and nothing was chosen for the driver.
     await expect(page.locator('#emp-fmcsrs-0-yes')).not.toBeChecked();

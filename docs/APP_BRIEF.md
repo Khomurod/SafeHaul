@@ -132,7 +132,9 @@ autofilled. Previous addresses, employers and the FMCSA lookup turn autofill off
 The auto-fill CDL photo is the CDL front, even when unreadable, unless the
 company hides that upload; what the AI reads fills only empty fields. Continue on
 a page opened by Edit on Review goes straight back to Review; the submission
-pre-flight and the server still check the whole application.
+pre-flight and the server still check the whole application. The date of birth
+is typed on the number pad; employment and school dates are a month and a year
+(`YYYY-MM`, as on FMCSA's form), and every reader still accepts older full dates.
 
 **The company shapes what the wizard asks, without code.** Company Settings →
 Company Profile has five tabs: *Standard Questions* (show / hide / require the
