@@ -316,8 +316,8 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
             >
             {/*
               Optional PSP import — only when the company switched it on. It
-              suggests carriers and violations the report mentions; the applicant
-              adds each one deliberately, and nothing already entered changes.
+              suggests the carriers the report mentions; the applicant adds each
+              one deliberately, and nothing already entered changes.
             */}
             {!empHistoryConfig.hidden && integrationEnabled(currentCompany, 'psp') && (
                 <ReportImportPanel kind="psp" company={currentCompany} formData={formData} updateFormData={updateFormData} />

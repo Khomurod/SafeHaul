@@ -150,6 +150,14 @@ export const buildApplyLinkOutcomeMessage = (outcome) => {
   }
 };
 
+// A two-digit year in the nearer century, as the server reads one: a birth year of
+// '88 is 1988, an expiry of '29 stays 2029. Read as 20xx, a licence's "03/11/88"
+// filled 2088, and the wizard told the driver they must be at least 21.
+const fullYear = (twoDigits, now = new Date()) => {
+  const year = 2000 + twoDigits;
+  return year > now.getFullYear() + 10 ? year - 100 : year;
+};
+
 export const parseIsoFromLooseDate = (raw) => {
   const text = String(raw || '').trim();
   if (!text) return '';
@@ -161,7 +169,7 @@ export const parseIsoFromLooseDate = (raw) => {
     const m = Number(mdY[1]);
     const d = Number(mdY[2]);
     let y = Number(mdY[3]);
-    if (y < 100) y += 2000;
+    if (y < 100) y = fullYear(y);
     if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 1900 && y <= 2100) {
       return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     }

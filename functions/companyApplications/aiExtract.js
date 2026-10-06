@@ -137,12 +137,11 @@ function visionReaderFor(kind) {
         case 'medical':
             return async (imageDataUrls) => ({ license: (await extractMedicalCardFields({ imageDataUrls })).license });
         case 'psp':
+            // Carriers only: a PSP report's violations are inspection findings, not
+            // the convictions the application asks for (see `normalizePspOutput`).
             return async (imageDataUrls) => {
                 const { suggestions } = await extractReportSuggestions({ kind: 'psp', imageDataUrls });
-                return {
-                    carriers: suggestions.carriers,
-                    violations: suggestions.violations.map((row) => ({ ...row, source: 'psp' })),
-                };
+                return { carriers: suggestions.carriers };
             };
         case 'mvr':
             return async (imageDataUrls) => {

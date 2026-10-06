@@ -25,7 +25,7 @@ export const REPORT_KINDS = Object.freeze({
         title: 'Import from your PSP report',
         documentName: 'PSP report',
         uploadLabel: 'Upload your PSP report (PDF or photo)',
-        intro: 'Optional. If you have your FMCSA Pre-Employment Screening Program report, upload it and we will suggest carriers and violations it mentions. Nothing is added until you accept it, and nothing you have already entered is changed.',
+        intro: 'Optional. If you have your FMCSA Pre-Employment Screening Program report, upload it and we will suggest the carriers it mentions. Nothing is added until you accept it, and nothing you have already entered is changed.',
     }),
     mvr: Object.freeze({
         title: 'Import from your motor vehicle record',

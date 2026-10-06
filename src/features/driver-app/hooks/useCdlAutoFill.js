@@ -9,7 +9,7 @@
  * folder in the `{ name, storagePath }` shape `useGuestFileUpload` stores, so the
  * License step shows it attached and the driver never photographs the licence
  * twice. A company that hides the CDL upload gets no CDL photo: there the image
- * goes to the `autofill` folder as before and is not attached. Parsed values only
+ * is read and never uploaded, as no one would ever open it. Parsed values only
  * fill fields that are still empty: what the driver typed always wins.
  *
  * Navigation side effects stay with the caller:
@@ -80,20 +80,23 @@ export function useCdlAutoFill({ companyId, applicationConfig, onAutoFilled, onR
       setIsParsingCdl(true);
 
       // 1) Upload as the application's CDL front, where any guest upload goes.
-      const prepareUpload = httpsCallable(functions, 'getSignedUploadUrl');
-      const { data: uploadData } = await prepareUpload({
-        companyId,
-        fileName: file.name,
-        fileType: file.type,
-        folder: keepPhoto ? 'applications' : 'autofill',
-      });
-      const storagePath = uploadData?.storagePath;
-      if (!storagePath) {
-        throw new Error('Could not reserve upload path.');
+      //    A photo the company does not ask for is only read, never stored.
+      let storagePath = null;
+      if (keepPhoto) {
+        const prepareUpload = httpsCallable(functions, 'getSignedUploadUrl');
+        const { data: uploadData } = await prepareUpload({
+          companyId,
+          fileName: file.name,
+          fileType: file.type,
+          folder: 'applications',
+        });
+        storagePath = uploadData?.storagePath;
+        if (!storagePath) {
+          throw new Error('Could not reserve upload path.');
+        }
+        await uploadBytes(ref(storage, storagePath), file, { contentType: file.type });
+        cdlFront = { name: file.name, storagePath };
       }
-      const uploadRef = ref(storage, storagePath);
-      await uploadBytes(uploadRef, file, { contentType: file.type });
-      if (keepPhoto) cdlFront = { name: file.name, storagePath };
 
       // 2) Send image to secure Groq parser callable (no API key in frontend)
       const imageDataUrl = await fileToDataUrl(file);

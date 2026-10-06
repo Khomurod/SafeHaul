@@ -4,8 +4,8 @@
  * A carrier may let its applicants upload their FMCSA Pre-Employment Screening
  * Program report or their motor vehicle record. The pages are read with the same
  * vision route the CDL auto-fill uses, and what comes back is a list of things
- * the applicant might want to add: a carrier the report mentions, a violation it
- * lists, the licence details an MVR prints. The applicant confirms each one.
+ * the applicant might want to add: a carrier the PSP report mentions, a conviction
+ * or the licence details the MVR prints. The applicant confirms each one.
  *
  * WHAT A PSP REPORT IS, AND IS NOT. It is crash and inspection history — a
  * carrier's USDOT number appears beside the date of an inspection or crash. That
@@ -60,9 +60,8 @@ const PSP_JSON_SCHEMA = Object.freeze({
                 additionalProperties: false,
             },
         },
-        violations: { type: 'array', items: VIOLATION_SCHEMA },
     },
-    required: ['carriers', 'violations'],
+    required: ['carriers'],
     additionalProperties: false,
 });
 
@@ -85,8 +84,7 @@ const PSP_PROMPT = [
     'Return ONLY strict JSON. No markdown. No prose.',
     'List every motor carrier named in the crash or inspection records: carrierName, usdotNumber (digits only, or empty),',
     'earliestDate and latestDate of the records mentioning that carrier (as printed, or empty), and recordType (inspection, crash, or both).',
-    'List every violation or citation shown in inspection or crash records: date as printed, description, and location (city/state) if printed.',
-    'Do not infer employment dates; report only what is printed. If nothing is readable, return empty arrays.',
+    'Do not infer employment dates; report only what is printed. If nothing is readable, return {"carriers": []}.',
 ].join(' ');
 
 const MVR_PROMPT = [
@@ -103,26 +101,48 @@ function text(value, max = MAX_TEXT) {
 }
 
 /**
+ * A two-digit year in the nearer century: a birth year of '88 is 1988, while an
+ * expiry of '29 stays 2029. Anything more than ten years ahead is last century.
+ * Read as 20xx, "03/11/88" became 2088, and the wizard told the driver they must
+ * be at least 21.
+ */
+function fullYear(twoDigits, now = new Date()) {
+    const year = 2000 + twoDigits;
+    return year > now.getFullYear() + 10 ? year - 100 : year;
+}
+
+const pad2 = (value) => String(value).padStart(2, '0');
+const isMonth = (month) => month >= 1 && month <= 12;
+
+/** `YYYY-MM-DD` for a day the calendar has, else '': "02/31" is a misreading, not a date. */
+function isoDay(year, month, day) {
+    const date = new Date(Date.UTC(Number(year), month - 1, day));
+    const exists = isMonth(month) && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+    return exists ? `${year}-${pad2(month)}-${pad2(day)}` : '';
+}
+
+/**
  * Printed dates come in every shape a state or FMCSA prints them in. Normalise to
  * `YYYY-MM-DD`, `YYYY-MM` when only a month is legible, or '' — a date that
- * cannot be read is offered blank, never invented.
+ * cannot be read, or a month or day that cannot exist, is offered blank, never
+ * invented.
  */
 function looseDateToIso(raw) {
     const value = text(raw, 40);
     if (!value) return '';
     let match;
     if ((match = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(value))) {
-        return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+        return isoDay(match[1], Number(match[2]), Number(match[3]));
     }
     if ((match = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(value))) {
-        const year = match[3].length === 2 ? Number(match[3]) + 2000 : Number(match[3]);
-        return `${year}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
+        const year = match[3].length === 2 ? fullYear(Number(match[3])) : Number(match[3]);
+        return isoDay(year, Number(match[1]), Number(match[2]));
     }
     if ((match = /^(\d{1,2})[/-](\d{4})$/.exec(value))) {
-        return `${match[2]}-${match[1].padStart(2, '0')}`;
+        return isMonth(Number(match[1])) ? `${match[2]}-${pad2(match[1])}` : '';
     }
     if ((match = /^(\d{4})-(\d{1,2})$/.exec(value))) {
-        return `${match[1]}-${match[2].padStart(2, '0')}`;
+        return isMonth(Number(match[2])) ? `${match[1]}-${pad2(match[2])}` : '';
     }
     const parsed = new Date(value);
     if (!Number.isNaN(parsed.getTime()) && /\d{4}/.test(value)) {
@@ -171,7 +191,11 @@ function normalizePspOutput(raw) {
         }))
         .filter((entry) => entry.name || entry.dotNumber)
         .slice(0, MAX_ITEMS);
-    return { carriers, violations: normalizeViolations(raw?.violations) };
+    // None, whatever a model returns: a PSP report's violations are findings at
+    // roadside inspections, and the application asks for convictions (49 CFR
+    // 391.21(b)(8)). Offered as moving violations, a lamp out became something a
+    // driver declared. The motor vehicle record is where convictions come from.
+    return { carriers, violations: [] };
 }
 
 function normalizeMvrOutput(raw) {

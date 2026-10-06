@@ -122,10 +122,14 @@ describe('useCdlAutoFill', () => {
     describe('at a company that hides the CDL upload', () => {
         const hidden = { cdlUpload: { hidden: true, required: false } };
 
-        it('reads the photo but never attaches it to the application', async () => {
+        it('reads the photo but never stores or attaches it', async () => {
+            // It used to be uploaded to an `autofill` folder no one ever opened: a
+            // copy of a driver's licence kept for nothing.
             const { updater } = await pickPhoto(hidden);
 
-            expect(mocks.reserveUpload).toHaveBeenCalledWith(expect.objectContaining({ folder: 'autofill' }));
+            expect(mocks.reserveUpload).not.toHaveBeenCalled();
+            expect(mocks.uploadBytes).not.toHaveBeenCalled();
+            expect(mocks.parseCdl).toHaveBeenCalledWith(expect.objectContaining({ storagePath: null }));
             const next = updater({});
             expect(next.firstName).toBe('LUIS');
             expect(next).not.toHaveProperty('cdl-front');
