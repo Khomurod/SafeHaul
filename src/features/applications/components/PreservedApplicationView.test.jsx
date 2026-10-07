@@ -235,3 +235,56 @@ describe('a custom file answer', () => {
         expect(screen.queryByRole('button', { name: /Open file/ })).toBeNull();
     });
 });
+
+/*
+ * A standard upload — a licence, a medical card. The dossier shows those
+ * documents in its own tabs, so its record view stays as it was; an unfinished
+ * application has no dossier, and asks for the button with `openUploads`.
+ */
+describe('a standard upload', () => {
+    const STORAGE_PATH = 'companies/c1/applications/guest_uploads/u2_front.jpg';
+    const UPLOAD_RECORD = {
+        ...RECORD,
+        customAnswers: [],
+        sections: [{
+            id: 'documents',
+            title: 'Required Documents',
+            answers: [{
+                key: 'cdl-front', label: 'CDL (Front)', value: 'front.jpg', isMissing: false,
+                sensitive: false, repeating: false, rows: [], storagePath: STORAGE_PATH,
+            }],
+        }],
+    };
+    let tab;
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+        tab = { opener: 'the review', location: { href: '' }, close: vi.fn() };
+        vi.spyOn(window, 'open').mockImplementation(() => tab);
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it('is only its name where the view was not asked to open files', () => {
+        render(<PreservedApplicationView record={UPLOAD_RECORD} />);
+
+        expect(screen.getByText('front.jpg')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Open file/ })).toBeNull();
+    });
+
+    it('opens from a freshly signed link where it was', async () => {
+        mockSignedUrl.mockResolvedValue('https://storage.example.test/signed/front.jpg');
+        render(<PreservedApplicationView record={UPLOAD_RECORD} openUploads />);
+        const open = screen.getByRole('button', { name: 'Open file (opens in a new tab)' });
+        expect(document.body.textContent).not.toContain('guest_uploads');
+
+        fireEvent.click(open);
+
+        await waitFor(() => expect(tab.location.href).toBe('https://storage.example.test/signed/front.jpg'));
+        expect(mockSignedUrl).toHaveBeenCalledWith(STORAGE_PATH);
+    });
+
+    it('offers nothing for an answer that is not a file, even when asked', () => {
+        render(<PreservedApplicationView record={RECORD} openUploads />);
+        expect(screen.queryByRole('button', { name: /Open file/ })).toBeNull();
+    });
+});

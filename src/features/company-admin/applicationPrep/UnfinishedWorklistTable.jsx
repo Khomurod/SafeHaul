@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Icon, Copy, Link2 } from '@design-system/icons';
+import { Icon, Copy, Link2, Trash2 } from '@design-system/icons';
 import { Badge, Button, DataTable, FieldMessage } from '@/design-system/components';
 import { describeApplicant, describeUnfinishedRow } from './unfinishedRowActions';
 
@@ -16,12 +16,16 @@ import { describeApplicant, describeUnfinishedRow } from './unfinishedRowActions
  * prepared work on a second screen. The rows come from one query
  * (`listApplicationDrafts`), so a draft appears once because it is one document —
  * and `describeUnfinishedRow` decides what each row may do, which is the part that
- * must NOT be uniform. See that module for the four cases.
+ * must NOT be uniform. See that module for the four cases, and for what a Company
+ * Admin may do besides (`isCompanyAdmin`): open every row, and delete any.
  */
-export function UnfinishedWorklistTable({ rows, loading, onOpen, link }) {
+export function UnfinishedWorklistTable({ rows, loading, onOpen, onDelete, isCompanyAdmin = false, link }) {
     const {
         linkFor, busyKey, copied, copyFailed, error: mintError, failedKey, onCreate, onCopy,
     } = link;
+    // One object per role, so the columns below are rebuilt when it changes and
+    // not on every render.
+    const viewer = useMemo(() => ({ isCompanyAdmin }), [isCompanyAdmin]);
 
     const columns = useMemo(() => [
         {
@@ -60,7 +64,7 @@ export function UnfinishedWorklistTable({ rows, loading, onOpen, link }) {
             priority: 'secondary',
             width: 'md',
             render: (entry) => {
-                const row = describeUnfinishedRow(entry);
+                const row = describeUnfinishedRow(entry, viewer);
                 return (
                     <div className="flex flex-col gap-ds-1">
                         <span className="text-ds-sm text-ds-content">{row.startedByLabel}</span>
@@ -87,7 +91,7 @@ export function UnfinishedWorklistTable({ rows, loading, onOpen, link }) {
             // The label carries the state; the tone only reinforces it. Status is
             // never colour alone.
             render: (entry) => {
-                const row = describeUnfinishedRow(entry);
+                const row = describeUnfinishedRow(entry, viewer);
                 return <Badge tone={row.statusTone}>{row.statusLabel}</Badge>;
             },
         },
@@ -98,7 +102,7 @@ export function UnfinishedWorklistTable({ rows, loading, onOpen, link }) {
             width: 'md',
             render: (entry) => (
                 <span className="text-ds-sm text-ds-content-secondary">
-                    {describeUnfinishedRow(entry).progressLabel}
+                    {describeUnfinishedRow(entry, viewer).progressLabel}
                 </span>
             ),
         },
@@ -127,13 +131,13 @@ export function UnfinishedWorklistTable({ rows, loading, onOpen, link }) {
              */
             width: 'xl',
             render: (entry) => {
-                const row = describeUnfinishedRow(entry);
+                const row = describeUnfinishedRow(entry, viewer);
                 const { actionName } = describeApplicant(entry);
                 const minted = linkFor(entry.applicantKey);
                 return (
                     <div className="flex flex-col items-start gap-ds-2">
                         <div className="flex flex-wrap gap-ds-2">
-                            {row.canOpenPrepared && (
+                            {row.openMode && (
                                 <Button
                                     variant="secondary"
                                     size="sm"
@@ -141,7 +145,7 @@ export function UnfinishedWorklistTable({ rows, loading, onOpen, link }) {
                                        "Open" buttons tells a screen-reader user
                                        nothing about which row they are on. */
                                     aria-label={`Open the application for ${actionName}`}
-                                    onClick={() => onOpen(entry)}
+                                    onClick={() => onOpen(entry, row.openMode)}
                                 >
                                     Open
                                 </Button>
@@ -158,6 +162,20 @@ export function UnfinishedWorklistTable({ rows, loading, onOpen, link }) {
                                 <Icon icon={minted ? Copy : Link2} size="sm" />
                                 {minted ? (copied ? 'Copied' : 'Copy link') : row.mintLabel}
                             </Button>
+                            {row.canDelete && (
+                                <Button
+                                    /* Quiet, and last: the row's work is following a
+                                       driver up, and the confirmation is where the
+                                       weight of a deletion belongs. */
+                                    variant="ghost"
+                                    tone="danger"
+                                    size="sm"
+                                    aria-label={`Delete the application for ${actionName}`}
+                                    onClick={() => onDelete(entry)}
+                                >
+                                    <Icon icon={Trash2} size="sm" /> Delete
+                                </Button>
+                            )}
                         </div>
                         {minted && (
                             <>
@@ -186,7 +204,7 @@ export function UnfinishedWorklistTable({ rows, loading, onOpen, link }) {
         },
         // The pieces read above, not the `link` object — that is a fresh literal on
         // every render, which would make this `useMemo` a no-op.
-    ], [linkFor, busyKey, copied, copyFailed, mintError, failedKey, onCreate, onCopy, onOpen]);
+    ], [linkFor, busyKey, copied, copyFailed, mintError, failedKey, onCreate, onCopy, onOpen, onDelete, viewer]);
 
     return (
         <DataTable

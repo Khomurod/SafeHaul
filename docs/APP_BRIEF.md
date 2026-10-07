@@ -242,18 +242,18 @@ unfinished applications stay out of the pipeline. It reads
 `listApplicationDrafts` alone (one document, one row), and rows never carry
 answers (`toCompanySummary`). **Create a continuation link** mints and copies a
 link for a row: a pointer, so whoever opens it must prove their identity first —
-which a recruiter cannot do from anything SafeHaul shows it (§5, §12).
+which a recruiter cannot do from anything SafeHaul shows them (§5, §12).
 
-| Started by | Status | The carrier may… (`unfinishedRowActions.js`) |
-|---|---|---|
-| Company | `prepared` | open and keep editing; mint the driver's first link |
-| Company | `sent` | open and keep editing; mint a replacement link |
-| Company | `driver_in_progress` | open the record — the server withholds the answers; mint a continuation link |
-| Driver | `in_progress` | mint a continuation link. Nothing else. |
+| Started by | Status | A recruiter may… (`unfinishedRowActions.js`) | A Company Admin also may… |
+|---|---|---|---|
+| Company | `prepared` | open and keep editing (`getCompanyPreparedDraft`); mint the driver's first link | delete (`deleteApplicationDraft`) |
+| Company | `sent` | open and keep editing; mint a replacement link | delete |
+| Company | `driver_in_progress` | open the record — the server withholds the answers (`companyMayReadAnswers`); mint a continuation link | read the answers (`getApplicationDraft`, read-only); delete |
+| Driver | `in_progress` | mint a continuation link. Nothing else: `getCompanyPreparedDraft` answers `not-found`. | read the answers; delete |
 
-*Open* appears only on the carrier's own rows: `getCompanyPreparedDraft` refuses
-any draft the carrier did not author with a flat `not-found`, and for its own
-returns what `companyMayReadAnswers` decides on every load.
+The admin column (owner's decision, 2026-10-06) answers only
+`assertCompanyAdminStrict` and is audited. Deleting kills the link and keeps the
+uploads; the driver's own device keeps its copy, which can still submit.
 
 ### Pipeline, documents and operations
 
@@ -656,14 +656,14 @@ the carrier's editor.
 
 ### Carrier-prepared applications and continuation links
 
-**A prepared application is a draft the carrier stops reading once the driver
+**A prepared application is a draft a recruiter stops reading once the driver
 writes.** It has `origin: 'company'` (its creator; never changes) and status
 `prepared` → `sent` → `driver_in_progress`. The carrier may read back the
 answers it wrote until the driver's first save flips the status one-way
-(`drafts/save.js`); after that it sees contact and progress only
-(`toCompanySummary`). A carrier never overwrites a driver-started draft, and an
-email plus phone never open a prepared one (no HMAC — the carrier lacks the
-SSN): only the invite token does.
+(`drafts/save.js`); after that a recruiter sees contact and progress only
+(`toCompanySummary`; a Company Admin can still read it, §4). A carrier never
+overwrites a driver-started draft, and an email plus phone never open a prepared
+one (no HMAC — the carrier lacks the SSN): only the invite token does.
 
 **`companyMayReadAnswers`** (carrier-authored *and* not yet written by the
 driver) decides what a link hands over, at both doors: `getCompanyPreparedDraft`
@@ -684,10 +684,10 @@ already on record — what `InviteLinkPanel` tells recruiters.
 
 - `identityKey` on file → recompute the HMAC (a real SSN check).
 - None, **driver-started** → stored last name **and** date of birth must both
-  exist (else `unverifiable`; the date of birth is the one compared fact the
-  carrier is never shown) and match; a well-formed SSN is required but
-  unverified; success **establishes** the HMAC, so the tier is used at most
-  once.
+  exist (else `unverifiable`; the date of birth is the one compared fact a
+  recruiter is never shown — a Company Admin is) and match; a well-formed SSN is
+  required but unverified; success **establishes** the HMAC, so the tier is used
+  at most once.
 - None, **carrier-prepared** → `unverifiable` (the carrier typed those facts);
   the driver continues on the device where they started, which is asked nothing
   (§12).
@@ -882,8 +882,8 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
 `/company/drivers/unfinished` (and the `drivers/start-application` redirect) is
 deliberately not `adminOnly` — a recruiter holding a driver's file does this,
 and nothing it produces is filed. Its callables use
-`assertCompanyAccessForRequest` / `assertCompanyAccess` with per-user
-fail-closed rate limits.
+`assertCompanyAccessForRequest` / `assertCompanyAccess` (the admin's read and
+delete, `assertCompanyAdminStrict`) with per-user fail-closed rate limits.
 
 **Application configuration is split by sensitivity.** A Company Admin manages
 Standard Questions, Application Rules, Custom Questions and Integrations
@@ -1030,7 +1030,7 @@ unparseable number — but nothing populates them from a recipient's reply (§12
 - **`application_drafts` holds two kinds of thing**, told apart by `origin`: a
   driver's unfinished application and a carrier's prepared one. The read cutoff,
   the locked-employer list and the invite token hang off that distinction;
-  treating every draft alike would leak a driver's answers to the carrier or
+  treating every draft alike would leak a driver's answers to a recruiter or
   refuse the carrier its own.
 - **Text extraction happens in the browser, never the server** — `pdfjs-dist`
   for a PDF's text layer, a lazily imported `tesseract.js` for OCR. The
@@ -1260,12 +1260,12 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   `true`, so opt-out), the driver pressed *Save as Draft* on page one before
   typing it, or, on a draft last saved before 2026-09-10, an autosave defect
   erased the key. A driver-started one is checked on its stored last name and
-  date of birth, any nine digits passing for the SSN (§5); missing either fact,
-  it is refused (`unverifiable`) and the driver plainly offered a new
-  application. A carrier-prepared one is refused; the driver is told to continue
-  on the device where they started (its resume token asks nothing) or start
-  anew, so losing that device means starting over. The fix is out-of-band
-  delivery — minting emails or texts the link to the draft's
+  date of birth, any nine digits passing for the SSN (§5) — facts a Company
+  Admin can read; missing either, it is refused (`unverifiable`) and the driver
+  plainly offered a new application. A carrier-prepared one is refused; the
+  driver is told to continue on the device where they started (its resume token
+  asks nothing) or start anew, so losing that device means starting over. The
+  fix is out-of-band delivery — minting emails or texts the link to the draft's
   `contactEmail`/`contactPhone`, returning only a redacted confirmation so the
   carrier never holds it (DocuSign's Resend model) — which needs per-company
   email configuration.

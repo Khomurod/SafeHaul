@@ -92,6 +92,21 @@ describe('standard answers', () => {
         expect(row.sensitive).toBe(true);
     });
 
+    it('keeps where an upload is stored, so a view can offer to open it, and nothing for any other answer', () => {
+        const upload = toDisplayAnswer({
+            fieldId: 'cdl-front', label: 'CDL (Front)', type: 'file', presented: true, displayValue: 'front.jpg',
+            value: { name: 'front.jpg', storagePath: 'companies/c1/applications/guest_uploads/u_front.jpg' },
+        });
+        expect(upload.value).toBe('front.jpg');
+        expect(upload.storagePath).toBe('companies/c1/applications/guest_uploads/u_front.jpg');
+
+        expect(toDisplayAnswer({ fieldId: 'firstName', label: 'First Name', displayValue: 'Ann', presented: true, value: 'Ann' })
+            .storagePath).toBeNull();
+        // A legacy upload held only a URL string: there is nothing to sign.
+        expect(toDisplayAnswer({ fieldId: 'cdl-back', label: 'CDL (Back)', type: 'file', presented: true, displayValue: 'back.jpg', value: 'https://x.test/back.jpg' })
+            .storagePath).toBeNull();
+    });
+
     it('flags a repeating group so a generic renderer cannot print an object', () => {
         const row = toDisplayAnswer({
             fieldId: 'employers', label: 'Employment History', presented: true,

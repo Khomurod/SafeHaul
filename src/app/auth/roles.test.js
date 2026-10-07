@@ -11,6 +11,12 @@ describe('isCompanyAdminForRoute (UI-006)', () => {
     expect(isCompanyAdminForRoute({ roles: { globalRole: 'super_admin' } }, undefined)).toBe(true);
   });
 
+  it('allows a super admin whose claim sits at the top level, where the rules and the server also look', () => {
+    expect(isCompanyAdminForRoute({ globalRole: 'super_admin' }, 'co1')).toBe(true);
+    expect(isCompanyAdminForRoute({ globalRole: 'super_admin', roles: { co1: 'recruiter' } }, 'co1')).toBe(true);
+    expect(isCompanyAdminForRoute({ globalRole: 'recruiter' }, 'co1')).toBe(false);
+  });
+
   it('denies a recruiter / hr_user (the UI-006 bypass)', () => {
     expect(isCompanyAdminForRoute({ roles: { co1: 'recruiter' } }, 'co1')).toBe(false);
     expect(isCompanyAdminForRoute({ roles: { co1: 'hr_user' } }, 'co1')).toBe(false);

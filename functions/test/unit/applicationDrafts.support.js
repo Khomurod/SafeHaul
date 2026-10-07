@@ -64,6 +64,13 @@ let mockBeforeNextTransaction = null;
 /** Draft-document writes that did NOT go through a transaction. */
 const mockNonTransactionalWrites = [];
 
+/** Ids for `add()` and an argument-less `doc()`, unique within a suite. */
+let mockAutoIds = 0;
+function mockAutoId() {
+    mockAutoIds += 1;
+    return `auto-${mockAutoIds}`;
+}
+
 function mockServerTimestamp() {
     return { toDate: () => new Date('2026-08-18T10:00:00Z'), __ts: true };
 }
@@ -99,11 +106,14 @@ function mockCollectionRef(path) {
             return { empty: docs.length === 0, docs, size: docs.length };
         },
         add: async (row) => {
-            const id = `auto-${mockStore.size}`;
+            if (mockFailWritesOn && path.includes(mockFailWritesOn)) throw new Error('firestore unavailable');
+            const id = mockAutoId();
             mockStore.set(`${path}/${id}`, row);
             return { id };
         },
-        doc: (id) => mockDocRef(`${path}/${id}`),
+        // `doc()` with no id mints one, as Firestore's does: a transaction that
+        // creates a document has to name it before it writes.
+        doc: (id) => mockDocRef(`${path}/${id === undefined ? mockAutoId() : id}`),
     });
     return query();
 }
@@ -130,6 +140,7 @@ function mockDocRef(path) {
 }
 
 const mockAssertCompanyAccess = jest.fn().mockResolvedValue(undefined);
+const mockAssertCompanyAdmin = jest.fn().mockResolvedValue(undefined);
 const mockCheckRateLimit = jest.fn().mockResolvedValue(true);
 const mockAssertIntake = jest.fn().mockResolvedValue({ companyName: 'Acme Freight' });
 
@@ -161,6 +172,7 @@ const httpsV1Mock = () => {
 
 const companyAccessMock = () => ({
     assertCompanyAccessForRequest: (...args) => mockAssertCompanyAccess(...args),
+    assertCompanyAdminStrict: (...args) => mockAssertCompanyAdmin(...args),
 });
 
 const rateLimiterMock = () => ({
@@ -269,6 +281,11 @@ function runBeforeNextTransaction(hook) {
     mockBeforeNextTransaction = hook;
 }
 
+/** Makes every write to a path containing `fragment` throw, until the next reset. */
+function failWritesOn(fragment) {
+    mockFailWritesOn = fragment;
+}
+
 /** The original suite's `beforeEach` body, unchanged. */
 function resetDraftState() {
     jest.clearAllMocks();
@@ -281,6 +298,7 @@ function resetDraftState() {
     mockCheckRateLimit.mockResolvedValue(true);
     mockAssertIntake.mockResolvedValue({ companyName: 'Acme Freight' });
     mockAssertCompanyAccess.mockResolvedValue(undefined);
+    mockAssertCompanyAdmin.mockResolvedValue(undefined);
 }
 
 module.exports = {
@@ -296,9 +314,11 @@ module.exports = {
     mockNonTransactionalWrites,
     mockServerTimestamp,
     mockAssertCompanyAccess,
+    mockAssertCompanyAdmin,
     mockCheckRateLimit,
     mockAssertIntake,
     runBeforeNextTransaction,
+    failWritesOn,
     resetDraftState,
     IDENTITY,
     COMPANY,

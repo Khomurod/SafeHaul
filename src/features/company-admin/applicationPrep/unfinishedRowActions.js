@@ -7,30 +7,34 @@
  * 2026-09-10, and the whole difficulty of merging them is that a row must NOT
  * behave the same everywhere. Four cases share one table:
  *
- * | Started by | Status                | The carrier may…                        |
+ * | Started by | Status                | A recruiter may…                        |
  * |------------|-----------------------|-----------------------------------------|
  * | Company    | `prepared`            | open and keep editing; mint the first link |
  * | Company    | `sent`                | open and keep editing; mint a replacement |
  * | Company    | `driver_in_progress`  | open (progress only — the server withholds the answers); mint a continuation link |
  * | Driver     | `in_progress`         | mint a continuation link. Nothing else.  |
  *
+ * A **Company Admin** may do all of that, and since 2026-10-06 also open every
+ * row the driver has written to — read-only, with the answers — and delete any
+ * row. That is the owner's decision, and the server holds it: `getApplicationDraft`
+ * and `deleteApplicationDraft` answer only the strict admin check.
+ *
  * Putting that in a pure function means the distinction is stated once, tested
  * directly, and cannot drift between the desktop table and anything else that
  * later needs it. A `render` callback three levels inside a column definition is
  * where this kind of rule goes to die.
  *
- * ## `canOpenPrepared` mirrors a server rule rather than inventing a client one
+ * ## `openMode` mirrors a server rule rather than inventing a client one
  *
- * `getCompanyPreparedDraft` refuses any draft the carrier did not author — a flat
- * `not-found`, before the read rule is even consulted — so offering *Open* on a
- * driver-started row would be offering a button that cannot work. And for a
- * carrier's own draft the answers are gated by `companyMayReadAnswers`, which is
- * the server's decision on every load, not a flag this file could get wrong. So
- * `Open` is offered exactly where the server can answer it, and what comes back is
- * still the server's call.
+ * `prepare` opens the carrier's own workspace through `getCompanyPreparedDraft`,
+ * which refuses any draft the carrier did not author with a flat `not-found` and
+ * gates the answers of its own by `companyMayReadAnswers` on every load. `review`
+ * opens the driver's answers through `getApplicationDraft`, which refuses anyone
+ * but a Company Admin. So *Open* is offered exactly where the server can answer
+ * it, and what comes back is still the server's call.
  *
  * Nothing here decides privacy. The list this reads carries no answers at all
- * (`toCompanySummary`); privacy is `companyMayReadAnswers`, server-side.
+ * (`toCompanySummary`); who may read them is decided server-side.
  */
 
 const ORIGIN_COMPANY = 'company';
@@ -71,17 +75,21 @@ export function startedBy(entry) {
 }
 
 /**
- * The row, as the recruiter reads and acts on it.
+ * The row, as the recruiter or Company Admin reads and acts on it.
  *
  * @param {object} entry one row of `listApplicationDrafts`
+ * @param {{ isCompanyAdmin?: boolean }} [viewer] who is looking; a recruiter
+ *   unless said otherwise, which is the narrower reading
  * @returns {{
  *   origin: string, startedByLabel: string, preparedByName: ?string,
  *   statusLabel: string, statusTone: string, progressLabel: string,
- *   canOpenPrepared: boolean, driverOwnsAnswers: boolean, mintLabel: string,
- *   lockedEmployersLabel: ?string,
+ *   openMode: ?('prepare'|'review'), canDelete: boolean,
+ *   driverOwnsAnswers: boolean, mintLabel: string, lockedEmployersLabel: ?string,
  * }}
  */
-export function describeUnfinishedRow(entry) {
+export function describeUnfinishedRow(entry, { isCompanyAdmin = false } = {}) {
+    // Only an explicit `true` widens a row; anything else is a recruiter.
+    const admin = isCompanyAdmin === true;
     const origin = startedBy(entry);
     const fromCompany = origin === ORIGIN_COMPANY;
     const status = typeof entry?.status === 'string' ? entry.status : 'in_progress';
@@ -129,12 +137,25 @@ export function describeUnfinishedRow(entry) {
         statusLabel,
         statusTone,
         progressLabel: describeProgress(entry),
-        // Only the carrier's own work can be opened, because only that is a
-        // document `getCompanyPreparedDraft` will answer for at all.
-        canOpenPrepared: fromCompany,
+        openMode: openModeFor({ fromCompany, driverOwnsAnswers, admin }),
+        canDelete: admin,
         driverOwnsAnswers,
         mintLabel,
     };
+}
+
+/**
+ * Where *Open* takes this viewer, or null when it is not offered.
+ *
+ * A Company Admin reads whatever the driver has written (`review`), and edits
+ * what the carrier still authors (`prepare`), as a recruiter does. A recruiter
+ * opens only the carrier's own work — a document `getCompanyPreparedDraft` will
+ * answer for at all — including after the driver takes it over, where the
+ * workspace shows progress without the answers.
+ */
+function openModeFor({ fromCompany, driverOwnsAnswers, admin }) {
+    if (admin && driverOwnsAnswers) return 'review';
+    return fromCompany ? 'prepare' : null;
 }
 
 /** What to call this applicant when there is a name, a contact, or neither. */
