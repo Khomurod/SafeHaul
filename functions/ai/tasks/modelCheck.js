@@ -175,6 +175,8 @@ module.exports = {
     MAX_TESTS_PER_PROVIDER,
     MAX_CANDIDATES_PER_LANE,
     TEST_SPACING_MS,
+    lanesOf,
+    operatorChose,
     decideLane,
     checkProvider,
 };

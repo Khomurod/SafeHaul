@@ -350,6 +350,19 @@ and none started after 400 s; providers run in parallel. A lease in
 `ai_routing_config/modelCheck` keeps runs from overlapping, and
 `autoSelect: false` there makes the check report without changing anything.
 
+Super Admin → AI Integrations → **Model versions** (`ai/callables/versions.js`)
+shows, per provider, the versions each lane uses now (what `resolveModels`
+returns, not what a check last wrote), each one's last result, and the last
+check's time and reason. A saved key the runtime cannot read shows as
+"Credential unreadable", as in the provider table. **Check versions now** runs the
+same pass for every enabled provider with its key, inside the callable's 180 s (no
+test starts after 120 s), and reports how many providers it checked and how many
+it could not (an audit `failed`); the page then re-reads its provider rows and
+routing. The auto-select switch writes `autoSelect`: off keeps every list exactly
+as it is, so the check only suggests (`modelCheck.lanes.<lane>.suggested`, shown
+only while it is off); on applies from the next check. Both are mutations: recent
+sign-in, the mutate budget, and an audit record.
+
 Results go to the provider's config: `modelLists.<lane>` when a list changed,
 and `modelCheck` (when, why, what each version did) for the console. The owner
 hears in Telegram when a list changed, when a lane stops or starts passing, and
@@ -1053,7 +1066,8 @@ without a policy naming it — telemetry was being kept forever.
 2. The router has already been failing over. If a *later* provider is serving
    traffic, nothing is broken.
 3. When the vendor recovers, use **Test connection**. A pass clears the cooldown
-   and restores its position; the cooldown also expires on its own. The result
+   and restores its position (if that write fails, the result says the pause
+   stays); the cooldown also expires on its own. The result
    is now per-capability, so "text works, structured JSON is rejected" is
    visible on the row rather than hidden behind one verdict, and it names the
    version that answered when a spare did.
@@ -1075,11 +1089,13 @@ CI: **Test connection** (`testAiProvider`) and **Verify model pins**
 (`diagnoseAiModelPins`). Both run server-side with the managed credential and
 neither returns, logs or echoes it.
 
-A third runs on a schedule once a Telegram chat is connected: the hourly watcher
+Two more run on a schedule, with or without a Telegram chat. The hourly watcher
 (`watchAiAndBlog`) sends one constant probe per lane through the router itself,
 so it measures what users get from whichever provider answers, not one provider.
 Its requests are recorded as connection tests (`health_check`) and count towards
-provider health like any other. It alerts on a change only.
+provider health like any other. It alerts on a change only. The daily model
+check (`refreshAiModelLists`, or **Check versions now**) asks each version
+directly through its adapter, on the made-up licence and a constant text.
 
 ### What the capability probes prove, and what they do not
 

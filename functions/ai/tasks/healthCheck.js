@@ -21,7 +21,8 @@
  * The router is bypassed on purpose. The router's job is to find a provider
  * that works; a connection test must interrogate exactly the provider the
  * operator clicked, including one that is disabled or in cooldown, because "why
- * is this one failing" is the question being asked.
+ * is this one failing" is the question being asked. Only a full pass touches the
+ * provider's state: it clears the cooldowns, the recovery step the runbook gives.
  */
 
 const { requireProvider, resolveModels, isRetired } = require('../registry/providers');
@@ -449,6 +450,16 @@ async function testProviderConnection(providerId, deps = {}) {
     };
 
     await store.recordTestResult(provider.id, result);
+    // An operator testing after an outage means "use it again": a full pass ends
+    // its cooldowns and version rests, as enabling it does. Anything less leaves them.
+    if (success) {
+        const cleared = await store.clearCooldown(provider.id).then(() => true, (error) => {
+            console.error(`[ai/healthCheck] ${provider.id}: cooldown not cleared: ${error?.message || 'unknown error'}`);
+            return false;
+        });
+        // The pass stands, but not the promise that it puts the provider back in use.
+        if (!cleared) result.message += ' Any pause on it could not be lifted, so it ends on its own.';
+    }
     return result;
 }
 

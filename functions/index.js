@@ -326,6 +326,9 @@ exports.setAiProviderPriority = aiIntegrations.setAiProviderPriority;
 exports.updateAiProviderConfig = aiIntegrations.updateAiProviderConfig;
 exports.testAiProvider = aiIntegrations.testAiProvider;
 exports.diagnoseAiModelPins = aiIntegrations.diagnoseAiModelPins;
+exports.getAiModelVersions = aiIntegrations.getAiModelVersions;
+exports.checkAiModelVersionsNow = aiIntegrations.checkAiModelVersionsNow;
+exports.setAiModelAutoSelect = aiIntegrations.setAiModelAutoSelect;
 exports.migrateGroqCredential = aiIntegrations.migrateGroqCredential;
 // Credential access is diagnosed from BOTH Functions generations on purpose:
 // 1st gen defaults to the App Engine service account and 2nd gen to the Compute

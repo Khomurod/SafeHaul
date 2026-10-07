@@ -1,11 +1,12 @@
 /**
- * The two diagnostics cards of the AI Integrations screen: model pins
+ * The diagnostics cards of the AI Integrations screen: the model versions table
+ * (`AiModelVersionsCard`, which loads and keeps its own state), model pins
  * reconciled against each vendor's live catalogue, and credential access
  * asked of BOTH Functions generations (the two generations run as different
  * service accounts, so one answer proves nothing — the comments below carry
- * the full reasoning). Extracted verbatim from `AiIntegrationsView.jsx`; the
- * state and the handlers stay with the view, so tab switches keep their
- * results exactly as before.
+ * the full reasoning). The pins and access cards were extracted verbatim from
+ * `AiIntegrationsView.jsx`; their state and handlers stay with the view, so
+ * tab switches keep their results exactly as before.
  */
 
 import React from 'react';
@@ -18,8 +19,11 @@ import { Stack } from '@/design-system/layouts';
 import {
     describePinStatus,
 } from './aiTelemetryPresentation';
+import { AiModelVersionsCard } from './AiModelVersionsCard';
 
 export function AiDiagnosticsCards({
+    runGuarded,
+    onVersionsChanged,
     pinDiagnosis,
     diagnosingPins,
     handleDiagnosePins,
@@ -29,6 +33,8 @@ export function AiDiagnosticsCards({
 }) {
     return (
         <>
+            <AiModelVersionsCard runGuarded={runGuarded} onVersionsChanged={onVersionsChanged} />
+
             {/* Model pins, reconciled against each vendor's live catalogue.
                 A pin is only a string until a request is made with it, so this
                 is the one check that can catch a vendor retiring a model. */}

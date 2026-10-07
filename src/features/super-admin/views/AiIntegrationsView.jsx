@@ -36,8 +36,6 @@ import { useRevealedCredential } from '../hooks/useRevealedCredential';
 import { AiRoutingEligibility } from '../components/ai/AiRoutingEligibility';
 import { AiRoutingOrderCard } from '../components/ai/AiRoutingOrderCard';
 import { AiLogsPanel } from '../components/ai/AiLogsPanel';
-import {
-} from '../components/ai/aiTelemetryPresentation';
 import { buildProviderColumns } from '../components/ai/aiProviderColumns';
 import { AiMediaProvidersSection } from '../components/ai/AiMediaProvidersSection';
 import { AiDiagnosticsCards } from '../components/ai/AiDiagnosticsCards';
@@ -462,6 +460,8 @@ export function AiIntegrationsView() {
             />
 
             <AiDiagnosticsCards
+                runGuarded={runGuarded}
+                onVersionsChanged={load}
                 pinDiagnosis={pinDiagnosis}
                 diagnosingPins={diagnosingPins}
                 handleDiagnosePins={handleDiagnosePins}

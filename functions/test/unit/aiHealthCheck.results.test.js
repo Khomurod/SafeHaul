@@ -52,6 +52,47 @@ describe('per-capability results are persisted, not just returned', () => {
     });
 });
 
+/**
+ * The runbook's recovery step is "when the vendor recovers, use Test connection":
+ * a full pass has to put the provider back in use, or the operator waits out a
+ * cooldown the test just proved unnecessary.
+ */
+describe('a full pass puts the provider back in use', () => {
+    it('clears its cooldowns', async () => {
+        const result = await testProviderConnection('gemini');
+
+        expect(result.success).toBe(true);
+        expect(mockStore.clearCooldown).toHaveBeenCalledWith('gemini');
+        expect(result.message).not.toMatch(/could not be lifted/);
+    });
+
+    it('leaves them when any capability failed', async () => {
+        mockExecute.mockImplementation(async (providerId, context) => {
+            if (context.images) throw new AiError('model_unavailable', 'HTTP 404', { providerId, status: 404 });
+            return healthyProvider(providerId, context);
+        });
+
+        const result = await testProviderConnection('gemini');
+
+        expect(result.success).toBe(false);
+        expect(mockStore.clearCooldown).not.toHaveBeenCalled();
+    });
+
+    it('still reports the pass when clearing them fails, and says the pause stays', async () => {
+        mockStore.clearCooldown.mockRejectedValue(new Error('firestore unavailable'));
+        const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            const result = await testProviderConnection('gemini');
+
+            expect(result).toMatchObject({ success: true });
+            expect(result.message).toMatch(/could not be lifted, so it ends on its own/);
+            expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('gemini: cooldown not cleared: firestore unavailable'));
+        } finally {
+            errorLog.mockRestore();
+        }
+    });
+});
+
 describe('safety and secrecy', () => {
     it('never sends anything but constant prompts and generated images', async () => {
         await testProviderConnection('gemini');

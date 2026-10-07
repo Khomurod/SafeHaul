@@ -142,6 +142,36 @@ export async function diagnoseAiModelPins() {
 }
 
 /**
+ * The model versions table: the versions each provider's lanes use now, what
+ * the daily check last found, and whether it may change them. No credential is
+ * returned.
+ */
+export async function getAiModelVersions() {
+    const call = httpsCallable(functions, 'getAiModelVersions');
+    const result = await call({});
+    return result.data;
+}
+
+/**
+ * Runs the daily version check now, for every enabled provider with its key,
+ * and returns the table afterwards. The server may work for up to three
+ * minutes, so the client waits as long; the default 70 s would report a check
+ * that is still running as failed.
+ */
+export async function checkAiModelVersionsNow() {
+    const call = httpsCallable(functions, 'checkAiModelVersionsNow', { timeout: 180000 });
+    const result = await call({});
+    return result.data;
+}
+
+/** Off keeps every list as it is now; on lets the next check change them. */
+export async function setAiModelAutoSelect(enabled) {
+    const call = httpsCallable(functions, 'setAiModelAutoSelect');
+    const result = await call({ enabled });
+    return result.data;
+}
+
+/**
  * Asks both Functions generations whether they can read the AI credentials.
  *
  * Both, not one, and that is the whole point: 1st generation functions default
