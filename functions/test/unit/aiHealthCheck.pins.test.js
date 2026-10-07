@@ -105,6 +105,23 @@ describe('model pin reconciliation', () => {
 
         expect(JSON.stringify(result)).not.toMatch(/apiKey|"k"|Bearer/);
     });
+
+    it('checks every version in a list, not only the first', () => {
+        // A version kept in reserve is no reserve if its vendor withdrew it.
+        const { __test } = require('../../ai/tasks/modelPins');
+        const { getProvider } = require('../../ai/registry/providers');
+        const { CAPABILITIES } = require('../../ai/registry/capabilities');
+        const gemini = getProvider('gemini');
+        const withSpare = {
+            ...gemini,
+            modelVersions: { ...gemini.modelVersions, [CAPABILITIES.TEXT]: ['first-version', 'spare-version'] },
+        };
+
+        const pins = __test.pinnedModels(withSpare, {});
+
+        expect(pins.get('first-version')).toContain(CAPABILITIES.TEXT);
+        expect(pins.get('spare-version')).toContain(CAPABILITIES.TEXT);
+    });
 });
 
 /**

@@ -10,7 +10,10 @@
 jest.mock('../../firebaseAdmin', () => require('./aiProviders.support').firebaseAdminMock());
 
 const { getAdapter, ADAPTERS } = require('../../ai/providers');
-const { getProvider, PROVIDERS, resolveModel } = require('../../ai/registry/providers');
+const {
+    getProvider, PROVIDERS, resolveModel, resolveModels,
+} = require('../../ai/registry/providers');
+const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
 
 describe('registry and adapter coverage', () => {
@@ -160,5 +163,90 @@ describe('Mistral runs on the tier a free key actually has', () => {
         for (const capability of [CAPABILITIES.TEXT, CAPABILITIES.STRUCTURED_JSON, CAPABILITIES.VISION]) {
             expect(resolveModel(mistral, capability, {})).toMatch(/^ministral-/);
         }
+    });
+});
+
+describe('model versions', () => {
+    it('declares an ordered, duplicate-free version list for every provider and capability', () => {
+        for (const provider of PROVIDERS) {
+            expect(MODEL_VERSIONS[provider.id]).toBeDefined();
+            for (const capability of provider.capabilities) {
+                // A property of the text model, not a model of its own.
+                if (capability === CAPABILITIES.LONG_CONTEXT) continue;
+                const versions = provider.modelVersions[capability];
+                expect(Array.isArray(versions)).toBe(true);
+                expect(versions.length).toBeGreaterThan(0);
+                expect(new Set(versions).size).toBe(versions.length);
+                for (const version of versions) expect(version.trim()).toBe(version);
+            }
+        }
+    });
+
+    it('derives each single pin from the first version of its list', () => {
+        // Everything that reads one pin per capability — the console, the
+        // provider list — must keep seeing what a single-pin row showed it.
+        for (const provider of PROVIDERS) {
+            expect(Object.keys(provider.defaultModels).sort())
+                .toEqual(Object.keys(provider.modelVersions).sort());
+            for (const [capability, versions] of Object.entries(provider.modelVersions)) {
+                expect(provider.defaultModels[capability]).toBe(versions[0]);
+            }
+        }
+    });
+
+    it('freezes the lists, so no caller can reorder a provider\'s versions', () => {
+        const gemini = getProvider('gemini');
+        expect(Object.isFrozen(gemini.modelVersions)).toBe(true);
+        expect(Object.isFrozen(gemini.modelVersions[CAPABILITIES.VISION])).toBe(true);
+    });
+
+    it('resolves the whole list in order, with resolveModel naming its first version', () => {
+        for (const provider of PROVIDERS) {
+            for (const capability of provider.capabilities) {
+                const versions = resolveModels(provider, capability, {});
+                expect(versions.length).toBeGreaterThan(0);
+                expect(resolveModel(provider, capability, {})).toBe(versions[0]);
+            }
+        }
+    });
+
+    it('hands back a copy, so changing it cannot change the registry', () => {
+        const gemini = getProvider('gemini');
+        resolveModels(gemini, CAPABILITIES.TEXT, {}).push('changed-by-a-caller');
+        expect(resolveModels(gemini, CAPABILITIES.TEXT, {})).not.toContain('changed-by-a-caller');
+    });
+
+    it('lets an operator override replace the list rather than join it', () => {
+        // The operator is naming the one model their account can reach.
+        const openrouter = getProvider('openrouter');
+        expect(resolveModels(openrouter, CAPABILITIES.TEXT, { textModel: 'my-org/my-model' }))
+            .toEqual(['my-org/my-model']);
+    });
+
+    it('uses the text list for a capability that has none of its own', () => {
+        const groq = getProvider('groq');
+        expect(resolveModels(groq, CAPABILITIES.LONG_CONTEXT, {}))
+            .toEqual(resolveModels(groq, CAPABILITIES.TEXT, {}));
+        // An empty list counts as none, as a missing single pin did.
+        const emptied = { ...groq, modelVersions: { ...groq.modelVersions, [CAPABILITIES.VISION]: [] } };
+        expect(resolveModels(emptied, CAPABILITIES.VISION, {}))
+            .toEqual(resolveModels(groq, CAPABILITIES.TEXT, {}));
+    });
+
+    it('refuses to load a provider that declares no versions', () => {
+        // Failing at load is the point: a row with no model would otherwise be
+        // skipped as `no_model` on every request, silently.
+        jest.isolateModules(() => {
+            jest.doMock('../../ai/registry/modelVersions', () => ({ MODEL_VERSIONS: {} }));
+            expect(() => require('../../ai/registry/providers')).toThrow(/No model versions declared/);
+        });
+        jest.dontMock('../../ai/registry/modelVersions');
+    });
+
+    it('still resolves a hand-built row that carries only single pins', () => {
+        const row = { configFields: [], defaultModels: { [CAPABILITIES.TEXT]: 'my-org/text' } };
+        expect(resolveModels(row, CAPABILITIES.VISION, {})).toEqual(['my-org/text']);
+        expect(resolveModels({ configFields: [], defaultModels: {} }, CAPABILITIES.TEXT, {})).toEqual([]);
+        expect(resolveModel({ configFields: [], defaultModels: {} }, CAPABILITIES.TEXT, {})).toBeNull();
     });
 });
