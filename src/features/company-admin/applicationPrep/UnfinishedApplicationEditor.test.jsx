@@ -146,6 +146,53 @@ describe('editing an unfinished application the driver owns', () => {
         expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull();
     });
 
+    it('shows an employer the company locked as a record, with the rest of its row to change', async () => {
+        const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
+        await openEditor(view({
+            answers: { ...view().answers, employers: [acme, { companyName: 'Blue Line' }] },
+            lockedEmployers: [{ signature: 'dot:123456', ...acme }],
+        }));
+
+        // Who it is, as a record rather than a field, and not removable.
+        expect(screen.getByText('Locked by your company')).toBeInTheDocument();
+        expect(screen.getByText('Acme Trucking')).toBeInTheDocument();
+        expect(screen.queryByDisplayValue('Acme Trucking')).toBeNull();
+        expect(screen.queryByDisplayValue('123456')).toBeNull();
+        expect(screen.queryByRole('button', { name: /Remove Acme Trucking/ })).toBeNull();
+        // A row the driver added stays the admin's to change and remove.
+        expect(screen.getByDisplayValue('Blue Line')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Remove Blue Line/ })).toBeInTheDocument();
+
+        fireEvent.change(screen.getAllByLabelText('Reason for Leaving')[0], { target: { value: 'Moved closer to home' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        await waitFor(() => expect(saveSpy).toHaveBeenCalled());
+        expect(saveSpy.mock.calls[0][0].changes.employers[0]).toEqual({ ...acme, reasonForLeaving: 'Moved closer to home' });
+    });
+
+    it('keeps every other row ordinary: a second stint there, and an employer the driver removed', async () => {
+        const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
+        await openEditor(view({
+            answers: { ...view().answers, employers: [acme, { ...acme, startDate: '2015-01' }] },
+            lockedEmployers: [
+                { signature: 'dot:123456', ...acme },
+                // The driver removed this row: the submission holds them to it, not this editor.
+                { signature: 'dot:654321', companyName: 'Blue Line', dotNumber: '654321' },
+            ],
+        }));
+
+        expect(screen.getAllByText('Locked by your company')).toHaveLength(1);
+        // The second stint at the same employer is the admin's to change or remove.
+        expect(screen.getByDisplayValue('Acme Trucking')).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /Remove Acme Trucking/ })).toHaveLength(1);
+
+        // An employer the admin adds back stays a row they can correct, whatever its number.
+        fireEvent.click(screen.getByRole('button', { name: /Add an employer/ }));
+        fireEvent.change(document.getElementById('employer-new-2-dotNumber'), { target: { value: '654321' } });
+        expect(screen.getAllByText('Locked by your company')).toHaveLength(1);
+        expect(document.getElementById('employer-new-2-companyName')).not.toBeNull();
+    });
+
     it('waits for a document still uploading before it saves', async () => {
         mocks.uploading = true;
         await openEditor();

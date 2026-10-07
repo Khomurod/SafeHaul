@@ -2,7 +2,7 @@
  * A Company Admin's own powers in the unfinished-applications workspace.
  *
  * The owner decided on 2026-10-06 that a Company Admin reads every unfinished
- * application, corrects the ones the driver owns, and may delete any of them. The worklist comes from its `e2eUnfinished=mock` fixture; the two
+ * application, corrects the ones the driver owns, and may delete any of them. The worklist comes from its `e2eUnfinished=mock` fixture; the
  * callables behind these actions are answered here, at the network, because an
  * E2E run points at an unreachable Firebase project on purpose. What a browser
  * proves that the unit suites cannot: the dialog's focus and Escape, and that
@@ -163,12 +163,18 @@ test.describe('a Company Admin and an unfinished application', () => {
         await expect(page.getByRole('button', { name: 'Edit answers' })).toBeVisible();
     });
 
-    test('the editor passes axe @a11y', async ({ page }) => {
-        await stubCallable(page, 'getApplicationDraft', EDITABLE_VIEW);
+    test('the editor, an employer the company locked included, passes axe @a11y', async ({ page }) => {
+        const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
+        await stubCallable(page, 'getApplicationDraft', {
+            ...EDITABLE_VIEW,
+            answers: { ...EDITABLE_VIEW.answers, employers: [acme, { companyName: 'Blue Line' }] },
+            lockedEmployers: [{ signature: 'dot:123456', ...acme }],
+        });
         await page.goto(START_URL);
         await page.getByRole('button', { name: /Open the application for Dana Whitfield/i }).click();
         await page.getByRole('button', { name: 'Edit answers' }).click();
         await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
+        await expect(page.getByText('Locked by your company')).toBeVisible();
 
         expect(await seriousViolations(page)).toEqual([]);
     });

@@ -7,7 +7,7 @@ import { Button, Notice } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useGuestFileUpload } from '@features/driver-app/hooks/useGuestFileUpload';
 import { UnfinishedEditorSections } from './UnfinishedEditorSections';
-import { changedSectionTitles, editRequest } from './unfinishedEditorModel';
+import { changedSectionTitles, editRequest, heldLocks } from './unfinishedEditorModel';
 
 /**
  * A Company Admin correcting or completing an unfinished application the driver
@@ -52,6 +52,7 @@ function describeSaveError(error) {
 
 export function UnfinishedApplicationEditor({ companyId, view, onSaved, onCancel, onReload }) {
     const loaded = useMemo(() => view?.answers || {}, [view]);
+    const locks = useMemo(() => heldLocks(view?.lockedEmployers, loaded), [view, loaded]);
     const [answers, setAnswers] = useState(loaded);
     const [saving, setSaving] = useState(false);
     const [failure, setFailure] = useState(null);
@@ -105,6 +106,7 @@ export function UnfinishedApplicationEditor({ companyId, view, onSaved, onCancel
                 update={update}
                 form={view?.form}
                 loaded={loaded}
+                lockedEmployers={locks}
                 companyId={companyId}
                 onUpload={handleFileUpload}
             />

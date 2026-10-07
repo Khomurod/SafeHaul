@@ -29,7 +29,9 @@
  * for the signature again when one changed. An answer the driver changed after
  * the admin opened the application is refused rather than overwritten, so the
  * admin sees it before deciding again. The carrier's own prepared application,
- * before the driver has saved it, is the preparation workspace's to edit.
+ * before the driver has saved it, is the preparation workspace's to edit, and
+ * an employer it locked there stays as it was locked, since the driver's page
+ * keeps its own copy of the locks.
  *
  * ## Why deleting removes the document and nothing else
  *
@@ -50,6 +52,7 @@ const { assertCompanyAdminStrict } = require('../shared/companyAccess');
 const { checkRateLimit } = require('../shared/rateLimiter');
 const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
+const { lockedEmployerIssues, normalizeLockedEmployers } = require('../shared/applicationLockedFields');
 const {
     EDITABLE_FIELDS, clientCompanyEdits, companyEditsOf, fitsField, nextCompanyRevision, sameAnswer,
 } = require('../shared/companyEdits');
@@ -226,14 +229,32 @@ function editRequest(data) {
 }
 
 /**
+ * Would these employers undo a lock the stored ones keep?
+ *
+ * A lock (`shared/applicationLockedFields.js`) fixes who an employer is on an
+ * application the carrier prepared, and the driver's page holds its own copy of
+ * the list, which nothing after the handover refreshes. So an edit keeps every
+ * lock it found answered: the employer stays, with its name and USDOT number.
+ * A lock the driver's own rows already fail is theirs to answer at submission,
+ * and stays; the list is never reconciled against the driver's rows.
+ */
+function undoesALock(lockedEmployers, before, after) {
+    return normalizeLockedEmployers(lockedEmployers).some((lock) => (
+        lockedEmployerIssues([lock], before).length === 0
+        && lockedEmployerIssues([lock], after).length > 0
+    ));
+}
+
+/**
  * Saves a Company Admin's changes to an unfinished application the driver owns.
  *
  * Only what actually changes is written and recorded as an edit, at a new
  * revision (`shared/companyEdits.js`). An answer the driver changed since the
  * editor loaded it is refused rather than overwritten (`aborted`, naming the
  * answers), and so is the carrier's own prepared application before the driver
- * has saved it. The read, the checks, the write and the audit entry share one
- * transaction. Answers with the draft's view, as `getApplicationDraft` does.
+ * has saved it, and an edit that would undo an employer lock (`undoesALock`).
+ * The read, the checks, the write and the audit entry share one transaction.
+ * Answers with the draft's view, as `getApplicationDraft` does.
  */
 exports.saveApplicationDraftEdits = onCall({ cors: true }, async (request) => {
     const { uid, companyId, applicantKey } = await authorize(request, 'draft_admin_edit', EDIT_LIMIT);
@@ -257,6 +278,9 @@ exports.saveApplicationDraftEdits = onCall({ cors: true }, async (request) => {
 
         const formData = { ...stored };
         for (const field of changed) formData[field] = changes[field];
+        if (changed.includes('employers') && undoesALock(data.lockedEmployers, stored, formData)) {
+            return { lockUndone: true };
+        }
         if (!draft.withinPayloadBudget(formData)) return { tooLarge: true };
 
         const revision = nextCompanyRevision(data);
@@ -270,11 +294,6 @@ exports.saveApplicationDraftEdits = onCall({ cors: true }, async (request) => {
             updatedAt: draft.serverTimestamp(),
             expiresAt: draft.expiresAt(),
         };
-        // A lock names an employer row. One the edit removed would stay behind as
-        // a requirement the driver is held to at submission and cannot meet.
-        if (changed.includes('employers') && Array.isArray(data.lockedEmployers)) {
-            update.lockedEmployers = prepared.reconcileLockedEmployers(data.lockedEmployers, formData);
-        }
         // `update`, not a merging `set`: the answers are replaced whole, so an
         // answer the admin cleared from a map is cleared, not merged back.
         transaction.update(ref, update);
@@ -295,6 +314,13 @@ exports.saveApplicationDraftEdits = onCall({ cors: true }, async (request) => {
             'aborted',
             'The driver changed some of these answers after you opened the application. Reload it to see their answers, then make your change again.',
             { fields: outcome.conflicts },
+        );
+    }
+    if (outcome.lockUndone) {
+        throw new HttpsError(
+            'invalid-argument',
+            'An employer your company locked when it prepared this application must stay on it, with the same name and USDOT number.',
+            { fields: ['employers'] },
         );
     }
     if (outcome.tooLarge) throw new HttpsError('invalid-argument', 'That is too much data for one application.');

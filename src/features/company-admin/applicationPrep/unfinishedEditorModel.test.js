@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import DRIVER_ONLY_FIELDS from '../../../../functions/shared/driverOnlyFields.json';
 import {
-    CUSTOM_ANSWERS, EDITABLE_FIELDS, changedSectionTitles, editRequest, isDocumentOffered, isOffered,
+    CUSTOM_ANSWERS, EDITABLE_FIELDS, changedSectionTitles, editRequest, heldLocks, isDocumentOffered, isOffered,
 } from './unfinishedEditorModel';
 
 const offered = (fieldId, { applicationConfig, answers = {}, loaded = {} } = {}) => (
@@ -49,6 +49,22 @@ describe('what the editor offers', () => {
         // The driver's own consent forms stay theirs.
         expect(isDocumentOffered('mvr-consent-upload', {})).toBe(false);
         expect(isDocumentOffered('city', {})).toBe(false);
+    });
+});
+
+describe('the employer locks an edit keeps', () => {
+    const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
+    const blue = { companyName: 'Blue Line', dotNumber: '654321' };
+    const LOCKS = [{ signature: 'dot:123456', ...acme }, { signature: 'dot:654321', ...blue }];
+
+    it('are the ones the loaded employers hold', () => {
+        expect(heldLocks(LOCKS, { employers: [blue, acme] })).toEqual(LOCKS);
+    });
+
+    it('never one the driver\'s own rows already fail, removed or renamed', () => {
+        expect(heldLocks(LOCKS, { employers: [{ ...acme, companyName: 'Acme Logistics' }] })).toEqual([]);
+        expect(heldLocks(LOCKS, {})).toEqual([]);
+        expect(heldLocks(undefined, { employers: [acme] })).toEqual([]);
     });
 });
 

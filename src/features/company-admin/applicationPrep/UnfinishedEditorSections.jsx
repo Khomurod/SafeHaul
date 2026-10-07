@@ -35,7 +35,8 @@ import { CUSTOM_ANSWERS, isDocumentOffered, isOffered } from './unfinishedEditor
  *   addresses, vehicle experience, business details, emergency contacts, the
  *   schooling, gap and military rows, and the company's own questions.
  * - **Employers** through `PreviousEmployersEditor`, the company's employer
- *   editor; violations, accidents and other licences through `SchemaRowsEditor`.
+ *   editor, with an employer the company locked shown as a record; violations,
+ *   accidents and other licences through `SchemaRowsEditor`.
  * - **The four disclosures the schema lacks** as the wizard asks them: a yes/no
  *   question, and its explanation when the answer is yes.
  *
@@ -95,7 +96,7 @@ function Disclosure({ question, answers, update, offered }) {
     );
 }
 
-export function UnfinishedEditorSections({ answers, update, form, loaded, companyId, onUpload }) {
+export function UnfinishedEditorSections({ answers, update, form, loaded, lockedEmployers, companyId, onUpload }) {
     const { states } = useUtils();
     const ty = new Date().getFullYear();
     const config = form?.applicationConfig;
@@ -177,7 +178,12 @@ export function UnfinishedEditorSections({ answers, update, form, loaded, compan
 
             <FormSection title="Employment History">
                 {offered('employers') && (
-                    <PreviousEmployersEditor employers={answers.employers} onChange={(employers) => update('employers', employers)} unfinished />
+                    <PreviousEmployersEditor
+                        employers={answers.employers}
+                        onChange={(employers) => update('employers', employers)}
+                        lockedEmployers={lockedEmployers}
+                        unfinished
+                    />
                 )}
                 <DynamicRow
                     listKey="unemployment"

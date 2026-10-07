@@ -763,13 +763,13 @@ carrier's link).
   `drafts/save.js` stamps `inviteClaimedAt` when a save presents it (clearing
   that field), so a carrier opening its own link cannot arm the lock against a
   driver who used `/apply/:slug`.
-- **Every lock names a row on the application.** The carrier's editor shows a
-  locked identity read-only (Unlock, correct, Lock). `reconcileLockedEmployers`
-  drops locks no row answers, on every carrier save (`prepare.js`, the
-  authority) and once in the handover exchange — **never** on driver answers
-  (deleting a locked row must not delete its lock). Refusals:
-  `locked-employer-changed`, `locked-employer-missing`. The worklist shows
-  `lockedEmployerCount`.
+- **Every lock names a row on the application.** The carrier's editors show a
+  locked identity read-only (prep: Unlock, correct, Lock; after the handover,
+  **Edit answers** cannot undo a lock). `reconcileLockedEmployers` drops locks
+  no row answers on every prep save (`prepare.js`, the authority) and once in
+  the handover exchange — **never** on driver answers (deleting a locked row
+  must not delete its lock). Refusals: `locked-employer-changed`,
+  `locked-employer-missing`. The worklist shows `lockedEmployerCount`.
 - **The AI reader locks the row, not the report's spelling:** a carrier already
   on the application (by name or USDOT) is locked with that row's own name and
   number, and the whole USDOT value is read before its digits are taken.

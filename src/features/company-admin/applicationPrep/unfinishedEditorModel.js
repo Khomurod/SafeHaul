@@ -29,6 +29,7 @@ import STANDARD_SECTIONS from '../../../../functions/shared/applicationSections.
 import DRIVER_ONLY_FIELDS from '../../../../functions/shared/driverOnlyFields.json';
 import { resolveApplicationGate } from '@/config/applicationGates';
 import { wasPresented } from '@/config/applicationDefinition';
+import { lockedEmployerIssues, normalizeLockedEmployers } from '@/config/applicationLockedFields';
 
 /** The company's own questions' answers: one map, beside the standard answers. */
 export const CUSTOM_ANSWERS = 'customAnswers';
@@ -108,6 +109,19 @@ export function editRequest(answers, loaded) {
         base[field] = loaded?.[field] ?? null;
     }
     return { changes, base };
+}
+
+/**
+ * The employer locks the loaded answers hold, which an edit must keep.
+ *
+ * The server refuses an edit that would undo one (`undoesALock` in
+ * `functions/drafts/admin.js`). A lock the driver's own rows already fail is
+ * theirs to answer at submission, not the editor's to keep, so a row the admin
+ * adds for that employer stays an ordinary row.
+ */
+export function heldLocks(lockedEmployers, loaded) {
+    return normalizeLockedEmployers(lockedEmployers)
+        .filter((lock) => lockedEmployerIssues([lock], loaded || {}).length === 0);
 }
 
 /** The changed answers' sections, in the application's order, for the confirmation. */

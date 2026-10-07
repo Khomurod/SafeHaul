@@ -8,9 +8,10 @@
  * What these pin: the same strict door as the read; only answers the carrier may
  * give, in the shape the wizard stores; an answer the driver changed since the
  * editor loaded it is refused, never overwritten; only what changes is written
- * and recorded, at a revision later than any before it; the driver's copy from
- * before the edit is then refused and handed the edit; and the carrier's own
- * application, before the driver has saved it, is the preparation workspace's.
+ * and recorded, at a revision later than any before it; an employer the
+ * carrier locked stays as it was locked; the driver's copy from before the edit
+ * is then refused and handed the edit; and the carrier's own application,
+ * before the driver has saved it, is the preparation workspace's.
  */
 
 process.env.SMS_ENCRYPTION_KEY = 'x'.repeat(32);
@@ -247,23 +248,6 @@ describe('an edit', () => {
         expect(mockRunTransactionCalls.at(-1).updates).toEqual([draftPath()]);
     });
 
-    it('drops the lock of an employer row the edit removed', async () => {
-        const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
-        const blue = { companyName: 'Blue Line', dotNumber: '654321' };
-        seedDraft({
-            origin: 'company',
-            status: 'driver_in_progress',
-            formData: { employers: [acme, blue] },
-            lockedEmployers: [acme, blue],
-        });
-        const lockedBefore = (await view()).lockedEmployers;
-
-        await edit({ employers: [acme] }, { employers: [acme, blue] });
-
-        expect(lockedBefore).toHaveLength(2);
-        expect(stored().lockedEmployers).toEqual([expect.objectContaining({ companyName: 'Acme Trucking' })]);
-    });
-
     it('answers with the application as it now stands', async () => {
         await driverDraft();
 
@@ -299,6 +283,58 @@ describe('an edit', () => {
         await expect(edit({ city: 'Dallas' }, { city: 'Austin' })).rejects.toMatchObject({ code: 'not-found' });
 
         expect(auditEntries()).toHaveLength(0);
+    });
+});
+
+describe('an employer the carrier locked', () => {
+    // Prepared from the driver's safety record and handed over. The driver's page
+    // holds its own copy of these locks, which nothing after the handover refreshes.
+    const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
+    const blue = { companyName: 'Blue Line', dotNumber: '654321' };
+    const LOCKS = [{ signature: 'dot:123456', ...acme }, { signature: 'dot:654321', ...blue }];
+    const lockedDraft = (employers = [acme, blue]) => seedDraft({
+        origin: 'company',
+        status: 'driver_in_progress',
+        inviteClaimedAt: mockServerTimestamp(),
+        formData: { employers },
+        lockedEmployers: LOCKS,
+    });
+
+    it.each([
+        ['renamed', [{ ...acme, companyName: 'Acme Logistics' }, blue]],
+        ['given another USDOT number', [{ ...acme, dotNumber: '111111' }, blue]],
+        ['removed', [blue]],
+    ])('cannot be %s, and the refusal writes nothing', async (_how, employers) => {
+        lockedDraft();
+        const before = JSON.stringify(stored());
+
+        await expect(edit({ employers }, { employers: [acme, blue] })).rejects.toMatchObject({
+            code: 'invalid-argument', details: { fields: ['employers'] },
+        });
+
+        expect(JSON.stringify(stored())).toBe(before);
+        expect(auditEntries()).toHaveLength(0);
+    });
+
+    it('keeps the rest of its row the admin\'s to change, and the locks as they were', async () => {
+        lockedDraft();
+        const employers = [{ ...acme, startDate: '2019-04', reasonForLeaving: 'Moved closer to home' }, blue];
+
+        await expect(edit({ employers }, { employers: [acme, blue] })).resolves.toMatchObject({ changed: ['employers'] });
+
+        expect(stored().formData.employers).toEqual(employers);
+        expect(stored().lockedEmployers).toEqual(LOCKS);
+    });
+
+    it('stays the driver\'s to answer when their own answers dropped it, without stopping an edit', async () => {
+        // The driver's rows already lack a locked employer; the submission holds them to it.
+        lockedDraft([acme]);
+        const employers = [{ ...acme, startDate: '2019-04' }];
+
+        await expect(edit({ employers }, { employers: [acme] })).resolves.toMatchObject({ changed: ['employers'] });
+
+        // Never reconciled against the driver's rows: deleting a locked row must not delete its lock.
+        expect(stored().lockedEmployers).toEqual(LOCKS);
     });
 });
 
