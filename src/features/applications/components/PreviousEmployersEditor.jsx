@@ -6,7 +6,7 @@ import {
 import { ConfirmDialog } from '@design-system/patterns';
 import { EMPLOYMENT_SECTION } from '@/config/applicationSchema';
 import { employerSignature, lockedSignatureSet } from '@/config/applicationLockedFields';
-import { useUtils } from '@shared/hooks/useUtils';
+import { EMPLOYER_REGION_GROUPS, EMPLOYER_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 
 /**
  * Previous employers, added, edited and removed by the company.
@@ -121,7 +121,7 @@ function labelFor(row, index) {
     return valueOf(row, 'companyName') || `employer ${index + 1}`;
 }
 
-function EmployerFieldControl({ field, row, rowKey, onChange, states }) {
+function EmployerFieldControl({ field, row, rowKey, onChange }) {
     const value = valueOf(row, field.key);
     const id = `employer-${rowKey}-${field.key}`;
 
@@ -149,12 +149,20 @@ function EmployerFieldControl({ field, row, rowKey, onChange, states }) {
     }
 
     if (field.type === 'select') {
+        // The regions the driver's page offers an employer. A stored value none of
+        // them holds is offered as itself, as `SchemaRowsEditor` does, rather than
+        // shown as "Select…" while the row still holds it.
+        const current = String(value ?? '');
+        const unlisted = current && !EMPLOYER_REGION_NAMES.includes(current) ? current : null;
         return (
             <FormField id={id} label={field.label} required={field.required}>
-                <Select value={value} onChange={(event) => onChange(field.key, event.target.value)}>
+                <Select value={current} onChange={(event) => onChange(field.key, event.target.value)}>
                     <option value="">Select…</option>
-                    {states.map((state) => (
-                        <option key={state} value={state}>{state}</option>
+                    {unlisted && <option value={unlisted}>{unlisted}</option>}
+                    {EMPLOYER_REGION_GROUPS.map((group) => (
+                        <optgroup key={group.label} label={group.label}>
+                            {group.options.map((region) => <option key={region} value={region}>{region}</option>)}
+                        </optgroup>
                     ))}
                 </Select>
             </FormField>
@@ -184,7 +192,6 @@ function EmployerFieldControl({ field, row, rowKey, onChange, states }) {
  *   an edit that would undo one.
  */
 export function PreviousEmployersEditor({ employers, onChange, unfinished = false, lockedEmployers }) {
-    const { states } = useUtils();
     const rows = useMemo(() => (Array.isArray(employers) ? employers : []), [employers]);
     const lockedRows = useMemo(() => rowsHoldingALock(rows, lockedEmployers), [rows, lockedEmployers]);
     /** The row a removal is waiting on, when it needs confirming. */
@@ -295,7 +302,6 @@ export function PreviousEmployersEditor({ employers, onChange, unfinished = fals
                                                     field={field}
                                                     row={row}
                                                     rowKey={rowKey}
-                                                    states={states}
                                                     onChange={(key, value) => setRow(index, key, value)}
                                                 />
                                             </div>

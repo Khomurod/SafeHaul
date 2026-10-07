@@ -1,7 +1,16 @@
 /**
  * FMCSA carrier lookup via Transportation.gov Socrata SODA API.
  * @see https://data.transportation.gov/resource/az4n-8mr2
+ *
+ * Two callers with their own queries: the driver's employer lookup
+ * (`fetchFmcsaEmployerSuggestions`) and the company's verification request
+ * (`fetchFmcsaCarrierCandidatesForPev`, whose query is unchanged since before
+ * 2026-10-07). Both map a row through this file, so a value FMCSA holds but no
+ * form should, such as "NONE" in the email column, is dropped in one place.
  */
+
+import { isWellFormedEmail } from '@shared/utils/validation';
+import { regionNameFromFmcsa } from '@shared/utils/northAmericanRegions';
 
 export const FMCSA_EMPLOYER_SOCRATA_URL =
   'https://data.transportation.gov/resource/az4n-8mr2.json';
@@ -32,11 +41,6 @@ const US_STATE_ABBRS = [
 
 const FULL_STATE_NAME_TO_ABBR = Object.fromEntries(
   US_STATE_FULL_NAMES.map((name, i) => [name, US_STATE_ABBRS[i]]),
-);
-
-/** FMCSA `phy_state` is usually a 2-letter code; employment `<select>` values use full state names. */
-const FMCSA_ABBR_TO_FULL_STATE_NAME = Object.fromEntries(
-  US_STATE_ABBRS.map((abbr, i) => [abbr, US_STATE_FULL_NAMES[i]]),
 );
 
 /**
@@ -156,43 +160,35 @@ export function buildFmcsaEmployerLikeSearchUrl(
   return `${FMCSA_EMPLOYER_SOCRATA_URL}?${params.toString()}`;
 }
 
+/** A census value as trimmed text; `''` for none. */
+const pickText = (value) => (value === undefined || value === null ? '' : String(value).trim());
+
 /**
  * Map a Socrata row to employer step field values.
+ *
+ * Every field is always returned, `''` when FMCSA has nothing usable, so a pick
+ * can tell "this carrier has no email" from "not asked" (`EmployerNameAutocomplete`).
+ * - `state` is the region's listed name, read with its country (`phy_country`):
+ *   "NL" is a Canadian province and a Mexican state. A region the picker does not
+ *   list is left out, since it would show as a value no option holds.
+ * - `companyEmail` is kept only when it is one an email can be sent to.
+ *
  * @param {Record<string, unknown>} row
- * @param {string[]} [statesAllowlist] - e.g. two-letter codes from useUtils().states
+ * @param {string[]} [statesAllowlist] - the region names the picker lists; none means any
  */
 export function mapFmcsaRowToEmployerFields(row, statesAllowlist = []) {
-  const companyName = String(row?.legal_name ?? '').trim();
-  const dotNumber =
-    row?.dot_number === undefined || row?.dot_number === null
-      ? ''
-      : String(row.dot_number).trim();
-  const address = String(row?.phy_street ?? '').trim();
-  const city = String(row?.phy_city ?? '').trim();
-  const rawState = String(row?.phy_state ?? '').trim().toUpperCase();
-  let state = '';
   const allow = Array.isArray(statesAllowlist) ? statesAllowlist : [];
-
-  if (/^[A-Z]{2}$/.test(rawState)) {
-    const fullName = FMCSA_ABBR_TO_FULL_STATE_NAME[rawState] || '';
-    if (fullName && (allow.length === 0 || allow.includes(fullName))) {
-      state = fullName;
-    } else if (allow.includes(rawState)) {
-      state = rawState;
-    } else if (allow.length === 0) {
-      state = rawState;
-    }
-  } else if (allow.includes(rawState)) {
-    state = rawState;
-  }
-
-  const pickStr = (v) =>
-    v === undefined || v === null ? '' : String(v).trim();
-  const phoneRaw = row?.phone ?? row?.telephone ?? row?.cell_phone ?? '';
-  const phone = pickStr(phoneRaw);
-  const companyEmail = pickStr(row?.email_address ?? row?.email ?? '');
-
-  return { companyName, dotNumber, address, city, state, phone, companyEmail };
+  const region = regionNameFromFmcsa(row?.phy_country, row?.phy_state);
+  const email = pickText(row?.email_address ?? row?.email);
+  return {
+    companyName: pickText(row?.legal_name),
+    dotNumber: pickText(row?.dot_number),
+    address: pickText(row?.phy_street),
+    city: pickText(row?.phy_city),
+    state: region && (allow.length === 0 || allow.includes(region)) ? region : '',
+    phone: pickText(row?.phone) || pickText(row?.telephone) || pickText(row?.cell_phone),
+    companyEmail: isWellFormedEmail(email) ? email : '',
+  };
 }
 
 /**
@@ -203,8 +199,9 @@ export function mapFmcsaRowToPevContact(row) {
     v === undefined || v === null ? '' : String(v).trim();
   const phoneRaw =
     row?.phone ?? row?.telephone ?? row?.cell_phone ?? '';
+  const email = pick(row.email_address || row.email);
   return {
-    email: pick(row.email_address || row.email),
+    email: isWellFormedEmail(email) ? email : '',
     fax: pick(row.fax),
     phone: pick(phoneRaw),
     legalName: pick(row.legal_name),
@@ -231,35 +228,70 @@ async function fetchJson(url, headers, signal) {
   return Array.isArray(data) ? data : [];
 }
 
+/** What the driver's lookup reads: the employer row's fields, the trade name, the country and the status. */
+export const FMCSA_SELECT_DRIVER =
+  'dot_number,legal_name,dba_name,phy_street,phy_city,phy_state,phy_country,phone,cell_phone,email_address,status_code';
+
+export const DRIVER_SUGGESTION_LIMIT = 10;
+
+/** "54283", "USDOT 54283", "DOT #54283": a USDOT number. */
+const USDOT_INPUT = /^(?:US\s*)?(?:DOT\s*)?#?\s*(\d{1,9})$/i;
+
 /**
- * @param {string} prefix
- * @param {{ signal?: AbortSignal, appToken?: string, selectFields?: string }} [options]
+ * The driver's lookup, as the queries to send, in the order their rows are listed:
+ * the carrier with that USDOT number when only a number was typed, then carriers
+ * whose legal or trade (`dba_name`) name starts with the text, active ones
+ * (`status_code` A) before the rest. A closed carrier stays listed: a driver's
+ * former employer may have closed.
+ *
+ * Separate queries rather than `$order` on the status, which would have Socrata
+ * sort every match; each of these answered in about 0.3 s (2026-10-07).
+ *
+ * @param {string} input what the driver typed
+ * @returns {string[]} none when it is too short to search
  */
-export async function fetchFmcsaEmployerSuggestions(prefix, options = {}) {
-  const { signal, appToken, selectFields = FMCSA_SELECT_MINIMAL } = options;
-  let url = buildFmcsaEmployerSearchUrl(prefix, selectFields);
-  if (!url || !appToken) {
-    return [];
-  }
+export function buildFmcsaDriverSearchUrls(input) {
+  const safe = escapeSoqlStringLiteral(sanitizeEmployerSearchPrefix(input));
+  if (safe.length < MIN_PREFIX_LENGTH) return [];
+  const named = `(starts_with(upper(legal_name), upper('${safe}')) OR starts_with(upper(dba_name), upper('${safe}')))`;
+  const usdot = USDOT_INPUT.exec(safe);
+  const wheres = [
+    ...(usdot ? [`dot_number = ${Number(usdot[1])}`] : []),
+    `status_code = 'A' AND ${named}`,
+    `(status_code IS NULL OR status_code != 'A') AND ${named}`,
+  ];
+  return wheres.map((where) => {
+    const params = new URLSearchParams();
+    params.set('$select', FMCSA_SELECT_DRIVER);
+    params.set('$where', where);
+    params.set('$limit', String(DRIVER_SUGGESTION_LIMIT));
+    return `${FMCSA_EMPLOYER_SOCRATA_URL}?${params.toString()}`;
+  });
+}
 
-  const headers = {
-    Accept: 'application/json',
-    'X-App-Token': appToken,
-  };
+/**
+ * Up to ten carriers for what the driver typed, in `buildFmcsaDriverSearchUrls`'
+ * order, each once.
+ * @param {string} input
+ * @param {{ signal?: AbortSignal, appToken?: string }} [options]
+ */
+export async function fetchFmcsaEmployerSuggestions(input, options = {}) {
+  const { signal, appToken } = options;
+  const urls = buildFmcsaDriverSearchUrls(input);
+  if (urls.length === 0 || !appToken) return [];
 
-  try {
-    return await fetchJson(url, headers, signal);
-  } catch (e) {
-    if (
-      selectFields !== FMCSA_SELECT_MINIMAL &&
-      (e.status === 400 || /unknown column|invalid/i.test(String(e.body || e.message)))
-    ) {
-      url = buildFmcsaEmployerSearchUrl(prefix, FMCSA_SELECT_MINIMAL);
-      if (!url) return [];
-      return await fetchJson(url, headers, signal);
-    }
-    throw e;
+  const headers = { Accept: 'application/json', 'X-App-Token': appToken };
+  const answers = await Promise.all(urls.map((url) => fetchJson(url, headers, signal)));
+  const listed = new Set();
+  const rows = [];
+  for (const row of answers.flat()) {
+    const dot = pickText(row?.dot_number);
+    if (dot && listed.has(dot)) continue;
+    listed.add(dot);
+    rows.push(row);
+    if (rows.length === DRIVER_SUGGESTION_LIMIT) break;
   }
+  return rows;
 }
 
 /**

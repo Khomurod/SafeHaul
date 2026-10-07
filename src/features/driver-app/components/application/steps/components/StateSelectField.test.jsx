@@ -3,6 +3,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StateSelectField } from './StateSelectField';
 import { US_STATE_NAMES } from '@shared/utils/usStates';
+import { EMPLOYER_REGION_GROUPS } from '@shared/utils/northAmericanRegions';
 
 afterEach(cleanup);
 
@@ -59,5 +60,34 @@ describe('StateSelectField autofill token', () => {
             <StateSelectField id="state" name="state" value="" onChange={vi.fn()} states={US_STATE_NAMES} autoComplete="address-level1" />,
         );
         expect(screen.getByLabelText(/State/)).toHaveAttribute('autocomplete', 'address-level1');
+    });
+});
+
+describe('StateSelectField groups', () => {
+    function renderRegions(value) {
+        render(
+            <StateSelectField
+                id="emp-state-0" name="state" value={value} onChange={vi.fn()}
+                groups={EMPLOYER_REGION_GROUPS} label="State / Province" placeholder="Select state or province"
+            />,
+        );
+        return screen.getByLabelText(/State \/ Province/);
+    }
+
+    it('offers the US states, then Canada and Mexico, under their country', () => {
+        const select = renderRegions('');
+        expect([...select.querySelectorAll('optgroup')].map((group) => group.label)).toEqual(['United States', 'Canada', 'Mexico']);
+        expect(screen.getByRole('group', { name: 'Canada' })).toContainElement(screen.getByRole('option', { name: 'Ontario' }));
+        expect(select.selectedOptions[0]).toHaveTextContent('Select state or province');
+    });
+
+    it('selects a province once, and still shows an unlisted value as itself', () => {
+        expect(renderRegions('Ontario')).toHaveValue('Ontario');
+        expect(screen.getAllByRole('option', { name: 'Ontario' })).toHaveLength(1);
+        cleanup();
+
+        const select = renderRegions('ON');
+        expect(select).toHaveValue('ON');
+        expect(select.selectedOptions[0]).toHaveTextContent('ON');
     });
 });

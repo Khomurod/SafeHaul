@@ -127,14 +127,14 @@ describe('fmcsaEmployerSocrata', () => {
         phone: '214-555-0100',
         email_address: 'dispatch@acme.com',
       },
-      ['TX'],
+      ['Texas'],
     );
     expect(m).toEqual({
       companyName: 'Acme Trucking LLC',
       dotNumber: '12345',
       address: '1 Main St',
       city: 'Dallas',
-      state: 'TX',
+      state: 'Texas',
       phone: '214-555-0100',
       companyEmail: 'dispatch@acme.com',
     });
@@ -202,33 +202,7 @@ describe('fmcsaEmployerSocrata', () => {
       vi.unstubAllGlobals();
     });
 
-    it('retries with minimal $select when extended columns are rejected', async () => {
-      const fetchMock = vi
-        .fn()
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 400,
-          text: () => Promise.resolve('unknown column foo'),
-          json: () => Promise.reject(new Error('no json')),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([{ legal_name: 'OK', dot_number: '1' }]),
-        });
-      vi.stubGlobal('fetch', fetchMock);
-
-      const rows = await fetchFmcsaEmployerSuggestions('Ab', {
-        appToken: 't',
-        selectFields: FMCSA_SELECT_EXTENDED,
-      });
-      expect(rows).toHaveLength(1);
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-      const secondUrl = fetchMock.mock.calls[1][0];
-      const decoded = decodeURIComponent(String(secondUrl)).replace(/\+/g, ' ');
-      expect(decoded).toContain('$select=');
-      expect(decoded).toContain('dot_number,legal_name,phy_street,phy_city,phy_state');
-    });
-
+    // The driver's lookup and how it lists carriers: `fmcsaEmployerSocrata.driver.test.js`.
     it('sends X-App-Token header and returns array', async () => {
       const rows = await fetchFmcsaEmployerSuggestions('Ab', {
         appToken: 'test-token',

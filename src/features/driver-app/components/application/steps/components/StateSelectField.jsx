@@ -31,6 +31,10 @@ import { FormField, Select } from '@/design-system/components';
  * every employer, accident and licence row too.
  *
  * `error` goes to `FormField`, which marks the select invalid and says why.
+ *
+ * `groups` replaces `states` with labelled lists, `[{ label, options }]`: the
+ * employer rows offer Canada's and Mexico's regions after the US states
+ * (`northAmericanRegions.js`).
  */
 export function StateSelectField({
     id,
@@ -38,18 +42,24 @@ export function StateSelectField({
     value,
     onChange,
     states,
+    groups,
     label = 'State',
+    placeholder = 'Select State',
     required = true,
     autoComplete,
     error,
 }) {
-    const unlisted = typeof value === 'string' && value && !states.includes(value) ? value : null;
+    const listed = groups ? groups.flatMap((group) => group.options) : states;
+    const unlisted = typeof value === 'string' && value && !listed.includes(value) ? value : null;
+    const optionsOf = (names) => names.map((state) => <option key={state} value={state}>{state}</option>);
     return (
         <FormField id={id} label={label} required={required} error={error}>
             <Select name={name} value={value || ''} onChange={onChange} autoComplete={autoComplete}>
-                <option value="" disabled>Select State</option>
+                <option value="" disabled>{placeholder}</option>
                 {unlisted && <option value={unlisted}>{unlisted}</option>}
-                {states.map((state) => <option key={state} value={state}>{state}</option>)}
+                {groups
+                    ? groups.map((group) => <optgroup key={group.label} label={group.label}>{optionsOf(group.options)}</optgroup>)
+                    : optionsOf(states)}
             </Select>
         </FormField>
     );

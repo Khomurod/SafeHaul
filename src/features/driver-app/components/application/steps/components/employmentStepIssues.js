@@ -20,9 +20,7 @@ import { MILITARY_BRANCH_OPTIONS } from '@/config/form-options';
 import { isLockedEmployerRow } from '@/config/applicationLockedFields';
 import { domIdSegment } from '@shared/utils/domId';
 import { employerRowHasVerifierContact, employerRowMissingAnswerKeys } from '@shared/utils/employmentApplicationHelpers';
-
-/** The page's own email check, unchanged: something, an @, something, a dot, something. */
-export const EMPLOYMENT_EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { isWellFormedEmail } from '@shared/utils/validation';
 
 export const REQUIRED_MESSAGE = 'Required.';
 const EMAIL_MESSAGE = 'Enter a valid email, or leave it blank.';
@@ -35,7 +33,7 @@ const EMPLOYER_IDENTITY = [
     { key: 'companyName', word: 'company name', focus: (i) => `emp-name-${i}` },
     { key: 'address', word: 'street address', focus: (i) => `emp-street-${i}` },
     { key: 'city', word: 'city', focus: (i) => `emp-city-${i}` },
-    { key: 'state', word: 'state', focus: (i) => `emp-state-${i}` },
+    { key: 'state', word: 'state or province', focus: (i) => `emp-state-${i}` },
 ];
 const EMPLOYER_DATES = [
     { key: 'startDate', word: 'start date', focus: monthYear('emp-start') },
@@ -114,8 +112,9 @@ function employerIssue(row, index, { required, lockedEmployers, today }) {
             if (!filled(row?.[field.key])) add(field.key, field, REQUIRED_MESSAGE);
         }
     }
-    const badCompanyEmail = filled(row?.companyEmail) && !EMPLOYMENT_EMAIL_OK.test(String(row.companyEmail).trim());
-    const badSupervisorEmail = filled(row?.supervisorEmail) && !EMPLOYMENT_EMAIL_OK.test(String(row.supervisorEmail).trim());
+    // The rule the browser applies to these fields, so the list names what it would refuse.
+    const badCompanyEmail = filled(row?.companyEmail) && !isWellFormedEmail(String(row.companyEmail).trim());
+    const badSupervisorEmail = filled(row?.supervisorEmail) && !isWellFormedEmail(String(row.supervisorEmail).trim());
     if (badCompanyEmail) add('companyEmail', { word: 'a valid company email', focus: (i) => `emp-co-email-${i}` }, EMAIL_MESSAGE);
     // Fixing a mistyped email gives the row its contact too, so it is asked for once.
     if (required && !badCompanyEmail && !badSupervisorEmail && !employerRowHasVerifierContact(row)) {
