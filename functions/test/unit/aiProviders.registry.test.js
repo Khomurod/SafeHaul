@@ -138,24 +138,27 @@ describe('Mistral runs on the tier a free key actually has', () => {
      * model — it is simply *paid-tier only*. A free key gets `403
      * tier_not_allowed` and Large is not even in its catalogue, so pinning it
      * meant every Mistral lane 403'd and the connection test reported six
-     * failures on a key that authenticates and does inference. Verified against
-     * the live API on a free key 2026-09-03: `mistral-medium-latest` serves
-     * every lane — text, structured JSON and vision — on the free entitlement.
+     * failures on a key that authenticates and does inference. On 2026-10-07
+     * the free plan also gave Medium and Small a limit of zero requests a
+     * minute, and the Ministral models serve every lane — text, structured JSON
+     * and vision — on the free entitlement (verified against the live API).
      *
      * These guard the regression back to a paid-tier default, which no vendor
      * catalogue reconciliation would catch (the model is real, just entitled).
      */
     const PAID_TIER_ONLY = ['mistral-large-latest', 'mistral-large-2512'];
+    /** Live and listed, but a free key may send them nothing (`429`, limit 0). */
+    const ZERO_ON_FREE_TIER = ['mistral-medium-latest', 'mistral-small-latest'];
 
     it('pins no paid-tier-only model on any lane', () => {
         const pins = Object.values(getProvider('mistral').defaultModels);
-        for (const paid of PAID_TIER_ONLY) expect(pins).not.toContain(paid);
+        for (const paid of [...PAID_TIER_ONLY, ...ZERO_ON_FREE_TIER]) expect(pins).not.toContain(paid);
     });
 
     it('resolves a free-tier model for text, structured JSON and vision alike', () => {
         const mistral = getProvider('mistral');
         for (const capability of [CAPABILITIES.TEXT, CAPABILITIES.STRUCTURED_JSON, CAPABILITIES.VISION]) {
-            expect(resolveModel(mistral, capability, {})).toMatch(/^mistral-(medium|small)/);
+            expect(resolveModel(mistral, capability, {})).toMatch(/^ministral-/);
         }
     });
 });

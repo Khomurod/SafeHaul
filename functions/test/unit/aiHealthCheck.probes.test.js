@@ -61,7 +61,7 @@ describe('probes exercise what SafeHaul actually asks for', () => {
         await testProviderConnection('groq');
 
         const visionCall = mockExecute.mock.calls.find(([, ctx]) => ctx.images?.length === 1)[1];
-        expect(visionCall.model).toBe('qwen/qwen3.6-27b');
+        expect(visionCall.model).toBe('qwen/qwen3.8-27b');
     });
 });
 

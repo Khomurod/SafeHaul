@@ -50,7 +50,7 @@ describe('model pin reconciliation', () => {
         const groq = result.providers.find((entry) => entry.providerId === 'groq');
 
         expect(groq.status).toBe('stale');
-        const visionPin = groq.pins.find((pin) => pin.model === 'qwen/qwen3.6-27b');
+        const visionPin = groq.pins.find((pin) => pin.model === 'qwen/qwen3.8-27b');
         expect(visionPin.present).toBe(false);
         expect(visionPin.capabilities).toEqual(expect.arrayContaining(['vision']));
         expect(result.stalePins).toBeGreaterThan(0);
@@ -58,7 +58,7 @@ describe('model pin reconciliation', () => {
 
     it('reports every pin present as ok', async () => {
         const result = await diagnoseModelPins({
-            fetchImpl: catalogueReturning({ groq: ['openai/gpt-oss-20b', 'qwen/qwen3.6-27b'] }),
+            fetchImpl: catalogueReturning({ groq: ['openai/gpt-oss-20b', 'qwen/qwen3.8-27b'] }),
         });
 
         expect(result.providers.find((entry) => entry.providerId === 'groq').status).toBe('ok');
@@ -100,7 +100,7 @@ describe('model pin reconciliation', () => {
 
     it('never returns a credential', async () => {
         const result = await diagnoseModelPins({
-            fetchImpl: catalogueReturning({ groq: ['openai/gpt-oss-20b', 'qwen/qwen3.6-27b'] }),
+            fetchImpl: catalogueReturning({ groq: ['openai/gpt-oss-20b', 'qwen/qwen3.8-27b'] }),
         });
 
         expect(JSON.stringify(result)).not.toMatch(/apiKey|"k"|Bearer/);

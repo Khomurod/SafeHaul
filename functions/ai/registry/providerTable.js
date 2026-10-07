@@ -99,35 +99,29 @@ const PROVIDER_LIST = [
         apiBaseUrl: 'https://api.groq.com/openai/v1',
         adapter: 'groq',
         /**
-         * Vision is back, on a different model and by a different mechanism.
+         * Vision, on Groq's multimodal Qwen.
          *
-         * It was removed on 2026-08-03 because Groq withdrew both llama-4
-         * vision models, and that was correct at the time: Maverick shut down
-         * 2026-03-09 and Scout 2026-07-17. But Groq's catalogue moved on and
-         * the registry did not. `qwen/qwen3.6-27b` is multimodal — Groq
-         * documents it for "image analysis, OCR, and visual question
-         * answering" — and Groq's own deprecation page names it as the
-         * recommended replacement for Scout. Verified 2026-08-17.
+         * Groq withdrew both llama-4 vision models in 2026 (Maverick 03-09,
+         * Scout 07-17), and on 2026-10-07 the Qwen pinned in their place,
+         * `qwen/qwen3.6-27b`, answered 404 `model_not_found`: every photo
+         * request to Groq failed. `qwen/qwen3.8-27b` replaced it, verified that
+         * day on the live API: it read a CDL photo, and two photos at once.
          *
-         * The subtlety that makes this more than a flag: Groq's schema support
-         * is per *model*. Only the `openai/gpt-oss-*` models accept
-         * `json_schema`; `qwen/qwen3.6-27b` supports JSON object mode only and
-         * answers a schema request with a 400. So the vision lanes carry their
-         * own structured mode below, and the schema is restated in the prompt
-         * and enforced by SafeHaul's own validator on return.
+         * Groq's schema support is per *model*. `qwen/qwen3.6-27b` answered
+         * `json_schema` with a 400 and was asked in JSON object mode through
+         * `structuredModeByCapability`; `qwen/qwen3.8-27b` accepts it with
+         * images (CDL, medical card, PSP, MVR and E-Doc schemas, 2026-10-07),
+         * so every Groq lane now asks in schema mode and Groq enforces the shape.
          *
-         * `maxImages` is Groq's documented per-request cap. E-Doc already
-         * limits itself to five pages, so the two agree — but the router
-         * enforces it rather than trusting that they always will.
+         * `maxImages` is the model's per-request cap, and the router enforces
+         * it. `qwen/qwen3.8-27b` takes three (`400 "This model supports up to 3
+         * images"`, 2026-10-07), so a four- or five-page E-Doc goes to the next
+         * provider instead of spending a request that cannot succeed.
          */
         capabilities: [...TEXT_SUITE, STRUCTURED_JSON, LONG_CONTEXT, VISION, MULTI_IMAGE],
         structuredMode: STRUCTURED_MODE.GROQ_RESPONSES_SCHEMA,
-        structuredModeByCapability: {
-            [VISION]: STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT,
-            [MULTI_IMAGE]: STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT,
-        },
         supportsVision: true,
-        maxImages: 5,
+        maxImages: 3,
         secretFields: [
             secretField('apiKey', 'API key', 'Groq API key from console.groq.com/keys.'),
         ],
@@ -151,7 +145,7 @@ const PROVIDER_LIST = [
          * extraction, E-Doc placement — failed. That is what produced
          * `failed_generation (all_providers_failed)` in production.
          *
-         * `qwen/qwen3.6-27b` is rejected the same way. `openai/gpt-oss-120b`
+         * `qwen/qwen3.6-27b` was rejected the same way. `openai/gpt-oss-120b`
          * accepts schemas but burns so much reasoning budget that a small plain
          * text request returns `status: incomplete` with only a `reasoning`
          * item. `openai/gpt-oss-20b` answered both shapes correctly, so one
@@ -164,12 +158,12 @@ const PROVIDER_LIST = [
             [SUMMARIZATION]: 'openai/gpt-oss-20b',
             [CLASSIFICATION]: 'openai/gpt-oss-20b',
             [STRUCTURED_JSON]: 'openai/gpt-oss-20b',
-            // Groq's only multimodal model. Preview status at the time of
-            // writing, which is why it is one lane among several rather than
-            // anything SafeHaul depends on: 131k context, 16,384 max output,
-            // five images and 20MB per request. Verified 2026-08-17.
-            [VISION]: 'qwen/qwen3.6-27b',
-            [MULTI_IMAGE]: 'qwen/qwen3.6-27b',
+            // Groq's only multimodal model, one lane among several rather than
+            // anything SafeHaul depends on: 131k context, three images per
+            // request, and about 1,800 input tokens a photo against the free
+            // tier's 7,000 input tokens a minute. Verified 2026-10-07.
+            [VISION]: 'qwen/qwen3.8-27b',
+            [MULTI_IMAGE]: 'qwen/qwen3.8-27b',
         },
         timeoutMs: 45000,
         retryPolicy: SINGLE_ATTEMPT,
@@ -300,28 +294,27 @@ const PROVIDER_LIST = [
         ],
         configFields: [],
         /**
-         * Pinned to `mistral-medium-latest`, one model for every lane.
+         * Pinned to the Ministral models, the ones a *free* key can call.
          *
-         * `mistral-large-latest` (the previous text and vision pin) is paid-tier
-         * only: a free key gets `403 tier_not_allowed` and Large is not even in
-         * its catalogue, so every lane 403'd and the connection test reported
-         * six failures. The pixtral models it replaced were retired months ago.
+         * Mistral's free plan moved under us twice. `mistral-large-*` is paid
+         * only (`403 tier_not_allowed`, 2026-09-03), and on 2026-10-07 the free
+         * plan gave `mistral-medium-*` and `mistral-small-*` a limit of zero
+         * requests a minute (`429`, `x-ratelimit-limit-req-minute: 0`), so every
+         * Mistral lane failed on a key that authenticates.
          *
-         * `mistral-medium-latest` is vision-capable with structured output and
-         * long context, so one model serves the text and image lanes on the
-         * *free* entitlement. Verified 2026-09-03 on a free key against the live
-         * API: it read a CDL photo, a PSP page image, and PSP/MVR/medical text
-         * into the schema. No per-tier config exists, so the default targets the
-         * tier a free key actually has.
+         * `ministral-14b-2512` read a CDL photo, two and five photos at once, and
+         * answered the claim check, verified that day on a free key. It took
+         * 33-48s to write an article against this row's 45s timeout, so articles
+         * go to `ministral-8b-2512`, which wrote one in 9s.
          */
         defaultModels: {
-            [TEXT]: 'mistral-medium-latest',
-            [ARTICLE_WRITING]: 'mistral-medium-latest',
-            [SUMMARIZATION]: 'mistral-medium-latest',
-            [CLASSIFICATION]: 'mistral-medium-latest',
-            [STRUCTURED_JSON]: 'mistral-medium-latest',
-            [VISION]: 'mistral-medium-latest',
-            [MULTI_IMAGE]: 'mistral-medium-latest',
+            [TEXT]: 'ministral-14b-2512',
+            [ARTICLE_WRITING]: 'ministral-8b-2512',
+            [SUMMARIZATION]: 'ministral-14b-2512',
+            [CLASSIFICATION]: 'ministral-14b-2512',
+            [STRUCTURED_JSON]: 'ministral-14b-2512',
+            [VISION]: 'ministral-14b-2512',
+            [MULTI_IMAGE]: 'ministral-14b-2512',
         },
         timeoutMs: 45000,
         retryPolicy: SINGLE_ATTEMPT,

@@ -104,15 +104,16 @@ evidence that it sent JSON.
 ### Structured-output mode can differ *within* one provider
 
 Groq is the reason `structuredModeByCapability` exists. Its schema support is a
-property of the **model**, not the vendor: only `openai/gpt-oss-20b`,
-`openai/gpt-oss-120b` and `openai/gpt-oss-safeguard-20b` accept `json_schema`,
-and the only model that can read an image (`qwen/qwen3.6-27b`) answers a schema
-request with a 400.
+property of the **model**, not the vendor. The `openai/gpt-oss-*` models accept
+`json_schema`; `qwen/qwen3.6-27b`, Groq's image model until 2026-10-07, answered
+a schema request with a 400, so its image lanes sent `{ type: 'json_object' }`
+with the schema restated in the prompt.
 
-So Groq's text lanes send `text.format = { type: 'json_schema', … }` and its
-image lanes send `{ type: 'json_object' }` with the schema restated in the
-prompt. In both cases the router validates the parsed result, so SafeHaul's
-guarantee about output shape is identical either way.
+`qwen/qwen3.8-27b`, which replaced it, accepts `json_schema` with images —
+verified live on the CDL, medical card, PSP, MVR and E-Doc schemas — so every
+Groq lane now sends `text.format = { type: 'json_schema', … }` and Groq enforces
+the shape. The override remains for the next model that needs object mode. In
+every mode the router validates the parsed result as well.
 
 This is worth stating plainly because "turn the vision capability on" would have
 produced a 400 on every CDL photograph. A capability flag is a claim about the
@@ -199,6 +200,30 @@ Two changes, both verified against the live API on a free key:
   invalid_request_file` while reading a properly zlib-compressed PNG of the same
   pixels — so the probes now emit conformant images (`solidColorPng`), or the
   connection test would report a false "vision failed" for a provider that works.
+
+### Pins retired again, 2026-10-07
+
+Every AI reading feature stopped at once, because all three configured vendors
+had changed something under their single pin per lane. Checked live with the
+owner's keys through SafeHaul's own adapters:
+
+| Provider | Old pin | What the vendor answered | New pin |
+| --- | --- | --- | --- |
+| Groq (photos) | `qwen/qwen3.6-27b` | `404 model_not_found` | `qwen/qwen3.8-27b` |
+| Mistral (every lane) | `mistral-medium-latest` | `429`, `x-ratelimit-limit-req-minute: 0` on the free plan (Small too; Large is `403 tier_not_allowed`) | `ministral-14b-2512`; articles `ministral-8b-2512` |
+| Gemini | `gemini-3.6-flash` | `503` "high demand" (3.5, 3.7 and 3.8 Flash too; the Lite versions answered) | unchanged |
+
+- `qwen/qwen3.8-27b` read a CDL photo and two at once, in schema mode (see
+  "Structured-output mode can differ *within* one provider"). It takes **three**
+  images per request (`400 "This model supports up to 3 images"`), so Groq's
+  `maxImages` is 3 and a four- or five-page document goes to the next provider.
+  A photo costs about 1,800 input tokens against the free tier's 7,000 input
+  tokens a minute, so about one two-photo licence read a minute fits.
+- `ministral-14b-2512` read a CDL photo, two and five at once, and answered the
+  claim check in about 4s. It took 33–48s to write an article against Mistral's
+  45s timeout, so `ARTICLE_WRITING` resolves to `ministral-8b-2512` (9s).
+- With one model per lane, any such vendor change is an outage for that
+  provider. This re-pin restores service; it does not change that.
 
 ## Fallback order and behaviour
 
