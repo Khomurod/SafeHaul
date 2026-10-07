@@ -168,6 +168,7 @@ merge idempotently. No new identity scheme was introduced.
 | `clientSeq` | The browser's own write counter for the copy this save carried. The client compares it with the sequence *it* believes is synced, which is how an older server draft is stopped from overwriting newer local work — without either side comparing a phone clock to a Firestore timestamp. Null for a draft written before the field existed; the client falls back to comparing progress |
 | `resumeTokenHash` | A hash of the bearer token issued to a browser. Compared in constant time; the token itself is never stored |
 | `priorResumeTokenHashes` | Up to two superseded hashes, so a rotation by a resume lookup is not mistaken for the draft being deleted. Liveness evidence only — never authorization |
+| `companyRevision`, `companyEdits` | A Company Admin's edits: the latest one's revision (a millisecond time, so always later than the one before, even across a draft deleted and started again), and each edited answer's. A browser's save or submission from an older revision is refused, and so is a save landing on the same driver's other edited draft (`functions/shared/companyEdits.js`). Absent on a draft nobody edited, and carried to the new id when a corrected email or phone moves the draft |
 | `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json` |
 
 **The draft never holds an SSN.** It is stripped in three independent places — the

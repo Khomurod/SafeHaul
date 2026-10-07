@@ -13,6 +13,7 @@ const { assertCompanyAcceptingIntake } = require('../shared/companyTenant');
 const { generateApplicantKey } = require('../shared/buildApplicationDoc');
 const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
+const { companyRevisionOf, mergeCompanyEdits, seenRevisionOf } = require('../shared/companyEdits');
 const {
     applicantKeyOf, clientIp, docId, identityKeyForSave, identityKeyOrNull,
     liveDraftForToken, mayModifyExistingDraft, recordMatchAttempt,
@@ -87,6 +88,9 @@ exports.saveApplicationProgress = functions
         }, 'saveApplicationProgress');
 
         const ref = draft.draftsCollection(companyId).doc(applicantKey);
+        // Which of a Company Admin's edits this copy holds; null from a browser
+        // that predates them. See `shared/companyEdits.js`.
+        const seenRevision = seenRevisionOf(data?.seenRevision);
 
         /**
          * The existence check, the authorization decision and the write, in one
@@ -142,6 +146,31 @@ exports.saveApplicationProgress = functions
                     phone,
                 });
                 if (!authorizedBy) return { refused: true, token: null };
+            }
+
+            /**
+             * A Company Admin edited this application after the browser's copy was
+             * taken, so writing that copy would undo the edit. Refused before
+             * anything is written, and only for a browser that said which revision
+             * it holds (see `shared/companyEdits.js`).
+             *
+             * Judged against the draft the browser's token opened: that is the
+             * draft its copy came from, and the one it can fetch the edits from.
+             * The two differ when a corrected email or phone moves the save to a
+             * new id.
+             */
+            const lineage = opened || (existing.exists ? existing : null);
+            if (seenRevision !== null && companyRevisionOf(lineage?.data()) > seenRevision) {
+                return { refused: true, companyUpdated: true, token: null };
+            }
+            // A corrected email or phone that lands on the same driver's OTHER
+            // draft, which a Company Admin edited. Its edits cannot reach this
+            // browser, whose token opens a different draft, and a revision speaks
+            // only for the draft its copy came from. So nothing is written and
+            // nothing is joined: both drafts stay as they are.
+            if (seenRevision !== null && opened && opened.id !== ref.id && existing.exists
+                && companyRevisionOf(existing.data()) > 0) {
+                return { refused: true, editedElsewhere: true, token: null };
             }
 
             const preparedSource = preparedSourceFor(existing, opened, ref.id);
@@ -232,6 +261,18 @@ exports.saveApplicationProgress = functions
                 update.inviteResumeTokenHash = null;
             }
 
+            // The edits move with the applicant when the id does, or the new draft
+            // would read as never edited and the next edit as the first. A save that
+            // stays on its own id leaves them where they are.
+            if (opened && opened.id !== ref.id) {
+                const target = existing.exists ? existing.data() : null;
+                const revision = Math.max(companyRevisionOf(target), companyRevisionOf(opened.data()));
+                if (revision > 0) {
+                    update.companyRevision = revision;
+                    update.companyEdits = mergeCompanyEdits(target, opened.data());
+                }
+            }
+
             transaction.set(ref, update, { merge: true });
             return {
                 refused: false,
@@ -246,6 +287,17 @@ exports.saveApplicationProgress = functions
                     : null,
             };
         });
+
+        if (attempt.companyUpdated) {
+            // Not a probe: the caller proved the draft is theirs. They are owed the
+            // reason, so their browser can take the edits and save again.
+            return { saved: false, companyUpdated: true, applicantKey: null, resumeToken: null };
+        }
+        if (attempt.editedElsewhere) {
+            // Not a probe either. But no reason would help: the browser has nothing
+            // it could fetch, so it keeps its copy, as after a network failure.
+            return { saved: false, applicantKey: null, resumeToken: null };
+        }
 
         if (attempt.refused) {
             // Refusals get their own budget, and it deliberately never changes

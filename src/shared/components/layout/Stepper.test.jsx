@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 vi.mock('@/lib/signature', () => ({
   initializeSignatureCanvas: vi.fn(),
@@ -173,5 +173,30 @@ describe('Stepper frame', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('a carrier\'s edits', () => {
+  it('are named above the step until the driver says they have seen them', () => {
+    const updateFormData = vi.fn();
+    renderStepper({ step: 7, formData: { _companyNotice: ['employers', 'city'] }, updateFormData });
+
+    const notice = screen.getByRole('status');
+    expect(notice).toHaveTextContent('Your carrier updated your application');
+    expect(notice).toHaveTextContent('They changed: Address History, Employment History. Check these answers before you sign.');
+    expect(screen.getByText('review body')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(updateFormData).toHaveBeenCalledWith('_companyNotice', null);
+  });
+
+  it('still ask for a check when no section can be named', () => {
+    renderStepper({ formData: { _companyNotice: ['not-a-field'] } });
+    expect(screen.getByRole('status')).toHaveTextContent('Check your answers before you sign.');
+  });
+
+  it('say nothing when there is nothing to say', () => {
+    renderStepper({ formData: { _companyNotice: null } });
+    expect(screen.queryByText('Your carrier updated your application')).toBeNull();
   });
 });

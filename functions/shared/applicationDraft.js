@@ -44,6 +44,7 @@
 
 const crypto = require('crypto');
 const { admin, db } = require('../firebaseAdmin');
+const { clientCompanyEdits } = require('./companyEdits');
 
 /** Server-only subcollection, denied to every client in `firestore.rules`. */
 const COLLECTION = 'application_drafts';
@@ -290,6 +291,9 @@ function toClientDraft(doc) {
         // before the field existed; the client falls back to progress then.
         clientSeq: Number.isInteger(data.clientSeq) ? data.clientSeq : null,
         updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || null,
+        // A Company Admin's edits: the latest revision, and the revision of each
+        // answer they changed. See `./companyEdits.js`.
+        ...clientCompanyEdits(data),
     };
 }
 

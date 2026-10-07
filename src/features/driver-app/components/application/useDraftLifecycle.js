@@ -12,6 +12,7 @@ import {
   writeDiscardMark,
 } from './applicationDraftStorage';
 import { closeDraftAfterSubmission } from '../../services/applicationDraftService';
+import { companyFieldsAfter, withCompanyNotice } from './companyEditsSync';
 
 export function useDraftLifecycle({
   slug,
@@ -129,7 +130,10 @@ export function useDraftLifecycle({
    */
   const applyRestoredDraft = useCallback((restored) => {
     if (!restored) return;
-    setFormData((prev) => ({ ...prev, ...restored.formData }));
+    // Nothing of this application was on this device before, so every answer a
+    // Company Admin edited is new to the driver here. See `companyEditsSync.js`.
+    const answers = withCompanyNotice(restored.formData, companyFieldsAfter(restored.companyEdits, 0));
+    setFormData((prev) => ({ ...prev, ...answers }));
     setCurrentStep(restored.stepIndex);
     setIntakeMode('manual');
     // Written straight back to the local copy, so a reload after a restore does
@@ -143,7 +147,7 @@ export function useDraftLifecycle({
     // `synced: true` rather than a number, because a server draft written before
     // `clientSeq` existed has none to adopt — and it still must not be treated as
     // unsynced local work.
-    const written = saveApplicationDraft(slug, { ...formData, ...restored.formData }, {
+    const written = saveApplicationDraft(slug, { ...formData, ...answers }, {
       lastStep: restored.stepIndex,
       localSeq: Number.isInteger(restored.clientSeq) ? restored.clientSeq : undefined,
       synced: true,

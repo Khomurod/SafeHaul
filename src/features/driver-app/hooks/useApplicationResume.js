@@ -69,6 +69,7 @@ import {
  *   then the answer may have changed: the applicant can discard in another tab while
  *   a save is queued here, and a save that lands afterwards recreates the very
  *   application they asked to be rid of.
+ * @param {(payload: object) => Promise<object>} [options.saveProgress] Sends a save; see `useDiscardAwareResume`.
  */
 export function useApplicationResume({
     slug,
@@ -76,6 +77,7 @@ export function useApplicationResume({
     sandbox,
     hasCustomQuestions,
     hasBeenDiscarded,
+    saveProgress = saveApplicationProgress,
 }) {
     const [prompt, setPrompt] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -219,7 +221,7 @@ export function useApplicationResume({
         // time — see `useResumeTokenOwnership` for the cross-applicant write that
         // caused.
         const stored = heldToken();
-        const result = await saveApplicationProgress({
+        const result = await saveProgress({
             companyId,
             email: formData?.email || '',
             phone: formData?.phone || '',
@@ -278,7 +280,7 @@ export function useApplicationResume({
                 applicantKey: result.applicantKey,
             });
         }
-    }, [companyId, slug, hasCustomQuestions, heldToken, adoptResumeToken]);
+    }, [companyId, slug, hasCustomQuestions, heldToken, adoptResumeToken, saveProgress]);
 
     /**
      * Saves progress in the background.
@@ -360,6 +362,7 @@ export function useApplicationResume({
                 // Carried through so the page can reconcile the two copies rather
                 // than assume the server holds the newer one.
                 clientSeq: Number.isInteger(result.draft.clientSeq) ? result.draft.clientSeq : null,
+                companyEdits: result.draft.companyEdits || {},
             };
         } catch {
             // An expired or discarded draft. Drop the token rather than retrying
@@ -407,6 +410,7 @@ export function useApplicationResume({
                 formData: result.draft.formData || {},
                 stepIndex: stepIndexFor(result.draft),
                 clientSeq: Number.isInteger(result.draft.clientSeq) ? result.draft.clientSeq : null,
+                companyEdits: result.draft.companyEdits || {},
             };
         } catch {
             // The dialog stays open with the message, because the applicant asked
@@ -472,6 +476,7 @@ export function useApplicationResume({
     }, [settleGate, forgetOwnership]);
 
     return {
+        heldToken,
         resumePrompt: prompt,
         // Exposed so the invite path adopts its token through this hook rather than
         // writing the shared slot behind its back — see `useResumeTokenOwnership`.

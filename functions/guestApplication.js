@@ -32,6 +32,7 @@ const {
     stampSubmissionRecordStatus,
 } = require('./shared/submissionRecordStatus');
 const { preserveApplicationPdf } = require('./shared/preserveApplicationPdf');
+const { assertCompanyEditsSeen, seenRevisionOf } = require('./shared/companyEdits');
 
 /**
  * The agreement version the applicant was actually shown.
@@ -113,21 +114,29 @@ function stampAcceptanceOrigin(acceptances, clientIp) {
  * Returns an empty list for every ordinary submission, which is nearly all of
  * them: the field does not exist on a draft the driver started themselves.
  */
-async function lockedEmployersForSubmission(companyId, applicationId) {
+function lockedEmployersForSubmission(draftData) {
+    if (!draftData?.inviteClaimedAt) return [];
+    return Array.isArray(draftData.lockedEmployers) ? draftData.lockedEmployers : [];
+}
+
+/**
+ * The unfinished draft this submission completes, or null when there is none.
+ *
+ * Read once, for both rules submission takes from it: the employers the carrier
+ * locked, and a Company Admin's edits the browser has not yet taken.
+ */
+async function draftForSubmission(companyId, applicationId) {
     try {
         const doc = await db.collection('companies').doc(String(companyId))
             .collection('application_drafts').doc(String(applicationId))
             .get();
-        if (!doc.exists) return [];
-        const data = doc.data() || {};
-        if (!data.inviteClaimedAt) return [];
-        return Array.isArray(data.lockedEmployers) ? data.lockedEmployers : [];
+        return doc.exists ? (doc.data() || {}) : null;
     } catch (error) {
         // A draft that cannot be read is not a reason to refuse a signed
         // application: every other protection still applies, and the carrier can
         // see what was submitted. Recorded, not enforced.
-        console.error(`[submitGuestApplication] Could not read locked employers for ${applicationId}: ${error?.message || 'unknown'}`);
-        return [];
+        console.error(`[submitGuestApplication] Could not read the draft for ${applicationId}: ${error?.message || 'unknown'}`);
+        return null;
     }
 }
 
@@ -244,14 +253,15 @@ exports.submitGuestApplication = functions
             formData: normalizedFormData,
         });
 
-        // Employers the carrier locked from the driver's own safety record. Read
-        // from the prepared draft — never from the payload, where the locked party
-        // could edit it — and only once the application id is known, since the
-        // draft and the application share that key.
-        assertLockedEmployers(
-            await lockedEmployersForSubmission(companyId, applicationId),
-            normalizedFormData,
-        );
+        // Both read from the draft, never from the payload, where the party they
+        // bind could edit them, and only once the application id is known, since
+        // the draft and the application share that key. A Company Admin's edits
+        // this browser has not taken are checked first: until it takes them, the
+        // driver has not been shown what they are about to sign.
+        const submittedDraft = await draftForSubmission(companyId, applicationId);
+        assertCompanyEditsSeen(seenRevisionOf(data?.seenRevision), submittedDraft);
+        // Employers the carrier locked from the driver's own safety record.
+        assertLockedEmployers(lockedEmployersForSubmission(submittedDraft), normalizedFormData);
 
         try {
             const result = await upsertApplicationDoc({

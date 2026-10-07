@@ -136,6 +136,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     continueExisting,
     startOver,
     forgetDraftOwnership,
+    refreshCompanyEdits,
   } = useDiscardAwareResume({
     slug,
     sandbox,
@@ -362,6 +363,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     discardedElsewhere,
     handleDiscardedElsewhere,
     finishDraftLifecycle,
+    onCarrierUpdated: refreshCompanyEdits,
     setCurrentStep,
     setSubmissionStatus,
     setSubmittedApplicationId,
