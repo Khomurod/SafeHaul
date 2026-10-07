@@ -926,11 +926,11 @@ projection, and `/apply/:slug` is not gated by any flag. See
   Each request carries a transaction id and records a per-provider timeline in
   `ai_telemetry` (Super Admin → AI Integrations → **Logs**). The connection test
   probes every capability a provider claims, not just its key, and reports a
-  throttled probe as untested, not broken. Health and cooldown are tracked **per
-  lane** (text / vision). Each lane lists up to three verified model versions: a
-  version that is gone, off the plan or rate-limited rests, and the next one is
-  tried before the next provider. Every task that reads a driver's document caps
-  each attempt (`perAttemptDeadlineMs`) below its total and does not wait out a
+  throttled probe as untested. Health and cooldown are **per lane** (text /
+  vision), each with up to three verified model versions; one that is gone, off
+  the plan or rate-limited rests, and the next is tried first while two attempt
+  slices remain (a licence read; a medical card or report gets it next request).
+  Driver-document reads cap each attempt (`perAttemptDeadlineMs`) and skip a
   vendor's pause over 5 s. See [`docs/ai-platform.md`](./ai-platform.md).
 - **Credential access differs by function generation; grant both.** 1st- and
   2nd-generation functions default to *different* runtime service accounts (App
