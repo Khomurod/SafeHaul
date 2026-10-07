@@ -5,6 +5,7 @@
 // health-check results, and the operator's cooldown clear. Extracted
 // verbatim from `store.js`.
 
+const { createHash } = require('crypto');
 const { admin } = require('../../firebaseAdmin');
 const { LANES, ALL_LANES, isLane } = require('../registry/capabilities');
 const { configRef, readConfig } = require('./configDoc');
@@ -125,6 +126,8 @@ async function recordProviderOutcome(providerId, outcome) {
     update.laneHealth = laneHealth;
     update.laneFailures = laneFailures;
     update.health = worstLaneHealth(laneHealth);
+    const versionRest = versionRestUpdate(current, lane, outcome);
+    if (versionRest) update.versionRest = versionRest;
 
     try {
         await configRef(providerId).set(update, { merge: true });
@@ -133,6 +136,66 @@ async function recordProviderOutcome(providerId, outcome) {
         // failure, nor mask a real one.
         console.error(`[ai/credentials] Could not record outcome for ${providerId}: ${error?.message}`);
     }
+}
+
+/**
+ * Version rests, kept beside the provider's health in the same document.
+ *
+ * One entry per lane and model version, under a key that is safe whatever the
+ * model id contains (slashes, dots, colons): a hash, with the model and lane
+ * stored in the entry itself. Read with every routed request through
+ * `readAllConfigs`, so every instance sees a rest the moment it is written.
+ */
+function versionRestKey(lane, model) {
+    return `${lane}_${createHash('sha256').update(`${lane}|${model}`).digest('hex').slice(0, 16)}`;
+}
+
+/**
+ * The fields a turn's outcome adds to `versionRest`, or null for none.
+ *
+ * Never an empty map: `set` with `merge` treats an explicit `{}` as a value and
+ * would wipe every rest the provider holds. A success clears its own version's
+ * entry, when it has one: it rested earlier and has now answered.
+ */
+function versionRestUpdate(current, lane, outcome) {
+    const update = {};
+    for (const rest of Array.isArray(outcome.versionRests) ? outcome.versionRests : []) {
+        if (typeof rest?.model !== 'string' || !Number.isFinite(rest.until)) continue;
+        update[versionRestKey(lane, rest.model)] = {
+            model: rest.model.slice(0, 120),
+            lane,
+            until: rest.until,
+            reason: String(rest.reason || 'failed').slice(0, 20),
+        };
+    }
+    if (typeof outcome.clearRestFor === 'string') {
+        const key = versionRestKey(lane, outcome.clearRestFor);
+        if (current?.versionRest?.[key]) update[key] = admin.firestore.FieldValue.delete();
+    }
+    return Object.keys(update).length > 0 ? update : null;
+}
+
+/**
+ * The versions resting in one lane right now, as model -> rest end.
+ *
+ * @param {object} config the provider's stored config
+ * @param {string} lane
+ * @param {number} [now]
+ * @returns {Map<string, number>}
+ */
+function restingModels(config, lane, now = Date.now()) {
+    const resting = new Map();
+    for (const entry of Object.values(config?.versionRest || {})) {
+        if (entry?.lane !== lane || typeof entry.model !== 'string') continue;
+        const until = Number(entry.until || 0);
+        if (until > now) resting.set(entry.model, until);
+    }
+    return resting;
+}
+
+/** Whether this lane holds any rest entry for this version, expired or not. */
+function hasVersionRest(config, lane, model) {
+    return Boolean(config?.versionRest?.[versionRestKey(lane, model)]);
 }
 
 /** Worst first: one broken lane must not be hidden by another working one. */
@@ -179,10 +242,11 @@ async function clearCooldown(providerId) {
     };
     // Every lane, not only the provider-wide window: an operator clearing a
     // cooldown means "try this provider again", and leaving one lane resting
-    // would make that only half true.
+    // would make that only half true. The same goes for resting versions.
     for (const lane of ALL_LANES) {
         update[`laneCooldownUntil_${lane}`] = admin.firestore.FieldValue.delete();
     }
+    update.versionRest = admin.firestore.FieldValue.delete();
     await configRef(providerId).set(update, { merge: true });
 }
 
@@ -246,6 +310,9 @@ module.exports = {
     worstLaneHealth,
     cooldownState,
     clearCooldown,
+    versionRestKey,
+    restingModels,
+    hasVersionRest,
     MAX_STORED_CAPABILITIES,
     summarizeCapabilities,
     recordTestResult,

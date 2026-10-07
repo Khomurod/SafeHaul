@@ -24,13 +24,14 @@
  * is this one failing" is the question being asked.
  */
 
-const { requireProvider, resolveModel, isRetired } = require('../registry/providers');
+const { requireProvider, resolveModels, isRetired } = require('../registry/providers');
 const { CAPABILITIES } = require('../registry/capabilities');
 const { getAdapter } = require('../providers');
 const { AiError } = require('../router/errors');
 const { extractJsonObject, validateAgainstSchema } = require('../validation/schema');
 const { probesFor, PROBE_TIMEOUT_MS } = require('./healthProbes');
 const store = require('../credentials/store');
+const { versionVerdict } = require('../router/versionPolicy');
 
 /** Kept exported: the text probe's prompt, unchanged from the original test. */
 const HEALTH_PROMPT = 'Reply with the single word: ready';
@@ -132,20 +133,22 @@ const CREDENTIAL_ERROR_CATEGORY = 'credential_error';
 const CREDENTIAL_ERROR_MESSAGE = 'The credential could not be read. Check Secret Manager access for the Functions runtime service account.';
 
 /**
- * Runs one probe against one provider.
+ * Runs one probe against one provider, version by version.
  *
- * Structured probes are validated with SafeHaul's own validator rather than
- * trusting the vendor's JSON mode — the same rule the router applies, and for
- * the same reason: a vendor promising JSON is not evidence that it sent JSON,
- * still less that it matched the schema.
+ * The probe walks the lane's versions the way the router does: a failure about
+ * one version (gone, not on the plan, rate-limited, refused, overloaded) moves
+ * to the next, so "this provider can read a licence" is answered for the
+ * provider and not only for its first version. Version rests are neither
+ * consulted nor written: the test interrogates exactly what the operator asked
+ * about. A switch is made only while the whole test's budget still holds a full
+ * probe, so the result is recorded before the function's timeout.
  */
-async function runProbe(probe, { provider, config, credentials, deps }) {
-    const capability = probe.capabilities[0];
+async function runProbe(probe, { provider, config, credentials, deps, deadlineAt = Infinity }) {
     // Resolve against the capability that decides the model, so a vision probe
     // tests the vision model rather than the text one.
-    const modelCapability = probe.images ? CAPABILITIES.VISION : capability;
-    const model = resolveModel(provider, modelCapability, config);
-    if (!model) {
+    const modelCapability = probe.images ? CAPABILITIES.VISION : probe.capabilities[0];
+    const models = resolveModels(provider, modelCapability, config);
+    if (models.length === 0) {
         return {
             id: probe.id,
             label: probe.label,
@@ -156,6 +159,30 @@ async function runProbe(probe, { provider, config, credentials, deps }) {
         };
     }
 
+    const failed = [];
+    let outcome = null;
+    for (const [index, model] of models.entries()) {
+        outcome = await runProbeOn(probe, model, { provider, config, credentials, deps, modelCapability });
+        if (outcome.status === PROBE_STATUS.PASSED) break;
+        const switches = versionVerdict({ category: outcome.category }, { hasCeiling: false }).switchVersion;
+        if (!switches || index === models.length - 1 || Date.now() + PROBE_TIMEOUT_MS > deadlineAt) break;
+        failed.push(model);
+    }
+    if (outcome.status === PROBE_STATUS.PASSED && failed.length > 0) {
+        outcome.message = `Passed using ${outcome.model} after ${failed.join(', ')} failed.`;
+    }
+    return outcome;
+}
+
+/**
+ * Runs one probe against one model version.
+ *
+ * Structured probes are validated with SafeHaul's own validator rather than
+ * trusting the vendor's JSON mode — the same rule the router applies, and for
+ * the same reason: a vendor promising JSON is not evidence that it sent JSON,
+ * still less that it matched the schema.
+ */
+async function runProbeOn(probe, model, { provider, config, credentials, deps, modelCapability }) {
     const startedAt = Date.now();
     try {
         const raw = await getAdapter(provider).execute({
@@ -324,6 +351,7 @@ async function testProviderConnection(providerId, deps = {}) {
     }
 
     const capabilities = [];
+    const deadlineAt = startedAt + HEALTH_TOTAL_BUDGET_MS;
     for (const { probe, applicable } of probesFor(provider)) {
         if (Date.now() - startedAt > HEALTH_TOTAL_BUDGET_MS) {
             // Out of budget. Reported as its own state rather than folded into
@@ -347,7 +375,7 @@ async function testProviderConnection(providerId, deps = {}) {
             });
             continue;
         }
-        let outcome = await runProbe(probe, { provider, config, credentials, deps });
+        let outcome = await runProbe(probe, { provider, config, credentials, deps, deadlineAt });
 
         // One paced retry when the vendor throttled us and said how long to wait.
         //
@@ -361,7 +389,7 @@ async function testProviderConnection(providerId, deps = {}) {
         const remaining = HEALTH_TOTAL_BUDGET_MS - (Date.now() - startedAt);
         if (wait && wait <= PROBE_RETRY_CEILING_MS && wait + PROBE_TIMEOUT_MS < remaining) {
             await sleep(wait);
-            const retried = await runProbe(probe, { provider, config, credentials, deps });
+            const retried = await runProbe(probe, { provider, config, credentials, deps, deadlineAt });
             // Keep the retry only if it actually learned something; a second
             // throttle should not overwrite the first with a fresher excuse.
             if (retried.status !== PROBE_STATUS.RATE_LIMITED) outcome = retried;

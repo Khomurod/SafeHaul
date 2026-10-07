@@ -90,7 +90,9 @@ const CATEGORY_LABELS = Object.freeze({
     provider_unavailable: 'Provider unavailable',
     quota_exceeded: 'Quota exhausted',
     rate_limited: 'Rate limited',
-    model_unavailable: 'Model not found',
+    // Gone, not on this plan, or refused by its tier: in each case the
+    // version cannot be used, and the router has moved to another.
+    model_unavailable: 'Model not available',
     malformed_response: 'Unreadable response',
     output_truncated: 'Output truncated',
     provider_request_rejected: 'Request rejected by vendor',

@@ -86,6 +86,28 @@ const httpsMock = () => {
     };
 };
 
+/**
+ * `set(patch, { merge: true })` as Firestore applies it, which the callers rely
+ * on: a nested map merges key by key, a delete sentinel removes a field at any
+ * depth, and an explicitly empty map replaces the field. Merging only the top
+ * level would let a test pass on a write that wipes a sibling entry.
+ */
+function mergeLikeFirestore(current, patch) {
+    const merged = { ...current };
+    for (const [field, value] of Object.entries(patch)) {
+        const isMap = value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date);
+        if (value === '__delete__') delete merged[field];
+        else if (isMap && Object.keys(value).length > 0 && merged[field] && typeof merged[field] === 'object') {
+            merged[field] = mergeLikeFirestore(merged[field], value);
+        } else if (isMap) {
+            merged[field] = mergeLikeFirestore({}, value);
+        } else {
+            merged[field] = value;
+        }
+    }
+    return merged;
+}
+
 const firebaseAdminMock = () => ({
     admin: {
         firestore: {
@@ -104,13 +126,7 @@ const firebaseAdminMock = () => ({
                 }),
                 set: async (patch) => {
                     const key = `${name}/${id}`;
-                    const current = mockConfigDocs.get(key) || {};
-                    const merged = { ...current };
-                    for (const [field, value] of Object.entries(patch)) {
-                        if (value === '__delete__') delete merged[field];
-                        else merged[field] = value;
-                    }
-                    mockConfigDocs.set(key, merged);
+                    mockConfigDocs.set(key, mergeLikeFirestore(mockConfigDocs.get(key) || {}, patch));
                 },
             }),
             get: async () => ({

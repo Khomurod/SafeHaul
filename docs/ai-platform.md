@@ -148,7 +148,8 @@ help — which is what "AI is unreliable" looked like from a driver's seat.
 
 **`diagnoseAiModelPins`** (Super Admin → AI Integrations → *Verify model pins*)
 is the standing guard: it asks each configured vendor's catalogue endpoint,
-server-side with the managed credential, whether the pinned names still resolve.
+server-side with the managed credential, whether the pinned names — every
+version in each lane's list, spares included — still resolve.
 It is deliberately not in CI and not on a schedule — it needs real credentials.
 Where a vendor publishes no readable catalogue it reports "unsupported" rather
 than guessing, and an unreachable one reports "unreachable"; both are honest
@@ -225,8 +226,73 @@ owner's keys through SafeHaul's own adapters:
 - `ministral-14b-2512` read a CDL photo, two and five at once, and answered the
   claim check in about 4s. It took 33–48s to write an article against Mistral's
   45s timeout, so `ARTICLE_WRITING` resolves to `ministral-8b-2512` (9s).
-- With one model per lane, any such vendor change is an outage for that
-  provider. This re-pin restores service; it does not change that.
+- With one model per lane, any such vendor change was an outage for that
+  provider. The re-pin restored service; spare versions (next section) are
+  what changes it.
+
+### Spare versions
+
+Each lane now holds an ordered list of up to three verified versions
+(`registry/modelVersions.js`), and a failure about *one version* moves to the
+next version of the same provider before the provider's turn ends. The rules
+are one table in `router/versionPolicy.js`:
+
+| Failure | Next version? | That version rests |
+| --- | --- | --- |
+| `model_unavailable`: 404, a limit of zero, a tier, Labs or unknown-model refusal | yes | 24 h |
+| `rate_limited` (429) | yes, without waiting | the stated wait, 1–10 min |
+| `provider_request_rejected` (400/422) | yes | no: the image may be at fault |
+| `provider_unavailable` (5xx) | only for work without a per-attempt ceiling | no |
+| `timeout` | no | 10 min, only after a full slice |
+| `unauthorized`, `quota_exceeded`, `network`, unusable answers | no | no |
+
+- **Whose problem it is decides.** A gone, plan-restricted or rate-limited
+  version says nothing about its siblings, so the next one is asked at once. An
+  overloaded vendor's other versions are struggling too: on 2026-10-07
+  `gemini-3.5-flash-lite` took 13–16 s to read a licence while the Flash
+  versions answered 503, against 1–2 s on Groq. So a document read goes to the
+  next provider, and only work with time to spare (articles, E-Doc placement)
+  tries the overloaded vendor's other versions.
+- **A limit of zero and a tier refusal are not quotas.** `providers/http.js`
+  reads Mistral's `x-ratelimit-limit-req-minute: 0` (the literal `0`; a missing
+  header is not zero), Gemini's `limit: 0` in a quota error, and the 400/403
+  codes a row lists in `versionRefusalCodes` (Mistral: `1910`/`tier_not_allowed`,
+  `1913`/`labs_not_enabled`, and `invalid_model`, its 400 for a model id it no
+  longer knows), and reports them as `model_unavailable`. They no
+  longer earn the provider-wide 30-minute quota cooldown, and Test connection
+  reports them as Failed rather than Throttled.
+- **A switch has to fit.** Under a per-attempt ceiling, a switch (like a retry)
+  needs two full slices left: the next version's and a fallback's. A licence
+  read (45 s / 20 s) can therefore switch in its first 5 s, which the fast
+  refusals above always are; a medical card or report (45 s / 25 s) switches
+  only on the next request, through the rest.
+- **Rests.** A failed version rests in the lane it failed in
+  (`ai_provider_config/{id}.versionRest`, one entry per lane and version under
+  a hashed key), written with the turn's one `recordProviderOutcome`, and only
+  in a lane with more than one version. Eligibility leaves resting versions out;
+  when every version of a lane rests, all are tried, soonest-recovering first,
+  so rests alone never shut a provider out. A version that answers clears its
+  own rest; **Clear cooldown** clears them all.
+- **One outcome per turn.** A provider's lane cooldown and its quota cooldown
+  still count turns, so they start only when no version answered.
+- **A document read does not sit through a long stated wait.** Under a
+  per-attempt ceiling a vendor's "retry in N seconds" is honoured in place only
+  up to 5 s (`INTERACTIVE_MAX_WAIT_MS`), Hugging Face's registry retry
+  included; a longer wait sends the read to the next provider at once. Groq
+  states 7–25 s on a spent per-minute token budget, which a driver used to wait
+  out while Mistral could have answered. Work without a ceiling still waits, up
+  to 30 s.
+- **Test connection walks the versions too**, under the same table, and says
+  "Passed using X after Y failed" when a spare answered. It neither reads nor
+  writes rests, and switches only while the test's 150 s budget still holds a
+  full probe.
+
+The lists as verified on 2026-10-07: Gemini adds `gemini-3.5-flash-lite` for
+photos and structured text (it rejects the article request with a 400, and
+`gemini-3.5-flash` answered 503 to every check that day, so neither is an
+article spare); Groq adds `openai/gpt-oss-120b` to every text lane, articles
+included; Mistral adds `ministral-8b-2512` and, last, `mistral-medium-latest`
+for a paid plan.
 
 ## Fallback order and behaviour
 
@@ -405,11 +471,12 @@ from `failed_generation (unauthorized)` and zero articles to publishing normally
 against the same inputs.
 
 **Bounds.** A per-provider timeout from the registry, a total request deadline
-(120 s default), exactly one attempt per provider unless the registry marks a
-retry safe (only Hugging Face does), a 5-minute cooldown after 3 consecutive
-failures in a lane, and a quota or rate-limit cooldown **sized to the wait the
-vendor stated**, bounded by the same 30-minute ceiling. Cooldown is persisted in
-Firestore rather than held in memory, because Cloud Functions instances are
+(120 s default), exactly one attempt per model version unless the registry marks
+a retry safe (only Hugging Face does), at most three versions per lane (see
+"Spare versions"), a 5-minute cooldown after 3 consecutive failed turns in a
+lane, and a quota or rate-limit cooldown **sized to the wait the vendor stated**,
+bounded by the same 30-minute ceiling. Cooldowns and version rests are persisted
+in Firestore rather than held in memory, because Cloud Functions instances are
 ephemeral and independent — an in-memory counter would let a dozen cold instances
 each rediscover the same exhausted quota.
 
@@ -919,9 +986,12 @@ without a policy naming it — telemetry was being kept forever.
 3. When the vendor recovers, use **Test connection**. A pass clears the cooldown
    and restores its position; the cooldown also expires on its own. The result
    is now per-capability, so "text works, structured JSON is rejected" is
-   visible on the row rather than hidden behind one verdict.
+   visible on the row rather than hidden behind one verdict, and it names the
+   version that answered when a spare did.
 4. If a provider fails on `model_unavailable`, run **Verify model pins** before
-   suspecting the vendor: the model may simply have been retired.
+   suspecting the vendor: the model may simply have been retired. The router has
+   already moved to the lane's next version and rested the failed one for a
+   day; **Clear cooldown** clears version rests along with the cooldowns.
 5. If every capable provider is down, AI features return a safe error and the
    blog records `failed_generation` and retries on the next hourly run. No
    article is published with unverified content.

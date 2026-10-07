@@ -9,9 +9,10 @@
  * public surface; these modules are the pieces it decides with.
  */
 
-const { supportsAllCapabilities, resolveModel, isRetired } = require('../registry/providers');
+const { supportsAllCapabilities, resolveModels, isRetired } = require('../registry/providers');
 const { CAPABILITIES, laneForCapability } = require('../registry/capabilities');
 const store = require('../credentials/store');
+const { orderForWalk } = require('./versionPolicy');
 /**
  * Why a provider was passed over. Surfaced in telemetry and in the console so
  * "nothing happened" is never the explanation an operator gets.
@@ -53,9 +54,16 @@ const SKIP_REASONS = Object.freeze({
 });
 
 /**
- * Decides whether a provider may serve this request.
+ * Decides whether a provider may serve this request, and in which order its
+ * model versions should be tried.
  *
- * @returns {Promise<{ eligible: boolean, reason?: string, config?: object, credentials?: object, model?: string }>}
+ * `models` is the walk order: the lane's versions without the resting ones, or
+ * all of them, soonest-recovering first, when every one rests (see
+ * ./versionPolicy.js). `model` is its first entry; `versionCount` is the size of
+ * the whole list, which decides whether a failed version is worth resting.
+ *
+ * @returns {Promise<{ eligible: boolean, reason?: string, config?: object, credentials?: object,
+ *   model?: string, models?: string[], versionCount?: number }>}
  */
 async function evaluateProvider(provider, { capabilities, primaryCapability, configs, now, deps, imageCount = 0 }) {
     if (isRetired(provider)) return { eligible: false, reason: SKIP_REASONS.RETIRED };
@@ -99,10 +107,13 @@ async function evaluateProvider(provider, { capabilities, primaryCapability, con
     }
     if (!credentials.complete) return { eligible: false, reason: SKIP_REASONS.UNCONFIGURED };
 
-    const model = resolveModel(provider, primaryCapability, config);
-    if (!model) return { eligible: false, reason: SKIP_REASONS.NO_MODEL };
+    const versions = resolveModels(provider, primaryCapability, config);
+    if (versions.length === 0) return { eligible: false, reason: SKIP_REASONS.NO_MODEL };
+    const models = orderForWalk(versions, store.restingModels(config, laneForCapability(primaryCapability), now));
 
-    return { eligible: true, config, credentials, model };
+    return {
+        eligible: true, config, credentials, model: models[0], models, versionCount: versions.length,
+    };
 }
 
 /**

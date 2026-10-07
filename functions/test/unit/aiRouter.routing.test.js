@@ -25,6 +25,16 @@ const {
 
 beforeEach(resetAiRouterState);
 
+/**
+ * The providers asked, in order, each once however many of its model versions
+ * were tried: a provider's versions are tried one after another, so its run of
+ * calls collapses to one entry.
+ */
+function providersAsked() {
+    return mockExecute.mock.calls.map((call) => call[0])
+        .filter((providerId, index, all) => providerId !== all[index - 1]);
+}
+
 describe('provider ordering', () => {
     it('publishes the required default fallback order', () => {
         // Gemini leads and Groq is the fallback. The brief specified Groq first;
@@ -64,8 +74,7 @@ describe('provider ordering', () => {
 
         const result = await runAiTask(textTask());
 
-        expect(mockExecute.mock.calls.map((call) => call[0]))
-            .toEqual(['gemini', 'groq', 'cloudflare', 'mistral']);
+        expect(providersAsked()).toEqual(['gemini', 'groq', 'cloudflare', 'mistral']);
         expect(result.providerId).toBe('mistral');
         expect(result.fallbackCount).toBe(3);
     });
@@ -98,8 +107,7 @@ describe('the operator-chosen routing order', () => {
 
         await runAiTask(textTask(), { providerOrder: ['mistral', 'openrouter', 'cerebras'] });
 
-        expect(mockExecute.mock.calls.map((call) => call[0]))
-            .toEqual(['mistral', 'openrouter', 'cerebras']);
+        expect(providersAsked()).toEqual(['mistral', 'openrouter', 'cerebras']);
     });
 
     it('leaves unranked providers behind the ranked ones, in registry order', async () => {
@@ -285,8 +293,8 @@ describe('capability gating', () => {
         expect(attempted).not.toContain('cerebras');
         expect(attempted).not.toContain('sambanova');
         // Gemini leads on vision by default; Groq is capable again on
-        // `qwen/qwen3.6-27b` and sits at its registry priority behind it.
-        expect(attempted).toEqual(['gemini', 'groq', 'mistral']);
+        // `qwen/qwen3.8-27b` and sits at its registry priority behind it.
+        expect(providersAsked()).toEqual(['gemini', 'groq', 'mistral']);
     });
 
     it('skips a provider that cannot take this many images, rather than 400ing', async () => {

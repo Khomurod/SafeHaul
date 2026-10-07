@@ -926,12 +926,12 @@ projection, and `/apply/:slug` is not gated by any flag. See
   Each request carries a transaction id and records a per-provider timeline in
   `ai_telemetry` (Super Admin → AI Integrations → **Logs**). The connection test
   probes every capability a provider claims, not just its key, and reports a
-  throttled probe as untested, not broken. Health and cooldown are tracked **per
-  lane** (text / vision), which reach different models on different entitlements
-  and fail independently. A task may set `perAttemptDeadlineMs` below its total
-  so one stalled provider cannot spend the whole budget (`deadline_exceeded`)
-  before a healthy one is tried; every task that reads a driver's document does.
-  See [`docs/ai-platform.md`](./ai-platform.md).
+  throttled probe as untested. Health and cooldown are **per lane** (text /
+  vision), each with up to three verified model versions; one that is gone, off
+  the plan or rate-limited rests, and the next is tried first while two attempt
+  slices remain (a licence read; a medical card or report gets it next request).
+  Driver-document reads cap each attempt (`perAttemptDeadlineMs`) and skip a
+  vendor's pause over 5 s. See [`docs/ai-platform.md`](./ai-platform.md).
 - **Credential access differs by function generation; grant both.** 1st- and
   2nd-generation functions default to *different* runtime service accounts (App
   Engine and Compute Engine), so `roles/secretmanager.secretAccessor` is needed

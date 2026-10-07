@@ -13,7 +13,7 @@ const { getAdapter, ADAPTERS } = require('../../ai/providers');
 const {
     getProvider, PROVIDERS, resolveModel, resolveModels,
 } = require('../../ai/registry/providers');
-const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
+const { MODEL_VERSIONS, MAX_VERSIONS_PER_LANE } = require('../../ai/registry/modelVersions');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
 
 describe('registry and adapter coverage', () => {
@@ -176,6 +176,9 @@ describe('model versions', () => {
                 const versions = provider.modelVersions[capability];
                 expect(Array.isArray(versions)).toBe(true);
                 expect(versions.length).toBeGreaterThan(0);
+                // One preferred and two spares at most, so one request's
+                // budget can reach every version of a lane.
+                expect(versions.length).toBeLessThanOrEqual(MAX_VERSIONS_PER_LANE);
                 expect(new Set(versions).size).toBe(versions.length);
                 for (const version of versions) expect(version.trim()).toBe(version);
             }
@@ -214,6 +217,12 @@ describe('model versions', () => {
         const gemini = getProvider('gemini');
         resolveModels(gemini, CAPABILITIES.TEXT, {}).push('changed-by-a-caller');
         expect(resolveModels(gemini, CAPABILITIES.TEXT, {})).not.toContain('changed-by-a-caller');
+    });
+
+    it('never hands the router more than three versions for a lane', () => {
+        const groq = getProvider('groq');
+        const long = { ...groq, modelVersions: { ...groq.modelVersions, [CAPABILITIES.TEXT]: ['a', 'b', 'c', 'd'] } };
+        expect(resolveModels(long, CAPABILITIES.TEXT, {})).toEqual(['a', 'b', 'c']);
     });
 
     it('lets an operator override replace the list rather than join it', () => {

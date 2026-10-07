@@ -219,11 +219,27 @@ class AiError extends Error {
  * @param {number} status
  * @param {string} body raw response body (never logged, only inspected)
  * @param {object} provider registry row
+ * @param {object} [signals] what ../providers/http.js read from the response
+ * @param {boolean} [signals.limitZero] a 429 stating a limit of zero
+ * @param {boolean} [signals.versionRefused] a 400 or 403 naming a model-level refusal
  * @returns {string} category
  */
-function categorizeHttpFailure(status, body, provider) {
+function categorizeHttpFailure(status, body, provider, signals = {}) {
     const detection = provider?.quotaDetection;
     const haystack = typeof body === 'string' ? body.toLowerCase() : '';
+
+    // A version this account cannot use at all, said two ways: a 429 whose
+    // stated limit is zero requests (Mistral's free plan for its Medium and
+    // Small models, Gemini's free tier for its Pro models), or a 400/403 naming
+    // a model-level refusal (Mistral's `tier_not_allowed`, `labs_not_enabled`,
+    // `invalid_model`). None is a spent allowance, a bad key or a malformed
+    // request, and reading them as one cost a working provider a 30-minute
+    // cooldown, or an operator a credential hunt. Checked first, because the
+    // branches below would claim them.
+    if ((status === 429 && signals.limitZero)
+        || ((status === 403 || status === 400) && signals.versionRefused)) {
+        return 'model_unavailable';
+    }
 
     // A status the vendor uses for exhaustion is decisive on its own. This is
     // what keeps a vendor that signals a spent allowance with 402 rather than

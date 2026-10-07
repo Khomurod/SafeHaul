@@ -40,11 +40,11 @@ const RETENTION_DAYS = 30;
 /**
  * Ceiling on recorded attempts.
  *
- * Nine providers, plus the one retry the registry grants Hugging Face and the
- * single vendor-stated wait the router may honour. Twelve covers the longest
- * legitimate chain with room to spare, and bounds the document against a loop.
+ * Nine providers, up to three model versions each, plus the retry the registry
+ * grants Hugging Face and one vendor-stated wait per provider. Twenty-four holds
+ * the longest real chain, and bounds the document against a loop.
  */
-const MAX_ATTEMPTS = 12;
+const MAX_ATTEMPTS = 24;
 
 const ALLOWED_FIELDS = Object.freeze([
     // Correlation. One id per `runAiTask` call, returned to the caller so a

@@ -3,16 +3,27 @@
 // Which model versions each provider is asked for, per capability, in order.
 //
 // A list rather than a single string, because a vendor withdraws, overloads or
-// re-tiers one version far more often than it goes down whole. Each list holds
-// one version today: the version the provider row used to pin. `providers.js`
-// attaches the lists to their rows as `modelVersions` and derives
-// `defaultModels` from their first entries, so every reader of a single pin
-// sees exactly what it saw before.
+// re-tiers one version far more often than it goes down whole. The first entry
+// is the preferred version; the rest are spares the router moves to when a
+// failure is about that one version (see `../router/versionPolicy.js`).
+// `providers.js` attaches the lists to their rows as `modelVersions` and
+// derives `defaultModels` from their first entries.
+//
+// A spare is verified live, on every lane it is listed for, before it is
+// listed: the fake licence read in full, two photos at once, a structured JSON
+// answer, and — where it writes articles — an article inside the row's timeout.
+// A spare that could not be verified says why, where it is listed.
 //
 // Data only, like `providerTable.js`. A provider row without a list here fails
 // at load rather than routing with no model.
 
 const { CAPABILITIES } = require('./capabilities');
+
+/**
+ * At most three versions per lane: one preferred and two spares, so a turn can
+ * reach every version of a lane inside one request's budget.
+ */
+const MAX_VERSIONS_PER_LANE = 3;
 
 const {
     TEXT,
@@ -44,34 +55,49 @@ const MODEL_VERSIONS = {
      * extraction, E-Doc placement — failed. That is what produced
      * `failed_generation (all_providers_failed)` in production.
      *
-     * `qwen/qwen3.6-27b` was rejected the same way. `openai/gpt-oss-120b`
-     * accepts schemas but burns so much reasoning budget that a small plain
-     * text request returns `status: incomplete` with only a `reasoning`
-     * item. `openai/gpt-oss-20b` answered both shapes correctly, so one
-     * model serves every capability rather than pinning a second that is
-     * only verified for one of them.
+     * `qwen/qwen3.6-27b` was rejected the same way. `openai/gpt-oss-20b`
+     * answered both shapes correctly and leads every text lane.
+     *
+     * `openai/gpt-oss-120b` is its spare. In August it burned so much
+     * reasoning budget that a small plain text request came back
+     * `status: incomplete`; on 2026-10-07 it answered the 16-token text
+     * probe, the JSON probe and the claim check, and wrote a 390-word
+     * article in 5s on the same request `openai/gpt-oss-20b` failed with
+     * `400 json_validate_failed`. It has its own per-minute allowance, so a
+     * rate-limited 20b does not take it down too.
      */
     groq: {
-        [TEXT]: ['openai/gpt-oss-20b'],
-        [ARTICLE_WRITING]: ['openai/gpt-oss-20b'],
-        [SUMMARIZATION]: ['openai/gpt-oss-20b'],
-        [CLASSIFICATION]: ['openai/gpt-oss-20b'],
-        [STRUCTURED_JSON]: ['openai/gpt-oss-20b'],
+        [TEXT]: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'],
+        [ARTICLE_WRITING]: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'],
+        [SUMMARIZATION]: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'],
+        [CLASSIFICATION]: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'],
+        [STRUCTURED_JSON]: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'],
         // Groq's only multimodal model, one lane among several rather than
         // anything SafeHaul depends on: 131k context, three images per
         // request, and about 1,800 input tokens a photo against the free
-        // tier's 7,000 input tokens a minute. Verified 2026-10-07.
+        // tier's 7,000 input tokens a minute. Verified 2026-10-07. No spare:
+        // Groq offers no other model that reads images.
         [VISION]: ['qwen/qwen3.8-27b'],
         [MULTI_IMAGE]: ['qwen/qwen3.8-27b'],
     },
+    /**
+     * `gemini-3.5-flash-lite` is the spare for photos and structured text: on
+     * 2026-10-07, while the Flash versions answered 503 "high demand", it read
+     * the fake licence in full on one and two photos and answered the claim
+     * check, in about 2s — though 13-16s an hour earlier, which is why an
+     * overloaded vendor's spares are left to work that has the time. It is not an article spare — it rejects the article
+     * request with `400 invalid_request` — so articles keep one version.
+     * `gemini-3.5-flash` answered 503 to every check that day, so it is not
+     * listed until it can be verified.
+     */
     gemini: {
-        [TEXT]: ['gemini-3.6-flash'],
+        [TEXT]: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
         [ARTICLE_WRITING]: ['gemini-3.6-flash'],
-        [SUMMARIZATION]: ['gemini-3.6-flash'],
-        [CLASSIFICATION]: ['gemini-3.6-flash'],
-        [STRUCTURED_JSON]: ['gemini-3.6-flash'],
-        [VISION]: ['gemini-3.6-flash'],
-        [MULTI_IMAGE]: ['gemini-3.6-flash'],
+        [SUMMARIZATION]: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
+        [CLASSIFICATION]: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
+        [STRUCTURED_JSON]: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
+        [VISION]: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
+        [MULTI_IMAGE]: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
     },
     cloudflare: {
         [TEXT]: ['@cf/meta/llama-3.3-70b-instruct-fp8-fast'],
@@ -104,16 +130,23 @@ const MODEL_VERSIONS = {
      * `ministral-14b-2512` read a CDL photo, two and five photos at once, and
      * answered the claim check, verified that day on a free key. It took
      * 33-48s to write an article against the row's 45s timeout, so articles
-     * go to `ministral-8b-2512`, which wrote one in 9s.
+     * go to `ministral-8b-2512`, which wrote one in 9-11s.
+     *
+     * `ministral-8b-2512` is the spare everywhere else: it read the licence
+     * in full on one and two photos and answered the claim check, the same
+     * day. `mistral-medium-latest` comes last, for a paid plan: it was this
+     * row's pin until 2026-10-07, and on a free key it answers with a limit
+     * of zero, which the router reads as "not on this plan" and rests for a
+     * day.
      */
     mistral: {
-        [TEXT]: ['ministral-14b-2512'],
-        [ARTICLE_WRITING]: ['ministral-8b-2512'],
-        [SUMMARIZATION]: ['ministral-14b-2512'],
-        [CLASSIFICATION]: ['ministral-14b-2512'],
-        [STRUCTURED_JSON]: ['ministral-14b-2512'],
-        [VISION]: ['ministral-14b-2512'],
-        [MULTI_IMAGE]: ['ministral-14b-2512'],
+        [TEXT]: ['ministral-14b-2512', 'ministral-8b-2512', 'mistral-medium-latest'],
+        [ARTICLE_WRITING]: ['ministral-8b-2512', 'mistral-medium-latest'],
+        [SUMMARIZATION]: ['ministral-14b-2512', 'ministral-8b-2512', 'mistral-medium-latest'],
+        [CLASSIFICATION]: ['ministral-14b-2512', 'ministral-8b-2512', 'mistral-medium-latest'],
+        [STRUCTURED_JSON]: ['ministral-14b-2512', 'ministral-8b-2512', 'mistral-medium-latest'],
+        [VISION]: ['ministral-14b-2512', 'ministral-8b-2512', 'mistral-medium-latest'],
+        [MULTI_IMAGE]: ['ministral-14b-2512', 'ministral-8b-2512', 'mistral-medium-latest'],
     },
     /**
      * Every previous pin was gone. `llama-3.3-70b` and `llama3.1-8b` are
@@ -165,4 +198,4 @@ const MODEL_VERSIONS = {
     },
 };
 
-module.exports = { MODEL_VERSIONS };
+module.exports = { MODEL_VERSIONS, MAX_VERSIONS_PER_LANE };

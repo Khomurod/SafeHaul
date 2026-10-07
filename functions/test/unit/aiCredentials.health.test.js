@@ -236,11 +236,97 @@ describe('health and cooldown are tracked per lane', () => {
         expect(store.cooldownState(config, Date.now()).active).toBe(false);
     });
 
+    it('clears every version rest with the cooldown, too', async () => {
+        await store.recordProviderOutcome('mistral', {
+            success: true, lane: 'vision', versionRests: [{ model: 'ministral-14b-2512', until: Date.now() + 60000, reason: 'removed' }],
+        });
+        await store.clearCooldown('mistral');
+
+        const config = await store.readConfig('mistral');
+
+        expect(config.versionRest).toBeUndefined();
+        expect(store.restingModels(config, 'vision').size).toBe(0);
+    });
+
     it('reports the worst lane, and unknown when nothing has been recorded', () => {
         expect(store.worstLaneHealth({ text: 'healthy', vision: 'quota' })).toBe('quota');
         expect(store.worstLaneHealth({ text: 'healthy', vision: 'degraded' })).toBe('degraded');
         expect(store.worstLaneHealth({ text: 'healthy' })).toBe('healthy');
         expect(store.worstLaneHealth({})).toBe('unknown');
         expect(store.worstLaneHealth(undefined)).toBe('unknown');
+    });
+});
+
+/**
+ * A failed model version rests in the lane it failed in, recorded with the
+ * provider's one outcome write for the turn.
+ */
+describe('version rests', () => {
+    const until = () => Date.now() + 60000;
+
+    it('stores each rest under a safe key, with its model and lane', async () => {
+        await store.recordProviderOutcome('groq', {
+            success: false, lane: 'text', category: 'rate_limited',
+            versionRests: [{ model: 'openai/gpt-oss-20b', until: until(), reason: 'rate_limited' }],
+        });
+
+        const config = await store.readConfig('groq');
+        const [key] = Object.keys(config.versionRest);
+
+        // A slash or a dot in a model id never becomes part of a field path.
+        expect(key).toMatch(/^text_[a-f0-9]{16}$/);
+        expect(key).toBe(store.versionRestKey('text', 'openai/gpt-oss-20b'));
+        expect(config.versionRest[key]).toMatchObject({ model: 'openai/gpt-oss-20b', lane: 'text', reason: 'rate_limited' });
+        expect([...store.restingModels(config, 'text').keys()]).toEqual(['openai/gpt-oss-20b']);
+    });
+
+    it('adds a rest beside the ones already stored rather than replacing them', async () => {
+        const rest = (model) => ({ success: false, lane: 'vision', category: 'model_unavailable', versionRests: [{ model, until: until(), reason: 'removed' }] });
+        await store.recordProviderOutcome('cloudflare', rest('first-version'));
+        await store.recordProviderOutcome('cloudflare', rest('second-version'));
+
+        const config = await store.readConfig('cloudflare');
+
+        expect([...store.restingModels(config, 'vision').keys()].sort()).toEqual(['first-version', 'second-version']);
+    });
+
+    it('writes nothing to the rests when a turn found none', async () => {
+        await store.recordProviderOutcome('openrouter', {
+            success: false, lane: 'vision', category: 'model_unavailable', versionRests: [{ model: 'kept', until: until(), reason: 'removed' }],
+        });
+        await store.recordProviderOutcome('openrouter', { success: true, lane: 'text' });
+
+        const config = await store.readConfig('openrouter');
+
+        expect([...store.restingModels(config, 'vision').keys()]).toEqual(['kept']);
+    });
+
+    it('clears a version\'s rest when it answers, and only that one', async () => {
+        await store.recordProviderOutcome('huggingface', {
+            success: false, lane: 'vision', category: 'model_unavailable',
+            versionRests: [
+                { model: 'answered-later', until: until(), reason: 'removed' },
+                { model: 'still-gone', until: until(), reason: 'removed' },
+            ],
+        });
+        await store.recordProviderOutcome('huggingface', { success: true, lane: 'vision', clearRestFor: 'answered-later' });
+
+        const config = await store.readConfig('huggingface');
+
+        expect([...store.restingModels(config, 'vision').keys()]).toEqual(['still-gone']);
+        expect(store.hasVersionRest(config, 'vision', 'answered-later')).toBe(false);
+    });
+
+    it('reads a rest only in its own lane, and only until it ends', () => {
+        const config = {
+            versionRest: {
+                a: { model: 'photo-only', lane: 'vision', until: Date.now() + 60000 },
+                b: { model: 'over', lane: 'vision', until: Date.now() - 1 },
+            },
+        };
+
+        expect([...store.restingModels(config, 'vision').keys()]).toEqual(['photo-only']);
+        expect(store.restingModels(config, 'text').size).toBe(0);
+        expect(store.restingModels({}, 'vision').size).toBe(0);
     });
 });

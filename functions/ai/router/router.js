@@ -16,8 +16,10 @@
  *  1. **Capability is a gate, not a preference.** A provider that has not
  *     declared `vision` never receives an image, so a CDL photograph cannot
  *     reach a text-only vendor by accident or by misconfiguration.
- *  2. **Try each compatible provider once**, in the effective order, until
- *     one produces a response that passes schema validation.
+ *  2. **Try each compatible provider in turn**, in the effective order, until
+ *     one produces a response that passes schema validation — and within a
+ *     provider, its spare model versions when a failure is about one version
+ *     (./versionPolicy.js).
  *  3. **One provider's failure is not the task's failure.** A timeout, an
  *     outage, an exhausted quota, malformed JSON, a rejected credential or an
  *     unexpected adapter exception all move to the next provider. Only a
@@ -25,8 +27,9 @@
  *     request, no capable provider, or the deadline — because those would get
  *     the same answer from all nine. See `isTaskFatal` in ./errors.js.
  *  4. **Bounded everywhere.** Per-provider timeout, a total request deadline,
- *     one attempt per provider unless the registry marks a retry safe, and a
- *     persisted cooldown so an exhausted provider is skipped rather than
+ *     one attempt per version unless the registry marks a retry safe, at most
+ *     three versions per lane, and persisted cooldowns and version rests so an
+ *     exhausted provider or a withdrawn version is skipped rather than
  *     rediscovered by every cold instance.
  *  5. **Never fabricate.** If every compatible provider fails, the caller gets
  *     a safe error. There is no synthesized answer.
@@ -202,7 +205,9 @@ async function runAiTask(task, deps = {}) {
                     latencyMs,
                     fallbackCount: attempted.length - 1,
                     attemptedProviders: attempted,
-                    providersInvolved: attemptRecords.map((entry) => entry.providerId),
+                    // Each provider once, though several of its versions may
+                    // have been tried.
+                    providersInvolved: [...new Set(attemptRecords.map((entry) => entry.providerId))],
                     cooldownSkipped: skipped.filter((s) => s.reason === SKIP_REASONS.COOLDOWN).length,
                     credentialSource: evaluation.credentials.source,
                     // What the answer actually *said*, where the task can
