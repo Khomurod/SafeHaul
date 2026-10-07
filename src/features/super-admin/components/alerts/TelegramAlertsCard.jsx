@@ -164,7 +164,8 @@ export function TelegramAlertsCard() {
                     <p className="mt-1 text-ds-sm text-ds-content-secondary">
                         Every hour SafeHaul checks that AI can read photos and text for users, and that the
                         blog has an article from yesterday or today. When a check fails, a message goes to
-                        your Telegram, and another when it recovers. Nothing is sent while all is well.
+                        your Telegram, and another when it recovers. Once a day every AI version is checked
+                        too, and a message says when one is replaced or you need to act. Nothing else is sent.
                     </p>
                 </div>
 
@@ -276,7 +277,7 @@ export function TelegramAlertsCard() {
                     </div>
                 ) : (
                     <p className="text-ds-sm text-ds-content-secondary">
-                        Not checked yet. The first check runs within an hour of connecting the chat.
+                        Not checked yet. The next check runs within the hour.
                     </p>
                 ))}
 

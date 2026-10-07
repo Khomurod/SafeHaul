@@ -925,13 +925,13 @@ projection, and `/apply/:slug` is not gated by any flag. See
   schema-validated response); `npm run check:ai-boundary` fails CI otherwise.
   Each request carries a transaction id and records a per-provider timeline in
   `ai_telemetry` (Super Admin → AI Integrations → **Logs**). The connection test
-  probes every capability a provider claims, not just its key, and reports a
-  throttled probe as untested. Health and cooldown are **per lane** (text /
-  vision), each with up to three model versions, re-verified daily on a made-up
-  licence (`refreshAiModelLists`); one gone, off the plan or rate-limited rests,
-  and the next is tried while two attempt slices remain (a medical card or report
-  gets it next request). Document reads cap each attempt and skip a vendor's
-  pause over 5 s. See [`docs/ai-platform.md`](./ai-platform.md).
+  probes every capability a provider claims, reports a throttled probe as
+  untested; a full pass clears cooldowns. Health and cooldown are **per lane**
+  (text / vision), each with up to three versions, re-checked daily on a made-up
+  licence (`refreshAiModelLists`; **Model versions** lists them, with **Check
+  versions now** and auto-select). One gone, off the plan or rate-limited rests;
+  the next is tried while two slices remain. Document reads cap each attempt and
+  skip a vendor's pause over 5 s. See [`docs/ai-platform.md`](./ai-platform.md).
 - **Credential access differs by function generation; grant both.** 1st- and
   2nd-generation functions default to *different* runtime service accounts (App
   Engine and Compute Engine), so `roles/secretmanager.secretAccessor` is needed

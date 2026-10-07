@@ -85,6 +85,27 @@ async function releaseLease(summary) {
     await SETTINGS_REF().set({ leaseUntil: 0, lastRunAt: new Date().toISOString(), lastRunSummary: summary }, { merge: true });
 }
 
+/** Whether changes are applied, whether a run holds the lease, and when the last one ended: for the console. */
+async function readCheckState(now = Date.now()) {
+    const snapshot = await SETTINGS_REF().get();
+    const stored = snapshot.exists ? snapshot.data() || {} : {};
+    return {
+        autoSelect: stored.autoSelect !== false,
+        running: Number(stored.leaseUntil) > now,
+        lastRunAt: typeof stored.lastRunAt === 'string' ? stored.lastRunAt : null,
+    };
+}
+
+/** Off keeps every list as it is now; nothing is put back. On applies from the next check. */
+async function setAutoSelect(enabled) {
+    await SETTINGS_REF().set({ autoSelect: enabled === true }, { merge: true });
+}
+
+/** Whether a provider's credentials let the check run: all present, all readable. */
+function credentialsReady(credentials) {
+    return Boolean(credentials?.complete) && (credentials.unreadable || []).length === 0;
+}
+
 /** The providers to check now, with what each needs. */
 async function dueProviders({ now, force, providerIds, deps }) {
     const configs = await store.readAllConfigs();
@@ -96,7 +117,7 @@ async function dueProviders({ now, force, providerIds, deps }) {
         const reason = force ? 'requested' : dueReason(config, now);
         if (!reason) continue;
         const credentials = await store.resolveCredentials(provider.id, deps);
-        if (!credentials.complete || (credentials.unreadable || []).length > 0) continue;
+        if (!credentialsReady(credentials)) continue;
         due.push({ provider, config, credentials, reason });
     }
     return due;
@@ -215,9 +236,11 @@ async function runModelRefresh({ now = Date.now(), force = false, providerIds = 
         const destination = await readDestination();
         const lines = [];
         const outcomes = [];
+        let errors = 0;
         for (const item of checked) {
             if (!item.check) {
                 summary.push(`${item.provider.id}=error`);
+                errors += 1;
                 continue;
             }
             const record = recordFor(item, { autoSelect: lease.autoSelect, at });
@@ -247,7 +270,7 @@ async function runModelRefresh({ now = Date.now(), force = false, providerIds = 
             record.modelCheck.pendingNews = delivered ? [] : [...pending, ...notes.news].slice(-MAX_PENDING_NEWS);
             await saveModelCheck(item.provider.id, record);
         }
-        return { checked: summary, delivered, messageLines: lines.length };
+        return { checked: summary, errors, delivered, messageLines: lines.length };
     } finally {
         await releaseLease(summary.join(' ') || 'nothing due');
     }
@@ -269,3 +292,6 @@ exports.refreshAiModelLists = onSchedule({
 module.exports.runModelRefresh = runModelRefresh;
 module.exports.dueReason = dueReason;
 module.exports.recordFor = recordFor;
+module.exports.readCheckState = readCheckState;
+module.exports.setAutoSelect = setAutoSelect;
+module.exports.credentialsReady = credentialsReady;

@@ -18,6 +18,7 @@ const mockStore = {
     readConfig: jest.fn(),
     resolveCredentials: jest.fn(),
     recordTestResult: jest.fn().mockResolvedValue(undefined),
+    clearCooldown: jest.fn(),
 };
 
 const mockExecute = jest.fn();
@@ -71,6 +72,8 @@ function resetHealthCheckState() {
         source: 'secret-manager',
     });
     mockExecute.mockImplementation(healthyProvider);
+    // Re-established each time: `clearAllMocks` keeps an implementation a test set.
+    mockStore.clearCooldown.mockResolvedValue(undefined);
 }
 
 module.exports = {

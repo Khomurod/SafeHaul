@@ -157,7 +157,7 @@ record to `environment_audit_log`. See
 
 ## Super Admin AI Integrations
 
-Eight narrow callables back Super Admin -> AI Integrations. They reuse the
+Fifteen narrow callables back Super Admin -> AI Integrations. They reuse the
 environment vault's guards and audit trail rather than a parallel security model,
 so exact `globalRole === "super_admin"`, 15-minute recent authentication for every
 reveal and mutation, fail-closed rate limits and value-free `environment_audit_log`
@@ -176,6 +176,9 @@ no request can name an arbitrary Secret Manager resource.
 | `updateAiProviderConfig` | same | Non-secret settings only; registry-validated. |
 | `testAiProvider` | same | Per-capability connection test: text, structured JSON, single and multi-image vision, and the article shapes. Synthetic prompts and generated images only. |
 | `diagnoseAiModelPins` | same | Reconciles every registry model pin against the vendor's live catalogue. Server-side; no credential is returned. |
+| `getAiModelVersions` | [`AiModelVersionsCard.jsx`](../src/features/super-admin/components/ai/AiModelVersionsCard.jsx) | The model versions table: each lane's versions in use now, what the daily check last found, and the auto-select state. |
+| `checkAiModelVersionsNow` | same | Runs the daily model check now for every enabled provider with its key (180 s); a mutation, since with auto-select on it can change the lists. |
+| `setAiModelAutoSelect` | same | Turns auto-select on or off. Off keeps every list as it is; the check then only suggests. |
 | `migrateGroqCredential` | same | Copies the legacy binding into Secret Manager server-side. The token is never returned. |
 | `diagnoseAiCredentialAccess` | same | Per-secret: does it exist, and can **this 2nd-generation runtime** read it. Names the runtime service account, read from the metadata server. No credential value is read or returned. |
 | `diagnoseAiCredentialAccessV1` | same | The same question asked of the **1st-generation** runtime, which defaults to a different service account. The browser calls both with `Promise.allSettled` and shows them side by side, because a per-generation difference is the fault being looked for. |

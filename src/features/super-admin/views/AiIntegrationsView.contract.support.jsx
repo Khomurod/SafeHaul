@@ -233,6 +233,11 @@ function routingFor(providers, { usingDefaultOrder = true } = {}) {
     };
 }
 
+/** The model versions table as `getAiModelVersions` returns it. */
+function versionsFor(providers, { autoSelect = true, running = false, lastRunAt = '2026-10-08T08:25:00.000Z' } = {}) {
+    return { autoSelect, running, lastRunAt, providers, generatedAt: '2026-10-08T12:00:00.000Z' };
+}
+
 function stubCallables(overrides = {}) {
     callables.listAiProviders = vi.fn().mockResolvedValue({
         data: {
@@ -295,6 +300,11 @@ function stubCallables(overrides = {}) {
             summary: 'Every configured AI credential is readable by this runtime.',
         },
     });
+    // Empty by default, so the provider names the other suites look for appear
+    // only where they always did; `.contract.versions` supplies real rows.
+    callables.getAiModelVersions = vi.fn().mockResolvedValue({ data: versionsFor([]) });
+    callables.checkAiModelVersionsNow = vi.fn().mockResolvedValue({ data: { ...versionsFor([]), skipped: null, checkedCount: 0 } });
+    callables.setAiModelAutoSelect = vi.fn().mockResolvedValue({ data: versionsFor([]) });
     callables.diagnoseAiCredentialAccessV1 = vi.fn().mockResolvedValue({
         data: {
             generation: 'v1',
@@ -343,6 +353,7 @@ export function resetHarness() {
 
 export {
     CAPABILITIES,
+    versionsFor,
     provider,
     PROVIDERS,
     MEDIA_PROVIDERS,

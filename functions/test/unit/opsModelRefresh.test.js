@@ -11,6 +11,7 @@ jest.mock('firebase-functions/v2/scheduler', () => ({ onSchedule: jest.fn((_opts
 jest.mock('../../firebaseAdmin', () => {
     const stored = { data: {} };
     const ref = {
+        get: async () => ({ exists: true, data: () => stored.data }),
         set: async (patch) => { stored.data = { ...stored.data, ...patch }; },
     };
     const db = {
@@ -35,7 +36,9 @@ const mockSend = jest.fn();
 jest.mock('../../ops/telegram', () => ({ sendMessage: (...args) => mockSend(...args) }));
 
 const { mockLeaseDoc } = require('../../firebaseAdmin');
-const { runModelRefresh, dueReason, refreshAiModelLists } = require('../../ops/modelRefresh');
+const {
+    runModelRefresh, dueReason, refreshAiModelLists, readCheckState, setAutoSelect, credentialsReady,
+} = require('../../ops/modelRefresh');
 const { RESULT } = require('../../ai/tasks/modelVerification');
 
 const HOUR = 60 * 60 * 1000;
@@ -289,6 +292,31 @@ describe('what it tells the owner', () => {
     });
 });
 
+describe('what the console reads and switches', () => {
+    it('reports whether changes are applied, whether a run holds the lease, and when the last one ended', async () => {
+        await expect(readCheckState(DAY)).resolves.toEqual({ autoSelect: true, running: false, lastRunAt: null });
+
+        mockLeaseDoc.data = { autoSelect: false, leaseUntil: DAY + 1000, lastRunAt: '2026-10-08T15:00:00.000Z' };
+        await expect(readCheckState(DAY)).resolves.toEqual({ autoSelect: false, running: true, lastRunAt: '2026-10-08T15:00:00.000Z' });
+    });
+
+    it('turns auto-select on only for an explicit true', async () => {
+        await setAutoSelect(false);
+        expect(mockLeaseDoc.data.autoSelect).toBe(false);
+        await setAutoSelect('yes');
+        expect(mockLeaseDoc.data.autoSelect).toBe(false);
+        await setAutoSelect(true);
+        expect(mockLeaseDoc.data.autoSelect).toBe(true);
+    });
+
+    it('treats a provider as checkable only with every credential present and readable', () => {
+        expect(credentialsReady({ complete: true, unreadable: [] })).toBe(true);
+        expect(credentialsReady({ complete: true, unreadable: ['apiKey'] })).toBe(false);
+        expect(credentialsReady({ complete: false, unreadable: [] })).toBe(false);
+        expect(credentialsReady(null)).toBe(false);
+    });
+});
+
 describe('one run at a time', () => {
     it('does nothing while another run holds the lease', async () => {
         mockLeaseDoc.data = { leaseUntil: DAY + 60 * 1000 };
@@ -303,7 +331,7 @@ describe('one run at a time', () => {
 
         const outcome = await runModelRefresh({ now: DAY });
 
-        expect(outcome.checked).toEqual(['gemini=error']);
+        expect(outcome).toMatchObject({ checked: ['gemini=error'], errors: 1 });
         expect(mockLeaseDoc.data.leaseUntil).toBe(0);
         console.error.mockRestore();
     });
