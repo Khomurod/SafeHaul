@@ -116,6 +116,28 @@ async function replaceSettings(patch) {
     await settingsRef().set(patch, { mergeFields: Object.keys(patch) });
 }
 
+/**
+ * `replaceSettings`, but only while the stored settings still pass `stillCurrent`,
+ * checked and written in one transaction. The patch is built from what the
+ * transaction read, so a request that started before a Remove or a Replace
+ * token cannot write its stale copy of the connection back over the new one.
+ *
+ * @param {(stored: object) => boolean} stillCurrent
+ * @param {(stored: object) => object} buildPatch the top-level fields to replace
+ * @returns {Promise<boolean>} whether it was written
+ */
+async function replaceSettingsIf(stillCurrent, buildPatch) {
+    const ref = settingsRef();
+    return db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(ref);
+        const stored = snapshot.exists ? snapshot.data() || {} : {};
+        if (!stillCurrent(stored)) return false;
+        const patch = buildPatch(stored);
+        transaction.set(ref, patch, { mergeFields: Object.keys(patch) });
+        return true;
+    });
+}
+
 function clearTokenCache() {
     cached = null;
 }
@@ -128,5 +150,6 @@ module.exports = {
     destroyBotToken,
     readSettings,
     replaceSettings,
+    replaceSettingsIf,
     clearTokenCache,
 };

@@ -89,17 +89,33 @@ function startLink(connection, pending) {
     return { link: `https://t.me/${connection.botUsername}?start=${pending.code}`, expiresAt: pending.expiresAt };
 }
 
-/** Saves the chat that pressed Start, once the bot has reached it. */
-async function connectChat(request, token, connection, chat) {
+const SETTINGS_CHANGED = 'The alert settings changed while the chat was connecting. Press Connect chat again.';
+
+/**
+ * Saves the chat that pressed Start, once the bot has reached it.
+ *
+ * Only while the same bot and the same link are still the stored ones: a check
+ * that read them before the operator pressed Remove or Replace token must not
+ * write its copy back over the new settings, so they are checked before the
+ * message and again, in one transaction, with the write.
+ */
+async function connectChat(request, token, connection, chat, code) {
+    const stillCurrent = (stored) => stored.telegram?.botUsername === connection.botUsername
+        && stored.telegram?.pendingStart?.code === code;
+    if (!stillCurrent(await settings.readSettings())) throw new HttpsError('failed-precondition', SETTINGS_CHANGED);
+
     // Sent before it is saved, so a connected chat is one that was reached.
     await telegram.sendMessage(token, chat.id, CONNECTED_TEXT);
-    const rest = { ...connection };
-    delete rest.pendingStart;
-    await settings.replaceSettings({
-        telegram: { ...rest, chatId: chat.id, chatTitle: chat.title, connectedAt: new Date().toISOString() },
-        // A new destination starts from "all well", so it hears about anything already down.
-        watch: {},
+    const saved = await settings.replaceSettingsIf(stillCurrent, (stored) => {
+        const rest = { ...stored.telegram };
+        delete rest.pendingStart;
+        return {
+            telegram: { ...rest, chatId: chat.id, chatTitle: chat.title, connectedAt: new Date().toISOString() },
+            // A new destination starts from "all well", so it hears about anything already down.
+            watch: {},
+        };
     });
+    if (!saved) throw new HttpsError('failed-precondition', SETTINGS_CHANGED);
     await audit(request, ACTIONS.UPDATE, { setting: 'chat' });
     return { chat: { title: chat.title } };
 }
@@ -192,7 +208,7 @@ exports.connectPlatformAlertChat = onCall({ cors: true }, async (request) => {
             // A Start pressed while the link was valid counts whenever this is asked.
             const { chat, strayStart } = await telegram.startsOnLink(token, lastLink);
             // Awaited here, so a chat the bot cannot reach is refused in the operator's words.
-            if (chat) return await connectChat(request, token, connection, chat);
+            if (chat) return await connectChat(request, token, connection, chat, lastLink.code);
             const pending = pendingStart(connection);
             if (pending) return { pending: startLink(connection, pending), ...(strayStart ? { strayStart: true } : {}) };
         }

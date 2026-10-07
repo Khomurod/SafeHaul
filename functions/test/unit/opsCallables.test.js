@@ -32,6 +32,7 @@ const mockSettings = {
     writeBotToken: jest.fn(),
     destroyBotToken: jest.fn(),
     replaceSettings: jest.fn(),
+    replaceSettingsIf: jest.fn(),
 };
 jest.mock('../../ops/alertSettings', () => mockSettings);
 
@@ -65,6 +66,14 @@ beforeEach(() => {
     mockSettings.writeBotToken.mockResolvedValue({ secretId: 'SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN', valueLength: TOKEN.length });
     mockSettings.destroyBotToken.mockResolvedValue({ secretId: 'SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN', destroyed: 1 });
     mockSettings.replaceSettings.mockResolvedValue(undefined);
+    // The transaction, played against what `readSettings` holds; a write it makes
+    // lands in `replaceSettings`, so every test reads one record of what was saved.
+    mockSettings.replaceSettingsIf.mockImplementation(async (stillCurrent, buildPatch) => {
+        const stored = await mockSettings.readSettings();
+        if (!stillCurrent(stored)) return false;
+        await mockSettings.replaceSettings(buildPatch(stored));
+        return true;
+    });
     mockTelegram.getBot.mockResolvedValue({ username: 'safehaul_alerts_bot', id: 1 });
     mockTelegram.startsOnLink.mockResolvedValue({ chat: { id: 222, title: 'Dana Alvarez' }, strayStart: false });
     mockTelegram.sendMessage.mockResolvedValue(undefined);
@@ -265,6 +274,53 @@ describe('connecting the chat', () => {
             mockSettings.readSettings.mockResolvedValue({ telegram: { botUsername: 'safehaul_alerts_bot' } });
             await expect(callables.connectPlatformAlertChat(CHECK())).resolves.toEqual({ pending: null });
             expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('when the settings change while a chat connects', () => {
+        const CHANGED = /settings changed while the chat was connecting/;
+
+        it('neither messages nor saves a chat once the link is no longer the stored one', async () => {
+            // Read before the operator pressed Remove; checked again before the message.
+            mockSettings.readSettings
+                .mockResolvedValueOnce(withPending({ code: 'CODE123', expiresAt: LATER }))
+                .mockResolvedValue({ telegram: {} });
+
+            await expect(callables.connectPlatformAlertChat(CHECK())).rejects.toMatchObject({
+                code: 'failed-precondition', message: expect.stringMatching(CHANGED),
+            });
+            expect(mockTelegram.sendMessage).not.toHaveBeenCalled();
+            expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+        });
+
+        it('does not write a stale connection over a token replaced during the message', async () => {
+            mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+            // The transaction finds the replacement bot, with no link waiting.
+            mockSettings.replaceSettingsIf.mockImplementation(async (stillCurrent) => (
+                stillCurrent({ telegram: { botUsername: 'replacement_bot', tokenSavedAt: 'now' } })
+            ));
+
+            await expect(callables.connectPlatformAlertChat(REQUEST())).rejects.toMatchObject({
+                message: expect.stringMatching(CHANGED),
+            });
+            expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+            expect(mockRecordAuditEvent).not.toHaveBeenCalled();
+        });
+
+        it('builds the saved connection from what the transaction read', async () => {
+            mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+            mockSettings.replaceSettingsIf.mockImplementation(async (stillCurrent, buildPatch) => {
+                const stored = { telegram: { botUsername: 'safehaul_alerts_bot', tokenSavedAt: 'stored', pendingStart: { code: 'CODE123' } } };
+                if (!stillCurrent(stored)) return false;
+                await mockSettings.replaceSettings(buildPatch(stored));
+                return true;
+            });
+
+            await callables.connectPlatformAlertChat(REQUEST());
+
+            expect(mockSettings.replaceSettings.mock.calls[0][0].telegram).toEqual({
+                botUsername: 'safehaul_alerts_bot', tokenSavedAt: 'stored', chatId: 222, chatTitle: 'Dana Alvarez', connectedAt: expect.any(String),
+            });
         });
     });
 

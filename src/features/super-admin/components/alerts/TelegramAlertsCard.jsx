@@ -149,6 +149,8 @@ export function TelegramAlertsCard() {
             showInfo(`The link expired. Press ${chat ? 'Reconnect chat' : 'Connect chat'} for a new one.`);
             load();
         },
+        // Another page asked for a link since: show the one the server holds.
+        onLinkChanged: () => load(),
         onError: (error) => showError(describeAlertsError(error)),
     });
 
