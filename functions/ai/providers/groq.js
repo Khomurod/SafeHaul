@@ -110,10 +110,10 @@ const groqAdapter = {
         /**
          * Which JSON mechanism this *model* supports — not this vendor.
          *
-         * Groq's structured-output support is per model. `openai/gpt-oss-20b`
-         * and `openai/gpt-oss-120b` accept `json_schema` with constrained
-         * decoding; every other model, including the only one that can read an
-         * image, rejects it outright and supports JSON object mode instead.
+         * Groq's structured-output support is per model. `openai/gpt-oss-20b`,
+         * `openai/gpt-oss-120b` and `qwen/qwen3.8-27b` accept `json_schema`;
+         * others (the llama-3 models, `qwen/qwen3.6-27b` before it was retired)
+         * reject it outright and support JSON object mode instead.
          *
          * Sending the wrong one is not a soft failure — it is a 400 on every
          * request, which is exactly how enabling vision by flipping a capability

@@ -107,12 +107,11 @@ const PROVIDER_LIST = [
          * request to Groq failed. `qwen/qwen3.8-27b` replaced it, verified that
          * day on the live API: it read a CDL photo, and two photos at once.
          *
-         * The subtlety that makes this more than a flag: Groq's schema support
-         * is per *model*. Only the `openai/gpt-oss-*` models accept
-         * `json_schema`; the Qwen vision models are driven in JSON object mode,
-         * so the vision lanes carry their own structured mode below, and the
-         * schema is restated in the prompt and enforced by SafeHaul's own
-         * validator on return.
+         * Groq's schema support is per *model*. `qwen/qwen3.6-27b` answered
+         * `json_schema` with a 400 and was asked in JSON object mode through
+         * `structuredModeByCapability`; `qwen/qwen3.8-27b` accepts it with
+         * images (CDL, medical card, PSP, MVR and E-Doc schemas, 2026-10-07),
+         * so every Groq lane now asks in schema mode and Groq enforces the shape.
          *
          * `maxImages` is the model's per-request cap, and the router enforces
          * it. `qwen/qwen3.8-27b` takes three (`400 "This model supports up to 3
@@ -121,10 +120,6 @@ const PROVIDER_LIST = [
          */
         capabilities: [...TEXT_SUITE, STRUCTURED_JSON, LONG_CONTEXT, VISION, MULTI_IMAGE],
         structuredMode: STRUCTURED_MODE.GROQ_RESPONSES_SCHEMA,
-        structuredModeByCapability: {
-            [VISION]: STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT,
-            [MULTI_IMAGE]: STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT,
-        },
         supportsVision: true,
         maxImages: 3,
         secretFields: [
@@ -166,7 +161,7 @@ const PROVIDER_LIST = [
             // Groq's only multimodal model, one lane among several rather than
             // anything SafeHaul depends on: 131k context, three images per
             // request, and about 1,800 input tokens a photo against the free
-            // tier's 8,000 a minute. Verified 2026-10-07.
+            // tier's 7,000 input tokens a minute. Verified 2026-10-07.
             [VISION]: 'qwen/qwen3.8-27b',
             [MULTI_IMAGE]: 'qwen/qwen3.8-27b',
         },

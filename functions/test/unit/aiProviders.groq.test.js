@@ -62,11 +62,11 @@ describe('Groq adapter', () => {
         ]);
     });
 
-    it('asks a vision request for json_object, not json_schema', async () => {
-        // The whole point of the per-capability structured mode. Groq's vision
-        // model rejects `json_schema` with a 400, so sending the schema form
-        // here would fail every CDL photograph — the exact way that "just turn
-        // the vision capability on" would have broken.
+    it('asks a vision request for json_schema, which qwen3.8 accepts with images', async () => {
+        // `qwen/qwen3.6-27b` rejected `json_schema` with a 400 and was asked in
+        // JSON object mode. Its successor accepts the schema with images
+        // (verified live 2026-10-07 on every photo-reading schema), so Groq now
+        // enforces the shape itself rather than only being told it in the prompt.
         const fetchImpl = fetchReturning({
             output: [{ type: 'message', content: [{ type: 'output_text', text: '{"value":"x"}' }] }],
         });
@@ -86,12 +86,44 @@ describe('Groq adapter', () => {
         }));
 
         const body = fetchImpl.calls[0].body;
+        expect(body.text).toEqual({ format: { type: 'json_schema', name: expect.any(String), schema } });
+    });
+
+    it('asks in json_object, with the schema in the prompt, where a row says its model needs it', async () => {
+        // The per-capability override is how a lane whose model rejects
+        // `json_schema` is served (as `qwen/qwen3.6-27b`'s was). Object mode
+        // guarantees valid JSON and nothing about its shape, so the schema has
+        // to travel in the prompt — and SafeHaul's own validator still enforces
+        // it on return.
+        const groq = getProvider('groq');
+        const objectModeRow = {
+            ...groq,
+            structuredModeByCapability: { [CAPABILITIES.VISION]: STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT },
+        };
+        const fetchImpl = fetchReturning({
+            output: [{ type: 'message', content: [{ type: 'output_text', text: '{"value":"x"}' }] }],
+        });
+        const schema = {
+            type: 'object',
+            properties: { value: { type: 'string' } },
+            required: ['value'],
+            additionalProperties: false,
+        };
+
+        await getAdapter(objectModeRow).execute({
+            ...contextFor('groq', {
+                fetchImpl,
+                capability: CAPABILITIES.VISION,
+                model: 'qwen/qwen3.8-27b',
+                schema,
+                images: [{ dataUrl: 'data:image/jpeg;base64,AAAA' }],
+            }),
+            provider: objectModeRow,
+        });
+
+        const body = fetchImpl.calls[0].body;
         expect(body.text).toEqual({ format: { type: 'json_object' } });
         expect(JSON.stringify(body.text)).not.toMatch(/json_schema/);
-
-        // Object mode guarantees valid JSON and nothing about its shape, so the
-        // schema has to travel in the prompt for the model to aim at it — and
-        // SafeHaul's own validator still enforces it on return.
         const userMessage = body.input.find((entry) => entry.role === 'user');
         expect(userMessage.content[0].text).toContain('"required":["value"]');
     });
@@ -146,11 +178,11 @@ describe('Groq model pins — verified against the live API', () => {
         // Groq's structured-outputs documentation lists exactly the gpt-oss
         // models as schema-capable (verified 2026-08-17).
         //
-        // This is now a statement about the *pairing* rather than about every
-        // pin, because the vision model is deliberately not schema-capable and
-        // is asked in JSON object mode instead. A model pinned to a lane whose
-        // structured mode it cannot serve is a guaranteed 400 on every request.
-        const SCHEMA_CAPABLE = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'];
+        // `qwen/qwen3.8-27b` joined them (verified live with images, 2026-10-07).
+        // This is a statement about the *pairing* rather than about every pin:
+        // a model pinned to a lane whose structured mode it cannot serve is a
+        // guaranteed 400 on every request.
+        const SCHEMA_CAPABLE = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b'];
 
         for (const [capability, model] of Object.entries(groq.defaultModels)) {
             const mode = resolveStructuredMode(groq, capability);
@@ -191,10 +223,11 @@ describe('Groq model pins — verified against the live API', () => {
         expect(resolveModel(groq, CAPABILITIES.VISION, {})).toBe('qwen/qwen3.8-27b');
         expect(resolveModel(groq, CAPABILITIES.MULTI_IMAGE, {})).toBe('qwen/qwen3.8-27b');
 
-        // 2. Those lanes ask in the only mode that model accepts. Getting this
-        //    wrong is a 400 on every CDL photograph, not a degraded answer.
+        // 2. Those lanes ask in a mode that model accepts — schema mode, which
+        //    `qwen/qwen3.8-27b` serves with images. Getting this wrong is a 400
+        //    on every CDL photograph, not a degraded answer.
         expect(resolveStructuredMode(groq, CAPABILITIES.VISION))
-            .toBe(STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT);
+            .toBe(STRUCTURED_MODE.GROQ_RESPONSES_SCHEMA);
         expect(resolveStructuredMode(groq, CAPABILITIES.STRUCTURED_JSON))
             .toBe(STRUCTURED_MODE.GROQ_RESPONSES_SCHEMA);
     });
