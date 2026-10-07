@@ -28,6 +28,7 @@
 const { CAPABILITIES } = require('./capabilities');
 const { STRUCTURED_MODE, PROVIDER_LIST } = require('./providerTable');
 const { MODEL_VERSIONS, MAX_VERSIONS_PER_LANE } = require('./modelVersions');
+const { savedModels } = require('./savedModels');
 
 /**
  * A row's ordered model versions per capability, frozen. A provider with no
@@ -128,10 +129,15 @@ function supportsAllCapabilities(provider, capabilities) {
  * The model versions this provider should be asked for, for a capability, in
  * order, honouring any operator override in stored config.
  *
- * An override is the operator naming the one model their account can reach, so
- * it replaces the list rather than joining it. A capability with no list of its
- * own falls back to the text list, as a single pin always did. A row without
- * `modelVersions` (a hand-built row in a test) falls back to `defaultModels`.
+ * In order of precedence:
+ *
+ *  1. An operator override: the operator naming the one model their account can
+ *     reach, so it replaces the list rather than joining it.
+ *  2. The versions the daily check verified for this lane (./savedModels.js).
+ *  3. The built-in list (./modelVersions.js). A capability with no list of its
+ *     own falls back to the text list, as a single pin always did. A row
+ *     without `modelVersions` (a hand-built row in a test) falls back to
+ *     `defaultModels`.
  *
  * @param {object} provider registry row
  * @param {string} capability
@@ -145,6 +151,8 @@ function resolveModels(provider, capability, config = {}) {
         const override = config?.[field.name];
         if (typeof override === 'string' && override.trim()) return [override.trim()];
     }
+    const saved = savedModels(config, capability);
+    if (saved) return saved;
     const lists = provider.modelVersions;
     if (lists) {
         // An empty list is no list: fall back to text, as a missing pin did.

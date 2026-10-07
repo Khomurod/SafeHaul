@@ -294,6 +294,24 @@ article spare); Groq adds `openai/gpt-oss-120b` to every text lane, articles
 included; Mistral adds `ministral-8b-2512` and, last, `mistral-medium-latest`
 for a paid plan.
 
+### Where a lane's versions come from
+
+`resolveModels` in `registry/providers.js` decides, in this order:
+
+1. **An operator override** (a row's `configFields` with `appliesTo`): the one
+   model an account can reach, alone.
+2. **A saved list** in the provider's `ai_provider_config/{id}.modelLists`
+   (`registry/savedModels.js`): `modelLists.vision.models` for photos,
+   `modelLists.text.models` for text and structured output. It is read with the
+   rest of the provider's config, so a Firestore fault falls back to the router's
+   last known configs. Whatever is malformed reads as nothing saved: an id not
+   shaped like a model id is dropped, each id counts once, and a list keeps at
+   most three. Article writing is never taken from a saved list.
+3. **The built-in list** in `registry/modelVersions.js`.
+
+Rests, the switching table and Test connection apply to a saved list exactly as
+to a built-in one.
+
 ## Fallback order and behaviour
 
 The **default** order, derived from `priority` so it lives in one place:
