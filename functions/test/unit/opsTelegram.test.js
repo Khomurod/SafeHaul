@@ -75,27 +75,82 @@ describe('callTelegram', () => {
 });
 
 describe('finding the operator\'s chat', () => {
+    const CREATED = Date.parse('2026-10-07T14:30:00.000Z');
+    const EXPIRES = CREATED + 15 * 60 * 1000;
+    const LINK = { code: 'CODE123', createdAt: CREATED, expiresAt: EXPIRES };
+    // Telegram dates a message in whole seconds.
+    const at = (ms) => Math.floor(ms / 1000);
+    const updates = (...messages) => respond(200, {
+        ok: true,
+        result: messages.map((message, index) => ({ update_id: index + 1, message })),
+    });
+
     it('takes only the chat that pressed Start on the one-time link, named as a person would be', async () => {
-        const fetchImpl = respond(200, {
-            ok: true,
-            result: [
-                { update_id: 1, message: { text: '/start CODE123', chat: { id: 222, first_name: 'Dana', last_name: 'Alvarez' } } },
-                // Whoever else writes to the bot, later or guessing, is not connected.
-                { update_id: 2, message: { text: 'hello', chat: { id: 333, first_name: 'Stranger' } } },
-                { update_id: 3, message: { text: '/start WRONG', chat: { id: 444, first_name: 'Guess' } } },
-                { update_id: 4, message: { text: '/start', chat: { id: 555, first_name: 'Bare' } } },
-            ],
-        });
-        await expect(telegram.chatThatStarted(TOKEN, 'CODE123', { fetchImpl })).resolves.toEqual({ id: 222, title: 'Dana Alvarez' });
+        const fetchImpl = updates(
+            { date: at(CREATED + 60000), text: '/start CODE123', chat: { id: 222, first_name: 'Dana', last_name: 'Alvarez' } },
+            // Whoever else writes to the bot, later or guessing, is not connected.
+            { date: at(CREATED + 70000), text: 'hello', chat: { id: 333, first_name: 'Stranger' } },
+            { date: at(CREATED + 80000), text: '/start WRONG', chat: { id: 444, first_name: 'Guess' } },
+            { date: at(CREATED + 90000), text: '/start', chat: { id: 555, first_name: 'Bare' } },
+        );
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl }))
+            .resolves.toMatchObject({ chat: { id: 222, title: 'Dana Alvarez' } });
         // By default Telegram answers with the oldest updates; the newest hundred are asked for.
         expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toMatchObject({ offset: -100, limit: 100 });
     });
 
     it('names a group by its title, and finds nothing until the link was used', async () => {
-        const group = respond(200, { ok: true, result: [{ message: { text: '/start@safehaul_alerts_bot CODE123', chat: { id: -5, title: 'Dispatch' } } }] });
-        await expect(telegram.chatThatStarted(TOKEN, 'CODE123', { fetchImpl: group })).resolves.toEqual({ id: -5, title: 'Dispatch' });
-        await expect(telegram.chatThatStarted(TOKEN, 'CODE123', { fetchImpl: respond(200, { ok: true, result: [] }) }))
-            .resolves.toBeNull();
+        const group = updates({ date: at(CREATED + 1000), text: '/start@safehaul_alerts_bot CODE123', chat: { id: -5, title: 'Dispatch' } });
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl: group }))
+            .resolves.toEqual({ chat: { id: -5, title: 'Dispatch' }, strayStart: false });
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl: updates() }))
+            .resolves.toEqual({ chat: null, strayStart: false });
+    });
+
+    it('counts a Start pressed while the link was valid, however late it is asked about', async () => {
+        const fetchImpl = updates({ date: at(EXPIRES - 1000), text: '/start CODE123', chat: { id: 222, first_name: 'Dana' } });
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl }))
+            .resolves.toEqual({ chat: { id: 222, title: 'Dana' }, strayStart: false });
+    });
+
+    it('does not count a Start pressed after the link expired', async () => {
+        const fetchImpl = updates({ date: at(EXPIRES + 1000), text: '/start CODE123', chat: { id: 222, first_name: 'Dana' } });
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl }))
+            .resolves.toEqual({ chat: null, strayStart: false });
+    });
+
+    it('says when a Start without the link\'s code arrived after the link was handed out, and only then', async () => {
+        // Telegram shows the person "/start" either way, so they cannot see the difference.
+        const before = { date: at(CREATED - 3600000), text: '/start', chat: { id: 222, first_name: 'Dana' } };
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl: updates(before) }))
+            .resolves.toEqual({ chat: null, strayStart: false });
+
+        const since = { date: at(CREATED + 30000), text: '/start', chat: { id: 222, first_name: 'Dana' } };
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl: updates(before, since) }))
+            .resolves.toEqual({ chat: null, strayStart: true });
+        // A Start from an older link is not this link's either.
+        const older = { date: at(CREATED + 30000), text: '/start OLDCODE', chat: { id: 222, first_name: 'Dana' } };
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl: updates(older) }))
+            .resolves.toEqual({ chat: null, strayStart: true });
+    });
+
+    /** getUpdates answers 409; getWebhookInfo answers with this webhook URL. */
+    function conflict(webhookUrl) {
+        return jest.fn(async (url) => (url.endsWith('/getUpdates')
+            ? { ok: false, status: 409, json: async () => ({ ok: false, error_code: 409, description: 'Conflict' }) }
+            : { ok: true, status: 200, json: async () => ({ ok: true, result: { url: webhookUrl, pending_update_count: 0 } }) }));
+    }
+
+    it('reads a 409 with no webhook as another check still running, not as another service', async () => {
+        // Two pages, or a press during the page's own check, ask Telegram at once.
+        const fetchImpl = conflict('');
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl })).resolves.toEqual({ chat: null, strayStart: false });
+        expect(fetchImpl.mock.calls.map(([url]) => url.split('/').pop())).toEqual(['getUpdates', 'getWebhookInfo']);
+    });
+
+    it('still says so when a webhook really is set on the bot', async () => {
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl: conflict('https://example.invalid/hook') }))
+            .rejects.toMatchObject({ code: 'webhook_set' });
     });
 });
 

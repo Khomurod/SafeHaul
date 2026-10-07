@@ -21,6 +21,8 @@ const INTEGRATION = 'Telegram alerts';
 const CONNECTED_TEXT = 'SafeHaul: уведомления подключены. Сюда придёт сообщение, если ИИ или блог перестанут работать, и ещё одно, когда всё восстановится.';
 const TEST_TEXT = 'SafeHaul: тестовое сообщение. Уведомления работают.';
 const START_LINK_TTL_MS = 15 * 60 * 1000;
+/** Telegram keeps an undelivered update this long, so an older Start cannot be found. */
+const TELEGRAM_UPDATE_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 /** Telegram's refusal, in the operator's terms. Its own text never reaches here. */
 function telegramFailure(error) {
@@ -66,8 +68,40 @@ function pendingStart(connection, now = Date.now()) {
     return pending?.code && Date.parse(pending.expiresAt) > now ? pending : null;
 }
 
+/**
+ * The last link handed out, while a Start pressed on it in time could still be
+ * found, or null. Its times in milliseconds; a link saved before links carried
+ * `createdAt` is dated from its expiry.
+ */
+function lastStartWindow(connection, now = Date.now()) {
+    const pending = connection?.pendingStart;
+    const expiresAt = Date.parse(pending?.expiresAt);
+    if (!pending?.code || !Number.isFinite(expiresAt) || now - expiresAt >= TELEGRAM_UPDATE_RETENTION_MS) return null;
+    const createdAt = Date.parse(pending.createdAt);
+    return {
+        code: pending.code,
+        createdAt: Number.isFinite(createdAt) ? createdAt : expiresAt - START_LINK_TTL_MS,
+        expiresAt,
+    };
+}
+
 function startLink(connection, pending) {
     return { link: `https://t.me/${connection.botUsername}?start=${pending.code}`, expiresAt: pending.expiresAt };
+}
+
+/** Saves the chat that pressed Start, once the bot has reached it. */
+async function connectChat(request, token, connection, chat) {
+    // Sent before it is saved, so a connected chat is one that was reached.
+    await telegram.sendMessage(token, chat.id, CONNECTED_TEXT);
+    const rest = { ...connection };
+    delete rest.pendingStart;
+    await settings.replaceSettings({
+        telegram: { ...rest, chatId: chat.id, chatTitle: chat.title, connectedAt: new Date().toISOString() },
+        // A new destination starts from "all well", so it hears about anything already down.
+        watch: {},
+    });
+    await audit(request, ACTIONS.UPDATE, { setting: 'chat' });
+    return { chat: { title: chat.title } };
 }
 
 async function requireConnection() {
@@ -133,39 +167,48 @@ exports.savePlatformAlertToken = onCall({ cors: true }, async (request) => {
     }
 });
 
+/**
+ * A press hands out a one-time Start link, or connects the chat that pressed
+ * Start on it. `checkOnly` is the page asking by itself while its link waits: it
+ * connects the chat the same way but never hands out a link, so it needs no
+ * recent sign-in (the link was handed out under one), and it spends a budget of
+ * its own, so the asking cannot use up the console's.
+ */
 exports.connectPlatformAlertChat = onCall({ cors: true }, async (request) => {
-    await guardPrivileged(request, 'mutate', ACTIONS.UPDATE, { integration: INTEGRATION, setting: 'chat' });
+    const checkOnly = request.data?.checkOnly === true;
+    const metadata = { integration: INTEGRATION, setting: 'chat' };
+    if (checkOnly) {
+        await assertSuperAdmin(request, ACTIONS.UPDATE, metadata);
+        await assertWithinRateLimit(request, 'list', ACTIONS.UPDATE, metadata, 'telegram-start');
+    } else {
+        await guardPrivileged(request, 'mutate', ACTIONS.UPDATE, metadata);
+    }
 
     try {
         const { saved, token } = await requireConnection();
         const connection = saved.telegram || {};
-        const pending = pendingStart(connection);
-        if (!pending) {
-            // First press: a code only this console has seen, in a link that sends
-            // it to the bot. Bot names are public, so "whoever wrote last" is not
-            // proof of who the operator is; this code is.
-            const fresh = {
-                code: crypto.randomBytes(12).toString('base64url'),
-                expiresAt: new Date(Date.now() + START_LINK_TTL_MS).toISOString(),
-            };
-            await settings.replaceSettings({ telegram: { ...connection, pendingStart: fresh } });
-            return { pending: startLink(connection, fresh) };
+        const lastLink = lastStartWindow(connection);
+        if (lastLink) {
+            // A Start pressed while the link was valid counts whenever this is asked.
+            const { chat, strayStart } = await telegram.startsOnLink(token, lastLink);
+            // Awaited here, so a chat the bot cannot reach is refused in the operator's words.
+            if (chat) return await connectChat(request, token, connection, chat);
+            const pending = pendingStart(connection);
+            if (pending) return { pending: startLink(connection, pending), ...(strayStart ? { strayStart: true } : {}) };
         }
+        if (checkOnly) return { pending: null };
 
-        const chat = await telegram.chatThatStarted(token, pending.code);
-        if (!chat) return { pending: startLink(connection, pending) };
-
-        // Sent before it is saved, so a connected chat is one that was reached.
-        await telegram.sendMessage(token, chat.id, CONNECTED_TEXT);
-        const rest = { ...connection };
-        delete rest.pendingStart;
-        await settings.replaceSettings({
-            telegram: { ...rest, chatId: chat.id, chatTitle: chat.title, connectedAt: new Date().toISOString() },
-            // A new destination starts from "all well", so it hears about anything already down.
-            watch: {},
-        });
-        await audit(request, ACTIONS.UPDATE, { setting: 'chat' });
-        return { chat: { title: chat.title } };
+        // A code only this console has seen, in a link that sends it to the bot.
+        // Bot names are public, so "whoever wrote last" is not proof of who the
+        // operator is; this code is.
+        const now = Date.now();
+        const fresh = {
+            code: crypto.randomBytes(12).toString('base64url'),
+            createdAt: new Date(now).toISOString(),
+            expiresAt: new Date(now + START_LINK_TTL_MS).toISOString(),
+        };
+        await settings.replaceSettings({ telegram: { ...connection, pendingStart: fresh } });
+        return { pending: startLink(connection, fresh) };
     } catch (error) {
         return safeFailure(error, 'connectPlatformAlertChat');
     }
