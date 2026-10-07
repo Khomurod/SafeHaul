@@ -23,9 +23,15 @@
  * - **A save from an older revision is refused** (`companyUpdated`), with nothing
  *   written. The browser fetches the draft, takes the answers edited after its
  *   revision, tells the driver what changed, and saves again.
+ * - **A save landing on the same driver's other draft, which an admin edited, is
+ *   refused** like a failed save: a corrected email or phone joins two
+ *   unfinished applications, and a revision speaks only for the draft its copy
+ *   came from. That draft's edits cannot reach this browser, whose token opens
+ *   the other one, so neither draft is touched.
  * - **A submission from an older revision is refused** with a sentence and the
  *   Review page, so the driver never signs an application whose changes they
- *   have not been shown.
+ *   have not been shown. Once the browser has fetched the edits, its retry says
+ *   no revision: edits it could not show the driver never stop a submission.
  *
  * A browser that sends no `seenRevision` predates this, and keeps exactly the
  * behaviour it had: Testing and Production share this backend, and the

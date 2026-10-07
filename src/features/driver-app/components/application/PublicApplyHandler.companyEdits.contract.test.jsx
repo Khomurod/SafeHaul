@@ -223,7 +223,8 @@ describe('a Company Admin\'s edits, on the driver\'s page', () => {
 
     await waitFor(() => expect(callableSpy).toHaveBeenCalledTimes(2));
     expect(callableSpy.mock.calls[0][0].seenRevision).toBe(0);
-    expect(callableSpy.mock.calls[1][0].seenRevision).toBe(R);
+    // As signed: what is on screen is what the driver signed.
+    expect(callableSpy.mock.calls[1][0].seenRevision).toBeNull();
     expect(showError).not.toHaveBeenCalledWith(CARRIER_UPDATED.message);
   });
 
@@ -246,7 +247,7 @@ describe('a Company Admin\'s edits, on the driver\'s page', () => {
 
     // The retry for the edits is not one of the three: nothing went wrong with delivery.
     await waitFor(() => expect(callableSpy).toHaveBeenCalledTimes(4), { timeout: 10_000 });
-    expect(callableSpy.mock.calls[3][0].seenRevision).toBe(R);
+    expect(callableSpy.mock.calls[3][0].seenRevision).toBeNull();
     expect(showError).not.toHaveBeenCalled();
   }, 20_000);
 
@@ -261,6 +262,24 @@ describe('a Company Admin\'s edits, on the driver\'s page', () => {
     await waitFor(() => expect(callableSpy).toHaveBeenCalledTimes(2));
     expect(callableSpy.mock.calls[1][0].seenRevision).toBeNull();
     expect(callableSpy.mock.calls[1][0].signature).toBe('data:image/png;base64,AAAA');
+  });
+
+  it('never stop a submission over edits this browser cannot open', async () => {
+    // The same driver's other unfinished application, under the email and phone
+    // just typed: the server refuses for that draft's edits, while this browser's
+    // token opens only its own draft, which has nothing new to take.
+    inTurn(resumeDraftSpy, { data: { restored: false } }, draftReply({ firstName: 'Ada' }));
+    callableSpy.mockImplementation(async ({ seenRevision }) => {
+      if (seenRevision !== null) throw CARRIER_UPDATED;
+      return { data: { applicationId: 'app-1', confirmationNumber: 'CONF-1' } };
+    });
+
+    await renderWithCompleteDraft();
+    await submit();
+
+    await waitFor(() => expect(sessionStorage.getItem('lastConfirmationNumber')).toBe('CONF-1'));
+    expect(callableSpy).toHaveBeenCalledTimes(2);
+    expect(showError).not.toHaveBeenCalled();
   });
 
   it('are all named when the driver continues their application on a new device', async () => {

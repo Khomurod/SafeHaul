@@ -163,6 +163,15 @@ exports.saveApplicationProgress = functions
             if (seenRevision !== null && companyRevisionOf(lineage?.data()) > seenRevision) {
                 return { refused: true, companyUpdated: true, token: null };
             }
+            // A corrected email or phone that lands on the same driver's OTHER
+            // draft, which a Company Admin edited. Its edits cannot reach this
+            // browser, whose token opens a different draft, and a revision speaks
+            // only for the draft its copy came from. So nothing is written and
+            // nothing is joined: both drafts stay as they are.
+            if (seenRevision !== null && opened && opened.id !== ref.id && existing.exists
+                && companyRevisionOf(existing.data()) > 0) {
+                return { refused: true, editedElsewhere: true, token: null };
+            }
 
             const preparedSource = preparedSourceFor(existing, opened, ref.id);
 
@@ -283,6 +292,11 @@ exports.saveApplicationProgress = functions
             // Not a probe: the caller proved the draft is theirs. They are owed the
             // reason, so their browser can take the edits and save again.
             return { saved: false, companyUpdated: true, applicantKey: null, resumeToken: null };
+        }
+        if (attempt.editedElsewhere) {
+            // Not a probe either. But no reason would help: the browser has nothing
+            // it could fetch, so it keeps its copy, as after a network failure.
+            return { saved: false, applicantKey: null, resumeToken: null };
         }
 
         if (attempt.refused) {

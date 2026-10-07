@@ -411,13 +411,14 @@ export async function submitPublicApplication({
           // The carrier edited this application after this copy was taken. Their
           // edits are fetched once. One that changes an answer sends the driver to
           // Review, to see it and sign again. When none does, or none could be
-          // fetched, what the driver signed is what is on screen, so it goes as is:
-          // a submission is never stopped for edits the driver cannot be shown.
+          // fetched, what the driver signed is what is on screen, so it goes as is,
+          // saying no revision: a submission is never stopped for edits the driver
+          // cannot be shown, and these may be on a draft this browser cannot open
+          // (the same driver's other one, under the email and phone just typed).
           if (isCarrierUpdate(error) && !carrierChecked) {
             carrierChecked = true;
-            const taken = await onCarrierUpdated?.(formData);
-            if (taken?.changed) break;
-            seenRevision = taken ? taken.revision : null;
+            if (await onCarrierUpdated?.(formData)) break;
+            seenRevision = null;
             // Not one of the three: nothing went wrong with the delivery.
             attempt -= 1;
             continue;

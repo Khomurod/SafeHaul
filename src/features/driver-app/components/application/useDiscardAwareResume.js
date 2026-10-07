@@ -96,16 +96,16 @@ export function useDiscardAwareResume({
    * refused a save or a submission because this copy is behind them.
    *
    * Fetched with this tab's own token, never the shared slot, which may hold
-   * another applicant's. Resolves to what was taken, `{ changed, revision }`, or
-   * `null` when nothing could be fetched; then the next save asks again. Nothing
-   * is applied to answers that were discarded while the fetch was out. See
-   * `companyEditsSync.js` for what is taken and how.
+   * another applicant's. Resolves to whether they changed an answer on screen;
+   * false too when nothing could be fetched, and then the next save asks again.
+   * Nothing is applied to answers that were discarded while the fetch was out.
+   * See `companyEditsSync.js` for what is taken and how.
    *
    * @param {object} [onScreen] the answers as they stand, to say which ones change.
    */
   const refreshCompanyEdits = useCallback(async (onScreen) => {
     const stored = heldTokenRef.current();
-    if (!stored || !companyId) return null;
+    if (!stored || !companyId) return false;
     const generation = resetGenerationRef.current;
     let draft;
     try {
@@ -113,12 +113,12 @@ export function useDiscardAwareResume({
         companyId, applicantKey: stored.applicantKey, resumeToken: stored.resumeToken,
       }))?.draft;
     } catch {
-      return null;
+      return false;
     }
-    if (!draft || resetGenerationRef.current !== generation) return null;
+    if (!draft || resetGenerationRef.current !== generation) return false;
     const { changed } = companyEditsToTake(onScreen, draft);
     setFormData((prev) => takeCompanyEdits(prev, draft));
-    return { changed: changed.length > 0, revision: draft.companyRevision };
+    return changed.length > 0;
   }, [companyId, setFormData]);
 
   /** Every save goes through here, so a refusal for unseen edits fetches them. */

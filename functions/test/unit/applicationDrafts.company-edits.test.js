@@ -16,8 +16,8 @@ jest.mock('../../shared/rateLimiter', () => require('./applicationDrafts.support
 jest.mock('../../shared/companyTenant', () => require('./applicationDrafts.support').companyTenantMock());
 
 const {
-    mockStore, mockRunTransactionCalls, COMPANY, IDENTITY, CONTEXT, keyFor, saveFirstPage,
-    resetDraftState,
+    mockStore, mockRunTransactionCalls, mockDeletedPaths, COMPANY, IDENTITY, CONTEXT, keyFor,
+    saveFirstPage, resetDraftState,
 } = require('./applicationDrafts.support');
 
 const drafts = require('../../applicationDrafts');
@@ -170,6 +170,66 @@ describe('a corrected email, which moves the application to a new id', () => {
         expect(moved).toMatchObject({ saved: false, companyUpdated: true });
         expect(mockStore.has(draftPath(correctedKey()))).toBe(false);
         expect(mockStore.get(draftPath()).formData.city).toBe('Dallas');
+    });
+
+    /** The same driver's other unfinished application, at the corrected email, as the carrier left it. */
+    async function otherDraft({ edited }) {
+        await correct({});
+        if (edited) editAsCompany({ city: 'Dallas' }, EDITED_AT, correctedKey());
+    }
+
+    it('is refused onto the same driver\'s other draft a Company Admin edited, which this browser cannot fetch', async () => {
+        const first = await saveFirstPage();
+        await otherDraft({ edited: true });
+        const before = auditCount();
+
+        const joined = await correct({
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            // Later than that draft's edit, and still no sight of it: a revision
+            // speaks for the draft its copy came from, never for another one.
+            seenRevision: EDITED_AT,
+            formData: { firstName: 'Dana', city: 'Austin' },
+        });
+
+        expect(joined).toEqual({ saved: false, applicantKey: null, resumeToken: null });
+        expect(mockRunTransactionCalls.at(-1).writes).toEqual([]);
+        expect(mockStore.get(draftPath(correctedKey())).formData.city).toBe('Dallas');
+        // Nothing was joined, so the draft this browser's token opens is not retired.
+        expect(mockStore.has(draftPath())).toBe(true);
+        expect(mockDeletedPaths).toHaveLength(0);
+        // Not a probe: the caller proved both drafts are theirs.
+        expect(auditCount()).toBe(before);
+    });
+
+    it('still joins the same driver\'s other draft when nobody edited it', async () => {
+        const first = await saveFirstPage();
+        await otherDraft({ edited: false });
+
+        const joined = await correct({
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            seenRevision: 0,
+            formData: { firstName: 'Dana', city: 'Austin' },
+        });
+
+        expect(joined.saved).toBe(true);
+        expect(mockStore.get(draftPath(correctedKey())).formData.city).toBe('Austin');
+        expect(mockStore.has(draftPath())).toBe(false);
+    });
+
+    it('joins an edited one as before from a browser that predates edits', async () => {
+        const first = await saveFirstPage();
+        await otherDraft({ edited: true });
+
+        const joined = await correct({
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            formData: { firstName: 'Dana', city: 'Austin' },
+        });
+
+        expect(joined.saved).toBe(true);
+        expect(mockStore.get(draftPath(correctedKey())).formData.city).toBe('Austin');
     });
 });
 

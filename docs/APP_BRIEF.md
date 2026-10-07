@@ -515,10 +515,10 @@ write.
   local copy and submission still work, the squatter reads nothing, and it
   expires in 30 days.
 - **A copy behind a Company Admin's edit is refused** (`companyEdits.js`): a save
-  outright, a submission back to Review. The page takes the edited answers
-  (whole; never identity or consent), drops a stale signature and names them
-  above every step. A page sending no revision (Production until promoted) can
-  still undo an edit; a submission whose edits cannot be fetched goes as signed.
+  outright, as is one landing on the driver's other edited draft; a submission
+  back to Review. The page takes the edits (never identity or consent), drops a
+  stale signature and names them on every step. Nothing the driver cannot see
+  stops a submission; an older page (Production until promoted) can undo edits.
 
 ### The frozen record
 
