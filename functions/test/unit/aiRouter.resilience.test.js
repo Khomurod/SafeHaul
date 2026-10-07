@@ -400,10 +400,10 @@ describe('describeRouting', () => {
         const rows = await describeRouting([CAPABILITIES.VISION]);
         const byId = Object.fromEntries(rows.map((row) => [row.providerId, row]));
 
-        // Groq is eligible for vision again, on `qwen/qwen3.6-27b`. The console
+        // Groq is eligible for vision, on `qwen/qwen3.8-27b`. The console
         // must show the model it would actually use, so an operator deciding
         // the order can see what each lane resolves to.
-        expect(byId.groq).toMatchObject({ eligible: true, model: 'qwen/qwen3.6-27b' });
+        expect(byId.groq).toMatchObject({ eligible: true, model: 'qwen/qwen3.8-27b' });
         expect(byId.gemini).toMatchObject({ eligible: false, reason: SKIP_REASONS.DISABLED });
         expect(byId.cerebras).toMatchObject({ eligible: false, reason: SKIP_REASONS.INCAPABLE });
         expect(byId['github-models']).toMatchObject({ eligible: false, reason: SKIP_REASONS.RETIRED });

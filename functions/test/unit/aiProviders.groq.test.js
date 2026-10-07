@@ -80,7 +80,7 @@ describe('Groq adapter', () => {
         await getAdapter(getProvider('groq')).execute(contextFor('groq', {
             fetchImpl,
             capability: CAPABILITIES.VISION,
-            model: 'qwen/qwen3.6-27b',
+            model: 'qwen/qwen3.8-27b',
             schema,
             images: [{ dataUrl: 'data:image/jpeg;base64,AAAA' }],
         }));
@@ -178,9 +178,8 @@ describe('Groq model pins — verified against the live API', () => {
 
     it('claims vision again, on a model that exists and in a mode it supports', () => {
         // Vision was withdrawn on 2026-08-03 when Groq retired both llama-4
-        // vision models, and that was right at the time. Groq's catalogue then
-        // moved on: `qwen/qwen3.6-27b` is multimodal and is Groq's own
-        // recommended replacement for Scout (verified 2026-08-17).
+        // vision models, came back on `qwen/qwen3.6-27b` (2026-08-17), and moved
+        // to `qwen/qwen3.8-27b` when Groq retired that one too (2026-10-07).
         //
         // Two things have to hold together for this to be more than a flag.
         expect(groq.supportsVision).toBe(true);
@@ -189,8 +188,8 @@ describe('Groq model pins — verified against the live API', () => {
         expect(groq.capabilities).toContain(CAPABILITIES.STRUCTURED_JSON);
 
         // 1. The image lanes resolve the multimodal model.
-        expect(resolveModel(groq, CAPABILITIES.VISION, {})).toBe('qwen/qwen3.6-27b');
-        expect(resolveModel(groq, CAPABILITIES.MULTI_IMAGE, {})).toBe('qwen/qwen3.6-27b');
+        expect(resolveModel(groq, CAPABILITIES.VISION, {})).toBe('qwen/qwen3.8-27b');
+        expect(resolveModel(groq, CAPABILITIES.MULTI_IMAGE, {})).toBe('qwen/qwen3.8-27b');
 
         // 2. Those lanes ask in the only mode that model accepts. Getting this
         //    wrong is a 400 on every CDL photograph, not a degraded answer.
@@ -201,11 +200,11 @@ describe('Groq model pins — verified against the live API', () => {
     });
 
     it('declares the vendor image cap so the router does not spend a request learning it', () => {
-        // Groq accepts at most five images per request and answers a sixth with
-        // a 400. E-Doc caps itself at five pages, so the two agree today — the
-        // registry states it so the router enforces it rather than trusting
-        // that they always will.
-        expect(groq.maxImages).toBe(5);
+        // `qwen/qwen3.8-27b` accepts at most three images per request and
+        // answers a fourth with `400 "This model supports up to 3 images"`
+        // (2026-10-07). E-Doc sends up to five pages, so the registry states the
+        // cap and the router sends a four- or five-page document elsewhere.
+        expect(groq.maxImages).toBe(3);
     });
 
     it('declares a model for every capability it claims', () => {

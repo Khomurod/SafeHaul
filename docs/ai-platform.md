@@ -106,8 +106,9 @@ evidence that it sent JSON.
 Groq is the reason `structuredModeByCapability` exists. Its schema support is a
 property of the **model**, not the vendor: only `openai/gpt-oss-20b`,
 `openai/gpt-oss-120b` and `openai/gpt-oss-safeguard-20b` accept `json_schema`,
-and the only model that can read an image (`qwen/qwen3.6-27b`) answers a schema
-request with a 400.
+and its image model (`qwen/qwen3.8-27b` since 2026-10-07, `qwen/qwen3.6-27b`
+before it) is driven in JSON object mode — 3.6 answered a schema request with a
+400.
 
 So Groq's text lanes send `text.format = { type: 'json_schema', … }` and its
 image lanes send `{ type: 'json_object' }` with the schema restated in the
@@ -199,6 +200,28 @@ Two changes, both verified against the live API on a free key:
   invalid_request_file` while reading a properly zlib-compressed PNG of the same
   pixels — so the probes now emit conformant images (`solidColorPng`), or the
   connection test would report a false "vision failed" for a provider that works.
+
+### Pins retired again, 2026-10-07
+
+Every AI reading feature stopped at once, because all three configured vendors
+had changed something under their single pin per lane. Checked live with the
+owner's keys through SafeHaul's own adapters:
+
+| Provider | Old pin | What the vendor answered | New pin |
+| --- | --- | --- | --- |
+| Groq (photos) | `qwen/qwen3.6-27b` | `404 model_not_found` | `qwen/qwen3.8-27b` |
+| Mistral (every lane) | `mistral-medium-latest` | `429`, `x-ratelimit-limit-req-minute: 0` on the free plan (Small too; Large is `403 tier_not_allowed`) | `ministral-14b-2512`; articles `ministral-8b-2512` |
+| Gemini | `gemini-3.6-flash` | `503` "high demand" (3.5, 3.7 and 3.8 Flash too; the Lite versions answered) | unchanged |
+
+- `qwen/qwen3.8-27b` read a CDL photo and two at once. It takes **three** images
+  per request (`400 "This model supports up to 3 images"`), so Groq's `maxImages`
+  is 3 and a four- or five-page document goes to the next provider. A photo
+  costs about 1,800 input tokens against the free tier's 8,000 a minute.
+- `ministral-14b-2512` read a CDL photo, two and five at once, and answered the
+  claim check in about 4s. It took 33–48s to write an article against Mistral's
+  45s timeout, so `ARTICLE_WRITING` resolves to `ministral-8b-2512` (9s).
+- With one model per lane, any such vendor change is an outage for that
+  provider. This re-pin restores service; it does not change that.
 
 ## Fallback order and behaviour
 
