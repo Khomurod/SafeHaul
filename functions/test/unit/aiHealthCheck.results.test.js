@@ -63,6 +63,7 @@ describe('a full pass puts the provider back in use', () => {
 
         expect(result.success).toBe(true);
         expect(mockStore.clearCooldown).toHaveBeenCalledWith('gemini');
+        expect(result.message).not.toMatch(/could not be lifted/);
     });
 
     it('leaves them when any capability failed', async () => {
@@ -77,10 +78,18 @@ describe('a full pass puts the provider back in use', () => {
         expect(mockStore.clearCooldown).not.toHaveBeenCalled();
     });
 
-    it('still reports the pass when clearing them fails', async () => {
+    it('still reports the pass when clearing them fails, and says the pause stays', async () => {
         mockStore.clearCooldown.mockRejectedValue(new Error('firestore unavailable'));
+        const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            const result = await testProviderConnection('gemini');
 
-        await expect(testProviderConnection('gemini')).resolves.toMatchObject({ success: true });
+            expect(result).toMatchObject({ success: true });
+            expect(result.message).toMatch(/could not be lifted, so it ends on its own/);
+            expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('gemini: cooldown not cleared: firestore unavailable'));
+        } finally {
+            errorLog.mockRestore();
+        }
     });
 });
 

@@ -45,11 +45,12 @@ const isoOrNull = (value) => (typeof value === 'string' && Number.isFinite(Date.
  * `models` is what the router uses now (`resolveModels`), whatever the last
  * check recorded, so the table cannot describe a list the router is not using.
  */
-function versionsRow(provider, config, ready) {
+function versionsRow(provider, config, credentials, { autoSelect }) {
     const check = config.modelCheck || {};
     let state = 'ready';
     if (config.enabled === false) state = 'off';
-    else if (!ready) state = 'not_set_up';
+    else if (credentials === 'unreadable') state = 'key_unreadable';
+    else if (credentials !== 'ready') state = 'not_set_up';
 
     const lanes = lanesOf(provider).map(({ lane, capability }) => {
         const found = check.lanes?.[lane] || {};
@@ -66,7 +67,8 @@ function versionsRow(provider, config, ready) {
             models: resolveModels(provider, capability, config).map((model) => ({ id: model, result: resultOf(model) })),
             status,
             // Only while auto-select is off: what the check would have changed the list to.
-            suggested: modelIds(found.suggested),
+            // A suggestion recorded before auto-select came back on is no longer one.
+            suggested: autoSelect ? null : modelIds(found.suggested),
         };
     });
 
@@ -81,6 +83,22 @@ function versionsRow(provider, config, ready) {
     };
 }
 
+/**
+ * Whether the check can run for a provider: `ready` by the test the check itself
+ * applies (`credentialsReady`), `missing` when a credential is not there, and
+ * `unreadable` when it is there and this runtime may not read it. The last needs
+ * a grant, not a new key, so the console says so (as `list.js` does).
+ */
+async function credentialState(providerId) {
+    try {
+        const credentials = await store.resolveCredentials(providerId);
+        if (credentialsReady(credentials)) return 'ready';
+        return (credentials?.unreadable || []).length > 0 ? 'unreadable' : 'missing';
+    } catch {
+        return 'unreadable';
+    }
+}
+
 /** The whole table, in the order the router tries providers. */
 async function readVersions() {
     const [configs, storedOrder, checkState] = await Promise.all([
@@ -89,13 +107,12 @@ async function readVersions() {
         readCheckState(),
     ]);
     const providers = routingOrder.orderProviders(PROVIDERS, storedOrder).filter((provider) => !isRetired(provider));
-    // The same test the check applies (`credentialsReady`), so "not set up" means "the check skips it".
-    const ready = await Promise.all(providers.map((provider) => store.resolveCredentials(provider.id)
-        .then(credentialsReady)
-        .catch(() => false)));
+    const credentials = await Promise.all(providers.map((provider) => credentialState(provider.id)));
     return {
         ...checkState,
-        providers: providers.map((provider, index) => versionsRow(provider, configs.get(provider.id) || { enabled: true }, ready[index])),
+        providers: providers.map((provider, index) => versionsRow(
+            provider, configs.get(provider.id) || { enabled: true }, credentials[index], checkState,
+        )),
         generatedAt: new Date().toISOString(),
     };
 }
@@ -132,20 +149,22 @@ exports.checkAiModelVersionsNow = onCall({
 
     try {
         const outcome = await runModelRefresh({ force: true, budgetMs: CHECK_NOW_BUDGET_MS });
-        // A provider whose check threw is not one the table can call checked.
-        const checkedCount = Math.max(0, (outcome.checked?.length || 0) - (outcome.errors || 0));
+        // A provider whose check threw is not one the table can call checked, and
+        // the operator is told about it rather than shown a plain success.
+        const failedCount = outcome.errors || 0;
+        const checkedCount = Math.max(0, (outcome.checked?.length || 0) - failedCount);
+        let reason = null;
+        if (outcome.skipped) reason = 'already-running';
+        else if (failedCount > 0) reason = 'partial';
         await recordAuditEvent({
             auth: request.auth,
             action: ACTIONS.UPDATE,
-            result: outcome.skipped ? RESULTS.FAILED : RESULTS.SUCCESS,
+            result: reason ? RESULTS.FAILED : RESULTS.SUCCESS,
             metadata: {
-                integration: 'AI model versions',
-                setting: 'model-check',
-                checkedCount,
-                reason: outcome.skipped ? 'already-running' : null,
+                integration: 'AI model versions', setting: 'model-check', checkedCount, failedCount, reason,
             },
         });
-        return { skipped: outcome.skipped ? 'running' : null, checkedCount, ...(await readVersions()) };
+        return { skipped: outcome.skipped ? 'running' : null, checkedCount, failedCount, ...(await readVersions()) };
     } catch (error) {
         return safeFailure(error, 'checkAiModelVersionsNow');
     }

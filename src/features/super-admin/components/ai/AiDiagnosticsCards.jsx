@@ -23,6 +23,7 @@ import { AiModelVersionsCard } from './AiModelVersionsCard';
 
 export function AiDiagnosticsCards({
     runGuarded,
+    onVersionsChanged,
     pinDiagnosis,
     diagnosingPins,
     handleDiagnosePins,
@@ -32,7 +33,7 @@ export function AiDiagnosticsCards({
 }) {
     return (
         <>
-            <AiModelVersionsCard runGuarded={runGuarded} />
+            <AiModelVersionsCard runGuarded={runGuarded} onVersionsChanged={onVersionsChanged} />
 
             {/* Model pins, reconciled against each vendor's live catalogue.
                 A pin is only a string until a request is made with it, so this

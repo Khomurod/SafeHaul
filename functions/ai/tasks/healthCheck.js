@@ -452,7 +452,14 @@ async function testProviderConnection(providerId, deps = {}) {
     await store.recordTestResult(provider.id, result);
     // An operator testing after an outage means "use it again": a full pass ends
     // its cooldowns and version rests, as enabling it does. Anything less leaves them.
-    if (success) await store.clearCooldown(provider.id).catch(() => {});
+    if (success) {
+        const cleared = await store.clearCooldown(provider.id).then(() => true, (error) => {
+            console.error(`[ai/healthCheck] ${provider.id}: cooldown not cleared: ${error?.message || 'unknown error'}`);
+            return false;
+        });
+        // The pass stands, but not the promise that it puts the provider back in use.
+        if (!cleared) result.message += ' Any pause on it could not be lifted, so it ends on its own.';
+    }
     return result;
 }
 

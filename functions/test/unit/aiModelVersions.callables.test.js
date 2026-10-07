@@ -94,6 +94,8 @@ beforeEach(() => {
     })));
     mockStore.resolveCredentials.mockImplementation(async (id) => {
         if (id === 'openrouter') throw new Error('PERMISSION_DENIED projects/x/secrets/SAFEHAUL_AI_OPENROUTER_APIKEY');
+        // Saved, but this runtime may not read it.
+        if (id === 'sambanova') return { complete: false, values: {}, unreadable: ['apiKey'] };
         return ['gemini', 'mistral', 'cerebras'].includes(id)
             ? { complete: true, values: { apiKey: KEY_VALUE }, unreadable: [] }
             : { complete: false, values: {}, unreadable: [] };
@@ -152,8 +154,10 @@ describe('getAiModelVersions', () => {
 
         expect(row(result, 'mistral').state).toBe('off');
         expect(row(result, 'groq').state).toBe('not_set_up');
-        // A credential read that throws is "not set up" for this row, not a failed table.
-        expect(row(result, 'openrouter').state).toBe('not_set_up');
+        // A saved key this runtime cannot read needs a grant, not a new key, as in the provider list.
+        expect(row(result, 'sambanova').state).toBe('key_unreadable');
+        // A credential read that throws is that, for this row, not a failed table.
+        expect(row(result, 'openrouter').state).toBe('key_unreadable');
     });
 
     it('shows only the lanes a provider serves', async () => {
@@ -172,10 +176,19 @@ describe('getAiModelVersions', () => {
     });
 
     it('lets a stored record cross only through the allowlist', async () => {
+        mockRefresh.readCheckState.mockResolvedValue({ autoSelect: false, running: false, lastRunAt: CHECKED_AT });
+
         const cerebras = row(await aiCallables.getAiModelVersions(request()), 'cerebras');
 
         expect(cerebras).toMatchObject({ checkedAt: null, reason: null, account: null });
         expect(lane(cerebras, 'text')).toMatchObject({ status: null, suggested: ['llama-x'] });
+    });
+
+    it('shows a suggestion only while auto-select is off', async () => {
+        // Recorded while it was off; it is not a suggestion once the check applies what it finds.
+        const cerebras = row(await aiCallables.getAiModelVersions(request()), 'cerebras');
+
+        expect(lane(cerebras, 'text').suggested).toBeNull();
     });
 
     it('never returns a credential value or a vendor resource name', async () => {
@@ -201,17 +214,24 @@ describe('checkAiModelVersionsNow', () => {
         expect(mockHandlers.get(aiCallables.checkAiModelVersionsNow)).toMatchObject({ timeoutSeconds: 180 });
         // The last test starts by the budget and ends within its own 25 s, leaving room to save and send.
         expect(CHECK_NOW_BUDGET_MS + 25 * 1000).toBeLessThan(160 * 1000);
-        expect(result).toMatchObject({ skipped: null, checkedCount: 2, autoSelect: true });
+        expect(result).toMatchObject({ skipped: null, checkedCount: 2, failedCount: 0, autoSelect: true });
         expect(result.providers.length).toBeGreaterThan(0);
         expect(mockAudit).toHaveBeenCalledWith(expect.objectContaining({
-            action: ACTIONS.UPDATE, result: RESULTS.SUCCESS, metadata: expect.objectContaining({ setting: 'model-check', checkedCount: 2 }),
+            action: ACTIONS.UPDATE,
+            result: RESULTS.SUCCESS,
+            metadata: expect.objectContaining({ setting: 'model-check', checkedCount: 2, failedCount: 0, reason: null }),
         }));
     });
 
-    it('does not count a provider whose check threw as checked', async () => {
+    it('reports a provider whose check threw as failed, not as checked', async () => {
         mockRefresh.runModelRefresh.mockResolvedValue({ checked: ['gemini=error', 'mistral=vision:ok,text:ok'], errors: 1, delivered: true });
 
-        await expect(aiCallables.checkAiModelVersionsNow(request())).resolves.toMatchObject({ checkedCount: 1 });
+        const result = await aiCallables.checkAiModelVersionsNow(request());
+
+        expect(result).toMatchObject({ skipped: null, checkedCount: 1, failedCount: 1 });
+        expect(mockAudit).toHaveBeenCalledWith(expect.objectContaining({
+            result: RESULTS.FAILED, metadata: expect.objectContaining({ checkedCount: 1, failedCount: 1, reason: 'partial' }),
+        }));
     });
 
     it('says so when a scheduled run already holds the lease', async () => {
@@ -219,7 +239,7 @@ describe('checkAiModelVersionsNow', () => {
 
         const result = await aiCallables.checkAiModelVersionsNow(request());
 
-        expect(result).toMatchObject({ skipped: 'running', checkedCount: 0 });
+        expect(result).toMatchObject({ skipped: 'running', checkedCount: 0, failedCount: 0 });
         expect(mockAudit).toHaveBeenCalledWith(expect.objectContaining({
             result: RESULTS.FAILED, metadata: expect.objectContaining({ reason: 'already-running' }),
         }));

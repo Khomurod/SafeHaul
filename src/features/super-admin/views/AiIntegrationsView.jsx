@@ -461,6 +461,7 @@ export function AiIntegrationsView() {
 
             <AiDiagnosticsCards
                 runGuarded={runGuarded}
+                onVersionsChanged={load}
                 pinDiagnosis={pinDiagnosis}
                 diagnosingPins={diagnosingPins}
                 handleDiagnosePins={handleDiagnosePins}

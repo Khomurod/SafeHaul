@@ -23,6 +23,7 @@ import {
     reauthenticateWithCredential,
     renderView,
     resetHarness,
+    showError,
     showInfo,
     showSuccess,
     stubCallables,
@@ -50,6 +51,10 @@ const ROWS = [
     {
         id: 'cerebras', displayName: 'Cerebras', state: 'not_set_up', account: null, checkedAt: null, reason: null,
         lanes: [lane('text', ['llama-4-scout'])],
+    },
+    {
+        id: 'sambanova', displayName: 'SambaNova', state: 'key_unreadable', account: null, checkedAt: null, reason: null,
+        lanes: [lane('text', ['Meta-Llama-3.3-70B-Instruct'])],
     },
 ];
 
@@ -112,6 +117,12 @@ describe('the table', () => {
         const cerebras = within(rowFor('Cerebras'));
         expect(cerebras.getByText('Not set up')).toBeTruthy();
         expect(cerebras.getByText('Does not read photos.')).toBeTruthy();
+
+        // A saved key this server cannot read needs a grant, not a new key.
+        const sambanova = within(rowFor('SambaNova'));
+        expect(sambanova.getByText('Credential unreadable')).toBeTruthy();
+        expect(sambanova.getByText(/Run Check credential access below\./)).toBeTruthy();
+        expect(sambanova.queryByText('Not set up')).toBeNull();
     });
 
     it('offers a retry in the table when it could not load', async () => {
@@ -151,6 +162,40 @@ describe('Check versions now', () => {
         expect(callables.checkAiModelVersionsNow).toHaveBeenCalledTimes(1);
         expect(within(rowFor('Google Gemini')).getByText('Check now')).toBeTruthy();
         expect(showSuccess).toHaveBeenCalledWith('Checked 2 services. The table shows the versions in use now.');
+        // The provider rows and routing cards show the same lists, so they are read again.
+        await waitFor(() => expect(callables.listAiProviders).toHaveBeenCalledTimes(2));
+    });
+
+    it('says a service could not be checked rather than reporting a plain success', async () => {
+        stubCallables({
+            getAiModelVersions: vi.fn().mockResolvedValue({ data: versionsFor(ROWS) }),
+            checkAiModelVersionsNow: vi.fn().mockResolvedValue({ data: { ...versionsFor(ROWS), skipped: null, checkedCount: 1, failedCount: 1 } }),
+        });
+        await renderView();
+        await waitFor(() => expect(rowFor('Google Gemini')).toBeTruthy());
+
+        fireEvent.click(screen.getByRole('button', { name: 'Check versions now' }));
+
+        await waitFor(() => expect(showError).toHaveBeenCalledWith(
+            'Checked 1 service, but 1 service could not be checked. Try again in a few minutes.',
+        ));
+        expect(showSuccess).not.toHaveBeenCalled();
+        await waitFor(() => expect(callables.listAiProviders).toHaveBeenCalledTimes(2));
+    });
+
+    it('says the check failed when no service could be checked because of it', async () => {
+        stubCallables({
+            getAiModelVersions: vi.fn().mockResolvedValue({ data: versionsFor(ROWS) }),
+            checkAiModelVersionsNow: vi.fn().mockResolvedValue({ data: { ...versionsFor(ROWS), skipped: null, checkedCount: 0, failedCount: 2 } }),
+        });
+        await renderView();
+        await waitFor(() => expect(rowFor('Google Gemini')).toBeTruthy());
+
+        fireEvent.click(screen.getByRole('button', { name: 'Check versions now' }));
+
+        await waitFor(() => expect(showError).toHaveBeenCalledWith('The check failed for 2 services. Try again in a few minutes.'));
+        // Not the "turn it on and add its key" answer, which is about services the check skips.
+        expect(showInfo).not.toHaveBeenCalledWith(expect.stringMatching(/^No service could be checked/));
     });
 
     it('says so when a scheduled check is already running', async () => {
@@ -166,6 +211,8 @@ describe('Check versions now', () => {
         await waitFor(() => expect(showInfo).toHaveBeenCalledWith('A check is already running. Try again in a few minutes.'));
         expect(showSuccess).not.toHaveBeenCalled();
         expect(screen.getByText(/A check is running now\./)).toBeTruthy();
+        // Nothing ran, so nothing above changed.
+        expect(callables.listAiProviders).toHaveBeenCalledTimes(1);
     });
 
     it('asks for the password on a stale session, then runs the check once', async () => {

@@ -31,6 +31,7 @@ describe('the model versions table\'s words', () => {
     it('says why a service is not checked before what its account answered', () => {
         expect(describeServiceState({ state: 'off', account: 'key' })).toMatchObject({ label: 'Off' });
         expect(describeServiceState({ state: 'not_set_up', account: null })).toMatchObject({ label: 'Not set up' });
+        expect(describeServiceState({ state: 'key_unreadable', account: 'key' })).toMatchObject({ tone: 'danger', label: 'Credential unreadable' });
         expect(describeServiceState({ state: 'ready', account: 'key' })).toMatchObject({ tone: 'danger', label: 'Key refused' });
         expect(describeServiceState({ state: 'ready', account: 'quota' })).toMatchObject({ tone: 'danger', label: 'Allowance used up' });
         expect(describeServiceState({ state: 'ready', account: null })).toEqual({ tone: 'success', label: 'On', note: null });

@@ -6,7 +6,9 @@
  * own table and is the only place that changes it. The two actions that can
  * change what the router uses, "Check versions now" and the auto-select switch,
  * go through the view's `runGuarded`, so a stale session is answered with the
- * same re-authentication prompt as every other change on this screen.
+ * same re-authentication prompt as every other change on this screen. A check
+ * that ran tells the view (`onVersionsChanged`), whose provider rows and routing
+ * cards show the same lists.
  *
  * Every version shown is what the router uses now, not what the check last
  * recorded, so the table cannot describe a list nothing is using.
@@ -115,7 +117,9 @@ const COLUMNS = Object.freeze([
     },
 ]);
 
-export function AiModelVersionsCard({ runGuarded }) {
+const services = (count) => `${count} service${count === 1 ? '' : 's'}`;
+
+export function AiModelVersionsCard({ runGuarded, onVersionsChanged }) {
     const { showSuccess, showError, showInfo } = useToast();
     const headingId = useId();
     const hintId = useId();
@@ -148,10 +152,18 @@ export function AiModelVersionsCard({ runGuarded }) {
             setVersions(result);
             if (result.skipped === 'running') {
                 showInfo('A check is already running. Try again in a few minutes.');
+                return;
+            }
+            onVersionsChanged?.();
+            const failed = result.failedCount || 0;
+            if (failed > 0) {
+                showError(result.checkedCount > 0
+                    ? `Checked ${services(result.checkedCount)}, but ${services(failed)} could not be checked. Try again in a few minutes.`
+                    : `The check failed for ${services(failed)}. Try again in a few minutes.`);
             } else if (result.checkedCount === 0) {
                 showInfo('No service could be checked: a service is checked once it is on and has its key.');
             } else {
-                showSuccess(`Checked ${result.checkedCount} service${result.checkedCount === 1 ? '' : 's'}. The table shows the versions in use now.`);
+                showSuccess(`Checked ${services(result.checkedCount)}. The table shows the versions in use now.`);
             }
         } catch (error) {
             if (isReauthCancelled(error)) return;
@@ -159,7 +171,7 @@ export function AiModelVersionsCard({ runGuarded }) {
         } finally {
             setChecking(false);
         }
-    }, [runGuarded, showError, showInfo, showSuccess]);
+    }, [onVersionsChanged, runGuarded, showError, showInfo, showSuccess]);
 
     const handleAutoSelect = useCallback(async (enabled) => {
         setSwitching(true);

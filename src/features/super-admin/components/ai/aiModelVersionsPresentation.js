@@ -40,6 +40,10 @@ export function describeVersionResult(result) {
 /** The service as a whole: whether the check runs for it, and what its account last answered. */
 export function describeServiceState(row) {
     if (row.state === 'off') return { tone: 'neutral', label: 'Off', note: 'Not checked while it is off.' };
+    // Before "not set up": a saved key this server may not read needs a grant, not a new key.
+    if (row.state === 'key_unreadable') {
+        return { tone: 'danger', label: 'Credential unreadable', note: 'Its key is saved but cannot be read here. Run Check credential access below.' };
+    }
     if (row.state === 'not_set_up') return { tone: 'neutral', label: 'Not set up', note: 'Checked once its key is added.' };
     if (row.account === 'key') return { tone: 'danger', label: 'Key refused', note: 'Replace its key in the table above.' };
     if (row.account === 'quota') {
