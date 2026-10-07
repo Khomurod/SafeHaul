@@ -86,6 +86,15 @@ describe('when a provider is due', () => {
         expect(dueReason({ ...failing, modelCheck: { fullCheckAt: at(10), checkedAt: at(2) } }, DAY)).toBeNull();
         expect(dueReason({ laneHealth: { vision: 'healthy' }, modelCheck: { fullCheckAt: at(10), checkedAt: at(7) } }, DAY)).toBeNull();
     });
+
+    it('within the hour of a failure that began after the last check, however recent that check', () => {
+        const check = { fullCheckAt: at(2), checkedAt: at(2) };
+        // 03:25 check, 04:00 failure: looked at by the next run, not at 09:25.
+        const began = (hoursAgo) => ({ laneHealth: { vision: 'degraded' }, laneFailedAt: { vision: DAY - hoursAgo * HOUR } });
+        expect(dueReason({ ...began(1), modelCheck: check }, DAY)).toBe('failing');
+        // One the last check already saw waits out the 6 hours.
+        expect(dueReason({ ...began(3), modelCheck: check }, DAY)).toBeNull();
+    });
 });
 
 describe('which providers it checks', () => {
@@ -186,8 +195,9 @@ describe('what it tells the owner', () => {
         expect(mockSave.mock.calls[0][1].modelCheck.notified).toMatchObject({ vision: 'failing' });
 
         // The next run finds it still failing: no second message.
+        const { notified } = mockSave.mock.calls[0][1].modelCheck;
         mockSend.mockClear();
-        mockStore.readAllConfigs.mockResolvedValue(configs({ gemini: { enabled: true, ...checkedLongAgo, modelCheck: { ...checkedLongAgo.modelCheck, notified: { vision: 'failing' } } } }));
+        mockStore.readAllConfigs.mockResolvedValue(configs({ gemini: { enabled: true, ...checkedLongAgo, modelCheck: { ...checkedLongAgo.modelCheck, notified } } }));
         await runModelRefresh({ now: DAY });
         expect(mockSend).not.toHaveBeenCalled();
     });
@@ -214,6 +224,68 @@ describe('what it tells the owner', () => {
         expect(mockSave).toHaveBeenCalledTimes(1);
         // Not told, so not marked as told.
         expect(mockSave.mock.calls[0][1].modelCheck.notified).toEqual({});
+    });
+
+    it('keeps a list change it could not send, and sends it with the next message', async () => {
+        const change = laneResult({ models: ['m1', 'm3'], changed: true, dropped: [{ model: 'm2', result: RESULT.GONE }], added: ['m3'] });
+        mockCheck.mockResolvedValue(checked({ vision: change }));
+        mockSend.mockRejectedValue(new Error('telegram down'));
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        await runModelRefresh({ now: DAY });
+
+        const kept = mockSave.mock.calls[0][1].modelCheck.pendingNews;
+        expect(kept).toEqual([expect.stringMatching(/^🔄 Google Gemini, чтение фото и документов: теперь m1, m3\./)]);
+
+        // The list is already saved, so the next check sees no change; the news still arrives.
+        mockSend.mockReset();
+        mockSend.mockResolvedValue(undefined);
+        mockSave.mockClear();
+        mockCheck.mockResolvedValue(checked({ vision: laneResult({ models: ['m1', 'm3'], previous: ['m1', 'm3'] }) }));
+        mockStore.readAllConfigs.mockResolvedValue(configs({ gemini: { enabled: true, ...checkedLongAgo, modelCheck: { ...checkedLongAgo.modelCheck, pendingNews: kept } } }));
+        await runModelRefresh({ now: DAY });
+
+        expect(mockSend.mock.calls[0][2]).toMatch(/теперь m1, m3\./);
+        expect(mockSave.mock.calls[0][1].modelCheck.pendingNews).toEqual([]);
+        console.error.mockRestore();
+    });
+
+    it('tells a newly connected chat what is still wrong, though an earlier chat was told', async () => {
+        mockSettings.readSettings.mockResolvedValue({ telegram: { chatId: 333, connectedAt: '2026-10-08T15:00:00.000Z' } });
+        mockCheck.mockResolvedValue(checked({ vision: laneResult() }, { account: RESULT.KEY }));
+        mockStore.readAllConfigs.mockResolvedValue(configs({ gemini: {
+            enabled: true,
+            ...checkedLongAgo,
+            modelCheck: { ...checkedLongAgo.modelCheck, notified: { account: RESULT.KEY, text: 'failing', destination: '2026-10-01T00:00:00.000Z' } },
+        } }));
+
+        await runModelRefresh({ now: DAY });
+
+        expect(mockSend.mock.calls[0][1]).toBe(333);
+        expect(mockSend.mock.calls[0][2]).toMatch(/ключ не принимается/);
+        // Every key is written, so the merge cannot keep what the old chat was told.
+        expect(mockSave.mock.calls[0][1].modelCheck.notified).toEqual({
+            account: RESULT.KEY, text: 'ok', destination: '2026-10-08T15:00:00.000Z',
+        });
+    });
+
+    it('loses only the message when the settings or the bot token cannot be read: what the check found is saved', async () => {
+        mockSettings.readBotToken.mockRejectedValue(Object.assign(new Error('unavailable'), { code: 14 }));
+        mockCheck.mockResolvedValue(checked({ vision: laneResult({ status: 'failing' }) }));
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        const outcome = await runModelRefresh({ now: DAY });
+
+        expect(outcome.delivered).toBe(false);
+        expect(mockSave).toHaveBeenCalledTimes(1);
+        expect(mockSave.mock.calls[0][1].modelCheck).toMatchObject({ lanes: { vision: { status: 'failing' } }, notified: {} });
+        expect(console.error.mock.calls[0][0]).toBe('[ops/modelRefresh] delivery failed code=14');
+
+        mockSave.mockClear();
+        mockSettings.readSettings.mockRejectedValue(Object.assign(new Error('unavailable'), { code: 14 }));
+        await expect(runModelRefresh({ now: DAY })).resolves.toMatchObject({ delivered: false });
+        expect(mockSave).toHaveBeenCalledTimes(1);
+        console.error.mockRestore();
     });
 });
 

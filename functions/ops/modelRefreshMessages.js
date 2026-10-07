@@ -3,12 +3,14 @@
  *
  * Two kinds of news:
  *
- * - **A list changed**: told once, when it happens. Nothing to do.
+ * - **A list changed**: told once, when it happens. Nothing to do. If it could
+ *   not be sent, the job keeps it (`pendingNews`) and sends it with the
+ *   provider's next check.
  * - **A state changed**: a lane stopped passing or passed again, or the account
  *   (key, allowance) went wrong or right again. Told on the change only, against
  *   what the owner was last told (`modelCheck.notified`), so a provider failing
- *   all day is one message, not twenty-four. When the owner must act, the
- *   message says what to do.
+ *   all day is one message, not twenty-four. A newly connected chat hears what
+ *   is still wrong. When the owner must act, the message says what to do.
  *
  * Provider names come from the registry and models from vendor catalogues;
  * nothing a person typed reaches a message.
@@ -46,10 +48,12 @@ function laneState(status) {
  * @param {string} params.name the provider's display name
  * @param {object} params.check what `checkProvider` returned
  * @param {object} params.notified what the owner was last told: `{ [lane]: 'ok'|'failing', account }`
- * @returns {{ lines: string[], notified: object }}
+ * @returns {{ lines: string[], notified: object, news: string[] }} `news`: the list changes among
+ *   `lines`, which no later check can see again, so they wait for delivery
  */
 function notesFor({ name, check, notified = {} }) {
     const lines = [];
+    const news = [];
     const told = { ...notified };
 
     const account = check.account || null;
@@ -73,6 +77,7 @@ function notesFor({ name, check, notified = {} }) {
                 parts.push(`Добавлена ${model}: прошла проверку на ${lane === LANES.VISION ? 'выдуманных правах' : 'тексте'}.`);
             }
             parts.push('Делать ничего не нужно.');
+            news.push(parts.join(' '));
             lines.push(parts.join(' '));
         } else if (result.suggested) {
             lines.push(`ℹ️ ${name}, ${words}: проверка предлагает ${result.suggested.join(', ')}, но автоподбор выключен. Включить: Super Admin → AI Integrations.`);
@@ -89,7 +94,7 @@ function notesFor({ name, check, notified = {} }) {
         }
         told[lane] = state;
     }
-    return { lines, notified: told };
+    return { lines, notified: told, news };
 }
 
 /** One message for a whole run, or null when there is no news. */

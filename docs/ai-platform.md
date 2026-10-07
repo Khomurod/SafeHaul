@@ -317,8 +317,9 @@ to a built-in one.
 `refreshAiModelLists` (`ops/modelRefresh.js`, every hour at :25 Chicago) keeps
 the saved lists true without a programmer. A provider is checked when it is
 due: daily at about 03:25 (and at any hour after 36 h), on the first run after
-it is set up, and within the hour once the router records a failure in one of
-its lanes (`laneHealth`), at most every 6 h. Only enabled, configured,
+it is set up, and within the hour of the router recording a new failure in one
+of its lanes (`laneHealth`, begun at `laneFailedAt`), then at most every 6 h
+while it lasts. Only enabled, configured,
 unretired providers, only the lanes they already serve, and never a lane an
 operator chose a model for by hand.
 
@@ -353,8 +354,10 @@ Results go to the provider's config: `modelLists.<lane>` when a list changed,
 and `modelCheck` (when, why, what each version did) for the console. The owner
 hears in Telegram when a list changed, when a lane stops or starts passing, and
 when a key or allowance fails, with what to do (`ops/modelRefreshMessages.js`).
-A state is told once, on the change. With no chat connected nothing is sent, and
-a lane or account still failing is told once a chat is connected.
+A state is told once, on the change, to the chat that heard it
+(`modelCheck.notified.destination`): a chat connected later hears what is still
+wrong. A list change that could not be sent waits in `modelCheck.pendingNews`
+and goes with the provider's next check. With no chat connected nothing is sent.
 
 The hourly watcher (`watchAiAndBlog`) runs whether or not a chat is connected:
 its probes go through the router, so a provider that fails them is recorded,

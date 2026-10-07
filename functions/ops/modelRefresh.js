@@ -8,9 +8,10 @@
  *
  * - **daily**, at about 03:25, and at any hour once 36 hours have passed;
  * - **first**, on the first run after a provider is set up;
- * - **failing**, when the router has recorded a failure in one of its lanes
- *   (`laneHealth`), at most every 6 hours: that is "at once when something
- *   breaks", whether a driver's request or the hourly watcher found it.
+ * - **failing**, within the hour of the router recording a new failure in one
+ *   of its lanes (`laneHealth`, begun at `laneFailedAt`), whether a driver's
+ *   request or the hourly watcher found it; then at most every 6 hours while
+ *   the failure lasts.
  *
  * Only enabled, configured, unretired providers, and only the lanes they already
  * serve: the check never adds a provider, enables one or changes the order.
@@ -58,8 +59,14 @@ function dueReason(config, now) {
     if (!Number.isFinite(lastFull)) return 'first';
     if (now - lastFull >= 36 * HOUR_MS) return 'daily';
     if (chicagoHour(now) === DAILY_HOUR && now - lastFull >= 20 * HOUR_MS) return 'daily';
-    const failing = Object.values(config.laneHealth || {}).some((health) => health && health !== 'healthy');
-    if (failing && (!Number.isFinite(lastAny) || now - lastAny >= 6 * HOUR_MS)) return 'failing';
+    const failing = Object.entries(config.laneHealth || {})
+        .filter(([, health]) => health && health !== 'healthy')
+        .map(([lane]) => lane);
+    if (failing.length === 0) return null;
+    // A failure that began after the last check is looked at within the hour; one
+    // that the last check already saw, at most every 6 hours while it lasts.
+    const newSinceCheck = failing.some((lane) => Number(config.laneFailedAt?.[lane]) > lastAny);
+    if (!Number.isFinite(lastAny) || newSinceCheck || now - lastAny >= 6 * HOUR_MS) return 'failing';
     return null;
 }
 
@@ -128,16 +135,48 @@ function recordFor({ check, reason, config }, { autoSelect, at }) {
     };
 }
 
-/** Sends the run's news, if a chat is connected. True when there was nothing to send, or it arrived. */
-async function deliver(lines, telegramDeps) {
+/** At most this many undelivered list changes are kept per provider for the next message. */
+const MAX_PENDING_NEWS = 4;
+
+/**
+ * The chat the owner is told in, read once per run: its id, and a key that
+ * changes when a chat is connected again. Null with none connected, or when the
+ * settings cannot be read: then nothing is sent and nothing is marked as told.
+ */
+async function readDestination() {
+    try {
+        const saved = await settings.readSettings();
+        const chatId = saved.telegram?.chatId;
+        if (chatId === undefined || chatId === null) return null;
+        return { chatId, key: String(saved.telegram.connectedAt || 'connected') };
+    } catch (error) {
+        console.error(`[ops/modelRefresh] settings read failed code=${error?.code || 'unknown'}`);
+        return null;
+    }
+}
+
+/**
+ * What this chat was last told. A chat connected since then starts from "all
+ * well", as the watcher's does, so it hears anything still wrong. Every key is
+ * kept, at its "all well" value, because the record is merged: a key left out
+ * would keep what an earlier chat was told.
+ */
+function toldTo(stored, destination) {
+    if ((stored.destination || null) === (destination?.key || null)) return stored;
+    return Object.fromEntries(Object.keys(stored)
+        .filter((key) => key !== 'destination')
+        .map((key) => [key, key === 'account' ? null : 'ok']));
+}
+
+/** Sends the run's news. True when there was nothing to send, or it arrived. */
+async function deliver(lines, destination, telegramDeps) {
     const text = composeMessage(lines);
     if (!text) return true;
-    const saved = await settings.readSettings();
-    const chatId = saved.telegram?.chatId;
-    const token = chatId === undefined || chatId === null ? null : await settings.readBotToken();
-    if (!token) return false;
+    if (!destination) return false;
     try {
-        await telegram.sendMessage(token, chatId, text, telegramDeps);
+        const token = await settings.readBotToken();
+        if (!token) return false;
+        await telegram.sendMessage(token, destination.chatId, text, telegramDeps);
         return true;
     } catch (error) {
         console.error(`[ops/modelRefresh] delivery failed code=${error?.code || 'unknown'}`);
@@ -173,6 +212,7 @@ async function runModelRefresh({ now = Date.now(), force = false, providerIds = 
         }));
 
         const at = new Date(now).toISOString();
+        const destination = await readDestination();
         const lines = [];
         const outcomes = [];
         for (const item of checked) {
@@ -181,23 +221,30 @@ async function runModelRefresh({ now = Date.now(), force = false, providerIds = 
                 continue;
             }
             const record = recordFor(item, { autoSelect: lease.autoSelect, at });
-            const told = item.config.modelCheck?.notified || {};
+            const stored = item.config.modelCheck?.notified || {};
+            const pending = (item.config.modelCheck?.pendingNews || []).filter((line) => typeof line === 'string');
             // A change is news only once applied; with auto-select off it is a suggestion.
             const lanes = Object.fromEntries(Object.entries(item.check.lanes).map(([lane, result]) => [lane, {
                 ...result,
                 changed: lease.autoSelect && Boolean(result.changed),
                 suggested: record.modelCheck.lanes[lane].suggested,
             }]));
-            const notes = notesFor({ name: item.provider.displayName, check: { account: item.check.account, lanes }, notified: told });
-            lines.push(...notes.lines);
-            outcomes.push({ item, record, told, notified: notes.notified });
+            const notes = notesFor({
+                name: item.provider.displayName,
+                check: { account: item.check.account, lanes },
+                notified: toldTo(stored, destination),
+            });
+            lines.push(...pending, ...notes.lines);
+            outcomes.push({ item, record, stored, pending, notes });
             summary.push(`${item.provider.id}=${Object.entries(item.check.lanes).map(([lane, result]) => `${lane}:${result.status}`).join(',') || item.check.account || 'none'}`);
         }
 
-        const delivered = await deliver(lines, deps.telegramDeps);
-        for (const { item, record, told, notified } of outcomes) {
-            // Not told, so not changed: the next run sees the same news and tries again.
-            record.modelCheck.notified = delivered ? notified : told;
+        const delivered = await deliver(lines, destination, deps.telegramDeps);
+        for (const { item, record, stored, pending, notes } of outcomes) {
+            // Not told, so not marked as told: the next check sees the same states
+            // and tries again. A list change it cannot see again waits in `pendingNews`.
+            record.modelCheck.notified = delivered ? { ...notes.notified, destination: destination?.key || null } : stored;
+            record.modelCheck.pendingNews = delivered ? [] : [...pending, ...notes.news].slice(-MAX_PENDING_NEWS);
             await saveModelCheck(item.provider.id, record);
         }
         return { checked: summary, delivered, messageLines: lines.length };
