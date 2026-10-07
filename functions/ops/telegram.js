@@ -90,27 +90,62 @@ function chatTitle(chat) {
 }
 
 /**
- * The chat that sent `/start <code>`, or null.
+ * The newest hundred updates, or none while another request is reading them.
+ *
+ * Telegram keeps undelivered updates for 24 hours and, by default, answers with
+ * the oldest; a negative offset asks for the newest hundred instead (and forgets
+ * the rest, which nothing else reads). It answers 409 both when a webhook is set
+ * and when another `getUpdates` is still running, as when two pages check at
+ * once, so the webhook is asked about before the bot is called another
+ * service's.
+ */
+async function latestUpdates(token, deps) {
+    try {
+        const updates = await callTelegram(token, 'getUpdates', { offset: -100, limit: 100, allowed_updates: ['message'] }, deps);
+        return Array.isArray(updates) ? updates : [];
+    } catch (error) {
+        if (error?.code !== 'webhook_set') throw error;
+        const webhook = await callTelegram(token, 'getWebhookInfo', {}, deps);
+        if (webhook?.url) throw error;
+        return [];
+    }
+}
+
+/**
+ * What the bot heard about a one-time Start link: the chat that pressed Start on
+ * it while it was valid, and whether a Start without it arrived after it was
+ * handed out.
  *
  * The code comes from a one-time link the console hands the person connecting
  * (`t.me/<bot>?start=<code>`), so nobody else who writes to the bot, however
- * often, is connected in their place. Telegram keeps undelivered updates for 24
- * hours and, by default, answers with the oldest; a negative offset asks for the
- * newest hundred instead (and forgets the rest, which nothing else reads).
+ * often, is connected in their place. A Start counts by when it was pressed,
+ * not by when the console asks, so a person who pressed it in time is
+ * connected even if the page asks later. Telegram shows the person only
+ * "/start" either way, so a Start without the code (the bot opened from search,
+ * "/start" typed, an older link) is reported rather than silently ignored.
+ *
+ * @param {string} token
+ * @param {{ code: string, createdAt: number, expiresAt: number }} link times in ms
+ * @returns {Promise<{ chat: ({ id: (number|string), title: string }|null), strayStart: boolean }>}
  */
-async function chatThatStarted(token, code, deps) {
-    if (!code) return null;
-    const updates = await callTelegram(token, 'getUpdates', { offset: -100, limit: 100, allowed_updates: ['message'] }, deps);
-    const started = (Array.isArray(updates) ? updates : [])
-        .map((update) => update?.message)
-        .filter((message) => {
-            const [command, payload, extra] = String(message?.text || '').trim().split(/\s+/);
-            const chatId = message?.chat?.id;
-            return /^\/start(?:@\w+)?$/.test(command) && payload === code && extra === undefined
-                && (typeof chatId === 'number' || typeof chatId === 'string');
-        });
-    const message = started[started.length - 1];
-    return message ? { id: message.chat.id, title: chatTitle(message.chat) } : null;
+async function startsOnLink(token, link, deps) {
+    if (!link?.code) return { chat: null, strayStart: false };
+    let chat = null;
+    let strayStart = false;
+    for (const update of await latestUpdates(token, deps)) {
+        const message = update?.message;
+        const [command, payload, extra] = String(message?.text || '').trim().split(/\s+/);
+        if (!/^\/start(?:@\w+)?$/.test(command)) continue;
+        // Telegram dates a message in whole seconds.
+        const sentAt = Number.isFinite(message?.date) ? message.date * 1000 : Date.now();
+        const chatId = message?.chat?.id;
+        if (payload === link.code && extra === undefined && (typeof chatId === 'number' || typeof chatId === 'string')) {
+            if (sentAt <= link.expiresAt) chat = { id: chatId, title: chatTitle(message.chat) };
+        } else if (sentAt >= link.createdAt) {
+            strayStart = true;
+        }
+    }
+    return { chat, strayStart };
 }
 
 async function sendMessage(token, chatId, text, deps) {
@@ -127,6 +162,6 @@ module.exports = {
     TelegramError,
     callTelegram,
     getBot,
-    chatThatStarted,
+    startsOnLink,
     sendMessage,
 };

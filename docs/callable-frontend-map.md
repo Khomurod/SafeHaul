@@ -21,7 +21,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `cancelBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Stop bulk campaign |
 | `checkImportPhones` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | CSV import phone dedup check |
 | `connectFacebookPage` | [`IntegrationsTab.jsx`](../src/features/settings/components/IntegrationsTab.jsx) | Facebook Lead Ads OAuth |
-| `connectPlatformAlertChat` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: a one-time Start link to the alert bot, then the Telegram chat that used it |
+| `connectPlatformAlertChat` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: a one-time Start link to the alert bot, then the Telegram chat that used it; the page asks by itself (`checkOnly`) while the link waits |
 | `createPortalUser` | [`CreateView.jsx`](../src/features/super-admin/components/CreateView.jsx), [`TeamManagementTab.jsx`](../src/features/settings/components/TeamManagementTab.jsx), [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Provision HR/recruiter/company user |
 | `createPostApplicationSigningRequest` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Post-submit e-doc envelope |
 | `createChangeReview` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Mint a token link for the driver to review company edits |

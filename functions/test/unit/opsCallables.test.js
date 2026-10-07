@@ -32,17 +32,18 @@ const mockSettings = {
     writeBotToken: jest.fn(),
     destroyBotToken: jest.fn(),
     replaceSettings: jest.fn(),
+    replaceSettingsIf: jest.fn(),
 };
 jest.mock('../../ops/alertSettings', () => mockSettings);
 
-const mockTelegram = { getBot: jest.fn(), chatThatStarted: jest.fn(), sendMessage: jest.fn() };
+const mockTelegram = { getBot: jest.fn(), startsOnLink: jest.fn(), sendMessage: jest.fn() };
 jest.mock('../../ops/telegram', () => {
     const actual = jest.requireActual('../../ops/telegram');
     return {
         TOKEN_PATTERN: actual.TOKEN_PATTERN,
         TelegramError: actual.TelegramError,
         getBot: (...args) => mockTelegram.getBot(...args),
-        chatThatStarted: (...args) => mockTelegram.chatThatStarted(...args),
+        startsOnLink: (...args) => mockTelegram.startsOnLink(...args),
         sendMessage: (...args) => mockTelegram.sendMessage(...args),
     };
 });
@@ -65,8 +66,16 @@ beforeEach(() => {
     mockSettings.writeBotToken.mockResolvedValue({ secretId: 'SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN', valueLength: TOKEN.length });
     mockSettings.destroyBotToken.mockResolvedValue({ secretId: 'SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN', destroyed: 1 });
     mockSettings.replaceSettings.mockResolvedValue(undefined);
+    // The transaction, played against what `readSettings` holds; a write it makes
+    // lands in `replaceSettings`, so every test reads one record of what was saved.
+    mockSettings.replaceSettingsIf.mockImplementation(async (stillCurrent, buildPatch) => {
+        const stored = await mockSettings.readSettings();
+        if (!stillCurrent(stored)) return false;
+        await mockSettings.replaceSettings(buildPatch(stored));
+        return true;
+    });
     mockTelegram.getBot.mockResolvedValue({ username: 'safehaul_alerts_bot', id: 1 });
-    mockTelegram.chatThatStarted.mockResolvedValue({ id: 222, title: 'Dana Alvarez' });
+    mockTelegram.startsOnLink.mockResolvedValue({ chat: { id: 222, title: 'Dana Alvarez' }, strayStart: false });
     mockTelegram.sendMessage.mockResolvedValue(undefined);
 });
 
@@ -116,9 +125,12 @@ describe('saving the bot token', () => {
 });
 
 describe('connecting the chat', () => {
-    const LATER = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    const EARLIER = new Date(Date.now() - 60 * 1000).toISOString();
+    const MINUTE = 60 * 1000;
+    const LATER = new Date(Date.now() + 10 * MINUTE).toISOString();
+    const EARLIER = new Date(Date.now() - MINUTE).toISOString();
     const withPending = (pendingStart) => ({ telegram: { botUsername: 'safehaul_alerts_bot', pendingStart } });
+    const NOT_YET = { chat: null, strayStart: false };
+    const CHECK = () => REQUEST({ checkOnly: true });
 
     beforeEach(() => {
         mockSettings.readBotToken.mockResolvedValue(TOKEN);
@@ -133,20 +145,24 @@ describe('connecting the chat', () => {
     it('first hands out a one-time Start link, and connects nobody yet', async () => {
         const response = await callables.connectPlatformAlertChat(REQUEST());
 
-        const { code, expiresAt } = mockSettings.replaceSettings.mock.calls[0][0].telegram.pendingStart;
+        const { code, createdAt, expiresAt } = mockSettings.replaceSettings.mock.calls[0][0].telegram.pendingStart;
         expect(code).toMatch(/^[A-Za-z0-9_-]{16,64}$/);
         expect(Date.parse(expiresAt)).toBeGreaterThan(Date.now());
+        expect(Date.parse(expiresAt) - Date.parse(createdAt)).toBe(15 * MINUTE);
         expect(response).toEqual({ pending: { link: `https://t.me/safehaul_alerts_bot?start=${code}`, expiresAt } });
-        expect(mockTelegram.chatThatStarted).not.toHaveBeenCalled();
+        expect(mockTelegram.startsOnLink).not.toHaveBeenCalled();
         expect(mockTelegram.sendMessage).not.toHaveBeenCalled();
     });
 
     it('connects only the chat that pressed Start on that link, and returns its name, not its id', async () => {
-        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+        const createdAt = new Date(Date.now() - 5 * MINUTE).toISOString();
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', createdAt, expiresAt: LATER }));
 
         const response = await callables.connectPlatformAlertChat(REQUEST());
 
-        expect(mockTelegram.chatThatStarted).toHaveBeenCalledWith(TOKEN, 'CODE123');
+        expect(mockTelegram.startsOnLink).toHaveBeenCalledWith(TOKEN, {
+            code: 'CODE123', createdAt: Date.parse(createdAt), expiresAt: Date.parse(LATER),
+        });
         expect(mockTelegram.sendMessage).toHaveBeenCalledWith(TOKEN, 222, expect.stringMatching(/уведомления подключены/));
         const [patch] = mockSettings.replaceSettings.mock.calls[0];
         expect(patch.telegram).toEqual({
@@ -157,9 +173,20 @@ describe('connecting the chat', () => {
         expect(response).toEqual({ chat: { title: 'Dana Alvarez' } });
     });
 
+    it('dates a link saved before links carried their start from its expiry', async () => {
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+        mockTelegram.startsOnLink.mockResolvedValue(NOT_YET);
+
+        await callables.connectPlatformAlertChat(REQUEST());
+
+        expect(mockTelegram.startsOnLink).toHaveBeenCalledWith(TOKEN, {
+            code: 'CODE123', createdAt: Date.parse(LATER) - 15 * MINUTE, expiresAt: Date.parse(LATER),
+        });
+    });
+
     it('keeps the same link while nobody has pressed Start on it', async () => {
         mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
-        mockTelegram.chatThatStarted.mockResolvedValue(null);
+        mockTelegram.startsOnLink.mockResolvedValue(NOT_YET);
 
         await expect(callables.connectPlatformAlertChat(REQUEST())).resolves.toEqual({
             pending: { link: 'https://t.me/safehaul_alerts_bot?start=CODE123', expiresAt: LATER },
@@ -167,13 +194,134 @@ describe('connecting the chat', () => {
         expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
     });
 
-    it('hands out a new link once the old one has expired', async () => {
+    it('says when Telegram heard a Start without the link\'s code', async () => {
+        // The bot opened from search, or "/start" typed: Telegram shows the person "/start" either way.
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+        mockTelegram.startsOnLink.mockResolvedValue({ chat: null, strayStart: true });
+
+        await expect(callables.connectPlatformAlertChat(REQUEST())).resolves.toEqual({
+            pending: { link: 'https://t.me/safehaul_alerts_bot?start=CODE123', expiresAt: LATER },
+            strayStart: true,
+        });
+    });
+
+    it('connects a chat that pressed Start in time, even when asked after the link expired', async () => {
+        // Start pressed at minute 14, the page asked at minute 16: the person did everything right.
         mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: EARLIER }));
 
         const response = await callables.connectPlatformAlertChat(REQUEST());
 
-        expect(mockTelegram.chatThatStarted).not.toHaveBeenCalled();
+        expect(mockTelegram.startsOnLink).toHaveBeenCalledWith(TOKEN, expect.objectContaining({ code: 'CODE123' }));
+        expect(response).toEqual({ chat: { title: 'Dana Alvarez' } });
+        expect(mockSettings.replaceSettings.mock.calls[0][0].telegram).not.toHaveProperty('pendingStart');
+    });
+
+    it('hands out a new link once the old one expired with no Start on it in time', async () => {
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: EARLIER }));
+        mockTelegram.startsOnLink.mockResolvedValue(NOT_YET);
+
+        const response = await callables.connectPlatformAlertChat(REQUEST());
+
         expect(response.pending.link).not.toContain('CODE123');
+        expect(mockTelegram.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('does not look for a Start older than Telegram keeps updates', async () => {
+        const dayAgo = new Date(Date.now() - 25 * 60 * MINUTE).toISOString();
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: dayAgo }));
+
+        const response = await callables.connectPlatformAlertChat(REQUEST());
+
+        expect(mockTelegram.startsOnLink).not.toHaveBeenCalled();
+        expect(response.pending.link).not.toContain('CODE123');
+    });
+
+    describe('when the page checks by itself', () => {
+        it('needs no recent sign-in and spends a budget of its own, not the console\'s', async () => {
+            mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+            mockTelegram.startsOnLink.mockResolvedValue(NOT_YET);
+
+            await expect(callables.connectPlatformAlertChat(CHECK())).resolves.toEqual({
+                pending: { link: 'https://t.me/safehaul_alerts_bot?start=CODE123', expiresAt: LATER },
+            });
+            expect(mockGuards.guardPrivileged).not.toHaveBeenCalled();
+            expect(mockGuards.assertSuperAdmin).toHaveBeenCalledWith(expect.anything(), 'update', expect.any(Object));
+            expect(mockGuards.assertWithinRateLimit)
+                .toHaveBeenCalledWith(expect.anything(), 'list', 'update', expect.any(Object), 'telegram-start');
+        });
+
+        it('checks the caller before reading anything', async () => {
+            mockGuards.assertSuperAdmin.mockRejectedValue(Object.assign(new Error('denied'), { code: 'permission-denied' }));
+
+            await expect(callables.connectPlatformAlertChat(CHECK())).rejects.toThrow('denied');
+            expect(mockSettings.readSettings).not.toHaveBeenCalled();
+            expect(mockTelegram.startsOnLink).not.toHaveBeenCalled();
+        });
+
+        it('connects the chat once Start was pressed on the link', async () => {
+            mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+
+            await expect(callables.connectPlatformAlertChat(CHECK())).resolves.toEqual({ chat: { title: 'Dana Alvarez' } });
+            expect(mockTelegram.sendMessage).toHaveBeenCalledTimes(1);
+            expect(mockRecordAuditEvent).toHaveBeenCalledWith(expect.objectContaining({ action: 'update' }));
+        });
+
+        it('never hands out a link: an expired one with no Start in time just ends the wait', async () => {
+            mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: EARLIER }));
+            mockTelegram.startsOnLink.mockResolvedValue(NOT_YET);
+
+            await expect(callables.connectPlatformAlertChat(CHECK())).resolves.toEqual({ pending: null });
+            mockSettings.readSettings.mockResolvedValue({ telegram: { botUsername: 'safehaul_alerts_bot' } });
+            await expect(callables.connectPlatformAlertChat(CHECK())).resolves.toEqual({ pending: null });
+            expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('when the settings change while a chat connects', () => {
+        const CHANGED = /settings changed while the chat was connecting/;
+
+        it('neither messages nor saves a chat once the link is no longer the stored one', async () => {
+            // Read before the operator pressed Remove; checked again before the message.
+            mockSettings.readSettings
+                .mockResolvedValueOnce(withPending({ code: 'CODE123', expiresAt: LATER }))
+                .mockResolvedValue({ telegram: {} });
+
+            await expect(callables.connectPlatformAlertChat(CHECK())).rejects.toMatchObject({
+                code: 'failed-precondition', message: expect.stringMatching(CHANGED),
+            });
+            expect(mockTelegram.sendMessage).not.toHaveBeenCalled();
+            expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+        });
+
+        it('does not write a stale connection over a token replaced during the message', async () => {
+            mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+            // The transaction finds the replacement bot, with no link waiting.
+            mockSettings.replaceSettingsIf.mockImplementation(async (stillCurrent) => (
+                stillCurrent({ telegram: { botUsername: 'replacement_bot', tokenSavedAt: 'now' } })
+            ));
+
+            await expect(callables.connectPlatformAlertChat(REQUEST())).rejects.toMatchObject({
+                message: expect.stringMatching(CHANGED),
+            });
+            expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+            expect(mockRecordAuditEvent).not.toHaveBeenCalled();
+        });
+
+        it('builds the saved connection from what the transaction read', async () => {
+            mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+            mockSettings.replaceSettingsIf.mockImplementation(async (stillCurrent, buildPatch) => {
+                const stored = { telegram: { botUsername: 'safehaul_alerts_bot', tokenSavedAt: 'stored', pendingStart: { code: 'CODE123' } } };
+                if (!stillCurrent(stored)) return false;
+                await mockSettings.replaceSettings(buildPatch(stored));
+                return true;
+            });
+
+            await callables.connectPlatformAlertChat(REQUEST());
+
+            expect(mockSettings.replaceSettings.mock.calls[0][0].telegram).toEqual({
+                botUsername: 'safehaul_alerts_bot', tokenSavedAt: 'stored', chatId: 222, chatTitle: 'Dana Alvarez', connectedAt: expect.any(String),
+            });
+        });
     });
 
     it('does not save a chat the bot could not write to', async () => {

@@ -40,8 +40,13 @@ export async function savePlatformAlertToken(token) {
     return (await httpsCallable(functions, 'savePlatformAlertToken')({ token })).data;
 }
 
-export async function connectPlatformAlertChat() {
-    return (await httpsCallable(functions, 'connectPlatformAlertChat')({})).data;
+/**
+ * A press hands out a one-time Start link, or connects the chat that used it.
+ * `checkOnly` is the page asking by itself while its link waits: it never hands
+ * out a link, and needs no recent sign-in.
+ */
+export async function connectPlatformAlertChat({ checkOnly = false } = {}) {
+    return (await httpsCallable(functions, 'connectPlatformAlertChat')(checkOnly ? { checkOnly: true } : {})).data;
 }
 
 export async function sendPlatformAlertTest() {

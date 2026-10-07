@@ -4,13 +4,14 @@
  * The callables are mocked at the service boundary; the server's own suites own
  * what they do. Pinned here: the three steps unlock in order, the token dialog
  * never shows a value and keeps a refusal on screen, a stale session gets the
- * password prompt and one retry, and the watcher's last view is read out in
+ * password prompt and one retry, a waiting Start link is checked by the page
+ * itself until the chat connects, and the watcher's last view is read out in
  * words, not colour alone.
  */
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const services = vi.hoisted(() => ({
     getPlatformAlerts: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock('../environment/ReauthenticateModal', () => ({
 }));
 
 import { TelegramAlertsCard } from './TelegramAlertsCard';
+import { HIDDEN_CHECK_INTERVAL_MS, RATE_LIMITED_PAUSE_MS, START_CHECK_INTERVAL_MS } from './useStartLinkWatch';
 
 const TOKEN = `${'1'.repeat(9)}:${'t'.repeat(35)}`;
 const NOTHING = { bot: null, chat: null, watch: { lastRunAt: null, checks: {}, lastDeliveryError: null } };
@@ -124,9 +126,9 @@ describe('setting it up', () => {
         render(<TelegramAlertsCard />);
         fireEvent.click(await screen.findByRole('button', { name: 'Connect chat' }));
 
-        const opener = await screen.findByRole('link', { name: /Open @safehaul_alerts_bot in Telegram/ });
+        const opener = await screen.findByRole('link', { name: /Open Telegram/ });
         expect(opener.getAttribute('href')).toBe(link);
-        expect(toast.showInfo).toHaveBeenCalledWith('Open the link in Telegram, press Start, then press Connect chat again.');
+        expect(toast.showInfo).toHaveBeenCalledWith('Press Open Telegram, then press Start in Telegram. This page connects by itself.');
         expect(toast.showSuccess).not.toHaveBeenCalled();
     });
 
@@ -140,6 +142,147 @@ describe('setting it up', () => {
         await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
         expect(toast.showError).not.toHaveBeenCalled();
         expect(toast.showSuccess).not.toHaveBeenCalled();
+    });
+});
+
+describe('while a Start link waits', () => {
+    const link = 'https://t.me/safehaul_alerts_bot?start=CODE123';
+    const BOT = { ...NOTHING, bot: { username: 'safehaul_alerts_bot' } };
+    const WAITING = { ...BOT, pending: { link } };
+    const failure = (code, message) => Object.assign(new Error(message), { code });
+
+    beforeEach(() => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        services.getPlatformAlerts.mockResolvedValue(WAITING);
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    const wait = (ms) => act(() => vi.advanceTimersByTimeAsync(ms));
+    const nextCheck = () => wait(START_CHECK_INTERVAL_MS);
+
+    it('connects by itself once Start is pressed in Telegram, with no second press', async () => {
+        services.connectPlatformAlertChat
+            .mockResolvedValueOnce({ pending: { link } })
+            .mockResolvedValueOnce({ chat: { title: 'Dana Alvarez' } });
+        render(<TelegramAlertsCard />);
+        expect((await screen.findByRole('status')).textContent).toBe('Waiting for Start in Telegram…');
+
+        await nextCheck();
+        expect(services.connectPlatformAlertChat).toHaveBeenLastCalledWith({ checkOnly: true });
+        expect(toast.showSuccess).not.toHaveBeenCalled();
+
+        services.getPlatformAlerts.mockResolvedValue(CONNECTED);
+        await nextCheck();
+        await waitFor(() => expect(toast.showSuccess).toHaveBeenCalledWith(
+            'Connected to Dana Alvarez. A confirmation is in your Telegram.',
+        ));
+        expect(await screen.findByText('2. Chat: Dana Alvarez')).toBeTruthy();
+
+        // Connected: the page stops asking.
+        await nextCheck();
+        expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks at once when the page becomes visible again, as a person comes back from Telegram', async () => {
+        services.connectPlatformAlertChat.mockResolvedValue({ pending: { link } });
+        render(<TelegramAlertsCard />);
+        await screen.findByRole('status');
+        expect(services.connectPlatformAlertChat).not.toHaveBeenCalled();
+
+        // Again until the page is listening: its effect may attach a moment after it renders.
+        await waitFor(() => {
+            act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+            expect(services.connectPlatformAlertChat).toHaveBeenCalledWith({ checkOnly: true });
+        });
+        expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops asking when the link expired with no Start in time, and says how to get a new one', async () => {
+        services.connectPlatformAlertChat.mockResolvedValue({ pending: null });
+        render(<TelegramAlertsCard />);
+        await screen.findByRole('status');
+
+        services.getPlatformAlerts.mockResolvedValue(BOT);
+        await nextCheck();
+        await waitFor(() => expect(toast.showInfo).toHaveBeenCalledWith('The link expired. Press Connect chat for a new one.'));
+        await nextCheck();
+        expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(1);
+    });
+
+    it('says when Telegram heard a Start that did not come through the link', async () => {
+        services.connectPlatformAlertChat.mockResolvedValue({ pending: { link }, strayStart: true });
+        const { container } = render(<TelegramAlertsCard />);
+        await screen.findByRole('status');
+
+        await nextCheck();
+
+        expect(await screen.findByText(/Telegram received a Start, but not through this link/)).toBeTruthy();
+        expect((await axe(container)).violations).toEqual([]);
+    });
+
+    it('keeps asking through a brief outage, and stops at a refusal', async () => {
+        const refusal = 'This bot is connected to another service. Create a new bot with @BotFather for SafeHaul alerts.';
+        services.connectPlatformAlertChat
+            .mockRejectedValueOnce(failure('functions/unavailable', 'Telegram could not be reached. Try again in a few minutes.'))
+            .mockRejectedValueOnce(failure('functions/failed-precondition', refusal));
+        render(<TelegramAlertsCard />);
+        await screen.findByRole('status');
+
+        await nextCheck();
+        expect(toast.showError).not.toHaveBeenCalled();
+        await nextCheck();
+        await waitFor(() => expect(toast.showError).toHaveBeenCalledWith(refusal));
+        await nextCheck();
+        expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('pauses for a minute when told to slow down, then goes on asking, with no error', async () => {
+        // Two pages of one Super Admin share the server's budget.
+        services.connectPlatformAlertChat
+            .mockRejectedValueOnce(failure('functions/resource-exhausted', 'Too many requests. Wait a moment and try again.'))
+            .mockResolvedValue({ pending: { link } });
+        render(<TelegramAlertsCard />);
+        await screen.findByRole('status');
+
+        // Refused at 6 s, so the next question is at 66 s and not before.
+        await nextCheck();
+        await wait(RATE_LIMITED_PAUSE_MS - START_CHECK_INTERVAL_MS);
+        expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(1);
+
+        await nextCheck();
+        await waitFor(() => expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(2));
+        expect(toast.showError).not.toHaveBeenCalled();
+    });
+
+    it('asks less often while the page is hidden', async () => {
+        services.connectPlatformAlertChat.mockResolvedValue({ pending: { link } });
+        const hidden = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+        try {
+            render(<TelegramAlertsCard />);
+            await screen.findByRole('status');
+
+            await nextCheck();
+            expect(services.connectPlatformAlertChat).not.toHaveBeenCalled();
+            await wait(HIDDEN_CHECK_INTERVAL_MS - START_CHECK_INTERVAL_MS);
+            await waitFor(() => expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(1));
+        } finally {
+            hidden.mockRestore();
+        }
+    });
+
+    it('shows the link the server holds when another page asked for a new one', async () => {
+        const newer = 'https://t.me/safehaul_alerts_bot?start=NEWER456';
+        services.connectPlatformAlertChat.mockResolvedValue({ pending: { link: newer } });
+        render(<TelegramAlertsCard />);
+        await screen.findByRole('status');
+
+        services.getPlatformAlerts.mockResolvedValue({ ...BOT, pending: { link: newer } });
+        await nextCheck();
+
+        await waitFor(() => expect(screen.getByRole('link', { name: /Open Telegram/ }).getAttribute('href')).toBe(newer));
     });
 });
 
