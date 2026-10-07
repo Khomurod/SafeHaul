@@ -27,7 +27,7 @@
 
 const { CAPABILITIES } = require('./capabilities');
 const { STRUCTURED_MODE, PROVIDER_LIST } = require('./providerTable');
-const { MODEL_VERSIONS } = require('./modelVersions');
+const { MODEL_VERSIONS, MAX_VERSIONS_PER_LANE } = require('./modelVersions');
 
 /**
  * A row's ordered model versions per capability, frozen. A provider with no
@@ -149,7 +149,7 @@ function resolveModels(provider, capability, config = {}) {
     if (lists) {
         // An empty list is no list: fall back to text, as a missing pin did.
         const versions = lists[capability]?.length ? lists[capability] : lists[CAPABILITIES.TEXT];
-        return [...(versions || [])];
+        return (versions || []).slice(0, MAX_VERSIONS_PER_LANE);
     }
     const single = provider.defaultModels?.[capability] || provider.defaultModels?.[CAPABILITIES.TEXT];
     return single ? [single] : [];

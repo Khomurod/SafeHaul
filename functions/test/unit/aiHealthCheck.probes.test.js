@@ -177,6 +177,69 @@ describe('failing correctly', () => {
 });
 
 /**
+ * A probe answers for the provider, not only for its first version: a failure
+ * about one version moves to the next, as the router does, and the result says
+ * which version answered.
+ */
+describe('probes try the spare versions', () => {
+    it('passes on a spare version when the first was withdrawn, and says so', async () => {
+        mockExecute.mockImplementation((providerId, context) => {
+            if (context.images && context.model === 'ministral-14b-2512') {
+                throw new AiError('model_unavailable', 'HTTP 404', { providerId, status: 404 });
+            }
+            return healthyProvider(providerId, context);
+        });
+
+        const result = await testProviderConnection('mistral');
+        const vision = byId(result.capabilities).vision_single;
+
+        expect(vision).toMatchObject({ status: PROBE_STATUS.PASSED, model: 'ministral-8b-2512' });
+        expect(vision.message).toBe('Passed using ministral-8b-2512 after ministral-14b-2512 failed.');
+        expect(result.success).toBe(true);
+    });
+
+    it('does not try another version when the answer itself was wrong', async () => {
+        // A wrong reading is a finding about the capability, not the version.
+        const visionModels = [];
+        mockExecute.mockImplementation((providerId, context) => {
+            if (context.images?.length === 1) {
+                visionModels.push(context.model);
+                return { text: '{"answer":"green"}', model: context.model };
+            }
+            return healthyProvider(providerId, context);
+        });
+
+        await testProviderConnection('mistral');
+
+        expect(visionModels).toEqual(['ministral-14b-2512']);
+    });
+
+    it('stops switching when the test has no time left for another probe', async () => {
+        // The test must finish, and record its result, inside the function's
+        // timeout; a switch that could not complete is not made.
+        const { HEALTH_TOTAL_BUDGET_MS } = require('../../ai/tasks/healthCheck');
+        let now = Date.now();
+        const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+        const visionModels = [];
+        mockExecute.mockImplementation((providerId, context) => {
+            if (context.images?.length === 1) {
+                visionModels.push(context.model);
+                now += HEALTH_TOTAL_BUDGET_MS - 5000;
+                throw new AiError('model_unavailable', 'HTTP 404', { providerId, status: 404 });
+            }
+            return healthyProvider(providerId, context);
+        });
+        try {
+            await testProviderConnection('mistral');
+        } finally {
+            clock.mockRestore();
+        }
+
+        expect(visionModels).toEqual(['ministral-14b-2512']);
+    });
+});
+
+/**
  * The probe images must be *standard* PNGs, not merely present.
  *
  * A hand-rolled minimal PNG is what put Mistral's newer models on the console as

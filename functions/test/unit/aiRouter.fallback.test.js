@@ -15,9 +15,10 @@ jest.mock('../../ai/providers', () => require('./aiRouter.support').providersMoc
 
 const { runAiTask } = require('../../ai/router/router');
 const { AiError } = require('../../ai/router/errors');
-const { PROVIDERS } = require('../../ai/registry/providers');
+const { PROVIDERS, resolveModels } = require('../../ai/registry/providers');
+const { CAPABILITIES } = require('../../ai/registry/capabilities');
 const {
-    mockStore, mockExecute, textTask, visionTask, resetAiRouterState,
+    mockStore, mockExecute, allConfigured, textTask, visionTask, resetAiRouterState,
 } = require('./aiRouter.support');
 
 beforeEach(resetAiRouterState);
@@ -192,61 +193,65 @@ describe('failure handling and fallback triggers', () => {
         expect(mockExecute).toHaveBeenCalledTimes(1);
     });
 
+    // The three tests below are about a vendor's stated wait, so they run on
+    // Cloudflare, which has one model version: a provider with a spare version
+    // switches to it on a rate limit instead of waiting (aiRouter.versions).
+
     it('honours a vendor-stated wait and retries that provider once', async () => {
         // Groq refuses a request over its per-minute token budget and states the
         // reset in its headers ("x-ratelimit-reset-tokens: 7.222s"). Abandoning a
         // working provider over seven seconds, against a two-minute deadline, is
         // what made the blog unable to publish on a per-minute token budget.
-        let groqCalls = 0;
+        let cloudflareCalls = 0;
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId !== 'gemini') throw new AiError('provider_unavailable', 'down', { providerId });
-            groqCalls += 1;
-            if (groqCalls === 1) {
+            if (providerId !== 'cloudflare') throw new AiError('provider_unavailable', 'down', { providerId });
+            cloudflareCalls += 1;
+            if (cloudflareCalls === 1) {
                 throw new AiError('rate_limited', '429', { providerId, retryAfterMs: 5 });
             }
-            return { text: 'ok', model: 'g' };
+            return { text: 'ok', model: 'c' };
         });
 
-        const result = await runAiTask(textTask());
+        const result = await runAiTask(textTask(), { providerOrder: ['cloudflare', 'groq'] });
 
-        expect(result.providerId).toBe('gemini');
-        expect(groqCalls).toBe(2);
+        expect(result.providerId).toBe('cloudflare');
+        expect(cloudflareCalls).toBe(2);
         // No failover happened: the same provider answered on its second turn.
         expect(result.fallbackCount).toBe(0);
     });
 
     it('waits only once, then moves on', async () => {
         // A provider that keeps saying "come back later" must not hold the task.
-        let groqCalls = 0;
+        let cloudflareCalls = 0;
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId === 'gemini') {
-                groqCalls += 1;
+            if (providerId === 'cloudflare') {
+                cloudflareCalls += 1;
                 throw new AiError('rate_limited', '429', { providerId, retryAfterMs: 5 });
             }
             return { text: 'ok', model: 'g' };
         });
 
-        const result = await runAiTask(textTask());
+        const result = await runAiTask(textTask(), { providerOrder: ['cloudflare', 'groq'] });
 
-        expect(groqCalls).toBe(2);
+        expect(cloudflareCalls).toBe(2);
         expect(result.providerId).toBe('groq');
     });
 
     it('does not wait when the vendor gave no hint', async () => {
         // Absent or over-long hints are dropped by http.js, so the router must
         // fall over immediately rather than inventing a delay.
-        let groqCalls = 0;
+        let cloudflareCalls = 0;
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId === 'gemini') {
-                groqCalls += 1;
+            if (providerId === 'cloudflare') {
+                cloudflareCalls += 1;
                 throw new AiError('rate_limited', '429', { providerId });
             }
             return { text: 'ok', model: 'g' };
         });
 
-        const result = await runAiTask(textTask());
+        const result = await runAiTask(textTask(), { providerOrder: ['cloudflare', 'groq'] });
 
-        expect(groqCalls).toBe(1);
+        expect(cloudflareCalls).toBe(1);
         expect(result.providerId).toBe('groq');
     });
 
@@ -265,20 +270,27 @@ describe('failure handling and fallback triggers', () => {
         });
     });
 
-    it('attempts each provider once and does not loop', async () => {
+    it('attempts each provider version once and does not loop', async () => {
         mockExecute.mockImplementation(async (providerId) => {
             throw new AiError('provider_unavailable', 'down', { providerId });
         });
 
         await runAiTask(textTask()).catch(() => {});
 
-        const attempted = mockExecute.mock.calls.map((call) => call[0]);
+        // An overloaded vendor's other versions are tried only where a task has
+        // no per-attempt ceiling, as here, and each version exactly once.
         // Hugging Face is the one provider whose registry row permits a single
-        // documented safe retry; everything else is exactly one attempt.
-        const groqAttempts = attempted.filter((id) => id === 'gemini').length;
-        expect(groqAttempts).toBe(1);
-        expect(attempted.filter((id) => id === 'huggingface').length).toBeLessThanOrEqual(2);
-        expect(attempted.length).toBeLessThanOrEqual(PROVIDERS.length + 1);
+        // documented safe retry.
+        const configs = allConfigured();
+        for (const provider of PROVIDERS) {
+            const calls = mockExecute.mock.calls.filter(([id]) => id === provider.id).map(([, ctx]) => ctx.model);
+            const versions = resolveModels(provider, CAPABILITIES.TEXT, configs.get(provider.id));
+            const retries = provider.id === 'huggingface' ? 1 : 0;
+            expect(calls.length).toBeLessThanOrEqual(versions.length + retries);
+            if (provider.id !== 'huggingface') expect(new Set(calls).size).toBe(calls.length);
+        }
+        expect(mockExecute.mock.calls.filter(([id]) => id === 'gemini').map(([, ctx]) => ctx.model))
+            .toEqual(['gemini-3.6-flash', 'gemini-3.5-flash-lite']);
     });
 
     it('records a quota failure so the provider enters cooldown', async () => {
@@ -303,16 +315,18 @@ describe('failure handling and fallback triggers', () => {
     });
 
     it('passes the vendor stated wait through so the cooldown can be sized to it', async () => {
+        // On a provider with one version; a spare version's rest is in
+        // aiRouter.versionRest.
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId === 'gemini') {
+            if (providerId === 'cloudflare') {
                 throw new AiError('rate_limited', '429', { providerId, retryAfterHintMs: 44268 });
             }
             return { text: 'ok', model: 'g' };
         });
 
-        await runAiTask(textTask());
+        await runAiTask(textTask(), { providerOrder: ['cloudflare', 'groq'] });
 
-        expect(mockStore.recordProviderOutcome).toHaveBeenCalledWith('gemini', {
+        expect(mockStore.recordProviderOutcome).toHaveBeenCalledWith('cloudflare', {
             success: false,
             category: 'rate_limited',
             lane: 'text',

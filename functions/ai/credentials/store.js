@@ -36,6 +36,9 @@ const {
     worstLaneHealth,
     cooldownState,
     clearCooldown,
+    versionRestKey,
+    restingModels,
+    hasVersionRest,
     MAX_STORED_CAPABILITIES,
     summarizeCapabilities,
     recordTestResult,
@@ -232,5 +235,8 @@ module.exports = {
     MAX_STORED_CAPABILITIES,
     cooldownState,
     clearCooldown,
+    versionRestKey,
+    restingModels,
+    hasVersionRest,
     worstLaneHealth,
 };

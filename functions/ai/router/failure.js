@@ -101,7 +101,7 @@ async function finishFailure(task, error, {
         latencyMs: Date.now() - startedAt,
         fallbackCount: Math.max(0, attempted.length - 1),
         attemptedProviders: attempted,
-        providersInvolved: attempts.map((entry) => entry.providerId),
+        providersInvolved: [...new Set(attempts.map((entry) => entry.providerId))],
         cooldownSkipped: skipped.filter((entry) => entry.reason === SKIP_REASONS.COOLDOWN).length,
         attempts,
     });

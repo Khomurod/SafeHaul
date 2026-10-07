@@ -31,6 +31,19 @@ import {
  * no extracted field in a transaction record to render — by construction, in
  * `functions/ai/telemetry/record.js`, not by omission here.
  */
+/**
+ * What the router did after this attempt. A provider is asked for each of its
+ * model versions in turn, so the next attempt can be the same provider again:
+ * on another version, or — after a stated wait or a registry retry — on the
+ * same one.
+ */
+function describeNextStep(attempts, index) {
+    const attempt = attempts[index];
+    const next = attempts.slice(index + 1).find((candidate) => candidate.status === 'attempted');
+    if (next?.providerId !== attempt.providerId) return `Fell back to ${attempt.nextProviderId}`;
+    return next.model && next.model !== attempt.model ? 'Tried another version' : 'Retried';
+}
+
 export function AiTransactionModal({ entry, onClose }) {
     const headingId = useId();
     const outcome = describeOutcome(entry);
@@ -145,7 +158,7 @@ export function AiTransactionModal({ entry, onClose }) {
                                                 {attempt.nextProviderId && (
                                                     <p className="mt-ds-2 flex items-center gap-ds-1 text-ds-xs text-ds-content-secondary">
                                                         <Icon icon={ArrowRight} size="xs" />
-                                                        Fell back to {attempt.nextProviderId}
+                                                        {describeNextStep(attempts, index)}
                                                     </p>
                                                 )}
                                             </li>

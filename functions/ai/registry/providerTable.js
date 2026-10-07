@@ -228,6 +228,14 @@ const PROVIDER_LIST = [
             secretField('apiKey', 'API key', 'Mistral API key from console.mistral.ai.'),
         ],
         configFields: [],
+        // The refusals that are about one model rather than the key or the
+        // request: a paid-only model on a free plan (403), a Labs model nobody
+        // enabled (403), and a model id Mistral no longer knows, which it
+        // answers with a 400 rather than a 404. Read by `providers/http.js`, so
+        // they cost a version, not the provider. Verified live 2026-10-07.
+        versionRefusalCodes: Object.freeze([
+            '1910', 'tier_not_allowed', '1913', 'labs_not_enabled', 'invalid_model',
+        ]),
         timeoutMs: 45000,
         retryPolicy: SINGLE_ATTEMPT,
         quotaDetection: DEFAULT_QUOTA_DETECTION,

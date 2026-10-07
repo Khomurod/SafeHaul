@@ -54,8 +54,11 @@ const shared = globalThis[HARNESS] || (globalThis[HARNESS] = {
         // load: that require pulls in `../../firebaseAdmin`, whose mock factory
         // requires this module — which is still mid-load, so its exports are not
         // there yet. Deferring to call time breaks the cycle and keeps the real
-        // implementation.
+        // implementation. The version-rest readers are real for the same reason:
+        // they read the config a suite hands `readAllConfigs`.
         cooldownState: (...args) => jest.requireActual('../../ai/credentials/store').cooldownState(...args),
+        restingModels: (...args) => jest.requireActual('../../ai/credentials/store').restingModels(...args),
+        hasVersionRest: (...args) => jest.requireActual('../../ai/credentials/store').hasVersionRest(...args),
     },
 });
 

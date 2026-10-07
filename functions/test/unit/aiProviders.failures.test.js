@@ -164,6 +164,80 @@ describe('HTTP failure classification', () => {
     });
 });
 
+/**
+ * A version this account cannot use at all is not a spent allowance and not a
+ * bad key. Both shapes measured on the live vendors, 2026-10-07.
+ */
+describe('a version this account cannot use', () => {
+    async function failWith(providerId, { status, body = '', headers = {} }) {
+        const fetchImpl = async () => ({
+            ok: false,
+            status,
+            headers: { get: (name) => headers[name] ?? null },
+            text: async () => body,
+            json: async () => ({}),
+        });
+        return getAdapter(getProvider(providerId))
+            .execute(contextFor(providerId, { fetchImpl }))
+            .catch((error) => error);
+    }
+
+    const MISTRAL_LIMIT_ZERO = '{"object":"error","message":"Rate limit exceeded","type":"rate_limited","code":"1300"}';
+
+    it('reads a 429 stating a limit of zero requests a minute as an unavailable model', async () => {
+        // Mistral's free plan for its Medium and Small models.
+        const error = await failWith('mistral', {
+            status: 429, body: MISTRAL_LIMIT_ZERO, headers: { 'x-ratelimit-limit-req-minute': '0' },
+        });
+        expect(error.category).toBe('model_unavailable');
+        expect(error.vendorCode).toBe('1300');
+    });
+
+    it('still reads an ordinary 429 as a rate limit, header or no header', async () => {
+        expect((await failWith('mistral', {
+            status: 429, body: MISTRAL_LIMIT_ZERO, headers: { 'x-ratelimit-limit-req-minute': '60' },
+        })).category).toBe('rate_limited');
+        // A missing header is not a zero, though `Number(null)` is.
+        expect((await failWith('mistral', { status: 429, body: MISTRAL_LIMIT_ZERO })).category).toBe('rate_limited');
+    });
+
+    it('reads Gemini\'s free-tier "limit: 0" as an unavailable model, and "limit: 20" as a rate limit', async () => {
+        const quota = (limit) => JSON.stringify({ error: { code: 'too_many_requests', message: `Quota exceeded for metric: generate_content_free_tier_requests, limit: ${limit}, model: gemini-pro-latest` } });
+        expect((await failWith('gemini', { status: 429, body: quota(0) })).category).toBe('model_unavailable');
+        expect((await failWith('gemini', { status: 429, body: quota(20) })).category).toBe('rate_limited');
+    });
+
+    it('reads Mistral\'s tier and Labs refusals as an unavailable model, not a bad key', async () => {
+        for (const body of [
+            '{"object":"error","message":"x","type":"tier_not_allowed","code":"1910"}',
+            '{"object":"error","message":"x","type":"labs_not_enabled","code":"1913"}',
+        ]) {
+            const error = await failWith('mistral', { status: 403, body });
+            expect(error.category).toBe('model_unavailable');
+            expect(error.retryable).toBe(true);
+        }
+    });
+
+    it('reads Mistral\'s 400 for a model id it no longer knows as an unavailable model', async () => {
+        // Mistral answers a withdrawn model with a 400, where Groq and Gemini 404.
+        const withdrawn = await failWith('mistral', {
+            status: 400, body: '{"object":"error","message":"Invalid model: x","type":"invalid_model","code":"1500"}',
+        });
+        expect(withdrawn.category).toBe('model_unavailable');
+        // Any other 400 is still a request this vendor rejected.
+        expect((await failWith('mistral', { status: 400, body: '{"type":"invalid_request_message","code":"1500"}' })).category)
+            .toBe('provider_request_rejected');
+    });
+
+    it('keeps every other 403 a rejected credential, and the codes to the row that names them', async () => {
+        expect((await failWith('mistral', { status: 403, body: '{"type":"invalid_api_key","code":"1001"}' })).category)
+            .toBe('unauthorized');
+        // The same body from a provider whose row names no refusal codes.
+        expect((await failWith('groq', { status: 403, body: '{"type":"tier_not_allowed","code":"1910"}' })).category)
+            .toBe('unauthorized');
+    });
+});
+
 describe('timeouts', () => {
     it('aborts a provider that does not answer within its budget', async () => {
         const fetchImpl = (url, options) => new Promise((_resolve, reject) => {

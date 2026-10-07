@@ -14,6 +14,11 @@ const { AiError, categorizeHttpFailure } = require('../router/errors');
 /** Longest vendor-stated wait worth honouring in-request. */
 const MAX_RETRY_AFTER_MS = 30000;
 
+/** A response header, or null — a missing or throwing `headers` is not an error. */
+function readHeader(response, name) {
+    try { return response?.headers?.get?.(name) ?? null; } catch { return null; }
+}
+
 /**
  * Reads the vendor's own "try again in" hint, in milliseconds.
  *
@@ -31,9 +36,7 @@ const MAX_RETRY_AFTER_MS = 30000;
  * @returns {number|null}
  */
 function readRetryAfterMs(response) {
-    const get = (name) => {
-        try { return response?.headers?.get?.(name) ?? null; } catch { return null; }
-    };
+    const get = (name) => readHeader(response, name);
 
     // `Retry-After` is seconds (the HTTP-date form is not used by these vendors).
     const retryAfter = Number.parseFloat(get('retry-after'));
@@ -116,6 +119,48 @@ function readStatedRetryMs(response, raw) {
 }
 
 /**
+ * Whether a 429 says this version's allowance is zero, not merely spent.
+ *
+ * Mistral's free plan answers its Medium and Small models with
+ * `x-ratelimit-limit-req-minute: 0`; Gemini's free tier answers its Pro models
+ * with a quota error stating `limit: 0`. Both measured 2026-10-07. The header
+ * must be the literal `0`: a missing header is not a zero, though `Number(null)`
+ * is. The body is read for that one token and nothing leaves this function but
+ * the boolean.
+ */
+function readLimitZero(response, raw) {
+    if (response?.status !== 429) return false;
+    const header = readHeader(response, 'x-ratelimit-limit-req-minute');
+    if (typeof header === 'string' && header.trim() === '0') return true;
+    return typeof raw === 'string' && /\blimit:\s*0(?![\d.])/i.test(raw);
+}
+
+/**
+ * Whether a 400 or 403 is a model-level refusal the provider's row names.
+ *
+ * Only a row's own `versionRefusalCodes` count, the way only its own
+ * `quotaDetection` decides a quota: Mistral answers a paid-only model with
+ * `403 code: "1910", type: "tier_not_allowed"`, a Labs model with
+ * `403 code: "1913", type: "labs_not_enabled"`, and a model id it no longer
+ * knows with `400 type: "invalid_model"` (2026-10-07). Every other 403 is still
+ * a rejected credential and every other 400 a rejected request. Both fields are
+ * checked, because `extractVendorCode` keeps only the first.
+ */
+function readVersionRefused(response, raw, provider) {
+    if (response?.status !== 403 && response?.status !== 400) return false;
+    const codes = provider?.versionRefusalCodes;
+    if (!Array.isArray(codes) || codes.length === 0 || !raw) return false;
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        return false;
+    }
+    return [parsed?.code, parsed?.type, parsed?.error?.code, parsed?.error?.type]
+        .some((value) => value !== undefined && value !== null && codes.includes(String(value)));
+}
+
+/**
  * Performs a JSON POST with a hard timeout.
  *
  * @param {object} params
@@ -173,7 +218,10 @@ async function postJson({ url, headers, body, timeoutMs, provider, parentSignal,
         } catch {
             raw = '';
         }
-        const category = categorizeHttpFailure(response.status, raw, provider);
+        const category = categorizeHttpFailure(response.status, raw, provider, {
+            limitZero: readLimitZero(response, raw),
+            versionRefused: readVersionRefused(response, raw, provider),
+        });
         // Status and — where the vendor supplies one — its machine-readable
         // error *code*. The body itself is not carried forward, because it can
         // quote the prompt back at us. See `extractVendorCode`.
@@ -251,6 +299,8 @@ function extractVendorCode(raw) {
 module.exports = {
     readRetryAfterMs,
     readStatedRetryMs,
+    readLimitZero,
+    readVersionRefused,
     extractVendorCode,
     MAX_RETRY_AFTER_MS,
     MAX_STATED_RETRY_MS,

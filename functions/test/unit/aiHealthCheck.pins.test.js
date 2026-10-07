@@ -57,8 +57,9 @@ describe('model pin reconciliation', () => {
     });
 
     it('reports every pin present as ok', async () => {
+        // Every version, spares included: a spare its vendor withdrew is stale.
         const result = await diagnoseModelPins({
-            fetchImpl: catalogueReturning({ groq: ['openai/gpt-oss-20b', 'qwen/qwen3.8-27b'] }),
+            fetchImpl: catalogueReturning({ groq: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b'] }),
         });
 
         expect(result.providers.find((entry) => entry.providerId === 'groq').status).toBe('ok');
@@ -232,13 +233,16 @@ describe('a throttled diagnostic is not a failed capability', () => {
             .toBe(PROBE_STATUS.PASSED);
     });
 
+    // Gemini's photo lane has a spare version, which the probe tries once
+    // after a rate limit; neither version may be asked twice.
+
     it('does not retry when the vendor stated no wait', async () => {
-        let visionAttempts = 0;
+        const visionModels = [];
         mockExecute.mockImplementation(async (providerId, context) => {
             // Only the single-image probe. Two probes carry images, so counting
             // every image call would conflate the second probe with a retry.
             if (context.images?.length === 1) {
-                visionAttempts += 1;
+                visionModels.push(context.model);
                 throw new AiError('rate_limited', 'HTTP 429', { providerId, status: 429 });
             }
             return healthyProvider(providerId, context);
@@ -246,16 +250,16 @@ describe('a throttled diagnostic is not a failed capability', () => {
 
         await testProviderConnection('gemini');
 
-        expect(visionAttempts).toBe(1);
+        expect(visionModels).toEqual(['gemini-3.6-flash', 'gemini-3.5-flash-lite']);
     });
 
     it('does not honour an absurd stated wait', async () => {
-        let visionAttempts = 0;
+        const visionModels = [];
         mockExecute.mockImplementation(async (providerId, context) => {
             // Only the single-image probe. Two probes carry images, so counting
             // every image call would conflate the second probe with a retry.
             if (context.images?.length === 1) {
-                visionAttempts += 1;
+                visionModels.push(context.model);
                 throw new AiError('rate_limited', 'HTTP 429', {
                     providerId, status: 429, retryAfterHintMs: 10 * 60 * 1000,
                 });
@@ -265,6 +269,6 @@ describe('a throttled diagnostic is not a failed capability', () => {
 
         await testProviderConnection('gemini');
 
-        expect(visionAttempts).toBe(1);
+        expect(visionModels).toEqual(['gemini-3.6-flash', 'gemini-3.5-flash-lite']);
     });
 });

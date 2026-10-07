@@ -184,13 +184,17 @@ describe('Groq model pins — verified against the live API', () => {
         // guaranteed 400 on every request.
         const SCHEMA_CAPABLE = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b'];
 
-        for (const [capability, model] of Object.entries(groq.defaultModels)) {
+        // Every version of every lane, spares included: the mode is per
+        // capability, so a spare is asked exactly as the first version is.
+        for (const [capability, versions] of Object.entries(groq.modelVersions)) {
             const mode = resolveStructuredMode(groq, capability);
-            if (mode === STRUCTURED_MODE.GROQ_RESPONSES_SCHEMA) {
-                expect(SCHEMA_CAPABLE).toContain(model);
-            } else {
-                expect(mode).toBe(STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT);
-                expect(SCHEMA_CAPABLE).not.toContain(model);
+            for (const model of versions) {
+                if (mode === STRUCTURED_MODE.GROQ_RESPONSES_SCHEMA) {
+                    expect(SCHEMA_CAPABLE).toContain(model);
+                } else {
+                    expect(mode).toBe(STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT);
+                    expect(SCHEMA_CAPABLE).not.toContain(model);
+                }
             }
         }
     });
@@ -204,7 +208,7 @@ describe('Groq model pins — verified against the live API', () => {
             'llama-3.3-70b-versatile',
             'llama-3.1-8b-instant',
         ];
-        const pinned = Object.values(groq.defaultModels);
+        const pinned = Object.values(groq.modelVersions).flat();
         for (const dead of WITHDRAWN) expect(pinned).not.toContain(dead);
     });
 

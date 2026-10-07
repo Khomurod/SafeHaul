@@ -160,10 +160,42 @@ describe('Providers and Logs tabs', () => {
         expect(within(dialog).getByText(/1\. gemini/)).toBeTruthy();
         expect(within(dialog).getByText('Quota exhausted')).toBeTruthy();
         expect(within(dialog).getByText(/2\. mistral/)).toBeTruthy();
-        expect(within(dialog).getByText('Model not found')).toBeTruthy();
+        expect(within(dialog).getByText('Model not available')).toBeTruthy();
         expect(within(dialog).getByText(/3\. groq/)).toBeTruthy();
         expect(within(dialog).getByText('Success via groq')).toBeTruthy();
         expect(within(dialog).getByText(/Fell back to mistral/)).toBeTruthy();
+    });
+
+    it('says when the router tried another version of the same provider', async () => {
+        // A provider's spare version is not a fallback to another provider.
+        stubWithLogs([{
+            ...TRANSACTION,
+            providerId: 'mistral',
+            model: 'ministral-8b-2512',
+            fallbackCount: 0,
+            attempts: [
+                {
+                    providerId: 'mistral', model: 'ministral-14b-2512', attemptNumber: 1,
+                    status: 'attempted', success: false, category: 'model_unavailable',
+                    httpStatus: 404, latencyMs: 150, nextProviderId: 'mistral',
+                },
+                {
+                    providerId: 'mistral', model: 'ministral-8b-2512', attemptNumber: 2,
+                    status: 'attempted', success: true, latencyMs: 2100, schemaValid: true,
+                },
+            ],
+        }]);
+        await renderView();
+        fireEvent.click(screen.getByRole('tab', { name: /logs/i }));
+        const table = await screen.findByRole('table', { name: /AI transactions/i });
+        await waitFor(() => expect(within(table).getByText('CDL extraction')).toBeTruthy());
+
+        fireEvent.click(within(table).getByText('CDL extraction'));
+
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByText(/Tried another version/)).toBeTruthy();
+        expect(within(dialog).queryByText(/Fell back to/)).toBeNull();
+        expect(within(dialog).getByText('Success via mistral')).toBeTruthy();
     });
 
     it('shows the request as a shape description, never as content', async () => {
