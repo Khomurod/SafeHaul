@@ -152,6 +152,17 @@ export function UnfinishedEditorSections({ answers, update, form, loaded, locked
                     />
                 )}
                 <Grid>{schemaFields(['has-twic', 'twicExpiration'])}</Grid>
+                {/* Asked as the wizard asks it: once the driver says they hold one. */}
+                {(answers['has-twic'] === 'yes' || offered('twic-card-upload')) && (
+                    <UploadField
+                        label="Upload TWIC Card"
+                        name="twic-card-upload"
+                        value={answers['twic-card-upload']}
+                        companyId={companyId}
+                        onUpload={onUpload}
+                        onChange={update}
+                    />
+                )}
             </FormSection>
 
             <FormSection title="Driving Record">
@@ -217,7 +228,9 @@ export function UnfinishedEditorSections({ answers, update, form, loaded, locked
                 />
             </FormSection>
 
-            {businessAsked && <BusinessInfoSection formData={answers} updateFormData={update} states={states} />}
+            {businessAsked && (
+                <BusinessInfoSection formData={answers} updateFormData={update} states={states} withInitials={false} />
+            )}
 
             {offered('ec1Name') && <EmergencyContactsSection formData={answers} updateFormData={update} />}
 

@@ -18,12 +18,14 @@ import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 
 export function useGuestFileUpload(companyId) {
   const { showSuccess, showError } = useToast();
-  const [isUploading, setIsUploading] = useState(false);
+  // How many uploads are on their way. A count, not a flag: with two at once,
+  // the first to finish must not say the second is done.
+  const [inFlight, setInFlight] = useState(0);
   const e2eUploadMode = getE2EQueryParam('e2eUpload', 'allow');
 
   const handleFileUpload = async (fieldName, file) => {
     if (!file) return null;
-    setIsUploading(true);
+    setInFlight((count) => count + 1);
     try {
       if (!companyId) {
         throw new Error('Company context is missing.');
@@ -96,9 +98,9 @@ export function useGuestFileUpload(companyId) {
       }
       throw error;
     } finally {
-      setIsUploading(false);
+      setInFlight((count) => count - 1);
     }
   };
 
-  return { isUploading, handleFileUpload };
+  return { isUploading: inFlight > 0, handleFileUpload };
 }

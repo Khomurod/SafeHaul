@@ -127,7 +127,8 @@ export function UnfinishedApplicationReview({ companyId, entry, onExit }) {
                         : 'What the driver has filled in so far, laid out as it will read once they submit.'}
                 />
                 <div className="flex flex-wrap gap-ds-2">
-                    {back}
+                    {/* While editing, Save or Cancel is the way out: Cancel asks before discarding. */}
+                    {!editing && back}
                     {canEdit && !editing && (
                         <Button ref={editButtonRef} variant="primary" onClick={() => { setSaved(null); setEditing(true); }}>
                             <Icon icon={Pencil} size="sm" /> Edit answers

@@ -110,6 +110,8 @@ describe('what a Company Admin may change', () => {
         expect(EDITABLE_FIELDS).toEqual(expect.arrayContaining(['city', 'employers', 'cdl-front', 'customAnswers']));
         for (const field of DRIVER_ONLY_FIELDS) expect(EDITABLE_FIELDS).not.toContain(field);
         expect(EDITABLE_FIELDS).toHaveLength(asked.filter((id) => !DRIVER_ONLY_FIELDS.includes(id)).length + 1);
+        // The Social Security card is the driver's own identity document, as the number is.
+        expect(EDITABLE_FIELDS).not.toContain('ssc-upload');
     });
 
     it.each([

@@ -14,6 +14,9 @@ describe('what a Company Admin may change', () => {
         for (const field of DRIVER_ONLY_FIELDS) expect(EDITABLE_FIELDS).not.toContain(field);
         // The hours-of-service statement is the driver's own, about their own week.
         expect(EDITABLE_FIELDS).not.toContain('hosDailyHours');
+        // The Social Security card is the driver's own identity document, as the number is.
+        expect(EDITABLE_FIELDS).not.toContain('ssc-upload');
+        expect(isDocumentOffered('ssc-upload', {})).toBe(false);
     });
 });
 

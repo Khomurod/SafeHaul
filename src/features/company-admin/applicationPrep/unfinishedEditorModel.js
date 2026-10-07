@@ -14,10 +14,10 @@
  * them: a question the company hid is not offered, and one that depends on
  * another answer appears when that answer allows it. Never the answers only the
  * driver gives (`driverOnlyFields.json`): their contact details, last name and
- * date of birth, which identify the application; the SSN and signature; their
- * consents and initials; and their hours-of-service statement, which they make
- * about their own week. A question asked only in some cases (`presentWhenAnswered`)
- * is offered once it has an answer.
+ * date of birth, which identify the application; the SSN, its card and the
+ * signature; their consents and initials; and their hours-of-service statement,
+ * which they make about their own week. A question asked only in some cases
+ * (`presentWhenAnswered`) is offered once it has an answer.
  *
  * ## What is sent
  *

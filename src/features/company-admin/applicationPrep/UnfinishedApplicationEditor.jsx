@@ -97,8 +97,8 @@ export function UnfinishedApplicationEditor({ companyId, view, onSaved, onCancel
         <div ref={rootRef} tabIndex={-1} role="region" aria-label="Edit answers" className="space-y-ds-6 rounded-ds-lg focus-visible:outline-none focus-visible:shadow-ds-focus">
             <Notice tone="info" title="Your changes go to the driver">
                 The next time the driver opens the application they are shown what you changed, before they sign.
-                Only the driver can change their email, phone, last name, date of birth, Social Security Number,
-                signature, consents and hours-of-service statement.
+                Only the driver can change their email, phone, last name, date of birth, Social Security Number
+                and card, signature, consents and hours-of-service statement.
             </Notice>
 
             <UnfinishedEditorSections

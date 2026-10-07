@@ -4,6 +4,7 @@
     "lastName",
     "dob",
     "ssn",
+    "ssc-upload",
     "signature",
     "sms-consent",
     "consent-mvr",

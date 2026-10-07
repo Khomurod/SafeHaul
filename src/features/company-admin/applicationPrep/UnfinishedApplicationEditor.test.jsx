@@ -193,6 +193,27 @@ describe('editing an unfinished application the driver owns', () => {
         expect(document.getElementById('employer-new-2-companyName')).not.toBeNull();
     });
 
+    it('offers the TWIC card beside the answer that the driver holds one', async () => {
+        await openEditor(view({ answers: { ...view().answers, 'has-twic': 'yes' } }));
+
+        expect(screen.getAllByText('Upload TWIC Card').length).toBeGreaterThan(0);
+    });
+
+    it('asks an owner-operator\'s business details without the initials only the driver gives', async () => {
+        await openEditor(view({ answers: { ...view().answers, businessName: 'Dana Freight LLC' } }));
+
+        expect(screen.getByDisplayValue('Dana Freight LLC')).toBeInTheDocument();
+        expect(screen.queryByLabelText(/Driver Initials/)).toBeNull();
+    });
+
+    it('leaves only through Save or Cancel while editing, so nothing typed is lost on the way out', async () => {
+        await openEditor();
+
+        expect(screen.queryByRole('button', { name: /Back to unfinished applications/i })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(await screen.findByRole('button', { name: /Back to unfinished applications/i })).toBeInTheDocument();
+    });
+
     it('waits for a document still uploading before it saves', async () => {
         mocks.uploading = true;
         await openEditor();

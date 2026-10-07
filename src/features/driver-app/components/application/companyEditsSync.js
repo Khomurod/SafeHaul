@@ -38,8 +38,10 @@ export {
  *
  * The contact details are the draft's key and the name and date of birth its
  * identity check, so taking a change to them would move or orphan the draft. The
- * SSN and the signature are never stored. The rest are the driver's own consents
- * and marks. The server refuses edits to all of them; this is the second lock.
+ * SSN and the signature are never stored, and the Social Security card is the
+ * driver's own identity document. The rest are the driver's own consents, marks
+ * and hours-of-service statement. The server refuses edits to all of them; this
+ * is the second lock.
  */
 const NEVER_TAKEN = new Set([...DRIVER_ONLY_FIELDS, ...COMPANY_KEYS]);
 
