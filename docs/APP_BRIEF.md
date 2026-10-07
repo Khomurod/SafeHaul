@@ -333,10 +333,7 @@ do not yet do this — §12.)
 
 ### Unfinished applications: storage and identity
 
-**Drafts are never written into `applications` — load-bearing.** Four `create`
-triggers under `companies/{id}/applications/{appId}` (notification, applicant
-confirmation email, driver sync / shadow profile, stats rollup) would fire for
-half-finished applicants. Drafts live at
+**Drafts are never written into `applications`** (§10). They live at
 `companies/{id}/application_drafts/{applicantKey}`, keyed like the application
 they become, are discarded on successful submission and expire after 30 days
 (§8).
@@ -517,6 +514,11 @@ write.
   denies them server autosave and cross-session resume at that carrier; their
   local copy and submission still work, the squatter reads nothing, and it
   expires in 30 days.
+- **A copy behind a Company Admin's edit is refused** (`companyEdits.js`): a save
+  outright, a submission back to Review. The page takes the edited answers
+  (whole; never identity or consent), drops a stale signature and names them
+  above every step. A page sending no revision (Production until promoted) can
+  still undo an edit; a submission whose edits cannot be fetched goes as signed.
 
 ### The frozen record
 
@@ -1490,10 +1492,8 @@ completion** — a PR never deploys, so it cannot exercise the changed path.
 | Public-site visual specification | [`DESIGN.md`](../DESIGN.md) |
 | Manual signing-room device QA | [`docs/qa/edoc-mobile-document-first-qa.md`](./qa/edoc-mobile-document-first-qa.md) |
 
-**Note on `README.md`:** it is the getting-started guide and documentation map —
-setup, environment variables, commands, deployment. It defers to this brief for
-what the application is and how it behaves. Where the two ever disagree, this
-brief and the code win.
+**`README.md`** is the getting-started guide and documentation map. For what the
+application is and does it defers to this brief; this brief and the code win.
 
 ---
 

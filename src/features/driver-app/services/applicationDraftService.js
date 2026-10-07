@@ -6,6 +6,7 @@ import {
     readApplicationDraft,
     writeDiscardMark,
 } from '../components/application/applicationDraftStorage';
+import { restoredWithRevision, saveOnTheWire } from '../components/application/companyEditsWire';
 
 /**
  * Client for the application autosave and resume callables.
@@ -305,9 +306,11 @@ export function clearResumeToken(slug) {
  *
  * Resolves to `{ saved, applicantKey, resumeToken }` or to `{ saved: false }` when
  * anything went wrong. It deliberately does not throw: every caller would have to
- * swallow it anyway, and one that forgot would block the applicant.
+ * swallow it anyway, and one that forgot would block the applicant. A refusal for a
+ * Company Admin's edits this copy has not taken adds `companyUpdated: true`.
  */
-export async function saveApplicationProgress(payload) {
+export async function saveApplicationProgress(input) {
+    const payload = saveOnTheWire(input);
     if (e2eDraftsEnabled() && e2eSaveShouldFail()) {
         // The same shape a real failure produces: the client swallows it and the
         // applicant is never blocked, so the local copy is left holding work the
@@ -378,11 +381,13 @@ export async function resumeApplicationDraft(payload) {
             missing.code = 'functions/not-found';
             throw missing;
         }
-        return { restored: true, draft: { ...E2E_RESUME_DRAFT, formData: { ...E2E_RESUME_DRAFT.formData } } };
+        return restoredWithRevision({
+            restored: true, draft: { ...E2E_RESUME_DRAFT, formData: { ...E2E_RESUME_DRAFT.formData } },
+        });
     }
     const call = httpsCallable(functions, 'resumeApplicationDraft');
     const result = await call(payload);
-    return result.data;
+    return restoredWithRevision(result.data);
 }
 
 /**

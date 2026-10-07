@@ -1,0 +1,13 @@
+[
+    "email",
+    "phone",
+    "lastName",
+    "dob",
+    "ssn",
+    "signature",
+    "sms-consent",
+    "consent-mvr",
+    "driverInitials",
+    "mvr-consent-upload",
+    "drug-test-consent-upload"
+]

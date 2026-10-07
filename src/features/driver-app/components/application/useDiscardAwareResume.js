@@ -10,7 +10,12 @@
 // `forgetDraftOwnership`. Bodies verbatim.
 import { useRef, useCallback, useEffect } from 'react';
 import { useApplicationResume } from '../../hooks/useApplicationResume';
-import { clearResumeToken } from '../../services/applicationDraftService';
+import {
+  clearResumeToken,
+  resumeApplicationDraft,
+  saveApplicationProgress,
+} from '../../services/applicationDraftService';
+import { companyEditsToTake, takeCompanyEdits } from './companyEditsSync';
 import {
   clearApplicationDraft,
   readDiscardMark,
@@ -83,6 +88,46 @@ export function useDiscardAwareResume({
     return readDiscardMark(slug) !== discardMarkRef.current;
   }, [slug, sandbox]);
 
+  /** This tab's resume credential, from the resume hook below; see `refreshCompanyEdits`. */
+  const heldTokenRef = useRef(() => null);
+
+  /**
+   * Takes a Company Admin's edits into the answers on screen, once the server has
+   * refused a save or a submission because this copy is behind them.
+   *
+   * Fetched with this tab's own token, never the shared slot, which may hold
+   * another applicant's. Resolves to what was taken, `{ changed, revision }`, or
+   * `null` when nothing could be fetched; then the next save asks again. Nothing
+   * is applied to answers that were discarded while the fetch was out. See
+   * `companyEditsSync.js` for what is taken and how.
+   *
+   * @param {object} [onScreen] the answers as they stand, to say which ones change.
+   */
+  const refreshCompanyEdits = useCallback(async (onScreen) => {
+    const stored = heldTokenRef.current();
+    if (!stored || !companyId) return null;
+    const generation = resetGenerationRef.current;
+    let draft;
+    try {
+      draft = (await resumeApplicationDraft({
+        companyId, applicantKey: stored.applicantKey, resumeToken: stored.resumeToken,
+      }))?.draft;
+    } catch {
+      return null;
+    }
+    if (!draft || resetGenerationRef.current !== generation) return null;
+    const { changed } = companyEditsToTake(onScreen, draft);
+    setFormData((prev) => takeCompanyEdits(prev, draft));
+    return { changed: changed.length > 0, revision: draft.companyRevision };
+  }, [companyId, setFormData]);
+
+  /** Every save goes through here, so a refusal for unseen edits fetches them. */
+  const saveProgress = useCallback(async (payload) => {
+    const result = await saveApplicationProgress(payload);
+    if (result?.companyUpdated) await refreshCompanyEdits(payload.formData);
+    return result;
+  }, [refreshCompanyEdits]);
+
   /**
    * Server-side autosave and the "continue your existing application?" flow.
    *
@@ -90,6 +135,7 @@ export function useDiscardAwareResume({
    * nothing to come back to.
    */
   const {
+    heldToken,
     resumePrompt,
     resumeBusy,
     resumeError,
@@ -105,7 +151,9 @@ export function useDiscardAwareResume({
     sandbox,
     hasCustomQuestions,
     hasBeenDiscarded: discardedElsewhere,
+    saveProgress,
   });
+  heldTokenRef.current = heldToken;
 
   /**
    * Reacts to this application being discarded somewhere else.
@@ -218,5 +266,6 @@ export function useDiscardAwareResume({
     continueExisting,
     startOver,
     forgetDraftOwnership,
+    refreshCompanyEdits,
   };
 }

@@ -36,9 +36,22 @@
  * both are actually decided by the winner, so a field that exists on one side
  * only always survives — which is what "the freshest progress wins without
  * losing newer field values" has to mean when both copies contain real work.
+ *
+ * ## Except where the carrier has edited an answer since this copy was taken
+ *
+ * Those answers come from the server copy whichever side wins, replaced rather
+ * than merged, and the driver is told. See `companyEditsSync.js`.
  */
 
 import STANDARD_SECTIONS from '../../../../../functions/shared/applicationSections.json';
+import {
+    COMPANY_KEYS,
+    COMPANY_REVISION_KEY,
+    companyFieldsAfter,
+    companyRevisionIn,
+    takeCompanyAnswers,
+    withCompanyNotice,
+} from './companyEditsSync';
 
 /**
  * Field ids the shared schema marks as repeating rows.
@@ -209,10 +222,32 @@ function sessionEdits(live, storedData) {
     const edits = {};
     if (!live || typeof live !== 'object') return edits;
     for (const [key, value] of Object.entries(live)) {
-        if (isEmpty(value)) continue;
+        // Not answers: what the carrier's edits left on this copy is decided below.
+        if (isEmpty(value) || COMPANY_KEYS.includes(key)) continue;
         if (!sameAnswer(value, storedData?.[key])) edits[key] = value;
     }
     return edits;
+}
+
+/**
+ * The carrier's edits taken into a reconciled copy.
+ *
+ * The answers it edited after the revision this browser's copy had taken come from
+ * the server copy: whichever side won, this browser never saw them. Replaced, not
+ * merged, or a repeating row the carrier corrected would come back twice. The copy
+ * then holds the server's revision, and the driver is told which answers changed.
+ * With no local copy, nothing here was seen, so every edited answer is named.
+ */
+function withCompanyEdits(formData, local, server) {
+    const fields = companyFieldsAfter(server.companyEdits, local ? companyRevisionIn(local.data) : 0);
+    const taken = takeCompanyAnswers(formData, server.formData, fields);
+    const changed = local
+        ? fields.filter((field) => !sameAnswer(taken[field], local.data?.[field]))
+        : fields;
+    return {
+        ...withCompanyNotice(taken, changed),
+        [COMPANY_REVISION_KEY]: companyRevisionIn(server.formData) ?? 0,
+    };
 }
 
 /** Higher of two step indices, treating absent as "no progress". */
@@ -226,7 +261,9 @@ function furthestStep(...steps) {
  *   as returned by `readApplicationDraft`. `meta: null` marks a **legacy** draft,
  *   written before sync metadata existed and already sitting in real drivers'
  *   browsers.
- * @param {{ formData: object, stepIndex: number|null, clientSeq: number|null }|null} input.server
+ * @param {{ formData: object, stepIndex: number|null, clientSeq: number|null,
+ *   companyEdits?: object }|null} input.server  `formData` carries its company
+ *   revision, and `companyEdits` each edited answer's (see `companyEditsSync.js`).
  * @param {object} [input.live] the in-memory form data right now
  * @returns {{ formData: object, stepIndex: number, source: string, reason: string }|null}
  *   `null` when there is nothing to restore from either side.
@@ -248,7 +285,7 @@ export function reconcileApplicationDraft({ local, server, live } = {}) {
 
     if (!hasLocal) {
         return {
-            formData: { ...server.formData, ...sessionEdits(live, null) },
+            formData: { ...withCompanyEdits(server.formData, null, server), ...sessionEdits(live, null) },
             stepIndex: furthestStep(server.stepIndex),
             source: 'server',
             reason: 'no-local-draft',
@@ -265,8 +302,12 @@ export function reconcileApplicationDraft({ local, server, live } = {}) {
         : mergeDraftData(local.data, server.formData);
 
     return {
-        // Typed-this-session always outranks both stored copies.
-        formData: { ...merged, ...sessionEdits(live, local.data) },
+        // The carrier's edits outrank both stored copies; typed-this-session
+        // outranks everything.
+        formData: {
+            ...withCompanyEdits(merged, local, server),
+            ...sessionEdits(live, local.data),
+        },
         // Never backwards: whichever copy won, the applicant keeps the furthest
         // page either of them reached, and the merge above means it has data.
         stepIndex: furthestStep(local.lastStep, server.stepIndex),

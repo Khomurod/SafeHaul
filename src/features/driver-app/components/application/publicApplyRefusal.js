@@ -37,6 +37,15 @@ export function isPermanentRefusal(error) {
 }
 
 /**
+ * The server refused the submission because a Company Admin edited the
+ * application after this copy was taken (`functions/shared/companyEdits.js`).
+ */
+export function isCarrierUpdate(error) {
+  return error?.code === 'functions/failed-precondition'
+    && (error?.details?.issues || []).some((issue) => issue?.code === 'carrier-updated');
+}
+
+/**
  * The wizard step a refusal names (the server's `details.issues[].semanticStep`),
  * or null when it names none and the applicant should stay where they are.
  */

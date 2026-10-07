@@ -1,8 +1,9 @@
 jest.mock('firebase-functions/v1', () => {
   class HttpsError extends Error {
-    constructor(code, message) {
+    constructor(code, message, details) {
       super(message);
       this.code = code;
+      this.details = details;
     }
   }
   const https = { HttpsError, onCall: (fn) => fn };
@@ -287,6 +288,55 @@ describe('submitGuestApplication', () => {
       // Every other protection still applied, and the carrier can see what was
       // submitted. A diagnostic is not a reason to lose a signed application.
       await expect(submitGuestApplication(validPayload, ctxBase)).resolves.toMatchObject({ success: true });
+      spy.mockRestore();
+    });
+  });
+
+  describe('a Company Admin\'s edits the browser has not taken', () => {
+    const EDITED_AT = 1791300000000;
+    const editedDraft = () => ({
+      exists: true,
+      data: () => ({ companyRevision: EDITED_AT, companyEdits: { city: EDITED_AT } }),
+    });
+
+    it('refuse the submission before anything is written, and send the driver to Review', async () => {
+      mockDraftGet.mockResolvedValue(editedDraft());
+
+      const refusal = await submitGuestApplication(
+        { ...validPayload, seenRevision: EDITED_AT - 1 }, ctxBase,
+      ).catch((error) => error);
+
+      expect(refusal).toMatchObject({ code: 'failed-precondition' });
+      expect(refusal.details.issues).toEqual([{ code: 'carrier-updated', semanticStep: 'review', fieldId: null }]);
+      expect(applicationWrites()).toHaveLength(0);
+    });
+
+    it('do not hold back a copy that has taken them', async () => {
+      mockDraftGet.mockResolvedValue(editedDraft());
+
+      await expect(submitGuestApplication({ ...validPayload, seenRevision: EDITED_AT }, ctxBase))
+        .resolves.toMatchObject({ success: true });
+    });
+
+    it('never hold back a browser that predates edits, as the Production page does', async () => {
+      mockDraftGet.mockResolvedValue(editedDraft());
+      await expect(submitGuestApplication(validPayload, ctxBase)).resolves.toMatchObject({ success: true });
+    });
+
+    it('do not exist on a draft nobody edited, or on no draft at all', async () => {
+      await expect(submitGuestApplication({ ...validPayload, seenRevision: 0 }, ctxBase))
+        .resolves.toMatchObject({ success: true });
+      mockDraftGet.mockResolvedValue({ exists: true, data: () => ({ formData: {} }) });
+      await expect(submitGuestApplication({ ...validPayload, seenRevision: 0 }, ctxBase))
+        .resolves.toMatchObject({ success: true });
+    });
+
+    it('cannot stop a signed application when the draft cannot be read', async () => {
+      const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockDraftGet.mockRejectedValue(new Error('firestore unavailable'));
+
+      await expect(submitGuestApplication({ ...validPayload, seenRevision: 0 }, ctxBase))
+        .resolves.toMatchObject({ success: true });
       spy.mockRestore();
     });
   });

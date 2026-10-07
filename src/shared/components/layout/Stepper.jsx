@@ -9,6 +9,8 @@ import Step7_General from '../../../features/driver-app/components/application/s
 import Step8_Review from '../../../features/driver-app/components/application/steps/Step8_Review';
 import Step9_Consent from '../../../features/driver-app/components/application/steps/Step9_Consent';
 import { DynamicQuestionsStep } from '../../../features/driver-app/components/application/steps/DynamicQuestionsStep';
+import { CompanyEditsNotice } from '../../../features/driver-app/components/application/CompanyEditsNotice';
+import { COMPANY_NOTICE_KEY } from '../../../features/driver-app/components/application/companyEditsSync';
 import { Button, ProgressBar } from '@/design-system/components';
 import { initializeSignatureCanvas, clearCanvas } from '@/lib/signature';
 
@@ -209,6 +211,10 @@ const Stepper = ({
             </div>
 
             <div id="step-content-wrapper" className="p-ds-6 sm:p-ds-8">
+                <CompanyEditsNotice
+                    fields={formData?.[COMPANY_NOTICE_KEY]}
+                    onDismiss={() => updateFormData(COMPANY_NOTICE_KEY, null)}
+                />
                 <form id="driver-form" onSubmit={(e) => e.preventDefault()}>
                     {currentConfig?.isCustomStep ? (
                         <CurrentStepComponent

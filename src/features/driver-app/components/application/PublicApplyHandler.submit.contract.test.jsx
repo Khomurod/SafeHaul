@@ -84,8 +84,11 @@ describe('PublicApplyHandler submission contract', () => {
 
     const payload = callableSpy.mock.calls[0][0];
     expect(Object.keys(payload).sort()).toEqual(
-      ['applicantToday', 'companyId', 'email', 'formData', 'phone', 'signature'].sort(),
+      ['applicantToday', 'companyId', 'email', 'formData', 'phone', 'seenRevision', 'signature'].sort(),
     );
+    // A copy that never took a Company Admin's edit says so, and the server holds it
+    // back only if the draft has one since (`companyEditsSync.js`).
+    expect(payload.seenRevision).toBe(0);
     // The applicant's own calendar day, which the server judges "the last seven
     // days" and "expired" against when it is within a day of its own (2026-10-01).
     const now = new Date();

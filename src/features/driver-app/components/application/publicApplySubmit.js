@@ -29,7 +29,8 @@ import { toIsoDay } from '@/config/applicationDates';
 import { clearApplicationDraft } from './applicationDraftStorage';
 import { savePostApplySession } from './postApplyDocsStorage';
 import { runSubmissionPreflight } from './publicApplyPreflight';
-import { isPermanentRefusal, refusalStepIndex } from './publicApplyRefusal';
+import { isCarrierUpdate, isPermanentRefusal, refusalStepIndex } from './publicApplyRefusal';
+import { companyRevisionIn, withoutCompanyKeys } from './companyEditsSync';
 
 export async function submitPublicApplication({
   // State values as they stood when the applicant pressed Submit.
@@ -53,6 +54,8 @@ export async function submitPublicApplication({
   discardedElsewhere,
   handleDiscardedElsewhere,
   finishDraftLifecycle,
+  // Takes a Company Admin's edits into the answers; see `useDiscardAwareResume`.
+  onCarrierUpdated,
   // Setters and toasts.
   setCurrentStep,
   setSubmissionStatus,
@@ -160,7 +163,7 @@ export async function submitPublicApplication({
           }
           await initQueue();
           await enqueueSubmission(
-            { ...formData, companyId: company.id, sourceSlug: slug },
+            { ...withoutCompanyKeys(formData), companyId: company.id, sourceSlug: slug },
             company.id,
             // The apply slug travels with the entry so that, whenever this
             // submission finally lands, the queue can end the draft's local life
@@ -238,7 +241,9 @@ export async function submitPublicApplication({
         applicationId: applicationId,
         submissionAttemptId,
         confirmationNumber: confirmationNumber,
-        ...formData,
+        // The answers alone: what a Company Admin's edits left beside them is said
+        // once, as `seenRevision` below, and never queued.
+        ...withoutCompanyKeys(formData),
         // Ensure these top-level keys always exist (overrides from formData if present)
         firstName: formData.firstName || '',
         lastName: formData.lastName || '',
@@ -318,6 +323,10 @@ export async function submitPublicApplication({
 
       // 4. Submit via Cloud Function (Admin SDK — bypasses all rules)
       let lastError;
+      // Which of a Company Admin's edits these answers have taken, so the server can
+      // send back a copy that is behind them. See `companyEditsSync.js`.
+      let seenRevision = companyRevisionIn(formData) ?? 0;
+      let carrierChecked = false;
       for (let attempt = 1; attempt <= 3; attempt++) {
         // The guard at the top of this function is not enough on its own. Between it
         // and here are an id generation, a queue write and, on a retry, a backoff wait
@@ -338,6 +347,7 @@ export async function submitPublicApplication({
             signature: formData.signature,
             formData: applicationData,
             applicantToday,
+            seenRevision,
           });
 
           // Use server-generated values if available
@@ -398,6 +408,20 @@ export async function submitPublicApplication({
         } catch (error) {
           console.warn(`[PublicApplyHandler] Attempt ${attempt} failed:`, error);
           lastError = error;
+          // The carrier edited this application after this copy was taken. Their
+          // edits are fetched once. One that changes an answer sends the driver to
+          // Review, to see it and sign again. When none does, or none could be
+          // fetched, what the driver signed is what is on screen, so it goes as is:
+          // a submission is never stopped for edits the driver cannot be shown.
+          if (isCarrierUpdate(error) && !carrierChecked) {
+            carrierChecked = true;
+            const taken = await onCarrierUpdated?.(formData);
+            if (taken?.changed) break;
+            seenRevision = taken ? taken.revision : null;
+            // Not one of the three: nothing went wrong with the delivery.
+            attempt -= 1;
+            continue;
+          }
           // The same answers would get the same answer.
           if (isPermanentRefusal(error)) break;
           if (attempt < 3) {
