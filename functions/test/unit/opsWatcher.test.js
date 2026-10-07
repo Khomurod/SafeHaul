@@ -66,12 +66,21 @@ beforeEach(() => {
 });
 
 describe('before anyone is connected', () => {
-    it('does nothing at all, so no quota is spent for nobody', async () => {
+    it('still checks and records what it saw, and tells nobody', async () => {
+        // The probes feed provider health, which sends a failing provider to the daily model check.
         mockSettings.readSettings.mockResolvedValue({ telegram: { botUsername: 'safehaul_alerts_bot' } });
+        mockRunAiTask.mockImplementation(async (task) => {
+            if (task.capabilities.includes('vision')) throw new AiError('all_providers_failed', 'down');
+            return answer(task);
+        });
 
-        await expect(runWatch({ now: NOW })).resolves.toEqual({ skipped: 'not_connected' });
-        expect(mockRunAiTask).not.toHaveBeenCalled();
-        expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+        const outcome = await runWatch({ now: NOW });
+
+        expect(mockRunAiTask).toHaveBeenCalledTimes(2);
+        expect(mockSendMessage).not.toHaveBeenCalled();
+        expect(mockSettings.readBotToken).not.toHaveBeenCalled();
+        expect(outcome.deliveryError).toBeNull();
+        expect(written().checks.vision).toMatchObject({ status: 'down' });
     });
 });
 

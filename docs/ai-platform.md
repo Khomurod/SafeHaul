@@ -294,6 +294,75 @@ article spare); Groq adds `openai/gpt-oss-120b` to every text lane, articles
 included; Mistral adds `ministral-8b-2512` and, last, `mistral-medium-latest`
 for a paid plan.
 
+### Where a lane's versions come from
+
+`resolveModels` in `registry/providers.js` decides, in this order:
+
+1. **An operator override** (a row's `configFields` with `appliesTo`): the one
+   model an account can reach, alone.
+2. **A saved list** in the provider's `ai_provider_config/{id}.modelLists`
+   (`registry/savedModels.js`): `modelLists.vision.models` for photos,
+   `modelLists.text.models` for text and structured output. It is read with the
+   rest of the provider's config, so a Firestore fault falls back to the router's
+   last known configs. Whatever is malformed reads as nothing saved: an id not
+   shaped like a model id is dropped, each id counts once, and a list keeps at
+   most three. Article writing is never taken from a saved list.
+3. **The built-in list** in `registry/modelVersions.js`.
+
+Rests, the switching table and Test connection apply to a saved list exactly as
+to a built-in one.
+
+### The daily model check
+
+`refreshAiModelLists` (`ops/modelRefresh.js`, every hour at :25 Chicago) keeps
+the saved lists true without a programmer. A provider is checked when it is
+due: daily at about 03:25 (and at any hour after 36 h), on the first run after
+it is set up, and within the hour of the router recording a new failure in one
+of its lanes (`laneHealth`, begun at `laneFailedAt`), then at most every 6 h
+while it lasts. Only enabled, configured,
+unretired providers, only the lanes they already serve, and never a lane an
+operator chose a model for by hand.
+
+For each lane (`ai/tasks/modelCheck.js`):
+
+1. The vendor's catalogue (`ai/tasks/modelCatalogue.js`, shared with the
+   model-pin diagnostic; Gemini is read with `pageSize=1000`) says which of the
+   lane's versions still exist. One it no longer lists is out without a test.
+2. Each remaining version takes the lane's test through its adapter, not the
+   router, so the check moves no health, cooldown or rest
+   (`ai/tasks/modelVerification.js`). **Photos:** the licence read exactly as a
+   driver's is, on a made-up licence (`ai/tasks/verification/cdl-specimen.jpg`,
+   its SHA-256 pinned in `aiModelVerification.test.js`). It passes only by
+   reading all six fields right. **Text:** the structured-JSON probe.
+3. While the lane has room (three at most), new names from the catalogue are
+   tried, two per lane per run, in the order of `registry/modelCandidates.js`:
+   stable names only, never a preview or a `-latest` alias.
+4. The list is decided (`decideLane`). A version leaves only for a reason about
+   itself: gone, read the licence wrong, refused the request. A busy vendor, a
+   refused key or a spent allowance keeps it in place. A version joins only by
+   passing. The order of the versions that stay never changes, and a lane is
+   never emptied: if nothing passes, the list stays and the lane is reported as
+   failing.
+
+A refused key or spent allowance stops that provider's check. At most ten tests
+a provider a run, 1.2 s apart (Mistral's free plan allows one request a second),
+and none started after 400 s; providers run in parallel. A lease in
+`ai_routing_config/modelCheck` keeps runs from overlapping, and
+`autoSelect: false` there makes the check report without changing anything.
+
+Results go to the provider's config: `modelLists.<lane>` when a list changed,
+and `modelCheck` (when, why, what each version did) for the console. The owner
+hears in Telegram when a list changed, when a lane stops or starts passing, and
+when a key or allowance fails, with what to do (`ops/modelRefreshMessages.js`).
+A state is told once, on the change, to the chat that heard it
+(`modelCheck.notified.destination`): a chat connected later hears what is still
+wrong. A list change that could not be sent waits in `modelCheck.pendingNews`
+and goes with the provider's next check. With no chat connected nothing is sent.
+
+The hourly watcher (`watchAiAndBlog`) runs whether or not a chat is connected:
+its probes go through the router, so a provider that fails them is recorded,
+and the model check takes it up within the hour.
+
 ## Fallback order and behaviour
 
 The **default** order, derived from `priority` so it lives in one place:

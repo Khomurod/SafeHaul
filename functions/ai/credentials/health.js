@@ -108,6 +108,9 @@ async function recordProviderOutcome(providerId, outcome) {
         laneFailures[lane] = failures;
         update.lastFailureCategory = typeof category === 'string' ? category.slice(0, 40) : 'internal';
         update.lastFailureLane = lane;
+        // When this lane's run of failures began: the daily model check looks at a
+        // failure within the hour only when it is new since its last look.
+        if (!laneHealth[lane] || laneHealth[lane] === 'healthy') update.laneFailedAt = { [lane]: now };
         laneHealth[lane] = 'degraded';
         update.consecutiveFailures = failures;
 

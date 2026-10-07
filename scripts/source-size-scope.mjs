@@ -134,6 +134,11 @@ export const NOT_SOURCE_FORMATS = Object.freeze([
       + 'baselines. A line count of a PNG is a count of accidental newline bytes.',
   },
   {
+    extension: '.jpg',
+    reason: 'One photo: functions/ai/tasks/verification/cdl-specimen.jpg, the made-up licence '
+      + 'the daily AI model check reads. Binary, and its test pins it by hash.',
+  },
+  {
     extension: '.ico',
     reason: 'The favicon. A binary icon container, and public/favicon.ico is the only one.',
   },

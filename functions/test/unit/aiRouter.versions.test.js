@@ -235,3 +235,36 @@ describe('what the router records', () => {
         expect(error.failureCategories[0]).toBe('model_unavailable');
     });
 });
+
+describe('versions the daily check saved', () => {
+    const { allConfigured } = require('./aiRouter.support');
+    const withSaved = (vision) => allConfigured({ mistral: { modelLists: { vision: { models: vision } } } });
+
+    it('are asked first, in their order, and the built-in ones not at all', async () => {
+        mockStore.readAllConfigs.mockResolvedValue(withSaved([SECOND, 'mistral-small-2603']));
+        vendors({ [`mistral/${SECOND}`]: fail('model_unavailable', { status: 404 }) });
+
+        await runAiTask(readTask(), MISTRAL_FIRST);
+
+        expect(asked()).toEqual([`mistral/${SECOND}`, 'mistral/mistral-small-2603']);
+    });
+
+    it('rest like any other version', async () => {
+        mockStore.readAllConfigs.mockResolvedValue(withSaved([SECOND, 'mistral-small-2603']));
+        vendors({ [`mistral/${SECOND}`]: fail('model_unavailable', { status: 404 }) });
+
+        await runAiTask(readTask(), MISTRAL_FIRST);
+
+        const outcome = mockStore.recordProviderOutcome.mock.calls.find(([id]) => id === 'mistral')[1];
+        expect(outcome.versionRests).toEqual([expect.objectContaining({ model: SECOND, reason: 'removed' })]);
+    });
+
+    it('fall back to the built-in list when the stored one is unusable', async () => {
+        mockStore.readAllConfigs.mockResolvedValue(withSaved(['not a model id']));
+        vendors({});
+
+        await runAiTask(readTask(), MISTRAL_FIRST);
+
+        expect(asked()).toEqual([`mistral/${FIRST}`]);
+    });
+});

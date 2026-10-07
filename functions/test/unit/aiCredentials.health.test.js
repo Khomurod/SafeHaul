@@ -248,6 +248,24 @@ describe('health and cooldown are tracked per lane', () => {
         expect(store.restingModels(config, 'vision').size).toBe(0);
     });
 
+    it('records when a lane\'s run of failures began, and keeps it while the run lasts', async () => {
+        const clock = jest.spyOn(Date, 'now');
+        clock.mockReturnValue(1000);
+        await fail('gemini', 'vision');
+        clock.mockReturnValue(2000);
+        await fail('gemini', 'vision');
+        await fail('gemini', 'text');
+        expect((await store.readConfig('gemini')).laneFailedAt).toEqual({ vision: 1000, text: 2000 });
+
+        // A success ends the run; the next failure begins a new one.
+        clock.mockReturnValue(3000);
+        await store.recordProviderOutcome('gemini', { success: true, lane: 'vision' });
+        clock.mockReturnValue(4000);
+        await fail('gemini', 'vision');
+        expect((await store.readConfig('gemini')).laneFailedAt).toEqual({ vision: 4000, text: 2000 });
+        clock.mockRestore();
+    });
+
     it('reports the worst lane, and unknown when nothing has been recorded', () => {
         expect(store.worstLaneHealth({ text: 'healthy', vision: 'quota' })).toBe('quota');
         expect(store.worstLaneHealth({ text: 'healthy', vision: 'degraded' })).toBe('degraded');

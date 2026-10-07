@@ -90,6 +90,13 @@ describeFirestore('firestore.rules security regressions', () => {
     // rate-limit guards — so this is closed to Super Admins in the browser too.
     await assertFails(setDoc(doc(superDb, 'ai_routing_config', 'order'), { providerIds: ['groq'] }));
     await assertFails(setDoc(doc(anonDb, 'ai_routing_config', 'order'), { providerIds: ['groq'] }));
+
+    // The daily model check's switch and lease, and the versions it saved into a
+    // provider's config: a client that could write either would choose which model
+    // reads every licence, so both stay server-only.
+    await assertFails(getDoc(doc(superDb, 'ai_routing_config', 'modelCheck')));
+    await assertFails(setDoc(doc(superDb, 'ai_routing_config', 'modelCheck'), { autoSelect: false }));
+    await assertFails(setDoc(doc(superDb, 'ai_provider_config', 'groq'), { modelLists: { vision: { models: ['x'] } } }, { merge: true }));
   });
 
   it('blocks all client access to unfinished applications and their audit trail', async () => {
