@@ -68,8 +68,11 @@ SafeHaul can issue is fixed in `functions/ai/tasks/` at deploy time.
 `functions/ai/registry/providers.js` is frozen and declarative. Each row carries
 provider id, display name, priority, docs URL, API base URL, adapter name,
 capabilities, structured-output mode, credential fields, non-secret config
-fields, default models per capability, timeout, retry policy, quota detection and
-health-test method.
+fields, timeout, retry policy, quota detection and health-test method. The
+model versions a row is asked for, per capability and in order, live beside it
+in `registry/modelVersions.js`; `resolveModels()` returns a lane's list (or the
+operator's override alone), and `defaultModels` / `resolveModel()` are its first
+entry.
 
 Three properties make it load-bearing rather than decorative:
 
@@ -1127,7 +1130,9 @@ owner. **The feature is not fully live until they are.**
 ## Related files
 
 - [`functions/ai/registry/providers.js`](../functions/ai/registry/providers.js)
+- [`functions/ai/registry/modelVersions.js`](../functions/ai/registry/modelVersions.js)
 - [`functions/ai/router/router.js`](../functions/ai/router/router.js)
+- [`functions/ai/router/providerTurn.js`](../functions/ai/router/providerTurn.js)
 - [`scripts/check-ai-provider-boundary.mjs`](../scripts/check-ai-provider-boundary.mjs)
 - [`docs/news-and-insights.md`](./news-and-insights.md)
 - [`docs/security-posture.md`](./security-posture.md)

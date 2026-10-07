@@ -33,15 +33,13 @@
  */
 
 // The pieces this loop decides with live beside it, one module per concern.
-// `runAiTask` itself stays here whole: it is one control flow with a deadline
-// spanning every fallback, and cutting it into phases would mean threading that
-// shared state through arguments — a refactor of the routing path, which is a
-// different decision from a size split and is deliberately not made here.
+// `runAiTask` keeps the walk across providers, the deadline that spans every
+// fallback, and the transaction record. One provider's turn — its attempts,
+// retry policy, stated wait and recorded outcome — is ./providerTurn.js, which
+// reports what happened and leaves what it means for the task to this loop.
 
-const { CAPABILITIES, normalizeCapabilities, laneForCapability } = require('../registry/capabilities');
-const { getAdapter } = require('../providers');
-const { AiError, isTaskFatal } = require('./errors');
-const store = require('../credentials/store');
+const { CAPABILITIES, normalizeCapabilities } = require('../registry/capabilities');
+const { AiError } = require('./errors');
 const {
     recordAiTelemetry, describeTaskInput, MAX_ATTEMPTS: MAX_RECORDED_ATTEMPTS,
 } = require('../telemetry/record');
@@ -53,8 +51,9 @@ const {
     SKIP_REASONS, evaluateProvider, safeEvaluateProvider, pickPrimaryCapability,
 } = require('./eligibility');
 const { resolveConfigs, resolveProviderOrder } = require('./configs');
-const { assertImagesAreWellFormed, normalizeOutput, safeVerdict, sleep } = require('./output');
+const { assertImagesAreWellFormed, normalizeOutput, safeVerdict } = require('./output');
 const { buildTerminalFailure, finishFailure } = require('./failure');
+const { runProviderTurn } = require('./providerTurn');
 /**
  * Runs one AI task through the router.
  *
@@ -94,6 +93,9 @@ async function runAiTask(task, deps = {}) {
         : Infinity;
     const deadlineController = new AbortController();
     const deadlineTimer = setTimeout(() => deadlineController.abort(), totalDeadlineMs);
+    const timing = {
+        startedAt, totalDeadlineMs, perAttemptDeadlineMs, signal: deadlineController.signal,
+    };
 
     const providers = await resolveProviderOrder(deps);
     const configs = await resolveConfigs();
@@ -121,10 +123,13 @@ async function runAiTask(task, deps = {}) {
     const transactionId = randomUUID();
     const attemptRecords = [];
 
-    /** Appends one provider's turn. Metadata only — see ../telemetry/record.js. */
+    /**
+     * Appends one attempt, numbered in order. Metadata only — see
+     * ../telemetry/record.js.
+     */
     function noteAttempt(record) {
         if (attemptRecords.length >= MAX_RECORDED_ATTEMPTS) return;
-        attemptRecords.push(record);
+        attemptRecords.push({ ...record, attemptNumber: attemptRecords.length + 1 });
     }
 
     /**
@@ -150,7 +155,6 @@ async function runAiTask(task, deps = {}) {
         skipped.push({ providerId: provider.id, reason });
         noteAttempt({
             providerId: provider.id,
-            attemptNumber: attemptRecords.length + 1,
             status: 'skipped',
             skipReason: reason,
             success: false,
@@ -184,208 +188,58 @@ async function runAiTask(task, deps = {}) {
             }
 
             attempted.push(provider.id);
-            const adapter = getAdapter(provider);
-            const providerAttemptBudget = Math.max(1, provider.retryPolicy?.attempts || 1);
+            const turn = await runProviderTurn({
+                task, provider, evaluation, primaryCapability, timing, noteAttempt, deps,
+            });
 
-            let providerError = null;
-            // A vendor that tells us when to come back earns one attempt beyond
-            // the registry's policy, once. Groq refuses a request exceeding its
-            // per-minute token budget and states the reset in about seven seconds;
-            // against a two-minute task deadline, abandoning a working provider
-            // over that is a waste. Bounded three ways: `MAX_RETRY_AFTER_MS` in
-            // http.js caps the wait, `usedStatedWait` caps it to one occurrence,
-            // and the deadline signal ends it regardless.
-            let usedStatedWait = false;
-            let maxAttempts = providerAttemptBudget;
+            if (turn.ok) {
+                const latencyMs = Date.now() - startedAt;
+                await recordAiTelemetry({
+                    ...transactionBase,
+                    providerId: provider.id,
+                    model: turn.model,
+                    outcome: 'success',
+                    latencyMs,
+                    fallbackCount: attempted.length - 1,
+                    attemptedProviders: attempted,
+                    providersInvolved: attemptRecords.map((entry) => entry.providerId),
+                    cooldownSkipped: skipped.filter((s) => s.reason === SKIP_REASONS.COOLDOWN).length,
+                    credentialSource: evaluation.credentials.source,
+                    // What the answer actually *said*, where the task can
+                    // reduce it to a word. A successful transaction is not the
+                    // same fact as a useful answer — a fact-check returning
+                    // `supported: false` is a valid response that correctly
+                    // refuses an article, and without this the Logs tab shows
+                    // it as an unqualified success.
+                    verdict: safeVerdict(task, turn.output),
+                    attempts: linkedAttempts(),
+                });
 
-            for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-                const attemptStartedAt = Date.now();
-                if (attempt > 0) {
-                    const stated = providerError?.retryAfterMs && !usedStatedWait
-                        ? providerError.retryAfterMs
-                        : 0;
-                    if (stated) usedStatedWait = true;
-                    const backoff = stated || provider.retryPolicy?.backoffMs || 0;
-                    if (backoff > 0) await sleep(backoff, deadlineController.signal);
-                    if (deadlineController.signal.aborted) break;
-                }
-                try {
-                    const raw = await adapter.execute({
-                        provider,
-                        capability: primaryCapability,
-                        model: evaluation.model,
-                        systemInstructions: task.systemInstructions,
-                        inputText: task.inputText,
-                        images: task.images,
-                        schema: task.outputSchema,
-                        schemaName: task.schemaName || 'safehaul_task_output',
-                        temperature: typeof task.temperature === 'number' ? task.temperature : 0,
-                        maxOutputTokens: task.maxOutputTokens || 2048,
-                        // The smallest of: what the vendor is given, the task's
-                        // per-attempt ceiling, and the budget that is actually
-                        // left. The last term is what stops a late attempt being
-                        // handed more time than the deadline has remaining.
-                        timeoutMs: Math.min(
-                            provider.timeoutMs,
-                            perAttemptDeadlineMs,
-                            Math.max(0, totalDeadlineMs - (Date.now() - startedAt)),
-                        ),
-                        parentSignal: deadlineController.signal,
-                        credentials: evaluation.credentials.values,
-                        config: evaluation.config,
-                        fetchImpl: deps.fetchImpl,
-                    });
-
-                    const { output } = normalizeOutput({
-                        text: raw.text,
-                        schema: task.outputSchema,
-                        providerId: provider.id,
-                    });
-
-                    await store.recordProviderOutcome(provider.id, {
-                        success: true,
-                        // Per lane: a working article generator says nothing about
-                        // whether this provider can read a licence photograph, and
-                        // recording it as though it did is what let a provider show
-                        // as healthy while every CDL request to it was rejected.
-                        lane: laneForCapability(primaryCapability),
-                    });
-                    const latencyMs = Date.now() - startedAt;
-                    noteAttempt({
-                        providerId: provider.id,
-                        model: raw.model || evaluation.model,
-                        attemptNumber: attemptRecords.length + 1,
-                        status: 'attempted',
-                        success: true,
-                        latencyMs: Date.now() - attemptStartedAt,
-                        // The output reached here, so it parsed *and* validated.
-                        schemaValid: Boolean(task.outputSchema),
-                        inputTokens: raw.usage?.inputTokens ?? null,
-                        outputTokens: raw.usage?.outputTokens ?? null,
-                    });
-                    await recordAiTelemetry({
-                        ...transactionBase,
-                        providerId: provider.id,
-                        model: raw.model || evaluation.model,
-                        outcome: 'success',
-                        latencyMs,
-                        fallbackCount: attempted.length - 1,
-                        attemptedProviders: attempted,
-                        providersInvolved: attemptRecords.map((entry) => entry.providerId),
-                        cooldownSkipped: skipped.filter((s) => s.reason === SKIP_REASONS.COOLDOWN).length,
-                        credentialSource: evaluation.credentials.source,
-                        // What the answer actually *said*, where the task can
-                        // reduce it to a word. A successful transaction is not the
-                        // same fact as a useful answer — a fact-check returning
-                        // `supported: false` is a valid response that correctly
-                        // refuses an article, and without this the Logs tab shows
-                        // it as an unqualified success.
-                        verdict: safeVerdict(task, output),
-                        attempts: linkedAttempts(),
-                    });
-
-                    return {
-                        output,
-                        transactionId,
-                        providerId: provider.id,
-                        model: raw.model || evaluation.model,
-                        latencyMs,
-                        fallbackCount: attempted.length - 1,
-                        credentialSource: evaluation.credentials.source,
-                    };
-                } catch (error) {
-                    providerError = error instanceof AiError
-                        ? error
-                        : new AiError('internal', error?.message || 'Adapter failed.', { providerId: provider.id });
-
-                    noteAttempt({
-                        providerId: provider.id,
-                        model: evaluation.model,
-                        attemptNumber: attemptRecords.length + 1,
-                        status: 'attempted',
-                        success: false,
-                        category: providerError.category,
-                        // Both are already safe by construction: a status is a
-                        // number, and the code was pattern-checked in http.js.
-                        httpStatus: providerError.status,
-                        vendorCode: providerError.vendorCode,
-                        retryAfterMs: providerError.retryAfterMs,
-                        latencyMs: Date.now() - attemptStartedAt,
-                        // Records *why* fallback happened for a structured task:
-                        // the vendor answered, but not in a shape SafeHaul could
-                        // use. That reads very differently from an outage.
-                        schemaValid: providerError.category === 'schema_validation_failed'
-                            ? false
-                            : undefined,
-                    });
-
-                    // Only a *task-fatal* category abandons the whole chain: a
-                    // malformed SafeHaul request, no capable provider, or the
-                    // deadline. Every vendor would answer those the same way.
-                    if (isTaskFatal(providerError.category)) {
-                        await finishFailure(task, providerError, {
-                            attempted, skipped, startedAt, primaryCapability,
-                            transactionBase, attempts: linkedAttempts(),
-                        });
-                        throw providerError;
-                    }
-
-                    // Grant one extra attempt when the vendor stated a short
-                    // wait. The loop above performs the wait and re-executes, so
-                    // there is exactly one code path that calls the adapter.
-                    //
-                    // But a stated wait is still this provider's turn: honouring a
-                    // 30s wait (the `MAX_RETRY_AFTER_MS` cap) under a task with a
-                    // per-attempt ceiling would consume the budget reserved for
-                    // failing over to a healthy provider — the very thing the
-                    // ceiling exists to protect. So when a ceiling is set, only
-                    // wait if what remains after it still leaves a full slice for a
-                    // fallback; otherwise move on to the next provider now.
-                    const budgetLeftMs = totalDeadlineMs - (Date.now() - startedAt);
-                    const retryFitsReserve = perAttemptDeadlineMs === Infinity
-                        || budgetLeftMs - (providerError.retryAfterMs || 0) >= perAttemptDeadlineMs;
-                    if (providerError.retryAfterMs && !usedStatedWait
-                        && attempt === maxAttempts - 1
-                        && retryFitsReserve
-                        && !deadlineController.signal.aborted) {
-                        maxAttempts += 1;
-                        continue;
-                    }
-
-                    // Anything else ends this provider's turn, not the task.
-                    // `unauthorized` is one vendor's key; `internal` is one
-                    // adapter misbehaving. Throwing here let a single bad key or
-                    // a single adapter bug disable all nine providers, which is
-                    // exactly what the fallback order exists to prevent.
-                    if (!providerError.retryable) break;
-
-                    // A retry is still this provider's turn, so under a ceiling
-                    // it has to leave a full slice for the next provider as well.
-                    // Otherwise a provider with a retry policy, placed first,
-                    // spends two ceilings on one stall and starves the fallback.
-                    if (perAttemptDeadlineMs !== Infinity && attempt < maxAttempts - 1) {
-                        const leftMs = totalDeadlineMs - (Date.now() - startedAt);
-                        const backoffMs = provider.retryPolicy?.backoffMs || 0;
-                        if (leftMs - backoffMs - perAttemptDeadlineMs < perAttemptDeadlineMs) break;
-                    }
-                }
+                return {
+                    output: turn.output,
+                    transactionId,
+                    providerId: provider.id,
+                    model: turn.model,
+                    latencyMs,
+                    fallbackCount: attempted.length - 1,
+                    credentialSource: evaluation.credentials.source,
+                };
             }
 
-            if (providerError) {
-                lastError = providerError;
-                failures.push({ providerId: provider.id, category: providerError.category });
-                await store.recordProviderOutcome(provider.id, {
-                    success: false,
-                    category: providerError.category,
-                    // Which lane failed. A rejected CDL photograph must not count
-                    // against the provider's article writing, and must not cool
-                    // it out of that lane.
-                    lane: laneForCapability(primaryCapability),
-                    // The vendor's own statement of how long it is unavailable
-                    // for, so a per-minute cap costs a minute rather than the
-                    // flat half hour a spent daily allowance deserves.
-                    retryAfterHintMs: providerError.retryAfterHintMs,
+            // Only a *task-fatal* category abandons the whole chain: a
+            // malformed SafeHaul request, no capable provider, or the
+            // deadline. Every vendor would answer those the same way.
+            if (turn.fatal) {
+                await finishFailure(task, turn.error, {
+                    attempted, skipped, startedAt, primaryCapability,
+                    transactionBase, attempts: linkedAttempts(),
                 });
+                throw turn.error;
+            }
+
+            if (turn.error) {
+                lastError = turn.error;
+                failures.push({ providerId: provider.id, category: turn.error.category });
             }
         }
     } catch (error) {

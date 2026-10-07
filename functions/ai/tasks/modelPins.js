@@ -27,7 +27,7 @@
  * answers "does the name still resolve", the probes answer "does it do the job".
  */
 
-const { PROVIDERS, isRetired, resolveModel } = require('../registry/providers');
+const { PROVIDERS, isRetired, resolveModels } = require('../registry/providers');
 const { CAPABILITIES } = require('../registry/capabilities');
 const store = require('../credentials/store');
 
@@ -82,16 +82,20 @@ const CATALOGUES = Object.freeze({
     },
 });
 
-/** Every distinct model this provider would resolve, and for which capability. */
+/**
+ * Every distinct model version this provider would be asked for, and for which
+ * capability. Every version in a list, not only the first: a version kept in
+ * reserve is useless if its vendor has withdrawn it.
+ */
 function pinnedModels(provider, config) {
     const pins = new Map();
     for (const capability of provider.capabilities) {
         // Not a model axis — no provider pins a model for it.
         if (capability === CAPABILITIES.LONG_CONTEXT) continue;
-        const model = resolveModel(provider, capability, config);
-        if (!model) continue;
-        if (!pins.has(model)) pins.set(model, []);
-        pins.get(model).push(capability);
+        for (const model of resolveModels(provider, capability, config)) {
+            if (!pins.has(model)) pins.set(model, []);
+            pins.get(model).push(capability);
+        }
     }
     return pins;
 }
