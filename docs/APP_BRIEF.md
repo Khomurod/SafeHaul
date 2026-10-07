@@ -630,9 +630,9 @@ date), so a recorded result never drifts. The page asks what (b)(10)–(11) ask:
 every employer of three years and, for a CDL job, the CMV employers of the seven
 before (and says so when the company's period is longer). The reason for leaving
 is required, and each employer not ended before the three years answers the two
-(b)(10)(iv) questions (`subjectToFmcsrs`, `subjectToDotTesting`, the portal's
-names), never pre-selected. The page and the submission pre-flight check them (a
-draft resumed past the page is sent back to it); the server does not.
+(b)(10)(iv) questions (`subjectToFmcsrs`, `subjectToDotTesting`), never
+pre-selected. Continue lists what each row lacks, each line a link to its field;
+the pre-flight checks too (a resumed draft goes back), not the server.
 
 **Change both or neither.** The SPA cannot import the CommonJS backend, so
 coverage exists twice — `functions/shared/employmentCoverage.js` and

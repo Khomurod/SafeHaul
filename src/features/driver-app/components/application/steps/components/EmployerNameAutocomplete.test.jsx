@@ -43,6 +43,20 @@ describe('EmployerNameAutocomplete', () => {
     expect(onChange).toHaveBeenCalledWith('companyName', 'Acme');
   });
 
+  it('marks the name invalid and says why in both modes, beside the lookup\'s own message', () => {
+    const { unmount } = render(<EmployerNameAutocomplete id="co" value="" onChange={vi.fn()} required error="Required." />);
+    const combobox = screen.getByRole('combobox');
+    expect(combobox).toHaveAttribute('aria-invalid', 'true');
+    expect(combobox.getAttribute('aria-describedby')).toBe('co-error');
+    expect(document.getElementById('co-error')).toHaveTextContent('Required.');
+    unmount();
+
+    vi.stubEnv('VITE_SOCRATA_APP_TOKEN', '');
+    render(<EmployerNameAutocomplete id="co" value="" onChange={vi.fn()} required error="Required." />);
+    expect(screen.getByLabelText(/company name/i)).toHaveAttribute('aria-invalid', 'true');
+    expect(document.getElementById('co-error')).toHaveTextContent('Required.');
+  });
+
   it('keeps browser autofill off in both modes, so the applicant\'s own details never land here', () => {
     const { unmount } = render(<EmployerNameAutocomplete id="co" value="" onChange={vi.fn()} />);
     // The lookup draws its own listbox; the browser's list would cover it.

@@ -36,19 +36,32 @@ export function endedBeforeLastThreeYears(employer, today = new Date()) {
 const isBlankAnswer = (value) => String(value ?? '').trim() === '';
 
 /**
- * What an employer row still owes the questions the Employment page requires:
- * the reason for leaving, and the two 49 CFR 391.21(b)(10)(iv) answers for a
- * job of the past three years. The page asks them; the submission pre-flight
- * uses this for a draft resumed past the page before it asked them.
+ * The answers an employer row still owes the questions the Employment page
+ * requires, by saved key: the reason for leaving, and the two 49 CFR
+ * 391.21(b)(10)(iv) answers for a job of the past three years. The page lists
+ * them (`employmentStepIssues.js`); the submission pre-flight words them
+ * (`employerRowMissingAnswers`) for a draft resumed past the page before it
+ * asked them.
  */
-export function employerRowMissingAnswers(employer, today = new Date()) {
+export function employerRowMissingAnswerKeys(employer, today = new Date()) {
     const missing = [];
-    if (isBlankAnswer(employer?.reasonForLeaving)) missing.push('the reason for leaving');
+    if (isBlankAnswer(employer?.reasonForLeaving)) missing.push('reasonForLeaving');
     if (!endedBeforeLastThreeYears(employer, today)) {
-        if (isBlankAnswer(employer?.subjectToFmcsrs)) missing.push('whether you were subject to the FMCSRs');
-        if (isBlankAnswer(employer?.subjectToDotTesting)) missing.push('whether the job was subject to DOT drug and alcohol testing');
+        if (isBlankAnswer(employer?.subjectToFmcsrs)) missing.push('subjectToFmcsrs');
+        if (isBlankAnswer(employer?.subjectToDotTesting)) missing.push('subjectToDotTesting');
     }
     return missing;
+}
+
+const MISSING_ANSWER_WORDS = Object.freeze({
+    reasonForLeaving: 'the reason for leaving',
+    subjectToFmcsrs: 'whether you were subject to the FMCSRs',
+    subjectToDotTesting: 'whether the job was subject to DOT drug and alcohol testing',
+});
+
+/** `employerRowMissingAnswerKeys`, in the words of a sentence. */
+export function employerRowMissingAnswers(employer, today = new Date()) {
+    return employerRowMissingAnswerKeys(employer, today).map((key) => MISSING_ANSWER_WORDS[key]);
 }
 
 /**

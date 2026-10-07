@@ -10,8 +10,10 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Step6_Employment from './Step6_Employment';
 
+const company = vi.hoisted(() => ({ profile: { applicationConfig: {} } }));
+
 vi.mock('@/context/DataContext', () => ({
-    useData: () => ({ currentCompanyProfile: { applicationConfig: {} } }),
+    useData: () => ({ currentCompanyProfile: company.profile }),
 }));
 vi.mock('@shared/hooks/useUtils', () => ({
     useUtils: () => ({ states: ['TX', 'CA'] }),
@@ -22,24 +24,22 @@ vi.mock('@shared/components/feedback', () => ({
 
 const NOW = new Date('2026-06-15T00:00:00Z');
 
+// Every field the row requires, so Continue reaches the coverage check.
+const answeredJob = {
+    companyName: 'Artificial Freight Co',
+    address: '1 Test Way', city: 'Springfield', state: 'TX',
+    phone: '5555550100',
+    reasonForLeaving: 'Still employed', subjectToFmcsrs: 'yes', subjectToDotTesting: 'yes',
+};
+
 // A single job covering the whole three-year window.
 const completeHistory = {
-    employers: [{
-        companyName: 'Artificial Freight Co',
-        address: '1 Test Way', city: 'Springfield', state: 'TX',
-        phone: '5555550100',
-        startDate: '2020-01-01', endDate: '',
-    }],
+    employers: [{ ...answeredJob, startDate: '2020-01-01', endDate: '2026-06' }],
 };
 
 // Eighteen months covered, eighteen missing.
 const partialHistory = {
-    employers: [{
-        companyName: 'Artificial Freight Co',
-        address: '1 Test Way', city: 'Springfield', state: 'TX',
-        phone: '5555550100',
-        startDate: '2025-01-01', endDate: '',
-    }],
+    employers: [{ ...answeredJob, startDate: '2025-01-01', endDate: '2026-06' }],
 };
 
 const renderStep = ({ formData = {}, onNavigate = vi.fn() } = {}) => {
@@ -64,6 +64,7 @@ describe('Step6_Employment — three-year coverage', () => {
     beforeEach(() => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         vi.setSystemTime(NOW);
+        company.profile = { applicationConfig: {} };
         // jsdom/happy-dom do not implement scrollIntoView.
         Element.prototype.scrollIntoView = vi.fn();
     });
@@ -173,6 +174,9 @@ describe('Step6_Employment — three-year coverage', () => {
     });
 
     it('says so when an entry has no usable dates instead of silently ignoring it', () => {
+        // Where the company made the history optional, the dates are not asked
+        // for by name, so coverage is what says the entry could not be counted.
+        company.profile = { applicationConfig: { employmentHistory: { hidden: false, required: false } } };
         renderStep({
             formData: {
                 employers: [{

@@ -29,6 +29,8 @@ import { FormField, Select } from '@/design-system/components';
  * `autoComplete` has no default: only the applicant's own current address passes
  * `address-level1`. A built-in token would let the browser put that state into
  * every employer, accident and licence row too.
+ *
+ * `error` goes to `FormField`, which marks the select invalid and says why.
  */
 export function StateSelectField({
     id,
@@ -39,10 +41,11 @@ export function StateSelectField({
     label = 'State',
     required = true,
     autoComplete,
+    error,
 }) {
     const unlisted = typeof value === 'string' && value && !states.includes(value) ? value : null;
     return (
-        <FormField id={id} label={label} required={required}>
+        <FormField id={id} label={label} required={required} error={error}>
             <Select name={name} value={value || ''} onChange={onChange} autoComplete={autoComplete}>
                 <option value="" disabled>Select State</option>
                 {unlisted && <option value={unlisted}>{unlisted}</option>}

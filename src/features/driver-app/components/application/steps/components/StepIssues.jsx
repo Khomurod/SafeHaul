@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { Notice } from '@/design-system/components';
+import { Link, Notice } from '@/design-system/components';
 
 /**
  * The company's Application Rules, told to the applicant on the step itself.
@@ -22,8 +22,19 @@ import { Notice } from '@/design-system/components';
  * panel that is already tight; this is a step's own summary at full width. The
  * text goes 13px to 14px as a result — the size the design system says a notice
  * reads at, and the reason `md` is the default at all.
+ *
+ * An issue that carries `focusId` names a field on the step, so its line is a
+ * link to that field, as in an error summary: `onFocusField` moves focus there
+ * rather than leaving the browser to scroll to it unfocused. The Employment page
+ * lists its empty fields this way. Lines are keyed by `key` when an issue has
+ * one, and by position otherwise, because one rule can raise the same `code`
+ * for two rows.
  */
-export const StepIssues = forwardRef(function StepIssues({ blocking = [], warnings = [], showBlocking = true }, ref) {
+const lineKey = (issue, index) => issue.key || `${issue.code}-${index}`;
+
+export const StepIssues = forwardRef(function StepIssues({
+    blocking = [], warnings = [], showBlocking = true, title, onFocusField,
+}, ref) {
     const hasBlocking = showBlocking && blocking.length > 0;
     if (!hasBlocking && warnings.length === 0) return null;
 
@@ -35,10 +46,25 @@ export const StepIssues = forwardRef(function StepIssues({ blocking = [], warnin
                     tabIndex={-1}
                     announce="assertive"
                     tone="danger"
+                    title={title}
                     data-testid="step-blocking-issues"
                 >
                     <ul className="space-y-ds-1">
-                        {blocking.map((issue) => <li key={issue.code}>{issue.message}</li>)}
+                        {blocking.map((issue, index) => (
+                            <li key={lineKey(issue, index)}>
+                                {issue.focusId && onFocusField ? (
+                                    <Link
+                                        href={`#${issue.focusId}`}
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            onFocusField(issue.focusId);
+                                        }}
+                                    >
+                                        {issue.message}
+                                    </Link>
+                                ) : issue.message}
+                            </li>
+                        ))}
                     </ul>
                 </Notice>
             )}
@@ -49,7 +75,7 @@ export const StepIssues = forwardRef(function StepIssues({ blocking = [], warnin
                     data-testid="step-warning-issues"
                 >
                     <ul className="space-y-ds-1">
-                        {warnings.map((issue) => <li key={issue.code}>{issue.message}</li>)}
+                        {warnings.map((issue, index) => <li key={lineKey(issue, index)}>{issue.message}</li>)}
                     </ul>
                 </Notice>
             )}
