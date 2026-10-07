@@ -111,7 +111,7 @@ Used by Cloud Functions with Admin SDK:
 | `companies/{id}/blacklist/{phone}` | Company opt-out list |
 | `companies/{id}/inbound_messages/{id}` | Inbound SMS (STOP handling trigger) |
 | `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next — **or** one a carrier prepared (`origin: 'company'`, `status: prepared\|sent\|driver_in_progress`, `preparedBy`, `inviteTokenHash`, `inviteClaimedAt`, `lockedEmployers`). See below |
-| `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards, and of a Company Admin's views and deletions |
+| `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards, and of a Company Admin's views, edits and deletions |
 | `companies/{id}/legal_agreements/{agreementId}` | Company-published agreement wording: `{ activeVersion, versions: { 'c-<hash>': { body, createdAt, createdBy, note } } }`. Callables only; publish/revert is Super Admin only |
 
 ---
@@ -168,7 +168,7 @@ merge idempotently. No new identity scheme was introduced.
 | `clientSeq` | The browser's own write counter for the copy this save carried. The client compares it with the sequence *it* believes is synced, which is how an older server draft is stopped from overwriting newer local work — without either side comparing a phone clock to a Firestore timestamp. Null for a draft written before the field existed; the client falls back to comparing progress |
 | `resumeTokenHash` | A hash of the bearer token issued to a browser. Compared in constant time; the token itself is never stored |
 | `priorResumeTokenHashes` | Up to two superseded hashes, so a rotation by a resume lookup is not mistaken for the draft being deleted. Liveness evidence only — never authorization |
-| `companyRevision`, `companyEdits` | A Company Admin's edits: the latest one's revision (a millisecond time, so always later than the one before, even across a draft deleted and started again), and each edited answer's. A browser's save or submission from an older revision is refused, and so is a save landing on the same driver's other edited draft (`functions/shared/companyEdits.js`). Absent on a draft nobody edited, and carried to the new id when a corrected email or phone moves the draft |
+| `companyRevision`, `companyEdits`, `companyEditedAt` | A Company Admin's edits (`saveApplicationDraftEdits`): the latest one's revision (a millisecond time, so always later than the one before, even across a draft deleted and started again), each edited answer's, and when the latest was made. A browser's save or submission from an older revision is refused, and so is a save landing on the same driver's other edited draft (`functions/shared/companyEdits.js`). Absent on a draft nobody edited, and carried to the new id when a corrected email or phone moves the draft |
 | `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json` |
 
 **The draft never holds an SSN.** It is stripped in three independent places — the
@@ -263,10 +263,12 @@ company's apply page is seeing and how many matched; a spike is visible and
 nothing about a person is retained.
 
 A Company Admin's actions are the exception that says who and which:
-`company_viewed_draft` (`getApplicationDraft`) and `company_deleted_draft`
+`company_viewed_draft` (`getApplicationDraft`), `company_edited_draft`
+(`saveApplicationDraftEdits`) and `company_deleted_draft`
 (`deleteApplicationDraft`) add `actorUid` (the staff account), `applicantKey`
-(the draft's id, already a hash) and the draft's `origin` and `status` — still
-nothing the driver typed. They expire with the rest, after 30 days.
+(the draft's id, already a hash) and the draft's `origin` and `status`; an edit
+adds the ids of the answers it changed (`fields`) and its `revision` — still
+nothing the driver or the admin typed. They expire with the rest, after 30 days.
 
 ---
 

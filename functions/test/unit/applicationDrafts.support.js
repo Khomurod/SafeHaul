@@ -144,12 +144,16 @@ const mockAssertCompanyAdmin = jest.fn().mockResolvedValue(undefined);
 const mockCheckRateLimit = jest.fn().mockResolvedValue(true);
 const mockAssertIntake = jest.fn().mockResolvedValue({ companyName: 'Acme Freight' });
 
-/** `firebase-functions/v2/https`, with `onCall` unwrapped so a test can call the handler. */
+/**
+ * `firebase-functions/v2/https`, with `onCall` unwrapped so a test can call the
+ * handler. Its `HttpsError` carries `details` too, as the real one does.
+ */
 const httpsV2Mock = () => {
     class HttpsError extends Error {
-        constructor(code, message) {
+        constructor(code, message, details) {
             super(message);
             this.code = code;
+            this.details = details;
         }
     }
     return { HttpsError, onCall: (_opts, fn) => fn };
@@ -204,7 +208,7 @@ const firebaseAdminMock = () => ({
                 mockBeforeNextTransaction = null;
                 hook();
             }
-            const record = { reads: [], writes: [] };
+            const record = { reads: [], writes: [], updates: [] };
             mockRunTransactionCalls.push(record);
             return fn({
             // A transaction reads documents *and* queries: the progress save asks
@@ -229,6 +233,20 @@ const firebaseAdminMock = () => ({
                 }
                 const previous = options?.merge ? (mockStore.get(ref.path) || {}) : {};
                 mockStore.set(ref.path, { ...previous, ...value });
+            },
+            // A Company Admin's edit replaces the answers whole, and refuses a
+            // document that is gone, as Firestore's `update` does.
+            update: (ref, value) => {
+                record.writes.push(ref.path);
+                // Apart from the merging `set`, whose double merges only the top
+                // level where Firestore merges every map: a test can only tell
+                // "replaced whole" from "merged" by which one was called.
+                record.updates.push(ref.path);
+                if (mockFailWritesOn && ref.path.includes(mockFailWritesOn)) {
+                    throw new Error('firestore unavailable');
+                }
+                if (!mockStore.has(ref.path)) throw new Error(`No document to update: ${ref.path}`);
+                mockStore.set(ref.path, { ...mockStore.get(ref.path), ...value });
             },
             delete: (ref) => { mockDeletedPaths.push(ref.path); mockStore.delete(ref.path); },
             });

@@ -9,5 +9,8 @@
     "consent-mvr",
     "driverInitials",
     "mvr-consent-upload",
-    "drug-test-consent-upload"
+    "drug-test-consent-upload",
+    "hosDailyHours",
+    "hosLastRelievedDate",
+    "hosLastRelievedTime"
 ]

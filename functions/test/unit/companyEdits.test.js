@@ -6,13 +6,19 @@
 jest.mock('firebase-functions/v1', () => require('./applicationDrafts.support').httpsV1Mock());
 
 const {
+    EDITABLE_FIELDS,
     assertCompanyEditsSeen,
     clientCompanyEdits,
     companyEditsOf,
     companyRevisionOf,
+    fitsField,
     mergeCompanyEdits,
+    nextCompanyRevision,
+    sameAnswer,
     seenRevisionOf,
 } = require('../../shared/companyEdits');
+const SECTIONS = require('../../shared/applicationSections.json');
+const DRIVER_ONLY_FIELDS = require('../../shared/driverOnlyFields.json');
 
 /** A revision is the edit's time in milliseconds. */
 const EDITED_AT = 1791300000000;
@@ -94,5 +100,55 @@ describe('a submission from a copy that has not taken the latest edits', () => {
 
     it('never applies to a browser that did not say which revision it holds', () => {
         expect(() => assertCompanyEditsSeen(null, edited)).not.toThrow();
+    });
+});
+
+describe('what a Company Admin may change', () => {
+    it('is every answer the application asks for and the company questions, never one only the driver gives', () => {
+        const asked = SECTIONS.flatMap((section) => section.fields.map((field) => field.id));
+
+        expect(EDITABLE_FIELDS).toEqual(expect.arrayContaining(['city', 'employers', 'cdl-front', 'customAnswers']));
+        for (const field of DRIVER_ONLY_FIELDS) expect(EDITABLE_FIELDS).not.toContain(field);
+        expect(EDITABLE_FIELDS).toHaveLength(asked.filter((id) => !DRIVER_ONLY_FIELDS.includes(id)).length + 1);
+    });
+
+    it.each([
+        ['a value', 'city', 'Dallas'],
+        ['a number', 'expSemiTrailerExp', 4],
+        ['a multiple choice', 'endorsements', ['H', 'N']],
+        ['a cleared answer', 'employers', null],
+        ['rows of fields', 'employers', [{ companyName: 'Acme', startDate: '2019-04', mayContact: 'yes' }]],
+        ['an upload', 'cdl-front', { name: 'front.jpg', storagePath: 'companies/c/applications/guest_uploads/f.jpg' }],
+        ['the company questions', 'customAnswers', { q1: 'yes', q2: ['a', 'b'], q3: { name: 'f.pdf', storagePath: 'p' } }],
+    ])('takes %s in the shape the wizard stores', (_what, field, value) => {
+        expect(fitsField(field, value)).toBe(true);
+    });
+
+    it.each([
+        ['rows given as text', 'employers', 'Acme'],
+        ['a row that is a list', 'employers', [['Acme']]],
+        ['a row field that is a set of fields', 'previousAddresses', [{ street: { line: 1 } }]],
+        ['an upload given as text', 'cdl-front', 'companies/c/f.jpg'],
+        ['an upload with nowhere it is stored', 'cdl-front', { name: 'front.jpg' }],
+        ['a set of fields for one value', 'city', { name: 'Dallas' }],
+        ['the company questions as a list', 'customAnswers', ['yes']],
+        ['a company answer that is a set of fields', 'customAnswers', { q1: { a: 1 } }],
+        ['an answer the application does not ask', 'notAnAnswer', 'x'],
+    ])('refuses %s', (_what, field, value) => {
+        expect(fitsField(field, value)).toBe(false);
+    });
+
+    it('compares two copies of an answer by what they say, not the order of their fields', () => {
+        expect(sameAnswer([{ a: 1, b: 2 }], [{ b: 2, a: 1 }])).toBe(true);
+        expect(sameAnswer({ q1: 'x', q2: 'y' }, { q2: 'y', q1: 'x' })).toBe(true);
+        expect(sameAnswer(undefined, null)).toBe(true);
+        expect(sameAnswer('', null)).toBe(false);
+        expect(sameAnswer([{ a: 1 }, { a: 2 }], [{ a: 2 }, { a: 1 }])).toBe(false);
+    });
+
+    it('stamps a new edit with its time, or one past the draft\'s latest when the clock lags', () => {
+        expect(nextCompanyRevision({}, EDITED_AT)).toBe(EDITED_AT);
+        expect(nextCompanyRevision({ companyRevision: EDITED_AT - 1 }, EDITED_AT)).toBe(EDITED_AT);
+        expect(nextCompanyRevision({ companyRevision: EDITED_AT + 9 }, EDITED_AT)).toBe(EDITED_AT + 10);
     });
 });

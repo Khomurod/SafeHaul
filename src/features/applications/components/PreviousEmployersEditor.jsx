@@ -150,7 +150,13 @@ function EmployerFieldControl({ field, row, rowKey, onChange, states }) {
     );
 }
 
-export function PreviousEmployersEditor({ employers, onChange }) {
+/**
+ * @param {object} props
+ * @param {boolean} [props.unfinished] An application the driver has not submitted
+ *   (`UnfinishedEditorSections.jsx`): nothing is verified before submission and
+ *   nothing is proposed, so the notice and the verification badges are left out.
+ */
+export function PreviousEmployersEditor({ employers, onChange, unfinished = false }) {
     const { states } = useUtils();
     const rows = useMemo(() => (Array.isArray(employers) ? employers : []), [employers]);
     /** The row a removal is waiting on, when it needs confirming. */
@@ -188,11 +194,13 @@ export function PreviousEmployersEditor({ employers, onChange }) {
 
     return (
         <div className="space-y-ds-4">
-            <Notice tone="info" size="sm">
-                Employment history changes go to the driver for approval, like every other
-                edit here. Verification records stay with the employer they belong to and are
-                never moved or deleted.
-            </Notice>
+            {!unfinished && (
+                <Notice tone="info" size="sm">
+                    Employment history changes go to the driver for approval, like every other
+                    edit here. Verification records stay with the employer they belong to and are
+                    never moved or deleted.
+                </Notice>
+            )}
 
             {rows.length === 0 && (
                 <p role="status" className="text-ds-sm italic text-ds-content-muted">
@@ -217,9 +225,11 @@ export function PreviousEmployersEditor({ employers, onChange }) {
                                             Employer {index + 1}
                                         </h5>
                                         {/* Status is never colour alone: the state is spelled out. */}
-                                        <Badge tone={verificationTone(state)}>
-                                            {`Verification: ${state}`}
-                                        </Badge>
+                                        {!unfinished && (
+                                            <Badge tone={verificationTone(state)}>
+                                                {`Verification: ${state}`}
+                                            </Badge>
+                                        )}
                                     </div>
                                     <Button
                                         variant="ghost"
