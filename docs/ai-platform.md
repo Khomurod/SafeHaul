@@ -312,6 +312,54 @@ for a paid plan.
 Rests, the switching table and Test connection apply to a saved list exactly as
 to a built-in one.
 
+### The daily model check
+
+`refreshAiModelLists` (`ops/modelRefresh.js`, every hour at :25 Chicago) keeps
+the saved lists true without a programmer. A provider is checked when it is
+due: daily at about 03:25 (and at any hour after 36 h), on the first run after
+it is set up, and within the hour once the router records a failure in one of
+its lanes (`laneHealth`), at most every 6 h. Only enabled, configured,
+unretired providers, only the lanes they already serve, and never a lane an
+operator chose a model for by hand.
+
+For each lane (`ai/tasks/modelCheck.js`):
+
+1. The vendor's catalogue (`ai/tasks/modelCatalogue.js`, shared with the
+   model-pin diagnostic; Gemini is read with `pageSize=1000`) says which of the
+   lane's versions still exist. One it no longer lists is out without a test.
+2. Each remaining version takes the lane's test through its adapter, not the
+   router, so the check moves no health, cooldown or rest
+   (`ai/tasks/modelVerification.js`). **Photos:** the licence read exactly as a
+   driver's is, on a made-up licence (`ai/tasks/verification/cdl-specimen.jpg`,
+   its SHA-256 pinned in `aiModelVerification.test.js`). It passes only by
+   reading all six fields right. **Text:** the structured-JSON probe.
+3. While the lane has room (three at most), new names from the catalogue are
+   tried, two per lane per run, in the order of `registry/modelCandidates.js`:
+   stable names only, never a preview or a `-latest` alias.
+4. The list is decided (`decideLane`). A version leaves only for a reason about
+   itself: gone, read the licence wrong, refused the request. A busy vendor, a
+   refused key or a spent allowance keeps it in place. A version joins only by
+   passing. The order of the versions that stay never changes, and a lane is
+   never emptied: if nothing passes, the list stays and the lane is reported as
+   failing.
+
+A refused key or spent allowance stops that provider's check. At most ten tests
+a provider a run, 1.2 s apart (Mistral's free plan allows one request a second),
+and none started after 400 s; providers run in parallel. A lease in
+`ai_routing_config/modelCheck` keeps runs from overlapping, and
+`autoSelect: false` there makes the check report without changing anything.
+
+Results go to the provider's config: `modelLists.<lane>` when a list changed,
+and `modelCheck` (when, why, what each version did) for the console. The owner
+hears in Telegram when a list changed, when a lane stops or starts passing, and
+when a key or allowance fails, with what to do (`ops/modelRefreshMessages.js`).
+A state is told once, on the change. With no chat connected nothing is sent, and
+a lane or account still failing is told once a chat is connected.
+
+The hourly watcher (`watchAiAndBlog`) runs whether or not a chat is connected:
+its probes go through the router, so a provider that fails them is recorded,
+and the model check takes it up within the hour.
+
 ## Fallback order and behaviour
 
 The **default** order, derived from `priority` so it lives in one place:

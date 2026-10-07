@@ -22,8 +22,12 @@
  * delivered, the check keeps its previous state, so the next run tries again
  * rather than the alert being lost.
  *
- * Nothing runs until a bot token and a chat are connected (Super Admin → System
- * Health). With nobody to tell, the probes would spend quota for nothing.
+ * It runs whether or not a chat is connected (Super Admin → System Health): its
+ * probes are recorded against provider health like any request, which is what
+ * sends a failing provider to the daily model check within the hour
+ * (`./modelRefresh.js`), and the console shows what it saw. Only the message
+ * needs a chat. Connecting one starts its record from "all well", so the new
+ * chat hears about anything already down.
  */
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
@@ -206,7 +210,6 @@ async function runWatch({ now = Date.now(), aiDeps, telegramDeps } = {}) {
     const saved = await settings.readSettings();
     const chatId = saved.telegram?.chatId;
     const token = chatId === undefined || chatId === null ? null : await settings.readBotToken();
-    if (!token) return { skipped: 'not_connected' };
 
     const results = {};
     for (const lane of LANES) results[lane.id] = await probeLane(lane, aiDeps);
@@ -219,7 +222,8 @@ async function runWatch({ now = Date.now(), aiDeps, telegramDeps } = {}) {
         : previous[id]?.status === 'down'));
 
     let deliveryError = null;
-    if (changes.length > 0) {
+    // With no chat connected there is nobody to tell, and so nothing to retry.
+    if (changes.length > 0 && token) {
         const laneDown = changes.some((id) => id !== 'blog' && !results[id].ok);
         const failures = laneDown ? await userFailuresLastHour(now) : null;
         try {
@@ -259,8 +263,7 @@ exports.watchAiAndBlog = onSchedule({
 }, async () => {
     const outcome = await runWatch();
     // Statuses and change ids only: no message text, token or chat.
-    const summary = outcome.skipped
-        || CHECK_IDS.map((id) => `${id}=${outcome.checks[id]?.status || 'unchanged'}`).join(' ');
+    const summary = CHECK_IDS.map((id) => `${id}=${outcome.checks[id]?.status || 'unchanged'}`).join(' ');
     console.log(`[ops/watcher] ${summary}${outcome.deliveryError ? ` delivery=${outcome.deliveryError}` : ''}`);
 });
 

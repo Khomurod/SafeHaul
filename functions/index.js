@@ -381,6 +381,10 @@ exports.rollbackProductionRelease = releaseManagement.rollbackProductionRelease;
 const platformWatcher = require('./ops/watcher');
 exports.watchAiAndBlog = platformWatcher.watchAiAndBlog;
 
+// The daily model check: tests each enabled provider's versions and keeps the ones that pass.
+const modelRefresh = require('./ops/modelRefresh');
+exports.refreshAiModelLists = modelRefresh.refreshAiModelLists;
+
 const platformAlerts = require('./ops/callables');
 exports.getPlatformAlerts = platformAlerts.getPlatformAlerts;
 exports.savePlatformAlertToken = platformAlerts.savePlatformAlertToken;

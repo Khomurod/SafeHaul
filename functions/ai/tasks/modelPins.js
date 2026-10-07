@@ -31,56 +31,7 @@ const { PROVIDERS, isRetired, resolveModels } = require('../registry/providers')
 const { CAPABILITIES } = require('../registry/capabilities');
 const store = require('../credentials/store');
 
-const CATALOGUE_TIMEOUT_MS = 15000;
-
-/**
- * How to list models, per vendor.
- *
- * Only providers with a documented catalogue endpoint appear. Cloudflare's model
- * catalogue is per-account and behind a different API shape, so it is reported
- * as unsupported rather than guessed at — saying "we could not check" is honest;
- * inventing a check is not.
- *
- * `extract` returns an array of model id strings from the parsed body.
- */
-const CATALOGUES = Object.freeze({
-    gemini: {
-        url: (provider) => `${provider.apiBaseUrl}/models`,
-        headers: (credentials) => ({ 'x-goog-api-key': credentials.apiKey }),
-        // Gemini returns `models/gemini-3.6-flash`; the pins omit the prefix.
-        extract: (body) => (body?.models || []).map((model) => String(model?.name || '').replace(/^models\//, '')),
-    },
-    groq: {
-        url: (provider) => `${provider.apiBaseUrl}/models`,
-        headers: (credentials) => ({ Authorization: `Bearer ${credentials.apiKey}` }),
-        extract: (body) => (body?.data || []).map((model) => model?.id),
-    },
-    mistral: {
-        url: (provider) => `${provider.apiBaseUrl}/models`,
-        headers: (credentials) => ({ Authorization: `Bearer ${credentials.apiKey}` }),
-        extract: (body) => (body?.data || []).flatMap((model) => [model?.id, ...(model?.aliases || [])]),
-    },
-    cerebras: {
-        url: (provider) => `${provider.apiBaseUrl}/models`,
-        headers: (credentials) => ({ Authorization: `Bearer ${credentials.apiKey}` }),
-        extract: (body) => (body?.data || []).map((model) => model?.id),
-    },
-    sambanova: {
-        url: (provider) => `${provider.apiBaseUrl}/models`,
-        headers: (credentials) => ({ Authorization: `Bearer ${credentials.apiKey}` }),
-        extract: (body) => (body?.data || []).map((model) => model?.id),
-    },
-    openrouter: {
-        url: (provider) => `${provider.apiBaseUrl}/models`,
-        headers: (credentials) => ({ Authorization: `Bearer ${credentials.apiKey}` }),
-        extract: (body) => (body?.data || []).map((model) => model?.id),
-    },
-    huggingface: {
-        url: (provider) => `${provider.apiBaseUrl}/models`,
-        headers: (credentials) => ({ Authorization: `Bearer ${credentials.apiKey}` }),
-        extract: (body) => (body?.data || []).map((model) => model?.id),
-    },
-});
+const { CATALOGUES, CATALOGUE_TIMEOUT_MS, fetchCatalogue } = require('./modelCatalogue');
 
 /**
  * Every distinct model version this provider would be asked for, and for which
@@ -118,8 +69,7 @@ async function checkProvider(provider, { fetchImpl = fetch, deps = {} } = {}) {
         return { ...base, status: 'retired', pins: [] };
     }
 
-    const catalogue = CATALOGUES[provider.id];
-    if (!catalogue) {
+    if (!CATALOGUES[provider.id]) {
         return {
             ...base,
             status: 'unsupported',
@@ -151,45 +101,30 @@ async function checkProvider(provider, { fetchImpl = fetch, deps = {} } = {}) {
         return { ...base, status: 'unconfigured', pins: [] };
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), CATALOGUE_TIMEOUT_MS);
-    try {
-        const response = await fetchImpl(catalogue.url(provider), {
-            method: 'GET',
-            headers: catalogue.headers(credentials.values),
-            signal: controller.signal,
-        });
-        if (!response.ok) {
-            // Status only. A catalogue error body is still a vendor error body.
-            return { ...base, status: 'unreachable', httpStatus: response.status, pins: [] };
-        }
-
-        const listed = new Set(
-            (catalogue.extract(await response.json()) || []).filter(Boolean).map(String),
-        );
-        const pins = [...pinnedModels(provider, config)].map(([model, capabilities]) => ({
-            model,
-            capabilities,
-            present: catalogueContains(listed, model),
-        }));
-
-        return {
-            ...base,
-            status: pins.every((pin) => pin.present) ? 'ok' : 'stale',
-            catalogueSize: listed.size,
-            pins,
-        };
-    } catch (error) {
+    const catalogue = await fetchCatalogue(provider, credentials.values, { fetchImpl });
+    if (catalogue.status !== 'ok') {
         return {
             ...base,
             status: 'unreachable',
-            // Message only, and only for an operator: never a response body.
-            message: error?.name === 'AbortError' ? 'Timed out.' : 'Could not reach the vendor catalogue.',
+            ...(catalogue.httpStatus ? { httpStatus: catalogue.httpStatus } : {}),
+            ...(catalogue.message ? { message: catalogue.message } : {}),
             pins: [],
         };
-    } finally {
-        clearTimeout(timer);
     }
+
+    const listed = new Set(catalogue.entries.map((item) => item.id));
+    const pins = [...pinnedModels(provider, config)].map(([model, capabilities]) => ({
+        model,
+        capabilities,
+        present: catalogueContains(listed, model),
+    }));
+
+    return {
+        ...base,
+        status: pins.every((pin) => pin.present) ? 'ok' : 'stale',
+        catalogueSize: listed.size,
+        pins,
+    };
 }
 
 /**

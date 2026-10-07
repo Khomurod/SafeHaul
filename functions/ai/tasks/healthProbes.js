@@ -35,8 +35,10 @@
  *
  * Every prompt is a constant and every image is generated from flat colour.
  * Nothing here touches a driver, an applicant, a company or a document. The
- * images below are solid-colour PNGs written out byte by byte, so the
- * repository carries no image file that could later be swapped for a real one.
+ * images below are solid-colour PNGs written out byte by byte. The one image of
+ * a document in the repository is the daily model check's made-up licence
+ * (`./verification/cdl-specimen.jpg`), and its hash is pinned in a test so it
+ * cannot be swapped for a real one unnoticed.
  *
  * ## Why the images are 256x256 and not 8x8
  *

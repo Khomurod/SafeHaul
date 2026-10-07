@@ -927,11 +927,11 @@ projection, and `/apply/:slug` is not gated by any flag. See
   `ai_telemetry` (Super Admin → AI Integrations → **Logs**). The connection test
   probes every capability a provider claims, not just its key, and reports a
   throttled probe as untested. Health and cooldown are **per lane** (text /
-  vision), each with up to three verified model versions; one that is gone, off
-  the plan or rate-limited rests, and the next is tried first while two attempt
-  slices remain (a licence read; a medical card or report gets it next request).
-  Driver-document reads cap each attempt (`perAttemptDeadlineMs`) and skip a
-  vendor's pause over 5 s. See [`docs/ai-platform.md`](./ai-platform.md).
+  vision), each with up to three model versions, re-verified daily on a made-up
+  licence (`refreshAiModelLists`); one gone, off the plan or rate-limited rests,
+  and the next is tried while two attempt slices remain (a medical card or report
+  gets it next request). Document reads cap each attempt and skip a vendor's
+  pause over 5 s. See [`docs/ai-platform.md`](./ai-platform.md).
 - **Credential access differs by function generation; grant both.** 1st- and
   2nd-generation functions default to *different* runtime service accounts (App
   Engine and Compute Engine), so `roles/secretmanager.secretAccessor` is needed
@@ -965,7 +965,8 @@ released if the connect then fails.
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response` and notifies the carrier, documenting the good-faith effort |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing — without it, signature-image PII accumulates in Storage |
-| `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, never otherwise, and runs nothing until a chat is connected |
+| `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, never otherwise, and runs with or without a chat |
+| `refreshAiModelLists` | hourly at :25, America/Chicago | Daily, and within the hour of a lane failure, re-tests each enabled provider's photo and text model versions on a made-up licence; keeps those that pass, adds catalogue models that pass, never empties a lane; tells Telegram what changed or needs fixing |
 | Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is actually live and opens/closes a GitHub issue |
 
 The blog publishes one article a day, and its scheduler runs hourly on purpose:
@@ -985,8 +986,7 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
   profile** keyed by the document id; an Auth user is **never** created
   automatically — they claim the profile when they sign up.
 - **Stats** — `activity_logs` writes roll up into `stats_daily`; application and
-  lead writes roll up dashboard counters into `internal_stats` (server-write
-  only).
+  lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
 - **Notifications** — status changes, lead assignment, new applications,
   scheduled callbacks, and an applicant confirmation email on every new
