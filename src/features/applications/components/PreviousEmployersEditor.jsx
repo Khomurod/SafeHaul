@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Icon, Plus, Trash2 } from '@design-system/icons';
 import {
-    Badge, Button, Card, ChoiceGroup, FormField, Input, Notice, Radio, Select,
+    Badge, Button, Card, ChoiceGroup, FieldDisplay, FormField, Input, Notice, Radio, Select,
 } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 import { EMPLOYMENT_SECTION } from '@/config/applicationSchema';
+import { employerSignature, lockedSignatureSet } from '@/config/applicationLockedFields';
 import { useUtils } from '@shared/hooks/useUtils';
 
 /**
@@ -73,6 +74,27 @@ const LEGACY_KEYS = Object.freeze({
 
 /** A generous ceiling, matching `shared/employerIdentity.js`. */
 export const MAX_EMPLOYER_ROWS = 40;
+
+/** What a lock fixes about an employer: who it is (`applicationLockedFields.js`). */
+const LOCKED_KEYS = new Set(['companyName', 'dotNumber']);
+
+/**
+ * The rows that hold a lock: for each locked employer, the first row naming it,
+ * which is the row the submission checks (`lockedEmployerIssues`). Another row
+ * for the same employer, such as a second stint there, is an ordinary row.
+ */
+function rowsHoldingALock(rows, lockedEmployers) {
+    const signatures = lockedSignatureSet(lockedEmployers);
+    const seen = new Set();
+    const holders = new Set();
+    rows.forEach((row, index) => {
+        const signature = employerSignature(row);
+        if (!signatures.has(signature) || seen.has(signature)) return;
+        seen.add(signature);
+        holders.add(index);
+    });
+    return holders;
+}
 
 function valueOf(row, key) {
     const direct = row?.[key];
@@ -150,9 +172,21 @@ function EmployerFieldControl({ field, row, rowKey, onChange, states }) {
     );
 }
 
-export function PreviousEmployersEditor({ employers, onChange }) {
+/**
+ * @param {object} props
+ * @param {boolean} [props.unfinished] An application the driver has not submitted
+ *   (`UnfinishedEditorSections.jsx`): nothing is verified before submission and
+ *   nothing is proposed, so the notice and the verification badges are left out.
+ * @param {Array} [props.lockedEmployers] Employers the carrier locked when it
+ *   prepared the application, which this edit must keep (`heldLocks`). The row
+ *   holding each one stays, with its name and USDOT number shown as a record:
+ *   the driver's page keeps its own copy of the locks, and the server refuses
+ *   an edit that would undo one.
+ */
+export function PreviousEmployersEditor({ employers, onChange, unfinished = false, lockedEmployers }) {
     const { states } = useUtils();
     const rows = useMemo(() => (Array.isArray(employers) ? employers : []), [employers]);
+    const lockedRows = useMemo(() => rowsHoldingALock(rows, lockedEmployers), [rows, lockedEmployers]);
     /** The row a removal is waiting on, when it needs confirming. */
     const [pendingRemoval, setPendingRemoval] = useState(null);
 
@@ -188,11 +222,13 @@ export function PreviousEmployersEditor({ employers, onChange }) {
 
     return (
         <div className="space-y-ds-4">
-            <Notice tone="info" size="sm">
-                Employment history changes go to the driver for approval, like every other
-                edit here. Verification records stay with the employer they belong to and are
-                never moved or deleted.
-            </Notice>
+            {!unfinished && (
+                <Notice tone="info" size="sm">
+                    Employment history changes go to the driver for approval, like every other
+                    edit here. Verification records stay with the employer they belong to and are
+                    never moved or deleted.
+                </Notice>
+            )}
 
             {rows.length === 0 && (
                 <p role="status" className="text-ds-sm italic text-ds-content-muted">
@@ -204,6 +240,7 @@ export function PreviousEmployersEditor({ employers, onChange }) {
                 {rows.map((row, index) => {
                     const state = verificationStateOf(row);
                     const name = labelFor(row, index);
+                    const locked = lockedRows.has(index);
                     // Stable across a rename so the fields keep their identity while
                     // somebody is typing in them; falls back to the position for a row
                     // the server has not yet given an id.
@@ -217,31 +254,53 @@ export function PreviousEmployersEditor({ employers, onChange }) {
                                             Employer {index + 1}
                                         </h5>
                                         {/* Status is never colour alone: the state is spelled out. */}
-                                        <Badge tone={verificationTone(state)}>
-                                            {`Verification: ${state}`}
-                                        </Badge>
+                                        {!unfinished && (
+                                            <Badge tone={verificationTone(state)}>
+                                                {`Verification: ${state}`}
+                                            </Badge>
+                                        )}
+                                        {locked && <Badge tone="info">Locked by your company</Badge>}
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        aria-label={`Remove ${name} from the employment history`}
-                                        onClick={() => requestRemoval(index)}
-                                    >
-                                        <Icon icon={Trash2} size="sm" /> Remove
-                                    </Button>
+                                    {!locked && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            aria-label={`Remove ${name} from the employment history`}
+                                            onClick={() => requestRemoval(index)}
+                                        >
+                                            <Icon icon={Trash2} size="sm" /> Remove
+                                        </Button>
+                                    )}
                                 </div>
+                                {locked && (
+                                    <p className="mb-ds-3 text-ds-xs text-ds-content-muted">
+                                        Your company locked this employer when it prepared the application, so it
+                                        stays on the application with this name and USDOT number. Everything else
+                                        on this row can be changed.
+                                    </p>
+                                )}
                                 <div className="grid grid-cols-1 gap-ds-4 md:grid-cols-2">
-                                    {EMPLOYMENT_SECTION.itemFields.map((field) => (
-                                        <div key={field.key} className="col-span-1">
-                                            <EmployerFieldControl
-                                                field={field}
-                                                row={row}
-                                                rowKey={rowKey}
-                                                states={states}
-                                                onChange={(key, value) => setRow(index, key, value)}
-                                            />
-                                        </div>
-                                    ))}
+                                    {EMPLOYMENT_SECTION.itemFields.map((field) => {
+                                        if (locked && LOCKED_KEYS.has(field.key)) {
+                                            const value = valueOf(row, field.key);
+                                            return value ? (
+                                                <FieldDisplay key={field.key} className="col-span-1" label={field.label}>
+                                                    {value}
+                                                </FieldDisplay>
+                                            ) : null;
+                                        }
+                                        return (
+                                            <div key={field.key} className="col-span-1">
+                                                <EmployerFieldControl
+                                                    field={field}
+                                                    row={row}
+                                                    rowKey={rowKey}
+                                                    states={states}
+                                                    onChange={(key, value) => setRow(index, key, value)}
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </Card>
                         </li>

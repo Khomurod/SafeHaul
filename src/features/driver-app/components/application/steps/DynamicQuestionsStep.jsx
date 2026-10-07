@@ -61,7 +61,8 @@ export function DynamicQuestionsStep({
     formData = {},
     updateFormData,
     onNavigate,
-    handleFileUpload // Optional file upload handler from parent
+    handleFileUpload, // Optional file upload handler from parent
+    embedded = false, // The questions alone, as a Company Admin's editor shows them
 }) {
     const { showError } = useToast();
     // Every file question whose upload is still on its way, by question key.
@@ -371,10 +372,12 @@ export function DynamicQuestionsStep({
 
     return (
         <div className="space-y-ds-6">
-            <div>
-                <h2 className="text-ds-heading-sm font-bold text-ds-content">Additional Questions</h2>
-                <p className="text-ds-sm text-ds-content-muted">Please answer the following questions from the employer.</p>
-            </div>
+            {!embedded && (
+                <div>
+                    <h2 className="text-ds-heading-sm font-bold text-ds-content">Additional Questions</h2>
+                    <p className="text-ds-sm text-ds-content-muted">Please answer the following questions from the employer.</p>
+                </div>
+            )}
 
             {questions.map((field, index) => (
                 <Card key={questionKey(field, index)} padding="md" className="space-y-ds-3">
@@ -385,13 +388,14 @@ export function DynamicQuestionsStep({
                 </Card>
             ))}
 
-            {/* Navigation */}
-            <StepNavigation
-                onBack={() => onNavigate('back')}
-                onContinue={handleContinue}
-                continueLabel={anyUploading ? 'Uploading...' : 'Continue'}
-                continueLoading={anyUploading}
-            />
+            {!embedded && (
+                <StepNavigation
+                    onBack={() => onNavigate('back')}
+                    onContinue={handleContinue}
+                    continueLabel={anyUploading ? 'Uploading...' : 'Continue'}
+                    continueLoading={anyUploading}
+                />
+            )}
         </div>
     );
 }

@@ -36,9 +36,31 @@
  * A browser that sends no `seenRevision` predates this, and keeps exactly the
  * behaviour it had: Testing and Production share this backend, and the
  * Production page stays the old one until a release is promoted.
+ *
+ * ## What an edit may change
+ *
+ * Every answer the application asks for (`applicationSections.json`, the table
+ * the wizard, the record and the PDF read) and the company's own questions,
+ * except those only the driver gives (`driverOnlyFields.json`). The driver's
+ * page never takes those from the carrier, so an edit to one would be a change
+ * nobody is shown. Each value must have the shape the wizard stores for it,
+ * because the driver's page takes an edited answer whole.
  */
 
 const functions = require('firebase-functions/v1');
+const SECTIONS = require('./applicationSections.json');
+const DRIVER_ONLY_FIELDS = require('./driverOnlyFields.json');
+
+/** Every answer the application asks for, by id. */
+const FIELDS = new Map(SECTIONS.flatMap((section) => section.fields.map((field) => [field.id, field])));
+
+/** The company's own questions' answers: one map, beside the standard answers. */
+const CUSTOM_ANSWERS = 'customAnswers';
+
+/** The answers a Company Admin may change; see the header. */
+const EDITABLE_FIELDS = Object.freeze(
+    [...FIELDS.keys(), CUSTOM_ANSWERS].filter((field) => !DRIVER_ONLY_FIELDS.includes(field)),
+);
 
 /** A revision is a millisecond time, so anything a browser claims is bounded by it. */
 function isRevision(value) {
@@ -102,11 +124,77 @@ function assertCompanyEditsSeen(seenRevision, data) {
     );
 }
 
+/**
+ * The revision a new edit takes: its time, or one past the draft's latest when
+ * a clock lags, so a later edit always has the larger one.
+ */
+function nextCompanyRevision(data, now = Date.now()) {
+    return Math.max(Math.trunc(now), companyRevisionOf(data) + 1);
+}
+
+function isPlainObject(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isScalar(value) {
+    return value === null || ['string', 'number', 'boolean'].includes(typeof value);
+}
+
+/** `{ name, storagePath }`: the shape every upload on an application has. */
+function isUpload(value) {
+    return isPlainObject(value) && typeof value.storagePath === 'string'
+        && Object.values(value).every(isScalar);
+}
+
+/** One answer: a value, a multiple choice's values, or an upload. */
+function isAnswer(value) {
+    return isScalar(value) || (Array.isArray(value) && value.every(isScalar)) || isUpload(value);
+}
+
+/**
+ * Is this the shape the wizard stores for this answer?
+ *
+ * A repeating answer is a list of rows, a document is an upload, the company's
+ * questions are a map of answers, and everything else is a value or a multiple
+ * choice's values. Nothing may be cleared to anything but null.
+ */
+function fitsField(fieldId, value) {
+    if (value === null) return true;
+    if (fieldId === CUSTOM_ANSWERS) return isPlainObject(value) && Object.values(value).every(isAnswer);
+    const field = FIELDS.get(fieldId);
+    if (!field) return false;
+    if (field.repeating) {
+        return Array.isArray(value)
+            && value.every((row) => isPlainObject(row) && Object.values(row).every(isAnswer));
+    }
+    if (field.type === 'file') return isUpload(value);
+    return isScalar(value) || (Array.isArray(value) && value.every(isScalar));
+}
+
+/** A value with its keys in one order, so two copies of it compare equal. */
+function canonical(value) {
+    if (Array.isArray(value)) return value.map(canonical);
+    if (isPlainObject(value)) {
+        return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+    }
+    return value === undefined ? null : value;
+}
+
+/** Are these the same answer, whatever order their keys arrived in? */
+function sameAnswer(first, second) {
+    return JSON.stringify(canonical(first)) === JSON.stringify(canonical(second));
+}
+
 module.exports = {
+    CUSTOM_ANSWERS,
+    EDITABLE_FIELDS,
     assertCompanyEditsSeen,
     clientCompanyEdits,
     companyEditsOf,
     companyRevisionOf,
+    fitsField,
     mergeCompanyEdits,
+    nextCompanyRevision,
+    sameAnswer,
     seenRevisionOf,
 };

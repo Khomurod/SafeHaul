@@ -4,10 +4,14 @@
     "lastName",
     "dob",
     "ssn",
+    "ssc-upload",
     "signature",
     "sms-consent",
     "consent-mvr",
     "driverInitials",
     "mvr-consent-upload",
-    "drug-test-consent-upload"
+    "drug-test-consent-upload",
+    "hosDailyHours",
+    "hosLastRelievedDate",
+    "hosLastRelievedTime"
 ]

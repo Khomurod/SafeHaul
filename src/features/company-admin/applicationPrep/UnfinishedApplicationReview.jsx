@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { Icon, ArrowLeft, RefreshCw } from '@design-system/icons';
+import { Icon, ArrowLeft, Pencil, RefreshCw } from '@design-system/icons';
 
 import { functions } from '@lib/firebase';
 import { Button, FieldDisplay, Notice } from '@/design-system/components';
@@ -9,10 +9,12 @@ import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { PreservedApplicationView } from '@features/applications/components/PreservedApplicationView';
 import { presentSubmission } from '@features/applications/services/submissionPresenter';
 import { describeApplicant, describeUnfinishedRow } from './unfinishedRowActions';
+import { UnfinishedApplicationEditor } from './UnfinishedApplicationEditor';
+import { changedSectionTitles } from './unfinishedEditorModel';
 
 /**
- * An unfinished application the driver has written, read-only, for a Company
- * Admin.
+ * An unfinished application the driver has written, for a Company Admin to read
+ * and correct.
  *
  * ## Why this exists
  *
@@ -23,11 +25,13 @@ import { describeApplicant, describeUnfinishedRow } from './unfinishedRowActions
  * application uses (`presentSubmission`, `PreservedApplicationView`), so the
  * answers read the way they will once the driver submits.
  *
- * ## What it does not do
+ * ## Reading changes nothing; *Edit answers* does
  *
- * Change anything. There is no editor and no save; opening it does not extend
- * the 30 days, and the driver's link hands over exactly what it did before.
- * Recruiters never reach it: `unfinishedRowActions.js` offers it to a Company
+ * Opening it does not extend the 30 days, and the driver's link hands over
+ * exactly what it did before. *Edit answers* opens `UnfinishedApplicationEditor`
+ * on an application the driver owns (`editable`; the carrier's own prepared one
+ * is edited in its workspace), and what it saves the driver is shown. Recruiters
+ * never reach either: `unfinishedRowActions.js` offers this screen to a Company
  * Admin alone, and the server refuses anyone else.
  */
 
@@ -48,26 +52,61 @@ function describeError(error) {
     }
 }
 
+/** The draft's view, laid out; throws when the presenter cannot lay it out. */
+function readyState(data) {
+    const record = presentSubmission(data?.record);
+    // A record the presenter cannot lay out is a failure, not an empty
+    // application: its own empty state speaks of a submission.
+    if (!record.isPreserved) throw new Error('The record could not be laid out.');
+    return { status: 'ready', summary: data, record };
+}
+
 export function UnfinishedApplicationReview({ companyId, entry, onExit }) {
     const [state, setState] = useState({ status: 'loading' });
+    const [editing, setEditing] = useState(false);
+    /** What the last save changed, for the confirmation; null until one. */
+    const [saved, setSaved] = useState(null);
+    /** Leaving the editor puts focus back on the button that opened it. */
+    const editButtonRef = useRef(null);
+    const [returnFocus, setReturnFocus] = useState(false);
     const applicantKey = entry?.applicantKey;
 
     const load = useCallback(async () => {
         setState({ status: 'loading' });
+        setEditing(false);
         try {
             const call = httpsCallable(functions, 'getApplicationDraft');
             const { data } = await call({ companyId, applicantKey });
-            const record = presentSubmission(data?.record);
-            // A record the presenter cannot lay out is a failure, not an empty
-            // application: its own empty state speaks of a submission.
-            if (!record.isPreserved) throw new Error('The record could not be laid out.');
-            setState({ status: 'ready', summary: data, record });
+            setState(readyState(data));
         } catch (error) {
             setState({ status: 'error', message: describeError(error), missing: error?.code === 'functions/not-found' });
         }
     }, [applicantKey, companyId]);
 
+    const onSaved = useCallback((data) => {
+        try {
+            setState(readyState(data));
+            setSaved({ sections: changedSectionTitles(data?.changed) });
+        } catch {
+            // Saved, but not laid out: read it again rather than show a stale record.
+            load();
+        }
+        setEditing(false);
+        setReturnFocus(true);
+    }, [load]);
+
+    const leaveEditor = useCallback(() => {
+        setEditing(false);
+        setReturnFocus(true);
+    }, []);
+
     useEffect(() => { load(); }, [load]);
+
+    useEffect(() => {
+        if (editing || !returnFocus || !editButtonRef.current) return;
+        editButtonRef.current.focus();
+        setReturnFocus(false);
+    }, [editing, returnFocus, state.status]);
 
     const back = (
         <Button variant="ghost" onClick={onExit}>
@@ -76,15 +115,26 @@ export function UnfinishedApplicationReview({ companyId, entry, onExit }) {
     );
     const summary = state.status === 'ready' ? state.summary : entry;
     const row = describeUnfinishedRow(summary);
+    const canEdit = state.status === 'ready' && summary?.editable === true;
 
     return (
         <PageContainer>
             <Stack gap="lg">
                 <PageHeader
                     title={describeApplicant(summary).displayName}
-                    description="Read-only. What the driver has filled in so far, laid out as it will read once they submit."
+                    description={editing
+                        ? 'Editing. Change or add what you know; the driver sees it the next time they open the application.'
+                        : 'What the driver has filled in so far, laid out as it will read once they submit.'}
                 />
-                <div className="flex flex-wrap gap-ds-2">{back}</div>
+                <div className="flex flex-wrap gap-ds-2">
+                    {/* While editing, Save or Cancel is the way out: Cancel asks before discarding. */}
+                    {!editing && back}
+                    {canEdit && !editing && (
+                        <Button ref={editButtonRef} variant="primary" onClick={() => { setSaved(null); setEditing(true); }}>
+                            <Icon icon={Pencil} size="sm" /> Edit answers
+                        </Button>
+                    )}
+                </div>
 
                 {state.status === 'loading' && <LoadingState title="Loading the application" />}
 
@@ -100,8 +150,25 @@ export function UnfinishedApplicationReview({ companyId, entry, onExit }) {
                     />
                 )}
 
-                {state.status === 'ready' && (
+                {state.status === 'ready' && editing && (
+                    <UnfinishedApplicationEditor
+                        companyId={companyId}
+                        view={state.summary}
+                        onSaved={onSaved}
+                        onCancel={leaveEditor}
+                        onReload={load}
+                    />
+                )}
+
+                {state.status === 'ready' && !editing && (
                     <>
+                        {saved && (
+                            <Notice tone="success" title={saved.sections.length > 0 ? 'Changes saved' : 'Nothing to save'} announce="polite">
+                                {saved.sections.length > 0
+                                    ? `You changed ${saved.sections.join(', ')}. The driver is shown what you changed the next time they open the application, before they sign.`
+                                    : 'Nothing had changed since you opened the application, so nothing was saved.'}
+                            </Notice>
+                        )}
                         <Notice tone="info" title="Unfinished: nothing has been signed or submitted">
                             The Social Security Number and the signature are never saved before the driver
                             submits, so they are not shown here. Opening an unfinished application is recorded.
@@ -113,6 +180,11 @@ export function UnfinishedApplicationReview({ companyId, entry, onExit }) {
                             <FieldDisplay label="Last activity">
                                 {summary.updatedAt ? new Date(summary.updatedAt).toLocaleString() : 'Unknown'}
                             </FieldDisplay>
+                            {summary.companyEditedAt && (
+                                <FieldDisplay label="Last edited by your company">
+                                    {new Date(summary.companyEditedAt).toLocaleString()}
+                                </FieldDisplay>
+                            )}
                         </div>
                         <PreservedApplicationView record={state.record} openUploads />
                     </>

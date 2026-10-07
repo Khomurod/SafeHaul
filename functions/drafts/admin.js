@@ -1,6 +1,6 @@
 /**
- * What a Company Admin may do with any unfinished application: read it, and
- * delete it.
+ * What a Company Admin may do with any unfinished application: read it, correct
+ * it, and delete it.
  *
  * Part of the guest application-draft surface; `applicationDrafts.js` is the
  * deployment surface that re-exports the handlers by name.
@@ -18,8 +18,20 @@
  * A draft never holds a Social Security Number or a signature
  * (`shared/applicationDraft.js`), so neither can reach anybody through here, and
  * nothing here changes what the driver's link or the prep workspace hand over.
- * Every view and every deletion is audited in `application_draft_audit`, by who
+ * Every view, edit and deletion is audited in `application_draft_audit`, by who
  * and which draft, never by what it says.
+ *
+ * ## Why an admin's edit reaches the driver
+ *
+ * The driver fills the application in on their own device, and every save sends
+ * their whole copy. So an edit is recorded as one (`shared/companyEdits.js`): the
+ * driver's page takes the edited answers, names them above every step, and asks
+ * for the signature again when one changed. An answer the driver changed after
+ * the admin opened the application is refused rather than overwritten, so the
+ * admin sees it before deciding again. The carrier's own prepared application,
+ * before the driver has saved it, is the preparation workspace's to edit, and
+ * an employer it locked there stays as it was locked, since the driver's page
+ * keeps its own copy of the locks.
  *
  * ## Why deleting removes the document and nothing else
  *
@@ -40,6 +52,10 @@ const { assertCompanyAdminStrict } = require('../shared/companyAccess');
 const { checkRateLimit } = require('../shared/rateLimiter');
 const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
+const { lockedEmployerIssues, normalizeLockedEmployers } = require('../shared/applicationLockedFields');
+const {
+    EDITABLE_FIELDS, clientCompanyEdits, companyEditsOf, fitsField, nextCompanyRevision, sameAnswer,
+} = require('../shared/companyEdits');
 const { buildDraftRecord } = require('../shared/draftRecord');
 const { applicantKeyOf, docId } = require('./identity');
 
@@ -47,6 +63,10 @@ const { applicantKeyOf, docId } = require('./identity');
 const VIEW_LIMIT = Object.freeze({ limit: 120, windowSeconds: 300 });
 /** Deleting is rarer than reading, and a runaway loop should stop soon. */
 const DELETE_LIMIT = Object.freeze({ limit: 30, windowSeconds: 300 });
+/** An admin correcting an application saves often, section by section. */
+const EDIT_LIMIT = Object.freeze({ limit: 60, windowSeconds: 300 });
+
+const EDITABLE = new Set(EDITABLE_FIELDS);
 
 /** One answer for a missing draft, whichever way it went: submitted, deleted or expired. */
 const NOT_FOUND = 'That unfinished application could not be found. It may have been submitted or deleted, or it may have expired.';
@@ -125,35 +145,189 @@ async function companyAsTheWizardSawIt(companyId) {
     };
 }
 
+/** The stored answers an admin may change, and nothing else the draft keeps. */
+function editableAnswers(formData) {
+    const answers = formData && typeof formData === 'object' ? formData : {};
+    return Object.fromEntries(Object.entries(answers).filter(([field]) => EDITABLE.has(field)));
+}
+
 /**
- * Any unfinished application in full, read-only, for a Company Admin.
+ * One unfinished application, as a Company Admin reads and edits it.
  *
- * Returns the row's summary (`toCompanySummary`, the shape the list already
- * uses) and `record`, the answers laid out as a submitted application reads
- * (`shared/draftRecord.js`). The raw stored answers are not returned: nothing on
- * this path edits them.
+ * The row's summary (`toCompanySummary`, the shape the list already uses);
+ * `record`, the answers laid out as a submitted application reads
+ * (`shared/draftRecord.js`); and for the editor, the answers it may change, the
+ * company's form as the wizard showed it, whether this draft is the admin's to
+ * edit at all, and its record of edits so far.
  */
+async function adminView(companyId, doc) {
+    const data = doc.data() || {};
+    const company = await companyAsTheWizardSawIt(companyId);
+    return {
+        ...prepared.toCompanySummary(doc),
+        record: buildDraftRecord({ company, formData: data.formData }),
+        editable: !prepared.companyMayReadAnswers(data),
+        answers: editableAnswers(data.formData),
+        lockedEmployers: Array.isArray(data.lockedEmployers) ? data.lockedEmployers : [],
+        form: {
+            applicationConfig: company.applicationConfig,
+            applicationRules: company.applicationRules,
+            customQuestions: company.customQuestions,
+        },
+        ...clientCompanyEdits(data),
+        companyEditedAt: data.companyEditedAt?.toDate?.()?.toISOString?.() || null,
+    };
+}
+
+/** Any unfinished application in full, for a Company Admin; see `adminView`. */
 exports.getApplicationDraft = onCall({ cors: true }, async (request) => {
     const { uid, companyId, applicantKey } = await authorize(request, 'draft_admin_view', VIEW_LIMIT);
 
     const doc = await draft.draftsCollection(companyId).doc(applicantKey).get();
     if (!doc.exists) throw new HttpsError('not-found', NOT_FOUND);
-    const data = doc.data() || {};
-
-    const record = buildDraftRecord({
-        company: await companyAsTheWizardSawIt(companyId),
-        formData: data.formData,
-    });
 
     // Recorded, not enforced: the draft holds no SSN, so a view the audit could
     // not write is logged here rather than refused.
     try {
-        await auditCollection(companyId).add(staffAction('company_viewed_draft', uid, applicantKey, data));
+        await auditCollection(companyId).add(staffAction('company_viewed_draft', uid, applicantKey, doc.data() || {}));
     } catch (error) {
         console.error(`[getApplicationDraft] Could not record the view of ${companyId}/${applicantKey} by ${uid}: ${error?.message || 'unknown'}`);
     }
 
-    return { ...prepared.toCompanySummary(doc), record };
+    return adminView(companyId, doc);
+});
+
+/**
+ * The editor's request: each changed answer's new value (`changes`), and the
+ * value it held when the editor loaded it (`base`). Refused whole when any
+ * answer is one only the driver gives, or is not the shape the wizard stores.
+ */
+function editRequest(data) {
+    const changes = data?.changes;
+    if (!changes || typeof changes !== 'object' || Array.isArray(changes) || Object.keys(changes).length === 0) {
+        throw new HttpsError('invalid-argument', 'There are no changes to save.');
+    }
+    const base = data?.base && typeof data.base === 'object' && !Array.isArray(data.base) ? data.base : {};
+    if (!draft.withinPayloadBudget(changes) || !draft.withinPayloadBudget(base)) {
+        throw new HttpsError('invalid-argument', 'That is too much data for one application.');
+    }
+
+    const fields = Object.keys(changes);
+    const driverOnly = fields.filter((field) => !EDITABLE.has(field));
+    if (driverOnly.length > 0) {
+        throw new HttpsError('invalid-argument', 'Only the driver can change some of these answers.', { fields: driverOnly });
+    }
+    const misshapen = fields.filter((field) => !fitsField(field, changes[field]));
+    if (misshapen.length > 0) {
+        throw new HttpsError('invalid-argument', 'Some of these answers are not in the form the application stores.', { fields: misshapen });
+    }
+
+    const clean = (source) => Object.fromEntries(
+        fields.map((field) => [field, draft.sanitizeDraftData(source[field])]),
+    );
+    return { changes: clean(changes), base: clean(base) };
+}
+
+/**
+ * Would these employers undo a lock the stored ones keep?
+ *
+ * A lock (`shared/applicationLockedFields.js`) fixes who an employer is on an
+ * application the carrier prepared, and the driver's page holds its own copy of
+ * the list, which nothing after the handover refreshes. So an edit keeps every
+ * lock it found answered: the employer stays, with its name and USDOT number.
+ * A lock the driver's own rows already fail is theirs to answer at submission,
+ * and stays; the list is never reconciled against the driver's rows.
+ */
+function undoesALock(lockedEmployers, before, after) {
+    return normalizeLockedEmployers(lockedEmployers).some((lock) => (
+        lockedEmployerIssues([lock], before).length === 0
+        && lockedEmployerIssues([lock], after).length > 0
+    ));
+}
+
+/**
+ * Saves a Company Admin's changes to an unfinished application the driver owns.
+ *
+ * Only what actually changes is written and recorded as an edit, at a new
+ * revision (`shared/companyEdits.js`). An answer the driver changed since the
+ * editor loaded it is refused rather than overwritten (`aborted`, naming the
+ * answers), and so is the carrier's own prepared application before the driver
+ * has saved it, and an edit that would undo an employer lock (`undoesALock`).
+ * The read, the checks, the write and the audit entry share one transaction.
+ * Answers with the draft's view, as `getApplicationDraft` does.
+ */
+exports.saveApplicationDraftEdits = onCall({ cors: true }, async (request) => {
+    const { uid, companyId, applicantKey } = await authorize(request, 'draft_admin_edit', EDIT_LIMIT);
+    const { changes, base } = editRequest(request.data);
+
+    const ref = draft.draftsCollection(companyId).doc(applicantKey);
+    const auditRef = auditCollection(companyId).doc();
+    const outcome = await db.runTransaction(async (transaction) => {
+        const fresh = await transaction.get(ref);
+        if (!fresh.exists) return { missing: true };
+        const data = fresh.data() || {};
+        if (prepared.companyMayReadAnswers(data)) return { preparing: true };
+
+        const stored = data.formData || {};
+        const fields = Object.keys(changes);
+        const conflicts = fields.filter((field) => !sameAnswer(stored[field], base[field]));
+        if (conflicts.length > 0) return { conflicts };
+
+        const changed = fields.filter((field) => !sameAnswer(stored[field], changes[field]));
+        if (changed.length === 0) return { changed, revision: null };
+
+        const formData = { ...stored };
+        for (const field of changed) formData[field] = changes[field];
+        if (changed.includes('employers') && undoesALock(data.lockedEmployers, stored, formData)) {
+            return { lockUndone: true };
+        }
+        if (!draft.withinPayloadBudget(formData)) return { tooLarge: true };
+
+        const revision = nextCompanyRevision(data);
+        const companyEdits = companyEditsOf(data);
+        for (const field of changed) companyEdits[field] = revision;
+        const update = {
+            formData,
+            companyRevision: revision,
+            companyEdits,
+            companyEditedAt: draft.serverTimestamp(),
+            updatedAt: draft.serverTimestamp(),
+            expiresAt: draft.expiresAt(),
+        };
+        // `update`, not a merging `set`: the answers are replaced whole, so an
+        // answer the admin cleared from a map is cleared, not merged back.
+        transaction.update(ref, update);
+        transaction.set(auditRef, {
+            ...staffAction('company_edited_draft', uid, applicantKey, data),
+            fields: changed,
+            revision,
+        });
+        return { changed, revision };
+    });
+
+    if (outcome.missing) throw new HttpsError('not-found', NOT_FOUND);
+    if (outcome.preparing) {
+        throw new HttpsError('failed-precondition', 'Your company is still preparing this application. Edit it in the preparation workspace.');
+    }
+    if (outcome.conflicts) {
+        throw new HttpsError(
+            'aborted',
+            'The driver changed some of these answers after you opened the application. Reload it to see their answers, then make your change again.',
+            { fields: outcome.conflicts },
+        );
+    }
+    if (outcome.lockUndone) {
+        throw new HttpsError(
+            'invalid-argument',
+            'An employer your company locked when it prepared this application must stay on it, with the same name and USDOT number.',
+            { fields: ['employers'] },
+        );
+    }
+    if (outcome.tooLarge) throw new HttpsError('invalid-argument', 'That is too much data for one application.');
+
+    const doc = await ref.get();
+    if (!doc.exists) throw new HttpsError('not-found', NOT_FOUND);
+    return { ...(await adminView(companyId, doc)), changed: outcome.changed, revision: outcome.revision };
 });
 
 /**
@@ -183,4 +357,4 @@ exports.deleteApplicationDraft = onCall({ cors: true }, async (request) => {
     return { deleted: true, applicantKey };
 });
 
-exports.__private = { DELETE_LIMIT, NOT_FOUND, VIEW_LIMIT };
+exports.__private = { DELETE_LIMIT, EDIT_LIMIT, NOT_FOUND, VIEW_LIMIT };

@@ -236,24 +236,25 @@ Continue waits, as on the License step.
 ### Unfinished applications workspace
 
 `/company/drivers/unfinished` (*Unfinished applications*) lists every
-application started and not submitted, whichever side started it, with **+ Start
-an application** as its primary action. It is a call to make, not an ATS record:
-unfinished applications stay out of the pipeline. It reads
-`listApplicationDrafts` alone (one document, one row), and rows never carry
-answers (`toCompanySummary`). **Create a continuation link** mints and copies a
-link for a row: a pointer, so whoever opens it must prove their identity first —
-which a recruiter cannot do from anything SafeHaul shows them (§5, §12).
+application started and not submitted, by either side, with **+ Start an
+application** first. A call to make, not an ATS record: it stays out of the
+pipeline, reads `listApplicationDrafts` alone (one document, one row), and rows
+never carry answers (`toCompanySummary`). **Create a continuation link** copies a
+pointer: whoever opens it must prove their identity first, which a recruiter
+cannot do from anything SafeHaul shows them (§5, §12).
 
 | Started by | Status | A recruiter may… (`unfinishedRowActions.js`) | A Company Admin also may… |
 |---|---|---|---|
 | Company | `prepared` | open and keep editing (`getCompanyPreparedDraft`); mint the driver's first link | delete (`deleteApplicationDraft`) |
 | Company | `sent` | open and keep editing; mint a replacement link | delete |
-| Company | `driver_in_progress` | open the record — the server withholds the answers (`companyMayReadAnswers`); mint a continuation link | read the answers (`getApplicationDraft`, read-only); delete |
-| Driver | `in_progress` | mint a continuation link. Nothing else: `getCompanyPreparedDraft` answers `not-found`. | read the answers; delete |
+| Company | `driver_in_progress` | open the record — the server withholds the answers (`companyMayReadAnswers`); mint a continuation link | read and correct the answers (`getApplicationDraft`, `saveApplicationDraftEdits`); delete |
+| Driver | `in_progress` | mint a continuation link. Nothing else: `getCompanyPreparedDraft` answers `not-found`. | read and correct the answers; delete |
 
 The admin column (owner's decision, 2026-10-06) answers only
 `assertCompanyAdminStrict` and is audited. Deleting kills the link and keeps the
-uploads; the driver's own device keeps its copy, which can still submit.
+uploads; the driver's device keeps its copy, which can still submit. **Edit
+answers** covers every page but what only the driver gives
+(`driverOnlyFields.json`), and never overwrites an answer changed since loading.
 
 ### Pipeline, documents and operations
 
@@ -335,8 +336,7 @@ do not yet do this — §12.)
 
 **Drafts are never written into `applications`** (§10). They live at
 `companies/{id}/application_drafts/{applicantKey}`, keyed like the application
-they become, are discarded on successful submission and expire after 30 days
-(§8).
+they become, are discarded once submitted and expire after 30 days (§8).
 
 **A draft never holds an SSN or a signature.** Both are stripped in exactly
 three independent places: the local copy, the client payload, and on arrival at
@@ -516,7 +516,7 @@ write.
   expires in 30 days.
 - **A copy behind a Company Admin's edit is refused** (`companyEdits.js`): a save
   outright, as is one landing on the driver's other edited draft; a submission
-  back to Review. The page takes the edits (never identity or consent), drops a
+  back to Review. The page takes the edits (never the driver's own), drops a
   stale signature and names them on every step. Nothing the driver cannot see
   stops a submission; an older page (Production until promoted) can undo edits.
 
@@ -663,9 +663,9 @@ writes.** It has `origin: 'company'` (its creator; never changes) and status
 `prepared` → `sent` → `driver_in_progress`. The carrier may read back the
 answers it wrote until the driver's first save flips the status one-way
 (`drafts/save.js`); after that a recruiter sees contact and progress only
-(`toCompanySummary`; a Company Admin can still read it, §4). A carrier never
-overwrites a driver-started draft, and an email plus phone never open a prepared
-one (no HMAC — the carrier lacks the SSN): only the invite token does.
+(`toCompanySummary`; a Company Admin can still read and correct it, §4). The
+prep save never overwrites a driver-started draft; an email plus phone never open
+a prepared one (no HMAC — the carrier lacks the SSN): only the invite token does.
 
 **`companyMayReadAnswers`** (carrier-authored *and* not yet written by the
 driver) decides what a link hands over, at both doors: `getCompanyPreparedDraft`
@@ -763,13 +763,13 @@ carrier's link).
   `drafts/save.js` stamps `inviteClaimedAt` when a save presents it (clearing
   that field), so a carrier opening its own link cannot arm the lock against a
   driver who used `/apply/:slug`.
-- **Every lock names a row on the application.** The carrier's editor shows a
-  locked identity read-only (Unlock, correct, Lock). `reconcileLockedEmployers`
-  drops locks no row answers, on every carrier save (`prepare.js`, the
-  authority) and once in the handover exchange — **never** on driver answers
-  (deleting a locked row must not delete its lock). Refusals:
-  `locked-employer-changed`, `locked-employer-missing`. The worklist shows
-  `lockedEmployerCount`.
+- **Every lock names a row on the application.** The carrier's editors show a
+  locked identity read-only (prep: Unlock, correct, Lock; after the handover,
+  **Edit answers** cannot undo a lock). `reconcileLockedEmployers` drops locks
+  no row answers on every prep save (`prepare.js`, the authority) and once in
+  the handover exchange — **never** on driver answers (deleting a locked row
+  must not delete its lock). Refusals: `locked-employer-changed`,
+  `locked-employer-missing`. The worklist shows `lockedEmployerCount`.
 - **The AI reader locks the row, not the report's spelling:** a carrier already
   on the application (by name or USDOT) is locked with that row's own name and
   number, and the whole USDOT value is read before its digits are taken.
@@ -884,8 +884,8 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
 `/company/drivers/unfinished` (and the `drivers/start-application` redirect) is
 deliberately not `adminOnly` — a recruiter holding a driver's file does this,
 and nothing it produces is filed. Its callables use
-`assertCompanyAccessForRequest` / `assertCompanyAccess` (the admin's read and
-delete, `assertCompanyAdminStrict`) with per-user fail-closed rate limits.
+`assertCompanyAccessForRequest` / `assertCompanyAccess` (the admin's read, edit
+and delete, `assertCompanyAdminStrict`) with per-user fail-closed rate limits.
 
 **Application configuration is split by sensitivity.** A Company Admin manages
 Standard Questions, Application Rules, Custom Questions and Integrations

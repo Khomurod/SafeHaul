@@ -2,8 +2,7 @@
  * A Company Admin's own powers in the unfinished-applications workspace.
  *
  * The owner decided on 2026-10-06 that a Company Admin reads every unfinished
- * application — read-only where the driver has written — and may delete any of
- * them. The worklist comes from its `e2eUnfinished=mock` fixture; the two
+ * application, corrects the ones the driver owns, and may delete any of them. The worklist comes from its `e2eUnfinished=mock` fixture; the
  * callables behind these actions are answered here, at the network, because an
  * E2E run points at an unreachable Firebase project on purpose. What a browser
  * proves that the unit suites cannot: the dialog's focus and Escape, and that
@@ -70,6 +69,18 @@ const DRAFT_VIEW = {
     },
 };
 
+/** The same draft as the editor loads it: the driver owns it, so it may be edited. */
+const EDITABLE_VIEW = {
+    ...DRAFT_VIEW,
+    editable: true,
+    answers: { firstName: 'Dana', city: 'Austin', cdlNumber: 'D9988776' },
+    lockedEmployers: [],
+    form: { applicationConfig: {}, applicationRules: null, customQuestions: [] },
+    companyRevision: 0,
+    companyEdits: {},
+    companyEditedAt: null,
+};
+
 test.describe('a Company Admin and an unfinished application', () => {
     test.describe.configure({ timeout: 90_000 });
 
@@ -111,6 +122,61 @@ test.describe('a Company Admin and an unfinished application', () => {
         // The row's own control, not the name: the sentence above names her too.
         await expect(page.getByRole('button', { name: /Open the application for Dana Whitfield/i })).toHaveCount(0);
         await expect(page.getByRole('button', { name: /Open the application for Marcus Iyer/i })).toBeVisible();
+    });
+
+    test('a Company Admin corrects an answer, and only that answer is sent', async ({ page }) => {
+        await stubCallable(page, 'getApplicationDraft', EDITABLE_VIEW);
+        const sent = [];
+        await page.route('**/saveApplicationDraftEdits', (route) => {
+            sent.push(route.request().postDataJSON().data);
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                headers: { 'Access-Control-Allow-Origin': '*' },
+                body: JSON.stringify({ result: {
+                    ...EDITABLE_VIEW,
+                    answers: { ...EDITABLE_VIEW.answers, city: 'Dallas' },
+                    companyRevision: 1791300000000,
+                    companyEdits: { city: 1791300000000 },
+                    companyEditedAt: '2026-06-15T10:00:00.000Z',
+                    changed: ['city'],
+                    revision: 1791300000000,
+                } }),
+            });
+        });
+        await page.goto(START_URL);
+        await page.getByRole('button', { name: /Open the application for Dana Whitfield/i }).click();
+
+        await page.getByRole('button', { name: 'Edit answers' }).click();
+        const save = page.getByRole('button', { name: 'Save changes' });
+        await expect(save).toBeDisabled();
+        await page.getByLabel('City', { exact: true }).fill('Dallas');
+        await save.click();
+
+        await expect(page.getByText('Changes saved')).toBeVisible();
+        expect(sent).toHaveLength(1);
+        expect(sent[0]).toMatchObject({
+            applicantKey: 'aaaa1111bbbb2222cccc',
+            changes: { city: 'Dallas' },
+            base: { city: 'Austin' },
+        });
+        await expect(page.getByRole('button', { name: 'Edit answers' })).toBeVisible();
+    });
+
+    test('the editor, an employer the company locked included, passes axe @a11y', async ({ page }) => {
+        const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
+        await stubCallable(page, 'getApplicationDraft', {
+            ...EDITABLE_VIEW,
+            answers: { ...EDITABLE_VIEW.answers, employers: [acme, { companyName: 'Blue Line' }] },
+            lockedEmployers: [{ signature: 'dot:123456', ...acme }],
+        });
+        await page.goto(START_URL);
+        await page.getByRole('button', { name: /Open the application for Dana Whitfield/i }).click();
+        await page.getByRole('button', { name: 'Edit answers' }).click();
+        await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
+        await expect(page.getByText('Locked by your company')).toBeVisible();
+
+        expect(await seriousViolations(page)).toEqual([]);
     });
 
     test('the read-only view and the delete confirmation pass axe @a11y', async ({ page }) => {

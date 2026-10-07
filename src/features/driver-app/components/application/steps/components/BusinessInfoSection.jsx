@@ -9,13 +9,18 @@ import { StateSelectField } from './StateSelectField';
  * field key (`ein`, `driverInitials`, `businessName`, `businessStreet`,
  * `businessCity`, `businessState`, `businessZip`), element id and required flag
  * is unchanged — `business-state` stays optional.
+ *
+ * `withInitials={false}` leaves out the driver's initials, which only the driver
+ * gives (`driverOnlyFields.json`), for a Company Admin's editor.
  */
-const BusinessInfoSection = ({ formData, updateFormData, states }) => {
+const BusinessInfoSection = ({ formData, updateFormData, states, withInitials = true }) => {
     return (
         <FormSection title="Business Information (Owner-Operators)">
             <div className="grid grid-cols-1 gap-ds-6 sm:grid-cols-2">
                 <InputField label="Employer ID Number (EIN)" id="ein" name="ein" value={formData.ein} onChange={updateFormData} />
-                <InputField label="Driver Initials" id="driver-initials" name="driverInitials" value={formData.driverInitials} onChange={updateFormData} required={true} />
+                {withInitials && (
+                    <InputField label="Driver Initials" id="driver-initials" name="driverInitials" value={formData.driverInitials} onChange={updateFormData} required={true} />
+                )}
             </div>
             <InputField label="Business Name" id="business-name" name="businessName" value={formData.businessName} onChange={updateFormData} />
             <InputField label="Business Street" id="business-street" name="businessStreet" value={formData.businessStreet} onChange={updateFormData} />
