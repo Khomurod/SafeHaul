@@ -12,7 +12,7 @@
 const mockStorageFiles = new Set();
 const mockStorageMeta = new Map();
 const mockDeletedFiles = [];
-const mockStorageHooks = { failDeletesOn: null, beforeDelete: null };
+const mockStorageHooks = { failDeletesOn: null, hangDeletesOn: null, beforeDelete: null };
 
 const UPLOAD = Object.freeze({ metageneration: '1', timeCreated: '2026-11-01T00:00:00.000Z', metadata: {} });
 
@@ -45,6 +45,9 @@ function mockBucket() {
                 if (mockStorageHooks.failDeletesOn && path.includes(mockStorageHooks.failDeletesOn)) {
                     throw new Error('storage unavailable');
                 }
+                if (mockStorageHooks.hangDeletesOn && path.includes(mockStorageHooks.hangDeletesOn)) {
+                    await new Promise(() => {});
+                }
                 if (!mockStorageFiles.has(path)) {
                     if (options.ignoreNotFound) return;
                     throw notFound();
@@ -66,6 +69,11 @@ function failFileDeletesOn(fragment) {
     mockStorageHooks.failDeletesOn = fragment;
 }
 
+/** Makes every Storage delete of a path containing `fragment` never answer, until the next reset. */
+function hangFileDeletesOn(fragment) {
+    mockStorageHooks.hangDeletesOn = fragment;
+}
+
 /** Runs `hook(path)` once, just before the next delete reaches Storage. */
 function beforeNextFileDelete(hook) {
     mockStorageHooks.beforeDelete = hook;
@@ -76,9 +84,11 @@ function resetStorage() {
     mockStorageMeta.clear();
     mockDeletedFiles.length = 0;
     mockStorageHooks.failDeletesOn = null;
+    mockStorageHooks.hangDeletesOn = null;
     mockStorageHooks.beforeDelete = null;
 }
 
 module.exports = {
-    mockBucket, mockStorageFiles, mockStorageMeta, mockDeletedFiles, failFileDeletesOn, beforeNextFileDelete, resetStorage,
+    mockBucket, mockStorageFiles, mockStorageMeta, mockDeletedFiles, failFileDeletesOn, hangFileDeletesOn,
+    beforeNextFileDelete, resetStorage,
 };

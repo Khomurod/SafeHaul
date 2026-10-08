@@ -17,7 +17,9 @@
  * at that company. The platform's own retries are not used, because the deploy
  * cannot ship a function that has them (`functionFailurePolicy.test.js`). What
  * the last try leaves is recorded for the next deletion at the company, as a
- * purge's leftovers are.
+ * purge's leftovers are. So that the last try always gets to record, every step
+ * of a try (the check, each file's delete, the record) that gets no answer
+ * within `STEP_MS` has failed: the clients' own retries can outlast the run.
  */
 
 const { onDocumentDeletedWithAuthContext } = require('firebase-functions/v2/firestore');
@@ -25,9 +27,11 @@ const { deleteDraftFiles, retryPendingFiles } = require('./draftFiles');
 
 /** The waits before the second and the third try. */
 const RETRY_WAITS_MS = Object.freeze([3000, 12000]);
+/** The longest one step of a try may take. */
+const STEP_MS = 30 * 1000;
 
 /** Replaced by the tests, which have no seconds to spend. */
-const timing = { wait: (ms) => new Promise((resolve) => { setTimeout(resolve, ms); }) };
+const timing = { wait: (ms) => new Promise((resolve) => { setTimeout(resolve, ms); }), stepMs: STEP_MS };
 
 /** Was this the TTL policy deleting a draft that had expired? */
 function expiredByTtl(event, data, now = Date.now()) {
@@ -38,9 +42,9 @@ function expiredByTtl(event, data, now = Date.now()) {
 exports.deleteExpiredDraftFiles = onDocumentDeletedWithAuthContext({
     document: 'companies/{companyId}/application_drafts/{applicantKey}',
     region: 'us-central1',
-    // Three tries and their waits, each try slowed by the clients' own retries in
-    // an outage, need more than the minute an event function gets by default.
-    timeoutSeconds: 120,
+    // Three tries of at most three steps of `STEP_MS` each, and the waits between
+    // them, take under four minutes; an event function gets one by default.
+    timeoutSeconds: 300,
 }, async (event) => {
     const data = event.data?.data();
     if (!expiredByTtl(event, data)) return;
@@ -51,7 +55,7 @@ exports.deleteExpiredDraftFiles = onDocumentDeletedWithAuthContext({
         const last = attempt === RETRY_WAITS_MS.length;
         // Never throws. Only the last try writes down what is left: an earlier
         // one tries again itself, and would write the same files down twice.
-        files = await deleteDraftFiles(companyId, removed, { recordFailures: last });
+        files = await deleteDraftFiles(companyId, removed, { recordFailures: last, stepMs: timing.stepMs });
         if (files.failed === 0 || last) break;
         await timing.wait(RETRY_WAITS_MS[attempt]);
     }
@@ -64,4 +68,4 @@ exports.deleteExpiredDraftFiles = onDocumentDeletedWithAuthContext({
     await retryPendingFiles(companyId);
 });
 
-exports.__private = { RETRY_WAITS_MS, expiredByTtl, timing };
+exports.__private = { RETRY_WAITS_MS, STEP_MS, expiredByTtl, timing };

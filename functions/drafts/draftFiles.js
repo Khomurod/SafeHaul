@@ -87,29 +87,45 @@ async function pathsStillUsed(companyId, removed) {
 const KEPT = 'kept';
 
 /**
+ * `promise`, or a refusal once `ms` pass without an answer; `promise` itself
+ * without `ms`. The Storage and Firestore clients keep retrying a request on
+ * their own, long enough to outlast a run that has to finish what it started
+ * (`drafts/expired.js`).
+ */
+function withinStep(promise, ms) {
+    if (!ms) return promise;
+    let timer;
+    const late = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(Object.assign(new Error(`no answer within ${ms} ms`), { code: 'step-timeout' })), ms);
+    });
+    return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Deletes each path a draft's deletion may take, and only while it is as it was
  * read: a submission marking it in between makes the delete fail (412) rather
- * than take a submitted application's file. A missing file counts as deleted.
+ * than take a submitted application's file. A missing file counts as deleted;
+ * one that gets no answer within `stepMs` counts as failed.
  *
  * @returns {Promise<{kept: string[], failed: string[]}>}
  */
-async function deletePaths(paths) {
+async function deletePaths(paths, stepMs) {
     const bucket = storage.bucket();
-    const results = await Promise.allSettled(paths.map(async (path) => {
+    const results = await Promise.allSettled(paths.map((path) => withinStep((async () => {
         const file = bucket.file(path);
         const [metadata] = await file.getMetadata();
         if (!deletableUpload(metadata)) return KEPT;
         await file.delete({ ifMetagenerationMatch: metadata.metageneration, ignoreNotFound: true });
         return null;
-    }));
+    })(), stepMs)));
     const kept = paths.filter((_, index) => results[index].value === KEPT || results[index].reason?.code === 412);
     const failed = paths.filter((_, index) => results[index].status === 'rejected' && ![404, 412].includes(results[index].reason?.code));
     return { kept, failed };
 }
 
-async function recordPending(companyId, keys, paths, checkedAt, attempts = 1) {
+async function recordPending(companyId, keys, paths, checkedAt, attempts = 1, stepMs = undefined) {
     try {
-        await auditCollection(companyId).add({
+        await withinStep(auditCollection(companyId).add({
             action: PENDING_ACTION,
             outcome: 'pending',
             applicantKeys: keys,
@@ -118,7 +134,7 @@ async function recordPending(companyId, keys, paths, checkedAt, attempts = 1) {
             checkedAt,
             at: draft.serverTimestamp(),
             expiresAt: draft.expiresAt(),
-        });
+        }), stepMs);
     } catch (error) {
         console.error(`[applicationDrafts] ${companyId}: could not record ${paths.length} file(s) left to delete: ${error?.message || 'unknown'}`);
     }
@@ -128,21 +144,22 @@ async function recordPending(companyId, keys, paths, checkedAt, attempts = 1) {
  * Deletes the files of drafts that have just been deleted, except those still
  * pointed at elsewhere. Never throws: the drafts are already gone, and what could
  * not be done is recorded for the next deletion to finish, unless the caller will
- * run again itself (`recordFailures: false`).
+ * run again itself (`recordFailures: false`). With `stepMs`, each step (the
+ * check, a file's delete, the record) that gets no answer by then has failed.
  *
  * @param {string} companyId
  * @param {Array<{key: string, data: object}>} removed
- * @param {{recordFailures?: boolean}} [options]
+ * @param {{recordFailures?: boolean, stepMs?: number}} [options]
  * @returns {Promise<{deleted: number, kept: number, failed: number}>}
  */
-async function deleteDraftFiles(companyId, removed, { recordFailures = true } = {}) {
+async function deleteDraftFiles(companyId, removed, { recordFailures = true, stepMs = undefined } = {}) {
     const candidates = [...new Set(removed.flatMap(({ data }) => guestUploadPathsIn(data?.formData, companyId)))];
     if (candidates.length === 0) return { deleted: 0, kept: 0, failed: 0 };
     const keys = removed.map(({ key }) => key);
     const checkedAt = checkTime();
     let used;
     try {
-        used = await pathsStillUsed(companyId, removed);
+        used = await withinStep(pathsStillUsed(companyId, removed), stepMs);
     } catch (error) {
         // Not knowing what else uses a file is not a reason to delete it, and a
         // retry could not ask again: it knows the drafts by key alone. They stay.
@@ -150,8 +167,8 @@ async function deleteDraftFiles(companyId, removed, { recordFailures = true } = 
         return { deleted: 0, kept: 0, failed: candidates.length };
     }
     const unused = candidates.filter((path) => !used.has(path));
-    const { kept, failed } = await deletePaths(unused);
-    if (failed.length > 0 && recordFailures) await recordPending(companyId, keys, failed, checkedAt);
+    const { kept, failed } = await deletePaths(unused, stepMs);
+    if (failed.length > 0 && recordFailures) await recordPending(companyId, keys, failed, checkedAt, 1, stepMs);
     return {
         deleted: unused.length - kept.length - failed.length,
         kept: candidates.length - unused.length + kept.length,

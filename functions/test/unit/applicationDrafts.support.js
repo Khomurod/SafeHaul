@@ -65,9 +65,13 @@ let mockBeforeNextTransaction = null;
 const mockNonTransactionalWrites = [];
 /** Storage: its own double, in `applicationDrafts.storage.support.js`. */
 const {
-    mockBucket, mockStorageFiles, mockStorageMeta, mockDeletedFiles, failFileDeletesOn, beforeNextFileDelete, resetStorage,
+    mockBucket, mockStorageFiles, mockStorageMeta, mockDeletedFiles, failFileDeletesOn, hangFileDeletesOn,
+    beforeNextFileDelete, resetStorage,
 } = require('./applicationDrafts.storage.support');
 let mockFailQueriesOn = null;
+/** Collections whose queries, and whose `add`s, never answer: a client still retrying. */
+const mockHangs = { queriesOn: null, addsOn: null };
+const mockNeverAnswers = () => new Promise(() => {});
 
 /** A time as milliseconds, for the range filters: the doubles' timestamps and Dates alike. */
 function mockMillis(value) {
@@ -104,6 +108,7 @@ function mockCollectionRef(path) {
         limit: (count) => query(filters, order, count),
         get: async () => {
             if (mockFailQueriesOn && path.includes(mockFailQueriesOn)) throw new Error('firestore unavailable');
+            if (mockHangs.queriesOn && path.includes(mockHangs.queriesOn)) await mockNeverAnswers();
             if (filters.some((filter) => filter.value === undefined)) throw new Error('Firestore rejects an undefined filter value');
             let docs = [...mockStore.keys()]
                 .filter((key) => key.startsWith(`${path}/`) && key.split('/').length === path.split('/').length + 1)
@@ -121,6 +126,7 @@ function mockCollectionRef(path) {
         },
         add: async (row) => {
             if (mockFailWritesOn && path.includes(mockFailWritesOn)) throw new Error('firestore unavailable');
+            if (mockHangs.addsOn && path.includes(mockHangs.addsOn)) await mockNeverAnswers();
             const id = mockAutoId();
             mockStore.set(`${path}/${id}`, row);
             return { id };
@@ -324,6 +330,14 @@ function failQueriesOn(fragment) {
     mockFailQueriesOn = fragment;
 }
 
+/** Makes every query, or every `add`, in a collection whose path contains `fragment` never answer. */
+function hangQueriesOn(fragment) {
+    mockHangs.queriesOn = fragment;
+}
+function hangAddsOn(fragment) {
+    mockHangs.addsOn = fragment;
+}
+
 /** The original suite's `beforeEach` body, unchanged. */
 function resetDraftState() {
     jest.clearAllMocks();
@@ -335,6 +349,8 @@ function resetDraftState() {
     mockBeforeNextTransaction = null;
     resetStorage();
     mockFailQueriesOn = null;
+    mockHangs.queriesOn = null;
+    mockHangs.addsOn = null;
     mockCheckRateLimit.mockResolvedValue(true);
     mockAssertIntake.mockResolvedValue({ companyName: 'Acme Freight' });
     mockAssertCompanyAccess.mockResolvedValue(undefined);
@@ -363,8 +379,11 @@ module.exports = {
     runBeforeNextTransaction,
     failWritesOn,
     failFileDeletesOn,
+    hangFileDeletesOn,
     beforeNextFileDelete,
     failQueriesOn,
+    hangQueriesOn,
+    hangAddsOn,
     resetDraftState,
     IDENTITY,
     COMPANY,

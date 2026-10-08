@@ -7,7 +7,7 @@
  * Admin's deletion makes (`drafts/draftFiles.js`); a submission, Start Over or a
  * superseding save, which delete drafts as well, never do. A run that could not
  * finish tries twice more itself, and records what its last try left for the
- * next deletion.
+ * next deletion; a step that never answers counts as failed, so it always can.
  */
 
 process.env.SMS_ENCRYPTION_KEY = 'x'.repeat(32);
@@ -20,7 +20,7 @@ jest.mock('../../firebaseAdmin', () => require('./applicationDrafts.support').fi
 const { deleteExpiredDraftFiles, __private: { RETRY_WAITS_MS, timing } } = require('../../drafts/expired');
 const {
     mockStore, mockStorageFiles, mockDeletedFiles, mockServerTimestamp, COMPANY,
-    failFileDeletesOn, failQueriesOn, resetDraftState,
+    failFileDeletesOn, failQueriesOn, hangFileDeletesOn, hangQueriesOn, hangAddsOn, resetDraftState,
 } = require('./applicationDrafts.support');
 
 const KEY = 'aaaa1111bbbb2222cccc';
@@ -55,7 +55,7 @@ const pending = () => [...mockStore.entries()]
     .filter(([path, row]) => path.startsWith(`${AUDIT}/`) && row.action === 'draft_files_pending')
     .map(([, row]) => row);
 
-const realWait = timing.wait;
+const { wait: realWait, stepMs: realStepMs } = timing;
 /** The waits between tries, taken at once; `during` runs while a wait would have. */
 let waits;
 function waitsRun(during = () => {}) {
@@ -68,17 +68,20 @@ beforeEach(() => {
     mockStorageFiles.add(BACK);
     waits = [];
     waitsRun();
+    // A step that never answers gives up at once.
+    timing.stepMs = 20;
 });
 
 afterAll(() => {
     timing.wait = realWait;
+    timing.stepMs = realStepMs;
 });
 
 it('listens for the deletion of an unfinished application, without the platform\'s retries', () => {
     expect(deleteExpiredDraftFiles.options).toEqual({
         document: 'companies/{companyId}/application_drafts/{applicantKey}',
         region: 'us-central1',
-        timeoutSeconds: 120,
+        timeoutSeconds: 300,
     });
 });
 
@@ -196,6 +199,36 @@ describe('a run that could not finish', () => {
         expect(mockDeletedFiles).toEqual([]);
         expect(pending()).toEqual([]);
         expect(errors).toHaveBeenCalledWith(expect.stringContaining('so they stay'));
+    });
+
+    it('gives up on a check that never answers, and tries again', async () => {
+        hangQueriesOn('application_drafts');
+        waitsRun(() => hangQueriesOn(null));
+
+        await fire(deletedDraft());
+
+        expect(waits).toEqual([RETRY_WAITS_MS[0]]);
+        expect([...mockDeletedFiles].sort()).toEqual([BACK, FRONT].sort());
+        expect(errors).toHaveBeenCalledWith(expect.stringContaining('no answer within 20 ms'));
+    });
+
+    it('records a file whose delete never answers, on its last try', async () => {
+        hangFileDeletesOn('front');
+
+        await fire(deletedDraft());
+
+        expect(mockDeletedFiles).toEqual([BACK]);
+        expect(pending()).toEqual([expect.objectContaining({ paths: [FRONT], attempts: 1 })]);
+    });
+
+    it('still ends when the record of what is left never lands', async () => {
+        hangFileDeletesOn('front');
+        hangAddsOn('application_draft_audit');
+
+        await fire(deletedDraft());
+
+        expect(pending()).toEqual([]);
+        expect(errors).toHaveBeenCalledWith(expect.stringContaining('could not record 1 file(s) left to delete'));
     });
 
     it('leaves what earlier deletions could not finish for a run that goes through', async () => {
