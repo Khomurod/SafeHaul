@@ -63,6 +63,16 @@ const mockRunTransactionCalls = [];
 let mockBeforeNextTransaction = null;
 /** Draft-document writes that did NOT go through a transaction. */
 const mockNonTransactionalWrites = [];
+/** Storage: its own double, in `applicationDrafts.storage.support.js`. */
+const {
+    mockBucket, mockStorageFiles, mockStorageMeta, mockDeletedFiles, failFileDeletesOn, beforeNextFileDelete, resetStorage,
+} = require('./applicationDrafts.storage.support');
+let mockFailQueriesOn = null;
+
+/** A time as milliseconds, for the range filters: the doubles' timestamps and Dates alike. */
+function mockMillis(value) {
+    return value?.toMillis?.() ?? value?.toDate?.().getTime() ?? NaN;
+}
 
 /** Ids for `add()` and an argument-less `doc()`, unique within a suite. */
 let mockAutoIds = 0;
@@ -93,11 +103,15 @@ function mockCollectionRef(path) {
         orderBy: (field, direction) => query(filters, { field, direction }, max),
         limit: (count) => query(filters, order, count),
         get: async () => {
+            if (mockFailQueriesOn && path.includes(mockFailQueriesOn)) throw new Error('firestore unavailable');
+            if (filters.some((filter) => filter.value === undefined)) throw new Error('Firestore rejects an undefined filter value');
             let docs = [...mockStore.keys()]
                 .filter((key) => key.startsWith(`${path}/`) && key.split('/').length === path.split('/').length + 1)
                 .map(mockMakeDoc);
             for (const filter of filters) {
-                docs = docs.filter((doc) => doc.data()?.[filter.field] === filter.value);
+                docs = docs.filter((doc) => (filter.op === '>='
+                    ? mockMillis(doc.data()?.[filter.field]) >= mockMillis(filter.value)
+                    : doc.data()?.[filter.field] === filter.value));
             }
             if (order) {
                 docs.sort((a, b) => String(b.data()?.[order.field]?.seq ?? 0) - String(a.data()?.[order.field]?.seq ?? 0));
@@ -188,6 +202,7 @@ const companyTenantMock = () => ({
 });
 
 const firebaseAdminMock = () => ({
+    storage: { bucket: () => mockBucket() },
     admin: {
         firestore: {
             FieldValue: { serverTimestamp: () => mockServerTimestamp(), delete: () => '__delete__' },
@@ -304,6 +319,11 @@ function failWritesOn(fragment) {
     mockFailWritesOn = fragment;
 }
 
+/** Makes every query of a collection whose path contains `fragment` throw, until the next reset. */
+function failQueriesOn(fragment) {
+    mockFailQueriesOn = fragment;
+}
+
 /** The original suite's `beforeEach` body, unchanged. */
 function resetDraftState() {
     jest.clearAllMocks();
@@ -313,6 +333,8 @@ function resetDraftState() {
     mockRunTransactionCalls.length = 0;
     mockNonTransactionalWrites.length = 0;
     mockBeforeNextTransaction = null;
+    resetStorage();
+    mockFailQueriesOn = null;
     mockCheckRateLimit.mockResolvedValue(true);
     mockAssertIntake.mockResolvedValue({ companyName: 'Acme Freight' });
     mockAssertCompanyAccess.mockResolvedValue(undefined);
@@ -330,6 +352,9 @@ module.exports = {
     mockDeletedPaths,
     mockRunTransactionCalls,
     mockNonTransactionalWrites,
+    mockStorageFiles,
+    mockStorageMeta,
+    mockDeletedFiles,
     mockServerTimestamp,
     mockAssertCompanyAccess,
     mockAssertCompanyAdmin,
@@ -337,6 +362,9 @@ module.exports = {
     mockAssertIntake,
     runBeforeNextTransaction,
     failWritesOn,
+    failFileDeletesOn,
+    beforeNextFileDelete,
+    failQueriesOn,
     resetDraftState,
     IDENTITY,
     COMPANY,

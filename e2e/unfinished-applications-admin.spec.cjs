@@ -31,6 +31,41 @@ async function stubCallable(page, name, result) {
     }));
 }
 
+/**
+ * Answers `purgeApplicationDraft` as the server does: what would go for a preview,
+ * the deletion otherwise. Dana's preview names the fixture's nameless row as the
+ * same driver's, by phone. Returns the requests, to assert what was confirmed.
+ */
+async function stubPurge(page) {
+    const asked = [];
+    await page.route('**/purgeApplicationDraft', (route) => {
+        if (route.request().method() !== 'POST') {
+            return route.fulfill({
+                status: 204,
+                headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'POST' },
+            });
+        }
+        const { data } = route.request().postDataJSON();
+        asked.push(data);
+        const result = data.preview
+            ? {
+                application: { applicantKey: data.applicantKey, firstName: 'Dana', lastName: 'Whitfield', fileCount: 2 },
+                related: [{
+                    applicantKey: 'bbbb5555cccc6666dddd', origin: 'driver', status: 'in_progress',
+                    email: 'starter@example.test', lastSemanticStep: 'contact', lastStep: 0, fileCount: 0, shares: ['phone'],
+                }],
+            }
+            : { deleted: [data.applicantKey, ...data.alsoDelete], skipped: [], files: { deleted: 2, kept: 0, failed: 0 } };
+        return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            headers: { 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ result }),
+        });
+    });
+    return asked;
+}
+
 /** What `getApplicationDraft` returns for the worklist fixture's Dana Whitfield. */
 const DRAFT_VIEW = {
     applicantKey: 'aaaa1111bbbb2222cccc',
@@ -101,8 +136,8 @@ test.describe('a Company Admin and an unfinished application', () => {
         await expect(page.getByRole('heading', { level: 1, name: 'Unfinished applications' })).toBeVisible();
     });
 
-    test('deleting asks first, and the row leaves the list', async ({ page }) => {
-        await stubCallable(page, 'deleteApplicationDraft', { deleted: true, applicantKey: 'aaaa1111bbbb2222cccc' });
+    test('deleting asks first, says what goes, and the row leaves the list', async ({ page }) => {
+        const asked = await stubPurge(page);
         await page.goto(START_URL);
         const remove = page.getByRole('button', { name: /Delete the application for Dana Whitfield/i });
 
@@ -110,15 +145,22 @@ test.describe('a Company Admin and an unfinished application', () => {
         const dialog = page.getByRole('dialog', { name: 'Delete this unfinished application?' });
         await expect(dialog).toBeVisible();
         await expect(dialog.getByRole('button', { name: 'Keep application' })).toBeFocused();
+        await expect(dialog.getByText('Everything saved for Dana Whitfield will be deleted for good: its answers, 2 uploaded files and any link sent for it.'))
+            .toBeVisible();
         // Escape is a change of mind, never a deletion.
         await page.keyboard.press('Escape');
         await expect(dialog).toHaveCount(0);
         await expect(remove).toBeFocused();
 
         await remove.click();
+        // The same driver's other application is ticked; this one is somebody else's.
+        const other = dialog.getByRole('checkbox', { name: 'Name not entered yet' });
+        await expect(other).toBeChecked();
+        await other.uncheck();
         await dialog.getByRole('button', { name: 'Delete application' }).click();
 
         await expect(page.getByText('Deleted the unfinished application for Dana Whitfield.')).toBeVisible();
+        expect(asked.at(-1)).toEqual({ companyId: 'e2e-company', applicantKey: 'aaaa1111bbbb2222cccc', alsoDelete: [] });
         // The row's own control, not the name: the sentence above names her too.
         await expect(page.getByRole('button', { name: /Open the application for Dana Whitfield/i })).toHaveCount(0);
         await expect(page.getByRole('button', { name: /Open the application for Marcus Iyer/i })).toBeVisible();
@@ -181,6 +223,7 @@ test.describe('a Company Admin and an unfinished application', () => {
 
     test('the read-only view and the delete confirmation pass axe @a11y', async ({ page }) => {
         await stubCallable(page, 'getApplicationDraft', DRAFT_VIEW);
+        await stubPurge(page);
         await page.goto(START_URL);
 
         await page.getByRole('button', { name: /Delete the application for Dana Whitfield/i }).click();

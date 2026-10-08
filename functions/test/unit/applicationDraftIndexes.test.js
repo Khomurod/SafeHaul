@@ -137,6 +137,37 @@ describe('the carrier-prepared queries on the same collection', () => {
     });
 });
 
+/**
+ * Deleting an application with everything in it asks the drafts, the audit trail
+ * and the submitted applications by one field at a time, and never orders such a
+ * query. Firestore serves each from the field's automatic index, so none needs a
+ * composite one; what would break them is an exemption, or a later `orderBy`.
+ */
+describe('the deletion of an application with everything in it', () => {
+    const PURGE_SOURCE_FILES = Object.freeze([
+        'functions/drafts/related.js',
+        'functions/drafts/draftFiles.js',
+        'functions/shared/submittedUploads.js',
+    ]);
+    const sourceOf = (file) => fs.readFileSync(path.join(REPO_ROOT, file), 'utf8');
+
+    it('orders no query it filters', () => {
+        for (const file of PURGE_SOURCE_FILES) {
+            expect(sourceOf(file)).not.toMatch(/\.where\([^)]*\)\s*\.orderBy\(/);
+        }
+    });
+
+    it('exempts no field it filters on from indexing', () => {
+        const fields = PURGE_SOURCE_FILES.flatMap((file) => [...sourceOf(file)
+            .matchAll(/\.where\('([a-zA-Z]+)',\s*'(?:==|>=)'/g)].map((match) => match[1]));
+        expect(fields).toEqual(expect.arrayContaining(['identityKey', 'contactEmail', 'contactPhone', 'action', 'email', 'applicantKey', 'updatedAt']));
+        const exempted = (config.fieldOverrides || [])
+            .filter((entry) => Array.isArray(entry.indexes) && entry.indexes.length === 0)
+            .map((entry) => entry.fieldPath);
+        for (const field of fields) expect(exempted).not.toContain(field);
+    });
+});
+
 describe('unfinished application retention', () => {
     it('declares a TTL policy on the draft, or an abandoned one is kept forever', () => {
         const override = ttlOverride('application_drafts');

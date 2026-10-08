@@ -7,11 +7,11 @@ import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useData } from '@/context/DataContext';
 import { Button, Card, FieldMessage, Notice } from '@/design-system/components';
-import { ConfirmDialog } from '@/design-system/patterns';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { useInviteLink } from '../applicationPrep/useInviteLink';
 import { useUnfinishedDraftDelete } from '../applicationPrep/useUnfinishedDraftDelete';
 import { describeApplicant } from '../applicationPrep/unfinishedRowActions';
+import UnfinishedDeleteDialog from '../applicationPrep/UnfinishedDeleteDialog';
 import ApplicationPrepWorkspace from '../applicationPrep/ApplicationPrepWorkspace';
 import UnfinishedApplicationReview from '../applicationPrep/UnfinishedApplicationReview';
 import UnfinishedWorklistTable from '../applicationPrep/UnfinishedWorklistTable';
@@ -57,9 +57,10 @@ import { MOCK_DRAFTS } from './unfinishedApplicationsMock';
  * not yet touched them. *Open* appears only on the carrier's own rows, and what
  * comes back is the server's decision on every load, never this screen's. A
  * Company Admin may also open, read-only, every application the driver has
- * written to, and delete any row — the owner's decision of 2026-10-06, held by
- * the server (`getApplicationDraft`, `deleteApplicationDraft`). There is no
- * Social Security Number to withhold — drafts never store one.
+ * written to, and delete any row with everything in it, the same driver's other
+ * unfinished applications included — the owner's decisions of 2026-10-06 and
+ * 2026-10-07, held by the server (`getApplicationDraft`, `purgeApplicationDraft`).
+ * There is no Social Security Number to withhold — drafts never store one.
  *
  * Which action a row offers depends on its state, and that lives in
  * `unfinishedRowActions.js` rather than here.
@@ -205,13 +206,18 @@ export function UnfinishedApplicationsPage() {
     const deletedNoteRef = useRef(null);
     useEffect(() => { if (deletedNote) deletedNoteRef.current?.focus(); }, [deletedNote]);
 
-    const onDeleted = useCallback((entry, { alreadyGone }) => {
-        setDrafts((rows) => rows.filter((row) => row.applicantKey !== entry.applicantKey));
+    const onDeleted = useCallback(({ entry, deleted, skipped, alreadyGone }) => {
+        const gone = new Set(deleted);
+        setDrafts((rows) => rows.filter((row) => !gone.has(row.applicantKey)));
         const { actionName } = describeApplicant(entry);
+        const others = deleted.filter((key) => key !== entry.applicantKey).length;
         setDeletedNote(alreadyGone
             ? `The application for ${actionName} was already gone. It may have been submitted, deleted or expired.`
-            : `Deleted the unfinished application for ${actionName}.`);
-    }, []);
+            : `Deleted the unfinished application for ${actionName}${others > 0 ? ` and ${others} more` : ''}.`);
+        // One of the driver's other applications changed since the dialog showed it,
+        // and was kept: the list shows it as it is now.
+        if (skipped.length > 0) load();
+    }, [load]);
     const deletion = useUnfinishedDraftDelete({ companyId, onDeleted });
     // The hook's own stable callback, not `deletion`, which is a fresh object on
     // every render and would rebuild the table's columns with it.
@@ -297,6 +303,13 @@ export function UnfinishedApplicationsPage() {
                     </Notice>
                 )}
 
+                {deletion.checkingKey && (
+                    <Notice tone="info" announce="polite">Checking what will be deleted…</Notice>
+                )}
+                {deletion.checkError && (
+                    <Notice tone="danger" announce="assertive">{deletion.checkError}</Notice>
+                )}
+
                 <UnfinishedWorklistTable
                     rows={drafts}
                     loading={loading}
@@ -315,19 +328,7 @@ export function UnfinishedApplicationsPage() {
                     }}
                 />
 
-                {deletion.target && (
-                    <ConfirmDialog
-                        title="Delete this unfinished application?"
-                        description={`The unfinished application for ${describeApplicant(deletion.target).actionName} will be deleted for good, and any link sent for it will stop working. A driver still filling it in on their own device can still finish and submit it there.`}
-                        tone="danger"
-                        confirmLabel="Delete application"
-                        cancelLabel="Keep application"
-                        loading={deletion.deleting}
-                        error={deletion.error}
-                        onConfirm={deletion.confirm}
-                        onCancel={deletion.cancel}
-                    />
-                )}
+                <UnfinishedDeleteDialog deletion={deletion} />
             </Stack>
         </PageContainer>
     );

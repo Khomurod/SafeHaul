@@ -98,6 +98,7 @@ const prepared = require('../shared/companyPreparedDraft');
 const {
     applicantKeyOf, clientIp, docId, recordMatchAttempt, text,
 } = require('../drafts/identity');
+const { removedForToken } = require('../drafts/removalMarks');
 const {
     CLAIM_OUTCOMES, readClaim, verifyInviteIdentityClaim,
 } = require('./inviteIdentity');
@@ -269,7 +270,11 @@ exports.exchangeApplicationInvite = functions
         }
 
         if (!candidate) {
-            throw new functions.https.HttpsError('not-found', 'That application link could not be opened.');
+            // A link to an application its company deleted says so (`drafts/removalMarks.js`).
+            const removed = await removedForToken(companyId, [applicantKey], inviteToken);
+            throw new functions.https.HttpsError(
+                'not-found', 'That application link could not be opened.', removed ? { reason: 'removed' } : undefined,
+            );
         }
 
         // A resume token per open, so the driver's autosave is authorized the way

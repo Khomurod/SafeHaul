@@ -113,8 +113,13 @@ function draftResponse(summary = DRIVER_STARTED) {
 
 const listSpy = vi.fn();
 const viewSpy = vi.fn();
-const deleteSpy = vi.fn();
+const purgeSpy = vi.fn();
 const preparedSpy = vi.fn();
+
+/** `purgeApplicationDraft`: what would go, then the deletion. */
+const purgeAnswer = async ({ applicantKey, preview }) => (preview
+    ? { data: { application: { ...ROWS.find((row) => row.applicantKey === applicantKey), fileCount: 0 }, related: [] } }
+    : { data: { deleted: [applicantKey], skipped: [], files: { deleted: 0, kept: 0, failed: 0 } } });
 
 beforeEach(() => {
     vi.resetAllMocks();
@@ -122,14 +127,14 @@ beforeEach(() => {
     for (const key of Object.keys(mocks.byName)) delete mocks.byName[key];
     listSpy.mockImplementation(async () => ({ data: { drafts: ROWS, retentionDays: 30 } }));
     viewSpy.mockImplementation(async () => ({ data: draftResponse() }));
-    deleteSpy.mockImplementation(async ({ applicantKey }) => ({ data: { deleted: true, applicantKey } }));
+    purgeSpy.mockImplementation(purgeAnswer);
     preparedSpy.mockImplementation(async () => ({
         data: { ...COMPANY_PREPARED, formData: { firstName: 'Marcus' }, lockedEmployers: [], readable: true },
     }));
     Object.assign(mocks.byName, {
         listApplicationDrafts: listSpy,
         getApplicationDraft: viewSpy,
-        deleteApplicationDraft: deleteSpy,
+        purgeApplicationDraft: purgeSpy,
         getCompanyPreparedDraft: preparedSpy,
     });
 });
@@ -246,15 +251,18 @@ describe('a Company Admin', () => {
 
         fireEvent.click(deleteButton('Dana Alvarez'));
         const dialog = await screen.findByRole('dialog', { name: 'Delete this unfinished application?' });
-        expect(within(dialog).getByText(/Dana Alvarez will be deleted for good/)).toBeInTheDocument();
+        expect(within(dialog).getByText('Everything saved for Dana Alvarez will be deleted for good: its answers and any link sent for it.'))
+            .toBeInTheDocument();
         // The safe action is the one focused first.
         expect(within(dialog).getByRole('button', { name: 'Keep application' })).toHaveFocus();
-        expect(deleteSpy).not.toHaveBeenCalled();
+        // Asked what would go, and nothing more.
+        expect(purgeSpy).toHaveBeenCalledTimes(1);
+        expect(purgeSpy).toHaveBeenCalledWith({ companyId: 'company-1', applicantKey: DRIVER_STARTED.applicantKey, preview: true });
 
         fireEvent.click(within(dialog).getByRole('button', { name: 'Delete application' }));
 
         const note = await screen.findByText('Deleted the unfinished application for Dana Alvarez.');
-        expect(deleteSpy).toHaveBeenCalledWith({ companyId: 'company-1', applicantKey: DRIVER_STARTED.applicantKey });
+        expect(purgeSpy).toHaveBeenLastCalledWith({ companyId: 'company-1', applicantKey: DRIVER_STARTED.applicantKey, alsoDelete: [] });
         expect(screen.queryByRole('dialog')).toBeNull();
         expect(openButton('Dana Alvarez')).toBeNull();
         // The row and its button are gone, so focus moves to what happened.
@@ -271,12 +279,13 @@ describe('a Company Admin', () => {
         fireEvent.click(within(dialog).getByRole('button', { name: 'Keep application' }));
 
         await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-        expect(deleteSpy).not.toHaveBeenCalled();
+        expect(purgeSpy.mock.calls.every(([payload]) => payload.preview === true)).toBe(true);
         expect(openButton('Marcus Iyer')).toBeInTheDocument();
     });
 
     it('keeps the dialog and the row when the server refuses, and says why', async () => {
-        deleteSpy.mockImplementation(async () => {
+        purgeSpy.mockImplementation(async (payload) => {
+            if (payload.preview) return purgeAnswer(payload);
             throw Object.assign(new Error('Company admin access required.'), { code: 'functions/permission-denied' });
         });
         await renderList();
@@ -291,7 +300,8 @@ describe('a Company Admin', () => {
     });
 
     it('treats a row that was already gone as gone, rather than as a failure', async () => {
-        deleteSpy.mockImplementation(async () => {
+        purgeSpy.mockImplementation(async (payload) => {
+            if (payload.preview) return purgeAnswer(payload);
             throw Object.assign(new Error('gone'), { code: 'functions/not-found' });
         });
         await renderList();

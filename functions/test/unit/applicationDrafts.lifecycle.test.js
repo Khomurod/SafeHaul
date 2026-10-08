@@ -164,9 +164,12 @@ describe('starting over', () => {
         expect([...mockStore.keys()].filter((key) => key.includes('/application_drafts/'))).toHaveLength(1);
     });
 
-    it('cannot reach a submitted application', async () => {
+    it('cannot change a submitted application', async () => {
         // The callables only ever address the draft subcollection, so a signed
-        // application and its immutable snapshot are out of their reach entirely.
+        // application and its immutable snapshot are out of their reach entirely,
+        // but for one read: deleting an unfinished application's files keeps any
+        // file the driver's submitted application uses, which only
+        // `shared/submittedUploads.js` reads, and that file writes nothing.
         //
         // Read the WHOLE surface, not just the entry. `applicationDrafts.js` is
         // now a re-export, so pointing this at it alone would leave both negative
@@ -201,6 +204,11 @@ describe('starting over', () => {
         // Admin's view (`drafts/admin.js`).
         expect(code).toMatch(/require\('\.\.\/shared\/applicationDraft'\)/);
         expect(code).toMatch(/application_draft_audit/);
+
+        const reader = fs.readFileSync(path.join(root, 'shared/submittedUploads.js'), 'utf8')
+            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+        expect(reader).toMatch(/collection\('applications'\)/);
+        expect(reader).not.toMatch(/\.(set|update|delete|add|create|recursiveDelete|batch|runTransaction)\(/);
     });
 });
 
