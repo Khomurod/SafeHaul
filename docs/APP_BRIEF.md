@@ -234,16 +234,18 @@ as on the License step.
 application started and not submitted, by either side, with **+ Start an
 application** first. A call to make, not an ATS record: it stays out of the
 pipeline, reads `listApplicationDrafts` alone (one document, one row), and rows
-never carry answers (`toCompanySummary`). **Create a continuation link** copies a
-pointer: whoever opens it must prove their identity first, which a recruiter
-cannot do from anything SafeHaul shows them (§5, §12).
+never carry answers (`toCompanySummary`). A search and counted filters sit above
+it; a row gives its step, status, last activity and days left
+(`unfinishedWorklist.js`), as a card on a phone. **Copy link** makes and copies
+a link, **New link** replaces one sent; on answers the driver owns, its opener
+must prove an identity no SafeHaul screen shows a recruiter (§5, §12).
 
 | Started by | Status | A recruiter may… (`unfinishedRowActions.js`) | A Company Admin also may… |
 |---|---|---|---|
 | Company | `prepared` | open and keep editing (`getCompanyPreparedDraft`); mint the driver's first link | delete (`purgeApplicationDraft`) |
 | Company | `sent` | open and keep editing; mint a replacement link | delete |
 | Company | `driver_in_progress` | open the record — the server withholds the answers (`companyMayReadAnswers`); mint a continuation link | read and correct the answers (`getApplicationDraft`, `saveApplicationDraftEdits`); delete |
-| Driver | `in_progress` | mint a continuation link. Nothing else: `getCompanyPreparedDraft` answers `not-found`. | read and correct the answers; delete |
+| Driver | `in_progress` | mint a continuation link; nothing else (`getCompanyPreparedDraft` answers `not-found`) | read and correct the answers; delete |
 
 The admin column (owner, 2026-10-06/07) answers only `assertCompanyAdminStrict`
 and is audited. **Delete** shows what goes, then removes answers, links, ticked
@@ -1167,8 +1169,9 @@ focusable horizontal-scroll region, sticky header, first column pinned
 (`DataTable` by default, `data-pin-first-column` on a native table). A matrix of
 per-row form controls worked one record at a time — the SMS recruiter-assignment
 matrix — becomes one card per row under 768px
-(`data-mobile-presentation="cards"`), the same elements at every width. The
-Super Admin feature matrix is the one specialized grid. Source and guards:
+(`data-mobile-presentation="cards"`), the same elements at every width, as does
+a `DataTable` of such rows (`mobilePresentation="cards"`). The Super Admin
+feature matrix is the one specialized grid. Source and guards:
 `src/design-system/components/data-table/README.md`.
 
 **Two contracts have no exception route**, because the code refuses to run: a
@@ -1239,9 +1242,9 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 **Current limitations:**
 
 - **The unfinished-applications workspace shows the 200 most recently active
-  drafts** (`listApplicationDrafts`, by `updatedAt`). No pagination — a second
-  list would break one-query, one-row-per-document. Raise the cap if a carrier
-  reports a missing row.
+  drafts** (`listApplicationDrafts`, by `updatedAt`), and says when there are
+  more (`truncated`). No pagination — a second list would break one-query,
+  one-row-per-document.
 - **Facebook lead capture is switched off, and leads may be stranded.** An
   earlier defect wrote a connected page's leads to `companies/{uid}/leads`,
   which no screen reads; `scripts/audit-facebook-lead-tenancy.mjs` (read-only)
@@ -1384,10 +1387,10 @@ job runs `lint:frontend`, not the root `npm run lint`, so a check that lives
 only in the root lint is not a CI gate. Only `npm run typecheck` is
 **non-blocking** (`continue-on-error`), and the modules `jsconfig.json` checks
 have no type errors, so a red typecheck is a new error to fix, not a broken
-build. TypeScript 7 no longer reads a JSDoc `{object}` as `any`: name the fields
-a function reads, or use `Record<string, unknown>`. A `TS5xxx` error means the
-configuration was rejected and nothing was checked, so fix the configuration.
-TypeScript 7 has no `baseUrl`; paths in `jsconfig.json` are relative (`./src/*`).
+build. TypeScript 7 reads a JSDoc `{object}` strictly (name the fields a
+function reads, or use `Record<string, unknown>`) and has no `baseUrl` (paths in
+`jsconfig.json` are relative); a `TS5xxx` error means the configuration was
+rejected and nothing was checked.
 
 **The secret scan covers what the change introduced** — this event's commit
 range plus the resulting source tree — never the whole history. A pull request
@@ -1417,9 +1420,8 @@ re-scanned, never stepped over.
 **Source size.** 400 physical lines asks a file to justify its shape; 500 is the
 hard maximum for every handwritten source file, tests and tooling included, with
 one owner-ruled exception: `src/firestore.rules`, held under a 689-line ceiling
-that may only move down. `npm run check:source-size` enforces it against the
-pull request's base or the last fully validated release; the details are in
-`.claude/rules/source-size.md`.
+that may only move down. `npm run check:source-size` enforces it; the details
+are in `.claude/rules/source-size.md`.
 
 **Instructions for AI agents stay small.** `AGENTS.md` is one page every agent
 reads; `.claude/rules/` holds topic rules loaded per area; history lives in
@@ -1456,9 +1458,7 @@ brotli.
 
 **The public site has two CI gates** (§10): `npm run check:public-claims` in
 `callable-contract`, which refuses a run that finds no HTML in `web/`, and
-`src/tests/hostingConfig.test.js` in `frontend_unit`. There is no hand-run
-accessibility audit or screenshot capture any more; both went with the marketing
-site.
+`src/tests/hostingConfig.test.js` in `frontend_unit`.
 
 **Operationally:** a green CI run is *not* evidence that anything shipped.
 `verify-shipped` reads the deployed SHA back off the live site, and the live

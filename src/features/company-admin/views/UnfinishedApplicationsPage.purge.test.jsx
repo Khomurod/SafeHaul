@@ -75,13 +75,13 @@ beforeEach(() => {
 });
 
 /** How many rows carry this name: Dana has two applications, under one name. */
-const rowsFor = (name) => screen.queryAllByRole('button', { name: new RegExp(`Create a continuation link for ${name}`, 'i') }).length;
-const listed = () => screen.findAllByRole('button', { name: /Create a continuation link for Dana Alvarez/i });
+const rowsFor = (name) => screen.queryAllByRole('button', { name: new RegExp(`Copy link for ${name}`, 'i') }).length;
+const listed = () => screen.findAllByRole('button', { name: /Copy link for Dana Alvarez/i });
 
 async function askToDeleteDana() {
     render(<UnfinishedApplicationsPage />);
     await listed();
-    fireEvent.click(screen.getAllByRole('button', { name: /Delete the application for Dana Alvarez/i })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /Delete everything for Dana Alvarez/i })[0]);
     return screen.findByRole('dialog', { name: 'Delete this unfinished application?' });
 }
 
@@ -118,7 +118,7 @@ describe('the dialog', () => {
         render(<UnfinishedApplicationsPage />);
         await listed();
 
-        fireEvent.click(screen.getAllByRole('button', { name: /Delete the application for Dana Alvarez/i })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /Delete everything for Dana Alvarez/i })[0]);
 
         expect(await screen.findByText('Checking what will be deleted…')).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).toBeNull();
@@ -174,7 +174,7 @@ describe('when the lookup does not answer', () => {
         render(<UnfinishedApplicationsPage />);
         await listed();
 
-        fireEvent.click(screen.getAllByRole('button', { name: /Delete the application for Dana Alvarez/i })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /Delete everything for Dana Alvarez/i })[0]);
 
         expect(await screen.findByText(/The application for Dana Alvarez was already gone/)).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).toBeNull();
@@ -187,7 +187,7 @@ describe('when the lookup does not answer', () => {
         render(<UnfinishedApplicationsPage />);
         await listed();
 
-        fireEvent.click(screen.getAllByRole('button', { name: /Delete the application for Dana Alvarez/i })[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: /Delete everything for Dana Alvarez/i })[0]);
 
         expect(await screen.findByText('Too many deletions in a row. Wait a moment and try again.')).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).toBeNull();

@@ -44,8 +44,19 @@ describe('a driver-started application', () => {
     it('is the driver’s answers, and says so plainly', () => {
         expect(row.driverOwnsAnswers).toBe(true);
         expect(row.startedByLabel).toBe('Driver');
-        expect(row.statusLabel).toBe('Unfinished');
-        expect(row.mintLabel).toBe('Create a continuation link');
+        // Every row here is unfinished; who began it is what the status can add.
+        expect(row.statusLabel).toBe('Started by driver');
+        expect(row.statusTone).toBe('neutral');
+        expect(row.mintLabel).toBe('Copy link');
+        expect(row.canEditAnswers).toBe(false);
+    });
+
+    it('offers a new link, not a copy, once one was made for it', () => {
+        // A link is shown once, and making another retires the one the driver has.
+        const linked = describeUnfinishedRow({ origin: 'driver', status: 'in_progress', invitedAt: '2026-06-12T09:00:00.000Z' });
+        expect(linked.mintLabel).toBe('New link');
+        expect(linked.replacesLink).toBe(true);
+        expect(row.replacesLink).toBe(false);
     });
 
     it('never attributes it to somebody at the company', () => {
@@ -61,17 +72,21 @@ describe('an application the carrier prepared', () => {
         expect(row.openMode).toBe('prepare');
         expect(row.driverOwnsAnswers).toBe(false);
         expect(row.statusLabel).toBe('Not sent yet');
-        expect(row.mintLabel).toBe("Create the driver's link");
+        // The one row waiting on the carrier, not the driver.
+        expect(row.statusTone).toBe('warning');
+        expect(row.linkDue).toBe(true);
+        expect(row.mintLabel).toBe('Copy link');
         expect(row.preparedByName).toBe('Rae Recruiter');
     });
 
-    it('once sent, offers a replacement rather than pretending to re-show the first', () => {
+    it('once sent, offers a new link rather than pretending to re-show the first', () => {
         // The raw token comes back from the callable exactly once, so "copy the
         // link you sent" is not a thing this product can offer.
-        const row = describeUnfinishedRow({ ...COMPANY, status: 'sent' });
+        const row = describeUnfinishedRow({ ...COMPANY, status: 'sent', invitedAt: '2026-06-12T09:00:00.000Z' });
 
         expect(row.statusLabel).toBe('Link sent');
-        expect(row.mintLabel).toBe('Create a replacement link');
+        expect(row.mintLabel).toBe('New link');
+        expect(row.linkDue).toBe(false);
         expect(row.openMode).toBe('prepare');
         expect(row.driverOwnsAnswers).toBe(false);
     });
@@ -85,7 +100,8 @@ describe('an application the carrier prepared', () => {
         expect(row.driverOwnsAnswers).toBe(true);
         expect(row.openMode).toBe('prepare');
         expect(row.statusLabel).toBe('Driver is filling it in');
-        expect(row.mintLabel).toBe('Create a continuation link');
+        expect(row.mintLabel).toBe('Copy link');
+        expect(row.canEditAnswers).toBe(false);
     });
 
     it('counts the employers it locked, because an orphaned lock used to be invisible', () => {
@@ -109,23 +125,27 @@ describe('for a Company Admin', () => {
 
         expect(row.openMode).toBe('review');
         expect(row.canDelete).toBe(true);
+        expect(row.canEditAnswers).toBe(true);
         // What the link will do is unchanged: it still asks the driver who they are.
         expect(row.driverOwnsAnswers).toBe(true);
-        expect(row.mintLabel).toBe('Create a continuation link');
+        expect(row.mintLabel).toBe('Copy link');
     });
 
     it('reads a prepared application the driver has taken over, where a recruiter sees progress only', () => {
         const row = describeUnfinishedRow({ ...COMPANY, status: 'driver_in_progress' }, ADMIN);
 
         expect(row.openMode).toBe('review');
+        expect(row.canEditAnswers).toBe(true);
         expect(describeUnfinishedRow({ ...COMPANY, status: 'driver_in_progress' }).openMode).toBe('prepare');
     });
 
-    it('still edits what the carrier itself is preparing, as a recruiter does', () => {
+    it('still edits what the carrier itself is preparing, as a recruiter does, in its workspace', () => {
         for (const status of ['prepared', 'sent']) {
             const row = describeUnfinishedRow({ ...COMPANY, status }, ADMIN);
             expect(row.openMode).toBe('prepare');
             expect(row.canDelete).toBe(true);
+            // `saveApplicationDraftEdits` refuses the carrier's own application.
+            expect(row.canEditAnswers).toBe(false);
         }
     });
 
@@ -135,6 +155,7 @@ describe('for a Company Admin', () => {
         expect(describeUnfinishedRow({ origin: 'driver' }, {}).openMode).toBeNull();
         expect(describeUnfinishedRow({ origin: 'driver' }, { isCompanyAdmin: 'yes' }).openMode).toBeNull();
         expect(describeUnfinishedRow({ origin: 'driver' }, { isCompanyAdmin: 1 }).canDelete).toBe(false);
+        expect(describeUnfinishedRow({ origin: 'driver' }, { isCompanyAdmin: 'yes' }).canEditAnswers).toBe(false);
     });
 });
 
@@ -164,8 +185,8 @@ describe('what to call the applicant', () => {
     });
 
     it('still gives a row action something specific to be named for', () => {
-        // A table of identical "Create a continuation link" buttons tells a
-        // screen-reader user nothing about which row they are on.
+        // A table of identical "Copy link" buttons tells a screen-reader user
+        // nothing about which row they are on.
         expect(describeApplicant({ email: 'd@e.test' }).actionName).toBe('d@e.test');
         expect(describeApplicant({ phone: '2145550147' }).actionName).toBe('2145550147');
         expect(describeApplicant({}).actionName).toBe('this applicant');

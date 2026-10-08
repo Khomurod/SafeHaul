@@ -108,6 +108,8 @@ const COMPANY_TAKEN_OVER = {
     email: 'priya@example.test',
     lastSemanticStep: 'employment',
     lastStep: 5,
+    // Its link went out, which is how the driver came to write.
+    invitedAt: '2026-08-16T10:00:00Z',
 };
 
 const DRAFTS = [DRIVER_STARTED, DRIVER_NAMELESS];
@@ -147,8 +149,14 @@ describe('listing', () => {
 
         await waitFor(() => expect(screen.getByText('Dana Alvarez')).toBeTruthy());
         expect(screen.getByText('dana@example.test')).toBeTruthy();
+        // A phone is a call: the number as people write it, a link a phone dials.
+        expect(screen.getByRole('link', { name: 'Call Dana Alvarez at (214) 555-0147' }))
+            .toHaveAttribute('href', 'tel:+12145550147');
         // The wizard's own step name, not an index the recruiter has to decode.
-        expect(screen.getByText('License & credentials')).toBeTruthy();
+        expect(screen.getByText('Step 3 of 9')).toBeTruthy();
+        expect(screen.getByText(/· License & credentials/)).toBeTruthy();
+        expect(screen.getByRole('progressbar', { name: 'How far Dana Alvarez got' }))
+            .toHaveAttribute('aria-valuetext', 'Step 3 of 9, License & credentials');
     });
 
     it('handles an applicant who has not typed a name yet', async () => {
@@ -170,7 +178,7 @@ describe('listing', () => {
     it('states the retention window, because these disappear on their own', async () => {
         render(<UnfinishedApplicationsPage />);
 
-        await waitFor(() => expect(screen.getByText(/Kept for 30 days/)).toBeTruthy());
+        await waitFor(() => expect(screen.getByText(/removed automatically after 30 days without activity/)).toBeTruthy());
     });
 
     it('shows an empty state rather than an empty table', async () => {
@@ -265,13 +273,11 @@ describe('one workspace for both origins', () => {
         render(<UnfinishedApplicationsPage />);
         await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
 
-        // `selector: 'span'` because the first column's HEADER is also "Driver",
-        // and a count that silently included a `<th>` would pass for the wrong
-        // reason the day a row stopped rendering.
-        expect(screen.getAllByText('Driver', { selector: 'span' })).toHaveLength(2);
-        expect(screen.getAllByText('Company', { selector: 'span' })).toHaveLength(2);
-        // And who at the company, which the old prepared-only table showed.
-        expect(screen.getAllByText('Rae Recruiter')).toHaveLength(2);
+        // The status of a driver's own row says it was theirs; the carrier's rows
+        // say who at the company prepared them, which the old prepared-only table
+        // showed.
+        expect(screen.getAllByText('Started by driver')).toHaveLength(2);
+        expect(screen.getAllByText('Prepared by Rae Recruiter')).toHaveLength(2);
     });
 
     it('names each state in the product’s own words, not a draft status', async () => {
@@ -280,7 +286,7 @@ describe('one workspace for both origins', () => {
 
         expect(screen.getByText('Not sent yet')).toBeTruthy();
         expect(screen.getByText('Driver is filling it in')).toBeTruthy();
-        expect(screen.getAllByText('Unfinished')).toHaveLength(2);
+        expect(screen.getAllByText('Started by driver')).toHaveLength(2);
         // No internal vocabulary reaches the recruiter.
         expect(document.body.innerHTML).not.toContain('driver_in_progress');
         expect(document.body.innerHTML).not.toContain('in_progress');
@@ -350,7 +356,7 @@ describe('one workspace for both origins', () => {
         render(<UnfinishedApplicationsPage />);
         await waitFor(() => expect(screen.getByText('Not sent yet')).toBeTruthy());
 
-        fireEvent.click(screen.getByRole('button', { name: /Create the driver's link for Marcus Iyer/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Copy link for Marcus Iyer/i }));
 
         // Minting is what moves a prepared draft to `sent` server-side, so the row
         // must not keep contradicting the link now sitting under it.
@@ -361,13 +367,15 @@ describe('one workspace for both origins', () => {
         expect(screen.getByText(/invite=invite-token-3/)).toBeInTheDocument();
     });
 
-    it('names the mint action for what it is at each stage', async () => {
+    it('names the link action for what pressing it does', async () => {
         render(<UnfinishedApplicationsPage />);
         await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
 
-        expect(screen.getByRole('button', { name: /Create the driver's link for Marcus Iyer/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Create a continuation link for Dana Alvarez/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Create a continuation link for Priya Raman/i })).toBeInTheDocument();
+        // No link yet: one press makes it and copies it.
+        expect(screen.getByRole('button', { name: 'Copy link for Marcus Iyer' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Copy link for Dana Alvarez' })).toBeInTheDocument();
+        // One went out before, and a link is shown once: pressing makes another.
+        expect(screen.getByRole('button', { name: 'New link for Priya Raman' })).toBeInTheDocument();
     });
 });
 
@@ -386,7 +394,7 @@ describe('the continuation link', () => {
         await screen.findByText('Dana Alvarez');
 
         fireEvent.click(await screen.findByRole('button', {
-            name: /Create a continuation link for Dana Alvarez/i,
+            name: /Copy link for Dana Alvarez/i,
         }));
 
         await waitFor(() => expect(mintSpy).toHaveBeenCalledWith({
@@ -400,7 +408,7 @@ describe('the continuation link', () => {
         render(<UnfinishedApplicationsPage />);
         await screen.findByText('Dana Alvarez');
         fireEvent.click(await screen.findByRole('button', {
-            name: /Create a continuation link for Dana Alvarez/i,
+            name: /Copy link for Dana Alvarez/i,
         }));
 
         expect(await screen.findByText(/apply\/acme\?invite=invite-token-1/)).toBeInTheDocument();
@@ -418,13 +426,13 @@ describe('the continuation link', () => {
         render(<UnfinishedApplicationsPage />);
         await screen.findByText('Dana Alvarez');
         fireEvent.click(await screen.findByRole('button', {
-            name: /Create a continuation link for Dana Alvarez/i,
+            name: /Copy link for Dana Alvarez/i,
         }));
         await screen.findByText(/apply\/acme\?invite=invite-token-1/);
 
         // The second row still offers to CREATE one, and shows no URL.
         expect(screen.getByRole('button', {
-            name: /Create a continuation link for starter@example.test|Create a continuation link for this applicant/i,
+            name: /Copy link for starter@example.test|Copy link for this applicant/i,
         })).toBeInTheDocument();
         expect(screen.getAllByText(/invite=invite-token-1/)).toHaveLength(1);
     });
@@ -434,7 +442,7 @@ describe('the continuation link', () => {
         render(<UnfinishedApplicationsPage />);
         await screen.findByText('Dana Alvarez');
         fireEvent.click(await screen.findByRole('button', {
-            name: /Create a continuation link for Dana Alvarez/i,
+            name: /Copy link for Dana Alvarez/i,
         }));
 
         expect(await screen.findByText(/would not let us copy it/i)).toBeInTheDocument();
@@ -456,7 +464,7 @@ describe('the continuation link', () => {
         render(<UnfinishedApplicationsPage />);
         await screen.findByText('Dana Alvarez');
         fireEvent.click(await screen.findByRole('button', {
-            name: /Create a continuation link for Dana Alvarez/i,
+            name: /Copy link for Dana Alvarez/i,
         }));
 
         // Named for what was refused. The shared `describeError` calls this one

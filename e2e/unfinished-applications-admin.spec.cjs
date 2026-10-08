@@ -5,8 +5,9 @@
  * application, corrects the ones the driver owns, and may delete any of them. The worklist comes from its `e2eUnfinished=mock` fixture; the
  * callables behind these actions are answered here, at the network, because an
  * E2E run points at an unreachable Firebase project on purpose. What a browser
- * proves that the unit suites cannot: the dialog's focus and Escape, and that
- * the screens hold together on a real page.
+ * proves that the unit suites cannot: the dialog's focus and Escape, the list as
+ * cards on a phone with nothing past the screen's edge, and that the screens hold
+ * together on a real page.
  */
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
@@ -139,7 +140,7 @@ test.describe('a Company Admin and an unfinished application', () => {
     test('deleting asks first, says what goes, and the row leaves the list', async ({ page }) => {
         const asked = await stubPurge(page);
         await page.goto(START_URL);
-        const remove = page.getByRole('button', { name: /Delete the application for Dana Whitfield/i });
+        const remove = page.getByRole('button', { name: /Delete everything for Dana Whitfield/i });
 
         await remove.click();
         const dialog = page.getByRole('dialog', { name: 'Delete this unfinished application?' });
@@ -164,6 +165,69 @@ test.describe('a Company Admin and an unfinished application', () => {
         // The row's own control, not the name: the sentence above names her too.
         await expect(page.getByRole('button', { name: /Open the application for Dana Whitfield/i })).toHaveCount(0);
         await expect(page.getByRole('button', { name: /Open the application for Marcus Iyer/i })).toBeVisible();
+    });
+
+    test('the list sums itself up, and the filters and the search narrow it', async ({ page }) => {
+        await page.goto(START_URL);
+        const table = page.getByRole('table', { name: 'Unfinished applications' });
+        const rowNames = () => table.getByRole('rowheader').locator('span').first();
+
+        await expect(page.getByRole('heading', { level: 2, name: '6 unfinished' })).toBeVisible();
+        await expect(page.getByText('1 almost done · 2 with no activity for a week or more')).toBeVisible();
+        await expect(table.getByRole('rowheader')).toHaveCount(6);
+
+        await page.getByRole('button', { name: 'No activity for a week 2' }).click();
+        await expect(table.getByRole('rowheader')).toHaveCount(2);
+        await expect(page.getByText('Showing 2 of 6')).toBeVisible();
+        await expect(rowNames()).toHaveText('Name not entered yet');
+
+        await page.getByRole('searchbox', { name: 'Search by name, phone or email' }).fill('jordan');
+        await expect(table.getByRole('rowheader')).toHaveCount(1);
+        await expect(table.getByText('Removed in 4 days')).toBeVisible();
+
+        await page.getByRole('button', { name: 'All 6' }).click();
+        await page.getByRole('searchbox', { name: 'Search by name, phone or email' }).fill('+1 (555) 010-44');
+        await expect(table.getByRole('rowheader')).toHaveCount(1);
+        await expect(table.getByText('Marcus Iyer')).toBeVisible();
+    });
+
+    test('on a phone each application is a card, with a call, its link and its actions, inside the screen', async ({ page }) => {
+        await page.setViewportSize({ width: 412, height: 915 });
+        await page.goto(START_URL);
+
+        const call = page.getByRole('link', { name: 'Call Dana Whitfield at (555) 010-2233' });
+        await expect(call).toBeVisible();
+        await expect(call).toHaveAttribute('href', 'tel:+15550102233');
+        for (const name of ['Copy link', 'Open the application', 'Edit answers', 'Delete everything']) {
+            await expect(page.getByRole('button', { name: `${name} for Dana Whitfield` })).toBeVisible();
+        }
+        // A card's values sit under their column's name, which the table's header
+        // no longer shows.
+        const card = page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: /^Dana Whitfield/ }) });
+        await expect(card.getByRole('cell').first()).toHaveAttribute('data-label', 'How far they got');
+        // Inside the screen, measured where it could spill: the workspace clips its
+        // own overflow, so the page's width would never show a card wider than it.
+        const spill = await page.evaluate(() => {
+            const region = document.querySelector('.ds-data-table__scroll-region');
+            const tooWide = [...document.querySelectorAll('.ds-data-table tbody > tr, .ds-data-table tbody > tr > *')]
+                .filter((element) => element.scrollWidth > element.clientWidth + 1
+                    || element.getBoundingClientRect().right > region.getBoundingClientRect().right + 1)
+                .map((element) => element.getAttribute('data-label') || element.tagName);
+            return { scrolls: region.scrollWidth > region.clientWidth + 1, tooWide };
+        });
+        expect(spill).toEqual({ scrolls: false, tooWide: [] });
+        expect(await seriousViolations(page)).toEqual([]);
+    });
+
+    test('Edit answers on the list opens the editor', async ({ page }) => {
+        await stubCallable(page, 'getApplicationDraft', EDITABLE_VIEW);
+        await page.goto(START_URL);
+
+        await page.getByRole('button', { name: 'Edit answers for Dana Whitfield' }).click();
+
+        await expect(page.getByRole('heading', { level: 1, name: 'Dana Whitfield' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
+        await expect(page.getByLabel('City', { exact: true })).toHaveValue('Austin');
     });
 
     test('a Company Admin corrects an answer, and only that answer is sent', async ({ page }) => {
@@ -221,12 +285,14 @@ test.describe('a Company Admin and an unfinished application', () => {
         expect(await seriousViolations(page)).toEqual([]);
     });
 
-    test('the read-only view and the delete confirmation pass axe @a11y', async ({ page }) => {
+    test('the list, the read-only view and the delete confirmation pass axe @a11y', async ({ page }) => {
         await stubCallable(page, 'getApplicationDraft', DRAFT_VIEW);
         await stubPurge(page);
         await page.goto(START_URL);
+        await expect(page.getByRole('heading', { level: 2, name: '6 unfinished' })).toBeVisible();
+        expect(await seriousViolations(page)).toEqual([]);
 
-        await page.getByRole('button', { name: /Delete the application for Dana Whitfield/i }).click();
+        await page.getByRole('button', { name: /Delete everything for Dana Whitfield/i }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
         expect(await seriousViolations(page)).toEqual([]);
         await page.getByRole('button', { name: 'Keep application' }).click();

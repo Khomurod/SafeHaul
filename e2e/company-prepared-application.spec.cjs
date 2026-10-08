@@ -305,7 +305,7 @@ test.describe('a carrier starting an application', () => {
         // too. A recruiter still cannot, which the unit suites pin; this harness
         // signs in only as an admin.
         await expect(page.getByRole('button', { name: /Open the application for Dana Whitfield/i })).toBeVisible();
-        await expect(page.getByRole('button', { name: /^Delete the application for/ })).toHaveCount(5);
+        await expect(page.getByRole('button', { name: /^Delete everything for/ })).toHaveCount(6);
     });
 
     test('the old start-application URL still lands somewhere useful', async ({ page }) => {

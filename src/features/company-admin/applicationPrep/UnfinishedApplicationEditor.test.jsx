@@ -294,3 +294,44 @@ describe('editing an unfinished application the driver owns', () => {
         await screen.findByRole('button', { name: /Edit answers/i });
     });
 });
+
+describe('opened from the list’s Edit answers', () => {
+    const openFromList = () => render(
+        <UnfinishedApplicationReview companyId="company-1" entry={ENTRY} onExit={vi.fn()} startEditing />,
+    );
+
+    it('opens straight into the editor', async () => {
+        openFromList();
+
+        expect(await screen.findByRole('button', { name: 'Save changes' })).toBeInTheDocument();
+        // The editor takes focus once it has rendered, so wait for that, not for the button.
+        await waitFor(() => expect(screen.getByRole('region', { name: 'Edit answers' })).toHaveFocus());
+    });
+
+    it('stays read-only where the server says the draft is not the admin’s to edit', async () => {
+        viewSpy.mockImplementation(async () => ({ data: view({ editable: false }) }));
+        openFromList();
+
+        await screen.findByText('Austin');
+        expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Edit answers/i })).toBeNull();
+    });
+
+    it('asks once: a reload after the driver’s change comes back read-only', async () => {
+        saveSpy.mockImplementation(async () => {
+            throw Object.assign(new Error('The driver changed some of these answers.'), {
+                code: 'functions/aborted', details: { fields: ['city'] },
+            });
+        });
+        openFromList();
+        await screen.findByRole('button', { name: 'Save changes' });
+
+        fireEvent.change(cityInput(), { target: { value: 'Dallas' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+        fireEvent.click(within(await screen.findByRole('alert')).getByRole('button', { name: /Reload the application/ }));
+
+        await waitFor(() => expect(viewSpy).toHaveBeenCalledTimes(2));
+        await screen.findByRole('button', { name: /Edit answers/i });
+        expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull();
+    });
+});

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Icon, Plus, RefreshCw } from '@design-system/icons';
 
@@ -15,7 +15,9 @@ import UnfinishedDeleteDialog from '../applicationPrep/UnfinishedDeleteDialog';
 import ApplicationPrepWorkspace from '../applicationPrep/ApplicationPrepWorkspace';
 import UnfinishedApplicationReview from '../applicationPrep/UnfinishedApplicationReview';
 import UnfinishedWorklistTable from '../applicationPrep/UnfinishedWorklistTable';
-import { MOCK_DRAFTS } from './unfinishedApplicationsMock';
+import UnfinishedWorklistToolbar from '../applicationPrep/UnfinishedWorklistToolbar';
+import { countByFilter, visibleRows } from '../applicationPrep/unfinishedWorklist';
+import { mockDrafts } from './unfinishedApplicationsMock';
 
 /**
  * One workspace for every application that has been started and not submitted.
@@ -56,14 +58,17 @@ import { MOCK_DRAFTS } from './unfinishedApplicationsMock';
  * To a recruiter, the answers, unless the carrier wrote them and the driver has
  * not yet touched them. *Open* appears only on the carrier's own rows, and what
  * comes back is the server's decision on every load, never this screen's. A
- * Company Admin may also open, read-only, every application the driver has
- * written to, and delete any row with everything in it, the same driver's other
- * unfinished applications included — the owner's decisions of 2026-10-06 and
- * 2026-10-07, held by the server (`getApplicationDraft`, `purgeApplicationDraft`).
+ * Company Admin may also open every application the driver has written to,
+ * correct its answers (*Edit answers*), and delete any row with everything in it,
+ * the same driver's other unfinished applications included — the owner's
+ * decisions of 2026-10-06 and 2026-10-07, held by the server
+ * (`getApplicationDraft`, `saveApplicationDraftEdits`, `purgeApplicationDraft`).
  * There is no Social Security Number to withhold — drafts never store one.
  *
  * Which action a row offers depends on its state, and that lives in
- * `unfinishedRowActions.js` rather than here.
+ * `unfinishedRowActions.js`; how far a row got, whether it has gone quiet, when
+ * it will be removed and what the search and filters keep, in
+ * `unfinishedWorklist.js`. Neither is decided here.
  */
 
 function describeError(error, fallback) {
@@ -90,8 +95,18 @@ export function UnfinishedApplicationsPage() {
 
     const [drafts, setDrafts] = useState([]);
     const [retentionDays, setRetentionDays] = useState(30);
+    /** The list stops at its 200 most recently active rows, and says so (`truncated`). */
+    const [truncated, setTruncated] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    /** The instant the list was read, so every row's "3 days ago" is measured from one moment. */
+    const [now, setNow] = useState(() => Date.now());
+    const [filter, setFilter] = useState('all');
+    const [query, setQuery] = useState('');
+    const counts = useMemo(() => countByFilter(drafts, now), [drafts, now]);
+    const shown = useMemo(() => visibleRows(drafts, { filter, query, now }), [drafts, filter, query, now]);
+    // The wizard's page count depends on whether the company asks questions of its own.
+    const hasCustomQuestions = (currentCompanyProfile?.customQuestions?.length || 0) > 0;
 
     /**
      * Which application the recruiter is working on, or null for the worklist.
@@ -128,8 +143,11 @@ export function UnfinishedApplicationsPage() {
 
     const load = useCallback(async () => {
         if (isMock) {
-            setDrafts(MOCK_DRAFTS);
+            const at = Date.now();
+            setNow(at);
+            setDrafts(mockDrafts(at));
             setRetentionDays(30);
+            setTruncated(false);
             setError(null);
             setLoading(false);
             return;
@@ -143,7 +161,9 @@ export function UnfinishedApplicationsPage() {
             // `functions/drafts/list.js`.
             const call = httpsCallable(functions, 'listApplicationDrafts');
             const result = await call({ companyId });
+            setNow(Date.now());
             setDrafts(result.data?.drafts || []);
+            setTruncated(result.data?.truncated === true);
             if (result.data?.retentionDays) setRetentionDays(result.data.retentionDays);
         } catch (loadError) {
             setError(describeError(loadError, 'Unfinished applications could not be loaded.'));
@@ -175,20 +195,20 @@ export function UnfinishedApplicationsPage() {
                 return;
             }
             /**
-             * The row said "Not sent yet"; a link now exists, so it does not.
-             *
-             * Patched locally rather than reloaded, because `load()` sets `loading`
-             * and the table swaps its body for a skeleton — which would take the
-             * just-minted URL off the screen at the exact moment the recruiter
-             * needs to copy it. This is not optimism either: minting is precisely
-             * what moves a `prepared` draft to `sent` server-side, and it moves
-             * nothing else, which is why only that one transition is mirrored.
+             * What the mint changed server-side (`invite.js`), mirrored rather than
+             * reloaded: `load()` swaps the table's body for a skeleton, which would
+             * take the just-minted URL off the screen when it is needed. A link now
+             * exists, so the row says when it went and reads "New link" (a press
+             * would retire this one), its activity is today, and a prepared row is
+             * sent.
              */
-            setDrafts((rows) => rows.map((row) => (
-                row.applicantKey === key && row.origin === 'company' && row.status === 'prepared'
-                    ? { ...row, status: 'sent' }
-                    : row
-            )));
+            const mintedAt = new Date().toISOString();
+            setDrafts((rows) => rows.map((row) => (row.applicantKey !== key ? row : {
+                ...row,
+                invitedAt: mintedAt,
+                updatedAt: mintedAt,
+                ...(row.origin === 'company' && row.status === 'prepared' ? { status: 'sent' } : {}),
+            })));
             // `copyUrl`, not `copy`: `copy` reads the hook's `link` state as it was
             // captured by THIS render, which is still null at this point. Minting
             // and copying in one press is what makes that difference visible.
@@ -230,10 +250,15 @@ export function UnfinishedApplicationsPage() {
     const openRow = useCallback((entry, mode) => {
         setDeletedNote(null);
         if (mode === 'review') {
-            setReviewTarget(entry);
+            setReviewTarget({ entry, editing: false });
             return;
         }
         setPrepTarget({ key: entry.applicantKey, applicantKey: entry.applicantKey });
+    }, []);
+    // The same read-only view, its editor opened as soon as it loads.
+    const editRow = useCallback((entry) => {
+        setDeletedNote(null);
+        setReviewTarget({ entry, editing: true });
     }, []);
 
     const startNew = useCallback(() => {
@@ -249,9 +274,10 @@ export function UnfinishedApplicationsPage() {
     if (reviewTarget) {
         return (
             <UnfinishedApplicationReview
-                key={reviewTarget.applicantKey}
+                key={reviewTarget.entry.applicantKey}
                 companyId={companyId}
-                entry={reviewTarget}
+                entry={reviewTarget.entry}
+                startEditing={reviewTarget.editing}
                 onExit={exitReview}
             />
         );
@@ -274,9 +300,11 @@ export function UnfinishedApplicationsPage() {
             <Stack gap="lg">
                 <PageHeader
                     title="Unfinished applications"
-                    description={`Applications somebody began and has not submitted — whether a driver started one or you did. They are not in the applications pipeline: nothing has been signed and no consent has been given. Kept for ${retentionDays} days, then removed automatically.`}
+                    description={`Applications a driver or your team began and nobody has submitted yet. They are not in the applications pipeline: nothing has been signed and no consent given. Each is removed automatically after ${retentionDays} days without activity.`}
                 />
 
+                {/* Below the description rather than beside it: beside it, a tablet
+                    squeezes the description into a column a few words wide. */}
                 <div className="flex flex-wrap gap-ds-2">
                     <Button variant="primary" onClick={startNew} disabled={!companyId}>
                         <Icon icon={Plus} size="sm" /> Start an application
@@ -310,23 +338,55 @@ export function UnfinishedApplicationsPage() {
                     <Notice tone="danger" announce="assertive">{deletion.checkError}</Notice>
                 )}
 
-                <UnfinishedWorklistTable
-                    rows={drafts}
-                    loading={loading}
-                    onOpen={openRow}
-                    onDelete={askDelete}
-                    isCompanyAdmin={isCompanyAdmin}
-                    link={{
-                        linkFor,
-                        busyKey,
-                        copied,
-                        copyFailed,
-                        error: mintError,
-                        failedKey,
-                        onCreate: createLink,
-                        onCopy: copyUrl,
-                    }}
-                />
+                <Card padding="none" className="overflow-hidden">
+                    <UnfinishedWorklistToolbar
+                        counts={counts}
+                        ready={!loading && !error}
+                        truncated={truncated}
+                        query={query}
+                        onQuery={setQuery}
+                        filter={filter}
+                        onFilter={setFilter}
+                    />
+                    <UnfinishedWorklistTable
+                        rows={shown}
+                        loading={loading}
+                        onOpen={openRow}
+                        onEdit={editRow}
+                        onDelete={askDelete}
+                        isCompanyAdmin={isCompanyAdmin}
+                        now={now}
+                        retentionDays={retentionDays}
+                        hasCustomQuestions={hasCustomQuestions}
+                        empty={drafts.length > 0
+                            ? { title: 'Nothing here matches.', description: 'Try another search, or another filter above.' }
+                            : {
+                                title: 'Nothing is unfinished.',
+                                description: 'Everyone who has started an application has either submitted it or their draft has expired. Start one yourself when you have a driver’s paperwork in hand.',
+                            }}
+                        link={{
+                            linkFor,
+                            busyKey,
+                            copied,
+                            copyFailed,
+                            error: mintError,
+                            failedKey,
+                            onCreate: createLink,
+                            onCopy: copyUrl,
+                        }}
+                    />
+                    {!loading && drafts.length > 0 && (
+                        <div className="flex flex-wrap justify-between gap-ds-2 border-t border-ds-border-subtle bg-ds-surface-subtle px-ds-4 py-ds-3 text-ds-sm text-ds-content-secondary">
+                            {/* Spoken as it changes, so a search or a filter says what it kept. */}
+                            <span aria-live="polite">
+                                {truncated
+                                    ? `Showing ${shown.length} of the ${drafts.length} most recently active`
+                                    : `Showing ${shown.length} of ${drafts.length}`}
+                            </span>
+                            <span>Newest activity first</span>
+                        </div>
+                    )}
+                </Card>
 
                 <UnfinishedDeleteDialog deletion={deletion} />
             </Stack>

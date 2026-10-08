@@ -30,9 +30,11 @@ import { changedSectionTitles } from './unfinishedEditorModel';
  * Opening it does not extend the 30 days, and the driver's link hands over
  * exactly what it did before. *Edit answers* opens `UnfinishedApplicationEditor`
  * on an application the driver owns (`editable`; the carrier's own prepared one
- * is edited in its workspace), and what it saves the driver is shown. Recruiters
- * never reach either: `unfinishedRowActions.js` offers this screen to a Company
- * Admin alone, and the server refuses anyone else.
+ * is edited in its workspace), and what it saves the driver is shown. The
+ * worklist's own *Edit answers* opens this screen with `startEditing`, which
+ * opens the editor once the first load says it may. Recruiters never reach
+ * either: `unfinishedRowActions.js` offers this screen to a Company Admin alone,
+ * and the server refuses anyone else.
  */
 
 /** A callable failure, in words an admin can act on. */
@@ -61,9 +63,11 @@ function readyState(data) {
     return { status: 'ready', summary: data, record };
 }
 
-export function UnfinishedApplicationReview({ companyId, entry, onExit }) {
+export function UnfinishedApplicationReview({ companyId, entry, onExit, startEditing = false }) {
     const [state, setState] = useState({ status: 'loading' });
     const [editing, setEditing] = useState(false);
+    /** Asked for the editor from the list: honoured by the first load alone, never a reload. */
+    const editOnLoadRef = useRef(startEditing);
     /** What the last save changed, for the confirmation; null until one. */
     const [saved, setSaved] = useState(null);
     /** Leaving the editor puts focus back on the button that opened it. */
@@ -78,8 +82,11 @@ export function UnfinishedApplicationReview({ companyId, entry, onExit }) {
             const call = httpsCallable(functions, 'getApplicationDraft');
             const { data } = await call({ companyId, applicantKey });
             setState(readyState(data));
+            if (editOnLoadRef.current && data?.editable === true) setEditing(true);
         } catch (error) {
             setState({ status: 'error', message: describeError(error), missing: error?.code === 'functions/not-found' });
+        } finally {
+            editOnLoadRef.current = false;
         }
     }, [applicantKey, companyId]);
 

@@ -142,11 +142,12 @@ beforeEach(() => {
 async function renderList() {
     render(<UnfinishedApplicationsPage />);
     // The row's own control, which cannot exist before the list has loaded.
-    await screen.findByRole('button', { name: /Create a continuation link for Dana Alvarez/i });
+    await screen.findByRole('button', { name: /Copy link for Dana Alvarez/i });
 }
 
 const openButton = (name) => screen.queryByRole('button', { name: new RegExp(`Open the application for ${name}`, 'i') });
-const deleteButton = (name) => screen.queryByRole('button', { name: new RegExp(`Delete the application for ${name}`, 'i') });
+const editButton = (name) => screen.queryByRole('button', { name: `Edit answers for ${name}` });
+const deleteButton = (name) => screen.queryByRole('button', { name: new RegExp(`Delete everything for ${name}`, 'i') });
 
 describe('a Company Admin', () => {
     it('can open and delete every row, whoever started it', async () => {
@@ -156,6 +157,38 @@ describe('a Company Admin', () => {
             expect(openButton(name)).toBeInTheDocument();
             expect(deleteButton(name)).toBeInTheDocument();
         }
+    });
+
+    it('corrects the driver’s answers from the list, and edits the carrier’s own in its workspace', async () => {
+        await renderList();
+
+        expect(editButton('Dana Alvarez')).toBeInTheDocument();
+        expect(editButton('Priya Raman')).toBeInTheDocument();
+        // `saveApplicationDraftEdits` refuses the carrier's own application; Open
+        // is where that is edited.
+        expect(editButton('Marcus Iyer')).toBeNull();
+    });
+
+    it('opens the editor at once from Edit answers', async () => {
+        viewSpy.mockImplementation(async () => ({
+            data: {
+                ...draftResponse(),
+                editable: true,
+                answers: { firstName: 'Dana', cdlNumber: 'D9988776' },
+                lockedEmployers: [],
+                form: { applicationConfig: {}, applicationRules: null, customQuestions: [] },
+                companyRevision: 0,
+                companyEdits: {},
+                companyEditedAt: null,
+            },
+        }));
+        await renderList();
+
+        fireEvent.click(editButton('Dana Alvarez'));
+
+        expect(await screen.findByRole('button', { name: 'Save changes' })).toBeInTheDocument();
+        expect(viewSpy).toHaveBeenCalledWith({ companyId: 'company-1', applicantKey: DRIVER_STARTED.applicantKey });
+        expect(screen.getByRole('heading', { level: 1, name: 'Dana Alvarez' })).toBeInTheDocument();
     });
 
     it('reads a driver-started application, with what it will never show said plainly', async () => {
@@ -203,7 +236,7 @@ describe('a Company Admin', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /Back to unfinished applications/i }));
 
-        await screen.findByRole('button', { name: /Create a continuation link for Dana Alvarez/i });
+        await screen.findByRole('button', { name: /Copy link for Dana Alvarez/i });
         expect(listSpy).toHaveBeenCalledTimes(2);
     });
 
@@ -336,6 +369,7 @@ describe('a recruiter on the same screen', () => {
 
         expect(openButton('Dana Alvarez')).toBeNull();
         expect(screen.queryByRole('button', { name: /^Delete/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /^Edit answers/ })).toBeNull();
         // Their own prepared work still opens, as before.
         expect(openButton('Marcus Iyer')).toBeInTheDocument();
         expect(openButton('Priya Raman')).toBeInTheDocument();
