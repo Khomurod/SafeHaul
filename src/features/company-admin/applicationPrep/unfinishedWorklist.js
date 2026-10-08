@@ -190,8 +190,14 @@ export function countByFilter(rows, now) {
     return counts;
 }
 
-/** The rows the chosen filter and the search keep, in the order the server sent them. */
-export function visibleRows(rows, { filter = 'all', query = '', now }) {
+/**
+ * The rows the chosen filter and the search keep, in the order the server sent
+ * them: a row a recruiter just acted on stays where it was until the list is read
+ * again. The row whose new link is on screen (`keepKey`) stays under any filter,
+ * so the link, and what to do if it could not be copied, cannot vanish with it.
+ */
+export function visibleRows(rows, { filter = 'all', query = '', now, keepKey = null }) {
     const keep = KEEPS[filter] || KEEPS.all;
-    return rows.filter((entry) => keep(entry, now) && matchesSearch(entry, query));
+    return rows.filter((entry) => (keep(entry, now) || (keepKey !== null && entry?.applicantKey === keepKey))
+        && matchesSearch(entry, query));
 }

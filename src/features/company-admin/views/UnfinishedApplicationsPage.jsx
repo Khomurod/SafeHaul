@@ -104,7 +104,6 @@ export function UnfinishedApplicationsPage() {
     const [filter, setFilter] = useState('all');
     const [query, setQuery] = useState('');
     const counts = useMemo(() => countByFilter(drafts, now), [drafts, now]);
-    const shown = useMemo(() => visibleRows(drafts, { filter, query, now }), [drafts, filter, query, now]);
     // The wizard's page count depends on whether the company asks questions of its own.
     const hasCustomQuestions = (currentCompanyProfile?.customQuestions?.length || 0) > 0;
 
@@ -130,6 +129,8 @@ export function UnfinishedApplicationsPage() {
      */
     const invite = useInviteLink({ companyId, appSlug });
     const { mint, copyUrl, linkFor, copied, copyFailed, error: mintError } = invite;
+    const keepKey = invite.link?.applicantKey ?? null;
+    const shown = useMemo(() => visibleRows(drafts, { filter, query, now, keepKey }), [drafts, filter, query, now, keepKey]);
 
     /**
      * Which row is minting, and which row's mint failed.
@@ -383,7 +384,7 @@ export function UnfinishedApplicationsPage() {
                                     ? `Showing ${shown.length} of the ${drafts.length} most recently active`
                                     : `Showing ${shown.length} of ${drafts.length}`}
                             </span>
-                            <span>Newest activity first</span>
+                            <span>Newest activity first, as of the last refresh</span>
                         </div>
                     )}
                 </Card>

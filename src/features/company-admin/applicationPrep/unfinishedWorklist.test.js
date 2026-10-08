@@ -220,4 +220,13 @@ describe('the filters', () => {
     it('fall back to every row for a filter they do not know', () => {
         expect(visibleRows(rows, { filter: 'nonsense', now: NOW })).toHaveLength(6);
     });
+
+    it('keep the row whose new link is on screen under any filter, in its place, but not past the search', () => {
+        // Jordan's link was just made: the row is active now, and no longer quiet.
+        const minted = rows.map((entry) => (entry.applicantKey === 'f' ? { ...entry, updatedAt: ago(0) } : entry));
+        expect(keys(visibleRows(minted, { filter: 'quiet', now: NOW }))).toEqual(['e']);
+        expect(keys(visibleRows(minted, { filter: 'quiet', now: NOW, keepKey: 'f' }))).toEqual(['e', 'f']);
+        expect(keys(visibleRows(minted, { filter: 'all', now: NOW, keepKey: 'f' }))).toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+        expect(keys(visibleRows(minted, { filter: 'quiet', query: 'starter', now: NOW, keepKey: 'f' }))).toEqual(['e']);
+    });
 });

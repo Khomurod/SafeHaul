@@ -67,7 +67,7 @@ describe('the summary', () => {
         expect(screen.getByText('1 almost done · 2 with no activity for a week or more')).toBeInTheDocument();
         // Spoken as it changes, so a search or a filter says what it kept.
         expect(screen.getByText('Showing 6 of 6')).toHaveAttribute('aria-live', 'polite');
-        expect(screen.getByText('Newest activity first')).toBeInTheDocument();
+        expect(screen.getByText('Newest activity first, as of the last refresh')).toBeInTheDocument();
     });
 
     it('says when the list holds only the most recent, and that every count is then "at least"', async () => {
@@ -243,5 +243,23 @@ describe('a link made on a row', () => {
         expect(within(tomas()).getByText(/^Today, /)).toBeInTheDocument();
         expect(within(tomas()).getByText('Removed in 30 days')).toBeInTheDocument();
         expect(within(tomas()).getByText(/sent today/)).toBeInTheDocument();
+    });
+
+    it('keeps a quiet row and its new link in view, in its place, when the clipboard refuses it', async () => {
+        navigator.clipboard.writeText.mockRejectedValue(new Error('denied'));
+        await renderWorklist();
+        fireEvent.click(filter('No activity for a week 2'));
+        expect(shownNames()).toEqual(['Name not entered yet', 'Jordan Ellis']);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Copy link for Jordan Ellis' }));
+        // Active now, so no longer quiet, and still here with the link to copy by hand.
+        await waitFor(() => expect(filter('No activity for a week 1')).toBeInTheDocument());
+        expect(shownNames()).toEqual(['Name not entered yet', 'Jordan Ellis']);
+        expect(screen.getByText(/invite-1/)).toBeInTheDocument();
+        expect(screen.getByText('Showing 2 of 6')).toBeInTheDocument();
+
+        // In its place under All too: the order is the last read's until Refresh.
+        fireEvent.click(filter('All 6'));
+        expect(shownNames().at(-1)).toBe('Jordan Ellis');
     });
 });
