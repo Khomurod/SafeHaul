@@ -1,6 +1,7 @@
 /**
- * A submission whose uploads are no longer in Storage is sent back to upload
- * them, before anything is written (`shared/guestUploads.js`).
+ * A submission marks the uploads it files as a submitted application's, and one
+ * whose uploads are no longer in Storage is sent back to upload them, before
+ * anything is written (`shared/guestUploads.js`).
  *
  * The case it is for: a Company Admin deleted the unfinished application with
  * its files, and the copy on the driver's device was submitted anyway.
@@ -24,6 +25,7 @@ jest.mock('firebase-admin/firestore', () => ({
 
 const mockSet = jest.fn().mockResolvedValue(undefined);
 const mockStored = new Set();
+const mockMarked = [];
 
 /** Any document: empty, and writable, with collections of its own. */
 function mockRef() {
@@ -41,7 +43,13 @@ function mockCollection() {
 jest.mock('../../firebaseAdmin', () => ({
   storage: {
     bucket: () => ({
-      file: (path) => ({ exists: async () => [mockStored.has(path)], save: async () => undefined }),
+      file: (path) => ({
+        setMetadata: async ({ metadata }) => {
+          if (!mockStored.has(path)) throw Object.assign(new Error('No such object'), { code: 404 });
+          mockMarked.push([path, metadata]);
+        },
+        save: async () => undefined,
+      }),
     }),
   },
   db: { collection: () => mockCollection() },
@@ -77,12 +85,14 @@ const submit = () => submitGuestApplication({
 beforeEach(() => {
   jest.clearAllMocks();
   mockStored.clear();
+  mockMarked.length = 0;
 });
 
-it('files the application when its uploads are there', async () => {
+it('files the application when its uploads are there, each marked as a submitted application\'s', async () => {
   [FRONT, BACK, MEDICAL].forEach((path) => mockStored.add(path));
 
   await expect(submit()).resolves.toMatchObject({ success: true });
+  expect(mockMarked).toEqual([FRONT, BACK, MEDICAL].map((path) => [path, { safehaulSubmitted: 'true' }]));
 });
 
 it('sends the driver back to the licence page, writing nothing, when an upload is gone', async () => {

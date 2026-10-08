@@ -63,10 +63,10 @@ const mockRunTransactionCalls = [];
 let mockBeforeNextTransaction = null;
 /** Draft-document writes that did NOT go through a transaction. */
 const mockNonTransactionalWrites = [];
-/** Storage, as the set of objects that exist, and every object deleted from it. */
-const mockStorageFiles = new Set();
-const mockDeletedFiles = [];
-let mockFailFileDeletesOn = null;
+/** Storage: its own double, in `applicationDrafts.storage.support.js`. */
+const {
+    mockBucket, mockStorageFiles, mockStorageMeta, mockDeletedFiles, failFileDeletesOn, beforeNextFileDelete, resetStorage,
+} = require('./applicationDrafts.storage.support');
 let mockFailQueriesOn = null;
 
 /** A time as milliseconds, for the range filters: the doubles' timestamps and Dates alike. */
@@ -201,23 +201,6 @@ const companyTenantMock = () => ({
     assertCompanyAcceptingIntake: (...args) => mockAssertIntake(...args),
 });
 
-/** The bucket the purge deletes from and the submission checks: `exists` and `delete`, as the client has them. */
-function mockBucket() {
-    return {
-        file: (path) => ({
-            exists: async () => [mockStorageFiles.has(path)],
-            delete: async (options) => {
-                if (mockFailFileDeletesOn && path.includes(mockFailFileDeletesOn)) throw new Error('storage unavailable');
-                if (!mockStorageFiles.has(path) && !options?.ignoreNotFound) {
-                    throw Object.assign(new Error('No such object'), { code: 404 });
-                }
-                mockDeletedFiles.push(path);
-                mockStorageFiles.delete(path);
-            },
-        }),
-    };
-}
-
 const firebaseAdminMock = () => ({
     storage: { bucket: () => mockBucket() },
     admin: {
@@ -336,11 +319,6 @@ function failWritesOn(fragment) {
     mockFailWritesOn = fragment;
 }
 
-/** Makes every Storage delete of a path containing `fragment` throw, until the next reset. */
-function failFileDeletesOn(fragment) {
-    mockFailFileDeletesOn = fragment;
-}
-
 /** Makes every query of a collection whose path contains `fragment` throw, until the next reset. */
 function failQueriesOn(fragment) {
     mockFailQueriesOn = fragment;
@@ -355,9 +333,7 @@ function resetDraftState() {
     mockRunTransactionCalls.length = 0;
     mockNonTransactionalWrites.length = 0;
     mockBeforeNextTransaction = null;
-    mockStorageFiles.clear();
-    mockDeletedFiles.length = 0;
-    mockFailFileDeletesOn = null;
+    resetStorage();
     mockFailQueriesOn = null;
     mockCheckRateLimit.mockResolvedValue(true);
     mockAssertIntake.mockResolvedValue({ companyName: 'Acme Freight' });
@@ -377,6 +353,7 @@ module.exports = {
     mockRunTransactionCalls,
     mockNonTransactionalWrites,
     mockStorageFiles,
+    mockStorageMeta,
     mockDeletedFiles,
     mockServerTimestamp,
     mockAssertCompanyAccess,
@@ -386,6 +363,7 @@ module.exports = {
     runBeforeNextTransaction,
     failWritesOn,
     failFileDeletesOn,
+    beforeNextFileDelete,
     failQueriesOn,
     resetDraftState,
     IDENTITY,

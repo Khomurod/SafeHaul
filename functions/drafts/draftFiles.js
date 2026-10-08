@@ -9,6 +9,9 @@
  * the submission filed it into, the frozen snapshot of what they sent. So a file
  * the deleted draft points at is deleted only when none of those still points at
  * it; the submitted ones are read, never written, by `shared/submittedUploads.js`.
+ * A path proves nothing about whose file it is, so on top of that a file goes only
+ * while no submission has marked it, and only if it is newer than the marks
+ * (`deletableUpload` in `shared/guestUploads.js`).
  * `shared/applicationStorage.js` is deliberately not used: its folder sweeps are
  * for a submitted application's own folder, and here would reach files the
  * driver's submitted application keeps.
@@ -25,7 +28,7 @@
 
 const { admin, db, storage } = require('../firebaseAdmin');
 const draft = require('../shared/applicationDraft');
-const { guestUploadPathsIn } = require('../shared/guestUploads');
+const { deletableUpload, guestUploadPathsIn } = require('../shared/guestUploads');
 const { uploadPathsInApplicationsSince, uploadPathsInSubmittedApplications } = require('../shared/submittedUploads');
 const { MIN_PHONE_DIGITS } = require('./related');
 
@@ -81,11 +84,27 @@ async function pathsStillUsed(companyId, removed) {
     return used;
 }
 
-/** Deletes each path, a missing file counting as deleted; returns those that failed. */
+const KEPT = 'kept';
+
+/**
+ * Deletes each path a draft's deletion may take, and only while it is as it was
+ * read: a submission marking it in between makes the delete fail (412) rather
+ * than take a submitted application's file. A missing file counts as deleted.
+ *
+ * @returns {Promise<{kept: string[], failed: string[]}>}
+ */
 async function deletePaths(paths) {
     const bucket = storage.bucket();
-    const results = await Promise.allSettled(paths.map((path) => bucket.file(path).delete({ ignoreNotFound: true })));
-    return paths.filter((_, index) => results[index].status === 'rejected');
+    const results = await Promise.allSettled(paths.map(async (path) => {
+        const file = bucket.file(path);
+        const [metadata] = await file.getMetadata();
+        if (!deletableUpload(metadata)) return KEPT;
+        await file.delete({ ifMetagenerationMatch: metadata.metageneration, ignoreNotFound: true });
+        return null;
+    }));
+    const kept = paths.filter((_, index) => results[index].value === KEPT || results[index].reason?.code === 412);
+    const failed = paths.filter((_, index) => results[index].status === 'rejected' && ![404, 412].includes(results[index].reason?.code));
+    return { kept, failed };
 }
 
 async function recordPending(companyId, keys, paths, checkedAt, attempts = 1) {
@@ -129,9 +148,13 @@ async function deleteDraftFiles(companyId, removed) {
         return { deleted: 0, kept: 0, failed: candidates.length };
     }
     const unused = candidates.filter((path) => !used.has(path));
-    const failed = await deletePaths(unused);
+    const { kept, failed } = await deletePaths(unused);
     if (failed.length > 0) await recordPending(companyId, keys, failed, checkedAt);
-    return { deleted: unused.length - failed.length, kept: candidates.length - unused.length, failed: failed.length };
+    return {
+        deleted: unused.length - kept.length - failed.length,
+        kept: candidates.length - unused.length + kept.length,
+        failed: failed.length,
+    };
 }
 
 /**
@@ -153,7 +176,7 @@ async function retryPendingFiles(companyId) {
                 console.error(`[applicationDrafts] ${companyId}: left ${paths.length} file(s) in place; too many applications changed since to check them.`);
                 continue;
             }
-            const failed = await deletePaths(paths.filter((path) => !used.has(path) && !since.paths.has(path)));
+            const { failed } = await deletePaths(paths.filter((path) => !used.has(path) && !since.paths.has(path)));
             if (failed.length === 0) continue;
             if (attempts >= MAX_ATTEMPTS) {
                 console.error(`[applicationDrafts] ${companyId}: gave up deleting ${failed.length} file(s) after ${attempts} attempts.`);

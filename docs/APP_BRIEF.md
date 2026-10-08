@@ -8,9 +8,6 @@ history behind these rules — findings, incidents, measurements, review rounds 
 is in
 [`docs/archive/app-brief-2026-10-02.md`](./archive/app-brief-2026-10-02.md).
 
-Condensed on 2026-10-02 from that full text and re-checked against the code; the
-code is the source of truth wherever the two disagree.
-
 ---
 
 ## ⚠️ Permanent rule: this brief is a living document
@@ -251,10 +248,10 @@ cannot do from anything SafeHaul shows them (§5, §12).
 The admin column (owner, 2026-10-06/07) answers only `assertCompanyAdminStrict`
 and is audited. **Delete** shows what goes, then removes answers, links, ticked
 same-driver drafts (same identity, email or phone) and uploads nothing else
-uses; its tokens learn "removed" (a device copy can still submit).
-`deleteApplicationDraft` (document only) serves older pages. **Edit answers**
-covers every page but what only the driver gives (`driverOnlyFields.json`), and
-never overwrites an answer changed since loading.
+uses, none a submission marked; its tokens learn "removed" (a device copy can
+still submit). `deleteApplicationDraft` (document only) serves older pages.
+**Edit answers** covers every page but what only the driver gives
+(`driverOnlyFields.json`), and never overwrites an answer changed since loading.
 
 ### Pipeline, documents and operations
 
@@ -1279,8 +1276,8 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 - **Required custom questions are enforced only on their own page**; neither the
   final pre-flight nor `submitGuestApplication` checks them, so an application
   resumed past that page can be submitted without the answer.
-- **A submitted upload's storage path is taken on trust.** Submission checks
-  only that an upload exists (`guestUploads.js`), and
+- **A submitted upload's storage path is taken on trust.** Submission only
+  checks that an upload exists and marks it (`guestUploads.js`), and
   `deleteApplication` deletes every top-level `{ storagePath }` with the Admin
   SDK, so a hand-crafted submission could get another file deleted.
   `deleteSandboxApplication` removes the same files

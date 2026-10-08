@@ -33,7 +33,7 @@ const {
 } = require('./shared/submissionRecordStatus');
 const { preserveApplicationPdf } = require('./shared/preserveApplicationPdf');
 const { assertCompanyEditsSeen, seenRevisionOf } = require('./shared/companyEdits');
-const { assertUploadsExist } = require('./shared/guestUploads');
+const { markSubmittedUploads } = require('./shared/guestUploads');
 
 /**
  * The agreement version the applicant was actually shown.
@@ -238,8 +238,8 @@ exports.submitGuestApplication = functions
             normalizedFormData,
             applicantReferenceDay(data?.applicantToday),
         );
-        // A copy kept on the driver's device can outlive its files (`shared/guestUploads.js`).
-        await assertUploadsExist({
+        // Marks its files as a submitted application's, and sends back a copy that outlived them.
+        await markSubmittedUploads({
             storage, companyId, formData: normalizedFormData, applicationConfig, customQuestions,
             HttpsError: functions.https.HttpsError,
         });

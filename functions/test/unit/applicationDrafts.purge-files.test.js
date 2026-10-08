@@ -5,9 +5,10 @@
  * `applicationDrafts.support.js`. What these pin: a draft's uploads are deleted
  * with it, except a file something else still points at (the driver's other
  * draft, an application they submitted, its DQ file or its snapshot), and
- * nothing outside the company's upload folder is ever deleted. A file that could
- * not be deleted is written down and finished by the next deletion, checked as
- * strictly as the first time; one whose check failed is never deleted.
+ * nothing outside the company's upload folder is ever deleted, nor any file a
+ * submission marked or that is older than the marks. A file that could not be
+ * deleted is written down and finished by the next deletion, checked as strictly
+ * as the first time; one whose check failed is never deleted.
  */
 
 process.env.SMS_ENCRYPTION_KEY = 'x'.repeat(32);
@@ -21,8 +22,10 @@ jest.mock('../../shared/companyTenant', () => require('./applicationDrafts.suppo
 
 const drafts = require('../../applicationDrafts');
 const {
-    mockStore, mockStorageFiles, mockDeletedFiles, mockServerTimestamp, COMPANY, failFileDeletesOn, failQueriesOn, resetDraftState,
+    mockStore, mockStorageFiles, mockStorageMeta, mockDeletedFiles, mockServerTimestamp, COMPANY,
+    failFileDeletesOn, failQueriesOn, beforeNextFileDelete, resetDraftState,
 } = require('./applicationDrafts.support');
+const { storage } = require('../../firebaseAdmin');
 
 const DRAFTS = `companies/${COMPANY}/application_drafts`;
 const APPLICATIONS = `companies/${COMPANY}/applications`;
@@ -108,6 +111,42 @@ it.each([
 
     expect(files).toEqual({ deleted: 0, kept: 0, failed: 0 });
     expect(mockStorageFiles.has(path)).toBe(true);
+});
+
+describe('a file a submitted application may use stays, whatever points at it', () => {
+    beforeEach(() => {
+        seed(DANA, { formData: { 'cdl-front': upload(FRONT), 'cdl-back': upload(BACK) } });
+        store(FRONT, BACK);
+    });
+
+    it('one a submission marked, though no application found points at it', async () => {
+        mockStorageMeta.set(FRONT, { metageneration: '2', timeCreated: '2026-11-01T00:00:00.000Z', metadata: { safehaulSubmitted: 'true' } });
+
+        const { files } = await purge({ applicantKey: DANA });
+
+        expect(files).toEqual({ deleted: 1, kept: 1, failed: 0 });
+        expect(mockDeletedFiles).toEqual([BACK]);
+    });
+
+    it('one older than the marks, which an application submitted before them may use', async () => {
+        mockStorageMeta.set(FRONT, { metageneration: '1', timeCreated: '2026-10-01T00:00:00.000Z', metadata: {} });
+
+        const { files } = await purge({ applicantKey: DANA });
+
+        expect(files).toEqual({ deleted: 1, kept: 1, failed: 0 });
+        expect(mockDeletedFiles).toEqual([BACK]);
+    });
+
+    it('one a submission marks while it is being deleted', async () => {
+        // The driver's old copy is submitted just as the file is about to go.
+        beforeNextFileDelete((path) => storage.bucket().file(path).setMetadata({ metadata: { safehaulSubmitted: 'true' } }));
+
+        const { files } = await purge({ applicantKey: DANA });
+
+        expect(files.kept).toBe(1);
+        expect(mockStorageFiles.size).toBe(1);
+        expect(pending()).toEqual([]);
+    });
 });
 
 describe('a file something else still points at stays', () => {

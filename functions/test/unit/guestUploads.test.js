@@ -1,10 +1,10 @@
 /**
- * Which paths are a driver's uploads, and the submission's check that they are
- * still in Storage (`shared/guestUploads.js`).
+ * Which paths are a driver's uploads, the mark a submission sets on them, and
+ * which of them a draft's deletion may take (`shared/guestUploads.js`).
  */
 
 const {
-    assertUploadsExist, guestUploadPathsIn, isGuestUploadPath, reuploadableEntries,
+    MARKS_SINCE, deletableUpload, guestUploadPathsIn, isGuestUploadPath, markSubmittedUploads, reuploadableEntries,
 } = require('../../shared/guestUploads');
 
 class HttpsError extends Error {
@@ -18,19 +18,20 @@ class HttpsError extends Error {
 const COMPANY = 'company-1';
 const FRONT = `companies/${COMPANY}/applications/guest_uploads/1696_ab12cd3_front.jpg`;
 const LEASE = `companies/${COMPANY}/autofill/guest_uploads/1697_ef45gh6_lease.pdf`;
+const PSP = `companies/${COMPANY}/autofill/guest_uploads/1698_ij78kl9_psp.pdf`;
 const upload = (storagePath) => ({ name: 'file', storagePath });
 
-/** A bucket holding these objects, or one whose lookups fail. */
+/** A bucket holding these objects, recording the marks set, or one whose calls fail. */
 function storageWith(paths, { failing = false } = {}) {
-    const asked = [];
+    const marked = [];
     return {
-        asked,
+        marked,
         bucket: () => ({
             file: (path) => ({
-                exists: async () => {
-                    asked.push(path);
-                    if (failing) throw new Error('storage unavailable');
-                    return [paths.includes(path)];
+                setMetadata: async ({ metadata }) => {
+                    if (failing) throw Object.assign(new Error('storage unavailable'), { code: 503 });
+                    if (!paths.includes(path)) throw Object.assign(new Error('No such object'), { code: 404 });
+                    marked.push([path, metadata]);
                 },
             }),
         }),
@@ -90,22 +91,23 @@ describe('the uploads a driver could upload again', () => {
     });
 });
 
-describe('the submission\'s check', () => {
-    const formData = { 'cdl-front': upload(FRONT), customAnswers: { 'q-lease': upload(LEASE) } };
+describe('the submission\'s mark', () => {
+    const formData = {
+        'cdl-front': upload(FRONT), 'psp-report-upload': upload(PSP), customAnswers: { 'q-lease': upload(LEASE) },
+    };
     const customQuestions = [{ id: 'q-lease', type: 'file' }];
+    const mark = (storage) => markSubmittedUploads({ storage, companyId: COMPANY, formData, customQuestions, HttpsError });
 
-    it('lets the submission through when every upload is there', async () => {
-        const storage = storageWith([FRONT, LEASE]);
+    it('marks every upload the application files, the carrier\'s included', async () => {
+        const storage = storageWith([FRONT, LEASE, PSP]);
 
-        await expect(assertUploadsExist({ storage, companyId: COMPANY, formData, customQuestions, HttpsError })).resolves.toBeUndefined();
-        expect(storage.asked.sort()).toEqual([LEASE, FRONT].sort());
+        await expect(mark(storage)).resolves.toBeUndefined();
+        expect(storage.marked.map(([path]) => path).sort()).toEqual([FRONT, LEASE, PSP].sort());
+        storage.marked.forEach(([, metadata]) => expect(metadata).toEqual({ safehaulSubmitted: 'true' }));
     });
 
-    it('sends the driver back to the page of each missing upload', async () => {
-        const storage = storageWith([]);
-
-        const refusal = await assertUploadsExist({ storage, companyId: COMPANY, formData, customQuestions, HttpsError })
-            .catch((error) => error);
+    it('sends the driver back to the page of each missing upload they can replace', async () => {
+        const refusal = await mark(storageWith([])).catch((error) => error);
 
         expect(refusal).toMatchObject({
             code: 'invalid-argument',
@@ -119,26 +121,37 @@ describe('the submission\'s check', () => {
         });
     });
 
-    it('names one missing upload as one', async () => {
-        await expect(assertUploadsExist({
-            storage: storageWith([LEASE]), companyId: COMPANY, formData, customQuestions, HttpsError,
-        })).rejects.toThrow('One of your uploaded files is no longer saved. Upload it again, then submit.');
+    it('names one missing upload as one, and never a file the driver could not upload again', async () => {
+        await expect(mark(storageWith([LEASE]))).rejects.toThrow('One of your uploaded files is no longer saved. Upload it again, then submit.');
+        await expect(mark(storageWith([FRONT, LEASE]))).resolves.toBeUndefined();
     });
 
-    it('never refuses over a lookup that failed', async () => {
+    it('never refuses over a call that failed', async () => {
         const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-        await expect(assertUploadsExist({
-            storage: storageWith([], { failing: true }), companyId: COMPANY, formData, customQuestions, HttpsError,
-        })).resolves.toBeUndefined();
-        expect(errors).toHaveBeenCalledWith(expect.stringContaining('Could not check the uploads'));
+        await expect(mark(storageWith([], { failing: true }))).resolves.toBeUndefined();
+        expect(errors).toHaveBeenCalledWith(expect.stringContaining('Could not mark 3 upload(s)'));
         errors.mockRestore();
     });
 
     it('asks Storage nothing when the answers hold no upload', async () => {
         const storage = storageWith([]);
 
-        await assertUploadsExist({ storage, companyId: COMPANY, formData: { firstName: 'Dana' }, HttpsError });
-        expect(storage.asked).toEqual([]);
+        await markSubmittedUploads({ storage, companyId: COMPANY, formData: { firstName: 'Dana' }, HttpsError });
+        expect(storage.marked).toEqual([]);
+    });
+});
+
+describe('what a draft\'s deletion may take', () => {
+    const since = new Date(MARKS_SINCE + 1000).toISOString();
+
+    it.each([
+        ['an unmarked upload made since the marks began', { timeCreated: since, metadata: {} }, true],
+        ['one with no metadata of its own', { timeCreated: since }, true],
+        ['one a submission marked', { timeCreated: since, metadata: { safehaulSubmitted: 'true' } }, false],
+        ['one made before the marks began', { timeCreated: '2026-10-01T00:00:00.000Z', metadata: {} }, false],
+        ['one whose age Storage did not say', { metadata: {} }, false],
+    ])('%s: %s', (_label, metadata, expected) => {
+        expect(deletableUpload(metadata)).toBe(expected);
     });
 });

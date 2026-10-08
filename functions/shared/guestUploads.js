@@ -1,5 +1,6 @@
 /**
- * The files a driver uploads into an application, and whether they are still there.
+ * The files a driver uploads into an application, whether they are still there,
+ * and which of them a submitted application keeps.
  *
  * Every application upload, the driver's own and a Company Admin's, goes through
  * `getSignedUploadUrl` (`storageSecure.js`), which hands out exactly one shape of
@@ -8,6 +9,11 @@
  * path out of them as a file to delete, or to vouch for, unless it has that shape
  * for that company: a crafted answer cannot name a DQ file, a PEV document or
  * another company's upload.
+ *
+ * A path is no proof of whose file it is, though: an answer can name a file an
+ * application someone else submitted uses. So a submission marks every upload it
+ * files (`SUBMITTED_MARK`), and a draft's deletion takes none that is marked, or
+ * older than the marks (`deletableUpload`).
  */
 
 const { resolveGate } = require('./applicationDefinition');
@@ -17,6 +23,15 @@ const FOLDERS = Object.freeze(['applications', 'autofill']);
 const NAME = /^[A-Za-z0-9._-]+$/;
 /** Deep enough for any answer the wizard stores; a draft is already bounded at 6. */
 const MAX_DEPTH = 8;
+/** The custom metadata a submission sets on each upload it files. */
+const SUBMITTED_MARK = 'safehaulSubmitted';
+/** More uploads than an application holds; a crafted one naming more marks only these. */
+const MAX_MARKED = 50;
+/**
+ * Submissions mark their uploads from this release on. A file created before it
+ * may belong to an application submitted unmarked, so no draft's deletion takes it.
+ */
+const MARKS_SINCE = Date.parse('2026-10-12T00:00:00Z');
 
 /**
  * The licence page's uploads, each with the company setting that hides it. These
@@ -95,7 +110,22 @@ function reuploadableEntries(formData, companyId, { applicationConfig, customQue
 }
 
 /**
- * Refuses a submission whose uploads are no longer in Storage.
+ * May a draft's deletion take this Storage object? Only one no submission marked,
+ * created since the marks began.
+ *
+ * @param {{ metadata?: object, timeCreated?: string }} metadata the object's, as Storage reports it
+ */
+function deletableUpload(metadata, since = MARKS_SINCE) {
+    return !metadata?.metadata?.[SUBMITTED_MARK] && Date.parse(metadata?.timeCreated) >= since;
+}
+
+/**
+ * Marks every upload a submission files, and refuses the submission when one
+ * the driver could upload again is gone.
+ *
+ * The mark keeps the file from any draft's deletion (`drafts/draftFiles.js`),
+ * whatever else points at it, and that deletion takes a file only while it is
+ * unmarked, so the two cannot cross: whichever comes second finds the other done.
  *
  * A copy of an application kept on the driver's device can outlive its files: a
  * Company Admin may have deleted the unfinished application with everything in
@@ -103,22 +133,28 @@ function reuploadableEntries(formData, companyId, { applicationConfig, customQue
  * nothing. So the driver is sent back to the page the file was on, to upload it
  * again, with the same `issues` every other refusal names a page with.
  *
- * Only a file Storage says is not there refuses. A check that could not be made
- * lets the submission through: a signed application is not refused over a lookup
- * that failed.
+ * Only a file Storage says is not there refuses. A mark that could not be set
+ * otherwise lets the submission through: a signed application is not refused
+ * over a call that failed.
  */
-async function assertUploadsExist({ storage, companyId, formData, applicationConfig, customQuestions, HttpsError }) {
-    const entries = reuploadableEntries(formData, companyId, { applicationConfig, customQuestions });
-    if (entries.length === 0) return;
-    let missing;
+async function markSubmittedUploads({ storage, companyId, formData, applicationConfig, customQuestions, HttpsError }) {
+    const paths = guestUploadPathsIn(formData, companyId).slice(0, MAX_MARKED);
+    if (paths.length === 0) return;
+    let results;
     try {
         const bucket = storage.bucket();
-        const present = await Promise.all(entries.map(async ({ path }) => (await bucket.file(path).exists())[0]));
-        missing = entries.filter((_, index) => present[index] === false);
+        results = await Promise.allSettled(paths.map((path) => bucket.file(path).setMetadata({
+            metadata: { [SUBMITTED_MARK]: 'true' },
+        })));
     } catch (error) {
-        console.error(`[guestUploads] Could not check the uploads of a submission to ${companyId}: ${error?.message || 'unknown'}`);
+        console.error(`[guestUploads] Could not mark the uploads of a submission to ${companyId}: ${error?.message || 'unknown'}`);
         return;
     }
+    const gone = new Set(paths.filter((_, index) => results[index].reason?.code === 404));
+    const unmarked = results.filter((result) => result.status === 'rejected').length - gone.size;
+    if (unmarked > 0) console.error(`[guestUploads] Could not mark ${unmarked} upload(s) of a submission to ${companyId}`);
+    const missing = reuploadableEntries(formData, companyId, { applicationConfig, customQuestions })
+        .filter(({ path }) => gone.has(path));
     if (missing.length === 0) return;
     const one = missing.length === 1;
     throw new HttpsError(
@@ -128,4 +164,6 @@ async function assertUploadsExist({ storage, companyId, formData, applicationCon
     );
 }
 
-module.exports = { assertUploadsExist, guestUploadPathsIn, isGuestUploadPath, reuploadableEntries };
+module.exports = {
+    MARKS_SINCE, SUBMITTED_MARK, deletableUpload, guestUploadPathsIn, isGuestUploadPath, markSubmittedUploads, reuploadableEntries,
+};
