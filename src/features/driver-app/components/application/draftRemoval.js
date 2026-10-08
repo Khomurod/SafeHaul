@@ -8,9 +8,10 @@
  * - a save answers `{ saved: false, removed: true }`;
  * - a restore and a link answer `not-found` with `details.reason: 'removed'`.
  *
- * `useDiscardAwareResume` takes it from there as it takes a discard: a `removed:`
- * mark tells every tab, the queued submissions recorded against the old mark are
- * dropped (`useSubmissionQueue`), and the copy, the token and the answers on
+ * `useDiscardAwareResume` takes it from there as it takes a discard, for a token
+ * the tab still holds: a `removed:` mark tells every tab, the queued submissions
+ * recorded against the old mark are dropped (`useSubmissionQueue`) and so is the
+ * queued screen that promised them, and the copy, the token and the answers on
  * screen go, typed here or restored, since this tab's saves made the application
  * the company deleted.
  */

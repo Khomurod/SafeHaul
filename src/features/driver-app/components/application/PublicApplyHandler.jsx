@@ -143,6 +143,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     companyId: company?.id,
     hasCustomQuestions: customQuestions.length > 0,
     submissionStatus,
+    setSubmissionStatus,
     showInfo,
     setFormData,
     setCurrentStep,

@@ -434,10 +434,11 @@ by the `storage` event (to every tab but the writer), and compared before every
 write.
 
 - **Wording, not identity.** The prefix picks the message: `discard:`,
-  `submit:`, or `removed:` once the server says the company deleted it
-  (`draftRemoval.js`); unprefixed reads as discard. It never names the
-  application (a draft's name is a slot generation; two tabs on one application
-  mint different ones), so every tab acts on any change (accepted).
+  `submit:`, or `removed:` once the server tells a token this tab holds that
+  the company deleted it (`draftRemoval.js`); unprefixed reads as discard. It
+  never names the application (a draft's name is a slot generation; two tabs on
+  one application mint different ones), so every tab acts on any change
+  (accepted).
 - **Start Over** deletes the server draft, resume token and local copy — local
   *before* the mark, since a mark failing on a full quota after the token is
   gone would let another tab recreate the application — clears only its own
@@ -445,10 +446,11 @@ write.
   the token only if still the one it retired.
 - **Reacting tabs:** restored answers return to a fresh start, typed ones too
   on `removed:` (else they stay as a new application); a submitted application
-  is never disturbed (success screen, confirmation number, documents checklist).
-  At start-up the profile load captures the reset counter before fetching and
-  skips the restore if it moved, and compares the mark as well (a mark older
-  than the listener fires no event).
+  is never disturbed (success screen, confirmation number, documents checklist),
+  a queued one only by `removed:`, since the queue drops it. At start-up
+  the profile load captures the reset counter before fetching and skips the
+  restore if it moved, and compares the mark as well (a mark older than the
+  listener fires no event).
 - **Submission re-checks** before validation and before every callable attempt —
   by mark, and by reset counter (an event during an in-flight submission is
   exempted and adopts the mark, so the counter is bumped first) — removes the
@@ -457,18 +459,17 @@ write.
   any prompt.
 - **Landing closes the draft:** write the `submit:` mark, drop the resume token,
   and abandon this tab's queued saves (a token-less one would recreate the
-  draft). A queued submission does this when its replay lands, wherever and
-  whenever (the slug travels with the entry), never on a transient failure — and
-  is refused if the mark changed since Submit (recorded then, not at queueing;
-  this also makes a failed dequeue harmless; an unrelated change drops it too —
-  accepted).
+  draft). A queued submission does this when its replay lands (the slug travels
+  with the entry), never on a transient failure — and is refused if the mark
+  changed since Submit (recorded then, not at queueing; this also makes a failed
+  dequeue harmless; an unrelated change drops it too, accepted).
 - **Draft names make a late close safe.** Each draft has an opaque name minted
   at creation and kept through every write; the queue entry records it, and a
-  close happens only while storage still holds that draft. A write keeps a name
-  it holds, mints one when it starts an application, and leaves it alone when
-  only annotating (a confirmed sync); the submitting tab never reads it back
-  from storage. The write counter (restarts at zero) and the token's applicant
-  key (shared) cannot substitute.
+  close happens only while storage still holds that draft. A write keeps the
+  name it holds, mints one for a new application and leaves it alone for a
+  confirmed sync; the submitting tab never reads it back from storage. The
+  write counter (restarts at zero) and the token's applicant key (shared)
+  cannot substitute.
 - **Edges.** With no draft stored the mark is still written; a pre-name draft is
   left alone; a direct submission clears only its own draft (mark written
   regardless); a reacting tab clears the stored copy only if it had restored it
@@ -736,8 +737,8 @@ carried forward; legacy bare-string prior hashes read as dead. Pinned by
 **A dead link says so; starting fresh is a choice.** The exchange throws like
 its sibling callables; `publicApplyInvite.js` classifies by what the driver is
 told. **`unopenable` is one bucket on purpose** (wrong, expired, submitted,
-superseded, discarded — the server answers them identically; the link of a draft
-its company deleted hears `removed`); other causes split only where the driver
+superseded, discarded — the server answers them identically; a deleted draft's
+own link hears `removed`); other causes split only where the driver
 can act, **retry first for transient ones** (a silent fall-through would skip
 the claim, leave locks unenforced and hand the carrier a second, unprepared
 application). `ApplyLinkProblemScreen` sits below the success screen and above

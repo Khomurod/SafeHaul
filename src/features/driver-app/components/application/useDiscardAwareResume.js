@@ -31,6 +31,7 @@ export function useDiscardAwareResume({
   companyId,
   hasCustomQuestions,
   submissionStatus,
+  setSubmissionStatus,
   showInfo,
   setFormData,
   setCurrentStep,
@@ -95,13 +96,20 @@ export function useDiscardAwareResume({
 
   /**
    * The company deleted this application (`functions/drafts/purge.js`), and the
-   * server said so to this tab's token. Every tab learns it through the mark, as
+   * server said so to `refusedToken`. Every tab learns it through the mark, as
    * a discard, and this one at once. See `draftRemoval.js`.
+   *
+   * Only while this tab still holds that token: a refusal answering an earlier
+   * request, once the application has ended here, must not end the one begun
+   * since, nor clear its token. And a tab that has not yet read a mark another
+   * tab wrote catches up on that one rather than writing a second.
    */
-  const noticeRemoved = useCallback(() => {
-    writeDiscardMark(slug, { reason: 'removed' });
+  const noticeRemoved = useCallback((refusedToken) => {
+    if (!refusedToken || heldTokenRef.current()?.resumeToken !== refusedToken) return;
+    const guards = discardGuardsRef.current;
+    if (!guards.discardedElsewhere()) writeDiscardMark(slug, { reason: 'removed' });
     // Said outright as well, for a browser whose storage refused the mark.
-    discardGuardsRef.current.handleDiscardedElsewhere({ reason: 'removed' });
+    guards.handleDiscardedElsewhere({ reason: 'removed' });
   }, [slug]);
 
   /** Every restore goes through here, so a deleted application's token is noticed. */
@@ -109,7 +117,7 @@ export function useDiscardAwareResume({
     try {
       return await resumeApplicationDraft(payload);
     } catch (error) {
-      if (isRemovedRefusal(error)) noticeRemoved();
+      if (isRemovedRefusal(error)) noticeRemoved(payload?.resumeToken);
       throw error;
     }
   }, [noticeRemoved]);
@@ -148,7 +156,7 @@ export function useDiscardAwareResume({
   const saveProgress = useCallback(async (payload) => {
     const result = await saveApplicationProgress(payload);
     if (result?.companyUpdated) await refreshCompanyEdits(payload.formData);
-    if (result?.removed) noticeRemoved();
+    if (result?.removed) noticeRemoved(payload?.resumeToken);
     return result;
   }, [refreshCompanyEdits, noticeRemoved]);
 
@@ -205,13 +213,18 @@ export function useDiscardAwareResume({
 
     resetGenerationRef.current += 1;
 
-    if (submissionStatus === 'submitting' || submissionStatus === 'success' || submissionStatus === 'queued') {
+    // The reason decides the wording, and the applicant is owed the true one.
+    const reason = knownReason || discardMarkReason(mark);
+    // A queued submission is no exemption from the company's deletion: the queue
+    // drops an entry whose mark has changed (`useSubmissionQueue`), so its screen
+    // would go on promising a submission nothing will send.
+    const leavesQueue = reason === 'removed' && submissionStatus === 'queued';
+    if (!leavesQueue
+      && (submissionStatus === 'submitting' || submissionStatus === 'success' || submissionStatus === 'queued')) {
       discardMarkRef.current = readDiscardMark(slug);
       return;
     }
-
-    // The reason decides the wording, and the applicant is owed the true one.
-    const reason = knownReason || discardMarkReason(mark);
+    if (leavesQueue) setSubmissionStatus?.(null);
     const submitted = reason === 'submit';
     // Adopted first, so nothing below can re-enter this.
     discardMarkRef.current = mark;
@@ -252,7 +265,7 @@ export function useDiscardAwareResume({
     showInfo(submitted
       ? 'That application was submitted in another tab. Your answers here will start a new one.'
       : 'The saved application was discarded in another tab. Your answers here will start a new one.');
-  }, [slug, submissionStatus, forgetDraftOwnership, showInfo, setFormData, setCurrentStep, setIntakeMode]);
+  }, [slug, submissionStatus, setSubmissionStatus, forgetDraftOwnership, showInfo, setFormData, setCurrentStep, setIntakeMode]);
 
   /**
    * A stable handle on the two discard callbacks.

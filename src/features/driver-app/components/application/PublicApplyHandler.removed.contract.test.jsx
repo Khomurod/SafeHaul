@@ -11,7 +11,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('@/context/DataContext', async () => (await import('./PublicApplyHandler.contract.support')).dataContextMock());
@@ -33,6 +33,8 @@ import { PublicApplyHandler } from './PublicApplyHandler';
 import {
   showInfo,
   callableSpy,
+  enqueueSpy,
+  dequeueSpy,
   initQueueSpy,
   isQueueSupportedSpy,
   generateIdSpy,
@@ -43,7 +45,9 @@ import {
   makeRenderers,
 } from './PublicApplyHandler.contract.support';
 
-const { renderHandler, chooseManualIntake } = makeRenderers({ PublicApplyHandler, MemoryRouter, Route, Routes });
+const {
+  renderHandler, renderWithCompleteDraft, chooseManualIntake, submit,
+} = makeRenderers({ PublicApplyHandler, MemoryRouter, Route, Routes });
 
 const REMOVED = 'The company removed this unfinished application. You can start a new one.';
 const MARK_KEY = 'apply_discarded_acme';
@@ -61,6 +65,8 @@ beforeEach(() => {
   sessionStorage.clear();
   isQueueSupportedSpy.mockReturnValue(true);
   initQueueSpy.mockResolvedValue(undefined);
+  enqueueSpy.mockResolvedValue('queue-1');
+  dequeueSpy.mockResolvedValue(undefined);
   callableSpy.mockResolvedValue({ data: {} });
   generateIdSpy.mockImplementation(async () => 'generated-app-id');
   stubDraftCallables();
@@ -83,6 +89,18 @@ async function renderTabHoldingTheApplication() {
   renderHandler();
   await screen.findByText('probe-next');
 }
+
+/** The restore on load, for a tab holding the application's token. */
+const RESTORED = { data: { restored: true, draft: {
+  applicantKey: 'key-old', formData: { firstName: 'Ada', email: 'ada@example.com', phone: '5551234567' }, lastStep: 3, clientSeq: 4,
+} } };
+const REMOVED_SAVE = { data: { saved: false, removed: true, applicantKey: null, resumeToken: null } };
+const toldRemoved = () => showInfo.mock.calls.filter(([message]) => message === REMOVED).length;
+const heldToken = () => JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null')?.resumeToken;
+const announce = (mark) => {
+  localStorage.setItem(MARK_KEY, mark);
+  window.dispatchEvent(new StorageEvent('storage', { key: MARK_KEY, newValue: mark }));
+};
 
 /** Ended as a discard is, but for every answer, with the true reason. */
 async function expectEnded() {
@@ -125,6 +143,87 @@ describe('an application its company deleted', () => {
     await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
     expect(showInfo).toHaveBeenCalledWith(REMOVED);
   });
+
+  it('acts once: a late refusal for the token it gave up leaves the new application alone', async () => {
+    let refuseRestore;
+    resumeDraftSpy.mockImplementation(() => new Promise((_resolve, reject) => {
+      refuseRestore = () => reject(removedRefusal());
+    }));
+    let saves = 0;
+    saveProgressSpy.mockImplementation(async () => {
+      saves += 1;
+      return saves === 1 ? REMOVED_SAVE : { data: { saved: true, applicantKey: 'key-new', resumeToken: 'token-new' } };
+    });
+    await renderTabHoldingTheApplication();
+
+    fireEvent.click(screen.getByText('probe-next'));
+    await expectEnded();
+    const mark = localStorage.getItem(MARK_KEY);
+    // The driver starts again, and the new application saves under a token of its own.
+    await chooseManualIntake();
+    fireEvent.click(screen.getByText('probe-edit'));
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(heldToken()).toBe('token-new'));
+
+    // The restore sent on load, with the old token, is refused only now.
+    refuseRestore();
+
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    expect(toldRemoved()).toBe(1);
+    expect(localStorage.getItem(MARK_KEY)).toBe(mark);
+    expect(heldToken()).toBe('token-new');
+    expect(screen.getByTestId('current-step')).toHaveTextContent('1');
+  });
+
+  it('catches up on the mark another tab wrote first, rather than writing a second', async () => {
+    resumeDraftSpy.mockResolvedValue(RESTORED);
+    let answerSave;
+    saveProgressSpy.mockImplementation(() => new Promise((resolve) => { answerSave = () => resolve(REMOVED_SAVE); }));
+    await renderTabHoldingTheApplication();
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+
+    // Another tab was told while this save was out; this one has not read its mark.
+    localStorage.setItem(MARK_KEY, 'removed:first');
+    answerSave();
+
+    await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
+    expect(toldRemoved()).toBe(1);
+    expect(localStorage.getItem(MARK_KEY)).toBe('removed:first');
+  });
+
+  it('takes a queued submission off its screen, since the queue will not send it', async () => {
+    callableSpy.mockRejectedValue(new Error('offline'));
+    await renderWithCompleteDraft();
+    await submit();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Application Saved' })).toBeInTheDocument(), {
+      timeout: 10_000,
+    });
+
+    announce('removed:mark-1');
+
+    await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
+    expect(screen.queryByRole('heading', { name: 'Application Saved' })).not.toBeInTheDocument();
+    expect(toldRemoved()).toBe(1);
+  }, 20_000);
+
+  it('leaves a queued submission on its screen for a discard elsewhere, as before', async () => {
+    callableSpy.mockRejectedValue(new Error('offline'));
+    await renderWithCompleteDraft();
+    await submit();
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Application Saved' })).toBeInTheDocument(), {
+      timeout: 10_000,
+    });
+
+    announce('discard:mark-1');
+
+    // Nothing to wait for when nothing should happen: let React render whatever
+    // the event set, then look.
+    await act(() => new Promise((resolve) => { setTimeout(resolve, 50); }));
+    expect(screen.getByRole('heading', { name: 'Application Saved' })).toBeInTheDocument();
+    expect(showInfo).not.toHaveBeenCalled();
+  }, 20_000);
 
   it('leaves a restore that failed for any other reason as it was', async () => {
     resumeDraftSpy.mockRejectedValue(Object.assign(new Error('gone'), { code: 'functions/not-found' }));
