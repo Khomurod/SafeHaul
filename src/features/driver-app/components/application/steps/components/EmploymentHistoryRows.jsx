@@ -17,12 +17,16 @@ import { FormField, Textarea } from '@/design-system/components';
  *
  * 2026-10-06: school dates are a month and a year (`YYYY-MM`), like the gap and
  * military dates beside them.
+ *
+ * `errorFor(listKey, index, key)` says why a field still needs filling, once the
+ * applicant has pressed Continue (`./employmentStepIssues.js`); before that it
+ * says nothing.
  */
-export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
+export function makeEmploymentRowRenderers({ ty, yesNoOptions, errorFor = () => undefined }) {
     const renderSchoolRow = (index, item, handleChange) => (
         <div className="space-y-ds-3">
-            <InputField label="School Name" id={'school-name-' + index} name="name" value={item.name} onChange={handleChange} required={true} />
-            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
+            <InputField label="School Name" id={'school-name-' + index} name="name" value={item.name} onChange={handleChange} required={true} error={errorFor('schools', index, 'name')} />
+            <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-2">
                 <MonthYearField
                     label="Start Date (month / year)"
                     idPrefix={'school-start-' + index}
@@ -32,6 +36,7 @@ export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
                     required={true}
                     maxToday={true}
                     minYear={ty - 40}
+                    error={errorFor('schools', index, 'startDate')}
                 />
                 <MonthYearField
                     label="End Date (month / year)"
@@ -42,6 +47,7 @@ export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
                     required={true}
                     maxToday={true}
                     minYear={ty - 40}
+                    error={errorFor('schools', index, 'endDate')}
                 />
             </div>
             <InputField label="Location (City, State)" id={'school-location-' + index} name="location" value={item.location} onChange={handleChange} />
@@ -50,7 +56,7 @@ export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
 
     const renderUnemploymentRow = (index, item, handleChange) => (
         <div className="space-y-ds-3">
-            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-2">
                 <MonthYearField
                     label="Gap Start (month / year)"
                     idPrefix={'unemp-start-' + index}
@@ -60,6 +66,7 @@ export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
                     required={true}
                     maxToday={true}
                     minYear={ty - 40}
+                    error={errorFor('unemployment', index, 'startDate')}
                     helpText="Easier than typing — stored securely like other dates."
                 />
                 <MonthYearField
@@ -71,6 +78,7 @@ export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
                     required={true}
                     maxToday={true}
                     minYear={ty - 40}
+                    error={errorFor('unemployment', index, 'endDate')}
                 />
             </div>
             <FormField id={'unemp-details-' + index} label="Details related to unemployment period">
@@ -96,8 +104,9 @@ export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
                 onChange={(name, value) => handleChange(name, value)}
                 required={true}
                 horizontal={false}
+                error={errorFor('military', index, 'branch')}
             />
-            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-2">
                 <MonthYearField
                     label="Service Start (month / year)"
                     idPrefix={'mil-start-' + index}
@@ -107,6 +116,7 @@ export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
                     required={true}
                     maxToday={true}
                     minYear={ty - 50}
+                    error={errorFor('military', index, 'start')}
                 />
                 <MonthYearField
                     label="Service End (month / year)"
@@ -117,9 +127,10 @@ export function makeEmploymentRowRenderers({ ty, yesNoOptions }) {
                     required={true}
                     maxToday={true}
                     minYear={ty - 50}
+                    error={errorFor('military', index, 'end')}
                 />
             </div>
-            <InputField label="Rank of Discharge" id={'mil-rank-' + index} name="rank" value={item.rank} onChange={handleChange} required={true} />
+            <InputField label="Rank of Discharge" id={'mil-rank-' + index} name="rank" value={item.rank} onChange={handleChange} required={true} error={errorFor('military', index, 'rank')} />
             <RadioGroup
                 label="Did you operate heavy equipment/machinery?"
                 name="heavyEq"

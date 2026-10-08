@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import InputField from '@shared/components/form/InputField';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import DynamicRow from '@shared/components/form/DynamicRow';
@@ -6,14 +6,14 @@ import MonthYearField from '@shared/components/form/MonthYearField';
 import { useUtils } from '@shared/hooks/useUtils';
 import { useData } from '@/context/DataContext';
 import { YES_NO_OPTIONS } from '@/config/form-options';
-import { useToast } from '@shared/components/feedback';
-import { answersClearedByEndDate, employerRowHasVerifierContact } from '@shared/utils/employmentApplicationHelpers';
+import { answersClearedByEndDate } from '@shared/utils/employmentApplicationHelpers';
 import EmployerNameAutocomplete from './components/EmployerNameAutocomplete';
 import { FormSection } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { StateSelectField } from './components/StateSelectField';
 import { StepIssues } from './components/StepIssues';
 import { makeEmploymentRowRenderers } from './components/EmploymentHistoryRows';
+import { employmentStepIssues, focusEmploymentField } from './components/employmentStepIssues';
 import { EMPTY_EMPLOYER } from './components/employmentRowShapes';
 import { LockedEmployerIdentity } from './components/LockedEmployerIdentity';
 import { EmployerDotQuestions } from './components/EmployerDotQuestions';
@@ -29,17 +29,13 @@ import { resolveApplicationGate } from '@/config/applicationGates';
 import { employmentCoverageOptions } from '@/config/applicationRules';
 import { useStepIssues } from '@features/driver-app/hooks/useApplicationRules';
 
-const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 /**
  * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
  * primitives (2026-07-27).
  *
  * Unchanged: the `employers` / `unemployment` / `schools` / `military` row
  * shapes, the `employmentHistory` config resolution, the per-employer email
- * format checks and their exact "Employer N: …" toast strings, the
- * `employerRowHasVerifierContact` requirement and the `form.checkValidity()`
- * gate.
+ * format checks and the `employerRowHasVerifierContact` requirement.
  *
  * DEFECT FIXED (2026-07-27): the per-row radio groups (`mayContact`, `branch`,
  * `heavyEq`, `honorable`) used the bare field name, so every row emitted the same
@@ -63,9 +59,12 @@ const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * required with the rest of the row. Employment dates are a month and a year
  * (`YYYY-MM`), as on FMCSA's own application form; rows saved with a full
  * `YYYY-MM-DD` keep it until changed, and every reader accepts both.
+ *
+ * 2026-10-07 — Continue lists what the page still needs, row by row, each line
+ * taking the applicant to the field, and marks the fields (`employmentStepIssues.js`),
+ * in place of the browser's bubble on one field and the email and contact toasts.
  */
 const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
-    const { showError } = useToast();
     const ty = new Date().getFullYear();
     const { states } = useUtils();
     const { currentCompanyProfile } = useData();
@@ -85,13 +84,32 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
     // step (an impossible date in a row) is told through the shared alert.
     const otherBlocking = blocking.filter((issue) => issue.code !== 'employment-coverage');
     const [attempted, setAttempted] = useState(false);
+    // The rows named when Continue was last refused. Their lines and marks follow
+    // the answers; a row added since waits for the next Continue.
+    const [listedRows, setListedRows] = useState(() => new Set());
     const issuesRef = useRef(null);
+    const pendingFocus = useRef(false);
+    const { hidden: employersHidden, required: employersRequired } = empHistoryConfig;
+    const fieldIssues = useMemo(() => employmentStepIssues({
+        formData, employment: { hidden: employersHidden, required: employersRequired },
+    }), [formData, employersHidden, employersRequired]);
+    const listed = fieldIssues.items.filter((item) => listedRows.has(item.key));
+    const errorFor = (listKey, index, key) => (listedRows.has(fieldIssues.rowKey(listKey, index))
+        ? fieldIssues.errorFor(listKey, index, key)
+        : undefined);
+    // The list mounts on the render that follows the refusal, so focus waits for it.
+    useEffect(() => {
+        if (pendingFocus.current && issuesRef.current) {
+            pendingFocus.current = false;
+            issuesRef.current.focus();
+        }
+    });
 
     const initialEmployer = { ...EMPTY_EMPLOYER };
     const initialSchool = { name: '', startDate: '', endDate: '', location: '' };
     const initialUnemployment = { startDate: '', endDate: '', details: '' };
     const initialMilitary = { branch: '', start: '', end: '', rank: '', heavyEq: 'no', honorable: 'yes', explanation: '' };
-    const { renderSchoolRow, renderUnemploymentRow, renderMilitaryRow } = makeEmploymentRowRenderers({ ty, yesNoOptions });
+    const { renderSchoolRow, renderUnemploymentRow, renderMilitaryRow } = makeEmploymentRowRenderers({ ty, yesNoOptions, errorFor });
 
     // Live three-year coverage, computed by the same module the submission
     // snapshot uses on the server, so what the driver is told here and what the
@@ -132,39 +150,17 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
     };
 
     const handleContinue = () => {
-        const employers = Array.isArray(formData.employers) ? formData.employers : [];
-        if (!empHistoryConfig.hidden && employers.length > 0) {
-            for (let i = 0; i < employers.length; i++) {
-                const row = employers[i];
-                const ce = String(row.companyEmail || '').trim();
-                const se = String(row.supervisorEmail || '').trim();
-                if (ce && !EMAIL_OK.test(ce)) {
-                    showError(`Employer ${i + 1}: please enter a valid company email, or leave it blank.`);
-                    return;
-                }
-                if (se && !EMAIL_OK.test(se)) {
-                    showError(`Employer ${i + 1}: please enter a valid supervisor email, or leave it blank.`);
-                    return;
-                }
-                if (empHistoryConfig.required && !employerRowHasVerifierContact(row)) {
-                    showError(
-                        `Employer ${i + 1}: add at least one contact method — company phone (10 digits), company email, supervisor phone, or supervisor email — so your carrier can verify employment.`
-                    );
-                    return;
-                }
-            }
-        }
-
-        const form = document.getElementById('driver-form');
-        if (form) {
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                return;
-            }
-        }
-        if (otherBlocking.length > 0) {
+        if (fieldIssues.items.length > 0 || otherBlocking.length > 0) {
             setAttempted(true);
-            issuesRef.current?.focus();
+            setListedRows(new Set(fieldIssues.items.map((item) => item.key)));
+            if (issuesRef.current) issuesRef.current.focus();
+            else pendingFocus.current = true;
+            return;
+        }
+        // Behind the list: the browser's own check, for anything the list does not name.
+        const form = document.getElementById('driver-form');
+        if (form && !form.checkValidity()) {
+            form.reportValidity();
             return;
         }
 
@@ -209,6 +205,7 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                         onChange={handleChange}
                         required={empHistoryConfig.required}
                         statesAllowlist={states}
+                        error={errorFor('employers', index, 'companyName')}
                     />
                     <InputField
                         label="USDOT Number"
@@ -220,9 +217,9 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     />
                 </>
             )}
-            <InputField label="Street Address" id={'emp-street-' + index} name="address" autoComplete="off" value={item.address} onChange={handleChange} required={empHistoryConfig.required} />
-            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-3">
-                <InputField label="City" id={'emp-city-' + index} name="city" autoComplete="off" value={item.city} onChange={handleChange} required={empHistoryConfig.required} />
+            <InputField label="Street Address" id={'emp-street-' + index} name="address" autoComplete="off" value={item.address} onChange={handleChange} required={empHistoryConfig.required} error={errorFor('employers', index, 'address')} />
+            <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-3">
+                <InputField label="City" id={'emp-city-' + index} name="city" autoComplete="off" value={item.city} onChange={handleChange} required={empHistoryConfig.required} error={errorFor('employers', index, 'city')} />
                 <StateSelectField
                     id={'emp-state-' + index}
                     name="state"
@@ -231,18 +228,19 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     required={empHistoryConfig.required}
                     value={item.state}
                     onChange={(e) => handleChange(e.target.name, e.target.value)}
+                    error={errorFor('employers', index, 'state')}
                 />
             </div>
-            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
-                <InputField label="Company Phone" id={'emp-phone-' + index} name="phone" type="tel" autoComplete="off" value={item.phone} onChange={handleChange} placeholder="(555) 555-5555" />
-                <InputField label="Company Email" id={'emp-co-email-' + index} name="companyEmail" type="email" autoComplete="off" value={item.companyEmail} onChange={handleChange} placeholder="hr@company.com" />
+            <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-2">
+                <InputField label="Company Phone" id={'emp-phone-' + index} name="phone" type="tel" autoComplete="off" value={item.phone} onChange={handleChange} placeholder="(555) 555-5555" error={errorFor('employers', index, 'phone')} />
+                <InputField label="Company Email" id={'emp-co-email-' + index} name="companyEmail" type="email" autoComplete="off" value={item.companyEmail} onChange={handleChange} placeholder="hr@company.com" error={errorFor('employers', index, 'companyEmail')} />
             </div>
             <p className="text-ds-xs text-ds-content-muted">
                 Provide at least one way to reach someone who can verify this job: company phone (10 digits), company email, or supervisor phone/email below.
                 {empHistoryConfig.required && <span className="font-medium text-ds-status-warning-fg"> Required when employment history is on.</span>}
             </p>
             <InputField label="Position Held" id={'emp-position-' + index} name="position" value={item.position} onChange={handleChange} />
-            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-2">
                 <MonthYearField
                     label="Start Date (month / year)"
                     idPrefix={'emp-start-' + index}
@@ -252,6 +250,7 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     required={empHistoryConfig.required}
                     maxToday={true}
                     minYear={ty - 40}
+                    error={errorFor('employers', index, 'startDate')}
                 />
                 <MonthYearField
                     label="End Date (month / year)"
@@ -265,14 +264,15 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     required={empHistoryConfig.required}
                     maxToday={true}
                     minYear={ty - 40}
+                    error={errorFor('employers', index, 'endDate')}
                 />
             </div>
-            <InputField label="Reason for Leaving" id={'emp-reason-' + index} name="reasonForLeaving" value={item.reasonForLeaving} onChange={handleChange} required={empHistoryConfig.required} />
-            <EmployerDotQuestions index={index} item={item} required={empHistoryConfig.required} onChange={handleChange} />
+            <InputField label="Reason for Leaving" id={'emp-reason-' + index} name="reasonForLeaving" value={item.reasonForLeaving} onChange={handleChange} required={empHistoryConfig.required} error={errorFor('employers', index, 'reasonForLeaving')} />
+            <EmployerDotQuestions index={index} item={item} required={empHistoryConfig.required} onChange={handleChange} errorFor={(key) => errorFor('employers', index, key)} />
             <InputField label="Supervisor Name" id={'emp-supervisor-' + index} name="supervisorName" autoComplete="off" value={item.supervisorName} onChange={handleChange} />
-            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-2">
                 <InputField label="Supervisor Phone" id={'emp-sup-phone-' + index} name="supervisorPhone" type="tel" autoComplete="off" value={item.supervisorPhone} onChange={handleChange} placeholder="Direct line or mobile" />
-                <InputField label="Supervisor Email" id={'emp-sup-email-' + index} name="supervisorEmail" type="email" autoComplete="off" value={item.supervisorEmail} onChange={handleChange} placeholder="supervisor@company.com" />
+                <InputField label="Supervisor Email" id={'emp-sup-email-' + index} name="supervisorEmail" type="email" autoComplete="off" value={item.supervisorEmail} onChange={handleChange} placeholder="supervisor@company.com" error={errorFor('employers', index, 'supervisorEmail')} />
             </div>
             <RadioGroup
                 label="May we contact this employer?"
@@ -288,7 +288,13 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
 
     return (
         <div id="page-6" className="form-step space-y-ds-6">
-            <StepIssues ref={issuesRef} blocking={otherBlocking} showBlocking={attempted} />
+            <StepIssues
+                ref={issuesRef}
+                blocking={[...listed, ...otherBlocking]}
+                showBlocking={attempted}
+                title={listed.length > 0 ? 'Before you continue:' : undefined}
+                onFocusField={focusEmploymentField}
+            />
             <div className="space-y-ds-2 text-ds-sm text-ds-content-secondary">
                 <p>
                     <strong className="text-ds-content">Past 3 years:</strong> list every employer, driving or not, and explain any gap of 30 days or more. Military service and driving school count too.

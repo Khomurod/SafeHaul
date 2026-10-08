@@ -38,6 +38,17 @@ describe('StateSelectField shows the value the form holds', () => {
     });
 });
 
+describe('StateSelectField error', () => {
+    it('marks the select invalid and says why', () => {
+        render(<StateSelectField id="emp-state-0" name="state" value="" onChange={vi.fn()} states={US_STATE_NAMES} error="Required." />);
+
+        const select = screen.getByLabelText(/State/);
+        expect(select).toHaveAttribute('aria-invalid', 'true');
+        expect(select).toBeRequired();
+        expect(document.getElementById(select.getAttribute('aria-describedby'))).toHaveTextContent('Required.');
+    });
+});
+
 describe('StateSelectField autofill token', () => {
     it('has none unless the caller passes one', () => {
         expect(renderPicker('')).not.toHaveAttribute('autocomplete');

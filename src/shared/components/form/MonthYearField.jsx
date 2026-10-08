@@ -21,6 +21,9 @@ const empty = () => ({ year: '', month: '' });
  * The two selects are grouped so assistive technology hears the field name once
  * and each control's own name is composed from it ("Gap Start (month / year)
  * month") instead of a bare "Month" — the same defect `DateTripletField` fixed.
+ *
+ * `error` marks both selects invalid and says why under them, with the
+ * `${idPrefix}-error` id `InputField` uses for the same thing.
  */
 export default function MonthYearField({
     label,
@@ -33,10 +36,13 @@ export default function MonthYearField({
     minYear = 1970,
     maxYear,
     maxToday = false,
+    error,
 }) {
     const rawId = useId().replace(/:/g, '');
     const groupLabelId = `${idPrefix}-group-label-${rawId}`;
     const helpTextId = `${idPrefix}-help-${rawId}`;
+    const errorId = error ? `${idPrefix}-error` : undefined;
+    const describedBy = [helpText ? helpTextId : null, errorId].filter(Boolean).join(' ') || undefined;
 
     const today = new Date();
     const ty = today.getFullYear();
@@ -146,7 +152,7 @@ export default function MonthYearField({
             <div
                 role="group"
                 aria-labelledby={label || required ? groupLabelId : undefined}
-                aria-describedby={helpText ? helpTextId : undefined}
+                aria-describedby={describedBy}
                 className="grid grid-cols-2 gap-ds-2"
             >
                 <div className="min-w-0">
@@ -156,6 +162,8 @@ export default function MonthYearField({
                         value={p.month === '' ? '' : String(p.month)}
                         onChange={onMonthChange}
                         required={required}
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={errorId}
                     >
                         <option value="">Month</option>
                         {MONTH_NAMES.map((nm, i) => {
@@ -176,6 +184,8 @@ export default function MonthYearField({
                         value={p.year === '' ? '' : String(p.year)}
                         onChange={onYearChange}
                         required={required}
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={errorId}
                     >
                         <option value="">Year</option>
                         {yearOptions.map((y) => (
@@ -186,6 +196,7 @@ export default function MonthYearField({
                     </Select>
                 </div>
             </div>
+            {error && <FieldMessage id={errorId} tone="error">{error}</FieldMessage>}
         </div>
     );
 }

@@ -97,6 +97,11 @@ test.describe('guest public application', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
     await expectStep(page, 'Employment History');
     await expect(page.locator('#emp-reason-0:invalid')).toHaveCount(1);
+    // And the page says what is left, at the top, with a way to it.
+    const missing = page.getByTestId('step-blocking-issues');
+    await expect(missing).toContainText('Employer 1: reason for leaving, 2 questions.');
+    await missing.getByRole('link', { name: /Employer 1:/ }).click();
+    await expect(page.locator('#emp-reason-0')).toBeFocused();
 
     await page.fill('#emp-reason-0', 'Better route');
     await chooseRadio(page, 'emp-fmcsrs-0-yes');

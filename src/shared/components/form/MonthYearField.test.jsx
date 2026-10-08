@@ -120,4 +120,21 @@ describe('MonthYearField accessible naming', () => {
     expect(monthSelect()).toBeRequired();
     expect(yearSelect()).toBeRequired();
   });
+
+  it('marks both controls invalid and says why when given an error, next to the help text', () => {
+    renderField({ required: true, helpText: 'Easier than typing.', error: 'Required.' });
+
+    for (const select of [monthSelect(), yearSelect()]) {
+      expect(select).toHaveAttribute('aria-invalid', 'true');
+      expect(document.getElementById(select.getAttribute('aria-describedby'))).toHaveTextContent('Required.');
+    }
+    const describedBy = screen.getByRole('group').getAttribute('aria-describedby').split(' ');
+    expect(describedBy.map((id) => document.getElementById(id).textContent)).toEqual(['Easier than typing.', 'Required.']);
+  });
+
+  it('is not marked without an error', () => {
+    renderField({ required: true });
+    expect(monthSelect()).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

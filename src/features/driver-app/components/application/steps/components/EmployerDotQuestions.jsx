@@ -16,9 +16,10 @@ import { endedBeforeLastThreeYears } from '@shared/utils/employmentApplicationHe
  * The saved keys are the verification portal's names for the same facts
  * (`subjectToFmcsrs`, `subjectToDotTesting`), so the applicant's answer and the
  * previous employer's read side by side. Ids are scoped by row like the step's
- * other per-row radio groups.
+ * other per-row radio groups. `errorFor(key)` says why a question still needs
+ * an answer, once the applicant has pressed Continue.
  */
-export function EmployerDotQuestions({ index, item, required, onChange }) {
+export function EmployerDotQuestions({ index, item, required, onChange, errorFor = () => undefined }) {
     if (endedBeforeLastThreeYears(item)) return null;
     return (
         <>
@@ -31,6 +32,7 @@ export function EmployerDotQuestions({ index, item, required, onChange }) {
                 value={item.subjectToFmcsrs}
                 onChange={onChange}
                 required={required}
+                error={errorFor('subjectToFmcsrs')}
             />
             <RadioGroup
                 label="Was this job a safety-sensitive function in any DOT-regulated mode, subject to drug and alcohol testing under 49 CFR Part 40?"
@@ -41,6 +43,7 @@ export function EmployerDotQuestions({ index, item, required, onChange }) {
                 value={item.subjectToDotTesting}
                 onChange={onChange}
                 required={required}
+                error={errorFor('subjectToDotTesting')}
             />
         </>
     );

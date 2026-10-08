@@ -18,6 +18,8 @@ export default function EmployerNameAutocomplete({
   required = false,
   onChange,
   statesAllowlist = [],
+  // Why the name is needed, shown under it as `InputField` shows its own.
+  error,
 }) {
   const token = import.meta.env.VITE_SOCRATA_APP_TOKEN;
   const listboxId = useId();
@@ -161,6 +163,7 @@ export default function EmployerNameAutocomplete({
         required={required}
         placeholder="Employer legal name"
         autoComplete="off"
+        error={error}
       />
     );
   }
@@ -187,13 +190,15 @@ export default function EmployerNameAutocomplete({
           aria-controls={open ? listboxId : undefined}
           aria-activedescendant={open && highlightIndex >= 0 ? `${listboxId}-option-${highlightIndex}` : undefined}
           aria-autocomplete="list"
-          aria-describedby={fetchError ? `${id}-lookup-error` : undefined}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={[fetchError ? `${id}-lookup-error` : null, error ? `${id}-error` : null].filter(Boolean).join(' ') || undefined}
           role="combobox"
           value={value || ''}
           placeholder="Start typing employer legal name…"
           onChange={(e) => handleInputChange(e.target.name, e.target.value)}
         />
       </div>
+      {error && <FieldMessage id={`${id}-error`} tone="error" className="mt-ds-1">{error}</FieldMessage>}
       {fetchError && (
         <FieldMessage id={`${id}-lookup-error`} tone="help" className="mt-ds-1 text-ds-status-warning-fg">
           {fetchError}
