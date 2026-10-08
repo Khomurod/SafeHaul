@@ -21,7 +21,9 @@ import {
   readDiscardMark,
   discardMarkReason,
   subscribeToDiscardMark,
+  writeDiscardMark,
 } from './applicationDraftStorage';
+import { REMOVED_MESSAGE, isRemovedRefusal } from './draftRemoval';
 
 export function useDiscardAwareResume({
   slug,
@@ -29,6 +31,7 @@ export function useDiscardAwareResume({
   companyId,
   hasCustomQuestions,
   submissionStatus,
+  setSubmissionStatus,
   showInfo,
   setFormData,
   setCurrentStep,
@@ -92,6 +95,34 @@ export function useDiscardAwareResume({
   const heldTokenRef = useRef(() => null);
 
   /**
+   * The company deleted this application (`functions/drafts/purge.js`), and the
+   * server said so to `refusedToken`. Every tab learns it through the mark, as
+   * a discard, and this one at once. See `draftRemoval.js`.
+   *
+   * Only while this tab still holds that token: a refusal answering an earlier
+   * request, once the application has ended here, must not end the one begun
+   * since, nor clear its token. And a tab that has not yet read a mark another
+   * tab wrote catches up on that one rather than writing a second.
+   */
+  const noticeRemoved = useCallback((refusedToken) => {
+    if (!refusedToken || heldTokenRef.current()?.resumeToken !== refusedToken) return;
+    const guards = discardGuardsRef.current;
+    if (!guards.discardedElsewhere()) writeDiscardMark(slug, { reason: 'removed' });
+    // Said outright as well, for a browser whose storage refused the mark.
+    guards.handleDiscardedElsewhere({ reason: 'removed' });
+  }, [slug]);
+
+  /** Every restore goes through here, so a deleted application's token is noticed. */
+  const resumeDraft = useCallback(async (payload) => {
+    try {
+      return await resumeApplicationDraft(payload);
+    } catch (error) {
+      if (isRemovedRefusal(error)) noticeRemoved(payload?.resumeToken);
+      throw error;
+    }
+  }, [noticeRemoved]);
+
+  /**
    * Takes a Company Admin's edits into the answers on screen, once the server has
    * refused a save or a submission because this copy is behind them.
    *
@@ -109,7 +140,7 @@ export function useDiscardAwareResume({
     const generation = resetGenerationRef.current;
     let draft;
     try {
-      draft = (await resumeApplicationDraft({
+      draft = (await resumeDraft({
         companyId, applicantKey: stored.applicantKey, resumeToken: stored.resumeToken,
       }))?.draft;
     } catch {
@@ -119,14 +150,15 @@ export function useDiscardAwareResume({
     const { changed } = companyEditsToTake(onScreen, draft);
     setFormData((prev) => takeCompanyEdits(prev, draft));
     return changed.length > 0;
-  }, [companyId, setFormData]);
+  }, [companyId, setFormData, resumeDraft]);
 
   /** Every save goes through here, so a refusal for unseen edits fetches them. */
   const saveProgress = useCallback(async (payload) => {
     const result = await saveApplicationProgress(payload);
     if (result?.companyUpdated) await refreshCompanyEdits(payload.formData);
+    if (result?.removed) noticeRemoved(payload?.resumeToken);
     return result;
-  }, [refreshCompanyEdits]);
+  }, [refreshCompanyEdits, noticeRemoved]);
 
   /**
    * Server-side autosave and the "continue your existing application?" flow.
@@ -152,6 +184,7 @@ export function useDiscardAwareResume({
     hasCustomQuestions,
     hasBeenDiscarded: discardedElsewhere,
     saveProgress,
+    resumeDraft,
   });
   heldTokenRef.current = heldToken;
 
@@ -167,7 +200,7 @@ export function useDiscardAwareResume({
    * What it costs this tab depends on where its answers came from — see
    * `restoredFromDraftRef`.
    */
-  const handleDiscardedElsewhere = useCallback(() => {
+  const handleDiscardedElsewhere = useCallback(({ reason: knownReason } = {}) => {
     // A submitted application is finished, and nothing about a discarded *draft*
     // may reach back into it. Resetting here would throw away the success screen,
     // the confirmation number and the post-submission documents checklist — the
@@ -180,13 +213,19 @@ export function useDiscardAwareResume({
 
     resetGenerationRef.current += 1;
 
-    if (submissionStatus === 'submitting' || submissionStatus === 'success' || submissionStatus === 'queued') {
+    // The reason decides the wording, and the applicant is owed the true one.
+    const reason = knownReason || discardMarkReason(mark);
+    // A queued submission is no exemption from the company's deletion: the queue
+    // drops an entry whose mark has changed (`useSubmissionQueue`), so its screen
+    // would go on promising a submission nothing will send.
+    const leavesQueue = reason === 'removed' && submissionStatus === 'queued';
+    if (!leavesQueue
+      && (submissionStatus === 'submitting' || submissionStatus === 'success' || submissionStatus === 'queued')) {
       discardMarkRef.current = readDiscardMark(slug);
       return;
     }
-
-    // The reason decides the wording, and the applicant is owed the true one.
-    const submitted = discardMarkReason(mark) === 'submit';
+    if (leavesQueue) setSubmissionStatus?.(null);
+    const submitted = reason === 'submit';
     // Adopted first, so nothing below can re-enter this.
     discardMarkRef.current = mark;
     // Whatever happens to the answers, the application they belonged to is over, so its
@@ -199,7 +238,9 @@ export function useDiscardAwareResume({
     forgetDraftOwnership();
     clearResumeToken(slug);
 
-    if (restoredFromDraftRef.current) {
+    // A company's deletion ends answers typed here too: this tab's saves made the
+    // application it deleted, and keeping them would make it again.
+    if (restoredFromDraftRef.current || reason === 'removed') {
       // These answers *are* the discarded application. Keeping them on screen
       // would be showing the applicant the thing they just deleted.
       restoredFromDraftRef.current = false;
@@ -210,9 +251,12 @@ export function useDiscardAwareResume({
       setFormData({});
       setCurrentStep(0);
       setIntakeMode(null);
-      showInfo(submitted
-        ? 'That application was submitted in another tab. Starting fresh.'
-        : 'That saved application was discarded in another tab. Starting fresh.');
+      if (reason === 'removed') showInfo(REMOVED_MESSAGE);
+      else {
+        showInfo(submitted
+          ? 'That application was submitted in another tab. Starting fresh.'
+          : 'That saved application was discarded in another tab. Starting fresh.');
+      }
       return;
     }
 
@@ -221,7 +265,7 @@ export function useDiscardAwareResume({
     showInfo(submitted
       ? 'That application was submitted in another tab. Your answers here will start a new one.'
       : 'The saved application was discarded in another tab. Your answers here will start a new one.');
-  }, [slug, submissionStatus, forgetDraftOwnership, showInfo, setFormData, setCurrentStep, setIntakeMode]);
+  }, [slug, submissionStatus, setSubmissionStatus, forgetDraftOwnership, showInfo, setFormData, setCurrentStep, setIntakeMode]);
 
   /**
    * A stable handle on the two discard callbacks.

@@ -126,6 +126,12 @@ export const buildApplyLinkOutcomeMessage = (outcome) => {
           + 'replaced it. Ask the company to send you a new one.',
         retryable: false,
       };
+    case 'removed':
+      // Only the link's own token is told (`functions/drafts/removalMarks.js`).
+      return {
+        message: 'The company removed this unfinished application, so its link no longer opens. You can start a new one.',
+        retryable: false,
+      };
     case 'invalid':
       return { message: 'That application link is not valid.', retryable: false };
     case 'throttled':

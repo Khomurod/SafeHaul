@@ -402,7 +402,8 @@ export function markDraftSynced(slug, seq, { draftId = null } = {}) {
  * `discardMarkReason`.
  *
  * @param {string} slug
- * @param {{ reason?: 'discard'|'submit' }} [about] What ended. Defaults to a discard,
+ * @param {{ reason?: 'discard'|'submit'|'removed' }} [about] What ended: Start Over,
+ *   a submission, or the company deleting the application. Defaults to a discard,
  *   which never claims a submission that did not happen.
  * @returns {string|null} the mark that was written, for the discarding tab to adopt
  *   as its own so it does not treat its own discard as somebody else's. `null` when
@@ -421,7 +422,7 @@ export function writeDiscardMark(slug, { reason = 'discard' } = {}) {
   // application each mint their own when they first write, so a tab comparing names
   // would decide a discard was none of its business and go on showing the answers the
   // applicant just deleted. The browser test for two tabs proved it.
-  const mark = `${reason === 'submit' ? 'submit' : 'discard'}:${nextMarkValue()}`;
+  const mark = `${reason === 'submit' || reason === 'removed' ? reason : 'discard'}:${nextMarkValue()}`;
   try {
     localStorage.setItem(discardKey(slug), mark);
     return mark;
@@ -434,12 +435,14 @@ export function writeDiscardMark(slug, { reason = 'discard' } = {}) {
 /**
  * Why the draft's life ended, for wording only.
  *
- * `'submit'` when the application was submitted, `'discard'` for Start Over — and
- * `'discard'` for a mark written before the prefix existed, which is the safer of the
- * two to guess: it never claims a submission that did not happen.
+ * `'submit'` when the application was submitted, `'removed'` when its company
+ * deleted it, `'discard'` for Start Over — and `'discard'` for a mark written before
+ * the prefix existed, which is the safer guess: it never claims a submission that
+ * did not happen.
  */
 export function discardMarkReason(mark) {
-  return typeof mark === 'string' && mark.startsWith('submit:') ? 'submit' : 'discard';
+  const reason = typeof mark === 'string' ? mark.split(':')[0] : '';
+  return reason === 'submit' || reason === 'removed' ? reason : 'discard';
 }
 
 /** The mark currently stored, or `null` when this application was never discarded. */

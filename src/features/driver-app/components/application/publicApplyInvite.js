@@ -1,5 +1,6 @@
 import { exchangeApplicationInvite, readResumeToken } from '../../services/applicationDraftService';
 import { clearPostApplySession } from './postApplyDocsStorage';
+import { isRemovedRefusal } from './draftRemoval';
 
 /**
  * Opening the link a carrier sent, and deciding whose leftovers this browser holds.
@@ -62,6 +63,8 @@ export const INVITE_OUTCOMES = Object.freeze({
     OPENED: 'opened',
     REQUIRES_IDENTITY: 'requires_identity',
     UNOPENABLE: 'unopenable',
+    /** The company deleted the application; only the link's own token is told. */
+    REMOVED: 'removed',
     INVALID: 'invalid',
     THROTTLED: 'throttled',
     CLOSED: 'closed',
@@ -83,7 +86,7 @@ export const INVITE_OUTCOMES = Object.freeze({
 export function classifyInviteFailure(error) {
     switch (error?.code) {
         case 'functions/not-found':
-            return INVITE_OUTCOMES.UNOPENABLE;
+            return isRemovedRefusal(error) ? INVITE_OUTCOMES.REMOVED : INVITE_OUTCOMES.UNOPENABLE;
         case 'functions/invalid-argument':
             return INVITE_OUTCOMES.INVALID;
         case 'functions/resource-exhausted':

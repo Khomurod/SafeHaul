@@ -70,6 +70,7 @@ import {
  *   a save is queued here, and a save that lands afterwards recreates the very
  *   application they asked to be rid of.
  * @param {(payload: object) => Promise<object>} [options.saveProgress] Sends a save; see `useDiscardAwareResume`.
+ * @param {(payload: object) => Promise<object>} [options.resumeDraft] Restores one, the same way.
  */
 export function useApplicationResume({
     slug,
@@ -78,6 +79,7 @@ export function useApplicationResume({
     hasCustomQuestions,
     hasBeenDiscarded,
     saveProgress = saveApplicationProgress,
+    resumeDraft = resumeApplicationDraft,
 }) {
     const [prompt, setPrompt] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -340,7 +342,7 @@ export function useApplicationResume({
         askedRef.current = true;
         ownsDraftRef.current = true;
         try {
-            const result = await resumeApplicationDraft({
+            const result = await resumeDraft({
                 companyId,
                 applicantKey: stored.applicantKey,
                 resumeToken: stored.resumeToken,
@@ -382,7 +384,7 @@ export function useApplicationResume({
             }
             return null;
         }
-    }, [enabled, companyId, stepIndexFor, heldToken, restampApplicantKey, releaseIfStillOurs]);
+    }, [enabled, companyId, stepIndexFor, heldToken, restampApplicantKey, releaseIfStillOurs, resumeDraft]);
 
     /**
      * Continue: restores the saved answers.
@@ -394,7 +396,7 @@ export function useApplicationResume({
         setBusy(true);
         setPromptError(null);
         try {
-            const result = await resumeApplicationDraft({
+            const result = await resumeDraft({
                 companyId,
                 resumeToken: prompt.resumeToken,
             });
@@ -423,7 +425,7 @@ export function useApplicationResume({
         } finally {
             setBusy(false);
         }
-    }, [prompt, companyId, stepIndexFor, settleGate, adoptResumeToken]);
+    }, [prompt, companyId, stepIndexFor, settleGate, adoptResumeToken, resumeDraft]);
 
     /**
      * Start over: discards the unfinished application.
