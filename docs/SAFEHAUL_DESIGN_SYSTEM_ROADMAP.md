@@ -255,9 +255,12 @@ The reverse directions are prohibited — including any `@shared` import inside
   (`data-mobile-presentation="cards"`, labels from `data-label`, the same DOM at
   every width, and the table roles stated explicitly — `role="table"`,
   `"rowgroup"`, `"row"`, `"columnheader"`, `"cell"` — because `display: block`
-  drops the implicit ones). The Super Admin feature matrix is the one
+  drops the implicit ones). `DataTable` does the same for a work list with
+  `mobilePresentation="cards"` (labels from each column's `mobileLabel` or
+  header; `mobileCards.css`). The Super Admin feature matrix is the one
   specialized grid. Source: `components/data-table/README.md` ("Tables on
-  phones"), `pinnedColumn.css`, the `Patterns/Native table` story.
+  phones"), `pinnedColumn.css`, the `Patterns/Native table` and
+  `DataTable/Cards on mobile` stories.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
   record-specific accessible name. Prefer deciding which actions a row offers in
   a pure, tested module (as `unfinishedRowActions.js` does) over a `render`
@@ -384,6 +387,7 @@ are fully approved, §7 is permanent.
 | Unified Driver Database bulk actions removed | A control that does nothing is not shown; `UnifiedDriverList.bulkSafety.test.jsx` pins the absence. A real action returns with its selection when a recruiter asks — "Export" first, "Archive" only once an archived state is defined (Archive is not delete). `LeadAssignmentModal` is single-company and campaigns own bulk SMS with their own consent rules; both bind the first real action |
 | Employers sign the verification portal by drawing or typing | `SignatureInput` (`shared/components/signature`) wraps the pad in a `SegmentedControl` Draw \| Type choice, Draw by default; a typed name is stored as `TEXT_SIGNATURE:<name>` and never rasterised; the method travels with the response and the server refuses a mislabelled one; the DQ-file PDF prints a typed name in an oblique face under "(typed)"; switching method clears the mark |
 | Editable matrices and tables on phones | The §3 table rule; the SMS recruiter matrix is one card per row under 768px and a table with its name column pinned above it |
+| Work lists on phones (2026-10-08) | `DataTable` `mobilePresentation="cards"`, for rows worked one at a time and never compared: the unfinished-applications list first. Each cell's label is its column's `mobileLabel`, else its header; `''` gives an actions cell the card's width; no `selection` |
 | AI Integrations → Logs (`AiLogsPanel.jsx`) | `DataTable` at `density="compact"`, `minWidth="wide"`, default labelled horizontal scroll; nothing hidden at any width, full detail in a dialog reached by activating the row; status column `xl` (a non-wrapping `Badge` plus detail text) |
 | Guided tour removed (owner) | A reintroduced tour must first answer the dialog question — a blocking backdrop needs `role="dialog"`, a focus move and Escape — starting from a named close control and step progress announced in text |
 | Facebook Integrations flag stays off (owner) | The visible "not production-ready" notice stays with it; `scripts/audit-facebook-lead-tenancy.mjs` is a read-only report |

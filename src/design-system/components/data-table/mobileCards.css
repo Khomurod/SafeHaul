@@ -1,0 +1,128 @@
+/*
+ * CARDS ON A PHONE for `DataTable`: `mobilePresentation="cards"`.
+ *
+ * The rule for a table on a phone is in `pinnedColumn.css`, and the shape this
+ * file draws is the one it allows besides the sideways scroll: a list worked one
+ * record at a time becomes one card per row under 768px, as a native table does
+ * with `data-mobile-presentation="cards"` (`nativeTable.css`). Nothing in such a
+ * list is read across rows, so the scroll would be all the table gained.
+ *
+ * Under 768px the table, its body, rows and cells become blocks; the header
+ * leaves the visual flow but stays in the tree; the row header is the card's
+ * title; and every other cell is a two-column grid whose first column is its
+ * label, `attr(data-label)`, which `DataTable` writes from the column's
+ * `mobileLabel`, else its header. A cell with no label (an actions column given
+ * `mobileLabel: ''`) takes the card's width. The cells keep the row's surface
+ * and divider, so a row and its card are one thing. `DataTable` states the
+ * table roles itself in this mode, because `display: block` can drop them.
+ * Above 768px nothing here applies and the table is a table, its first column
+ * pinned (`pinnedColumn.css`) because it can still scroll sideways; a card has
+ * nothing to scroll, so here the pin and its seam are taken off again.
+ */
+@media (max-width: 767px) {
+  .ds-data-table[data-mobile-presentation='cards'] table {
+    display: block;
+    /* Beats the contract widths, which are for the table it is at 768px and up. */
+    min-width: 0;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'] colgroup {
+    display: none;
+  }
+
+  /* Specific enough to beat every pinned-column rule, the seam's included. */
+  .ds-data-table[data-mobile-presentation='cards'][data-pin-first-column]:not([data-has-selection]) thead > tr > :first-child,
+  .ds-data-table[data-mobile-presentation='cards'][data-pin-first-column]:not([data-has-selection]) tbody > tr > :first-child:not([colspan]) {
+    position: static;
+    z-index: auto;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-pin-first-column]:not([data-has-selection]) thead > tr > :first-child::after,
+  .ds-data-table[data-mobile-presentation='cards'][data-pin-first-column]:not([data-has-selection]) tbody > tr > :first-child:not([colspan])::after {
+    content: none;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'] thead {
+    /* Present for assistive technology, out of the visual flow. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'] tbody,
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr,
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr > th,
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr > td {
+    display: block;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr > th,
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr > td {
+    width: auto;
+    height: auto;
+    padding: var(--ds-space-2) var(--ds-space-4);
+    overflow: visible;
+    border-bottom: 0;
+    text-align: start;
+    white-space: normal;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr > :first-child {
+    padding-top: var(--ds-space-4);
+  }
+
+  /* The card's own edge: the row divider, under its last cell. */
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr > :last-child {
+    padding-bottom: var(--ds-space-4);
+    border-bottom: 1px solid var(--ds-table-divider);
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr:last-child > :last-child {
+    border-bottom: 0;
+  }
+
+  /* The row header is the card's title. */
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr > th[scope='row'] {
+    padding-bottom: var(--ds-space-3);
+    border-bottom: 1px solid var(--ds-table-divider);
+    font-weight: var(--ds-font-weight-semibold);
+  }
+
+  /* A value, under the label of the column it came from. */
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr > td[data-label] {
+    display: grid;
+    grid-template-columns: minmax(96px, 2fr) minmax(0, 3fr);
+    column-gap: var(--ds-space-3);
+    align-items: center;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr > td[data-label]::before {
+    content: attr(data-label);
+    color: var(--ds-table-header-fg);
+    font-size: var(--ds-font-size-xs);
+    font-weight: var(--ds-font-weight-bold);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /*
+   * A card is one target, so its focus ring goes round the card, not each cell.
+   * An outline, because it paints over the cells' surface where an inset shadow
+   * on the row would sit under it.
+   */
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr[data-interactive='true']:focus-visible {
+    outline: 2px solid var(--ds-color-focus);
+    outline-offset: -2px;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'] tbody > tr[data-interactive='true']:focus-visible > * {
+    box-shadow: none;
+  }
+}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DataTable } from './DataTable';
 import { defineTableColumns } from './tableColumnContract';
 
@@ -191,6 +191,133 @@ describe('DataTable', () => {
       <DataTable ariaLabel="Example records" columns={columns} data={rows} pinFirstColumn={false} />,
     );
     expect(root()).not.toHaveAttribute('data-pin-first-column');
+  });
+
+  describe('as cards on a phone (`mobilePresentation="cards"`)', () => {
+    const workColumns = defineTableColumns([
+      ...columns,
+      { key: 'owner', header: <span>Owner</span>, headerLabel: 'Owner', render: () => 'Rae' },
+      { key: 'step', header: 'Step', mobileLabel: 'Reached', render: () => 'Licence' },
+      { key: 'actions', header: '', headerLabel: 'Actions', mobileLabel: '', render: () => <button type="button">Open</button> },
+    ]);
+    const renderCards = () => render(
+      <DataTable ariaLabel="Follow-ups" columns={workColumns} data={rows} mobilePresentation="cards" />,
+    );
+    const SCROLLS = 'Follow-ups. Scroll horizontally to view all columns.';
+
+    /** A screen whose width can change under the table, as a phone turning does. */
+    function screenWidth(narrow) {
+      const listeners = new Set();
+      const list = {
+        get matches() { return narrow; },
+        addEventListener: (_type, listener) => listeners.add(listener),
+        removeEventListener: (_type, listener) => listeners.delete(listener),
+      };
+      vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
+        expect(query).toBe('(max-width: 767px)');
+        return list;
+      });
+      return {
+        turn(next) {
+          narrow = next;
+          act(() => listeners.forEach((listener) => listener()));
+        },
+      };
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('states the table roles itself, since a block-level table can lose them', () => {
+      renderCards();
+
+      const table = screen.getByRole('table', { name: 'Follow-ups' });
+      expect(table).toHaveAttribute('role', 'table');
+      table.querySelectorAll('thead, tbody').forEach((group) => expect(group).toHaveAttribute('role', 'rowgroup'));
+      table.querySelectorAll('tr').forEach((row) => expect(row).toHaveAttribute('role', 'row'));
+      table.querySelectorAll('thead th').forEach((cell) => expect(cell).toHaveAttribute('role', 'columnheader'));
+      expect(screen.getByRole('rowheader', { name: 'Alpha Driver' })).toHaveAttribute('role', 'rowheader');
+      expect(screen.getByRole('cell', { name: 'Ready' })).toHaveAttribute('role', 'cell');
+    });
+
+    it('labels each value with its column, and leaves a cell unlabelled when told to', () => {
+      renderCards();
+
+      const [firstRow] = screen.getAllByRole('row').slice(1);
+      const label = (key) => within(firstRow).getAllByRole('cell')
+        .find((cell) => cell.textContent === key)?.getAttribute('data-label');
+      expect(label('Ready')).toBe('Status');
+      expect(label('Rae')).toBe('Owner');
+      expect(label('Licence')).toBe('Reached');
+      expect(within(firstRow).getByRole('button', { name: 'Open' }).closest('td')).not.toHaveAttribute('data-label');
+      // The title is the card's heading, not a labelled value.
+      expect(within(firstRow).getByRole('rowheader')).not.toHaveAttribute('data-label');
+    });
+
+    it('promises no sideways scroll while the cards are on screen', () => {
+      screenWidth(true);
+      const { container } = renderCards();
+
+      expect(screen.getByRole('region', { name: 'Follow-ups' })).toBeInTheDocument();
+      expect(container.querySelector('.ds-data-table__mobile-hint')).toBeNull();
+      expect(container.querySelector('.ds-data-table')).toHaveAttribute('data-mobile-presentation', 'cards');
+    });
+
+    // From 768px up the table can scroll sideways, so the identifying column stays
+    // in view; `mobileCards.css` takes the pin off a card again.
+    it('pins its first column, as the table it is from 768px up', () => {
+      const { container } = renderCards();
+
+      expect(container.querySelector('.ds-data-table')).toHaveAttribute('data-pin-first-column');
+    });
+
+    it('says the region scrolls from 768px up, where the cards are a table again', () => {
+      screenWidth(false);
+      renderCards();
+
+      expect(screen.getByRole('region', { name: SCROLLS })).toBeInTheDocument();
+    });
+
+    it('follows the screen as it turns', () => {
+      const phone = screenWidth(true);
+      renderCards();
+
+      phone.turn(false);
+      expect(screen.getByRole('region', { name: SCROLLS })).toBeInTheDocument();
+      phone.turn(true);
+      expect(screen.getByRole('region', { name: 'Follow-ups' })).toBeInTheDocument();
+    });
+
+    it('refuses a selection, which a card has no header row to hold', () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      expect(() => render(
+        <DataTable
+          ariaLabel="Follow-ups"
+          columns={workColumns}
+          data={rows}
+          mobilePresentation="cards"
+          selection={{ selectedIds: new Set(), onToggleRow: vi.fn(), onToggleAll: vi.fn() }}
+        />,
+      )).toThrow('takes no selection');
+    });
+
+    it('leaves a scrolling table as it was, on a phone too', () => {
+      screenWidth(true);
+      const { container } = render(<DataTable ariaLabel="Example records" columns={workColumns} data={rows} />);
+
+      expect(container.querySelector('table')).not.toHaveAttribute('role');
+      expect(container.querySelector('[data-label]')).toBeNull();
+      expect(screen.getByRole('region', { name: 'Example records. Scroll horizontally to view all columns.' })).toBeInTheDocument();
+    });
+
+    it('has no structural accessibility violations', async () => {
+      const { container } = renderCards();
+
+      const results = await axe(container, { rules: { 'color-contrast': { enabled: false } } });
+      expect(results.violations.map((violation) => violation.id)).toEqual([]);
+    });
   });
 
   it('has no structural accessibility violations', async () => {

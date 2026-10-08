@@ -21,6 +21,7 @@ Create columns with `defineTableColumns`. A column supports:
 | `rowHeader` | Uses `<th scope="row">` for the primary identifying cell |
 | `truncate` | Applies the approved single-line truncation behavior |
 | `stopPropagation` | Keeps a nested cell action from also activating its row |
+| `mobileLabel` | The label beside the value when the table is cards on a phone; `''` shows none |
 
 Do not add header-only or cell-only alignment classes. Add a reusable width or
 alignment option to this contract when a genuine missing case is found.
@@ -87,6 +88,16 @@ columns themselves are the signal that there is more.
   recruiter-assignment matrix is the first: a `<select>` and its verify action
   400px apart in a sideways-scrolling form was the worst case for a thumb, and
   nothing in that matrix is read across rows.
+- **A `DataTable` of records worked one at a time becomes cards the same way**
+  — `mobilePresentation="cards"` (`mobileCards.css`). Under 768px each row is a
+  card: the row header is its title, and every other cell sits under its
+  column's label (its `mobileLabel`, else its text `header`, else its
+  `headerLabel`); `mobileLabel: ''` shows none, so an actions cell takes the
+  card's width. The table states its roles itself and takes no `selection`; a
+  card pins nothing. At 768px and up it is the table it always was: its first
+  column pinned, its region named as one that scrolls (`useCardsLayout`). The
+  unfinished-applications list is the first; the `CardsOnMobile` story is the
+  shape to copy.
 - **A specialized interactive grid keeps its own layering.** The Super Admin
   feature matrix freezes a header row *and* a first column that cross, and
   keeps its hand-layered `sticky` cells on the contract's three local layers.

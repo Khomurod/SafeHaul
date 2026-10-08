@@ -7,8 +7,19 @@ import {
   Inbox,
 } from '../../icons';
 import { defineTableColumns } from './tableColumnContract';
+import { useCardsLayout } from './useCardsLayout';
 import './DataTable.css';
 import './pinnedColumn.css';
+import './mobileCards.css';
+
+/**
+ * The label a cell shows beside its value as a card on a phone: the column's
+ * `mobileLabel`, else its visible header, else its accessible one. `''` is none.
+ */
+function mobileLabelOf(column) {
+  if (column.mobileLabel !== undefined) return column.mobileLabel || undefined;
+  return (typeof column.header === 'string' && column.header) || column.headerLabel || undefined;
+}
 
 function SelectionCheckbox({ checked, indeterminate = false, label, onChange }) {
   const inputRef = useRef(null);
@@ -75,17 +86,18 @@ function StateContent({ state, empty, error, loadingLabel }) {
   );
 }
 
-function LoadingRows({ columns, showSelection, loadingLabel }) {
+function LoadingRows({ columns, showSelection, loadingLabel, role }) {
   return Array.from({ length: 6 }, (_, rowIndex) => (
-    <tr key={`loading-${rowIndex}`} aria-hidden={rowIndex > 0 || undefined}>
+    <tr key={`loading-${rowIndex}`} role={role('row')} aria-hidden={rowIndex > 0 || undefined}>
       {showSelection && (
-        <td className="ds-data-table__selection-cell">
+        <td className="ds-data-table__selection-cell" role={role('cell')}>
           <span className="ds-data-table__selection-skeleton" aria-hidden="true" />
         </td>
       )}
       {columns.map((column, columnIndex) => (
         <td
           key={column.key}
+          role={role('cell')}
           data-align={column.align}
           data-width={column.width}
         >
@@ -117,6 +129,14 @@ function LoadingRows({ columns, showSelection, loadingLabel }) {
  * pinned beside it. `pinFirstColumn={false}` opts out for a table whose first
  * column is not what identifies the row. See pinnedColumn.css for the rule and
  * the standard it applies.
+ *
+ * `mobilePresentation="cards"` is the other shape that rule allows, for rows
+ * worked one record at a time: under 768px each row is a card, its row header
+ * the title and every value under its column's label (`mobileCards.css`). The
+ * table then states its roles itself, since `display: block` can drop them, and a
+ * card pins nothing; at 768px and up it is the table it always was, its first
+ * column pinned. It takes no `selection`: a list worked one record at a time has
+ * no bulk action, and a card has no header row to hold "select all".
  */
 export const DataTable = memo(function DataTable({
   ariaLabel,
@@ -153,6 +173,14 @@ export const DataTable = memo(function DataTable({
   const columnCount = normalizedColumns.length + (showSelection ? 1 : 0);
   const normalizedError = typeof error === 'string' ? { message: error } : error;
   const showInlineError = normalizedError && data.length > 0 && !isLoading;
+  const cards = mobilePresentation === 'cards';
+  /** Cards on screen now; at 768px and up the same table can scroll sideways. */
+  const cardsOnScreen = useCardsLayout(cards);
+  if (cards && showSelection) {
+    throw new TypeError('A DataTable with mobilePresentation="cards" takes no selection; use mobilePresentation="scroll".');
+  }
+  /** A role stated outright, in cards only; a table's own markup carries it otherwise. */
+  const role = (name) => (cards ? name : undefined);
 
   const handleRowKeyDown = (event, row) => {
     if (!onRowActivate || event.target !== event.currentTarget) return;
@@ -163,8 +191,8 @@ export const DataTable = memo(function DataTable({
   };
 
   const renderStateRow = (state) => (
-    <tr>
-      <td colSpan={columnCount || 1}>
+    <tr role={role('row')}>
+      <td role={role('cell')} colSpan={columnCount || 1}>
         <StateContent
           state={state}
           empty={empty}
@@ -204,10 +232,10 @@ export const DataTable = memo(function DataTable({
       <div
         className="ds-data-table__scroll-region"
         role="region"
-        aria-label={`${ariaLabel}. Scroll horizontally to view all columns.`}
+        aria-label={cardsOnScreen ? ariaLabel : `${ariaLabel}. Scroll horizontally to view all columns.`}
         tabIndex={0}
       >
-        <table data-min-width={minWidth}>
+        <table data-min-width={minWidth} role={role('table')}>
           <caption className="sr-only">{ariaLabel}</caption>
           <colgroup>
             {showSelection && <col data-width="selection" />}
@@ -215,10 +243,10 @@ export const DataTable = memo(function DataTable({
               <col key={column.key} data-width={column.width} />
             ))}
           </colgroup>
-          <thead>
-            <tr>
+          <thead role={role('rowgroup')}>
+            <tr role={role('row')}>
               {showSelection && (
-                <th className="ds-data-table__selection-cell" scope="col">
+                <th className="ds-data-table__selection-cell" scope="col" role={role('columnheader')}>
                   <SelectionCheckbox
                     checked={allRowsSelected}
                     indeterminate={someRowsSelected}
@@ -231,6 +259,7 @@ export const DataTable = memo(function DataTable({
                 <th
                   key={column.key}
                   scope="col"
+                  role={role('columnheader')}
                   data-align={column.align}
                   data-width={column.width}
                   data-priority={column.priority}
@@ -243,12 +272,13 @@ export const DataTable = memo(function DataTable({
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody role={role('rowgroup')}>
             {isLoading ? (
               <LoadingRows
                 columns={normalizedColumns}
                 showSelection={showSelection}
                 loadingLabel={loadingLabel}
+                role={role}
               />
             ) : normalizedError && data.length === 0 ? (
               renderStateRow('error')
@@ -263,6 +293,7 @@ export const DataTable = memo(function DataTable({
                 return (
                   <tr
                     key={rowId}
+                    role={role('row')}
                     data-interactive={Boolean(onRowActivate)}
                     data-selected={isSelected || undefined}
                     data-tone={rowTone}
@@ -275,6 +306,7 @@ export const DataTable = memo(function DataTable({
                     {showSelection && (
                       <td
                         className="ds-data-table__selection-cell"
+                        role={role('cell')}
                         onClick={(event) => event.stopPropagation()}
                       >
                         <SelectionCheckbox
@@ -290,6 +322,8 @@ export const DataTable = memo(function DataTable({
                         <Cell
                           key={column.key}
                           scope={column.rowHeader ? 'row' : undefined}
+                          role={role(column.rowHeader ? 'rowheader' : 'cell')}
+                          data-label={cards && !column.rowHeader ? mobileLabelOf(column) : undefined}
                           data-align={column.align}
                           data-width={column.width}
                           data-priority={column.priority}
