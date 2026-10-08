@@ -213,7 +213,9 @@ describe('applicationDraftStorage', () => {
             // they cannot undo.
             expect(discardMarkReason(writeDiscardMark(SLUG, { reason: 'submit' }))).toBe('submit');
             expect(discardMarkReason(writeDiscardMark(SLUG, { reason: 'discard' }))).toBe('discard');
+            expect(discardMarkReason(writeDiscardMark(SLUG, { reason: 'removed' }))).toBe('removed');
             expect(discardMarkReason(writeDiscardMark(SLUG))).toBe('discard');
+            expect(discardMarkReason(writeDiscardMark(SLUG, { reason: 'anything else' }))).toBe('discard');
 
             // A mark written before the prefix existed, and anything unrecognisable:
             // read as a discard, which never claims a submission that did not happen.

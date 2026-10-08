@@ -433,22 +433,22 @@ compared only for inequality (no clock), remembered by each tab at load, pushed
 by the `storage` event (to every tab but the writer), and compared before every
 write.
 
-- **Wording, not identity.** A `discard:` / `submit:` prefix only picks the
-  message (an unprefixed mark reads as discard). The mark never names the
-  application — a draft's name is a slot generation, and two tabs on one
-  application mint different ones — so every tab acts on any change; a tab on
-  another application keeps its answers unless it had restored them (accepted).
+- **Wording, not identity.** The prefix picks the message: `discard:`,
+  `submit:`, or `removed:` once the server says the company deleted it
+  (`draftRemoval.js`); unprefixed reads as discard. It never names the
+  application (a draft's name is a slot generation; two tabs on one application
+  mint different ones), so every tab acts on any change (accepted).
 - **Start Over** deletes the server draft, resume token and local copy — local
   *before* the mark, since a mark failing on a full quota after the token is
   gone would let another tab recreate the application — clears only its own
   application (empty or unnamed slot yes, another's named slot no), and drops
   the token only if still the one it retired.
-- **Reacting tabs:** restored answers return to a fresh start; answers typed
-  there stay as a new application; a submitted application is never disturbed
-  (success screen, confirmation number, documents checklist). At start-up the
-  profile load captures the reset counter before fetching and skips the restore
-  if it moved, and compares the mark as well (a mark older than the listener
-  fires no event).
+- **Reacting tabs:** restored answers return to a fresh start, typed ones too
+  on `removed:` (else they stay as a new application); a submitted application
+  is never disturbed (success screen, confirmation number, documents checklist).
+  At start-up the profile load captures the reset counter before fetching and
+  skips the restore if it moved, and compares the mark as well (a mark older
+  than the listener fires no event).
 - **Submission re-checks** before validation and before every callable attempt —
   by mark, and by reset counter (an event during an in-flight submission is
   exempted and adopts the mark, so the counter is bumped first) — removes the
@@ -471,9 +471,9 @@ write.
   key (shared) cannot substitute.
 - **Edges.** With no draft stored the mark is still written; a pre-name draft is
   left alone; a direct submission clears only its own draft (mark written
-  regardless); a reacting tab clears the stored copy only if it had restored it;
-  Start Over, a close-out, "apply again" and reacting to a discard all forget
-  the name.
+  regardless); a reacting tab clears the stored copy only if it had restored it
+  or read `removed:`; Start Over, a close-out, "apply again" and reacting to a
+  discard all forget the name.
 
 ### Unfinished applications: server-side protection
 
@@ -736,12 +736,13 @@ carried forward; legacy bare-string prior hashes read as dead. Pinned by
 **A dead link says so; starting fresh is a choice.** The exchange throws like
 its sibling callables; `publicApplyInvite.js` classifies by what the driver is
 told. **`unopenable` is one bucket on purpose** (wrong, expired, submitted,
-superseded, discarded — the server answers them identically); other causes split
-only where the driver can act, **retry first for transient ones** (a silent
-fall-through would skip the claim, leave locks unenforced and hand the carrier a
-second, unprepared application). `ApplyLinkProblemScreen` sits below the success
-screen and above the intake chooser, so an ordinary application is an explicit
-button; `resolveApplyStatusScreen` (`PublicApplyScreens.jsx`) owns that order.
+superseded, discarded — the server answers them identically; the link of a draft
+its company deleted hears `removed`); other causes split only where the driver
+can act, **retry first for transient ones** (a silent fall-through would skip
+the claim, leave locks unenforced and hand the carrier a second, unprepared
+application). `ApplyLinkProblemScreen` sits below the success screen and above
+the intake chooser, so an ordinary application is an explicit button;
+`resolveApplyStatusScreen` (`PublicApplyScreens.jsx`) owns that order.
 
 ### Locked employers
 

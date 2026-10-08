@@ -83,6 +83,18 @@ describe('what a driver is told about a link that would not open', () => {
     expect(wrong.message).toBe(expired.message);
   });
 
+  it('says the company removed an application only to its own link', () => {
+    // The server says `removed` to a token of the deleted application alone
+    // (`functions/drafts/removalMarks.js`); every other dead link reads as before.
+    const removed = buildApplyLinkOutcomeMessage({ status: 'removed' });
+
+    expect(removed).toEqual({
+      message: 'The company removed this unfinished application, so its link no longer opens. You can start a new one.',
+      retryable: false,
+    });
+    expect(buildApplyLinkOutcomeMessage({ status: 'unopenable' }).message).not.toMatch(/removed/);
+  });
+
   it.each(['absent', 'opened', 'requires_identity', 'pending'])('says nothing for %s', (status) => {
     // `requires_identity` is not a failure: the driver is asked for their details
     // by the ordinary resume flow underneath.
