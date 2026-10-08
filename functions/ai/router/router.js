@@ -172,18 +172,28 @@ async function runAiTask(task, deps = {}) {
         inputSummary: describeTaskInput(task),
     };
 
+    /**
+     * Each provider's eligibility, asked once per request: by the walk, or
+     * earlier by a turn that needs to know whether anyone after it can serve.
+     */
+    const evaluations = new Map();
+    const evaluate = (provider) => {
+        if (!evaluations.has(provider.id)) {
+            evaluations.set(provider.id, configUnavailable
+                ? Promise.resolve({ eligible: false, reason: SKIP_REASONS.CONFIG_UNAVAILABLE })
+                : safeEvaluateProvider(provider, { capabilities, primaryCapability, configs, now, deps, imageCount }));
+        }
+        return evaluations.get(provider.id);
+    };
+
     try {
-        for (const provider of providers) {
+        for (const [index, provider] of providers.entries()) {
             if (deadlineController.signal.aborted) {
                 lastError = new AiError('deadline_exceeded', 'Total AI deadline reached.');
                 break;
             }
 
-            const evaluation = configUnavailable
-                ? { eligible: false, reason: SKIP_REASONS.CONFIG_UNAVAILABLE }
-                : await safeEvaluateProvider(provider, {
-                    capabilities, primaryCapability, configs, now, deps, imageCount,
-                });
+            const evaluation = await evaluate(provider);
 
             if (!evaluation.eligible) {
                 noteSkip(provider, evaluation.reason);
@@ -193,6 +203,12 @@ async function runAiTask(task, deps = {}) {
             attempted.push(provider.id);
             const turn = await runProviderTurn({
                 task, provider, evaluation, primaryCapability, timing, noteAttempt, deps,
+                hasLaterProvider: async () => {
+                    for (const later of providers.slice(index + 1)) {
+                        if ((await evaluate(later)).eligible) return true;
+                    }
+                    return false;
+                },
             });
 
             if (turn.ok) {

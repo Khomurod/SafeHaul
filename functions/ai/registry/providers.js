@@ -133,11 +133,9 @@ function supportsAllCapabilities(provider, capabilities) {
  *
  *  1. An operator override: the operator naming the one model their account can
  *     reach, so it replaces the list rather than joining it.
- *  2. The versions the daily check verified for this lane (./savedModels.js).
- *  3. The built-in list (./modelVersions.js). A capability with no list of its
- *     own falls back to the text list, as a single pin always did. A row
- *     without `modelVersions` (a hand-built row in a test) falls back to
- *     `defaultModels`.
+ *  2. The versions the daily check verified for this lane (./savedModels.js),
+ *     while the built-in list is still the one they were checked against.
+ *  3. The built-in list (`builtInModels`).
  *
  * @param {object} provider registry row
  * @param {string} capability
@@ -151,8 +149,21 @@ function resolveModels(provider, capability, config = {}) {
         const override = config?.[field.name];
         if (typeof override === 'string' && override.trim()) return [override.trim()];
     }
-    const saved = savedModels(config, capability);
-    if (saved) return saved;
+    const builtIn = builtInModels(provider, capability);
+    return savedModels(config, capability, builtIn) || builtIn;
+}
+
+/**
+ * The release's own versions for a capability (./modelVersions.js). A
+ * capability with no list of its own falls back to the text list, as a single
+ * pin always did. A row without `modelVersions` (a hand-built row in a test)
+ * falls back to `defaultModels`.
+ *
+ * @param {object} provider registry row
+ * @param {string} capability
+ * @returns {string[]} possibly empty, never null
+ */
+function builtInModels(provider, capability) {
     const lists = provider.modelVersions;
     if (lists) {
         // An empty list is no list: fall back to text, as a missing pin did.
@@ -206,6 +217,7 @@ module.exports = {
     isRetired,
     supportsAllCapabilities,
     resolveModels,
+    builtInModels,
     resolveModel,
     resolveStructuredMode,
 };

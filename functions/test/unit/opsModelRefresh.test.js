@@ -11,7 +11,10 @@ jest.mock('firebase-functions/v2/scheduler', () => ({ onSchedule: jest.fn((_opts
 jest.mock('../../firebaseAdmin', () => {
     const stored = { data: {} };
     const ref = {
-        get: async () => ({ exists: true, data: () => stored.data }),
+        get: async () => {
+            if (stored.failGet) throw Object.assign(new Error('unavailable'), { code: 14 });
+            return { exists: true, data: () => stored.data };
+        },
         set: async (patch) => { stored.data = { ...stored.data, ...patch }; },
     };
     const db = {
@@ -49,7 +52,7 @@ const DAY = Date.parse('2026-10-08T15:25:00Z');
 const TOKEN = `${'1'.repeat(9)}:${'t'.repeat(35)}`;
 
 const laneResult = (overrides = {}) => ({
-    models: ['m1', 'm2'], previous: ['m1', 'm2'], dropped: [], added: [], status: 'ok', changed: false,
+    models: ['m1', 'm2'], previous: ['m1', 'm2'], seed: ['m1', 'm2'], dropped: [], added: [], status: 'ok', changed: false,
     results: [{ model: 'm1', result: RESULT.PASSED, category: null }], ...overrides,
 });
 const checked = (lanes, extra = {}) => ({ catalogue: 'ok', account: null, lanes, ...extra });
@@ -59,6 +62,7 @@ const checkedLongAgo = { modelCheck: { fullCheckAt: new Date(DAY - 40 * HOUR).to
 beforeEach(() => {
     jest.resetAllMocks();
     mockLeaseDoc.data = {};
+    mockLeaseDoc.failGet = false;
     mockStore.readAllConfigs.mockResolvedValue(configs({ gemini: { enabled: true, ...checkedLongAgo } }));
     mockStore.resolveCredentials.mockImplementation(async (id) => (id === 'gemini'
         ? { complete: true, values: { apiKey: 'k' }, unreadable: [] }
@@ -88,6 +92,18 @@ describe('when a provider is due', () => {
         expect(dueReason({ ...failing, modelCheck: { fullCheckAt: at(10), checkedAt: at(7) } }, DAY)).toBe('failing');
         expect(dueReason({ ...failing, modelCheck: { fullCheckAt: at(10), checkedAt: at(2) } }, DAY)).toBeNull();
         expect(dueReason({ laneHealth: { vision: 'healthy' }, modelCheck: { fullCheckAt: at(10), checkedAt: at(7) } }, DAY)).toBeNull();
+    });
+
+    it('not every 6 hours for a lane the last check passed: the router may simply not have asked it since', () => {
+        // Failed once, a day and a half ago; checked 7 hours ago.
+        const failing = { laneHealth: { vision: 'degraded' }, laneFailedAt: { vision: DAY - 30 * HOUR } };
+        const lastCheck = (status) => ({ fullCheckAt: at(10), checkedAt: at(7), lanes: { vision: { status } } });
+        expect(dueReason({ ...failing, modelCheck: lastCheck('ok') }, DAY)).toBeNull();
+        expect(dueReason({ ...failing, modelCheck: lastCheck('skipped') }, DAY)).toBeNull();
+        expect(dueReason({ ...failing, modelCheck: lastCheck('failing') }, DAY)).toBe('failing');
+        expect(dueReason({ ...failing, modelCheck: lastCheck('unknown') }, DAY)).toBe('failing');
+        // The day's check still comes.
+        expect(dueReason({ ...failing, modelCheck: { ...lastCheck('ok'), fullCheckAt: at(37) } }, DAY)).toBe('daily');
     });
 
     it('within the hour of a failure that began after the last check, however recent that check', () => {
@@ -139,7 +155,8 @@ describe('what it saves', () => {
 
         const [providerId, record] = mockSave.mock.calls[0];
         expect(providerId).toBe('gemini');
-        expect(record.modelLists).toEqual({ vision: { models: ['m1', 'm3'], verifiedAt: new Date(DAY).toISOString() } });
+        // With the built-in list it was checked against, so a release that changes that list wins.
+        expect(record.modelLists).toEqual({ vision: { models: ['m1', 'm3'], verifiedAt: new Date(DAY).toISOString(), seed: ['m1', 'm2'] } });
         expect(record.modelCheck.lanes.vision).toMatchObject({ status: 'ok', models: ['m1', 'm3'], suggested: null });
         expect(record.modelCheck.lanes.text).toMatchObject({ models: ['m1', 'm2'] });
         expect(record.modelCheck).toMatchObject({ checkedAt: new Date(DAY).toISOString(), reason: 'daily', account: null });
@@ -153,6 +170,31 @@ describe('what it saves', () => {
         const [, record] = mockSave.mock.calls[0];
         expect(record.modelCheck).toMatchObject({ account: RESULT.KEY, catalogue: 'unauthorized' });
         expect(record.modelCheck).not.toHaveProperty('lanes');
+    });
+
+    it('obeys auto-select switched off while the run was checking', async () => {
+        mockCheck.mockImplementation(async () => {
+            mockLeaseDoc.data = { ...mockLeaseDoc.data, autoSelect: false };
+            return checked({ vision: laneResult({ models: ['m3'], previous: ['m1'], changed: true, added: ['m3'] }) });
+        });
+
+        await runModelRefresh({ now: DAY });
+
+        const [, record] = mockSave.mock.calls[0];
+        expect(record.modelLists).toEqual({});
+        expect(record.modelCheck.lanes.vision).toMatchObject({ models: ['m1'], suggested: ['m3'] });
+    });
+
+    it('keeps the run\'s own reading of auto-select when it cannot read it again', async () => {
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockLeaseDoc.failGet = true;
+        mockCheck.mockResolvedValue(checked({ vision: laneResult({ models: ['m1', 'm3'], changed: true, added: ['m3'] }) }));
+
+        await runModelRefresh({ now: DAY });
+
+        expect(mockSave.mock.calls[0][1].modelLists).toEqual({ vision: expect.objectContaining({ models: ['m1', 'm3'] }) });
+        expect(console.error).toHaveBeenCalledWith('[ops/modelRefresh] auto-select read failed code=14');
+        console.error.mockRestore();
     });
 
     it('with auto-select off, changes nothing and records the suggestion', async () => {
@@ -203,6 +245,50 @@ describe('what it tells the owner', () => {
         mockStore.readAllConfigs.mockResolvedValue(configs({ gemini: { enabled: true, ...checkedLongAgo, modelCheck: { ...checkedLongAgo.modelCheck, notified } } }));
         await runModelRefresh({ now: DAY });
         expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it('tells a suggestion once, and again only when the check suggests something else', async () => {
+        mockLeaseDoc.data = { autoSelect: false };
+        const suggest = (models) => mockCheck.mockResolvedValue(checked({ vision: laneResult({ models, previous: ['m1'], changed: true }) }));
+        const runFrom = async (notified) => {
+            mockSend.mockClear();
+            mockSave.mockClear();
+            mockStore.readAllConfigs.mockResolvedValue(configs({ gemini: { enabled: true, ...checkedLongAgo, modelCheck: { ...checkedLongAgo.modelCheck, notified } } }));
+            await runModelRefresh({ now: DAY });
+            return mockSave.mock.calls[0][1].modelCheck.notified;
+        };
+
+        suggest(['m3']);
+        let notified = await runFrom({});
+        expect(mockSend.mock.calls[0][2]).toMatch(/предлагает m3, но автоподбор выключен/);
+        expect(notified).toMatchObject({ visionSuggested: 'm3' });
+
+        notified = await runFrom(notified);
+        expect(mockSend).not.toHaveBeenCalled();
+
+        suggest(['m4']);
+        notified = await runFrom(notified);
+        expect(mockSend.mock.calls[0][2]).toMatch(/предлагает m4/);
+
+        // Nothing suggested: forgotten, so the same suggestion later is news again.
+        mockCheck.mockResolvedValue(checked({ vision: laneResult() }));
+        notified = await runFrom(notified);
+        expect(notified).toMatchObject({ visionSuggested: null });
+    });
+
+    it('tells a newly connected chat a suggestion an earlier chat heard', async () => {
+        mockLeaseDoc.data = { autoSelect: false };
+        mockSettings.readSettings.mockResolvedValue({ telegram: { chatId: 333, connectedAt: '2026-10-08T15:00:00.000Z' } });
+        mockCheck.mockResolvedValue(checked({ vision: laneResult({ models: ['m3'], previous: ['m1'], changed: true }) }));
+        mockStore.readAllConfigs.mockResolvedValue(configs({ gemini: {
+            enabled: true,
+            ...checkedLongAgo,
+            modelCheck: { ...checkedLongAgo.modelCheck, notified: { visionSuggested: 'm3', destination: '2026-10-01T00:00:00.000Z' } },
+        } }));
+
+        await runModelRefresh({ now: DAY });
+
+        expect(mockSend.mock.calls[0][2]).toMatch(/предлагает m3/);
     });
 
     it.each([

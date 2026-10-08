@@ -65,7 +65,7 @@ beforeEach(() => {
     mockStore.readAllConfigs.mockResolvedValue(new Map(Object.entries({
         gemini: {
             enabled: true,
-            modelLists: { vision: { models: ['gemini-3.7-flash', 'gemini-3.6-flash'] } },
+            modelLists: { vision: { models: ['gemini-3.7-flash', 'gemini-3.6-flash'], seed: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'] } },
             modelCheck: {
                 checkedAt: CHECKED_AT,
                 reason: 'daily',

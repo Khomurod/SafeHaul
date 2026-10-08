@@ -282,6 +282,8 @@ describe('a document read does not sit through a long stated wait', () => {
         expect(asked()).toEqual(['groq/qwen/qwen3.8-27b', `mistral/${FIRST}`]);
         expect(result.providerId).toBe('mistral');
         expect(Date.now() - startedAt).toBeLessThan(1000);
+        // Groq's turn looked ahead to Mistral; the walk did not ask again.
+        expect(mockStore.resolveCredentials.mock.calls.filter(([id]) => id === 'mistral')).toHaveLength(1);
     });
 
     it('still waits out a pause of five seconds or less', async () => {
@@ -310,6 +312,85 @@ describe('a document read does not sit through a long stated wait', () => {
 
         expect(asked().filter((call) => call.startsWith('huggingface/'))).toHaveLength(1);
         expect(result.providerId).toBe('groq');
+        expect(Date.now() - startedAt).toBeLessThan(1000);
+    });
+});
+
+describe('unless no provider after it can read', () => {
+    // Moving on only helps when someone can be asked next. With nobody, it
+    // turned a seven-second pause into a failed read.
+    afterEach(() => jest.useRealTimers());
+
+    /** Every provider but these switched off by the operator. */
+    function onlyEnabled(ids, overrides = {}) {
+        const { PROVIDERS } = require('../../ai/registry/providers');
+        return allConfigured(Object.fromEntries(PROVIDERS.map((provider) => [
+            provider.id, ids.includes(provider.id) ? overrides[provider.id] || {} : { enabled: false },
+        ])));
+    }
+
+    /** Fails the first call with a stated wait, answers the next; returns each call's time. */
+    function pauseOnce(providerId, retryAfterMs) {
+        const calls = [];
+        vendors({
+            [providerId]: (context) => {
+                calls.push(Date.now());
+                if (calls.length === 1) throw fail('rate_limited', { status: 429, retryAfterMs });
+                return { text: '{"value":"x"}', model: context.model };
+            },
+        });
+        return calls;
+    }
+
+    /** Runs the task through one stated pause of `ms`, on a fake clock. */
+    async function runThroughPause(task, providerOrder, ms) {
+        jest.useFakeTimers();
+        const pending = runAiTask(task, { providerOrder });
+        await jest.advanceTimersByTimeAsync(ms);
+        return pending;
+    }
+
+    it.each([
+        ['a pause of its own', 'groq', readTask, 7000],
+        ['its own retry', 'huggingface', textReadTask, 10000],
+    ])('waits out the vendor\'s stated pause, on %s', async (_label, providerId, task, ms) => {
+        mockStore.readAllConfigs.mockResolvedValue(onlyEnabled([providerId]));
+        const calls = pauseOnce(providerId, ms);
+
+        const result = await runThroughPause(task(), [providerId], ms);
+
+        expect(result.providerId).toBe(providerId);
+        expect(calls).toHaveLength(2);
+        expect(calls[1] - calls[0]).toBeGreaterThanOrEqual(ms);
+    });
+
+    it('counts a provider after it only when that one could read now', async () => {
+        // Mistral is enabled and next in line, but cooling down in this lane.
+        mockStore.readAllConfigs.mockResolvedValue(onlyEnabled(['groq', 'mistral'], {
+            mistral: { laneCooldownUntil_vision: Date.now() + 60000 },
+        }));
+        pauseOnce('groq', 7000);
+
+        const result = await runThroughPause(readTask(), ['groq', 'mistral'], 7000);
+
+        expect(result.providerId).toBe('groq');
+        expect(asked()).toEqual(['groq/qwen/qwen3.8-27b', 'groq/qwen/qwen3.8-27b']);
+    });
+
+    it.each([
+        ['a pause of its own', 'groq', readTask],
+        ['its own retry', 'huggingface', textReadTask],
+    ])('still does not wait when %s would not leave a full attempt after it', async (_label, providerId, task) => {
+        // 45s in all and 20s an attempt: after 30s, only 15s would be left.
+        mockStore.readAllConfigs.mockResolvedValue(onlyEnabled([providerId]));
+        pauseOnce(providerId, 30000);
+        const startedAt = Date.now();
+
+        await expect(runAiTask(task(), { providerOrder: [providerId] })).rejects.toMatchObject({
+            category: 'all_providers_failed', failureCategories: ['rate_limited'],
+        });
+
+        expect(asked()).toHaveLength(1);
         expect(Date.now() - startedAt).toBeLessThan(1000);
     });
 });

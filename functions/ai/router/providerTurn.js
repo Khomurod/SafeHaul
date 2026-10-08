@@ -42,11 +42,13 @@ const { versionVerdict, fitsAnotherAttempt, INTERACTIVE_MAX_WAIT_MS } = require(
  *   signal: AbortSignal }} turn.timing the task's budget, shared by every turn
  * @param {Function} turn.noteAttempt appends one attempt to the transaction record
  * @param {object} [turn.deps] the router's injection seam
+ * @param {() => Promise<boolean>} [turn.hasLaterProvider] whether a provider after
+ *   this one could still serve the request; without it, one is assumed
  * @returns {Promise<{ ok: true, raw: object, output: *, model: string }
  *   | { ok: false, fatal: boolean, error: AiError }>}
  */
 async function runProviderTurn({
-    task, provider, evaluation, primaryCapability, timing, noteAttempt, deps = {},
+    task, provider, evaluation, primaryCapability, timing, noteAttempt, deps = {}, hasLaterProvider,
 }) {
     const { startedAt, totalDeadlineMs, perAttemptDeadlineMs, signal } = timing;
     const adapter = getAdapter(provider);
@@ -60,6 +62,16 @@ async function runProviderTurn({
     const restsVersions = (evaluation.versionCount || models.length) > 1;
     const versionRests = new Map();
     const leftMs = () => totalDeadlineMs - (Date.now() - startedAt);
+    // Under a ceiling, the time this provider may take is what it leaves the next
+    // one: none to leave when no later provider can serve, so the last one asked
+    // keeps a single slice back rather than two, and waits out a long stated
+    // pause. Asked only when a decision turns on it.
+    let lastResort = null;
+    const isLastResort = async () => {
+        if (lastResort === null) lastResort = hasLaterProvider ? !(await hasLaterProvider()) : false;
+        return lastResort;
+    };
+    const slicesToKeep = async () => (hasCeiling && await isLastResort() ? 1 : 2);
 
     let providerError = null;
     // A vendor that tells us when to come back earns one attempt beyond
@@ -68,9 +80,13 @@ async function runProviderTurn({
     // against a two-minute task deadline, abandoning a working provider
     // over that is a waste. Bounded four ways: `MAX_RETRY_AFTER_MS` in
     // http.js caps the wait, `INTERACTIVE_MAX_WAIT_MS` caps it under a
-    // per-attempt ceiling, `usedStatedWait` caps it to one occurrence, and
-    // the deadline signal ends it regardless.
+    // per-attempt ceiling while a later provider can serve, `usedStatedWait`
+    // caps it to one occurrence, and the deadline signal ends it regardless.
     let usedStatedWait = false;
+    // The pause the next attempt here would wait: the vendor's, once a turn,
+    // else the registry's backoff.
+    const nextWaitMs = () => (providerError?.retryAfterMs && !usedStatedWait ? providerError.retryAfterMs : 0)
+        || provider.retryPolicy?.backoffMs || 0;
 
     versions: for (let index = 0; index < models.length; index += 1) {
         const model = models[index];
@@ -79,11 +95,8 @@ async function runProviderTurn({
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
             const attemptStartedAt = Date.now();
             if (attempt > 0) {
-                const stated = providerError?.retryAfterMs && !usedStatedWait
-                    ? providerError.retryAfterMs
-                    : 0;
-                if (stated) usedStatedWait = true;
-                const backoff = stated || provider.retryPolicy?.backoffMs || 0;
+                const backoff = nextWaitMs();
+                if (providerError?.retryAfterMs) usedStatedWait = true;
                 if (backoff > 0) await sleep(backoff, signal);
                 if (signal.aborted) break versions;
             }
@@ -183,20 +196,22 @@ async function runProviderTurn({
                 }
 
                 // A failure about this version: try the next one now, without
-                // waiting, if the budget still holds it and a fallback after it.
+                // waiting, if the budget still holds it and, while a later
+                // provider can serve, a fallback after it.
                 if (verdict.switchVersion && index < models.length - 1 && !signal.aborted
-                    && fitsAnotherAttempt({ leftMs: leftMs(), perAttemptDeadlineMs, slicesAfter: 2 })) {
+                    && fitsAnotherAttempt({ leftMs: leftMs(), perAttemptDeadlineMs, slicesAfter: await slicesToKeep() })) {
                     continue versions;
                 }
 
                 // A stated wait. Under a per-attempt ceiling a person is
-                // waiting for this read, so a long wait is not served here:
-                // the next provider is asked at once. Otherwise grant one
-                // extra attempt when the wait still leaves a full slice after
-                // it; the loop above performs the wait and re-executes, so
+                // waiting for this read, so a long wait is not served here
+                // while a later provider can be asked at once. Otherwise grant
+                // one extra attempt when the wait still leaves a full slice
+                // after it; the loop above performs the wait and re-executes, so
                 // there is exactly one code path that calls the adapter.
                 if (providerError.retryAfterMs && !usedStatedWait) {
-                    if (hasCeiling && providerError.retryAfterMs > INTERACTIVE_MAX_WAIT_MS) break versions;
+                    if (hasCeiling && providerError.retryAfterMs > INTERACTIVE_MAX_WAIT_MS
+                        && !(await isLastResort())) break versions;
                     if (attempt === maxAttempts - 1 && !signal.aborted
                         && fitsAnotherAttempt({
                             leftMs: leftMs(), waitMs: providerError.retryAfterMs, perAttemptDeadlineMs, slicesAfter: 1,
@@ -214,11 +229,13 @@ async function runProviderTurn({
                 if (!providerError.retryable) break versions;
 
                 // A retry is still this provider's turn, so under a ceiling
-                // it has to leave a full slice for the next provider as well.
-                // Otherwise a provider with a retry policy, placed first,
-                // spends two ceilings on one stall and starves the fallback.
+                // it has to leave a full slice for the next provider as well,
+                // when there is one. Otherwise a provider with a retry policy,
+                // placed first, spends two ceilings on one stall and starves
+                // the fallback. The wait counted is the one the retry will take.
                 if (attempt < maxAttempts - 1 && !fitsAnotherAttempt({
-                    leftMs: leftMs(), waitMs: provider.retryPolicy?.backoffMs || 0, perAttemptDeadlineMs, slicesAfter: 2,
+                    leftMs: leftMs(), waitMs: nextWaitMs(), perAttemptDeadlineMs,
+                    slicesAfter: await slicesToKeep(),
                 })) break versions;
             }
         }

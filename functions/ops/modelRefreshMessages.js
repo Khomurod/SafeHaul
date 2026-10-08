@@ -11,6 +11,8 @@
  *   what the owner was last told (`modelCheck.notified`), so a provider failing
  *   all day is one message, not twenty-four. A newly connected chat hears what
  *   is still wrong. When the owner must act, the message says what to do.
+ *   A suggestion made while auto-select is off is told the same way: once, and
+ *   again only when the check suggests something else.
  *
  * Provider names come from the registry and models from vendor catalogues;
  * nothing a person typed reaches a message.
@@ -47,7 +49,8 @@ function laneState(status) {
  * @param {object} params
  * @param {string} params.name the provider's display name
  * @param {object} params.check what `checkProvider` returned
- * @param {object} params.notified what the owner was last told: `{ [lane]: 'ok'|'failing', account }`
+ * @param {object} params.notified what the owner was last told: `{ [lane]: 'ok'|'failing', account,
+ *   [`${lane}Suggested`]: the versions suggested }`
  * @returns {{ lines: string[], notified: object, news: string[] }} `news`: the list changes among
  *   `lines`, which no later check can see again, so they wait for delivery
  */
@@ -79,9 +82,14 @@ function notesFor({ name, check, notified = {} }) {
             parts.push('Делать ничего не нужно.');
             news.push(parts.join(' '));
             lines.push(parts.join(' '));
-        } else if (result.suggested) {
-            lines.push(`ℹ️ ${name}, ${words}: проверка предлагает ${result.suggested.join(', ')}, но автоподбор выключен. Включить: Super Admin → AI Integrations.`);
         }
+        const suggestionKey = `${lane}Suggested`;
+        const suggestion = !result.changed && result.suggested ? result.suggested.join(', ') : null;
+        if (suggestion && suggestion !== notified[suggestionKey]) {
+            lines.push(`ℹ️ ${name}, ${words}: проверка предлагает ${suggestion}, но автоподбор выключен. Включить: Super Admin → AI Integrations.`);
+        }
+        // Written only when there is one, or one to forget: the record is merged.
+        if (suggestion || told[suggestionKey]) told[suggestionKey] = suggestion;
 
         const state = laneState(result.status);
         if (!state || state === (notified[lane] || 'ok')) continue;

@@ -51,8 +51,10 @@ const RATE_LIMIT_REST_MAX_MS = 10 * MINUTE_MS;
  * Groq answers a spent per-minute token budget with a wait of seven to
  * twenty-five seconds, and the router used to sit through it while Mistral
  * could have read the document in three. Anything longer, under a per-attempt
- * ceiling, moves on to the next provider at once. Work without a ceiling still
- * waits, up to `MAX_RETRY_AFTER_MS` in ../providers/http.js.
+ * ceiling, moves on to the next provider at once, while one after it can serve;
+ * the last one able to waits, when a full attempt still fits after the wait.
+ * Work without a ceiling still waits, up to `MAX_RETRY_AFTER_MS` in
+ * ../providers/http.js.
  */
 const INTERACTIVE_MAX_WAIT_MS = 5000;
 
@@ -102,8 +104,9 @@ function versionVerdict(error, { hasCeiling, fullSlice = false }) {
  * One rule for every "try again here" decision, so they cannot drift apart:
  * after `waitMs`, at least `slicesAfter` per-attempt slices must remain. A retry
  * or a switch to another version needs two (its own, and one for the next
- * provider); waiting on a vendor's stated pause needs one. A task without a
- * per-attempt ceiling is bounded only by its total deadline, as before.
+ * provider), or one when no later provider can serve; waiting on a vendor's
+ * stated pause needs one. A task without a per-attempt ceiling is bounded only
+ * by its total deadline, as before.
  */
 function fitsAnotherAttempt({ leftMs, waitMs = 0, perAttemptDeadlineMs, slicesAfter }) {
     if (perAttemptDeadlineMs === Infinity) return true;
