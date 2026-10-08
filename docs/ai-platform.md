@@ -88,7 +88,7 @@ Three properties make it load-bearing rather than decorative:
 
 | Provider | Text | Structured JSON | Vision | Multi-image | Long context | Structured mode |
 | --- | :-: | :-: | :-: | :-: | :-: | --- |
-| Groq | ✅ | ✅ | ✅ | ✅ (max 5) | ✅ | Responses `json_schema`; **`json_object` on the image lanes** |
+| Groq | ✅ | ✅ | ✅ | ✅ (max 3) | ✅ | Responses `json_schema`, images included |
 | Google Gemini | ✅ | ✅ | ✅ | ✅ | ✅ | Interactions `response_format` |
 | Cloudflare Workers AI | ✅ | ✅ | — | — | — | prompt-carried |
 | GitHub Models | ✅ | ✅ | — | — | — | *retired — never selected* |
@@ -265,7 +265,9 @@ are one table in `router/versionPolicy.js`:
   needs two full slices left: the next version's and a fallback's. A licence
   read (45 s / 20 s) can therefore switch in its first 5 s, which the fast
   refusals above always are; a medical card or report (45 s / 25 s) switches
-  only on the next request, through the rest.
+  only on the next request, through the rest. The last provider that can serve
+  (none after it is enabled, configured, capable and out of cooldown) keeps no
+  fallback's slice: one slice left is enough.
 - **Rests.** A failed version rests in the lane it failed in
   (`ai_provider_config/{id}.versionRest`, one entry per lane and version under
   a hashed key), written with the turn's one `recordProviderOutcome`, and only
@@ -280,12 +282,13 @@ are one table in `router/versionPolicy.js`:
   up to 5 s (`INTERACTIVE_MAX_WAIT_MS`), Hugging Face's registry retry
   included; a longer wait sends the read to the next provider at once. Groq
   states 7–25 s on a spent per-minute token budget, which a driver used to wait
-  out while Mistral could have answered. Work without a ceiling still waits, up
-  to 30 s.
+  out while Mistral could have answered. The last provider that can serve waits
+  it out, when a full slice is still left after the wait: moving on would only
+  fail the read. Work without a ceiling still waits, up to 30 s.
 - **Test connection walks the versions too**, under the same table, and says
-  "Passed using X after Y failed" when a spare answered. It neither reads nor
-  writes rests, and switches only while the test's 150 s budget still holds a
-  full probe.
+  "Passed using X after Y failed" when a spare answered. It ignores rests while
+  it runs and writes none; a full pass clears them with the cooldowns. It
+  switches only while the test's 150 s budget still holds a full probe.
 
 The lists as verified on 2026-10-07: Gemini adds `gemini-3.5-flash-lite` for
 photos and structured text (it rejects the article request with a 400, and
@@ -306,8 +309,11 @@ for a paid plan.
    rest of the provider's config, so a Firestore fault falls back to the router's
    last known configs. Whatever is malformed reads as nothing saved: an id not
    shaped like a model id is dropped, each id counts once, and a list keeps at
-   most three. Article writing is never taken from a saved list.
-3. **The built-in list** in `registry/modelVersions.js`.
+   most three. Article writing is never taken from a saved list. A list applies
+   only while the release ships the built-in list it was checked against
+   (`modelLists.<lane>.seed`, the same versions in the same order), so a release
+   that re-pins a lane is used at once; a list without a seed is not used.
+3. **The built-in list** in `registry/modelVersions.js` (`builtInModels`).
 
 Rests, the switching table and Test connection apply to a saved list exactly as
 to a built-in one.
@@ -319,7 +325,8 @@ the saved lists true without a programmer. A provider is checked when it is
 due: daily at about 03:25 (and at any hour after 36 h), on the first run after
 it is set up, and within the hour of the router recording a new failure in one
 of its lanes (`laneHealth`, begun at `laneFailedAt`), then at most every 6 h
-while it lasts. Only enabled, configured,
+while the last check still finds the lane failing (only the router's own
+answers reset `laneHealth`). Only enabled, configured,
 unretired providers, only the lanes they already serve, and never a lane an
 operator chose a model for by hand.
 
@@ -358,15 +365,18 @@ check's time and reason. A saved key the runtime cannot read shows as
 same pass for every enabled provider with its key, inside the callable's 180 s (no
 test starts after 120 s), and reports how many providers it checked and how many
 it could not (an audit `failed`); the page then re-reads its provider rows and
-routing. The auto-select switch writes `autoSelect`: off keeps every list exactly
-as it is, so the check only suggests (`modelCheck.lanes.<lane>.suggested`, shown
-only while it is off); on applies from the next check. Both are mutations: recent
+routing. The auto-select switch writes `autoSelect`, which a run reads again
+just before it saves: off keeps every list exactly as it is, a run already under
+way included, so the check only suggests (`modelCheck.lanes.<lane>.suggested`,
+shown only while it is off); on applies from the next run. Both are mutations: recent
 sign-in, the mutate budget, and an audit record.
 
-Results go to the provider's config: `modelLists.<lane>` when a list changed,
-and `modelCheck` (when, why, what each version did) for the console. The owner
-hears in Telegram when a list changed, when a lane stops or starts passing, and
-when a key or allowance fails, with what to do (`ops/modelRefreshMessages.js`).
+Results go to the provider's config: `modelLists.<lane>` when a list changed
+(with the built-in list it was checked against, `seed`), and `modelCheck` (when,
+why, what each version did) for the console. The owner hears in Telegram when a
+list changed, when a lane stops or starts passing, when a key or allowance
+fails, with what to do, and once what the check suggests while auto-select is
+off (`ops/modelRefreshMessages.js`).
 A state is told once, on the change, to the chat that heard it
 (`modelCheck.notified.destination`): a chat connected later hears what is still
 wrong. A list change that could not be sent waits in `modelCheck.pendingNews`
@@ -971,7 +981,7 @@ One document now carries the whole transaction:
 | `providerId`, `model`, `credentialSource` | who finally served it |
 | `verdict` | what the task's answer actually **said**, when the task supplies one |
 | `inputSummary` | a **shape** description — see below |
-| `attempts[]` | the timeline, bounded at 12 entries |
+| `attempts[]` | the timeline, bounded at 24 entries |
 
 Each attempt records `providerId`, `model`, `attemptNumber`, `status`
 (`attempted` / `skipped`), `skipReason`, `success`, `category`, `vendorCode`,
@@ -1274,8 +1284,10 @@ owner. **The feature is not fully live until they are.**
    Integrations:
    - **Test connection** on each configured provider, reading the
      per-capability results rather than only the overall pass/fail.
-   - **Verify model pins**. Anything reported stale needs a registry change, not
-     a credential change.
+   - **Verify model pins**. A stale photo or text version leaves its lane at the
+     next model check (**Check versions now** runs one at once) unless
+     auto-select is off; one for article writing, or an operator's override,
+     needs a registry or config change, not a credential change.
 
    Then from Super Admin → Blog Posts, the **manual publication check**
    (`runBlogPublicationNow`). It shares `publishDueSlots` with the schedule, so

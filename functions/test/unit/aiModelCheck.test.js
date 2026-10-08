@@ -5,7 +5,8 @@
 
 const { decideLane, checkProvider, MAX_TESTS_PER_PROVIDER } = require('../../ai/tasks/modelCheck');
 const { RESULT } = require('../../ai/tasks/modelVerification');
-const { requireProvider } = require('../../ai/registry/providers');
+const { requireProvider, builtInModels } = require('../../ai/registry/providers');
+const { CAPABILITIES } = require('../../ai/registry/capabilities');
 
 const results = (entries) => new Map(Object.entries(entries).map(([model, result]) => [model, { model, result }]));
 
@@ -138,9 +139,23 @@ describe('checkProvider', () => {
 
     it('checks the versions a lane really uses: the saved list, when there is one', async () => {
         const verify = script({});
-        const out = await run({ verify, fetchImpl: catalogue(['gemini-3.7-flash']) }, { modelLists: { vision: { models: ['gemini-3.7-flash'] } } });
+        const seed = builtInModels(gemini, CAPABILITIES.VISION);
+        const out = await run({ verify, fetchImpl: catalogue(['gemini-3.7-flash']) }, { modelLists: { vision: { models: ['gemini-3.7-flash'], seed } } });
 
         expect(out.lanes.vision.previous).toEqual(['gemini-3.7-flash']);
+        // What it saves is still measured against the release's list, not the saved one.
+        expect(out.lanes.vision.seed).toEqual(seed);
+    });
+
+    it('says which built-in list each lane was checked against, for the list it saves', async () => {
+        const verify = script({});
+        // Saved against versions this release no longer ships: the check starts from the release's own.
+        const config = { modelLists: { vision: { models: ['gemini-3.7-flash'], seed: ['gemini-3.5-flash'] } } };
+        const out = await run({ verify, fetchImpl: catalogue(['gemini-3.6-flash', 'gemini-3.5-flash-lite']) }, config);
+
+        expect(out.lanes.vision.previous).toEqual(builtInModels(gemini, CAPABILITIES.VISION));
+        expect(out.lanes.vision.seed).toEqual(builtInModels(gemini, CAPABILITIES.VISION));
+        expect(out.lanes.text.seed).toEqual(builtInModels(gemini, CAPABILITIES.STRUCTURED_JSON));
     });
 
     it('leaves a lane an operator chose by hand alone', async () => {

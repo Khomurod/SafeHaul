@@ -27,7 +27,7 @@
  */
 
 const { LANES, CAPABILITIES } = require('../registry/capabilities');
-const { resolveModels } = require('../registry/providers');
+const { resolveModels, builtInModels } = require('../registry/providers');
 const { MAX_VERSIONS_PER_LANE } = require('../registry/modelVersions');
 const { managedLane } = require('../registry/savedModels');
 const { candidatesFor } = require('../registry/modelCandidates');
@@ -165,6 +165,9 @@ async function checkProvider({ provider, config, credentials, deadlineAt, deps =
         lanes[lane] = {
             ...decideLane({ current, checked, additions }),
             previous: current,
+            // The release's list this one was checked against: a saved list
+            // applies only while the release still ships it.
+            seed: builtInModels(provider, capability),
             results: [...checked.values(), ...tried].map(({ model, result, category }) => ({ model, result, category: category || null })),
         };
     }

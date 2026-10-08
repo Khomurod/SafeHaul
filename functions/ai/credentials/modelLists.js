@@ -15,7 +15,7 @@ const { configRef } = require('./configDoc');
 /**
  * @param {string} providerId
  * @param {object} patch
- * @param {object} [patch.modelLists] `{ [lane]: { models, verifiedAt } }` for the lanes that changed
+ * @param {object} [patch.modelLists] `{ [lane]: { models, verifiedAt, seed } }` for the lanes that changed
  * @param {object} patch.modelCheck what the check found
  */
 async function saveModelCheck(providerId, { modelLists, modelCheck }) {

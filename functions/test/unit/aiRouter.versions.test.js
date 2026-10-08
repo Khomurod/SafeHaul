@@ -18,7 +18,7 @@ const { AiError } = require('../../ai/router/errors');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
 const { TASK_TYPES, PRIVACY, defineTask } = require('../../ai/tasks/contract');
 const {
-    mockRecordTelemetry, mockStore, mockExecute, textTask, resetAiRouterState,
+    mockRecordTelemetry, mockStore, mockExecute, allConfigured, textTask, resetAiRouterState,
 } = require('./aiRouter.support');
 
 beforeEach(resetAiRouterState);
@@ -178,6 +178,20 @@ describe('a switch has to fit the task\'s budget', () => {
         expect(asked()).toEqual([`mistral/${FIRST}`, 'groq/qwen/qwen3.8-27b']);
         expect(result.providerId).toBe('groq');
     });
+
+    it('keeps no slice back for a fallback when no provider after it can read', async () => {
+        // The operator switched every other provider off: the same 39s hold
+        // the next version, and nothing is left waiting for the time.
+        const { PROVIDERS } = require('../../ai/registry/providers');
+        mockStore.readAllConfigs.mockResolvedValue(allConfigured(Object.fromEntries(PROVIDERS
+            .filter((provider) => provider.id !== 'mistral')
+            .map((provider) => [provider.id, { enabled: false }]))));
+
+        const result = await failFirstVersionAfter(6000);
+
+        expect(asked()).toEqual([`mistral/${FIRST}`, `mistral/${SECOND}`]);
+        expect(result.model).toBe(SECOND);
+    });
 });
 
 describe('what the router records', () => {
@@ -237,8 +251,8 @@ describe('what the router records', () => {
 });
 
 describe('versions the daily check saved', () => {
-    const { allConfigured } = require('./aiRouter.support');
-    const withSaved = (vision) => allConfigured({ mistral: { modelLists: { vision: { models: vision } } } });
+    // Checked against the built-in list this release ships.
+    const withSaved = (vision) => allConfigured({ mistral: { modelLists: { vision: { models: vision, seed: [FIRST, SECOND, THIRD] } } } });
 
     it('are asked first, in their order, and the built-in ones not at all', async () => {
         mockStore.readAllConfigs.mockResolvedValue(withSaved([SECOND, 'mistral-small-2603']));
@@ -261,6 +275,18 @@ describe('versions the daily check saved', () => {
 
     it('fall back to the built-in list when the stored one is unusable', async () => {
         mockStore.readAllConfigs.mockResolvedValue(withSaved(['not a model id']));
+        vendors({});
+
+        await runAiTask(readTask(), MISTRAL_FIRST);
+
+        expect(asked()).toEqual([`mistral/${FIRST}`]);
+    });
+
+    it('give way at once to a release that changed the lane\'s built-in list', async () => {
+        // Saved against an older release's versions, before this one re-pinned them.
+        mockStore.readAllConfigs.mockResolvedValue(allConfigured({
+            mistral: { modelLists: { vision: { models: ['mistral-small-2603'], seed: ['mistral-medium-latest'] } } },
+        }));
         vendors({});
 
         await runAiTask(readTask(), MISTRAL_FIRST);

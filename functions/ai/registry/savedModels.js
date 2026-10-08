@@ -12,6 +12,11 @@
 // the daily check writes the field (`../../ops/modelRefresh.js`), saving only
 // versions that passed.
 //
+// A saved list also records the built-in list it was checked against (`seed`),
+// and applies only while the release still ships that list: a release that
+// changes a lane's versions is used at once, rather than after the next check
+// has found the old ones failing.
+//
 // Two lanes are managed, the two the daily check verifies: photos, and text and
 // structured output. Article writing is not: it keeps its built-in list, because
 // a version that reads a licence well can still be too slow, or refuse, to
@@ -69,16 +74,23 @@ function sanitizeModelList(value) {
 
 /**
  * The verified versions saved for this capability's lane, or null when the
- * capability keeps its built-in list or nothing usable is saved.
+ * capability keeps its built-in list, nothing usable is saved, or the list was
+ * checked against other built-in versions than the release's.
  *
  * @param {object} config the provider's stored config
  * @param {string} capability
+ * @param {string[]} builtIn the capability's built-in list in this release
  * @returns {string[]|null}
  */
-function savedModels(config, capability) {
+function savedModels(config, capability, builtIn) {
     const lane = managedLane(capability);
     if (!lane) return null;
-    const models = sanitizeModelList(config?.modelLists?.[lane]?.models);
+    const saved = config?.modelLists?.[lane];
+    const seed = saved?.seed;
+    const sameSeed = Array.isArray(seed) && Array.isArray(builtIn) && seed.length === builtIn.length
+        && seed.every((model, index) => model === builtIn[index]);
+    if (!sameSeed) return null;
+    const models = sanitizeModelList(saved?.models);
     return models.length > 0 ? models : null;
 }
 

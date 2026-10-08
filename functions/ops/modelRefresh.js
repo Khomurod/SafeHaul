@@ -11,7 +11,7 @@
  * - **failing**, within the hour of the router recording a new failure in one
  *   of its lanes (`laneHealth`, begun at `laneFailedAt`), whether a driver's
  *   request or the hourly watcher found it; then at most every 6 hours while
- *   the failure lasts.
+ *   the last check still found the lane failing.
  *
  * Only enabled, configured, unretired providers, and only the lanes they already
  * serve: the check never adds a provider, enables one or changes the order.
@@ -21,8 +21,9 @@
  * `../ai/tasks/modelCheck.js` decides each lane's list; this job saves it into
  * the provider's config (`modelLists`), where the router reads it, and records
  * what it found (`modelCheck`) for the console. With auto-select switched off
- * (`ai_routing_config/modelCheck.autoSelect === false`) it only reports what it
- * would change. It tells the owner in Telegram when there is news
+ * (`ai_routing_config/modelCheck.autoSelect === false`, read again just before
+ * saving, so switching it off holds for a run already under way) it only
+ * reports what it would change. It tells the owner in Telegram when there is news
  * (`./modelRefreshMessages.js`), and works the same with no chat connected.
  *
  * A lease in `ai_routing_config/modelCheck` keeps two runs from overlapping.
@@ -36,7 +37,7 @@ const store = require('../ai/credentials/store');
 const { saveModelCheck } = require('../ai/credentials/modelLists');
 const { checkProvider } = require('../ai/tasks/modelCheck');
 const { TIMEZONE } = require('../blog/pipeline/themes');
-const { notesFor, composeMessage } = require('./modelRefreshMessages');
+const { notesFor, composeMessage, LANE_WORDS } = require('./modelRefreshMessages');
 const settings = require('./alertSettings');
 const telegram = require('./telegram');
 
@@ -64,10 +65,14 @@ function dueReason(config, now) {
         .map(([lane]) => lane);
     if (failing.length === 0) return null;
     // A failure that began after the last check is looked at within the hour; one
-    // that the last check already saw, at most every 6 hours while it lasts.
+    // that the last check already saw, at most every 6 hours while that check
+    // still found the lane failing. Only the router's own answers reset
+    // `laneHealth`, so a provider it has not asked since would read as failing
+    // for good; a lane the check passed (or an operator chose) waits for the day.
     const newSinceCheck = failing.some((lane) => Number(config.laneFailedAt?.[lane]) > lastAny);
-    if (!Number.isFinite(lastAny) || newSinceCheck || now - lastAny >= 6 * HOUR_MS) return 'failing';
-    return null;
+    if (!Number.isFinite(lastAny) || newSinceCheck) return 'failing';
+    const stillFailing = failing.some((lane) => !['ok', 'skipped'].includes(check.lanes?.[lane]?.status));
+    return stillFailing && now - lastAny >= 6 * HOUR_MS ? 'failing' : null;
 }
 
 /** Takes the lease, or says another run holds it. Also reads whether changes are applied. */
@@ -96,7 +101,23 @@ async function readCheckState(now = Date.now()) {
     };
 }
 
-/** Off keeps every list as it is now; nothing is put back. On applies from the next check. */
+/**
+ * Whether changes are applied, read again as a run saves: switched off while
+ * its providers were being checked, nothing changes. Switched on, the run stays
+ * the report it began as; on applies from the next run. The run's own reading
+ * stands when the setting cannot be read.
+ */
+async function autoSelectNow(fallback) {
+    try {
+        const snapshot = await SETTINGS_REF().get();
+        return (snapshot.exists ? snapshot.data() || {} : {}).autoSelect !== false;
+    } catch (error) {
+        console.error(`[ops/modelRefresh] auto-select read failed code=${error?.code || 'unknown'}`);
+        return fallback;
+    }
+}
+
+/** Off keeps every list as it is now, a run under way included; nothing is put back. On applies from the next check. */
 async function setAutoSelect(enabled) {
     await SETTINGS_REF().set({ autoSelect: enabled === true }, { merge: true });
 }
@@ -129,7 +150,7 @@ function recordFor({ check, reason, config }, { autoSelect, at }) {
     const lanes = {};
     for (const [lane, result] of Object.entries(check.lanes)) {
         const apply = autoSelect && result.changed;
-        if (apply) modelLists[lane] = { models: result.models, verifiedAt: at };
+        if (apply) modelLists[lane] = { models: result.models, verifiedAt: at, seed: result.seed };
         lanes[lane] = {
             status: result.status,
             // What the lane uses after this check, and what was found.
@@ -180,13 +201,14 @@ async function readDestination() {
  * What this chat was last told. A chat connected since then starts from "all
  * well", as the watcher's does, so it hears anything still wrong. Every key is
  * kept, at its "all well" value, because the record is merged: a key left out
- * would keep what an earlier chat was told.
+ * would keep what an earlier chat was told. A lane is "ok"; the account and a
+ * suggestion are nothing.
  */
 function toldTo(stored, destination) {
     if ((stored.destination || null) === (destination?.key || null)) return stored;
     return Object.fromEntries(Object.keys(stored)
         .filter((key) => key !== 'destination')
-        .map((key) => [key, key === 'account' ? null : 'ok']));
+        .map((key) => [key, LANE_WORDS[key] ? 'ok' : null]));
 }
 
 /** Sends the run's news. True when there was nothing to send, or it arrived. */
@@ -233,6 +255,7 @@ async function runModelRefresh({ now = Date.now(), force = false, providerIds = 
         }));
 
         const at = new Date(now).toISOString();
+        const autoSelect = lease.autoSelect && await autoSelectNow(lease.autoSelect);
         const destination = await readDestination();
         const lines = [];
         const outcomes = [];
@@ -243,13 +266,13 @@ async function runModelRefresh({ now = Date.now(), force = false, providerIds = 
                 errors += 1;
                 continue;
             }
-            const record = recordFor(item, { autoSelect: lease.autoSelect, at });
+            const record = recordFor(item, { autoSelect, at });
             const stored = item.config.modelCheck?.notified || {};
             const pending = (item.config.modelCheck?.pendingNews || []).filter((line) => typeof line === 'string');
             // A change is news only once applied; with auto-select off it is a suggestion.
             const lanes = Object.fromEntries(Object.entries(item.check.lanes).map(([lane, result]) => [lane, {
                 ...result,
-                changed: lease.autoSelect && Boolean(result.changed),
+                changed: autoSelect && Boolean(result.changed),
                 suggested: record.modelCheck.lanes[lane].suggested,
             }]));
             const notes = notesFor({
