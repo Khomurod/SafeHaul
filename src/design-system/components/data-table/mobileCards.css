@@ -15,7 +15,9 @@
  * `mobileLabel: ''`) takes the card's width. The cells keep the row's surface
  * and divider, so a row and its card are one thing. `DataTable` states the
  * table roles itself in this mode, because `display: block` can drop them.
- * Above 768px nothing here applies and the table is a table.
+ * Above 768px nothing here applies and the table is a table, its first column
+ * pinned (`pinnedColumn.css`) because it can still scroll sideways; a card has
+ * nothing to scroll, so here the pin and its seam are taken off again.
  */
 @media (max-width: 767px) {
   .ds-data-table[data-mobile-presentation='cards'] table {
@@ -26,6 +28,18 @@
 
   .ds-data-table[data-mobile-presentation='cards'] colgroup {
     display: none;
+  }
+
+  /* Specific enough to beat every pinned-column rule, the seam's included. */
+  .ds-data-table[data-mobile-presentation='cards'][data-pin-first-column]:not([data-has-selection]) thead > tr > :first-child,
+  .ds-data-table[data-mobile-presentation='cards'][data-pin-first-column]:not([data-has-selection]) tbody > tr > :first-child:not([colspan]) {
+    position: static;
+    z-index: auto;
+  }
+
+  .ds-data-table[data-mobile-presentation='cards'][data-pin-first-column]:not([data-has-selection]) thead > tr > :first-child::after,
+  .ds-data-table[data-mobile-presentation='cards'][data-pin-first-column]:not([data-has-selection]) tbody > tr > :first-child:not([colspan])::after {
+    content: none;
   }
 
   .ds-data-table[data-mobile-presentation='cards'] thead {

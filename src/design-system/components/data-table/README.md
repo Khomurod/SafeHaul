@@ -93,9 +93,11 @@ columns themselves are the signal that there is more.
   card: the row header is its title, and every other cell sits under its
   column's label (its `mobileLabel`, else its text `header`, else its
   `headerLabel`); `mobileLabel: ''` shows none, so an actions cell takes the
-  card's width. The table states its roles itself and pins nothing; at 768px
-  and up it is the table it always was. The unfinished-applications list is the
-  first; the `CardsOnMobile` story is the shape to copy.
+  card's width. The table states its roles itself and takes no `selection`; a
+  card pins nothing. At 768px and up it is the table it always was: its first
+  column pinned, its region named as one that scrolls (`useCardsLayout`). The
+  unfinished-applications list is the first; the `CardsOnMobile` story is the
+  shape to copy.
 - **A specialized interactive grid keeps its own layering.** The Super Admin
   feature matrix freezes a header row *and* a first column that cross, and
   keeps its hand-layered `sticky` cells on the contract's three local layers.

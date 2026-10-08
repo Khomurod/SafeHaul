@@ -7,6 +7,7 @@ import {
   Inbox,
 } from '../../icons';
 import { defineTableColumns } from './tableColumnContract';
+import { useCardsLayout } from './useCardsLayout';
 import './DataTable.css';
 import './pinnedColumn.css';
 import './mobileCards.css';
@@ -132,8 +133,10 @@ function LoadingRows({ columns, showSelection, loadingLabel, role }) {
  * `mobilePresentation="cards"` is the other shape that rule allows, for rows
  * worked one record at a time: under 768px each row is a card, its row header
  * the title and every value under its column's label (`mobileCards.css`). The
- * table then states its roles itself, since `display: block` can drop them, and
- * pins nothing.
+ * table then states its roles itself, since `display: block` can drop them, and a
+ * card pins nothing; at 768px and up it is the table it always was, its first
+ * column pinned. It takes no `selection`: a list worked one record at a time has
+ * no bulk action, and a card has no header row to hold "select all".
  */
 export const DataTable = memo(function DataTable({
   ariaLabel,
@@ -171,6 +174,11 @@ export const DataTable = memo(function DataTable({
   const normalizedError = typeof error === 'string' ? { message: error } : error;
   const showInlineError = normalizedError && data.length > 0 && !isLoading;
   const cards = mobilePresentation === 'cards';
+  /** Cards on screen now; at 768px and up the same table can scroll sideways. */
+  const cardsOnScreen = useCardsLayout(cards);
+  if (cards && showSelection) {
+    throw new TypeError('A DataTable with mobilePresentation="cards" takes no selection; use mobilePresentation="scroll".');
+  }
   /** A role stated outright, in cards only; a table's own markup carries it otherwise. */
   const role = (name) => (cards ? name : undefined);
 
@@ -200,7 +208,7 @@ export const DataTable = memo(function DataTable({
       className="ds-data-table"
       data-density={density}
       data-mobile-presentation={mobilePresentation}
-      data-pin-first-column={(pinFirstColumn && !cards) || undefined}
+      data-pin-first-column={pinFirstColumn || undefined}
       data-has-selection={showSelection || undefined}
       data-embedded={embedded || undefined}
       aria-busy={isLoading || undefined}
@@ -224,7 +232,7 @@ export const DataTable = memo(function DataTable({
       <div
         className="ds-data-table__scroll-region"
         role="region"
-        aria-label={cards ? ariaLabel : `${ariaLabel}. Scroll horizontally to view all columns.`}
+        aria-label={cardsOnScreen ? ariaLabel : `${ariaLabel}. Scroll horizontally to view all columns.`}
         tabIndex={0}
       >
         <table data-min-width={minWidth} role={role('table')}>
