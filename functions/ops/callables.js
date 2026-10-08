@@ -89,6 +89,13 @@ function startLink(connection, pending) {
     return { link: `https://t.me/${connection.botUsername}?start=${pending.code}`, expiresAt: pending.expiresAt };
 }
 
+/** The chat alerts go to, as the console names it, or null. */
+function connectedChat(connection) {
+    return connection?.chatId !== undefined && connection?.chatId !== null
+        ? { title: connection.chatTitle || 'Telegram chat' }
+        : null;
+}
+
 const SETTINGS_CHANGED = 'The alert settings changed while the chat was connecting. Press Connect chat again.';
 
 /**
@@ -97,12 +104,21 @@ const SETTINGS_CHANGED = 'The alert settings changed while the chat was connecti
  * Only while the same bot and the same link are still the stored ones: a check
  * that read them before the operator pressed Remove or Replace token must not
  * write its copy back over the new settings, so they are checked before the
- * message and again, in one transaction, with the write.
+ * message and again, in one transaction, with the write. The page's own check
+ * and a press can both find the same Start: the one that comes second finds
+ * this chat already connected, which is what both wanted, and says so.
  */
 async function connectChat(request, token, connection, chat, code) {
     const stillCurrent = (stored) => stored.telegram?.botUsername === connection.botUsername
         && stored.telegram?.pendingStart?.code === code;
-    if (!stillCurrent(await settings.readSettings())) throw new HttpsError('failed-precondition', SETTINGS_CHANGED);
+    const connectedAlready = (stored) => (stored.telegram?.botUsername === connection.botUsername
+        && stored.telegram?.chatId === chat.id ? { chat: { title: stored.telegram.chatTitle || chat.title } } : null);
+    const before = await settings.readSettings();
+    if (!stillCurrent(before)) {
+        const already = connectedAlready(before);
+        if (already) return already;
+        throw new HttpsError('failed-precondition', SETTINGS_CHANGED);
+    }
 
     // Sent before it is saved, so a connected chat is one that was reached.
     await telegram.sendMessage(token, chat.id, CONNECTED_TEXT);
@@ -115,10 +131,18 @@ async function connectChat(request, token, connection, chat, code) {
             watch: {},
         };
     });
-    if (!saved) throw new HttpsError('failed-precondition', SETTINGS_CHANGED);
+    if (!saved) {
+        const already = connectedAlready(await settings.readSettings());
+        if (already) return already;
+        throw new HttpsError('failed-precondition', SETTINGS_CHANGED);
+    }
     await audit(request, ACTIONS.UPDATE, { setting: 'chat' });
     return { chat: { title: chat.title } };
 }
+
+/** Telegram will not let the bot write to that chat: blocked, or put out of a group. */
+const unreachableChat = (error) => error instanceof telegram.TelegramError
+    && (error.code === 'blocked' || error.code === 'bad_request');
 
 async function requireConnection() {
     const saved = await settings.readSettings();
@@ -140,9 +164,7 @@ exports.getPlatformAlerts = onCall({ cors: true }, async (request) => {
         const pending = pendingStart(connection);
         return {
             bot: connection.botUsername ? { username: connection.botUsername } : null,
-            chat: connection.chatId !== undefined && connection.chatId !== null
-                ? { title: connection.chatTitle || 'Telegram chat' }
-                : null,
+            chat: connectedChat(connection),
             pending: pending && connection.botUsername ? startLink(connection, pending) : null,
             watch: {
                 lastRunAt: watch.lastRunAt || null,
@@ -204,15 +226,31 @@ exports.connectPlatformAlertChat = onCall({ cors: true }, async (request) => {
         const { saved, token } = await requireConnection();
         const connection = saved.telegram || {};
         const lastLink = lastStartWindow(connection);
+        const pending = pendingStart(connection);
         if (lastLink) {
             // A Start pressed while the link was valid counts whenever this is asked.
             const { chat, strayStart } = await telegram.startsOnLink(token, lastLink);
-            // Awaited here, so a chat the bot cannot reach is refused in the operator's words.
-            if (chat) return await connectChat(request, token, connection, chat, lastLink.code);
-            const pending = pendingStart(connection);
+            try {
+                // Awaited here, so a chat the bot cannot reach is refused in the operator's words.
+                if (chat) return await connectChat(request, token, connection, chat, lastLink.code);
+            } catch (error) {
+                // That Start can never connect. Once its link has expired, a press
+                // gets a new link rather than the same refusal for a day.
+                if (checkOnly || pending || !unreachableChat(error)) throw error;
+            }
             if (pending) return { pending: startLink(connection, pending), ...(strayStart ? { strayStart: true } : {}) };
         }
-        if (checkOnly) return { pending: null };
+        const connected = connectedChat(connection);
+        if (checkOnly) {
+            // A chat that connects through a link takes the link with it, so a chat
+            // and no link at all means another page, or a press, connected it while
+            // this page waited. An expired link still stored connected nobody.
+            return connected && !connection.pendingStart ? { chat: connected } : { pending: null };
+        }
+        // Connect chat, pressed on a page that showed no chat, while its own check
+        // or another page connected one: that is what the press was for. Reconnect
+        // chat still gets a link, as does a page that does not say what it showed.
+        if (connected && request.data?.chatShown === false) return { chat: connected };
 
         // A code only this console has seen, in a link that sends it to the bot.
         // Bot names are public, so "whoever wrote last" is not proof of who the

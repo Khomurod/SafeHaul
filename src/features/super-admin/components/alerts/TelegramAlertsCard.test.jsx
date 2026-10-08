@@ -114,6 +114,8 @@ describe('setting it up', () => {
             'Connected to Dana Alvarez. A confirmation is in your Telegram.',
         ));
         expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(2);
+        // Both tries say the page showed no chat, so one connected meanwhile is the answer.
+        expect(services.connectPlatformAlertChat.mock.calls).toEqual([[{ chatShown: false }], [{ chatShown: false }]]);
         expect(toast.showError).not.toHaveBeenCalled();
     });
 
@@ -223,7 +225,7 @@ describe('while a Start link waits', () => {
         expect((await axe(container)).violations).toEqual([]);
     });
 
-    it('keeps asking through a brief outage, and stops at a refusal', async () => {
+    it('keeps asking through a brief outage, and stops at a refusal and says so', async () => {
         const refusal = 'This bot is connected to another service. Create a new bot with @BotFather for SafeHaul alerts.';
         services.connectPlatformAlertChat
             .mockRejectedValueOnce(failure('functions/unavailable', 'Telegram could not be reached. Try again in a few minutes.'))
@@ -235,8 +237,90 @@ describe('while a Start link waits', () => {
         expect(toast.showError).not.toHaveBeenCalled();
         await nextCheck();
         await waitFor(() => expect(toast.showError).toHaveBeenCalledWith(refusal));
+        // Not "Waiting…" for a Start nobody is checking for any more.
+        expect(screen.getByRole('status').textContent).toBe(
+            'This page stopped checking. When you have pressed Start in Telegram, press Connect chat.',
+        );
         await nextCheck();
         expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps asking after a request that never got through, later each time, and connects', async () => {
+        // What the browser reports when a request never reaches the server.
+        const lost = () => failure('functions/internal', 'internal');
+        services.connectPlatformAlertChat
+            .mockRejectedValueOnce(lost())
+            .mockRejectedValueOnce(lost())
+            .mockResolvedValueOnce({ chat: { title: 'Dana Alvarez' } });
+        render(<TelegramAlertsCard />);
+        await screen.findByRole('status');
+
+        await nextCheck();
+        await nextCheck();
+        expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(2);
+        // Two in a row: the next waits twice as long, 12 s rather than 6.
+        await nextCheck();
+        expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(2);
+
+        services.getPlatformAlerts.mockResolvedValue(CONNECTED);
+        await nextCheck();
+        await waitFor(() => expect(toast.showSuccess).toHaveBeenCalledWith(
+            'Connected to Dana Alvarez. A confirmation is in your Telegram.',
+        ));
+        expect(toast.showError).not.toHaveBeenCalled();
+        expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(3);
+    });
+
+    it('waits the usual few seconds again once an answer gets through', async () => {
+        const lost = () => failure('functions/internal', 'internal');
+        services.connectPlatformAlertChat
+            .mockRejectedValueOnce(lost())
+            .mockRejectedValueOnce(lost())
+            .mockResolvedValueOnce({ pending: { link } })
+            .mockRejectedValueOnce(lost())
+            .mockResolvedValueOnce({ chat: { title: 'Dana Alvarez' } });
+        render(<TelegramAlertsCard />);
+        await screen.findByRole('status');
+
+        await nextCheck(); // 6 s, lost
+        await nextCheck(); // 12 s, lost again
+        await wait(2 * START_CHECK_INTERVAL_MS); // 24 s, an answer
+        await nextCheck(); // 30 s, lost
+        expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(4);
+
+        services.getPlatformAlerts.mockResolvedValue(CONNECTED);
+        await nextCheck(); // 36 s: one error since the answer, so 6 s and not 24
+        await waitFor(() => expect(toast.showSuccess).toHaveBeenCalledWith(
+            'Connected to Dana Alvarez. A confirmation is in your Telegram.',
+        ));
+    });
+
+    it('asks again from a press of Connect chat once a refusal stopped it', async () => {
+        const refusal = 'Telegram could not deliver to that chat. Press Connect chat and Start again.';
+        services.connectPlatformAlertChat
+            .mockRejectedValueOnce(failure('functions/failed-precondition', refusal))
+            .mockResolvedValueOnce({ pending: { link } })
+            .mockResolvedValueOnce({ chat: { title: 'Dana Alvarez' } });
+        render(<TelegramAlertsCard />);
+        await screen.findByRole('status');
+
+        await nextCheck();
+        await waitFor(() => expect(toast.showError).toHaveBeenCalledWith(refusal));
+        await nextCheck();
+        expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(1);
+
+        // The press itself, which may hand out a link, and then the page asks again.
+        fireEvent.click(button('Connect chat'));
+        await waitFor(() => expect(services.connectPlatformAlertChat).toHaveBeenCalledTimes(2));
+        expect(services.connectPlatformAlertChat.mock.calls[1]).toEqual([{ chatShown: false }]);
+        await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Waiting for Start in Telegram…'));
+
+        services.getPlatformAlerts.mockResolvedValue(CONNECTED);
+        await nextCheck();
+        await waitFor(() => expect(toast.showSuccess).toHaveBeenCalledWith(
+            'Connected to Dana Alvarez. A confirmation is in your Telegram.',
+        ));
+        expect(services.connectPlatformAlertChat).toHaveBeenLastCalledWith({ checkOnly: true });
     });
 
     it('pauses for a minute when told to slow down, then goes on asking, with no error', async () => {
@@ -299,6 +383,14 @@ describe('once it is connected', () => {
         expect(within(list).getByText('AI reading text: Working')).toBeTruthy();
         expect(within(list).getByText('Blog publishing: Not checked')).toBeTruthy();
         expect(screen.getByText('2. Chat: Dana Alvarez')).toBeTruthy();
+    });
+
+    it('asks for a new link on Reconnect chat, saying the page showed a chat', async () => {
+        services.connectPlatformAlertChat.mockResolvedValue({ pending: { link: 'https://t.me/safehaul_alerts_bot?start=NEW789' } });
+        render(<TelegramAlertsCard />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Reconnect chat' }));
+
+        await waitFor(() => expect(services.connectPlatformAlertChat).toHaveBeenCalledWith({ chatShown: true }));
     });
 
     it('sends a test', async () => {
