@@ -63,6 +63,16 @@ const mockRunTransactionCalls = [];
 let mockBeforeNextTransaction = null;
 /** Draft-document writes that did NOT go through a transaction. */
 const mockNonTransactionalWrites = [];
+/** Storage, as the set of objects that exist, and every object deleted from it. */
+const mockStorageFiles = new Set();
+const mockDeletedFiles = [];
+let mockFailFileDeletesOn = null;
+let mockFailQueriesOn = null;
+
+/** A time as milliseconds, for the range filters: the doubles' timestamps and Dates alike. */
+function mockMillis(value) {
+    return value?.toMillis?.() ?? value?.toDate?.().getTime() ?? NaN;
+}
 
 /** Ids for `add()` and an argument-less `doc()`, unique within a suite. */
 let mockAutoIds = 0;
@@ -93,11 +103,15 @@ function mockCollectionRef(path) {
         orderBy: (field, direction) => query(filters, { field, direction }, max),
         limit: (count) => query(filters, order, count),
         get: async () => {
+            if (mockFailQueriesOn && path.includes(mockFailQueriesOn)) throw new Error('firestore unavailable');
+            if (filters.some((filter) => filter.value === undefined)) throw new Error('Firestore rejects an undefined filter value');
             let docs = [...mockStore.keys()]
                 .filter((key) => key.startsWith(`${path}/`) && key.split('/').length === path.split('/').length + 1)
                 .map(mockMakeDoc);
             for (const filter of filters) {
-                docs = docs.filter((doc) => doc.data()?.[filter.field] === filter.value);
+                docs = docs.filter((doc) => (filter.op === '>='
+                    ? mockMillis(doc.data()?.[filter.field]) >= mockMillis(filter.value)
+                    : doc.data()?.[filter.field] === filter.value));
             }
             if (order) {
                 docs.sort((a, b) => String(b.data()?.[order.field]?.seq ?? 0) - String(a.data()?.[order.field]?.seq ?? 0));
@@ -187,7 +201,25 @@ const companyTenantMock = () => ({
     assertCompanyAcceptingIntake: (...args) => mockAssertIntake(...args),
 });
 
+/** The bucket the purge deletes from and the submission checks: `exists` and `delete`, as the client has them. */
+function mockBucket() {
+    return {
+        file: (path) => ({
+            exists: async () => [mockStorageFiles.has(path)],
+            delete: async (options) => {
+                if (mockFailFileDeletesOn && path.includes(mockFailFileDeletesOn)) throw new Error('storage unavailable');
+                if (!mockStorageFiles.has(path) && !options?.ignoreNotFound) {
+                    throw Object.assign(new Error('No such object'), { code: 404 });
+                }
+                mockDeletedFiles.push(path);
+                mockStorageFiles.delete(path);
+            },
+        }),
+    };
+}
+
 const firebaseAdminMock = () => ({
+    storage: { bucket: () => mockBucket() },
     admin: {
         firestore: {
             FieldValue: { serverTimestamp: () => mockServerTimestamp(), delete: () => '__delete__' },
@@ -304,6 +336,16 @@ function failWritesOn(fragment) {
     mockFailWritesOn = fragment;
 }
 
+/** Makes every Storage delete of a path containing `fragment` throw, until the next reset. */
+function failFileDeletesOn(fragment) {
+    mockFailFileDeletesOn = fragment;
+}
+
+/** Makes every query of a collection whose path contains `fragment` throw, until the next reset. */
+function failQueriesOn(fragment) {
+    mockFailQueriesOn = fragment;
+}
+
 /** The original suite's `beforeEach` body, unchanged. */
 function resetDraftState() {
     jest.clearAllMocks();
@@ -313,6 +355,10 @@ function resetDraftState() {
     mockRunTransactionCalls.length = 0;
     mockNonTransactionalWrites.length = 0;
     mockBeforeNextTransaction = null;
+    mockStorageFiles.clear();
+    mockDeletedFiles.length = 0;
+    mockFailFileDeletesOn = null;
+    mockFailQueriesOn = null;
     mockCheckRateLimit.mockResolvedValue(true);
     mockAssertIntake.mockResolvedValue({ companyName: 'Acme Freight' });
     mockAssertCompanyAccess.mockResolvedValue(undefined);
@@ -330,6 +376,8 @@ module.exports = {
     mockDeletedPaths,
     mockRunTransactionCalls,
     mockNonTransactionalWrites,
+    mockStorageFiles,
+    mockDeletedFiles,
     mockServerTimestamp,
     mockAssertCompanyAccess,
     mockAssertCompanyAdmin,
@@ -337,6 +385,8 @@ module.exports = {
     mockAssertIntake,
     runBeforeNextTransaction,
     failWritesOn,
+    failFileDeletesOn,
+    failQueriesOn,
     resetDraftState,
     IDENTITY,
     COMPANY,

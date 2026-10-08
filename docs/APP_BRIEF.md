@@ -220,18 +220,16 @@ still hold an expired one, and the dossier's own admin upload stores a Storage
 download URL; views re-sign from `storagePath`. `useSignedUploadPreview` mints a
 fifteen-minute URL through `getSignedGuestUploadUrl` (which authorizes it) when
 someone looks. A `not-found` preview says the file is gone; any other error
-offers a retry and the row still reads as attached (upload gates key on
-presence).
+offers a retry, the row still reading as attached (gates key on presence).
 
 **A custom "file upload" answer is the file:** `{ name, storagePath }` in
 `customAnswers`, recorded only once the upload lands (answers from before
 2026-10-02 hold only a filename). Every renderer (review, snapshot, PDF,
 dossier) shows the name, even for a deleted question; the dossier's
 *Supplemental Questions* has **Open file** (`getSignedApplicationFileUrl`,
-minted on press). Deleting the application deletes the file, but only from
-`companies/{id}/applications/guest_uploads/` (the answer is browser-supplied;
-deletion runs with the Admin SDK; §12). While uploading, the picker is busy and
-Continue waits, as on the License step.
+minted on press). Deleting the application deletes the file (only in
+`guest_uploads/`; §12). While uploading, the picker is busy and Continue waits,
+as on the License step.
 
 ### Unfinished applications workspace
 
@@ -245,16 +243,18 @@ cannot do from anything SafeHaul shows them (§5, §12).
 
 | Started by | Status | A recruiter may… (`unfinishedRowActions.js`) | A Company Admin also may… |
 |---|---|---|---|
-| Company | `prepared` | open and keep editing (`getCompanyPreparedDraft`); mint the driver's first link | delete (`deleteApplicationDraft`) |
+| Company | `prepared` | open and keep editing (`getCompanyPreparedDraft`); mint the driver's first link | delete (`purgeApplicationDraft`) |
 | Company | `sent` | open and keep editing; mint a replacement link | delete |
 | Company | `driver_in_progress` | open the record — the server withholds the answers (`companyMayReadAnswers`); mint a continuation link | read and correct the answers (`getApplicationDraft`, `saveApplicationDraftEdits`); delete |
 | Driver | `in_progress` | mint a continuation link. Nothing else: `getCompanyPreparedDraft` answers `not-found`. | read and correct the answers; delete |
 
-The admin column (owner's decision, 2026-10-06) answers only
-`assertCompanyAdminStrict` and is audited. Deleting kills the link and keeps the
-uploads; the driver's device keeps its copy, which can still submit. **Edit
-answers** covers every page but what only the driver gives
-(`driverOnlyFields.json`), and never overwrites an answer changed since loading.
+The admin column (owner, 2026-10-06/07) answers only `assertCompanyAdminStrict`
+and is audited. **Delete** shows what goes, then removes answers, links, ticked
+same-driver drafts (same identity, email or phone) and uploads nothing else
+uses; its tokens learn "removed" (a device copy can still submit).
+`deleteApplicationDraft` (document only) serves older pages. **Edit answers**
+covers every page but what only the driver gives (`driverOnlyFields.json`), and
+never overwrites an answer changed since loading.
 
 ### Pipeline, documents and operations
 
@@ -1279,17 +1279,16 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 - **Required custom questions are enforced only on their own page**; neither the
   final pre-flight nor `submitGuestApplication` checks them, so an application
   resumed past that page can be submitted without the answer.
-- **A submitted upload's storage path is taken on trust.**
-  `submitGuestApplication` only checks that an upload field holds something, and
+- **A submitted upload's storage path is taken on trust.** Submission checks
+  only that an upload exists (`guestUploads.js`), and
   `deleteApplication` deletes every top-level `{ storagePath }` with the Admin
   SDK, so a hand-crafted submission could get another file deleted.
   `deleteSandboxApplication` removes the same files
   (`shared/applicationStorage.js`) but only inside `companies/SANDBOX/`, so a
   public sandbox submission cannot reach a real company's file. Viewing is safe
-  (`getSignedApplicationFileUrl` refuses paths outside the caller's
-  companies). Only custom-question uploads are held to
-  `companies/{id}/applications/guest_uploads/`; restricting the standard fields
-  needs a survey of every folder a legitimate file can live in.
+  (`getSignedApplicationFileUrl` refuses paths outside the caller's companies).
+  Only custom-question uploads are held to `guest_uploads/`; restricting the
+  standard fields needs a survey of every folder a legitimate file can live in.
 - **A rule or question switched on mid-application appears only after a
   reload.** The server judges current settings while the page keeps those it
   loaded: the applicant is sent to the right page with the server's sentence,

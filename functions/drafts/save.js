@@ -19,6 +19,7 @@ const {
     liveDraftForToken, mayModifyExistingDraft, recordMatchAttempt,
     retirePreparedSource, supersedeOtherDrafts, text,
 } = require('./identity');
+const { removedForToken } = require('./removalMarks');
 
 /**
  * The carrier-prepared draft this save belongs to, or null.
@@ -346,11 +347,13 @@ exports.saveApplicationProgress = functions
                     'draft_write_refused',
                 );
             }
-            // Deliberately the same shape a network failure produces. The client
-            // treats it as "not synced", keeps its local copy, and tells the
-            // applicant nothing — there is nothing they could do about it, and a
-            // message would confirm to a stranger that this draft exists.
-            return { saved: false, applicantKey: null, resumeToken: null };
+            // Otherwise the shape a network failure produces: the client keeps its
+            // copy and tells the applicant nothing, which confirms nothing to a
+            // stranger. A deleted application's own tab is told (`removalMarks.js`).
+            const removed = attempt.stale && await removedForToken(
+                companyId, [applicantKeyOf(data?.resumeApplicantKey), applicantKey], text(data?.resumeToken, 128),
+            );
+            return { saved: false, ...(removed && { removed: true }), applicantKey: null, resumeToken: null };
         }
 
         // At most one live draft per identity per company. A returning applicant

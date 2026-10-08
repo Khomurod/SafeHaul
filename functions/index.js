@@ -133,11 +133,14 @@ exports.startNewApplication = applicationDrafts.startNewApplication;
 // somebody can see them.
 exports.listApplicationDrafts = applicationDrafts.listApplicationDrafts;
 // A Company Admin reads any unfinished application, whoever started it, may
-// correct one the driver owns, and may delete one. Recruiters keep the narrower
-// read in `getCompanyPreparedDraft`.
+// correct one the driver owns, and may delete one — the document alone, for the
+// pages built before `purgeApplicationDraft`, or with its files, links and the
+// same driver's other drafts. Recruiters keep the narrower read in
+// `getCompanyPreparedDraft`.
 exports.getApplicationDraft = applicationDrafts.getApplicationDraft;
 exports.saveApplicationDraftEdits = applicationDrafts.saveApplicationDraftEdits;
 exports.deleteApplicationDraft = applicationDrafts.deleteApplicationDraft;
+exports.purgeApplicationDraft = applicationDrafts.purgeApplicationDraft;
 
 // Applications a carrier starts on the driver's behalf: prepared as a draft,
 // completed and signed by the driver through the ordinary public wizard.

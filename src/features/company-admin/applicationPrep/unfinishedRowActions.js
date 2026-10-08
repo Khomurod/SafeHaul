@@ -17,7 +17,7 @@
  * A **Company Admin** may do all of that, and since 2026-10-06 also open every
  * row the driver has written to — read-only, with the answers — and delete any
  * row. That is the owner's decision, and the server holds it: `getApplicationDraft`
- * and `deleteApplicationDraft` answer only the strict admin check.
+ * and `purgeApplicationDraft` answer only the strict admin check.
  *
  * Putting that in a pure function means the distinction is stated once, tested
  * directly, and cannot drift between the desktop table and anything else that

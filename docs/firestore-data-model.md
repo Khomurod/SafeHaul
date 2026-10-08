@@ -111,7 +111,7 @@ Used by Cloud Functions with Admin SDK:
 | `companies/{id}/blacklist/{phone}` | Company opt-out list |
 | `companies/{id}/inbound_messages/{id}` | Inbound SMS (STOP handling trigger) |
 | `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next — **or** one a carrier prepared (`origin: 'company'`, `status: prepared\|sent\|driver_in_progress`, `preparedBy`, `inviteTokenHash`, `inviteClaimedAt`, `lockedEmployers`). See below |
-| `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards, and of a Company Admin's views, edits and deletions |
+| `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards, and of a Company Admin's views, edits and deletions; a deleted draft's removal mark; files a deletion has still to remove |
 | `companies/{id}/legal_agreements/{agreementId}` | Company-published agreement wording: `{ activeVersion, versions: { 'c-<hash>': { body, createdAt, createdBy, note } } }`. Callables only; publish/revert is Super Admin only |
 
 ---
@@ -264,11 +264,28 @@ nothing about a person is retained.
 
 A Company Admin's actions are the exception that says who and which:
 `company_viewed_draft` (`getApplicationDraft`), `company_edited_draft`
-(`saveApplicationDraftEdits`) and `company_deleted_draft`
-(`deleteApplicationDraft`) add `actorUid` (the staff account), `applicantKey`
-(the draft's id, already a hash) and the draft's `origin` and `status`; an edit
-adds the ids of the answers it changed (`fields`) and its `revision` — still
-nothing the driver or the admin typed. They expire with the rest, after 30 days.
+(`saveApplicationDraftEdits`), `company_deleted_draft`
+(`deleteApplicationDraft`) and `company_purged_draft` (`purgeApplicationDraft`)
+add `actorUid` (the staff account), `applicantKey` (the draft's id, already a
+hash) and the draft's `origin` and `status`; an edit adds the ids of the answers
+it changed (`fields`) and its `revision`, and a draft purged with another names
+it (`withApplicantKey`) — still nothing the driver or the admin typed. They
+expire with the rest, after 30 days.
+
+Two more kinds of entry, both written by `purgeApplicationDraft`:
+
+- **`removed_{applicantKey}`**, `action: 'draft_removed'`: the SHA-256 hashes of
+  every token the deleted draft held (`tokenHashes`: the resume token and its
+  prior ones, the one a link's opening minted, every live link), so a save, a
+  restore or a link presenting one is told the application was removed
+  (`functions/drafts/removalMarks.js`). A later deletion at the same key adds to
+  it.
+- **`draft_files_pending`**: the upload `paths` a deletion could not remove, with
+  the drafts' `applicantKeys`, `attempts` and when they were checked
+  (`checkedAt`); the next deletion at the company checks them again, against the
+  applications changed since as well, and finishes them
+  (`functions/drafts/draftFiles.js`). Files whose check failed are not recorded:
+  they stay.
 
 ---
 

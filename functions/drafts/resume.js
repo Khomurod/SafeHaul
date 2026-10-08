@@ -15,6 +15,7 @@ const {
     applicantKeyOf, clientIp, docId, findByToken, identityKeyOrNull,
     priorHashesAfterRotation, recordMatchAttempt, text,
 } = require('./identity');
+const { removedForToken } = require('./removalMarks');
 /**
  * Is there an unfinished application to continue?
  *
@@ -164,8 +165,12 @@ exports.resumeApplicationDraft = functions
         if (!doc) {
             // Same answer for an unknown key, a wrong token and an expired
             // draft. "That token is wrong" and "that application does not exist"
-            // are different facts an attacker would happily learn.
-            throw new functions.https.HttpsError('not-found', 'That saved application could not be found.');
+            // are different facts an attacker would happily learn. Only the token
+            // of an application its company deleted says so (`removalMarks.js`).
+            const removed = await removedForToken(companyId, [applicantKey], resumeToken);
+            throw new functions.https.HttpsError(
+                'not-found', 'That saved application could not be found.', removed ? { reason: 'removed' } : undefined,
+            );
         }
 
         return { restored: true, draft: draft.toClientDraft(doc) };
