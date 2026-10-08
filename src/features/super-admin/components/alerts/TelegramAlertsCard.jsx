@@ -66,6 +66,8 @@ export function TelegramAlertsCard() {
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [deleteError, setDeleteError] = useState(null);
     const [reauth, setReauth] = useState(null);
+    // Each press of Connect chat starts the page's own asking again.
+    const [presses, setPresses] = useState(0);
 
     const load = useCallback(async () => {
         setLoadError(null);
@@ -139,8 +141,9 @@ export function TelegramAlertsCard() {
     const watch = state?.watch || {};
     const lastRun = when(watch.lastRunAt);
 
-    const { strayStart } = useStartLinkWatch({
+    const { strayStart, stopped } = useStartLinkWatch({
         link: bot ? pending?.link || null : null,
+        restart: presses,
         onConnected: (connected) => {
             showSuccess(`Connected to ${connected.title}. A confirmation is in your Telegram.`);
             load();
@@ -212,9 +215,12 @@ export function TelegramAlertsCard() {
                                         variant="secondary"
                                         disabled={!bot}
                                         loading={busy === 'connect'}
-                                        onClick={() => act('connect', connectPlatformAlertChat, (result) => (result.chat
-                                            ? showSuccess(`Connected to ${result.chat.title}. A confirmation is in your Telegram.`)
-                                            : showInfo('Press Open Telegram, then press Start in Telegram. This page connects by itself.')))}
+                                        onClick={() => act('connect', () => connectPlatformAlertChat({ chatShown: Boolean(chat) }), (result) => {
+                                            setPresses((count) => count + 1);
+                                            return result.chat
+                                                ? showSuccess(`Connected to ${result.chat.title}. A confirmation is in your Telegram.`)
+                                                : showInfo('Press Open Telegram, then press Start in Telegram. This page connects by itself.');
+                                        })}
                                     >
                                         {chat ? 'Reconnect chat' : 'Connect chat'}
                                     </Button>
@@ -230,7 +236,13 @@ export function TelegramAlertsCard() {
                                     for 15 minutes.
                                 </>
                             )}
-                            {bot && pending && <p role="status" className="mt-1">Waiting for Start in Telegram…</p>}
+                            {bot && pending && (
+                                <p role="status" className="mt-1">
+                                    {stopped
+                                        ? `This page stopped checking. When you have pressed Start in Telegram, press ${chat ? 'Reconnect chat' : 'Connect chat'}.`
+                                        : 'Waiting for Start in Telegram…'}
+                                </p>
+                            )}
                             {bot && pending && strayStart && (
                                 <Notice tone="warning" size="sm" className="mt-ds-2">
                                     Telegram received a Start, but not through this link: Telegram shows

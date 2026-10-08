@@ -332,6 +332,70 @@ describe('connecting the chat', () => {
             .rejects.toMatchObject({ message: expect.stringMatching(/cannot write to that chat/) });
         expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
     });
+
+    it('gives a new link, not the same refusal for a day, once that chat\'s link has expired', async () => {
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: EARLIER }));
+        mockTelegram.sendMessage.mockRejectedValue(new TelegramError('blocked', 'Telegram refused the request (403).'));
+
+        const response = await callables.connectPlatformAlertChat(REQUEST());
+
+        expect(response.pending.link).not.toContain('CODE123');
+        expect(mockSettings.replaceSettings.mock.calls[0][0].telegram.pendingStart.code).not.toBe('CODE123');
+        // The page's own check still says why, in the operator's words.
+        await expect(callables.connectPlatformAlertChat(CHECK())).rejects.toMatchObject({ code: 'failed-precondition' });
+    });
+
+    describe('when the page\'s check and a press find the same Start', () => {
+        const CONNECTED = { telegram: { botUsername: 'safehaul_alerts_bot', chatId: 222, chatTitle: 'Dana Alvarez' } };
+
+        it('answers connected to the one that comes second, with no second message', async () => {
+            mockSettings.readSettings
+                .mockResolvedValueOnce(withPending({ code: 'CODE123', expiresAt: LATER }))
+                .mockResolvedValue(CONNECTED);
+
+            await expect(callables.connectPlatformAlertChat(REQUEST())).resolves.toEqual({ chat: { title: 'Dana Alvarez' } });
+            expect(mockTelegram.sendMessage).not.toHaveBeenCalled();
+            expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+        });
+
+        it('answers connected when the other saved the chat during this one\'s message', async () => {
+            mockSettings.readSettings
+                .mockResolvedValueOnce(withPending({ code: 'CODE123', expiresAt: LATER }))
+                .mockResolvedValueOnce(withPending({ code: 'CODE123', expiresAt: LATER }))
+                .mockResolvedValue(CONNECTED);
+
+            await expect(callables.connectPlatformAlertChat(CHECK())).resolves.toEqual({ chat: { title: 'Dana Alvarez' } });
+            expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+            expect(mockRecordAuditEvent).not.toHaveBeenCalled();
+        });
+
+        it('tells a Connect chat press that a chat connected meanwhile, and hands out no link', async () => {
+            mockSettings.readSettings.mockResolvedValue(CONNECTED);
+
+            await expect(callables.connectPlatformAlertChat(REQUEST({ chatShown: false })))
+                .resolves.toEqual({ chat: { title: 'Dana Alvarez' } });
+            expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+
+            // Reconnect chat, and a page that does not say what it showed, get a new link.
+            await expect(callables.connectPlatformAlertChat(REQUEST({ chatShown: true })))
+                .resolves.toMatchObject({ pending: { link: expect.stringContaining('?start=') } });
+            await expect(callables.connectPlatformAlertChat(REQUEST()))
+                .resolves.toMatchObject({ pending: { link: expect.stringContaining('?start=') } });
+            expect(mockSettings.replaceSettings).toHaveBeenCalledTimes(2);
+        });
+
+        it('lets a waiting page learn the chat connected, and an expired link still read as expired', async () => {
+            mockSettings.readSettings.mockResolvedValue(CONNECTED);
+            await expect(callables.connectPlatformAlertChat(CHECK())).resolves.toEqual({ chat: { title: 'Dana Alvarez' } });
+
+            // Reconnecting: the old chat stays while a new link waits, and that link ran out.
+            mockSettings.readSettings.mockResolvedValue({
+                telegram: { ...CONNECTED.telegram, pendingStart: { code: 'CODE123', expiresAt: EARLIER } },
+            });
+            mockTelegram.startsOnLink.mockResolvedValue(NOT_YET);
+            await expect(callables.connectPlatformAlertChat(CHECK())).resolves.toEqual({ pending: null });
+        });
+    });
 });
 
 describe('the test message and the status', () => {

@@ -43,10 +43,14 @@ export async function savePlatformAlertToken(token) {
 /**
  * A press hands out a one-time Start link, or connects the chat that used it.
  * `checkOnly` is the page asking by itself while its link waits: it never hands
- * out a link, and needs no recent sign-in.
+ * out a link, and needs no recent sign-in. `chatShown` is whether the page showed
+ * a chat when pressed: one that connected meanwhile answers a Connect chat press.
  */
-export async function connectPlatformAlertChat({ checkOnly = false } = {}) {
-    return (await httpsCallable(functions, 'connectPlatformAlertChat')(checkOnly ? { checkOnly: true } : {})).data;
+export async function connectPlatformAlertChat({ checkOnly = false, chatShown } = {}) {
+    let payload = {};
+    if (checkOnly) payload = { checkOnly: true };
+    else if (typeof chatShown === 'boolean') payload = { chatShown };
+    return (await httpsCallable(functions, 'connectPlatformAlertChat')(payload)).data;
 }
 
 export async function sendPlatformAlertTest() {
