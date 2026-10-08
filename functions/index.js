@@ -141,6 +141,8 @@ exports.getApplicationDraft = applicationDrafts.getApplicationDraft;
 exports.saveApplicationDraftEdits = applicationDrafts.saveApplicationDraftEdits;
 exports.deleteApplicationDraft = applicationDrafts.deleteApplicationDraft;
 exports.purgeApplicationDraft = applicationDrafts.purgeApplicationDraft;
+// An unfinished application that expires takes its uploads with it.
+exports.deleteExpiredDraftFiles = require('./drafts/expired').deleteExpiredDraftFiles;
 
 // Applications a carrier starts on the driver's behalf: prepared as a draft,
 // completed and signed by the driver through the ordinary public wizard.
