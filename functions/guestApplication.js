@@ -238,12 +238,6 @@ exports.submitGuestApplication = functions
             normalizedFormData,
             applicantReferenceDay(data?.applicantToday),
         );
-        // Marks its files as a submitted application's, and sends back a copy that outlived them.
-        await markSubmittedUploads({
-            storage, companyId, formData: normalizedFormData, applicationConfig, customQuestions,
-            HttpsError: functions.https.HttpsError,
-        });
-
         const {
             applicantKeyFull,
             applicationId,
@@ -268,6 +262,12 @@ exports.submitGuestApplication = functions
         assertCompanyEditsSeen(seenRevisionOf(data?.seenRevision), submittedDraft);
         // Employers the carrier locked from the driver's own safety record.
         assertLockedEmployers(lockedEmployersForSubmission(submittedDraft), normalizedFormData);
+        // Marks its files as a submitted application's, and sends back a copy that
+        // outlived them; last of the checks, so a refused submission marks nothing.
+        await markSubmittedUploads({
+            storage, companyId, formData: normalizedFormData, applicationConfig, customQuestions,
+            HttpsError: functions.https.HttpsError,
+        });
 
         try {
             const result = await upsertApplicationDoc({

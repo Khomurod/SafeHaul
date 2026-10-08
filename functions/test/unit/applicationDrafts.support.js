@@ -154,6 +154,11 @@ function mockDocRef(path) {
             const current = options?.merge ? (mockStore.get(path) || {}) : {};
             mockStore.set(path, { ...current, ...patch });
         },
+        // Refuses a document that is gone, as Firestore's does.
+        update: async (patch) => {
+            if (!mockStore.has(path)) throw new Error(`No document to update: ${path}`);
+            mockStore.set(path, { ...mockStore.get(path), ...patch });
+        },
         delete: async () => { mockDeletedPaths.push(path); mockStore.delete(path); },
         collection: (name) => mockCollectionRef(`${path}/${name}`),
     };

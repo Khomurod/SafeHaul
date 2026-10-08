@@ -21,9 +21,11 @@ jest.mock('../../shared/rateLimiter', () => require('./applicationDrafts.support
 jest.mock('../../shared/companyTenant', () => require('./applicationDrafts.support').companyTenantMock());
 
 const drafts = require('../../applicationDrafts');
+const { timing } = require('../../drafts/purge').__private;
+const { retryPendingFiles } = require('../../drafts/draftFiles');
 const {
     mockStore, mockStorageFiles, mockStorageMeta, mockDeletedFiles, mockServerTimestamp, COMPANY,
-    failFileDeletesOn, failQueriesOn, beforeNextFileDelete, resetDraftState,
+    failFileDeletesOn, failQueriesOn, hangFileDeletesOn, hangQueriesOn, beforeNextFileDelete, resetDraftState,
 } = require('./applicationDrafts.support');
 const { storage } = require('../../firebaseAdmin');
 
@@ -66,8 +68,15 @@ const pending = () => [...mockStore.entries()]
     .filter(([path, row]) => path.startsWith(`${AUDIT}/`) && row.action === 'draft_files_pending')
     .map(([, row]) => row);
 
+const realTiming = { ...timing };
+
 beforeEach(() => {
     resetDraftState();
+    Object.assign(timing, realTiming);
+});
+
+afterAll(() => {
+    Object.assign(timing, realTiming);
 });
 
 it('deletes the uploads the application holds, its own fields and its custom answers alike', async () => {
@@ -264,6 +273,66 @@ describe('a file that could not be deleted', () => {
         expect(pending()).toEqual([]);
         expect(errors).toHaveBeenCalledWith(expect.stringContaining('left 1 file(s) in place'));
         errors.mockRestore();
+    });
+
+    describe('a record of what is left', () => {
+        const RECORD = `${AUDIT}/pending-1`;
+        const HOUR = 60 * 60 * 1000;
+        const left = (fields) => mockStore.set(RECORD, {
+            action: 'draft_files_pending', applicantKeys: [DANA], paths: [FRONT], checkedAt: mockServerTimestamp(), ...fields,
+        });
+        let errors;
+        beforeEach(() => {
+            seed(DANA_AGAIN, { contactEmail: 'x@example.test', contactPhone: '9725550100', identityKey: 'a'.repeat(64) });
+            store(FRONT);
+            errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+        });
+        afterEach(() => errors.mockRestore());
+
+        it('is kept, and counts the attempt, when an outage spent five in under a day', async () => {
+            left({ attempts: 5, at: { toMillis: () => Date.now() - HOUR } });
+            failFileDeletesOn('front');
+
+            await purge({ applicantKey: DANA_AGAIN });
+
+            expect(mockStore.get(RECORD)).toMatchObject({ paths: [FRONT], attempts: 6 });
+            expect(pending()).toHaveLength(1);
+        });
+
+        it('is updated in place, so two deletions retrying it at once leave one', async () => {
+            left({ attempts: 1, at: { toMillis: () => Date.now() - HOUR } });
+            failFileDeletesOn('front');
+
+            await Promise.all([retryPendingFiles(COMPANY), retryPendingFiles(COMPANY)]);
+
+            expect(pending()).toHaveLength(1);
+            expect(mockStore.get(RECORD)).toMatchObject({ paths: [FRONT], attempts: 2 });
+        });
+
+        it('stays as it was when its retry gets no answer, and the deletion still answers', async () => {
+            left({ attempts: 2, at: { toMillis: () => Date.now() - HOUR } });
+            timing.stepMs = 20;
+            hangQueriesOn('companies/company-1/applications');
+
+            const { deleted } = await purge({ applicantKey: DANA_AGAIN });
+
+            expect(deleted).toEqual([DANA_AGAIN]);
+            expect(mockStore.get(RECORD)).toMatchObject({ paths: [FRONT], attempts: 2 });
+            expect(mockStorageFiles.has(FRONT)).toBe(true);
+            expect(errors).toHaveBeenCalledWith(expect.stringContaining('no answer within 20 ms'));
+        });
+    });
+
+    it('answers, and writes the file down, when its delete never answers', async () => {
+        seed(DANA, { formData: { 'cdl-front': upload(FRONT), 'cdl-back': upload(BACK) } });
+        store(FRONT, BACK);
+        timing.stepMs = 20;
+        hangFileDeletesOn('front');
+
+        const { files } = await purge({ applicantKey: DANA });
+
+        expect(files).toEqual({ deleted: 1, kept: 0, failed: 1 });
+        expect(pending()).toEqual([expect.objectContaining({ paths: [FRONT], attempts: 1 })]);
     });
 
     it('is given up on after five attempts, and the record goes', async () => {

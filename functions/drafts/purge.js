@@ -32,7 +32,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { db } = require('../firebaseAdmin');
 const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
-const { guestUploadPathsIn } = require('../shared/guestUploads');
+const { MARKS_SINCE, guestUploadPathsIn, uploadNamedAt } = require('../shared/guestUploads');
 const { applicantKeyOf } = require('./identity');
 const { RELATED_LIMIT, relatedDrafts, sharedFacts } = require('./related');
 const { removalMark, removalMarkRef } = require('./removalMarks');
@@ -43,8 +43,23 @@ const { NOT_FOUND, auditCollection, authorize, staffAction } = require('./staff'
 const PREVIEW_LIMIT = Object.freeze({ limit: 120, windowSeconds: 300 });
 /** The same budget as deleting one draft: rare, and a runaway loop should stop soon. */
 const PURGE_LIMIT = Object.freeze({ limit: 30, windowSeconds: 300 });
+/**
+ * The files after the drafts, inside the callable's minute: each step of their
+ * cleanup gets `stepMs`, and earlier deletions' leftovers `retryMs` in all, so a
+ * slow Storage costs a file its retry, never the answer or the record of it.
+ */
+const timing = { stepMs: 10 * 1000, retryMs: 20 * 1000 };
 
-const fileCountOf = (companyId, data) => guestUploadPathsIn(data?.formData, companyId).length;
+/**
+ * The uploads a deletion would take, and those it keeps for being named before
+ * the submissions' marks began (`deletableUpload`): counted by name, without
+ * asking Storage, as a file is named the moment its upload begins.
+ */
+function filesOf(companyId, data) {
+    const paths = guestUploadPathsIn(data?.formData, companyId);
+    const older = paths.filter((path) => !(uploadNamedAt(path) >= MARKS_SINCE)).length;
+    return { fileCount: paths.length - older, olderFileCount: older };
+}
 
 /** The keys the admin confirmed, well formed, once each, never the application itself. */
 function confirmedKeys(value, applicantKey) {
@@ -57,12 +72,13 @@ async function preview(companyId, applicantKey) {
     if (!target.exists) throw new HttpsError('not-found', NOT_FOUND);
     const related = await relatedDrafts(companyId, target);
     return {
-        application: { ...prepared.toCompanySummary(target), fileCount: fileCountOf(companyId, target.data()) },
+        application: { ...prepared.toCompanySummary(target), ...filesOf(companyId, target.data()) },
         related: related.map(({ doc, shares }) => ({
             ...prepared.toCompanySummary(doc),
-            fileCount: fileCountOf(companyId, doc.data()),
+            ...filesOf(companyId, doc.data()),
             shares,
         })),
+        filesKeptBefore: new Date(MARKS_SINCE).toISOString().slice(0, 10),
     };
 }
 
@@ -107,7 +123,9 @@ async function deleteDrafts(companyId, uid, applicantKey, alsoDelete) {
 /**
  * Deletes an unfinished application with everything in it; see the file header.
  *
- * `{ preview: true }` answers `{ application, related }` and changes nothing.
+ * `{ preview: true }` answers `{ application, related, filesKeptBefore }` and
+ * changes nothing; each application says how many files would go (`fileCount`)
+ * and how many stay for being older than `filesKeptBefore` (`olderFileCount`).
  * Otherwise `{ alsoDelete: [applicantKey] }` names the related drafts to delete
  * with it, and the answer is `{ deleted, skipped, files }`: the keys deleted, the
  * keys left alone, and how many files were deleted, kept for something else, or
@@ -127,11 +145,11 @@ exports.purgeApplicationDraft = onCall({ cors: true }, async (request) => {
 
     // What earlier deletions here could not finish first, so this one's own
     // failures wait for the next.
-    await retryPendingFiles(companyId);
-    const files = await deleteDraftFiles(companyId, outcome.deleted);
+    await retryPendingFiles(companyId, { stepMs: timing.stepMs, deadline: Date.now() + timing.retryMs });
+    const files = await deleteDraftFiles(companyId, outcome.deleted, { stepMs: timing.stepMs });
     const deleted = outcome.deleted.map(({ key }) => key);
     console.info(`[purgeApplicationDraft] ${companyId}: ${deleted.length} draft(s) and ${files.deleted} file(s) deleted by ${uid}; ${files.kept} kept, ${files.failed} left`);
     return { deleted, skipped: outcome.skipped, files };
 });
 
-exports.__private = { PREVIEW_LIMIT, PURGE_LIMIT, confirmedKeys };
+exports.__private = { PREVIEW_LIMIT, PURGE_LIMIT, confirmedKeys, timing };

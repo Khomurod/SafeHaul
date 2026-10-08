@@ -4,7 +4,8 @@
  */
 
 const {
-    MARKS_SINCE, deletableUpload, guestUploadPathsIn, isGuestUploadPath, markSubmittedUploads, reuploadableEntries,
+    MARKS_SINCE, MARK_MS, deletableUpload, guestUploadPathsIn, isGuestUploadPath, markSubmittedUploads, reuploadableEntries,
+    uploadNamedAt,
 } = require('../../shared/guestUploads');
 
 class HttpsError extends Error {
@@ -21,14 +22,15 @@ const LEASE = `companies/${COMPANY}/autofill/guest_uploads/1697_ef45gh6_lease.pd
 const PSP = `companies/${COMPANY}/autofill/guest_uploads/1698_ij78kl9_psp.pdf`;
 const upload = (storagePath) => ({ name: 'file', storagePath });
 
-/** A bucket holding these objects, recording the marks set, or one whose calls fail. */
-function storageWith(paths, { failing = false } = {}) {
+/** A bucket holding these objects, recording the marks set, or one whose calls fail or never answer. */
+function storageWith(paths, { failing = false, silent = false } = {}) {
     const marked = [];
     return {
         marked,
         bucket: () => ({
             file: (path) => ({
                 setMetadata: async ({ metadata }) => {
+                    if (silent) await new Promise(() => {});
                     if (failing) throw Object.assign(new Error('storage unavailable'), { code: 503 });
                     if (!paths.includes(path)) throw Object.assign(new Error('No such object'), { code: 404 });
                     marked.push([path, metadata]);
@@ -134,11 +136,34 @@ describe('the submission\'s mark', () => {
         errors.mockRestore();
     });
 
+    it('lets the submission through when Storage does not answer in time, within the submission\'s 30 s', async () => {
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        await expect(markSubmittedUploads({
+            storage: storageWith([FRONT], { silent: true }), companyId: COMPANY, formData, customQuestions, HttpsError, waitMs: 20,
+        })).resolves.toBeUndefined();
+        expect(errors).toHaveBeenCalledWith(expect.stringContaining('no answer within 20 ms'));
+        expect(MARK_MS).toBeLessThanOrEqual(10000);
+        errors.mockRestore();
+    });
+
     it('asks Storage nothing when the answers hold no upload', async () => {
         const storage = storageWith([]);
 
         await markSubmittedUploads({ storage, companyId: COMPANY, formData: { firstName: 'Dana' }, HttpsError });
         expect(storage.marked).toEqual([]);
+    });
+});
+
+describe('when an upload was named', () => {
+    it('reads the milliseconds its name starts with, and nothing else', () => {
+        expect(uploadNamedAt(`companies/${COMPANY}/applications/guest_uploads/1791849600000_ab12cd3_John_Smith_CDL.jpg`)).toBe(1791849600000);
+        expect(uploadNamedAt(FRONT)).toBe(1696);
+        expect(uploadNamedAt(`companies/${COMPANY}/applications/guest_uploads/front.jpg`)).toBeNaN();
+        expect(uploadNamedAt(`companies/${COMPANY}/applications/guest_uploads/12ab_front.jpg`)).toBeNaN();
+        // Digits only: a name that reads as a number another way is no time.
+        expect(uploadNamedAt(`companies/${COMPANY}/applications/guest_uploads/1e13_front.jpg`)).toBeNaN();
+        expect(uploadNamedAt(null)).toBeNaN();
     });
 });
 

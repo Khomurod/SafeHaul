@@ -250,8 +250,9 @@ must prove an identity no SafeHaul screen shows a recruiter (§5, §12).
 The admin column (owner, 2026-10-06/07) answers only `assertCompanyAdminStrict`
 and is audited. **Delete** shows what goes, then removes answers, links, ticked
 same-driver drafts (same identity, email or phone) and uploads nothing else
-uses, none a submission marked; its tokens learn "removed" (a device copy can
-still submit). `deleteApplicationDraft` (document only) serves older pages.
+uses, none a submission marked or older than 2026-10-12; its tokens learn
+"removed" (a device copy can still submit). `deleteApplicationDraft` (document
+only) serves older pages.
 **Edit answers** covers every page but what only the driver gives
 (`driverOnlyFields.json`), and never overwrites an answer changed since loading.
 
@@ -997,11 +998,11 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
   `companies/{id}/settings/automated_sms`. Transition-only, so idempotent; no
   template, no message.
 - **Segments** — application create/update maintains segment membership.
-- **Retention** — activity logs carry `expiresAt` for the eventual TTL policy;
+- **Retention** — activity logs carry `expiresAt` for a future TTL policy;
   so do `blog_runs`, `application_drafts` and `application_draft_audit`, with
-  TTL field overrides in `firestore.indexes.json` that deploy with everything
-  else. An unfinished application and its uploads expire 30 days after its last
-  save (`deleteExpiredDraftFiles`).
+  TTL overrides in `firestore.indexes.json`, deployed with the rest. An
+  unfinished application expires 30 days after its last save, its uploads by
+  the same rules (`deleteExpiredDraftFiles`).
 
 ### Idempotency
 
@@ -1190,7 +1191,7 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 
 | Command | Blocking | Catches |
 |---|---|---|
-| `npm test` (`design-system/tests/`) | yes | An import across a layer boundary — in stylesheets as well as modules; a broken token contract or a pairing below AA |
+| `npm test` (`design-system/tests/`) | yes | An import across a layer boundary, in stylesheets or modules; a broken token contract or a pairing below AA |
 | `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control, a hand-rolled tablist, toggle, current-item control or avatar disc (a raw `<button>` with `aria-pressed` or `aria-current`, or a round disc holding a person's initial), a raw file input, a hand-written `target="_blank"` — in JSX, stories and CSS |
 | `npm run check:icon-contract` | yes | **Any** file under `src/`, outside `src/design-system/icons/`, importing `lucide-react`; there is no exemption list |
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — for `DataTable` and the `ds-native-table` contract |
