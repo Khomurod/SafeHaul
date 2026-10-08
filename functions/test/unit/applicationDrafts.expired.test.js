@@ -20,7 +20,7 @@ jest.mock('../../firebaseAdmin', () => require('./applicationDrafts.support').fi
 const { deleteExpiredDraftFiles, __private: { RETRY_WAITS_MS, timing } } = require('../../drafts/expired');
 const {
     mockStore, mockStorageFiles, mockDeletedFiles, mockServerTimestamp, COMPANY,
-    failFileDeletesOn, failQueriesOn, hangFileDeletesOn, hangQueriesOn, hangAddsOn, resetDraftState,
+    failFileDeletesOn, failQueriesOn, hangFileDeletesOn, hangQueriesOn, hangAddsOn, resetDraftState, settleUnanswered,
 } = require('./applicationDrafts.support');
 
 const KEY = 'aaaa1111bbbb2222cccc';
@@ -62,6 +62,9 @@ let waits;
 function waitsRun(during = () => {}) {
     timing.wait = jest.fn(async (ms) => { waits.push(ms); during(); });
 }
+
+// What a test left unanswered is refused once it ends, so nothing outlives it.
+afterEach(settleUnanswered);
 
 beforeEach(() => {
     resetDraftState();

@@ -151,7 +151,9 @@ function deletableUpload(metadata, since = MARKS_SINCE) {
  *
  * Only a file Storage says is not there refuses. A mark that could not be set
  * otherwise lets the submission through: a signed application is not refused
- * over a call that failed, nor held up past `waitMs` by one that is slow.
+ * over a call that failed, nor held up past `waitMs` by one that is slow. Each
+ * call has `waitMs` of its own, so one that does not answer cannot hide another
+ * file's answer that it is gone.
  */
 async function markSubmittedUploads({ storage, companyId, formData, applicationConfig, customQuestions, HttpsError, waitMs = MARK_MS }) {
     const paths = guestUploadPathsIn(formData, companyId).slice(0, MAX_MARKED);
@@ -159,16 +161,20 @@ async function markSubmittedUploads({ storage, companyId, formData, applicationC
     let results;
     try {
         const bucket = storage.bucket();
-        results = await withinStep(Promise.allSettled(paths.map((path) => bucket.file(path).setMetadata({
+        results = await Promise.allSettled(paths.map((path) => withinStep(bucket.file(path).setMetadata({
             metadata: { [SUBMITTED_MARK]: 'true' },
-        }))), waitMs);
+        }), waitMs)));
     } catch (error) {
         console.error(`[guestUploads] Could not mark the uploads of a submission to ${companyId}: ${error?.message || 'unknown'}`);
         return;
     }
     const gone = new Set(paths.filter((_, index) => results[index].reason?.code === 404));
-    const unmarked = results.filter((result) => result.status === 'rejected').length - gone.size;
-    if (unmarked > 0) console.error(`[guestUploads] Could not mark ${unmarked} upload(s) of a submission to ${companyId}`);
+    const unmarked = results.filter((result, index) => result.status === 'rejected' && !gone.has(paths[index]));
+    if (unmarked.length > 0) {
+        // Codes only: a Storage message can carry the file's name, which is the driver's.
+        const codes = [...new Set(unmarked.map((result) => String(result.reason?.code ?? 'unknown')))].join(',');
+        console.error(`[guestUploads] Could not mark ${unmarked.length} upload(s) of a submission to ${companyId} (code ${codes})`);
+    }
     const missing = reuploadableEntries(formData, companyId, { applicationConfig, customQuestions })
         .filter(({ path }) => gone.has(path));
     if (missing.length === 0) return;

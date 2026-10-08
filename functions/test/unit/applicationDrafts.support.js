@@ -66,12 +66,11 @@ const mockNonTransactionalWrites = [];
 /** Storage: its own double, in `applicationDrafts.storage.support.js`. */
 const {
     mockBucket, mockStorageFiles, mockStorageMeta, mockDeletedFiles, failFileDeletesOn, hangFileDeletesOn,
-    beforeNextFileDelete, resetStorage,
+    beforeNextFileDelete, resetStorage, mockNeverAnswers, settleUnanswered,
 } = require('./applicationDrafts.storage.support');
 let mockFailQueriesOn = null;
-/** Collections whose queries, and whose `add`s, never answer: a client still retrying. */
+/** Collections whose queries, and whose `add`s, go unanswered: a client still retrying. */
 const mockHangs = { queriesOn: null, addsOn: null };
-const mockNeverAnswers = () => new Promise(() => {});
 
 /** A time as milliseconds, for the range filters: the doubles' timestamps and Dates alike. */
 function mockMillis(value) {
@@ -335,7 +334,7 @@ function failQueriesOn(fragment) {
     mockFailQueriesOn = fragment;
 }
 
-/** Makes every query, or every `add`, in a collection whose path contains `fragment` never answer. */
+/** Makes every query, or every `add`, in a collection whose path contains `fragment` go unanswered. */
 function hangQueriesOn(fragment) {
     mockHangs.queriesOn = fragment;
 }
@@ -389,6 +388,7 @@ module.exports = {
     failQueriesOn,
     hangQueriesOn,
     hangAddsOn,
+    settleUnanswered,
     resetDraftState,
     IDENTITY,
     COMPANY,

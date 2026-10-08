@@ -22,15 +22,18 @@ const LEASE = `companies/${COMPANY}/autofill/guest_uploads/1697_ef45gh6_lease.pd
 const PSP = `companies/${COMPANY}/autofill/guest_uploads/1698_ij78kl9_psp.pdf`;
 const upload = (storagePath) => ({ name: 'file', storagePath });
 
-/** A bucket holding these objects, recording the marks set, or one whose calls fail or never answer. */
-function storageWith(paths, { failing = false, silent = false } = {}) {
+/**
+ * A bucket holding these objects, recording the marks set, or one whose calls
+ * fail, or wait for `held` (on `heldPaths`, or every path) before they answer.
+ */
+function storageWith(paths, { failing = false, held = null, heldPaths = null } = {}) {
     const marked = [];
     return {
         marked,
         bucket: () => ({
             file: (path) => ({
                 setMetadata: async ({ metadata }) => {
-                    if (silent) await new Promise(() => {});
+                    if (held && (!heldPaths || heldPaths.includes(path))) await held;
                     if (failing) throw Object.assign(new Error('storage unavailable'), { code: 503 });
                     if (!paths.includes(path)) throw Object.assign(new Error('No such object'), { code: 404 });
                     marked.push([path, metadata]);
@@ -136,14 +139,38 @@ describe('the submission\'s mark', () => {
         errors.mockRestore();
     });
 
+    /** A Storage answer the test gives when it is done, so no call outlives it. */
+    function heldAnswer() {
+        let answer;
+        const held = new Promise((resolve) => { answer = resolve; });
+        return { held, answer };
+    }
+
     it('lets the submission through when Storage does not answer in time, within the submission\'s 30 s', async () => {
         const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const { held, answer } = heldAnswer();
 
         await expect(markSubmittedUploads({
-            storage: storageWith([FRONT], { silent: true }), companyId: COMPANY, formData, customQuestions, HttpsError, waitMs: 20,
+            storage: storageWith([FRONT], { held }), companyId: COMPANY, formData, customQuestions, HttpsError, waitMs: 20,
         })).resolves.toBeUndefined();
-        expect(errors).toHaveBeenCalledWith(expect.stringContaining('no answer within 20 ms'));
+        expect(errors).toHaveBeenCalledWith(expect.stringContaining('Could not mark 3 upload(s) of a submission to company-1 (code step-timeout)'));
         expect(MARK_MS).toBeLessThanOrEqual(10000);
+        answer();
+        errors.mockRestore();
+    });
+
+    it('still sends the driver back for a missing upload while another one does not answer', async () => {
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const { held, answer } = heldAnswer();
+        // The licence photo is gone; the lease does not answer in time.
+        const storage = storageWith([LEASE, PSP], { held, heldPaths: [LEASE] });
+
+        const refusal = await markSubmittedUploads({ storage, companyId: COMPANY, formData, customQuestions, HttpsError, waitMs: 20 })
+            .catch((error) => error);
+
+        expect(refusal).toMatchObject({ details: { issues: [{ code: 'upload-missing', semanticStep: 'license', fieldId: 'cdl-front' }] } });
+        expect(refusal.details.issues).toHaveLength(1);
+        answer();
         errors.mockRestore();
     });
 

@@ -26,6 +26,7 @@ const { retryPendingFiles } = require('../../drafts/draftFiles');
 const {
     mockStore, mockStorageFiles, mockStorageMeta, mockDeletedFiles, mockServerTimestamp, COMPANY,
     failFileDeletesOn, failQueriesOn, hangFileDeletesOn, hangQueriesOn, beforeNextFileDelete, resetDraftState,
+    settleUnanswered,
 } = require('./applicationDrafts.support');
 const { storage } = require('../../firebaseAdmin');
 
@@ -74,6 +75,9 @@ beforeEach(() => {
     resetDraftState();
     Object.assign(timing, realTiming);
 });
+
+// What a test left unanswered is refused once it ends, so nothing outlives it.
+afterEach(settleUnanswered);
 
 afterAll(() => {
     Object.assign(timing, realTiming);
