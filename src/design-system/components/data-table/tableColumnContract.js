@@ -54,6 +54,12 @@ export function defineTableColumns(columns) {
       throw new TypeError(`Unsupported DataTable priority "${priority}" for "${column.key}".`);
     }
 
+    // The label a cell shows beside its value when the table is cards on a phone;
+    // `''` shows none, and the cell takes the card's full width.
+    if (column.mobileLabel !== undefined && typeof column.mobileLabel !== 'string') {
+      throw new TypeError(`DataTable column "${column.key}" needs a string mobileLabel.`);
+    }
+
     return Object.freeze({
       ...column,
       align,
