@@ -127,13 +127,15 @@ async function recordPending(companyId, keys, paths, checkedAt, attempts = 1) {
 /**
  * Deletes the files of drafts that have just been deleted, except those still
  * pointed at elsewhere. Never throws: the drafts are already gone, and what could
- * not be done is recorded for the next deletion to finish.
+ * not be done is recorded for the next deletion to finish, unless the caller will
+ * run again itself (`recordFailures: false`).
  *
  * @param {string} companyId
  * @param {Array<{key: string, data: object}>} removed
+ * @param {{recordFailures?: boolean}} [options]
  * @returns {Promise<{deleted: number, kept: number, failed: number}>}
  */
-async function deleteDraftFiles(companyId, removed) {
+async function deleteDraftFiles(companyId, removed, { recordFailures = true } = {}) {
     const candidates = [...new Set(removed.flatMap(({ data }) => guestUploadPathsIn(data?.formData, companyId)))];
     if (candidates.length === 0) return { deleted: 0, kept: 0, failed: 0 };
     const keys = removed.map(({ key }) => key);
@@ -149,7 +151,7 @@ async function deleteDraftFiles(companyId, removed) {
     }
     const unused = candidates.filter((path) => !used.has(path));
     const { kept, failed } = await deletePaths(unused);
-    if (failed.length > 0) await recordPending(companyId, keys, failed, checkedAt);
+    if (failed.length > 0 && recordFailures) await recordPending(companyId, keys, failed, checkedAt);
     return {
         deleted: unused.length - kept.length - failed.length,
         kept: candidates.length - unused.length + kept.length,

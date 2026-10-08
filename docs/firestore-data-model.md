@@ -169,7 +169,7 @@ merge idempotently. No new identity scheme was introduced.
 | `resumeTokenHash` | A hash of the bearer token issued to a browser. Compared in constant time; the token itself is never stored |
 | `priorResumeTokenHashes` | Up to two superseded hashes, so a rotation by a resume lookup is not mistaken for the draft being deleted. Liveness evidence only — never authorization |
 | `companyRevision`, `companyEdits`, `companyEditedAt` | A Company Admin's edits (`saveApplicationDraftEdits`): the latest one's revision (a millisecond time, so always later than the one before, even across a draft deleted and started again), each edited answer's, and when the latest was made. A browser's save or submission from an older revision is refused, and so is a save landing on the same driver's other edited draft (`functions/shared/companyEdits.js`). Absent on a draft nobody edited, and carried to the new id when a corrected email or phone moves the draft |
-| `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json`. When the TTL policy deletes a draft, `deleteExpiredDraftFiles` (`functions/drafts/expired.js`) deletes its uploads by the checks `purgeApplicationDraft` makes; the functions' own deletions (a submission, a superseding save, Start Over) leave them |
+| `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json`. When the TTL policy deletes a draft, `deleteExpiredDraftFiles` (`functions/drafts/expired.js`) deletes its uploads by the checks `purgeApplicationDraft` makes, and a run that could not finish is run again; the functions' own deletions (a submission, a superseding save, Start Over) leave them |
 
 **The draft never holds an SSN.** It is stripped in three independent places — the
 local browser draft, the client payload, and again on arrival — and the identity
@@ -272,7 +272,7 @@ it changed (`fields`) and its `revision`, and a draft purged with another names
 it (`withApplicantKey`) — still nothing the driver or the admin typed. They
 expire with the rest, after 30 days.
 
-Two more kinds of entry, both written by `purgeApplicationDraft`:
+Two more kinds of entry, written by `purgeApplicationDraft` (the second by `deleteExpiredDraftFiles` too):
 
 - **`removed_{applicantKey}`**, `action: 'draft_removed'`: the SHA-256 hashes of
   every token the deleted draft held (`tokenHashes`: the resume token and its
@@ -285,7 +285,8 @@ Two more kinds of entry, both written by `purgeApplicationDraft`:
   (`checkedAt`); the next deletion at the company checks them again, against the
   applications changed since as well, and finishes them
   (`functions/drafts/draftFiles.js`). Files whose check failed are not recorded:
-  they stay.
+  they stay. An expired draft's cleanup is run again by the platform instead,
+  and records what is left only on its last run, 12 hours on.
 
 ---
 
