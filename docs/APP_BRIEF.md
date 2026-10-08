@@ -128,8 +128,8 @@ client write.
 
 **Fewer taps.** Only the applicant's own page-1 fields carry autofill tokens;
 SSN and ZIP open the number pad, and the SSN stays masked. The SSN, previous
-addresses, employers and the FMCSA lookup set `autocomplete="off"`, a request
-that some browsers and password managers ignore, not a guarantee.
+addresses, employers and the FMCSA lookup set `autocomplete="off"`, which some
+browsers and password managers ignore.
 The auto-fill CDL photo is the CDL front, even when unreadable, unless the company
 hides that upload (then it is read, not stored); the AI fills only empty fields.
 Continue on a page opened by Edit on Review returns to Review; the submission
@@ -632,7 +632,8 @@ before (and says so when the company's period is longer). The reason for leaving
 is required, and each employer not ended before the three years answers the two
 (b)(10)(iv) questions (`subjectToFmcsrs`, `subjectToDotTesting`), never
 pre-selected. Continue lists what each row lacks, each line a link to its field;
-the pre-flight checks too (a resumed draft goes back), not the server.
+the pre-flight checks too (a resumed draft goes back), not the server. A lookup
+pick fills no unsendable email and clears what the last pick filled.
 
 **Change both or neither.** The SPA cannot import the CommonJS backend, so
 coverage exists twice — `functions/shared/employmentCoverage.js` and
@@ -643,14 +644,13 @@ coverage exists twice — `functions/shared/employmentCoverage.js` and
 `applicationRules.vectors.json` are genuinely shared, imported from
 `src/config/`.
 
-**A US state is stored as its full name.** Both wizard pickers list
-`src/shared/utils/usStates.js` (fifty states and DC), which the company editors
-also read (the FMCSA employer lookup keeps its own copy, DC included). Every
-writer — CDL auto-fill, MVR import, the carrier's AI reader — converts the
-postal codes documents print; an unmatched value is left for the driver, never
-stored (a `<select>` shows its first option, "Alabama", for an unknown value
-while validation passes). A stored value the list cannot name (e.g. a postal
-code in a record from before 2026-10-01) shows as itself.
+**A state is stored as its full name**, from `src/shared/utils/usStates.js`
+(fifty states and DC) in every picker; an employer's also lists Canada's and
+Mexico's (`northAmericanRegions.js`). CDL auto-fill, MVR import and the carrier's
+AI reader convert printed postal codes, the FMCSA lookup with the row's country;
+an unmatched value is left for the driver, never stored (a `<select>` shows its
+first option, "Alabama", for an unknown value while validation passes). A stored
+value no list names shows as itself.
 
 **A phone number is a US number: ten digits, or eleven starting with 1**
 (`isValidPhone`), on page one, in the final pre-flight (back to page one) and in
@@ -914,7 +914,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`: one text task over whichever documents were attached, with a per-document vision fallback) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health (the bot token is checked with Telegram before it is stored). The marketing-site bot is **retired** (`LD-R3`): its six landing callables were deleted by the first promotion carrying `LD-R3`, and `promote-production.yml` still runs `scripts/retire-landing-functions.mjs` after each promotion (idempotent, now a no-op, and it never touches `listLandingLeads`). A rollback to a pre-`LD-R3` release would call functions that no longer exist; the procedure is in `docs/FIREBASE_HOSTING_RUNBOOK.md` | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
-| **Socrata / Transportation.gov** | FMCSA employer autocomplete | Public app token |
+| **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
 | **Sentry** | Error monitoring for the browser app (`@sentry/react`); Cloud Functions log to Cloud Logging only | DSN |
 | **GitHub API** | Release promotion from the Super Admin UI | GitHub App credential, server-side only |
 

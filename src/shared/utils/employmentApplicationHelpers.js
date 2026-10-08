@@ -1,6 +1,6 @@
-const SIMPLE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { isWellFormedEmail } from './validation';
 
-/** True if employer row has at least one plausible phone (10+ digits) or valid-looking email. */
+/** True if employer row has at least one plausible phone (10+ digits) or an email one can be sent to. */
 export function employerRowHasVerifierContact(employer) {
     if (!employer || typeof employer !== 'object') return false;
     const phoneDigits = String(employer.phone || '').replace(/\D/g, '');
@@ -10,8 +10,8 @@ export function employerRowHasVerifierContact(employer) {
     return (
         phoneDigits.length >= 10 ||
         supervisorDigits.length >= 10 ||
-        (ce.length > 0 && SIMPLE_EMAIL.test(ce)) ||
-        (se.length > 0 && SIMPLE_EMAIL.test(se))
+        isWellFormedEmail(ce) ||
+        isWellFormedEmail(se)
     );
 }
 

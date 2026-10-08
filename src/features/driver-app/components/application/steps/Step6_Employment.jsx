@@ -3,7 +3,7 @@ import InputField from '@shared/components/form/InputField';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import DynamicRow from '@shared/components/form/DynamicRow';
 import MonthYearField from '@shared/components/form/MonthYearField';
-import { useUtils } from '@shared/hooks/useUtils';
+import { EMPLOYER_REGION_GROUPS, EMPLOYER_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 import { useData } from '@/context/DataContext';
 import { YES_NO_OPTIONS } from '@/config/form-options';
 import { answersClearedByEndDate } from '@shared/utils/employmentApplicationHelpers';
@@ -66,7 +66,6 @@ import { useStepIssues } from '@features/driver-app/hooks/useApplicationRules';
  */
 const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const ty = new Date().getFullYear();
-    const { states } = useUtils();
     const { currentCompanyProfile } = useData();
     const currentCompany = currentCompanyProfile;
     const yesNoOptions = YES_NO_OPTIONS;
@@ -200,11 +199,11 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                 <>
                     <EmployerNameAutocomplete
                         id={'emp-name-' + index}
-                        label="Company Name"
                         value={item.companyName}
+                        row={item}
                         onChange={handleChange}
                         required={empHistoryConfig.required}
-                        statesAllowlist={states}
+                        statesAllowlist={EMPLOYER_REGION_NAMES}
                         error={errorFor('employers', index, 'companyName')}
                     />
                     <InputField
@@ -224,7 +223,9 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     id={'emp-state-' + index}
                     name="state"
                     autoComplete="off"
-                    states={states}
+                    groups={EMPLOYER_REGION_GROUPS}
+                    label="State / Province"
+                    placeholder="Select state or province"
                     required={empHistoryConfig.required}
                     value={item.state}
                     onChange={(e) => handleChange(e.target.name, e.target.value)}

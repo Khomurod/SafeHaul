@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { FMCSA_SELECT_EXTENDED } from '@shared/services/fmcsaEmployerSocrata';
+import { FMCSA_SELECT_DRIVER } from '@shared/services/fmcsaEmployerSocrata';
+import { EMPLOYER_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 import EmployerNameAutocomplete from './EmployerNameAutocomplete';
 
 function ControlledEmployerNameAutocomplete(props) {
@@ -93,7 +94,7 @@ describe('EmployerNameAutocomplete', () => {
       <ControlledEmployerNameAutocomplete
         id="co"
         onChange={onChange}
-        statesAllowlist={['TX', 'CA']}
+        statesAllowlist={EMPLOYER_REGION_NAMES}
       />,
     );
 
@@ -105,13 +106,16 @@ describe('EmployerNameAutocomplete', () => {
       await vi.advanceTimersByTimeAsync(400);
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [reqUrl, init] = fetchMock.mock.calls[0];
-    expect(init.headers['X-App-Token']).toBe('test-app-token');
-    const decodedUrl = decodeURIComponent(String(reqUrl)).replace(/\+/g, ' ');
-    expect(decodedUrl).toContain(`$select=${FMCSA_SELECT_EXTENDED}`);
+    // Active carriers, then the rest (`fmcsaEmployerSocrata.driver.test.js`).
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [reqUrl, init] of fetchMock.mock.calls) {
+      expect(init.headers['X-App-Token']).toBe('test-app-token');
+      expect(new URL(reqUrl).searchParams.get('$select')).toBe(FMCSA_SELECT_DRIVER);
+    }
 
+    // Both answers hold the same carrier; it is offered once.
     const pick = await screen.findByRole('option', { name: /Test Carrier LLC/i });
+    expect(screen.getAllByRole('option')).toHaveLength(1);
     fireEvent.click(pick);
 
     expect(onChange.mock.calls).toEqual(
@@ -120,7 +124,7 @@ describe('EmployerNameAutocomplete', () => {
         ['dotNumber', '999'],
         ['address', '100 Road'],
         ['city', 'Austin'],
-        ['state', 'TX'],
+        ['state', 'Texas'],
         ['phone', '512-555-0100'],
         ['companyEmail', 'fleet@testcarrier.com'],
       ]),
@@ -145,12 +149,12 @@ describe('EmployerNameAutocomplete', () => {
       await vi.advanceTimersByTimeAsync(400);
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const ac = fetchMock.mock.calls[0][1].signal;
-    expect(ac.aborted).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const signals = fetchMock.mock.calls.map(([, init]) => init.signal);
+    expect(signals.every((signal) => !signal.aborted)).toBe(true);
 
     fireEvent.change(input, { target: { value: '', name: 'companyName' } });
 
-    expect(ac.aborted).toBe(true);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
   });
 });
