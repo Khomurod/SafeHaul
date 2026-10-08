@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { EMPLOYER_REGION_GROUPS, EMPLOYER_REGION_NAMES, regionNameFromFmcsa } from './northAmericanRegions';
+import {
+    EMPLOYER_REGION_GROUPS, EMPLOYER_REGION_NAMES, fmcsaRegionOutsideUs, regionNameFromFmcsa,
+} from './northAmericanRegions';
 import { US_STATE_NAMES } from './usStates';
 
 // Every region code FMCSA's census held for Canada and Mexico on 2026-10-07,
@@ -56,5 +58,25 @@ describe('regionNameFromFmcsa', () => {
         ['CA', null],
     ])('reads %p %p as nothing', (country, code) => {
         expect(regionNameFromFmcsa(country, code)).toBe('');
+    });
+});
+
+describe('a region outside the US, by its name', () => {
+    it.each([
+        ['Ontario', { country: 'CA', code: 'ON' }],
+        ['Newfoundland and Labrador', { country: 'CA', code: 'NL' }],
+        ['Nuevo León', { country: 'MX', code: 'NL' }],
+        [' Chihuahua ', { country: 'MX', code: 'CI' }],
+        ['Texas', null],
+        ['', null],
+        [undefined, null],
+    ])('%s is %j', (name, expected) => {
+        expect(fmcsaRegionOutsideUs(name)).toEqual(expected);
+    });
+
+    it('reads every listed name back to the code it was read from', () => {
+        for (const [country, codes] of Object.entries(CENSUS_CODES)) {
+            for (const code of codes) expect(fmcsaRegionOutsideUs(regionNameFromFmcsa(country, code))).toEqual({ country, code });
+        }
     });
 });

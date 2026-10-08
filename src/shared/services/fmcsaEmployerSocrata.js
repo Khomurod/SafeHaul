@@ -5,12 +5,13 @@
  * Two callers with their own queries: the driver's employer lookup
  * (`fetchFmcsaEmployerSuggestions`) and the company's verification request
  * (`fetchFmcsaCarrierCandidatesForPev`, whose query is unchanged since before
- * 2026-10-07). Both map a row through this file, so a value FMCSA holds but no
+ * 2026-10-07 but for a Canadian or Mexican region, now asked for with its
+ * country). Both map a row through this file, so a value FMCSA holds but no
  * form should, such as "NONE" in the email column, is dropped in one place.
  */
 
 import { isWellFormedEmail } from '@shared/utils/validation';
-import { regionNameFromFmcsa } from '@shared/utils/northAmericanRegions';
+import { fmcsaRegionOutsideUs, regionNameFromFmcsa } from '@shared/utils/northAmericanRegions';
 
 export const FMCSA_EMPLOYER_SOCRATA_URL =
   'https://data.transportation.gov/resource/az4n-8mr2.json';
@@ -52,7 +53,7 @@ export function normalizeEmployerStateToFmcsaPhyState(raw) {
   const s = String(raw ?? '').trim();
   if (!s) return '';
   if (/^[a-zA-Z]{2}$/.test(s)) return s.toUpperCase();
-  return FULL_STATE_NAME_TO_ABBR[s] || '';
+  return FULL_STATE_NAME_TO_ABBR[s] || fmcsaRegionOutsideUs(s)?.code || '';
 }
 
 function normalizeFmcsaPhyStateFilter(phyStateCode) {
@@ -60,11 +61,18 @@ function normalizeFmcsaPhyStateFilter(phyStateCode) {
   return /^[A-Z]{2}$/.test(code) ? code : '';
 }
 
-function appendPhyStateToWhere(baseWhere, phyStateCode) {
+/**
+ * A region code is unique only within its country ("NL" is in Canada and in
+ * Mexico), so one outside the US is asked for with its country. A US state is
+ * asked for alone, as it always was.
+ */
+function appendPhyStateToWhere(baseWhere, phyStateCode, phyCountryCode = '') {
   const code = normalizeFmcsaPhyStateFilter(phyStateCode);
   if (!code) return baseWhere;
   const esc = escapeSoqlStringLiteral(code);
-  return `${baseWhere} and upper(trim(phy_state)) = upper('${esc}')`;
+  const where = `${baseWhere} and upper(trim(phy_state)) = upper('${esc}')`;
+  const country = normalizeFmcsaPhyStateFilter(phyCountryCode);
+  return country ? `${where} and upper(trim(phy_country)) = upper('${country}')` : where;
 }
 
 /** Columns always available on company census export (used in driver employment step). */
@@ -114,13 +122,14 @@ export function buildFmcsaEmployerSearchUrl(
   prefix,
   selectFields = FMCSA_SELECT_MINIMAL,
   phyStateCode = '',
+  phyCountryCode = '',
 ) {
   const safe = escapeSoqlStringLiteral(sanitizeEmployerSearchPrefix(prefix));
   if (safe.length < MIN_PREFIX_LENGTH) {
     return null;
   }
   let where = `starts_with(upper(legal_name), upper('${safe}'))`;
-  where = appendPhyStateToWhere(where, phyStateCode);
+  where = appendPhyStateToWhere(where, phyStateCode, phyCountryCode);
   const params = new URLSearchParams();
   params.set('$select', selectFields);
   params.set('$where', where);
@@ -135,10 +144,11 @@ export function buildFmcsaEmployerSearchUrlFromCompanyName(
   companyName,
   selectFields = FMCSA_SELECT_MINIMAL,
   phyStateCode = '',
+  phyCountryCode = '',
 ) {
   const token = fmcsaPrefixTokenFromCompanyName(companyName);
   if (!token) return null;
-  return buildFmcsaEmployerSearchUrl(token, selectFields, phyStateCode);
+  return buildFmcsaEmployerSearchUrl(token, selectFields, phyStateCode, phyCountryCode);
 }
 
 /**
@@ -148,11 +158,12 @@ export function buildFmcsaEmployerLikeSearchUrl(
   companyName,
   selectFields = FMCSA_SELECT_MINIMAL,
   phyStateCode = '',
+  phyCountryCode = '',
 ) {
   const safe = escapeSoqlStringLiteral(sanitizeEmployerSearchPrefix(companyName));
   if (safe.length < MIN_PREFIX_LENGTH) return null;
   let where = `like(upper(legal_name), '%' || upper('${safe}') || '%')`;
-  where = appendPhyStateToWhere(where, phyStateCode);
+  where = appendPhyStateToWhere(where, phyStateCode, phyCountryCode);
   const params = new URLSearchParams();
   params.set('$select', selectFields);
   params.set('$where', where);
@@ -305,9 +316,11 @@ export async function fetchFmcsaCarrierCandidatesForPev(companyName, options = {
   if (!appToken) return [];
 
   const stateCode = normalizeEmployerStateToFmcsaPhyState(employerState);
+  // '' for a US state, which is asked for alone as before.
+  const countryCode = fmcsaRegionOutsideUs(employerState)?.country || '';
 
   const tryFetch = async (buildUrlFn, selectFields, phyState = '') => {
-    const url = buildUrlFn(companyName, selectFields, phyState);
+    const url = buildUrlFn(companyName, selectFields, phyState, phyState ? countryCode : '');
     if (!url) return [];
     const headers = {
       Accept: 'application/json',
@@ -320,7 +333,7 @@ export async function fetchFmcsaCarrierCandidatesForPev(companyName, options = {
         selectFields !== FMCSA_SELECT_MINIMAL &&
         (e.status === 400 || /unknown column|invalid/i.test(String(e.body || e.message)))
       ) {
-        const fallbackUrl = buildUrlFn(companyName, FMCSA_SELECT_MINIMAL, phyState);
+        const fallbackUrl = buildUrlFn(companyName, FMCSA_SELECT_MINIMAL, phyState, phyState ? countryCode : '');
         if (!fallbackUrl) return [];
         return await fetchJson(fallbackUrl, headers, signal);
       }

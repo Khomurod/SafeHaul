@@ -324,5 +324,21 @@ describe('fmcsaEmployerSocrata', () => {
       expect(third).toContain('starts_with');
       expect(third).not.toContain("upper('IL')");
     });
+
+    // A code is unique only within a country ("NL" is in Canada and in Mexico),
+    // so a region outside the US is asked for with its country; a US state as before.
+    it.each([
+      ['Ontario', "upper(trim(phy_state)) = upper('ON') and upper(trim(phy_country)) = upper('CA')"],
+      ['Nuevo León', "upper(trim(phy_state)) = upper('NL') and upper(trim(phy_country)) = upper('MX')"],
+      ['Illinois', "upper(trim(phy_state)) = upper('IL')"],
+    ])('looks in %s first', async (employerState, filter) => {
+      const fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([{ dot_number: '1', legal_name: 'NORTHERN LINE' }]) }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      await fetchFmcsaCarrierCandidatesForPev('Northern Line', { appToken: 'tok', employerState });
+
+      const where = new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('$where');
+      expect(where).toBe(`starts_with(upper(legal_name), upper('Northern')) and ${filter}`);
+    });
   });
 });

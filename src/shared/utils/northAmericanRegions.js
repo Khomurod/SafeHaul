@@ -50,6 +50,22 @@ const BY_COUNTRY = Object.freeze({
     MX: new Map(MEXICO),
 });
 
+const OUTSIDE_US_BY_NAME = new Map([
+    ...CANADA.map(([code, name]) => [name, Object.freeze({ country: 'CA', code })]),
+    ...MEXICO.map(([code, name]) => [name, Object.freeze({ country: 'MX', code })]),
+]);
+
+/**
+ * FMCSA's country and code for a Canadian province or territory or a Mexican
+ * state, by its listed name; null for a US state or anything else.
+ *
+ * @param {unknown} name e.g. `'Ontario'`, `'Nuevo León'`
+ * @returns {{country: 'CA'|'MX', code: string} | null}
+ */
+export function fmcsaRegionOutsideUs(name) {
+    return OUTSIDE_US_BY_NAME.get(String(name ?? '').trim()) || null;
+}
+
 /**
  * The listed name for an FMCSA `phy_country` and `phy_state`; `''` for a
  * country or code not listed. A row without a country is read as a US one, as
