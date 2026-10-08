@@ -22,8 +22,8 @@
  * the provider's config (`modelLists`), where the router reads it, and records
  * what it found (`modelCheck`) for the console. With auto-select switched off
  * (`ai_routing_config/modelCheck.autoSelect === false`, read again just before
- * saving, so a run already under way obeys it) it only reports what it would
- * change. It tells the owner in Telegram when there is news
+ * saving, so switching it off holds for a run already under way) it only
+ * reports what it would change. It tells the owner in Telegram when there is news
  * (`./modelRefreshMessages.js`), and works the same with no chat connected.
  *
  * A lease in `ai_routing_config/modelCheck` keeps two runs from overlapping.
@@ -102,9 +102,10 @@ async function readCheckState(now = Date.now()) {
 }
 
 /**
- * Whether changes are applied, read again as a run saves: the switch may have
- * moved while its providers were being checked. The run's own reading stands
- * when the setting cannot be read.
+ * Whether changes are applied, read again as a run saves: switched off while
+ * its providers were being checked, nothing changes. Switched on, the run stays
+ * the report it began as; on applies from the next run. The run's own reading
+ * stands when the setting cannot be read.
  */
 async function autoSelectNow(fallback) {
     try {
@@ -254,7 +255,7 @@ async function runModelRefresh({ now = Date.now(), force = false, providerIds = 
         }));
 
         const at = new Date(now).toISOString();
-        const autoSelect = await autoSelectNow(lease.autoSelect);
+        const autoSelect = lease.autoSelect && await autoSelectNow(lease.autoSelect);
         const destination = await readDestination();
         const lines = [];
         const outcomes = [];

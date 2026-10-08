@@ -185,6 +185,19 @@ describe('what it saves', () => {
         expect(record.modelCheck.lanes.vision).toMatchObject({ models: ['m1'], suggested: ['m3'] });
     });
 
+    it('leaves auto-select switched on mid-run for the next run: this one began as a report', async () => {
+        mockLeaseDoc.data = { autoSelect: false };
+        mockCheck.mockImplementation(async () => {
+            mockLeaseDoc.data = { ...mockLeaseDoc.data, autoSelect: true };
+            return checked({ vision: laneResult({ models: ['m3'], previous: ['m1'], changed: true, added: ['m3'] }) });
+        });
+
+        await runModelRefresh({ now: DAY });
+
+        expect(mockSave.mock.calls[0][1].modelLists).toEqual({});
+        expect(mockSave.mock.calls[0][1].modelCheck.lanes.vision).toMatchObject({ models: ['m1'], suggested: ['m3'] });
+    });
+
     it('keeps the run\'s own reading of auto-select when it cannot read it again', async () => {
         jest.spyOn(console, 'error').mockImplementation(() => {});
         mockLeaseDoc.failGet = true;
