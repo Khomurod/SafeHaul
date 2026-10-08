@@ -17,6 +17,7 @@
  */
 
 const { resolveGate } = require('./applicationDefinition');
+const { withinStep } = require('./withinStep');
 
 const FOLDERS = Object.freeze(['applications', 'autofill']);
 /** What `getSignedUploadUrl` writes after the folder: `{ms}_{random}_{cleaned name}`. */
@@ -32,6 +33,11 @@ const MAX_MARKED = 50;
  * may belong to an application submitted unmarked, so no draft's deletion takes it.
  */
 const MARKS_SINCE = Date.parse('2026-10-12T00:00:00Z');
+/**
+ * The longest a submission waits for its marks, well inside its 30 seconds:
+ * Storage's own retries can take longer than the whole submission.
+ */
+const MARK_MS = 8000;
 
 /**
  * The licence page's uploads, each with the company setting that hides it. These
@@ -54,6 +60,16 @@ function isGuestUploadPath(path, companyId) {
         const name = path.slice(prefix.length);
         return NAME.test(name) && name !== '.' && name !== '..';
     });
+}
+
+/**
+ * When `getSignedUploadUrl` named this upload, from the milliseconds its name
+ * starts with; NaN for a name that does not start with them.
+ */
+function uploadNamedAt(path) {
+    const name = typeof path === 'string' ? path.slice(path.lastIndexOf('/') + 1) : '';
+    const millis = /^\d{1,15}_/.test(name) ? Number(name.slice(0, name.indexOf('_'))) : NaN;
+    return Number.isSafeInteger(millis) ? millis : NaN;
 }
 
 const storagePathOf = (value) => (
@@ -135,24 +151,30 @@ function deletableUpload(metadata, since = MARKS_SINCE) {
  *
  * Only a file Storage says is not there refuses. A mark that could not be set
  * otherwise lets the submission through: a signed application is not refused
- * over a call that failed.
+ * over a call that failed, nor held up past `waitMs` by one that is slow. Each
+ * call has `waitMs` of its own, so one that does not answer cannot hide another
+ * file's answer that it is gone.
  */
-async function markSubmittedUploads({ storage, companyId, formData, applicationConfig, customQuestions, HttpsError }) {
+async function markSubmittedUploads({ storage, companyId, formData, applicationConfig, customQuestions, HttpsError, waitMs = MARK_MS }) {
     const paths = guestUploadPathsIn(formData, companyId).slice(0, MAX_MARKED);
     if (paths.length === 0) return;
     let results;
     try {
         const bucket = storage.bucket();
-        results = await Promise.allSettled(paths.map((path) => bucket.file(path).setMetadata({
+        results = await Promise.allSettled(paths.map((path) => withinStep(bucket.file(path).setMetadata({
             metadata: { [SUBMITTED_MARK]: 'true' },
-        })));
+        }), waitMs)));
     } catch (error) {
         console.error(`[guestUploads] Could not mark the uploads of a submission to ${companyId}: ${error?.message || 'unknown'}`);
         return;
     }
     const gone = new Set(paths.filter((_, index) => results[index].reason?.code === 404));
-    const unmarked = results.filter((result) => result.status === 'rejected').length - gone.size;
-    if (unmarked > 0) console.error(`[guestUploads] Could not mark ${unmarked} upload(s) of a submission to ${companyId}`);
+    const unmarked = results.filter((result, index) => result.status === 'rejected' && !gone.has(paths[index]));
+    if (unmarked.length > 0) {
+        // Codes only: a Storage message can carry the file's name, which is the driver's.
+        const codes = [...new Set(unmarked.map((result) => String(result.reason?.code ?? 'unknown')))].join(',');
+        console.error(`[guestUploads] Could not mark ${unmarked.length} upload(s) of a submission to ${companyId} (code ${codes})`);
+    }
     const missing = reuploadableEntries(formData, companyId, { applicationConfig, customQuestions })
         .filter(({ path }) => gone.has(path));
     if (missing.length === 0) return;
@@ -165,5 +187,6 @@ async function markSubmittedUploads({ storage, companyId, formData, applicationC
 }
 
 module.exports = {
-    MARKS_SINCE, SUBMITTED_MARK, deletableUpload, guestUploadPathsIn, isGuestUploadPath, markSubmittedUploads, reuploadableEntries,
+    MARKS_SINCE, MARK_MS, SUBMITTED_MARK, deletableUpload, guestUploadPathsIn, isGuestUploadPath, markSubmittedUploads,
+    reuploadableEntries, uploadNamedAt,
 };

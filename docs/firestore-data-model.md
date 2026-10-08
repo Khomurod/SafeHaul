@@ -282,11 +282,14 @@ Two more kinds of entry, written by `purgeApplicationDraft` (the second by `dele
   it.
 - **`draft_files_pending`**: the upload `paths` a deletion could not remove, with
   the drafts' `applicantKeys`, `attempts` and when they were checked
-  (`checkedAt`); the next deletion at the company checks them again, against the
-  applications changed since as well, and finishes them
-  (`functions/drafts/draftFiles.js`). Files whose check failed are not recorded:
-  they stay. An expired draft's cleanup tries twice more first, and records
-  only what its last try left.
+  (`checkedAt`), and no answers, though a path ends in the name the file had on
+  the driver's device; the next deletion at the company checks them again,
+  against the applications changed since as well, and finishes them
+  (`functions/drafts/draftFiles.js`). A record changes only once its retry is
+  done: it goes when its files do, is updated in place otherwise, and is given
+  up after five attempts once it is a day old. Files whose check failed are not
+  recorded: they stay. An expired draft's cleanup tries twice more first, and
+  records only what its last try left, once per deletion (`files_{event id}`).
 
 ---
 

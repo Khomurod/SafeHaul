@@ -46,9 +46,20 @@ function seed(key, { formData = {}, ...fields } = {}) {
     });
 }
 
+/** An upload as `getSignedUploadUrl` names it, at a time. */
+const uploadAt = (iso, name) => ({
+    name, storagePath: `companies/${COMPANY}/applications/guest_uploads/${Date.parse(iso)}_x1y2z3a_${name}`,
+});
+
 /** Dana, Dana again under another email, a stranger on the same phone, and a stranger. */
 function seedFamily() {
-    seed(DANA, { formData: { 'cdl-front': { name: 'front.jpg', storagePath: `companies/${COMPANY}/applications/guest_uploads/1_a_front.jpg` } } });
+    seed(DANA, {
+        formData: {
+            'cdl-front': uploadAt('2026-11-01T09:00:00Z', 'front.jpg'),
+            // Uploaded before the submissions' marks began, so it stays.
+            'cdl-back': uploadAt('2026-10-01T09:00:00Z', 'back.jpg'),
+        },
+    });
     seed(DANA_AGAIN, { contactEmail: 'dana.alvarez@example.test', contactPhone: '9725550100' });
     seed(SHARED_PHONE, {
         contactEmail: 'sam@example.test', identityKey: 'c'.repeat(64), formData: { firstName: 'Sam', lastName: 'Ortiz' },
@@ -103,12 +114,14 @@ describe('the preview', () => {
 
         const result = await purge({ applicantKey: DANA, preview: true });
 
-        expect(result.application).toMatchObject({ applicantKey: DANA, firstName: 'Dana', fileCount: 1 });
+        expect(result.application).toMatchObject({ applicantKey: DANA, firstName: 'Dana', fileCount: 1, olderFileCount: 1 });
+        expect(result.filesKeptBefore).toBe('2026-10-12');
         const related = Object.fromEntries(result.related.map((row) => [row.applicantKey, row.shares]));
         expect(related).toEqual({ [DANA_AGAIN]: ['identity'], [SHARED_PHONE]: ['phone'] });
-        expect(result.related.find((row) => row.applicantKey === SHARED_PHONE)).toMatchObject({ firstName: 'Sam', fileCount: 0 });
+        expect(result.related.find((row) => row.applicantKey === SHARED_PHONE))
+            .toMatchObject({ firstName: 'Sam', fileCount: 0, olderFileCount: 0 });
         // A summary, as the list shows: never the answers, an identity key or a token.
-        expect(JSON.stringify(result)).not.toMatch(/identityKey|resumeTokenHash|cdl-front/);
+        expect(JSON.stringify(result)).not.toMatch(/identityKey|resumeTokenHash|cdl-front|guest_uploads/);
     });
 
     it('changes nothing', async () => {

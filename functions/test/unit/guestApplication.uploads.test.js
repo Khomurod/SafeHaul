@@ -26,12 +26,14 @@ jest.mock('firebase-admin/firestore', () => ({
 const mockSet = jest.fn().mockResolvedValue(undefined);
 const mockStored = new Set();
 const mockMarked = [];
+/** What every document read finds, or nothing. */
+let mockDocData = null;
 
-/** Any document: empty, and writable, with collections of its own. */
+/** Any document: empty unless `mockDocData` says otherwise, and writable, with collections of its own. */
 function mockRef() {
   return {
     set: mockSet,
-    get: async () => ({ exists: false, data: () => null }),
+    get: async () => ({ exists: mockDocData !== null, data: () => mockDocData }),
     delete: async () => undefined,
     collection: () => mockCollection(),
   };
@@ -69,7 +71,8 @@ const FRONT = 'companies/co1/applications/guest_uploads/1696_ab12cd3_front.jpg';
 const BACK = 'companies/co1/applications/guest_uploads/1696_ab12cd4_back.jpg';
 const MEDICAL = 'companies/co1/applications/guest_uploads/1696_ab12cd5_medical.jpg';
 
-const submit = () => submitGuestApplication({
+const submit = (fields = {}) => submitGuestApplication({
+  ...fields,
   companyId: 'co1',
   email: 'a@b.com',
   phone: '5551234567',
@@ -86,6 +89,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockStored.clear();
   mockMarked.length = 0;
+  mockDocData = null;
 });
 
 it('files the application when its uploads are there, each marked as a submitted application\'s', async () => {
@@ -105,5 +109,17 @@ it('sends the driver back to the licence page, writing nothing, when an upload i
     code: 'invalid-argument',
     details: { issues: [{ code: 'upload-missing', semanticStep: 'license', fieldId: 'cdl-front' }] },
   });
+  expect(mockSet).not.toHaveBeenCalled();
+});
+
+it('marks nothing when a check before the filing refuses it', async () => {
+  [FRONT, BACK, MEDICAL].forEach((path) => mockStored.add(path));
+  // The carrier edited the draft after this copy last loaded it.
+  mockDocData = { companyRevision: 5 };
+
+  const refusal = await submit({ seenRevision: 4 }).catch((error) => error);
+
+  expect(refusal).toMatchObject({ code: 'failed-precondition', details: { issues: [{ code: 'carrier-updated' }] } });
+  expect(mockMarked).toEqual([]);
   expect(mockSet).not.toHaveBeenCalled();
 });

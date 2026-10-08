@@ -20,7 +20,7 @@ jest.mock('../../firebaseAdmin', () => require('./applicationDrafts.support').fi
 const { deleteExpiredDraftFiles, __private: { RETRY_WAITS_MS, timing } } = require('../../drafts/expired');
 const {
     mockStore, mockStorageFiles, mockDeletedFiles, mockServerTimestamp, COMPANY,
-    failFileDeletesOn, failQueriesOn, hangFileDeletesOn, hangQueriesOn, hangAddsOn, resetDraftState,
+    failFileDeletesOn, failQueriesOn, hangFileDeletesOn, hangQueriesOn, hangAddsOn, resetDraftState, settleUnanswered,
 } = require('./applicationDrafts.support');
 
 const KEY = 'aaaa1111bbbb2222cccc';
@@ -45,7 +45,8 @@ function deletedDraft(fields = {}) {
     };
 }
 
-const fire = (data, authType = 'system') => deleteExpiredDraftFiles({
+const fire = (data, authType = 'system', id = undefined) => deleteExpiredDraftFiles({
+    id,
     authType,
     params: { companyId: COMPANY, applicantKey: KEY },
     data: { data: () => data },
@@ -55,12 +56,15 @@ const pending = () => [...mockStore.entries()]
     .filter(([path, row]) => path.startsWith(`${AUDIT}/`) && row.action === 'draft_files_pending')
     .map(([, row]) => row);
 
-const { wait: realWait, stepMs: realStepMs } = timing;
+const { wait: realWait, stepMs: realStepMs, runMs: realRunMs } = timing;
 /** The waits between tries, taken at once; `during` runs while a wait would have. */
 let waits;
 function waitsRun(during = () => {}) {
     timing.wait = jest.fn(async (ms) => { waits.push(ms); during(); });
 }
+
+// What a test left unanswered is refused once it ends, so nothing outlives it.
+afterEach(settleUnanswered);
 
 beforeEach(() => {
     resetDraftState();
@@ -70,11 +74,13 @@ beforeEach(() => {
     waitsRun();
     // A step that never answers gives up at once.
     timing.stepMs = 20;
+    timing.runMs = realRunMs;
 });
 
 afterAll(() => {
     timing.wait = realWait;
     timing.stepMs = realStepMs;
+    timing.runMs = realRunMs;
 });
 
 it('listens for the deletion of an unfinished application, without the platform\'s retries', () => {
@@ -229,6 +235,30 @@ describe('a run that could not finish', () => {
 
         expect(pending()).toEqual([]);
         expect(errors).toHaveBeenCalledWith(expect.stringContaining('could not record 1 file(s) left to delete'));
+    });
+
+    it('records what one deletion left once, however often its event arrives', async () => {
+        failFileDeletesOn('front');
+
+        await fire(deletedDraft(), 'system', 'projects/p/events/1 2');
+        await fire(deletedDraft(), 'system', 'projects/p/events/1 2');
+
+        expect(pending()).toEqual([expect.objectContaining({ applicantKeys: [KEY], paths: [FRONT], attempts: 1 })]);
+        expect(mockStore.has(`${AUDIT}/files_projects_p_events_1_2`)).toBe(true);
+    });
+
+    it('starts no retry of earlier leftovers once its run is over, and leaves their record', async () => {
+        const LEFT = `${UPLOADS}/3_c_left.jpg`;
+        mockStorageFiles.add(LEFT);
+        mockStore.set(`${AUDIT}/pending-1`, {
+            action: 'draft_files_pending', applicantKeys: ['bbbb1111bbbb2222cccc'], paths: [LEFT], attempts: 1, checkedAt: at(Date.now() - HOUR),
+        });
+        timing.runMs = 0;
+
+        await fire(deletedDraft({ formData: {} }));
+
+        expect(mockStorageFiles.has(LEFT)).toBe(true);
+        expect(mockStore.get(`${AUDIT}/pending-1`)).toMatchObject({ paths: [LEFT], attempts: 1 });
     });
 
     it('leaves what earlier deletions could not finish for a run that goes through', async () => {

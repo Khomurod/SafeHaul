@@ -10,10 +10,21 @@ import { describeApplicant, describeProgress } from './unfinishedRowActions';
  * (`useUnfinishedDraftDelete`): the answers, the uploaded files and every link,
  * and the same driver's other unfinished applications, each ticked, so the admin
  * can keep one that is somebody else's. What stays is said too: a submitted
- * application, a hired driver, a file a submitted application uses.
+ * application, a hired driver, a file a submitted application uses, and a file
+ * uploaded before the server began telling submitted files apart.
  */
 
 const filesPhrase = (count) => (count === 1 ? '1 uploaded file' : `${count} uploaded files`);
+
+/** "One file uploaded before October 12, 2026 stays too, …", or null. */
+function olderFilesSentence(count, keptBefore) {
+    const day = keptBefore ? new Date(`${keptBefore}T00:00:00Z`) : null;
+    if (!(count > 0) || !day || Number.isNaN(day.getTime())) return null;
+    const date = day.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    return count === 1
+        ? `One file uploaded before ${date} stays too, as an application submitted before then may use it.`
+        : `${count} files uploaded before ${date} stay too, as an application submitted before then may use them.`;
+}
 
 /** "Same last name, date of birth and SSN; same phone", from what the server says two drafts share. */
 function sharedPhrase(shares = []) {
@@ -45,7 +56,12 @@ export function UnfinishedDeleteDialog({ deletion }) {
     const { actionName } = describeApplicant(preview.application || entry);
     const fileCount = preview.application?.fileCount || 0;
     const what = fileCount > 0 ? `its answers, ${filesPhrase(fileCount)} and any link sent for it` : 'its answers and any link sent for it';
-    const total = 1 + preview.related.filter((row) => !keep.has(row.applicantKey)).length;
+    const going = [preview.application, ...preview.related.filter((row) => !keep.has(row.applicantKey))];
+    const total = going.length;
+    const olderFiles = olderFilesSentence(
+        going.reduce((sum, row) => sum + (row?.olderFileCount || 0), 0),
+        preview.filesKeptBefore,
+    );
 
     return (
         <ConfirmDialog
@@ -80,7 +96,8 @@ export function UnfinishedDeleteDialog({ deletion }) {
             )}
             <p className="mt-ds-3 text-ds-sm text-ds-content-secondary">
                 Submitted applications and hired drivers are not touched, nor any file a submitted application uses.
-                A driver who still has this application open on their own device can still submit it from there.
+                {olderFiles && ` ${olderFiles}`}
+                {' '}A driver who still has this application open on their own device can still submit it from there.
             </p>
         </ConfirmDialog>
     );

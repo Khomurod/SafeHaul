@@ -18,18 +18,22 @@
  *
  * The drafts are deleted first and the files after, outside their transaction,
  * as Storage cannot join one. A file that could not be deleted is written down
- * (`draft_files_pending`, value-free but for the paths) and tried again by the
- * next deletion at the same company, with the check run again first. That check
- * knows the drafts by key alone, so it also reads every application changed
- * since the first one, and gives up rather than guess when there are too many.
- * When the first check itself fails, nothing is deleted or written down: a retry
- * could not ask what it asked.
+ * (`draft_files_pending`: the drafts' keys and the files' paths, no answers,
+ * though a path ends in the name the file had on the driver's device) and tried
+ * again by the next deletion at the same company, with the check run again
+ * first. A record changes only once its retry is done: it goes when its files
+ * are, and is otherwise updated in place, so a run cut short loses nothing and
+ * two runs at once leave one record. That check knows the drafts by key alone,
+ * so it also reads every application changed since the first one, and gives up
+ * rather than guess when there are too many. When the first check itself fails,
+ * nothing is deleted or written down: a retry could not ask what it asked.
  */
 
 const { admin, db, storage } = require('../firebaseAdmin');
 const draft = require('../shared/applicationDraft');
 const { deletableUpload, guestUploadPathsIn } = require('../shared/guestUploads');
 const { uploadPathsInApplicationsSince, uploadPathsInSubmittedApplications } = require('../shared/submittedUploads');
+const { stepLimit, withinStep } = require('../shared/withinStep');
 const { MIN_PHONE_DIGITS } = require('./related');
 
 /** The rows the workspace lists, which is where a shared file would be. */
@@ -38,7 +42,13 @@ const PER_QUERY = 10;
 const PENDING_ACTION = 'draft_files_pending';
 /** Pending records one deletion retries, so a backlog cannot slow the admin down. */
 const RETRY_BATCH = 3;
+/**
+ * A record is given up on after `MAX_ATTEMPTS`, and only once it is
+ * `GIVE_UP_AFTER_MS` old: a Storage outage can spend five attempts in an hour of
+ * deletions that could not reach it, and should not cost the files.
+ */
 const MAX_ATTEMPTS = 5;
+const GIVE_UP_AFTER_MS = 24 * 60 * 60 * 1000;
 /** Ahead of a check by this much, so an application stamped by another clock is not missed. */
 const CLOCK_MARGIN_MS = 60 * 1000;
 
@@ -85,21 +95,7 @@ async function pathsStillUsed(companyId, removed) {
 }
 
 const KEPT = 'kept';
-
-/**
- * `promise`, or a refusal once `ms` pass without an answer; `promise` itself
- * without `ms`. The Storage and Firestore clients keep retrying a request on
- * their own, long enough to outlast a run that has to finish what it started
- * (`drafts/expired.js`).
- */
-function withinStep(promise, ms) {
-    if (!ms) return promise;
-    let timer;
-    const late = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(Object.assign(new Error(`no answer within ${ms} ms`), { code: 'step-timeout' })), ms);
-    });
-    return Promise.race([promise, late]).finally(() => clearTimeout(timer));
-}
+const millisOf = (value) => value?.toMillis?.() ?? value?.toDate?.().getTime() ?? NaN;
 
 /**
  * Deletes each path a draft's deletion may take, and only while it is as it was
@@ -123,18 +119,24 @@ async function deletePaths(paths, stepMs) {
     return { kept, failed };
 }
 
-async function recordPending(companyId, keys, paths, checkedAt, attempts = 1, stepMs = undefined) {
+/**
+ * Writes down what a deletion left. Under `recordId`, when the deletion has a
+ * name of its own, so the same one run twice writes one record.
+ */
+async function recordPending(companyId, { keys, paths, checkedAt, recordId, stepMs }) {
+    const row = {
+        action: PENDING_ACTION,
+        outcome: 'pending',
+        applicantKeys: keys,
+        paths,
+        attempts: 1,
+        checkedAt,
+        at: draft.serverTimestamp(),
+        expiresAt: draft.expiresAt(),
+    };
     try {
-        await withinStep(auditCollection(companyId).add({
-            action: PENDING_ACTION,
-            outcome: 'pending',
-            applicantKeys: keys,
-            paths,
-            attempts,
-            checkedAt,
-            at: draft.serverTimestamp(),
-            expiresAt: draft.expiresAt(),
-        }), stepMs);
+        const records = auditCollection(companyId);
+        await withinStep(recordId ? records.doc(recordId).set(row) : records.add(row), stepMs);
     } catch (error) {
         console.error(`[applicationDrafts] ${companyId}: could not record ${paths.length} file(s) left to delete: ${error?.message || 'unknown'}`);
     }
@@ -144,15 +146,16 @@ async function recordPending(companyId, keys, paths, checkedAt, attempts = 1, st
  * Deletes the files of drafts that have just been deleted, except those still
  * pointed at elsewhere. Never throws: the drafts are already gone, and what could
  * not be done is recorded for the next deletion to finish, unless the caller will
- * run again itself (`recordFailures: false`). With `stepMs`, each step (the
- * check, a file's delete, the record) that gets no answer by then has failed.
+ * run again itself (`recordFailures: false`), under `recordId` if given. With
+ * `stepMs`, each step (the check, a file's delete, the record) that gets no
+ * answer by then has failed.
  *
  * @param {string} companyId
  * @param {Array<{key: string, data: object}>} removed
- * @param {{recordFailures?: boolean, stepMs?: number}} [options]
+ * @param {{recordFailures?: boolean, stepMs?: number, recordId?: string}} [options]
  * @returns {Promise<{deleted: number, kept: number, failed: number}>}
  */
-async function deleteDraftFiles(companyId, removed, { recordFailures = true, stepMs = undefined } = {}) {
+async function deleteDraftFiles(companyId, removed, { recordFailures = true, stepMs = undefined, recordId = undefined } = {}) {
     const candidates = [...new Set(removed.flatMap(({ data }) => guestUploadPathsIn(data?.formData, companyId)))];
     if (candidates.length === 0) return { deleted: 0, kept: 0, failed: 0 };
     const keys = removed.map(({ key }) => key);
@@ -168,7 +171,7 @@ async function deleteDraftFiles(companyId, removed, { recordFailures = true, ste
     }
     const unused = candidates.filter((path) => !used.has(path));
     const { kept, failed } = await deletePaths(unused, stepMs);
-    if (failed.length > 0 && recordFailures) await recordPending(companyId, keys, failed, checkedAt, 1, stepMs);
+    if (failed.length > 0 && recordFailures) await recordPending(companyId, { keys, paths: failed, checkedAt, recordId, stepMs });
     return {
         deleted: unused.length - kept.length - failed.length,
         kept: candidates.length - unused.length + kept.length,
@@ -178,34 +181,44 @@ async function deleteDraftFiles(companyId, removed, { recordFailures = true, ste
 
 /**
  * Finishes what earlier deletions at this company could not, checking again
- * first what else uses each file. Best effort, a few records at a time.
+ * first what else uses each file. Best effort, a few records at a time, each
+ * step within `stepMs` and none past `deadline` (milliseconds). A record goes
+ * once its files are done or it is given up on; otherwise it is updated in
+ * place. One cut short is left as it was.
  */
-async function retryPendingFiles(companyId) {
+async function retryPendingFiles(companyId, { stepMs = undefined, deadline = undefined } = {}) {
+    const within = (promise) => withinStep(promise, stepLimit(stepMs, deadline));
     try {
-        const pending = await auditCollection(companyId).where('action', '==', PENDING_ACTION).limit(RETRY_BATCH).get();
+        const pending = await within(auditCollection(companyId).where('action', '==', PENDING_ACTION).limit(RETRY_BATCH).get());
         for (const record of pending.docs) {
-            const { applicantKeys = [], paths = [], attempts = 1, checkedAt } = record.data() || {};
+            if (Number.isFinite(deadline) && Date.now() >= deadline) return;
+            const { applicantKeys = [], paths = [], attempts = 1, checkedAt, at } = record.data() || {};
             const retriedAt = checkTime();
-            const [used, since] = await Promise.all([
+            const [used, since] = await within(Promise.all([
                 pathsStillUsed(companyId, applicantKeys.map((key) => ({ key, data: {} }))),
                 uploadPathsInApplicationsSince(companyId, checkedAt),
-            ]);
-            await record.ref.delete();
+            ]));
             if (!since.complete) {
                 console.error(`[applicationDrafts] ${companyId}: left ${paths.length} file(s) in place; too many applications changed since to check them.`);
+                await within(record.ref.delete());
                 continue;
             }
-            const { failed } = await deletePaths(paths.filter((path) => !used.has(path) && !since.paths.has(path)));
-            if (failed.length === 0) continue;
-            if (attempts >= MAX_ATTEMPTS) {
+            const unused = paths.filter((path) => !used.has(path) && !since.paths.has(path));
+            const { failed } = await deletePaths(unused, stepLimit(stepMs, deadline));
+            // A record without a date of its own is as old as any.
+            const old = !(Date.now() - millisOf(at) < GIVE_UP_AFTER_MS);
+            if (failed.length > 0 && attempts >= MAX_ATTEMPTS && old) {
                 console.error(`[applicationDrafts] ${companyId}: gave up deleting ${failed.length} file(s) after ${attempts} attempts.`);
+            }
+            if (failed.length === 0 || (attempts >= MAX_ATTEMPTS && old)) {
+                await within(record.ref.delete());
                 continue;
             }
-            await recordPending(companyId, applicantKeys, failed, retriedAt, attempts + 1);
+            await within(record.ref.update({ paths: failed, attempts: attempts + 1, checkedAt: retriedAt }));
         }
     } catch (error) {
         console.error(`[applicationDrafts] ${companyId}: could not retry the files left to delete: ${error?.message || 'unknown'}`);
     }
 }
 
-module.exports = { PENDING_ACTION, deleteDraftFiles, pathsStillUsed, retryPendingFiles };
+module.exports = { GIVE_UP_AFTER_MS, PENDING_ACTION, deleteDraftFiles, pathsStillUsed, retryPendingFiles };

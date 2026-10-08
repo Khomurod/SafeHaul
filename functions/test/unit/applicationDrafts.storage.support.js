@@ -17,6 +17,18 @@ const mockStorageHooks = { failDeletesOn: null, hangDeletesOn: null, beforeDelet
 const UPLOAD = Object.freeze({ metageneration: '1', timeCreated: '2026-11-01T00:00:00.000Z', metadata: {} });
 
 const notFound = () => Object.assign(new Error('No such object'), { code: 404 });
+
+/**
+ * Requests a double leaves unanswered, as a client still retrying would. By the
+ * time a test ends, the code under test has given up on each; `settleUnanswered`
+ * then refuses them, so none outlives its test (`.claude/rules/testing.md`).
+ */
+const mockUnanswered = [];
+const mockNeverAnswers = () => new Promise((_, reject) => { mockUnanswered.push(reject); });
+/** Refuses every request left unanswered: for an `afterEach`. */
+function settleUnanswered() {
+    for (const refuse of mockUnanswered.splice(0)) refuse(new Error('the test ended before this request was answered'));
+}
 const metaOf = (path) => mockStorageMeta.get(path) || UPLOAD;
 
 /** The bucket the purge deletes from and the submission marks in, as the client has them. */
@@ -46,7 +58,7 @@ function mockBucket() {
                     throw new Error('storage unavailable');
                 }
                 if (mockStorageHooks.hangDeletesOn && path.includes(mockStorageHooks.hangDeletesOn)) {
-                    await new Promise(() => {});
+                    await mockNeverAnswers();
                 }
                 if (!mockStorageFiles.has(path)) {
                     if (options.ignoreNotFound) return;
@@ -69,7 +81,7 @@ function failFileDeletesOn(fragment) {
     mockStorageHooks.failDeletesOn = fragment;
 }
 
-/** Makes every Storage delete of a path containing `fragment` never answer, until the next reset. */
+/** Makes every Storage delete of a path containing `fragment` go unanswered, until the next reset. */
 function hangFileDeletesOn(fragment) {
     mockStorageHooks.hangDeletesOn = fragment;
 }
@@ -90,5 +102,5 @@ function resetStorage() {
 
 module.exports = {
     mockBucket, mockStorageFiles, mockStorageMeta, mockDeletedFiles, failFileDeletesOn, hangFileDeletesOn,
-    beforeNextFileDelete, resetStorage,
+    beforeNextFileDelete, resetStorage, mockNeverAnswers, settleUnanswered,
 };

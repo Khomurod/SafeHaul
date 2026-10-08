@@ -48,7 +48,14 @@ export function useUnfinishedDraftDelete({ companyId, onDeleted }) {
                 companyId, applicantKey: entry.applicantKey, preview: true,
             });
             if (press !== latestAsk.current) return;
-            setTarget({ entry, preview: { application: data?.application || null, related: data?.related || [] } });
+            setTarget({
+                entry,
+                preview: {
+                    application: data?.application || null,
+                    related: data?.related || [],
+                    filesKeptBefore: data?.filesKeptBefore || null,
+                },
+            });
         } catch (previewError) {
             if (press !== latestAsk.current) return;
             if (previewError?.code === 'functions/not-found') {
