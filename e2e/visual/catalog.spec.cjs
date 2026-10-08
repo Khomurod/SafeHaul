@@ -123,6 +123,8 @@ const SUBJECTS = [
     ['components-datatable--empty', 'data-table-empty'],
     ['components-datatable--error-state', 'data-table-error'],
     ['components-datatable--long-and-missing-content', 'data-table-extremes'],
+    // The other half of the phone rule for `DataTable`: a table at 1440px, cards at 412px.
+    ['components-datatable--cards-on-mobile', 'data-table-cards'],
 
     // Dialogs.
     ['components-modal--default', 'modal'],

@@ -1,7 +1,7 @@
 import React from 'react';
 import { fn } from 'storybook/test';
 import { Icon, Eye, Inbox } from '@design-system/icons';
-import { Badge, DataTable, IconButton } from '@design-system/components';
+import { Badge, Button, DataTable, IconButton } from '@design-system/components';
 import { NOT_PROVIDED, RECORDS } from './fixtures';
 
 /** Reference column set reused across the stories below. */
@@ -123,6 +123,7 @@ const meta = {
           '| `rowHeader` | renders `<th scope="row">` — set it on the identifying column |',
           '| `truncate` | allows the cell to ellipsise instead of wrapping |',
           '| `stopPropagation` | stops a cell\'s clicks from activating the row |',
+          '| `mobileLabel` | the label beside the value when the table is cards on a phone; `\'\'` shows none |',
           '',
           'Numeric columns should be `align: "end"`. An action column must be',
           '`width: "actions"`, `align: "end"`, `priority: "actions"` and',
@@ -290,6 +291,46 @@ export const TabletViewport = {
 export const MobileViewport = {
   globals: { viewport: { value: 'safehaulMobile' } },
   args: { density: 'compact' },
+};
+
+/** A work list: what each row is, where it stands, and two labelled actions. */
+const workColumns = [
+  columns[0],
+  columns[1],
+  columns[2],
+  columns[4],
+  {
+    key: 'actions',
+    header: '',
+    headerLabel: 'Actions',
+    // The buttons say what they do; a label beside them would say it twice.
+    mobileLabel: '',
+    width: 'xl',
+    priority: 'actions',
+    stopPropagation: true,
+    render: (row) => (
+      <div className="flex flex-wrap gap-ds-2">
+        <Button size="sm" variant="secondary" aria-label={`Open ${row.reference}`} onClick={fn()}>Open</Button>
+        <Button size="sm" variant="secondary" aria-label={`Copy the link for ${row.reference}`} onClick={fn()}>Copy link</Button>
+      </div>
+    ),
+  },
+];
+
+/**
+ * `mobilePresentation="cards"`, for a list worked one record at a time: a table
+ * at 768px and up, and under that one card per row, titled by the row header,
+ * each value under its column's label and the actions full width
+ * (`mobileLabel: ''`). A list whose rows are compared keeps `scroll`.
+ */
+export const CardsOnMobile = {
+  args: {
+    ariaLabel: 'Follow-ups',
+    columns: workColumns,
+    density: 'compact',
+    minWidth: 'standard',
+    mobilePresentation: 'cards',
+  },
 };
 
 /**

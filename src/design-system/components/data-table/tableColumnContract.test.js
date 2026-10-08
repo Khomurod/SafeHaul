@@ -37,6 +37,7 @@ describe('DataTable column contract', () => {
     [[{ key: 'status', render: () => null, width: 'one-off-width' }], 'Unsupported DataTable width'],
     [[{ key: 'status', render: () => null, priority: 'hide-it' }], 'Unsupported DataTable priority'],
     [[{ key: 'status' }], 'requires a render function'],
+    [[{ key: 'status', render: () => null, mobileLabel: 42 }], 'needs a string mobileLabel'],
     [[{ key: 'status', render: () => null }, { key: 'status', render: () => null }], 'Duplicate DataTable column key'],
   ])('rejects invalid contracts', (columns, message) => {
     expect(() => defineTableColumns(columns)).toThrow(message);
