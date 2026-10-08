@@ -305,6 +305,33 @@ describe('the company view of unfinished applications', () => {
         })).rejects.toThrow();
     });
 
+    it('holds the 200 most recently active, and says when older ones exist', async () => {
+        for (let index = 0; index <= 200; index += 1) {
+            mockStore.set(`companies/${COMPANY}/application_drafts/key-${String(index).padStart(3, '0')}`, {
+                contactEmail: `driver${index}@example.test`,
+                formData: {},
+                // The double orders by `seq`; the highest is the latest save.
+                updatedAt: { ...mockServerTimestamp(), seq: index },
+            });
+        }
+
+        const { result, byKey } = await listByKey();
+
+        expect(result.drafts).toHaveLength(200);
+        expect(result.truncated).toBe(true);
+        expect(byKey.has('key-200')).toBe(true);
+        expect(byKey.has('key-000')).toBe(false);
+    });
+
+    it('says nothing was left out when every draft fits', async () => {
+        await saveFirstPage();
+
+        const { result } = await listByKey();
+
+        expect(result.drafts).toHaveLength(1);
+        expect(result.truncated).toBe(false);
+    });
+
     it('is scoped to the company that asked', async () => {
         await saveFirstPage();
 

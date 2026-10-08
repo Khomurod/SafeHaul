@@ -14,6 +14,9 @@ const { assertCompanyAccessForRequest } = require('../shared/companyAccess');
 const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
 const { docId } = require('./identity');
+
+/** The most rows one list holds: the most recently active, newest first. */
+const LIST_LIMIT = 200;
 // ---------------------------------------------------------------------------
 // Recruiter view
 // ---------------------------------------------------------------------------
@@ -57,6 +60,10 @@ const { docId } = require('./identity');
  * key to match them on wrongly. `toCompanySummary` supplies the shape, because it
  * was already the answer-free summary and already resolved `origin` for
  * driver-authored drafts.
+ *
+ * It holds the `LIST_LIMIT` most recently active and reads one more, so that
+ * `truncated` says when older ones exist: the page then says it shows the most
+ * recent rather than counting what it was not given.
  */
 exports.listApplicationDrafts = onCallV2({ cors: true }, async (request) => {
     const companyId = docId(request.data?.companyId, 100);
@@ -69,7 +76,7 @@ exports.listApplicationDrafts = onCallV2({ cors: true }, async (request) => {
     try {
         const snapshot = await draft.draftsCollection(companyId)
             .orderBy('updatedAt', 'desc')
-            .limit(200)
+            .limit(LIST_LIMIT + 1)
             .get();
 
         return {
@@ -77,7 +84,8 @@ exports.listApplicationDrafts = onCallV2({ cors: true }, async (request) => {
             // the draft's own answers, where the applicant typed it — the
             // normalized contact copies beside it exist for matching, not display —
             // and carries no answers of any kind.
-            drafts: snapshot.docs.map((doc) => prepared.toCompanySummary(doc)),
+            drafts: snapshot.docs.slice(0, LIST_LIMIT).map((doc) => prepared.toCompanySummary(doc)),
+            truncated: snapshot.docs.length > LIST_LIMIT,
             retentionDays: draft.RETENTION_DAYS,
             generatedAt: new Date().toISOString(),
         };

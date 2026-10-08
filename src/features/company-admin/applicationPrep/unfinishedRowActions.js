@@ -15,9 +15,10 @@
  * | Driver     | `in_progress`         | mint a continuation link. Nothing else.  |
  *
  * A **Company Admin** may do all of that, and since 2026-10-06 also open every
- * row the driver has written to — read-only, with the answers — and delete any
- * row. That is the owner's decision, and the server holds it: `getApplicationDraft`
- * and `purgeApplicationDraft` answer only the strict admin check.
+ * row the driver has written to, correct its answers, and delete any row with
+ * everything in it. That is the owner's decision, and the server holds it:
+ * `getApplicationDraft`, `saveApplicationDraftEdits` and `purgeApplicationDraft`
+ * answer only the strict admin check.
  *
  * Putting that in a pure function means the distinction is stated once, tested
  * directly, and cannot drift between the desktop table and anything else that
@@ -83,8 +84,9 @@ export function startedBy(entry) {
  * @returns {{
  *   origin: string, startedByLabel: string, preparedByName: ?string,
  *   statusLabel: string, statusTone: string, progressLabel: string,
- *   openMode: ?('prepare'|'review'), canDelete: boolean,
- *   driverOwnsAnswers: boolean, mintLabel: string, lockedEmployersLabel: ?string,
+ *   openMode: ?('prepare'|'review'), canDelete: boolean, canEditAnswers: boolean,
+ *   driverOwnsAnswers: boolean, mintLabel: string, replacesLink: boolean,
+ *   linkDue: boolean, lockedEmployersLabel: ?string,
  * }}
  */
 export function describeUnfinishedRow(entry, { isCompanyAdmin = false } = {}) {
@@ -96,17 +98,25 @@ export function describeUnfinishedRow(entry, { isCompanyAdmin = false } = {}) {
     // The one-way door: from the driver's first save the answers are theirs,
     // whoever typed the first draft of them.
     const driverOwnsAnswers = !fromCompany || status === DRIVER_IN_PROGRESS;
+    /**
+     * A link was made for this application before (`invitedAt`). Making another
+     * retires that one about ten minutes later (`mintApplicationInvite`), so the
+     * button says "New link" rather than promising to copy the one the driver has:
+     * a link is shown once and never again.
+     */
+    const replacesLink = Boolean(entry?.invitedAt);
 
-    let statusLabel = 'Unfinished';
+    // "Started by driver" rather than "Unfinished": every row here is unfinished,
+    // and who began it is what the status column can add.
+    let statusLabel = fromCompany ? 'Unfinished' : 'Started by driver';
     let statusTone = 'neutral';
-    let mintLabel = 'Create a continuation link';
     if (fromCompany && status === 'prepared') {
         statusLabel = 'Not sent yet';
-        mintLabel = "Create the driver's link";
+        // The one row waiting on the carrier rather than the driver.
+        statusTone = 'warning';
     } else if (fromCompany && status === 'sent') {
         statusLabel = 'Link sent';
         statusTone = 'info';
-        mintLabel = 'Create a replacement link';
     } else if (status === DRIVER_IN_PROGRESS) {
         statusLabel = 'Driver is filling it in';
         statusTone = 'success';
@@ -139,8 +149,15 @@ export function describeUnfinishedRow(entry, { isCompanyAdmin = false } = {}) {
         progressLabel: describeProgress(entry),
         openMode: openModeFor({ fromCompany, driverOwnsAnswers, admin }),
         canDelete: admin,
+        // What `saveApplicationDraftEdits` accepts: the driver's answers, from an
+        // admin. The carrier's own prepared answers are edited in its workspace.
+        canEditAnswers: admin && driverOwnsAnswers,
         driverOwnsAnswers,
-        mintLabel,
+        // One press makes the link and copies it.
+        mintLabel: replacesLink ? 'New link' : 'Copy link',
+        replacesLink,
+        // The carrier's own next step: the application is ready and nobody has it.
+        linkDue: fromCompany && status === 'prepared',
     };
 }
 
