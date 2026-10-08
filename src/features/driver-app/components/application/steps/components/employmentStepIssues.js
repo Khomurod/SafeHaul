@@ -80,14 +80,23 @@ const ROW_LISTS = [
 
 const rowsOf = (formData, listKey) => (Array.isArray(formData?.[listKey]) ? formData[listKey] : []);
 
+/**
+ * Which row an item is about, by the `id` `DynamicRow` gives each row it adds,
+ * else by position. A position moves when a row above is removed, and the page
+ * keeps the rows a refused Continue listed by this key.
+ */
+const rowKeyOf = (listKey, row, index) => (
+    row?.id !== undefined && row?.id !== null && row?.id !== '' ? `${listKey}-id-${row.id}` : `${listKey}-${index}`
+);
+
 /** One row's list item, or null when the row is complete. */
-function rowIssue(listKey, index, title, missing) {
+function rowIssue(listKey, index, title, missing, row) {
     if (missing.length === 0) return null;
     const questions = missing.filter((entry) => entry.question).length;
     const words = missing.filter((entry) => !entry.question).map((entry) => entry.word);
     if (questions > 0) words.push(questions === 1 ? '1 question' : `${questions} questions`);
     return {
-        key: `${listKey}-${index}`,
+        key: rowKeyOf(listKey, row, index),
         code: 'employment-missing',
         message: `${title}: ${words.join(', ')}.`,
         focusId: missing[0].focus,
@@ -117,7 +126,7 @@ function employerIssue(row, index, { required, lockedEmployers, today }) {
         for (const key of employerRowMissingAnswerKeys(row, today)) add(key, EMPLOYER_ANSWERS[key], REQUIRED_MESSAGE);
     }
     if (badSupervisorEmail) add('supervisorEmail', { word: 'a valid supervisor email', focus: (i) => `emp-sup-email-${i}` }, EMAIL_MESSAGE);
-    return rowIssue('employers', index, `Employer ${index + 1}`, missing);
+    return rowIssue('employers', index, `Employer ${index + 1}`, missing, row);
 }
 
 /**
@@ -128,6 +137,7 @@ function employerIssue(row, index, { required, lockedEmployers, today }) {
  * @param {{ hidden: boolean, required: boolean }} params.employment the company's employment-history setting
  * @param {Date} [params.today]
  * @returns {{ items: Array<{ key: string, code: string, message: string, focusId: string, fields: object }>,
+ *   rowKey: (listKey: string, index: number) => string,
  *   errorFor: (listKey: string, index: number, key: string) => (string|undefined) }}
  */
 export function employmentStepIssues({ formData, employment, today = new Date() }) {
@@ -142,14 +152,16 @@ export function employmentStepIssues({ formData, employment, today = new Date() 
             const missing = list.fields
                 .filter((field) => !filled(row?.[field.key]))
                 .map((field) => ({ key: field.key, message: REQUIRED_MESSAGE, focus: field.focus(index), word: field.word }));
-            items.push(rowIssue(list.listKey, index, list.title(index + 1), missing));
+            items.push(rowIssue(list.listKey, index, list.title(index + 1), missing, row));
         });
     }
     const present = items.filter(Boolean);
     const byRow = new Map(present.map((item) => [item.key, item.fields]));
+    const rowKey = (listKey, index) => rowKeyOf(listKey, rowsOf(formData, listKey)[index], index);
     return {
         items: present,
-        errorFor: (listKey, index, key) => byRow.get(`${listKey}-${index}`)?.[key],
+        rowKey,
+        errorFor: (listKey, index, key) => byRow.get(rowKey(listKey, index))?.[key],
     };
 }
 

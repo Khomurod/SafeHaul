@@ -160,6 +160,18 @@ describe('Step6_Employment — what is missing', () => {
         expect(document.getElementById('emp-name-1')).not.toHaveAttribute('aria-invalid');
     });
 
+    it('keeps a listed row listed when a row above it is removed', () => {
+        // Each row the page adds carries an id (`DynamicRow`); its position moves.
+        const { rerender } = renderStep({ employers: [answered({ id: 101 }), pickedFromSafer({ id: 202 })] });
+        clickContinue();
+        expect(lines()).toEqual(['Employer 2: start date, end date, reason for leaving, 2 questions.']);
+
+        rerender({ employers: [pickedFromSafer({ id: 202 })] });
+
+        expect(lines()).toEqual(['Employer 1: start date, end date, reason for leaving, 2 questions.']);
+        expect(document.getElementById('emp-reason-0')).toHaveAttribute('aria-invalid', 'true');
+    });
+
     it('asks only for what the company requires: an optional history is not listed', () => {
         company.profile = { applicationConfig: { employmentHistory: { hidden: false, required: false } } };
         const { onNavigate } = renderStep({ employers: [pickedFromSafer({ startDate: '2020-01', endDate: '2026-10' })] });

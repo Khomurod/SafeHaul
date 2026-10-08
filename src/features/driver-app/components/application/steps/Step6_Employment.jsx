@@ -94,7 +94,7 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
         formData, employment: { hidden: employersHidden, required: employersRequired },
     }), [formData, employersHidden, employersRequired]);
     const listed = fieldIssues.items.filter((item) => listedRows.has(item.key));
-    const errorFor = (listKey, index, key) => (listedRows.has(`${listKey}-${index}`)
+    const errorFor = (listKey, index, key) => (listedRows.has(fieldIssues.rowKey(listKey, index))
         ? fieldIssues.errorFor(listKey, index, key)
         : undefined);
     // The list mounts on the render that follows the refusal, so focus waits for it.
