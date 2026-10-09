@@ -65,7 +65,9 @@ test.describe('a custom file upload question', () => {
 
         await page.getByLabel(/Upload your resume/).setInputFiles(pdfFile('resume.pdf'));
 
-        await expect(page.getByText('Upload failed. Please try again.')).toBeVisible();
+        // Beside the question, where it outlasts the toast, with a way to send it again.
+        const failure = page.getByRole('alert').filter({ has: page.getByRole('button', { name: 'Try again', exact: true }) });
+        await expect(failure).toContainText('Upload failed. Please try again.');
         await expect(page.getByText(/✓ Selected/)).toHaveCount(0);
         await page.getByRole('button', { name: 'Continue' }).click();
         await expect(page.getByText('Please answer required question: Upload your resume')).toBeVisible();

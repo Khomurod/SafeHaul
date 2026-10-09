@@ -49,12 +49,12 @@ import DateTripletField from '@shared/components/form/DateTripletField';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { StepNavigation } from './components/StepNavigation';
 import TimeSelectField from './components/TimeSelectField';
+import { CustomFileQuestion } from './components/CustomFileQuestion';
 import {
     Badge,
     Card,
     Checkbox,
     ChoiceGroup,
-    FileInput,
     FormField,
     Input,
     Radio,
@@ -73,6 +73,9 @@ export function DynamicQuestionsStep({
     const { showError } = useToast();
     // Every file question whose upload is still on its way, by question key.
     const [uploading, setUploading] = useState({});
+    // A file question's failed upload, by key: why, said beside the question, and
+    // the file, so Try again sends it without choosing it again.
+    const [uploadFailures, setUploadFailures] = useState({});
     const anyUploading = Object.keys(uploading).length > 0;
     const ty = new Date().getFullYear();
 
@@ -148,15 +151,22 @@ export function DynamicQuestionsStep({
     const uploadAnswer = async (key, file) => {
         if (!file || !handleFileUpload) return;
         setUploading((current) => ({ ...current, [key]: true }));
+        setUploadFailures(({ [key]: _retired, ...rest }) => rest);
         try {
             const uploaded = await handleFileUpload(key, file);
             if (uploaded) {
                 updateFormData('customAnswers', (answers) => ({ ...(answers || {}), [key]: uploaded }));
             }
-        } catch {
-            // `handleFileUpload` has already told the driver it failed. Nothing is
-            // recorded: a filename with no file behind it is what used to make a
-            // failed upload read as an answer.
+        } catch (error) {
+            // Nothing is recorded: a filename with no file behind it is what used
+            // to make a failed upload read as an answer. The toast that said so is
+            // gone in seconds, so the reason stays beside the question.
+            if (error?.code !== 'cancelled') {
+                setUploadFailures((current) => ({
+                    ...current,
+                    [key]: { file, message: error?.message || 'Upload failed. Please try again.' },
+                }));
+            }
         } finally {
             setUploading((current) => {
                 const next = { ...current };
@@ -309,33 +319,17 @@ export function DynamicQuestionsStep({
 
             case 'fileUpload':
                 return (
-                    /*
-                      `FileInput variant="dropzone"`. This was a hand-built version
-                      of the same thing under a comment saying the design system had
-                      no file-input contract, which stopped being true on
-                      2026-08-21 — and it had a real defect the primitive cannot
-                      have: TWO `<label for>` elements pointed at the one input, so
-                      its accessible name was the question text AND the drop-zone
-                      copy concatenated. `FileInput` renders one label.
-                    */
-                    <div className="grid gap-ds-2">
-                        <FileInput
-                            id={`file-${key}`}
-                            label={label}
-                            variant="dropzone"
-                            buttonLabel="Click to upload file"
-                            description={field.helpText || 'PDF, PNG, JPG accepted'}
-                            required={field.required && !value}
-                            accept={field.accept || "image/*,application/pdf"}
-                            loading={Boolean(uploading[key])}
-                            onChange={(e) => uploadAnswer(key, e.target.files?.[0])}
-                        />
-                        {value && (
-                            <span role="status" className="text-center text-ds-xs font-medium text-ds-status-success-fg">
-                                ✓ Selected: {typeof value === 'string' ? value : value.name}
-                            </span>
-                        )}
-                    </div>
+                    <CustomFileQuestion
+                        id={`file-${key}`}
+                        label={label}
+                        description={field.helpText || 'PDF, PNG, JPG accepted'}
+                        required={field.required && !value}
+                        accept={field.accept || "image/*,application/pdf"}
+                        value={value}
+                        loading={Boolean(uploading[key])}
+                        failure={uploadFailures[key]}
+                        onFile={(file) => uploadAnswer(key, file)}
+                    />
                 );
 
             case 'linearScale': {

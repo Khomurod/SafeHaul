@@ -128,12 +128,29 @@ test.describe('guest public application', () => {
 
     await page.setInputFiles('input[name="cdl-front"]', pdfFile('blocked-cdl-front.pdf'));
 
-    // The field reports its own failure state, and both the field-level and
-    // toast messages are announced.
-    await expect(page.locator('[data-upload-field="cdl-front"]'))
-      .toHaveAttribute('data-upload-state', 'error');
-    await expect(page.getByText('E2E upload blocked by mock permission guard.')).toBeVisible();
-    await expect(page.getByRole('alert').getByText('Upload failed. Please try again.')).toBeVisible();
+    // The field reports its own failure state and says so in plain words; the
+    // error's own text ("blocked by mock permission guard") never reaches the driver.
+    const field = page.locator('[data-upload-field="cdl-front"]');
+    await expect(field).toHaveAttribute('data-upload-state', 'error');
+    await expect(field.getByRole('alert')).toContainText('Upload failed. Please try again.');
+    await expect(page.getByText('E2E upload blocked by mock permission guard.')).toHaveCount(0);
+  });
+
+  test('an upload on its way can be cancelled, and the field offers its picker again', async ({ page }) => {
+    // `slow` keeps the E2E upload on its way until it is cancelled.
+    await page.goto('/apply/e2e-company?e2eUpload=slow');
+    await fillStep1(page, 'cancel');
+    await fillStep2(page);
+    await fillStep3RequiredFields(page);
+
+    await page.setInputFiles('input[name="cdl-front"]', pdfFile('cdl-front.pdf'));
+    const field = page.locator('[data-upload-field="cdl-front"]');
+    await expect(field).toHaveAttribute('data-upload-state', 'uploading');
+    await field.getByRole('button', { name: /Cancel upload/ }).click();
+
+    await expect(field).toHaveAttribute('data-upload-state', 'empty');
+    await expect(field.getByRole('alert')).toHaveCount(0);
+    await expect(page.locator('input[name="cdl-front"]')).toBeAttached();
   });
 
   test('pressing Continue with a required document missing announces why and stays put', async ({ page }) => {

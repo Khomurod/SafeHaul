@@ -7,14 +7,40 @@
  * avoiding a browser PUT to storage.googleapis.com (bucket CORS / signed URL
  * extension headers). Previewing is `useSignedUploadPreview`'s job, and the
  * comment beside `fileData` says why it is not done here.
+ *
+ * `handleFileUpload(field, file, { onProgress, signal })`: the progress is real
+ * (`transferGuestUpload`), the signal cancels, and a file over the Storage limit
+ * is refused here before anything is reserved. Every failure is thrown, and
+ * shown, as a `GuestUploadError` in words a driver can act on; a cancel is
+ * thrown without a message.
  */
 import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { ref, uploadBytes } from 'firebase/storage';
-import { functions, storage } from '@lib/firebase';
+import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { resolveGuestUploadMimeType } from '@shared/utils/guestUploadMime';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import {
+  GUEST_UPLOAD_MAX_BYTES,
+  GuestUploadError,
+  toGuestUploadError,
+  transferGuestUpload,
+} from './guestUploadTransfer';
+
+/** The E2E double's wait, which a cancel ends early (`?e2eUpload=slow` waits longer). */
+function e2eWait(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new GuestUploadError('cancelled'));
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(new GuestUploadError('cancelled'));
+    }, { once: true });
+  });
+}
 
 export function useGuestFileUpload(companyId) {
   const { showSuccess, showError } = useToast();
@@ -23,13 +49,15 @@ export function useGuestFileUpload(companyId) {
   const [inFlight, setInFlight] = useState(0);
   const e2eUploadMode = getE2EQueryParam('e2eUpload', 'allow');
 
-  const handleFileUpload = async (fieldName, file) => {
+  const handleFileUpload = async (fieldName, file, { onProgress, signal } = {}) => {
     if (!file) return null;
     setInFlight((count) => count + 1);
     try {
       if (!companyId) {
         throw new Error('Company context is missing.');
       }
+      // `storage.rules` refuses it anyway, as a bare "unauthorized".
+      if (file.size >= GUEST_UPLOAD_MAX_BYTES) throw new GuestUploadError('too-large');
 
       if (isE2ETestMode) {
         // `deny` refuses every upload; `deny:<field>` only that one, so a spec can
@@ -40,7 +68,9 @@ export function useGuestFileUpload(companyId) {
           throw permissionError;
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 120));
+        // `slow` keeps the upload on its way long enough to cancel it.
+        await e2eWait(e2eUploadMode === 'slow' ? 10_000 : 120, signal);
+        onProgress?.(1);
         const fileData = {
           name: file.name,
           url: typeof URL !== 'undefined' ? URL.createObjectURL(file) : '',
@@ -51,9 +81,7 @@ export function useGuestFileUpload(companyId) {
       }
 
       const fileType = resolveGuestUploadMimeType(file);
-      if (!fileType) {
-        throw new Error('Could not detect file type. Please use PDF, PNG, JPEG, WEBP, or HEIC.');
-      }
+      if (!fileType) throw new GuestUploadError('unsupported-type');
 
       const prepareGuestUpload = httpsCallable(functions, 'getSignedUploadUrl');
 
@@ -68,8 +96,7 @@ export function useGuestFileUpload(companyId) {
         throw new Error('Upload prepare failed: missing storage path.');
       }
 
-      const fileRef = ref(storage, storagePath);
-      await uploadBytes(fileRef, file, { contentType: fileType });
+      await transferGuestUpload(storagePath, file, { contentType: fileType, onProgress, signal });
 
       /*
        * No `url` is stored, deliberately.
@@ -88,15 +115,12 @@ export function useGuestFileUpload(companyId) {
       showSuccess("File uploaded successfully.");
       return fileData;
     } catch (error) {
-      console.error("Upload Error:", error);
-      if (error?.code === 'functions/resource-exhausted') {
-        showError("Too many upload attempts. Please wait a moment and try again.");
-      } else if (error?.code === 'storage/unauthorized') {
-        showError("Upload was denied by Firebase Storage. Please refresh and try again.");
-      } else {
-        showError("Upload failed. Please try again.");
+      const failure = toGuestUploadError(error);
+      if (failure.code !== 'cancelled') {
+        console.error("Upload Error:", error);
+        showError(failure.message);
       }
-      throw error;
+      throw failure;
     } finally {
       setInFlight((count) => count - 1);
     }

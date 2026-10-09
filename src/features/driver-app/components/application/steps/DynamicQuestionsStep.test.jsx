@@ -281,6 +281,43 @@ describe('DynamicQuestionsStep answer contract', () => {
     expect(updateFormData).not.toHaveBeenCalled();
   });
 
+  it('says why beside the question, and Try again sends the same file again', async () => {
+    let calls = 0;
+    const handleFileUpload = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) {
+        throw Object.assign(new Error('The upload stopped. Check your internet connection and try again.'), { code: 'stalled' });
+      }
+      return { name: 'resume.pdf', storagePath: 'companies/c1/applications/guest_uploads/u1_resume.pdf' };
+    });
+    const { updateFormData } = renderStep([{ id: 'q5', label: 'Resume', type: 'fileUpload' }], { handleFileUpload });
+    const f = new File(['x'], 'resume.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Resume/), { target: { files: [f] } });
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent('The upload stopped. Check your internet connection and try again.');
+    expect(updateFormData).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+    expect(handleFileUpload).toHaveBeenLastCalledWith('q5', f);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(updateFormData).toHaveBeenCalledWith('customAnswers', expect.any(Function));
+  });
+
+  it('says nothing beside the question when the driver cancelled', async () => {
+    const handleFileUpload = vi.fn(async () => {
+      throw Object.assign(new Error('Upload cancelled.'), { code: 'cancelled' });
+    });
+    renderStep([{ id: 'q5', label: 'Resume', type: 'fileUpload' }], { handleFileUpload });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Resume/), { target: { files: [new File(['x'], 'resume.pdf')] } });
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('keeps a file that lands just before another answer is typed', async () => {
     let land;
     const handleFileUpload = vi.fn(() => new Promise((resolve) => { land = resolve; }));
