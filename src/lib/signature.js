@@ -16,8 +16,11 @@ let lastPos;
 let strokeDrew = false;
 /** @type {(() => void) | null} */
 let strokeEndHandler = null;
-/** Counts set-ups, so a signature drawn back belongs to the set-up that asked for it. */
-let setUps = 0;
+/**
+ * Moves on every set-up and every clear, so a signature still loading when the
+ * page is set up again, or cleared, is not drawn over what came after it.
+ */
+let drawGeneration = 0;
 
 function getMousePos(canvasDom, mouseEvent) {
     const rect = canvasDom.getBoundingClientRect();
@@ -76,7 +79,7 @@ export function initializeSignatureCanvas({ onStrokeEnd = null, restore = null }
     abortController = new AbortController();
     const { signal } = abortController;
     strokeEndHandler = onStrokeEnd;
-    setUps += 1;
+    drawGeneration += 1;
 
     canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById('signature-canvas'));
     if (!canvas) return;
@@ -115,11 +118,11 @@ export function drawSignature(dataUrl) {
     if (!ctx || !canvas || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return;
     const target = canvas;
     const context = ctx;
-    const setUp = setUps;
+    const generation = drawGeneration;
     const image = new Image();
     image.onload = () => {
-        // The page was left, or set up again, while the image loaded.
-        if (setUps !== setUp || canvas !== target || !image.width || !image.height) return;
+        // Set up again, cleared, or left while the image loaded.
+        if (drawGeneration !== generation || canvas !== target || !image.width || !image.height) return;
         const scale = Math.min(1, target.width / image.width, target.height / image.height);
         context.drawImage(image, 0, 0, image.width * scale, image.height * scale);
     };
@@ -127,6 +130,7 @@ export function drawSignature(dataUrl) {
 }
 
 export function clearCanvas() {
+    drawGeneration += 1;
     if (!ctx || !canvas) return;
     const tempWidth = canvas.width;
     const tempHeight = canvas.height;
