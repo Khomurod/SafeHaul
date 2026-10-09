@@ -17,6 +17,7 @@ jest.mock('../../shared/rateLimiter', () => ({ checkRateLimit: (...args) => mock
 
 const support = require('./companyApi.support');
 const { __test: { handleRequest } } = require('../../companyApi/http');
+const { decodeStoredSnapshot, encodeSnapshotForStorage } = require('../../shared/submissionSnapshotStorage');
 
 const ALL = ['applications:read', 'documents:read', 'ssn:read'];
 const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60 * 1000).toISOString();
@@ -195,6 +196,29 @@ describe('GET /v1/applications/{id}', () => {
         expect(JSON.stringify(support.auditRecords())).not.toContain('412-88-7391');
     });
 
+    it('says no SSN went out when the record holds none, whatever the key may read', async () => {
+        support.seedApplication('co-a', 'app-2', { submittedAt: minutesAgo(40), ssn: '' });
+        const { key } = support.seedKey('co-a', { scopes: ALL });
+        expect((await get('/v1/applications/app-2', { key })).body.ssnIncluded).toBe(false);
+        expect(support.auditRecords()).toEqual([expect.objectContaining({ applicationId: 'app-2', ssnIncluded: false })]);
+    });
+
+    it('returns a repeating answer as the record froze it, not as today’s form would lay it out', async () => {
+        const path = 'companies/co-a/applications/app-1/submission/v1';
+        const stored = decodeStoredSnapshot(support.docs.get(path));
+        const employers = stored.sections.flatMap((section) => section.answers).find((answer) => answer.fieldId === 'employers');
+        const cell = employers.rows[0].find((entry) => entry.displayValue === 'Lone Star Logistics');
+        cell.label = 'Carrier (as the form then said)';
+        support.docs.set(path, { ...support.docs.get(path), ...encodeSnapshotForStorage(stored) });
+        const { key } = support.seedKey('co-a');
+
+        const res = await get('/v1/applications/app-1', { key });
+        const field = res.body.sections.flatMap((section) => section.fields).find((entry) => entry.id === 'employers');
+        expect(field).toEqual(expect.objectContaining({ type: 'repeating', display: null }));
+        expect(field.labelsAreCurrent).toBeUndefined();
+        expect(field.value[0]).toContainEqual({ label: 'Carrier (as the form then said)', value: 'Lone Star Logistics' });
+    });
+
     it('reads a named version, and answers another company’s application as not found', async () => {
         support.seedApplication('co-a', 'app-1', { sequence: 2, submittedAt: minutesAgo(30) });
         const { key } = support.seedKey('co-a');
@@ -227,6 +251,15 @@ describe('GET /v1/applications/{id}/documents', () => {
         expect(res.body.withheld).toEqual([expect.objectContaining({ id: 'ssc-upload', needs: 'ssn:read' })]);
     });
 
+    it('names a file that is no longer there instead of linking it', async () => {
+        support.seedApplication('co-a', 'app-2', { submittedAt: minutesAgo(40), missingFiles: ['cdl-front'] });
+        const { key } = support.seedKey('co-a', { scopes: ALL });
+        const res = await get('/v1/applications/app-2/documents', { key });
+        expect(res.body.documents.map((item) => item.id)).toEqual(['ssc-upload']);
+        expect(res.body.missing).toEqual([expect.objectContaining({ id: 'cdl-front' })]);
+        expect(support.auditRecords()).toEqual([expect.objectContaining({ documents: 1 })]);
+    });
+
     it('links the card too with ssn:read, and never a file outside this company', async () => {
         const { key } = support.seedKey('co-a', { scopes: ALL });
         expect((await get('/v1/applications/app-1/documents', { key })).body.documents.map((item) => item.id))
@@ -234,7 +267,7 @@ describe('GET /v1/applications/{id}/documents', () => {
 
         support.seedApplication('co-a', 'app-2', { submittedAt: minutesAgo(40), otherCompanyFile: true });
         const crafted = await get('/v1/applications/app-2/documents', { key });
-        expect(crafted.body).toEqual(expect.objectContaining({ documents: [], withheld: [] }));
+        expect(crafted.body).toEqual(expect.objectContaining({ documents: [], missing: [], withheld: [] }));
     });
 });
 
@@ -262,7 +295,19 @@ describe('GET /v1/applications/{id}/pdf', () => {
         const history = [...support.docs.entries()].filter(([path]) => path.startsWith('companies/co-a/applications/app-1/activity_logs/'));
         expect(history.map(([, entry]) => entry)).toEqual([expect.objectContaining({
             action: 'Original Application PDF Accessed', performedBy: `api_key:${keyId}`, snapshotId: 'v1', type: 'security',
+            details: expect.stringContaining('which contains the full Social Security Number'),
         })]);
+        expect(support.auditRecords()).toEqual([expect.objectContaining({ route: 'GET /v1/applications/:id/pdf', ssnIncluded: true })]);
+    });
+
+    it('records no SSN for the PDF of a record that holds none', async () => {
+        support.seedApplication('co-a', 'app-2', { submittedAt: minutesAgo(40), ssn: '' });
+        support.files.set('application_originals/co-a/app-2/v1.pdf', {});
+        const { key } = support.seedKey('co-a', { scopes: ALL });
+        await get('/v1/applications/app-2/pdf', { key });
+        const [entry] = [...support.docs.entries()].filter(([path]) => path.startsWith('companies/co-a/applications/app-2/activity_logs/'));
+        expect(entry[1].details).not.toContain('Social Security');
+        expect(support.auditRecords()).toEqual([expect.objectContaining({ ssnIncluded: false })]);
     });
 });
 

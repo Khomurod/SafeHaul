@@ -18,7 +18,7 @@ const { decodeStoredSnapshot } = require('../shared/submissionSnapshotStorage');
 const { originalPdfPath } = require('../shared/preserveApplicationPdf');
 const { LINK_TTL_MS } = require('./apiKeys');
 const { ApiError } = require('./apiAuth');
-const { documentsFor, documentsOf, toApiApplication } = require('./applicationView');
+const { documentsFor, documentsOf, holdsSsn, toApiApplication } = require('./applicationView');
 
 const ID = '([A-Za-z0-9_-]{1,64})';
 const VERSION = /^v[1-9][0-9]{0,2}$/;
@@ -170,24 +170,29 @@ async function getApplication(ctx, [applicationId], query) {
 async function getDocuments(ctx, [applicationId], query) {
     const { snapshot, version } = await loadApplication(ctx, applicationId, query);
     const shown = documentsFor(snapshot, ctx.companyId, ctx.scopes);
-    const documents = await Promise.all(shown.map(async (item) => ({
-        id: item.id,
-        label: item.label,
-        fileName: item.fileName,
-        ...(await signedLink(item.storagePath, item.fileName)),
-    })));
+    // A link is signed only for a file that is there: signing does not look, and
+    // a dead link would be counted as a file served.
+    const checked = await Promise.all(shown.map(async (item) => {
+        const [exists] = await storage.bucket().file(item.storagePath).exists();
+        return exists
+            ? { id: item.id, label: item.label, fileName: item.fileName, ...(await signedLink(item.storagePath, item.fileName)) }
+            : { missing: { id: item.id, label: item.label } };
+    }));
+    const documents = checked.filter((item) => !item.missing);
+    const missing = checked.filter((item) => item.missing).map((item) => item.missing);
     // Named, so a caller knows a file exists that this key may not fetch.
     const withheld = documentsOf(snapshot, ctx.companyId)
         .filter((item) => !shown.some((visible) => visible.id === item.id))
         .map(({ id, label }) => ({ id, label, needs: 'ssn:read' }));
     return {
-        body: { applicationId, version, documents, withheld },
+        body: { applicationId, version, documents, missing, withheld },
         audit: { applicationId, version, documents: documents.length, ssnIncluded: documents.some((item) => item.id === 'ssc-upload') },
     };
 }
 
 async function getPdf(ctx, [applicationId], query) {
-    const { version } = await loadApplication(ctx, applicationId, query);
+    const { snapshot, version } = await loadApplication(ctx, applicationId, query);
+    const showsSsn = holdsSsn(snapshot);
     const path = originalPdfPath({ companyId: ctx.companyId, applicationId, snapshotId: version });
     const file = storage.bucket().file(path);
     const [exists] = await file.exists();
@@ -200,8 +205,8 @@ async function getPdf(ctx, [applicationId], query) {
     await applicationRef(ctx.companyId, applicationId).collection('activity_logs').add({
         action: 'Original Application PDF Accessed',
         details: `The API key "${ctx.name}" opened the preserved `
-            + `${version === 'v1' ? 'original' : `resubmission (${version})`} application PDF, `
-            + 'which contains the full Social Security Number.',
+            + `${version === 'v1' ? 'original' : `resubmission (${version})`} application PDF`
+            + `${showsSsn ? ', which contains the full Social Security Number' : ''}.`,
         type: 'security',
         companyId: ctx.companyId,
         performedBy: `api_key:${ctx.keyId}`,
@@ -213,7 +218,7 @@ async function getPdf(ctx, [applicationId], query) {
 
     return {
         body: { applicationId, version, fileName, ...(await signedLink(path, fileName)) },
-        audit: { applicationId, version, documents: 1, ssnIncluded: true },
+        audit: { applicationId, version, documents: 1, ssnIncluded: showsSsn },
     };
 }
 

@@ -169,12 +169,14 @@ function seedKey(companyId, { scopes = ['applications:read'], revokedAt = null, 
 }
 
 /** A made-up application of `companyId`, with its frozen record `v{sequence}`. */
-function seedApplication(companyId, applicationId, { sequence = 1, submittedAt, ssn = '412-88-7391', otherCompanyFile = false } = {}) {
+function seedApplication(companyId, applicationId, {
+    sequence = 1, submittedAt, ssn = '412-88-7391', otherCompanyFile = false, missingFiles = [],
+} = {}) {
     // Required here, not at the top: the admin mock is built from this file.
     const { buildApplicationDefinition } = require('../../shared/applicationDefinition');
     const { buildSubmissionSnapshot } = require('../../shared/submissionSnapshot');
     const { encodeSnapshotForStorage } = require('../../shared/submissionSnapshotStorage');
-    const upload = (folder, name) => ({ name, storagePath: `companies/${otherCompanyFile ? 'co-other' : companyId}/${folder}/guest_uploads/1700000000000_ab12_${name}` });
+    const upload = (folder, name) => ({ name, storagePath: `companies/${otherCompanyFile ? 'co-other' : companyId}/${folder}/guest_uploads/1700000000000_${applicationId}_${name}` });
     const formData = {
         firstName: 'Marcus', lastName: 'Delgado', ssn, dob: '1986-04-17',
         email: `${applicationId}@example.test`, phone: '(214) 555-0188',
@@ -183,6 +185,9 @@ function seedApplication(companyId, applicationId, { sequence = 1, submittedAt, 
         'cdl-front': upload('applications', 'cdl-front.jpg'),
         'ssc-upload': upload('applications', 'ss-card.jpg'),
     };
+    for (const id of ['cdl-front', 'ssc-upload']) {
+        if (!missingFiles.includes(id)) files.set(formData[id].storagePath, {});
+    }
     const definition = buildApplicationDefinition({ company: { companyName: `${companyId} Freight`, dotNumber: '3312998' } });
     const snapshot = buildSubmissionSnapshot({ definition, formData, submittedAt });
     docs.set(`companies/${companyId}/applications/${applicationId}`, {

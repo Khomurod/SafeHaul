@@ -13,11 +13,13 @@
  *    as every screen shows it;
  *  - the signature image or an agreement's acceptance address: the record of
  *    acceptance is the PDF's job, which needs the SSN scope;
- *  - any key outside a repeating answer's declared columns, so an internal
- *    value kept in a stored row cannot leave.
+ *  - a repeating answer's raw stored rows: its rows are the ones the record
+ *    froze, label and value as the driver's application showed them, so an
+ *    internal value kept in a stored row cannot leave and a later change to
+ *    the form cannot rewrite them.
  */
 
-const { currentRepeatingColumns } = require('../shared/submissionSnapshot');
+const { currentRepeatingColumns, resolveRepeatingRows } = require('../shared/submissionSnapshot');
 const { isGuestUploadPath } = require('../shared/guestUploads');
 const { hasScope } = require('./apiKeys');
 
@@ -39,27 +41,51 @@ function plainValue(value, documentId) {
     return value ?? null;
 }
 
-/** A repeating answer's rows as objects of their declared columns, by column id. */
+/** Is this the full SSN (or another sensitive typed answer), present in the record? */
+const isSensitiveValue = (answer) => Boolean(answer.sensitive) && !FILE_TYPES.has(answer.type)
+    && answer.value !== null && answer.value !== undefined && String(answer.value).trim() !== '';
+
+/**
+ * Does the record hold a full SSN at all? A company can leave the field out, and
+ * then nothing sensitive leaves, whatever the key may read.
+ */
+function holdsSsn(snapshot) {
+    return (snapshot?.sections || []).some((section) => (section.answers || [])
+        .some((answer) => answer.presented !== false && isSensitiveValue(answer)));
+}
+
+/**
+ * A repeating answer's rows, each a list of `{ label, value }` as the record
+ * froze them (`resolveRepeatingRows`, as the PDF and the review screen read
+ * them). A record older than frozen rows is laid out under today's columns, and
+ * says so, as those consumers do.
+ */
 function rowsOf(answer, columnsById) {
-    const columns = columnsById.get(answer.fieldId);
-    if (!Array.isArray(answer.value) || !Array.isArray(columns)) return [];
-    return answer.value
-        .filter((row) => row && typeof row === 'object')
-        .map((row) => Object.fromEntries(columns
-            .filter((column) => row[column.id] !== undefined && row[column.id] !== '')
-            .map((column) => [column.id, plainValue(row[column.id], `${answer.fieldId}.${column.id}`)])))
-        .filter((row) => Object.keys(row).length > 0);
+    const { rows, usedCurrentColumns } = resolveRepeatingRows(answer, columnsById);
+    return {
+        rows: rows.map((cells) => cells.map((cell) => ({ label: cell.label, value: cell.displayValue ?? null }))),
+        usedCurrentColumns,
+    };
 }
 
 function fieldOf(answer, { columnsById, showSsn }) {
-    const masked = Boolean(answer.sensitive) && !FILE_TYPES.has(answer.type) && answer.value !== null && !showSsn;
+    if (answer.repeating) {
+        const { rows, usedCurrentColumns } = rowsOf(answer, columnsById);
+        return {
+            id: answer.fieldId,
+            label: answer.label,
+            type: 'repeating',
+            value: rows,
+            display: null,
+            ...(usedCurrentColumns ? { labelsAreCurrent: true } : {}),
+        };
+    }
+    const masked = isSensitiveValue(answer) && !showSsn;
     return {
         id: answer.fieldId,
         label: answer.label,
         type: answer.type || 'text',
-        value: answer.repeating
-            ? rowsOf(answer, columnsById)
-            : masked ? maskSsn(answer.value) : plainValue(answer.value, answer.fieldId),
+        value: masked ? maskSsn(answer.value) : plainValue(answer.value, answer.fieldId),
         display: masked ? maskSsn(answer.value) : (answer.displayValue ?? null),
         ...(masked ? { masked: true } : {}),
     };
@@ -177,8 +203,9 @@ function toApiApplication({ snapshot, application = {}, applicationId, version, 
             ? { type: snapshot.signature.type || null, capturedAt: snapshot.signature.capturedAt || null, present: Boolean(snapshot.signature.present) }
             : null,
         documents: documentsFor(snapshot, companyId, scopes).map(({ id, label, fileName: name }) => ({ id, label, fileName: name })),
-        ssnIncluded: showSsn,
+        // What left, not what the key may read: a record with no SSN sends none.
+        ssnIncluded: showSsn && holdsSsn(snapshot),
     };
 }
 
-module.exports = { documentsFor, documentsOf, maskSsn, toApiApplication };
+module.exports = { documentsFor, documentsOf, holdsSsn, maskSsn, toApiApplication };
