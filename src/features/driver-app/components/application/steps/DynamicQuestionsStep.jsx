@@ -19,10 +19,9 @@
  * "Please answer required question: …" toast, the `linearScale` numeric coercion,
  * the `handleFileUpload(key, file)` call, and the `dotRequired` DOT marker.
  *
- * DEFECTS FIXED (2026-10-09): a time question opened the phone's own time dialog,
- * the only way to set it, and a dialog without Set left a required one unanswerable;
- * it is three lists now (`TimeSelectField`, the same `HH:MM`). A number question's
- * number box dropped "1,000" or "7,5" to an empty answer while showing it; it is
+ * DEFECTS FIXED (2026-10-09): a time question needed the phone's own dialog, which
+ * can lack Set; it is three lists (`TimeSelectField`, the same `HH:MM`), checked
+ * with the page before it moves on. A number box stored "1,000" as nothing; it is
  * text on the number pad now, kept as typed.
  *
  * DEFECT FIXED (2026-10-02): a file question recorded `file?.name` as its answer
@@ -107,6 +106,13 @@ export function DynamicQuestionsStep({
                 showError(`Please answer required question: ${field.label || 'Additional question'}`);
                 return;
             }
+        }
+        // Then the page's own checks, as every step runs them: a time half chosen
+        // for an optional question would otherwise go on as no answer.
+        const form = document.getElementById('driver-form');
+        if (form && !form.checkValidity()) {
+            form.reportValidity();
+            return;
         }
         onNavigate('next');
     };

@@ -174,6 +174,25 @@ describe('DynamicQuestionsStep answer contract', () => {
     expect(applyWrites(updateFormData, {})).toEqual({ q4: '18:30' });
   });
 
+  it('holds the page on an optional time half chosen, instead of going on without it', () => {
+    const { onNavigate } = renderStep([{ id: 'q4', label: 'Preferred start time', type: 'time' }]);
+    fireEvent.change(screen.getByLabelText('Preferred start time hour'), { target: { value: '6' } });
+    fireEvent.change(screen.getByLabelText('Preferred start time AM or PM'), { target: { value: 'PM' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(onNavigate).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('Preferred start time minutes'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(onNavigate).toHaveBeenCalledWith('next');
+  });
+
+  it('lets an optional time left alone go on', () => {
+    const { onNavigate } = renderStep([{ id: 'q4', label: 'Preferred start time', type: 'time' }]);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(onNavigate).toHaveBeenCalledWith('next');
+  });
+
   it('keeps a number typed with a separator as the answer', () => {
     const { updateFormData } = renderStep([{ id: 'q5', label: 'Miles driven last year', type: 'number' }]);
     fireEvent.change(screen.getByLabelText('Miles driven last year'), { target: { value: '120,000' } });
