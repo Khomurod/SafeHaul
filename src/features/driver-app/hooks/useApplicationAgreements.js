@@ -75,11 +75,10 @@ export function useApplicationAgreements(companyId) {
                 if (!active) return;
                 setAgreements([]);
                 setAgreementVersion(null);
-                setError(
-                    err?.message
-                        ? `The required agreements could not be loaded. ${err.message}`
-                        : 'The required agreements could not be loaded.'
-                );
+                // In words a driver can act on. The reason ("internal", "Failed
+                // to fetch") told them nothing and stays in the console.
+                console.error('Application agreements failed to load:', err);
+                setError('The required agreements could not be loaded. Check your internet connection, then press Try again.');
             } finally {
                 if (active) setLoading(false);
             }

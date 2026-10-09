@@ -190,7 +190,8 @@ async function completeRemainingSteps(page) {
   await expectStep(page, 'Agreements & Signature');
 }
 
-async function applySignature(page) {
+/** Accept every agreement, each on a page of its own, ending on the signature page. */
+async function acceptAgreements(page) {
   // Every presented agreement must be individually accepted before Submit
   // enables, and each is on a page of its own. The ids are derived from the
   // agreement registry (`agreement-<id>`), so this accepts whatever the step
@@ -212,8 +213,12 @@ async function applySignature(page) {
     accepted += 1;
   }
   expect(accepted, 'the consent step presented no agreements to accept').toBeGreaterThan(0);
+}
+
+async function applySignature(page) {
+  await acceptAgreements(page);
   await page.getByRole('button', { name: 'Use Test Signature' }).click();
-  await expect(page.getByText('Signature Saved & Locked')).toBeVisible();
+  await expect(page.getByText('Signature saved')).toBeVisible();
 }
 
 async function submitApplication(page) {
@@ -240,6 +245,7 @@ module.exports = {
   fillStep3RequiredFields,
   completeStepsToReview,
   completeRemainingSteps,
+  acceptAgreements,
   applySignature,
   submitApplication,
 };

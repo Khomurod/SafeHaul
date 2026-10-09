@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useData } from '@/context/DataContext';
-import { Icon, FileSignature, CheckCircle, Save, Eraser, Loader2 } from '@design-system/icons';
-import { getSignatureDataUrl, clearCanvas, initializeSignatureCanvas } from '@/lib/signature';
+import { Icon, FileSignature, CheckCircle, Eraser, Loader2 } from '@design-system/icons';
+import { getSignatureDataUrl, clearCanvas, drawSignature, initializeSignatureCanvas } from '@/lib/signature';
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Button, Checkbox, FieldMessage, Notice } from '@/design-system/components';
+import { Button, Checkbox, Notice } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { AgreementDocumentPage } from './components/AgreementDocumentPage';
 import { useApplicationAgreements } from '@features/driver-app/hooks/useApplicationAgreements';
@@ -33,10 +33,9 @@ const E2E_SIGNATURE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAH
  * PRESERVED DELIBERATELY: the full CERTIFICATION OF APPLICANT text including the
  * 49 CFR 391.23 rights list; the `final-certification` `'agreed'` / `''` values;
  * drawn vs typed `signatureType`; the `signatureDate` ISO stamp; the
- * `dataUrl.length < 100` blank-canvas guard and its exact message; the
- * `isE2ETestMode`-only test-signature control; the "Signature Saved & Locked"
- * confirmation; and the legacy `agree-*` keys, which the recruiter dossier still
- * reads to display authorization status.
+ * `dataUrl.length < 100` blank-canvas guard; the `isE2ETestMode`-only
+ * test-signature control; and the legacy `agree-*` keys, which the recruiter
+ * dossier still reads to display authorization status.
  *
  * 2026-10-06 — ONE DOCUMENT PER PAGE. The agreements used to share one page with
  * each other and with the certification's release paragraph. The FCRA disclosure
@@ -48,7 +47,21 @@ const E2E_SIGNATURE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAH
  * wording since replaced is asked again. The certification ends with the exact
  * 49 CFR 391.21(b)(12) sentence, which the rule requires "at the end of the
  * application form".
+ *
+ * 2026-10-09 — THE SIGNATURE SAVES ITSELF. It was kept only when the driver
+ * pressed Save Signature, and Submit stayed grey with no reason given to a driver
+ * who drew and went on. Each stroke now saves as it ends, the pad stays open for
+ * the next stroke, Clear is always there, and a signature already given is drawn
+ * back when the page is shown again (it said "Saved" over an empty pad). Under
+ * Submit, a line names whatever is still missing: an agreement, the signature, the
+ * certification, or an upload still on its way. A resumed draft never holds the
+ * signature, so it is asked again there.
  */
+
+/** "a", "a and b", "a, b and c". */
+function sentenceList(items) {
+    return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
 
 /**
  * Legacy per-agreement flags, still written so the recruiter dossier keeps
@@ -83,8 +96,7 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
         [allAgreements],
     );
 
-    const [isSigned, setIsSigned] = useState(!!formData.signature);
-    const [signatureError, setSignatureError] = useState('');
+    const isSigned = Boolean(formData.signature);
     const isFinalCertified = formData['final-certification'] === 'agreed';
 
     const acceptances = formData.agreementAcceptances || {};
@@ -119,9 +131,26 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
     }, [page]);
 
     // The canvas exists only on the signature page, and is a new element each
-    // time that page is shown.
+    // time that page is shown: the signature already given is drawn back onto it,
+    // and every stroke is saved the moment it ends. Read through refs, so a save
+    // does not set the canvas up again and wipe it.
+    const signatureRef = useRef(formData.signature);
+    signatureRef.current = formData.signature;
+    const saveStrokeRef = useRef(null);
+    saveStrokeRef.current = () => {
+        const dataUrl = getSignatureDataUrl();
+        // The blank-canvas guard: a stroke too small to read is not a signature.
+        if (!dataUrl || dataUrl.length < 100) return;
+        updateFormData('signature', dataUrl);
+        updateFormData('signatureType', 'drawn');
+        updateFormData('signatureDate', new Date().toISOString());
+    };
     useEffect(() => {
-        if (onSignaturePage) initializeSignatureCanvas();
+        if (!onSignaturePage) return;
+        initializeSignatureCanvas({
+            onStrokeEnd: () => saveStrokeRef.current?.(),
+            restore: signatureRef.current,
+        });
     }, [onSignaturePage]);
 
     const goToPage = (next) => setPage(Math.max(0, Math.min(next, agreements.length)));
@@ -163,39 +192,29 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
         if (legacyKey) updateFormData(legacyKey, checked ? 'agreed' : '');
     };
 
-    const handleSaveSignature = () => {
-        const dataUrl = getSignatureDataUrl();
-
-        if (!dataUrl || dataUrl.length < 100) {
-            setSignatureError("Please draw your signature first.");
-            return;
-        }
-
-        setSignatureError('');
-        updateFormData('signature', dataUrl);
-        updateFormData('signatureType', 'drawn');
-        updateFormData('signatureDate', new Date().toISOString());
-        setIsSigned(true);
-    };
-
     const handleClearSignature = () => {
         const canvas = canvasRef.current || document.getElementById('signature-canvas');
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
+        canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
 
         clearCanvas();
         updateFormData('signature', '');
-        setIsSigned(false);
     };
 
     const handleUseE2ESignature = () => {
+        clearCanvas();
+        drawSignature(E2E_SIGNATURE_DATA_URL);
         updateFormData('signature', E2E_SIGNATURE_DATA_URL);
         updateFormData('signatureType', 'typed');
         updateFormData('signatureDate', new Date().toISOString());
-        setIsSigned(true);
     };
+
+    // What still keeps Submit grey, in the order the page asks for it.
+    const missingBeforeSubmit = [
+        !allAgreementsAccepted && `acknowledge all ${agreements.length} agreements`,
+        !isSigned && 'draw your signature in the box above',
+        !isFinalCertified && 'tick “I Certify and Agree”',
+        isUploading && 'wait for your files to finish uploading',
+    ].filter(Boolean);
 
     return (
         <div id="page-9" className="form-step space-y-ds-6">
@@ -284,49 +303,29 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
                                     id="signature-canvas"
                                     role="img"
                                     aria-labelledby="signature-canvas-label"
-                                    className={`h-full w-full cursor-crosshair ${isSigned ? 'pointer-events-none opacity-40' : ''}`}
+                                    className="h-full w-full cursor-crosshair"
                                     style={{ touchAction: 'none' }}
                                 ></canvas>
-
-                                {/* Signature Saved Overlay */}
-                                {isSigned && (
+                                {!isSigned && (
                                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                        <p
-                                            role="status"
-                                            className="flex items-center gap-ds-2 rounded-ds-xl bg-ds-status-success-bg px-ds-6 py-ds-2 text-ds-sm font-bold tracking-wide text-ds-status-success-fg shadow-ds-md"
-                                        >
-                                            <Icon icon={CheckCircle} size="lg" /> Signature Saved &amp; Locked
-                                        </p>
+                                        <span aria-hidden="true" className="text-ds-sm text-ds-content-muted">Draw your signature here</span>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Announced blank-canvas guard; was a blocking `alert()`. */}
-                            <div role="alert">
-                                {signatureError && (
-                                    <FieldMessage tone="error" className="mt-ds-2">{signatureError}</FieldMessage>
-                                )}
-                            </div>
+                            {/* Mounted before it has anything to say, so a screen reader
+                                hears the save the moment a stroke ends. */}
+                            <p role="status" className="mt-ds-2 flex items-center gap-ds-1 text-ds-sm font-medium text-ds-status-success-fg">
+                                {isSigned && <><Icon icon={CheckCircle} size="sm" /> Signature saved</>}
+                            </p>
 
-                            <div className="mt-ds-4 flex flex-col gap-ds-3 sm:flex-row">
-                                {/* Keyed, so saving mounts a new Clear button instead of
-                                    restyling the Save button in place: that element's colour
-                                    transition ran from primary to secondary and, mid-way,
-                                    its label read at under 2:1. */}
-                                {!isSigned ? (
-                                    <>
-                                        <Button key="save-signature" variant="primary" size="lg" fullWidth onClick={handleSaveSignature}>
-                                            <Icon icon={Save} size="lg" /> Save Signature
-                                        </Button>
-                                        {isE2ETestMode && (
-                                            <Button key="test-signature" variant="secondary" size="lg" fullWidth onClick={handleUseE2ESignature}>
-                                                Use Test Signature
-                                            </Button>
-                                        )}
-                                    </>
-                                ) : (
-                                    <Button key="clear-signature" variant="secondary" size="lg" fullWidth onClick={handleClearSignature}>
-                                        <Icon icon={Eraser} size="lg" /> Clear / Re-draw Signature
+                            <div className="mt-ds-3 flex flex-col gap-ds-3 sm:flex-row">
+                                <Button variant="secondary" size="lg" fullWidth onClick={handleClearSignature} disabled={!isSigned}>
+                                    <Icon icon={Eraser} size="lg" /> Clear signature
+                                </Button>
+                                {isE2ETestMode && (
+                                    <Button variant="secondary" size="lg" fullWidth onClick={handleUseE2ESignature}>
+                                        Use Test Signature
                                     </Button>
                                 )}
                             </div>
@@ -344,11 +343,9 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
 
                         {/* Names what is still outstanding. The disabled submit button
                             alone leaves an applicant guessing which box they missed. */}
-                        {!allAgreementsAccepted && (
-                            <p role="status" className="mt-ds-3 text-ds-sm text-ds-content-secondary">
-                                Please acknowledge all {agreements.length} agreements before submitting.
-                            </p>
-                        )}
+                        <p role="status" className="mt-ds-3 text-ds-sm text-ds-content-secondary">
+                            {missingBeforeSubmit.length > 0 && `To submit, ${sentenceList(missingBeforeSubmit)}.`}
+                        </p>
                     </div>
                 </fieldset>
             )}
