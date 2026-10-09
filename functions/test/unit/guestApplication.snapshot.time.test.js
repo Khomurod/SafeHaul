@@ -42,6 +42,18 @@ function slowPdfStorage() {
   return { saves, answer };
 }
 
+/**
+ * Lets the PDF be drawn until Storage is asked to keep it. The drawing takes turns
+ * of the event loop, and pdf-lib waits on timers of its own, which are fake here.
+ */
+async function untilSaving(pdf) {
+  for (let turn = 0; turn < 1000 && pdf.saves.length === 0; turn += 1) {
+    await new Promise((resolve) => { setImmediate(resolve); });
+    await jest.advanceTimersByTimeAsync(1);
+  }
+  expect(pdf.saves).toHaveLength(1);
+}
+
 describe('a slow application PDF', () => {
   it('does not keep the driver from their confirmation number', async () => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
@@ -49,6 +61,7 @@ describe('a slow application PDF', () => {
     const pdf = slowPdfStorage();
 
     const answered = submitGuestApplication(payload(), ctx);
+    await untilSaving(pdf);
     await jest.advanceTimersByTimeAsync(15000);
     const result = await answered;
 
@@ -68,10 +81,10 @@ describe('a slow application PDF', () => {
     const pdf = slowPdfStorage();
 
     const answered = submitGuestApplication(payload(), ctx);
+    await untilSaving(pdf);
     await jest.advanceTimersByTimeAsync(15000);
     const result = await answered;
 
-    expect(pdf.saves).toHaveLength(1);
     expect(pdf.saves[0].draftsDeletedBefore).toEqual([`co1/${result.applicationId}`]);
     pdf.answer();
   });

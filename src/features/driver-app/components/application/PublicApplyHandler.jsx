@@ -337,7 +337,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     setIntakeMode('manual');
   };
 
-
   // The submission path — pre-flight validation, the queue-first guaranteed
   // delivery, the three-attempt Cloud Function call and every discard
   // re-check — lives in publicApplySubmit.js since the 2026-09-01
@@ -385,6 +384,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     sandbox,
     ready: !loading,
     company,
+    setCompany,
     submittedApplicationId,
     submittedConfirmationNumber,
     openingTemplateId,

@@ -4,9 +4,11 @@
  * The queue sends from this device only, and often after the page stopped
  * waiting. When it ends, the page that shows that application takes it up:
  * sent, the confirmation number and the forms that follow, as a direct
- * submission; refused, the server's sentence and the page to fix; and an end
- * that came while no page was open is said when the page is next opened. A rate
- * limit on the direct attempt is said there and then, never queued.
+ * submission; refused, the server's sentence and the page to fix, by the
+ * company's settings as they are now; whichever tab of the site the queue ran
+ * in. An end that came while no page was open is said when the page is next
+ * opened. A rate limit on the direct attempt is said there and then, never
+ * queued.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -41,6 +43,7 @@ import {
   queuedEntries,
   generateIdSpy,
   profileOverride,
+  savePostApplySessionSpy,
   SIGNED_DRAFT,
   stubDraftCallables,
   makeRenderers,
@@ -109,6 +112,29 @@ describe('a submission the page queued', () => {
     expect(sessionStorage.getItem('lastConfirmationNumber')).toBe('CONF-9');
   }, 20_000);
 
+  it('shows its confirmation number when the queue sent it from another tab, and keeps it in this one', async () => {
+    await renderNamedDraft();
+    await queueIt();
+
+    // The queue ran in another tab of the site: its news comes through storage.
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'safehaul:queued-application',
+        newValue: JSON.stringify({
+          slug: 'acme', companyId: 'company-1', entryId: 'queue-1', outcome: 'sent',
+          applyDraftId: 'draft-x', applicationId: 'app-9', confirmationNumber: 'CONF-9',
+        }),
+      }));
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Application Submitted!' })).toBeInTheDocument();
+    expect(screen.getByText('CONF-9')).toBeInTheDocument();
+    // This tab's own copy, so a reload here comes back to the same screen.
+    expect(savePostApplySessionSpy).toHaveBeenCalledWith('company-1', {
+      applicationId: 'app-9', confirmationNumber: 'CONF-9', slug: 'acme', docs: {},
+    });
+  }, 20_000);
+
   it('comes back to the page a refusal names, in the server\'s words, and is not kept for later', async () => {
     await renderNamedDraft();
     await queueIt();
@@ -125,6 +151,25 @@ describe('a submission the page queued', () => {
     expect(screen.queryByRole('heading', { name: 'Not sent yet' })).toBeNull();
     expect(showError).toHaveBeenCalledWith("The application does not meet this carrier's requirements: Complete the Hours of Service statement.");
     expect(dequeueSpy).toHaveBeenCalledWith('queue-1');
+  }, 20_000);
+
+  it('takes the company\'s current settings with a refusal, as a direct refusal does', async () => {
+    await renderNamedDraft();
+    await queueIt();
+    // The company added a question of its own while this waited, and the server
+    // judged the settings as they are now: the page it names is one step later.
+    profileOverride.current = { customQuestions: [{ id: 'q1', label: 'Years driving', type: 'text' }] };
+
+    announce({
+      outcome: 'refused',
+      applyDraftId: 'draft-x',
+      message: 'Acknowledge every agreement before submitting.',
+      issues: [{ code: 'agreements', semanticStep: 'consent', fieldId: null }],
+    });
+
+    // 9 = Consent once the company's questions are a step of their own; 8 without.
+    await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('9'));
+    expect(showError).toHaveBeenCalledWith('Acknowledge every agreement before submitting.');
   }, 20_000);
 
   it('says to submit again when the queue ran out of attempts', async () => {

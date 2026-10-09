@@ -327,11 +327,11 @@ existing records would become unreachable.
 
 **Offline-tolerant submission.** Submissions queue in IndexedDB with backoff
 (deterministic IDs make replays safe) and send from this device only, while a
-page of the site is open, so the screen says *Not sent yet* and to keep it open.
-A replay waits out the page's own attempts and sends its `seenRevision`; its end
-reaches the page (`useQueuedApplicationOutcome`): the confirmation number, or
-why not (refused, or out of attempts) and where to fix it, kept for the next
-open if no page was.
+site page is open, so the screen says *Not sent yet* and to keep it open. A
+replay waits out the page's own attempts and sends its `seenRevision`; its end
+reaches the page in any tab (`useQueuedApplicationOutcome`): the confirmation
+number, or why not (refused, or out of attempts) and where to fix it, kept for
+that draft's next open if none was.
 
 **A refusal is not a failure to deliver.** Only a submission that never reached
 the server is retried and queued: a dropped connection (reported as `internal`),
@@ -546,8 +546,7 @@ only read path, `getApplicationOriginalPdfUrl`, authorizes the caller and writes
 an audit record before issuing a short-lived signed URL; the PDF can carry a
 full SSN. **Do not add a Storage rule for that prefix and do not regenerate the
 PDF on download.** Given 15 s at most (the unfinished draft is deleted first), one
-cut short is `pdfPreserved: false`, for `reconstructHistoricalApplications` to
-render.
+cut short is `pdfPreserved: false`, left to `reconstructHistoricalApplications`.
 
 **Legal agreement wording is versioned and frozen.** Five agreements
 (`mvrAuthorization`, `electronicSignature`, `fcraDisclosure`, `pspDisclosure`,

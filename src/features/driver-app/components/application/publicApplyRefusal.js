@@ -7,6 +7,7 @@
  * every replay, so it is said, with the page to fix, instead.
  */
 import { resolveWizardStepIndex } from '@shared/components/layout/Stepper';
+import { fetchPublicProfileBySlug } from '../../services/publicProfileService';
 
 export { isPermanentRefusal } from './refusalCodes';
 
@@ -35,4 +36,17 @@ export function isCarrierUpdate(error) {
 export function refusalStepIndex(error, hasCustomQuestions) {
   const issue = (error?.details?.issues || []).find((entry) => entry?.semanticStep);
   return issue ? resolveWizardStepIndex(issue.semanticStep, hasCustomQuestions) : null;
+}
+
+/**
+ * The same page, by the company's settings as they are now. The server judged
+ * those, which can differ from the ones the page loaded; the page takes them too
+ * (`setCompany`), so the field the refusal sends the applicant to is there.
+ */
+export async function refusalStepNow(error, { slug, sandbox, company, setCompany }) {
+  const current = sandbox ? null : await fetchPublicProfileBySlug(slug).catch(() => null);
+  const taken = Boolean(current) && current.id === company?.id;
+  if (taken) setCompany(current);
+  const asked = (taken ? current.customQuestions : company?.customQuestions) || [];
+  return refusalStepIndex(error, asked.length > 0);
 }

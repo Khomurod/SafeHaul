@@ -62,6 +62,13 @@ const {
 const { embedSignature, drawAgreement } = require('./applicationAgreements');
 
 /**
+ * Gives the event loop back between parts of the drawing. A submission stops
+ * waiting for the PDF at a time of its own (`withinStep`), and a timer fires only
+ * between turns: drawn in one, a long application would hold it past that time.
+ */
+const nextTurn = () => new Promise((resolve) => { setImmediate(resolve); });
+
+/**
  * Build the application PDF.
  *
  * @param {object} opts
@@ -106,21 +113,24 @@ async function renderApplicationPdf({
     const columnsById = currentRepeatingColumns();
     for (const section of snapshot.sections || []) {
         drawSection(doc, section, { includeFullSsn, columnsById });
+        await nextTurn();
     }
 
     drawCoverage(doc, snapshot);
     drawCustomQuestions(doc, snapshot);
+    await nextTurn();
 
     const signature = await embedSignature(doc.pdfDoc, signatureImage);
     const agreements = Array.isArray(snapshot.agreements) ? snapshot.agreements : [];
-    agreements.forEach((agreement, index) => {
+    for (const [index, agreement] of agreements.entries()) {
         drawAgreement(doc, agreement, {
             signatureImage: signature,
             applicantName,
             index: index + 1,
             total: agreements.length,
         });
-    });
+        await nextTurn();
+    }
 
     // A closing note about the document itself, so a reader knows what they hold.
     doc.addPage();

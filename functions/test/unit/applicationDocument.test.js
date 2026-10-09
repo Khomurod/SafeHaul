@@ -414,3 +414,34 @@ describe('a record written before columns existed', () => {
         expect(text).not.toMatch(/\[object Object\]/);
     });
 });
+
+describe('application PDF — drawn in turns', () => {
+    it('gives the event loop back between its parts, so a time limit set beside it can fire', async () => {
+        // The submission stops waiting for the PDF at a time of its own
+        // (`withinStep`), and a timer fires only between turns of the event loop:
+        // drawn in one turn, a long application would hold it past that time.
+        let turns = 0;
+        let drawing = true;
+        const tick = () => {
+            if (!drawing) return;
+            turns += 1;
+            setImmediate(tick);
+        };
+        setImmediate(tick);
+        const save = PDFDocument.prototype.save;
+        let turnsWhileDrawing = null;
+        const spy = jest.spyOn(PDFDocument.prototype, 'save').mockImplementation(function saveOnceDrawn(...args) {
+            turnsWhileDrawing = turns;
+            drawing = false;
+            return save.apply(this, args);
+        });
+
+        try {
+            const { snapshot } = await render();
+            expect(turnsWhileDrawing).toBeGreaterThanOrEqual(snapshot.sections.length);
+        } finally {
+            drawing = false;
+            spy.mockRestore();
+        }
+    });
+});

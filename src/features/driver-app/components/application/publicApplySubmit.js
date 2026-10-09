@@ -26,10 +26,9 @@ import {
   generateConfirmationNumber
 } from '@lib/applicationId';
 import { toIsoDay } from '@/config/applicationDates';
-import { fetchPublicProfileBySlug } from '../../services/publicProfileService';
 import { savePostApplySession } from './postApplyDocsStorage';
 import { runSubmissionPreflight } from './publicApplyPreflight';
-import { isCarrierUpdate, isPermanentRefusal, isRateLimited, refusalStepIndex } from './publicApplyRefusal';
+import { isCarrierUpdate, isPermanentRefusal, isRateLimited, refusalStepNow } from './publicApplyRefusal';
 import { companyRevisionIn, withoutCompanyKeys } from './companyEditsSync';
 import { buildGuestApplicationData } from './buildGuestApplicationData';
 
@@ -439,13 +438,7 @@ export async function submitPublicApplication({
           showError(lastError?.message || 'Too many attempts. Wait a minute, then submit again.');
           return;
         }
-        // The server judged the company's settings as they are now, which can
-        // differ from the ones this page loaded: the page takes them too, so the
-        // field the refusal sends the applicant to is there to answer.
-        const current = sandbox ? null : await fetchPublicProfileBySlug(slug).catch(() => null);
-        if (current?.id === company.id) setCompany(current);
-        const asked = current?.id === company.id ? current.customQuestions || [] : customQuestions;
-        const step = refusalStepIndex(lastError, asked.length > 0);
+        const step = await refusalStepNow(lastError, { slug, sandbox, company, setCompany });
         if (step !== null) setCurrentStep(step);
         setSubmissionStatus('error');
         showError(lastError?.message || 'Your application could not be submitted. Please check your answers and try again.');
