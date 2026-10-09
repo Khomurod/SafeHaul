@@ -328,11 +328,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   });
 
   const handleMagicFillStep = useCallback(() => {
-    const patch = getMagicFillPatchForStep(currentStep, {
-      hasCustomQuestions: customQuestions.length > 0,
-    });
+    const patch = getMagicFillPatchForStep(currentStep);
     setFormData((prev) => ({ ...prev, ...patch }));
-  }, [currentStep, customQuestions]);
+  }, [currentStep]);
 
   const handleChooseManual = () => {
     setIntakeMode('manual');

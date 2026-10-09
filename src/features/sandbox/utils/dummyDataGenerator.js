@@ -1,51 +1,50 @@
 /**
- * Realistic dummy patches per wizard step (matches PublicApplyHandler + Stepper order).
- * Guest form uses plain React state, not react-hook-form — parent merges these objects.
+ * Magic Fill: made-up answers for the sandbox wizard, one page at a time. The
+ * sandbox's 🧪 Magic Fill Step button asks for the page on screen and
+ * `PublicApplyHandler` merges the patch into the answers (plain state, not
+ * react-hook-form).
+ *
+ * The owner's pre-release walk presses it on every page
+ * (`docs/RELEASE_CHECKLIST.md`), so each page's patch answers every question that
+ * page requires, under the names and in the shapes the page stores today.
+ * `dummyDataGenerator.walk.test.jsx` renders each page with the sandbox company's
+ * settings and holds it to that: Magic Fill, then Continue.
+ *
+ * Dates are counted from today, so the licence is never expired and the employer
+ * always covers the past three years.
+ *
+ * Left to the person, as on a real application: the MVR authorization on the
+ * Motor Vehicle Record page, and the agreements, the certification and the
+ * signature on the last page. Each is an acceptance of wording on screen that the
+ * page records with its version, which a patch cannot honestly claim. A
+ * company's own questions are left too (the sandbox company has none).
+ *
+ * The documents are made-up names with no stored file behind them: the licence
+ * page counts them as attached and does not try to open them.
  */
 
-/** Minimal valid PNG data URL (long enough for Step9 signature length check). Same idea as E2E. */
-export const SANDBOX_SIGNATURE_DATA_URL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAAUCAYAAABwR4+JAAAAAXNSR0IArs4c6QAAAO5JREFUaEPt1zEOgjAURdEtjPEEXoCLcAuuYfQAroJzMJ5BG8kpXAxwsf96YfNQfGrJ1zR56Qvw/6MQQxgkNC+CP+zr79WD4QxR2jEfSxO93Jt0NdRnM6xQ81YeJX1FW/EMubQIq4B15xTCg+0haEoQO4jYl3mRr6z4nQ18fpwevUJj2wkfjmaB2YRQ4c2tw+Zx0AMmN7cN6wEJxS3R+lAk4lHCAZ8YULvXLiP9hCV7dAW8hJw4YZSUdBBQ+J0F6sN2W3/8c2kP4aK8e5zQ3VCfN8bYQ9xH+Hh2BV9AE2Lh5ws6gN95AAAAAElFTkSuQmCC';
+/** A document the licence page counts as attached; nothing is stored for it. */
+const madeUpDocument = (name) => ({ name: `sandbox-${name}` });
 
-const PLACEHOLDER_BLOB = {
-  name: 'sandbox-placeholder.pdf',
-  url: 'https://example.com/sandbox-upload-placeholder',
-  storagePath: 'companies/SANDBOX/applications/sandbox-placeholder/file.pdf',
-};
+const pad = (number) => String(number).padStart(2, '0');
 
 /**
- * @param {number} stepIndex — 0-based index in the active Stepper pageConfig
- * @param {{ hasCustomQuestions: boolean }} opts
+ * @param {number} stepIndex — 0-based page index in the wizard. The seven pages
+ *   Magic Fill answers come first in either order; the company's own questions,
+ *   Review and Agreements follow them.
  * @returns {Record<string, unknown>} partial formData to merge
  */
-export function getMagicFillPatchForStep(stepIndex, opts = { hasCustomQuestions: false }) {
-  const { hasCustomQuestions } = opts;
-
-  // With DynamicQuestionsStep: indices 0–6 base steps, 7 = custom, 8 = review, 9 = consent.
-  if (hasCustomQuestions) {
-    if (stepIndex === 0) return patchStep1Contact();
-    if (stepIndex === 1) return patchStep2Qualifications();
-    if (stepIndex === 2) return patchStep3License();
-    if (stepIndex === 3) return patchStep4Violations();
-    if (stepIndex === 4) return patchStep5Accidents();
-    if (stepIndex === 5) return patchStep6Employment();
-    if (stepIndex === 6) return patchStep7General();
-    if (stepIndex === 7) return patchCustomQuestions();
-    if (stepIndex === 8) return patchStep8Review();
-    if (stepIndex === 9) return patchStep9Consent();
-    return {};
-  }
-
-  if (stepIndex === 0) return patchStep1Contact();
-  if (stepIndex === 1) return patchStep2Qualifications();
-  if (stepIndex === 2) return patchStep3License();
-  if (stepIndex === 3) return patchStep4Violations();
-  if (stepIndex === 4) return patchStep5Accidents();
-  if (stepIndex === 5) return patchStep6Employment();
-  if (stepIndex === 6) return patchStep7General();
-  if (stepIndex === 7) return patchStep8Review();
-  if (stepIndex === 8) return patchStep9Consent();
-  return {};
+export function getMagicFillPatchForStep(stepIndex) {
+  const patch = [
+    patchStep1Contact,
+    patchStep2Qualifications,
+    patchStep3License,
+    patchStep4Violations,
+    patchStep5Accidents,
+    patchStep6Employment,
+    patchStep7General,
+  ][stepIndex];
+  return patch ? patch(new Date()) : {};
 }
 
 function patchStep1Contact() {
@@ -54,6 +53,8 @@ function patchStep1Contact() {
     lastName: 'McTest',
     phone: '5551234567',
     email: 'jordan.mctest@example.com',
+    // The number the browser tests type: well formed, and no one's.
+    ssn: '123-45-6789',
     dob: '1990-05-15',
     street: '1001 Commerce Dr',
     city: 'Austin',
@@ -76,25 +77,28 @@ function patchStep2Qualifications() {
   };
 }
 
-function patchStep3License() {
+function patchStep3License(today) {
+  const year = today.getFullYear();
   return {
-    'cdl-class': 'Class A',
-    licenseNumber: 'TX12345678',
     cdlState: 'Texas',
-    cdlIssue: { month: '1', day: '15', year: '2018' },
-    cdlExpiration: { month: '12', day: '31', year: '2028' },
+    cdlClass: 'Class A',
+    cdlNumber: 'TX12345678',
+    cdlExpiration: `${year + 2}-12-31`,
     endorsements: 'T',
-    restrictions: 'None',
-    'medical-certificate': 'yes',
-    'self-certify-type': 'not_applicable',
-    'cdl-front': { ...PLACEHOLDER_BLOB, name: 'cdl-front.png' },
-    'cdl-back': { ...PLACEHOLDER_BLOB, name: 'cdl-back.png' },
-    'medical-card-upload': { ...PLACEHOLDER_BLOB, name: 'medical.pdf' },
+    'has-other-licenses': 'no',
+    'cdl-front': madeUpDocument('cdl-front.png'),
+    'cdl-back': madeUpDocument('cdl-back.png'),
+    'medical-card-upload': madeUpDocument('medical-card.pdf'),
+    medCardExpiration: `${year + 1}-06-30`,
+    'has-twic': 'no',
   };
 }
 
 function patchStep4Violations() {
   return {
+    'revoked-licenses': 'no',
+    'driving-convictions': 'no',
+    'drug-alcohol-convictions': 'no',
     'has-violations': 'no',
     violations: [],
   };
@@ -107,7 +111,7 @@ function patchStep5Accidents() {
   };
 }
 
-function patchStep6Employment() {
+function patchStep6Employment(today) {
   return {
     employers: [
       {
@@ -119,8 +123,9 @@ function patchStep6Employment() {
         phone: '2145550100',
         companyEmail: 'hr@acmetransport.test',
         position: 'OTR Driver',
-        startDate: { month: '3', day: '1', year: '2020' },
-        endDate: { month: '6', day: '30', year: '2024' },
+        // Month and year, as the page stores them: five years to this month.
+        startDate: `${today.getFullYear() - 5}-01`,
+        endDate: `${today.getFullYear()}-${pad(today.getMonth() + 1)}`,
         reasonForLeaving: 'Seeking new opportunity',
         supervisorName: 'Pat Lee',
         supervisorPhone: '2145550101',
@@ -135,7 +140,6 @@ function patchStep6Employment() {
 
 function patchStep7General() {
   return {
-    'employment-gap': 'no',
     'has-felony': 'no',
     positionType: 'companyDriver',
     expStraightTruckMiles: '0-25k',
@@ -144,27 +148,5 @@ function patchStep7General() {
     expSemiTrailerExp: '5+',
     expTwoTrailersMiles: '0-25k',
     expTwoTrailersExp: '0-6 months',
-  };
-}
-
-function patchCustomQuestions() {
-  return {
-    customQuestionResponses: {},
-  };
-}
-
-function patchStep8Review() {
-  return {};
-}
-
-function patchStep9Consent() {
-  return {
-    'agree-electronic': 'agreed',
-    'agree-background-check': 'agreed',
-    'agree-psp': 'agreed',
-    'final-certification': 'agreed',
-    signature: SANDBOX_SIGNATURE_DATA_URL,
-    signatureType: 'drawn',
-    signatureDate: new Date().toISOString(),
   };
 }
