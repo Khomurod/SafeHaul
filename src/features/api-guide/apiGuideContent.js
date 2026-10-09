@@ -132,7 +132,7 @@ export const ENDPOINTS = Object.freeze([
         route: 'GET /v1/applications/:id',
         path: '/v1/applications/{id}',
         needs: [],
-        summary: 'One application exactly as the driver submitted it, from a record that later edits cannot change. The latest version unless you ask for one. A file answer gives the file’s name and, when the documents endpoint can link the file, its documentId.',
+        summary: 'One application exactly as the driver submitted it, from a record that later edits cannot change. The latest version unless you ask for one. A file answer gives the file’s name and, when the documents endpoint lists that file under documents, missing or withheld, its documentId.',
         params: [{ name: 'version', text: 'v1 for the original, v2 and on for resubmissions.' }],
         example: APPLICATION_EXAMPLE,
     },
