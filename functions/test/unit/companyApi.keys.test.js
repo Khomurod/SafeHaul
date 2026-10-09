@@ -30,9 +30,10 @@ describe('a minted key', () => {
     });
 
     it('matches its own hash and nothing else, and the hash is not the key', () => {
-        const { key } = mintKey();
+        const { keyId, key } = mintKey();
         const stored = hashKey(key);
-        expect(stored).not.toContain(key.split('_')[2]);
+        // The secret is all that follows the id: base64url, so it can hold an underscore of its own.
+        expect(stored).not.toContain(key.slice(`shk_${keyId}_`.length));
         expect(keyMatches(stored, key)).toBe(true);
         expect(keyMatches(stored, mintKey().key)).toBe(false);
         expect(keyMatches(stored, `${key}x`)).toBe(false);
