@@ -65,6 +65,9 @@ export function transferGuestUpload(storagePath, file, {
         // Why this side stopped the task, so its `storage/canceled` reads right.
         let stoppedAs = null;
         let stallTimer = null;
+        // Only bytes that moved count as progress: a state change without any
+        // (a pause, a retry) does not keep a stalled upload alive.
+        let bytesSent = 0;
         const stop = (reason) => {
             stoppedAs = reason;
             task.cancel();
@@ -83,7 +86,10 @@ export function transferGuestUpload(storagePath, file, {
         task.on(
             'state_changed',
             (snapshot) => {
-                armStallTimer();
+                if (snapshot.bytesTransferred > bytesSent) {
+                    bytesSent = snapshot.bytesTransferred;
+                    armStallTimer();
+                }
                 if (snapshot.totalBytes > 0) onProgress?.(snapshot.bytesTransferred / snapshot.totalBytes);
             },
             (error) => {

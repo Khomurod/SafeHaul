@@ -97,6 +97,18 @@ describe('transferGuestUpload', () => {
         await expect(sent).resolves.toBeUndefined();
     });
 
+    it('does not let an event that moves no bytes keep a stalled upload going', async () => {
+        const sent = transferGuestUpload('p', file);
+        const outcome = sent.catch((error) => error);
+        lastTask().progress(10, 1000);
+        vi.advanceTimersByTime(GUEST_UPLOAD_STALL_MS - 1);
+        lastTask().progress(10, 1000);
+        vi.advanceTimersByTime(1);
+
+        expect((await outcome).code).toBe('stalled');
+        expect(lastTask().cancel).toHaveBeenCalled();
+    });
+
     it('leaves no timer behind once it has settled', async () => {
         const sent = transferGuestUpload('p', file);
         lastTask().finish();
