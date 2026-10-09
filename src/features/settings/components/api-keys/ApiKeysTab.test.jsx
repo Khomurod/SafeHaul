@@ -108,6 +108,7 @@ describe('making a key', () => {
         const shown = await screen.findByRole('dialog', { name: 'Copy your new key' });
         expect(calls.createCompanyApiKey).toHaveBeenCalledWith({ companyId: COMPANY, name: 'Artificial TMS', scopes: ['ssn:read'] });
         expect(within(shown).getByLabelText('Your API key')).toHaveValue(NEW_KEY);
+        await waitFor(() => expect(document.activeElement).toBe(within(shown).getByRole('button', { name: 'Done' })));
 
         fireEvent.click(within(shown).getByRole('button', { name: 'Copy key' }));
         await waitFor(() => expect(within(shown).getByText('Copied.')).toBeInTheDocument());

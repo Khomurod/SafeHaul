@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Copy, Icon, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Button, Checkbox, FieldMessage, FormField, IconButton, Input, Notice } from '@/design-system/components';
@@ -26,6 +26,13 @@ export function CreateApiKeyDialog({ onCreate, onClose }) {
     const [error, setError] = useState(null);
     const [made, setMade] = useState(null);
     const [copy, setCopy] = useState('idle');
+
+    // The dialog stays mounted when the key appears, so its first focus is long
+    // spent: move focus to Done, inside the dialog, or it falls to the page
+    // behind it with the button that had it.
+    useEffect(() => {
+        if (made) doneRef.current?.focus();
+    }, [made]);
 
     const submit = async (event) => {
         event.preventDefault();

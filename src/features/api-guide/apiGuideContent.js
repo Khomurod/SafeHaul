@@ -143,7 +143,7 @@ export const ENDPOINTS = Object.freeze([
         route: 'GET /v1/applications/:id/pdf',
         path: '/v1/applications/{id}/pdf',
         needs: ['documents:read', 'ssn:read'],
-        summary: 'A 15-minute link to the application PDF made when the driver submitted. It shows the full Social Security Number, and each opening is written to the application’s history.',
+        summary: 'A 15-minute link to the application PDF made when the driver submitted. It shows the full Social Security Number, and each link issued is written to the application’s history.',
         params: [{ name: 'version', text: 'As for the application.' }],
         example: PDF_EXAMPLE,
     },
@@ -175,7 +175,8 @@ export const CURL_EXAMPLE = `curl -s ${BASE_URL}/v1/submissions \\
 
 export const NODE_EXAMPLE = `// Node.js 18 or later. Keep the key on your server, never in a browser or an app.
 const BASE = '${BASE_URL}';
-const headers = { Authorization: \`Bearer \${process.env.SAFEHAUL_API_KEY}\` };
+const API_KEY = readSecret('safehaul-api-key'); // yours: wherever your server keeps secrets
+const headers = { Authorization: \`Bearer \${API_KEY}\` };
 
 async function get(path) {
   const res = await fetch(BASE + path, { headers });

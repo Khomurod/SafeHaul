@@ -100,7 +100,7 @@ export function ApiGuidePage() {
                             </dl>
                             <p className="text-ds-sm">
                                 <code className="font-mono">GET /v1/key</code> says which permissions a key has, and{' '}
-                                <code className="font-mono">ssnIncluded</code> in each answer says whether a full SSN was in it.
+                                <code className="font-mono">ssnIncluded</code> in an application says whether its full SSN was included. The Social Security card and the application PDF always show the full number.
                             </p>
                         </Stack>
 
@@ -146,7 +146,7 @@ export function ApiGuidePage() {
                             <Heading id="limits">Limits and records</Heading>
                             <ul className="list-disc space-y-ds-1 ps-ds-5 text-ds-sm">
                                 {LIMITS.map((limit) => <li key={limit}>{limit}</li>)}
-                                <li>Every request is recorded: which key, which application, whether a full SSN went out. The company can turn a key off at any time.</li>
+                                <li>Every request made with a working key is recorded: which key, which endpoint, which application, whether a full SSN went out. The company can turn a key off at any time.</li>
                             </ul>
                         </Stack>
                     </Stack>

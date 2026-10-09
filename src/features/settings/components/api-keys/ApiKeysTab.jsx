@@ -67,8 +67,8 @@ export function ApiKeysTab({ companyId }) {
                 </ol>
                 <p className="mt-ds-2">
                     A key only reads: the applications drivers submitted to you, and, if you allow it, their
-                    uploaded files and full Social Security Number. It cannot change anything. Every request is
-                    recorded, and turning a key off stops the service at once.
+                    uploaded files and full Social Security Number. It cannot change anything. Every request made
+                    with a working key is recorded, and turning a key off stops the service at once.
                 </p>
             </Notice>
 

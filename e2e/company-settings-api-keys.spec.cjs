@@ -73,6 +73,7 @@ test.describe('Company Settings API Keys', () => {
 
     const shown = page.getByRole('dialog', { name: 'Copy your new key' });
     await expect(shown.getByLabel('Your API key')).toHaveValue(NEW_KEY);
+    await expect(shown.getByRole('button', { name: 'Done' })).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(shown).toBeVisible();
     await shown.getByRole('button', { name: 'Done' }).click();
