@@ -168,9 +168,12 @@ function seedKey(companyId, { scopes = ['applications:read'], revokedAt = null, 
     return { keyId, key };
 }
 
-/** A made-up application of `companyId`, with its frozen record `v{sequence}`. */
+/**
+ * A made-up application of `companyId`, with its frozen record `v{sequence}`.
+ * `answers` replace or add answers, as an older version of the app stored them.
+ */
 function seedApplication(companyId, applicationId, {
-    sequence = 1, submittedAt, ssn = '412-88-7391', otherCompanyFile = false, missingFiles = [],
+    sequence = 1, submittedAt, ssn = '412-88-7391', otherCompanyFile = false, missingFiles = [], answers = {},
 } = {}) {
     // Required here, not at the top: the admin mock is built from this file.
     const { buildApplicationDefinition } = require('../../shared/applicationDefinition');
@@ -184,9 +187,10 @@ function seedApplication(companyId, applicationId, {
         employers: [{ companyName: 'Lone Star Logistics', position: 'OTR Driver', startDate: '2023-09', endDate: '2026-06', _localDraftId: 'internal-7712' }],
         'cdl-front': upload('applications', 'cdl-front.jpg'),
         'ssc-upload': upload('applications', 'ss-card.jpg'),
+        ...answers,
     };
     for (const id of ['cdl-front', 'ssc-upload']) {
-        if (!missingFiles.includes(id)) files.set(formData[id].storagePath, {});
+        if (formData[id]?.storagePath && !missingFiles.includes(id)) files.set(formData[id].storagePath, {});
     }
     const definition = buildApplicationDefinition({ company: { companyName: `${companyId} Freight`, dotNumber: '3312998' } });
     const snapshot = buildSubmissionSnapshot({ definition, formData, submittedAt });
