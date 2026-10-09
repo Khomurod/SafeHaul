@@ -26,6 +26,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callables = vi.hoisted(() => ({ httpsCallable: vi.fn(), calls: [] }));
+const uploads = vi.hoisted(() => ({ calls: [] }));
 
 vi.mock('firebase/functions', () => ({ httpsCallable: callables.httpsCallable }));
 vi.mock('@lib/firebase', () => ({ functions: {} }));
@@ -37,11 +38,14 @@ vi.mock('@features/driver-app/hooks/useGuestFileUpload', () => ({
     // What a real upload returns: metadata, never the bytes. Keeping the bytes is
     // the page's job, and the reader cannot work without them.
     useGuestFileUpload: () => ({
-        handleFileUpload: async (field, file) => ({
-            name: file.name,
-            url: `https://signed.example/${file.name}`,
-            storagePath: `companies/co-1/applications/${field}/${file.name}`,
-        }),
+        handleFileUpload: async (field, file, options) => {
+            uploads.calls.push({ field, options });
+            return {
+                name: file.name,
+                url: `https://signed.example/${file.name}`,
+                storagePath: `companies/co-1/applications/${field}/${file.name}`,
+            };
+        },
         isUploading: false,
     }),
 }));
@@ -81,6 +85,19 @@ vi.mock('../applicationPrep/ApplicationPrepEditor', () => ({
                 attach
             </button>
             <button type="button" onClick={() => onFileChange('psp-report-upload', null)}>remove</button>
+            {/* What `UploadField` does when Cancel is pressed before the file lands. */}
+            <button
+                type="button"
+                onClick={async () => {
+                    const upload = new AbortController();
+                    const file = new File(['%PDF-1.4'], 'mvr.pdf', { type: 'application/pdf' });
+                    const landing = onUpload('mvr-upload', file, { onProgress: () => {}, signal: upload.signal });
+                    upload.abort();
+                    await landing;
+                }}
+            >
+                attach then cancel
+            </button>
         </div>
     ),
 }));
@@ -184,6 +201,7 @@ async function openTakenOver() {
 
 beforeEach(() => {
     callables.calls = [];
+    uploads.calls = [];
     callables.httpsCallable.mockImplementation((_functions, name) => callableFor(name));
 });
 
@@ -346,6 +364,19 @@ describe('one driver never leaks into the next', () => {
 
         expect(editorFormData().cdlNumber).toBe('OK7654321');
         expect(panelProps().blobs).toEqual({});
+    });
+
+    it("passes an upload's progress and Cancel on, and keeps no bytes of one cancelled", async () => {
+        render(<UnfinishedApplicationsPage />);
+        await openFromList('key-dana');
+
+        fireEvent.click(screen.getByText('attach then cancel'));
+        await waitFor(() => expect(uploads.calls).toHaveLength(1));
+        expect(uploads.calls[0].options).toEqual({ onProgress: expect.any(Function), signal: expect.any(AbortSignal) });
+
+        fireEvent.click(screen.getByText('attach'));
+        await waitFor(() => expect(panelProps().blobs).toHaveProperty('psp-report-upload'));
+        expect(panelProps().blobs).not.toHaveProperty('mvr-upload');
     });
 
     it('forgets the bytes when the document is removed', async () => {
