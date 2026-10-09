@@ -128,6 +128,16 @@ describe('a driver off duty all seven days', () => {
         expect(document.getElementById('driver-form').checkValidity()).toBe(true);
     });
 
+    it('is asked again once the week it was said of has rolled on', () => {
+        const longAgo = Array.from({ length: 7 }, (_, n) => ({ date: `2020-01-0${n + 1}`, hours: '0' }));
+        render(<Harness initial={{ hosNotOnDuty: 'yes', hosDailyHours: longAgo }} />);
+
+        expect(latest.hosNotOnDuty).toBe('no');
+        expect(latest.hosDailyHours.map((row) => row.hours)).toEqual(['', '', '', '', '', '', '']);
+        expect(dayBox(1)).toBeEnabled();
+        expect(statementIssue()).toBeDefined();
+    });
+
     it('gets the day boxes back when it is not so after all', () => {
         render(<Harness />);
         fireEvent.click(offDuty());

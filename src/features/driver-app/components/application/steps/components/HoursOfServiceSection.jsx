@@ -78,7 +78,9 @@ export function HoursOfServiceSection({ formData, updateFormData }) {
         const aligned = days.every((date, index) => rows[index]?.date === date);
         if (aligned && rows.length === days.length) return;
         updateFormData('hosDailyHours', days.map((date) => ({ date, hours: current.get(date) ?? '' })));
-    }, [days, rows, updateFormData]);
+        // "Not on duty" was said of the week that has rolled off, so it is asked again.
+        if (rows.length && notOnDuty) updateFormData('hosNotOnDuty', 'no');
+    }, [days, rows, notOnDuty, updateFormData]);
 
     const setHours = (date, hours) => {
         updateFormData('hosDailyHours', (currentRows) => (Array.isArray(currentRows) ? currentRows : [])
