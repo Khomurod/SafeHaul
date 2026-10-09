@@ -29,7 +29,16 @@ const mockState = {
   createShouldFail: null,
   attempts: {},
   txLock: null,
+  draftsDeleted: [],  // `companyId/applicantKey` of each draft the submission deleted
 };
+
+/** An unfinished draft: none on file, and its deletion recorded in order. */
+function mockDraftDoc(companyId, applicantKey) {
+  return {
+    async get() { return { exists: false, data: () => undefined }; },
+    async delete() { mockState.draftsDeleted.push(`${companyId}/${applicantKey}`); },
+  };
+}
 
 function mockApplicationDoc(companyId, applicationId) {
   const appPath = `companies/${companyId}/applications/${applicationId}`;
@@ -162,8 +171,10 @@ const firebaseAdminMock = () => ({
       }
       if (col === 'companies') {
         return { doc: (companyId) => ({
-          collection: () => ({
-            doc: (applicationId) => mockApplicationDoc(companyId, applicationId),
+          collection: (name) => ({
+            doc: (applicationId) => (name === 'application_drafts'
+              ? mockDraftDoc(companyId, applicationId)
+              : mockApplicationDoc(companyId, applicationId)),
             // `legal_agreements` — no company wording published; the read must
             // succeed, because a failed read now fails the snapshot on purpose.
             get: async () => ({ docs: [] }),
@@ -225,6 +236,7 @@ function resetSnapshotState() {
   mockState.createShouldFail = null;
   mockState.attempts = {};
   mockState.txLock = null;
+  mockState.draftsDeleted = [];
 }
 
 module.exports = {

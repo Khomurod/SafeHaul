@@ -34,6 +34,20 @@ const {
 const { preserveApplicationPdf } = require('./shared/preserveApplicationPdf');
 const { assertCompanyEditsSeen, seenRevisionOf } = require('./shared/companyEdits');
 const { markSubmittedUploads } = require('./shared/guestUploads');
+const { stepLimit, withinStep } = require('./shared/withinStep');
+
+/**
+ * The submission answers within this, of the function's 30 s. Past the function's
+ * own limit the driver is shown no confirmation number for an application that
+ * was filed, and the browser sends it again.
+ */
+const ANSWER_WITHIN_MS = 24000;
+/**
+ * At most this for the application PDF, the one step that may be cut short: it
+ * is rendered from the frozen record alone, so `reconstructHistoricalApplications`
+ * can render it again, byte for byte, and `pdfPreserved: false` says it is owed.
+ */
+const PDF_STEP_MS = 15000;
 
 /**
  * The agreement version the applicant was actually shown.
@@ -154,6 +168,7 @@ async function discardDraftForApplication(companyId, applicationId) {
 exports.submitGuestApplication = functions
     .runWith({ memory: '256MB', timeoutSeconds: 30 })
     .https.onCall(async (data, context) => {
+        const answerBy = Date.now() + ANSWER_WITHIN_MS;
         const { checkRateLimit } = require('./shared/rateLimiter');
         const clientIp = context.rawRequest?.ip || 'unknown';
         const allowed = await checkRateLimit(`guest_submit_${clientIp}`, 5, 60, 'closed');
@@ -279,6 +294,14 @@ exports.submitGuestApplication = functions
                 now,
                 logLabel: 'submitGuestApplication',
             });
+            // The application exists, so the unfinished draft has served its
+            // purpose. Gone now rather than after the PDF: a submission that ran out
+            // of time on the PDF left the company an unfinished copy of an
+            // application it had received. Best-effort; a draft that outlives its
+            // submission is untidy and expires on its own. The *unsuffixed* key:
+            // `upsertApplicationDoc` can suffix the final id on a hash collision,
+            // and the draft was written under the plain applicant key.
+            await discardDraftForApplication(companyId, applicationId);
             // Freeze exactly what this driver saw, answered, accepted and signed.
             //
             // Built AFTER the upsert so it records the final application id (the
@@ -379,7 +402,7 @@ exports.submitGuestApplication = functions
                 // only input.
                 let preservedPdf = null;
                 try {
-                    preservedPdf = await preserveApplicationPdf({
+                    preservedPdf = await withinStep(preserveApplicationPdf({
                         db,
                         storage,
                         serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
@@ -394,7 +417,7 @@ exports.submitGuestApplication = functions
                             driverId: result.applicationId,
                         },
                         logLabel: 'submitGuestApplication',
-                    });
+                    }), stepLimit(PDF_STEP_MS, answerBy));
                 } catch (pdfError) {
                     console.error(
                         '[submitGuestApplication] Preserving the application PDF failed for '
@@ -438,17 +461,6 @@ exports.submitGuestApplication = functions
                     logLabel: 'submitGuestApplication',
                 });
             }
-
-            // The unfinished draft has served its purpose: the real application
-            // exists and its snapshot is frozen. Best-effort, and deliberately
-            // last — a draft that outlives its submission is untidy and expires
-            // on its own, whereas failing a completed submission over a cleanup
-            // would lose the thing the driver actually came to do.
-            // The *unsuffixed* key. `upsertApplicationDoc` can suffix the final
-            // application id on a hash collision, and the draft was written under
-            // the plain applicant key — deleting the suffixed one would target a
-            // document that never had a draft and leave the real one behind.
-            await discardDraftForApplication(companyId, applicationId);
 
             return {
                 ...result,

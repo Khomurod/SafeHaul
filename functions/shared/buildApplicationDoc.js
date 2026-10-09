@@ -113,6 +113,9 @@ function assertRequiredUnpersistedFields(applicationConfig, formData) {
         throw new functions.https.HttpsError(
             'invalid-argument',
             `Missing required information: ${missing.join(', ')}.`,
+            // Page one asks each of them (the Social Security Number), so the
+            // driver is sent there, as every other refusal names its page.
+            { issues: [{ code: 'missing-required-field', semanticStep: 'contact', fieldId: null }] },
         );
     }
 }
@@ -189,7 +192,9 @@ function assertRequiredUploads(applicationConfig, formData) {
     if (missingRequiredUploads.length > 0) {
         throw new functions.https.HttpsError(
             'invalid-argument',
-            `Missing required uploaded documents: ${missingRequiredUploads.join(', ')}.`
+            `Missing required uploaded documents: ${missingRequiredUploads.join(', ')}.`,
+            // Every one of them is uploaded on the License page.
+            { issues: [{ code: 'missing-upload', semanticStep: 'license', fieldId: null }] },
         );
     }
 }

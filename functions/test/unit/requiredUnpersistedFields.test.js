@@ -28,6 +28,13 @@ describe('which fields are checked', () => {
         expect(NEVER_STORED).toContain('signature');
     });
 
+    it('asks every one of them on page one, the page its refusal names', () => {
+        const { STANDARD_SECTIONS } = require('../../shared/applicationDefinition');
+        const asking = STANDARD_SECTIONS.filter((section) => (section.fields || [])
+            .some((field) => field.gate && NEVER_STORED.includes(field.id)));
+        expect(asking.map((section) => section.id)).toEqual(['personal']);
+    });
+
     it('names the Social Security Number today', () => {
         expect(getMissingRequiredUnpersistedFields({}, {})).toEqual(['Social Security Number']);
     });
@@ -48,6 +55,18 @@ describe('a company that requires the SSN', () => {
 
     it('accepts one that has it', () => {
         expect(() => assertRequiredUnpersistedFields({}, WITH_SSN)).not.toThrow();
+    });
+
+    it('sends the driver to page one, where it is asked', () => {
+        let error;
+        try {
+            assertRequiredUnpersistedFields({}, {});
+        } catch (e) {
+            error = e;
+        }
+        expect(error.details.issues).toEqual([
+            { code: 'missing-required-field', semanticStep: 'contact', fieldId: null },
+        ]);
     });
 
     it('refuses when explicitly configured required', () => {
