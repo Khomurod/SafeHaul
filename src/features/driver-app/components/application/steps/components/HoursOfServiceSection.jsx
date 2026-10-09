@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import DateTripletField from '@shared/components/form/DateTripletField';
-import { FormField, FormSection, Input } from '@/design-system/components';
+import { Checkbox, FormField, FormSection, Input } from '@/design-system/components';
 import { toIsoDay } from '@/config/applicationDates';
 import TimeSelectField from './TimeSelectField';
 
@@ -14,7 +14,12 @@ import TimeSelectField from './TimeSelectField';
  * hours, not dates; a row whose date has rolled off (a draft resumed days later)
  * is replaced and its hours dropped, because a statement about the wrong week is
  * worse than a blank one. Keys: `hosDailyHours` (rows of `{ date, hours }`),
- * `hosLastRelievedDate`, `hosLastRelievedTime`.
+ * `hosLastRelievedDate`, `hosLastRelievedTime`, `hosNeverOnDuty`.
+ *
+ * A new driver, never yet on duty, says so once (`hosNeverOnDuty`): every day is 0
+ * and there is no last relief to give, so it is not asked. Anyone else gives it,
+ * as 49 CFR 395.8(j)(2) requires, a week off duty or not: its date goes back fifty
+ * years, not one, so a driver returning after a long break can give the true one.
  *
  * 2026-10-09 — nothing here opens a phone's own picker. The time was an
  * `<input type="time">`, which on a phone can be set only through the phone's
@@ -66,17 +71,30 @@ export function HoursOfServiceSection({ formData, updateFormData }) {
     const days = useMemo(() => lastSevenDays(), []);
     const storedRows = formData.hosDailyHours;
     const rows = useMemo(() => (Array.isArray(storedRows) ? storedRows : []), [storedRows]);
+    const neverOnDuty = formData.hosNeverOnDuty === 'yes';
 
     useEffect(() => {
         const current = new Map(rows.map((row) => [row?.date, row?.hours]));
         const aligned = days.every((date, index) => rows[index]?.date === date);
         if (aligned && rows.length === days.length) return;
         updateFormData('hosDailyHours', days.map((date) => ({ date, hours: current.get(date) ?? '' })));
-    }, [days, rows, updateFormData]);
+        // Said with the days that have rolled off, so it is asked again with these.
+        if (rows.length && neverOnDuty) updateFormData('hosNeverOnDuty', 'no');
+    }, [days, rows, neverOnDuty, updateFormData]);
 
     const setHours = (date, hours) => {
         updateFormData('hosDailyHours', (currentRows) => (Array.isArray(currentRows) ? currentRows : [])
             .map((row) => (row?.date === date ? { ...row, hours } : row)));
+    };
+
+    const setNeverOnDuty = (event) => {
+        updateFormData('hosNeverOnDuty', event.target.checked ? 'yes' : 'no');
+        if (!event.target.checked) return;
+        updateFormData('hosDailyHours', (currentRows) => (Array.isArray(currentRows) ? currentRows : [])
+            .map((row) => ({ ...row, hours: '0' })));
+        // No last relief goes with it, nor a time half chosen that would hold the page.
+        updateFormData('hosLastRelievedDate', '');
+        updateFormData('hosLastRelievedTime', '');
     };
 
     return (
@@ -84,6 +102,13 @@ export function HoursOfServiceSection({ formData, updateFormData }) {
             title="Hours of Service Statement"
             description="Federal rules require a statement of your on-duty hours for the past 7 days and when you were last relieved from duty (49 CFR 395.8). Enter 0 for a day you did not work."
         >
+            <Checkbox
+                id="hos-never-on-duty"
+                name="hosNeverOnDuty"
+                label="I have never been on duty (new driver)"
+                checked={neverOnDuty}
+                onChange={setNeverOnDuty}
+            />
             <div className="grid grid-cols-1 items-start gap-ds-3 sm:grid-cols-2" data-testid="hos-daily-hours">
                 {days.map((date, index) => {
                     const row = rows.find((entry) => entry?.date === date);
@@ -101,6 +126,7 @@ export function HoursOfServiceSection({ formData, updateFormData }) {
                                 autoComplete="off"
                                 maxLength={5}
                                 pattern={HOURS_PATTERN}
+                                disabled={neverOnDuty}
                                 value={row?.hours ?? ''}
                                 onChange={(e) => setHours(date, normalizeHours(e.target.value))}
                                 onBlur={(e) => { if (e.target.value.endsWith('.')) setHours(date, e.target.value.slice(0, -1)); }}
@@ -109,26 +135,28 @@ export function HoursOfServiceSection({ formData, updateFormData }) {
                     );
                 })}
             </div>
-            <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-2">
-                <DateTripletField
-                    label="Last relieved from duty — date"
-                    idPrefix="hos-last-relieved-date"
-                    name="hosLastRelievedDate"
-                    value={formData.hosLastRelievedDate}
-                    onChange={updateFormData}
-                    required={true}
-                    maxToday={true}
-                    minYear={new Date().getFullYear() - 1}
-                />
-                <TimeSelectField
-                    label="Last relieved from duty — time"
-                    idPrefix="hos-last-relieved-time"
-                    name="hosLastRelievedTime"
-                    value={formData.hosLastRelievedTime || ''}
-                    onChange={updateFormData}
-                    required
-                />
-            </div>
+            {!neverOnDuty && (
+                <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-2">
+                    <DateTripletField
+                        label="Last relieved from duty — date"
+                        idPrefix="hos-last-relieved-date"
+                        name="hosLastRelievedDate"
+                        value={formData.hosLastRelievedDate}
+                        onChange={updateFormData}
+                        required
+                        maxToday={true}
+                        minYear={new Date().getFullYear() - 50}
+                    />
+                    <TimeSelectField
+                        label="Last relieved from duty — time"
+                        idPrefix="hos-last-relieved-time"
+                        name="hosLastRelievedTime"
+                        value={formData.hosLastRelievedTime || ''}
+                        onChange={updateFormData}
+                        required
+                    />
+                </div>
+            )}
             <p className="text-ds-xs text-ds-content-muted">
                 By continuing you certify that the hours above are true and correct.
             </p>

@@ -583,6 +583,11 @@
         "title": "Hours of Service Statement",
         "fields": [
             {
+                "id": "hosNeverOnDuty",
+                "label": "Never on Duty Before",
+                "presentWhenAnswered": true
+            },
+            {
                 "id": "hosDailyHours",
                 "label": "On-Duty Hours, Past 7 Days",
                 "repeating": true,

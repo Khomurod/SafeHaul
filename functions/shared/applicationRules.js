@@ -290,21 +290,20 @@ function isCompleteHoursOfService(data, today) {
         const parsed = parseApplicationDate(row.date);
         if (parsed && parsed.day !== null) byDay.set(parsed.iso, row);
     }
-    const daysComplete = hoursOfServiceDays(today).every((day) => {
-        const row = byDay.get(day);
-        return Boolean(row) && /^\d{1,2}(\.\d{1,2})?$/.test(String(row.hours ?? '').trim()) && Number(row.hours) <= 24;
-    });
-    return daysComplete
-        && Boolean(parseApplicationDate(data.hosLastRelievedDate))
+    const hours = hoursOfServiceDays(today).map((day) => String(byDay.get(day)?.hours ?? '').trim());
+    const daysComplete = hours.every((value) => /^\d{1,2}(\.\d{1,2})?$/.test(value) && Number(value) <= 24);
+    const relieved = Boolean(parseApplicationDate(data.hosLastRelievedDate))
         && /^\d{1,2}:\d{2}$/.test(String(data.hosLastRelievedTime ?? '').trim());
+    // Only a driver never yet on duty has no last relief to give (49 CFR 395.8(j)(2)).
+    return daysComplete && (relieved || (yesNo(data.hosNeverOnDuty) === 'yes' && hours.every((value) => Number(value) === 0)));
 }
 
 /** Coverage options every surface must share, so the number told to the driver is the number recorded. */
 function employmentCoverageOptions(rules, today) {
     const resolved = resolveApplicationRules(rules);
-    const options = { requiredMonths: resolved.employmentHistoryMinimumYears * 12 };
-    if (today) options.referenceDate = today;
-    return options;
+    // Noon UTC on the applicant's day, as coverage counts months in UTC: on a month's
+    // last evening in the US, UTC is already in the next one.
+    return { requiredMonths: resolved.employmentHistoryMinimumYears * 12, referenceDate: new Date(`${toIsoDay(today)}T12:00:00Z`) };
 }
 
 // --- evaluation ----------------------------------------------------------------

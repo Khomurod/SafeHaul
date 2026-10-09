@@ -155,9 +155,9 @@ Drafts live in their own server-only collection (§5).
 **Returning applicants are offered their unfinished application.** A device
 holding its resume token restores silently. On another device the first Next
 matches last name, date of birth and SSN *and* an email or phone already on the
-draft, then offers to continue or — behind its own destructive confirmation —
-delete it and start fresh. A failed or unmatched lookup is indistinguishable
-from "nothing exists".
+draft (a phone with or without +1), then offers to continue or — behind its own
+destructive confirmation — delete it and start fresh. A failed or unmatched
+lookup is indistinguishable from "nothing exists".
 
 ### Carrier-started applications
 
@@ -605,13 +605,13 @@ years at the current one · which experience options are offered · which
 vehicle-experience categories show and their wording (stored keys never change;
 a hidden category with a saved value still displays) · expired CDL and expired
 medical card, each allow / warn / block · require previous-licence details · MVR
-authorization optional / required (a Yes needs its recorded acceptance evidence;
-the question is disabled until the wording loads) · require violation and
+authorization optional / required (a Yes needs its recorded acceptance evidence,
+so only Yes waits for the wording) · require violation and
 accident details on Yes (accidents record fatalities, injuries, hazmat spill) ·
 employment history allow / warn / block with a configurable minimum of years ·
 require a felony explanation · Hours of Service statement off / on (exactly the
 seven days before the reference day: a stale week in a resumed draft is refused
-and re-asked).
+and re-asked; a driver never on duty gives no relief).
 
 - **Every default reproduces the pre-2026-09-02 behaviour** (`warn` is what
   "three-year coverage" always did). An impossible date (30 February, a year out
@@ -625,13 +625,13 @@ and re-asked).
   prints under it on the PDF.
 
 **The reference day is the applicant's, within a day of the server's.** The
-browser judges "the last seven days" and "expired" on the device calendar; the
-server runs in UTC, and for part of every day the dates differ (e.g. US
-evenings). A submission — and a queue replay, from its entry — carries
-`applicantToday`, the day Submit was pressed; `applicantReferenceDay`
-(`functions/shared/buildApplicationDoc.js`) uses it when it is a real date
-within one day of the server's (every real time zone), else the server's clock —
-so a device clock wrong by more than a day gains nothing.
+browser judges "the last seven days", "expired" and the employment window's
+month on the device calendar; the server runs in UTC, and for part of every day
+the dates differ (US evenings). A submission — and a queue replay, from its
+entry — carries `applicantToday`, the day Submit was pressed;
+`applicantReferenceDay` (`functions/shared/buildApplicationDoc.js`) uses it when
+it is a real date within a day of the server's, else the server's clock — so a
+clock wrong by more than a day gains nothing.
 
 **Employment history must cover 36 months by default** (49 CFR 391.21(b)(10)).
 Employment, unemployment, schooling and military service all count; a gap is
@@ -650,9 +650,8 @@ pick fills no unsendable email and clears what the last pick filled.
 **Change both or neither.** The SPA cannot import the CommonJS backend, so
 coverage exists twice — `functions/shared/employmentCoverage.js` and
 `src/shared/utils/employmentCoverage.js`, proven identical against
-`employmentCoverage.vectors.json` — as do `searchNormalization`,
-`applicationRules` and `applicationDates`. The *data* files
-`applicationSections.json`, `applicationRulesCatalog.json` and
+`employmentCoverage.vectors.json` — as does `searchNormalization`. The *data*
+files `applicationSections.json`, `applicationRulesCatalog.json` and
 `applicationRules.vectors.json` are genuinely shared, imported from
 `src/config/`.
 

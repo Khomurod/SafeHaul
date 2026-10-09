@@ -125,10 +125,12 @@ export default function TimeSelectField({
                 role="group"
                 aria-labelledby={label || required ? groupLabelId : undefined}
                 aria-describedby={helpText ? helpTextId : undefined}
-                className="grid grid-cols-3 gap-ds-2"
+                className="grid grid-cols-2 gap-ds-2 sm:grid-cols-3"
             >
+                {/* On a phone AM/PM takes the line below, as a date's year does: in a
+                    third of a phone's width "AM/PM" was cut to "AM/P". */}
                 {lists.map(({ key, part, placeholder, options }) => (
-                    <div key={key} className="min-w-0">
+                    <div key={key} className={key === 'period' ? 'col-span-2 min-w-0 sm:col-span-1' : 'min-w-0'}>
                         <label className="ds-visually-hidden" htmlFor={`${idPrefix}-${key}`}>{partLabel(part)}</label>
                         <Select
                             ref={(element) => { selects.current[key] = element; }}

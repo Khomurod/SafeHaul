@@ -156,6 +156,16 @@ function buildIdentityKey({ companyId, lastName, dob, ssn }) {
 }
 
 /**
+ * A phone number's digits without the country code: "+1 (555) 123-4567" and
+ * "555-123-4567" are one number, and a driver who typed it one way on page one
+ * and the other on "Is this you?" was told it did not match.
+ */
+function nationalDigits(value) {
+    const digits = String(value || '').replace(/\D/g, '');
+    return digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+}
+
+/**
  * Whether a contact detail the applicant just supplied matches the stored draft.
  *
  * This is the possession-ish half of the resume check. Knowing a name, a date of
@@ -167,9 +177,9 @@ function buildIdentityKey({ companyId, lastName, dob, ssn }) {
  */
 function contactMatches(draft, { email, phone }) {
     const storedEmail = String(draft?.contactEmail || '').toLowerCase().trim();
-    const storedPhone = String(draft?.contactPhone || '').replace(/\D/g, '');
+    const storedPhone = nationalDigits(draft?.contactPhone);
     const givenEmail = String(email || '').toLowerCase().trim();
-    const givenPhone = String(phone || '').replace(/\D/g, '');
+    const givenPhone = nationalDigits(phone);
 
     if (storedEmail && givenEmail && storedEmail === givenEmail) return true;
     // Ten digits minimum, so a stored blank or a two-digit typo cannot match.

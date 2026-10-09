@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Icon, Loader2 } from '@design-system/icons';
 import InputField from '@shared/components/form/InputField';
 import DateTripletField from '@shared/components/form/DateTripletField';
@@ -70,6 +70,12 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
     const companyId = currentCompanyProfile?.id || formData?.companyId || null;
     const { agreements, loading: agreementsLoading, error: agreementsError, retry } = useApplicationAgreements(companyId);
     const mvrAgreement = agreements.find((agreement) => agreement.presentedOn === 'drivingRecord') || null;
+    const retryRef = useRef(null);
+    // A Yes accepts versioned wording and is recorded beside it, so it waits for
+    // that wording. A No records nothing, so it is open however the load goes.
+    const mvrOptions = yesNoOptions.map((option) => (
+        option.value === 'yes' && !mvrAgreement ? { ...option, disabled: true } : option
+    ));
 
     const { rules, blocking, attempted, issuesRef, refuseIfBlocked } = useStepGate('violations', formData);
     const hasViolations = formData['has-violations'];
@@ -101,6 +107,12 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
     };
 
     const handleContinue = () => {
+        // The wording did not load and nothing is answered: the browser would
+        // point at No, but the way to a Yes is Try again.
+        if (agreementsError && !formData['consent-mvr']) {
+            retryRef.current?.focus();
+            return;
+        }
         const form = document.getElementById('driver-form');
         if (form && !form.checkValidity()) {
             form.reportValidity();
@@ -173,7 +185,7 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     /* The retry button was already under the message here, which
                        is one of the two sites that decided `Notice`'s action
                        placement. It moves into the `actions` slot unchanged. */
-                    <Notice announce="assertive" tone="danger" actions={<Button variant="secondary" size="sm" onClick={retry}>Try again</Button>}>
+                    <Notice announce="assertive" tone="danger" actions={<Button ref={retryRef} variant="secondary" size="sm" onClick={retry}>Try again</Button>}>
                         {agreementsError}
                     </Notice>
                 )}
@@ -189,22 +201,21 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     </div>
                 )}
                 {/*
-                  Disabled until the wording is on screen. A Yes is an acceptance
-                  of versioned text, recorded beside the answer; a Yes clicked
-                  before the text loaded would have nothing to record, and the
-                  rules engine refuses exactly that (`mvr-authorization-evidence`).
+                  Yes is disabled until the wording is on screen. A Yes is an
+                  acceptance of versioned text, recorded beside the answer; a Yes
+                  clicked before the text loaded would have nothing to record, and
+                  the rules engine refuses exactly that (`mvr-authorization-evidence`).
                 */}
                 <RadioGroup
                     label="I authorize this motor vehicle record check"
                     name="consent-mvr"
-                    options={yesNoOptions}
+                    options={mvrOptions}
                     value={formData['consent-mvr']}
                     onChange={handleMvrChange}
                     required={true}
-                    disabled={!mvrAgreement}
                 />
                 {!mvrAgreement && !agreementsLoading && !agreementsError && (
-                    <p role="status" className="text-ds-xs text-ds-content-muted">The authorization wording has to load before you can answer.</p>
+                    <p role="status" className="text-ds-xs text-ds-content-muted">The authorization wording has to load before you can answer Yes.</p>
                 )}
                 {mvrRequired && formData['consent-mvr'] === 'no' && (
                     <FieldMessage tone="error" data-testid="mvr-declined-message">
