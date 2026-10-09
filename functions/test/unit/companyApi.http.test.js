@@ -185,6 +185,40 @@ describe('GET /v1/applications/{id}', () => {
         expect(text).not.toMatch(/412-88-7391|412887391|guest_uploads|storagePath|internal-7712|_localDraftId/);
     });
 
+    it('gives a file stored the older ways by its name only, never its link or its path', async () => {
+        // Older versions of the app kept a file as a bare link, or with its link
+        // beside a path of their own; Firebase keeps the path inside the link.
+        const link = (name) => 'https://firebasestorage.googleapis.com/v0/b/demo.appspot.com/o/'
+            + `${encodeURIComponent(`companies/co-a/applications/pending_77/${name}`)}?alt=media&token=made-up`;
+        support.seedApplication('co-a', 'app-3', {
+            submittedAt: minutesAgo(40),
+            answers: {
+                'cdl-front': link('front.jpg'),
+                'cdl-back': { name: 'back.jpg', url: link('back.jpg') },
+                'medical-card-upload': { name: 'medical.pdf', url: link('medical.pdf'), storagePath: 'companies/co-a/applications/pending_77/medical.pdf' },
+                customAnswers: { 'q-retired': { name: 'lease.pdf', url: link('lease.pdf') }, 'q-retired-2': link('w9.pdf') },
+            },
+        });
+        const { key } = support.seedKey('co-a', { scopes: ALL });
+        const res = await get('/v1/applications/app-3', { key });
+
+        const fields = new Map(res.body.sections.flatMap((section) => section.fields).map((field) => [field.id, field]));
+        expect(fields.get('cdl-front')).toEqual(expect.objectContaining({ value: { fileName: 'front.jpg' }, display: 'front.jpg' }));
+        expect(fields.get('cdl-back')).toEqual(expect.objectContaining({ value: { fileName: 'back.jpg' }, display: 'back.jpg' }));
+        expect(fields.get('medical-card-upload').value).toEqual({ fileName: 'medical.pdf' });
+        // Only a file the documents endpoint lists carries the id it lists it under.
+        expect(fields.get('ssc-upload').value).toEqual({ fileName: 'ss-card.jpg', documentId: 'ssc-upload' });
+        expect(res.body.customQuestions).toEqual(expect.arrayContaining([
+            expect.objectContaining({ id: 'q-retired', value: { fileName: 'lease.pdf' }, display: 'lease.pdf' }),
+            expect.objectContaining({ id: 'q-retired-2', value: { fileName: 'w9.pdf' }, display: 'w9.pdf' }),
+        ]));
+        expect(JSON.stringify(res.body)).not.toMatch(/firebasestorage|token|pending_77|storagePath/);
+
+        const documents = await get('/v1/applications/app-3/documents', { key });
+        expect(documents.body).toEqual(expect.objectContaining({ missing: [], withheld: [] }));
+        expect(documents.body.documents.map((item) => item.id)).toEqual(['ssc-upload']);
+    });
+
     it('gives the full SSN only to a key that holds ssn:read, and records that it did', async () => {
         const { key, keyId } = support.seedKey('co-a', { scopes: ['applications:read', 'ssn:read'] });
         const res = await get('/v1/applications/app-1', { key });

@@ -7,8 +7,9 @@
  * and the key's scopes in, plain JSON out.
  *
  * What it never contains:
- *  - a storage path or a link: a file is named, and its link comes from the
- *    documents endpoint, which checks the file and the scope first;
+ *  - a storage path or a link, however the answer kept the file: a file is
+ *    named, and its link comes from the documents endpoint, which checks the
+ *    file and the scope first;
  *  - the full SSN, unless the key holds `ssn:read`: masked to its last four,
  *    as every screen shows it;
  *  - the signature image or an agreement's acceptance address: the record of
@@ -24,6 +25,8 @@ const { isGuestUploadPath } = require('../shared/guestUploads');
 const { hasScope } = require('./apiKeys');
 
 const FILE_TYPES = new Set(['file', 'fileUpload']);
+/** A link into Storage, or a path in it: how older versions of the app kept a file. */
+const STORAGE_REFERENCE = /^(?:https?:\/\/(?:[a-z0-9-]+\.)*(?:firebasestorage|storage)\.googleapis\.com\/|gs:\/\/|companies\/[^/]+\/)/i;
 
 /** `***-**-1234`, as the screens and the masked PDF show a Social Security Number. */
 function maskSsn(value) {
@@ -33,12 +36,44 @@ function maskSsn(value) {
 
 const isFile = (value) => Boolean(value) && typeof value === 'object' && typeof value.storagePath === 'string';
 const fileName = (value) => String(value?.name || value?.fileName || 'Uploaded file');
+const isStorageReference = (value) => typeof value === 'string' && STORAGE_REFERENCE.test(value.trim());
 
-/** One answer's value in the API's terms: a file by its name, everything else as stored. */
-function plainValue(value, documentId) {
-    if (isFile(value)) return { fileName: fileName(value), documentId };
-    if (Array.isArray(value)) return value.map((item) => plainValue(item, documentId));
-    return value ?? null;
+/** A stored file, however the app kept it: `{ name, storagePath }` now; a bare link or path, or `{ name, url }`, before. */
+const isUpload = (value) => isStorageReference(value) || isFile(value) || isStorageReference(value?.url);
+
+/**
+ * A stored file's own name. A link keeps the file's path inside it, slashes
+ * encoded, so it is decoded before its last segment is taken.
+ */
+function uploadName(value) {
+    if (typeof value !== 'string') return fileName(value);
+    let text = value.trim().split(/[?#]/)[0];
+    try {
+        text = decodeURIComponent(text);
+    } catch {
+        // A name that does not decode is still a name.
+    }
+    return text.split('/').filter(Boolean).pop() || 'Uploaded file';
+}
+
+/**
+ * An answer's value and display as the API gives them. A file is its name, with
+ * the id the documents endpoint lists it under when it lists one, and never its
+ * path or its link, however the answer kept them: a link can carry a credential,
+ * and only the documents endpoint, which checks the permission, hands one out.
+ * Everything else as the record keeps it.
+ */
+function valueOf(answer, id, listed) {
+    const items = Array.isArray(answer.value) ? answer.value : [answer.value];
+    if (!FILE_TYPES.has(answer.type) && !items.some(isUpload)) {
+        return { value: answer.value ?? null, display: answer.displayValue ?? null };
+    }
+    const asFile = (item) => (item === null || item === undefined || item === ''
+        ? null
+        : { fileName: uploadName(item), ...(listed.has(id) ? { documentId: id } : {}) });
+    const value = Array.isArray(answer.value) ? answer.value.map(asFile) : asFile(answer.value);
+    const names = [value].flat().filter(Boolean).map((item) => item.fileName);
+    return { value, display: names.length ? names.join(', ') : null };
 }
 
 /** Is this the full SSN (or another sensitive typed answer), present in the record? */
@@ -68,7 +103,7 @@ function rowsOf(answer, columnsById) {
     };
 }
 
-function fieldOf(answer, { columnsById, showSsn }) {
+function fieldOf(answer, { columnsById, showSsn, listed }) {
     if (answer.repeating) {
         const { rows, usedCurrentColumns } = rowsOf(answer, columnsById);
         return {
@@ -85,9 +120,9 @@ function fieldOf(answer, { columnsById, showSsn }) {
         id: answer.fieldId,
         label: answer.label,
         type: answer.type || 'text',
-        value: masked ? maskSsn(answer.value) : plainValue(answer.value, answer.fieldId),
-        display: masked ? maskSsn(answer.value) : (answer.displayValue ?? null),
-        ...(masked ? { masked: true } : {}),
+        ...(masked
+            ? { value: maskSsn(answer.value), display: maskSsn(answer.value), masked: true }
+            : valueOf(answer, answer.fieldId, listed)),
     };
 }
 
@@ -157,6 +192,8 @@ function toApiApplication({ snapshot, application = {}, applicationId, version, 
     const columnsById = currentRepeatingColumns();
     const sections = snapshot?.sections || [];
     const company = snapshot?.company || {};
+    // The ids the documents endpoint lists files under, in documents, missing or withheld.
+    const listed = new Set(documentsOf(snapshot, companyId).map((item) => item.id));
     return {
         id: applicationId,
         version,
@@ -176,14 +213,13 @@ function toApiApplication({ snapshot, application = {}, applicationId, version, 
             title: section.title,
             fields: (section.answers || [])
                 .filter((answer) => answer.presented !== false)
-                .map((answer) => fieldOf(answer, { columnsById, showSsn })),
+                .map((answer) => fieldOf(answer, { columnsById, showSsn, listed })),
         })),
         customQuestions: (snapshot?.customAnswers || []).map((answer) => ({
             id: answer.questionId,
             label: answer.label || null,
             type: answer.type || null,
-            value: plainValue(answer.value, answer.questionId),
-            display: answer.displayValue ?? null,
+            ...valueOf(answer, answer.questionId, listed),
         })),
         agreements: (snapshot?.agreements || []).map((agreement) => ({
             id: agreement.id,

@@ -64,6 +64,13 @@ const APPLICATION_EXAMPLE = `{
           ]]
         }
       ]
+    },
+    {
+      "id": "documents",
+      "title": "Uploaded Documents",
+      "fields": [
+        { "id": "cdl-front", "label": "CDL (Front)", "type": "file", "value": { "fileName": "cdl-front.jpg", "documentId": "cdl-front" }, "display": "cdl-front.jpg" }
+      ]
     }
   ],
   "customQuestions": [],
@@ -125,7 +132,7 @@ export const ENDPOINTS = Object.freeze([
         route: 'GET /v1/applications/:id',
         path: '/v1/applications/{id}',
         needs: [],
-        summary: 'One application exactly as the driver submitted it, from a record that later edits cannot change. The latest version unless you ask for one.',
+        summary: 'One application exactly as the driver submitted it, from a record that later edits cannot change. The latest version unless you ask for one. A file answer gives the file’s name and, when the documents endpoint can link the file, its documentId.',
         params: [{ name: 'version', text: 'v1 for the original, v2 and on for resubmissions.' }],
         example: APPLICATION_EXAMPLE,
     },
