@@ -24,6 +24,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `connectPlatformAlertChat` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: a one-time Start link to the alert bot, then the Telegram chat that used it; the page asks by itself (`checkOnly`) while the link waits, and a press says whether the page showed a chat (`chatShown`) |
 | `createPortalUser` | [`CreateView.jsx`](../src/features/super-admin/components/CreateView.jsx), [`TeamManagementTab.jsx`](../src/features/settings/components/TeamManagementTab.jsx), [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Provision HR/recruiter/company user |
 | `createPostApplicationSigningRequest` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Post-submit e-doc envelope |
+| `createCompanyApiKey`, `listCompanyApiKeys`, `revokeCompanyApiKey` | [`apiKeysService.js`](../src/features/settings/components/api-keys/apiKeysService.js) | Settings → API Keys: make a key (returned once, stored as a hash), list them, turn one off ([`companyApi/keyCallables.js`](../functions/companyApi/keyCallables.js)) |
 | `createChangeReview` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Mint a token link for the driver to review company edits |
 | `deleteApplication` | [`useApplicationDelete.js`](../src/features/applications/hooks/useApplicationDelete.js) | Company-admin hard delete of an application/lead (cascade + storage) |
 | `deletePlatformAlerts` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: turn Telegram alerts off; destroys the bot token |
@@ -96,7 +97,6 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 | Callable | Notes |
 |----------|-------|
 | `backfillSmsSentPhones` | Per-company SMS phone backfill; only `backfillAllSmsSentPhones` is wired in UI |
-| `createCompanyApiKey`, `listCompanyApiKeys`, `revokeCompanyApiKey` | A Company Admin's API keys ([`companyApi/keyCallables.js`](../functions/companyApi/keyCallables.js)): make one (returned once, stored as a hash), list them, turn one off. Settings → Integrations calls them once its API keys card ships |
 | `deleteApplicationDraft` | Deletes one unfinished application's document and nothing else. The unfinished-applications page has called `purgeApplicationDraft` instead since 2026-10-08; kept for the pages built before it, which Production serves until a release promotes the new ones. See the guest-application table below |
 | `listCompanyPreparedApplications` | Was the list behind "Start an application" until 2026-09-10, when that screen and "Started (unfinished)" became one workspace reading `listApplicationDrafts` alone. Kept, not deleted: its narrower `origin == 'company'` contract is correct and still tested, and removing a deployed callable is a larger change than the consolidation needed |
 | `executeReactivationBatch` | SMS reactivation batch; referenced in bulk session comments, no `src/` caller |

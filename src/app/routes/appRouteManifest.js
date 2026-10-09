@@ -53,6 +53,13 @@ export const PUBLIC_FEATURE_ROUTE_MANIFEST = Object.freeze([
     screen: 'sandboxTransferSuccess',
     featureName: 'Sandbox Transfer',
   },
+  {
+    // The company API's guide, for the developers a Company Admin gives a key to.
+    id: 'apiGuide',
+    path: '/developers/api',
+    screen: 'apiGuidePage',
+    featureName: 'API Guide',
+  },
 ]);
 
 export const PROTECTED_FEATURE_ROUTE_MANIFEST = Object.freeze([

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
-import { Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send } from '@design-system/icons';
+import { Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound } from '@design-system/icons';
 
 import { SmsSettingsTab } from './SmsSettingsTab';
 
@@ -12,6 +12,7 @@ import { EmailSettingsTab } from './EmailSettingsTab';
 import { PersonalProfileTab } from './PersonalProfileTab';
 import { IntegrationsTab } from './IntegrationsTab';
 import { BillingTab } from './BillingTab';
+import { ApiKeysTab } from './api-keys/ApiKeysTab';
 import { ManageTeamModal } from '@shared/components/modals';
 import { Button, SectionNavigation } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
@@ -31,6 +32,9 @@ export function CompanySettings() {
             items: [
                 { id: 'company', label: 'Company Profile', icon: Building },
                 { id: 'team', label: 'Team & Users', icon: Users },
+                // Every company may make keys, so not under Integrations, which
+                // is hidden with call tracking.
+                { id: 'api_keys', label: 'API Keys', icon: KeyRound },
             ],
         },
         {
@@ -105,6 +109,8 @@ export function CompanySettings() {
                 );
             case 'integrations':
                 return <IntegrationsTab companyId={currentCompanyProfile?.id} />;
+            case 'api_keys':
+                return <ApiKeysTab companyId={currentCompanyProfile?.id} />;
             case 'billing':
                 return <BillingTab currentCompanyProfile={currentCompanyProfile} />;
             default:

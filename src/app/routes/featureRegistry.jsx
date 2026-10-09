@@ -75,6 +75,10 @@ export const featureScreens = Object.freeze({
     () => import('@features/sandbox/SandboxApplyHandler'),
     'SandboxApplyHandler',
   ),
+  apiGuidePage: lazyNamed(
+    () => import('@features/api-guide/ApiGuidePage'),
+    'ApiGuidePage',
+  ),
   sandboxTransferSuccess: lazyNamed(
     () => import('@features/sandbox/SandboxTransferSuccess'),
     'SandboxTransferSuccess',
