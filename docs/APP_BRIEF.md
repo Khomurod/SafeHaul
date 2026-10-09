@@ -925,7 +925,8 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (admin-only subcollection); password encrypted with an `enc:v1:` prefix and **never returned to the browser**. A legacy fallback still reads `companies/{id}.emailSettings` for pre-migration tenants — do not delete it without migrating them |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`: one text task over whichever documents were attached, with a per-document vision fallback) | Secret Manager via the frozen registry in `functions/ai/registry` |
-| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health (the bot token is checked with Telegram before it is stored). The marketing-site bot is **retired** (`LD-R3`): its six landing callables were deleted by the first promotion carrying `LD-R3`, and `promote-production.yml` still runs `scripts/retire-landing-functions.mjs` after each promotion (idempotent, now a no-op, and it never touches `listLandingLeads`). A rollback to a pre-`LD-R3` release would call functions that no longer exist; the procedure is in `docs/FIREBASE_HOSTING_RUNBOOK.md` | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
+| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health (the bot token is checked with Telegram before it is stored). The marketing-site bot is **retired** (`LD-R3`): `promote-production.yml` still runs the idempotent `scripts/retire-landing-functions.mjs` (never touching `listLandingLeads`); a rollback past `LD-R3` would call deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
+| **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key a Company Admin makes (`createCompanyApiKey`) | Hash in `company_api_keys` (server-only); the key is shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
 | **Sentry** | Error monitoring for the browser app (`@sentry/react`); Cloud Functions log to Cloud Logging only | DSN |
 | **GitHub API** | Release promotion from the Super Admin UI | GitHub App credential, server-side only |
@@ -955,6 +956,12 @@ projection, and `/apply/:slug` is not gated by any flag. See
   `SMSAdapterFactory` fetches, decrypts and instantiates the right adapter. A
   per-user *keychain* (`.../sms_provider/keychain/{userId}`) maps a recruiter to
   their own "From" number, falling back to the company main number.
+- **The company API reads only its key's company and logs each answer.** It
+  serves the frozen record, not the live one; files need `documents:read`, the
+  full SSN `ssn:read`, the PDF both (it shows the SSN). Each answer is logged in
+  `api_audit` (90 days) before it is sent, or not at all. Five keys on per company, 60 requests a minute each; a record is
+  listed a minute after its stamp; a reconstruction keeps its old date, so a
+  cursor sync misses one made later.
 
 **A Facebook page belongs to one company.** `connectFacebookPage` takes the
 company from the client and authorizes it against the caller's per-company role.
@@ -1107,9 +1114,9 @@ unparseable number — but nothing populates them from a recipient's reply (§12
   and the shared backend; Production is reached only by explicit promotion of an
   already-tested Hosting version, through Super Admin → Releases. See
   [`docs/FIREBASE_HOSTING_RUNBOOK.md`](./FIREBASE_HOSTING_RUNBOOK.md).
-- **`workers: 1` in the Playwright CI config is deliberate**, kept on evidence
-  of contention-induced flakes; sharding across runners is the sanctioned
-  speed-up. A single green run is **not** sufficient evidence to change it.
+- **`workers: 1` in the Playwright CI config is deliberate** (contention flakes);
+  sharding across runners is the sanctioned speed-up, and a single green run is
+  **not** evidence to change it.
 - **UI standardization must not change backend behavior.** Design-system work
   may not alter Firebase rules, data structures, integrations, permissions,
   routes, feature flags or business workflows unless separately justified and
@@ -1142,15 +1149,12 @@ unparseable number — but nothing populates them from a recipient's reply (§12
   counts only where it names SafeHaul (`claimScope.js`), and an overstatement
   slips past it. Never claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks,
   document-expiry monitoring, a job board, or any named carrier endorsement.
-- **A `web/` change runs the `frontend_unit` CI lane** — static content is
-  tested, by `src/tests/hostingConfig.test.js`; `scripts/ci-plan.mjs` holds the
-  mapping and `A5`/`A5b` in `scripts/test-ci-plan.mjs` pin it. The claims check
-  is deliberately **not** in that lane (its inputs are the pages *and* the
-  capability package, and a registry change selects only the functions lane):
-  `K4` in `npm run check:ci-plan` pins it to an always-required job (today
-  `callable-contract`), blocking and unconditional, with checker and package
-  needing nothing installed, and refuses a page in a subdirectory the checker
-  does not scan.
+- **A `web/` change runs the `frontend_unit` CI lane** (static content is tested
+  by `src/tests/hostingConfig.test.js`; `A5`/`A5b` in `scripts/test-ci-plan.mjs`
+  pin it). The claims check is deliberately **not** in that lane (a registry
+  change selects only the functions lane): `K4` in `npm run check:ci-plan` pins
+  it to an always-required job (today `callable-contract`), blocking and
+  needing nothing installed, and refuses a page in a subdirectory it skips.
 
 ---
 
@@ -1321,11 +1325,10 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   branches 66 %, functions 72 %), a few points under measured coverage (73 / 75
   / 69 / 75) to block a real drop. Raise them as coverage improves; never lower
   them to pass a build.
-- **Mixed Functions v1/v2 is intentional.** The generations default to different
-  runtime service accounts, so (a) a credential can be readable by one AI entry
-  point and not another (§7), and (b) binding a secret from a generation that
-  never bound it fails the **entire** functions deploy until that account is
-  granted access (guarded by `secretBindingGenerations.test.js`; see
+- **Mixed Functions v1/v2 is intentional.** The generations run as different
+  service accounts (§7), so binding a secret from a generation that never bound
+  it fails the **entire** functions deploy until that account is granted access
+  (`secretBindingGenerations.test.js`; see
   [`docs/environment-and-integrations-runbook.md`](./environment-and-integrations-runbook.md)).
 - **Feature flag defaults are asymmetric** (opt-out; missing means on) — easy to
   misread as a bug.
@@ -1333,17 +1336,15 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   accepted gap; see `docs/security-posture.md`.
 - **Historical reconstruction is an ongoing migration.** Applications submitted
   before snapshot preservation get a record and PDF rebuilt only from surviving
-  evidence and **marked as reconstructed**
-  (`reconstructHistoricalApplications`); `surveyHistoricalReconstruction` counts
-  what is outstanding, and the temporary Super Admin action reads its total
-  there, retiring itself when the work is verified done. See
+  evidence and **marked as reconstructed** (`reconstructHistoricalApplications`);
+  `surveyHistoricalReconstruction` counts what is outstanding for the temporary
+  Super Admin action, which retires itself when the work is verified done. See
   [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md).
 - **A deleted blog article does not free its slot.** Deletion is a tombstone and
   `slotIsFilled` tests only that the slot's document exists, so the slot stays
   filled and the day stays closed (the ledger records a row saying so).
-  Reopening a slot means changing the `create()`-based anti-double-publish
-  guarantee, with its own justification and tests; see
-  [`docs/news-and-insights.md`](./news-and-insights.md).
+  Reopening one means changing the `create()`-based anti-double-publish
+  guarantee; see [`docs/news-and-insights.md`](./news-and-insights.md).
 - **The blog's enforced word floor is 150 words**, far below the 700–1,200
   originally specified — a recorded owner decision against free-tier provider
   limits, not drift. Raising a provider tier reverses it.
@@ -1355,20 +1356,17 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   manual publication check need real credentials in a deployed environment; a
   green test run is not evidence any of them passed.
 - **Known dependency advisories.** `npm audit` (root and `functions/`) gives the
-  live list; most have an in-range fix (`npm audit fix`). A few wait on a major
-  or upstream: root `exceljs` and the `@grpc/grpc-js` 1.9 the `firebase` web SDK
-  pins; under `functions/`, `uuid` via `gaxios` 6 (required by
-  `@google-cloud/storage` 8), which calls only `uuid.v4` — outside the
-  advisory's v3/v5/v6 — and which `npm audit fix` would only downgrade.
-  `.github/dependabot.yml` raises weekly grouped update PRs for the root,
-  `functions/` and GitHub Actions, majors separately, with a **seven-day
-  cooldown** so a package compromised and pulled within days never arrives;
-  advisory-driven security fixes are not delayed.
-- **Several one-time backfill callables are still exported**
-  (`backfillUserCompanyIds`, `backfillDriverCompanyIds`,
-  `backfillPublicProfiles`, `migrateEmailSettings`,
-  `backfillApplicationSearchFields`, stats and SMS-phone backfills) —
-  super-admin-only maintenance tools, not dead code; check before removing one.
+  live list; most have an in-range fix. A few wait on a major or upstream: root
+  `exceljs` and the `firebase` SDK's pinned `@grpc/grpc-js` 1.9; in `functions/`,
+  `uuid` via `gaxios` 6 (`@google-cloud/storage` 8), which calls only `uuid.v4`,
+  outside the advisory (`npm audit fix` would downgrade). `.github/dependabot.yml`
+  raises weekly grouped PRs (root, `functions/`, Actions; majors apart) with a
+  **seven-day cooldown**, so a package pulled within days never arrives;
+  security fixes are not delayed.
+- **One-time backfill callables are still exported** (`backfillUserCompanyIds`,
+  `backfillDriverCompanyIds`, `backfillPublicProfiles`, `migrateEmailSettings`,
+  `backfillApplicationSearchFields`, stats and SMS-phone backfills): Super
+  Admin maintenance tools, not dead code; check before removing one.
 
 ---
 

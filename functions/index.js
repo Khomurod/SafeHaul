@@ -399,3 +399,11 @@ exports.savePlatformAlertToken = platformAlerts.savePlatformAlertToken;
 exports.connectPlatformAlertChat = platformAlerts.connectPlatformAlertChat;
 exports.sendPlatformAlertTest = platformAlerts.sendPlatformAlertTest;
 exports.deletePlatformAlerts = platformAlerts.deletePlatformAlerts;
+
+// 25. Company API: a Company Admin's keys, and the read-only API another service calls with one.
+const companyApiKeys = require('./companyApi/keyCallables');
+exports.createCompanyApiKey = companyApiKeys.createCompanyApiKey;
+exports.listCompanyApiKeys = companyApiKeys.listCompanyApiKeys;
+exports.revokeCompanyApiKey = companyApiKeys.revokeCompanyApiKey;
+const companyApiHttp = require('./companyApi/http');
+exports.companyApi = companyApiHttp.companyApi;
