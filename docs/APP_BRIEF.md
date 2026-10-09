@@ -225,8 +225,11 @@ offers a retry, the row still reading as attached (gates key on presence).
 dossier) shows the name, even for a deleted question; the dossier's
 *Supplemental Questions* has **Open file** (`getSignedApplicationFileUrl`,
 minted on press). Deleting the application deletes the file (only in
-`guest_uploads/`; §12). While uploading, the picker is busy and Continue waits,
-as on the License step.
+`guest_uploads/`; §12).
+
+**An upload shows its real progress and a Cancel**; Continue waits for it. 45 s
+without progress stops it, 20 MB or more is refused before sending, and a
+failure is said in plain words (beside a custom question, with **Try again**).
 
 ### Unfinished applications workspace
 
@@ -1252,14 +1255,12 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   reports any. Connect rules: §7.
 - **`users/{uid}` may carry orphaned `onboardingTourCompleted` and
   `tourCompletedAt`** from the removed welcome tour. Nothing reads or writes
-  them (neither `firestore.rules` nor Cloud Functions ever referenced them);
-  they stay deliberately (removing them is a data migration). Ignore them.
-- **"Read the documents" reads only what the current browser holds.** Uploads
-  keep `{ name, storagePath }` and send the bytes to Storage, so a prepared
-  application re-opened later has its documents but nothing to read; the panel
-  names them, and re-attaching one makes it readable. Fetching files back is
-  deliberately not done (a cross-origin `fetch` dependent on bucket CORS this
-  repository does not set).
+  them; they stay deliberately (removing them is a data migration).
+- **"Read the documents" reads only what the current browser holds.** A
+  prepared application re-opened later has its documents but nothing to read;
+  the panel names them, and re-attaching one makes it readable. Fetching files
+  back is deliberately not done (a cross-origin `fetch` dependent on bucket CORS
+  this repository does not set).
 - **A continuation link cannot verify the SSN of a draft with no `identityKey`**
   — the company set `ssn` Optional or Hidden (`GATE_DEFAULT_REQUIRED.ssn` is
   `true`, so opt-out), the driver pressed *Save as Draft* on page one before
