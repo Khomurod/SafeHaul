@@ -1,9 +1,23 @@
+/**
+ * The driver application's signature canvas (`#signature-canvas` on the consent
+ * step). `initializeSignatureCanvas` takes `onStrokeEnd`, called when a stroke
+ * that drew something ends, so the step can save the signature without a button
+ * the driver may never press, and `restore`, a signature saved earlier, drawn
+ * back because the canvas is a new, blank element each time its page is shown.
+ */
+
 /** @type {HTMLCanvasElement | null} */
 let canvas;
 /** @type {CanvasRenderingContext2D | null} */
 let ctx;
 let drawing = false;
 let lastPos;
+/** Whether the stroke in progress has drawn anything; a tap draws nothing. */
+let strokeDrew = false;
+/** @type {(() => void) | null} */
+let strokeEndHandler = null;
+/** Counts set-ups, so a signature drawn back belongs to the set-up that asked for it. */
+let setUps = 0;
 
 function getMousePos(canvasDom, mouseEvent) {
     const rect = canvasDom.getBoundingClientRect();
@@ -28,11 +42,15 @@ function getTouchPos(canvasDom, touchEvent) {
 function startDrawing(e) {
     e.preventDefault();
     drawing = true;
+    strokeDrew = false;
     lastPos = e.touches ? getTouchPos(canvas, e) : getMousePos(canvas, e);
 }
 
 function stopDrawing() {
+    const drew = drawing && strokeDrew;
     drawing = false;
+    strokeDrew = false;
+    if (drew && strokeEndHandler) strokeEndHandler();
 }
 
 function draw(e) {
@@ -47,15 +65,18 @@ function draw(e) {
     ctx.stroke();
 
     lastPos = pos;
+    strokeDrew = true;
 }
 
 let abortController;
 
-export function initializeSignatureCanvas() {
+export function initializeSignatureCanvas({ onStrokeEnd = null, restore = null } = {}) {
     // Clean up any previous event listeners to prevent leaks
     if (abortController) abortController.abort();
     abortController = new AbortController();
     const { signal } = abortController;
+    strokeEndHandler = onStrokeEnd;
+    setUps += 1;
 
     canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById('signature-canvas'));
     if (!canvas) return;
@@ -82,6 +103,27 @@ export function initializeSignatureCanvas() {
     if (clearBtn) {
         clearBtn.addEventListener('click', clearCanvas, { signal });
     }
+
+    if (restore) drawSignature(restore);
+}
+
+/**
+ * Draws a saved signature (a `data:image/` URL) onto the canvas, scaled down to
+ * fit and never up. It draws over what is there; clear first to replace it.
+ */
+export function drawSignature(dataUrl) {
+    if (!ctx || !canvas || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return;
+    const target = canvas;
+    const context = ctx;
+    const setUp = setUps;
+    const image = new Image();
+    image.onload = () => {
+        // The page was left, or set up again, while the image loaded.
+        if (setUps !== setUp || canvas !== target || !image.width || !image.height) return;
+        const scale = Math.min(1, target.width / image.width, target.height / image.height);
+        context.drawImage(image, 0, 0, image.width * scale, image.height * scale);
+    };
+    image.src = dataUrl;
 }
 
 export function clearCanvas() {

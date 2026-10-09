@@ -19,8 +19,9 @@
   документом (например, снимок экрана). Ожидается, что файл загрузится без ошибки.
 - Согласия Magic Fill не ставит, их даёте вы. На шаге **Motor Vehicle Record**
   ответьте **Yes** на «I authorize this motor vehicle record check». На последнем
-  шаге отметьте **I have read and agree** у каждого документа, распишитесь,
-  нажмите **Save Signature** и отметьте **I Certify and Agree**.
+  шаге отметьте **I have read and agree** у каждого документа, распишитесь
+  (подпись сохранится сама, появится **Signature saved**) и отметьте
+  **I Certify and Agree**.
 - Отправьте анкету. Ожидается экран **Sandbox submission complete** с номером
   подтверждения.
 - Нажмите **Delete sandbox application**. Ожидается, что анкета исчезнет из

@@ -12,7 +12,6 @@ import { DynamicQuestionsStep } from '../../../features/driver-app/components/ap
 import { CompanyEditsNotice } from '../../../features/driver-app/components/application/CompanyEditsNotice';
 import { COMPANY_NOTICE_KEY } from '../../../features/driver-app/components/application/companyEditsSync';
 import { Button, ProgressBar } from '@/design-system/components';
-import { initializeSignatureCanvas, clearCanvas } from '@/lib/signature';
 
 export function buildSemanticStepOrder(hasCustomQuestions) {
     const order = ['contact', 'qualifications', 'license', 'violations', 'accidents', 'employment', 'general'];
@@ -53,9 +52,9 @@ const basePageConfig = [
  * `e2e/guest-offline-queue.spec.cjs`), the `#driver-form` id every step reads
  * with `document.getElementById` for native validation, the custom-questions
  * insertion position and titles, the `submissionStatus` → bar tone mapping, the
- * "only 100% on success" rule, the signature-canvas initialisation on the last
- * step, the `Error: Step N not found.` fallback, and the sandbox Magic Fill
- * control.
+ * "only 100% on success" rule, the `Error: Step N not found.` fallback, and the
+ * sandbox Magic Fill control. The signature canvas is the consent step's own: it
+ * exists only on that step's last page, which sets it up each time it is shown.
  *
  * DEFECTS FIXED (2026-07-27):
  * - The step title was an `<h2>` on a page with no `<h1>`, and every step then
@@ -136,25 +135,12 @@ const Stepper = ({
     const currentTitle = currentConfig?.title || "Application Step";
     const CurrentStepComponent = currentConfig?.component;
 
-    // Check if this is the consent/signature step (last step)
-    const isSignatureStep = step === pageConfig.length - 1;
-
     useEffect(() => {
         // Moving focus to the heading both announces the new step and brings it
         // into view — one deterministic, un-animated scroll instead of two
         // competing ones.
         headingRef.current?.focus({ preventScroll: false });
-        // Initialize canvas only on the signature step
-        if (isSignatureStep) {
-            setTimeout(() => {
-                initializeSignatureCanvas();
-                // Only clear canvas if there is no saved signature already
-                if (!formData.signature) {
-                    clearCanvas();
-                }
-            }, 100);
-        }
-    }, [step, isSignatureStep]);
+    }, [step]);
 
     const barTone = submissionStatus === 'success' ? 'success' :
         submissionStatus === 'error' ? 'danger' :

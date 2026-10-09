@@ -1,17 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const mockCall = vi.fn();
 vi.mock('firebase/functions', () => ({ httpsCallable: () => (...args) => mockCall(...args) }));
 vi.mock('@lib/firebase', () => ({ functions: {} }));
 vi.mock('@/context/DataContext', () => ({ useData: () => ({ currentCompanyProfile: { id: 'co1', companyName: 'Blue Line Freight' } }) }));
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
+/** The canvas the step set up last, and what a stroke on it reads back. */
+const pad = vi.hoisted(() => ({ options: null, dataUrl: '' }));
+const DRAWN = 'data:image/png;base64,' + 'A'.repeat(200);
 vi.mock('@/lib/signature', () => ({
-    getSignatureDataUrl: () => 'data:image/png;base64,' + 'A'.repeat(200),
+    getSignatureDataUrl: vi.fn(() => pad.dataUrl),
     clearCanvas: vi.fn(),
-    initializeSignatureCanvas: vi.fn(),
+    drawSignature: vi.fn(),
+    initializeSignatureCanvas: vi.fn((options) => { pad.options = options; }),
 }));
+import { initializeSignatureCanvas } from '@/lib/signature';
 
 import Step9_Consent from './Step9_Consent';
 
@@ -58,10 +63,19 @@ async function acceptAll() {
 
 const accepted = (version) => Object.fromEntries(AGREEMENTS.map((a) => [a.id, { accepted: true, version }]));
 
+/** The driver lifts their finger at the end of a stroke that left `dataUrl` on the pad. */
+const endStroke = (dataUrl = DRAWN) => act(() => {
+    pad.dataUrl = dataUrl;
+    pad.options.onStrokeEnd();
+});
+const missingLine = () => screen.getByText(/^To submit,/);
+
 describe('Step9_Consent', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockCall.mockResolvedValue({ data: { agreementVersion: 'v1', companyName: 'Blue Line Freight', agreements: AGREEMENTS } });
+        pad.options = null;
+        pad.dataUrl = '';
     });
 
     it('shows each agreement in full on a page of its own, the Clearinghouse consent included', async () => {
@@ -236,18 +250,69 @@ describe('Step9_Consent', () => {
         expect(submitButton()).toBeDisabled();
     });
 
-    it('replaces Save with a new Clear button once signed, rather than restyling it in place', async () => {
+    it('saves the signature the moment a stroke ends, with no button to press', async () => {
         render(<Harness />);
         await acceptAll();
-        const save = screen.getByRole('button', { name: /Save Signature/ });
+        fireEvent.click(screen.getByLabelText('I Certify and Agree'));
+        expect(submitButton()).toBeDisabled();
 
-        fireEvent.click(save);
+        await endStroke();
 
-        const clear = await screen.findByRole('button', { name: /Clear \/ Re-draw Signature/ });
-        // A reused element would carry the primary button's colours into a
-        // transition towards the secondary's, unreadable half-way.
-        expect(clear).not.toBe(save);
-        expect(save).not.toBeInTheDocument();
+        expect(screen.getByText('Signature saved')).toBeInTheDocument();
+        expect(submitButton()).toBeEnabled();
+        expect(screen.queryByRole('button', { name: /Save Signature/ })).not.toBeInTheDocument();
+    });
+
+    it('does not take a stroke too small to read for a signature', async () => {
+        render(<Harness />);
+        await acceptAll();
+
+        await endStroke('data:image/png;base64,AAAA');
+
+        expect(screen.queryByText('Signature saved')).not.toBeInTheDocument();
+        expect(missingLine()).toHaveTextContent('draw your signature in the box above');
+    });
+
+    it('keeps Clear on the page, unavailable until there is a signature, and clearing asks again', async () => {
+        render(<Harness initial={{ 'final-certification': 'agreed' }} />);
+        await acceptAll();
+        const clear = screen.getByRole('button', { name: /Clear signature/ });
+        expect(clear).toBeDisabled();
+
+        await endStroke();
+        expect(clear).toBeEnabled();
+        expect(submitButton()).toBeEnabled();
+
+        fireEvent.click(clear);
+        expect(screen.queryByText('Signature saved')).not.toBeInTheDocument();
+        expect(submitButton()).toBeDisabled();
+        expect(missingLine()).toHaveTextContent('To submit, draw your signature in the box above.');
+    });
+
+    it('draws the signature back when its page is shown again, instead of "saved" over an empty pad', async () => {
+        render(<Harness initial={{ agreementAcceptances: accepted('v1'), signature: DRAWN }} />);
+        await screen.findByText('Final Certification & Signature');
+        expect(initializeSignatureCanvas).toHaveBeenLastCalledWith(expect.objectContaining({ restore: DRAWN }));
+
+        await endStroke(DRAWN + 'B');
+        fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Continue to signature' }));
+        await screen.findByText('Final Certification & Signature');
+        expect(initializeSignatureCanvas).toHaveBeenLastCalledWith(expect.objectContaining({ restore: DRAWN + 'B' }));
+        expect(screen.getByText('Signature saved')).toBeInTheDocument();
+    });
+
+    it('names what still keeps Submit grey, and nothing once all is done', async () => {
+        render(<Harness />);
+        await acceptAll();
+        expect(missingLine()).toHaveTextContent('To submit, draw your signature in the box above and tick “I Certify and Agree”.');
+
+        await endStroke();
+        expect(missingLine()).toHaveTextContent('To submit, tick “I Certify and Agree”.');
+
+        fireEvent.click(screen.getByLabelText('I Certify and Agree'));
+        expect(screen.queryByText(/^To submit,/)).not.toBeInTheDocument();
+        expect(submitButton()).toBeEnabled();
     });
 
     it('ends the certification with the 391.21(b)(12) sentence, word for word, and certifies against it', async () => {

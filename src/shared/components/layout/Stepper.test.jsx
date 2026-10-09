@@ -159,17 +159,15 @@ describe('Stepper frame', () => {
     expect(screen.getAllByRole('button', { name: /Magic Fill Step/ })).toHaveLength(1);
   });
 
-  it('initialises the signature canvas only on the last step', async () => {
+  it('leaves the signature canvas to the consent step, which sets it up on its own page', async () => {
+    // A second set-up from here, 100 ms late, wiped the signature the step had
+    // just drawn back onto the canvas and dropped its save on each stroke.
     const { initializeSignatureCanvas } = await import('@/lib/signature');
     vi.useFakeTimers();
     try {
-      renderStepper({ step: 0 });
-      vi.advanceTimersByTime(200);
-      expect(initializeSignatureCanvas).not.toHaveBeenCalled();
-
       renderStepper({ step: 8 });
       vi.advanceTimersByTime(200);
-      expect(initializeSignatureCanvas).toHaveBeenCalled();
+      expect(initializeSignatureCanvas).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
