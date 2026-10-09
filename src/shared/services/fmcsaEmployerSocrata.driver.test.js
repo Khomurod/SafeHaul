@@ -18,7 +18,7 @@ import {
   mapFmcsaRowToEmployerFields,
   mapFmcsaRowToPevContact,
 } from './fmcsaEmployerSocrata';
-import { EMPLOYER_REGION_NAMES } from '@shared/utils/northAmericanRegions';
+import { NORTH_AMERICAN_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 import { US_STATE_NAMES } from '@shared/utils/usStates';
 
 const paramsOf = (url) => new URL(url).searchParams;
@@ -109,7 +109,7 @@ describe('what reaches the employer row', () => {
   });
 
   it('returns every field, empty when the census has nothing usable', () => {
-    expect(mapFmcsaRowToEmployerFields({ legal_name: 'BARE LLC' }, EMPLOYER_REGION_NAMES)).toEqual({
+    expect(mapFmcsaRowToEmployerFields({ legal_name: 'BARE LLC' }, NORTH_AMERICAN_REGION_NAMES)).toEqual({
       companyName: 'BARE LLC', dotNumber: '', address: '', city: '', state: '', phone: '', companyEmail: '',
     });
   });
@@ -117,13 +117,13 @@ describe('what reaches the employer row', () => {
   it.each(['NONE', 'none', 'aol..com', 'boblucey@aol..com', 'jrouse247@aol,com', 'bulltsh_1 @msn.com', 'DBTESLA@HOTMAIL', 'mace@mace_usa.com'])(
     'leaves out an email no message could be sent to: %s',
     (email) => {
-      expect(mapFmcsaRowToEmployerFields(carrier({ email_address: email }), EMPLOYER_REGION_NAMES).companyEmail).toBe('');
+      expect(mapFmcsaRowToEmployerFields(carrier({ email_address: email }), NORTH_AMERICAN_REGION_NAMES).companyEmail).toBe('');
       expect(mapFmcsaRowToPevContact(carrier({ email_address: email })).email).toBe('');
     },
   );
 
   it('keeps an email one can be sent to', () => {
-    expect(mapFmcsaRowToEmployerFields(carrier({ email_address: ' Dispatch@NorthernLine.ca ' }), EMPLOYER_REGION_NAMES).companyEmail)
+    expect(mapFmcsaRowToEmployerFields(carrier({ email_address: ' Dispatch@NorthernLine.ca ' }), NORTH_AMERICAN_REGION_NAMES).companyEmail)
       .toBe('Dispatch@NorthernLine.ca');
   });
 
@@ -136,11 +136,12 @@ describe('what reaches the employer row', () => {
     ['US', 'TX', 'Texas'],
     // Rows asked for without the country column read as US ones, as before.
     [undefined, 'MO', 'Missouri'],
-    ['US', 'PR', ''],
+    // A territory is a US region: FMCSA files Puerto Rico's carriers under US PR.
+    ['US', 'PR', 'Puerto Rico'],
     ['GT', 'GU', ''],
     ['CA', 'XX', ''],
   ])('reads %s %s as %s', (country, code, expected) => {
-    expect(mapFmcsaRowToEmployerFields(carrier({ phy_country: country, phy_state: code }), EMPLOYER_REGION_NAMES).state).toBe(expected);
+    expect(mapFmcsaRowToEmployerFields(carrier({ phy_country: country, phy_state: code }), NORTH_AMERICAN_REGION_NAMES).state).toBe(expected);
   });
 
   it('leaves out a region the picker does not list', () => {
@@ -148,6 +149,6 @@ describe('what reaches the employer row', () => {
   });
 
   it('takes the cell phone when the main phone is empty', () => {
-    expect(mapFmcsaRowToEmployerFields(carrier({ phone: '', cell_phone: ' 4165550100 ' }), EMPLOYER_REGION_NAMES).phone).toBe('4165550100');
+    expect(mapFmcsaRowToEmployerFields(carrier({ phone: '', cell_phone: ' 4165550100 ' }), NORTH_AMERICAN_REGION_NAMES).phone).toBe('4165550100');
   });
 });

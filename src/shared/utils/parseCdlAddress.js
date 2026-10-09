@@ -1,16 +1,10 @@
 /**
  * Parse a single-line US mailing address from CDL OCR (often ALL CAPS, with or without commas).
- * Strips ZIP+4 and state from the end first, then splits street vs city.
+ * Strips ZIP+4 and state from the end first, then splits street vs city. A state
+ * is a code the pickers' list names (`usStates.js`), so a licence from DC or a
+ * territory parses as one from a state does.
  */
-
-const US_STATES = new Set([
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
-  'DC',
-]);
+import { toUsStateName } from './usStates';
 
 /** Last token is a common street-type suffix — do not treat it as a standalone city name. */
 const STREET_TYPE_TOKENS = new Set([
@@ -35,7 +29,7 @@ export function parseAddressPartsFromCdl(fullAddress) {
 
   let state = '';
   const stateAtEnd = s.match(/,?\s*\b([A-Z]{2})\s*$/);
-  if (stateAtEnd && US_STATES.has(stateAtEnd[1])) {
+  if (stateAtEnd && toUsStateName(stateAtEnd[1])) {
     state = stateAtEnd[1];
     s = s.slice(0, stateAtEnd.index).trim().replace(/,\s*$/, '');
   }

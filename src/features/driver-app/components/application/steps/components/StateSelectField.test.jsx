@@ -3,7 +3,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StateSelectField } from './StateSelectField';
 import { US_STATE_NAMES } from '@shared/utils/usStates';
-import { EMPLOYER_REGION_GROUPS } from '@shared/utils/northAmericanRegions';
+import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions';
 
 afterEach(cleanup);
 
@@ -68,7 +68,7 @@ describe('StateSelectField groups', () => {
         render(
             <StateSelectField
                 id="emp-state-0" name="state" value={value} onChange={vi.fn()}
-                groups={EMPLOYER_REGION_GROUPS} label="State / Province" placeholder="Select state or province"
+                groups={NORTH_AMERICAN_REGION_GROUPS} label="State / Province" placeholder="Select state or province"
             />,
         );
         return screen.getByLabelText(/State \/ Province/);

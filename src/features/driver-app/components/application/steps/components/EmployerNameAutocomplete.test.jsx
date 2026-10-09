@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { FMCSA_SELECT_DRIVER } from '@shared/services/fmcsaEmployerSocrata';
-import { EMPLOYER_REGION_NAMES } from '@shared/utils/northAmericanRegions';
+import { NORTH_AMERICAN_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 import EmployerNameAutocomplete from './EmployerNameAutocomplete';
 
 function ControlledEmployerNameAutocomplete(props) {
@@ -94,7 +94,7 @@ describe('EmployerNameAutocomplete', () => {
       <ControlledEmployerNameAutocomplete
         id="co"
         onChange={onChange}
-        statesAllowlist={EMPLOYER_REGION_NAMES}
+        statesAllowlist={NORTH_AMERICAN_REGION_NAMES}
       />,
     );
 

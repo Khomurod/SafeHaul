@@ -122,7 +122,7 @@ export function UnfinishedEditorSections({ answers, update, form, loaded, locked
             <FormSection title="Address History">
                 <Grid>{schemaFields(['street', 'city', 'state', 'zip', 'residence-3-years'])}</Grid>
                 {offered('previousAddresses') && (answers['residence-3-years'] === 'no' || hasRows('previousAddresses')) && (
-                    <PreviousAddressesSection formData={answers} updateFormData={update} states={states} ty={ty} />
+                    <PreviousAddressesSection formData={answers} updateFormData={update} ty={ty} />
                 )}
             </FormSection>
 

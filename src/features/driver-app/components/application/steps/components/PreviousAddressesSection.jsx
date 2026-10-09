@@ -3,7 +3,9 @@ import InputField from '@shared/components/form/InputField';
 import MonthYearField from '@shared/components/form/MonthYearField';
 import DynamicRow from '@shared/components/form/DynamicRow';
 import { FieldMessage } from '@/design-system/components';
+import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions';
 import { StateSelectField } from './StateSelectField';
+import { postalCodeField } from './postalCodeField';
 
 /**
  * Previous Address History (past 3 years).
@@ -24,8 +26,10 @@ import { StateSelectField } from './StateSelectField';
  * The row fields share their names with the current address on the same page, so
  * each sets `autoComplete="off"`: filling the current address from the phone's
  * contact card must not copy it into a previous address too.
+ *
+ * A previous address may be in Canada or Mexico, as the current one may.
  */
-export function PreviousAddressesSection({ formData, updateFormData, states, ty, requiredHint = false }) {
+export function PreviousAddressesSection({ formData, updateFormData, ty, requiredHint = false }) {
     return (
         <div className="space-y-ds-3">
             {requiredHint && (
@@ -68,12 +72,12 @@ export function PreviousAddressesSection({ formData, updateFormData, states, ty,
                                 id={`prev-state-${index}`}
                                 name="state"
                                 autoComplete="off"
-                                states={states}
+                                groups={NORTH_AMERICAN_REGION_GROUPS}
                                 value={item.state}
                                 onChange={(e) => handleRowChange('state', e.target.value)}
                             />
                             <InputField
-                                label="ZIP Code"
+                                label={postalCodeField(item.state).label}
                                 id={`prev-zip-${index}`}
                                 name="zip"
                                 autoComplete="off"

@@ -6,13 +6,14 @@ import { isValidPhone } from '@shared/utils/validation';
 import TypedDateField from './components/TypedDateField';
 import { ageFromIsoDate } from '@shared/utils/dateFormHelpers';
 import RadioGroup from '@shared/components/form/RadioGroup';
-import { useUtils } from '@shared/hooks/useUtils';
 import { useData } from '@/context/DataContext';
 import { Icon, AlertCircle } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { Checkbox, FieldMessage, FormSection } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { StateSelectField } from './components/StateSelectField';
+import { postalCodeField } from './components/postalCodeField';
+import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions';
 import { StepIssues } from './components/StepIssues';
 import { PreviousAddressesSection } from './components/PreviousAddressesSection';
 import { resolveApplicationGate } from '@/config/applicationGates';
@@ -75,7 +76,6 @@ const FIELD_ID_BY_NAME = {
  */
 const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const ty = new Date().getFullYear();
-    const { states } = useUtils();
     const { currentCompanyProfile } = useData();
     const { showError } = useToast();
     const currentCompany = currentCompanyProfile;
@@ -231,6 +231,7 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
     const hasEmailWarning = (val) => val && val.length > 5 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
     const hasSSNWarning = (val) => val && val.length > 7 && !/^\d{3}-?\d{2}-?\d{4}$/.test(val);
     const hasZipWarning = (val) => val && val.length > 0 && !/^\d{5}(-\d{4})?$/.test(val);
+    const postal = postalCodeField(formData.state);
 
     return (
         <div id="page-1" className="form-step space-y-ds-6">
@@ -352,13 +353,13 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                         id="state"
                         name="state"
                         autoComplete="address-level1"
-                        states={states}
+                        groups={NORTH_AMERICAN_REGION_GROUPS}
                         value={formData.state}
                         onChange={(e) => handleStateChange(e.target.name, e.target.value)}
                     />
                     <div>
-                        <InputField label="ZIP Code" id="zip" name="zip" autoComplete="postal-code" inputMode="numeric" required={true} value={formData.zip} onChange={handleChange} onBlur={handleFieldBlur} error={errors.zip} placeholder="12345" />
-                        {!errors.zip && hasZipWarning(formData.zip) && <ValidationWarning message="Standard ZIP is 5 digits." />}
+                        <InputField label={postal.label} id="zip" name="zip" autoComplete="postal-code" inputMode={postal.inputMode} required={true} value={formData.zip} onChange={handleChange} onBlur={handleFieldBlur} error={errors.zip} placeholder={postal.placeholder} />
+                        {!errors.zip && postal.isZip && hasZipWarning(formData.zip) && <ValidationWarning message="Standard ZIP is 5 digits." />}
                     </div>
                 </div>
 
@@ -380,7 +381,6 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                 <PreviousAddressesSection
                     formData={formData}
                     updateFormData={updateFormData}
-                    states={states}
                     ty={ty}
                     requiredHint={previousAddressRequired}
                 />

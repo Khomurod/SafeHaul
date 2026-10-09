@@ -3,7 +3,7 @@ import InputField from '@shared/components/form/InputField';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import DynamicRow from '@shared/components/form/DynamicRow';
-import { useUtils } from '@shared/hooks/useUtils';
+import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions';
 import { YES_NO_OPTIONS } from '@/config/form-options';
 import { normalizeApplicationAnswers } from '@/config/applicationRules';
 import { FormField, FormSection, Textarea } from '@/design-system/components';
@@ -34,7 +34,6 @@ import { StepIssues } from './components/StepIssues';
  */
 const Step5_Accidents = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const ty = new Date().getFullYear();
-    const { states } = useUtils();
     const yesNoOptions = YES_NO_OPTIONS;
     const initialAccident = {
         date: '', city: '', state: '', commercial: 'no', details: '', preventable: 'no',
@@ -80,7 +79,7 @@ const Step5_Accidents = ({ formData, updateFormData, onNavigate, onPartialSubmit
                 <StateSelectField
                     id={'accident-state-' + index}
                     name="state"
-                    states={states}
+                    groups={NORTH_AMERICAN_REGION_GROUPS}
                     value={item.state}
                     onChange={(e) => handleChange(e.target.name, e.target.value)}
                 />

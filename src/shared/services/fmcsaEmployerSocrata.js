@@ -12,37 +12,13 @@
 
 import { isWellFormedEmail } from '@shared/utils/validation';
 import { fmcsaRegionOutsideUs, regionNameFromFmcsa } from '@shared/utils/northAmericanRegions';
+import { toUsStateCode } from '@shared/utils/usStates';
 
 export const FMCSA_EMPLOYER_SOCRATA_URL =
   'https://data.transportation.gov/resource/az4n-8mr2.json';
 
 const MIN_PREFIX_LENGTH = 2;
 const MAX_PREFIX_LENGTH = 80;
-
-/**
- * Full state names (employment dropdown) → FMCSA phy_state abbreviations.
- * Order matches `useUtils` US_STATES and SearchConfig two-letter lists.
- */
-const US_STATE_FULL_NAMES = [
-  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
-  'District of Columbia', 'Florida', 'Georgia',
-  'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland',
-  'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
-  'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
-  'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming',
-];
-
-const US_STATE_ABBRS = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA',
-  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
-];
-
-const FULL_STATE_NAME_TO_ABBR = Object.fromEntries(
-  US_STATE_FULL_NAMES.map((name, i) => [name, US_STATE_ABBRS[i]]),
-);
 
 /**
  * Normalize driver employment `state` (full name or 2-letter) to FMCSA `phy_state` code.
@@ -53,7 +29,7 @@ export function normalizeEmployerStateToFmcsaPhyState(raw) {
   const s = String(raw ?? '').trim();
   if (!s) return '';
   if (/^[a-zA-Z]{2}$/.test(s)) return s.toUpperCase();
-  return FULL_STATE_NAME_TO_ABBR[s] || fmcsaRegionOutsideUs(s)?.code || '';
+  return toUsStateCode(s) || fmcsaRegionOutsideUs(s)?.code || '';
 }
 
 function normalizeFmcsaPhyStateFilter(phyStateCode) {

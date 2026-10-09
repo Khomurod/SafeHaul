@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { US_STATE_NAMES, toUsStateName } from './usStates';
+import { US_STATE_NAMES, toUsStateCode, toUsStateName } from './usStates';
 import { parseAddressPartsFromCdl } from './parseCdlAddress';
 import { useUtils } from '../hooks/useUtils';
 
@@ -10,6 +10,7 @@ const USPS_CODES = [
     'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY',
     'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND',
     'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+    'AS', 'GU', 'MP', 'PR', 'VI',
 ];
 
 describe('toUsStateName', () => {
@@ -25,6 +26,13 @@ describe('toUsStateName', () => {
         // Listed since 2026-10-02; before that a DC licence or address had nowhere to go.
         ['DC', 'District of Columbia'],
         ['district of columbia', 'District of Columbia'],
+        // The territories, listed since 2026-10-09; their licences print these codes.
+        ['PR', 'Puerto Rico'],
+        ['GU', 'Guam'],
+        ['vi', 'U.S. Virgin Islands'],
+        ['AS', 'American Samoa'],
+        ['MP', 'Northern Mariana Islands'],
+        ['puerto rico', 'Puerto Rico'],
     ])('maps %p to %p', (raw, expected) => {
         expect(toUsStateName(raw)).toBe(expected);
     });
@@ -40,13 +48,13 @@ describe('toUsStateName', () => {
         expect(toUsStateName(raw)).toBe('');
     });
 
-    it('names every code a licence address can parse to, DC included', () => {
+    it('names every code a licence address can parse to, DC and the territories included', () => {
         const names = USPS_CODES.map((code) => {
             const parsed = parseAddressPartsFromCdl(`1 MAIN ST, SPRINGFIELD, ${code} 12345`);
             expect(parsed.state).toBe(code);
             return toUsStateName(parsed.state);
         });
-        expect(new Set(names).size).toBe(51);
+        expect(new Set(names).size).toBe(56);
         names.forEach((name) => expect(US_STATE_NAMES).toContain(name));
     });
 });
@@ -55,6 +63,27 @@ describe('the pickers and the writers share one list', () => {
     it('is the list every state picker renders', () => {
         const { result } = renderHook(() => useUtils());
         expect(result.current.states).toBe(US_STATE_NAMES);
-        expect(US_STATE_NAMES).toHaveLength(51);
+        expect(US_STATE_NAMES).toHaveLength(56);
+    });
+});
+
+describe('toUsStateCode', () => {
+    it('gives back the code of every listed name, each its own', () => {
+        const codes = US_STATE_NAMES.map(toUsStateCode);
+        expect(codes.every((code) => /^[A-Z]{2}$/.test(code))).toBe(true);
+        expect(new Set(codes).size).toBe(US_STATE_NAMES.length);
+        codes.forEach((code, index) => expect(toUsStateName(code)).toBe(US_STATE_NAMES[index]));
+    });
+
+    it.each([
+        ['Puerto Rico', 'PR'],
+        ['U.S. Virgin Islands', 'VI'],
+        ['texas', 'TX'],
+        ['WY', 'WY'],
+        ['Ontario', ''],
+        ['', ''],
+        [null, ''],
+    ])('reads %p as %p', (raw, expected) => {
+        expect(toUsStateCode(raw)).toBe(expected);
     });
 });

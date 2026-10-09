@@ -16,7 +16,8 @@ import {
     ENDORSEMENT_OPTIONS,
     MILITARY_BRANCH_OPTIONS,
     MILES_DRIVEN_OPTIONS,
-    US_STATE_OPTIONS
+    US_STATE_OPTIONS,
+    NORTH_AMERICAN_REGION_OPTIONS
 } from './form-options';
 
 // ============================================================================
@@ -79,9 +80,9 @@ export const ADDRESS_SECTION = {
     fields: [
         { key: 'street', label: 'Address 1', type: 'text', required: true, placeholder: '123 Main St' },
         { key: 'city', label: 'City', type: 'text', required: true, placeholder: 'Anytown' },
-        // Options are the wizard's own state list: the company editors render a select
+        // Options are the wizard's own region list: the company editors render a select
         // from them, so a value typed here is always one the driver's picker can show.
-        { key: 'state', label: 'State', type: 'select', required: true, options: US_STATE_OPTIONS },
+        { key: 'state', label: 'State', type: 'select', required: true, options: NORTH_AMERICAN_REGION_OPTIONS },
         { key: 'zip', label: 'ZIP Code', type: 'text', required: true, placeholder: '12345' },
         { key: 'residence-3-years', label: 'Lived at this residence for 3 years or more?', type: 'radio', options: YES_NO_OPTIONS, configKey: 'addressHistory' },
     ]
@@ -95,7 +96,7 @@ export const PREVIOUS_ADDRESSES_SECTION = {
     itemFields: [
         { key: 'street', label: 'Address', type: 'text', required: true },
         { key: 'city', label: 'City', type: 'text', required: true },
-        { key: 'state', label: 'State', type: 'select', required: true },
+        { key: 'state', label: 'State', type: 'select', required: true, options: NORTH_AMERICAN_REGION_OPTIONS },
         { key: 'zip', label: 'ZIP Code', type: 'text', required: true },
         { key: 'startDate', label: 'From Date', type: 'month', required: true },
         { key: 'endDate', label: 'To Date', type: 'month', required: true },
@@ -259,7 +260,7 @@ export const ACCIDENTS_SECTION = {
     itemFields: [
         { key: 'date', label: 'Date', type: 'date', required: true },
         { key: 'city', label: 'City', type: 'text' },
-        { key: 'state', label: 'State', type: 'select' },
+        { key: 'state', label: 'State', type: 'select', options: NORTH_AMERICAN_REGION_OPTIONS },
         { key: 'details', label: 'Accident Details', type: 'textarea', required: true },
         { key: 'commercial', label: 'Commercial Vehicle?', type: 'radio', options: YES_NO_OPTIONS },
         { key: 'preventable', label: 'Preventable?', type: 'radio', options: YES_NO_OPTIONS },
