@@ -1,5 +1,4 @@
 import { US_STATE_NAMES } from '@shared/utils/usStates';
-import { NORTH_AMERICAN_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 
 export const YES_NO_OPTIONS = [
   { label: 'Yes', value: 'yes' },
@@ -22,9 +21,6 @@ export const EXPERIENCE_OPTIONS = [
  * the wizard stores; `toUsStateName` maps a postal code onto one of these.
  */
 export const US_STATE_OPTIONS = US_STATE_NAMES.map((name) => ({ label: name, value: name }));
-
-/** The same for an address the wizard lets be in Canada or Mexico too. */
-export const NORTH_AMERICAN_REGION_OPTIONS = NORTH_AMERICAN_REGION_NAMES.map((name) => ({ label: name, value: name }));
 
 export const LICENSE_CLASS_OPTIONS = [
   { label: 'Class A', value: 'Class A' },

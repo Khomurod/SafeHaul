@@ -16,9 +16,13 @@ import {
     ENDORSEMENT_OPTIONS,
     MILITARY_BRANCH_OPTIONS,
     MILES_DRIVEN_OPTIONS,
-    US_STATE_OPTIONS,
-    NORTH_AMERICAN_REGION_OPTIONS
+    US_STATE_OPTIONS
 } from './form-options';
+import { NORTH_AMERICAN_REGION_NAMES } from '@shared/utils/northAmericanRegions';
+
+// An address or an accident may be in Canada or Mexico too, as the wizard's own
+// pickers offer. Here, not beside `US_STATE_OPTIONS`, which every page loads.
+const NORTH_AMERICAN_REGION_OPTIONS = NORTH_AMERICAN_REGION_NAMES.map((name) => ({ label: name, value: name }));
 
 // ============================================================================
 // FIELD TYPE DEFINITIONS
