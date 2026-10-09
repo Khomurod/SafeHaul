@@ -112,3 +112,40 @@ describe('HoursOfServiceSection', () => {
         expect(statementIssue()).toBeUndefined();
     });
 });
+
+describe('a driver off duty all seven days', () => {
+    const offDuty = () => document.getElementById('hos-not-on-duty');
+
+    it('says so once: every day is 0, and a new driver can leave the last relief blank', () => {
+        render(<Harness />);
+        fireEvent.click(offDuty());
+
+        expect(latest.hosNotOnDuty).toBe('yes');
+        expect(latest.hosDailyHours.map((row) => row.hours)).toEqual(['0', '0', '0', '0', '0', '0', '0']);
+        for (let n = 1; n <= 7; n += 1) expect(dayBox(n)).toBeDisabled();
+        expect(screen.getByText('If you have never been on duty, leave the date and time blank.')).toBeInTheDocument();
+        expect(statementIssue()).toBeUndefined();
+        expect(document.getElementById('driver-form').checkValidity()).toBe(true);
+    });
+
+    it('gets the day boxes back when it is not so after all', () => {
+        render(<Harness />);
+        fireEvent.click(offDuty());
+        fireEvent.click(offDuty());
+
+        expect(latest.hosNotOnDuty).toBe('no');
+        expect(dayBox(1)).toBeEnabled();
+        // Hours of 0 without the off-duty answer still ask when the driver was last relieved.
+        expect(statementIssue()).toBeDefined();
+        expect(document.getElementById('driver-form').checkValidity()).toBe(false);
+    });
+});
+
+describe('the last relief from duty', () => {
+    it('can be years back, for a driver returning after a long break', () => {
+        render(<Harness />);
+        const years = [...document.getElementById('hos-last-relieved-date-year').options].map((option) => option.value);
+        expect(years).toContain(String(new Date().getFullYear() - 10));
+        expect(years).toContain(String(new Date().getFullYear() - 50));
+    });
+});

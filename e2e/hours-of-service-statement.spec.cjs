@@ -5,8 +5,9 @@
  * time was an `<input type="time">`: on a phone it can be set only through the
  * phone's own dialog, and theirs showed Clear and Cancel without Set. The time is
  * three lists now, and the hours are typed text that takes 7.25 and a decimal
- * comma. This walks the section the way a driver does, with nothing on it
- * opening a picker of the phone's own.
+ * comma. A driver off duty all week, a new one among them, says so once. This
+ * walks the section the way a driver does, with nothing on it opening a picker
+ * of the phone's own.
  *
  * The fixture company asks the statement only under `?e2eRules=hos`
  * (`buildE2EPublicProfile`), because no other spec answers it.
@@ -73,6 +74,22 @@ test.describe('the Hours of Service statement', () => {
         await page.selectOption('#hos-last-relieved-time-hour', '6');
         await page.selectOption('#hos-last-relieved-time-minute', '30');
         await page.selectOption('#hos-last-relieved-time-period', 'PM');
+
+        await continueToStep(page, 'Review Information');
+        await page.getByRole('button', { name: 'Confirm & Proceed' }).click();
+        await expectStep(page, 'Agreements & Signature');
+        await applySignature(page);
+        await submitApplication(page);
+        await expect(page.getByText('Application Submitted!')).toBeVisible();
+    });
+
+    // A new driver has never been relieved from duty; a driver off duty all week
+    // says so once, and the last relief is asked only if there is one.
+    test('takes a week off duty without a last relief, and the application goes in', async ({ page }) => {
+        await reachGeneralQuestions(page);
+        await page.getByLabel('I was not on duty in the past 7 days').check();
+        await expect(page.locator('#hos-day-1')).toHaveValue('0');
+        await expect(page.locator('#hos-day-7')).toBeDisabled();
 
         await continueToStep(page, 'Review Information');
         await page.getByRole('button', { name: 'Confirm & Proceed' }).click();

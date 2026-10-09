@@ -290,13 +290,12 @@ function isCompleteHoursOfService(data, today) {
         const parsed = parseApplicationDate(row.date);
         if (parsed && parsed.day !== null) byDay.set(parsed.iso, row);
     }
-    const daysComplete = hoursOfServiceDays(today).every((day) => {
-        const row = byDay.get(day);
-        return Boolean(row) && /^\d{1,2}(\.\d{1,2})?$/.test(String(row.hours ?? '').trim()) && Number(row.hours) <= 24;
-    });
-    return daysComplete
-        && Boolean(parseApplicationDate(data.hosLastRelievedDate))
+    const hours = hoursOfServiceDays(today).map((day) => String(byDay.get(day)?.hours ?? '').trim());
+    const daysComplete = hours.every((value) => /^\d{1,2}(\.\d{1,2})?$/.test(value) && Number(value) <= 24);
+    const relieved = Boolean(parseApplicationDate(data.hosLastRelievedDate))
         && /^\d{1,2}:\d{2}$/.test(String(data.hosLastRelievedTime ?? '').trim());
+    // Off duty all seven days, a driver may never have been on duty: no relief to give.
+    return daysComplete && (relieved || (yesNo(data.hosNotOnDuty) === 'yes' && hours.every((value) => Number(value) === 0)));
 }
 
 /** Coverage options every surface must share, so the number told to the driver is the number recorded. */
