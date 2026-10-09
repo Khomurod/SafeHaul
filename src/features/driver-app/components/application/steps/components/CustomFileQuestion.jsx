@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button, FileInput, Notice } from '@/design-system/components';
+import { UploadProgress } from '../../UploadProgress';
 
 /**
  * A company's own "file upload" question: the picker, the file that landed, and
@@ -13,10 +14,12 @@ import { Button, FileInput, Notice } from '@/design-system/components';
  * accessible name was the question text AND the drop-zone copy concatenated.
  * `FileInput` renders one label.
  *
- * A failure stays beside the question (the toast that said so is gone in
- * seconds), and Try again sends the same file without choosing it again. The
- * picker's value is cleared as the file is taken, so choosing the same file again
- * is a change.
+ * While the file is on its way the picker is busy, and the bytes sent so far
+ * show with Cancel, as on the License page: a stalled upload is not a minute of
+ * waiting with no way out. A failure stays beside the question (the toast that
+ * said so is gone in seconds), and Try again sends the same file without choosing
+ * it again. The picker's value is cleared as the file is taken, so choosing the
+ * same file again is a change.
  */
 export function CustomFileQuestion({
     id,
@@ -26,8 +29,10 @@ export function CustomFileQuestion({
     accept,
     value,
     loading,
+    progress = 0,
     failure,
     onFile,
+    onCancel,
 }) {
     return (
         <div className="grid gap-ds-2">
@@ -46,6 +51,9 @@ export function CustomFileQuestion({
                     onFile(file);
                 }}
             />
+            {loading && (
+                <UploadProgress label={label} percent={progress * 100} onCancel={onCancel} announce={false} />
+            )}
             {failure && (
                 <Notice
                     announce="assertive"

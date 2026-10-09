@@ -18,7 +18,7 @@ import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { resolveGuestUploadMimeType } from '@shared/utils/guestUploadMime';
+import { GUEST_UPLOAD_MIME_TYPES, resolveGuestUploadMimeType } from '@shared/utils/guestUploadMime';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import {
   GUEST_UPLOAD_MAX_BYTES,
@@ -27,7 +27,7 @@ import {
   transferGuestUpload,
 } from './guestUploadTransfer';
 
-/** The E2E double's wait, which a cancel ends early (`?e2eUpload=slow` waits longer). */
+/** The E2E double's wait, which a cancel ends early (`?e2eUpload=slow` or `slow:<field>` waits longer). */
 function e2eWait(ms, signal) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
@@ -68,8 +68,10 @@ export function useGuestFileUpload(companyId) {
           throw permissionError;
         }
 
-        // `slow` keeps the upload on its way long enough to cancel it.
-        await e2eWait(e2eUploadMode === 'slow' ? 10_000 : 120, signal);
+        // `slow` keeps the upload on its way long enough to cancel it; `slow:<field>`
+        // only that one's.
+        const slow = e2eUploadMode === 'slow' || e2eUploadMode === `slow:${fieldName}`;
+        await e2eWait(slow ? 10_000 : 120, signal);
         onProgress?.(1);
         const fileData = {
           name: file.name,
@@ -80,8 +82,9 @@ export function useGuestFileUpload(companyId) {
         return fileData;
       }
 
+      // Said here, in words, rather than refused by the reservation as a bare code.
       const fileType = resolveGuestUploadMimeType(file);
-      if (!fileType) throw new GuestUploadError('unsupported-type');
+      if (!GUEST_UPLOAD_MIME_TYPES.includes(fileType)) throw new GuestUploadError('unsupported-type');
 
       const prepareGuestUpload = httpsCallable(functions, 'getSignedUploadUrl');
 

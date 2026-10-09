@@ -43,7 +43,7 @@
  *   and, at the ends, the endpoint wording.
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Shield } from '@design-system/icons';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -71,8 +71,10 @@ export function DynamicQuestionsStep({
     embedded = false, // The questions alone, as a Company Admin's editor shows them
 }) {
     const { showError } = useToast();
-    // Every file question whose upload is still on its way, by question key.
+    // Every file question whose upload is still on its way, by question key: the
+    // share of the file sent so far, from 0 to 1. Each one's Cancel is in the ref.
     const [uploading, setUploading] = useState({});
+    const uploadsRef = useRef({});
     // A file question's failed upload, by key: why, said beside the question, and
     // the file, so Try again sends it without choosing it again.
     const [uploadFailures, setUploadFailures] = useState({});
@@ -146,34 +148,49 @@ export function DynamicQuestionsStep({
      *
      * While it is on its way the picker is `loading` — disabled, so a second file
      * cannot race the first and land under it — and Continue waits, as the License
-     * step's does, so nothing moves on before the file has landed.
+     * step's does, so nothing moves on before the file has landed. Its progress
+     * shows with Cancel, which gives the picker back at once; a result that lands
+     * after a Cancel is not recorded.
      */
+    const stopWaiting = (key, upload) => {
+        if (uploadsRef.current[key] !== upload) return;
+        delete uploadsRef.current[key];
+        setUploading(({ [key]: _done, ...rest }) => rest);
+    };
     const uploadAnswer = async (key, file) => {
         if (!file || !handleFileUpload) return;
-        setUploading((current) => ({ ...current, [key]: true }));
+        const upload = new AbortController();
+        uploadsRef.current[key] = upload;
+        setUploading((current) => ({ ...current, [key]: 0 }));
         setUploadFailures(({ [key]: _retired, ...rest }) => rest);
         try {
-            const uploaded = await handleFileUpload(key, file);
-            if (uploaded) {
+            const uploaded = await handleFileUpload(key, file, {
+                onProgress: (sent) => {
+                    if (!upload.signal.aborted) setUploading((current) => (key in current ? { ...current, [key]: sent } : current));
+                },
+                signal: upload.signal,
+            });
+            if (uploaded && !upload.signal.aborted) {
                 updateFormData('customAnswers', (answers) => ({ ...(answers || {}), [key]: uploaded }));
             }
         } catch (error) {
             // Nothing is recorded: a filename with no file behind it is what used
             // to make a failed upload read as an answer. The toast that said so is
             // gone in seconds, so the reason stays beside the question.
-            if (error?.code !== 'cancelled') {
+            if (!upload.signal.aborted && error?.code !== 'cancelled') {
                 setUploadFailures((current) => ({
                     ...current,
                     [key]: { file, message: error?.message || 'Upload failed. Please try again.' },
                 }));
             }
         } finally {
-            setUploading((current) => {
-                const next = { ...current };
-                delete next[key];
-                return next;
-            });
+            stopWaiting(key, upload);
         }
+    };
+    const cancelUpload = (key) => {
+        const upload = uploadsRef.current[key];
+        upload?.abort();
+        stopWaiting(key, upload);
     };
 
     const handleCheckboxChange = (key, optValue) => {
@@ -326,9 +343,11 @@ export function DynamicQuestionsStep({
                         required={field.required && !value}
                         accept={field.accept || "image/*,application/pdf"}
                         value={value}
-                        loading={Boolean(uploading[key])}
+                        loading={key in uploading}
+                        progress={uploading[key]}
                         failure={uploadFailures[key]}
                         onFile={(file) => uploadAnswer(key, file)}
+                        onCancel={() => cancelUpload(key)}
                     />
                 );
 

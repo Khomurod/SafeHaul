@@ -95,6 +95,18 @@ describe('useGuestFileUpload', () => {
         expect(result.current.isUploading).toBe(false);
     });
 
+    it('refuses a type the server would refuse, in words, before reserving anything', async () => {
+        const { result } = renderHook(() => useGuestFileUpload('company-1'));
+        let error;
+        await act(async () => {
+            error = await result.current.handleFileUpload('cdl-front', new File(['x'], 'card.gif', { type: 'image/gif' })).catch((e) => e);
+        });
+
+        expect(error.code).toBe('unsupported-type');
+        expect(mocks.reserve).not.toHaveBeenCalled();
+        expect(mocks.showError).toHaveBeenCalledWith('This file type cannot be sent. Use a photo (JPG, PNG, WEBP or HEIC) or a PDF.');
+    });
+
     it('shows a failure in plain words, never Firebase’s own sentence', async () => {
         const { result } = renderHook(() => useGuestFileUpload('company-1'));
         let sent;

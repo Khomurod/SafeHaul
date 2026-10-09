@@ -1,10 +1,11 @@
 import React, { useId, useRef, useState } from 'react';
 import { Icon, X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from '@design-system/icons';
 import {
-    Button, FileInput, IconButton, IconButtonLink, Notice, ProgressBar,
+    Button, FileInput, IconButton, IconButtonLink, Notice,
 } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 import { PREVIEW_STATE, useSignedUploadPreview } from '../../hooks/useSignedUploadPreview';
+import { UploadProgress } from './UploadProgress';
 
 /**
  * UploadField
@@ -242,28 +243,9 @@ const UploadField = ({
                 </Notice>
             )}
 
-            {/* UPLOADING STATE — a tinted block, and deliberately NOT a `Notice`.
-                Its content is a `ProgressBar` and a percentage readout; the text
-                labels the widget rather than being the message. Putting an info
-                glyph beside a progress bar states nothing the bar does not. */}
+            {/* UPLOADING STATE: the bytes sent so far, and Cancel. */}
             {status === 'uploading' && (
-                <div className="space-y-ds-2 rounded-ds-md border border-ds-status-info-border bg-ds-status-info-bg p-ds-4">
-                    <p className="flex justify-between text-ds-xs font-semibold text-ds-status-info-fg" role="status">
-                        <span>Uploading...</span>
-                        <span>{Math.round(progress)}%</span>
-                    </p>
-                    <ProgressBar
-                        value={progress}
-                        max={100}
-                        label={`${label} upload progress`}
-                        valueText={`${Math.round(progress)}% uploaded`}
-                    />
-                    <div className="flex justify-end">
-                        <Button variant="secondary" size="sm" onClick={cancelUpload}>
-                            Cancel upload<span className="ds-visually-hidden"> of {label}</span>
-                        </Button>
-                    </div>
-                </div>
+                <UploadProgress label={label} percent={progress} onCancel={cancelUpload} />
             )}
 
             {/* SUCCESS / VIEW STATE — also not a `Notice`. This is a file row:

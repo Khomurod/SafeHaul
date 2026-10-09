@@ -10,7 +10,8 @@
  * The fixture company carries no custom questions unless `?e2eCustomQuestions=file`
  * gives it one (`buildE2EPublicProfile`), because a custom step renumbers every
  * step title the other specs are written against. Uploads use the E2E double in
- * `useGuestFileUpload`, and `?e2eUpload=deny:<field>` makes it refuse that one.
+ * `useGuestFileUpload`: `?e2eUpload=deny:<field>` makes it refuse that one, and
+ * `slow:<field>` keeps that one on its way.
  */
 const { test, expect } = require('@playwright/test');
 const {
@@ -57,6 +58,22 @@ test.describe('a custom file upload question', () => {
         const section = page.locator('section, div').filter({ has: page.getByText('Upload your resume', { exact: true }) }).last();
         await expect(section.getByText('resume.pdf', { exact: true })).toBeVisible();
         await expect(page.getByText('[object Object]')).toHaveCount(0);
+    });
+
+    test('shows the upload on its way with Cancel, which gives the picker back', async ({ page }) => {
+        // Only this question's upload is held on its way.
+        await reachAdditionalQuestions(page, '&e2eUpload=slow:e2e-resume');
+
+        await page.getByLabel(/Upload your resume/).setInputFiles(pdfFile('resume.pdf'));
+        // Named: the wizard's own step progress is a progress bar too.
+        const progress = page.getByRole('progressbar', { name: 'Upload your resume upload progress' });
+        await expect(progress).toBeVisible();
+        await page.getByRole('button', { name: 'Cancel upload of Upload your resume' }).click();
+
+        await expect(progress).toHaveCount(0);
+        await expect(page.getByLabel(/Upload your resume/)).toBeEnabled();
+        await expect(page.getByText(/✓ Selected/)).toHaveCount(0);
+        await expect(page.getByRole('alert')).toHaveCount(0);
     });
 
     test('records nothing when the upload fails, and the required question still stops the driver', async ({ page }) => {

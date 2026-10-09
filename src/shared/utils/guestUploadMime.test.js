@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { resolveGuestUploadMimeType } from './guestUploadMime';
+import { GUEST_UPLOAD_MIME_TYPES, resolveGuestUploadMimeType } from './guestUploadMime';
 
 describe('resolveGuestUploadMimeType', () => {
   it('uses File.type when present', () => {
@@ -18,5 +20,17 @@ describe('resolveGuestUploadMimeType', () => {
 
   it('returns empty for unknown extension', () => {
     expect(resolveGuestUploadMimeType({ type: '', name: 'file.xyz' })).toBe('');
+  });
+});
+
+describe('GUEST_UPLOAD_MIME_TYPES', () => {
+  it('is the list the upload reservation accepts, so a refusal there is said here first', () => {
+    // Read as text: the callable's module needs the functions dependencies, which
+    // the frontend job does not install.
+    const source = readFileSync(resolve(__dirname, '../../../functions/storageSecure.js'), 'utf8');
+    const list = source.match(/const ALLOWED_MIME_TYPES = \[([^\]]*)\]/);
+    expect(list).not.toBeNull();
+    const server = [...list[1].matchAll(/'([^']+)'/g)].map((entry) => entry[1]);
+    expect([...GUEST_UPLOAD_MIME_TYPES].sort()).toEqual(server.sort());
   });
 });
