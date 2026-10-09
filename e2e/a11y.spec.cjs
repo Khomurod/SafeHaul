@@ -171,7 +171,7 @@ test.describe('@a11y mobile-critical journeys (no serious/critical violations)',
         await applySignature(page);
         await context.setOffline(true);
         await submitApplication(page);
-        await expect(page.getByRole('heading', { name: 'Application Saved', exact: true })).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByRole('heading', { name: 'Not sent yet', exact: true })).toBeVisible({ timeout: 15_000 });
         expect(await seriousViolations(page)).toEqual([]);
     });
 

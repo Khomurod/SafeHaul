@@ -3,37 +3,21 @@
  * there, and which page of the wizard a refusal points to.
  *
  * That difference decides what the applicant is told. An application that never
- * arrived is queued and replayed, so "Application Saved … will be automatically
- * submitted" is true. A refused one would get the same refusal on every replay.
+ * arrived is queued and replayed; a refused one would get the same refusal on
+ * every replay, so it is said, with the page to fix, instead.
  */
 import { resolveWizardStepIndex } from '@shared/components/layout/Stepper';
+import { fetchPublicProfileBySlug } from '../../services/publicProfileService';
+
+export { isPermanentRefusal } from './refusalCodes';
 
 /**
- * Errors where the server read the application and refused it, so the same
- * payload would get the same answer again. Everything else (a dropped connection
- * reported as `internal`, a timeout, a cold start, the rate limiter) is worth
- * retrying and worth the offline queue.
- *
- * Until 2026-10-01 every error was retried three times. Because a queue entry
- * existed, the applicant was then shown "Application Saved … will be automatically
- * submitted. No data will be lost." For a refusal that was false twice over. The
- * replay sends the identical payload into the identical refusal, and after ten
- * attempts it marks the entry failed without telling anyone. The driver believed
- * they had applied, and the carrier never received the application.
+ * The server's rate limit: too many submissions from this connection just now.
+ * Not worth the queue, which would only spend the limit again, and not worth
+ * hiding: the applicant is told in the server's words to wait a moment.
  */
-const PERMANENT_REFUSALS = new Set([
-  'functions/invalid-argument',
-  'functions/failed-precondition',
-  'functions/permission-denied',
-  'functions/not-found',
-  'functions/already-exists',
-  'functions/out-of-range',
-  'functions/unauthenticated',
-  'functions/unimplemented',
-]);
-
-export function isPermanentRefusal(error) {
-  return PERMANENT_REFUSALS.has(error?.code);
+export function isRateLimited(error) {
+  return error?.code === 'functions/resource-exhausted';
 }
 
 /**
@@ -52,4 +36,17 @@ export function isCarrierUpdate(error) {
 export function refusalStepIndex(error, hasCustomQuestions) {
   const issue = (error?.details?.issues || []).find((entry) => entry?.semanticStep);
   return issue ? resolveWizardStepIndex(issue.semanticStep, hasCustomQuestions) : null;
+}
+
+/**
+ * The same page, by the company's settings as they are now. The server judged
+ * those, which can differ from the ones the page loaded; the page takes them too
+ * (`setCompany`), so the field the refusal sends the applicant to is there.
+ */
+export async function refusalStepNow(error, { slug, sandbox, company, setCompany }) {
+  const current = sandbox ? null : await fetchPublicProfileBySlug(slug).catch(() => null);
+  const taken = Boolean(current) && current.id === company?.id;
+  if (taken) setCompany(current);
+  const asked = (taken ? current.customQuestions : company?.customQuestions) || [];
+  return refusalStepIndex(error, asked.length > 0);
 }

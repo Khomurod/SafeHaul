@@ -18,19 +18,19 @@ import {
   initQueue,
   enqueueSubmission,
   dequeueSubmission,
+  updateQueueEntry,
   isSupported as isQueueSupported
 } from '@lib/submissionQueue';
 import {
   generateApplicationId,
   generateConfirmationNumber
 } from '@lib/applicationId';
-import { SANDBOX_APP_SLUG } from '@features/sandbox/sandboxConstants';
 import { toIsoDay } from '@/config/applicationDates';
-import { clearApplicationDraft } from './applicationDraftStorage';
 import { savePostApplySession } from './postApplyDocsStorage';
 import { runSubmissionPreflight } from './publicApplyPreflight';
-import { isCarrierUpdate, isPermanentRefusal, refusalStepIndex } from './publicApplyRefusal';
+import { isCarrierUpdate, isPermanentRefusal, isRateLimited, refusalStepNow } from './publicApplyRefusal';
 import { companyRevisionIn, withoutCompanyKeys } from './companyEditsSync';
+import { buildGuestApplicationData } from './buildGuestApplicationData';
 
 export async function submitPublicApplication({
   // State values as they stood when the applicant pressed Submit.
@@ -57,6 +57,7 @@ export async function submitPublicApplication({
   // Takes a Company Admin's edits into the answers; see `useDiscardAwareResume`.
   onCarrierUpdated,
   // Setters and toasts.
+  setCompany,
   setCurrentStep,
   setSubmissionStatus,
   setSubmittedApplicationId,
@@ -171,10 +172,11 @@ export async function submitPublicApplication({
             // it, so a late replay closes this application and not a newer one.
             { type: 'guest', userId: null, applicantToday, ...submittedDraftIdentity(submitMark) },
           );
-          clearApplicationDraft(slug);
+          // The draft stays, as when a real submission is queued: it is what a
+          // refusal of the replay comes back to.
           sessionStorage.removeItem('pending_application_recruiter');
           setSubmissionStatus('queued');
-          showSuccess('Application saved! It will be submitted automatically when connection is restored.');
+          showSuccess('Your application is saved on this device and will be sent when the connection is back. Keep this page open.');
         } catch (queueError) {
           console.error('[PublicApplyHandler] E2E force-queue enqueue failed:', queueError);
           setSubmissionStatus('error');
@@ -236,43 +238,13 @@ export async function submitPublicApplication({
       // and the Cloud Function (submitGuestApplication) does its own sanitization server-side.
       // AF6 FIX: Removed redundant `personalInfo` wrapper — all fields are spread from formData
       // at the top level, matching the authenticated submission structure exactly.
-      const applicationData = {
-        applicantId: applicationId,
-        applicationId: applicationId,
-        submissionAttemptId,
-        confirmationNumber: confirmationNumber,
-        // The answers alone: what a Company Admin's edits left beside them is said
-        // once, as `seenRevision` below, and never queued.
-        ...withoutCompanyKeys(formData),
-        // Ensure these top-level keys always exist (overrides from formData if present)
-        firstName: formData.firstName || '',
-        lastName: formData.lastName || '',
-        email: email,
-        phone: phone,
-        signature: formData.signature,
-        signatureType: formData.signatureType || 'drawn',
-        companyId: company.id,
-        companyName: company.companyName,
-        recruiterCode: recruiterCode || null,
-        sourceType: sandbox ? 'Sandbox Application' : 'Public Application',
-        sourceSlug: sandbox ? SANDBOX_APP_SLUG : slug,
-        status: 'New Application',
-        // BUGFIX: Removed submittedAt/createdAt serverTimestamp() from here.
-        // sanitizeData() destroys FieldValue sentinels by recursing into them.
-        // The Cloud Function (submitGuestApplication) adds server timestamps after sanitization.
-        employers: Array.isArray(formData.employers) ? formData.employers : [],
-        violations: Array.isArray(formData.violations) ? formData.violations : [],
-        accidents: Array.isArray(formData.accidents) ? formData.accidents : [],
-        schools: Array.isArray(formData.schools) ? formData.schools : [],
-        military: Array.isArray(formData.military) ? formData.military : [],
-        // Bulletproof tracking
-        lifecycle: {
-          status: 'pending',
-          submittedAt: new Date().toISOString(),
-          clientVersion: sandbox ? 'sandbox' : '2.0-bulletproof',
-          isGuest: true,
-        },
-      };
+      const applicationData = buildGuestApplicationData({
+        formData, company, applicationId, confirmationNumber, submissionAttemptId, recruiterCode, sandbox, slug,
+      });
+
+      // Which of a Company Admin's edits these answers have taken, so the server can
+      // send back a copy that is behind them. See `companyEditsSync.js`.
+      let seenRevision = companyRevisionIn(formData) ?? 0;
 
       // 3. Queue first for guaranteed delivery
       let queueId = null;
@@ -315,6 +287,10 @@ export async function submitPublicApplication({
             // answers a second time. The identity comes too, because by then the
             // applicant may have started a different application on the same page.
             ...submittedDraftIdentity(submitMark),
+            seenRevision,
+            // Not while this page's own attempts are out: a replay beside them would
+            // spend the rate limit they need. Released once they have all failed.
+            retryNotBefore: Date.now() + 2 * 60 * 1000,
           });
         } catch (queueError) {
           console.warn('[PublicApplyHandler] Queue failed:', queueError);
@@ -323,9 +299,6 @@ export async function submitPublicApplication({
 
       // 4. Submit via Cloud Function (Admin SDK — bypasses all rules)
       let lastError;
-      // Which of a Company Admin's edits these answers have taken, so the server can
-      // send back a copy that is behind them. See `companyEditsSync.js`.
-      let seenRevision = companyRevisionIn(formData) ?? 0;
       let carrierChecked = false;
       for (let attempt = 1; attempt <= 3; attempt++) {
         // The guard at the top of this function is not enough on its own. Between it
@@ -423,8 +396,8 @@ export async function submitPublicApplication({
             attempt -= 1;
             continue;
           }
-          // The same answers would get the same answer.
-          if (isPermanentRefusal(error)) break;
+          // The same answers would get the same answer, and a rate limit the same limit.
+          if (isPermanentRefusal(error) || isRateLimited(error)) break;
           if (attempt < 3) {
             await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
           }
@@ -450,7 +423,9 @@ export async function submitPublicApplication({
       // to the page it names. The queue entry goes, or it would replay the refusal
       // later behind a screen promising the opposite. The draft is untouched, so
       // nothing they typed is lost and they can correct it and submit again.
-      if (isPermanentRefusal(lastError)) {
+      // Too many attempts from this connection is said too, in the server's words
+      // ("try again in a minute"), never as a screen saying it will be sent.
+      if (isPermanentRefusal(lastError) || isRateLimited(lastError)) {
         if (queueId) {
           try {
             await dequeueSubmission(queueId);
@@ -458,17 +433,23 @@ export async function submitPublicApplication({
             console.warn('[PublicApplyHandler] Dequeue after a refusal failed:', dequeueError);
           }
         }
-        const step = refusalStepIndex(lastError, customQuestions.length > 0);
+        if (isRateLimited(lastError)) {
+          setSubmissionStatus('error');
+          showError(lastError?.message || 'Too many attempts. Wait a minute, then submit again.');
+          return;
+        }
+        const step = await refusalStepNow(lastError, { slug, sandbox, company, setCompany });
         if (step !== null) setCurrentStep(step);
         setSubmissionStatus('error');
         showError(lastError?.message || 'Your application could not be submitted. Please check your answers and try again.');
         return;
       }
 
-      // If queued, show partial success
+      // If queued, show partial success, and let the queue take over now.
       if (queueId) {
+        await updateQueueEntry(queueId, { nextRetryAt: Date.now() }).catch(() => {});
         setSubmissionStatus('queued');
-        showSuccess("Your application is saved and will be submitted automatically when connection is restored.");
+        showSuccess('Your application is saved on this device and will be sent when the connection is back. Keep this page open.');
       } else {
         throw lastError;
       }

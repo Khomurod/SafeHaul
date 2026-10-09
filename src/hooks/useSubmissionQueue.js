@@ -14,8 +14,8 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import * as Sentry from '@sentry/react';
 import { mergeApplicationDoc } from '@lib/applicationWrite';
-import { closeDraftAfterDelayedSubmission } from '../features/driver-app/services/applicationDraftService';
 import { readDiscardMark } from '../features/driver-app/components/application/applicationDraftStorage';
+import { isPermanentRefusal } from '../features/driver-app/components/application/refusalCodes';
 
 import {
     initQueue,
@@ -100,11 +100,11 @@ export function useSubmissionQueue() {
                     data: { companyId },
                     level: 'info',
                 });
-                return;
+                return { dropped: true };
             }
 
             const submitFn = httpsCallable(functions, 'submitGuestApplication');
-            await submitFn({
+            const sent = submitFn({
                 companyId: companyId,
                 email: data.email || '',
                 phone: data.phone || '',
@@ -123,6 +123,14 @@ export function useSubmissionQueue() {
                 // entry queued before the field existed sends nothing, and the server
                 // uses its own day.
                 ...(entry?.applicantToday ? { applicantToday: entry.applicantToday } : {}),
+                // Which of a Company Admin's edits these answers have taken, as the
+                // direct attempt said; an entry queued before this was kept says none.
+                ...(Number.isInteger(entry?.seenRevision) ? { seenRevision: entry.seenRevision } : {}),
+            });
+            // A refusal is the server's answer, not a delivery that failed: the queue
+            // stops at it and keeps the reason for the page (`final`).
+            const result = await sent.catch((error) => {
+                throw isPermanentRefusal(error) ? Object.assign(error, { final: true }) : error;
             });
 
             // The submission landed, so the server has just deleted the draft behind
@@ -137,10 +145,14 @@ export function useSubmissionQueue() {
             // that would destroy work they never sent — worse than the duplicate
             // submission this guards against — so the close happens only when storage
             // still holds the application this entry was made from.
+            // Loaded only now, as the announcement below is: every page of the site
+            // carries this hook, and the first download has a budget.
             if (entry?.applySlug) {
-                closeDraftAfterDelayedSubmission(entry.applySlug, {
-                    draftId: entry.applyDraftId || null,
-                });
+                await import('../features/driver-app/services/applicationDraftService')
+                    .then(({ closeDraftAfterDelayedSubmission }) => closeDraftAfterDelayedSubmission(entry.applySlug, {
+                        draftId: entry.applyDraftId || null,
+                    }))
+                    .catch((loadError) => console.warn('[useSubmissionQueue] Draft close-out not loaded:', loadError));
             }
 
             Sentry.addBreadcrumb({
@@ -149,7 +161,7 @@ export function useSubmissionQueue() {
                 data: { companyId },
                 level: 'info',
             });
-            return;
+            return result;
         }
 
         // Authenticated submissions → direct Firestore write (rules pass with auth)
@@ -203,6 +215,15 @@ export function useSubmissionQueue() {
             // Processing queued submissions
 
             const results = await processQueue(submitToFirestore);
+            // A guest application that ended, told to its page (and kept for it). One
+            // refused or out of attempts stays in the queue for the page to read anyway.
+            const ended = (results?.settled || []).filter(({ entry, result }) => entry?.applySlug && !result?.dropped);
+            if (ended.length) {
+                await import('../features/driver-app/components/application/queuedApplicationOutcome')
+                    .then(({ announceQueuedApplication, queuedOutcome }) => ended.forEach(({ entry, outcome, result, error }) => (
+                        announceQueuedApplication(queuedOutcome(entry, outcome, { result, error })))))
+                    .catch((loadError) => console.warn('[useSubmissionQueue] Outcome not announced:', loadError));
+            }
 
             // Update pending count
             const newCount = await getQueueCount();
@@ -245,14 +266,20 @@ export function useSubmissionQueue() {
         }
     }, [isOnline, pendingCount, processQueueNow]);
 
-    // Refresh pending count periodically
+    // Refresh pending count periodically, and send what is due. Without this a
+    // replay that failed waited for the connection to drop and come back, or for a
+    // reload: its retry time passing started nothing.
+    const processQueueNowRef = useRef(processQueueNow);
+    processQueueNowRef.current = processQueueNow;
     useEffect(() => {
         if (!isSupported()) return;
 
         const refreshCount = async () => {
             try {
-                const count = await getQueueCount();
-                setPendingCount(count);
+                const pending = await getAllPending();
+                setPendingCount(pending.length);
+                const due = pending.some((entry) => !entry.nextRetryAt || entry.nextRetryAt <= Date.now());
+                if (due && navigator.onLine && isInitialized.current) processQueueNowRef.current();
             } catch (err) {
                 // Silent fail for count refresh
             }

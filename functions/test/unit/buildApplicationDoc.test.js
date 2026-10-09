@@ -113,6 +113,16 @@ describe('buildApplicationDoc', () => {
       {}
     )).toThrow(/Missing required uploaded documents: CDL Front, CDL Back, Medical Card/);
   });
+
+  it('sends the driver to the License page, where every upload is made', () => {
+    let error;
+    try {
+      assertRequiredUploads({ cdlUpload: { hidden: false, required: true } }, {});
+    } catch (e) {
+      error = e;
+    }
+    expect(error.details.issues).toEqual([{ code: 'missing-upload', semanticStep: 'license', fieldId: null }]);
+  });
 });
 
 describe('assertApplicationRules', () => {

@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import Stepper from '@shared/components/layout/Stepper';
-import { IntakeChooser } from './IntakeChooser';
 import {
   buildApplyLinkOutcomeMessage,
   getFieldConfig,
@@ -39,7 +38,6 @@ import { usePostSubmitDocuments } from './usePostSubmitDocuments';
 // Bulletproof submission imports
 import { Card, Notice } from '@/design-system/components';
 import { getMagicFillPatchForStep } from '@features/sandbox/utils/dummyDataGenerator';
-import { SandboxActionPanel } from '@features/sandbox/SandboxActionPanel';
 import { SANDBOX_APP_SLUG } from '@features/sandbox/sandboxConstants';
 
 /**
@@ -339,7 +337,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     setIntakeMode('manual');
   };
 
-
   // The submission path — pre-flight validation, the queue-first guaranteed
   // delivery, the three-attempt Cloud Function call and every discard
   // re-check — lives in publicApplySubmit.js since the 2026-09-01
@@ -366,6 +363,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     handleDiscardedElsewhere,
     finishDraftLifecycle,
     onCarrierUpdated: refreshCompanyEdits,
+    setCompany,
     setCurrentStep,
     setSubmissionStatus,
     setSubmittedApplicationId,
@@ -384,7 +382,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   } = usePostSubmitDocuments({
     slug,
     sandbox,
+    ready: !loading,
     company,
+    setCompany,
     submittedApplicationId,
     submittedConfirmationNumber,
     openingTemplateId,

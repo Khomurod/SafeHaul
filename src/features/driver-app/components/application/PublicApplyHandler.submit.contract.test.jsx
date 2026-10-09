@@ -39,6 +39,7 @@ import {
   initQueueSpy,
   isQueueSupportedSpy,
   savePostApplySessionSpy,
+  updateQueueEntrySpy,
   generateIdSpy,
   profileOverride,
   SIGNED_DRAFT,
@@ -164,8 +165,18 @@ describe('PublicApplyHandler submission contract', () => {
         // Nothing had been discarded on this page when the entry was queued, and the
         // replay compares against exactly that.
         applyDiscardMark: null,
+        // Which of a Company Admin's edits these answers have taken (none), sent with
+        // a replay as with the direct attempt.
+        seenRevision: 0,
+        // Held while this page's own attempts are out, so a replay does not run
+        // beside them and spend their rate limit.
+        retryNotBefore: expect.any(Number),
       },
     );
+    const { retryNotBefore } = enqueueSpy.mock.calls[0][2];
+    expect(retryNotBefore - Date.now()).toBeGreaterThan(60 * 1000);
+    // Delivered directly, so there was nothing to release to the queue.
+    expect(updateQueueEntrySpy).not.toHaveBeenCalled();
   });
 
   it('retries the callable three times, then falls back to the queued screen', async () => {
@@ -174,7 +185,7 @@ describe('PublicApplyHandler submission contract', () => {
     await renderWithCompleteDraft();
     await submit();
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Application Saved' })).toBeInTheDocument(), {
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument(), {
       timeout: 10_000,
     });
     expect(callableSpy).toHaveBeenCalledTimes(3);
@@ -204,9 +215,28 @@ describe('PublicApplyHandler submission contract', () => {
     expect(showError).toHaveBeenCalledWith(refusal.message);
     // Retries would have run before the page changed, so one call means none.
     expect(callableSpy).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('heading', { name: 'Application Saved' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Not sent yet' })).toBeNull();
     // The entry written for guaranteed delivery goes, or it would replay the refusal.
     expect(dequeueSpy).toHaveBeenCalledWith('queue-1');
+  });
+
+  it('takes the company\'s current settings with a refusal, so the page it names asks what is missing', async () => {
+    // The company added a question of its own after this page loaded: the server
+    // judged the settings as they are now, and so must the page it sends the
+    // driver to, which is one step later because of that question.
+    const refusal = Object.assign(new Error('Acknowledge every agreement before submitting.'), {
+      code: 'functions/failed-precondition',
+      details: { issues: [{ code: 'agreements', semanticStep: 'consent', fieldId: null }] },
+    });
+    callableSpy.mockRejectedValue(refusal);
+    await renderWithCompleteDraft();
+    profileOverride.current = { customQuestions: [{ id: 'q1', label: 'Years driving', type: 'text' }] };
+
+    await submit();
+
+    // 9 = Consent once the company's questions are a step of their own; 8 without.
+    await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('9'));
+    expect(showError).toHaveBeenCalledWith(refusal.message);
   });
 
   it('still queues an ordinary failure to deliver', async () => {
@@ -215,7 +245,7 @@ describe('PublicApplyHandler submission contract', () => {
     await renderWithCompleteDraft();
     await submit();
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Application Saved' })).toBeInTheDocument(), {
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument(), {
       timeout: 10_000,
     });
     expect(callableSpy).toHaveBeenCalledTimes(3);
@@ -233,7 +263,7 @@ describe('PublicApplyHandler submission contract', () => {
       expect(showError).toHaveBeenCalledWith('Failed to submit application. Please try again.'),
       { timeout: 10_000 },
     );
-    expect(screen.queryByRole('heading', { name: 'Application Saved' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Not sent yet' })).toBeNull();
   }, 20_000);
 
   it('clears the local draft and the pending recruiter code on success', async () => {
