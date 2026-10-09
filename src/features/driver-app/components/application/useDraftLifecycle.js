@@ -4,7 +4,7 @@
 // path behind Continue, the post-submission close, Start Over with its
 // quota-ordering rules, and the explicit Save-as-Draft. Bodies verbatim; the
 // refs arrive as the ref objects, so ownership semantics are unchanged.
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   readApplicationDraft,
   saveApplicationDraft,
@@ -13,6 +13,17 @@ import {
 } from './applicationDraftStorage';
 import { closeDraftAfterSubmission } from '../../services/applicationDraftService';
 import { companyFieldsAfter, withCompanyNotice } from './companyEditsSync';
+
+/** The `storagePath` of every uploaded file among the answers, a custom question's included. */
+export function storedFilePaths(formData) {
+  const values = [
+    ...Object.values(formData || {}),
+    ...Object.values(formData?.customAnswers || {}),
+  ];
+  return new Set(values
+    .filter((value) => value && typeof value === 'object' && typeof value.storagePath === 'string')
+    .map((value) => value.storagePath));
+}
 
 export function useDraftLifecycle({
   slug,
@@ -34,6 +45,7 @@ export function useDraftLifecycle({
   showSuccess,
   showError,
   showInfo,
+  sendFile,
 }) {
   /**
    * The local copy, written synchronously on every step change.
@@ -62,6 +74,30 @@ export function useDraftLifecycle({
     if (draftId) draftIdRef.current = draftId;
     return localSeq;
   }, [slug, sandbox, formData, draftIdRef]);
+
+  /**
+   * A file this tab sent is kept with the page as soon as it is among the answers.
+   * The local copy is otherwise written only when the step changes, so a reload
+   * between an upload and Continue cost the driver the document they had just
+   * sent. Only an upload that landed starts this write, never answers replaced
+   * wholesale (a restore, Start Over, the reset after submitting), and never for an
+   * application discarded elsewhere, which this tab must not bring back.
+   */
+  const landedRef = useRef(new Set());
+  const handleFileUpload = useCallback(async (fieldName, file, options) => {
+    const stored = await sendFile(fieldName, file, options);
+    if (stored?.storagePath) landedRef.current.add(stored.storagePath);
+    return stored;
+  }, [sendFile]);
+  useEffect(() => {
+    const landed = landedRef.current;
+    if (!landed.size) return;
+    const answered = storedFilePaths(formData);
+    const arrived = [...landed].filter((path) => answered.has(path));
+    if (!arrived.length) return;
+    arrived.forEach((path) => landed.delete(path));
+    if (!discardedElsewhere()) persistLocalDraft(currentStep);
+  }, [formData, currentStep, discardedElsewhere, persistLocalDraft]);
 
   /**
    * Where Continue goes after Edit on the Review page.
@@ -266,6 +302,7 @@ export function useDraftLifecycle({
 
   return {
     persistLocalDraft,
+    handleFileUpload,
     handleNavigate,
     handleContinueExisting,
     finishDraftLifecycle,

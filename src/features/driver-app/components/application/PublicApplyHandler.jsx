@@ -89,7 +89,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const hasStarted = useRef(false);
   const isSubmittingRef = useRef(false);
 
-  const { isUploading, handleFileUpload } = useGuestFileUpload(company?.id);
+  const { isUploading, handleFileUpload: sendFile } = useGuestFileUpload(company?.id);
   const {
     isParsingCdl,
     cdlInputRef: cdlAutoFillInputRef,
@@ -300,6 +300,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   // Save-as-Draft — lives in useDraftLifecycle since the 2026-09-01
   // source-size split (PA-1c).
   const {
+    handleFileUpload,
     handleNavigate,
     handleContinueExisting,
     finishDraftLifecycle,
@@ -325,6 +326,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     showSuccess,
     showError,
     showInfo,
+    sendFile,
   });
 
   const handleMagicFillStep = useCallback(() => {

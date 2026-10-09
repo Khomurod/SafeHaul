@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { fillStep1, fillStep2 } = require('./helpers/wizardHelpers.cjs');
+const { fillStep1, fillStep2, pdfFile } = require('./helpers/wizardHelpers.cjs');
 
 test.describe('guest draft resume', () => {
   test.describe.configure({ timeout: 60_000 });
@@ -23,6 +23,22 @@ test.describe('guest draft resume', () => {
 
     await page.reload();
     await expect(page.locator('#step-title')).toContainText('License', { timeout: 30_000 });
+  });
+
+  test('a document uploaded before Continue survives a reload', async ({ page }) => {
+    await page.goto('/apply/e2e-company');
+    await fillStep1(page, 'draft');
+    await fillStep2(page);
+
+    // On License, the page's copy was written on arrival, before this upload.
+    await page.setInputFiles('input[name="cdl-front"]', pdfFile('cdl-front.pdf'));
+    const field = page.locator('[data-upload-field="cdl-front"]');
+    await expect(field).toHaveAttribute('data-upload-state', 'uploaded', { timeout: 30_000 });
+
+    await page.reload();
+    await expect(page.locator('#step-title')).toContainText('License', { timeout: 30_000 });
+    await expect(field).toHaveAttribute('data-upload-state', 'uploaded');
+    await expect(field).toContainText('cdl-front.pdf');
   });
 
   test('every forward step is also saved server-side, with the step it reached', async ({ page }) => {

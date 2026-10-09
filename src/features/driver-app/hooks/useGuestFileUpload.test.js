@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
-const mocks = vi.hoisted(() => ({ tasks: [], reserve: null, showError: null }));
+const mocks = vi.hoisted(() => ({ tasks: [], reserve: null, showError: null, shrink: null }));
 
 vi.mock('firebase/functions', () => ({
     httpsCallable: () => (payload) => mocks.reserve(payload),
@@ -29,6 +29,9 @@ vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false, getE2EQueryParam:
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showSuccess: vi.fn(), showError: mocks.showError }),
 }));
+vi.mock('./guestUploadImage', () => ({
+    shrinkPhoto: async (file) => (mocks.shrink ? mocks.shrink(file) : file),
+}));
 
 import { useGuestFileUpload } from './useGuestFileUpload';
 
@@ -44,6 +47,7 @@ beforeEach(() => {
         data: { storagePath: `companies/company-1/applications/guest_uploads/${fileName}` },
     }));
     mocks.showError = vi.fn();
+    mocks.shrink = null;
 });
 
 describe('useGuestFileUpload', () => {
@@ -86,10 +90,12 @@ describe('useGuestFileUpload', () => {
 
     it('refuses a file over 20 MB before reserving anything, and says so', async () => {
         const { result } = renderHook(() => useGuestFileUpload('company-1'));
-        let sent;
-        act(() => { sent = result.current.handleFileUpload('cdl-front', png('huge.png', 21 * 1024 * 1024)); });
+        let error;
+        await act(async () => {
+            error = await result.current.handleFileUpload('cdl-front', png('huge.png', 21 * 1024 * 1024)).catch((e) => e);
+        });
 
-        await expect(sent).rejects.toMatchObject({ code: 'too-large' });
+        expect(error.code).toBe('too-large');
         expect(mocks.reserve).not.toHaveBeenCalled();
         expect(mocks.showError).toHaveBeenCalledWith('This file is larger than 20 MB. Choose a smaller file, or take a photo of the document instead.');
         expect(result.current.isUploading).toBe(false);
@@ -105,6 +111,19 @@ describe('useGuestFileUpload', () => {
         expect(error.code).toBe('unsupported-type');
         expect(mocks.reserve).not.toHaveBeenCalled();
         expect(mocks.showError).toHaveBeenCalledWith('This file type cannot be sent. Use a photo (JPG, PNG, WEBP or HEIC) or a PDF.');
+    });
+
+    it('sends a big photo as its smaller copy, so one over 20 MB can still go', async () => {
+        const smaller = new File(['y'], 'IMG_1.jpg', { type: 'image/jpeg' });
+        mocks.shrink = () => smaller;
+        const { result } = renderHook(() => useGuestFileUpload('company-1'));
+        let sent;
+        act(() => { sent = result.current.handleFileUpload('cdl-front', png('IMG_1.png', 21 * 1024 * 1024)); });
+        await vi.waitFor(() => expect(mocks.tasks).toHaveLength(1));
+
+        expect(mocks.reserve).toHaveBeenCalledWith(expect.objectContaining({ fileName: 'IMG_1.jpg', fileType: 'image/jpeg' }));
+        await act(async () => { mocks.tasks[0].handlers.complete(); await sent; });
+        await expect(sent).resolves.toEqual({ name: 'IMG_1.jpg', storagePath: 'companies/company-1/applications/guest_uploads/IMG_1.jpg' });
     });
 
     it('shows a failure in plain words, never Firebase’s own sentence', async () => {
