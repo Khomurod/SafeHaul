@@ -611,7 +611,7 @@ accident details on Yes (accidents record fatalities, injuries, hazmat spill) ·
 employment history allow / warn / block with a configurable minimum of years ·
 require a felony explanation · Hours of Service statement off / on (exactly the
 seven days before the reference day: a stale week in a resumed draft is refused
-and re-asked; off duty all week, the relief may be blank).
+and re-asked; a driver never on duty gives no relief).
 
 - **Every default reproduces the pre-2026-09-02 behaviour** (`warn` is what
   "three-year coverage" always did). An impossible date (30 February, a year out

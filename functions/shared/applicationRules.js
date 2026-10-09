@@ -294,8 +294,8 @@ function isCompleteHoursOfService(data, today) {
     const daysComplete = hours.every((value) => /^\d{1,2}(\.\d{1,2})?$/.test(value) && Number(value) <= 24);
     const relieved = Boolean(parseApplicationDate(data.hosLastRelievedDate))
         && /^\d{1,2}:\d{2}$/.test(String(data.hosLastRelievedTime ?? '').trim());
-    // Off duty all seven days, a driver may never have been on duty: no relief to give.
-    return daysComplete && (relieved || (yesNo(data.hosNotOnDuty) === 'yes' && hours.every((value) => Number(value) === 0)));
+    // Only a driver never yet on duty has no last relief to give (49 CFR 395.8(j)(2)).
+    return daysComplete && (relieved || (yesNo(data.hosNeverOnDuty) === 'yes' && hours.every((value) => Number(value) === 0)));
 }
 
 /** Coverage options every surface must share, so the number told to the driver is the number recorded. */

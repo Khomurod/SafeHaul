@@ -113,26 +113,46 @@ describe('HoursOfServiceSection', () => {
     });
 });
 
-describe('a driver off duty all seven days', () => {
-    const offDuty = () => document.getElementById('hos-not-on-duty');
+describe('a driver never yet on duty', () => {
+    const neverOnDuty = () => document.getElementById('hos-never-on-duty');
+    const reliefDate = () => document.getElementById('hos-last-relieved-date-month');
+    const reliefTime = () => document.getElementById('hos-last-relieved-time-hour');
 
-    it('says so once: every day is 0, and a new driver can leave the last relief blank', () => {
+    it('says so once: every day is 0, and there is no last relief to ask', () => {
         render(<Harness />);
-        fireEvent.click(offDuty());
+        fireEvent.click(neverOnDuty());
 
-        expect(latest.hosNotOnDuty).toBe('yes');
+        expect(latest.hosNeverOnDuty).toBe('yes');
         expect(latest.hosDailyHours.map((row) => row.hours)).toEqual(['0', '0', '0', '0', '0', '0', '0']);
         for (let n = 1; n <= 7; n += 1) expect(dayBox(n)).toBeDisabled();
-        expect(screen.getByText('If you have never been on duty, leave the date and time blank.')).toBeInTheDocument();
+        expect(reliefDate()).toBeNull();
+        expect(reliefTime()).toBeNull();
         expect(statementIssue()).toBeUndefined();
         expect(document.getElementById('driver-form').checkValidity()).toBe(true);
     });
 
+    it('drops a last relief already begun, so a time half chosen does not hold the page', () => {
+        render(<Harness />);
+        answerEverything({ withTime: false });
+        fireEvent.change(reliefTime(), { target: { value: '9' } });
+        expect(document.getElementById('driver-form').checkValidity()).toBe(false);
+
+        fireEvent.click(neverOnDuty());
+
+        expect(latest.hosLastRelievedDate).toBe('');
+        expect(latest.hosLastRelievedTime).toBe('');
+        expect(document.getElementById('driver-form').checkValidity()).toBe(true);
+        // Not so after all: the last relief is asked again, from the start.
+        fireEvent.click(neverOnDuty());
+        expect(reliefTime()).toHaveValue('');
+        expect(reliefTime()).toBeRequired();
+    });
+
     it('is asked again once the week it was said of has rolled on', () => {
         const longAgo = Array.from({ length: 7 }, (_, n) => ({ date: `2020-01-0${n + 1}`, hours: '0' }));
-        render(<Harness initial={{ hosNotOnDuty: 'yes', hosDailyHours: longAgo }} />);
+        render(<Harness initial={{ hosNeverOnDuty: 'yes', hosDailyHours: longAgo }} />);
 
-        expect(latest.hosNotOnDuty).toBe('no');
+        expect(latest.hosNeverOnDuty).toBe('no');
         expect(latest.hosDailyHours.map((row) => row.hours)).toEqual(['', '', '', '', '', '', '']);
         expect(dayBox(1)).toBeEnabled();
         expect(statementIssue()).toBeDefined();
@@ -140,12 +160,12 @@ describe('a driver off duty all seven days', () => {
 
     it('gets the day boxes back when it is not so after all', () => {
         render(<Harness />);
-        fireEvent.click(offDuty());
-        fireEvent.click(offDuty());
+        fireEvent.click(neverOnDuty());
+        fireEvent.click(neverOnDuty());
 
-        expect(latest.hosNotOnDuty).toBe('no');
+        expect(latest.hosNeverOnDuty).toBe('no');
         expect(dayBox(1)).toBeEnabled();
-        // Hours of 0 without the off-duty answer still ask when the driver was last relieved.
+        // A week of 0 from a driver who has been on duty still says when they were last relieved.
         expect(statementIssue()).toBeDefined();
         expect(document.getElementById('driver-form').checkValidity()).toBe(false);
     });
