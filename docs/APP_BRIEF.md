@@ -215,7 +215,7 @@ the wizard and the carrier's form (`useGuestFileUpload`) are kept as
 `{ name, storagePath }`, never with a URL. Records from before 2026-09-08 may
 still hold an expired one, and the dossier's own admin upload stores a Storage
 download URL; views re-sign from `storagePath`. `useSignedUploadPreview` mints a
-fifteen-minute URL through `getSignedGuestUploadUrl` (which authorizes it) when
+15-minute URL through `getSignedGuestUploadUrl` (which authorizes it) when
 someone looks. A `not-found` preview says the file is gone; any other error
 offers a retry, the row still reading as attached (gates key on presence).
 
@@ -224,12 +224,14 @@ offers a retry, the row still reading as attached (gates key on presence).
 2026-10-02 hold only a filename). Every renderer (review, snapshot, PDF,
 dossier) shows the name, even for a deleted question; the dossier's
 *Supplemental Questions* has **Open file** (`getSignedApplicationFileUrl`,
-minted on press). Deleting the application deletes the file (only in
+on press). Deleting the application deletes the file (only in
 `guest_uploads/`; §12).
 
 **An upload shows its real progress and a Cancel**; Continue waits for it. 45 s
-without progress stops it, 20 MB or more is refused before sending, and a
-failure is said in plain words (beside a custom question, with **Try again**).
+without progress stops it, 20 MB or more is refused before sending, a failure
+is said in plain words (beside a custom question, with **Try again**), and the
+wizard keeps a landed one locally at once. Photos over 2.5 MB, the auto-fill's
+too, go as JPEGs at most 2400 px a side.
 
 ### Unfinished applications workspace
 
@@ -1254,13 +1256,12 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   which no screen reads; `scripts/audit-facebook-lead-tenancy.mjs` (read-only)
   reports any. Connect rules: §7.
 - **`users/{uid}` may carry orphaned `onboardingTourCompleted` and
-  `tourCompletedAt`** from the removed welcome tour. Nothing reads or writes
-  them; they stay deliberately (removing them is a data migration).
+  `tourCompletedAt`** from the removed welcome tour, read by nothing; they stay
+  (removal is a data migration).
 - **"Read the documents" reads only what the current browser holds.** A
   prepared application re-opened later has its documents but nothing to read;
-  the panel names them, and re-attaching one makes it readable. Fetching files
-  back is deliberately not done (a cross-origin `fetch` dependent on bucket CORS
-  this repository does not set).
+  the panel names them, and re-attaching one makes it readable. Files are not
+  fetched back (that needs bucket CORS, which is not set).
 - **A continuation link cannot verify the SSN of a draft with no `identityKey`**
   — the company set `ssn` Optional or Hidden (`GATE_DEFAULT_REQUIRED.ssn` is
   `true`, so opt-out), the driver pressed *Save as Draft* on page one before
@@ -1304,10 +1305,9 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   Every schema section is editable, but `proposeApplicationChanges` applies only
   its allowlist and returns the rest as `skipped`, unmentioned — an edit to,
   say, a qualification answer disappears.
-- **HEIC photos cannot be read.** The reader accepts PDF, JPG, PNG and WebP;
-  browsers cannot decode HEIC (an iPhone's default), so it is refused with a
-  message naming the accepted formats. Convert or re-take as JPG, or upload a
-  PDF.
+- **HEIC photos cannot be read.** The reader takes PDF, JPG, PNG and WebP;
+  browsers cannot decode HEIC (an iPhone's default), so it is refused, naming
+  the accepted formats (re-take as JPG, or upload a PDF).
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the

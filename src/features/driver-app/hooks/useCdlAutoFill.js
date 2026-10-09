@@ -35,6 +35,7 @@ import {
   parseIsoFromLooseDate,
   fileToDataUrl,
 } from '../components/application/publicApplyHelpers';
+import { shrinkPhoto } from './guestUploadImage';
 
 export function useCdlAutoFill({ companyId, applicationConfig, onAutoFilled, onReturnToChooser }) {
   const { showSuccess, showError } = useToast();
@@ -49,20 +50,23 @@ export function useCdlAutoFill({ companyId, applicationConfig, onAutoFilled, onR
   };
 
   const handleCdlFileChange = async (event) => {
-    const file = event.target.files?.[0];
+    const picked = event.target.files?.[0];
     event.target.value = '';
 
-    if (!file) {
+    if (!picked) {
       // User closed chooser without selecting a file -> return to first choice screen.
       onReturnToChooser();
       return;
     }
 
-    if (!AUTO_FILL_IMAGE_TYPES.has(file.type)) {
+    if (!AUTO_FILL_IMAGE_TYPES.has(picked.type)) {
       showError('Please upload a JPG, PNG, or WEBP image for CDL auto-fill.');
       onReturnToChooser();
       return;
     }
+    // A phone camera's photo is often over the limit below; made smaller, it
+    // reads as well and is sent and read faster.
+    const file = await shrinkPhoto(picked);
     if (file.size > 8 * 1024 * 1024) {
       showError('CDL image is too large. Please use an image under 8MB.');
       onReturnToChooser();

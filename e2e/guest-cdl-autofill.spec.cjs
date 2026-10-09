@@ -140,4 +140,20 @@ test.describe('CDL photo auto-fill', () => {
         await continueToLicenseStep(page);
         await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'uploaded');
     });
+
+    // What the licence filled in, and its photo, are on the device before the
+    // driver presses anything, so opening the page again does not cost them.
+    test('keeps what it read, and the photo, when the page is opened again before Continue', async ({ page }) => {
+        await stubAutoFillNetwork(page);
+        await autoFillFromLicence(page);
+        await expect(page.locator('#first-name')).toHaveValue('LUIS');
+
+        await page.goto('/apply/e2e-company');
+        await expectStep(page, 'Personal Information');
+        await expect(page.locator('#first-name')).toHaveValue('LUIS');
+        await expect(page.locator('#state')).toHaveValue('Texas');
+
+        await continueToLicenseStep(page);
+        await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'uploaded');
+    });
 });

@@ -26,6 +26,7 @@ import {
   toGuestUploadError,
   transferGuestUpload,
 } from './guestUploadTransfer';
+import { shrinkPhoto } from './guestUploadImage';
 
 /** The E2E double's wait, which a cancel ends early (`?e2eUpload=slow` or `slow:<field>` waits longer). */
 function e2eWait(ms, signal) {
@@ -49,13 +50,15 @@ export function useGuestFileUpload(companyId) {
   const [inFlight, setInFlight] = useState(0);
   const e2eUploadMode = getE2EQueryParam('e2eUpload', 'allow');
 
-  const handleFileUpload = async (fieldName, file, { onProgress, signal } = {}) => {
-    if (!file) return null;
+  const handleFileUpload = async (fieldName, chosen, { onProgress, signal } = {}) => {
+    if (!chosen) return null;
     setInFlight((count) => count + 1);
     try {
       if (!companyId) {
         throw new Error('Company context is missing.');
       }
+      // A big phone photo goes smaller, and so faster; anything else goes as it is.
+      const file = await shrinkPhoto(chosen);
       // `storage.rules` refuses it anyway, as a bare "unauthorized".
       if (file.size >= GUEST_UPLOAD_MAX_BYTES) throw new GuestUploadError('too-large');
 
