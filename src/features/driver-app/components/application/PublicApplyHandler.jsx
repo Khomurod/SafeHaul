@@ -99,6 +99,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     companyId: company?.id,
     applicationConfig: company?.applicationConfig,
     onAutoFilled: (updater) => {
+      keepNextAnswers();
       setFormData(updater);
       setCurrentStep(0);
       setIntakeMode('manual');
@@ -295,12 +296,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     }));
   };
 
-  // The draft lifecycle — the synchronous per-step local write, Continue's
-  // restore-and-mark-synced path, the post-submission close, Start Over, and
-  // Save-as-Draft — lives in useDraftLifecycle since the 2026-09-01
-  // source-size split (PA-1c).
+  // The draft lifecycle — the per-step local write, Continue's restore-and-mark-synced
+  // path, the post-submission close, Start Over and Save-as-Draft — lives in
+  // useDraftLifecycle since the 2026-09-01 source-size split (PA-1c).
   const {
     handleFileUpload,
+    keepNextAnswers,
     handleNavigate,
     handleContinueExisting,
     finishDraftLifecycle,

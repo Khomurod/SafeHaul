@@ -7,16 +7,19 @@
  * photo over `PHOTO_TARGET_BYTES` is redrawn with its longest side at most
  * `PHOTO_MAX_SIDE` pixels as a JPEG; a PDF, a small photo, one the browser cannot
  * decode (HEIC outside Safari) or one that would not come out smaller is sent as
- * it is. Transparent areas are drawn on white, as on paper.
+ * it is. Transparent areas are drawn on white, as on paper. A photo is known by
+ * the type the upload itself goes by, so an `image/jpg`, or one a phone left
+ * untyped but named `.jpg`, is a photo here too.
  */
+import { resolveGuestUploadMimeType } from '@shared/utils/guestUploadMime';
 
 export const PHOTO_TARGET_BYTES = 2.5 * 1024 * 1024;
 export const PHOTO_MAX_SIDE = 2400;
-const SHRINKABLE = /^image\/(jpeg|png|webp|heic|heif)$/;
+const SHRINKABLE = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
 
 /** `file`, or a smaller JPEG of it. Never throws: a photo that cannot be redrawn goes as it is. */
 export async function shrinkPhoto(file) {
-    if (!file || !SHRINKABLE.test(file.type) || file.size <= PHOTO_TARGET_BYTES) return file;
+    if (!file || !SHRINKABLE.has(resolveGuestUploadMimeType(file)) || file.size <= PHOTO_TARGET_BYTES) return file;
     if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return file;
     try {
         const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });

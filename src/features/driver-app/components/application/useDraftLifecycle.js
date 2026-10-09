@@ -82,19 +82,26 @@ export function useDraftLifecycle({
    * sent. Only an upload that landed starts this write, never answers replaced
    * wholesale (a restore, Start Over, the reset after submitting), and never for an
    * application discarded elsewhere, which this tab must not bring back.
+   *
+   * The CDL auto-fill's photo lands outside `handleFileUpload`, with the answers
+   * read from it, so the auto-fill asks for the next answers to be kept instead
+   * (`keepNextAnswers`), photo or no photo.
    */
   const landedRef = useRef(new Set());
+  const keepNextRef = useRef(false);
   const handleFileUpload = useCallback(async (fieldName, file, options) => {
     const stored = await sendFile(fieldName, file, options);
     if (stored?.storagePath) landedRef.current.add(stored.storagePath);
     return stored;
   }, [sendFile]);
+  const keepNextAnswers = useCallback(() => { keepNextRef.current = true; }, []);
   useEffect(() => {
     const landed = landedRef.current;
-    if (!landed.size) return;
+    if (!landed.size && !keepNextRef.current) return;
     const answered = storedFilePaths(formData);
     const arrived = [...landed].filter((path) => answered.has(path));
-    if (!arrived.length) return;
+    if (!arrived.length && !keepNextRef.current) return;
+    keepNextRef.current = false;
     arrived.forEach((path) => landed.delete(path));
     if (!discardedElsewhere()) persistLocalDraft(currentStep);
   }, [formData, currentStep, discardedElsewhere, persistLocalDraft]);
@@ -303,6 +310,7 @@ export function useDraftLifecycle({
   return {
     persistLocalDraft,
     handleFileUpload,
+    keepNextAnswers,
     handleNavigate,
     handleContinueExisting,
     finishDraftLifecycle,

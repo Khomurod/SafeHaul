@@ -48,6 +48,16 @@ describe('shrinkPhoto', () => {
         expect(sent.size).toBe(600 * 1024);
     });
 
+    it.each([
+        ['typed image/jpg', photo('cdl.jpg', 'image/jpg', 9 * MB)],
+        ['left untyped, named .jpeg', photo('cdl.jpeg', '', 21 * MB)],
+    ])('knows a photo %s as a photo', async (_label, big) => {
+        stubDrawing();
+        const sent = await shrinkPhoto(big);
+        expect(sent).not.toBe(big);
+        expect(sent.type).toBe('image/jpeg');
+    });
+
     it('never enlarges a photo that is heavy but already small in pixels', async () => {
         const { canvas } = stubDrawing({ width: 1200, height: 900 });
         await shrinkPhoto(photo('scan.jpg', 'image/jpeg', 3 * MB));
@@ -56,6 +66,7 @@ describe('shrinkPhoto', () => {
 
     it.each([
         ['a PDF', photo('report.pdf', 'application/pdf', 15 * MB)],
+        ['an untyped PDF', photo('report.pdf', '', 15 * MB)],
         ['a photo already small enough', photo('cdl.jpg', 'image/jpeg', PHOTO_TARGET_BYTES)],
     ])('sends %s as it is', async (_label, file) => {
         stubDrawing();

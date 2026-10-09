@@ -1,7 +1,7 @@
 // A file that lands is kept with the page at once, so a reload before Continue
-// does not cost the driver the document they had just sent. Answers replaced
-// wholesale (a restore, Start Over, the reset after submitting) are not a file
-// landing, and write nothing.
+// does not cost the driver the document they had just sent, and so is what the
+// CDL auto-fill sets. Answers replaced wholesale (a restore, Start Over, the reset
+// after submitting) are neither, and write nothing.
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -57,6 +57,7 @@ function renderLifecycle({ formData = {}, sandbox = false, discarded = false } =
             return stored;
         },
         answer: (data) => hook.rerender({ data }),
+        keepNext: () => act(() => hook.result.current.keepNextAnswers()),
     };
 }
 
@@ -111,6 +112,33 @@ describe('a file that lands', () => {
         const page = renderLifecycle({ sandbox: true });
         await page.send('cdl-front');
         page.answer({ 'cdl-front': CDL_FRONT });
+        expect(storage.saves).toHaveLength(0);
+    });
+});
+
+describe('what the CDL auto-fill sets', () => {
+    it('is kept at once, the photo with what was read from it, and once only', () => {
+        const page = renderLifecycle();
+        page.keepNext();
+        page.answer({ firstName: 'LUIS', city: 'AUSTIN', 'cdl-front': CDL_FRONT });
+        page.answer({ firstName: 'Luis', city: 'AUSTIN', 'cdl-front': CDL_FRONT });
+
+        expect(storage.saves).toHaveLength(1);
+        expect(storage.saves[0].formData).toEqual({ firstName: 'LUIS', city: 'AUSTIN', 'cdl-front': CDL_FRONT });
+        expect(storage.saves[0].options.lastStep).toBe(2);
+    });
+
+    it('is kept when nothing could be read and only the photo came back', () => {
+        const page = renderLifecycle();
+        page.keepNext();
+        page.answer({ 'cdl-front': CDL_FRONT });
+        expect(storage.saves.map((save) => save.formData)).toEqual([{ 'cdl-front': CDL_FRONT }]);
+    });
+
+    it('does not bring back an application discarded elsewhere', () => {
+        const page = renderLifecycle({ discarded: true });
+        page.keepNext();
+        page.answer({ firstName: 'LUIS' });
         expect(storage.saves).toHaveLength(0);
     });
 });
