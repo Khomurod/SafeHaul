@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-    EMPLOYER_REGION_GROUPS, EMPLOYER_REGION_NAMES, fmcsaRegionOutsideUs, regionNameFromFmcsa,
+    NORTH_AMERICAN_REGION_GROUPS, NORTH_AMERICAN_REGION_NAMES, fmcsaRegionOutsideUs, regionNameFromFmcsa,
 } from './northAmericanRegions';
 import { US_STATE_NAMES } from './usStates';
 
@@ -15,17 +15,17 @@ const CENSUS_CODES = {
     ],
 };
 
-describe('the employer regions', () => {
-    it('lists the US states first, then Canada, then Mexico, every name once', () => {
-        expect(EMPLOYER_REGION_GROUPS.map((group) => group.label)).toEqual(['United States', 'Canada', 'Mexico']);
-        expect(EMPLOYER_REGION_GROUPS[0].options).toBe(US_STATE_NAMES);
-        expect(EMPLOYER_REGION_GROUPS.map((group) => group.options.length)).toEqual([51, 13, 32]);
+describe('the regions an address may be in', () => {
+    it('lists the US states and territories first, then Canada, then Mexico, every name once', () => {
+        expect(NORTH_AMERICAN_REGION_GROUPS.map((group) => group.label)).toEqual(['United States', 'Canada', 'Mexico']);
+        expect(NORTH_AMERICAN_REGION_GROUPS[0].options).toBe(US_STATE_NAMES);
+        expect(NORTH_AMERICAN_REGION_GROUPS.map((group) => group.options.length)).toEqual([56, 13, 32]);
         // A stored name has to say which country it is in.
-        expect(new Set(EMPLOYER_REGION_NAMES).size).toBe(EMPLOYER_REGION_NAMES.length);
+        expect(new Set(NORTH_AMERICAN_REGION_NAMES).size).toBe(NORTH_AMERICAN_REGION_NAMES.length);
     });
 
     it.each(Object.entries(CENSUS_CODES))('names every %s code the census holds', (country, codes) => {
-        const group = EMPLOYER_REGION_GROUPS.find((entry) => entry.label === (country === 'CA' ? 'Canada' : 'Mexico'));
+        const group = NORTH_AMERICAN_REGION_GROUPS.find((entry) => entry.label === (country === 'CA' ? 'Canada' : 'Mexico'));
         const names = codes.map((code) => regionNameFromFmcsa(country, code));
         expect(names.every((name) => group.options.includes(name))).toBe(true);
         expect(new Set(names).size).toBe(codes.length);
@@ -43,6 +43,8 @@ describe('regionNameFromFmcsa', () => {
         ['MX', 'MX', 'State of Mexico'],
         [' ca ', 'qc', 'Quebec'],
         ['US', 'DC', 'District of Columbia'],
+        ['US', 'PR', 'Puerto Rico'],
+        ['US', 'GU', 'Guam'],
         [null, 'TX', 'Texas'],
         ['', 'TX', 'Texas'],
     ])('reads %p %p as %p', (country, code, expected) => {
@@ -50,7 +52,6 @@ describe('regionNameFromFmcsa', () => {
     });
 
     it.each([
-        ['US', 'PR'],
         ['US', 'Texas'],
         ['GT', 'GU'],
         ['CA', 'TX'],

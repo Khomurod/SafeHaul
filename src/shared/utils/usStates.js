@@ -17,28 +17,31 @@
  * The District of Columbia is listed too, since 2026-10-02, in its alphabetical
  * place: it issues its own licences and is a real address. Until then the list had
  * the fifty states only, so a DC address or licence could not be selected at all
- * and `toUsStateName('DC')` was `''`.
+ * and `toUsStateName('DC')` was `''`. The five inhabited territories followed on
+ * 2026-10-09, in theirs: each issues its own licences, and FMCSA's census holds
+ * carriers in all five under the same codes (about 7,200 in Puerto Rico).
  */
 
-export const US_STATE_NAMES = Object.freeze([
-    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
-    'District of Columbia', 'Florida', 'Georgia',
-    'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland',
-    'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
-    'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
-    'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming',
+/** USPS code and name, in the order the pickers list them. */
+const US_STATES = Object.freeze([
+    ['AL', 'Alabama'], ['AK', 'Alaska'], ['AS', 'American Samoa'], ['AZ', 'Arizona'], ['AR', 'Arkansas'],
+    ['CA', 'California'], ['CO', 'Colorado'], ['CT', 'Connecticut'], ['DE', 'Delaware'],
+    ['DC', 'District of Columbia'], ['FL', 'Florida'], ['GA', 'Georgia'], ['GU', 'Guam'], ['HI', 'Hawaii'],
+    ['ID', 'Idaho'], ['IL', 'Illinois'], ['IN', 'Indiana'], ['IA', 'Iowa'], ['KS', 'Kansas'], ['KY', 'Kentucky'],
+    ['LA', 'Louisiana'], ['ME', 'Maine'], ['MD', 'Maryland'], ['MA', 'Massachusetts'], ['MI', 'Michigan'],
+    ['MN', 'Minnesota'], ['MS', 'Mississippi'], ['MO', 'Missouri'], ['MT', 'Montana'], ['NE', 'Nebraska'],
+    ['NV', 'Nevada'], ['NH', 'New Hampshire'], ['NJ', 'New Jersey'], ['NM', 'New Mexico'], ['NY', 'New York'],
+    ['NC', 'North Carolina'], ['ND', 'North Dakota'], ['MP', 'Northern Mariana Islands'], ['OH', 'Ohio'],
+    ['OK', 'Oklahoma'], ['OR', 'Oregon'], ['PA', 'Pennsylvania'], ['PR', 'Puerto Rico'], ['RI', 'Rhode Island'],
+    ['SC', 'South Carolina'], ['SD', 'South Dakota'], ['TN', 'Tennessee'], ['TX', 'Texas'],
+    ['VI', 'U.S. Virgin Islands'], ['UT', 'Utah'], ['VT', 'Vermont'], ['VA', 'Virginia'], ['WA', 'Washington'],
+    ['WV', 'West Virginia'], ['WI', 'Wisconsin'], ['WY', 'Wyoming'],
 ]);
 
-/** USPS codes, in the same order as the names above. */
-const US_STATE_CODES = Object.freeze([
-    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA',
-    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
-]);
+export const US_STATE_NAMES = Object.freeze(US_STATES.map(([, name]) => name));
 
-const NAME_BY_CODE = new Map(US_STATE_CODES.map((code, index) => [code, US_STATE_NAMES[index]]));
+const NAME_BY_CODE = new Map(US_STATES);
+const CODE_BY_NAME = new Map(US_STATES.map(([code, name]) => [name, code]));
 const NAME_BY_LOWER_NAME = new Map(US_STATE_NAMES.map((name) => [name.toLowerCase(), name]));
 
 /**
@@ -52,4 +55,14 @@ export function toUsStateName(value) {
     const text = String(value ?? '').trim().replace(/\s+/g, ' ');
     if (!text) return '';
     return NAME_BY_LOWER_NAME.get(text.toLowerCase()) || NAME_BY_CODE.get(text.toUpperCase()) || '';
+}
+
+/**
+ * The USPS code for anything `toUsStateName` reads; `''` for anything else.
+ *
+ * @param {unknown} value e.g. `'Puerto Rico'`, `'pr'`
+ * @returns {string} e.g. `'PR'`, or `''`
+ */
+export function toUsStateCode(value) {
+    return CODE_BY_NAME.get(toUsStateName(value)) || '';
 }

@@ -3,7 +3,7 @@ import InputField from '@shared/components/form/InputField';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import DynamicRow from '@shared/components/form/DynamicRow';
 import MonthYearField from '@shared/components/form/MonthYearField';
-import { EMPLOYER_REGION_GROUPS, EMPLOYER_REGION_NAMES } from '@shared/utils/northAmericanRegions';
+import { NORTH_AMERICAN_REGION_GROUPS, NORTH_AMERICAN_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 import { useData } from '@/context/DataContext';
 import { YES_NO_OPTIONS } from '@/config/form-options';
 import { answersClearedByEndDate } from '@shared/utils/employmentApplicationHelpers';
@@ -203,7 +203,7 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                         row={item}
                         onChange={handleChange}
                         required={empHistoryConfig.required}
-                        statesAllowlist={EMPLOYER_REGION_NAMES}
+                        statesAllowlist={NORTH_AMERICAN_REGION_NAMES}
                         error={errorFor('employers', index, 'companyName')}
                     />
                     <InputField
@@ -223,7 +223,7 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     id={'emp-state-' + index}
                     name="state"
                     autoComplete="off"
-                    groups={EMPLOYER_REGION_GROUPS}
+                    groups={NORTH_AMERICAN_REGION_GROUPS}
                     label="State / Province"
                     placeholder="Select state or province"
                     required={empHistoryConfig.required}

@@ -56,6 +56,13 @@ describe('fmcsaEmployerSocrata', () => {
     expect(normalizeEmployerStateToFmcsaPhyState('')).toBe('');
   });
 
+  it('normalizeEmployerStateToFmcsaPhyState asks for a territory by the code FMCSA files it under', () => {
+    expect(normalizeEmployerStateToFmcsaPhyState('Puerto Rico')).toBe('PR');
+    expect(normalizeEmployerStateToFmcsaPhyState('U.S. Virgin Islands')).toBe('VI');
+    expect(normalizeEmployerStateToFmcsaPhyState('District of Columbia')).toBe('DC');
+    expect(normalizeEmployerStateToFmcsaPhyState('Ontario')).toBe('ON');
+  });
+
   it('buildFmcsaEmployerSearchUrl accepts custom $select fields', () => {
     const url = buildFmcsaEmployerSearchUrl('Swift', 'dot_number,legal_name');
     const decoded = decodeURIComponent(url).replace(/\+/g, ' ');

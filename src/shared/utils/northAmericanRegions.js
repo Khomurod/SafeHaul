@@ -1,11 +1,13 @@
 /**
- * The regions an employer's address may be in: the US states, Canada's
+ * The regions an address may be in: the US states and territories, Canada's
  * provinces and territories, and Mexico's states.
  *
- * Only the employer rows offer these. A driver's own address and licence stay
- * on the US list (`usStates.js`), because SafeHaul hires for US carriers; a
- * previous employer is often a Canadian or Mexican carrier with a USDOT number,
- * and FMCSA's census lists about 67,000 Canadian and 27,000 Mexican ones.
+ * An employer, the driver's own addresses and an accident offer these: a
+ * previous employer is often a Canadian or Mexican carrier with a USDOT number
+ * (FMCSA's census lists about 67,000 Canadian and 27,000 Mexican ones), and a
+ * driver who lives or drove across a border has nowhere else to say so. A
+ * licence stays on the US list (`usStates.js`), because SafeHaul hires for US
+ * carriers.
  *
  * Every name is unique across the three lists, so a stored name says which
  * country it is in. FMCSA records a region as a two-letter code that is only
@@ -36,14 +38,14 @@ const MEXICO = Object.freeze([
 ]);
 
 /** For a grouped picker (`StateSelectField`'s `groups`). */
-export const EMPLOYER_REGION_GROUPS = Object.freeze([
+export const NORTH_AMERICAN_REGION_GROUPS = Object.freeze([
     Object.freeze({ label: 'United States', options: US_STATE_NAMES }),
     Object.freeze({ label: 'Canada', options: Object.freeze(CANADA.map(([, name]) => name)) }),
     Object.freeze({ label: 'Mexico', options: Object.freeze(MEXICO.map(([, name]) => name)) }),
 ]);
 
 /** Every region name, for a flat allow-list. */
-export const EMPLOYER_REGION_NAMES = Object.freeze(EMPLOYER_REGION_GROUPS.flatMap((group) => group.options));
+export const NORTH_AMERICAN_REGION_NAMES = Object.freeze(NORTH_AMERICAN_REGION_GROUPS.flatMap((group) => group.options));
 
 const BY_COUNTRY = Object.freeze({
     CA: new Map(CANADA),

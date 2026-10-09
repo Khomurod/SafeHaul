@@ -3,6 +3,7 @@ import { render, cleanup, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SchemaField, SchemaSection } from './SchemaRenderer';
 import { US_STATE_NAMES } from '@shared/utils/usStates';
+import { NORTH_AMERICAN_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 
 afterEach(cleanup);
 
@@ -116,11 +117,20 @@ describe('SchemaField edit mode speaks the wizard\'s vocabulary', () => {
         const select = getByLabelText('State');
         expect(select.tagName).toBe('SELECT');
         expect(select).toHaveValue('Texas');
-        // The placeholder plus every name the wizard's picker offers (DC included).
-        expect(select.options.length).toBe(US_STATE_NAMES.length + 1);
-        expect([...select.options].map((option) => option.value)).toContain('District of Columbia');
+        // The placeholder plus every name the wizard's picker offers: DC, the
+        // territories, and Canada's and Mexico's regions, as the driver's address may be.
+        expect(select.options.length).toBe(NORTH_AMERICAN_REGION_NAMES.length + 1);
+        expect([...select.options].map((option) => option.value)).toEqual(expect.arrayContaining(['District of Columbia', 'Puerto Rico', 'Ontario']));
         fireEvent.change(select, { target: { value: 'Oklahoma' } });
         expect(onChange).toHaveBeenCalledWith('state', 'Oklahoma');
+    });
+
+    it('edits a licence state with the US list, territories included, provinces not', () => {
+        const { getByLabelText } = edit('cdlState', { cdlState: 'Puerto Rico' });
+        const select = getByLabelText('License State');
+        expect(select).toHaveValue('Puerto Rico');
+        expect(select.options.length).toBe(US_STATE_NAMES.length + 1);
+        expect([...select.options].map((option) => option.value)).not.toContain('Ontario');
     });
 
     it('shows a stored state the list does not hold as itself', () => {

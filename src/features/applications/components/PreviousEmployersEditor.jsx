@@ -6,7 +6,7 @@ import {
 import { ConfirmDialog } from '@design-system/patterns';
 import { EMPLOYMENT_SECTION } from '@/config/applicationSchema';
 import { employerSignature, lockedSignatureSet } from '@/config/applicationLockedFields';
-import { EMPLOYER_REGION_GROUPS, EMPLOYER_REGION_NAMES } from '@shared/utils/northAmericanRegions';
+import { NORTH_AMERICAN_REGION_GROUPS, NORTH_AMERICAN_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 
 /**
  * Previous employers, added, edited and removed by the company.
@@ -153,13 +153,13 @@ function EmployerFieldControl({ field, row, rowKey, onChange }) {
         // them holds is offered as itself, as `SchemaRowsEditor` does, rather than
         // shown as "Select…" while the row still holds it.
         const current = String(value ?? '');
-        const unlisted = current && !EMPLOYER_REGION_NAMES.includes(current) ? current : null;
+        const unlisted = current && !NORTH_AMERICAN_REGION_NAMES.includes(current) ? current : null;
         return (
             <FormField id={id} label={field.label} required={field.required}>
                 <Select value={current} onChange={(event) => onChange(field.key, event.target.value)}>
                     <option value="">Select…</option>
                     {unlisted && <option value={unlisted}>{unlisted}</option>}
-                    {EMPLOYER_REGION_GROUPS.map((group) => (
+                    {NORTH_AMERICAN_REGION_GROUPS.map((group) => (
                         <optgroup key={group.label} label={group.label}>
                             {group.options.map((region) => <option key={region} value={region}>{region}</option>)}
                         </optgroup>

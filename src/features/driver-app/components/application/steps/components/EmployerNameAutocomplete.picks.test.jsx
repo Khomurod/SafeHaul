@@ -10,7 +10,7 @@ import React, { useState } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EmployerNameAutocomplete from './EmployerNameAutocomplete';
-import { EMPLOYER_REGION_NAMES } from '@shared/utils/northAmericanRegions';
+import { NORTH_AMERICAN_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 
 const TEXAS_CARRIER = {
   dot_number: '1000001', legal_name: 'LONE STAR FREIGHT LLC', phy_street: '100 MAIN ST', phy_city: 'AUSTIN',
@@ -31,7 +31,7 @@ function RowHarness({ onRow }) {
   });
   return (
     <>
-      <EmployerNameAutocomplete id="emp-name-0" value={row.companyName} row={row} onChange={update} statesAllowlist={EMPLOYER_REGION_NAMES} />
+      <EmployerNameAutocomplete id="emp-name-0" value={row.companyName} row={row} onChange={update} statesAllowlist={NORTH_AMERICAN_REGION_NAMES} />
       <label htmlFor="phone">Company Phone</label>
       <input id="phone" value={row.phone || ''} onChange={(event) => update('phone', event.target.value)} />
     </>
