@@ -204,12 +204,13 @@ export function ApplicationPrepWorkspace({ companyId, appSlug, openKey = null, o
         [attempt, invite],
     );
 
-    const uploadDocument = useCallback(async (fieldName, file) => {
-        const uploaded = await handleFileUpload(fieldName, file);
-        // Only once the upload succeeded: a blob the application does not hold is a
-        // document the driver would never see, and reading it would fill the form
-        // from a file attached to nothing.
-        if (uploaded) setDocumentBlobs((previous) => ({ ...previous, [fieldName]: file }));
+    const uploadDocument = useCallback(async (fieldName, file, options) => {
+        // The field's progress and Cancel go through to the upload itself.
+        const uploaded = await handleFileUpload(fieldName, file, options);
+        // Only once the upload succeeded, and was not cancelled: a blob the
+        // application does not hold is a document the driver would never see, and
+        // reading it would fill the form from a file attached to nothing.
+        if (uploaded && !options?.signal?.aborted) setDocumentBlobs((previous) => ({ ...previous, [fieldName]: file }));
         return uploaded;
     }, [handleFileUpload]);
 

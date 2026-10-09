@@ -40,7 +40,10 @@ describe('UploadField upload lifecycle', () => {
     fireEvent.change(input(), { target: { files: [file()] } });
 
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('cdl-front', result));
-    expect(onUpload).toHaveBeenCalledWith('cdl-front', expect.any(File));
+    expect(onUpload).toHaveBeenCalledWith('cdl-front', expect.any(File), {
+      onProgress: expect.any(Function),
+      signal: expect.any(AbortSignal),
+    });
     expect(onUpload.mock.calls[0][1].name).toBe('cdl.pdf');
   });
 
@@ -84,6 +87,71 @@ describe('UploadField upload lifecycle', () => {
     expect(bar).toHaveAttribute('aria-valuemax', '100');
     expect(wrapper()).toHaveAttribute('data-upload-state', 'uploading');
     release();
+  });
+
+  it('shows the progress the upload reports, not a made-up ramp', async () => {
+    let report;
+    renderField({ onUpload: vi.fn((_name, _file, { onProgress }) => { report = onProgress; return new Promise(() => {}); }) });
+
+    fireEvent.change(input(), { target: { files: [file()] } });
+    const bar = await screen.findByRole('progressbar', { name: 'Upload CDL (Front) upload progress' });
+    expect(bar).toHaveAttribute('aria-valuenow', '0');
+
+    act(() => report(0.42));
+    expect(bar).toHaveAttribute('aria-valuenow', '42');
+    expect(screen.getByText('42%')).toBeInTheDocument();
+  });
+
+  it('cancels an upload on its way and goes back to the picker, with no error', async () => {
+    let seen;
+    const { onChange } = renderField({
+      onUpload: vi.fn((_name, _file, { signal }) => new Promise((_resolve, reject) => {
+        seen = signal;
+        signal.addEventListener('abort', () => reject(Object.assign(new Error('Upload cancelled.'), { code: 'cancelled' })));
+      })),
+    });
+
+    fireEvent.change(input(), { target: { files: [file()] } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel upload of Upload CDL (Front)' }));
+
+    await waitFor(() => expect(wrapper()).toHaveAttribute('data-upload-state', 'empty'));
+    expect(seen.aborted).toBe(true);
+    expect(input()).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('gives the picker back at once on Cancel, and a late result never undoes a newer upload', async () => {
+    const releases = [];
+    const { onChange } = renderField({
+      onUpload: vi.fn(() => new Promise((resolve) => { releases.push(resolve); })),
+    });
+
+    fireEvent.change(input(), { target: { files: [file('first.pdf')] } });
+    fireEvent.click(await screen.findByRole('button', { name: /Cancel upload/ }));
+    expect(wrapper()).toHaveAttribute('data-upload-state', 'empty');
+
+    fireEvent.change(input(), { target: { files: [file('second.pdf')] } });
+    expect(wrapper()).toHaveAttribute('data-upload-state', 'uploading');
+    await act(async () => { releases[0]({ name: 'first.pdf', storagePath: 'p1' }); });
+    expect(wrapper()).toHaveAttribute('data-upload-state', 'uploading');
+    expect(onChange).not.toHaveBeenCalled();
+
+    await act(async () => { releases[1]({ name: 'second.pdf', storagePath: 'p2' }); });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('cdl-front', { name: 'second.pdf', storagePath: 'p2' });
+  });
+
+  it('keeps a cancel even when the upload finishes regardless', async () => {
+    let release;
+    const { onChange } = renderField({ onUpload: vi.fn(() => new Promise((r) => { release = () => r({ name: 'a.pdf', storagePath: 'p' }); })) });
+
+    fireEvent.change(input(), { target: { files: [file()] } });
+    fireEvent.click(await screen.findByRole('button', { name: /Cancel upload/ }));
+    await act(async () => { release(); });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(wrapper()).toHaveAttribute('data-upload-state', 'empty');
   });
 
   // jsdom does not implement window.confirm, so it is stubbed by assignment
@@ -154,34 +222,24 @@ describe('UploadField upload lifecycle', () => {
  */
 describe('UploadField unmounting mid-upload', () => {
   /*
-   * The fake-progress interval was cleared on success and on failure and
-   * nowhere else, so unmounting while an upload was still in flight left a
-   * 200ms timer calling `setProgress` on a component that no longer existed —
-   * for the life of the tab, for anyone who navigated away mid-upload. React 19
-   * does not warn about that, so nothing said so.
-   *
-   * It surfaced as `ReferenceError: window is not defined` in CI, the timer
-   * outliving jsdom's teardown, on a pull request that did not touch this file.
-   * Adding one unrelated test file shifted the scheduling that had been hiding
-   * it — the tell for a leak rather than a flake, since nothing here is
-   * timing-dependent except whether teardown wins the race.
-   *
-   * Reproduced before it was fixed: without the unmount cleanup this leaves a
-   * pending timer and the assertion below fails.
+   * The fake-progress interval used to outlive an unmount mid-upload: a 200ms
+   * timer calling `setProgress` on a component that no longer existed, found in
+   * CI as `ReferenceError: window is not defined` when it outlived jsdom's
+   * teardown. The progress is the upload's own now, so there is no interval at
+   * all; this keeps it that way.
    */
-  it('leaves no timer running after it is unmounted', async () => {
+  it('keeps no timer of its own while an upload is on its way, or after it is unmounted', async () => {
     vi.useFakeTimers();
     try {
-      // An upload that never settles, so the interval is still live at unmount.
+      // An upload that never settles. The progress is the upload's own now, so
+      // the field runs no interval that could outlive it.
       const onUpload = vi.fn(() => new Promise(() => {}));
       const { unmount } = renderField({ onUpload });
 
       await act(async () => {
         fireEvent.change(input(), { target: { files: [file()] } });
       });
-
-      // The interval is running: advancing time schedules progress updates.
-      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      expect(vi.getTimerCount()).toBe(0);
 
       unmount();
 

@@ -1,10 +1,11 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { Icon, X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from '@design-system/icons';
 import {
-    Button, FileInput, IconButton, IconButtonLink, Notice, ProgressBar,
+    Button, FileInput, IconButton, IconButtonLink, Notice,
 } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 import { PREVIEW_STATE, useSignedUploadPreview } from '../../hooks/useSignedUploadPreview';
+import { UploadProgress } from './UploadProgress';
 
 /**
  * UploadField
@@ -18,13 +19,19 @@ import { PREVIEW_STATE, useSignedUploadPreview } from '../../hooks/useSignedUplo
  * 2 px border — the variant keeps owning the border *colour*, so no token is
  * bypassed and no local button is created.
  *
- * Frozen behaviour: the `onUpload(name, file)` call, the `onChange(name, result)`
- * / `onChange(name, null)` payloads, the "Upload completed but no file metadata
- * was returned." guard, the fake progress ramp and its 1 s success→idle reset,
- * the fact that removing a file is confirmed before it happens, the
+ * Frozen behaviour: the `onUpload(name, file, { onProgress, signal })` call, the
+ * `onChange(name, result)` / `onChange(name, null)` payloads, the "Upload
+ * completed but no file metadata was returned." guard, the 1 s success→idle
+ * reset, the fact that removing a file is confirmed before it happens, the
  * `required && !hasValue` attribute on the hidden input, the `accept` default, and
  * the exact "Uploaded Successfully" / "Upload failed. Please try again." strings
  * (asserted by `e2e/public-application.spec.cjs`).
+ *
+ * 2026-10-09 — REAL PROGRESS, AND A WAY OUT. The bar was a made-up ramp that
+ * stopped at 90% and waited there for as long as the upload took, with Continue
+ * locked and nothing to press. It now shows what `onProgress` reports, **Cancel
+ * upload** aborts through `signal` and returns the field to its picker, and a
+ * failure shows the upload's own plain sentence (`GuestUploadError`).
  *
  * DEFECT FIXED (2026-07-28): the removal prompt was a bare `confirm(...)`. The
  * *rule* (removal is always confirmed) is preserved; the blocking browser dialog
@@ -80,25 +87,9 @@ const UploadField = ({
     // Replaces the bare `confirm("Are you sure you want to remove this file?")`.
     const [pendingClear, setPendingClear] = useState(false);
     const fileInputRef = useRef(null);
-    /*
-     * The fake-progress interval, held so it can be cleared on UNMOUNT as well
-     * as on the two paths below that already clear it.
-     *
-     * It was cleared on success and on failure but nowhere else, so a person who
-     * navigated away mid-upload left a 200ms timer running for the life of the
-     * tab, calling `setProgress` on a component that no longer exists. React 19
-     * no longer warns about that, so nothing said so.
-     *
-     * It surfaced on 2026-09-05 as `ReferenceError: window is not defined` in
-     * `frontend-quality` — the timer outliving jsdom's teardown — on a pull
-     * request that does not touch this file. Adding one test file was enough to
-     * shift the scheduling that had been hiding it, which is the tell for a leak
-     * rather than a flake: nothing here is timing-dependent except whether the
-     * teardown wins the race.
-     */
-    const progressIntervalRef = useRef(null);
-
-    useEffect(() => () => clearInterval(progressIntervalRef.current), []);
+    // The upload on its way, for Cancel. Leaving the page does not cancel it: the
+    // file still lands in the answers, which outlive this field.
+    const uploadRef = useRef(null);
     const rawId = useId().replace(/:/g, '');
     const labelId = `upload-${name}-label-${rawId}`;
 
@@ -123,31 +114,29 @@ const UploadField = ({
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Reset
         setStatus('uploading');
-        setProgress(10); // Start progress
+        setProgress(0);
         setErrorMsg(null);
         // Retires a rejection from an EARLIER drop. One that arrived with this
         // drop is re-set by `onReject` immediately after this handler returns.
         setDropRejection(null);
 
-        // Fake progress for UX (since Firebase uploadBytes doesn't give granular progress easily without stream)
-        const progressInterval = setInterval(() => {
-            setProgress(prev => {
-                if (prev >= 90) return 90;
-                return prev + Math.random() * 10;
-            });
-        }, 200);
-        progressIntervalRef.current = progressInterval;
-
+        const upload = new AbortController();
+        uploadRef.current = upload;
         try {
-            // Perform Upload
-            const result = await onUpload(name, file);
+            const result = await onUpload(name, file, {
+                // A cancelled upload no longer moves the bar, which may be a newer one's.
+                onProgress: (fraction) => {
+                    if (!upload.signal.aborted) setProgress(Math.min(100, Math.max(0, fraction * 100)));
+                },
+                signal: upload.signal,
+            });
+            // Cancel already gave the picker back; a result that lands anyway is not applied.
+            if (upload.signal.aborted) return;
             if (!result) {
                 throw new Error('Upload completed but no file metadata was returned.');
             }
 
-            clearInterval(progressInterval);
             setProgress(100);
             setStatus('success');
             setErrorMsg(null);
@@ -161,12 +150,20 @@ const UploadField = ({
             }, 1000);
 
         } catch (err) {
-            clearInterval(progressInterval);
+            if (upload.signal.aborted || err?.code === 'cancelled') return;
+            setProgress(0);
             console.error("Upload failed in component:", err);
             setStatus('error');
             setErrorMsg(err?.message || "Upload failed. Please try again.");
-            setProgress(0);
+        } finally {
+            if (uploadRef.current === upload) uploadRef.current = null;
         }
+    };
+
+    const cancelUpload = () => {
+        uploadRef.current?.abort();
+        setStatus('idle');
+        setProgress(0);
     };
 
     const handleRetry = () => {
@@ -246,23 +243,9 @@ const UploadField = ({
                 </Notice>
             )}
 
-            {/* UPLOADING STATE — a tinted block, and deliberately NOT a `Notice`.
-                Its content is a `ProgressBar` and a percentage readout; the text
-                labels the widget rather than being the message. Putting an info
-                glyph beside a progress bar states nothing the bar does not. */}
+            {/* UPLOADING STATE: the bytes sent so far, and Cancel. */}
             {status === 'uploading' && (
-                <div className="space-y-ds-2 rounded-ds-md border border-ds-status-info-border bg-ds-status-info-bg p-ds-4">
-                    <p className="flex justify-between text-ds-xs font-semibold text-ds-status-info-fg" role="status">
-                        <span>Uploading...</span>
-                        <span>{Math.round(progress)}%</span>
-                    </p>
-                    <ProgressBar
-                        value={progress}
-                        max={100}
-                        label={`${label} upload progress`}
-                        valueText={`${Math.round(progress)}% uploaded`}
-                    />
-                </div>
+                <UploadProgress label={label} percent={progress} onCancel={cancelUpload} />
             )}
 
             {/* SUCCESS / VIEW STATE — also not a `Notice`. This is a file row:

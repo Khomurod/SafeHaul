@@ -242,11 +242,11 @@ describe('DynamicQuestionsStep answer contract', () => {
     const f = new File(['x'], 'resume.pdf', { type: 'application/pdf' });
     fireEvent.change(screen.getByLabelText(/Resume/), { target: { files: [f] } });
 
-    expect(handleFileUpload).toHaveBeenCalledWith('q5', f);
+    expect(handleFileUpload).toHaveBeenCalledWith('q5', f, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     // While it is on its way: nothing recorded, the picker busy (so a second file
     // cannot race it), and Continue waiting, as the License step's does.
     expect(updateFormData).not.toHaveBeenCalled();
-    expect(screen.getByLabelText(/Resume/)).toBeDisabled();
+    expect(screen.getByLabelText(/Resume/, { selector: 'input' })).toBeDisabled();
     expect(screen.getByText('Uploading Resume…')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Uploading...' })).toBeDisabled();
 
@@ -279,6 +279,69 @@ describe('DynamicQuestionsStep answer contract', () => {
     expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
     expect(screen.getByLabelText(/Resume/)).toBeEnabled();
     expect(updateFormData).not.toHaveBeenCalled();
+  });
+
+  it('says why beside the question, and Try again sends the same file again', async () => {
+    let calls = 0;
+    const handleFileUpload = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) {
+        throw Object.assign(new Error('The upload stopped. Check your internet connection and try again.'), { code: 'stalled' });
+      }
+      return { name: 'resume.pdf', storagePath: 'companies/c1/applications/guest_uploads/u1_resume.pdf' };
+    });
+    const { updateFormData } = renderStep([{ id: 'q5', label: 'Resume', type: 'fileUpload' }], { handleFileUpload });
+    const f = new File(['x'], 'resume.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Resume/), { target: { files: [f] } });
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent('The upload stopped. Check your internet connection and try again.');
+    expect(updateFormData).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+    expect(handleFileUpload).toHaveBeenLastCalledWith('q5', f, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(updateFormData).toHaveBeenCalledWith('customAnswers', expect.any(Function));
+  });
+
+  it('says nothing beside the question when the driver cancelled', async () => {
+    const handleFileUpload = vi.fn(async () => {
+      throw Object.assign(new Error('Upload cancelled.'), { code: 'cancelled' });
+    });
+    renderStep([{ id: 'q5', label: 'Resume', type: 'fileUpload' }], { handleFileUpload });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Resume/), { target: { files: [new File(['x'], 'resume.pdf')] } });
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows how much of the file has gone, and Cancel gives the picker back at once', async () => {
+    let options;
+    let land;
+    const handleFileUpload = vi.fn((_key, _file, given) => {
+      options = given;
+      return new Promise((resolve) => { land = resolve; });
+    });
+    const { updateFormData } = renderStep([{ id: 'q5', label: 'Resume', type: 'fileUpload' }], { handleFileUpload });
+    fireEvent.change(screen.getByLabelText(/Resume/), { target: { files: [new File(['x'], 'resume.pdf')] } });
+
+    act(() => { options.onProgress(0.4); });
+    expect(screen.getByRole('progressbar', { name: 'Resume upload progress' })).toHaveAttribute('aria-valuenow', '40');
+    expect(screen.getByText('40%')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel upload of Resume' }));
+    expect(options.signal.aborted).toBe(true);
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Resume/)).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+
+    // The upload answers anyway, after the Cancel: it is not the answer.
+    await act(async () => { land({ name: 'resume.pdf', storagePath: 'companies/c1/applications/guest_uploads/u1_resume.pdf' }); });
+    expect(updateFormData).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('keeps a file that lands just before another answer is typed', async () => {
@@ -318,7 +381,7 @@ describe('DynamicQuestionsStep answer contract', () => {
 
     // One has landed; the other is still on its way, so neither may move on yet.
     expect(screen.getByLabelText(/Resume/)).toBeEnabled();
-    expect(screen.getByLabelText(/Reference letter/)).toBeDisabled();
+    expect(screen.getByLabelText(/Reference letter/, { selector: 'input' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Uploading...' })).toBeDisabled();
 
     await act(async () => { landers.q6({ name: 'letter.pdf', storagePath: 'companies/c1/applications/guest_uploads/l.pdf' }); });
