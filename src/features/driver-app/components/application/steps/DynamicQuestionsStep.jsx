@@ -19,6 +19,11 @@
  * "Please answer required question: …" toast, the `linearScale` numeric coercion,
  * the `handleFileUpload(key, file)` call, and the `dotRequired` DOT marker.
  *
+ * DEFECTS FIXED (2026-10-09): a time question needed the phone's own dialog, which
+ * can lack Set; it is three lists (`TimeSelectField`, the same `HH:MM`), checked
+ * with the page before it moves on. A number box stored "1,000" as nothing; it is
+ * text on the number pad now, kept as typed.
+ *
  * DEFECT FIXED (2026-10-02): a file question recorded `file?.name` as its answer
  * the moment a file was chosen, without waiting for the upload and discarding the
  * storage path it returned. So the company saw a filename that nothing referenced,
@@ -43,6 +48,7 @@ import { Shield } from '@design-system/icons';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { StepNavigation } from './components/StepNavigation';
+import TimeSelectField from './components/TimeSelectField';
 import {
     Badge,
     Card,
@@ -100,6 +106,13 @@ export function DynamicQuestionsStep({
                 showError(`Please answer required question: ${field.label || 'Additional question'}`);
                 return;
             }
+        }
+        // Then the page's own checks, as every step runs them: a time half chosen
+        // for an optional question would otherwise go on as no answer.
+        const form = document.getElementById('driver-form');
+        if (form && !form.checkValidity()) {
+            form.reportValidity();
+            return;
         }
         onNavigate('next');
     };
@@ -270,20 +283,23 @@ export function DynamicQuestionsStep({
 
             case 'time':
                 return (
-                    <FormField id={controlId} label={label} description={field.helpText} required={field.required}>
-                        <Input
-                            type="time"
-                            value={value}
-                            onChange={(e) => handleChange(key, e.target.value)}
-                        />
-                    </FormField>
+                    <TimeSelectField
+                        label={label}
+                        idPrefix={controlId}
+                        name={key}
+                        value={value}
+                        onChange={(_, v) => handleChange(key, v)}
+                        required={field.required}
+                        helpText={field.helpText}
+                    />
                 );
 
             case 'number':
                 return (
                     <FormField id={controlId} label={label} description={field.helpText} required={field.required}>
                         <Input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             value={value}
                             onChange={(e) => handleChange(key, e.target.value)}
                             placeholder={field.placeholder}

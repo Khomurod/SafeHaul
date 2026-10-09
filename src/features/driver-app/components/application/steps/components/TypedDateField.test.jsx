@@ -150,6 +150,28 @@ describe('TypedDateField', () => {
         expect(box('year')).toHaveValue('1984');
     });
 
+    it('shows and announces the page’s own message, on every box', () => {
+        renderField({ error: 'Enter your date of birth.' });
+
+        const message = screen.getByRole('alert');
+        expect(message).toHaveTextContent('Enter your date of birth.');
+        expect(screen.getByRole('group', { name: /Date of Birth/ })).toHaveAttribute('aria-describedby', message.id);
+        for (const part of ['month', 'day', 'year']) {
+            expect(box(part)).toHaveAttribute('aria-invalid', 'true');
+        }
+    });
+
+    it('says what is wrong with an impossible date instead of the page’s message, never both', () => {
+        renderField({ error: 'Enter your date of birth.' });
+
+        typeDate('02', '30', '1990');
+
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+        expect(screen.getByRole('alert')).toHaveTextContent('Enter a day that exists in that month.');
+        expect(box('day')).toHaveAttribute('aria-invalid', 'true');
+        expect(box('month')).not.toHaveAttribute('aria-invalid');
+    });
+
     it('gives the boxes the birthday autofill tokens only when asked', () => {
         renderField({ autoComplete: 'bday' });
         expect(box('month')).toHaveAttribute('autocomplete', 'bday-month');

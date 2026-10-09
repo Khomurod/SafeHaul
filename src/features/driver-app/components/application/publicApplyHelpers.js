@@ -208,11 +208,21 @@ const e2eCustomQuestions = () => (getE2EQueryParam('e2eCustomQuestions', '') ===
   ? [{ id: 'e2e-resume', label: 'Upload your resume', type: 'fileUpload', required: true }]
   : []);
 
+/**
+ * `?e2eRules=hos` gives the fixture the company rule that asks the Hours of
+ * Service statement on the General Questions step, so a browser test can reach
+ * it. Off by default, like the custom question: no other spec answers it.
+ */
+const e2eApplicationRules = () => (getE2EQueryParam('e2eRules', '') === 'hos'
+  ? { applicationRules: { hoursOfServiceStatement: 'application' } }
+  : {});
+
 export const buildE2EPublicProfile = (slugValue) => ({
   id: 'e2e-company',
   companyName: 'E2E Logistics',
   appSlug: slugValue || 'e2e-company',
   customQuestions: e2eCustomQuestions(),
+  ...e2eApplicationRules(),
   applicationConfig: {
     cdlUpload: { hidden: false, required: true },
     medCardUpload: { hidden: false, required: true },

@@ -124,15 +124,15 @@ Submission goes through the `submitGuestApplication` callable (Admin SDK), not a
 client write.
 
 **Fewer taps.** Only the applicant's own page-1 fields carry autofill tokens;
-SSN and ZIP open the number pad, and the SSN stays masked. The SSN, previous
+the SSN (masked), ZIP and date of birth open the number pad. The SSN, previous
 addresses, employers and the FMCSA lookup set `autocomplete="off"`, which some
-browsers and password managers ignore.
-The auto-fill CDL photo is the CDL front, even when unreadable, unless the company
-hides that upload (then it is read, not stored); the AI fills only empty fields.
-Continue on a page opened by Edit on Review returns to Review; the submission
-pre-flight and the server still check the whole application. The date of birth is
-typed on the number pad; employment and school dates are a month and a year
-(`YYYY-MM`, as on FMCSA's form), and every reader still accepts older full dates.
+browsers and password managers ignore. **No answer opens the phone's own date or
+time dialog** (it can lack Set): times are lists, hours and numbers are text.
+Employment and school dates are a month and a year (`YYYY-MM`, as on FMCSA's
+form); every reader accepts older full dates. The auto-fill CDL photo is the CDL
+front, even when unreadable, unless the company hides that upload (then it is
+read, not stored); the AI fills only empty fields. Edit on Review, then Continue,
+returns to Review; the submission pre-flight and the server still check it all.
 
 **The company shapes what the wizard asks, without code.** Company Settings →
 Company Profile has five tabs: *Standard Questions* (show / hide / require the
@@ -247,8 +247,8 @@ must prove an identity no SafeHaul screen shows a recruiter (§5, §12).
 | Company | `driver_in_progress` | open the record — the server withholds the answers (`companyMayReadAnswers`); mint a continuation link | read and correct the answers (`getApplicationDraft`, `saveApplicationDraftEdits`); delete |
 | Driver | `in_progress` | mint a continuation link; nothing else (`getCompanyPreparedDraft` answers `not-found`) | read and correct the answers; delete |
 
-The admin column (owner, 2026-10-06/07) answers only `assertCompanyAdminStrict`
-and is audited. **Delete** shows what goes, then removes answers, links, ticked
+The admin column answers only `assertCompanyAdminStrict` and is audited.
+**Delete** shows what goes, then removes answers, links, ticked
 same-driver drafts (same identity, email or phone) and uploads nothing else
 uses, none a submission marked or older than 2026-10-12; its tokens learn
 "removed" (a device copy can still submit). `deleteApplicationDraft` (document
@@ -598,9 +598,9 @@ authorization optional / required (a Yes needs its recorded acceptance evidence;
 the question is disabled until the wording loads) · require violation and
 accident details on Yes (accidents record fatalities, injuries, hazmat spill) ·
 employment history allow / warn / block with a configurable minimum of years ·
-require a felony explanation · Hours of Service statement off / on (covering
-exactly the seven days before the reference day, so a stale week in a resumed
-draft is refused and re-asked).
+require a felony explanation · Hours of Service statement off / on (exactly the
+seven days before the reference day: a stale week in a resumed draft is refused
+and re-asked).
 
 - **Every default reproduces the pre-2026-09-02 behaviour** (`warn` is what
   "three-year coverage" always did). An impossible date (30 February, a year out

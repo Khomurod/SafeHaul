@@ -17,7 +17,7 @@
  */
 const { test, expect } = require('@playwright/test');
 const {
-    chooseRadio, continueToStep, expectStep, fillStep2, fillStep3RequiredFields,
+    chooseRadio, continueToStep, expectStep, fillStep2, fillStep3RequiredFields, fillTypedDate,
 } = require('./helpers/wizardHelpers.cjs');
 
 
@@ -136,7 +136,10 @@ test.describe('a replacement link for a driver who already started', () => {
             ...overrides,
         };
         await page.getByLabel(/^Last name/).fill(claim.lastName);
-        await page.getByLabel(/^Date of birth/).fill(claim.dob);
+        // Typed into Month, Day and Year boxes: a date input opened the phone's
+        // own dialog, which on some phones offers no way to set a date.
+        const [year, month, day] = claim.dob.split('-');
+        await fillTypedDate(page, 'apply-identity-dob', { month, day, year });
         await page.getByLabel(/^Social Security Number/).fill(claim.ssn);
         await page.getByLabel(/^Email or phone number/).fill(claim.contact);
         await page.getByRole('button', { name: 'Continue my application' }).click();

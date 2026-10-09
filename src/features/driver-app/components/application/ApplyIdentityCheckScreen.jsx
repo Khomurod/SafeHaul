@@ -1,6 +1,7 @@
 import React, { useId, useState } from 'react';
 import { Icon, ShieldCheck } from '@design-system/icons';
 import { Button, Card, FormField, Input, Notice } from '@/design-system/components';
+import TypedDateField from './steps/components/TypedDateField';
 
 /**
  * "Confirm it's you" — the screen that was missing, and the whole reported bug.
@@ -66,9 +67,13 @@ const FIELDS = Object.freeze([
         missing: 'Enter your last name.',
     },
     {
+        // Typed as numbers, as on the application's first page. A `date` input
+        // opened the phone's own date dialog, the only way to set it, and a
+        // dialog showing Clear and Cancel without Set left the driver no way back
+        // to their application.
         name: 'dob',
         label: 'Date of birth',
-        type: 'date',
+        typedDate: true,
         autoComplete: 'bday',
         missing: 'Enter your date of birth.',
     },
@@ -174,7 +179,21 @@ export function ApplyIdentityCheckScreen({
                 <form className="space-y-ds-4 p-ds-6" onSubmit={handleSubmit} noValidate>
                     {error && <Notice announce="assertive" tone="danger">{error}</Notice>}
 
-                    {FIELDS.map((field) => (
+                    {FIELDS.map((field) => (field.typedDate ? (
+                        <TypedDateField
+                            key={field.name}
+                            label={field.label}
+                            idPrefix={`apply-identity-${field.name}`}
+                            name={field.name}
+                            value={claim[field.name]}
+                            onChange={setField}
+                            required
+                            maxToday
+                            minYear={1920}
+                            autoComplete={field.autoComplete}
+                            error={gaps[field.name] || undefined}
+                        />
+                    ) : (
                         <FormField
                             key={field.name}
                             id={`apply-identity-${field.name}`}
@@ -193,7 +212,7 @@ export function ApplyIdentityCheckScreen({
                                 onChange={(event) => setField(field.name, event.target.value)}
                             />
                         </FormField>
-                    ))}
+                    )))}
 
                     <Button type="submit" variant="primary" size="lg" fullWidth loading={busy}>
                         Continue my application
