@@ -302,9 +302,9 @@ function isCompleteHoursOfService(data, today) {
 /** Coverage options every surface must share, so the number told to the driver is the number recorded. */
 function employmentCoverageOptions(rules, today) {
     const resolved = resolveApplicationRules(rules);
-    const options = { requiredMonths: resolved.employmentHistoryMinimumYears * 12 };
-    if (today) options.referenceDate = today;
-    return options;
+    // Noon UTC on the applicant's day, as coverage counts months in UTC: on a month's
+    // last evening in the US, UTC is already in the next one.
+    return { requiredMonths: resolved.employmentHistoryMinimumYears * 12, referenceDate: new Date(`${toIsoDay(today)}T12:00:00Z`) };
 }
 
 // --- evaluation ----------------------------------------------------------------

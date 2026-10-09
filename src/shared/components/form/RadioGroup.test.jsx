@@ -44,6 +44,17 @@ describe('RadioGroup element-id contract', () => {
     expect(screen.queryByRole('radio', { name: /Yes required/ })).toBeNull();
   });
 
+  it('switches off one option, or all of them', () => {
+    const options = [{ label: 'Yes', value: 'yes', disabled: true }, { label: 'No', value: 'no' }];
+    const { rerender } = render(<RadioGroup label="Q" name="q" options={options} value="" onChange={vi.fn()} />);
+    expect(screen.getByRole('radio', { name: 'Yes' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'No' })).toBeEnabled();
+
+    rerender(<RadioGroup label="Q" name="q" options={YES_NO} value="" onChange={vi.fn()} disabled />);
+    expect(screen.getByRole('radio', { name: 'Yes' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'No' })).toBeDisabled();
+  });
+
   it('maps horizontal to the primitive orientation', () => {
     const { container, rerender } = render(
       <RadioGroup label="Q" name="q" options={YES_NO} value="" onChange={vi.fn()} />,

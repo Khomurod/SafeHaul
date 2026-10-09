@@ -16,6 +16,7 @@ import { domIdSegment } from '@shared/utils/domId';
  * - `onChange(name, value)` is always called with the field `name`, never with
  *   the id base or the grouping name, so saved payload keys are unchanged.
  * - `horizontal` defaults to `true`.
+ * - `disabled` switches off every option; an option's own `disabled`, that one.
  *
  * DEFECT FIXED (2026-07-27): inside `DynamicRow` the same `name` was reused for
  * every row, so every row emitted the *same* element ids and the same radio
@@ -67,7 +68,7 @@ const RadioGroup = ({
                     onChange={handleChange}
                     required={required}
                     requiredMark={false}
-                    disabled={disabled}
+                    disabled={disabled || Boolean(option.disabled)}
                 />
             ))}
         </ChoiceGroup>
