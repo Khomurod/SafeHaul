@@ -88,7 +88,10 @@ const CONTINUED = {
 /** Every field the confirmation screen asks for, filled in. */
 function fillTheClaim() {
   fireEvent.change(screen.getByLabelText(/Last name/i), { target: { value: 'Alvarez' } });
-  fireEvent.change(screen.getByLabelText(/Date of birth/i), { target: { value: '1988-03-11' } });
+  // Typed as month, day and year boxes, as on the application's first page.
+  fireEvent.change(document.getElementById('apply-identity-dob-month'), { target: { value: '03' } });
+  fireEvent.change(document.getElementById('apply-identity-dob-day'), { target: { value: '11' } });
+  fireEvent.change(document.getElementById('apply-identity-dob-year'), { target: { value: '1988' } });
   fireEvent.change(screen.getByLabelText(/Social Security Number/i), { target: { value: '123-45-6789' } });
   fireEvent.change(screen.getByLabelText(/Email or phone number/i), { target: { value: 'dana@example.test' } });
 }

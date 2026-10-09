@@ -15,6 +15,7 @@ const {
     completeRemainingSteps,
     applySignature,
     submitApplication,
+    fillTypedDate,
 } = require('./helpers/wizardHelpers.cjs');
 
 /**
@@ -85,7 +86,7 @@ test.describe('@a11y mobile-critical journeys (no serious/critical violations)',
         // The refusal too: an announced `alert` and four fields that keep their
         // names while it is on screen.
         await page.getByLabel(/^Last name/).fill('Driver');
-        await page.getByLabel(/^Date of birth/).fill('1985-05-05');
+        await fillTypedDate(page, 'apply-identity-dob', { month: '05', day: '05', year: '1985' });
         await page.getByLabel(/^Social Security Number/).fill('123-45-6789');
         await page.getByLabel(/^Email or phone number/).fill('prepared@example.com');
         await page.getByRole('button', { name: 'Continue my application' }).click();

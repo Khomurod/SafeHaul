@@ -64,11 +64,17 @@ function isoOf(parts) {
  * holds the page instead of letting a half-typed date through as blank. A
  * complete but impossible date also says what is wrong under the field.
  *
+ * `error` is the page's own message about the date, such as a required date left
+ * empty when the form was sent. It is shown and announced in the same place, and
+ * gives way to the field's own message about a complete date that does not
+ * exist, so the two never stack.
+ *
  * Frozen like `DateTripletField`'s: the `${idPrefix}-month|day|year` element
  * ids, and `autoComplete="bday"` giving `bday-month`, `bday-day`, `bday-year`.
  *
- * Private to the application wizard, which asks the date of birth with it. It is
- * not a shared primitive: a second use belongs in the design system, with the
+ * Private to the driver application, which asks the date of birth with it on its
+ * first page and on the "Confirm it's you" screen. It is not a shared primitive:
+ * a use outside the application belongs in the design system, with the
  * documentation, stories and catalog entry an approved component carries
  * (roadmap, "Layer contracts").
  */
@@ -83,6 +89,7 @@ export default function TypedDateField({
     minYear = 1900,
     maxToday = false,
     autoComplete,
+    error,
 }) {
     const rawId = useId().replace(/:/g, '');
     const groupLabelId = `${idPrefix}-group-label-${rawId}`;
@@ -124,7 +131,8 @@ export default function TypedDateField({
     };
 
     const showError = complete && problem;
-    const describedBy = [helpText ? helpTextId : null, showError ? errorId : null].filter(Boolean).join(' ') || undefined;
+    const message = showError ? problem.message : error;
+    const describedBy = [helpText ? helpTextId : null, message ? errorId : null].filter(Boolean).join(' ') || undefined;
 
     return (
         <div className="flex flex-col gap-ds-1">
@@ -166,12 +174,12 @@ export default function TypedDateField({
                             value={parts[key]}
                             onChange={onPartChange(key, length)}
                             required={required}
-                            aria-invalid={showError && problem.part === key ? true : undefined}
+                            aria-invalid={(showError ? problem.part === key : Boolean(error)) || undefined}
                         />
                     </div>
                 ))}
             </div>
-            {showError && <FieldMessage id={errorId} tone="error">{problem.message}</FieldMessage>}
+            {message && <FieldMessage id={errorId} tone="error">{message}</FieldMessage>}
         </div>
     );
 }

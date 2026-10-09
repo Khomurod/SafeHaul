@@ -64,14 +64,21 @@ describe('DynamicQuestionsStep labelling', () => {
     expect(screen.getByLabelText('Preferred region')).toBeInstanceOf(HTMLSelectElement);
   });
 
-  it('labels a time control with its question', () => {
+  it('groups a time question and names its hour, minutes and AM/PM lists', () => {
     renderStep([{ id: 'q4', label: 'Preferred start time', type: 'time' }]);
-    expect(screen.getByLabelText('Preferred start time')).toHaveAttribute('type', 'time');
+    expect(screen.getByRole('group', { name: /Preferred start time/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('Preferred start time hour')).toBeInstanceOf(HTMLSelectElement);
+    expect(screen.getByLabelText('Preferred start time minutes')).toBeInstanceOf(HTMLSelectElement);
+    expect(screen.getByLabelText('Preferred start time AM or PM')).toBeInstanceOf(HTMLSelectElement);
+    // No `type="time"`: on a phone it opens the phone's own dialog, the only way to set it.
+    expect(document.querySelector('input[type="time"]')).toBeNull();
   });
 
-  it('labels a number control with its question', () => {
+  it('labels a number control with its question, on the number pad', () => {
     renderStep([{ id: 'q5', label: 'Years on the road', type: 'number' }]);
-    expect(screen.getByLabelText('Years on the road')).toHaveAttribute('type', 'number');
+    const control = screen.getByLabelText('Years on the road');
+    expect(control).toHaveAttribute('type', 'text');
+    expect(control).toHaveAttribute('inputmode', 'decimal');
   });
 
   it('groups a multiple-choice question under one legend with named options', () => {
@@ -156,6 +163,21 @@ describe('DynamicQuestionsStep answer contract', () => {
     // A second tick before any re-render toggles the answers as the first left them.
     fireEvent.click(screen.getByRole('checkbox', { name: 'Reefer' }));
     expect(applyWrites(updateFormData, { q3: ['Reefer'] })).toEqual({ q3: ['Flatbed'] });
+  });
+
+  it('records a time as HH:MM once the hour, minutes and AM/PM are chosen', () => {
+    const { updateFormData } = renderStep([{ id: 'q4', label: 'Preferred start time', type: 'time' }]);
+    fireEvent.change(screen.getByLabelText('Preferred start time hour'), { target: { value: '6' } });
+    fireEvent.change(screen.getByLabelText('Preferred start time minutes'), { target: { value: '30' } });
+    expect(updateFormData).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Preferred start time AM or PM'), { target: { value: 'PM' } });
+    expect(applyWrites(updateFormData, {})).toEqual({ q4: '18:30' });
+  });
+
+  it('keeps a number typed with a separator as the answer', () => {
+    const { updateFormData } = renderStep([{ id: 'q5', label: 'Miles driven last year', type: 'number' }]);
+    fireEvent.change(screen.getByLabelText('Miles driven last year'), { target: { value: '120,000' } });
+    expect(applyWrites(updateFormData, {})).toEqual({ q5: '120,000' });
   });
 
   it('coerces linear-scale answers to numbers', () => {

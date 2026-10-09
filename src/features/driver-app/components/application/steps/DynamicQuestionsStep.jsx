@@ -19,6 +19,12 @@
  * "Please answer required question: …" toast, the `linearScale` numeric coercion,
  * the `handleFileUpload(key, file)` call, and the `dotRequired` DOT marker.
  *
+ * DEFECTS FIXED (2026-10-09): a time question opened the phone's own time dialog,
+ * the only way to set it, and a dialog without Set left a required one unanswerable;
+ * it is three lists now (`TimeSelectField`, the same `HH:MM`). A number question's
+ * number box dropped "1,000" or "7,5" to an empty answer while showing it; it is
+ * text on the number pad now, kept as typed.
+ *
  * DEFECT FIXED (2026-10-02): a file question recorded `file?.name` as its answer
  * the moment a file was chosen, without waiting for the upload and discarding the
  * storage path it returned. So the company saw a filename that nothing referenced,
@@ -43,6 +49,7 @@ import { Shield } from '@design-system/icons';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { StepNavigation } from './components/StepNavigation';
+import TimeSelectField from './components/TimeSelectField';
 import {
     Badge,
     Card,
@@ -270,20 +277,23 @@ export function DynamicQuestionsStep({
 
             case 'time':
                 return (
-                    <FormField id={controlId} label={label} description={field.helpText} required={field.required}>
-                        <Input
-                            type="time"
-                            value={value}
-                            onChange={(e) => handleChange(key, e.target.value)}
-                        />
-                    </FormField>
+                    <TimeSelectField
+                        label={label}
+                        idPrefix={controlId}
+                        name={key}
+                        value={value}
+                        onChange={(_, v) => handleChange(key, v)}
+                        required={field.required}
+                        helpText={field.helpText}
+                    />
                 );
 
             case 'number':
                 return (
                     <FormField id={controlId} label={label} description={field.helpText} required={field.required}>
                         <Input
-                            type="number"
+                            type="text"
+                            inputMode="decimal"
                             value={value}
                             onChange={(e) => handleChange(key, e.target.value)}
                             placeholder={field.placeholder}
