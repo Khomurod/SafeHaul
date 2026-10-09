@@ -96,6 +96,7 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 | Callable | Notes |
 |----------|-------|
 | `backfillSmsSentPhones` | Per-company SMS phone backfill; only `backfillAllSmsSentPhones` is wired in UI |
+| `createCompanyApiKey`, `listCompanyApiKeys`, `revokeCompanyApiKey` | A Company Admin's API keys ([`companyApi/keyCallables.js`](../functions/companyApi/keyCallables.js)): make one (returned once, stored as a hash), list them, turn one off. Settings → Integrations calls them once its API keys card ships |
 | `deleteApplicationDraft` | Deletes one unfinished application's document and nothing else. The unfinished-applications page has called `purgeApplicationDraft` instead since 2026-10-08; kept for the pages built before it, which Production serves until a release promotes the new ones. See the guest-application table below |
 | `listCompanyPreparedApplications` | Was the list behind "Start an application" until 2026-09-10, when that screen and "Started (unfinished)" became one workspace reading `listApplicationDrafts` alone. Kept, not deleted: its narrower `origin == 'company'` contract is correct and still tested, and removing a deployed callable is a larger change than the consolidation needed |
 | `executeReactivationBatch` | SMS reactivation batch; referenced in bulk session comments, no `src/` caller |
@@ -112,6 +113,7 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 | `processBulkBatch` | HTTP `onRequest` | Cloud Tasks → POST with `X-SafeHaul-Internal-Auth` |
 | `facebookWebhook`, `facebookWebhookV1` | HTTP | Facebook Lead Ads |
 | `trackVerificationOpen` | HTTP | 1×1 tracking pixel |
+| `companyApi` | HTTP `onRequest` | Another service, with a company's API key: `GET https://us-central1-truckerapp-system.cloudfunctions.net/companyApi/v1/...` and `Authorization: Bearer <key>`. Read-only; see [`companyApi/routes.js`](../functions/companyApi/routes.js) |
 | `onApplicationSubmitted`, `onLeadWrittenDashboardRollup`, … | Firestore triggers | Automatic on writes |
 | `enforceFeatureSchedules`, `cleanupOrphanedSignatures`, `processVerificationReminders` | Scheduled | Cloud Scheduler |
 | `sealDocument`, `notifySigner`, `notifySignerSMS`, `handleOptOut`, … | Triggers | Automatic |

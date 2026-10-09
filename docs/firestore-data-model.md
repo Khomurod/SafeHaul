@@ -74,6 +74,8 @@ Used by Cloud Functions with Admin SDK:
 |------------|---------|
 | `blacklist/{phone}` | Global SMS opt-out |
 | `rate_limits/{key}` | Token-bucket rate limiting |
+| `company_api_keys/{keyId}` | A company's API keys: `companyId`, `name`, `hash` (SHA-256 of the key; the key itself is never stored), `scopes`, `createdAt`/`createdBy`/`createdByName`, `lastUsedAt`, `revokedAt`/`revokedBy`/`revokedByName`. Denied to every client, **including Super Admins**; written only by [`companyApi/keyCallables.js`](../functions/companyApi/keyCallables.js) |
+| `api_audit/{id}` | One record per company-API request: `keyId`, `companyId`, `route`, `status`, `applicationId`, `version`, `documents` (count), `ssnIncluded`, `address`, `at`. No driver data. Deleted 90 days on by the TTL policy on `expiresAt` |
 | `processing_status/{id}` | Trigger idempotency (e.g. `app_{companyId}_{appId}`) |
 | `orphaned_signature_cleanup` | Digital sealing maintenance |
 | `environment_audit_log/{id}` | Super Admin Environment & Integrations vault audit trail. Written only by the vault callables; `src/firestore.rules` denies every client read and write, **including Super Admins**, so it cannot be forged or read around the callable. Fields: `actorUid`, `actorEmail`, `action`, `result`, `entryId`, `key`, `integration`, `scope`, `companyId`, `source`, `category`, `sensitivity`, `availability`, `reason`, `valueLength`, `timestamp`. It never stores a plaintext value, ciphertext, a partial value or a token fragment — see [`functions/environmentVault/audit.js`](../functions/environmentVault/audit.js). |
@@ -323,6 +325,8 @@ Rules at end of `firestore.rules` allow cross-tenant queries when scoped by clai
 | `{path=**}/leads/{leadId}` | super; team for company; lead `userId` == auth uid |
 | `{path=**}/activity_logs/{id}` | super; team if `companyId` is string on doc |
 | `{path=**}/signing_requests/{id}` | super; recipient; team for `companyId` |
+
+Server-only (Admin SDK, no client rule): `{path=**}/submission/{version}` by `companyId` and `submittedAt`, the company API's submissions feed.
 
 ---
 
