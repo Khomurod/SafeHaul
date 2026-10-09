@@ -197,14 +197,14 @@ describe('an application its company deleted', () => {
     callableSpy.mockRejectedValue(new Error('offline'));
     await renderWithCompleteDraft();
     await submit();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Application Saved' })).toBeInTheDocument(), {
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument(), {
       timeout: 10_000,
     });
 
     announce('removed:mark-1');
 
     await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
-    expect(screen.queryByRole('heading', { name: 'Application Saved' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Not sent yet' })).not.toBeInTheDocument();
     expect(toldRemoved()).toBe(1);
   }, 20_000);
 
@@ -212,7 +212,7 @@ describe('an application its company deleted', () => {
     callableSpy.mockRejectedValue(new Error('offline'));
     await renderWithCompleteDraft();
     await submit();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Application Saved' })).toBeInTheDocument(), {
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument(), {
       timeout: 10_000,
     });
 
@@ -221,7 +221,7 @@ describe('an application its company deleted', () => {
     // Nothing to wait for when nothing should happen: let React render whatever
     // the event set, then look.
     await act(() => new Promise((resolve) => { setTimeout(resolve, 50); }));
-    expect(screen.getByRole('heading', { name: 'Application Saved' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument();
     expect(showInfo).not.toHaveBeenCalled();
   }, 20_000);
 

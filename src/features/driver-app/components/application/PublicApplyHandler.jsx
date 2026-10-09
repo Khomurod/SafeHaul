@@ -383,6 +383,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   } = usePostSubmitDocuments({
     slug,
     sandbox,
+    ready: !loading,
     company,
     submittedApplicationId,
     submittedConfirmationNumber,

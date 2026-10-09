@@ -15,7 +15,7 @@ import { DOC_STATUS } from './postApplyDocsStorage';
  * primitives and `--ds-*` tokens, matching the public signing room's status
  * screens. Every user-facing string is frozen — "Loading Application...",
  * "Link Error", "Reading your CDL...", "Application Submitted!", "Confirmation
- * Number", "Application Saved", "Go to home" and "Start a new application" are
+ * Number", "Not sent yet", "Go to home" and "Start a new application" are
  * asserted by `e2e/public-application.spec.cjs`,
  * `e2e/guest-offline-queue.spec.cjs` and
  * `e2e/guest-post-application-edoc.spec.cjs` — as are the
@@ -238,7 +238,16 @@ export function SubmissionSuccessScreen({
   );
 }
 
-// P3-3 FIX: Queued status UI — shown when all direct submit attempts failed but data is queued
+/**
+ * Shown when every direct attempt failed to reach the server and the
+ * application waits in this device's queue.
+ *
+ * It says what is true. The queue sends from this device only, while a page of
+ * the site is open on it: "You can safely close this page. No data will be lost."
+ * was the opposite of the one thing the driver could do to help. Once the queue
+ * sends it, this page shows the confirmation number; a refusal brings the driver
+ * back to the page to fix (`useQueuedApplicationOutcome`).
+ */
 export function SubmissionQueuedScreen({ onGoHome }) {
   const headingId = `apply-queued-${useId().replace(/:/g, '')}`;
   return (
@@ -250,12 +259,12 @@ export function SubmissionQueuedScreen({ onGoHome }) {
           announce="polite"
           headingLevel={1}
           titleId={headingId}
-          title="Application Saved"
-          description="Your application has been securely saved and will be automatically submitted when your connection is restored."
+          title="Not sent yet"
+          description="Your application is saved on this device and will be sent as soon as the connection is back. Keep this page open: your confirmation number will appear here."
           actions={<Button variant="ghost" onClick={onGoHome}>Go to home</Button>}
         >
           <p className="text-center text-ds-sm text-ds-content-muted">
-            You can safely close this page. No data will be lost.
+            If you close it, open this page again on this device to finish sending.
           </p>
         </PageState>
       </div>

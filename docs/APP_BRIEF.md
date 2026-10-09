@@ -325,18 +325,22 @@ idempotent merges, not duplicate drivers. The rules enforce it for authenticated
 driver creates. **Never change the hash inputs, normalization or truncation** —
 existing records would become unreachable.
 
-**Offline-tolerant submission.** Submissions queue in IndexedDB
-(`src/lib/submissionQueue.js`) with exponential backoff and retry when the
-connection returns — workable only because IDs are deterministic.
+**Offline-tolerant submission.** Submissions queue in IndexedDB with backoff
+(deterministic IDs make replays safe) and send from this device only, while a
+page of the site is open, so the screen says *Not sent yet* and to keep it open.
+A replay waits out the page's own attempts and sends its `seenRevision`; its end
+reaches the page (`useQueuedApplicationOutcome`): the confirmation number, or
+why not (refused, or out of attempts) and where to fix it, kept for the next
+open if no page was.
 
 **A refusal is not a failure to deliver.** Only a submission that never reached
 the server is retried and queued: a dropped connection (reported as `internal`),
-timeout, cold start, rate limiter. A server refusal (`invalid-argument`,
+timeout, cold start. A server refusal (`invalid-argument`,
 `failed-precondition` and the other permanent codes in `publicApplyRefusal.js`)
 stops retries, removes the queue entry, shows the server's sentence, reads the
 company's settings again and goes to the page its issues name (a missing upload
-or SSN's too); the draft is untouched for correction. (Queue replays do not yet
-do this — §12.)
+or SSN's too); the draft is untouched for correction. A rate limit is said in
+the server's words, never queued.
 
 ### Unfinished applications: storage and identity
 
@@ -1297,9 +1301,6 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   (`getSignedApplicationFileUrl` refuses paths outside the caller's companies).
   Only custom-question uploads are held to `guest_uploads/`; restricting the
   standard fields needs a survey of every folder a legitimate file can live in.
-- **The offline queue's replay retries a refusal.** A direct submission stops at
-  one (§5); a queued entry that meets one later (e.g. a rule changed while it
-  waited) is retried up to ten times, then marked failed, with nobody told.
 - **The dossier's *Edit Application* offers fields the server will not change.**
   Every schema section is editable, but `proposeApplicationChanges` applies only
   its allowlist and returns the rest as `skipped`, unmentioned — an edit to,

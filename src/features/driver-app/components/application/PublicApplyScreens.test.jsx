@@ -141,13 +141,15 @@ describe('SubmissionSuccessScreen', () => {
 });
 
 describe('SubmissionQueuedScreen', () => {
-  it('keeps its frozen heading and offline copy and announces itself', () => {
+  it('says the application is not sent yet, and that the page must stay open, and announces itself', () => {
     render(<SubmissionQueuedScreen onGoHome={vi.fn()} />);
-    expectSingleH1('Application Saved');
+    expectSingleH1('Not sent yet');
     expect(screen.getByRole('status')).toHaveTextContent(
-      /will be automatically submitted when your connection is restored/,
+      /will be sent as soon as the connection is back\. Keep this page open/,
     );
-    expect(screen.getByText('You can safely close this page. No data will be lost.')).toBeInTheDocument();
+    expect(screen.getByText('If you close it, open this page again on this device to finish sending.')).toBeInTheDocument();
+    // What it used to promise, which nothing on this device could keep.
+    expect(screen.queryByText(/safely close this page/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Go to home' })).toBeInTheDocument();
   });
 });

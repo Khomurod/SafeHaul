@@ -34,13 +34,14 @@ test.describe('guest offline queue submit', () => {
     await submitApplication(page);
 
     // The queued screen's heading is the persistent state; a transient toast
-    // ("Application saved! It will be submitted automatically…") also appears,
-    // so the assertion must target the heading specifically (strict mode).
+    // saying the same also appears, so the assertion targets the heading
+    // specifically (strict mode). It says the page must stay open, because the
+    // queue sends only from this device.
     await expect(
-      page.getByRole('heading', { name: 'Application Saved', exact: true }),
+      page.getByRole('heading', { name: 'Not sent yet', exact: true }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.getByText('will be automatically submitted when your connection is restored', { exact: false }),
+      page.getByText('will be sent as soon as the connection is back. Keep this page open', { exact: false }),
     ).toBeVisible();
 
     // Verify the submission really landed in the IndexedDB queue — exactly one

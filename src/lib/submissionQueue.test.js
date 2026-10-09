@@ -253,6 +253,58 @@ describe('Submission Queue Service', () => {
         });
     });
 
+    describe('the end of an entry', () => {
+        it('keeps a refusal with what the server said, and stops there', async () => {
+            const queueId = await enqueueSubmission({ data: 'test' }, 'c1');
+            const refusal = Object.assign(new Error('Missing required uploaded documents: CDL Front.'), {
+                final: true,
+                details: { issues: [{ code: 'missing-upload', semanticStep: 'license', fieldId: null }] },
+            });
+
+            const result = await processEntry(await getQueueEntry(queueId), vi.fn(async () => { throw refusal; }));
+
+            expect(result).toMatchObject({ success: false, refused: true });
+            const entry = await getQueueEntry(queueId);
+            expect(entry.status).toBe('refused');
+            expect(entry.refusal).toEqual({
+                message: 'Missing required uploaded documents: CDL Front.',
+                issues: [{ code: 'missing-upload', semanticStep: 'license', fieldId: null }],
+            });
+            // Never sent again: a refused entry is not pending.
+            expect(await getAllPending()).toEqual([]);
+        });
+
+        it('waits for the time it was given, and keeps the revision it was given', async () => {
+            const later = Date.now() + 60_000;
+            const queueId = await enqueueSubmission({ data: 'test' }, 'c1', { retryNotBefore: later, seenRevision: 3 });
+            const entry = await getQueueEntry(queueId);
+            expect(entry.nextRetryAt).toBe(later);
+            expect(entry.seenRevision).toBe(3);
+
+            const submit = vi.fn(async () => true);
+            expect((await processEntry(entry, submit)).success).toBe(false);
+            expect(submit).not.toHaveBeenCalled();
+        });
+
+        it('reports how each entry ended, with its own result', async () => {
+            const sent = await enqueueSubmission({ n: 1 }, 'c1');
+            const refused = await enqueueSubmission({ n: 2 }, 'c1');
+            const exhausted = await enqueueSubmission({ n: 3 }, 'c1');
+            await enqueueSubmission({ n: 4 }, 'c1');
+            await updateQueueEntry(exhausted, { attempts: 10 });
+
+            const results = await processQueue(vi.fn(async (data) => {
+                if (data.n === 1) return { data: { confirmationNumber: 'CONF-1' } };
+                if (data.n === 2) throw Object.assign(new Error('Refused.'), { final: true });
+                throw new Error('offline');
+            }));
+
+            const ends = Object.fromEntries(results.settled.map(({ entry, outcome }) => [entry.id, outcome]));
+            expect(ends).toEqual({ [sent]: 'sent', [refused]: 'refused', [exhausted]: 'failed' });
+            expect(results.settled.find(({ entry }) => entry.id === sent).result).toEqual({ data: { confirmationNumber: 'CONF-1' } });
+        });
+    });
+
     describe('processQueue', () => {
         it('should process all pending submissions', async () => {
             await enqueueSubmission({ n: 1 }, 'c1');

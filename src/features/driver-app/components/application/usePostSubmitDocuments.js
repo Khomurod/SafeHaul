@@ -15,10 +15,12 @@ import {
   markRequestSigned,
   setSigningReturnPath,
 } from './postApplyDocsStorage';
+import { useQueuedApplicationOutcome } from './useQueuedApplicationOutcome';
 
 export function usePostSubmitDocuments({
   slug,
   sandbox,
+  ready,
   company,
   submittedApplicationId,
   submittedConfirmationNumber,
@@ -35,6 +37,22 @@ export function usePostSubmitDocuments({
   showError,
   showSuccess,
 }) {
+  // A submission this page queued ends later: sent, it lands on the same screen
+  // and checklist as a direct one; refused, it comes back to be fixed.
+  useQueuedApplicationOutcome({
+    slug,
+    sandbox,
+    ready,
+    hasCustomQuestions: (company?.customQuestions || []).length > 0,
+    draftIdRef,
+    setSubmissionStatus,
+    setSubmittedApplicationId,
+    setSubmittedConfirmationNumber,
+    setPostSubmitDocs,
+    setCurrentStep,
+    showError,
+  });
+
   /** Update one template's checklist state and persist the session snapshot. */
   const updatePostSubmitDoc = useCallback((templateId, patch) => {
     setPostSubmitDocs((prev) => {

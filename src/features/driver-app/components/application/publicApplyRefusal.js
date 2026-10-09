@@ -37,6 +37,15 @@ export function isPermanentRefusal(error) {
 }
 
 /**
+ * The server's rate limit: too many submissions from this connection just now.
+ * Not worth the queue, which would only spend the limit again, and not worth
+ * hiding: the applicant is told in the server's words to wait a moment.
+ */
+export function isRateLimited(error) {
+  return error?.code === 'functions/resource-exhausted';
+}
+
+/**
  * The server refused the submission because a Company Admin edited the
  * application after this copy was taken (`functions/shared/companyEdits.js`).
  */

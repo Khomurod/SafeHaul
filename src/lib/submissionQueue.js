@@ -90,6 +90,10 @@ async function ensureDb() {
  *   queued, so a replay can refuse to submit an application discarded since
  * @param {string} [options.applicantToday] - The applicant's calendar day at Submit
  *   (`YYYY-MM-DD`), for guest submissions, so a late replay is judged on that day
+ * @param {number|null} [options.seenRevision] - Which of a Company Admin's edits the
+ *   answers have taken, sent with a replay as the direct attempt sends it
+ * @param {number} [options.retryNotBefore] - No replay before this time: the page's own
+ *   attempts are still out, and a replay beside them would spend their rate limit
  * @returns {Promise<string>} Queue entry ID
  */
 export async function enqueueSubmission(data, companyId, options = {}) {
@@ -119,11 +123,13 @@ export async function enqueueSubmission(data, companyId, options = {}) {
         // "the last seven days" and expiry on the day the page did rather than on the
         // day the replay lands. Entries queued before this field existed read as `null`.
         applicantToday: options.applicantToday || null,
+        seenRevision: Number.isInteger(options.seenRevision) ? options.seenRevision : null,
         createdAt: Date.now(),
         attempts: 0,
         lastAttemptAt: null,
-        nextRetryAt: null,
-        status: 'pending', // pending, processing, failed, completed
+        nextRetryAt: Number.isFinite(options.retryNotBefore) ? options.retryNotBefore : null,
+        // pending, processing, failed (out of attempts), refused (the server said no)
+        status: 'pending',
         lastError: null,
     };
 
@@ -302,7 +308,7 @@ export async function processEntry(entry, submitFn) {
             status: 'failed',
             lastError: 'Max retries exceeded'
         });
-        return { success: false, error: new Error('Max retries exceeded') };
+        return { success: false, exhausted: true, error: new Error('Max retries exceeded') };
     }
 
     // Mark as processing with tab session claim
@@ -320,15 +326,27 @@ export async function processEntry(entry, submitFn) {
 
     try {
         // Attempt submission
-        await submitFn(entry.data, entry.companyId, entry);
+        const result = await submitFn(entry.data, entry.companyId, entry);
 
         // Success - remove from queue
         await dequeueSubmission(entry.id);
         // Successfully processed
-        return { success: true };
+        return { success: true, result };
 
     } catch (error) {
         console.error(`[SubmissionQueue] Attempt ${entry.attempts + 1} failed:`, error);
+
+        // Refused, not undelivered (`submitFn` marks it `final`): the same answers would
+        // get the same answer, so the entry stops here, keeping what the server said
+        // for the application's page to show.
+        if (error?.final) {
+            await updateQueueEntry(entry.id, {
+                status: 'refused',
+                lastError: error.message,
+                refusal: { message: error.message || null, issues: error.details?.issues || [] },
+            });
+            return { success: false, refused: true, error };
+        }
 
         const nextDelay = calculateBackoff(entry.attempts);
         await updateQueueEntry(entry.id, {
@@ -394,7 +412,9 @@ export async function processQueue(submitFn) {
     const pending = await getAllPending();
     // Processing pending submissions
 
-    const results = { processed: 0, succeeded: 0, failed: 0 };
+    // `settled`: each entry that reached an end this time (sent, refused or out of
+    // attempts), with its own result, for whoever is waiting to hear about it.
+    const results = { processed: 0, succeeded: 0, failed: 0, settled: [] };
 
     for (const entry of pending) {
         const result = await processEntry(entry, submitFn);
@@ -402,8 +422,11 @@ export async function processQueue(submitFn) {
 
         if (result.success) {
             results.succeeded++;
+            results.settled.push({ entry, outcome: 'sent', result: result.result });
         } else {
             results.failed++;
+            if (result.refused) results.settled.push({ entry, outcome: 'refused', error: result.error });
+            if (result.exhausted) results.settled.push({ entry, outcome: 'failed' });
         }
     }
 

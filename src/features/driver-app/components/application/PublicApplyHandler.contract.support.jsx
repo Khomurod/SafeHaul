@@ -45,6 +45,11 @@ export const enqueueSpy = vi.fn();
 export const dequeueSpy = vi.fn();
 export const initQueueSpy = vi.fn();
 export const isQueueSupportedSpy = vi.fn();
+// What the page reads and writes of the queue besides adding to it: releasing an
+// entry once its own attempts are done, and the entries that ended while no page
+// was open (none, unless a test says otherwise).
+export const updateQueueEntrySpy = vi.fn(async () => true);
+export const queuedEntries = { current: [] };
 
 export const savePostApplySessionSpy = vi.fn();
 
@@ -152,6 +157,8 @@ export const submissionQueueMock = () => ({
   initQueue: (...a) => initQueueSpy(...a),
   enqueueSubmission: (...a) => enqueueSpy(...a),
   dequeueSubmission: (...a) => dequeueSpy(...a),
+  updateQueueEntry: (...a) => updateQueueEntrySpy(...a),
+  getAllEntries: async () => queuedEntries.current,
   isSupported: (...a) => isQueueSupportedSpy(...a),
 });
 
