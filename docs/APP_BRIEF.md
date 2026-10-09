@@ -656,12 +656,12 @@ files `applicationSections.json`, `applicationRulesCatalog.json` and
 `src/config/`.
 
 **A state is stored as its full name**, from `src/shared/utils/usStates.js`
-(fifty states and DC) in every picker; an employer's also lists Canada's and
-Mexico's (`northAmericanRegions.js`). CDL auto-fill, MVR import and the carrier's
-AI reader convert printed postal codes, the FMCSA lookup with the row's country;
-an unmatched value is left for the driver, never stored (a `<select>` shows its
-first option, "Alabama", for an unknown value while validation passes). A stored
-value no list names shows as itself.
+(fifty states, DC and five territories) in every picker; an address, accident or
+employer also lists Canada's and Mexico's (`northAmericanRegions.js`).
+CDL auto-fill, MVR import and the carrier's AI reader convert printed postal
+codes, the FMCSA lookup with the row's country; an unmatched value is left for
+the driver, never stored (a `<select>` would show "Alabama" while validation
+passes). A stored value no list names shows as itself.
 
 **A phone number is a US number: ten digits, or eleven starting with 1**
 (`isValidPhone`), on page one, in the final pre-flight (back to page one) and in
