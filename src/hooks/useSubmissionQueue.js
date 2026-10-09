@@ -14,13 +14,8 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import * as Sentry from '@sentry/react';
 import { mergeApplicationDoc } from '@lib/applicationWrite';
-import { closeDraftAfterDelayedSubmission } from '../features/driver-app/services/applicationDraftService';
 import { readDiscardMark } from '../features/driver-app/components/application/applicationDraftStorage';
-import { isPermanentRefusal } from '../features/driver-app/components/application/publicApplyRefusal';
-import {
-    announceQueuedApplication,
-    queuedOutcome,
-} from '../features/driver-app/components/application/queuedApplicationOutcome';
+import { isPermanentRefusal } from '../features/driver-app/components/application/refusalCodes';
 
 import {
     initQueue,
@@ -150,10 +145,14 @@ export function useSubmissionQueue() {
             // that would destroy work they never sent — worse than the duplicate
             // submission this guards against — so the close happens only when storage
             // still holds the application this entry was made from.
+            // Loaded only now, as the announcement below is: every page of the site
+            // carries this hook, and the first download has a budget.
             if (entry?.applySlug) {
-                closeDraftAfterDelayedSubmission(entry.applySlug, {
-                    draftId: entry.applyDraftId || null,
-                });
+                await import('../features/driver-app/services/applicationDraftService')
+                    .then(({ closeDraftAfterDelayedSubmission }) => closeDraftAfterDelayedSubmission(entry.applySlug, {
+                        draftId: entry.applyDraftId || null,
+                    }))
+                    .catch((loadError) => console.warn('[useSubmissionQueue] Draft close-out not loaded:', loadError));
             }
 
             Sentry.addBreadcrumb({
@@ -216,10 +215,14 @@ export function useSubmissionQueue() {
             // Processing queued submissions
 
             const results = await processQueue(submitToFirestore);
-            // A guest application that ended, told to its page (and kept for it).
-            for (const { entry, outcome, result, error } of results?.settled || []) {
-                if (!entry?.applySlug || result?.dropped) continue;
-                announceQueuedApplication(queuedOutcome(entry, outcome, { result, error }));
+            // A guest application that ended, told to its page (and kept for it). One
+            // refused or out of attempts stays in the queue for the page to read anyway.
+            const ended = (results?.settled || []).filter(({ entry, result }) => entry?.applySlug && !result?.dropped);
+            if (ended.length) {
+                await import('../features/driver-app/components/application/queuedApplicationOutcome')
+                    .then(({ announceQueuedApplication, queuedOutcome }) => ended.forEach(({ entry, outcome, result, error }) => (
+                        announceQueuedApplication(queuedOutcome(entry, outcome, { result, error })))))
+                    .catch((loadError) => console.warn('[useSubmissionQueue] Outcome not announced:', loadError));
             }
 
             // Update pending count
