@@ -98,7 +98,7 @@ Routing is **manifest-driven**, not hand-edited JSX:
 
 `/apply/:slug` · `/interest/:slug` (legacy redirect to apply) ·
 `/sign/:companyId/:requestId` · `/verify/:token` · `/review-change/:token` ·
-`/sandbox/apply` · `/sandbox/transfer-success`
+`/sandbox/apply` · `/sandbox/transfer-success` · `/developers/api`
 
 ### Company workspace (`/company/*`)
 
@@ -926,7 +926,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`: one text task over whichever documents were attached, with a per-document vision fallback) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health (the bot token is checked with Telegram before it is stored). The marketing-site bot is **retired** (`LD-R3`): `promote-production.yml` still runs the idempotent `scripts/retire-landing-functions.mjs` (never touching `listLandingLeads`); a rollback past `LD-R3` would call deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
-| **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key a Company Admin makes (`createCompanyApiKey`) | Hash in `company_api_keys` (server-only); the key is shown once |
+| **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
 | **Sentry** | Error monitoring for the browser app (`@sentry/react`); Cloud Functions log to Cloud Logging only | DSN |
 | **GitHub API** | Release promotion from the Super Admin UI | GitHub App credential, server-side only |
@@ -961,7 +961,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
   full SSN `ssn:read`, the PDF both (it shows the SSN). Each answer is logged in
   `api_audit` (90 days) before it is sent, or not at all. Five keys on per company, 60 requests a minute each; a record is
   listed a minute after its stamp; a reconstruction keeps its old date, so a
-  cursor sync misses one made later.
+  cursor sync misses it.
 
 **A Facebook page belongs to one company.** `connectFacebookPage` takes the
 company from the client and authorizes it against the caller's per-company role.
