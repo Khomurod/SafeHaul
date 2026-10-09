@@ -209,6 +209,25 @@ describe('PublicApplyHandler submission contract', () => {
     expect(dequeueSpy).toHaveBeenCalledWith('queue-1');
   });
 
+  it('takes the company\'s current settings with a refusal, so the page it names asks what is missing', async () => {
+    // The company added a question of its own after this page loaded: the server
+    // judged the settings as they are now, and so must the page it sends the
+    // driver to, which is one step later because of that question.
+    const refusal = Object.assign(new Error('Acknowledge every agreement before submitting.'), {
+      code: 'functions/failed-precondition',
+      details: { issues: [{ code: 'agreements', semanticStep: 'consent', fieldId: null }] },
+    });
+    callableSpy.mockRejectedValue(refusal);
+    await renderWithCompleteDraft();
+    profileOverride.current = { customQuestions: [{ id: 'q1', label: 'Years driving', type: 'text' }] };
+
+    await submit();
+
+    // 9 = Consent once the company's questions are a step of their own; 8 without.
+    await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('9'));
+    expect(showError).toHaveBeenCalledWith(refusal.message);
+  });
+
   it('still queues an ordinary failure to deliver', async () => {
     callableSpy.mockRejectedValue(Object.assign(new Error('internal'), { code: 'functions/internal' }));
 

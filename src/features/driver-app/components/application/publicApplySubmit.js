@@ -27,6 +27,7 @@ import {
 import { SANDBOX_APP_SLUG } from '@features/sandbox/sandboxConstants';
 import { toIsoDay } from '@/config/applicationDates';
 import { clearApplicationDraft } from './applicationDraftStorage';
+import { fetchPublicProfileBySlug } from '../../services/publicProfileService';
 import { savePostApplySession } from './postApplyDocsStorage';
 import { runSubmissionPreflight } from './publicApplyPreflight';
 import { isCarrierUpdate, isPermanentRefusal, refusalStepIndex } from './publicApplyRefusal';
@@ -57,6 +58,7 @@ export async function submitPublicApplication({
   // Takes a Company Admin's edits into the answers; see `useDiscardAwareResume`.
   onCarrierUpdated,
   // Setters and toasts.
+  setCompany,
   setCurrentStep,
   setSubmissionStatus,
   setSubmittedApplicationId,
@@ -458,7 +460,13 @@ export async function submitPublicApplication({
             console.warn('[PublicApplyHandler] Dequeue after a refusal failed:', dequeueError);
           }
         }
-        const step = refusalStepIndex(lastError, customQuestions.length > 0);
+        // The server judged the company's settings as they are now, which can
+        // differ from the ones this page loaded: the page takes them too, so the
+        // field the refusal sends the applicant to is there to answer.
+        const current = sandbox ? null : await fetchPublicProfileBySlug(slug).catch(() => null);
+        if (current?.id === company.id) setCompany(current);
+        const asked = current?.id === company.id ? current.customQuestions || [] : customQuestions;
+        const step = refusalStepIndex(lastError, asked.length > 0);
         if (step !== null) setCurrentStep(step);
         setSubmissionStatus('error');
         showError(lastError?.message || 'Your application could not be submitted. Please check your answers and try again.');
