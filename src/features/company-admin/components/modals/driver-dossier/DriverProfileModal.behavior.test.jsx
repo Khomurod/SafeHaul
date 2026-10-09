@@ -201,13 +201,20 @@ describe('DriverProfileModal nested delete confirmation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete application' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }));
 
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Driver dossier' })).toBeNull());
     // Both dialogs unmount together. The confirmation's own "restore" target
     // (the header delete button) is destroyed in the same commit, so a naive
     // restore drops focus onto <body> and the keyboard user is stranded at the
     // top of the document.
-    expect(document.activeElement).not.toBe(document.body);
-    expect(document.activeElement).toBe(trigger);
+    //
+    // Awaited, not asserted the moment the dossier is gone: focus returns in the
+    // dialog's effect cleanup, which React runs after the commit that removed
+    // its DOM. Until then the focused node is detached and the document's
+    // active element is <body>, so a check in between fails on a busy runner
+    // although the user ends up on the trigger.
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Driver dossier' })).toBeNull();
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 });
 
