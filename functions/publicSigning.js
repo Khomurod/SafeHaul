@@ -2,6 +2,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, storage } = require("./firebaseAdmin");
 const crypto = require('crypto');
 const { checkRateLimit } = require("./shared/rateLimiter");
+const { trustedClientIp, forwardedChain } = require("./shared/clientIp");
 const {
     SIGNING_DATE_KEY,
     resolveSignedDateValue,
@@ -319,11 +320,8 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
             );
         }
 
-        // ESIGN-2 FIX: Override the client-supplied IP with the actual server-observed IP.
-        const signerIp =
-            request.rawRequest?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
-            request.rawRequest?.ip ||
-            '0.0.0.0';
+        // The address Google's front end saw, never one the signer sent.
+        const signerIp = trustedClientIp(request.rawRequest);
 
         await docRef.update({
             status: 'pending_seal',
@@ -337,6 +335,8 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
             auditTrail: {
                 ...auditData,
                 ip: signerIp,
+                // Every address Google's proxies saw, for whoever has to check the one above.
+                forwardedFor: forwardedChain(request.rawRequest),
                 timestamp: new Date().toISOString(),
                 method: 'Public Secure Link'
             }

@@ -30,6 +30,17 @@ exports.testLineConnection = onCall(encryptedCallOptions, async (request) => {
     if (!jwt) {
         throw new HttpsError('invalid-argument', 'JWT token is required.');
     }
+    if (!companyId) {
+        throw new HttpsError('invalid-argument', 'Company ID is required.');
+    }
+
+    // The test logs in with the company's stored app credentials: the same
+    // people who may add a line to the company (addPhoneLine) may test one.
+    const roles = request.auth.token.roles || {};
+    const isSuperAdmin = (request.auth.token.globalRole || roles.globalRole) === 'super_admin';
+    if (!isSuperAdmin && roles[companyId] !== 'company_admin') {
+        throw new HttpsError('permission-denied', 'Only Company Admins can test this company\'s lines.');
+    }
 
     // Start with provided credentials
     let effectiveClientId = clientId;
@@ -37,7 +48,7 @@ exports.testLineConnection = onCall(encryptedCallOptions, async (request) => {
     let effectiveIsSandbox = isSandbox;
 
     // If credentials not provided, fetch shared credentials from company config
-    if ((!effectiveClientId || !effectiveClientSecret) && companyId) {
+    if (!effectiveClientId || !effectiveClientSecret) {
         try {
             const providerDoc = await admin.firestore()
                 .collection('companies').doc(companyId)

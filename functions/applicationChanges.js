@@ -39,6 +39,10 @@ const {
 
 const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
 const REVIEW_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const REPLACED_LINK = 'This review link was replaced by a newer one. Please use the latest link your recruiter sent.';
+
+/** Every review is written with a status (since the feature began): 'open' until it ends. */
+const isOpenReview = (review) => review.status === 'open';
 
 function appRef(companyId, collectionName, applicationId) {
     return db.collection('companies').doc(companyId).collection(collectionName).doc(applicationId);
@@ -166,17 +170,34 @@ exports.createChangeReview = onCall({ cors: true }, async (request) => {
     const now = admin.firestore.Timestamp.now();
     const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + REVIEW_TTL_MS);
     const applicantName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Driver';
+    const openReviews = db.collection('change_reviews')
+        .where('applicationId', '==', applicationId)
+        .where('status', '==', 'open');
 
-    await db.collection('change_reviews').doc(token).set({
-        token,
-        companyId,
-        applicationId,
-        collectionName,
-        applicantName,
-        status: 'open',
-        createdBy: request.auth.uid,
-        createdAt: now,
-        expiresAt,
+    // The new link replaces every open one for this application: an old or
+    // forwarded link must not settle edits proposed after it was sent. One
+    // transaction, because Firestore runs transactions as if one after another:
+    // of two links sent at once (a double click, a retry), the later sees the
+    // earlier and revokes it.
+    await db.runTransaction(async (tx) => {
+        const openSnap = await tx.get(openReviews);
+        openSnap.docs
+            .filter((d) => {
+                const r = d.data() || {};
+                return r.companyId === companyId && r.collectionName === collectionName;
+            })
+            .forEach((d) => tx.update(d.ref, { status: 'revoked', revokedAt: now }));
+        tx.set(db.collection('change_reviews').doc(token), {
+            token,
+            companyId,
+            applicationId,
+            collectionName,
+            applicantName,
+            status: 'open',
+            createdBy: request.auth.uid,
+            createdAt: now,
+            expiresAt,
+        });
     });
 
     logger.info(`[createChangeReview] token created for ${collectionName}/${applicationId} (company ${companyId})`);
@@ -199,6 +220,12 @@ exports.getChangeReview = onCall({ cors: true }, async (request) => {
     const review = reviewSnap.data();
     if (review.expiresAt && review.expiresAt.toMillis() < Date.now()) {
         throw new HttpsError('failed-precondition', 'This review link has expired.');
+    }
+    if (review.status === 'revoked') throw new HttpsError('failed-precondition', REPLACED_LINK);
+    // A completed link shows nothing: the application's changes now include ones
+    // proposed, and settled, under later links.
+    if (!isOpenReview(review)) {
+        return { applicantName: review.applicantName, status: review.status, changes: [] };
     }
 
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);
@@ -240,6 +267,10 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
     const review = reviewSnap.data();
     if (review.expiresAt && review.expiresAt.toMillis() < Date.now()) {
         throw new HttpsError('failed-precondition', 'This review link has expired.');
+    }
+    if (!isOpenReview(review)) {
+        throw new HttpsError('failed-precondition',
+            review.status === 'revoked' ? REPLACED_LINK : 'This review is already complete.');
     }
 
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);

@@ -795,11 +795,11 @@ carrier's link).
 
 **Company edits to a submitted application need driver approval.** A company
 admin's edits become per-field `pending_changes`; the main document stays the
-**canonical original** until each field is resolved, so exports show originals
-for unapproved edits. The driver approves, rejects or corrects them through a
-token link (`/review-change/:token`, 30-day TTL); `hasPendingCompanyChanges`
-clears only when all are resolved. All writes go through callables; client
-writes to `pending_changes` are denied.
+**canonical original** until each field resolves, so exports show originals
+until approved. The driver approves, rejects or corrects them through a
+token link (`/review-change/:token`, 30-day TTL, newest only);
+`hasPendingCompanyChanges` clears only when all are resolved. Only callables
+write `pending_changes`.
 
 **Previous employers are editable there.** `SchemaSection` renders `array`
 sections read-only whatever `isEditing` says (it is shared with the wizard), so
@@ -960,8 +960,9 @@ projection, and `/apply/:slug` is not gated by any flag. See
 - **The company API reads only its key's company and logs each answer.** It
   serves the frozen record, not the live one; files need `documents:read`, the
   full SSN `ssn:read`, the PDF both (it shows the SSN). Each answer is logged in
-  `api_audit` (90 days) before it is sent, or not at all. Five keys on per company, 60 requests a minute each; a record is
-  listed a minute after its stamp; a reconstruction keeps its old date, so a
+  `api_audit` (90 days) before it is sent, or not at all. Five keys on per
+  company, 60 requests a minute each, none if the company is deactivated; a record
+  is listed a minute after its stamp; a reconstruction keeps its old date, so a
   cursor sync misses it.
 
 **A Facebook page belongs to one company.** `connectFacebookPage` takes the

@@ -119,6 +119,16 @@ describe('submitPublicEnvelope', () => {
     expect(firebaseAdmin.docRefStub.update).toHaveBeenCalled();
   });
 
+  it('records the address Google appended, never one the signer put in the header', async () => {
+    mockTxnEnvelope({ expired: false });
+    await submitPublicEnvelope({
+      ...baseReq,
+      rawRequest: { headers: { 'x-forwarded-for': '6.6.6.6, 203.0.113.9' }, ip: '6.6.6.6' },
+    });
+    const written = firebaseAdmin.docRefStub.update.mock.calls.at(-1)[0];
+    expect(written.auditTrail.ip).toBe('203.0.113.9');
+  });
+
   it('rejects non-object fieldValues payloads', async () => {
     await expect(
       submitPublicEnvelope({
