@@ -41,6 +41,10 @@ function authedStorage(uid, claims = {}) {
   return testEnv.authenticatedContext(uid, claims).storage(`gs://${bucket}`);
 }
 
+function upload(storage, path, contentType = 'application/pdf') {
+  return uploadString(ref(storage, path), 'x', 'raw', { contentType });
+}
+
 function guestStorage() {
   return testEnv.unauthenticatedContext().storage(`gs://${bucket}`);
 }
@@ -65,6 +69,8 @@ function buildSeedPaths(runId) {
     co1GuestSeed: testPath(runId, 'companies/co1/autofill/guest_uploads/seed.jpg'),
     co2DriverCLicense: testPath(runId, 'companies/co2/applications/driverC/cdl-front/license.pdf'),
     co1SecureTemplate: testPath(runId, 'secure_documents/co1/templates/seed.pdf'),
+    co1SealedPdf: testPath(runId, 'secure_documents/co1/completed/req1_signed.pdf'),
+    co1PevSignature: testPath(runId, 'companies/co1/pev_signatures/tok.png'),
     // The preserved application original. It sits under a prefix no rule
     // matches, so Firebase default-denies every client — see the test below.
     co1ApplicationOriginal: testPath(runId, 'application_originals/co1/app123/v1.pdf'),
@@ -135,10 +141,12 @@ async function seedStorageData(seedPaths) {
       'raw',
       { contentType: 'application/pdf' },
     );
+    await uploadString(ref(adminStorage, seedPaths.co1SealedPdf), 'seed-pdf', 'raw', { contentType: 'application/pdf' });
+    await uploadString(ref(adminStorage, seedPaths.co1PevSignature), 'seed-png', 'raw', { contentType: 'image/png' });
   });
 }
 
-describeStorage('storage.rules security matrix (tenant isolation + permissive team model)', () => {
+describeStorage('storage.rules security matrix (tenant isolation + named staff writes)', () => {
   beforeAll(async () => {
     const [host, portStr] = storageEmulatorHost.split(':');
     testEnv = await initializeTestEnvironment({
@@ -209,20 +217,12 @@ describeStorage('storage.rules security matrix (tenant isolation + permissive te
     await assertFails(getMetadata(ref(guest, paths.co1SecureTemplate)));
   });
 
-  it('allows driver to read/write/delete only inside own driver-keyed application path', async () => {
-    const driverA = authedStorage('driverA');
-    const ownPath = testPath(runCounter, 'companies/co1/applications/driverA/cdl-front/new-license.pdf');
-
-    await assertSucceeds(
-      uploadString(
-        ref(driverA, ownPath),
-        'driver-a-file',
-        'raw',
-        { contentType: 'application/pdf' },
-      ),
-    );
-    await assertSucceeds(getMetadata(ref(driverA, ownPath)));
-    await assertSucceeds(deleteObject(ref(driverA, ownPath)));
+  it('lets a driver read, never write, the files of an application keyed by their uid', async () => {
+    const driverB = authedStorage('driverB');
+    await assertSucceeds(getMetadata(ref(driverB, paths.co1DriverBLicense)));
+    await assertFails(upload(driverB, testPath(runCounter, 'companies/co1/applications/driverB/new-license.pdf')));
+    await assertFails(upload(driverB, testPath(runCounter, 'companies/co1/applications/driverB/pev_results/forged.pdf')));
+    await assertFails(deleteObject(ref(driverB, paths.co1DriverBLicense)));
   });
 
   it('blocks driver from reading another driver file and cross-tenant file', async () => {
@@ -244,7 +244,7 @@ describeStorage('storage.rules security matrix (tenant isolation + permissive te
   it('allows company_admin same-company read/write/delete and blocks cross-tenant reads', async () => {
     const co1Admin = authedStorage(nextUid('admin-co1'), teamClaims('co1', 'company_admin'));
     const co2AdminRead = authedStorage(nextUid('admin-co2-read'), teamClaims('co2', 'company_admin'));
-    const adminUpload = testPath(runCounter, 'companies/co1/applications/driverB/cdl-front/admin-upload.pdf');
+    const adminUpload = testPath(runCounter, 'companies/co1/applications/driverB/cdl-front-admin-upload.pdf');
     const crossTenantReadTarget = paths.co1DriverBLeadGeneral;
 
     // Run deny assertion before any successful read on the same object path.
@@ -333,6 +333,44 @@ describeStorage('storage.rules security matrix (tenant isolation + permissive te
       ),
     );
     await assertSucceeds(getMetadata(ref(co1Admin, secureWrite)));
+  });
+
+  it('lets staff add DQ files of any type and remove them, on applications and leads', async () => {
+    const recruiter = authedStorage(nextUid('rec-co1'), teamClaims('co1', 'recruiter'));
+    const dq = testPath(runCounter, 'companies/co1/leads/app123/dq_files/road-test.docx');
+    await assertSucceeds(upload(recruiter, dq, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'));
+    await assertSucceeds(deleteObject(ref(recruiter, dq)));
+    await assertFails(upload(recruiter, testPath(runCounter, 'companies/co1/drivers/app123/dq_files/x.pdf')));
+  });
+
+  it('lets staff add a PEV result, never replace or remove one, and never touch a PEV signature', async () => {
+    const admin = authedStorage(nextUid('admin-co1'), teamClaims('co1', 'company_admin'));
+    await assertSucceeds(upload(admin, testPath(runCounter, 'companies/co1/applications/app123/pev_results/manual.pdf')));
+    await assertFails(upload(admin, paths.co1PevResult));
+    await assertFails(deleteObject(ref(admin, paths.co1PevResult)));
+    await assertFails(upload(admin, paths.co1PevSignature, 'image/png'));
+    await assertFails(deleteObject(ref(admin, paths.co1PevSignature)));
+    await assertSucceeds(getMetadata(ref(admin, paths.co1PevSignature)));
+  });
+
+  it("keeps a sealed document and the server's other folders out of staff hands", async () => {
+    const admin = authedStorage(nextUid('admin-co1'), teamClaims('co1', 'company_admin'));
+    await assertFails(upload(admin, paths.co1SealedPdf));
+    await assertFails(deleteObject(ref(admin, paths.co1SealedPdf)));
+    await assertFails(upload(admin, testPath(runCounter, 'secure_documents/co1/signatures/req1_sig.png'), 'image/png'));
+    await assertFails(upload(admin, testPath(runCounter, 'companies/co1/applications/app123/submission/v1.json'), 'application/json'));
+    await assertSucceeds(upload(admin, testPath(runCounter, 'secure_documents/co1/originals/to-sign.pdf')));
+  });
+
+  it('lets a person upload only their own profile photo, an image under 2 MB', async () => {
+    const own = authedStorage('user-a');
+    await assertSucceeds(upload(own, 'avatars/user-a/me.png', 'image/png'));
+    await assertSucceeds(upload(own, 'avatars/user-a/old.png', 'image/png'));
+    await assertFails(upload(own, 'avatars/user-a/notes.pdf'));
+    await assertFails(upload(own, 'avatars/user-b/me.png', 'image/png'));
+    // Each read on its own object: the emulator client caches a read's answer.
+    await assertFails(getMetadata(ref(authedStorage('user-b'), 'avatars/user-a/old.png')));
+    await assertSucceeds(getMetadata(ref(own, 'avatars/user-a/me.png')));
   });
 
   it('denies EVERY client direct access to a preserved application original', async () => {

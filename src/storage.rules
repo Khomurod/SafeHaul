@@ -42,6 +42,11 @@ service firebase.storage {
       );
     }
 
+    // A staff member of the company, on an application or a lead.
+    function isStaffRecord(companyId, collection) {
+      return isCompanyTeam(companyId) && collection in ['applications', 'leads'];
+    }
+
     // VALIDATION
     function isValidFile() {
       // Allow images and PDFs, max 20MB (increased for high-quality envelopes)
@@ -64,37 +69,61 @@ service firebase.storage {
       allow read, write: if isOwner(driverId) || isSuperAdmin();
     }
 
-    // 3. Application Attachments (Guest Uploads)
-    // Guests may upload only. Reads via getSignedGuestUploadUrl callable / company admin paths.
+    // 3. Company files. The whole team reads every file of its company; a
+    // client writes only where a rule below names the folder. Everything else
+    // here is the server's: PEV signatures, frozen submissions, and the like.
+    match /companies/{companyId}/{allPaths=**} {
+      allow read: if isCompanyTeam(companyId);
+    }
+
+    // Guest uploads: anyone may add one; staff manage them after intake.
+    // Reads go through getSignedGuestUploadUrl.
     match /companies/{companyId}/{folder}/guest_uploads/{allPaths=**} {
       allow read: if isCompanyTeam(companyId);
       allow create: if (folder == 'applications' || folder == 'autofill') &&
                        isValidFile();
-      // Staff can manage guest uploads after intake.
       allow update: if isCompanyTeam(companyId) && isValidFile();
       allow delete: if isCompanyTeam(companyId);
     }
 
-    // Company team gets broad company-path access (tenant-isolated by companyId path).
-    match /companies/{companyId}/{allPaths=**} {
-      allow read, write: if isCompanyTeam(companyId);
+    // Staff uploads on an application or lead: a document field and a DQ file,
+    // of any type (a DQ file is whatever the carrier keeps).
+    match /companies/{companyId}/{collection}/{recordId}/{fileName} {
+      allow write: if isStaffRecord(companyId, collection);
+    }
+    match /companies/{companyId}/{collection}/{recordId}/dq_files/{fileName} {
+      allow write: if isStaffRecord(companyId, collection);
+    }
+    // A PEV result added by hand is kept like the server's own: never replaced
+    // or removed. (An upload over an existing file counts as a create, so the
+    // file must not exist yet.)
+    match /companies/{companyId}/{collection}/{recordId}/pev_results/{fileName} {
+      allow create: if isStaffRecord(companyId, collection) && resource == null;
     }
 
-    // Driver-keyed application root: drivers can access only own path.
+    // A signed-in driver reads the files of an application keyed by their uid.
     match /companies/{companyId}/applications/{driverId}/{allPaths=**} {
-      allow read: if isOwner(driverId) || isCompanyTeam(companyId);
-      allow create, update: if (isOwner(driverId) || isCompanyTeam(companyId)) && isValidFile();
-      allow delete: if isOwner(driverId) || isCompanyTeam(companyId);
+      allow read: if isOwner(driverId);
     }
 
     // 4. Secure Documents (E-Signature Envelopes and Templates)
-    // Path: secure_documents/{companyId}/{folder}/{fileName}
+    // Path: secure_documents/{companyId}/{folder}/{fileName}. Staff add the
+    // templates and the documents they send; the signatures and the sealed
+    // copies are the server's.
     match /secure_documents/{companyId}/{folder}/{allPaths=**} {
        // Keep direct bucket access private; public recipients use signed/callable links.
        allow read: if isCompanyTeam(companyId);
-       
-       allow create, update: if isCompanyTeam(companyId) && isValidFile();
-       allow delete: if isCompanyTeam(companyId);
+
+       allow create, update: if isCompanyTeam(companyId) && folder in ['templates', 'originals'] && isValidFile();
+       allow delete: if isCompanyTeam(companyId) && folder in ['templates', 'originals'];
+    }
+
+    // 5. A person's own profile photo.
+    match /avatars/{userId}/{fileName} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) &&
+                               request.resource.size < 2 * 1024 * 1024 &&
+                               request.resource.contentType.matches('image/.*');
     }
 
     // 6. System Health Tests
