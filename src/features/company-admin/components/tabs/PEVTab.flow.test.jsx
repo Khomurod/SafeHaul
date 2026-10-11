@@ -166,7 +166,7 @@ describe('PEVTab initiation flow and callable payload', () => {
     expect(fnMocks.callable.mock.calls[0][0]).toMatchObject({ employerEmail: null, deliveryMethod: 'manual' });
   });
 
-  it('logs the activity with the frozen argument list and entry text', async () => {
+  it('logs the activity with the frozen argument list, and no link to the form', async () => {
     initiateFirst();
     fireEvent.click(screen.getByText('proceed-email'));
     fireEvent.click(screen.getByText('preview-send'));
@@ -177,12 +177,12 @@ describe('PEVTab initiation flow and callable payload', () => {
       'applications',
       'app-1',
       'PEV_REQUEST',
-      'Initiated Email verification for Acme Freight (Sent to: hr@acme.test) | Portal: https://portal.test/v/tok-9',
+      'Initiated Email verification for Acme Freight (Sent to: hr@acme.test)',
       'pev',
     );
   });
 
-  it('writes the employer array back with the frozen verification and history shape', async () => {
+  it('writes the employer array back with the verification and history shape, never the token or link', async () => {
     initiateFirst();
     fireEvent.click(screen.getByText('proceed-email'));
     fireEvent.click(screen.getByText('preview-send'));
@@ -194,16 +194,25 @@ describe('PEVTab initiation flow and callable payload', () => {
     const written = payload.employers[0].verification;
     expect(written.status).toBe('Sent');
     expect(written.method).toBe('Email');
-    expect(written.token).toBe('tok-9');
-    expect(written.verificationUrl).toBe('https://portal.test/v/tok-9');
     expect(written.history.at(-1)).toMatchObject({
       action: 'Sent via Portal',
       method: 'Email',
       recipient: 'hr@acme.test',
-      verificationUrl: 'https://portal.test/v/tok-9',
-      token: 'tok-9',
     });
     expect(typeof written.history.at(-1).timestamp).toBe('string');
+    // PEV-SEC-3: everyone who reads the application could open the form with these.
+    expect(JSON.stringify(payload)).not.toContain('tok-9');
+  });
+
+  it('offers the link to copy in this session, for a manual send to pass on', async () => {
+    initiateFirst();
+    // The second employer's link was stored by an older version of this screen.
+    expect(screen.getAllByRole('button', { name: /Copy Link/i })).toHaveLength(1);
+    fireEvent.click(screen.getByText('proceed-manual'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Copy Link/i })).toHaveLength(2));
+    expect(JSON.stringify(fsMocks.updateDoc.mock.calls)).not.toContain('tok-9');
   });
 
   /**

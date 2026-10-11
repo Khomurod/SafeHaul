@@ -226,8 +226,11 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 return;
             }
 
+            // The link is the employer's key to the verification form. Anyone who can
+            // read this application could use it, so it is never stored (PEV-SEC-3):
+            // it shows in this session only, for a manual send to pass on.
             const verificationUrl = result.data.verificationUrl;
-            const logEntry = `Initiated ${method} verification for ${employerName} (Sent to: ${recipient})${verificationUrl ? ` | Portal: ${verificationUrl}` : ''}`;
+            const logEntry = `Initiated ${method} verification for ${employerName} (Sent to: ${recipient})`;
 
             // Log Activity
             await logActivity(
@@ -248,14 +251,10 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 apply: (verification) => {
                     verification.status = 'Sent';
                     verification.method = method;
-                    verification.token = result.data.token;
-                    verification.verificationUrl = verificationUrl;
                     verification.history = [...(verification.history || []), {
                         action: 'Sent via Portal',
                         method,
                         recipient,
-                        verificationUrl,
-                        token: result.data.token,
                         timestamp: new Date().toISOString(),
                     }];
                 },
@@ -264,7 +263,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
             if (written) {
                 setLocalOverrides(prev => ({
                     ...prev,
-                    [emp.index]: written,
+                    [emp.index]: verificationUrl ? { ...written, verificationUrl } : written,
                 }));
             }
 

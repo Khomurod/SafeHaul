@@ -80,8 +80,6 @@ async function processDriverData(data, docId) {
 
   if (!driverUid) return;
 
-  const { encrypt } = require("./integrations/encryption");
-
   // 2. Create Staging/Pending Update (Instead of Overwriting Master Profile)
   const driverDocRef = db.collection("drivers").doc(driverUid);
 
@@ -99,8 +97,8 @@ async function processDriverData(data, docId) {
         lastName: data.lastName || "",
         email: email,
         phone: data.phone || "",
-        // STRICT ENCRYPTION for SSN
-        ssn: data.ssn ? encrypt(data.ssn) : null
+        // No SSN, not even encrypted: nothing reads this staging copy, and
+        // every copy is one more place the number lives.
       },
       qualifications: {
         experienceYears: data.experience || data['experience-years'] || "",
@@ -148,9 +146,6 @@ async function processDriverData(data, docId) {
 exports.onApplicationSubmitted = onDocumentCreated({
   document: "companies/{companyId}/applications/{applicationId}",
   maxInstances: 2,
-  // BUG-10 FIX: This trigger calls processDriverData() → encrypt() for SSN encryption.
-  // Without declaring the secret, the encryption key may not be available at runtime.
-  secrets: ['SMS_ENCRYPTION_KEY']
 }, async (event) => {
   const data = event.data.data();
   const companyId = event.params.companyId;
@@ -457,8 +452,6 @@ async function handleLogSync(event) {
 exports.onCompanyLeadSubmitted = onDocumentCreated({
   document: "companies/{companyId}/leads/{leadId}",
   maxInstances: 2,
-  // BUG-10 FIX: processDriverData() uses encrypt() for SSN
-  secrets: ['SMS_ENCRYPTION_KEY']
 }, async (event) => {
   if (!event.data) return;
   await processDriverData(event.data.data(), event.params.leadId);
