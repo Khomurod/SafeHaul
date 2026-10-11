@@ -558,13 +558,9 @@ service cloud.firestore {
           resource.data.userId == request.auth.uid || 
           isCompanyAdmin(resource.data.companyId)
       );
-      // Only Admins can manage memberships
-      allow create: if isSuperAdmin() || (isCompanyAdmin(request.resource.data.companyId) && request.resource.data.role != 'super_admin');
-      allow update: if isSuperAdmin() || (
-        isCompanyAdmin(resource.data.companyId) &&
-        isCompanyAdmin(request.resource.data.companyId) &&
-        request.resource.data.role != 'super_admin'
-      );
+      // A company admin adds people only through createPortalUser: a direct write
+      // could attach any account to their company.
+      allow create, update: if isSuperAdmin();
       allow delete: if isSuperAdmin() || isCompanyAdmin(resource.data.companyId);
     }
 

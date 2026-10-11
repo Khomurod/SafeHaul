@@ -48,6 +48,22 @@ async function ensureUserProfile(userId, { preferredName, authUser } = {}) {
     return payload;
 }
 
+/**
+ * Whether an account is a Super Admin. Its claims are built from its
+ * memberships by a trigger that runs after each membership write, so a new
+ * `super_admin` membership is asked about directly too.
+ */
+async function isSuperAdminAccount(userRecord) {
+    const claims = userRecord.customClaims || {};
+    if ((claims.globalRole || (claims.roles && claims.roles.globalRole)) === "super_admin") return true;
+    const snap = await db.collection("memberships")
+        .where("userId", "==", userRecord.uid)
+        .where("role", "==", "super_admin")
+        .limit(1)
+        .get();
+    return !snap.empty;
+}
+
 exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
     const { fullName, email, password, companyId, role } = request.data;
 
@@ -84,6 +100,11 @@ exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
         let existingAuthUser = null;
         try {
             const userRecord = await auth.getUserByEmail(email);
+            // A company admin attaching the Super Admin to their team would see the
+            // owner's profile and put the owner's account in their roster.
+            if (!isGlobalSuperAdmin && await isSuperAdminAccount(userRecord)) {
+                throw new HttpsError("permission-denied", "This person cannot be added to a company team.");
+            }
             userId = userRecord.uid;
             existingAuthUser = userRecord;
         } catch (e) {
@@ -138,10 +159,15 @@ exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        const msg = isNewUser ? "User created successfully." : "User added to company.";
-        return { status: "success", message: msg, userId };
+        // Someone else's user id is not the caller's to hold, and the password they
+        // typed is not applied to an account that already exists.
+        if (!isNewUser) {
+            return { status: "success", message: "User added to company. They keep their existing password." };
+        }
+        return { status: "success", message: "User created successfully.", userId };
 
     } catch (error) {
+        if (error instanceof HttpsError) throw error;
         console.error("Create User Error:", error);
         throw new HttpsError("internal", error.message);
     }

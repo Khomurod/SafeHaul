@@ -15,7 +15,7 @@ export function TeamManagementTab({ currentCompanyProfile, isCompanyAdmin, onSho
         setAddUserLoading(true);
         try {
             const createFn = httpsCallable(functions, 'createPortalUser');
-            await createFn({
+            const result = await createFn({
                 fullName: newUser.fullName,
                 email: newUser.email,
                 password: newUser.password,
@@ -23,7 +23,10 @@ export function TeamManagementTab({ currentCompanyProfile, isCompanyAdmin, onSho
                 role: newUser.role
             });
 
-            showSuccess(`User ${newUser.fullName} created successfully!`);
+            // An email that already has an account is added, not created: the server
+            // says so, and that its own password stays, which the admin must know.
+            const existingAccount = result?.data?.status === 'success' && !result.data.userId && result.data.message;
+            showSuccess(existingAccount || `User ${newUser.fullName} created successfully!`);
             setNewUser({ fullName: '', email: '', password: '', role: 'hr_user' });
         } catch (error) {
             console.error(error);

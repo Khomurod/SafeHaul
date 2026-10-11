@@ -868,6 +868,10 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   `users/{id}` profile only when they share a company with it, via
   server-maintained `companyIds`. Listing driver profiles is owner/super admin
   only.
+- **Team changes go through the server.** Only Super Admin writes `memberships`
+  directly; a company admin uses `createPortalUser` (an existing account keeps
+  its password; no Super Admin) and `deletePortalUser` (membership only).
+  Changing or deleting another person's login is Super Admin only.
 - **Menu visibility and route access share one function**,
   `isCompanyAdminForRoute()` in `src/app/auth/roles.js`, behind both the sidebar
   and `CompanyAdminRoute`, so a hidden nav item is never reachable by URL. Keep
@@ -880,11 +884,9 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   `companies/{id}/application_drafts`, `companies/{id}/application_draft_audit`,
   `companies/{id}/legal_agreements` (callables only; publish is Super Admin
   only), and the `application_originals` Storage prefix. Some rely on
-  default-deny with no rule; the AI, blog and application-draft paths carry an
-  **explicit** `allow read, write: if false`, which survives a later broad
-  `match` above them and states the intent. `environment_audit_log` is
-  unreadable **even by super admins**, so it cannot be read around or forged
-  through the callable.
+  default-deny; the AI, blog and draft paths say `allow read, write: if false`.
+  `environment_audit_log` is unreadable **even by super admins**, so it cannot
+  be read around or forged through the callable.
 - **Guests never write Firestore directly**; guest application creates go only
   through `submitGuestApplication`.
 - **Documents are never public URLs.** Every file link is server-issued, single
@@ -904,8 +906,7 @@ Standard Questions, Application Rules, Custom Questions and Integrations
 (`applicationConfig`, `applicationRules`, `applicationIntegrations` on the
 company document, an ordinary admin update) and can read the legal wording in
 force; publishing or reverting a company's agreement text is **Super Admin
-only**, and Super Admin can also set any company's Application Rules (Companies
-→ Edit).
+only**.
 
 **Per-tenant feature flags** live on `companies/{companyId}` as `features` and
 `featureSchedules`. Keys: `pev`, `campaignsEnabled`, `eDocs`, `importLeads`,
@@ -1330,8 +1331,6 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   it fails the **entire** functions deploy until that account is granted access
   (`secretBindingGenerations.test.js`; see
   [`docs/environment-and-integrations-runbook.md`](./environment-and-integrations-runbook.md)).
-- **Feature flag defaults are asymmetric** (opt-out; missing means on) — easy to
-  misread as a bug.
 - **A direct Storage upload can bypass the backend helper** — a documented,
   accepted gap; see `docs/security-posture.md`.
 - **Historical reconstruction is an ongoing migration.** Applications submitted

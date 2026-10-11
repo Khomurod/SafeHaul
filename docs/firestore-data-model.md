@@ -57,7 +57,7 @@ erDiagram
 | `public_profiles` | `companyId` | **read:** public · **write:** server (`syncPublicProfile` trigger) | Sanitized mirror for `/apply/:slug` (no revenue/internal fields) |
 | `drivers` | `driverId` (= Auth uid) | **get:** owner, super, or any staff · **list:** owner or super only · **write:** owner or super | Master driver profile |
 | `users` | `userId` | **read:** owner, super, staff · **create:** self · **update:** owner (no role/companyId) or super | HR/admin portal user profile |
-| `memberships` | auto | **read:** self, super, company admin of tenant · **write:** super or company admin | Links `userId` ↔ `companyId` + role |
+| `memberships` | auto | **read:** self, super, company admin of tenant · **create/update:** super only (company admins go through `createPortalUser`) · **delete:** super or company admin of tenant | Links `userId` ↔ `companyId` + role |
 | `notifications` | auto | **read/update/delete:** recipient · **create:** denied (server-only) | Per-user inbox |
 | `verification_requests` | token | **read:** super only · **write:** denied | PEV; all portal access via callables |
 | `verification_requests/{token}/responses` | `responseId` | same as parent | PEV responses |
