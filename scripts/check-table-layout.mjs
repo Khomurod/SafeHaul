@@ -54,6 +54,7 @@
 
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { availableParallelism } from 'node:os';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -65,6 +66,13 @@ const VIEWPORTS = [
     { width: 412, height: 915, label: 'mobile' },
     { width: 1440, height: 900, label: 'desktop' },
 ];
+
+/**
+ * Pages measured at once: up to four, never more than the machine has cores.
+ * Each has its own browser context, so no two share storage. Layout is
+ * computed, not timed, so running side by side cannot change a measurement.
+ */
+const WORKERS = Math.min(4, availableParallelism());
 
 const MIME = {
     '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
@@ -92,7 +100,12 @@ function serveStatic(root) {
                 res.writeHead(404).end('not found');
                 return;
             }
-            res.writeHead(200, { 'content-type': MIME[extname(target)] || 'application/octet-stream' });
+            res.writeHead(200, {
+                'content-type': MIME[extname(target)] || 'application/octet-stream',
+                // The catalog cannot change during a run, so every page reuses the
+                // browser's cached and compiled copy instead of fetching it again.
+                'cache-control': 'max-age=3600',
+            });
             createReadStream(target).pipe(res);
         });
         server.on('error', reject);
@@ -175,6 +188,30 @@ function measureTables() {
     return { findings, tableCount };
 }
 
+/**
+ * Opens one story and returns once Storybook reports it finished: rendered,
+ * its play function run and its finite animations settled (the `finished`
+ * phase, when Storybook emits `storyFinished`). Then web fonts, which change
+ * text metrics and so the whole measurement, and two painted frames.
+ *
+ * Tied to observable state, never to a delay or to network quiet. A flat 80ms
+ * wait once reported a clean run against 37px of real overflow, because the
+ * stories had not finished rendering when it measured.
+ */
+async function openStory(page, base, id) {
+    await page.goto(`${base}/iframe.html?id=${id}&viewMode=story`);
+    try {
+        await page.waitForFunction((storyId) => {
+            const render = window.__STORYBOOK_PREVIEW__?.currentRender;
+            return render?.id === storyId && render.phase === 'finished';
+        }, id);
+    } catch (error) {
+        throw new Error(`story ${id} never finished rendering (${error?.message || error})`);
+    }
+    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+}
+
 async function main() {
     const { url } = parseArgs(process.argv.slice(2));
 
@@ -225,29 +262,20 @@ async function main() {
     let tablesMeasured = 0;
 
     for (const viewport of VIEWPORTS) {
-        const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
-        const page = await context.newPage();
-        for (const id of storyIds) {
-            await page.goto(`${base}/iframe.html?id=${id}&viewMode=story`, { waitUntil: 'networkidle' });
-
-            // Settle deliberately rather than on a timeout. An earlier revision
-            // of this script waited a flat 80ms and silently reported a clean
-            // run against a tree with 37px of real overflow in it, because the
-            // stories had not finished rendering when it measured. A guard that
-            // passes because it looked too early is worse than no guard, so the
-            // wait is now tied to observable state: web fonts resolved (they
-            // change text metrics, which is the whole measurement) and two
-            // frames painted.
-            await page.evaluate(() => document.fonts.ready);
-            await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-
-            const result = await page.evaluate(measureTables);
-            tablesMeasured += result.tableCount;
-            for (const finding of result.findings) {
-                violations.push({ story: id, viewport: viewport.label, ...finding });
+        const queue = [...storyIds];
+        await Promise.all(Array.from({ length: Math.min(WORKERS, queue.length) }, async () => {
+            const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
+            const page = await context.newPage();
+            for (let id = queue.shift(); id; id = queue.shift()) {
+                await openStory(page, base, id);
+                const result = await page.evaluate(measureTables);
+                tablesMeasured += result.tableCount;
+                for (const finding of result.findings) {
+                    violations.push({ story: id, viewport: viewport.label, ...finding });
+                }
             }
-        }
-        await context.close();
+            await context.close();
+        }));
     }
     await browser.close();
     server?.close();
@@ -274,7 +302,8 @@ async function main() {
         const existing = seen.get(key);
         if (!existing || (violation.over || 0) > (existing.over || 0)) seen.set(key, violation);
     }
-    const rows = [...seen.values()].sort((a, b) => (b.over || 0) - (a.over || 0));
+    const rows = [...seen.values()].sort((a, b) => (b.over || 0) - (a.over || 0)
+        || a.story.localeCompare(b.story) || a.viewport.localeCompare(b.viewport));
 
     console.error('\nTable layout check failed.\n');
     console.error('A cell must be able to contain its content, and a table must be able to paint');
