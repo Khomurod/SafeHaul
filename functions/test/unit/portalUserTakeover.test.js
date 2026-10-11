@@ -25,6 +25,7 @@ let mockAutoId = 0;
 function mockMembershipQuery(filters) {
     return {
         where: (field, op, value) => mockMembershipQuery([...filters, [field, value]]),
+        limit: () => mockMembershipQuery(filters),
         get: async () => {
             const docs = [...mockMemberships.entries()]
                 .filter(([, data]) => filters.every(([field, value]) => data[field] === value))
@@ -198,6 +199,14 @@ describe('adding an existing account to a team', () => {
         await expect(createPortalUser(req(...ADMIN_OF_X, { email: 'owner@safehaul.test', companyId: 'co-x', role: 'hr_user' })))
             .rejects.toMatchObject({ code: 'permission-denied' });
         expect([...mockMemberships.values()].some((m) => m.userId === 'owner-uid' && m.companyId === 'co-x')).toBe(false);
+    });
+
+    it('refuses a new Super Admin whose claims the membership trigger has not rebuilt yet', async () => {
+        mockAuthUsers.set('fresh-uid', { uid: 'fresh-uid', email: 'fresh@safehaul.test', customClaims: {} });
+        mockMemberships.set('m-fresh', { userId: 'fresh-uid', companyId: 'co-home', role: 'super_admin' });
+        await expect(createPortalUser(req(...ADMIN_OF_X, { email: 'fresh@safehaul.test', companyId: 'co-x', role: 'hr_user' })))
+            .rejects.toMatchObject({ code: 'permission-denied' });
+        expect([...mockMemberships.values()].some((m) => m.userId === 'fresh-uid' && m.companyId === 'co-x')).toBe(false);
     });
 
     it('refuses a Super Admin whose claim sits at the token root (legacy shape) too', async () => {

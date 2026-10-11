@@ -25,9 +25,14 @@ jest.mock('../../firebaseAdmin', () => ({
           }),
         };
       }
-      // memberships
+      // memberships. The Super Admin lookup (role == super_admin) finds none here;
+      // portalUserTakeover.test.js covers one that does.
       return {
-        where: () => ({ where: () => ({ get: (...a) => mockMembershipGet(...a) }) }),
+        where: () => ({
+          where: (field) => (field === 'role'
+            ? { limit: () => ({ get: async () => ({ empty: true }) }) }
+            : { get: (...a) => mockMembershipGet(...a) }),
+        }),
         add: (...a) => mockMembershipAdd(...a),
       };
     },
