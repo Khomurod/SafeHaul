@@ -70,6 +70,13 @@ describe('who may call', () => {
         expect((await get('/v1/key', { key: orphan.key })).body.error.code).toBe('invalid_key');
     });
 
+    it('refuses every key of a company that was turned off', async () => {
+        support.seedCompany('co-off', { isActive: false });
+        const { key } = support.seedKey('co-off');
+        const res = await get('/v1/key', { key });
+        expect([res.statusCode, res.body.error.code]).toEqual([403, 'company_inactive']);
+    });
+
     it('limits each address before any key is read, and each key after', async () => {
         const { key, keyId } = support.seedKey('co-a');
         mockCheckRateLimit.mockResolvedValueOnce(false);

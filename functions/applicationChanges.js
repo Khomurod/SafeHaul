@@ -39,6 +39,10 @@ const {
 
 const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
 const REVIEW_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const REPLACED_LINK = 'This review link was replaced by a newer one. Please use the latest link your recruiter sent.';
+
+/** A review predating the status field was open; any other status has ended it. */
+const isOpenReview = (review) => (review.status || 'open') === 'open';
 
 function appRef(companyId, collectionName, applicationId) {
     return db.collection('companies').doc(companyId).collection(collectionName).doc(applicationId);
@@ -162,6 +166,17 @@ exports.createChangeReview = onCall({ cors: true }, async (request) => {
         throw new HttpsError('failed-precondition', 'There are no pending changes to review.');
     }
 
+    // The new link replaces every open one for this application: an old or
+    // forwarded link must not settle edits proposed after it was sent.
+    const openSnap = await db.collection('change_reviews')
+        .where('applicationId', '==', applicationId)
+        .where('status', '==', 'open')
+        .get();
+    const replaced = openSnap.docs.filter((d) => {
+        const r = d.data() || {};
+        return r.companyId === companyId && r.collectionName === collectionName;
+    });
+
     const token = uuidv4();
     const now = admin.firestore.Timestamp.now();
     const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + REVIEW_TTL_MS);
@@ -178,6 +193,11 @@ exports.createChangeReview = onCall({ cors: true }, async (request) => {
         createdAt: now,
         expiresAt,
     });
+    if (replaced.length > 0) {
+        const batch = db.batch();
+        replaced.forEach((d) => batch.update(d.ref, { status: 'revoked', revokedAt: now }));
+        await batch.commit();
+    }
 
     logger.info(`[createChangeReview] token created for ${collectionName}/${applicationId} (company ${companyId})`);
     // Frontend builds the full URL from window.location.origin + /review-change/{token}.
@@ -200,10 +220,13 @@ exports.getChangeReview = onCall({ cors: true }, async (request) => {
     if (review.expiresAt && review.expiresAt.toMillis() < Date.now()) {
         throw new HttpsError('failed-precondition', 'This review link has expired.');
     }
+    if (review.status === 'revoked') throw new HttpsError('failed-precondition', REPLACED_LINK);
+    // A completed link still shows what was settled, never edits proposed since.
+    const open = isOpenReview(review);
 
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);
     const changesSnap = await ref.collection('pending_changes').get();
-    const changes = changesSnap.docs.map((d) => {
+    const changes = changesSnap.docs.filter((d) => open || d.data().status !== 'pending').map((d) => {
         const c = d.data();
         return {
             fieldKey: c.fieldKey,
@@ -240,6 +263,10 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
     const review = reviewSnap.data();
     if (review.expiresAt && review.expiresAt.toMillis() < Date.now()) {
         throw new HttpsError('failed-precondition', 'This review link has expired.');
+    }
+    if (!isOpenReview(review)) {
+        throw new HttpsError('failed-precondition',
+            review.status === 'revoked' ? REPLACED_LINK : 'This review is already complete.');
     }
 
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);

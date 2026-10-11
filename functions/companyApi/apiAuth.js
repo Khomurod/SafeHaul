@@ -82,6 +82,9 @@ async function authenticate(req) {
 
     const company = await db.collection('companies').doc(String(data.companyId || '')).get();
     if (!company.exists) throw new ApiError(401, 'invalid_key', 'This API key is not valid.');
+    if (company.data()?.isActive === false) {
+        throw new ApiError(403, 'company_inactive', "This company's SafeHaul account is turned off.");
+    }
 
     if (!(await checkRateLimit(`api_key_${keyId}`, REQUEST_LIMIT.limit, REQUEST_LIMIT.windowSeconds, 'closed'))) {
         throw RATE_LIMITED(REQUEST_LIMIT.windowSeconds);

@@ -162,6 +162,7 @@ export const ERRORS = Object.freeze([
     { status: 401, code: 'missing_key', meaning: 'No key was sent. Send Authorization: Bearer <key>.' },
     { status: 401, code: 'invalid_key', meaning: 'The key is not one we know.' },
     { status: 401, code: 'key_revoked', meaning: 'The company turned this key off. Ask them for a new one.' },
+    { status: 403, code: 'company_inactive', meaning: "The company's SafeHaul account is turned off, so none of its keys work." },
     { status: 403, code: 'missing_permission', meaning: 'This key does not have the permission the endpoint needs.' },
     { status: 404, code: 'not_found', meaning: 'No such endpoint, application or version for this company.' },
     { status: 404, code: 'pdf_not_ready', meaning: 'The PDF is still being made. Try again in a few minutes.' },

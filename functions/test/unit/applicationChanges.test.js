@@ -47,7 +47,8 @@ jest.mock('../../firebaseAdmin', () => ({
   },
   db: {
     collection: (name) => (name === 'change_reviews'
-      ? { doc: () => mockReviewRef }
+      // No other open review to replace (changeReview.lifecycle.test.js covers that).
+      ? { doc: () => mockReviewRef, where: () => ({ where: () => ({ get: async () => ({ docs: [] }) }) }) }
       : { doc: () => ({ collection: () => ({ doc: () => mockAppRef }) }) }),
     batch: () => mockBatch,
   },
