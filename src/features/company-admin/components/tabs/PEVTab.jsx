@@ -196,6 +196,9 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
     };
 
     const handleFinalSend = async () => {
+        // Set once the server has filed the request, so a later failure is not
+        // reported as a failed send and the link, which is never stored, survives.
+        let filed = null;
         try {
             const emp = selectedEmployer;
             const method = emp.deliveryMethod === 'email' ? 'Email' : emp.deliveryMethod === 'fax' ? 'Fax' : 'Manual';
@@ -206,7 +209,6 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
             const startDate = getFieldValue(emp.startDate);
             const endDate = getFieldValue(emp.endDate);
 
-            // Use the new token-based verification system
             const sendVerificationFn = httpsCallable(functions, 'sendVerificationRequest');
             const result = await sendVerificationFn({
                 companyId,
@@ -226,10 +228,13 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 return;
             }
 
+            // The link is the employer's key to the verification form. Anyone who can
+            // read this application could use it, so it is never stored (PEV-SEC-3):
+            // it shows in this session only, for a manual send to pass on.
             const verificationUrl = result.data.verificationUrl;
-            const logEntry = `Initiated ${method} verification for ${employerName} (Sent to: ${recipient})${verificationUrl ? ` | Portal: ${verificationUrl}` : ''}`;
+            filed = { index: emp.index, method, verificationUrl };
+            const logEntry = `Initiated ${method} verification for ${employerName} (Sent to: ${recipient})`;
 
-            // Log Activity
             await logActivity(
                 companyId,
                 collectionName,
@@ -239,23 +244,17 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 'pev'
             );
 
-            // The same fields and the same history entry as before; what changed is
-            // that they land on the stored row rather than on a stale snapshot of
-            // it — see `writeVerification`.
+            // Written onto the stored row, not a stale snapshot — see `writeVerification`.
             const written = await writeVerification({
                 employerId: result.data.employerId,
                 index: emp.index,
                 apply: (verification) => {
                     verification.status = 'Sent';
                     verification.method = method;
-                    verification.token = result.data.token;
-                    verification.verificationUrl = verificationUrl;
                     verification.history = [...(verification.history || []), {
                         action: 'Sent via Portal',
                         method,
                         recipient,
-                        verificationUrl,
-                        token: result.data.token,
                         timestamp: new Date().toISOString(),
                     }];
                 },
@@ -264,7 +263,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
             if (written) {
                 setLocalOverrides(prev => ({
                     ...prev,
-                    [emp.index]: written,
+                    [emp.index]: verificationUrl ? { ...written, verificationUrl } : written,
                 }));
             }
 
@@ -273,7 +272,13 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
             setSelectedEmployer(null);
         } catch (error) {
             console.error("PEV Send Error:", error);
-            showError("Failed to initiate verification.");
+            if (!filed) return showError("Failed to initiate verification.");
+            // Shown as sent, with its link, in this session: sending again would file a second request.
+            const { index, ...sent } = filed;
+            setLocalOverrides(prev => ({ ...prev, [index]: { ...(prev[index] || baseStatuses[index]), status: 'Sent', ...sent } }));
+            showError("The request was created, but this application did not update. Its link is on the employer's row.");
+            setShowPreviewModal(false);
+            setSelectedEmployer(null);
         }
     };
 
