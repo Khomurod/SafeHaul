@@ -215,6 +215,18 @@ describe('PEVTab initiation flow and callable payload', () => {
     expect(JSON.stringify(fsMocks.updateDoc.mock.calls)).not.toContain('tok-9');
   });
 
+  it('keeps the link to copy when the application cannot be updated, and says the request exists', async () => {
+    fsMocks.updateDoc.mockImplementation(async () => { throw new Error('offline'); });
+    initiateFirst();
+    fireEvent.click(screen.getByText('proceed-manual'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    // The request was filed on the server; without its link it could not be delivered.
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Copy Link/i })).toHaveLength(2));
+    expect(toastMocks.showError).toHaveBeenCalledWith(expect.stringMatching(/request was created/i));
+    expect(toastMocks.showSuccess).not.toHaveBeenCalled();
+  });
+
   /**
    * The stored `employerId` survives the write that follows a send.
    *
