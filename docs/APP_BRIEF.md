@@ -1316,24 +1316,24 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the
   app.
-- **Campaigns are one-way.** No inbound threads, no automated drip sequences.
 - **Opt-out enforcement works; opt-out *capture* does not.** Sends check the
   blacklist (§8), but `handleOptOut` (`functions/blacklist.js`) triggers on
   `companies/{companyId}/inbound_messages/{msgId}`, which **nothing writes** (no
   inbound SMS webhook): a STOP reply reaches the company's own provider, and a
   number reaches the blacklist only if written directly, with no admin
   interface.
-- **Frontend coverage thresholds are a ratchet** (statements 70 %, lines 72 %,
-  branches 66 %, functions 72 %), a few points under measured coverage (73 / 75
-  / 69 / 75) to block a real drop. Raise them as coverage improves; never lower
-  them to pass a build.
+- **Frontend coverage thresholds are a ratchet**, a few points under measured
+  coverage (`vitest.config.js`) to block a real drop. Raise them as coverage
+  improves; never lower them to pass a build.
 - **Mixed Functions v1/v2 is intentional.** The generations run as different
   service accounts (§7), so binding a secret from a generation that never bound
   it fails the **entire** functions deploy until that account is granted access
   (`secretBindingGenerations.test.js`; see
   [`docs/environment-and-integrations-runbook.md`](./environment-and-integrations-runbook.md)).
 - **A direct Storage upload can bypass the backend helper** — a documented,
-  accepted gap; see `docs/security-posture.md`.
+  accepted gap; see `docs/security-posture.md`. Client writes are named per
+  folder in `src/storage.rules`: a PEV result is add-only; PEV signatures and
+  sealed copies are server-only.
 - **Historical reconstruction is an ongoing migration.** Applications submitted
   before snapshot preservation get a record and PDF rebuilt only from surviving
   evidence and **marked as reconstructed** (`reconstructHistoricalApplications`);
