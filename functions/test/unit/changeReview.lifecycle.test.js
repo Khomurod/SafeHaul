@@ -121,8 +121,10 @@ describe('a completed review link', () => {
         expect(mockPending.get('city').status).toBe('pending');
         expect(mockAppDoc.city).toBeUndefined();
 
+        // Nothing, not even the settled 'phone': the application's changes now
+        // include ones that belong to later links.
         const shown = await getChangeReview({ data: { token } });
-        expect(shown.changes.filter((c) => c.status === 'pending')).toEqual([]);
+        expect(shown).toMatchObject({ status: 'completed', changes: [] });
     });
 });
 

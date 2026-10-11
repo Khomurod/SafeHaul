@@ -41,8 +41,8 @@ const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
 const REVIEW_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const REPLACED_LINK = 'This review link was replaced by a newer one. Please use the latest link your recruiter sent.';
 
-/** A review predating the status field was open; any other status has ended it. */
-const isOpenReview = (review) => (review.status || 'open') === 'open';
+/** Every review is written with a status (since the feature began): 'open' until it ends. */
+const isOpenReview = (review) => review.status === 'open';
 
 function appRef(companyId, collectionName, applicationId) {
     return db.collection('companies').doc(companyId).collection(collectionName).doc(applicationId);
@@ -221,12 +221,15 @@ exports.getChangeReview = onCall({ cors: true }, async (request) => {
         throw new HttpsError('failed-precondition', 'This review link has expired.');
     }
     if (review.status === 'revoked') throw new HttpsError('failed-precondition', REPLACED_LINK);
-    // A completed link still shows what was settled, never edits proposed since.
-    const open = isOpenReview(review);
+    // A completed link shows nothing: the application's changes now include ones
+    // proposed, and settled, under later links.
+    if (!isOpenReview(review)) {
+        return { applicantName: review.applicantName, status: review.status, changes: [] };
+    }
 
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);
     const changesSnap = await ref.collection('pending_changes').get();
-    const changes = changesSnap.docs.filter((d) => open || d.data().status !== 'pending').map((d) => {
+    const changes = changesSnap.docs.map((d) => {
         const c = d.data();
         return {
             fieldKey: c.fieldKey,
