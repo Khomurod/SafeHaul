@@ -75,7 +75,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 | Part | Location | Notes |
 |---|---|---|
 | React SPA | `src/` | React 19 + Vite 7 + React Router 7 + Tailwind 3.4. Builds to `dist/` |
-| Cloud Functions | `functions/` | Node 22 (Google decommissions Node 20 on 2026-10-30), **mixed v1 and v2** (both production-stable; full v2 migration planned, not urgent) |
+| Cloud Functions | `functions/` | Node 22, **mixed v1 and v2** |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |
 | Public site | `web/` | Hand-written CSS, **no build step, no framework**. Serves the server-rendered blog's assets and a standalone privacy page, and redirects `/` to `/news`. The `landing/` marketing site was removed; see [`DESIGN.md`](../DESIGN.md) |
@@ -93,6 +93,11 @@ Routing is **manifest-driven**, not hand-edited JSX:
 `src/app/routes/companyRouteManifest.js` (company workspace **and** its sidebar
 — one source of truth, so they cannot drift). Add routes there, not in
 `App.jsx`.
+
+**Startup** (`src/app/startup/`): when the Hosting config
+(`/__/firebase/init.json`) cannot load, the page shows a reload screen, not a
+blank page. A tab whose files a release removed reloads once, only when
+`/release.json` names a SHA other than its `VITE_RELEASE_SHA`.
 
 ### Public (unauthenticated) routes
 
@@ -1446,9 +1451,7 @@ suite at a time, no broad `pkill`, and the rest — is in
 **The first download has a budget.** `npm run check:bundle-budget` sums the
 entry script, its module preloads and its stylesheets from `dist/index.html`,
 fails the `frontend-build` job above **380 kB gzip**, and refuses a preload of
-the pdf.js chunk or a Sentry Replay recorder in the entry (the pdf.js worker
-wiring lives in `src/lib/pdf/pdfWorker.js`, imported only by the lazy PDF
-features; Replay attaches after load in `src/lib/monitoring/sentry.js`).
+the pdf.js chunk or a Sentry Replay recorder in the entry.
 `npm run test:bundle-budget` drives each refusal on throwaway builds in
 `callable-contract`, and `check:ci-plan` (K1c) pins both steps. The ceiling may
 only move down, with a new measurement. Figures are gzip; Hosting also serves

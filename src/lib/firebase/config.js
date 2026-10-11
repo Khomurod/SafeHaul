@@ -8,6 +8,7 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
+import { announceStartupFailure } from "../runtime/startupFailure";
 
 const rawFirebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -111,7 +112,15 @@ async function loadFirebaseConfig() {
   return runtimeConfig;
 }
 
-const firebaseConfig = await loadFirebaseConfig();
+let firebaseConfig;
+try {
+  firebaseConfig = await loadFirebaseConfig();
+} catch (error) {
+  // Every module that imports Firebase fails with this one, `main.jsx`
+  // included, so the startup guard is the only code left to show a screen.
+  announceStartupFailure(error);
+  throw error;
+}
 
 // Initialize Firebase with HMR safety
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();

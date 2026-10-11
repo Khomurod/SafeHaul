@@ -1,3 +1,6 @@
+// First, before anything that loads Firebase: the stale-release reload and the
+// startup error screen (`src/app/startup/startupGuards.jsx` says why).
+import '@app/startup/startupGuards';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
