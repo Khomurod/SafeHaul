@@ -13,7 +13,6 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `addPhoneLine` | [`AddLineModal.jsx`](../src/features/super-admin/components/integrations/AddLineModal.jsx) | Add SMS line to company inventory |
 | `addEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: store a value for one supported entry that has none |
 | `analyzeEdocFieldPlacement` | [`useAiFieldAssistant.js`](../src/features/signing/hooks/useAiFieldAssistant.js) | AI Field Assistant: suggest signer-field placement from rendered E-Doc pages (authenticated, company-scoped) |
-| `backfillAllSmsSentPhones` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Admin: backfill SMS sent phones (all companies) |
 | `backfillAllStats` | [`StatsBackfillPanel.jsx`](../src/features/super-admin/components/StatsBackfillPanel.jsx) | Admin: stats backfill all tenants |
 | `backfillCompanyStats` | [`StatsBackfillPanel.jsx`](../src/features/super-admin/components/StatsBackfillPanel.jsx) | Admin: stats backfill one company |
 | `backfillEmployerFields` | [`SuperAdminDashboard.jsx`](../src/features/super-admin/components/SuperAdminDashboard.jsx) (triggered from [`DashboardHeader.jsx`](../src/features/super-admin/components/DashboardHeader.jsx), confirmed through [`BackfillEmployersDialogs.jsx`](../src/features/super-admin/components/BackfillEmployersDialogs.jsx)) | Migrate employer fields on applications |
@@ -22,7 +21,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `checkImportPhones` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | CSV import phone dedup check |
 | `connectFacebookPage` | [`IntegrationsTab.jsx`](../src/features/settings/components/IntegrationsTab.jsx) | Facebook Lead Ads OAuth |
 | `connectPlatformAlertChat` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: a one-time Start link to the alert bot, then the Telegram chat that used it; the page asks by itself (`checkOnly`) while the link waits, and a press says whether the page showed a chat (`chatShown`) |
-| `createPortalUser` | [`CreateView.jsx`](../src/features/super-admin/components/CreateView.jsx), [`TeamManagementTab.jsx`](../src/features/settings/components/TeamManagementTab.jsx), [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Provision HR/recruiter/company user |
+| `createPortalUser` | [`CreateView.jsx`](../src/features/super-admin/components/CreateView.jsx), [`TeamManagementTab.jsx`](../src/features/settings/components/TeamManagementTab.jsx) | Provision HR/recruiter/company user |
 | `createPostApplicationSigningRequest` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Post-submit e-doc envelope |
 | `createCompanyApiKey`, `listCompanyApiKeys`, `revokeCompanyApiKey` | [`apiKeysService.js`](../src/features/settings/components/api-keys/apiKeysService.js) | Settings → API Keys: make a key (returned once, stored as a hash), list them, turn one off ([`companyApi/keyCallables.js`](../functions/companyApi/keyCallables.js)) |
 | `createChangeReview` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Mint a token link for the driver to review company edits |
@@ -65,7 +64,6 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `retryFailedAttempts` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx), [`DetailedReportModal.jsx`](../src/features/campaigns/components/DetailedReportModal.jsx) | Retry failed bulk sends |
 | `revealEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: reveal exactly one value (recent auth required) |
 | `runMigration` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Data migration tool |
-| `runSecurityAudit` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Security audit |
 | `saveEmailSettings` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) | Persist SMTP config |
 | `saveIntegrationConfig` | [`IntegrationManager.jsx`](../src/features/super-admin/components/integrations/IntegrationManager.jsx) | Save encrypted SMS credentials |
 | `savePlatformAlertToken` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: store a Telegram bot token, once Telegram has accepted it |
@@ -78,7 +76,6 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `submitGuestApplication` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx), [`useSubmissionQueue.js`](../src/hooks/useSubmissionQueue.js) | Guest/auth application submit. A direct submission says `seenRevision`; one behind a Company Admin's edit is refused (`failed-precondition`, `carrier-updated`, the Review page). Once the page has fetched the edits, its retry says none, so edits the driver cannot be shown never stop it. A queued replay says none and is never held back. It marks every upload it files as a submitted application's (`shared/guestUploads.js`), which no draft's deletion takes, and sends a submission whose replaceable uploads are gone back to the page to upload them (`upload-missing`) |
 | `submitPublicEnvelope` | [`SigningRoom.jsx`](../src/features/signing/SigningRoom.jsx) | Complete public signature |
 | `submitVerificationResponse` | [`VerificationPortal.jsx`](../src/features/verification/VerificationPortal.jsx) | Employer PEV response |
-| `syncSystemStructure` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Repair system structure |
 | `testManagedIntegration` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: connectivity test for one managed company integration |
 | `testEmailConnection` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) | SMTP test |
 | `testLineConnection` | [`AddLineModal.jsx`](../src/features/super-admin/components/integrations/AddLineModal.jsx) | Test new SMS line |
@@ -96,7 +93,10 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 
 | Callable | Notes |
 |----------|-------|
-| `backfillSmsSentPhones` | Per-company SMS phone backfill; only `backfillAllSmsSentPhones` is wired in UI |
+| `backfillAllSmsSentPhones` | All-company SMS history backfill. Its one-off System Health button was removed on 2026-10-11; Production's older screens still show it |
+| `backfillSmsSentPhones` | Per-company SMS phone backfill; no UI |
+| `runSecurityAudit` | Called only by the Deep Diagnostic, removed on 2026-10-11; Production's older screens still run it until a release |
+| `syncSystemStructure` | **Retired 2026-10-11: refuses and changes nothing** (it wrote schema defaults into every live record). Stays exported for Production's older screens |
 | `deleteApplicationDraft` | Deletes one unfinished application's document and nothing else. The unfinished-applications page has called `purgeApplicationDraft` instead since 2026-10-08; kept for the pages built before it, which Production serves until a release promotes the new ones. See the guest-application table below |
 | `listCompanyPreparedApplications` | Was the list behind "Start an application" until 2026-09-10, when that screen and "Started (unfinished)" became one workspace reading `listApplicationDrafts` alone. Kept, not deleted: its narrower `origin == 'company'` contract is correct and still tested, and removing a deployed callable is a larger change than the consolidation needed |
 | `executeReactivationBatch` | SMS reactivation batch; referenced in bulk session comments, no `src/` caller |

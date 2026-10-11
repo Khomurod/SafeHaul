@@ -2,9 +2,9 @@
 
 /**
  * SAFEHAUL SCHEMA CONFIGURATION
- * * This file acts as the "Source of Truth" for the System Integrity Manager.
- * It defines the mandatory fields and default values for core database entities.
- * * Used by: systemIntegrity.js -> syncSystemStructure()
+ * Read by nothing since syncSystemStructure was retired (2026-10-11). It stays
+ * only as the deploy planner test's fixture (scripts/test-deploy-incremental.mjs)
+ * until the dead-code step removes both.
  */
 
 const SCHEMA_DEFINITIONS = {
