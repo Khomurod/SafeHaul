@@ -1384,7 +1384,7 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 `check:callable-contract`, `check:ai-boundary`, `check:ci-plan`,
 `check:release-scripts`, `check:deploy-script`, `check:function-exports`,
 `check:ui-contract`, `check:table-layout`, `check:visual-contract`,
-`test:stories`, `test:visual`, `test:secret-scan`, and a secret scan
+`test:visual`, `test:secret-scan`, and a secret scan
 (`scripts/secret-scan.mjs`, a pinned Gitleaks CLI) — all blocking. CI's frontend
 job runs `lint:frontend`, not the root `npm run lint`, so a check that lives
 only in the root lint is not a CI gate. Only `npm run typecheck` is
