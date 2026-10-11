@@ -63,7 +63,6 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `resumeBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Resume campaign |
 | `retryFailedAttempts` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx), [`DetailedReportModal.jsx`](../src/features/campaigns/components/DetailedReportModal.jsx) | Retry failed bulk sends |
 | `revealEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: reveal exactly one value (recent auth required) |
-| `runMigration` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Data migration tool |
 | `saveEmailSettings` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) | Persist SMTP config |
 | `saveIntegrationConfig` | [`IntegrationManager.jsx`](../src/features/super-admin/components/integrations/IntegrationManager.jsx) | Save encrypted SMS credentials |
 | `savePlatformAlertToken` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: store a Telegram bot token, once Telegram has accepted it |
@@ -96,6 +95,7 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 | `backfillAllSmsSentPhones` | All-company SMS history backfill. Its one-off System Health button was removed on 2026-10-11; Production's older screens still show it |
 | `backfillSmsSentPhones` | Per-company SMS phone backfill; no UI |
 | `runSecurityAudit` | Called only by the Deep Diagnostic, removed on 2026-10-11; Production's older screens still run it until a release |
+| `runMigration` | Called only by the Deep Diagnostic's `ping` step, removed on 2026-10-11; Production's older screens still call it until a release, after which it can be retired |
 | `syncSystemStructure` | **Retired 2026-10-11: refuses and changes nothing** (it wrote schema defaults into every live record). Stays exported for Production's older screens |
 | `deleteApplicationDraft` | Deletes one unfinished application's document and nothing else. The unfinished-applications page has called `purgeApplicationDraft` instead since 2026-10-08; kept for the pages built before it, which Production serves until a release promotes the new ones. See the guest-application table below |
 | `listCompanyPreparedApplications` | Was the list behind "Start an application" until 2026-09-10, when that screen and "Started (unfinished)" became one workspace reading `listApplicationDrafts` alone. Kept, not deleted: its narrower `origin == 'company'` contract is correct and still tested, and removing a deployed callable is a larger change than the consolidation needed |
