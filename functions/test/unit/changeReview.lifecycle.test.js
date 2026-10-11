@@ -19,6 +19,7 @@ jest.mock('../../shared/rateLimiter', () => ({ checkRateLimit: jest.fn(async () 
 
 const mockReviews = new Map();
 const mockPending = new Map();
+let mockTransactions = Promise.resolve();
 const mockAppDoc = { firstName: 'Jo', lastName: 'Lee' };
 
 function mockDocSnap(map, id) {
@@ -70,11 +71,30 @@ jest.mock('../../firebaseAdmin', () => ({
             ? {
                 ...mockReviewQuery([]),
                 doc: (id) => ({
+                    __review: id,
                     get: async () => mockDocSnap(mockReviews, id),
                     set: async (data, opts) => mockReviews.set(id, { ...(opts?.merge ? mockReviews.get(id) : {}), ...data }),
                 }),
             }
             : { doc: () => ({ collection: () => ({ doc: () => mockAppRef }) }) }),
+        // Firestore's guarantee, and all this mock models of it: transactions
+        // run as if one after another, each seeing the writes of those before.
+        runTransaction: (fn) => {
+            const run = mockTransactions.then(async () => {
+                const writes = [];
+                const result = await fn({
+                    get: (query) => query.get(),
+                    set: (ref, data) => writes.push([ref, data, false]),
+                    update: (ref, data) => writes.push([ref, data, true]),
+                });
+                for (const [ref, data, merge] of writes) {
+                    mockReviews.set(ref.__review, { ...(merge ? mockReviews.get(ref.__review) : {}), ...data });
+                }
+                return result;
+            });
+            mockTransactions = run.catch(() => {});
+            return run;
+        },
         batch: () => {
             const ops = [];
             return {
@@ -141,6 +161,21 @@ describe('a newer review link', () => {
 
         await approve(second.token, 'phone');
         expect(mockAppDoc.phone).toBe('555-0100');
+    });
+
+    it('leaves one open link when two are sent at once (a double click, a retry)', async () => {
+        propose('phone', '555-0100');
+        mockReviews.set('older', { ...target, status: 'open' });
+
+        const sent = await Promise.all([
+            createChangeReview({ auth, data: target }),
+            createChangeReview({ auth, data: target }),
+        ]);
+
+        const open = [...mockReviews.entries()].filter(([, r]) => r.status === 'open').map(([id]) => id);
+        expect(open).toHaveLength(1);
+        expect(sent.map((s) => s.token)).toContain(open[0]);
+        expect(mockReviews.get('older').status).toBe('revoked');
     });
 
     it("leaves another application's open link alone", async () => {

@@ -166,38 +166,39 @@ exports.createChangeReview = onCall({ cors: true }, async (request) => {
         throw new HttpsError('failed-precondition', 'There are no pending changes to review.');
     }
 
-    // The new link replaces every open one for this application: an old or
-    // forwarded link must not settle edits proposed after it was sent.
-    const openSnap = await db.collection('change_reviews')
-        .where('applicationId', '==', applicationId)
-        .where('status', '==', 'open')
-        .get();
-    const replaced = openSnap.docs.filter((d) => {
-        const r = d.data() || {};
-        return r.companyId === companyId && r.collectionName === collectionName;
-    });
-
     const token = uuidv4();
     const now = admin.firestore.Timestamp.now();
     const expiresAt = admin.firestore.Timestamp.fromMillis(now.toMillis() + REVIEW_TTL_MS);
     const applicantName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Driver';
+    const openReviews = db.collection('change_reviews')
+        .where('applicationId', '==', applicationId)
+        .where('status', '==', 'open');
 
-    await db.collection('change_reviews').doc(token).set({
-        token,
-        companyId,
-        applicationId,
-        collectionName,
-        applicantName,
-        status: 'open',
-        createdBy: request.auth.uid,
-        createdAt: now,
-        expiresAt,
+    // The new link replaces every open one for this application: an old or
+    // forwarded link must not settle edits proposed after it was sent. One
+    // transaction, because Firestore runs transactions as if one after another:
+    // of two links sent at once (a double click, a retry), the later sees the
+    // earlier and revokes it.
+    await db.runTransaction(async (tx) => {
+        const openSnap = await tx.get(openReviews);
+        openSnap.docs
+            .filter((d) => {
+                const r = d.data() || {};
+                return r.companyId === companyId && r.collectionName === collectionName;
+            })
+            .forEach((d) => tx.update(d.ref, { status: 'revoked', revokedAt: now }));
+        tx.set(db.collection('change_reviews').doc(token), {
+            token,
+            companyId,
+            applicationId,
+            collectionName,
+            applicantName,
+            status: 'open',
+            createdBy: request.auth.uid,
+            createdAt: now,
+            expiresAt,
+        });
     });
-    if (replaced.length > 0) {
-        const batch = db.batch();
-        replaced.forEach((d) => batch.update(d.ref, { status: 'revoked', revokedAt: now }));
-        await batch.commit();
-    }
 
     logger.info(`[createChangeReview] token created for ${collectionName}/${applicationId} (company ${companyId})`);
     // Frontend builds the full URL from window.location.origin + /review-change/{token}.

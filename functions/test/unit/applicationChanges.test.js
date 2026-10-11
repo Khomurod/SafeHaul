@@ -51,6 +51,7 @@ jest.mock('../../firebaseAdmin', () => ({
       ? { doc: () => mockReviewRef, where: () => ({ where: () => ({ get: async () => ({ docs: [] }) }) }) }
       : { doc: () => ({ collection: () => ({ doc: () => mockAppRef }) }) }),
     batch: () => mockBatch,
+    runTransaction: async (fn) => fn({ get: (query) => query.get(), set: (ref, data) => ref.set(data), update: jest.fn() }),
   },
 }));
 
