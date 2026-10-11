@@ -1,64 +1,23 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
-import { Icon, Activity, Play, Pause, RotateCcw, Terminal, Server, Database, HardDrive, ShieldCheck, Wrench, RefreshCw, DatabaseZap, CheckCircle, AlertCircle, Clock } from '@design-system/icons';
-import { Badge, Button, Card, ProgressBar } from '@/design-system/components';
+import React, { useEffect, useId, useRef } from 'react';
+import { Icon, Activity, Terminal, Wrench, DatabaseZap, CheckCircle, AlertCircle } from '@design-system/icons';
+import { Badge, Button, Card } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { ConfirmDialog } from '@design-system/patterns';
 import { useSystemHealth } from '../hooks/useSystemHealth';
 import { TelegramAlertsCard } from './alerts/TelegramAlertsCard';
 
 /**
- * System Health & Diagnostics — Super Admin infrastructure test runner and
- * maintenance console.
+ * System Health — the hourly AI and blog watcher's alerts, and the one
+ * maintenance action left: re-syncing every company's public profile.
  *
- * Migrated to the design system 2026-07-28. Presentation only. `useSystemHealth`
- * is untouched: the 17-step `STEPS` list and its labels, the
- * `syncSystemStructure` / `backfillPublicProfiles` / `backfillAllSmsSentPhones`
- * callables, the localStorage resume contract, every log message and every
- * status value (`idle` | `running` | `paused` | `success` | `error`) are
- * unchanged. The reset guard still only asks when there is saved progress to
- * discard (i.e. not after a successful run), and its wording is preserved
- * verbatim.
+ * The Deep Diagnostic (it created test users and records in the live database
+ * with a fixed password), "Sync Backend Structure" (it wrote schema defaults into
+ * every live record missing a field) and the one-off SMS history backfill were
+ * removed on 2026-10-11; `syncSystemStructure` refuses on the server.
  *
- * Defects fixed here:
- *  1. **Status was communicated by colour alone.** `getStatusColor()` returned a
- *     green/red/blue/orange/gray class trio and the only text was the raw status
- *     word inside it. Status is now a `Badge` carrying an icon *and* text, and
- *     the tone is a secondary signal.
- *  2. **Progress was a bare `<div>` whose width was the only signal** — no
- *     `role="progressbar"`, no `aria-valuenow`. Now the approved `ProgressBar`.
- *  3. **Blocking `window.confirm` on Reset** replaced with the shared accessible
- *     dialog. The "This will clear saved test progress. Continue?" wording is
- *     preserved as the dialog's description.
- *  4. **The three maintenance actions explained themselves only through a
- *     `title` attribute** — a tooltip is not an accessible description and is
- *     unreachable by touch. Each action now sits in a labelled row with visible
- *     help text, and the button keeps its exact label text.
- *  5. **Repair/backfill failures were silent in the UI** — `repairStatus`,
- *     `backfillStatus` and `smsBackfillStatus` had an `error` value that changed
- *     nothing on screen (only a line deep in the log). Each action now shows an
- *     announced outcome `Badge`.
- *  6. **The log console was an unnamed, unfocusable scroll region** with
- *     hand-picked `bg-gray-900` / `text-gray-*` colours, including an empty-state
- *     message at `text-gray-600` on `bg-gray-900` — **2.2:1**. It is now the
- *     approved inverse surface role (`--ds-color-surface-inverse` and friends,
- *     all pinned for contrast in the token tests), a `role="log"` region that is
- *     named and keyboard-focusable so it can be scrolled without a mouse.
- *  7. **Broken heading order** — the page title and the "Status" panel were both
- *     `<h2>` while "Control Center" was an `<h3>`. The view title is the single
- *     `<h2>` (the `<h1>` lives in the Super Admin masthead) and every panel
- *     heading is an `<h3>`.
- *  8. Legacy palette throughout, plus `bg-current` progress fill and hard-coded
- *     `shadow-md`/`shadow-lg`/`rounded-xl` values.
+ * The action's explanation is visible help text, not a `title` tooltip, and its
+ * outcome is an announced `Badge`. The output log is the approved inverse
+ * surface, a named, keyboard-focusable `role="log"` region.
  */
-
-/** Domain status → semantic tone/icon/label. The mapping is feature-owned. */
-const STATUS_PRESENTATION = {
-    idle: { tone: 'neutral', icon: Clock, label: 'Ready' },
-    running: { tone: 'info', icon: RefreshCw, label: 'Running' },
-    paused: { tone: 'warning', icon: Pause, label: 'Paused' },
-    success: { tone: 'success', icon: CheckCircle, label: 'Success' },
-    error: { tone: 'danger', icon: AlertCircle, label: 'Error' },
-};
 
 /** Log severity → foreground token on the inverse console surface. */
 const LOG_TONE_CLASS = {
@@ -69,215 +28,81 @@ const LOG_TONE_CLASS = {
 };
 
 export function SystemHealthView() {
-    const {
-        runDiagnostics,
-        pauseDiagnostics,
-        resetDiagnostics,
-        runSystemRepair,
-        repairStatus,
-        runBackfillProfiles,
-        backfillStatus,
-        runSmsBackfill,
-        smsBackfillStatus,
-        status,
-        progress,
-        logs,
-        currentStep
-    } = useSystemHealth();
+    const { runBackfillProfiles, backfillStatus, logs } = useSystemHealth();
 
     const logsEndRef = useRef(null);
-    // Replaces the blocking `window.confirm` that guarded Reset.
-    const [confirmingReset, setConfirmingReset] = useState(false);
     const logRegionId = useId();
-    const progressLabelId = useId();
 
     // Auto-scroll logs
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [logs]);
 
-    const presentation = STATUS_PRESENTATION[status] || STATUS_PRESENTATION.idle;
-    // A glyph TOKEN off `STATUS_PRESENTATION`, so it goes through `Icon`.
-    const statusGlyph = presentation.icon;
-
-    // Reset only needs a guard when there is unfinished progress to discard. A
-    // completed run had none before the migration either.
-    const requestReset = () => {
-        if (status === 'success') {
-            resetDiagnostics();
-            return;
-        }
-        setConfirmingReset(true);
-    };
-
     return (
         <Stack gap="lg">
             <header>
                 <h2 className="flex items-center gap-ds-2 text-ds-heading-lg font-bold text-ds-content">
                     {/* Standalone in an `<h2>`, so it is `2xl` — lucide rendered 24 bare. */}
-                    <Icon icon={Activity} size="2xl" className="text-ds-content-link" /> System Health &amp; Diagnostics
+                    <Icon icon={Activity} size="2xl" className="text-ds-content-link" /> System Health
                 </h2>
                 <p className="mt-1 text-ds-sm text-ds-content-secondary">
-                    Deep inspection of Storage, Database, and Cloud Function integrity.
+                    The hourly AI and blog watcher, and maintenance actions.
                 </p>
             </header>
 
             {/* The hourly watcher of AI and the blog, and where it sends its alerts. */}
             <TelegramAlertsCard />
 
-            {/* Maintenance actions. The explanatory copy was previously only a
-                `title` tooltip on each button. */}
             <Card padding="md">
                 <h3 className="mb-ds-4 flex items-center gap-ds-2 font-bold text-ds-content">
                     <Icon icon={Wrench} size="lg" /> Maintenance Actions
                 </h3>
-                <Stack gap="md">
-                    <MaintenanceAction
-                        description="Force database structure to match Schema Config"
-                        status={repairStatus}
-                        successLabel="Structure synced"
-                        onRun={runSystemRepair}
-                        icon={Wrench}
-                        label={repairStatus === 'running' ? 'Repairing...' : 'Sync Backend Structure'}
-                    />
-                    <MaintenanceAction
-                        description="Force-sync all company data to public_profiles (fixes broken driver app links)"
-                        status={backfillStatus}
-                        successLabel="Profiles synced"
-                        onRun={runBackfillProfiles}
-                        icon={DatabaseZap}
-                        label={
-                            backfillStatus === 'running'
-                                ? 'Syncing...'
-                                : backfillStatus === 'success' ? 'Profiles Synced ✓' : 'Sync Public Profiles'
-                        }
-                    />
-                    <MaintenanceAction
-                        description="[TEMPORARY] Backfill SMS history for all companies — run once, then delete this button"
-                        status={smsBackfillStatus}
-                        successLabel="SMS history backfilled"
-                        onRun={runSmsBackfill}
-                        icon={DatabaseZap}
-                        label={
-                            smsBackfillStatus === 'running'
-                                ? 'Backfilling SMS...'
-                                : smsBackfillStatus === 'success' ? 'SMS Backfilled ✓' : 'Backfill SMS History'
-                        }
-                    />
-                </Stack>
+                <MaintenanceAction
+                    description="Force-sync all company data to public_profiles (fixes broken driver app links)"
+                    status={backfillStatus}
+                    successLabel="Profiles synced"
+                    onRun={runBackfillProfiles}
+                    icon={DatabaseZap}
+                    label={
+                        backfillStatus === 'running'
+                            ? 'Syncing...'
+                            : backfillStatus === 'success' ? 'Profiles Synced ✓' : 'Sync Public Profiles'
+                    }
+                />
             </Card>
 
-            {/* Main Diagnostic Panel */}
-            <div className="grid grid-cols-1 gap-ds-6 lg:grid-cols-3">
-
-                {/* Left: Controls & Status */}
-                <div className="space-y-ds-6 lg:col-span-1">
-                    <Card padding="md">
-                        <h3 className="mb-ds-2 text-ds-sm font-bold uppercase tracking-wide text-ds-content-secondary">
-                            Status
-                        </h3>
-                        <div className="mb-ds-4">
-                            <Badge tone={presentation.tone} icon={statusGlyph}>{presentation.label}</Badge>
-                        </div>
-
-                        <span id={progressLabelId} className="sr-only">Diagnostic progress</span>
-                        <ProgressBar
-                            value={progress}
-                            max={100}
-                            labelledBy={progressLabelId}
-                            valueText={`${progress}% complete — ${currentStep?.label || 'Waiting...'}`}
-                            tone={presentation.tone === 'neutral' ? 'info' : presentation.tone}
-                        />
-                        <div className="mt-ds-2 flex flex-wrap justify-between gap-ds-2 text-ds-xs font-semibold text-ds-content-secondary">
-                            <span>{progress}% Complete</span>
-                            <span>{currentStep?.label || 'Waiting...'}</span>
-                        </div>
-                    </Card>
-
-                    <Card padding="md">
-                        <h3 className="mb-ds-4 flex items-center gap-ds-2 font-bold text-ds-content">
-                            <Icon icon={ShieldCheck} size="xl" /> Control Center
-                        </h3>
-
-                        <Stack gap="sm">
-                            {status === 'running' ? (
-                                <Button variant="secondary" fullWidth onClick={pauseDiagnostics}>
-                                    <Icon icon={Pause} size="xl" /> Pause Test
-                                </Button>
-                            ) : status === 'paused' ? (
-                                <Button variant="primary" fullWidth onClick={() => runDiagnostics(true)}>
-                                    <Icon icon={Play} size="xl" /> Resume Test
-                                </Button>
-                            ) : (
-                                <Button variant="primary" fullWidth onClick={() => runDiagnostics(false)}>
-                                    <Icon icon={Play} size="xl" /> Start Deep Diagnostic
-                                </Button>
-                            )}
-
-                            {(status === 'paused' || status === 'error' || status === 'success') && (
-                                <Button variant="ghost" fullWidth onClick={requestReset}>
-                                    <Icon icon={RotateCcw} /> Reset
-                                </Button>
-                            )}
-                        </Stack>
-                    </Card>
-
-                    {/* Capability Badges */}
-                    <div className="flex flex-wrap gap-ds-2">
-                        <Badge tone="neutral" icon={HardDrive}>Storage</Badge>
-                        <Badge tone="neutral" icon={Database}>Firestore</Badge>
-                        <Badge tone="neutral" icon={Server}>Functions</Badge>
-                        <Badge tone="neutral" icon={Activity}>Latency</Badge>
-                    </div>
+            <div className="flex h-[360px] max-h-[60vh] flex-col overflow-hidden rounded-ds-lg bg-ds-surface-inverse shadow-ds-lg">
+                <div className="flex items-center gap-ds-2 border-b border-ds-border-inverse bg-ds-surface-inverse-subtle p-ds-3">
+                    <Icon icon={Terminal} size="lg" className="text-ds-content-on-inverse-muted" />
+                    <h3 id={logRegionId} className="font-mono text-ds-sm font-semibold text-ds-content-on-inverse">
+                        System Output Log
+                    </h3>
                 </div>
 
-                {/* Right: Terminal Logs */}
-                <div className="lg:col-span-2">
-                    <div className="flex h-[500px] max-h-[70vh] flex-col overflow-hidden rounded-ds-lg bg-ds-surface-inverse shadow-ds-lg">
-                        <div className="flex items-center gap-ds-2 border-b border-ds-border-inverse bg-ds-surface-inverse-subtle p-ds-3">
-                            <Icon icon={Terminal} size="lg" className="text-ds-content-on-inverse-muted" />
-                            <h3 id={logRegionId} className="font-mono text-ds-sm font-semibold text-ds-content-on-inverse">
-                                System Output Log
-                            </h3>
+                <div
+                    role="log"
+                    aria-labelledby={logRegionId}
+                    tabIndex={0}
+                    className="flex-1 space-y-ds-2 overflow-y-auto p-ds-4 font-mono text-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
+                >
+                    {logs.length === 0 && (
+                        <p className="mt-20 text-center text-ds-content-on-inverse-muted">
+                            Waiting for a maintenance action...
+                        </p>
+                    )}
+                    {logs.map((log) => (
+                        <div key={log.id} className="flex gap-ds-3">
+                            <span className="shrink-0 text-ds-content-on-inverse-muted">
+                                {log.time.split('T')[1].split('.')[0]}
+                            </span>
+                            <span className={`break-all ${LOG_TONE_CLASS[log.type] || LOG_TONE_CLASS.info}`}>
+                                {log.message}
+                            </span>
                         </div>
-
-                        <div
-                            role="log"
-                            aria-labelledby={logRegionId}
-                            tabIndex={0}
-                            className="flex-1 space-y-ds-2 overflow-y-auto p-ds-4 font-mono text-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
-                        >
-                            {logs.length === 0 && (
-                                <p className="mt-20 text-center text-ds-content-on-inverse-muted">
-                                    Waiting for diagnostic or repair start...
-                                </p>
-                            )}
-                            {logs.map((log) => (
-                                <div key={log.id} className="flex gap-ds-3">
-                                    <span className="shrink-0 text-ds-content-on-inverse-muted">
-                                        {log.time.split('T')[1].split('.')[0]}
-                                    </span>
-                                    <span className={`break-all ${LOG_TONE_CLASS[log.type] || LOG_TONE_CLASS.info}`}>
-                                        {log.message}
-                                    </span>
-                                </div>
-                            ))}
-                            <div ref={logsEndRef} />
-                        </div>
-                    </div>
+                    ))}
+                    <div ref={logsEndRef} />
                 </div>
-
             </div>
-
-            {confirmingReset && (
-                <ResetConfirmDialog
-                    onCancel={() => setConfirmingReset(false)}
-                    onConfirm={() => {
-                        setConfirmingReset(false);
-                        resetDiagnostics();
-                    }}
-                />
-            )}
         </Stack>
     );
 }
@@ -318,23 +143,5 @@ function MaintenanceAction({ description, status, successLabel, onRun, icon: Gly
                 </Button>
             </div>
         </div>
-    );
-}
-
-/**
- * Replaces the blocking `window.confirm` that guarded Reset. The warning wording
- * is preserved verbatim.
- */
-/** The approved `ConfirmDialog` since 2026-08-25; hand-composed before that. */
-function ResetConfirmDialog({ onCancel, onConfirm }) {
-    return (
-        <ConfirmDialog
-            tone="warning"
-            title="Reset the diagnostic?"
-            description="This will clear saved test progress. Continue?"
-            confirmLabel="Reset"
-            onCancel={onCancel}
-            onConfirm={onConfirm}
-        />
     );
 }

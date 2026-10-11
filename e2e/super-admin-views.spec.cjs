@@ -38,7 +38,7 @@ const VIEWS = [
   { nav: 'Releases', expect: (page) => page.getByRole('heading', { name: 'Releases', level: 2 }) },
   { nav: 'Stats Backfill', expect: (page) => page.getByRole('heading', { name: 'Performance Stats Backfill' }) },
   // Added 2026-07-28 with the final three views of the Super Admin row.
-  { nav: 'System Health', expect: (page) => page.getByRole('heading', { name: 'System Health & Diagnostics' }) },
+  { nav: 'System Health', expect: (page) => page.getByRole('heading', { name: 'System Health', level: 2 }) },
   // Form Builder's schema lives in Firestore, so offline its *settled* state is
   // the announced load failure — which is precisely the state the migration had
   // to make accessible (it was a bare amber block before). The loaded editor is
@@ -138,32 +138,26 @@ test.describe('Super Admin views', () => {
 
   // ---- The final three views of the Super Admin row (2026-07-28) ----
 
-  test('System Health reports status as text and progress as a real progressbar', async ({ page }) => {
-    await openShell(page);
-    await gotoView(page, 'System Health');
-    await expect(page.getByRole('heading', { name: 'System Health & Diagnostics' })).toBeVisible({ timeout: 20_000 });
-
-    // Status was colour-only; it now carries a text label.
-    await expect(page.getByText('Ready', { exact: true })).toBeVisible();
-    // Progress was a bare div whose width was the only signal.
-    const bar = page.getByRole('progressbar');
-    await expect(bar).toHaveAttribute('aria-valuenow', '0');
-    // The log console was an unnamed, unfocusable scroll region.
-    const log = page.getByRole('log');
-    await expect(log).toBeVisible();
-    await expect(log).toHaveAttribute('tabindex', '0');
-  });
-
-  test('System Health guards Reset with an accessible dialog, never window.confirm', async ({ page }) => {
+  test('System Health offers only the safe maintenance action, named and described', async ({ page }) => {
     let nativeDialogs = 0;
     page.on('dialog', async (d) => { nativeDialogs += 1; await d.dismiss(); });
 
     await openShell(page);
     await gotoView(page, 'System Health');
-    await expect(page.getByRole('heading', { name: 'System Health & Diagnostics' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: 'System Health', level: 2 })).toBeVisible({ timeout: 20_000 });
 
-    // Reset is only offered for paused/error/success; idle must not show it.
-    await expect(page.getByRole('button', { name: /^Reset/ })).toHaveCount(0);
+    // The one action left. Its explanation is visible help text, not a tooltip.
+    await expect(page.getByRole('button', { name: 'Sync Public Profiles' }))
+      .toHaveAccessibleDescription(/public_profiles/);
+    // Removed on 2026-10-11: they wrote test accounts and schema defaults into
+    // the live database.
+    for (const name of [/Deep Diagnostic/, /Resume Test/, /Sync Backend Structure/, /Backfill SMS/, /^Reset/]) {
+      await expect(page.getByRole('button', { name })).toHaveCount(0);
+    }
+    // The output log stays a named, keyboard-focusable region.
+    const log = page.getByRole('log');
+    await expect(log).toBeVisible();
+    await expect(log).toHaveAttribute('tabindex', '0');
     expect(nativeDialogs, 'a native confirm/alert was used').toBe(0);
   });
 
