@@ -86,6 +86,20 @@ describe('installStaleBuildReload', () => {
     expect(later.location.reload).toHaveBeenCalledTimes(1);
   });
 
+  it('reloads for a later release even when the last reload brought back the old build', async () => {
+    const storage = new Map();
+    const first = fakeWindow({ storage });
+    installStaleBuildReload({ win: first, runningSha: RUNNING });
+    await preloadError(first);
+    expect(first.location.reload).toHaveBeenCalledTimes(1);
+
+    // The reload was served the old build again; then another release goes live.
+    const later = fakeWindow({ storage, liveSha: 'c'.repeat(40) });
+    installStaleBuildReload({ win: later, runningSha: RUNNING });
+    await preloadError(later);
+    expect(later.location.reload).toHaveBeenCalledTimes(1);
+  });
+
   it('does not reload when the tab cannot remember having reloaded', async () => {
     const win = fakeWindow({ storageThrows: true });
     installStaleBuildReload({ win, runningSha: RUNNING });

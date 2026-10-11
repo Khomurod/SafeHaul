@@ -7,33 +7,34 @@
  * person reloaded by hand. The tab now reloads by itself, but only when
  * `/release.json` names a different release than the one running, so a file
  * blocked by the network or a browser extension never reloads the page; and at
- * most once per release per tab, so a reload that brings back the same build
- * cannot loop. Local and pull-request builds have no release SHA and are left
- * alone.
+ * most once per live release per tab, so a reload that brings back the old
+ * build cannot loop, while a later release can still reload the tab. Local and
+ * pull-request builds have no release SHA and are left alone.
  */
-const RELOADED_FROM_KEY = 'safehaul:reloaded-from-release';
+const RELOADED_TO_KEY = 'safehaul:reloaded-to-release';
 const RELEASE_SHA = /^[0-9a-f]{40}$/;
 
-async function newerReleaseIsLive(win, runningSha) {
+/** The live release's SHA, or null when nothing says which release is live. */
+async function liveReleaseSha(win) {
   try {
     const response = await win.fetch('/release.json', {
       cache: 'no-store',
       headers: { Accept: 'application/json' },
     });
-    if (!response.ok) return false;
+    if (!response.ok) return null;
     const { sha } = await response.json();
-    return RELEASE_SHA.test(String(sha)) && sha !== runningSha;
+    return RELEASE_SHA.test(String(sha)) ? sha : null;
   } catch {
     // Offline, or a host without the manifest: nothing says the build changed.
-    return false;
+    return null;
   }
 }
 
-/** True once per release per tab; false when storage cannot remember it. */
-function claimReload(win, runningSha) {
+/** True once per live release per tab; false when storage cannot remember it. */
+function claimReload(win, liveSha) {
   try {
-    if (win.sessionStorage.getItem(RELOADED_FROM_KEY) === runningSha) return false;
-    win.sessionStorage.setItem(RELOADED_FROM_KEY, runningSha);
+    if (win.sessionStorage.getItem(RELOADED_TO_KEY) === liveSha) return false;
+    win.sessionStorage.setItem(RELOADED_TO_KEY, liveSha);
     return true;
   } catch {
     return false;
@@ -52,7 +53,8 @@ export function installStaleBuildReload({
     if (checking) return;
     checking = true;
     try {
-      if (await newerReleaseIsLive(win, runningSha) && claimReload(win, runningSha)) {
+      const liveSha = await liveReleaseSha(win);
+      if (liveSha && liveSha !== runningSha && claimReload(win, liveSha)) {
         win.location.reload();
       }
     } finally {
