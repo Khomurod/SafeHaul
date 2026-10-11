@@ -54,7 +54,6 @@
 
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { availableParallelism } from 'node:os';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -66,13 +65,6 @@ const VIEWPORTS = [
     { width: 412, height: 915, label: 'mobile' },
     { width: 1440, height: 900, label: 'desktop' },
 ];
-
-/**
- * Pages measured at once: up to four, never more than the machine has cores.
- * Each has its own browser context, so no two share storage. Layout is
- * computed, not timed, so running side by side cannot change a measurement.
- */
-const WORKERS = Math.min(4, availableParallelism());
 
 const MIME = {
     '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
@@ -261,21 +253,19 @@ async function main() {
     const violations = [];
     let tablesMeasured = 0;
 
+    // One page at a time, like every Playwright run in CI (`.claude/rules/testing.md`).
     for (const viewport of VIEWPORTS) {
-        const queue = [...storyIds];
-        await Promise.all(Array.from({ length: Math.min(WORKERS, queue.length) }, async () => {
-            const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
-            const page = await context.newPage();
-            for (let id = queue.shift(); id; id = queue.shift()) {
-                await openStory(page, base, id);
-                const result = await page.evaluate(measureTables);
-                tablesMeasured += result.tableCount;
-                for (const finding of result.findings) {
-                    violations.push({ story: id, viewport: viewport.label, ...finding });
-                }
+        const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
+        const page = await context.newPage();
+        for (const id of storyIds) {
+            await openStory(page, base, id);
+            const result = await page.evaluate(measureTables);
+            tablesMeasured += result.tableCount;
+            for (const finding of result.findings) {
+                violations.push({ story: id, viewport: viewport.label, ...finding });
             }
-            await context.close();
-        }));
+        }
+        await context.close();
     }
     await browser.close();
     server?.close();
@@ -302,8 +292,7 @@ async function main() {
         const existing = seen.get(key);
         if (!existing || (violation.over || 0) > (existing.over || 0)) seen.set(key, violation);
     }
-    const rows = [...seen.values()].sort((a, b) => (b.over || 0) - (a.over || 0)
-        || a.story.localeCompare(b.story) || a.viewport.localeCompare(b.viewport));
+    const rows = [...seen.values()].sort((a, b) => (b.over || 0) - (a.over || 0));
 
     console.error('\nTable layout check failed.\n');
     console.error('A cell must be able to contain its content, and a table must be able to paint');
