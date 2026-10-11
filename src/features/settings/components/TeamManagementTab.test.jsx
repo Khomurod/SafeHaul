@@ -106,6 +106,18 @@ describe('TeamManagementTab — Add New User', () => {
         expect(screen.getByRole('combobox', { name: /Role/i })).toHaveValue('hr_user');
     });
 
+    it('says an email that already had an account was added, keeping its own password', async () => {
+        mocks.createFn.mockResolvedValue({
+            data: { status: 'success', message: 'User added to company. They keep their existing password.' },
+        });
+        renderTab();
+        fillForm();
+        fireEvent.click(screen.getByRole('button', { name: /Create User/i }));
+
+        await waitFor(() => expect(mocks.showSuccess)
+            .toHaveBeenCalledWith('User added to company. They keep their existing password.'));
+    });
+
     it('disables the submit control while creating', async () => {
         let resolveCreate;
         mocks.createFn.mockImplementation(() => new Promise((resolve) => { resolveCreate = resolve; }));

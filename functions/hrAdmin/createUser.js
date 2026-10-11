@@ -84,6 +84,13 @@ exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
         let existingAuthUser = null;
         try {
             const userRecord = await auth.getUserByEmail(email);
+            // A company admin attaching the Super Admin to their team would see the
+            // owner's profile and put the owner's account in their roster.
+            const claims = userRecord.customClaims || {};
+            const targetGlobalRole = claims.globalRole || (claims.roles && claims.roles.globalRole);
+            if (targetGlobalRole === "super_admin" && !isGlobalSuperAdmin) {
+                throw new HttpsError("permission-denied", "This person cannot be added to a company team.");
+            }
             userId = userRecord.uid;
             existingAuthUser = userRecord;
         } catch (e) {
@@ -138,10 +145,15 @@ exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        const msg = isNewUser ? "User created successfully." : "User added to company.";
-        return { status: "success", message: msg, userId };
+        // Someone else's user id is not the caller's to hold, and the password they
+        // typed is not applied to an account that already exists.
+        if (!isNewUser) {
+            return { status: "success", message: "User added to company. They keep their existing password." };
+        }
+        return { status: "success", message: "User created successfully.", userId };
 
     } catch (error) {
+        if (error instanceof HttpsError) throw error;
         console.error("Create User Error:", error);
         throw new HttpsError("internal", error.message);
     }

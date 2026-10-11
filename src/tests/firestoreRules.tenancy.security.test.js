@@ -79,6 +79,30 @@ describeFirestore('firestore.rules security regressions', () => {
     }));
   });
 
+  it('lets only the Super Admin write a membership; a company admin may still remove one of theirs', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'memberships', 'mem-own'), {
+        userId: 'recruiter-a', companyId: 'company-a', role: 'recruiter',
+      });
+    });
+    const adminDb = testEnv.authenticatedContext('admin-a', {
+      roles: { 'company-a': 'company_admin' },
+    }).firestore();
+    const ownerDb = testEnv.authenticatedContext('owner', {
+      roles: { globalRole: 'super_admin' },
+    }).firestore();
+
+    // Attaching someone else's account, or retargeting a membership, by a direct write.
+    await assertFails(setDoc(doc(adminDb, 'memberships', 'mem-new'), {
+      userId: 'owner', companyId: 'company-a', role: 'hr_user',
+    }));
+    await assertFails(updateDoc(doc(adminDb, 'memberships', 'mem-own'), { userId: 'owner' }));
+    await assertSucceeds(deleteDoc(doc(adminDb, 'memberships', 'mem-own')));
+    await assertSucceeds(setDoc(doc(ownerDb, 'memberships', 'mem-new'), {
+      userId: 'someone', companyId: 'company-a', role: 'hr_user',
+    }));
+  });
+
   it('reads dq_files only via in-document owner markers', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const adminDb = context.firestore();

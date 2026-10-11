@@ -77,7 +77,11 @@ exports.deletePortalUser = onCall({ maxInstances: 2 }, async (request) => {
             // Free the user's dedicated SMS line in this company (if any).
             await clearSmsAssignment(companyId, userId);
 
-            // Cleanup orphaned users
+            // Only the Super Admin's removal also takes an orphaned login. A company
+            // admin can attach any existing account to their company, so "removing"
+            // one is no proof the login was theirs to delete: it stays, roleless.
+            if (!isSuperAdmin) return { message: "User removed from team." };
+
             const remaining = await db.collection("memberships").where("userId", "==", userId).get();
             if (remaining.empty) {
                 try {
@@ -100,48 +104,19 @@ exports.deletePortalUser = onCall({ maxInstances: 2 }, async (request) => {
 exports.updatePortalUser = onCall({ maxInstances: 2 }, async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
 
-    const { userId, companyId, name, email } = request.data;
+    const { userId, name, email } = request.data;
 
     if (!userId) {
         throw new HttpsError("invalid-argument", "userId is required.");
     }
 
+    // Only the Super Admin edits another person's login. Membership of the
+    // caller's company proves nothing: a company admin can attach any existing
+    // account to their company, and a new login email plus a password reset is
+    // the whole account. People change their own email from their profile.
     const roles = request.auth.token.roles || {};
-    const isSuperAdmin = roles.globalRole === "super_admin";
-    const isCompanyAdmin = companyId && roles[companyId] === "company_admin";
-
-    if (!isSuperAdmin && !isCompanyAdmin) {
-        throw new HttpsError("permission-denied", "Permission denied.");
-    }
-
-    // BUG-11 FIX: A Company Admin's `roles[companyId] === 'company_admin'` claim only
-    // proves they're an admin OF that company — it does NOT prove the target user
-    // actually belongs to that company. Without this check, any company admin who
-    // could guess/leak a foreign userId could mutate that user's name + email and
-    // (via Firebase Auth) hijack the account by triggering a password reset to a
-    // new attacker-controlled address. Super Admins skip the check.
-    if (!isSuperAdmin) {
-        const targetUserSnap = await db.collection('users').doc(userId).get();
-        if (!targetUserSnap.exists) {
-            throw new HttpsError('not-found', 'Target user not found.');
-        }
-        const targetUser = targetUserSnap.data() || {};
-        const targetCompanyIds = new Set([
-            targetUser.companyId,
-            ...(Array.isArray(targetUser.companyIds) ? targetUser.companyIds : []),
-            ...(targetUser.companies && typeof targetUser.companies === 'object'
-                ? Object.keys(targetUser.companies)
-                : []),
-        ].filter(Boolean));
-        if (!targetCompanyIds.has(companyId)) {
-            console.warn(
-                `[updatePortalUser] BLOCKED: ${request.auth.uid} (admin of ${companyId}) tried to edit ${userId} which belongs to companies: ${[...targetCompanyIds].join(',') || 'none'}`
-            );
-            throw new HttpsError(
-                'permission-denied',
-                'You can only edit users that belong to your company.'
-            );
-        }
+    if ((request.auth.token.globalRole || roles.globalRole) !== "super_admin") {
+        throw new HttpsError("permission-denied", "Only the Super Admin can change another person's login.");
     }
 
     try {

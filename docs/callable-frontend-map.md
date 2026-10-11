@@ -31,7 +31,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `getPlatformAlerts` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: the alert connection and what the hourly watcher last saw |
 | `proposeApplicationChanges` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Company edits saved as pending driver-approval changes |
 | `deleteCompany` | [`DeleteCompanyModal.jsx`](../src/features/super-admin/components/modals/DeleteCompanyModal.jsx) | Remove tenant |
-| `deletePortalUser` | [`DeleteUserModal.jsx`](../src/features/super-admin/components/modals/DeleteUserModal.jsx), [`ManageTeamModal.jsx`](../src/shared/components/modals/ManageTeamModal.jsx), [`EditUserNameForm.jsx`](../src/features/super-admin/components/users/EditUserNameForm.jsx) | Delete portal account |
+| `deletePortalUser` | [`DeleteUserModal.jsx`](../src/features/super-admin/components/modals/DeleteUserModal.jsx), [`ManageTeamModal.jsx`](../src/shared/components/modals/ManageTeamModal.jsx), [`EditUserNameForm.jsx`](../src/features/super-admin/components/users/EditUserNameForm.jsx) | Company admin: remove from the team (login kept) · Super Admin: also delete the login |
 | `deleteEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: delete one configuration field after typed confirmation |
 | `deleteSandboxApplication` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | Sandbox cleanup |
 | `getEmailSettingsMeta` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) | Load SMTP meta (no password) |
@@ -84,7 +84,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `testLineConnection` | [`AddLineModal.jsx`](../src/features/super-admin/components/integrations/AddLineModal.jsx) | Test new SMS line |
 | `transferSandboxApplication` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | Move sandbox app to prod tenant |
 | `updateEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: replace one editable configuration value |
-| `updatePortalUser` | [`userService.js`](../src/features/auth/services/userService.js) | Update portal user / claims |
+| `updatePortalUser` | [`userService.js`](../src/features/auth/services/userService.js) | Super Admin only: change a person's name or login email |
 | `verifyLineConnection` | [`NumberAssignmentManager.jsx`](../src/features/settings/components/NumberAssignmentManager.jsx) | Verify recruiter line assignment |
 | `verifySmsConfig` | [`SMSDiagnosticModal.jsx`](../src/features/settings/components/SMSDiagnosticModal.jsx) | Verify company SMS config |
 
