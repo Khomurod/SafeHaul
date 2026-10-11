@@ -5,17 +5,16 @@
  * These return HTML strings only; sending is done by the callers.
  */
 
-const { escapeHtml, clipText, plainGuestText } = require("../shared/plainText");
+const { escapeHtml, plainGuestText } = require("../shared/plainText");
 
 /**
  * The names and dates a PEV email shows, escaped. The driver typed the names
- * and the employer's address, so a person's name shows as plain words, cut
- * short; an employer's name keeps its dots ("Amazon.com Services LLC").
+ * and the employer's address, so the names are plain words, cut short.
  */
 function safeRequestText({ applicantName, employerName, companyName, employmentDates, deadlineDate }) {
     return {
         applicantName: escapeHtml(plainGuestText(applicantName, 80)),
-        employerName: escapeHtml(clipText(employerName, 120)),
+        employerName: escapeHtml(plainGuestText(employerName, 120)),
         companyName: escapeHtml(companyName),
         employmentDates: escapeHtml(employmentDates),
         deadlineDate: escapeHtml(deadlineDate),

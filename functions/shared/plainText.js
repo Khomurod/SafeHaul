@@ -2,7 +2,7 @@
 //
 // Showing text people typed inside HTML we send: escaped, and, for text a
 // stranger typed into an email a company's mail server sends, cut short and
-// free of anything a mail client would turn into a link.
+// with nothing a mail client would turn into a link.
 
 /** Escapes the five characters that matter in HTML text and attributes. */
 function escapeHtml(value) {
@@ -31,23 +31,27 @@ function clipText(value, maxChars) {
     return chars.length > maxChars ? `${chars.slice(0, maxChars).join('').trimEnd()}…` : text;
 }
 
-// A whole word holding a web address, an email address or a bare domain
-// ("evil.test/login"): the shapes mail clients turn into links.
+// A whole word that is plainly a link: a web address, an email address, an IP
+// address ("93.184.216.34/login").
 const LINK_WORDS = [
     /\S*(?:[a-z][a-z0-9+.-]*:\/\/|www\.)\S*/giu,
     /\S*@\S*/gu,
-    /\S*[\p{L}\p{N}]\.\p{L}{2,}\S*/gu,
+    /\S*\d{1,3}(?:\.\d{1,3}){3}\S*/gu,
 ];
+// The dot of a word that could pass for a domain: "evil.test/login", but also
+// "Amazon.com Services LLC" and "Mary St.Clair".
+const DOMAIN_DOT = /(?<=[\p{L}\p{N}])\.(?=\p{L}{2,})/gu;
 
 /**
- * `clipText` minus every word a mail client would turn into a link, for a
- * person's name or a job title a stranger typed: neither holds a link, and a
- * link in one would reach its reader through a real company's mail.
+ * Text a stranger typed into an email a real company's mail server sends,
+ * made plain: `clipText`, minus every word that is plainly a link. A word that
+ * only looks like a domain stays, with an invisible break after its dot so no
+ * mail client links it.
  */
 function plainGuestText(value, maxChars) {
     let text = String(value ?? '').replace(INVISIBLE, '');
     for (const pattern of LINK_WORDS) text = text.replace(pattern, ' ');
-    return clipText(text, maxChars);
+    return clipText(text, maxChars).replace(DOMAIN_DOT, '.\u200B');
 }
 
 module.exports = { escapeHtml, clipText, plainGuestText };

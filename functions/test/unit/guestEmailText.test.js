@@ -44,13 +44,22 @@ describe('the shared helpers', () => {
         expect(clipText('Amazon.com Services LLC', 120)).toBe('Amazon.com Services LLC');
     });
 
-    it('removes anything a mail client would turn into a link, and keeps real names', () => {
+    it('removes every word that is plainly a link', () => {
         expect(plainGuestText('Jane https://evil.test/x Doe', 80)).toBe('Jane Doe');
         expect(plainGuestText('Jane www.evil.test Doe', 80)).toBe('Jane Doe');
-        expect(plainGuestText('Jane evil.test/login Doe', 80)).toBe('Jane Doe');
         expect(plainGuestText('Jane me@evil.test Doe', 80)).toBe('Jane Doe');
-        // A zero-width space cannot hide a domain from the check.
-        expect(plainGuestText('Jane evil\u200B.test Doe', 80)).toBe('Jane Doe');
+        expect(plainGuestText('Jane 93.184.216.34/login Doe', 80)).toBe('Jane Doe');
+    });
+
+    it('keeps a word that only looks like a domain, with an invisible break no mail client links', () => {
+        const ZWSP = '\u200B';
+        expect(plainGuestText('Jane evil.test/login Doe', 80)).toBe(`Jane evil.${ZWSP}test/login Doe`);
+        expect(plainGuestText('Mary St.Clair', 80)).toBe(`Mary St.${ZWSP}Clair`);
+        expect(plainGuestText('Dr.Smith, Sr.Director', 80)).toBe(`Dr.${ZWSP}Smith, Sr.${ZWSP}Director`);
+        expect(plainGuestText('Amazon.com Services LLC', 120)).toBe(`Amazon.${ZWSP}com Services LLC`);
+        // A zero-width space the guest typed is dropped first, so it cannot sit
+        // anywhere but right after the dot.
+        expect(plainGuestText('Jane evil\u200B.test Doe', 80)).toBe(`Jane evil.${ZWSP}test Doe`);
         expect(plainGuestText("J.R. O'Neil-Smith Jr.", 80)).toBe("J.R. O'Neil-Smith Jr.");
         expect(plainGuestText('Class A CDL Driver (OTR) w/ home time', 80)).toBe('Class A CDL Driver (OTR) w/ home time');
     });
@@ -101,11 +110,12 @@ describe('the PEV emails', () => {
         deadlineDate: 'November 10, 2026',
     };
 
-    it('escapes every name in the request and reminder emails, keeping a company name whole', () => {
+    it('escapes every name in the request and reminder emails, and links none', () => {
         for (const html of [buildVerificationEmailHTML(request), buildReminderEmailHTML({ ...request, reminderType: 'final_notice' })]) {
             expect(html).not.toContain('evil.test');
             expect(html).not.toMatch(/<(i|b|u)>/);
-            expect(html).toContain('Amazon.com Services &lt;i&gt;LLC&lt;/i&gt;');
+            expect(html).not.toContain('Amazon.com');
+            expect(html.replace(/\u200B/g, '')).toContain('Amazon.com Services &lt;i&gt;LLC&lt;/i&gt;');
             expect(html).toContain('Acme &lt;b&gt;Trucking&lt;/b&gt;');
             expect(html).toContain('01/2020 - &lt;u&gt;02/2022&lt;/u&gt;');
             // The real link to the form is untouched.
@@ -129,6 +139,11 @@ describe('the PEV emails', () => {
     it('escapes the names in the no-response email', () => {
         const html = buildCarrierNoResponseEmailHTML({ ...request, reminderCount: 3 });
         expect(html).not.toContain('evil.test');
-        expect(html).toContain('Amazon.com Services &lt;i&gt;LLC&lt;/i&gt;');
+        expect(html.replace(/\u200B/g, '')).toContain('Amazon.com Services &lt;i&gt;LLC&lt;/i&gt;');
+    });
+
+    it('links no employer name, whatever the driver typed', () => {
+        const html = buildVerificationEmailHTML({ ...request, employerName: 'https://evil.example/login' });
+        expect(html).not.toContain('evil.example');
     });
 });
