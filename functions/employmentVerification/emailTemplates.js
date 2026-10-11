@@ -5,10 +5,28 @@
  * These return HTML strings only; sending is done by the callers.
  */
 
+const { escapeHtml, plainGuestText } = require("../shared/plainText");
+
+/**
+ * The names and dates a PEV email shows, escaped. The driver typed the names
+ * and the employer's address, so the names are plain words, cut short.
+ */
+function safeRequestText({ applicantName, employerName, companyName, employmentDates, deadlineDate }) {
+    return {
+        applicantName: escapeHtml(plainGuestText(applicantName, 80)),
+        employerName: escapeHtml(plainGuestText(employerName, 120)),
+        companyName: escapeHtml(companyName),
+        employmentDates: escapeHtml(employmentDates),
+        deadlineDate: escapeHtml(deadlineDate),
+    };
+}
+
 // ============================================================
 // HELPER: Build verification email HTML with CTA button
 // ============================================================
-function buildVerificationEmailHTML({ applicantName, employerName, companyName, employmentDates, token, baseUrl, deadlineDate }) {
+function buildVerificationEmailHTML(params) {
+    const { token, baseUrl } = params;
+    const { applicantName, employerName, companyName, employmentDates, deadlineDate } = safeRequestText(params);
     return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 0;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background: #f5f7fa;">
@@ -116,7 +134,9 @@ function buildVerificationEmailHTML({ applicantName, employerName, companyName, 
 // ============================================================
 // HELPER: Build reminder email HTML
 // ============================================================
-function buildReminderEmailHTML({ applicantName, employerName, companyName, employmentDates, token, baseUrl, deadlineDate, reminderType }) {
+function buildReminderEmailHTML(params) {
+    const { token, baseUrl, reminderType } = params;
+    const { applicantName, employerName, companyName, employmentDates, deadlineDate } = safeRequestText(params);
     const urgencyStyles = {
         first_reminder: { bannerColor: '#f59e0b', bannerText: 'Reminder', urgencyText: 'This is a friendly reminder that we are still awaiting your response.' },
         second_reminder: { bannerColor: '#f97316', bannerText: '2nd Reminder', urgencyText: 'We have not yet received your response. This is your second notice.' },
@@ -165,6 +185,11 @@ function buildReminderEmailHTML({ applicantName, employerName, companyName, empl
 // HELPER: Build carrier "verification complete" notification HTML
 // ============================================================
 function buildCarrierCompleteEmailHTML(verificationData, formResponse) {
+    const { applicantName, employerName } = safeRequestText(verificationData);
+    // Typed by whoever opened the verification link.
+    const positionHeld = escapeHtml(plainGuestText(formResponse.positionHeld, 120)) || 'N/A';
+    const respondentName = escapeHtml(plainGuestText(formResponse.respondentName, 80));
+    const respondentTitle = escapeHtml(plainGuestText(formResponse.respondentTitle, 80));
     const wasEmployed = formResponse.wasEmployed ? 'Yes' : 'No';
     const hadViolations = formResponse.hadDrugAlcoholViolations ? '⚠️ YES' : '✅ No';
     const hadAccidents = formResponse.hadAccidents ? '⚠️ YES' : '✅ No';
@@ -173,16 +198,16 @@ function buildCarrierCompleteEmailHTML(verificationData, formResponse) {
     <div style="font-family: Arial, sans-serif; max-width: 600px;">
         <div style="background: #059669; color: white; padding: 20px 24px; border-radius: 8px 8px 0 0;">
             <h2 style="margin: 0; font-size: 18px;">&#9989; Employment Verification Completed</h2>
-            <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">${verificationData.applicantName} — Response Received</p>
+            <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">${applicantName} — Response Received</p>
         </div>
         <div style="background: white; padding: 24px; border: 1px solid #e2e8f0;">
-            <p>Great news! <strong>${verificationData.employerName}</strong> has completed the employment verification for <strong>${verificationData.applicantName}</strong>.</p>
+            <p>Great news! <strong>${employerName}</strong> has completed the employment verification for <strong>${applicantName}</strong>.</p>
             <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
                 <tr style="background: #f8fafc;"><td style="padding: 8px 12px; border: 1px solid #e2e8f0;"><strong>Was Employed</strong></td><td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${wasEmployed}</td></tr>
-                <tr><td style="padding: 8px 12px; border: 1px solid #e2e8f0;"><strong>Position Held</strong></td><td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${formResponse.positionHeld || 'N/A'}</td></tr>
+                <tr><td style="padding: 8px 12px; border: 1px solid #e2e8f0;"><strong>Position Held</strong></td><td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${positionHeld}</td></tr>
                 <tr style="background: #f8fafc;"><td style="padding: 8px 12px; border: 1px solid #e2e8f0;"><strong>Drug/Alcohol Violations</strong></td><td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${hadViolations}</td></tr>
                 <tr><td style="padding: 8px 12px; border: 1px solid #e2e8f0;"><strong>Accidents (3yr)</strong></td><td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${hadAccidents}</td></tr>
-                <tr style="background: #f8fafc;"><td style="padding: 8px 12px; border: 1px solid #e2e8f0;"><strong>Respondent</strong></td><td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${formResponse.respondentName} (${formResponse.respondentTitle})</td></tr>
+                <tr style="background: #f8fafc;"><td style="padding: 8px 12px; border: 1px solid #e2e8f0;"><strong>Respondent</strong></td><td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${respondentName} (${respondentTitle})</td></tr>
             </table>
             <p style="font-size: 13px; color: #666;">Full details and PDF have been automatically added to the applicant's DQ file.</p>
         </div>
@@ -193,14 +218,15 @@ function buildCarrierCompleteEmailHTML(verificationData, formResponse) {
 // HELPER: Build carrier "no response" (good faith) notification HTML
 // ============================================================
 function buildCarrierNoResponseEmailHTML(verificationData) {
+    const { applicantName, employerName } = safeRequestText(verificationData);
     return `
     <div style="font-family: Arial, sans-serif; max-width: 600px;">
         <div style="background: #d97706; color: white; padding: 20px 24px; border-radius: 8px 8px 0 0;">
             <h2 style="margin: 0;">&#9888;&#65039; PEV No Response: Good Faith Effort Documented</h2>
         </div>
         <div style="background: white; padding: 24px; border: 1px solid #e2e8f0;">
-            <p>After <strong>30 days</strong> and multiple follow-up attempts, <strong>${verificationData.employerName}</strong> has not responded to the employment verification request for <strong>${verificationData.applicantName}</strong>.</p>
-            <p>Per <strong>FMCSA 49 CFR §391.23(j)</strong>, your good-faith effort has been documented. All attempts (initial request + ${verificationData.reminderCount || 0} reminders) have been recorded in the system.</p>
+            <p>After <strong>30 days</strong> and multiple follow-up attempts, <strong>${employerName}</strong> has not responded to the employment verification request for <strong>${applicantName}</strong>.</p>
+            <p>Per <strong>FMCSA 49 CFR §391.23(j)</strong>, your good-faith effort has been documented. All attempts (initial request + ${escapeHtml(verificationData.reminderCount || 0)} reminders) have been recorded in the system.</p>
             <p><strong>Recommended next steps:</strong></p>
             <ul>
                 <li>Attempt a phone follow-up directly</li>

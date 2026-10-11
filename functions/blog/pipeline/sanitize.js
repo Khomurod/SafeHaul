@@ -14,6 +14,8 @@
  * because none of those constructs survive as anything but escaped text.
  */
 
+const { escapeHtml } = require('../../shared/plainText');
+
 /** Block types the renderer knows. Anything else is dropped. */
 const BLOCK_TYPES = Object.freeze(['heading', 'paragraph', 'list', 'quote']);
 
@@ -25,15 +27,6 @@ const MAX_SLUG_CHARS = 80;
 /** Only these schemes may appear in a rendered link. */
 const ALLOWED_LINK_SCHEMES = Object.freeze(['https:', 'http:']);
 
-/** Escapes the five characters that matter in HTML text and attributes. */
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
 
 /**
  * Strips control characters and collapses whitespace.

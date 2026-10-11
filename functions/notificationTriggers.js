@@ -5,6 +5,7 @@
 const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 // H5 FIX: Use shared db instance from firebaseAdmin instead of lazy-initializing a duplicate
 const { db } = require("./firebaseAdmin");
+const { escapeHtml, plainGuestText } = require("./shared/plainText");
 
 // --- Helper: Create Notification ---
 async function createNotification(db, companyId, notification) {
@@ -196,12 +197,14 @@ exports.onNewApplicationEmailConfirmation = onDocumentCreated(
         const applicantEmail = data.email;
         if (!applicantEmail || !applicantEmail.includes('@')) return;
 
-        const applicantName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || 'Applicant';
+        // The guest picks both the recipient and these words, and the email leaves
+        // through the company's own mail server: plain words only, cut short.
+        const applicantName = plainGuestText(`${data.firstName || ''} ${data.lastName || ''}`, 80) || 'Applicant';
         const appIdFormatted = event.params.appId.length >= 8
             ? event.params.appId.slice(0, 8).toUpperCase()
             : event.params.appId.toUpperCase().padEnd(8, '0');
         const confirmationNumber = data.confirmationNumber || appIdFormatted;
-        const position = data.positionApplyingTo || 'Driver';
+        const position = plainGuestText(data.positionApplyingTo, 80) || 'Driver';
         const companyId = event.params.companyId;
 
         try {
@@ -215,14 +218,14 @@ exports.onNewApplicationEmailConfirmation = onDocumentCreated(
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 20px;">
                 <div style="background: white; border-radius: 12px; padding: 32px; border: 1px solid #e5e7eb;">
                     <h1 style="color: #1f2937; font-size: 24px; margin-bottom: 8px;">Application Received</h1>
-                    <p style="color: #6b7280; font-size: 16px; margin-bottom: 24px;">Thank you for applying to <strong>${companyName}</strong>.</p>
+                    <p style="color: #6b7280; font-size: 16px; margin-bottom: 24px;">Thank you for applying to <strong>${escapeHtml(companyName)}</strong>.</p>
 
                     <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
                         <p style="color: #166534; font-size: 14px; margin: 0 0 8px;">
                             <strong>Confirmation Number:</strong>
                         </p>
                         <p style="color: #15803d; font-size: 28px; font-family: monospace; font-weight: bold; letter-spacing: 2px; margin: 0;">
-                            ${confirmationNumber}
+                            ${escapeHtml(confirmationNumber)}
                         </p>
                         <p style="color: #166534; font-size: 12px; margin: 8px 0 0;">
                             Keep this number for your records. You may be asked to provide it when following up.
@@ -230,13 +233,13 @@ exports.onNewApplicationEmailConfirmation = onDocumentCreated(
                     </div>
 
                     <div style="margin-bottom: 24px;">
-                        <p style="color: #374151; margin: 0 0 4px;"><strong>Applicant:</strong> ${applicantName}</p>
-                        <p style="color: #374151; margin: 0 0 4px;"><strong>Position:</strong> ${position}</p>
+                        <p style="color: #374151; margin: 0 0 4px;"><strong>Applicant:</strong> ${escapeHtml(applicantName)}</p>
+                        <p style="color: #374151; margin: 0 0 4px;"><strong>Position:</strong> ${escapeHtml(position)}</p>
                         <p style="color: #374151; margin: 0;"><strong>Submitted:</strong> ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}</p>
                     </div>
 
                     <p style="color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
-                        A recruiter from <strong>${companyName}</strong> will review your application and contact you.
+                        A recruiter from <strong>${escapeHtml(companyName)}</strong> will review your application and contact you.
                         This is an automated confirmation — please do not reply to this email.
                     </p>
                 </div>
