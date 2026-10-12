@@ -12,6 +12,7 @@ const { isBlacklisted } = require("../../blacklist");
 const { normalizePhone } = require("../../utils/phoneUtils");
 const { pauseBeforeNextSend } = require("./sendPacing");
 const { escapeHtml, plainGuestText, plainGuestSmsText } = require("../../shared/plainText");
+const { emailLedgerKey } = require("../helpers/recentlyMessaged");
 
 /** Returns `{ batchSuccessCount, batchFailCount, pointerAdvanceCount }`. */
 async function runSendLoop({
@@ -233,12 +234,10 @@ async function runSendLoop({
                     }
                 } else if (success && config.method === 'email') {
                     const normEmail = String(recipientIdentity || '').trim().toLowerCase();
-                    // Doc IDs cannot contain "/" — Base64 the email to keep it path-safe.
-                    if (normEmail && normEmail.includes('@')) {
-                        const docId = Buffer.from(normEmail, 'utf8').toString('base64')
-                            .replace(/=+$/, '')
-                            .replace(/\//g, '_')
-                            .replace(/\+/g, '-');
+                    // The ledger keys an address the way the "recently messaged"
+                    // check reads it back: base64url, since doc IDs cannot hold "/".
+                    const docId = emailLedgerKey(normEmail);
+                    if (docId) {
                         db.collection('companies').doc(companyId)
                             .collection('email_sent_addresses').doc(docId)
                             .set({

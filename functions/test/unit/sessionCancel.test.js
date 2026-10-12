@@ -61,8 +61,6 @@ jest.mock('../../bulkActions/helpers/auth', () => ({
 jest.mock('../../bulkActions/helpers/queryBuilder', () => ({ buildLeadQueries: jest.fn() }));
 jest.mock('../../bulkActions/helpers/phoneLedger', () => ({
   derivePhoneLedgerKeys: jest.fn(),
-  buildSmsLedgerThreshold: jest.fn(),
-  findRecentlyMessagedCanonicalPhones: jest.fn(),
 }));
 jest.mock('../../shared/rateLimiter', () => ({ checkRateLimit: jest.fn().mockResolvedValue(true) }));
 
