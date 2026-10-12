@@ -19,6 +19,7 @@ import {
 import { statusMatchesSegment } from '@shared/utils/applicationStatus';
 import { toUsStateCode, toUsStateName } from '@shared/utils/usStates';
 import { NORTH_AMERICAN_REGION_NAMES, fmcsaRegionOutsideUs } from '@shared/utils/northAmericanRegions';
+import { parseIsoDateParts } from '@shared/utils/dateFormHelpers';
 
 const CONFIRMATION_PATTERN = /^[A-Za-z]{2,5}\s*-\s*\d{4}\s*-\s*[A-Za-z0-9]{4,8}$/;
 const PHONE_PATTERN = /^[+()\-.\s\d]{7,}$/;
@@ -207,18 +208,33 @@ export function stateFilterValues(value) {
     return [...new Set([name, name.toUpperCase(), name.toLowerCase(), ...codes])];
 }
 
+/**
+ * The day picked in the date filter, as the instants it covers on the
+ * recruiter's clock: from that day's local midnight to the next one, so a day
+ * the clocks change on is 23 or 25 hours long. The list query asks Firestore for
+ * a `createdAt` in this range, and the client-side mirror applies the same one.
+ *
+ * @param {unknown} dateFilter e.g. `'2026-10-12'`
+ * @returns {{ start: Date, end: Date } | null} `null` for anything but a real
+ *   `YYYY-MM-DD` day, which sets no date constraint
+ */
+export function dateFilterRange(dateFilter) {
+    const parts = parseIsoDateParts(dateFilter);
+    if (!parts) return null;
+    return {
+        start: new Date(parts.year, parts.month - 1, parts.day),
+        end: new Date(parts.year, parts.month - 1, parts.day + 1),
+    };
+}
+
 function matchesDateFilter(record, dateFilter) {
-    if (!dateFilter) return true;
-    const ts = record.submittedAt || record.createdAt;
+    const range = dateFilterRange(dateFilter);
+    if (!range) return true;
+    const ts = record.createdAt;
     if (!ts) return false;
     try {
-        const d = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
-        const filterDate = new Date(`${dateFilter}T00:00:00`);
-        return (
-            d.getFullYear() === filterDate.getFullYear() &&
-            d.getMonth() === filterDate.getMonth() &&
-            d.getDate() === filterDate.getDate()
-        );
+        const at = (ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000)).getTime();
+        return at >= range.start.getTime() && at < range.end.getTime();
     } catch {
         return false;
     }

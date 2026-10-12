@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import {
     classifySearchTerm,
     buildSearchPlans,
@@ -7,6 +7,7 @@ import {
     mergeSearchResults,
     leadStatusMatchesSegment,
     stateFilterValues,
+    dateFilterRange,
     PREFIX_END,
 } from './dashboardSearch';
 
@@ -227,6 +228,60 @@ describe('stateFilterValues', () => {
         expect(stateFilterValues('Atlantis')).toEqual(['Atlantis']);
         expect(stateFilterValues('   ')).toEqual([]);
         expect(stateFilterValues(undefined)).toEqual([]);
+    });
+});
+
+describe('the date filter, on a clock in Chicago', () => {
+    let zone;
+
+    beforeEach(() => {
+        zone = process.env.TZ;
+        process.env.TZ = 'America/Chicago';
+    });
+
+    afterEach(() => {
+        if (zone === undefined) delete process.env.TZ;
+        else process.env.TZ = zone;
+    });
+
+    it('covers the picked day from local midnight to the next', () => {
+        expect(dateFilterRange('2026-10-12')).toEqual({
+            start: new Date('2026-10-12T05:00:00Z'),
+            end: new Date('2026-10-13T05:00:00Z'),
+        });
+    });
+
+    it('is 25 hours long on the day the clocks go back', () => {
+        expect(dateFilterRange('2026-11-01')).toEqual({
+            start: new Date('2026-11-01T05:00:00Z'),
+            end: new Date('2026-11-02T06:00:00Z'),
+        });
+    });
+
+    it('is no range for anything but a real day', () => {
+        for (const value of ['', '2026-02-30', '10/12/2026', undefined]) {
+            expect(dateFilterRange(value)).toBeNull();
+        }
+    });
+
+    it('matches records by the day they were created, as the query does', () => {
+        // Artificial records. The last was submitted on the day but created before
+        // it; the server, which asks for createdAt, does not return it either.
+        const records = [
+            { id: 'evening-before', createdAt: { seconds: Date.parse('2026-10-12T04:59:00Z') / 1000 } },
+            { id: 'midnight', createdAt: { seconds: Date.parse('2026-10-12T05:00:00Z') / 1000 } },
+            { id: 'late', createdAt: { seconds: Date.parse('2026-10-13T04:59:00Z') / 1000 } },
+            { id: 'next-day', createdAt: { seconds: Date.parse('2026-10-13T05:00:00Z') / 1000 } },
+            {
+                id: 'resubmitted',
+                createdAt: { seconds: Date.parse('2026-10-05T15:00:00Z') / 1000 },
+                submittedAt: { seconds: Date.parse('2026-10-12T15:00:00Z') / 1000 },
+            },
+        ];
+
+        expect(applyClientSideFilters(records, {
+            activeTab: 'applications', pipelineSegment: 'all', filters: { dateFilter: '2026-10-12' },
+        }).map((r) => r.id)).toEqual(['midnight', 'late']);
     });
 });
 
