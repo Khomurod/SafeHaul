@@ -7,6 +7,22 @@
 const { db, storage } = require("../firebaseAdmin");
 const { PDFDocument, rgb, StandardFonts } = require("pdf-lib");
 const { logger } = require("firebase-functions");
+const { sanitizeForStandardFont, wrapText } = require("../shared/pdf/layout");
+
+// Nothing is drawn below this line; the next row starts a new page instead.
+const BOTTOM_MARGIN = 50;
+
+/**
+ * A yes/no answer as the record must state it. The portal requires these
+ * questions, but the server stores what arrives (`?? null`), and a missing
+ * answer printed as "No" would put a statement on the record that the
+ * employer never made.
+ */
+function answer(value, yes = 'Yes') {
+    if (value === true) return yes;
+    if (value === false) return 'No';
+    return 'Not answered';
+}
 
 // ============================================================
 // HELPER: Generate PDF for DQ File
@@ -36,11 +52,57 @@ async function generateVerificationPDF(verificationData, responseData, token) {
         const { width, height } = page.getSize();
         let y = height - 50;
 
+        // The standard fonts encode WinAnsi only, and pdf-lib throws on anything
+        // else, a newline included: one such character in an answer used to
+        // abort the whole document. Every string is drawn sanitized, on one line.
         const drawText = (text, x, currentY, options = {}) => {
             const f = options.font || font;
             const s = options.size || fontSize;
             const c = options.color || rgb(0.1, 0.1, 0.1);
-            page.drawText(text, { x, y: currentY, size: s, font: f, color: c });
+            const line = sanitizeForStandardFont(text).replace(/\n/g, ' ');
+            page.drawText(line, { x, y: currentY, size: s, font: f, color: c });
+        };
+
+        // Room for `needed` points below the cursor, or a fresh page.
+        const ensureSpace = (needed) => {
+            if (y - needed >= BOTTOM_MARGIN) return;
+            page = pdfDoc.addPage([612, 792]);
+            y = height - 50;
+        };
+
+        // A label and its value; a long value wraps in its column, onto the
+        // next page if it must.
+        const VALUE_X = 220;
+        const drawRow = (label, value, options = {}) => {
+            const lines = wrapText(value ?? 'N/A', { font, size: fontSize, maxWidth: width - 50 - VALUE_X });
+            ensureSpace(16);
+            drawText(label, 50, y, { font: fontBold });
+            lines.forEach((line, i) => {
+                if (i > 0) {
+                    y -= 14;
+                    ensureSpace(16);
+                }
+                drawText(line, VALUE_X, y, options);
+            });
+            y -= 16;
+        };
+
+        // Free text under its label, wrapped to the page and continued on the next.
+        const drawParagraph = (label, text) => {
+            ensureSpace(28);
+            drawText(label, 50, y, { font: fontBold });
+            y -= 14;
+            for (const line of wrapText(text, { font, size: fontSize, maxWidth: width - 120 })) {
+                ensureSpace(14);
+                drawText(line, 70, y);
+                y -= 14;
+            }
+        };
+
+        const drawSectionTitle = (title) => {
+            ensureSpace(42);
+            drawText(title, 50, y, { font: fontBold, size: subHeaderSize });
+            y -= 18;
         };
 
         const drawLine = (x1, y1, x2, y2) => {
@@ -56,8 +118,7 @@ async function generateVerificationPDF(verificationData, responseData, token) {
         y -= 24;
 
         // ---- VERIFICATION INFO ----
-        drawText('VERIFICATION DETAILS', 50, y, { font: fontBold, size: subHeaderSize });
-        y -= 18;
+        drawSectionTitle('VERIFICATION DETAILS');
 
         const fields = [
             ['Applicant Name:', verificationData.applicantName],
@@ -70,9 +131,7 @@ async function generateVerificationPDF(verificationData, responseData, token) {
         ];
 
         for (const [label, value] of fields) {
-            drawText(label, 50, y, { font: fontBold });
-            drawText(value || 'N/A', 220, y);
-            y -= 16;
+            drawRow(label, value || 'N/A');
         }
 
         y -= 10;
@@ -80,22 +139,19 @@ async function generateVerificationPDF(verificationData, responseData, token) {
         y -= 24;
 
         // ---- SECTION 1: EMPLOYMENT CONFIRMATION ----
-        drawText('SECTION 1: EMPLOYMENT CONFIRMATION', 50, y, { font: fontBold, size: subHeaderSize });
-        y -= 18;
+        drawSectionTitle('SECTION 1: EMPLOYMENT CONFIRMATION');
 
         const section1 = [
-            ['Was Employed:', responseData.wasEmployed ? 'Yes' : 'No'],
+            ['Was Employed:', answer(responseData.wasEmployed)],
             ['Confirmed Start Date:', responseData.confirmedStartDate || 'N/A'],
             ['Confirmed End Date:', responseData.confirmedEndDate || 'N/A'],
             ['Position Held:', responseData.positionHeld || 'N/A'],
             ['Reason for Leaving:', responseData.reasonForLeaving || 'N/A'],
-            ['Eligible for Rehire:', responseData.eligibleForRehire === true ? 'Yes' : responseData.eligibleForRehire === false ? 'No' : 'N/A'],
+            ['Eligible for Rehire:', answer(responseData.eligibleForRehire)],
         ];
 
         for (const [label, value] of section1) {
-            drawText(label, 50, y, { font: fontBold });
-            drawText(value, 220, y);
-            y -= 16;
+            drawRow(label, value);
         }
 
         y -= 10;
@@ -103,88 +159,54 @@ async function generateVerificationPDF(verificationData, responseData, token) {
         y -= 24;
 
         // ---- SECTION 2: SAFETY & COMPLIANCE ----
-        drawText('SECTION 2: SAFETY & COMPLIANCE (FMCSA REQUIRED)', 50, y, { font: fontBold, size: subHeaderSize });
-        y -= 18;
+        drawSectionTitle('SECTION 2: SAFETY & COMPLIANCE (FMCSA REQUIRED)');
 
+        const flagged = (value) => (value === 'YES' ? rgb(0.8, 0.1, 0.1) : rgb(0.1, 0.1, 0.1));
         const section2 = [
-            ['Subject to FMCSRs:', responseData.subjectToFmcsrs ? 'Yes' : 'No'],
-            ['Subject to DOT Testing:', responseData.subjectToDotTesting ? 'Yes' : 'No'],
-            ['Drug/Alcohol Violations:', responseData.hadDrugAlcoholViolations ? 'YES' : 'No'],
+            ['Subject to FMCSRs:', answer(responseData.subjectToFmcsrs)],
+            ['Subject to DOT Testing:', answer(responseData.subjectToDotTesting)],
+            ['Drug/Alcohol Violations:', answer(responseData.hadDrugAlcoholViolations, 'YES')],
         ];
 
         for (const [label, value] of section2) {
-            const textColor = value === 'YES' ? rgb(0.8, 0.1, 0.1) : rgb(0.1, 0.1, 0.1);
-            drawText(label, 50, y, { font: fontBold });
-            drawText(value, 220, y, { color: textColor });
-            y -= 16;
+            drawRow(label, value, { color: flagged(value) });
         }
 
         if (responseData.violationDetails) {
-            drawText('Violation Details:', 50, y, { font: fontBold });
-            y -= 14;
-            // Wrap long text
-            const words = responseData.violationDetails.split(' ');
-            let line = '';
-            for (const word of words) {
-                if (font.widthOfTextAtSize(line + ' ' + word, fontSize) > width - 120) {
-                    drawText(line, 70, y);
-                    y -= 14;
-                    line = word;
-                } else {
-                    line = line ? line + ' ' + word : word;
-                }
-            }
-            if (line) { drawText(line, 70, y); y -= 14; }
+            drawParagraph('Violation Details:', responseData.violationDetails);
             y -= 4;
         }
 
         if (responseData.completedReturnToDuty) {
-            drawText('Return-to-Duty Completed:', 50, y, { font: fontBold });
-            drawText(responseData.completedReturnToDuty, 220, y);
-            y -= 16;
+            drawRow('Return-to-Duty Completed:', responseData.completedReturnToDuty);
         }
 
         y -= 6;
-        const accidentFields = [
-            ['DOT-Recordable Accidents:', responseData.hadAccidents ? 'YES' : 'No'],
-        ];
-        for (const [label, value] of accidentFields) {
-            const textColor = value === 'YES' ? rgb(0.8, 0.1, 0.1) : rgb(0.1, 0.1, 0.1);
-            drawText(label, 50, y, { font: fontBold });
-            drawText(value, 220, y, { color: textColor });
-            y -= 16;
-        }
+        const accidents = answer(responseData.hadAccidents, 'YES');
+        drawRow('DOT-Recordable Accidents:', accidents, { color: flagged(accidents) });
 
         if (responseData.accidentDetails) {
-            drawText('Accident Details:', 50, y, { font: fontBold });
-            y -= 14;
-            const words = responseData.accidentDetails.split(' ');
-            let line = '';
-            for (const word of words) {
-                if (font.widthOfTextAtSize(line + ' ' + word, fontSize) > width - 120) {
-                    drawText(line, 70, y);
-                    y -= 14;
-                    line = word;
-                } else {
-                    line = line ? line + ' ' + word : word;
-                }
-            }
-            if (line) { drawText(line, 70, y); y -= 14; }
+            drawParagraph('Accident Details:', responseData.accidentDetails);
         }
 
         y -= 10;
+        ensureSpace(24);
         drawLine(50, y, width - 50, y);
         y -= 24;
 
-        // Check if we need a new page
-        if (y < 200) {
-            page = pdfDoc.addPage([612, 792]);
-            y = height - 50;
-        }
+        // ---- SECTION 3: ADDITIONAL INFORMATION ----
+        // The portal's own Section 3; the comments were collected and stored
+        // but never printed.
+        drawSectionTitle('SECTION 3: ADDITIONAL INFORMATION');
+        drawParagraph('Additional Comments:', responseData.additionalComments || 'None');
 
-        // ---- SECTION 3: RESPONDENT VERIFICATION ----
-        drawText('SECTION 3: RESPONDENT VERIFICATION & SIGNATURE', 50, y, { font: fontBold, size: subHeaderSize });
-        y -= 18;
+        y -= 10;
+        ensureSpace(24);
+        drawLine(50, y, width - 50, y);
+        y -= 24;
+
+        // ---- SECTION 4: RESPONDENT VERIFICATION ----
+        drawSectionTitle('SECTION 4: RESPONDENT VERIFICATION & SIGNATURE');
 
         const section3 = [
             ['Respondent Name:', responseData.respondentName],
@@ -196,9 +218,7 @@ async function generateVerificationPDF(verificationData, responseData, token) {
         ];
 
         for (const [label, value] of section3) {
-            drawText(label, 50, y, { font: fontBold });
-            drawText(value || 'N/A', 220, y);
-            y -= 16;
+            drawRow(label, value || 'N/A');
         }
 
         // ---- SIGNATURE ----
@@ -208,6 +228,7 @@ async function generateVerificationPDF(verificationData, responseData, token) {
         // to Cloud Storage by responses.js. Both carry the method in the label.
         if (responseData.signatureText) {
             y -= 10;
+            ensureSpace(60);
             drawText('Electronic Signature (typed):', 50, y, { font: fontBold });
             y -= 22;
             drawText(responseData.signatureText, 50, y, { font: fontOblique, size: 16 });
@@ -216,14 +237,22 @@ async function generateVerificationPDF(verificationData, responseData, token) {
             y -= 10;
         } else if (responseData.signaturePath) {
             y -= 10;
-            drawText('Electronic Signature (drawn):', 50, y, { font: fontBold });
-            y -= 6;
-
+            // Loaded before anything is drawn, so the label and the mark land on
+            // the same page.
+            let sigImage = null;
             try {
                 const bucket = storage.bucket();
                 const [buffer] = await bucket.file(responseData.signaturePath).download();
-                const sigImage = await pdfDoc.embedPng(buffer);
-                const sigDims = sigImage.scale(0.3);
+                sigImage = await pdfDoc.embedPng(buffer);
+            } catch (sigError) {
+                sigImage = null;
+            }
+            const sigDims = sigImage ? sigImage.scale(0.3) : null;
+            ensureSpace(6 + (sigDims ? sigDims.height + 10 : 24));
+            drawText('Electronic Signature (drawn):', 50, y, { font: fontBold });
+            y -= 6;
+
+            if (sigImage) {
                 page.drawImage(sigImage, {
                     x: 50,
                     y: y - sigDims.height,
@@ -231,13 +260,14 @@ async function generateVerificationPDF(verificationData, responseData, token) {
                     height: sigDims.height,
                 });
                 y -= sigDims.height + 10;
-            } catch (sigError) {
+            } else {
                 drawText('[Signature on file in Cloud Storage]', 50, y - 14);
                 y -= 24;
             }
         }
 
         y -= 20;
+        ensureSpace(44);
         drawLine(50, y, width - 50, y);
         y -= 16;
 
