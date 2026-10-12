@@ -1,5 +1,7 @@
 // src/shared/utils/helpers.js
 
+import { parseIsoDateParts } from './dateFormHelpers';
+
 /**
  * Returns a "Not Specified" string if the value is empty, otherwise returns the value.
  */
@@ -63,10 +65,36 @@ export function formatPhoneNumber(phone) {
     return phone || "Not Specified";
 }
 
+/**
+ * A stored calendar date (`YYYY-MM-DD`) or month (`YYYY-MM`) as itself, or
+ * `null` for any other text. It is a day or a month, not an instant: read as
+ * midnight UTC and shown in the viewer's zone, it fell a day early west of UTC.
+ * It has no time to show.
+ */
+function formatCalendarText(text) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+        const parts = parseIsoDateParts(text);
+        if (!parts) return '--';
+        return new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
+            .toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' });
+    }
+    const month = text.match(/^(\d{4})-(\d{2})$/);
+    if (month) {
+        const monthNumber = Number(month[2]);
+        if (monthNumber < 1 || monthNumber > 12) return '--';
+        return new Date(Date.UTC(Number(month[1]), monthNumber - 1, 1))
+            .toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'short' });
+    }
+    return null;
+}
+
 export function formatDate(date, includeTime = false) {
     if (!date) return '--';
 
     try {
+        const calendar = typeof date === 'string' ? formatCalendarText(date.trim()) : null;
+        if (calendar !== null) return calendar;
+
         let dateObj = date;
 
         // Handle Firestore Timestamp

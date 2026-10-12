@@ -2,6 +2,7 @@ import React, { useId } from 'react';
 import { Icon, Phone, X, Save, MessageSquare, CheckCircle, XCircle, Clock, AlertCircle, Ban, ThumbsDown, Briefcase, BellPlus } from '@design-system/icons';
 import { formatPhoneNumber } from '@shared/utils/helpers';
 import { EXPERIENCE_OPTIONS } from '../../../config/form-options';
+import { toIsoDay } from '@/config/applicationDates';
 import {
   Button, Chip, FormField, IconButton, Input, SegmentedControl, Select, Textarea,
 } from '@/design-system/components';
@@ -19,7 +20,9 @@ import { Modal } from '@design-system/patterns';
  * and their order; the `EXPERIENCE_OPTIONS` source; the quick-reminder rule
  * (+1 hour, `YYYY-MM-DD` date, `HH:MM` time, `outcome = 'callback'`, and the exact
  * `'Quick reminder set: No Answer (1 hr follow-up)'` note); the callback date
- * `min` of today; the `showDetailInputs` / `showCallbackSelect` visibility rules;
+ * `min` of today. Both dates are the recruiter's own day (`toIsoDay`): read by
+ * UTC, a US evening set the reminder a day late and could not pick today.
+ * Also unchanged: the `showDetailInputs` / `showCallbackSelect` visibility rules;
  * the `handleSave` submit path; the `'Schedule & Save'` / `'Save Result'` label
  * rule; the `tel:` link and `formatPhoneNumber` display; and every placeholder and
  * string.
@@ -124,7 +127,7 @@ export function CallOutcomeModalUI({
   const handleQuickReminder = () => {
     const now = new Date();
     now.setHours(now.getHours() + 1);
-    const dateStr = now.toISOString().split('T')[0];
+    const dateStr = toIsoDay(now);
     const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
 
     setCallbackDate(dateStr);
@@ -203,7 +206,7 @@ export function CallOutcomeModalUI({
                     type="date"
                     value={callbackDate}
                     onChange={(e) => setCallbackDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={toIsoDay()}
                   />
                 </FormField>
                 <FormField id={callbackTimeId} label="Time">
