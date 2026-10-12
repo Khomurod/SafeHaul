@@ -42,6 +42,13 @@ const LINK_WORDS = [
 // "Amazon.com Services LLC" and "Mary St.Clair".
 const DOMAIN_DOT = /(?<=[\p{L}\p{N}])\.(?=\p{L}{2,})/gu;
 
+/** `clipText`, minus every word that is plainly a link. */
+function withoutLinks(value, maxChars) {
+    let text = String(value ?? '').replace(INVISIBLE, '');
+    for (const pattern of LINK_WORDS) text = text.replace(pattern, ' ');
+    return clipText(text, maxChars);
+}
+
 /**
  * Text a stranger typed into an email a real company's mail server sends,
  * made plain: `clipText`, minus every word that is plainly a link. A word that
@@ -49,9 +56,16 @@ const DOMAIN_DOT = /(?<=[\p{L}\p{N}])\.(?=\p{L}{2,})/gu;
  * mail client links it.
  */
 function plainGuestText(value, maxChars) {
-    let text = String(value ?? '').replace(INVISIBLE, '');
-    for (const pattern of LINK_WORDS) text = text.replace(pattern, ' ');
-    return clipText(text, maxChars).replace(DOMAIN_DOT, '.\u200B');
+    return withoutLinks(value, maxChars).replace(DOMAIN_DOT, '.\u200B');
 }
 
-module.exports = { escapeHtml, clipText, plainGuestText };
+/**
+ * The same for a text message. The invisible break would switch the whole SMS
+ * to its two-byte encoding and about triple the billed parts, so a word that
+ * only looks like a domain gets a plain space after its dot: "St. Clair".
+ */
+function plainGuestSmsText(value, maxChars) {
+    return withoutLinks(value, maxChars).replace(DOMAIN_DOT, '. ');
+}
+
+module.exports = { escapeHtml, clipText, plainGuestText, plainGuestSmsText };

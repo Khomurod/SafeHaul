@@ -159,6 +159,16 @@ describe('campaign placeholders', () => {
     expect(mockSendSMS.mock.calls[0][1]).toBe('Hi Win at now, Dana Recruiter at Artificial Freight LLC here.');
   });
 
+  it('keeps an SMS in its one-byte encoding when the name holds a dot', async () => {
+    mockState.lead = { firstName: 'Mary.Ann', phone: '(555) 123-4567', email: 'alice@example.com' };
+
+    await runBatch({ method: 'sms', message: MESSAGE });
+    await runBatch({ method: 'email', message: MESSAGE });
+
+    expect(mockSendSMS.mock.calls[0][1]).toBe('Hi Mary. Ann, Dana Recruiter at Artificial Freight LLC here.');
+    expect(mockSendMail.mock.calls[0][0].text).toBe('Hi Mary.\u200BAnn, Dana Recruiter at Artificial Freight LLC here.');
+  });
+
   it("escapes the email's HTML, so a name cannot add markup", async () => {
     mockState.lead = { firstName: '<img src=x onerror=alert(1)>', email: 'alice@example.com' };
 

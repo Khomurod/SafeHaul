@@ -11,7 +11,7 @@ const { admin, db } = require("../../firebaseAdmin");
 const { isBlacklisted } = require("../../blacklist");
 const { normalizePhone } = require("../../utils/phoneUtils");
 const { pauseBeforeNextSend } = require("./sendPacing");
-const { escapeHtml, plainGuestText } = require("../../shared/plainText");
+const { escapeHtml, plainGuestText, plainGuestSmsText } = require("../../shared/plainText");
 
 /** Returns `{ batchSuccessCount, batchFailCount, pointerAdvanceCount }`. */
 async function runSendLoop({
@@ -30,9 +30,10 @@ async function runSendLoop({
 }) {
     // A function replacer, so a "$&" in a name is text and not a replacement pattern.
     // The lead's name can come from a public form: it goes out as plain text without
-    // its links, as in the other emails a company sends (`shared/plainText.js`).
-    const fillPlaceholders = (text, leadData) => text
-        .replace(/\[Driver Name\]/g, () => plainGuestText(leadData.firstName, 40) || 'Driver')
+    // its links, as in the other emails a company sends (`shared/plainText.js`), by
+    // the cleaner for the channel it goes out on.
+    const fillPlaceholders = (text, leadData, plainName) => text
+        .replace(/\[Driver Name\]/g, () => plainName(leadData.firstName, 40) || 'Driver')
         .replace(/\[Company Name\]/g, () => companyName)
         .replace(/\[Recruiter Name\]/g, () => recruiterName || 'your recruiter');
 
@@ -119,7 +120,7 @@ async function runSendLoop({
                             recipientIdentity = phone || "No Phone";
 
                             if (recipientIdentity !== "No Phone") {
-                                const finalMsg = fillPlaceholders(config.message, leadData);
+                                const finalMsg = fillPlaceholders(config.message, leadData, plainGuestSmsText);
 
                                 await adapter.sendSMS(recipientIdentity, finalMsg, senderId);
                                 success = true;
@@ -131,13 +132,13 @@ async function runSendLoop({
                             recipientIdentity = leadData.email || "No Email";
 
                             if (recipientIdentity !== "No Email") {
-                                const finalBody = fillPlaceholders(config.message, leadData);
+                                const finalBody = fillPlaceholders(config.message, leadData, plainGuestText);
 
                                 await emailTransporter.sendMail({
                                     from: `"${companyName}" <${emailTransporter.transporter.options.auth.user}>`,
                                     to: recipientIdentity,
                                     // The composer offers the placeholders in the subject too.
-                                    subject: config.subject ? fillPlaceholders(config.subject, leadData) : `Update from ${companyName}`,
+                                    subject: config.subject ? fillPlaceholders(config.subject, leadData, plainGuestText) : `Update from ${companyName}`,
                                     text: finalBody,
                                     html: `<p>${escapeHtml(finalBody).replace(/\n/g, '<br>')}</p>`
                                 });

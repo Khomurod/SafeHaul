@@ -28,7 +28,7 @@ const {
     buildCarrierCompleteEmailHTML,
     buildCarrierNoResponseEmailHTML,
 } = require('../../employmentVerification/emailTemplates');
-const { escapeHtml, clipText, plainGuestText } = require('../../shared/plainText');
+const { escapeHtml, clipText, plainGuestText, plainGuestSmsText } = require('../../shared/plainText');
 
 const LINK = '<a href="https://evil.test/login">Verify your account</a>';
 
@@ -62,6 +62,14 @@ describe('the shared helpers', () => {
         expect(plainGuestText('Jane evil\u200B.test Doe', 80)).toBe(`Jane evil.${ZWSP}test Doe`);
         expect(plainGuestText("J.R. O'Neil-Smith Jr.", 80)).toBe("J.R. O'Neil-Smith Jr.");
         expect(plainGuestText('Class A CDL Driver (OTR) w/ home time', 80)).toBe('Class A CDL Driver (OTR) w/ home time');
+    });
+
+    it('gives an SMS a plain space after such a dot, so the message keeps its one-byte encoding', () => {
+        expect(plainGuestSmsText('Mary St.Clair', 80)).toBe('Mary St. Clair');
+        expect(plainGuestSmsText('Jane evil.test/login Doe', 80)).toBe('Jane evil. test/login Doe');
+        expect(plainGuestSmsText('Jane https://evil.test/x me@evil.test Doe', 80)).toBe('Jane Doe');
+        expect(plainGuestSmsText("J.R. O'Neil-Smith Jr.", 80)).toBe("J.R. O'Neil-Smith Jr.");
+        expect(plainGuestSmsText('Jane evil\u200B.test Doe', 80)).not.toMatch(/[\u200B-\u200F\u2060\uFEFF]/);
     });
 });
 
