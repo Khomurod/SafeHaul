@@ -23,15 +23,17 @@
  *
  * ## This file asks whether the DECISIONS are right
  *
- * Three siblings ask the other questions, and `npm run test:ui-contract` chains
- * all four:
+ * Two siblings ask the other questions, and `npm run test:ui-contract` chains
+ * them with this one and `test-ui-contract-state.mjs`:
  *
  * | file                            | asks                                       |
  * |---------------------------------|--------------------------------------------|
  * | this one                        | are the decisions right?                   |
  * | `test-ui-contract-scope.mjs`    | is it still LOOKING at the whole tree?     |
  * | `test-ui-contract-allowlist.mjs` | is the inventory read and lowered right? |
- * | `test-ui-contract-ci.mjs`       | does CI run it, and can that be skipped?   |
+ *
+ * Whether CI runs it, and whether that can be skipped, is asked by
+ * `ci-plan/test-guards.mjs` K5.
  *
  * The scope half was split out on 2026-09-04 when the coverage pins landed;
  * "which files does it read" and "what does it conclude" are different subjects

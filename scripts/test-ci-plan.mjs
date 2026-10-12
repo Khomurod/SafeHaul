@@ -14,12 +14,13 @@
  * shipped nothing three times, in three separate jobs, before the wiring section
  * existed to notice.
  *
- * ## Seven sections, seven subjects
+ * ## Eight sections, eight subjects
  *
  * | file                          | asks                                          |
  * |-------------------------------|-----------------------------------------------|
  * | `ci-plan/test-selection.mjs`  | which lanes does a change select, and what counts as proof? (A, B, C) |
  * | `ci-plan/test-gate.mjs`       | what does the gate refuse? (D)                |
+ * | `ci-plan/test-carry-over.mjs` | which lanes may a follow-up push carry over? (M) |
  * | `ci-plan/test-wiring.mjs`     | do the lanes, jobs, attestations and promotion checks agree? (E) |
  * | `ci-plan/test-deploy-base.mjs`| does a failed deploy widen the next window? (F) |
  * | `ci-plan/test-shipped.mjs`    | did the release actually ship, and is it healthy? (G, H) |
@@ -39,9 +40,16 @@
  * was split. Sequential dynamic imports make each section finish before the next
  * starts, so the output reads in the order written here — which matters, because
  * these section banners are how a failing run is read.
+ *
+ * ## Every section on disk runs
+ *
+ * CI calls this file directly, so it is the one place that can notice a section
+ * left out of the list: a whole set of checks, K5 among them, that would stop
+ * running while the run still passed. The list is compared with the folder.
  */
 
-import { failureCount } from './ci-plan/test-support.mjs';
+import { readdirSync } from 'node:fs';
+import { assert, failureCount } from './ci-plan/test-support.mjs';
 
 const SECTIONS = [
     './ci-plan/test-selection.mjs',
@@ -57,6 +65,14 @@ const SECTIONS = [
 for (const section of SECTIONS) {
     await import(section);
 }
+
+console.log('\nEvery section runs');
+const onDisk = readdirSync(new URL('./ci-plan/', import.meta.url))
+    .filter((file) => /^test-.+\.mjs$/.test(file) && file !== 'test-support.mjs')
+    .map((file) => `./ci-plan/${file}`);
+assert('every section in scripts/ci-plan runs, and nothing else',
+    onDisk.length === SECTIONS.length && onDisk.every((file) => SECTIONS.includes(file)),
+    `left out: ${onDisk.filter((file) => !SECTIONS.includes(file)).join(', ') || 'none'}`);
 
 const failures = failureCount();
 console.log(failures === 0 ? '\nAll CI plan and gate checks passed.' : `\n${failures} check(s) failed.`);

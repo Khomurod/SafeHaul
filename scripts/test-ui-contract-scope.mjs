@@ -12,7 +12,7 @@
  * | `test-ui-contract.mjs`           | are the DECISIONS right?                  |
  * | `test-ui-contract-scope.mjs`     | is it still LOOKING at the whole tree?    |
  * | `test-ui-contract-allowlist.mjs` | is the inventory read and lowered right?  |
- * | `test-ui-contract-ci.mjs`        | does CI run it, and can that be skipped?  |
+ * | `ci-plan/test-guards.mjs` K5     | does CI run it, and can that be skipped?  |
  *
  * ## The way a guard fails is silently
  *

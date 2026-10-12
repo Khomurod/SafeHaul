@@ -3,7 +3,9 @@
  *
  * K pins the steps that were once advisory and are now blocking, so none can
  * quietly go back to `continue-on-error`, and the public-claims step that was
- * documented as a CI gate before any job ran it — in the one job no plan skips. L pins the secret scanner's wiring: no
+ * documented as a CI gate before any job ran it — in the one job no plan skips.
+ * K5 holds every step of that job in one table: each guard's wiring is asserted
+ * here, not in the guard's own suite. L pins the secret scanner's wiring: no
  * third-party scanning action, full history checked out, no `if:` that can
  * condition it away, and an audit that reports without being able to block a
  * release.
@@ -169,6 +171,20 @@ console.log('\nK. Guards that stay guards');
             'the checker must be seen to fail on a fixture before it is trusted to fail on a build');
     }
 
+    /*
+     * K1e — the lint step. Lint refuses what would crash a screen and a glyph
+     * loaded around the design system (`scripts/test-lint-rules.mjs` drives
+     * both), so it is a gate like the ones above, and holds only while CI runs
+     * it and can fail on it.
+     */
+    const lintStep = stepBlock('Frontend Lint');
+    assert('K1e. the "Frontend Lint" step runs `npm run lint:frontend`',
+        lintStep !== null && /^\s+run: npm run lint:frontend\s*$/m.test(lintStep),
+        'the lint rules hold only where CI runs them');
+    assert('K1e. and it is blocking',
+        lintStep !== null && !/continue-on-error/.test(lintStep) && !/^\s+if:/m.test(lintStep),
+        'a lint step that cannot fail the run is a report, not a gate');
+
     assert('K2. no workflow step excludes the accessibility specs',
         !/--grep-invert[^\n]*@a11y/.test(workflowText),
         'the axe specs belong in the blocking lane, not behind a grep-invert');
@@ -303,6 +319,258 @@ console.log('\nK. Guards that stay guards');
     assert('K4. every public page sits where the checker looks',
         nestedHtml.length === 0,
         `the checker scans top-level web/*.html only; nested page(s) would be validated by nothing: ${nestedHtml.join(', ')}`);
+
+    /*
+     * K5 — every step of `callable-contract`, in one table.
+     *
+     * The job no plan can skip carries the repository's guards: a checker, the
+     * tests that show it can still refuse, or both. Each guard used to pin its
+     * own wiring in its own suite, with its own reading of this file. One table
+     * holds them now, so a new step is one row, and every row is held to the
+     * same rules: it runs in this job and nowhere else, it runs its commands and
+     * nothing more (no flag, no env, so no base commit or token it could lean
+     * on), nothing can make it advisory, and a guard's tests run before its
+     * check, because a checker proven after it passed proves nothing about the
+     * run that passed. Nothing else in the job escapes the table: each setup
+     * action is listed with the settings it may take, the job holds only its
+     * runner, a read-only token and its steps, and a line K5 cannot read is
+     * refused.
+     *
+     * Each row: the step's name, the commands its `run:` holds, and for a guard's
+     * test step, the pattern its suites match on disk; `GUARD_SCRIPTS` pins what
+     * each npm script a row names runs. The list of suites comes off disk
+     * because a hand-written one is the same hazard one level up: a suite split
+     * in two, with the half that moved never chained.
+     */
+    const GUARD_JOB = 'callable-contract';
+    const GUARD_STEPS = [
+        ['Verify frontend/backend callable contract', ['node scripts/check-callable-contract.mjs']],
+        [CLAIMS_STEP, [CLAIMS_SCRIPT]],
+        ['Verify the production-promotion gate', ['npm run check:release-scripts']],
+        ['Verify the CI plan and release-validation gate', ['node scripts/test-ci-plan.mjs']],
+        ["Verify the secret scanner's range selection and detection", ['npm run test:secret-scan']],
+        ['Verify the functions deploy planner', ['npm run check:function-exports', 'npm run check:deploy-script']],
+        ['Verify the source-size guard', ['npm run test:source-size'], /^test-source-size(-[a-z]+)?\.mjs$/],
+        ['Check source sizes', ['npm run check:source-size']],
+        ['Verify the agent-docs guard', ['npm run test:agent-docs']],
+        ['Check agent instruction sizes', ['npm run check:agent-docs']],
+        ['Verify the AI-boundary guard', ['npm run test:ai-boundary']],
+        ['Verify the AI provider boundary', ['npm run check:ai-boundary']],
+        ['Verify the UI-contract guard', ['npm run test:ui-contract'], /^test-ui-contract(-[a-z]+)?\.mjs$/],
+        ['UI contract ratchet', ['npm run check:ui-contract']],
+        ['Verify the lint rules', ['npm run test:lint-rules']],
+        ['Verify the bundle-budget guard', ['npm run test:bundle-budget']],
+    ];
+    /** A guard's tests, then its check. */
+    const TESTS_FIRST = [
+        ['Verify the source-size guard', 'Check source sizes'],
+        ['Verify the agent-docs guard', 'Check agent instruction sizes'],
+        ['Verify the AI-boundary guard', 'Verify the AI provider boundary'],
+        ['Verify the UI-contract guard', 'UI contract ratchet'],
+    ];
+    /**
+     * What each npm script a row names runs, exactly. The script is the next hop
+     * from the step, so `|| true`, a flag, an env or another file there is the
+     * step's own.
+     */
+    const GUARD_SCRIPTS = {
+        'check:public-claims': 'node scripts/check-public-claims.mjs',
+        'check:release-scripts': 'node scripts/test-release-promotion.mjs',
+        'test:secret-scan': 'node scripts/test-secret-scan.mjs',
+        'check:function-exports': 'node scripts/validate-function-index-parse.mjs',
+        'check:deploy-script': 'node scripts/test-deploy-incremental.mjs',
+        'test:source-size': 'node scripts/test-source-size.mjs',
+        'check:source-size': 'node scripts/source-size.mjs',
+        'test:agent-docs': 'node scripts/test-agent-docs.mjs',
+        'check:agent-docs': 'node scripts/check-agent-docs.mjs',
+        'test:ai-boundary': 'node scripts/test-ai-boundary.mjs',
+        'check:ai-boundary': 'node scripts/check-ai-provider-boundary.mjs',
+        'test:ui-contract': [
+            'node scripts/test-ui-contract.mjs', 'node scripts/test-ui-contract-state.mjs',
+            'node scripts/test-ui-contract-scope.mjs', 'node scripts/test-ui-contract-allowlist.mjs',
+        ].join(' && '),
+        'check:ui-contract': 'node scripts/check-ui-contract.mjs',
+        'test:lint-rules': 'node scripts/test-lint-rules.mjs',
+        'test:bundle-budget': 'node scripts/test-bundle-budget.mjs',
+    };
+    /**
+     * The steps that run no command: the action each uses, revision included,
+     * and its `with:` settings, exactly. A Dependabot bump of either action
+     * updates this table in the same pull request.
+     */
+    const SETUP_STEPS = {
+        'actions/checkout@v7': [],
+        'actions/setup-node@v7': ['node-version: 22.x', "cache: 'npm'"],
+    };
+    /** The commands a step runs: its one-line `run:`, or each line of a `run: |` block. */
+    const commandsOf = (step) => {
+        const single = step.match(/^\s+run: (?!\|)(.+)$/m);
+        if (single) return [single[1].trim()];
+        const block = step.match(/^ +run: \|\n((?: {10}.+\n?)+)/m);
+        return block ? block[1].split('\n').map((line) => line.trim()).filter(Boolean) : [];
+    };
+    /*
+     * The job is read strictly, line by line. A YAML parser would be the first
+     * installed dependency of a suite that needs none, and a reader that skips
+     * what it does not recognise lets a step through unseen (`- { run: … }`).
+     * This one knows the shapes the job is written in and refuses every other
+     * line: a job key at four spaces, a step's first key after `- ` at six, its
+     * other keys at eight, anything deeper the value of the key above it.
+     */
+    const readJob = (block) => {
+        const read = { keys: {}, steps: [], unknown: [] };
+        let jobKey = null;
+        let step = null;
+        for (const line of block.split('\n').slice(1)) {
+            let match;
+            if (step && /^ {10}/.test(line)) {
+                step.entries.at(-1).nested.push(line);
+                step.text += `${line}\n`;
+            } else if (/^\s*(#.*)?$/.test(line)) {
+                continue;
+            } else if ((match = line.match(/^ {4}([a-z][a-z-]*):(?: (.*))?$/))) {
+                jobKey = match[1];
+                read.keys[jobKey] = { value: match[2], nested: [] };
+                step = null;
+            } else if (jobKey === 'steps' && read.keys.steps.value === undefined
+                && (match = line.match(/^ {6}- ([a-z][a-z-]*):(?: (.*))?$/))) {
+                step = { name: match[1] === 'name' ? match[2] : undefined, entries: [], text: `${line}\n` };
+                step.entries.push({ key: match[1], value: match[2], nested: [] });
+                read.steps.push(step);
+            } else if (step && (match = line.match(/^ {8}([a-z][a-z-]*):(?: (.*))?$/))) {
+                step.entries.push({ key: match[1], value: match[2], nested: [] });
+                step.text += `${line}\n`;
+            } else if (jobKey !== null && jobKey !== 'steps' && /^ {6}/.test(line)) {
+                read.keys[jobKey].nested.push(line.trim());
+            } else {
+                read.unknown.push(line.trim());
+            }
+        }
+        return read;
+    };
+    const keysOf = (step) => step?.entries.map(({ key }) => key) ?? [];
+
+    const guardJob = jobBlock(GUARD_JOB) ?? '';
+    const job = readJob(guardJob);
+    assert(`K5. ${GUARD_JOB} is always required`,
+        guardJob !== '' && ALWAYS_REQUIRED_JOBS.includes(GUARD_JOB),
+        'a guard in a job a plan or a condition can skip makes a claim only about the runs that kept it');
+    assert(`K5. and every line of it is one K5 can read`, job.unknown.length === 0, job.unknown.join(' | '));
+    // A job-level `if:` skips every step; an `env:`, `defaults:`, `container:` or
+    // `continue-on-error:` reaches every step the way the step's own key would.
+    const jobKeys = Object.keys(job.keys);
+    assert('K5. and it holds no job key but runs-on, permissions and steps',
+        jobKeys.every((key) => ['runs-on', 'permissions', 'steps'].includes(key)), jobKeys.join(', '));
+    assert('K5. and its token reads the repository and nothing more',
+        job.keys.permissions?.value === undefined
+            && JSON.stringify(job.keys.permissions?.nested) === JSON.stringify(['contents: read']),
+        JSON.stringify(job.keys.permissions ?? 'no permissions block'));
+    // And above it: a workflow-level `env:` or `defaults:` reaches every step of every job.
+    const topLines = workflowText.split('\n').filter((line) => /^[^\s#]/.test(line));
+    assert('K5. and nothing above the job reaches its steps: no workflow-level env or defaults',
+        topLines.every((line) => /^(name|run-name|on|permissions|concurrency|jobs):( .*)?$/.test(line)),
+        topLines.join(' | '));
+
+    const commandSteps = job.steps.filter((step) => keysOf(step).includes('run'));
+    // A step needs a name to have a row, and opens with it, as every step here does.
+    const unnamed = commandSteps.filter((step) => step.name === undefined);
+    assert(`K5. every step of ${GUARD_JOB} that runs a command opens with its name, so it can have a row`,
+        unnamed.length === 0, unnamed.map((step) => step.text.split('\n')[0].trim()).join(' | '));
+    // A step that runs no command runs an action, and an action can run anything,
+    // check out another tree or set up another Node: each is one K5 lists, at the
+    // revision and with the settings it lists.
+    for (const step of job.steps.filter((candidate) => !commandSteps.includes(candidate))) {
+        const entry = (key) => step.entries.find((candidate) => candidate.key === key);
+        const uses = entry('uses')?.value ?? '';
+        const settings = entry('with');
+        assert(`K5. the setup step "${step.name ?? uses}" is one K5 lists, exactly`,
+            Object.hasOwn(SETUP_STEPS, uses)
+                && keysOf(step).every((key) => ['name', 'uses', 'with'].includes(key))
+                && settings?.value === undefined
+                && JSON.stringify((settings?.nested ?? []).map((line) => line.trim())) === JSON.stringify(SETUP_STEPS[uses]),
+            step.text.trim().split('\n').map((line) => line.trim()).join(' | '));
+    }
+
+    // And the table is the set, not an allowlist: without setup-node the job
+    // runs on whatever Node the runner has.
+    const setupSteps = job.steps.filter((candidate) => !commandSteps.includes(candidate));
+    const opening = job.steps.slice(0, setupSteps.length);
+    assert('K5. the job opens with every setup step K5 lists, each once, in its order',
+        JSON.stringify(opening.map((step) => step.entries.find(({ key }) => key === 'uses')?.value ?? ''))
+            === JSON.stringify(Object.keys(SETUP_STEPS)) && opening.every((step) => setupSteps.includes(step)),
+        job.steps.slice(0, 3).map((step) => step.text.split('\n')[0].trim()).join(' | '));
+
+    // A name is how a step is found, so two steps may not share one: a second
+    // `Install Dependencies` would be a command that only the first is held to.
+    const names = job.steps.map((step) => step.name).filter((name) => name !== undefined);
+    assert(`K5. every step of ${GUARD_JOB} has a name of its own`,
+        new Set(names).size === names.length,
+        names.filter((name, at) => names.indexOf(name) !== at).join(', '));
+    const stepAt = (name) => job.steps.findIndex((step) => step.name === name);
+    const install = job.steps[stepAt('Install Dependencies')];
+
+    // Every step that runs a command, the one install aside.
+    const named = commandSteps.filter((step) => step !== install).map((step) => step.name);
+    const rows = GUARD_STEPS.map(([name]) => name);
+    assert(`K5. the table names every step ${GUARD_JOB} runs, and nothing else`,
+        named.length === rows.length && named.every((name) => rows.includes(name)),
+        `job: ${named.join(' | ')}`);
+    const firstGuard = Math.min(...rows.map(stepAt).filter((at) => at !== -1));
+    assert('K5. it installs dependencies with `npm ci` before the first guard step',
+        install !== undefined && keysOf(install).join() === 'name,run'
+            && JSON.stringify(commandsOf(install.text)) === JSON.stringify(['npm ci'])
+            && stepAt('Install Dependencies') < firstGuard,
+        'the table rule parses with @babel/parser and the lint test drives ESLint; neither is a Node builtin');
+
+    for (const [name, commands, suitePattern] of GUARD_STEPS) {
+        const step = job.steps[stepAt(name)];
+        const text = step?.text ?? '';
+        assert(`K5. "${name}" runs ${commands.join(' and ')}, and nothing more`,
+            JSON.stringify(commandsOf(text)) === JSON.stringify(commands),
+            text.split('\n').slice(0, 3).join(' | ') || 'step missing');
+        // An `env:`, `if:`, `continue-on-error:`, `working-directory:` or `shell:`
+        // makes it advisory, or changes what the same command runs.
+        assert('K5. and the step holds nothing but its name and its command',
+            keysOf(step).join() === 'name,run', keysOf(step).join(', '));
+        assert('K5. and no other job runs it',
+            workflowText.split(`- name: ${name}\n`).length === 2,
+            'a copy elsewhere is a second step to keep in step with this one');
+        const scripts = commands.map((command) => command.match(/^npm run ([\w:-]+)$/)?.[1]).filter(Boolean);
+        assert('K5. and each npm script it names runs exactly what the table pins',
+            scripts.every((script) => Object.hasOwn(GUARD_SCRIPTS, script) && pkg.scripts[script] === GUARD_SCRIPTS[script]),
+            scripts.map((script) => `${script} = ${JSON.stringify(pkg.scripts[script])}`).join(', '));
+        if (suitePattern) {
+            const suites = readdirSync(here).filter((file) => suitePattern.test(file));
+            const chain = pkg.scripts[scripts[0]] ?? '';
+            assert(`K5. and ${scripts[0]} chains every suite the guard has (${suites.length})`,
+                suites.length > 0 && suites.every((file) => chain.includes(`scripts/${file}`)),
+                `${suites.join(', ')} vs ${chain}`);
+        }
+    }
+    // npm runs `pre<name>` and `post<name>` around `npm run <name>`, and the
+    // root's install lifecycle inside `npm ci`; `.npmrc` can change the shell or
+    // the Node options every script runs with. Each is a command no row holds.
+    const LIFECYCLE = ['preinstall', 'install', 'postinstall', 'prepublish', 'preprepare', 'prepare', 'postprepare'];
+    const hooks = Object.keys(pkg.scripts).filter((name) => LIFECYCLE.includes(name)
+        || Object.keys(GUARD_SCRIPTS).some((script) => name === `pre${script}` || name === `post${script}`));
+    assert('K5. and npm runs nothing around them: no pre or post script, no install lifecycle, no .npmrc',
+        hooks.length === 0 && !existsSync(resolvePath(here, '../.npmrc')),
+        hooks.join(', ') || '.npmrc');
+    // CI runs this suite by its file, because it could not see its own npm script
+    // pointed somewhere else; the script agents run locally runs the same file.
+    assert('K5. and `npm run check:ci-plan` runs the file CI runs',
+        pkg.scripts['check:ci-plan'] === 'node scripts/test-ci-plan.mjs',
+        `check:ci-plan = ${JSON.stringify(pkg.scripts['check:ci-plan'])}`);
+    const scriptsNamed = GUARD_STEPS.flatMap(([, commands]) => commands)
+        .map((command) => command.match(/^npm run ([\w:-]+)$/)?.[1]).filter(Boolean);
+    assert('K5. and the table pins no script a row does not name',
+        Object.keys(GUARD_SCRIPTS).every((script) => scriptsNamed.includes(script)),
+        Object.keys(GUARD_SCRIPTS).filter((script) => !scriptsNamed.includes(script)).join(', '));
+    for (const [tests, check] of TESTS_FIRST) {
+        assert(`K5. "${tests}" runs before "${check}"`,
+            stepAt(tests) !== -1 && stepAt(tests) < stepAt(check),
+            'a checker proven after it passed proves nothing about the run that passed');
+    }
 }
 
 console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
