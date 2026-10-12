@@ -18,7 +18,7 @@ import { describeReleaseError, getReleaseStatus } from '../services/releaseManag
  */
 
 /** How often to re-read while a release is running. */
-const ACTIVE_POLL_MS = 6000;
+export const ACTIVE_POLL_MS = 6000;
 
 /** Phases the screen renders. Derived from the server, never assumed locally. */
 export const RELEASE_PHASES = Object.freeze({

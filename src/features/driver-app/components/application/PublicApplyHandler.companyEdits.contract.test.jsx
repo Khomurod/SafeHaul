@@ -24,6 +24,7 @@ vi.mock('@lib/submissionQueue', async () => (await import('./PublicApplyHandler.
 vi.mock('@lib/applicationId', async () => (await import('./PublicApplyHandler.contract.support')).applicationIdMock());
 vi.mock('../../services/publicProfileService', async () => (await import('./PublicApplyHandler.contract.support')).publicProfileServiceMock());
 vi.mock('./postApplyDocsStorage', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).postApplyDocsStorageMock(await importOriginal()));
+vi.mock('./submitRetry', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).submitRetryMock(await importOriginal()));
 vi.mock('@sentry/react', async () => (await import('./PublicApplyHandler.contract.support')).sentryMock());
 vi.mock('react-router-dom', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).reactRouterDomMock(await importOriginal()));
 // The shared probe, plus what these cases read: the answers the carrier edits,
@@ -246,10 +247,10 @@ describe('a Company Admin\'s edits, on the driver\'s page', () => {
     await submit();
 
     // The retry for the edits is not one of the three: nothing went wrong with delivery.
-    await waitFor(() => expect(callableSpy).toHaveBeenCalledTimes(4), { timeout: 10_000 });
+    await waitFor(() => expect(callableSpy).toHaveBeenCalledTimes(4));
     expect(callableSpy.mock.calls[3][0].seenRevision).toBeNull();
     expect(showError).not.toHaveBeenCalled();
-  }, 20_000);
+  });
 
   it('never stop a submission when they cannot be fetched', async () => {
     inTurn(resumeDraftSpy, { data: { restored: false } }, new Error('offline'));

@@ -19,7 +19,7 @@
  * All SHAs, versions and email addresses below are artificial fixtures.
  */
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -50,6 +50,7 @@ vi.mock('@shared/components/feedback', () => ({
 }));
 
 import { ReleaseManagementView } from './ReleaseManagementView';
+import { ACTIVE_POLL_MS } from '../hooks/useReleaseStatus';
 
 // --- fixtures --------------------------------------------------------------
 
@@ -322,6 +323,10 @@ describe('a stale session', () => {
 });
 
 describe('progress and outcome', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     it('shows a running release instead of an outcome', async () => {
         getReleaseStatus.mockResolvedValue({
             data: {
@@ -342,6 +347,8 @@ describe('progress and outcome', () => {
         // a regression guard: the polling effect originally keyed off the status
         // object, which a failed read leaves unchanged — so no further poll was
         // ever scheduled and progress tracking stopped silently.
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        const nextPoll = () => act(() => vi.advanceTimersByTimeAsync(ACTIVE_POLL_MS));
         const running = {
             ...eligibleStatus(),
             activePromotion: { runId: '55', status: 'in_progress' },
@@ -364,11 +371,16 @@ describe('progress and outcome', () => {
         render(<ReleaseManagementView />);
         expect(await screen.findByText(/Releasing to Production/i)).toBeTruthy();
 
-        // Poll 2 fails, poll 3 succeeds — reachable only if a failed read still
-        // schedules the next one.
-        expect(await screen.findByText(/Last release succeeded/i, {}, { timeout: 20000 })).toBeTruthy();
-        expect(getReleaseStatus.mock.calls.length).toBeGreaterThanOrEqual(3);
-    }, 25000);
+        // Poll 2 fails, and the screen keeps the last thing the server said.
+        await nextPoll();
+        expect(screen.getByText(/Releasing to Production/i)).toBeTruthy();
+        expect(getReleaseStatus).toHaveBeenCalledTimes(2);
+
+        // Poll 3 succeeds — reachable only if a failed read still schedules the next one.
+        await nextPoll();
+        expect(await screen.findByText(/Last release succeeded/i)).toBeTruthy();
+        expect(getReleaseStatus).toHaveBeenCalledTimes(3);
+    });
 
     it('says Production was not changed after a failed release', async () => {
         getReleaseStatus.mockResolvedValue({

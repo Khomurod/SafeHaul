@@ -25,6 +25,7 @@ vi.mock('@lib/submissionQueue', async () => (await import('./PublicApplyHandler.
 vi.mock('@lib/applicationId', async () => (await import('./PublicApplyHandler.contract.support')).applicationIdMock());
 vi.mock('../../services/publicProfileService', async () => (await import('./PublicApplyHandler.contract.support')).publicProfileServiceMock());
 vi.mock('./postApplyDocsStorage', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).postApplyDocsStorageMock(await importOriginal()));
+vi.mock('./submitRetry', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).submitRetryMock(await importOriginal()));
 vi.mock('@sentry/react', async () => (await import('./PublicApplyHandler.contract.support')).sentryMock());
 vi.mock('react-router-dom', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).reactRouterDomMock(await importOriginal()));
 vi.mock('@shared/components/layout/Stepper', async () => (await import('./PublicApplyHandler.contract.support')).stepperMock());
@@ -197,24 +198,20 @@ describe('an application its company deleted', () => {
     callableSpy.mockRejectedValue(new Error('offline'));
     await renderWithCompleteDraft();
     await submit();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument(), {
-      timeout: 10_000,
-    });
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument());
 
     announce('removed:mark-1');
 
     await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
     expect(screen.queryByRole('heading', { name: 'Not sent yet' })).not.toBeInTheDocument();
     expect(toldRemoved()).toBe(1);
-  }, 20_000);
+  });
 
   it('leaves a queued submission on its screen for a discard elsewhere, as before', async () => {
     callableSpy.mockRejectedValue(new Error('offline'));
     await renderWithCompleteDraft();
     await submit();
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument(), {
-      timeout: 10_000,
-    });
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument());
 
     announce('discard:mark-1');
 
@@ -223,7 +220,7 @@ describe('an application its company deleted', () => {
     await act(() => new Promise((resolve) => { setTimeout(resolve, 50); }));
     expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument();
     expect(showInfo).not.toHaveBeenCalled();
-  }, 20_000);
+  });
 
   it('leaves a restore that failed for any other reason as it was', async () => {
     resumeDraftSpy.mockRejectedValue(Object.assign(new Error('gone'), { code: 'functions/not-found' }));

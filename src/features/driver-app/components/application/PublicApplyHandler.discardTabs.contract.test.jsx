@@ -24,6 +24,7 @@ vi.mock('@lib/submissionQueue', async () => (await import('./PublicApplyHandler.
 vi.mock('@lib/applicationId', async () => (await import('./PublicApplyHandler.contract.support')).applicationIdMock());
 vi.mock('../../services/publicProfileService', async () => (await import('./PublicApplyHandler.contract.support')).publicProfileServiceMock());
 vi.mock('./postApplyDocsStorage', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).postApplyDocsStorageMock(await importOriginal()));
+vi.mock('./submitRetry', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).submitRetryMock(await importOriginal()));
 vi.mock('@sentry/react', async () => (await import('./PublicApplyHandler.contract.support')).sentryMock());
 vi.mock('react-router-dom', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).reactRouterDomMock(await importOriginal()));
 vi.mock('@shared/components/layout/Stepper', async () => (await import('./PublicApplyHandler.contract.support')).stepperMock());
@@ -207,7 +208,7 @@ describe('an application discarded in another tab', () => {
     await renderWithCompleteDraft();
 
     fireEvent.click(screen.getByText('probe-submit'));
-    await waitFor(() => expect(attempts).toBe(3), { timeout: 5000 });
+    await waitFor(() => expect(attempts).toBe(3));
     discardInAnotherTab('discard:during-last-attempt');
     rejectLast();
 

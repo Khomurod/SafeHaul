@@ -26,6 +26,7 @@ vi.mock('@lib/submissionQueue', async () => (await import('./PublicApplyHandler.
 vi.mock('@lib/applicationId', async () => (await import('./PublicApplyHandler.contract.support')).applicationIdMock());
 vi.mock('../../services/publicProfileService', async () => (await import('./PublicApplyHandler.contract.support')).publicProfileServiceMock());
 vi.mock('./postApplyDocsStorage', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).postApplyDocsStorageMock(await importOriginal()));
+vi.mock('./submitRetry', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).submitRetryMock(await importOriginal()));
 vi.mock('@sentry/react', async () => (await import('./PublicApplyHandler.contract.support')).sentryMock());
 vi.mock('react-router-dom', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).reactRouterDomMock(await importOriginal()));
 vi.mock('@shared/components/layout/Stepper', async () => (await import('./PublicApplyHandler.contract.support')).stepperMock());
@@ -67,7 +68,7 @@ async function renderNamedDraft() {
 async function queueIt() {
   callableSpy.mockRejectedValue(new Error('offline'));
   await submit();
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument(), { timeout: 10_000 });
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument());
 }
 
 const announce = (detail) => act(() => {
@@ -99,7 +100,7 @@ describe('a submission the page queued', () => {
     await renderNamedDraft();
     await queueIt();
     expect(updateQueueEntrySpy).toHaveBeenCalledWith('queue-1', { nextRetryAt: expect.any(Number) });
-  }, 20_000);
+  });
 
   it('shows its confirmation number once the queue has sent it', async () => {
     await renderNamedDraft();
@@ -110,7 +111,7 @@ describe('a submission the page queued', () => {
     expect(await screen.findByRole('heading', { name: 'Application Submitted!' })).toBeInTheDocument();
     expect(screen.getByText('CONF-9')).toBeInTheDocument();
     expect(sessionStorage.getItem('lastConfirmationNumber')).toBe('CONF-9');
-  }, 20_000);
+  });
 
   it('shows its confirmation number when the queue sent it from another tab, and keeps it in this one', async () => {
     await renderNamedDraft();
@@ -133,7 +134,7 @@ describe('a submission the page queued', () => {
     expect(savePostApplySessionSpy).toHaveBeenCalledWith('company-1', {
       applicationId: 'app-9', confirmationNumber: 'CONF-9', slug: 'acme', docs: {},
     });
-  }, 20_000);
+  });
 
   it('comes back to the page a refusal names, in the server\'s words, and is not kept for later', async () => {
     await renderNamedDraft();
@@ -151,7 +152,7 @@ describe('a submission the page queued', () => {
     expect(screen.queryByRole('heading', { name: 'Not sent yet' })).toBeNull();
     expect(showError).toHaveBeenCalledWith("The application does not meet this carrier's requirements: Complete the Hours of Service statement.");
     expect(dequeueSpy).toHaveBeenCalledWith('queue-1');
-  }, 20_000);
+  });
 
   it('takes the company\'s current settings with a refusal, as a direct refusal does', async () => {
     await renderNamedDraft();
@@ -170,7 +171,7 @@ describe('a submission the page queued', () => {
     // 9 = Consent once the company's questions are a step of their own; 8 without.
     await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('9'));
     expect(showError).toHaveBeenCalledWith('Acknowledge every agreement before submitting.');
-  }, 20_000);
+  });
 
   it('says to submit again when the queue ran out of attempts', async () => {
     await renderNamedDraft();
@@ -180,7 +181,7 @@ describe('a submission the page queued', () => {
 
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Not sent yet' })).toBeNull());
     expect(showError).toHaveBeenCalledWith('Your application could not be sent. Check your connection, then press Submit again.');
-  }, 20_000);
+  });
 
   it('leaves the page alone for an application that is not the one on screen', async () => {
     await renderNamedDraft();
@@ -190,7 +191,7 @@ describe('a submission the page queued', () => {
 
     expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument();
     expect(screen.queryByText('CONF-1')).toBeNull();
-  }, 20_000);
+  });
 });
 
 describe('an end that came while no page was open', () => {
