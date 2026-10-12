@@ -491,6 +491,15 @@ console.log('\nK. Guards that stay guards');
             step.text.trim().split('\n').map((line) => line.trim()).join(' | '));
     }
 
+    // And the table is the set, not an allowlist: without setup-node the job
+    // runs on whatever Node the runner has.
+    const setupSteps = job.steps.filter((candidate) => !commandSteps.includes(candidate));
+    const opening = job.steps.slice(0, setupSteps.length);
+    assert('K5. the job opens with every setup step K5 lists, each once, in its order',
+        JSON.stringify(opening.map((step) => step.entries.find(({ key }) => key === 'uses')?.value ?? ''))
+            === JSON.stringify(Object.keys(SETUP_STEPS)) && opening.every((step) => setupSteps.includes(step)),
+        job.steps.slice(0, 3).map((step) => step.text.split('\n')[0].trim()).join(' | '));
+
     // Every step that runs a command, the install aside.
     const named = commandSteps.map((step) => step.name).filter((name) => name !== 'Install Dependencies');
     const rows = GUARD_STEPS.map(([name]) => name);
@@ -531,6 +540,15 @@ console.log('\nK. Guards that stay guards');
                 `${suites.join(', ')} vs ${chain}`);
         }
     }
+    // npm runs `pre<name>` and `post<name>` around `npm run <name>`, and the
+    // root's install lifecycle inside `npm ci`; `.npmrc` can change the shell or
+    // the Node options every script runs with. Each is a command no row holds.
+    const LIFECYCLE = ['preinstall', 'install', 'postinstall', 'prepublish', 'preprepare', 'prepare', 'postprepare'];
+    const hooks = Object.keys(pkg.scripts).filter((name) => LIFECYCLE.includes(name)
+        || Object.keys(GUARD_SCRIPTS).some((script) => name === `pre${script}` || name === `post${script}`));
+    assert('K5. and npm runs nothing around them: no pre or post script, no install lifecycle, no .npmrc',
+        hooks.length === 0 && !existsSync(resolvePath(here, '../.npmrc')),
+        hooks.join(', ') || '.npmrc');
     // CI runs this suite by its file, because it could not see its own npm script
     // pointed somewhere else; the script agents run locally runs the same file.
     assert('K5. and `npm run check:ci-plan` runs the file CI runs',
