@@ -1156,12 +1156,13 @@ unparseable number — but nothing populates them from a recipient's reply (§12
   counts only where it names SafeHaul (`claimScope.js`), and an overstatement
   slips past it. Never claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks,
   document-expiry monitoring, a job board, or any named carrier endorsement.
-- **A `web/` change runs the `frontend_unit` CI lane** (static content is tested
-  by `src/tests/hostingConfig.test.js`; `A5`/`A5b` in `scripts/test-ci-plan.mjs`
-  pin it). The claims check is deliberately **not** in that lane (a registry
-  change selects only the functions lane): `K4` in `npm run check:ci-plan` pins
-  it to an always-required job (today `callable-contract`), blocking and
-  needing nothing installed, and refuses a page in a subdirectory it skips.
+- **A `web/` change runs the `frontend_unit` CI lane**, where
+  `src/tests/hostingConfig.test.js` tests it (`check:ci-plan` A5). The claims
+  check is not in that lane (a registry change selects only `functions`): K4
+  pins it, blocking and install-free, to an always-required job, and it refuses
+  nested pages.
+- **A `src/features/` change skips the catalog job** (it builds only
+  `src/design-system/`); feature screens' baselines run in `app-visual` (A7).
 
 ---
 
