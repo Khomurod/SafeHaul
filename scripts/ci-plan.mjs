@@ -30,8 +30,10 @@
  *     commit) runs the full suite;
  *   - an attestation that cannot be read, or came from anywhere other than a
  *     successful run of this repository's own workflow, does not count;
- *   - pull requests never consult provenance at all. A pull request is the
- *     comprehensive gate, and it validates its own code.
+ *   - a pull request validates its own code. The one proof it accepts is its
+ *     own previous push's, for a lane none of the files changed since can
+ *     affect: a follow-up that only edits documentation does not run the suite
+ *     again. Anything it cannot rebuild exactly carries nothing over.
  *
  * The result is advisory scheduling only. `scripts/verify-release-validation.mjs`
  * independently re-checks that every lane was either executed or provably
@@ -47,6 +49,7 @@ import { fileURLToPath } from 'node:url';
 import {
     LANE_NAMES,
     selectLanes,
+    carriedOverLanes,
     readAttestations,
 } from './ci-plan-rules.mjs';
 
@@ -81,11 +84,75 @@ export function diffRange({ eventName, event = {}, log = () => {} }) {
     return null;
 }
 
-function changedFilesFor(range, log) {
+/**
+ * The tree this pull request's previous push was tested on.
+ *
+ * GitHub tests `refs/pull/N/merge`, the merge of the head into the base, and
+ * `git merge-tree --write-tree <base> <before>` rebuilds that tree exactly
+ * (on the merge of 3c5e80d into b686b89 both give 901bc1d). When the base has
+ * moved since, the rebuilt tree is one no run tested, so no attestation matches
+ * and nothing carries over. `null` means there is no previous push, or no clean
+ * merge.
+ */
+export function previousPushTree({ event, log = () => {}, run = git }) {
+    if (event?.action !== 'synchronize') return null;
+    const before = event.before;
+    const base = event.pull_request?.base?.sha;
+    if (!before || before === ZERO_SHA || !base) {
+        log('no previous push to carry results over from');
+        return null;
+    }
+    try {
+        const tree = run('merge-tree', '--write-tree', base, before).split('\n')[0];
+        return /^[0-9a-f]{40}$/.test(tree) ? tree : null;
+    } catch (error) {
+        log(`could not rebuild the previous push's tree: ${String(error.message).split('\n')[0]}`);
+        return null;
+    }
+}
+
+/**
+ * Every path that differs between two trees, both sides of a rename included.
+ *
+ * `--no-renames` is load-bearing in both diffs here: git pairs a delete and an
+ * add into one rename and `--name-only` then prints only the new path, so moving
+ * `functions/x.js` to `docs/x.md` read as a documentation edit and skipped the
+ * functions lane.
+ */
+export function changedBetweenTrees(fromTree, toTree, log = () => {}, run = git) {
+    if (fromTree === toTree) return [];
+    try {
+        return run('diff', '--name-only', '--no-renames', fromTree, toTree).split('\n').filter(Boolean);
+    } catch (error) {
+        log(`could not diff the previous push's tree: ${error.message}`);
+        return null;
+    }
+}
+
+/**
+ * The lanes this pull request may skip because its previous push proved them:
+ * selected here, untouched by every file changed since, and attested on the
+ * previous push's tree by a successful run of this repository's workflow.
+ */
+export async function carryOverFromPreviousPush({
+    event, selection, treeSha, api, repositoryId, log = () => {}, run = git,
+}) {
+    const previousTree = previousPushTree({ event, log, run });
+    if (!previousTree) return { previousTree: null, carried: [] };
+    const changedSince = changedBetweenTrees(previousTree, treeSha, log, run);
+    const candidates = carriedOverLanes({ selection, changedSince });
+    log(`previous push's tree: ${previousTree}; ${changedSince?.length ?? 'unknown'} file(s) changed since; `
+        + `lanes they cannot affect: ${candidates.join(', ') || 'none'}`);
+    if (candidates.length === 0) return { previousTree, carried: [] };
+    const proof = await readAttestations({ treeSha: previousTree, lanes: candidates, api, repositoryId, log });
+    return { previousTree, carried: candidates.filter((lane) => proof[lane]) };
+}
+
+export function changedFilesFor(range, log = () => {}, run = git) {
     if (!range) return null;
     try {
         const spec = range.threeDot ? `${range.base}...HEAD` : `${range.base}..HEAD`;
-        return git('diff', '--name-only', spec).split('\n').filter(Boolean);
+        return run('diff', '--name-only', '--no-renames', spec).split('\n').filter(Boolean);
     } catch (error) {
         log(`could not diff ${range.base}: ${error.message}`);
         return null;
@@ -141,21 +208,35 @@ async function main() {
     });
     console.log(`Selection: ${selection.reason}`);
 
-    // Provenance is a post-merge optimisation only. A pull request always
-    // validates its own code — that is the comprehensive gate.
-    const consultProvenance = eventName !== 'pull_request';
+    // Provenance for this exact tree is a post-merge optimisation. A pull
+    // request validates its own code, and accepts only its previous push's
+    // proof, for lanes nothing since can affect.
+    const isPullRequest = eventName === 'pull_request';
     let attested = Object.fromEntries(LANE_NAMES.map((lane) => [lane, false]));
+    const carried = new Set();
+    const credentials = Boolean(token && repository && repositoryId);
+    const api = credentials ? createGithubApi({ token, repository }) : null;
 
-    if (consultProvenance && token && repository && repositoryId) {
+    if (!isPullRequest && credentials) {
         attested = await readAttestations({
             treeSha,
             lanes: LANE_NAMES.filter((lane) => selection.lanes[lane]),
-            api: createGithubApi({ token, repository }),
+            api,
             repositoryId,
             log,
         });
-    } else if (consultProvenance) {
+    } else if (!isPullRequest) {
         log('no credentials to read attestations, so every selected lane runs');
+    }
+
+    let previousTree = null;
+    if (isPullRequest && credentials) {
+        const carryOver = await carryOverFromPreviousPush({ event, selection, treeSha, api, repositoryId, log });
+        previousTree = carryOver.previousTree;
+        for (const lane of carryOver.carried) {
+            attested[lane] = true;
+            carried.add(lane);
+        }
     }
 
     // The lane decisions leave here as ONE json output, not as two-per-lane.
@@ -173,8 +254,9 @@ async function main() {
         lanePlan[lane] = { selected, attested: proven };
         rows.push(`| \`${lane}\` | ${selected && !proven ? '**runs**' : 'skipped'} | ${
             selected && !proven ? 'relevant, not yet validated'
-                : proven ? 'already validated on this exact source tree'
-                    : 'not affected by this change'
+                : proven && carried.has(lane) ? `passed on the previous push's tree \`${previousTree}\`; nothing since affects it`
+                    : proven ? 'already validated on this exact source tree'
+                        : 'not affected by this change'
         } |`);
     }
 
@@ -237,6 +319,7 @@ export {
     ALWAYS_REQUIRED_JOBS,
     lanesForPath,
     selectLanes,
+    carriedOverLanes,
     attestationName,
     isUsableAttestation,
     readAttestations,

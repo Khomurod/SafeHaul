@@ -14,7 +14,9 @@
  *   ran     — every job in the lane concluded `success` in this run;
  *   proven  — the lane was skipped, and an attestation shows it passed against
  *             this exact source tree (see `ci-plan.mjs` for why a git tree hash
- *             is a sound identity for a content-determined test);
+ *             is a sound identity for a content-determined test), or, on a pull
+ *             request, against its previous push's tree when none of the files
+ *             changed since can affect the lane;
  *   n/a     — the lane was skipped because nothing in the change set can affect
  *             it.
  *
@@ -40,6 +42,12 @@
  *   PLAN_RESULT   the `plan` job's result
  *   JOB_RESULTS   {"<job id>": "success"|"failure"|"skipped"|"cancelled", ...}
  *   LANE_PLAN     {"<lane>": {"selected": bool, "attested": bool}, ...}
+ *
+ * Output: `attest_<lane>=true` for every lane this verdict counts as passed (it
+ * ran, or it was proven), and only when the whole verdict passes. The workflow
+ * publishes a lane's attestation for this tree on exactly that, so a pull
+ * request that carried a lane over still leaves `main` a proof for the merged
+ * tree.
  */
 
 import { appendFileSync } from 'node:fs';
@@ -151,7 +159,7 @@ export function evaluateValidation({ planResult, jobResults, lanePlan }) {
                     lane,
                     ok: true,
                     verdict: 'proven',
-                    detail: 'already passed against this exact source tree',
+                    detail: 'already passed: on this source tree, or on this pull request\'s previous push with nothing since affecting it',
                 });
                 continue;
             }
@@ -196,6 +204,18 @@ export function evaluateValidation({ planResult, jobResults, lanePlan }) {
     return { ok: problems.length === 0 && lanes.every((lane) => lane.ok), lanes, problems };
 }
 
+/**
+ * The lanes whose attestation this run may publish: the ones that ran or were
+ * proven, and none at all unless the whole verdict passed. A lane that was only
+ * irrelevant (`n/a`) proves nothing about this tree.
+ */
+export function attestableLanes(verdict) {
+    if (!verdict?.ok) return [];
+    return verdict.lanes
+        .filter(({ verdict: outcome }) => outcome === 'ran' || outcome === 'proven')
+        .map(({ lane }) => lane);
+}
+
 /** GitHub-flavoured summary of a verdict. */
 export function renderVerdict({ ok, lanes, problems }) {
     const symbol = { ran: '✅ ran', proven: '✅ proven', 'n/a': '➖ not applicable' };
@@ -209,7 +229,7 @@ export function renderVerdict({ ok, lanes, problems }) {
         '',
         ...(problems.length
             ? ['**This release is not fully validated:**', '', ...problems.map((p) => `- ${p}`), '']
-            : ['Every lane either ran here or is provably covered for this exact source tree.', '']),
+            : ['Every lane either ran here or is provably covered for this source tree.', '']),
     ].join('\n');
 }
 
@@ -235,6 +255,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
         JOB_RESULTS: jobResultsJson,
         LANE_PLAN: lanePlanJson,
         GITHUB_STEP_SUMMARY: summaryFile,
+        GITHUB_OUTPUT: outputFile,
     } = process.env;
 
     const verdict = evaluateValidation({
@@ -247,6 +268,14 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     console.log(rendered);
     if (summaryFile) {
         appendFileSync(summaryFile, `${rendered}\n`, 'utf8');
+    }
+    if (outputFile) {
+        const attest = attestableLanes(verdict);
+        appendFileSync(
+            outputFile,
+            `${LANE_NAMES.map((lane) => `attest_${lane}=${attest.includes(lane)}`).join('\n')}\n`,
+            'utf8',
+        );
     }
 
     process.exit(verdict.ok ? 0 : 1);

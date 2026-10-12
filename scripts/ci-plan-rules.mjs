@@ -225,6 +225,32 @@ export function attestationName(treeSha, lane) {
     return `validated-${treeSha}-${lane}`;
 }
 
+/**
+ * The lanes a pull request may carry over from its previous push.
+ *
+ * `changedSince` lists the files that differ between the tree that push was
+ * tested on and this one: empty when the trees are identical, `null` when git
+ * could not say. A lane carries over when this pull request selects it and none
+ * of those files can affect it. The caller must still find the earlier tree's
+ * attestation before skipping anything; this only names the candidates.
+ *
+ * @param {object} options
+ * @param {{lanes: Record<string, boolean>}} options.selection this pull request's
+ * @param {string[]|null|undefined} options.changedSince
+ * @returns {string[]}
+ */
+export function carriedOverLanes({ selection, changedSince }) {
+    const wanted = LANE_NAMES.filter((lane) => selection?.lanes?.[lane]);
+    if (!Array.isArray(changedSince)) return [];
+    if (changedSince.length === 0) return wanted;
+
+    // An empty list reads as "run everything" to `selectLanes`, so identical
+    // trees are answered above. A cross-cutting file selects every lane, which
+    // leaves nothing to carry.
+    const since = selectLanes({ changedFiles: changedSince });
+    return wanted.filter((lane) => !since.lanes[lane]);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Provenance                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -302,7 +328,7 @@ export async function readAttestations({ treeSha, lanes, api, repositoryId, log 
                 const verdict = isUsableAttestation(artifact, run, { name, repositoryId });
                 if (verdict.ok) {
                     accepted = true;
-                    log(`${lane}: validated on this tree by run ${artifact.workflow_run?.id}`);
+                    log(`${lane}: validated on tree ${treeSha} by run ${artifact.workflow_run?.id}`);
                     break;
                 }
                 log(`${lane}: rejected an attestation — ${verdict.why}`);

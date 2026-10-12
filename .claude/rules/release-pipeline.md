@@ -45,6 +45,11 @@ Testing version (Super Admin → Releases, `promote-production.yml`).
 6. **Deploy jobs cancel in progress per concurrency group**, so an older run can
    cancel a newer one's deploy. After overlapping merges, confirm the latest run
    actually deployed.
+7. **A pull request accepts one proof: its own previous push's**, rebuilt with
+   `git merge-tree`, for a lane none of the files changed since can affect. A
+   lane attests on the gate's verdict (`steps.verify.outputs.attest_<lane>`), not
+   on its job result, so a carried-over lane still leaves `main` a proof
+   (`check:ci-plan` M).
 
 ## Security gates (secret scan)
 

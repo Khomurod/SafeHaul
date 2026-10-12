@@ -73,7 +73,8 @@ jobs:
     permissions:
       contents: read
       # Reads the attestation artifacts that prove a lane already passed against
-      # this exact source tree. Read-only: this job never writes one.
+      # this exact source tree, or, on a pull request, against its previous
+      # push's tree. Read-only: this job never writes one.
       actions: read
     outputs:
       tree_sha: ${{ steps.plan.outputs.tree_sha }}
@@ -845,6 +846,7 @@ jobs:
       # produced. If the plan job failed it is empty, the script cannot parse it,
       # and the release is refused — the planner's own result is checked too.
       - name: Verify every lane ran or is provably covered
+        id: verify
         env:
           PLAN_RESULT: ${{ needs.plan.result }}
           LANE_PLAN: ${{ needs.plan.outputs.lane_plan }}
@@ -866,7 +868,11 @@ jobs:
       # Attestations
       # ----------------------------------------------------------------------
       # Published only from a pull request, and only past the verification step
-      # above — a failing gate never attests anything.
+      # above — a failing gate never attests anything. A lane attests when that
+      # step counted it as passed (`attest_<lane>`): it ran here, or it carried
+      # over from this pull request's previous push because nothing changed
+      # since can affect it. The second case is what leaves `main` a proof for
+      # the merged tree after a follow-up that only edited documentation.
       #
       # The PROOF is the artifact's name and the run that produced it, both of
       # which only GitHub can set. The file below is a human-readable receipt for
@@ -888,7 +894,7 @@ jobs:
           JSON
 
       - name: Attest frontend_build
-        if: github.event_name == 'pull_request' && needs.frontend-build.result == 'success'
+        if: github.event_name == 'pull_request' && steps.verify.outputs.attest_frontend_build == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-frontend_build
@@ -897,7 +903,7 @@ jobs:
           if-no-files-found: error
 
       - name: Attest frontend_unit
-        if: github.event_name == 'pull_request' && needs.frontend-quality.result == 'success'
+        if: github.event_name == 'pull_request' && steps.verify.outputs.attest_frontend_unit == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-frontend_unit
@@ -906,10 +912,7 @@ jobs:
           if-no-files-found: error
 
       - name: Attest frontend_e2e
-        if: >-
-          github.event_name == 'pull_request' &&
-          needs.frontend-e2e.result == 'success' &&
-          needs.app-visual.result == 'success'
+        if: github.event_name == 'pull_request' && steps.verify.outputs.attest_frontend_e2e == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-frontend_e2e
@@ -918,7 +921,7 @@ jobs:
           if-no-files-found: error
 
       - name: Attest storybook
-        if: github.event_name == 'pull_request' && needs.storybook-build.result == 'success'
+        if: github.event_name == 'pull_request' && steps.verify.outputs.attest_storybook == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-storybook
@@ -927,7 +930,7 @@ jobs:
           if-no-files-found: error
 
       - name: Attest functions
-        if: github.event_name == 'pull_request' && needs.test-functions.result == 'success'
+        if: github.event_name == 'pull_request' && steps.verify.outputs.attest_functions == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-functions
@@ -936,7 +939,7 @@ jobs:
           if-no-files-found: error
 
       - name: Attest rules
-        if: github.event_name == 'pull_request' && needs.rules-emulator.result == 'success'
+        if: github.event_name == 'pull_request' && steps.verify.outputs.attest_rules == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-rules
