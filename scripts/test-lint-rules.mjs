@@ -89,11 +89,22 @@ console.log('\nL. Glyphs come from the design system');
 
     /*
      * An `eslint-disable` comment silences any lint rule, and the checker this
-     * replaced had no such door. So the files that name the package are linted
-     * once more with inline configuration ignored: what a comment hides, this
-     * run still sees. Only those files, because an import has to name it.
+     * replaced had no such door. So every file holding an ESLint comment, the
+     * only way to switch a rule off from inside a file, is linted once more with
+     * inline configuration ignored, for this rule alone: what a comment hides,
+     * this run still sees. A file without one gets the ordinary lint, which the
+     * rule cannot be talked out of.
+     *
+     * Chosen by the comment, not by the package name: an escaped specifier
+     * (`'lucide\u002dreact'`) is the package to ESLint and to Vite and invisible
+     * to a text search, while a directive is always plain text.
      */
-    const strict = new ESLint({ cwd: repoRoot, allowInlineConfig: false });
+    const strict = new ESLint({
+        cwd: repoRoot,
+        allowInlineConfig: false,
+        ruleFilter: ({ ruleId }) => ruleId === 'no-restricted-syntax',
+    });
+    const holdsComment = (text) => text.includes('eslint');
     const refusedStrictly = async (code) => {
         const [result] = await strict.lintText(code, { filePath: resolve(repoRoot, 'src/features/example/Widget.jsx') });
         return result.messages.some((message) => message.severity === 2 && /lucide-react/.test(message.message));
@@ -102,18 +113,19 @@ console.log('\nL. Glyphs come from the design system');
         'a disable comment on the line': "// eslint-disable-next-line no-restricted-syntax\nimport { Trash2 } from 'lucide-react';\nexport const glyph = Trash2;\n",
         'a disable comment for the file': "/* eslint-disable */\nimport { Trash2 } from 'lucide-react';\nexport const glyph = Trash2;\n",
         'a rule switched off inline': "/* eslint no-restricted-syntax: off */\nimport { Trash2 } from 'lucide-react';\nexport const glyph = Trash2;\n",
+        'an escaped name under a disable comment': "// eslint-disable-next-line no-restricted-syntax\nimport { Trash2 } from 'lucide\\u002dreact';\nexport const glyph = Trash2;\n",
     };
     const hiddenSamples = [];
     for (const [way, code] of Object.entries(disabled)) {
-        if (!(await refusedStrictly(code))) hiddenSamples.push(way);
+        if (!holdsComment(code) || !(await refusedStrictly(code))) hiddenSamples.push(way);
     }
     assert('L5. a comment that switches the rule off does not hide an import from this test',
         hiddenSamples.length === 0, hiddenSamples.join(', '));
-    const naming = governed.filter((file) => readFileSync(resolve(repoRoot, file), 'utf8').includes('lucide-react'));
-    const hidden = naming.length === 0 ? [] : (await strict.lintFiles(naming))
+    const commented = governed.filter((file) => holdsComment(readFileSync(resolve(repoRoot, file), 'utf8')));
+    const hidden = commented.length === 0 ? [] : (await strict.lintFiles(commented))
         .filter((result) => result.messages.some((message) => message.severity === 2 && /lucide-react/.test(message.message)))
         .map((result) => relative(repoRoot, result.filePath));
-    assert(`L5b. and no file under src/ hides one behind a comment (${naming.length} name the package)`,
+    assert(`L5b. and no file under src/ hides one behind a comment (${commented.length} hold an ESLint comment)`,
         hidden.length === 0, `${hidden.join(', ')}: import glyphs from @design-system/icons`);
 }
 
