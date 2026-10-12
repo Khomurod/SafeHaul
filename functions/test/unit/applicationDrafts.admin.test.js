@@ -1,16 +1,15 @@
 /**
- * A Company Admin's read and delete of any unfinished application.
+ * A Company Admin's read of any unfinished application.
  *
  * Part of the `applicationDrafts` suite. The Firestore double, the fixtures and
  * the properties this surface has to hold are in
  * `applicationDrafts.support.js`. Each `jest.mock` below has to stay in this
  * file, because Jest hoists it per file and cannot register one from a helper.
  *
- * What these pin: only the strict admin check opens either door, and nothing is
+ * What these pin: only the strict admin check opens the read, and nothing is
  * read or written before it passes; the read shows a driver's own answers the
  * way a submitted application reads, never an SSN or an agreement, and changes
- * nothing; a delete is one transaction with its audit entry; a missing draft
- * answers one way.
+ * nothing; a missing draft answers one way.
  */
 
 process.env.SMS_ENCRYPTION_KEY = 'x'.repeat(32);
@@ -24,9 +23,9 @@ jest.mock('../../shared/companyTenant', () => require('./applicationDrafts.suppo
 
 const drafts = require('../../applicationDrafts');
 const {
-    mockStore, mockDeletedPaths, mockRunTransactionCalls, mockNonTransactionalWrites,
+    mockStore, mockRunTransactionCalls, mockNonTransactionalWrites,
     mockAssertCompanyAdmin, mockAssertCompanyAccess, mockCheckRateLimit, mockServerTimestamp,
-    COMPANY, failWritesOn, runBeforeNextTransaction, resetDraftState,
+    COMPANY, failWritesOn, resetDraftState,
 } = require('./applicationDrafts.support');
 
 const ADMIN = { uid: 'admin-1' };
@@ -81,7 +80,6 @@ function seedCompany({ publicProfile = {} } = {}) {
 }
 
 const view = (data = TARGET, auth = ADMIN) => drafts.getApplicationDraft({ auth, data });
-const remove = (data = TARGET, auth = ADMIN) => drafts.deleteApplicationDraft({ auth, data });
 
 function answersOf(record) {
     return new Map(record.sections.flatMap((section) => section.answers).map((answer) => [answer.fieldId, answer]));
@@ -93,39 +91,33 @@ function auditEntries() {
         .map(([, entry]) => entry);
 }
 
-let consoleInfo;
 beforeEach(() => {
     resetDraftState();
     seedCompany();
-    // The delete logs one line per success; nothing here asserts on the console.
-    consoleInfo = jest.spyOn(console, 'info').mockImplementation(() => {});
 });
-afterEach(() => consoleInfo.mockRestore());
 
-describe('who may open either door', () => {
-    const DOORS = [['read', view], ['delete', remove]];
-
-    it.each(DOORS)('refuses a signed-out caller before anything else (%s)', async (_door, call) => {
+describe('who may read an unfinished application', () => {
+    it('refuses a signed-out caller before anything else', async () => {
         seedDraft();
 
-        await expect(call(TARGET, null)).rejects.toMatchObject({ code: 'unauthenticated' });
+        await expect(view(TARGET, null)).rejects.toMatchObject({ code: 'unauthenticated' });
         expect(mockAssertCompanyAdmin).not.toHaveBeenCalled();
     });
 
-    it.each(DOORS)('refuses ids that are paths, or not applicant keys (%s)', async (_door, call) => {
-        await expect(call({ companyId: 'company-1/x', applicantKey: KEY })).rejects.toMatchObject({ code: 'invalid-argument' });
-        await expect(call({ companyId: COMPANY, applicantKey: '../applications/x' })).rejects.toMatchObject({ code: 'invalid-argument' });
-        await expect(call({ companyId: COMPANY })).rejects.toMatchObject({ code: 'invalid-argument' });
+    it('refuses ids that are paths, or not applicant keys', async () => {
+        await expect(view({ companyId: 'company-1/x', applicantKey: KEY })).rejects.toMatchObject({ code: 'invalid-argument' });
+        await expect(view({ companyId: COMPANY, applicantKey: '../applications/x' })).rejects.toMatchObject({ code: 'invalid-argument' });
+        await expect(view({ companyId: COMPANY })).rejects.toMatchObject({ code: 'invalid-argument' });
         expect(mockAssertCompanyAdmin).not.toHaveBeenCalled();
     });
 
-    it.each(DOORS)('asks the strict admin check for THIS company, and stops when it refuses (%s)', async (_door, call) => {
+    it('asks the strict admin check for THIS company, and stops when it refuses', async () => {
         seedDraft();
         mockAssertCompanyAdmin.mockRejectedValue(
             Object.assign(new Error('Company admin access required.'), { code: 'permission-denied' }),
         );
 
-        await expect(call()).rejects.toMatchObject({ code: 'permission-denied' });
+        await expect(view()).rejects.toMatchObject({ code: 'permission-denied' });
 
         expect(mockAssertCompanyAdmin).toHaveBeenCalledWith('admin-1', COMPANY);
         // Not the team check, which a recruiter passes.
@@ -137,16 +129,13 @@ describe('who may open either door', () => {
         expect(auditEntries()).toHaveLength(0);
     });
 
-    it.each([
-        ['read', view, 'draft_admin_view', 120],
-        ['delete', remove, 'draft_admin_delete', 30],
-    ])('spends its own budget per company and admin, failing closed (%s)', async (_door, call, budget, limit) => {
+    it('spends its own budget per company and admin, failing closed', async () => {
         seedDraft();
         mockCheckRateLimit.mockResolvedValue(false);
 
-        await expect(call()).rejects.toMatchObject({ code: 'resource-exhausted' });
+        await expect(view()).rejects.toMatchObject({ code: 'resource-exhausted' });
 
-        expect(mockCheckRateLimit).toHaveBeenCalledWith(`${budget}_${COMPANY}_admin-1`, limit, 300, 'closed');
+        expect(mockCheckRateLimit).toHaveBeenCalledWith(`draft_admin_view_${COMPANY}_admin-1`, 120, 300, 'closed');
         expect(mockStore.has(DRAFT_PATH)).toBe(true);
         expect(auditEntries()).toHaveLength(0);
     });
@@ -274,67 +263,5 @@ describe('reading any unfinished application', () => {
 
         await expect(view({ companyId: 'company-2', applicantKey: KEY })).rejects.toMatchObject({ code: 'not-found' });
         expect(mockAssertCompanyAdmin).toHaveBeenCalledWith('admin-1', 'company-2');
-    });
-});
-
-describe('deleting an unfinished application', () => {
-    it('deletes the draft and records who did it, in one transaction', async () => {
-        seedDraft();
-
-        await expect(remove()).resolves.toEqual({ deleted: true, applicantKey: KEY });
-
-        expect(mockStore.has(DRAFT_PATH)).toBe(false);
-        expect(mockDeletedPaths).toEqual([DRAFT_PATH]);
-        // The existence check, the delete and the audit entry: one transaction.
-        expect(mockRunTransactionCalls).toHaveLength(1);
-        const [transaction] = mockRunTransactionCalls;
-        expect(transaction.reads).toEqual([DRAFT_PATH]);
-        expect(transaction.writes).toHaveLength(1);
-        expect(transaction.writes[0]).toMatch(new RegExp(`^companies/${COMPANY}/application_draft_audit/`));
-        const entries = auditEntries();
-        expect(entries).toHaveLength(1);
-        expect(entries[0]).toMatchObject({
-            action: 'company_deleted_draft', outcome: 'ok', actorUid: 'admin-1', applicantKey: KEY, origin: 'driver',
-        });
-        expect(JSON.stringify(entries[0])).not.toMatch(/Dana|D9988776/);
-    });
-
-    it('deletes a carrier-prepared application too, whatever its status', async () => {
-        seedDraft({ origin: 'company', status: 'sent', inviteTokenHash: 'd'.repeat(64) });
-
-        await remove();
-
-        expect(mockStore.has(DRAFT_PATH)).toBe(false);
-        expect(auditEntries()[0]).toMatchObject({ origin: 'company', status: 'sent' });
-    });
-
-    it('touches nothing but that one document — not its neighbours, not its uploads', async () => {
-        seedDraft();
-        const neighbour = `companies/${COMPANY}/application_drafts/bbbb2222cccc3333dddd`;
-        mockStore.set(neighbour, { status: 'in_progress', formData: {} });
-
-        await remove();
-
-        expect(mockStore.has(neighbour)).toBe(true);
-        // One delete, and it is the draft. The uploads stay: the driver's own copy
-        // on their device still points at them and can still be submitted.
-        expect(mockDeletedPaths).toEqual([DRAFT_PATH]);
-    });
-
-    it('says a draft that is already gone could not be found, and records nothing', async () => {
-        await expect(remove()).rejects.toMatchObject({ code: 'not-found' });
-
-        expect(mockDeletedPaths).toEqual([]);
-        expect(auditEntries()).toHaveLength(0);
-    });
-
-    it('decides inside the transaction, so a draft submitted meanwhile is not reported deleted', async () => {
-        seedDraft();
-        // A submission removes the draft. Landing between any earlier read and the
-        // delete, it has to be seen by the delete's own transaction.
-        runBeforeNextTransaction(() => { mockStore.delete(DRAFT_PATH); });
-
-        await expect(remove()).rejects.toMatchObject({ code: 'not-found' });
-        expect(auditEntries()).toHaveLength(0);
     });
 });

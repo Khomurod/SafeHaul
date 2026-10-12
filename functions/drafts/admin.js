@@ -1,6 +1,6 @@
 /**
- * What a Company Admin may do with any unfinished application: read it, correct
- * it, and delete it.
+ * What a Company Admin may do with any unfinished application: read it and
+ * correct it. Deleting one, with everything in it, is `purge.js`.
  *
  * Part of the guest application-draft surface; `applicationDrafts.js` is the
  * deployment surface that re-exports the handlers by name.
@@ -32,19 +32,6 @@
  * before the driver has saved it, is the preparation workspace's to edit, and
  * an employer it locked there stays as it was locked, since the driver's page
  * keeps its own copy of the locks.
- *
- * ## Why `deleteApplicationDraft` removes the document and nothing else
- *
- * It is the deletion the pages built before `purgeApplicationDraft` call
- * (Production, until a release promotes the new ones), and it does what it did
- * for them: the same delete Start Over does. The link the carrier sent stops
- * opening, and the driver's resume token stops writing. A driver still holding
- * the application on their own device keeps that copy and can submit it, and
- * their uploads stay in Storage for it.
- *
- * Deleting an application with everything in it (its uploads, its links and
- * the same driver's other drafts) is `purge.js`, which the unfinished
- * applications page calls since 2026-10-08.
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
@@ -60,8 +47,6 @@ const { NOT_FOUND, auditCollection, authorize, staffAction } = require('./staff'
 
 /** Generous: an admin working down the list opens one after another. */
 const VIEW_LIMIT = Object.freeze({ limit: 120, windowSeconds: 300 });
-/** Deleting is rarer than reading, and a runaway loop should stop soon. */
-const DELETE_LIMIT = Object.freeze({ limit: 30, windowSeconds: 300 });
 /** An admin correcting an application saves often, section by section. */
 const EDIT_LIMIT = Object.freeze({ limit: 60, windowSeconds: 300 });
 
@@ -277,32 +262,4 @@ exports.saveApplicationDraftEdits = onCall({ cors: true }, async (request) => {
     return { ...(await adminView(companyId, doc)), changed: outcome.changed, revision: outcome.revision };
 });
 
-/**
- * Deletes one unfinished application's document, for a Company Admin, from a
- * page built before `purgeApplicationDraft` (see the file header).
- *
- * The existence check, the delete and the audit entry share one transaction, so
- * a deletion is never unrecorded and a missing draft is never reported as
- * deleted.
- */
-exports.deleteApplicationDraft = onCall({ cors: true }, async (request) => {
-    const { uid, companyId, applicantKey } = await authorize(request, 'draft_admin_delete', DELETE_LIMIT);
-
-    const ref = draft.draftsCollection(companyId).doc(applicantKey);
-    const auditRef = auditCollection(companyId).doc();
-    const deleted = await db.runTransaction(async (transaction) => {
-        const fresh = await transaction.get(ref);
-        if (!fresh.exists) return false;
-        // Read before the delete is queued, so the entry describes what was there.
-        const entry = staffAction('company_deleted_draft', uid, applicantKey, fresh.data() || {});
-        transaction.delete(ref);
-        transaction.set(auditRef, entry);
-        return true;
-    });
-    if (!deleted) throw new HttpsError('not-found', NOT_FOUND);
-
-    console.info(`[deleteApplicationDraft] ${companyId}/${applicantKey} deleted by ${uid}`);
-    return { deleted: true, applicantKey };
-});
-
-exports.__private = { DELETE_LIMIT, EDIT_LIMIT, NOT_FOUND, VIEW_LIMIT };
+exports.__private = { EDIT_LIMIT, NOT_FOUND, VIEW_LIMIT };

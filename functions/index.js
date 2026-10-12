@@ -133,13 +133,11 @@ exports.startNewApplication = applicationDrafts.startNewApplication;
 // somebody can see them.
 exports.listApplicationDrafts = applicationDrafts.listApplicationDrafts;
 // A Company Admin reads any unfinished application, whoever started it, may
-// correct one the driver owns, and may delete one — the document alone, for the
-// pages built before `purgeApplicationDraft`, or with its files, links and the
+// correct one the driver owns, and may delete one with its files, links and the
 // same driver's other drafts. Recruiters keep the narrower read in
 // `getCompanyPreparedDraft`.
 exports.getApplicationDraft = applicationDrafts.getApplicationDraft;
 exports.saveApplicationDraftEdits = applicationDrafts.saveApplicationDraftEdits;
-exports.deleteApplicationDraft = applicationDrafts.deleteApplicationDraft;
 exports.purgeApplicationDraft = applicationDrafts.purgeApplicationDraft;
 // An unfinished application that expires takes its uploads with it.
 exports.deleteExpiredDraftFiles = require('./drafts/expired').deleteExpiredDraftFiles;
@@ -196,8 +194,6 @@ exports.getEmailSettingsMeta = require('./getEmailSettingsMeta').getEmailSetting
 // MIGRATION: One-time migration of email settings from root doc to admin-only subcollection
 exports.migrateEmailSettings = require('./migrateEmailSettings').migrateEmailSettings;
 
-// 7. Data Migration
-exports.runMigration = companyAdmin.runMigration;
 exports.backfillPublicProfiles = companyAdmin.backfillPublicProfiles;
 // Hourly reconciler: rewrites public profiles left behind by a change to the
 // projection itself, which the onWrite trigger alone can never reach.
