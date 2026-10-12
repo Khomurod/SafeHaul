@@ -279,6 +279,46 @@ describe('EditCompanyModal — frozen save contract and duplicate-id defect', ()
     });
   });
 
+  // The older Create screen saved flat details, `address` the street line.
+  it('fills the form from a company created with flat details, and saves them, street included', async () => {
+    const flat = {
+      id: 'co-2',
+      data: () => ({
+        companyName: 'Artificial Freight Co',
+        appSlug: 'artificial-freight',
+        phone: '555-0100',
+        email: 'ops@example.test',
+        address: '1 Test Way',
+        city: 'Testville',
+        state: 'tx',
+        zip: '00000',
+        mcNumber: 'MC000000',
+        dotNumber: 'DOT000000',
+        planType: 'free',
+      }),
+    };
+    render(<EditCompanyModal companyDoc={flat} onClose={vi.fn()} onSave={vi.fn(async () => {})} />);
+
+    expect(screen.getByLabelText(/Contact Phone/)).toHaveValue('555-0100');
+    expect(screen.getByLabelText(/City/)).toHaveValue('Testville');
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => expect(mockUpdateCompany).toHaveBeenCalled());
+    expect(mockUpdateCompany.mock.calls[0][1]).toMatchObject({
+      address: { street: '1 Test Way', city: 'Testville', state: 'TX', zip: '00000' },
+      contact: { phone: '555-0100', email: 'ops@example.test' },
+      legal: { mcNumber: 'MC000000', dotNumber: 'DOT000000' },
+      // Its flat copies are saved with the same values, so none is read back stale.
+      phone: '555-0100',
+      email: 'ops@example.test',
+      city: 'Testville',
+      state: 'TX',
+      zip: '00000',
+      mcNumber: 'MC000000',
+      dotNumber: 'DOT000000',
+    });
+  });
+
   it('labels every text field', () => {
     render(<EditCompanyModal companyDoc={companyDoc()} onClose={vi.fn()} onSave={vi.fn()} />);
     ['Company Name', 'Unique URL Slug', 'Contact Phone', 'Contact Email', 'City', 'State', 'ZIP Code']

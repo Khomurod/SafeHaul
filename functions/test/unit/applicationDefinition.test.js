@@ -248,6 +248,52 @@ describe('company details are an allowlist, not a database dump', () => {
     expect(snapshotCompanyDetails({ dotNumber: 1234567 }).dotNumber).toBe('1234567');
   });
 
+  // Edit Company and Settings save `legal`, `contact` and an `address` object;
+  // the Create screen saved flat fields, with `address` the street line.
+  it('reads the DOT and MC numbers that Edit Company and Settings save', () => {
+    const snap = snapshotCompanyDetails(company({
+      dotNumber: '1111111', mcNumber: 'MC-111111',
+      legal: { dotNumber: '2222222', mcNumber: 'MC-222222' },
+    }));
+    expect(snap.dotNumber).toBe('2222222');
+    expect(snap.mcNumber).toBe('MC-222222');
+  });
+
+  it('reads a company created with flat details', () => {
+    expect(snapshotCompanyDetails({
+      companyName: 'Artificial Freight Co',
+      dotNumber: '1234567',
+      mcNumber: 'MC-987654',
+      email: 'hr@example.test',
+      phone: '555-0100',
+      address: '1 Test Way',
+      city: 'Springfield',
+      state: 'IL',
+      zip: '62701',
+    })).toEqual({
+      companyName: 'Artificial Freight Co',
+      dba: null,
+      dotNumber: '1234567',
+      mcNumber: 'MC-987654',
+      address: { street: '1 Test Way', city: 'Springfield', state: 'IL', zip: '62701' },
+      contact: { email: 'hr@example.test', phone: '555-0100' },
+    });
+  });
+
+  it('fills a blank saved detail from the flat one beside it', () => {
+    const snap = snapshotCompanyDetails({
+      legal: { dotNumber: '', mcNumber: '' },
+      dotNumber: '1234567',
+      contact: { email: '', phone: '' },
+      email: 'hr@example.test',
+      address: { street: '', city: 'Springfield', state: '', zip: '' },
+      state: 'IL',
+    });
+    expect(snap.dotNumber).toBe('1234567');
+    expect(snap.contact.email).toBe('hr@example.test');
+    expect(snap.address).toEqual({ street: null, city: 'Springfield', state: 'IL', zip: null });
+  });
+
   it('tolerates a missing company entirely', () => {
     expect(() => buildApplicationDefinition({})).not.toThrow();
     expect(buildApplicationDefinition({}).company.companyName).toBeNull();

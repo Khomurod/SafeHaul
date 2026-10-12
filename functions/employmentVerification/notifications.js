@@ -28,6 +28,15 @@ async function sendReminderEmail(companyId, recipientEmail, emailParams, reminde
     await sendDynamicEmail(companyId, recipientEmail, subjects[reminderType], html);
 }
 
+/**
+ * Where the carrier's PEV notices go. Edit Company and Settings save the
+ * company's email as `contact.email`; a company the older Create screen made
+ * holds a flat `email` too, which can be out of date.
+ */
+function carrierEmail(companyData) {
+    return companyData.adminEmail || companyData.contact?.email || companyData.email || null;
+}
+
 // ============================================================
 // HELPER: Notify carrier that verification is complete
 // ============================================================
@@ -35,8 +44,7 @@ async function notifyCarrierVerificationComplete(verificationData, formResponse)
     const companyDoc = await db.collection('companies').doc(verificationData.companyId).get();
     if (!companyDoc.exists) return;
 
-    const companyData = companyDoc.data();
-    const adminEmail = companyData.adminEmail || companyData.email;
+    const adminEmail = carrierEmail(companyDoc.data());
     if (!adminEmail) return;
 
     const html = buildCarrierCompleteEmailHTML(verificationData, formResponse);
@@ -51,8 +59,7 @@ async function notifyCarrierNoResponse(verificationData) {
     const companyDoc = await db.collection('companies').doc(verificationData.companyId).get();
     if (!companyDoc.exists) return;
 
-    const companyData = companyDoc.data();
-    const adminEmail = companyData.adminEmail || companyData.email;
+    const adminEmail = carrierEmail(companyDoc.data());
     if (!adminEmail) return;
 
     const html = buildCarrierNoResponseEmailHTML(verificationData);

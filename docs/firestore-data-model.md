@@ -53,7 +53,7 @@ erDiagram
 
 | Collection | Document ID | Client access (summary) | Purpose |
 |------------|-------------|-------------------------|---------|
-| `companies` | `companyId` | **get:** team or super · **list:** super only · **create/delete:** super · **update:** admin+ | Tenant root: branding, `features`, `featureSchedules`, `applicationConfig`, `applicationRules`, `applicationIntegrations`, quotas, etc. |
+| `companies` | `companyId` | **get:** team or super · **list:** super only · **create/delete:** super · **update:** admin+ | Tenant root: branding, `features`, `featureSchedules`, `applicationConfig`, `applicationRules`, `applicationIntegrations`, quotas, etc. Contact and registration details are `contact`, `address` and `legal`; a company the older Create screen made also holds them flat (`address` then the street line), which readers fall back to and saves keep in step (`companyDetails.js`, `snapshotCompanyDetails`) |
 | `public_profiles` | `companyId` | **read:** public · **write:** server (`syncPublicProfile` trigger) | Sanitized mirror for `/apply/:slug` (no revenue/internal fields) |
 | `drivers` | `driverId` (= Auth uid) | **get:** owner, super, or any staff · **list:** owner or super only · **write:** owner or super | Master driver profile |
 | `users` | `userId` | **read:** owner, super, staff · **create:** self · **update:** owner (no role/companyId) or super | HR/admin portal user profile |

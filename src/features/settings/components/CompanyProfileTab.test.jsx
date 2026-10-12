@@ -28,6 +28,7 @@ vi.mock('@/context/DataContext', () => ({
     useData: () => useDataMock(),
 }));
 
+import { companyDetailsOf } from '@features/companies/services/companyDetails';
 import { CompanyProfileTab } from './CompanyProfileTab';
 
 const company = {
@@ -150,6 +151,50 @@ describe('CompanyProfileTab information compatibility slice', () => {
             .toHaveBeenCalledWith('Company settings saved successfully.');
         expect(screen.getByRole('button', { name: 'Edit Profile' }))
             .toBeInTheDocument();
+    });
+
+    // The older Create screen saved flat details, `address` the street line.
+    const FLAT_COMPANY = {
+        id: 'company-1',
+        companyName: 'SafeHaul Logistics',
+        phone: '555-0100',
+        email: 'dispatch@example.com',
+        address: '100 Long Transportation Center Drive',
+        city: 'Dallas',
+        state: 'TX',
+        zip: '75001',
+        mcNumber: 'MC123456',
+        dotNumber: 'DOT654321',
+    };
+
+    it('shows a company created with flat details, and its first save keeps them, street included', async () => {
+        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } } });
+        render(<CompanyProfileTab currentCompanyProfile={FLAT_COMPANY} />);
+
+        expect(screen.getByText('DOT654321')).toBeInTheDocument();
+        expect(screen.getByText('100 Long Transportation Center Drive')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        await waitFor(() => expect(serviceMocks.saveCompanySettings).toHaveBeenCalled());
+        expect(serviceMocks.saveCompanySettings.mock.calls[0][1]).toMatchObject({
+            contact: { phone: '555-0100', email: 'dispatch@example.com' },
+            address: { street: '100 Long Transportation Center Drive', city: 'Dallas', state: 'TX', zip: '75001' },
+            legal: { mcNumber: 'MC123456', dotNumber: 'DOT654321' },
+        });
+    });
+
+    it('clears a detail of a company created with flat details for good', async () => {
+        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } } });
+        render(<CompanyProfileTab currentCompanyProfile={FLAT_COMPANY} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'MC Number' }), { target: { value: '' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        await waitFor(() => expect(serviceMocks.saveCompanySettings).toHaveBeenCalled());
+        const saved = serviceMocks.saveCompanySettings.mock.calls[0][1];
+        expect(saved).toMatchObject({ legal: { mcNumber: '', dotNumber: 'DOT654321' }, mcNumber: '', dotNumber: 'DOT654321' });
+        expect(companyDetailsOf({ ...FLAT_COMPANY, ...saved }).mcNumber).toBe('');
     });
 
     it('preserves the existing cancel behavior without saving', () => {
