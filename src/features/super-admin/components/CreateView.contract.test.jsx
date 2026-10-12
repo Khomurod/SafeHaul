@@ -5,8 +5,9 @@
  * `CreateView` writes companies and portal users, so its payloads are the most
  * consequential thing in the Super Admin area. Frozen here:
  *
- *  - `createNewCompany({ ...companyForm, isActive: true, createdAt: Date })` with
- *    every company key and `planType` default `'free'`.
+ *  - `createNewCompany({ companyName, appSlug, planType, contact, address, legal,
+ *    isActive: true, createdAt: Date })`: the details in the nested shape Edit
+ *    Company, Settings and the application PDF read, `planType` default `'free'`.
  *  - `createPortalUser({ fullName, email, password, companyId, role })` for both
  *    the with-admin company flow (using the *new* company's id) and the
  *    standalone user flow.
@@ -136,21 +137,40 @@ describe('CreateView — company creation contract', () => {
 
         await waitFor(() => expect(createNewCompany).toHaveBeenCalledTimes(1));
         const payload = createNewCompany.mock.calls[0][0];
-        expect(payload).toMatchObject({
+        expect(payload).toEqual({
             companyName: 'Artificial Freight Co',
             appSlug: 'artificial-freight-co',
-            mcNumber: '',
-            dotNumber: '',
-            email: 'ops@example.test',
-            phone: '',
-            address: '',
-            city: '',
-            state: '',
-            zip: '',
+            contact: { email: 'ops@example.test', phone: '' },
+            address: { street: '', city: '', state: '', zip: '' },
+            legal: { mcNumber: '', dotNumber: '' },
             planType: 'free',
             isActive: true,
+            createdAt: expect.any(Date),
         });
-        expect(payload.createdAt).toBeInstanceOf(Date);
+    });
+
+    // Saved flat, a new company's details showed blank in Edit Company and
+    // Settings, never reached the application PDF, and its first edit wiped its
+    // street.
+    it('saves the details typed at creation where every reader looks', async () => {
+        renderView();
+        fillCompany();
+        const type = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+        type(/^MC Number/, 'MC-987654');
+        type(/^DOT Number/, '1234567');
+        type(/^Phone/, '555-0100');
+        type(/^Street Address/, '1 Test Way');
+        type(/^City/, 'Springfield');
+        type(/^State/, 'IL');
+        type(/^Zip/, '62701');
+        submitCompanyForm();
+
+        await waitFor(() => expect(createNewCompany).toHaveBeenCalledTimes(1));
+        expect(createNewCompany.mock.calls[0][0]).toMatchObject({
+            contact: { email: 'ops@example.test', phone: '555-0100' },
+            address: { street: '1 Test Way', city: 'Springfield', state: 'IL', zip: '62701' },
+            legal: { mcNumber: 'MC-987654', dotNumber: '1234567' },
+        });
     });
 
     it('creates the initial portal user against the NEW company id', async () => {

@@ -28,6 +28,17 @@ async function sendReminderEmail(companyId, recipientEmail, emailParams, reminde
     await sendDynamicEmail(companyId, recipientEmail, subjects[reminderType], html);
 }
 
+/**
+ * Where the carrier's PEV notices go: the email Edit Company and Settings save
+ * (`contact.email`). An older company document may also hold an `adminEmail`,
+ * which no screen edits, and a company the older Create screen made a flat
+ * `email`; each is used only when the ones before it are blank.
+ */
+function carrierEmail(companyData) {
+    const text = (value) => (typeof value === 'string' ? value.trim() : '');
+    return text(companyData.contact?.email) || text(companyData.adminEmail) || text(companyData.email) || null;
+}
+
 // ============================================================
 // HELPER: Notify carrier that verification is complete
 // ============================================================
@@ -35,8 +46,7 @@ async function notifyCarrierVerificationComplete(verificationData, formResponse)
     const companyDoc = await db.collection('companies').doc(verificationData.companyId).get();
     if (!companyDoc.exists) return;
 
-    const companyData = companyDoc.data();
-    const adminEmail = companyData.adminEmail || companyData.email;
+    const adminEmail = carrierEmail(companyDoc.data());
     if (!adminEmail) return;
 
     const html = buildCarrierCompleteEmailHTML(verificationData, formResponse);
@@ -51,8 +61,7 @@ async function notifyCarrierNoResponse(verificationData) {
     const companyDoc = await db.collection('companies').doc(verificationData.companyId).get();
     if (!companyDoc.exists) return;
 
-    const companyData = companyDoc.data();
-    const adminEmail = companyData.adminEmail || companyData.email;
+    const adminEmail = carrierEmail(companyDoc.data());
     if (!adminEmail) return;
 
     const html = buildCarrierNoResponseEmailHTML(verificationData);

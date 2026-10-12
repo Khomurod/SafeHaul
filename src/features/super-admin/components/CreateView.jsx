@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createNewCompany, loadCompanies } from '@features/companies';
+import { companyDetailsFields } from '@features/companies/services/companyDetails';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { Icon, UserPlus, X, Briefcase } from '@design-system/icons';
@@ -135,9 +136,12 @@ export function CreateView({ onDataUpdate, setActiveView }) {
         setLoading(true);
         setOutcome(null);
         try {
-            // 1. Create Company Doc
+            // 1. Create Company Doc. The contact and registration details go in
+            // the nested shape Edit Company, Settings and the application PDF use.
+            const { mcNumber, dotNumber, email, phone, address, city, state, zip, ...company } = companyForm;
             const newCompanyRef = await createNewCompany({
-                ...companyForm,
+                ...company,
+                ...companyDetailsFields({ mcNumber, dotNumber, email, phone, street: address, city, state, zip }),
                 isActive: true,
                 createdAt: new Date()
             });

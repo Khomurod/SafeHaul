@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { db } from '@lib/firebase';
 import { sanitizeQuestionPayload } from '@shared/utils/sanitizeUserContent';
+import { FLAT_DETAIL_KEYS } from './companyDetailKeys';
 
 export async function loadCompanies() {
   return await getDocs(collection(db, "companies"));
@@ -68,6 +69,11 @@ export async function saveCompanySettings(companyId, settingsData) {
   if (settingsData.contact) payload.contact = settingsData.contact;
   if (settingsData.address) payload.address = settingsData.address;
   if (settingsData.legal) payload.legal = settingsData.legal;
+  // The flat copies a company the older Create screen made holds, kept in step
+  // with the nested details (companyDetailsFields).
+  FLAT_DETAIL_KEYS.forEach((key) => {
+    if (typeof settingsData[key] === 'string') payload[key] = settingsData[key];
+  });
   if (settingsData.hiringPreferences) payload.hiringPreferences = settingsData.hiringPreferences;
   if (settingsData.structuredOffers) payload.structuredOffers = settingsData.structuredOffers;
   if (settingsData.customQuestions) {

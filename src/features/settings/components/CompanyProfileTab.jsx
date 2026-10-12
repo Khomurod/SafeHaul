@@ -9,6 +9,7 @@ import { CompanyInfoSection, QuestionsTabContent } from './profile';
 import { ApplicationRulesPanel } from './rules/ApplicationRulesPanel';
 import { ApplicationIntegrationsPanel } from './rules/ApplicationIntegrationsPanel';
 import { AgreementsPanel } from './rules/AgreementsPanel';
+import { companyDetailsFields, companyDetailsOf } from '@features/companies/services/companyDetails';
 
 export function CompanyProfileTab({ currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
@@ -30,14 +31,8 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
         if (currentCompanyProfile) {
             setCompData({
                 companyName: currentCompanyProfile.companyName || '',
-                phone: currentCompanyProfile.contact?.phone || '',
-                email: currentCompanyProfile.contact?.email || '',
-                street: currentCompanyProfile.address?.street || '',
-                city: currentCompanyProfile.address?.city || '',
-                state: currentCompanyProfile.address?.state || '',
-                zip: currentCompanyProfile.address?.zip || '',
-                mcNumber: currentCompanyProfile.legal?.mcNumber || '',
-                dotNumber: currentCompanyProfile.legal?.dotNumber || '',
+                // Either shape: a company the older Create screen made holds flat details.
+                ...companyDetailsOf(currentCompanyProfile),
                 companyLogoUrl: currentCompanyProfile.companyLogoUrl || '',
                 applicationConfig: currentCompanyProfile.applicationConfig || {},
                 customQuestions: currentCompanyProfile.customQuestions || [],
@@ -62,9 +57,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
         try {
             const payload = {
                 companyName: compData.companyName,
-                contact: { phone: compData.phone, email: compData.email },
-                address: { street: compData.street, city: compData.city, state: compData.state, zip: compData.zip },
-                legal: { mcNumber: compData.mcNumber, dotNumber: compData.dotNumber },
+                ...companyDetailsFields(compData, currentCompanyProfile),
                 applicationConfig: compData.applicationConfig,
                 customQuestions: compData.customQuestions,
                 companyLogoUrl: compData.companyLogoUrl,

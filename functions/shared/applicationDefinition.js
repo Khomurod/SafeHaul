@@ -215,26 +215,34 @@ function normalizeCustomQuestion(question, index) {
  *
  * A curated allowlist, not a dump of the company document: raw database values
  * must never reach users, and a snapshot should not silently grow new fields.
+ *
+ * A company document holds its details in one of two shapes. Edit Company and
+ * Settings save `legal`, `contact` and an `address` object; the Super Admin's
+ * older Create screen saved flat fields, `address` among them as the street
+ * line. A saved nested value wins, and a flat one fills it when it is blank.
  */
 function snapshotCompanyDetails(company) {
     const raw = company && typeof company === 'object' ? company : {};
-    const address = raw.address && typeof raw.address === 'object' ? raw.address : {};
-    const contact = raw.contact && typeof raw.contact === 'object' ? raw.contact : {};
+    const nested = (value) => (value && typeof value === 'object' ? value : {});
+    const legal = nested(raw.legal);
+    const address = nested(raw.address);
+    const contact = nested(raw.contact);
+    const flatStreet = typeof raw.address === 'string' ? raw.address : null;
 
     return {
         companyName: clean(raw.companyName),
         dba: clean(raw.dba),
-        dotNumber: clean(raw.dotNumber),
-        mcNumber: clean(raw.mcNumber),
+        dotNumber: clean(legal.dotNumber) || clean(raw.dotNumber),
+        mcNumber: clean(legal.mcNumber) || clean(raw.mcNumber),
         address: {
-            street: clean(address.street),
-            city: clean(address.city),
-            state: clean(address.state),
-            zip: clean(address.zip),
+            street: clean(address.street) || clean(flatStreet),
+            city: clean(address.city) || clean(raw.city),
+            state: clean(address.state) || clean(raw.state),
+            zip: clean(address.zip) || clean(raw.zip),
         },
         contact: {
-            email: clean(contact.email),
-            phone: clean(contact.phone),
+            email: clean(contact.email) || clean(raw.email),
+            phone: clean(contact.phone) || clean(raw.phone),
         },
     };
 }

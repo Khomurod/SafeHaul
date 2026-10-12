@@ -13,6 +13,7 @@ import {
 } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 import { ApplicationRulesPanel } from '@features/settings/components/rules/ApplicationRulesPanel';
+import { companyDetailsFields, companyDetailsOf } from '@features/companies/services/companyDetails';
 
 /**
  * Super Admin company editor.
@@ -77,14 +78,8 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
       setFormData({
         companyName: company.companyName || '',
         appSlug: company.appSlug || '',
-        phone: company.contact?.phone || '',
-        email: company.contact?.email || '',
-        street: company.address?.street || '',
-        city: company.address?.city || '',
-        state: company.address?.state || '',
-        zip: company.address?.zip || '',
-        mcNumber: company.legal?.mcNumber || '',
-        dotNumber: company.legal?.dotNumber || '',
+        // Either shape: a company the older Create screen made holds flat details.
+        ...companyDetailsOf(company),
         companyLogoUrl: company.companyLogoUrl || '',
         planType: company.planType || 'free', // Default to Free
       });
@@ -122,12 +117,7 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
       const companyData = {
         companyName: formData.companyName,
         appSlug: formData.appSlug.toLowerCase().trim(),
-        address: {
-          street: formData.street, city: formData.city,
-          state: formData.state.toUpperCase(), zip: formData.zip,
-        },
-        contact: { phone: formData.phone, email: formData.email },
-        legal: { mcNumber: formData.mcNumber, dotNumber: formData.dotNumber },
+        ...companyDetailsFields({ ...formData, state: formData.state.toUpperCase() }, companyDoc.data()),
         companyLogoUrl: newLogoUrl,
         planType: formData.planType, // Save the plan type!
       };
