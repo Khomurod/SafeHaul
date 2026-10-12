@@ -14,11 +14,11 @@
  *
  * ## The standard
  *
- * - **400 lines** is the review threshold: a file this size is asked to justify
- *   its shape, not split on sight. A cohesive 420-line module is fine.
- * - **500 physical lines** is the hard maximum for handwritten code, and it
- *   applies to tests and tooling exactly as it does to runtime code. A test file
- *   nobody can read is a test file nobody maintains.
+ * - **500 lines** is the warning: the check names the file (a GitHub warning in
+ *   CI), and it is asked to justify its shape in review. A cohesive module past
+ *   it is fine.
+ * - **700 physical lines** is the hard maximum for runtime code and tooling.
+ * - **Tests have no limit**: a long suite is a list of cases.
  *
  * ## What counts
  *
@@ -26,48 +26,28 @@
  * stripping comments would reward deleting the explanations this repository
  * relies on, and counting statements would reward putting three on one line.
  * The metric is meant to measure *how much there is to read*.
- *
- * ## The backlog is a campaign, not an allowlist
- *
- * `.github/source-size-backlog.json` records the files that were already over
- * the limit when the standard arrived, with the line count each had. It is not
- * permission to stay large:
- *
- * - a file NOT in it may never exceed the limit — that is the gate;
- * - a file in it may never GROW past its recorded count;
- * - a file in it that has come back under the limit must be REMOVED from it,
- *   and this fails until it is, so the backlog can only shrink;
- * - an entry for a file that no longer exists fails too, so a rename cannot
- *   quietly carry an exemption with it.
- *
- * When the last entry goes, the file goes, and `--no-backlog` becomes the
- * permanent state.
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkBacklogDirection } from './source-size-baseline.mjs';
-import { resolveValidatedBaseline } from './source-size-validated.mjs';
-import { backlogShapeProblems } from './source-size-direction.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
 /*
- * Imported AND re-exported: the run below uses these, and the tests and the
- * baseline modules import them from here. A split must not move a published name,
- * so the entry keeps its whole surface even though the declaration now lives in
- * `source-size-scope.mjs`.
+ * Imported AND re-exported: the run below uses these, and the tests import them
+ * from here. A split must not move a published name, so the entry keeps its whole
+ * surface even though the declaration lives in `source-size-scope.mjs`.
  */
 import {
-  ACCOUNTED_FORMATS, BACKLOG_PATH, classify, DOCUMENTED_EXCEPTIONS, EXCLUDED,
+  ACCOUNTED_FORMATS, classify, EXCLUDED,
   HARD_LIMIT, isExcluded, isSourcePath, NOT_SOURCE_FORMATS, REQUIRED_ROOTS,
   SOURCE_EXTENSIONS, UNMEASURED_FORMATS, WARN_LIMIT,
 } from './source-size-scope.mjs';
 
 export {
-  ACCOUNTED_FORMATS, BACKLOG_PATH, classify, DOCUMENTED_EXCEPTIONS, EXCLUDED,
+  ACCOUNTED_FORMATS, classify, EXCLUDED,
   HARD_LIMIT, isExcluded, isSourcePath, NOT_SOURCE_FORMATS, REQUIRED_ROOTS,
   SOURCE_EXTENSIONS, UNMEASURED_FORMATS, WARN_LIMIT,
 };
@@ -140,84 +120,15 @@ export function measure({ cwd = repoRoot, run = defaultGit, read } = {}) {
 }
 
 /**
- * A documented exception whose shape is wrong is refused before anything is
- * compared, for the reason the backlog learned on 2026-08-27: a ceiling that is
- * not a number coerces to NaN, every comparison against NaN is false, and the
- * entry silently exempts the file from everything.
- */
-export function exceptionShapeProblems(exceptions) {
-  const problems = [];
-  const seen = new Set();
-  for (const entry of exceptions) {
-    const label = typeof entry?.path === 'string' ? entry.path : JSON.stringify(entry?.path);
-    if (typeof entry?.path !== 'string' || entry.path.length === 0) {
-      problems.push(`a documented exception has no path (${label}). Nothing can be compared `
-        + 'until the entry says which file it rules on.');
-      continue;
-    }
-    if (seen.has(entry.path)) {
-      problems.push(`${entry.path} has two documented exceptions. Two ceilings is no ceiling; `
-        + 'one of them is stale.');
-    }
-    seen.add(entry.path);
-    if (!Number.isInteger(entry.maxLines) || entry.maxLines <= HARD_LIMIT) {
-      problems.push(`the documented exception for ${entry.path} has ceiling `
-        + `${JSON.stringify(entry.maxLines)}, which is not an integer above ${HARD_LIMIT}. `
-        + 'A non-number compares as NaN and exempts the file from everything; a ceiling at or '
-        + 'under the hard limit is an ordinary file and needs no exception.');
-    }
-    if (typeof entry.reason !== 'string' || entry.reason.length < 80) {
-      problems.push(`the documented exception for ${entry.path} carries no real reason. `
-        + 'An exception without an argument is an allowlist entry.');
-    }
-    if (typeof entry.ruledOn !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(entry.ruledOn)) {
-      problems.push(`the documented exception for ${entry.path} does not date its ruling `
-        + `(ruledOn: ${JSON.stringify(entry.ruledOn)}).`);
-    }
-  }
-  return problems;
-}
-
-/**
- * Compare the tree against the standard, the backlog, and the owner-ruled
- * exceptions.
+ * Compare the tree against the standard.
  *
  * Pure, so `scripts/test-source-size.mjs` can drive every verdict without a
- * repository to point it at. `exceptions` defaults to none so a fixture tests one
- * thing at a time; `main` passes `DOCUMENTED_EXCEPTIONS`, and forgetting to would
- * fail CLOSED — the excepted file is over the hard limit and, once out of the
- * backlog, would be refused as an ordinary oversized file.
+ * repository to point it at. `problems` fail the run; `warnings` name the files
+ * past the warning line, which the run reports and passes.
  */
-export function evaluate(files, backlog = {}, exceptions = []) {
-  /*
-   * A recorded count that is not a number makes every comparison below FALSE
-   * rather than failing, so the shape is checked before anything is compared. See
-   * `backlogShapeProblems`.
-   */
-  const problems = [
-    ...backlogShapeProblems(backlog, BACKLOG_PATH),
-    ...exceptionShapeProblems(exceptions),
-  ];
-  if (problems.length > 0) return { ok: false, problems };
-  const measured = new Map(files.map((file) => [file.path, file.lines]));
-  // Exact whole-path lookup, like the backlog and EXCLUDED: a file elsewhere with
-  // the same suffix is a different file and gets no ceiling from this one's ruling.
-  const excepted = new Map(exceptions.map((entry) => [entry.path, entry]));
-
-  for (const [path, entry] of excepted) {
-    if (backlog[path] !== undefined) {
-      problems.push(`${path} is in ${BACKLOG_PATH} and in DOCUMENTED_EXCEPTIONS at once. `
-        + 'The backlog is unfinished work and an exception is a ruling; one of the two answers '
-        + 'is stale, so neither is trusted until only one remains.');
-    }
-    if (!measured.has(path)) {
-      problems.push(`DOCUMENTED_EXCEPTIONS names ${path}, which is not a scanned source file. `
-        + 'A renamed or deleted file does not carry its ruling with it.');
-    } else if (measured.get(path) !== null && measured.get(path) <= HARD_LIMIT) {
-      problems.push(`${path} is ${measured.get(path)} lines and no longer needs its documented `
-        + `exception (ceiling ${entry.maxLines}). Remove the entry — this list only shrinks.`);
-    }
-  }
+export function evaluate(files) {
+  const problems = [];
+  const warnings = [];
 
   for (const file of files) {
     if (file.lines === null) {
@@ -225,34 +136,13 @@ export function evaluate(files, backlog = {}, exceptions = []) {
         + 'tree disagree, so no size for it can be trusted.');
       continue;
     }
-    const exception = excepted.get(file.path);
-    if (exception && Number.isInteger(exception.maxLines) && file.lines > exception.maxLines) {
-      problems.push(`${file.path} is ${file.lines} lines, over the ${exception.maxLines}-line `
-        + `ceiling its documented exception pinned on ${exception.ruledOn}. The ruling covers `
-        + 'the file as it was, never growth.');
-    }
-    const recorded = backlog[file.path];
-    if (recorded === undefined) {
-      if (file.lines > HARD_LIMIT && !exception) {
-        problems.push(`${file.path} is ${file.lines} lines, over the ${HARD_LIMIT}-line maximum. `
-          + 'Split it by responsibility.');
-      }
-      continue;
-    }
-    if (file.lines > recorded) {
-      problems.push(`${file.path} is ${file.lines} lines, up from the ${recorded} recorded in `
-        + `${BACKLOG_PATH}. A file in the backlog may not grow.`);
-    }
-    if (file.lines <= HARD_LIMIT) {
-      problems.push(`${file.path} is ${file.lines} lines and no longer needs a backlog entry. `
-        + `Remove it from ${BACKLOG_PATH} — the backlog only shrinks.`);
-    }
-  }
-
-  for (const path of Object.keys(backlog)) {
-    if (!measured.has(path)) {
-      problems.push(`${BACKLOG_PATH} lists ${path}, which is not a scanned source file. `
-        + 'A renamed or deleted file does not carry its exemption with it.');
+    if (file.category === 'test') continue;
+    if (file.lines > HARD_LIMIT) {
+      problems.push(`${file.path} is ${file.lines} lines, over the ${HARD_LIMIT}-line maximum. `
+        + 'Split it by responsibility.');
+    } else if (file.lines > WARN_LIMIT) {
+      warnings.push(`${file.path} is ${file.lines} lines, past the ${WARN_LIMIT}-line warning `
+        + `(the maximum is ${HARD_LIMIT}).`);
     }
   }
 
@@ -264,7 +154,17 @@ export function evaluate(files, backlog = {}, exceptions = []) {
       + 'somewhere it matters, which makes every number below meaningless.');
   }
 
-  return { ok: problems.length === 0, problems };
+  return { ok: problems.length === 0, problems, warnings };
+}
+
+/**
+ * A file's mark in the report: `!` past the maximum, `~` past the warning, `?`
+ * unreadable. A test has no limit, so a long one is not marked.
+ */
+export function reportFlag(file) {
+  if (file.lines === null) return '?';
+  if (file.category === 'test') return ' ';
+  return file.lines > HARD_LIMIT ? '!' : file.lines > WARN_LIMIT ? '~' : ' ';
 }
 
 export function summarise(files) {
@@ -273,94 +173,63 @@ export function summarise(files) {
     const bucket = byCategory.get(file.category) || { count: 0, lines: 0, over: 0, warn: 0 };
     bucket.count += 1;
     bucket.lines += file.lines;
-    if (file.lines > HARD_LIMIT) bucket.over += 1;
-    else if (file.lines > WARN_LIMIT) bucket.warn += 1;
+    // A test has no limit, so it is never counted as past one.
+    if (file.category !== 'test') {
+      if (file.lines > HARD_LIMIT) bucket.over += 1;
+      else if (file.lines > WARN_LIMIT) bucket.warn += 1;
+    }
     byCategory.set(file.category, bucket);
   }
   return byCategory;
 }
 
-async function main() {
+/** Print each warning; in CI also as a workflow annotation, so it shows on the pull request. */
+export function reportWarnings(warnings, { env = process.env, log = console.log } = {}) {
+  for (const warning of warnings) {
+    log(`\nwarning: ${warning}`);
+    if (env.GITHUB_ACTIONS === 'true') log(`::warning title=Source size::${warning}`);
+  }
+}
+
+function main() {
   const args = process.argv.slice(2);
   const top = Number(args.find((a) => a.startsWith('--top='))?.split('=')[1] || 30);
-  const useBacklog = !args.includes('--no-backlog');
-  /*
-   * CI passes this, and it is what makes the backlog a record rather than an
-   * allowlist: the three rules in `evaluate` are enforced against the backlog IN
-   * THE BRANCH UNDER TEST, which that branch may edit. `--require-baseline`
-   * refuses unless the previous version can be read out of git and shown not to
-   * have grown. See scripts/source-size-baseline.mjs.
-   */
-  const requireBaseline = args.includes('--require-baseline');
 
   const files = measure();
-  const backlogFile = resolve(repoRoot, BACKLOG_PATH);
-  const backlog = useBacklog && existsSync(backlogFile)
-    ? JSON.parse(readFileSync(backlogFile, 'utf8')).files || {}
-    : {};
-
-  const verdict = evaluate(files, backlog, DOCUMENTED_EXCEPTIONS);
+  const verdict = evaluate(files);
   const byCategory = summarise(files);
-
-  const headSha = execFileSync('git', ['rev-parse', 'HEAD^{commit}'], { cwd: repoRoot, encoding: 'utf8' }).trim();
-  const {
-    lastValidatedBase, overrideValidated, automaticLookupComplete, error: lookupError,
-  } = useBacklog
-    ? await resolveValidatedBaseline({ headSha, cwd: repoRoot, log: console.log })
-    : { lastValidatedBase: () => null, overrideValidated: () => false, error: null };
-
-  const direction = useBacklog
-    ? checkBacklogDirection({
-      current: backlog,
-      measured: files,
-      countLines,
-      path: BACKLOG_PATH,
-      requireBaseline,
-      lastValidatedBase,
-      overrideValidated,
-      automaticLookupComplete,
-    })
-    : { problems: [], describe: 'backlog ignored (--no-backlog)' };
 
   console.log(`Scanned ${files.length} handwritten source files `
     + `(${SOURCE_EXTENSIONS.join(', ')}), excluding ${EXCLUDED.length} vendored artifact(s).\n`);
 
-  console.log('| category | files | lines | >500 | 401-500 |');
+  console.log(`| category | files | lines | >${HARD_LIMIT} | ${WARN_LIMIT + 1}-${HARD_LIMIT} |`);
   console.log('| --- | ---: | ---: | ---: | ---: |');
   for (const [category, b] of [...byCategory].sort((a, z) => z[1].lines - a[1].lines)) {
-    console.log(`| ${category} | ${b.count} | ${b.lines} | ${b.over} | ${b.warn} |`);
+    const limited = category !== 'test';
+    console.log(`| ${category} | ${b.count} | ${b.lines} | ${limited ? b.over : '—'} | ${limited ? b.warn : '—'} |`);
   }
 
   console.log(`\nLargest ${top}:\n`);
   for (const file of files.slice(0, top)) {
-    const flag = file.lines === null ? '?' : file.lines > HARD_LIMIT ? '!' : file.lines > WARN_LIMIT ? '~' : ' ';
+    const flag = reportFlag(file);
     const size = file.lines === null ? '  ???' : String(file.lines).padStart(5);
     console.log(`  ${flag} ${size}  ${file.category.padEnd(7)}  ${file.path}`);
   }
 
-  const remaining = files.filter((f) => f.lines !== null && f.lines > HARD_LIMIT).length;
-  console.log(`\n${remaining} file(s) over ${HARD_LIMIT} lines; `
-    + `${Object.keys(backlog).length} recorded in the backlog; `
-    + `${DOCUMENTED_EXCEPTIONS.length} under an owner-ruled ceiling.`);
-  console.log(`backlog    : ${direction.describe}`);
+  reportWarnings(verdict.warnings);
 
-  const problems = [...verdict.problems, ...direction.problems];
-  if (problems.length > 0 && lookupError) {
-    // "Nothing came back validated" and "the lookup could not run" fail the same
-    // way and need very different fixes, so the refusal says which it was.
-    problems.push(`the baseline lookup could not complete: ${lookupError}. That is why nothing `
-      + 'came back validated — it is not evidence that nothing is.');
-  }
-  if (problems.length > 0) {
-    console.error(`\nsource-size REFUSED:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
+  if (!verdict.ok) {
+    console.error(`\nsource-size REFUSED:\n${verdict.problems.map((p) => `  - ${p}`).join('\n')}`);
     process.exit(1);
   }
-  console.log('\nsource-size OK.');
+  console.log(`\nsource-size OK (${verdict.warnings.length} warning(s)).`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main().catch((error) => {
+  try {
+    main();
+  } catch (error) {
     console.error(`source-size REFUSED\n\n${error?.stack || error}`);
     process.exit(1);
-  });
+  }
 }

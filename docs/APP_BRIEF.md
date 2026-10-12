@@ -1421,11 +1421,9 @@ re-scanned, never stepped over.
   releases); `docs/SECRET_HISTORY_AUDIT.md` lists the credentials still needing
   owner rotation.
 
-**Source size.** 400 physical lines asks a file to justify its shape; 500 is the
-hard maximum for every handwritten source file, tests and tooling included, with
-one owner-ruled exception: `src/firestore.rules`, held under a 689-line ceiling
-that may only move down. `npm run check:source-size` enforces it; the details
-are in `.claude/rules/source-size.md`.
+**Source size.** Runtime code and tooling warn past 500 physical lines and are
+refused past 700; tests have no limit. `npm run check:source-size` enforces it;
+the details are in `.claude/rules/source-size.md`.
 
 **Instructions for AI agents stay small.** `AGENTS.md` is one page every agent
 reads; `.claude/rules/` holds topic rules loaded per area; history lives in

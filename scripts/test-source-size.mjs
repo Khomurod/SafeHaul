@@ -10,12 +10,10 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  BACKLOG_PATH,
-  DOCUMENTED_EXCEPTIONS,
   EXCLUDED,
   HARD_LIMIT,
   ACCOUNTED_FORMATS,
@@ -27,11 +25,13 @@ import {
   classify,
   countLines,
   evaluate,
-  exceptionShapeProblems,
   isExcluded,
   isSourcePath,
   listSourceFiles,
   measure,
+  reportFlag,
+  reportWarnings,
+  summarise,
 } from './source-size.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -193,7 +193,11 @@ const cases = [
   ['functions/test/unit/a.test.js', 'test'],
   ['src/features/x/Thing.contract.test.jsx', 'test'],
   ['e2e/a11y.spec.cjs', 'test'],
+  ['e2e/helpers/wizardHelpers.cjs', 'test'],
+  ['scripts/test-ci-plan.mjs', 'test'],
+  ['scripts/ci-plan/test-gate.mjs', 'test'],
   ['scripts/ci-plan.mjs', 'tooling'],
+  ['scripts/ci-plan/latest-plan.mjs', 'tooling'],
   ['.storybook/main.js', 'tooling'],
   ['vite.config.js', 'tooling'],
 ];
@@ -211,77 +215,64 @@ const roots = REQUIRED_ROOTS.map((root, i) => file(`${root}/placeholder${i}.js`,
 const withRoots = (...extra) => [...roots, ...extra];
 
 {
-  const { ok } = evaluate(withRoots(file('src/a.js', HARD_LIMIT)), {});
+  const { ok } = evaluate(withRoots(file('src/a.js', HARD_LIMIT)));
   assert('D1. a file exactly at the limit passes', ok, `${HARD_LIMIT} lines is allowed`);
 }
 {
-  const { ok, problems } = evaluate(withRoots(file('src/a.js', HARD_LIMIT + 1)), {});
-  assert('D2. one line over fails', !ok && /over the 500-line maximum/.test(problems[0]), problems[0]);
+  const { ok, problems } = evaluate(withRoots(file('src/a.js', HARD_LIMIT + 1)));
+  assert('D2. one line over fails', !ok && /over the 700-line maximum/.test(problems[0]), problems[0]);
 }
 {
-  const { ok } = evaluate(withRoots(file('src/a.test.js', HARD_LIMIT + 1)), {});
-  assert('D3. and a TEST file gets no exemption', !ok);
+  const { ok, warnings } = evaluate(withRoots(file('src/a.test.js', 5000), file('e2e/b.spec.cjs', 900)));
+  assert('D3. a TEST file has no limit, and is not warned about either',
+    ok && warnings.length === 0, JSON.stringify(warnings));
 }
 {
-  const { ok } = evaluate(withRoots(file('scripts/a.mjs', HARD_LIMIT + 1)), {});
-  assert('D4. nor does TOOLING', !ok);
+  const { ok } = evaluate(withRoots(file('scripts/a.mjs', HARD_LIMIT + 1)));
+  assert('D4. TOOLING keeps the limit', !ok);
 }
 {
-  const { ok } = evaluate(withRoots(file('src/big.js', 900)), { 'src/big.js': 900 });
-  assert('D5. a backlogged file at its recorded size passes', ok);
+  const { ok, warnings } = evaluate(withRoots(file('src/a.js', WARN_LIMIT + 1), file('src/b.js', WARN_LIMIT)));
+  assert('D5. past the warning line passes, and names the file',
+    ok && warnings.length === 1 && /src\/a\.js is 501 lines, past the 500-line warning/.test(warnings[0]),
+    JSON.stringify(warnings));
 }
 {
-  /*
-   * The bypass this closes, at the place it landed: `evaluate` compares with `>`,
-   * and `9000 > 'unbounded'` is false because the string coerces to NaN — so a
-   * malformed entry exempted the file from the hard limit as well as from the
-   * may-not-grow rule. Reproduced on 2026-08-27 before being fixed.
-   */
-  const { ok, problems } = evaluate(withRoots(file('src/big.js', 9000)), { 'src/big.js': 'unbounded' });
-  assert('D5b. a recorded count that is not a number is refused, not ignored',
-    !ok && problems.every((p) => /not a line count/.test(p)),
-    `${problems.join('; ') || 'nothing reported'} — without this a 9000-line file passes clean`);
+  const printed = (env) => {
+    const lines = [];
+    reportWarnings(['src/a.js is 501 lines'], { env, log: (line) => lines.push(line) });
+    return lines.join('\n');
+  };
+  assert('D6. a warning is printed, and in CI also annotated on the pull request',
+    printed({ GITHUB_ACTIONS: 'true' }).includes('::warning title=Source size::src/a.js is 501 lines')
+      && printed({}).includes('warning: src/a.js is 501 lines') && !printed({}).includes('::warning'),
+    printed({ GITHUB_ACTIONS: 'true' }));
 }
 {
-  const { ok, problems } = evaluate(withRoots(file('src/big.js', 901)), { 'src/big.js': 900 });
-  assert('D6. a backlogged file that GREW fails', !ok && /may not grow/.test(problems.join(' ')),
-    problems.join(' '));
-}
-{
-  const { ok, problems } = evaluate(withRoots(file('src/big.js', 400)), { 'src/big.js': 900 });
-  assert('D7. one that came back under the limit must leave the backlog',
-    !ok && /only shrinks/.test(problems.join(' ')), problems.join(' '));
-}
-{
-  const { ok, problems } = evaluate(withRoots(), { 'src/gone.js': 900 });
-  assert('D8. a backlog entry for a file that no longer exists fails',
-    !ok && /does not carry its exemption/.test(problems.join(' ')), problems.join(' '));
-}
-{
-  // The rename bypass, stated as a test: the entry is keyed by path, so moving
-  // the file leaves the entry stale AND the file unbacklogged — two failures,
-  // never a silent pass.
-  const moved = evaluate(withRoots(file('src/renamed.js', 900)), { 'src/big.js': 900 });
-  assert('D9. renaming a backlogged file does not carry the exemption with it',
-    !moved.ok && moved.problems.length === 2, JSON.stringify(moved.problems));
+  const files = [file('src/a.test.js', 900), file('e2e/b.spec.cjs', 600), file('src/c.js', 600)];
+  const { test, runtime } = Object.fromEntries(summarise(files));
+  assert('D7. the report counts and marks a long test against no limit',
+    test.over === 0 && test.warn === 0 && runtime.warn === 1
+      && reportFlag(files[0]) === ' ' && reportFlag(files[1]) === ' ' && reportFlag(files[2]) === '~',
+    JSON.stringify({ test, runtime }));
 }
 {
   // Found while probing the guard: `git ls-files` names what the INDEX knows,
   // and the index can name a file the working tree does not have. Reading it
   // threw ENOENT and killed the run in a stack trace.
   const missing = { path: 'src/gone.js', lines: null, category: 'runtime' };
-  const { ok, problems } = evaluate(withRoots(missing), {});
+  const { ok, problems } = evaluate(withRoots(missing));
   assert('D9b. a tracked file that cannot be read fails, and does not crash',
     !ok && /could not be read/.test(problems.join(' ')), problems.join(' '));
 }
 {
-  const { ok, problems } = evaluate([file('src/a.js', 10)], {});
+  const { ok, problems } = evaluate([file('src/a.js', 10)]);
   assert('D10. a scan that stopped covering a required root fails',
     !ok && /stopped looking/.test(problems.join(' ')),
     `${problems.length} problem(s) for ${REQUIRED_ROOTS.length - 1} missing roots`);
 }
 {
-  const { problems } = evaluate([file('src/a.js', 10)], {});
+  const { problems } = evaluate([file('src/a.js', 10)]);
   assert('D11. and names every root it lost, not just the first',
     problems.filter((p) => /stopped looking/.test(p)).length === REQUIRED_ROOTS.length - 1);
 }
@@ -311,30 +302,17 @@ console.log('\nE. Against the real repository');
   assert('E5. the excluded artifact really is excluded',
     !files.some((f) => f.path === 'public/pdf.worker.min.mjs'));
 
-  const backlogFile = resolve(repoRoot, BACKLOG_PATH);
-  const backlog = existsSync(backlogFile)
-    ? JSON.parse(readFileSync(backlogFile, 'utf8')).files || {}
-    : {};
-  const excepted = new Set(DOCUMENTED_EXCEPTIONS.map((e) => e.path));
-  const over = files.filter((f) => f.lines > HARD_LIMIT).map((f) => f.path);
-  const unrecorded = over.filter((p) => !(p in backlog) && !excepted.has(p));
-  assert('E6. every file over the limit is either fixed, recorded, or owner-ruled',
-    unrecorded.length === 0, unrecorded.join(', '));
+  const over = files.filter((f) => f.category !== 'test' && f.lines > HARD_LIMIT).map((f) => f.path);
+  assert('E6. no runtime or tooling file is over the limit', over.length === 0, over.join(', '));
 
-  // The excepted file is MEASURED — the contrast with E5 is the mechanism's whole
-  // point. An exception that fell out of the scan would be an exclusion in disguise.
-  assert('E8. the owner-ruled exception is still scanned, not excluded',
-    files.some((f) => f.path === 'src/firestore.rules' && Number.isInteger(f.lines)),
+  // The rules file used to carry its own ceiling; it is measured like any other.
+  assert('E7. the Firestore rules are measured like any other source file',
+    files.some((f) => f.path === 'src/firestore.rules' && f.category === 'runtime' && Number.isInteger(f.lines)),
     'src/firestore.rules must appear in measure() output');
-
-  assert('E7. the backlog describes why it exists',
-    !existsSync(backlogFile) || typeof JSON.parse(readFileSync(backlogFile, 'utf8')).$comment === 'object'
-      || typeof JSON.parse(readFileSync(backlogFile, 'utf8')).$comment === 'string',
-    'a bare list of paths is an allowlist; this one has to say it is a campaign');
 }
 
-assert('F1. the warning threshold sits below the hard limit',
-  WARN_LIMIT < HARD_LIMIT && WARN_LIMIT === 400 && HARD_LIMIT === 500);
+assert('F1. the warning line is 500 and the hard limit 700 (owner ruling, 2026-10-11)',
+  WARN_LIMIT === 500 && HARD_LIMIT === 700);
 
 {
   // Injected `run`, so this covers the filtering without a repository.
@@ -374,106 +352,6 @@ assert('F6. and every format left out says why it is not source',
   && UNMEASURED_FORMATS.every((f) => f.extension.startsWith('.') && f.reason.length > 40)
   && UNMEASURED_FORMATS.every((f) => !SOURCE_EXTENSIONS.includes(f.extension)),
   'what a coverage claim does NOT look at is the half that goes stale silently');
-
-/* ========================================================================== */
-console.log('\nG. Documented exceptions — an owner ruling, measured, never a blind spot');
-/* ========================================================================== */
-
-/*
- * The entry is pinned by NAME and by CEILING, the same reasoning as A2 and A6b:
- * everything else in this section derives from `DOCUMENTED_EXCEPTIONS` itself, so
- * without this a raised ceiling or a swapped path would keep every rule below
- * green while changing what the gate permits. Raising 689 must be a deliberate
- * edit HERE as well as in the scope module, where code review sees both.
- */
-assert('G1. exactly one exception exists, pinned by path and ceiling',
-  DOCUMENTED_EXCEPTIONS.length === 1
-  && DOCUMENTED_EXCEPTIONS[0].path === 'src/firestore.rules'
-  && DOCUMENTED_EXCEPTIONS[0].maxLines === 689
-  && DOCUMENTED_EXCEPTIONS[0].ruledOn === '2026-09-01',
-  JSON.stringify(DOCUMENTED_EXCEPTIONS.map((e) => [e.path, e.maxLines, e.ruledOn])));
-
-assert('G2. the ruling carries its argument',
-  DOCUMENTED_EXCEPTIONS.every((e) => typeof e.reason === 'string' && e.reason.length > 200
-    && /owner/.test(e.reason)),
-  'an exception without the owner\'s reasoning is an allowlist entry');
-
-assert('G2b. and the real entry passes the shape check it is held to',
-  exceptionShapeProblems(DOCUMENTED_EXCEPTIONS).length === 0,
-  exceptionShapeProblems(DOCUMENTED_EXCEPTIONS).join('; '));
-
-const RULED = Object.freeze([{
-  path: 'src/policy.rules',
-  maxLines: 700,
-  ruledOn: '2026-09-01',
-  reason: 'A fixture ruling long enough to satisfy the shape check, standing in for the '
-    + 'owner-ruled Firestore policy so each verdict below tests exactly one rule.',
-}]);
-
-{
-  const { ok } = evaluate(withRoots(file('src/policy.rules', 700)), {}, RULED);
-  assert('G3. an excepted file at its ceiling passes', ok);
-}
-{
-  const { ok, problems } = evaluate(withRoots(file('src/policy.rules', 701)), {}, RULED);
-  assert('G4. one line over the ceiling fails',
-    !ok && /never growth/.test(problems.join(' ')), problems.join(' '));
-}
-{
-  const { ok, problems } = evaluate(withRoots(file('src/policy.rules', HARD_LIMIT)), {}, RULED);
-  assert('G5. one that came back under the hard limit must lose its exception',
-    !ok && /no longer needs its documented exception/.test(problems.join(' ')),
-    problems.join(' '));
-}
-{
-  const { ok, problems } = evaluate(withRoots(), {}, RULED);
-  assert('G6. an exception for a file that no longer exists fails',
-    !ok && /does not carry its ruling/.test(problems.join(' ')), problems.join(' '));
-}
-{
-  const { ok, problems } = evaluate(
-    withRoots(file('src/policy.rules', 600)), { 'src/policy.rules': 693 }, RULED,
-  );
-  assert('G7. a path in the backlog and the exceptions at once is refused',
-    !ok && /one of the two answers is stale/.test(problems.join(' ')), problems.join(' '));
-}
-{
-  // The D5b bypass, at the exception's own ceiling: a non-number compares as NaN
-  // and every rule above would silently wave the file through.
-  const bad = [{ ...RULED[0], maxLines: 'unbounded' }];
-  const { ok, problems } = evaluate(withRoots(file('src/policy.rules', 9000)), {}, bad);
-  assert('G8. a ceiling that is not a number is refused, not ignored',
-    !ok && /not an integer above/.test(problems.join(' ')),
-    `${problems.join('; ') || 'nothing reported'} — without this a 9000-line file passes clean`);
-}
-{
-  const { ok, problems } = evaluate(
-    withRoots(file('src/policy.rules', 600), file('vendor/src/policy.rules', 600)), {}, RULED,
-  );
-  assert('G9. the ruling covers the whole path, never a suffix',
-    !ok && problems.some((p) => p.startsWith('vendor/src/policy.rules')
-      && /over the 500-line maximum/.test(p)),
-    problems.join(' '));
-}
-{
-  const twice = [RULED[0], { ...RULED[0], maxLines: 800 }];
-  const { ok, problems } = evaluate(withRoots(file('src/policy.rules', 600)), {}, twice);
-  assert('G10. two rulings for one path are refused — two ceilings is no ceiling',
-    !ok && /two documented exceptions/.test(problems.join(' ')), problems.join(' '));
-}
-{
-  const undated = [{ ...RULED[0], ruledOn: undefined }];
-  const { ok, problems } = evaluate(withRoots(file('src/policy.rules', 600)), {}, undated);
-  assert('G11. an undated ruling is refused',
-    !ok && /does not date its ruling/.test(problems.join(' ')), problems.join(' '));
-}
-{
-  // The default is NONE: a fixture that names no exceptions gets no ceiling from
-  // the real repository's ruling leaking in through a default parameter.
-  const { ok } = evaluate(withRoots(file('src/firestore.rules', 9000)), {});
-  assert('G12. no exception applies unless the caller passes it',
-    !ok, 'the real ruling must not leak into evaluate through a default');
-}
 
 console.log(failures === 0
   ? '\nAll source-size checks passed.'

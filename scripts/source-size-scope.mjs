@@ -22,12 +22,13 @@
  */
 
 
-/** Physical lines, hard maximum, for every handwritten source file. */
-export const HARD_LIMIT = 500;
-/** Above this a file is asked to justify its shape in review. */
-export const WARN_LIMIT = 400;
-
-export const BACKLOG_PATH = '.github/source-size-backlog.json';
+/**
+ * Physical lines, hard maximum, for every handwritten source file except a test
+ * (owner ruling, 2026-10-11: warn past 500, refuse past 700, tests unlimited).
+ */
+export const HARD_LIMIT = 700;
+/** Past this the check warns, and the file is asked to justify its shape. */
+export const WARN_LIMIT = 500;
 
 /**
  * The handwritten source languages in this repository.
@@ -203,49 +204,6 @@ export const EXCLUDED = Object.freeze([
 ]);
 
 /**
- * Files the owner has ruled may stay over the hard limit — measured, not excluded.
- *
- * This is a different mechanism from `EXCLUDED`, and the difference is the point:
- * an excluded file is not scanned at all, while an excepted file is measured on
- * every run against its OWN pinned ceiling. The ceiling is the file's size on the
- * day of the ruling, so the ruling covers the file as it was, never growth — and
- * it is deliberately tighter than the backlog count the file carried (693).
- *
- * The rules for an entry here, enforced by `evaluate` and pinned by
- * `scripts/test-source-size.mjs` §G:
- *
- * - the file must exist, or the run fails — a rename or deletion does not carry
- *   the ruling with it;
- * - the file may never exceed `maxLines`;
- * - a file that comes back under the hard limit must have its entry REMOVED,
- *   and the check fails until it is — like the backlog, this list only shrinks;
- * - a path may not be in this list and the backlog at once: the backlog is
- *   unfinished work, an exception is a ruling, and one of two answers is stale;
- * - a malformed ceiling is refused, not compared — `NaN` makes every comparison
- *   false, which is the bypass the backlog's shape check closed on 2026-08-27.
- *
- * Every entry needs an owner ruling and a reason that would survive review.
- */
-export const DOCUMENTED_EXCEPTIONS = Object.freeze([
-  {
-    path: 'src/firestore.rules',
-    maxLines: 689,
-    ruledOn: '2026-09-01',
-    reason: 'The deployed Firestore security policy. It cannot be split: rules have '
-      + 'no include mechanism (one file per deployment target) and the owner ruled '
-      + 'out a build step, which would put the deployed policy one step further '
-      + 'from the file a reviewer reads. It cannot be safely shortened either: '
-      + 'about a third of it is the rationale comments this repository runs on, '
-      + 'the measured duplicated-line excess (67) leaves a best case of ~620, and '
-      + 'the remaining shorthand — merged wildcard matchers — can silently WIDEN '
-      + 'what is permitted, because overlapping match statements are OR-united. '
-      + 'The owner chose the documented exception over bending the metric or '
-      + 'funding a full permission-matrix rewrite, on 2026-09-01, from the three '
-      + 'options recorded in docs/archive/source-size-refactor/TRACKER.md § RU-2.',
-  },
-]);
-
-/**
  * Directories that must yield source files, or the scan has silently stopped
  * looking somewhere it matters.
  *
@@ -268,15 +226,19 @@ export const REQUIRED_ROOTS = Object.freeze([
   '.storybook',
 ]);
 
-const TEST_PATTERNS = [/\.(test|spec)\.[cm]?[jt]sx?$/, /(^|\/)(tests?|__tests__|e2e)\//];
+const TEST_PATTERNS = [
+  /\.(test|spec)\.[cm]?[jt]sx?$/,
+  /(^|\/)(tests?|__tests__|e2e)\//,
+  // The tooling's own suites: `scripts/test-*.mjs` and `scripts/<area>/test-*.mjs`.
+  /^scripts\/(?:[^/]+\/)*test-[^/]+\.[cm]?js$/,
+];
 const TOOLING_PATTERNS = [/^scripts\//, /^\.storybook\//, /^[^/]*\.config\.[cm]?js$/];
 
 /**
  * Runtime, test or tooling.
  *
- * The category changes what a number MEANS — a 480-line test suite and a
- * 480-line React component are different problems — but not whether the limit
- * applies. Tests and tooling are handwritten code that people have to read.
+ * A test has no limit: a long suite is a list of cases, not a module that has
+ * outgrown a responsibility. Runtime code and tooling keep it.
  */
 export function classify(path) {
   if (TEST_PATTERNS.some((pattern) => pattern.test(path))) return 'test';

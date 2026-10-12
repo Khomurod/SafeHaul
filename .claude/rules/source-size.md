@@ -7,26 +7,22 @@ paths:
 
 # Source size
 
-- **500 physical lines is the hard limit** for every handwritten source file,
-  tests and tooling included; at 400 a file must justify its shape in review.
-  Physical lines on purpose: comments count. `npm run check:source-size`, in the
-  unskippable `callable-contract` job; `npm run test:source-size` tests the
-  checker.
+- **Runtime code and tooling warn past 500 physical lines and are refused past
+  700. Tests have no limit** (owner ruling). Physical lines on purpose: comments
+  count. A file past 500 justifies its shape in review; the check names it, in
+  CI as a GitHub warning. `npm run check:source-size` runs in the unskippable
+  `callable-contract` job; `npm run test:source-size` tests the checker.
+- **A test** is `*.test.*` or `*.spec.*`, anything in a directory named test,
+  tests, __tests__ or e2e, and the tooling's own `scripts/**/test-*.mjs`.
 - **Measured:** the JS/TS family plus `.css`, `.scss`, `.html`, `.rules`, `.vue`,
   `.svelte`. Unmeasured with a reason each (`UNMEASURED_FORMATS`): `.json`, `.md`,
   `.mdx`, `.yml`/`.yaml`. Every other tracked format is named in
   `NOT_SOURCE_FORMATS` (test A7), so a new format cannot arrive unclassified.
   Dotfiles count as their own format.
-- **The only exclusion** is `public/pdf.worker.min.mjs` (vendored PDF.js).
-- **The only documented exception** is `src/firestore.rules`: owner-ruled ceiling
-  of 689 lines that may only move down (§G pins it).
+- **The only exclusion** is `public/pdf.worker.min.mjs` (vendored PDF.js). There
+  is no exemption list, so nothing a branch edits can let a file through.
 - **Agent instruction files are measured separately**, by
   `npm run check:agent-docs`.
-- **The backlog is gone** (drained 2026-09-01). The checker still compares any
-  backlog against the base commit: an entry may never be added or raised, must
-  record debt the base already carried, and a malformed count is refused. CI
-  passes `--require-baseline`, so "no base found" is a refusal; locally the
-  comparison is skipped with a printed reason.
 - **What the checker must keep doing:** read `git ls-files -z` (NUL-delimited, so
   no path can hide), and assert that `src`, `functions`, `scripts`, `e2e`, `web`
   and `.storybook` all still yield files.

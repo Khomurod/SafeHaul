@@ -66,8 +66,8 @@ only to learn *why* a rule exists).
   not a root cause.
 - Never skip, disable or quarantine a test to get green. Never push an empty
   commit or rewrite someone else's branch history.
-- No handwritten source file may exceed 500 physical lines; at 400 it must
-  justify its shape (`npm run check:source-size`).
+- Runtime code and tooling may not exceed 700 physical lines; past 500 a file
+  must justify its shape. Tests have no limit (`npm run check:source-size`).
 - Never commit a secret. The secret scan gates every release.
 - Reuse the existing pattern before adding a new one. Feature logic lives in its
   feature, hook or service.
