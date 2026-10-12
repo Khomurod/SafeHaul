@@ -9,6 +9,7 @@
  * release.
  */
 
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { ALWAYS_REQUIRED_JOBS, lanesForPath } from '../ci-plan.mjs';
@@ -117,21 +118,24 @@ console.log('\nK. Guards that stay guards');
                 && vitestConfig.includes("include: ['src/**/*.{test,spec}.{js,mjs,jsx,tsx}']")
                 && vitestConfig.includes("exclude: ['**/node_modules/**', 'e2e/**']"),
             'the catalog job no longer renders the stories, so the unit lane must');
-        const samples = [
-            'src/features/campaigns/CampaignCard.jsx',
-            'src/design-system/components/button/Button.jsx',
-            'src/design-system/stories/Button.stories.jsx',
-            '.storybook/preview.js',
-            'e2e/visual/catalog.spec.cjs',
-            'package.json',
-        ];
-        const unitAlongside = samples.filter((path) => {
+        // Every file in the repository, not a sample: a rule that sent some
+        // path to the catalog lane without the unit lane would show up here.
+        let tracked = [];
+        try {
+            tracked = execFileSync('git', ['ls-files'], { cwd: resolvePath(here, '..'), encoding: 'utf8' })
+                .split('\n').filter(Boolean);
+        } catch {
+            // Reported by the assertion below: nothing listed is nothing checked.
+        }
+        const catalogWithoutUnit = tracked.filter((path) => {
             const lanes = lanesForPath(path);
-            return lanes === null || !lanes.includes('storybook') || lanes.includes('frontend_unit');
+            return lanes !== null && lanes.includes('storybook') && !lanes.includes('frontend_unit');
         });
-        assert('K1d. every change that selects the catalog lane selects the unit lane too',
-            unitAlongside.length === samples.length,
-            `catalog without unit for: ${samples.filter((path) => !unitAlongside.includes(path)).join(', ')}`);
+        assert('K1d. every file whose change selects the catalog lane selects the unit lane too',
+            tracked.length > 0 && catalogWithoutUnit.length === 0,
+            tracked.length === 0
+                ? 'git ls-files listed nothing, so nothing was checked'
+                : `${catalogWithoutUnit.length} file(s) select the catalog lane alone, e.g. ${catalogWithoutUnit.slice(0, 5).join(', ')}`);
         assert('K1d. and the catalog job does not run the story test a second time',
             catalogJob !== '' && !/test:stories|designSystemStories/.test(catalogJob),
             'one run in the unit lane is the whole check');
