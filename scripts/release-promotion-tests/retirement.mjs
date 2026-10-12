@@ -100,7 +100,7 @@ export async function runRetirementScenarios() {
     const promote = readFileSync(resolvePath(here, '../../.github/workflows/promote-production.yml'), 'utf8');
     const main = readFileSync(resolvePath(here, '../../.github/workflows/main.yml'), 'utf8');
 
-    const stepAt = promote.indexOf('run: node scripts/retire-functions.mjs');
+    const stepAt = promote.indexOf('node "$RUNNER_TEMP/retire-functions.mjs" "$CANDIDATE_SHA"');
     const recordAt = promote.indexOf('run: node scripts/record-release.mjs');
     const verifyAt = promote.indexOf('run: node scripts/verify-live-release.mjs');
     assert('22. the promotion workflow runs the retirement after the release is verified and recorded',
@@ -119,6 +119,14 @@ export async function runRetirementScenarios() {
     assert('22d. a merge to main never deletes a function',
         !/functions:delete/.test(main),
         'main.yml still carries a functions:delete step');
+
+    // The checkout is the CANDIDATE, and a rollback's candidate predates the
+    // list or the script itself; `main` (this workflow's commit) has both.
+    assert('22e. the script comes from the workflow\'s own commit, not the candidate checkout',
+        stepBlock.includes('TOOLING_SHA: ${{ github.sha }}')
+            && stepBlock.includes('git show "$TOOLING_SHA:scripts/retire-functions.mjs" > "$RUNNER_TEMP/retire-functions.mjs"')
+            && !/node scripts\/retire-functions\.mjs/.test(promote),
+        'a rollback to a release without scripts/retire-functions.mjs would fail the promotion');
 }
 
 }

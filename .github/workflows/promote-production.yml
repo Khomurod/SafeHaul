@@ -75,8 +75,9 @@ jobs:
           # Full history, because the retirement step below proves with
           # `git merge-base --is-ancestor` that the promoted release already
           # carries the removal of the landing form (LD-R3) before it deletes the
-          # callables that form used. A shallow checkout cannot answer that, and
-          # "cannot prove" must mean "do not delete".
+          # callables that form used, and reads its script from this workflow's
+          # own commit. A shallow checkout cannot answer that, and "cannot prove"
+          # must mean "do not delete".
           fetch-depth: 0
 
       - name: Use Node.js 22.x
@@ -198,11 +199,19 @@ jobs:
       # only reader) still answers. Idempotent and read-only on data; a real
       # deletion error fails this job AFTER the release is recorded, which is the
       # right order. Procedure and manual fallback: docs/FIREBASE_HOSTING_RUNBOOK.md.
+      #
+      # The script runs as it is in THIS workflow's commit (`main` when the
+      # promotion was started), not the candidate's copy: a rollback checks out a
+      # release older than the list, or than the script itself. Its ancestry
+      # check still decides, per entry, what that release no longer calls.
       - name: Retire the functions this release no longer calls
         if: steps.release.outputs.already_live != 'true'
         env:
           CANDIDATE_SHA: ${{ inputs.sha }}
-        run: node scripts/retire-functions.mjs "$CANDIDATE_SHA"
+          TOOLING_SHA: ${{ github.sha }}
+        run: |
+          git show "$TOOLING_SHA:scripts/retire-functions.mjs" > "$RUNNER_TEMP/retire-functions.mjs"
+          node "$RUNNER_TEMP/retire-functions.mjs" "$CANDIDATE_SHA"
 
       # `reason` is free text typed by a human, so it never reaches the shell as
       # source. Everything here goes through the environment.

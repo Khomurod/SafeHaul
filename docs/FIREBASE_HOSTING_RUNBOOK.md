@@ -396,7 +396,9 @@ not a manual procedure. It is the *contract* half of expand → promote → cont
 after the promoted release is verified live on `app.safehaul.io` and recorded,
 so no Production frontend still calls what it deletes. `scripts/retire-functions.mjs`
 lists each retirement (`RETIREMENTS`): its functions and `since`, the commit that
-removed their last caller. It does, in order:
+removed their last caller. The step runs it as it is on `main`, not as in the
+release being promoted: a rollback checks out a release older than the list, or
+than the script. It does, in order:
 
 1. **Proves the promoted release carries each `since`** (`git merge-base
    --is-ancestor <since> <sha>`; the promotion checkout has full history for
@@ -421,7 +423,7 @@ unfinished-applications page moved to `purgeApplicationDraft`). To retire
 another callable, remove it from `functions/index.js` and add an entry.
 `scripts/test-release-promotion.mjs` scenarios 19–22 pin the planning rules, that
 no retired name is still exported (19f), and that the workflow runs the step
-after `record-release.mjs`, guarded by `already_live`. **Manual fallback**, if the step fails and cannot be re-run
+after `record-release.mjs`, guarded by `already_live`, from `main`'s copy (22e). **Manual fallback**, if the step fails and cannot be re-run
 through a promotion (it is skipped when Production already serves the release):
 `firebase functions:delete <the names that still answer> --region us-central1
 --project truckerapp-system --force`, then probe as in step 4.
