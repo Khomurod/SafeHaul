@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { Icon, X, CheckCircle, AlertCircle, Info, AlertTriangle } from '@design-system/icons';
 import { IconButton } from '@/design-system/components';
 
@@ -103,13 +103,22 @@ export function ToastProvider({ children }) {
     }
   }, [removeToast]);
 
-  const showSuccess = (msg) => addToast('success', msg);
-  const showError = (msg) => addToast('error', msg);
-  const showInfo = (msg) => addToast('info', msg);
-  const showWarning = (msg) => addToast('warning', msg);
+  const showSuccess = useCallback((msg) => addToast('success', msg), [addToast]);
+  const showError = useCallback((msg) => addToast('error', msg), [addToast]);
+  const showInfo = useCallback((msg) => addToast('info', msg), [addToast]);
+  const showWarning = useCallback((msg) => addToast('warning', msg), [addToast]);
+
+  // One value for the provider's lifetime. Consumers list these helpers in effect
+  // dependencies, so a new value on each notification re-ran those effects: a
+  // document being corrected reloaded and lost its edits, and a read that
+  // reported its own failure read again without end.
+  const helpers = useMemo(
+    () => ({ showSuccess, showError, showInfo, showWarning }),
+    [showSuccess, showError, showInfo, showWarning],
+  );
 
   return (
-    <ToastContext.Provider value={{ showSuccess, showError, showInfo, showWarning }}>
+    <ToastContext.Provider value={helpers}>
       {children}
 
       <div className="pointer-events-none fixed bottom-ds-6 left-ds-4 right-ds-4 z-ds-toast flex max-h-[calc(100vh-3rem)] flex-col items-end gap-ds-3 overflow-hidden sm:left-auto sm:right-ds-6">
