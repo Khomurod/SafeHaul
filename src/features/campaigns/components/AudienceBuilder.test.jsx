@@ -183,6 +183,60 @@ describe('AudienceBuilder', () => {
         expect(lastCall[1]).toBe(2);
     });
 
+    it('keeps an uploaded list and its un-ticks when the recruiter comes back to Audience', () => {
+        // The editor unmounts this step on Content and Launch. Back on Audience the
+        // import hook starts empty, and the list is the one the editor kept.
+        const rows = [
+            { normalizedPhone: '+15550000001', firstName: 'Alice', lastName: 'One' },
+            { normalizedPhone: '+15550000002', firstName: 'Bob', lastName: 'Two' },
+        ];
+        const handleChange = vi.fn();
+        const filters = { leadType: 'import', rawData: rows, excludedLeadIds: ['import_1'] };
+
+        render(<AudienceBuilder companyId="123" filters={filters} onChange={handleChange} campaignScopeKey="cmp-a" />);
+
+        expect(screen.getByText('Alice One')).toBeInTheDocument();
+        expect(screen.getByText('Bob Two')).toBeInTheDocument();
+        const [lastFilters, lastCount] = handleChange.mock.calls.at(-1);
+        expect(lastFilters.rawData).toEqual(rows);
+        expect(lastFilters.excludedLeadIds).toEqual(['import_1']);
+        expect(lastCount).toBe(1);
+    });
+
+    it('drops the old list and its un-ticks while a replacement file is read', () => {
+        // Choosing another file empties the import hook until the new one is
+        // read; if that read fails or the recruiter leaves, the old list must not
+        // stay behind with its un-ticks cleared.
+        mockCsvData = [
+            { normalizedPhone: '+15550000001', firstName: 'Alice', lastName: 'One' },
+            { normalizedPhone: '+15550000002', firstName: 'Bob', lastName: 'Two' },
+        ];
+        const handleChange = vi.fn();
+        const props = { companyId: '123', filters: { leadType: 'import', excludedLeadIds: [] }, onChange: handleChange, campaignScopeKey: 'cmp-a' };
+        const { rerender } = render(<AudienceBuilder {...props} />);
+        fireEvent.click(screen.getAllByRole('checkbox')[0]);
+
+        mockCsvData = [];
+        rerender(<AudienceBuilder {...props} />);
+
+        const [lastFilters, lastCount] = handleChange.mock.calls.at(-1);
+        expect(lastFilters.rawData).toEqual([]);
+        expect(lastCount).toBe(0);
+        expect(screen.queryByText('Alice One')).not.toBeInTheDocument();
+    });
+
+    it('keeps the list the editor kept across a switch to CRM and back', () => {
+        const rows = [{ normalizedPhone: '+15550000001', firstName: 'Alice', lastName: 'One' }];
+        const handleChange = vi.fn();
+        render(<AudienceBuilder companyId="123" filters={{ leadType: 'import', rawData: rows, excludedLeadIds: [] }} onChange={handleChange} campaignScopeKey="cmp-a" />);
+
+        fireEvent.click(screen.getByRole('tab', { name: 'CRM Filters' }));
+        fireEvent.click(screen.getByRole('tab', { name: /Upload List/ }));
+
+        expect(screen.getByText('Alice One')).toBeInTheDocument();
+        expect(handleChange.mock.calls.at(-1)[0].rawData).toEqual(rows);
+    });
+
     it('resets manual skips when campaign scope changes', () => {
         mockCsvData = [{ normalizedPhone: '+15550000001', firstName: 'Alice' }];
         const handleChange = vi.fn();
