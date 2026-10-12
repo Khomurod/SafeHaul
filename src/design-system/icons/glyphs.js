@@ -5,9 +5,9 @@
  *
  * 171 names, measured rather than curated: every identifier imported from
  * `lucide-react` anywhere in the tracked tree on 2026-09-05. Nothing was added
- * speculatively and nothing in use was left out, so `check:icon-contract` can
- * hold the campaign to "no file outside the design system imports the package"
- * without a single call site needing a glyph this file does not have.
+ * speculatively and nothing in use was left out, so lint can hold the rule
+ * "no file outside the design system imports the package" without a single
+ * call site needing a glyph this file does not have.
  *
  * Adding one is two lines and no ceremony: import it aliased, export it wrapped.
  *
@@ -270,9 +270,9 @@ export const ZoomIn = /* #__PURE__ */ glyph(LucideZoomIn, 'ZoomIn');
 export const ZoomOut = /* #__PURE__ */ glyph(LucideZoomOut, 'ZoomOut');
 
 /**
- * Every glyph name the registry exports, sorted — what `check:icon-contract`
- * and the tests read so neither re-derives it, and what a call site greps to
- * find out whether a name is already available.
+ * Every glyph name the registry exports, sorted — what the tests read so they
+ * do not re-derive it, and what a call site greps to find out whether a name is
+ * already available.
  */
 export const GLYPH_NAMES = Object.freeze([
     'Activity', 'AlertCircle', 'AlertTriangle', 'AlignCenter', 'AlignCenterVertical',

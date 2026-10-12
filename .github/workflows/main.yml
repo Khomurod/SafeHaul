@@ -27,12 +27,9 @@ on:
     inputs:
       source_size_base:
         description: >-
-          Optional baseline commit for the guards that compare against one (the
-          UI-contract allowlist and the icon-contract backlog), which share it:
-          one baseline question, one answer, one place an operator can get it
-          wrong. Leave it empty and the guards compare
-          against the newest ancestor carrying a fully validated release, which
-          they ask GitHub for. Set it only when that walk finds nothing and you
+          Optional baseline commit for the UI-contract allowlist. Leave it empty
+          and the guard compares against the newest ancestor carrying a fully
+          validated release, which it asks GitHub for. Set it only when that walk finds nothing and you
           can name a release you know was good. It clears a HIGHER bar than an
           inferred base, because an escape hatch nobody checks is a bypass: an
           ancestor, not the head, itself carrying a validated release, containing
@@ -175,19 +172,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # The UI-contract and icon-contract guards ask which ancestor last carried
-      # a fully validated release, which is a check-runs query. Read-only, and
-      # the same grant `secret-scan` carries for the same lookup.
+      # The UI-contract guard asks which ancestor last carried a fully validated
+      # release, which is a check-runs query. Read-only, and the same grant
+      # `secret-scan` carries for the same lookup.
       checks: read
     # Always runs. It is ~20 seconds and it is the self-test for the release
     # system itself — the promotion gate, and the CI planner and validation gate
     # that decide what may be skipped. Making the checks that guard the
     # optimisation skippable by the optimisation would be circular.
     steps:
-      # Full history: the UI-contract and icon-contract guards read their
-      # previous version out of git, and a depth-1 checkout has none to read.
-      # Without this they refuse (the designed behaviour) rather than pass on an
-      # unverified list.
+      # Full history: the UI-contract guard reads the allowlist's previous
+      # version out of git, and a depth-1 checkout has none to read. Without this
+      # it refuses (the designed behaviour) rather than pass on an unverified
+      # list.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -320,39 +317,23 @@ jobs:
       - name: UI contract ratchet
         run: npm run check:ui-contract -- --require-baseline
         env:
-          # The same three as "Icon contract ratchet" below, and deliberately
-          # the same override: one baseline question, one answer, one place an
-          # operator can get it wrong.
+          # A token for the validated-release lookup, the pull request's own
+          # base, and an operator's override on a manual run.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
 
-      # The icon campaign, wired exactly like the UI contract above and for the
-      # same reason: the list of files still importing `lucide-react` lives in
-      # the branch under test, so the checker alone would accept a new importer
-      # that arrives with its own entry. The guard's own tests run first — one
-      # that has gone blind reports the same clean result as one that found
-      # nothing wrong.
-      - name: Verify the icon-contract guard
-        run: npm run test:icon-contract
-
-      - name: Icon contract ratchet
-        run: npm run check:icon-contract -- --require-baseline
-        env:
-          # The same three again, and the same shared override: one baseline
-          # question, one answer, one place an operator can get it wrong.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
+      # The lint rules whose violation breaks a screen or the icon contract
+      # (glyphs only from `@design-system/icons`), driven through ESLint on
+      # sample code. The lint itself runs in `frontend-quality`.
+      - name: Verify the lint rules
+        run: npm run test:lint-rules
 
       # The first-download budget's own tests (Node builtins only): every refusal
       # in scripts/check-bundle-budget.mjs is driven against throwaway builds here,
       # in the one job no lane selection can skip; the check itself runs in
       # frontend-build, where the build is. No token and no base: the harness
-      # compares nothing against history, so it must NOT sit between another
-      # step's `run:` and its `env:` — which is exactly where its first version
-      # landed, taking the icon ratchet's token with it (caught by
-      # test-icon-contract-ci.mjs X9/X11/X12 on 2026-09-07).
+      # compares nothing against history.
       - name: Verify the bundle-budget guard
         run: npm run test:bundle-budget
 

@@ -11,13 +11,13 @@
  * Nothing caught it. Not the 5170 unit tests, because these three render only on
  * a crash or an offline queue and no test had ever rendered them. Not lint,
  * because plain `no-undef` does not resolve JSX identifiers — that is what
- * `react/jsx-no-undef` is for, and it was off. Not `check:icon-contract`, which
- * counts `lucide-react` imports and is blind to what a file renders. Only the
+ * `react/jsx-no-undef` is for, and it was off. Not the icon check, which looked
+ * for `lucide-react` imports and is blind to what a file renders. Only the
  * `@a11y` end-to-end lane failed, at a 180-second timeout whose message named a
  * checkbox rather than the error.
  *
- * The general fix is the lint rule, now on and pinned by `test-icon-contract-ci`
- * X15/X16. This file is the specific one: it renders each of these surfaces at
+ * The general fix is the lint rule, now on and pinned by
+ * `scripts/test-lint-rules.mjs` M1. This file is the specific one: it renders each of these surfaces at
  * least once, so a crash screen can never again be shipped in a state where it
  * crashes.
  */

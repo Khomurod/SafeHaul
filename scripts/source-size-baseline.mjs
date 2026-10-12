@@ -352,9 +352,7 @@ export function readSizesAt(ref, paths, { cwd = repoRoot, countLines } = {}) {
  */
 export function checkBacklogDirection({
   current, measured = [], countLines, path, requireBaseline = false,
-  // What `countLines` counts. `source-size` counts lines; `check:icon-contract`
-  // reuses this whole ratchet to count glyph imports, and a refusal has to name
-  // the thing it measured.
+  // What `countLines` counts, so a refusal names the thing it measured.
   unit = 'lines',
   env = process.env, cwd = repoRoot,
   lastValidatedBase = () => null, overrideValidated = () => false,

@@ -14,7 +14,7 @@ import { getFieldValue } from '@shared/utils/helpers';
  *
  * `glyphComponent` is the contract's own documented opener, so this file stays ON
  * the contract: it imports from `@design-system/icons` like every other file,
- * `check:icon-contract` is satisfied, and the exception is three named calls in
+ * the lint rule is satisfied, and the exception is three named calls in
  * one place rather than a `lucide-react` import nobody would question. The pixel
  * sizes below are print dimensions frozen with the rest of the document, not
  * steps on any scale — 400 for the watermark is two orders of magnitude past
