@@ -1,5 +1,6 @@
 import React from 'react';
 import { FormField, FormSection, Textarea } from '@/design-system/components';
+import { TEXT_ANSWER_MAX_LENGTH } from './textLimits';
 
 /** Section 3: Additional Information. Presentation migrated; the optional
  *  `additionalComments` field and its placeholder are unchanged. */
@@ -9,6 +10,7 @@ export function AdditionalInfoSection({ formData, updateField }) {
             <FormField id="verify-additional-comments" label="Additional Comments (Optional)">
                 <Textarea
                     rows={3}
+                    maxLength={TEXT_ANSWER_MAX_LENGTH}
                     value={formData.additionalComments}
                     onChange={(e) => updateField('additionalComments', e.target.value)}
                     placeholder="Any additional information relevant to this driver's employment or performance..."

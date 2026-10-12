@@ -340,6 +340,19 @@ describe('PEVTab initiation flow and callable payload', () => {
     expect(activityMocks.logActivity.mock.calls[0][4]).toContain('Sent to: Manual Download');
   });
 
+  // The dialog keeps the email and fax on file whichever method is chosen; a
+  // manual send reaches neither, so the log must not say it was sent there.
+  it('logs a manual send as Manual Download even with an email and a fax on file', async () => {
+    renderTab();
+    fireEvent.click(screen.getAllByRole('button', { name: /Initiate PEV/i })[0]);
+    fireEvent.click(screen.getByText('proceed-manual-on-file'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(activityMocks.logActivity).toHaveBeenCalled());
+    expect(activityMocks.logActivity.mock.calls[0][4]).toContain('(Sent to: Manual Download)');
+    expect(fnMocks.callable.mock.calls[0][0]).toMatchObject({ employerEmail: null, deliveryMethod: 'manual' });
+  });
+
   it('applies the optimistic local override so the row updates before a refetch', async () => {
     initiateFirst();
     fireEvent.click(screen.getByText('proceed-email'));

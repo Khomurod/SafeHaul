@@ -138,7 +138,79 @@ describe('PEVRequestModal', () => {
 
     expect(screen.getByText(/^Selected$/)).toBeInTheDocument();
 
-    expect(screen.queryByText(/No email or fax from this registry row/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No email from this registry row/i)).not.toBeInTheDocument();
+
+  });
+
+
+
+  // Nothing in the dialog uses a fax or a phone, so a row with only those has
+  // nothing to fill in: the recruiter still has to type the email.
+  it('says a census row with a fax and a phone but no email has no email', async () => {
+
+    vi.stubGlobal('fetch', vi.fn(() =>
+
+      Promise.resolve({
+
+        ok: true,
+
+        json: () =>
+
+          Promise.resolve([
+
+            {
+
+              dot_number: '77',
+
+              legal_name: 'FAX ONLY FREIGHT LLC',
+
+              phy_city: 'Wylie',
+
+              phy_state: 'TX',
+
+              fax: '4805551212',
+
+              telephone: '4805550100',
+
+            },
+
+          ]),
+
+      }),
+
+    ));
+
+    render(
+
+      <PEVRequestModal
+
+        employer={{ ...baseEmployer, companyName: 'Fax only freight', state: 'Texas' }}
+
+        applicant={{}}
+
+        onClose={() => {}}
+
+        onProceed={() => {}}
+
+      />,
+
+    );
+
+    await waitFor(() => {
+
+      expect(screen.getByText(/FAX ONLY FREIGHT LLC/)).toBeInTheDocument();
+
+    });
+
+    expect(screen.getByText(/FMCSA did not list an email on this record/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('fmcsa-row-0'));
+
+    await waitFor(() => {
+
+      expect(screen.getByText(/No email from this registry row/i)).toBeInTheDocument();
+
+    });
 
   });
 
@@ -210,7 +282,7 @@ describe('PEVRequestModal', () => {
 
     await waitFor(() => {
 
-      expect(screen.getByText(/No email or fax from this registry row/i)).toBeInTheDocument();
+      expect(screen.getByText(/No email from this registry row/i)).toBeInTheDocument();
 
     });
 

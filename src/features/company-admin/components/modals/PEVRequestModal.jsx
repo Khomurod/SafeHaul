@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react';
-import { Icon, X, Mail, Printer, Send, ShieldCheck, Info, FileText } from '@design-system/icons';
+import { Icon, X, Mail, Send, ShieldCheck, Info, FileText } from '@design-system/icons';
 import {
     mapFmcsaRowToPevContact,
     normalizeEmployerStateToFmcsaPhyState,
@@ -25,15 +25,20 @@ import {
  * `ChoiceGroup`/`Radio`, `FormField`/`Input`, `Button` and `IconButton`
  * primitives, and `--ds-*` tokens (2026-07-27).
  *
- * Frozen contracts: the `'email' | 'fax' | 'manual'` delivery-method values and
+ * Frozen contracts: the `'email' | 'manual'` delivery-method values and
  * `'email'` initial selection; the `onProceed(deliveryMethod, contactInfo)`
  * argument pair and the `{ email, fax, phone }` contact shape; the
  * `companyEmail → email` seeding precedence; the FMCSA lookup being skipped
  * without a Socrata token or below two characters; `mapFmcsaRowToPevContact`
  * merge semantics (a census value only fills an *empty* field); the exact
- * missing-email and missing-fax validation messages and the fact that they focus
- * and scroll to the offending input rather than alerting; and both footer
- * labels, including `'Preview & Print'` for manual delivery.
+ * missing-email validation message and the fact that it focuses and scrolls to
+ * the input rather than alerting; and both footer labels, including
+ * `'Preview & Print'` for manual delivery.
+ *
+ * There is no fax delivery. Nothing sends a fax: a request filed as one
+ * reached nobody, got no reminder (they go by email) and was still marked
+ * "Good Faith Documented" at 30 days. A recruiter who faxes prints the form
+ * under Download / Print. The server still accepts `'fax'` from older screens.
  *
  * DEFECTS FIXED (2026-07-27):
  * - **The delivery-method choice was three plain `<button>`s with a hand-drawn
@@ -69,15 +74,13 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
     const [deliveryMethod, setDeliveryMethod] = useState('email');
 
     const [selectedFmcsaKey, setSelectedFmcsaKey] = useState(null);
-    /** After selecting a census row: whether FMCSA returned any email/fax/phone on that row */
-    const [lastFmcsaRowHadContact, setLastFmcsaRowHadContact] = useState(null);
+    /** After selecting a census row: whether FMCSA returned an email on that row */
+    const [lastFmcsaRowHadEmail, setLastFmcsaRowHadEmail] = useState(null);
 
     const [proceedError, setProceedError] = useState({ field: null, message: '' });
 
     const emailInputRef = useRef(null);
-    const faxInputRef = useRef(null);
     const emailSectionRef = useRef(null);
-    const faxSectionRef = useRef(null);
 
     const companyLabel = employerDisplayName(employer);
     const employerStateRaw = employer?.state ?? '';
@@ -89,14 +92,14 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
     // Reset selection when the employer (and thus the search term) changes.
     useEffect(() => {
         setSelectedFmcsaKey(null);
-        setLastFmcsaRowHadContact(null);
+        setLastFmcsaRowHadEmail(null);
         setProceedError({ field: null, message: '' });
     }, [companyLabel, employerStateRaw]);
 
     // On a fresh FMCSA result, clear any prior selection (matches previous behaviour).
     const handleRowsLoaded = useCallback(() => {
         setSelectedFmcsaKey(null);
-        setLastFmcsaRowHadContact(null);
+        setLastFmcsaRowHadEmail(null);
     }, []);
 
     const { fmcsaLoading, fmcsaError, fmcsaRows } = useFmcsaEmployerLookup({
@@ -109,10 +112,8 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
     const applyFmcsaRow = useCallback((row, rowIndex) => {
         const m = mapFmcsaRowToPevContact(row);
         const key = buildFmcsaRowKey(row, rowIndex);
-        const censusHadContact = !!(m.email || m.fax || m.phone);
-
         setSelectedFmcsaKey(key);
-        setLastFmcsaRowHadContact(censusHadContact);
+        setLastFmcsaRowHadEmail(!!m.email);
         setProceedError({ field: null, message: '' });
 
         setContactInfo((prev) => ({
@@ -125,7 +126,6 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
 
     const methods = useMemo(() => {
         const hasEmail = !!(String(contactInfo.email || '').trim() || employer.companyEmail || employer.email);
-        const hasFax = !!(String(contactInfo.fax || '').trim() || employer.fax);
         return [
             {
                 id: 'email',
@@ -135,21 +135,14 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
                 active: hasEmail,
             },
             {
-                id: 'fax',
-                label: 'Fax Transmission',
-                icon: Printer,
-                description: 'Electronic fax delivery + generate portal link to share manually.',
-                active: hasFax,
-            },
-            {
                 id: 'manual',
                 label: 'Download / Print',
                 icon: FileText,
-                description: 'Download PDF + generate a sharable portal link to email or hand over.',
+                description: 'Download PDF + generate a sharable portal link to email, fax or hand over yourself.',
                 active: true,
             },
         ];
-    }, [contactInfo.email, contactInfo.fax, employer]);
+    }, [contactInfo.email, employer]);
 
     const handleDeliveryMethodChange = (id) => {
         setDeliveryMethod(id);
@@ -167,18 +160,6 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
             requestAnimationFrame(() => {
                 emailSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 emailInputRef.current?.focus();
-            });
-            return;
-        }
-
-        if (deliveryMethod === 'fax' && !String(contactInfo.fax || '').trim()) {
-            setProceedError({
-                field: 'fax',
-                message: 'Enter the fax number, or switch to Download / Print.',
-            });
-            requestAnimationFrame(() => {
-                faxSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                faxInputRef.current?.focus();
             });
             return;
         }
@@ -243,7 +224,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
                         fmcsaError={fmcsaError}
                         fmcsaRows={fmcsaRows}
                         selectedFmcsaKey={selectedFmcsaKey}
-                        lastFmcsaRowHadContact={lastFmcsaRowHadContact}
+                        lastFmcsaRowHadEmail={lastFmcsaRowHadEmail}
                         onSelectRow={applyFmcsaRow}
                     />
                 )}
@@ -291,31 +272,6 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
                                     if (proceedError.field === 'email') setProceedError({ field: null, message: '' });
                                 }}
                                 placeholder="hr@company.com"
-                                autoComplete="off"
-                            />
-                        </FormField>
-                    </div>
-                )}
-
-                {deliveryMethod === 'fax' && (
-                    <div
-                        ref={faxSectionRef}
-                        className="rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-4"
-                    >
-                        <FormField
-                            id="pev-recipient-fax"
-                            label="Recipient Fax Number"
-                            error={proceedError.field === 'fax' ? proceedError.message : undefined}
-                        >
-                            <Input
-                                ref={faxInputRef}
-                                type="tel"
-                                value={contactInfo.fax}
-                                onChange={(e) => {
-                                    setContactInfo({ ...contactInfo, fax: e.target.value });
-                                    if (proceedError.field === 'fax') setProceedError({ field: null, message: '' });
-                                }}
-                                placeholder="(555) 000-0000"
                                 autoComplete="off"
                             />
                         </FormField>

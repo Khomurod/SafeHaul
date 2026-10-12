@@ -202,7 +202,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
         try {
             const emp = selectedEmployer;
             const method = emp.deliveryMethod === 'email' ? 'Email' : emp.deliveryMethod === 'fax' ? 'Fax' : 'Manual';
-            const recipient = emp.contactInfo?.email || emp.contactInfo?.fax || 'Manual Download';
+            const recipient = emp.deliveryMethod === 'email' ? emp.contactInfo?.email : 'Manual Download';
 
             const applicantName = `${getFieldValue(appData?.firstName)} ${getFieldValue(appData?.lastName)}`.trim();
             const employerName = getFieldValue(emp.companyName || emp.name);

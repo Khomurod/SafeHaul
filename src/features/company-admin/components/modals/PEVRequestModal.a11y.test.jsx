@@ -102,9 +102,9 @@ describe('PEVRequestModal axe', () => {
     expect((await axe(container)).violations).toEqual([]);
   });
 
-  it('has no violations with the fax field shown', async () => {
+  it('has no violations with Download / Print chosen', async () => {
     const { container } = renderModal();
-    fireEvent.click(screen.getByRole('radio', { name: /Fax Transmission/i }));
+    fireEvent.click(screen.getByRole('radio', { name: /Download \/ Print/i }));
     expect((await axe(container)).violations).toEqual([]);
   });
 
@@ -126,15 +126,24 @@ describe('PEVRequestModal axe', () => {
 describe('PEVRequestModal delivery method', () => {
   const OPTIONS = [
     ['email', 'E-mail with Portal Link'],
-    ['fax', 'Fax Transmission'],
     ['manual', 'Download / Print'],
   ];
 
-  it('is a real radio group with a legend, not three look-alike buttons', () => {
+  it('is a real radio group with a legend, not look-alike buttons', () => {
     renderModal();
     const group = screen.getByRole('group', { name: /Select Delivery Method/i });
     expect(group.tagName).toBe('FIELDSET');
-    expect(screen.getAllByRole('radio')).toHaveLength(3);
+    expect(screen.getAllByRole('radio')).toHaveLength(2);
+  });
+
+  // Nothing sends a fax: a request filed as one reached nobody, got no
+  // reminder, and at 30 days was marked "Good Faith Documented" all the same.
+  it('offers no fax delivery, which would send nothing', () => {
+    renderModal();
+    expect(screen.queryByRole('radio', { name: /fax/i })).toBeNull();
+    expect(screen.queryByLabelText(/Fax Number/i)).toBeNull();
+    expect(screen.getByRole('radio', { name: /Download \/ Print/i }))
+      .toHaveAccessibleDescription(/email, fax or hand over yourself/i);
   });
 
   it.each(OPTIONS)('exposes %s as a named radio', (_id, label) => {
@@ -145,21 +154,22 @@ describe('PEVRequestModal delivery method', () => {
   it('starts on email and announces the selection through aria-checked', () => {
     renderModal();
     expect(screen.getByRole('radio', { name: /E-mail with Portal Link/i })).toBeChecked();
-    expect(screen.getByRole('radio', { name: /Fax Transmission/i })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: /Download \/ Print/i })).not.toBeChecked();
   });
 
-  it('keeps all three radios in one browser-managed group', () => {
+  it('keeps both radios in one browser-managed group', () => {
     renderModal();
     const names = screen.getAllByRole('radio').map((r) => r.getAttribute('name'));
     expect(new Set(names).size).toBe(1);
   });
 
-  it('moves the selection and reveals the matching contact field', () => {
+  it('moves the selection and shows the email field only for email delivery', () => {
     renderModal();
-    fireEvent.click(screen.getByRole('radio', { name: /Fax Transmission/i }));
+    expect(screen.getByLabelText('Recipient Email Address')).toBeInTheDocument();
 
-    expect(screen.getByRole('radio', { name: /Fax Transmission/i })).toBeChecked();
-    expect(screen.getByLabelText('Recipient Fax Number')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: /Download \/ Print/i }));
+
+    expect(screen.getByRole('radio', { name: /Download \/ Print/i })).toBeChecked();
     expect(screen.queryByLabelText('Recipient Email Address')).toBeNull();
   });
 
@@ -250,25 +260,6 @@ describe('PEVRequestModal missing-contact validation', () => {
 
     fireEvent.change(screen.getByLabelText('Recipient Email Address'), { target: { value: 'a@b.test' } });
     expect(screen.queryByRole('alert')).toBeNull();
-  });
-
-  it('blocks fax delivery with no number and announces why', async () => {
-    const onProceed = vi.fn();
-    render(
-      <PEVRequestModal
-        employer={{ companyName: 'No Contact Co', state: 'TX' }}
-        applicant={{}}
-        onClose={vi.fn()}
-        onProceed={onProceed}
-      />,
-    );
-    fireEvent.click(screen.getByRole('radio', { name: /Fax Transmission/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Continue to Preview/i }));
-
-    expect(onProceed).not.toHaveBeenCalled();
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Enter the fax number, or switch to Download / Print.',
-    );
   });
 
   it('never blocks manual delivery', () => {

@@ -1,5 +1,5 @@
 // PEVRequestModal contract, part 2 of 2: delivery validation — missing
-// email/fax handling without window.alert, onProceed, and contact seeding.
+// email handling without window.alert, onProceed, and contact seeding.
 // The env/fetch stubs and the base employer fixture live in
 // `PEVRequestModal.support.js`; the modal itself runs unmocked.
 import React from 'react';
@@ -187,64 +187,6 @@ describe('PEVRequestModal', () => {
       );
 
     });
-
-  });
-
-
-
-  it('shows inline fax error and does not alert when fax missing', async () => {
-
-    const alertFn = vi.fn();
-
-    globalThis.alert = alertFn;
-
-
-
-    render(
-
-      <PEVRequestModal
-
-        employer={baseEmployer}
-
-        applicant={{}}
-
-        onClose={() => {}}
-
-        onProceed={() => {}}
-
-      />,
-
-    );
-
-
-
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
-
-
-
-    // Delivery method is a native radio group as of the 2026-07-27 migration.
-    // It used to be three plain <button>s with a hand-drawn dot and no
-    // aria-checked, so nothing announced which method was selected.
-
-    fireEvent.click(screen.getByRole('radio', { name: /Fax Transmission/i }));
-
-    fireEvent.click(screen.getByRole('button', { name: /Continue to Preview/i }));
-
-
-
-    await waitFor(() => {
-
-      expect(screen.getByRole('alert')).toBeInTheDocument();
-
-    });
-
-    expect(screen.getByRole('alert').textContent).toMatch(/fax/i);
-
-    expect(alertFn).not.toHaveBeenCalled();
-
-
-
-    delete globalThis.alert;
 
   });
 

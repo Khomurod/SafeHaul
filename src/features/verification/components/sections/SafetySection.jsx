@@ -2,6 +2,7 @@ import React from 'react';
 import { FormField, FormSection, Textarea } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { RadioGroup } from '../RadioGroup';
+import { TEXT_ANSWER_MAX_LENGTH } from './textLimits';
 
 /** Section 2: Safety & Compliance (FMCSA required). Only rendered when
  *  formData.wasEmployed is truthy (the parent controls that). Field names,
@@ -62,6 +63,7 @@ export function SafetySection({ formData, formErrors, updateField }) {
                                     rows={3}
                                     required={false}
                                     aria-required="true"
+                                    maxLength={TEXT_ANSWER_MAX_LENGTH}
                                     value={formData.violationDetails}
                                     onChange={(e) => updateField('violationDetails', e.target.value)}
                                     placeholder="Describe the nature of the violation(s), date(s), substance(s) involved..."
@@ -106,6 +108,7 @@ export function SafetySection({ formData, formErrors, updateField }) {
                         <FormField id="verify-accident-details" label="Accident Details">
                             <Textarea
                                 rows={3}
+                                maxLength={TEXT_ANSWER_MAX_LENGTH}
                                 value={formData.accidentDetails}
                                 onChange={(e) => updateField('accidentDetails', e.target.value)}
                                 placeholder="For each accident, provide: Date, Location, Nature of accident, Fatalities (Y/N), Injuries (Y/N), Hazmat spill (Y/N)"
