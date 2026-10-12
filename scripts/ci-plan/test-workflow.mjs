@@ -10,6 +10,7 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
+import { runInNewContext } from 'node:vm';
 import { assert, here } from './test-support.mjs';
 
 console.log('\nI. Workflow wiring');
@@ -96,13 +97,13 @@ console.log('\nI. Workflow wiring');
  * Learned on 2026-08-25, in CI, twice in one afternoon.
  *
  * `--project` ACCUMULATES on the Playwright command line. `main.yml` runs
- * `npm run test:e2e -- --project=chromium`, so any `--project` baked into the
- * script UNIONS with chromium rather than being narrowed by it. Naming the five
- * functional projects in `test:e2e` — a reasonable-looking way to keep the
- * visual lane out of a bare run — therefore put firefox, webkit and both mobile
- * lanes into every chromium shard. The runner installs only Chromium, so 113
- * tests failed with `browserType.launch: Executable doesn't exist`, on all four
- * shards, through all three retries.
+ * `npm run test:e2e -- --project=chromium --project=mobile-chrome`, so any
+ * `--project` baked into the script UNIONS with those rather than narrowing
+ * them. Naming the five functional projects in `test:e2e` — a
+ * reasonable-looking way to keep the visual lane out of a bare run — therefore
+ * put firefox, webkit and both mobile lanes into every chromium shard. The
+ * runner installs only Chromium, so 113 tests failed with `browserType.launch:
+ * Executable doesn't exist`, on all four shards, through all three retries.
  *
  * The visual lane is kept out by living in its own config instead, which no
  * caller can accidentally widen. These checks pin both halves of that.
@@ -138,6 +139,59 @@ console.log('\nI. Workflow wiring');
             (scripts[name] || '').includes('--config=playwright.visual.config.cjs'),
             `${name} = ${JSON.stringify(scripts[name])}`);
     }
+}
+
+/*
+ * J6–J8. The mobile lane. The mobile projects run only `@mobile` tests (their
+ * `grep`), and the E2E shards run `mobile-chrome`. A test whose mobile path is
+ * not tagged runs nowhere: the desktop lane skips that path, and the mobile
+ * project's filter leaves the test out.
+ */
+{
+    // Evaluated with a stand-in for `@playwright/test`, so this file still needs
+    // nothing installed.
+    const playwright = { defineConfig: (config) => config, devices: new Proxy({}, { get: () => ({}) }) };
+    const sandbox = {
+        module: { exports: {} },
+        process: { env: {} },
+        require: (name) => {
+            if (name === '@playwright/test') return playwright;
+            throw new Error(`playwright.config.cjs requires ${name}; J6 has no stand-in for it`);
+        },
+    };
+    runInNewContext(readFileSync(resolvePath(here, '../playwright.config.cjs'), 'utf8'), sandbox);
+    const mobile = sandbox.module.exports.projects.filter(({ name }) => name.startsWith('mobile'));
+    assert('J6. both mobile projects run only @mobile tests',
+        // Not `instanceof RegExp`: the pattern was built in the sandbox's realm.
+        mobile.length === 2 && mobile.every(({ grep }) => typeof grep?.test === 'function'
+            && grep.test('opens on a phone @mobile') && !grep.test('opens on a desktop')),
+        mobile.map(({ name, grep }) => `${name}: grep=${grep}`).join(', '));
+
+    const workflow = readFileSync(resolvePath(here, '../.github/workflows/main.yml'), 'utf8');
+    assert('J7. the E2E shards run the mobile-chrome project',
+        /npm run test:e2e -- --project=chromium --project=mobile-chrome --shard=/.test(workflow),
+        'no CI lane would run the @mobile tests');
+
+    // `test.skip(testInfo.project.name.startsWith('mobile'), …)` marks a desktop
+    // test; every other use of that check is a path only a phone runs, and the
+    // nearest `test(` before it is the test that has to carry the tag.
+    const untagged = [];
+    let mobilePaths = 0;
+    const specDir = resolvePath(here, '../e2e');
+    for (const file of readdirSync(specDir).filter((name) => name.endsWith('.spec.cjs'))) {
+        const spec = readFileSync(resolvePath(specDir, file), 'utf8');
+        for (const use of spec.matchAll(/project\.name\.startsWith\('mobile'\)/g)) {
+            const before = spec.slice(0, use.index);
+            if (/test\.skip\(\s*testInfo\.$/.test(before)) continue;
+            mobilePaths += 1;
+            const title = [...before.matchAll(/\btest\(\s*(['"`])([\s\S]*?)\1/g)].at(-1)?.[2];
+            if (!title?.includes('@mobile')) untagged.push(`${file}: ${title ?? '(outside a test)'}`);
+        }
+    }
+    // A floor, so a change of idiom cannot leave this scanning nothing.
+    assert('J8. every test with a mobile-only path carries @mobile',
+        mobilePaths >= 30 && untagged.length === 0,
+        `mobile paths found: ${mobilePaths}; untagged: ${untagged.join('; ') || 'none'}`);
 }
 
 

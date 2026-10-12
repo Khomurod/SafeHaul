@@ -59,7 +59,7 @@ test.describe('Company Settings Billing informational card compatibility slice',
     expect(geometry.nestedHorizontalScrollerCount).toBe(0);
   });
 
-  test('fits within a mobile viewport with the plan and guidance visible', async ({ page }, testInfo) => {
+  test('fits within a mobile viewport with the plan and guidance visible @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openBilling(page);

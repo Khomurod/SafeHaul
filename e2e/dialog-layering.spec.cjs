@@ -15,10 +15,8 @@
 // escalation war above shows what that costs. Saying so is better than claiming
 // a user-visible bug that cannot be demonstrated.
 //
-// It runs in the `chromium` project deliberately. CI runs `--project=chromium`
-// only (`main.yml`), so the mobile-gated style the other shell tests use
-// (`test.skip(!testInfo.project.name.startsWith('mobile'))`) would never gate
-// anything. The drawer's rules apply below 768px, so the viewport is set here.
+// It runs in the `chromium` project, with the viewport set here: the drawer's
+// rules apply below 768px, and the mobile projects run only `@mobile` tests.
 const { test, expect } = require('@playwright/test');
 
 const MOBILE = { width: 412, height: 915 };

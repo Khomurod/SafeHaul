@@ -44,10 +44,9 @@ export default defineConfig({
   },
   build: {
     target: 'esnext', // CRITICAL: Ensures production build supports modern JS features
-    // E1 FIX: Emit HIDDEN sourcemaps — full maps are generated for upload to Sentry, but no
-    // //# sourceMappingURL comment ships in the bundle, so maps are never publicly served.
-    // CI uploads them to Sentry then strips *.map from the deploy artifact (see main.yml).
-    sourcemap: 'hidden',
+    // No sourcemaps: nothing uploads them to Sentry, and the deploy would only
+    // delete them (main.yml). Building them cost a fifth of the build time.
+    sourcemap: false,
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),

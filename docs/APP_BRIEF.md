@@ -1387,10 +1387,9 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 `test:visual`, `test:secret-scan`, and a secret scan
 (`scripts/secret-scan.mjs`, a pinned Gitleaks CLI) — all blocking. CI's frontend
 job runs `lint:frontend`, not the root `npm run lint`, so a check that lives
-only in the root lint is not a CI gate. Only `npm run typecheck` is
-**non-blocking** (`continue-on-error`), and the modules `jsconfig.json` checks
-have no type errors, so a red typecheck is a new error to fix, not a broken
-build. TypeScript 7 reads a JSDoc `{object}` strictly (name the fields a
+only in the root lint is not a CI gate. `npm run typecheck` runs in
+`frontend-quality` and blocks like the rest; the modules `jsconfig.json` checks
+have no type errors. TypeScript 7 reads a JSDoc `{object}` strictly (name the fields a
 function reads, or use `Record<string, unknown>`) and has no `baseUrl` (paths in
 `jsconfig.json` are relative); a `TS5xxx` error means the configuration was
 rejected and nothing was checked.
@@ -1443,9 +1442,9 @@ Node. Under Jest the ES-module-only `jose` (App Check and phone-number tokens,
 neither used — §10) maps to an empty stand-in; Jest on Node 22 cannot
 `require()` it.
 
-**Playwright** runs in CI as a 4-way shard matrix with `workers: 1` and
-`retries: 2` per shard (§10). **Local test-runner safety** — one Playwright
-suite at a time, no broad `pkill`, and the rest — is in
+**Playwright** runs in CI as a 4-way shard matrix, `workers: 1` and
+`retries: 2` per shard (§10): desktop Chromium, plus the `@mobile` tests on an
+emulated Pixel 7. Local runner safety:
 [`.claude/rules/testing.md`](../.claude/rules/testing.md).
 
 **The first download has a budget.** `npm run check:bundle-budget` sums the

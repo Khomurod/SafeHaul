@@ -154,7 +154,7 @@ test.describe('E-Doc guided send flow', () => {
     await expect(wizard(page)).toHaveCount(0);
   });
 
-  test('keeps the submit action reachable on mobile without document overflow', async ({ page }, testInfo) => {
+  test('keeps the submit action reachable on mobile without document overflow @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openWizard(page);

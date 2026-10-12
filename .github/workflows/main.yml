@@ -300,6 +300,10 @@ jobs:
       # actually run. It belongs here rather than in a skippable lane: it takes
       # under a second, needs no install, and a boundary guard that CI is
       # allowed to skip is a boundary guard that eventually stops holding.
+      # Its own tests first: it must read every tracked source file.
+      - name: Verify the AI-boundary guard
+        run: npm run test:ai-boundary
+
       - name: Verify the AI provider boundary
         run: npm run check:ai-boundary
 
@@ -443,6 +447,11 @@ jobs:
       - name: Frontend Lint
         run: npm run lint:frontend
 
+      # Blocking. It ran as its own job with `continue-on-error`, and twelve
+      # errors piled up in the modules `jsconfig.json` checks before anyone saw one.
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Frontend Unit Tests + Coverage (baseline-ratchet gate)
         run: npm run test:coverage
 
@@ -510,8 +519,12 @@ jobs:
       # roadmap requires accessibility to be enforced. `scripts/test-ci-plan.mjs`
       # (K2) asserts no workflow step excludes `@a11y`, so it cannot drift back
       # out.
-      - name: Frontend E2E Tests (Chromium, including the axe specs)
-        run: npm run test:e2e -- --project=chromium --shard=${{ matrix.shard }}/4
+      #
+      # `mobile-chrome` (Pixel 7 emulation, the same Chromium) runs only the
+      # `@mobile` tests, by its own `grep` in `playwright.config.cjs`. J6–J8 in
+      # `npm run check:ci-plan` pin the filter, this flag and the tags.
+      - name: Frontend E2E Tests (Chromium desktop and Pixel 7, including the axe specs)
+        run: npm run test:e2e -- --project=chromium --project=mobile-chrome --shard=${{ matrix.shard }}/4
 
   # The pixel baselines of real application screens (`e2e/visual/app.spec.cjs`).
   # They render feature screens, so they run in the browser lane, which every
@@ -782,36 +795,6 @@ jobs:
             ui-debug.log
 
   # ---------------------------------------------------------------------------
-  # Non-blocking baselines — advisory, never in the required set
-  #
-  # `e2e-a11y` used to live here and no longer does: its axe specs run inside the
-  # blocking `frontend-e2e` lane as of 2026-08-25. `typecheck` is the only
-  # advisory lane left, and it is advisory for a different reason — it is a
-  # ratchet over pre-existing `checkJs` findings in modules this campaign does not
-  # touch, not a gate someone decided to switch off.
-  # ---------------------------------------------------------------------------
-  typecheck:
-    runs-on: ubuntu-latest
-    needs: plan
-    if: needs.plan.outputs.run_frontend_unit == 'true'
-    # D3: non-blocking type-safety baseline (checkJs on scoped high-leverage
-    # modules via jsconfig.json). Surfaces latent type issues to ratchet over
-    # time; intentionally NOT part of the release-validation lane set so it never
-    # blocks a release.
-    steps:
-      - uses: actions/checkout@v7
-      - name: Use Node.js 22.x
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22.x
-          cache: 'npm'
-      - name: Install Dependencies
-        run: npm ci
-      - name: Typecheck (non-blocking baseline)
-        run: npm run typecheck
-        continue-on-error: true
-
-  # ---------------------------------------------------------------------------
   # THE gate
   # ---------------------------------------------------------------------------
   release-validation:
@@ -1055,7 +1038,7 @@ jobs:
         run: npm run build
 
       # E1: Never publish *.map files to Firebase Hosting (no public source disclosure).
-      # Runs unconditionally, after any upload and before deploy.
+      # The build emits none (`vite.config.js`); this holds if one ever does.
       - name: Strip sourcemaps from deploy artifact
         run: find dist -name '*.map' -delete
 

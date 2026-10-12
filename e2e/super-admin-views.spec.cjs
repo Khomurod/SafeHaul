@@ -224,7 +224,7 @@ test.describe('Super Admin views', () => {
     });
   }
 
-  test('all migrated views stay usable on a mobile device lane', async ({ page }, testInfo) => {
+  test('all migrated views stay usable on a mobile device lane @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
     await openShell(page);
 

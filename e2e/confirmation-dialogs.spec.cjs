@@ -153,7 +153,7 @@ test.describe('ConfirmDialog — real browser', () => {
     });
   }
 
-  test('stays usable and non-overflowing on a mobile device lane', async ({ page }, testInfo) => {
+  test('stays usable and non-overflowing on a mobile device lane @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
     await reachUploadedDocuments(page);
     await removeButton(page).click();

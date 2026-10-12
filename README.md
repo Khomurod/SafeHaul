@@ -110,7 +110,7 @@ Cloud Functions run on **Node 22** (moved from Node 20 on 2026-09-06, ahead of G
 | @google-cloud/tasks | 6.2 | Bulk campaign worker queue |
 
 > There is **no server-side Sentry**. Only the browser DSN (`VITE_SENTRY_DSN`)
-> and the deploy-time sourcemap-upload secrets are consumed.
+> is consumed; source maps are neither built nor uploaded.
 
 ### Testing
 

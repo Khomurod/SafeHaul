@@ -62,7 +62,7 @@ test.describe('Campaign launch pad slice', () => {
     await expect(page.getByRole('heading', { name: 'Ready for Liftoff?' })).toBeVisible();
   });
 
-  test('does not overflow the document at desktop/tablet/mobile', async ({ page }, testInfo) => {
+  test('does not overflow the document at desktop/tablet/mobile @mobile', async ({ page }, testInfo) => {
     const widths = testInfo.project.name.startsWith('mobile') ? [412] : [1440, 1024];
     await page.setViewportSize({ width: widths[0], height: widths[0] === 412 ? 915 : 900 });
     await openLaunch(page);

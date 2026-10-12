@@ -315,7 +315,7 @@ test.describe('Import Leads', () => {
         });
     }
 
-    test('stays usable on a mobile device lane', async ({ page }, testInfo) => {
+    test('stays usable on a mobile device lane @mobile', async ({ page }, testInfo) => {
         test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
         await openImport(page);
 
@@ -450,7 +450,7 @@ test.describe('Quick Add Lead', () => {
         });
     }
 
-    test('stays usable on a mobile device lane', async ({ page }, testInfo) => {
+    test('stays usable on a mobile device lane @mobile', async ({ page }, testInfo) => {
         test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
         await page.goto(QUICK_ADD_URL);
         await expect(page.getByRole('heading', { level: 1, name: 'Quick Add Lead' })).toBeVisible();

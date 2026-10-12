@@ -71,7 +71,7 @@ test.describe('Company Settings SMS Settings — Number Assignments', () => {
     });
   }
 
-  test('stays usable on a mobile device lane', async ({ page }, testInfo) => {
+  test('stays usable on a mobile device lane @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
     await openSmsTab(page);
     await expectNoHorizontalOverflow(page, 'mobile SMS settings');

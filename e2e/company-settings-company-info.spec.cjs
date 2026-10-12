@@ -95,7 +95,7 @@ test.describe('Company Settings Company Profile information compatibility slice'
     expect(geometry.nestedHorizontalScrollerCount).toBe(0);
   });
 
-  test('uses a single-column mobile form with wrapping and no overflow', async ({ page }, testInfo) => {
+  test('uses a single-column mobile form with wrapping and no overflow @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openCompanyInformation(page);

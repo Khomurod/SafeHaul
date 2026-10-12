@@ -32,10 +32,11 @@ because ignoring it once cost real time; the incidents are in
 4. **Do not edit files in the app's module graph while a Playwright suite runs**:
    the dev server hot-reloads and in-flight tests fail spuriously.
 5. **`--project` accumulates, it does not narrow.** CI runs
-   `npm run test:e2e -- --project=chromium`, so never bake a `--project` into the
-   `test:e2e` script. The pixel lane lives in `playwright.visual.config.cjs` so no
-   caller can widen into it. Run `npm run check:ci-plan` after touching either
-   Playwright config or those scripts (J1–J5).
+   `npm run test:e2e -- --project=chromium --project=mobile-chrome`, so never bake
+   a `--project` into the `test:e2e` script. The pixel lane lives in
+   `playwright.visual.config.cjs` so no caller can widen into it. Run
+   `npm run check:ci-plan` after touching either Playwright config or those
+   scripts (J1–J8).
 6. **Locally, `PW_CHROMIUM_EXECUTABLE=/opt/pw-browsers/chromium` is for the
    functional lanes only.** The pixel lane (`test:visual`) and
    `check:visual-contract` need the browser revision Playwright pins; with any
@@ -84,3 +85,6 @@ because ignoring it once cost real time; the incidents are in
 - The sanctioned speed-up is sharding across runners (the 4-way `frontend-e2e`
   matrix). Change the shard count in both `matrix.shard` and `--shard=N/<total>`
   in `main.yml`; sharding partitions the same tests, it does not subset them.
+- The mobile projects run only tests tagged `@mobile` in their title. A test
+  that skips unless on a mobile project, or takes a phone-only path, carries the
+  tag, or no lane runs that path (J8).
