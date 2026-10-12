@@ -95,6 +95,14 @@ const bump = (key) => versions.set(key, (versions.get(key) || 0) + 1);
 let interference = null;
 const setTransactionInterference = (fn) => { interference = fn; };
 
+/**
+ * A Storage save that fails, as Cloud Storage can in the middle of a submission.
+ * `before` runs first, so a suite can land a competing write at that moment. It
+ * fires once; `resetPevState` clears it.
+ */
+let storageFailure = null;
+const failNextStorageSave = (before = async () => {}) => { storageFailure = before; };
+
 /** A write from outside any transaction, as a competing request would make it. */
 const writeApplicationOutOfBand = (key, data) => {
   applicationDocs.set(key, data);
@@ -262,6 +270,12 @@ const firebaseAdminMock = () => ({
     bucket: jest.fn(() => ({
       file: jest.fn((path) => ({
         save: jest.fn(async () => {
+          if (storageFailure) {
+            const before = storageFailure;
+            storageFailure = null;
+            await before();
+            throw new Error('storage unavailable');
+          }
           savedStoragePaths.push(path);
         }),
         download: jest.fn(async () => [Buffer.from('')]),
@@ -279,6 +293,7 @@ function resetPevState() {
   companyDocs.clear();
   versions.clear();
   interference = null;
+  storageFailure = null;
   savedStoragePaths.length = 0;
   mockSendDynamicEmail.mockResolvedValue({ success: true });
   mockCheckRateLimit.mockResolvedValue(true);
@@ -312,6 +327,7 @@ module.exports = {
   schedulerMock,
   uuidMock,
   resetPevState,
+  failNextStorageSave,
   setTransactionInterference,
   writeApplicationOutOfBand,
 };

@@ -19,7 +19,7 @@ jest.mock('../../firebaseAdmin', () => require('./employmentVerification.support
 const {
   appKey, applicationDocs, createTs, responseDocs,
   savedStoragePaths, verificationDocs, mockCheckRateLimit, mockSendDynamicEmail,
-  resetPevState,
+  failNextStorageSave, resetPevState,
 } = require('./employmentVerification.support');
 
 const {
@@ -89,6 +89,9 @@ describe('employmentVerification callables', () => {
           },
         }),
       ).rejects.toMatchObject({ code: 'invalid-argument' });
+      // Refused before the claim: a request left 'processing' drops out of the
+      // reminder query (reminders.js) for good.
+      expect(verificationDocs.get('pev-token-1').status).toBe('sent');
     });
 
     it('stores response, updates status, and updates employer verification record', async () => {
@@ -154,10 +157,10 @@ describe('employmentVerification callables', () => {
     const ONE_PIXEL_PNG_BASE64 =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
-    function seedSubmittableRequest(token, applicationId) {
+    function seedSubmittableRequest(token, applicationId, status = 'sent') {
       verificationDocs.set(token, {
         token,
-        status: 'sent',
+        status,
         companyId: 'co-1',
         collectionName: 'applications',
         applicationId,
@@ -235,8 +238,58 @@ describe('employmentVerification callables', () => {
 
       expect(responseDocs.has('pev-token-5/submission')).toBe(false);
       expect(savedStoragePaths).toEqual([]);
-      expect(verificationDocs.get('pev-token-5').status).not.toBe('completed');
+      expect(verificationDocs.get('pev-token-5').status).toBe('sent');
       expect(applicationDocs.get(appKey('co-1', 'applications', 'app-5')).employers[0].verification).toBeUndefined();
+    });
+
+    it('refuses details over 2000 characters and leaves the request in its reminder cycle', async () => {
+      seedSubmittableRequest('pev-token-6', 'app-6', 'reminder_sent');
+
+      await expect(
+        submit('pev-token-6', { accidentDetails: 'x'.repeat(2001) }),
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+
+      expect(verificationDocs.get('pev-token-6').status).toBe('reminder_sent');
+      expect(verificationDocs.get('pev-token-6').claimedAt).toBeUndefined();
+      expect(responseDocs.has('pev-token-6/submission')).toBe(false);
+    });
+
+    const drawnSignature = {
+      signatureData: `data:image/png;base64,${ONE_PIXEL_PNG_BASE64}`,
+      signatureMethod: 'drawn',
+    };
+
+    it('puts back the status the request had when a step after the claim fails', async () => {
+      seedSubmittableRequest('pev-token-7', 'app-7', 'reminder_sent');
+      failNextStorageSave();
+
+      await expect(submit('pev-token-7', drawnSignature)).rejects.toMatchObject({ code: 'internal' });
+
+      expect(verificationDocs.get('pev-token-7').status).toBe('reminder_sent');
+      expect(responseDocs.has('pev-token-7/submission')).toBe(false);
+      expect(mockSendDynamicEmail).not.toHaveBeenCalled();
+    });
+
+    it('sends a request an earlier failure left processing back to opened when it fails again', async () => {
+      seedSubmittableRequest('pev-token-8', 'app-8', 'processing');
+      failNextStorageSave();
+
+      await expect(submit('pev-token-8', drawnSignature)).rejects.toMatchObject({ code: 'internal' });
+
+      expect(verificationDocs.get('pev-token-8').status).toBe('opened');
+    });
+
+    it('never undoes a completion that lands while its own submission is failing', async () => {
+      seedSubmittableRequest('pev-token-9', 'app-9', 'opened');
+      // An overlapping submission of the same form completes first: a claim does
+      // not refuse it (only 'completed' does).
+      failNextStorageSave(async () => {
+        verificationDocs.set('pev-token-9', { ...verificationDocs.get('pev-token-9'), status: 'completed' });
+      });
+
+      await expect(submit('pev-token-9', drawnSignature)).rejects.toMatchObject({ code: 'internal' });
+
+      expect(verificationDocs.get('pev-token-9').status).toBe('completed');
     });
 
   });
