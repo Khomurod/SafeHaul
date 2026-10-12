@@ -129,6 +129,15 @@ const phoneUtilsMock = () => ({
     normalizePhone: jest.fn(phone => phone ? phone.replace(/\D/g, '') : '')
 });
 
+// The pause between two sends, answered at once: a batch costs no real three
+// seconds a recipient, and the pauses the loop asked for stay readable here
+// (`sendPacing.js` keeps the real numbers, and its own test holds them).
+const mockPauseBeforeNextSend = jest.fn(async () => {});
+const sendPacingMock = () => ({
+    ...jest.requireActual('../bulkActions/workers/sendPacing'),
+    pauseBeforeNextSend: mockPauseBeforeNextSend,
+});
+
 // --- Environment ---
 process.env.GCLOUD_PROJECT = 'test-project';
 process.env.FUNCTION_REGION = 'us-central1';
@@ -173,6 +182,8 @@ module.exports = {
     blacklistMock,
     encryptionMock,
     phoneUtilsMock,
+    sendPacingMock,
+    mockPauseBeforeNextSend,
     firestoreMock,
     mockCollectionFn,
     mockDocFn,

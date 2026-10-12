@@ -1,6 +1,8 @@
 const smsDocIds = [];
 const mockSendSMS = jest.fn().mockResolvedValue(true);
 const mockEnsureLoggedIn = jest.fn().mockResolvedValue(true);
+// The pause after a send, answered at once (`sendPacing.js` keeps the real three seconds).
+const mockPauseBeforeNextSend = jest.fn(async () => {});
 
 process.env.BULK_WORKER_SECRET = 'unit-test-secret';
 
@@ -134,6 +136,11 @@ jest.mock('../../bulkActions/services/queueService', () => ({
     enqueueWorker: jest.fn().mockResolvedValue(true)
 }));
 
+jest.mock('../../bulkActions/workers/sendPacing', () => ({
+    ...jest.requireActual('../../bulkActions/workers/sendPacing'),
+    pauseBeforeNextSend: mockPauseBeforeNextSend,
+}));
+
 const batchWorker = require('../../bulkActions/workers/batchWorker');
 
 describe('batchWorker SMS ledger write canonicalization', () => {
@@ -164,5 +171,6 @@ describe('batchWorker SMS ledger write canonicalization', () => {
         expect(mockEnsureLoggedIn).toHaveBeenCalled();
         expect(mockSendSMS).toHaveBeenCalled();
         expect(smsDocIds).toContain('+15551234567');
-    }, 15000);
+        expect(mockPauseBeforeNextSend).toHaveBeenCalledTimes(1);
+    });
 });

@@ -1090,7 +1090,7 @@ unparseable number — but nothing populates them from a recipient's reply (§12
 - **Every function loads the whole of `functions/index.js` on a cold start**, so
   a heavier dependency slows them all. 256 MB is the floor: a 1st Gen function at
   128 MB gets about 200 MHz, too little to load it within the start-up limit, and
-  `functions/test/unit/functionMemoryFloor.test.js` refuses anything smaller.
+  `functions/test/unit/deployedEntryPoint.test.js` refuses anything smaller.
 - **The blog owns its stylesheet.** `/news`, `/news/{slug}` and `/news/feed.xml`
   are rendered by `serveBlogPublic` and styled by five files in
   `web/assets/css/`, cut from the retired marketing site's single sheet at its
@@ -1437,10 +1437,10 @@ without `paths:` and a path the instructions name that does not exist.
 (its `admin`, `db`, `auth`, `storage`) or a modular `firebase-admin/<service>`
 import: `firebase-admin` 14's root export has no services, and suites that mock
 it would not notice. `functions/test/unit/firebaseAdmin.test.js` refuses a root
-require or an `admin.<path>` the wrapper lacks, and loads `index.js` under plain
-Node. Under Jest the ES-module-only `jose` (App Check and phone-number tokens,
-neither used — §10) maps to an empty stand-in; Jest on Node 22 cannot
-`require()` it.
+require or an `admin.<path>` the wrapper lacks; `deployedEntryPoint.test.js`
+loads `index.js` under plain Node. Under Jest the ES-module-only `jose` (App
+Check and phone-number tokens, neither used — §10) maps to an empty stand-in;
+Jest on Node 22 cannot `require()` it.
 
 **Playwright** runs in CI as a 4-way shard matrix, `workers: 1` and
 `retries: 2` per shard (§10): desktop Chromium, plus the `@mobile` tests on an

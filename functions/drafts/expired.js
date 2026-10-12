@@ -15,7 +15,7 @@
  * A run that could not finish tries again itself, twice, a few seconds apart:
  * once it ends, nothing else has the draft, and another deletion may never come
  * at that company. The platform's own retries are not used, because the deploy
- * cannot ship a function that has them (`functionFailurePolicy.test.js`). What
+ * cannot ship a function that has them (`deployedEntryPoint.test.js`). What
  * the last try leaves is recorded for the next deletion at the company, as a
  * purge's leftovers are, once per deletion however often its event arrives. So
  * that the last try always gets to record, every step of a try (the check, each

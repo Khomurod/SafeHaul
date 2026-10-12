@@ -17,9 +17,10 @@ jest.mock('../integrations/factory', () => require('./bulkActions.support').inte
 jest.mock('../blacklist', () => require('./bulkActions.support').blacklistMock());
 jest.mock('../integrations/encryption', () => require('./bulkActions.support').encryptionMock());
 jest.mock('../utils/phoneUtils', () => require('./bulkActions.support').phoneUtilsMock());
+jest.mock('../bulkActions/workers/sendPacing', () => require('./bulkActions.support').sendPacingMock());
 
 const bulkActions = require('../bulkActions');
-const { mockCreateTask, mockGetAdapterForUser, resetBulkState } = require('./bulkActions.support');
+const { mockCreateTask, mockGetAdapterForUser, mockPauseBeforeNextSend, resetBulkState } = require('./bulkActions.support');
 
 describe('Bulk Actions Tests', () => {
     let db;
@@ -227,5 +228,7 @@ describe('Bulk Actions Tests', () => {
         }));
         // No next task should be enqueued since all items processed
         expect(mockCreateTask).not.toHaveBeenCalled();
-    }, 30000); // Allow time for 3s delays per message
+        // One pause after each of the two sends.
+        expect(mockPauseBeforeNextSend).toHaveBeenCalledTimes(2);
+    });
 });
