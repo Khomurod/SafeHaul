@@ -53,6 +53,12 @@ export const queuedEntries = { current: [] };
 
 export const savePostApplySessionSpy = vi.fn();
 
+// The wait before each retry of a failed submission, by the attempt that
+// failed. Answered at once, so a failed delivery costs no real seconds; the
+// waits the page asked for stay readable here (`submitRetry.js` keeps the
+// real 1 s and 2 s).
+export const retryWaitSpy = vi.fn(async () => {});
+
 /**
  * Fresh function identities on every call, exactly like the real provider.
  *
@@ -192,6 +198,11 @@ export const postApplyDocsStorageMock = (actual) => ({
   ...actual,
   savePostApplySession: (...a) => savePostApplySessionSpy(...a),
   readPostApplySession: vi.fn(() => null),
+});
+
+export const submitRetryMock = (actual) => ({
+  ...actual,
+  waitBeforeRetry: (...a) => retryWaitSpy(...a),
 });
 
 export const sentryMock = () => ({ addBreadcrumb: vi.fn(), captureException: vi.fn() });

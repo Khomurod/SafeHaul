@@ -31,6 +31,7 @@ import { runSubmissionPreflight } from './publicApplyPreflight';
 import { isCarrierUpdate, isPermanentRefusal, isRateLimited, refusalStepNow } from './publicApplyRefusal';
 import { companyRevisionIn, withoutCompanyKeys } from './companyEditsSync';
 import { buildGuestApplicationData } from './buildGuestApplicationData';
+import { waitBeforeRetry } from './submitRetry';
 
 export async function submitPublicApplication({
   // State values as they stood when the applicant pressed Submit.
@@ -398,9 +399,7 @@ export async function submitPublicApplication({
           }
           // The same answers would get the same answer, and a rate limit the same limit.
           if (isPermanentRefusal(error) || isRateLimited(error)) break;
-          if (attempt < 3) {
-            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
-          }
+          if (attempt < 3) await waitBeforeRetry(attempt);
         }
       }
 

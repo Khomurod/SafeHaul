@@ -24,6 +24,7 @@ vi.mock('@lib/submissionQueue', async () => (await import('./PublicApplyHandler.
 vi.mock('@lib/applicationId', async () => (await import('./PublicApplyHandler.contract.support')).applicationIdMock());
 vi.mock('../../services/publicProfileService', async () => (await import('./PublicApplyHandler.contract.support')).publicProfileServiceMock());
 vi.mock('./postApplyDocsStorage', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).postApplyDocsStorageMock(await importOriginal()));
+vi.mock('./submitRetry', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).submitRetryMock(await importOriginal()));
 vi.mock('@sentry/react', async () => (await import('./PublicApplyHandler.contract.support')).sentryMock());
 vi.mock('react-router-dom', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).reactRouterDomMock(await importOriginal()));
 vi.mock('@shared/components/layout/Stepper', async () => (await import('./PublicApplyHandler.contract.support')).stepperMock());
@@ -40,6 +41,7 @@ import {
   isQueueSupportedSpy,
   savePostApplySessionSpy,
   updateQueueEntrySpy,
+  retryWaitSpy,
   generateIdSpy,
   profileOverride,
   SIGNED_DRAFT,
@@ -185,12 +187,12 @@ describe('PublicApplyHandler submission contract', () => {
     await renderWithCompleteDraft();
     await submit();
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument(), {
-      timeout: 10_000,
-    });
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument());
     expect(callableSpy).toHaveBeenCalledTimes(3);
+    // A wait after the first and the second failure, none after the last.
+    expect(retryWaitSpy.mock.calls).toEqual([[1], [2]]);
     expect(dequeueSpy).not.toHaveBeenCalled();
-  }, 20_000);
+  });
 
   it('stops at a refusal: no retries, no queued screen, the server\'s sentence and the page it names', async () => {
     // A refusal used to be retried three times and then shown as "Application
@@ -245,12 +247,10 @@ describe('PublicApplyHandler submission contract', () => {
     await renderWithCompleteDraft();
     await submit();
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument(), {
-      timeout: 10_000,
-    });
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument());
     expect(callableSpy).toHaveBeenCalledTimes(3);
     expect(dequeueSpy).not.toHaveBeenCalled();
-  }, 20_000);
+  });
 
   it('surfaces an error instead of the queued screen when the queue is unavailable', async () => {
     isQueueSupportedSpy.mockReturnValue(false);
@@ -259,12 +259,9 @@ describe('PublicApplyHandler submission contract', () => {
     await renderWithCompleteDraft();
     await submit();
 
-    await waitFor(() =>
-      expect(showError).toHaveBeenCalledWith('Failed to submit application. Please try again.'),
-      { timeout: 10_000 },
-    );
+    await waitFor(() => expect(showError).toHaveBeenCalledWith('Failed to submit application. Please try again.'));
     expect(screen.queryByRole('heading', { name: 'Not sent yet' })).toBeNull();
-  }, 20_000);
+  });
 
   it('clears the local draft and the pending recruiter code on success', async () => {
     sessionStorage.setItem('pending_application_recruiter', 'REC-9');
