@@ -7,6 +7,7 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Badge, Button, Card, Notice } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
+import { MAX_RECIPIENTS_PER_LAUNCH } from '../constants/campaignConstants';
 
 export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
     const navigate = useNavigate();
@@ -80,6 +81,9 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
     // Validation
     const errors = [];
     if (!campaign.matchCount || campaign.matchCount === 0) errors.push("No audience selected");
+    if (campaign.matchCount > MAX_RECIPIENTS_PER_LAUNCH) {
+        errors.push(`At most ${MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')} recipients per launch (this audience has ${campaign.matchCount.toLocaleString('en-US')})`);
+    }
     if (!campaign.messageConfig?.message) errors.push("Message content is empty");
 
     const isValid = errors.length === 0;

@@ -554,6 +554,18 @@ describe('AudienceBuilder — migrated presentation', () => {
         expect(onChange.mock.calls.at(-1)[0]._importTab).toBe('sheet');
     });
 
+    it('flags an audience over the 2,000-a-launch limit', () => {
+        mockTargeting = { ...defaultTargeting(), matchCount: 2001 };
+        renderBuilder();
+        expect(screen.getByText('Over the 2,000-per-launch limit')).toBeInTheDocument();
+    });
+
+    it('does not flag an audience of exactly 2,000', () => {
+        mockTargeting = { ...defaultTargeting(), matchCount: 2000 };
+        renderBuilder();
+        expect(screen.queryByText('Over the 2,000-per-launch limit')).not.toBeInTheDocument();
+    });
+
     it('announces the recipient count', () => {
         renderBuilder();
         expect(screen.getByRole('status')).toHaveTextContent('10 recipients selected.');

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { useCampaignTargeting } from '../hooks/useCampaignTargeting';
 import { useCompanyTeam } from '@/shared/hooks/useCompanyTeam';
 import { useData } from '@/context/DataContext';
-import { APPLICATION_STATUSES, LAST_CALL_RESULTS, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
+import { APPLICATION_STATUSES, LAST_CALL_RESULTS, MAX_RECIPIENTS_PER_LAUNCH, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
 import { Icon, Filter, Users, RefreshCw, CheckCircle2, FileSpreadsheet } from '@design-system/icons';
 import { useBulkImport } from '@/shared/hooks/useBulkImport';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -291,7 +291,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                             {excludeRecentField('off')}
                                         </div>
 
-                                        <FormField label="Limit Volume" description="Leave empty to message all matches.">
+                                        <FormField label="Limit Volume" description={`Leave empty to message all matches, up to ${MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')} per launch.`}>
                                             <Input
                                                 type="number"
                                                 placeholder="No Limit"
@@ -423,6 +423,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                 )}
                                 {phoneExcludedCount > 0 && (
                                     <Badge tone="warning">{phoneExcludedCount} already messaged</Badge>
+                                )}
+                                {finalCount > MAX_RECIPIENTS_PER_LAUNCH && (
+                                    <Badge tone="danger">Over the {MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')}-per-launch limit</Badge>
                                 )}
                             </div>
                         </div>

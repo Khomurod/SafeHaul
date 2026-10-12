@@ -5,6 +5,7 @@ const { enqueueWorker } = require("../services/queueService");
 const { checkRateLimit } = require("../../shared/rateLimiter");
 const { verifyDirectSelection, gatherIdsFromQueries } = require("./session/gatherTargets");
 const { persistImportTargets } = require("./session/importTargets");
+const { assertWithinLaunchLimit } = require("../helpers/launchLimit");
 
 /**
  * 1. Initialize Bulk Session
@@ -85,17 +86,10 @@ exports.initBulkSession = onCall({
     }
 
 
-    // Persist targets to subcollection if too large for single doc array (Map limit 1MB)
-    // 50k IDs * 20 chars = 1MB. So > 10k is risky.
-    // Strategy: Store in doc if < 5000, else use batches?
-    // For now, consistent strategy: store in `targets` subcollection if 'import', or just array if reasonable?
-    // Actually, `bulkActions_OLD.js` stored them in `targetIds` array on doc.
-    // If list is huge (e.g. 50k), this fails Firestore limit.
-    // FIX: We will store IDs in chunks in a subcollection 'partitions' or just rely on 'targetIds' for now (assuming < 10k use cases).
-    // If > 10k, we should throw or handle.
-    if (finalTargetIds.length > 10000) {
-        throw new HttpsError('invalid-argument', 'Too many leads selected. Please narrow filters (< 10,000).');
-    }
+    // At most 2,000 recipients a launch (`helpers/launchLimit.js`); an uploaded
+    // list was held to it before its rows were written. The IDs then fit the
+    // session document's `targetIds` array with room to spare.
+    assertWithinLaunchLimit(finalTargetIds.length);
 
     // Optimization: Store leadSourceType on session
     await sessionRef.set({
@@ -224,6 +218,8 @@ exports.retryFailedAttempts = onCall(
     const failedIds = logsSnap.docs.map(d => d.id);
 
     if (failedIds.length === 0) return { success: true, message: "No failed items to retry." };
+    // A retry messages them all again, so it is held to the launch limit too.
+    assertWithinLaunchLimit(failedIds.length, { source: 'retry' });
 
     // Create NEW session for retry
     const newSessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc();
@@ -261,5 +257,5 @@ exports.retryFailedAttempts = onCall(
 
     await enqueueWorker(companyId, newSessionId, 1, 1); // workerGeneration = 1
 
-    return { success: true, newSessionId };
+    return { success: true, newSessionId, targetCount: failedIds.length };
 });

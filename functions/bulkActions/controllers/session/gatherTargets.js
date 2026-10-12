@@ -98,9 +98,8 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
             }
         }
 
-        // The lead's own stamps first, then the recruiter's un-ticked leads.
+        // The lead's own stamps first; the recruiter's un-ticked leads come off last.
         const window = excludeWindow(filters.excludeRecentDays);
-        const excludedLeadIds = new Set(filters.excludedLeadIds || []);
         const candidates = new Map(); // leadId -> { key, phone, email }
         let excludedByTimestamp = 0;
         snapshots.forEach(snap => {
@@ -110,7 +109,6 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
                     excludedByTimestamp++;
                     return;
                 }
-                if (excludedLeadIds.has(d.id)) return;
                 candidates.set(d.id, { key: d.id, phone: data.phone || data.phoneNumber || '', email: data.email });
             });
         });
@@ -135,7 +133,16 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
             console.error('[initBulkSession] Ledger cross-check error (proceeding without):', ledgerErr);
         }
 
-        return [...candidates.keys()].filter((id) => !messaged.has(id));
+        const matches = [...candidates.keys()].filter((id) => !messaged.has(id));
+        // Limit Volume holds the whole audience. Each query already takes it,
+        // but filters split into two queries (`buildLeadQueries`) would
+        // otherwise bring back up to twice as many. As on the screen, the limit
+        // comes before the un-ticked leads: un-ticking one lowers the count
+        // rather than letting another lead take its place.
+        const limit = parseInt(filters.campaignLimit);
+        const limited = limit > 0 ? matches.slice(0, limit) : matches;
+        const excludedLeadIds = new Set(filters.excludedLeadIds || []);
+        return limited.filter((id) => !excludedLeadIds.has(id));
     } catch (qErr) {
         throw new HttpsError('internal', `Query execution failed: ${qErr.message}`);
     }

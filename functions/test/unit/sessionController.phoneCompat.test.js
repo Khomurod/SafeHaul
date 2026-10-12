@@ -266,3 +266,142 @@ describe('sessionController phone compatibility', () => {
         expect(mockBatchWrites.map((write) => write.data.firstName)).toEqual(['A', 'D']);
     });
 });
+
+// One launch messages at most 2,000 recipients, counted after every exclusion,
+// and a larger audience is refused before anything is written.
+describe('initBulkSession launch limit', () => {
+    const phoneOf = (i) => `+1555${String(i).padStart(7, '0')}`;
+    const leadsQuery = (count, from = 0) => ({
+        select: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({
+            docs: Array.from({ length: count }, (_, i) => ({ id: `lead${from + i}`, data: () => ({ phone: phoneOf(from + i) }) })),
+            size: count,
+        }),
+    });
+    const rows = (count) => Array.from({ length: count }, (_, i) => ({ firstName: `R${i}`, phone: phoneOf(i) }));
+    const launch = (filters, rawData) => sessionController.initBulkSession({
+        auth: { uid: 'u1' },
+        data: { companyId: 'co1', filters, config: { method: 'sms', message: 'Hello there' }, rawData },
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockGetAll.mockReset();
+        mockBatchWrites.length = 0;
+        mockGetAll.mockImplementation(async (...refs) => refs.map((ref) => ({ id: ref.id, exists: false, data: () => undefined })));
+    });
+
+    it('launches an audience of exactly 2,000', async () => {
+        mockBuildLeadQueries.mockReturnValue([leadsQuery(2000)]);
+
+        const result = await launch({ leadType: 'leads' });
+
+        expect(result.targetCount).toBe(2000);
+    });
+
+    it('refuses an audience of 2,001 before the session exists', async () => {
+        mockBuildLeadQueries.mockReturnValue([leadsQuery(2001)]);
+
+        await expect(launch({ leadType: 'leads' })).rejects.toMatchObject({
+            code: 'invalid-argument',
+            message: expect.stringContaining('at most 2,000 recipients, and this audience has 2,001. Narrow the filters'),
+        });
+        expect(mockSessionSet).not.toHaveBeenCalled();
+        expect(mockEnqueueWorker).not.toHaveBeenCalled();
+    });
+
+    it('holds Limit Volume to the whole audience when the filters split into two queries', async () => {
+        // "Not contacted since" splits the filters into two queries
+        // (`buildLeadQueries`), and each query takes Limit Volume on its own.
+        mockBuildLeadQueries.mockReturnValue([leadsQuery(1500), leadsQuery(1500, 1500)]);
+
+        const result = await launch({ leadType: 'leads', campaignLimit: '2000' });
+
+        expect(result.targetCount).toBe(2000);
+        expect(mockSessionSet).toHaveBeenCalledWith(expect.objectContaining({
+            targetIds: expect.arrayContaining(['lead0', 'lead1499', 'lead1500']),
+        }));
+    });
+
+    it('takes an un-ticked lead off the limited audience rather than letting another take its place', async () => {
+        // The screen counts Limit Volume first and then takes the un-ticked leads off.
+        mockBuildLeadQueries.mockReturnValue([leadsQuery(1500), leadsQuery(1500, 1500)]);
+
+        const result = await launch({ leadType: 'leads', campaignLimit: '2000', excludedLeadIds: ['lead5'] });
+
+        expect(result.targetCount).toBe(1999);
+        const { targetIds } = mockSessionSet.mock.calls[0][0];
+        expect(targetIds).not.toContain('lead5');
+        expect(targetIds).not.toContain('lead2000');
+    });
+
+    it('refuses an uploaded list of 2,001 before any row is written', async () => {
+        await expect(launch({ leadType: 'import', excludeRecentDays: 'off' }, rows(2001))).rejects.toMatchObject({
+            code: 'invalid-argument',
+            message: expect.stringContaining('this audience has 2,001. Upload the list in parts'),
+        });
+        expect(mockBatchWrites).toHaveLength(0);
+        expect(mockSessionSet).not.toHaveBeenCalled();
+    });
+
+    it('counts an uploaded list after the rows the ledger leaves out', async () => {
+        // 2,100 rows, 100 of them texted today: 2,000 recipients, inside the limit.
+        const recent = new Set(rows(100).map((row) => row.phone));
+        mockGetAll.mockImplementation(async (...refs) => refs.map((ref) => {
+            const hit = recent.has(ref.id);
+            return { id: ref.id, exists: hit, data: () => (hit ? { lastSentAt: new Date() } : undefined) };
+        }));
+
+        const result = await launch({ leadType: 'import', excludeRecentDays: '7' }, rows(2100));
+
+        expect(result.filteredCount).toBe(100);
+        expect(result.targetCount).toBe(2000);
+    });
+});
+
+// A retry is a launch too: it messages a session's failed recipients again.
+describe('retryFailedAttempts launch limit', () => {
+    let failedLogs = [];
+    const failed = (count) => Array.from({ length: count }, (_, i) => ({ id: `lead${i}` }));
+    const retry = () => sessionController.retryFailedAttempts({
+        auth: { uid: 'u1' },
+        data: { companyId: 'co1', originalSessionId: 'session-0' },
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockSessionRef.get = jest.fn(async () => ({
+            exists: true,
+            data: () => ({ name: 'Spring drive', config: { method: 'sms', message: 'Hello there' }, targetIds: [] }),
+        }));
+        mockSessionRef.collection.mockImplementation((name) => (name === 'logs'
+            ? { where: () => ({ get: async () => ({ docs: failedLogs }) }) }
+            : { doc: jest.fn((id) => makeTargetDoc(id)) }));
+    });
+
+    afterEach(() => {
+        delete mockSessionRef.get;
+        mockSessionRef.collection.mockImplementation(() => ({ doc: jest.fn((id) => makeTargetDoc(id)) }));
+    });
+
+    it('retries 2,000 failed recipients and says how many', async () => {
+        failedLogs = failed(2000);
+
+        const result = await retry();
+
+        expect(result).toMatchObject({ success: true, targetCount: 2000 });
+        expect(mockSessionSet.mock.calls[0][0].targetIds).toHaveLength(2000);
+        expect(mockEnqueueWorker).toHaveBeenCalled();
+    });
+
+    it('refuses a retry of 2,001 before the retry session exists', async () => {
+        failedLogs = failed(2001);
+
+        await expect(retry()).rejects.toMatchObject({
+            code: 'invalid-argument',
+            message: expect.stringContaining('this audience has 2,001. Launch the campaign again with Exclude Previously Messaged on'),
+        });
+        expect(mockSessionSet).not.toHaveBeenCalled();
+        expect(mockEnqueueWorker).not.toHaveBeenCalled();
+    });
+});
