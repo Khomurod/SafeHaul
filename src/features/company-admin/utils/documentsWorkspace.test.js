@@ -6,6 +6,7 @@ import {
     attentionDocuments,
     filterDocuments,
     formatTimestamp,
+    deliveryFailure,
     hasDeliveryFailure,
     hasSealingFailure,
     isAwaitingSignature,
@@ -53,6 +54,17 @@ describe('status predicates', () => {
         expect(needsAttention(doc({ status: 'sent' }))).toBe(false);
         expect(needsAttention(doc({ status: 'error_sealing' }))).toBe(true);
         expect(needsAttention(doc({ emailStatus: 'failed' }))).toBe(true);
+    });
+
+    it('counts a text that failed as a failed delivery too', () => {
+        const smsFailed = doc({ status: 'sent', smsStatus: 'failed', smsError: 'line unavailable' });
+        expect(hasDeliveryFailure(smsFailed)).toBe(true);
+        expect(needsAttention(smsFailed)).toBe(true);
+        expect(isAwaitingSignature(smsFailed)).toBe(false);
+        expect(deliveryFailure(smsFailed)).toEqual({ channel: 'SMS', error: 'line unavailable' });
+        expect(deliveryFailure(doc({ emailStatus: 'failed', emailError: 'SMTP 550', smsStatus: 'failed' })))
+            .toEqual({ channel: 'Email', error: 'SMTP 550' });
+        expect(deliveryFailure(doc({ status: 'sent', emailStatus: 'sent', smsStatus: 'sent' }))).toBeNull();
     });
 });
 

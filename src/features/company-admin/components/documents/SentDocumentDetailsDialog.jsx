@@ -3,7 +3,7 @@ import { Icon, Ban, Copy, Download, Edit3, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
+import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
 
 /**
  * Sent-document details.
@@ -52,7 +52,8 @@ export function SentDocumentDetailsDialog({
 
     const title = document.title || 'Untitled';
     const status = String(document.status || 'unknown');
-    const deliveryFailed = document.emailStatus === 'failed';
+    const failure = deliveryFailure(document);
+    const deliveryFailed = failure !== null;
     const sealFailed = status === 'error_sealing';
 
     return (
@@ -93,10 +94,10 @@ export function SentDocumentDetailsDialog({
                             announce="assertive"
                             tone="danger"
                             size="sm"
-                            title={deliveryFailed ? 'Delivery error' : 'Sealing error'}
+                            title={deliveryFailed ? `${failure.channel} delivery error` : 'Sealing error'}
                             titleAs="h3"
                         >
-                            {(deliveryFailed ? document.emailError : document.errorLog)
+                            {(deliveryFailed ? failure.error : document.errorLog)
                                 || 'No further detail was recorded.'}
                         </Notice>
                     )}

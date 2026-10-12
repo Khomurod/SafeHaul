@@ -2,9 +2,9 @@
  * Documents workspace — pure metric and filter rules.
  *
  * Everything here is derived from data the app already writes: signing-request
- * `status`, the `emailStatus`/`emailError` delivery fields, `deliveryMethod`,
- * `createdAt`, and template `fields`. No new business rule is invented, and no
- * metric is shown that the stored data cannot support.
+ * `status`, the `emailStatus`/`emailError` and `smsStatus`/`smsError` delivery
+ * fields, `deliveryMethod`, `createdAt`, and template `fields`. No new business
+ * rule is invented, and no metric is shown that the stored data cannot support.
  */
 
 const toMillis = (value) => {
@@ -68,11 +68,22 @@ export function isCompleted(document) {
 
 export function isAwaitingSignature(document) {
     const status = normalize(document?.status).toLowerCase();
-    return AWAITING_STATUSES.includes(status) && document?.emailStatus !== 'failed';
+    return AWAITING_STATUSES.includes(status) && !hasDeliveryFailure(document);
+}
+
+/**
+ * The channel whose send failed and the error it recorded, or null. The
+ * server's senders record each channel on the request; a text has no other way
+ * to tell its sender it did not go out.
+ */
+export function deliveryFailure(document) {
+    if (document?.emailStatus === 'failed') return { channel: 'Email', error: document.emailError || '' };
+    if (document?.smsStatus === 'failed') return { channel: 'SMS', error: document.smsError || '' };
+    return null;
 }
 
 export function hasDeliveryFailure(document) {
-    return document?.emailStatus === 'failed';
+    return deliveryFailure(document) !== null;
 }
 
 export function hasSealingFailure(document) {

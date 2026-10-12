@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@design-system/patterns';
 import { Badge, Button, DataTable, defineTableColumns } from '@/design-system/components';
 import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { SentDocumentDetailsDialog } from '@features/company-admin/components/documents/SentDocumentDetailsDialog';
+import { deliveryFailure, hasDeliveryFailure } from '@features/company-admin/utils/documentsWorkspace';
 
 /**
  * Feature-owned domain → visual mapping for a signing-request status.
@@ -157,20 +158,21 @@ export default function EnvelopeHistory({
     };
 
     const renderStatus = (docItem) => {
-        if (docItem.emailStatus === 'failed') {
+        const failure = deliveryFailure(docItem);
+        if (failure) {
             // Truncate error for operator debugging without exposing sensitive internals
-            const errorDetail = docItem.emailError
-                ? (docItem.emailError.length > 80 ? docItem.emailError.substring(0, 80) + '…' : docItem.emailError)
-                : 'Email delivery failed';
+            const errorDetail = failure.error
+                ? (failure.error.length > 80 ? failure.error.substring(0, 80) + '…' : failure.error)
+                : `${failure.channel} delivery failed`;
             return (
                 <div className="flex flex-col items-start gap-ds-1">
-                    <span title={docItem.emailError || "Email Delivery Failed"}>
+                    <span title={failure.error || `${failure.channel} Delivery Failed`}>
                         <Badge tone="danger" icon={AlertCircle}>Delivery Failed</Badge>
                     </span>
                     {/* One clamped line; the complete safe detail lives in the details dialog. */}
                     <span
                         className="line-clamp-1 max-w-[220px] text-ds-xs text-ds-status-danger-fg [overflow-wrap:anywhere]"
-                        title={docItem.emailError || ''}
+                        title={failure.error}
                     >
                         {errorDetail}
                     </span>
@@ -226,7 +228,7 @@ export default function EnvelopeHistory({
         const title = docItem.title || 'Untitled';
 
         let action;
-        if (docItem.emailStatus === 'failed' || docItem.status === 'error_sealing') {
+        if (hasDeliveryFailure(docItem) || docItem.status === 'error_sealing') {
             action = (
                 <Button
                     variant="secondary"

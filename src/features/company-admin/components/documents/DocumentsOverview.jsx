@@ -5,6 +5,7 @@ import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import {
     attentionDocuments,
     formatTimestamp,
+    hasDeliveryFailure,
     recentDocuments,
     summarizeDocuments,
 } from '@features/company-admin/utils/documentsWorkspace';
@@ -138,9 +139,9 @@ export function DocumentsOverview({
                                         </span>
                                         <Badge
                                             tone="danger"
-                                            icon={document.emailStatus === 'failed' ? MailWarning : AlertCircle}
+                                            icon={hasDeliveryFailure(document) ? MailWarning : AlertCircle}
                                         >
-                                            {document.emailStatus === 'failed' ? 'Delivery failed' : 'Seal failed'}
+                                            {hasDeliveryFailure(document) ? 'Delivery failed' : 'Seal failed'}
                                         </Badge>
                                     </li>
                                 ))}
