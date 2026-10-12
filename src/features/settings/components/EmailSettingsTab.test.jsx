@@ -114,6 +114,10 @@ describe('EmailSettingsTab — metadata load', () => {
         await renderLoaded();
         expect(screen.getByText('Successfully Linked')).toBeInTheDocument();
         expect(screen.getByText('ops@acme.com')).toBeInTheDocument();
+        // The names it sends are bold text, not Markdown asterisks.
+        const uses = screen.getByText(/is automatically being used to safely send/);
+        expect(uses).toHaveTextContent('send E-Docs and Previous Employment Verification (PEV) forms.');
+        expect(uses.querySelectorAll('strong')).toHaveLength(2);
     });
 
     it('degrades gracefully when the metadata callable fails', async () => {

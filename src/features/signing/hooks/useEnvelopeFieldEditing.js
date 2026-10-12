@@ -114,12 +114,14 @@ export function useEnvelopeFieldEditing({
         );
     }, [commitFields]);
 
-    // PHASE 3: Update any property on the active field
+    // PHASE 3: Update any property on the active field. An object of properties
+    // changes them together, as one undo step.
     const updateActiveField = useCallback((key, value) => {
         if (!selectedFieldId) return;
+        const changes = typeof key === 'object' ? key : { [key]: value };
         commitFields(
-            prev => prev.map(f => f.id === selectedFieldId ? { ...f, [key]: value } : f),
-            { label: 'Change field property', coalesceKey: `prop:${selectedFieldId}:${key}` },
+            prev => prev.map(f => f.id === selectedFieldId ? { ...f, ...changes } : f),
+            { label: 'Change field property', coalesceKey: `prop:${selectedFieldId}:${Object.keys(changes).sort().join(',')}` },
         );
     }, [selectedFieldId, commitFields]);
 

@@ -10,6 +10,7 @@ import { Badge, Button, DataTable, defineTableColumns } from '@/design-system/co
 import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { SentDocumentDetailsDialog } from '@features/company-admin/components/documents/SentDocumentDetailsDialog';
 import { deliveryFailure, hasDeliveryFailure } from '@features/company-admin/utils/documentsWorkspace';
+import { copySigningLink } from '@features/signing/utils/copySigningLink';
 
 /**
  * Feature-owned domain → visual mapping for a signing-request status.
@@ -123,8 +124,9 @@ export default function EnvelopeHistory({
             const functions = getFunctions();
             const getSigningLink = httpsCallable(functions, 'getSigningLink');
             const result = await getSigningLink({ companyId, requestId: docItem.id });
-            await navigator.clipboard.writeText(result.data.signingLink);
-            showSuccess('Full signing link copied to clipboard!');
+            // A refused clipboard is the browser's, not the link's: say so plainly.
+            if (await copySigningLink(result.data.signingLink)) showSuccess('Full signing link copied to clipboard!');
+            else showError('The browser blocked copying the link. Try again.');
         } catch (err) {
             console.error('Copy link error:', err);
             showError(err.message || 'Could not retrieve signing link.');

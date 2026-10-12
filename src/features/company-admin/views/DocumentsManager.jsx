@@ -43,7 +43,7 @@ const DOCUMENT_TABS = [
 export default function DocumentsManager() {
     const { currentCompanyProfile, loading } = useData();
     const navigate = useNavigate();
-    const { showSuccess, showError } = useToast();
+    const { showSuccess, showError, showWarning } = useToast();
 
     const [activeTab, setActiveTab] = useState('overview');
     const [viewMode, setViewMode] = useState('view');
@@ -135,7 +135,7 @@ export default function DocumentsManager() {
         handleUseTemplate,
         handleQuickSelect,
         executeTemplateSend,
-    } = useTemplateSendFlow({ currentCompanyProfile, isE2EEdocMock, navigate, setActiveTab, showSuccess, showError });
+    } = useTemplateSendFlow({ currentCompanyProfile, isE2EEdocMock, navigate, setActiveTab, showSuccess, showError, showWarning });
 
     const {
         postSubmitTemplateIds,

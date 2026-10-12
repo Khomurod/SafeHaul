@@ -13,6 +13,7 @@
  */
 
 import { FIELD_TEMPLATES } from '../components/envelope-creator/fieldDefinitions';
+import { SIGNING_DATE_KEY } from './signedDate';
 
 /** Persisted signer field types. No new type may ever be introduced here. */
 export const SUPPORTED_FIELD_TYPES = Object.freeze(['signature', 'initial', 'date', 'text', 'checkbox']);
@@ -267,6 +268,10 @@ export function applySuggestionsToFields({ fields = [], suggestions = [], idFact
 
     const appended = suggestions.map((suggestion) => {
         const template = FIELD_TEMPLATES[templateIdForCategory(suggestion.category)] || {};
+        // The signing date is stamped when the signer submits, so it is locked
+        // like the palette's Date Signed: it always has its value and can never
+        // block the send.
+        const signingDate = suggestion.bindingKey === SIGNING_DATE_KEY;
         return {
             // Template first so the suggestion's reviewed values always win.
             ...template,
@@ -280,10 +285,10 @@ export function applySuggestionsToFields({ fields = [], suggestions = [], idFact
             height: suggestion.height,
             required: suggestion.required,
             bindingKey: suggestion.bindingKey,
-            // AI-placed fields are always signer-editable: locking a field the
+            // Every other AI-placed field is signer-editable: locking a field the
             // sender never reviewed would block the send on missing prefill.
-            prefillPolicy: 'editable',
-            readOnly: false,
+            prefillPolicy: signingDate ? 'locked' : 'editable',
+            readOnly: signingDate,
             defaultValue: suggestion.bindingKey ? `{{${suggestion.bindingKey}}}` : '',
             fontSize: 'Auto',
             placedByAi: true,

@@ -108,6 +108,19 @@ describe('SignerField — frozen behaviour', () => {
         expect(screen.getByText('2026-01-01')).toBeInTheDocument();
     });
 
+    it('shows the stamped signing date as text, even on a date field saved unlocked', () => {
+        renderField({
+            type: 'date',
+            label: 'Date signed',
+            bindingKey: 'current_date',
+            prefillPolicy: 'editable',
+            readOnly: false,
+            defaultValue: 'October 12, 2026',
+        });
+        expect(screen.getByText('October 12, 2026')).toBeInTheDocument();
+        expect(document.querySelector('input[type="date"]')).toBeNull();
+    });
+
     it('opens the signature sheet from the signature placeholder', () => {
         renderField({ type: 'signature', label: 'Signature' }, { fieldPosition: 1, fieldTotal: 1 });
         fireEvent.click(screen.getByRole('button', { name: 'Tap to sign' }));

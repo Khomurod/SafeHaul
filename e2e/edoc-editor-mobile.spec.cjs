@@ -1,6 +1,7 @@
 // E2E coverage for the editor's compact (phone) layout: the bottom toolbar, the
-// bottom sheets and their focus behaviour. Uses the e2eEdoc mock and an inline
-// artificial PDF; nothing is sent and no real document or recipient is involved.
+// bottom sheets and their focus behaviour, and a field resized with a finger.
+// Uses the e2eEdoc mock and an inline artificial PDF; nothing is sent and no
+// real document or recipient is involved.
 //
 // The desktop rails are covered by edoc-envelope-sidebar / edoc-workbench-closeout
 // / edoc-field-properties-panel, which pin a desktop viewport. This spec pins a
@@ -103,6 +104,41 @@ test.describe('E-Doc compact editor', () => {
     await expect(page.getByRole('group', { name: /text field on page 1/ }).first()).toBeVisible();
     // The toolbar states the count, so the sheet does not have to stay open.
     await expect(page.getByRole('button', { name: 'Open Fields, 1' })).toBeVisible();
+  });
+
+  test('resizes a placed field with a finger, to the end of the drag @mobile', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium' || !test.info().project.use?.hasTouch, 'Needs a touch screen in Chromium.');
+    await openCompactEditor(page);
+    await page.getByRole('button', { name: 'Open Setup' }).click();
+    await page.setInputFiles('#pdf-upload', pdfFile('artificial-agreement.pdf'));
+    await page.getByRole('button', { name: 'Close Setup' }).click();
+    await expect(page.locator('[data-page-num="1"]').first()).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('button', { name: 'Open Add Field' }).click();
+    await page.getByRole('button', { name: 'Add Text field', exact: true }).click();
+    await page.getByRole('button', { name: 'Close Add Field' }).click();
+
+    await page.getByRole('group', { name: /text field on page 1/ }).first().focus();
+    const handle = page.locator('.resize-handle').first();
+    await expect(handle).toBeVisible();
+    const field = handle.locator('..');
+    const before = await field.boundingBox();
+    const box = await handle.boundingBox();
+
+    // Playwright's touchscreen only taps, so the drag goes through the browser's
+    // own touch input. From a handle the browser may pan, it takes the drag over
+    // for a scroll after a few pixels, and the field stops growing there.
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type, points) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await touch('touchStart', [{ x, y }]);
+    for (let step = 1; step <= 8; step += 1) await touch('touchMove', [{ x: x + step * 10, y: y + step * 4 }]);
+    await touch('touchEnd', []);
+
+    // The drag was 80 by 32 pixels; the field follows it to the end.
+    const after = await field.boundingBox();
+    expect(after.width - before.width).toBeGreaterThan(72);
+    expect(after.height - before.height).toBeGreaterThan(28);
   });
 
   test('never overflows the document horizontally', async ({ page }) => {

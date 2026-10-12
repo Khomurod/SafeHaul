@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useId } from 'react';
 import Draggable from 'react-draggable';
 import { Icon, X, Scaling } from '@design-system/icons';
 import { IconButton } from '@/design-system/components';
+import { startCornerResize } from './cornerResize';
 
 /**
  * Resizable & draggable field overlay.
@@ -69,33 +70,9 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
         sizeRef.current = next;
     }, [wPx, hPx]);
 
-    const handleMouseDown = (e) => {
-        e.stopPropagation();
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const startWidth = sizeRef.current.width;
-        const startHeight = sizeRef.current.height;
-
-        const doDrag = (dragEvent) => {
-            const next = {
-                // PRECISION FIX: Minimum size reduced to 8px
-                width: Math.max(8, startWidth + dragEvent.clientX - startX),
-                height: Math.max(8, startHeight + dragEvent.clientY - startY),
-            };
-            sizeRef.current = next;
-            setSize(next);
-        };
-
-        const stopDrag = () => {
-            window.removeEventListener('mousemove', doDrag);
-            window.removeEventListener('mouseup', stopDrag);
-            const { width, height } = sizeRef.current;
-            onResize(field.id, (width / pageWidth) * 100, (height / safePageHeight) * 100);
-        };
-
-        window.addEventListener('mousemove', doDrag);
-        window.addEventListener('mouseup', stopDrag);
-    };
+    const handleResizeStart = (e) => startCornerResize(e, sizeRef, setSize, (width, height) => {
+        onResize(field.id, (width / pageWidth) * 100, (height / safePageHeight) * 100);
+    });
 
     // The percentages are unchanged; the trailing options object is additive.
     // `snap: true` marks this as a pointer gesture, where snapping to guides is
@@ -154,7 +131,7 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
             position={{ x: xPx, y: yPx }}
             onDrag={handleDrag}
             onStop={handleDragStop}
-            cancel=".resize-handle, .label-input"
+            cancel=".resize-handle, .label-input, .field-remove"
         >
             <div
                 ref={nodeRef}
@@ -239,21 +216,26 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                             badge is nearly as wide as the field it sits on. The offset moves
                             from -8px to -12px so the larger disc still straddles the corner
                             rather than covering the field's contents. */}
+                        {/* Removal is a click, so Enter and Space remove the field too.
+                            The press is stopped before it reaches the field, so it never
+                            starts a drag, and `.field-remove` is in the drag's `cancel`
+                            list, so a finger's tap gets its click. */}
                         <IconButton
                             label={`Remove ${fieldName} from page ${pageNum}`}
                             variant="danger"
                             size="xs"
                             shape="round"
-                            onMouseDown={(e) => { e.stopPropagation(); onRemove(field.id); }}
-                            className="absolute -right-3 -top-3 z-ds-layer-2 shadow-ds-sm"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.stopPropagation(); onRemove(field.id); }}
+                            className="field-remove absolute -right-3 -top-3 z-ds-layer-2 shadow-ds-sm"
                         >
                             <Icon icon={X} size="xs" />
                         </IconButton>
 
-                        {/* The resize affordance stays a pointer-only control: react-draggable
-                            cancels dragging on `.resize-handle`, and the mousemove/mouseup
-                            mathematics above is frozen. Keyboard resizing is Alt+arrows on the
-                            field itself, so nothing is pointer-only overall. */}
+                        {/* The resize handle answers any pointer, a finger included
+                            (`cornerResize.js`); react-draggable cancels dragging on
+                            `.resize-handle`. Keyboard resizing is Alt+arrows on the field
+                            itself, so nothing is pointer-only overall. */}
                         {/*
                           The HANDLE is a 24x24 pointer target centred on the field's
                           corner (`-bottom-3 -right-3 h-6 w-6`) — the WCAG 2.2 SC 2.5.8
@@ -268,8 +250,8 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                           handle carries it.
                         */}
                         <div
-                            className="resize-handle absolute -bottom-3 -right-3 z-ds-layer-2 flex h-6 w-6 cursor-se-resize items-start justify-start p-0.5 opacity-60 transition motion-reduce:transition-none group-hover:opacity-100 [&>svg]:h-2.5 [&>svg]:w-2.5"
-                            onMouseDown={handleMouseDown}
+                            className="resize-handle absolute -bottom-3 -right-3 z-ds-layer-2 flex h-6 w-6 cursor-se-resize touch-none items-start justify-start p-0.5 opacity-60 transition motion-reduce:transition-none group-hover:opacity-100 [&>svg]:h-2.5 [&>svg]:w-2.5"
+                            onPointerDown={handleResizeStart}
                             aria-hidden="true"
                         >
                             <Icon icon={Scaling} className="text-ds-content-secondary" />

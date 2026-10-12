@@ -73,13 +73,14 @@ export const makeRenderField = (ResizableDraggableField) => (fieldOverrides = {}
     return { field, ...utils };
 };
 
-/** Simulates a full resize gesture through the window-level listeners.
- *  The handle only exists on the selected field, so callers render selected. */
-export function resizeBy(container, dx, dy) {
+/** Simulates a full resize gesture through the window-level listeners, with a
+ *  mouse unless `pointerType` says otherwise. The handle only exists on the
+ *  selected field, so callers render selected. */
+export function resizeBy(container, dx, dy, pointerType = 'mouse') {
     const handle = container.querySelector('.resize-handle');
-    fireEvent.mouseDown(handle, { clientX: 100, clientY: 100 });
-    fireEvent(window, new MouseEvent('mousemove', { clientX: 100 + dx, clientY: 100 + dy }));
-    fireEvent(window, new MouseEvent('mouseup', {}));
+    fireEvent.pointerDown(handle, { clientX: 100, clientY: 100, pointerType });
+    fireEvent(window, new PointerEvent('pointermove', { clientX: 100 + dx, clientY: 100 + dy, pointerType }));
+    fireEvent(window, new PointerEvent('pointerup', { pointerType }));
 }
 
 /** The original suite's `beforeEach` body, verbatim, for each suite to call. */
