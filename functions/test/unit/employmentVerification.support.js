@@ -58,6 +58,10 @@ function verificationDocRef(token) {
       verificationDocs.set(token, { ...data });
     }),
     update: jest.fn(async (updates) => {
+      if (completionFailure && updates.status === 'completed') {
+        completionFailure = false;
+        throw new Error('firestore unavailable');
+      }
       const current = verificationDocs.get(token) || {};
       verificationDocs.set(token, { ...current, ...updates });
     }),
@@ -102,6 +106,13 @@ const setTransactionInterference = (fn) => { interference = fn; };
  */
 let storageFailure = null;
 const failNextStorageSave = (before = async () => {}) => { storageFailure = before; };
+
+/**
+ * The write that marks a request completed fails once, whether it is made alone
+ * or in a batch; a failed batch applies none of its writes, as Firestore's does.
+ */
+let completionFailure = false;
+const failNextCompletion = () => { completionFailure = true; };
 
 /** A write from outside any transaction, as a competing request would make it. */
 const writeApplicationOutOfBand = (key, data) => {
@@ -155,6 +166,25 @@ const mockDb = {
       doc: jest.fn(() => ({
         get: jest.fn(async () => ({ exists: false, data: () => null })),
       })),
+    };
+  }),
+  /** A batch: all of its writes, or none. */
+  batch: jest.fn(() => {
+    const writes = [];
+    let completes = false;
+    return {
+      set: (docRef, data) => { writes.push(() => docRef.set(data)); },
+      update: (docRef, updates) => {
+        writes.push(() => docRef.update(updates));
+        if (updates.status === 'completed') completes = true;
+      },
+      commit: async () => {
+        if (completionFailure && completes) {
+          completionFailure = false;
+          throw new Error('firestore unavailable');
+        }
+        for (const write of writes) await write();
+      },
     };
   }),
   /**
@@ -294,6 +324,7 @@ function resetPevState() {
   versions.clear();
   interference = null;
   storageFailure = null;
+  completionFailure = false;
   savedStoragePaths.length = 0;
   mockSendDynamicEmail.mockResolvedValue({ success: true });
   mockCheckRateLimit.mockResolvedValue(true);
@@ -328,6 +359,7 @@ module.exports = {
   uuidMock,
   resetPevState,
   failNextStorageSave,
+  failNextCompletion,
   setTransactionInterference,
   writeApplicationOutOfBand,
 };

@@ -19,7 +19,7 @@ jest.mock('../../firebaseAdmin', () => require('./employmentVerification.support
 const {
   appKey, applicationDocs, createTs, responseDocs,
   savedStoragePaths, verificationDocs, mockCheckRateLimit, mockSendDynamicEmail,
-  failNextStorageSave, resetPevState,
+  failNextCompletion, failNextStorageSave, resetPevState,
 } = require('./employmentVerification.support');
 
 const {
@@ -268,6 +268,18 @@ describe('employmentVerification callables', () => {
       expect(verificationDocs.get('pev-token-7').status).toBe('reminder_sent');
       expect(responseDocs.has('pev-token-7/submission')).toBe(false);
       expect(mockSendDynamicEmail).not.toHaveBeenCalled();
+    });
+
+    // An answer kept on a request put back in the reminder cycle would draw
+    // reminders and a no-response mark, and the employer's retry would overwrite it.
+    it('stores the answer only together with the completion', async () => {
+      seedSubmittableRequest('pev-token-10', 'app-10', 'reminder_sent');
+      failNextCompletion();
+
+      await expect(submit('pev-token-10', drawnSignature)).rejects.toMatchObject({ code: 'internal' });
+
+      expect(responseDocs.has('pev-token-10/submission')).toBe(false);
+      expect(verificationDocs.get('pev-token-10').status).toBe('reminder_sent');
     });
 
     it('sends a request an earlier failure left processing back to opened when it fails again', async () => {

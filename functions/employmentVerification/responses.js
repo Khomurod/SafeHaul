@@ -160,14 +160,13 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
                 responseData.signatureText = signature.name;
             }
 
-            // Store the response in a subcollection
-            await docRef.collection('responses').doc('submission').set(responseData);
-
-            // Update verification request status
-            await docRef.update({
-                status: 'completed',
-                completedAt: now,
-            });
+            // The answer and the completion are one write. An answer kept on a
+            // request put back in the reminder cycle would draw reminders and a
+            // no-response mark, and the employer's retry would overwrite it.
+            const batch = db.batch();
+            batch.set(docRef.collection('responses').doc('submission'), responseData);
+            batch.update(docRef, { status: 'completed', completedAt: now });
+            await batch.commit();
         } catch (claimedStepError) {
             await releaseClaim(docRef, verificationData.status);
             throw claimedStepError;
