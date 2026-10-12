@@ -190,4 +190,36 @@ describe('analyticsService phone compatibility', () => {
         expect(result.count).toBe(3);
         expect(mockGetAll).not.toHaveBeenCalled();
     });
+
+    const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+    it('the count and the preview leave out a lead texted inside the window whose last bulk message is older', async () => {
+        const docs = [
+            { id: 'texted', data: { firstName: 'T', phone: '(555) 000-0001', lastBulkMessageAt: daysAgo(90), lastContactedAt: daysAgo(1) } },
+            { id: 'quiet', data: { firstName: 'Q', phone: '(555) 000-0002', lastBulkMessageAt: daysAgo(90) } },
+        ];
+        mockBuildLeadQueries.mockImplementation(() => [makeQueryFromDocs(docs)]);
+        mockLedgerDocs({});
+        const filters = { excludeRecentDays: '7' };
+
+        const count = await analyticsService.getFilterCount({ auth: { uid: 'u1' }, data: { companyId: 'co1', filters } });
+        const page = await analyticsService.getFilteredLeadsPage({ auth: { uid: 'u1' }, data: { companyId: 'co1', filters, pageSize: 50 } });
+
+        expect(count.count).toBe(1);
+        expect(page.leads.map((l) => l.id)).toEqual(['quiet']);
+    });
+
+    it('the count reads a window it does not know as 7 days, as the launch does', async () => {
+        mockBuildLeadQueries.mockImplementation(() => [makeQueryFromDocs([
+            { id: 'month', data: { phone: '(555) 000-0003', lastContactedAt: daysAgo(30) } },
+        ])]);
+        mockLedgerDocs({});
+
+        const count = await analyticsService.getFilterCount({
+            auth: { uid: 'u1' },
+            data: { companyId: 'co1', filters: { excludeRecentDays: 'fortnight' } },
+        });
+
+        expect(count.count).toBe(1);
+    });
 });

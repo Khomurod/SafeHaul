@@ -96,6 +96,32 @@ describe('sessionController phone compatibility', () => {
         mockBatchWrites.length = 0;
     });
 
+    it('initBulkSession leaves out a lead texted inside the window whose last bulk message is older', async () => {
+        const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+        mockBuildLeadQueries.mockReturnValue([{
+            select: jest.fn().mockReturnThis(),
+            get: jest.fn().mockResolvedValue({
+                docs: [
+                    { id: 'texted', data: () => ({ phone: '(555) 000-0001', lastBulkMessageAt: daysAgo(90), lastContactedAt: daysAgo(1) }) },
+                    { id: 'quiet', data: () => ({ phone: '(555) 000-0002', lastBulkMessageAt: daysAgo(90) }) },
+                ],
+                size: 2,
+            }),
+        }]);
+        mockGetAll.mockImplementation(async (...refs) => refs.map((ref) => ({ id: ref.id, exists: false, data: () => undefined })));
+
+        await sessionController.initBulkSession({
+            auth: { uid: 'u1' },
+            data: {
+                companyId: 'co1',
+                filters: { leadType: 'leads', excludeRecentDays: '7' },
+                config: { method: 'sms', message: 'Hi' },
+            },
+        });
+
+        expect(mockSessionSet).toHaveBeenCalledWith(expect.objectContaining({ targetIds: ['quiet'] }));
+    });
+
     it('initBulkSession import path excludes repeated same canonical number with legacy ledger key', async () => {
         const now = new Date();
         mockGetAll.mockImplementation(async (...refs) => refs.map((ref) => {
@@ -161,6 +187,59 @@ describe('sessionController phone compatibility', () => {
 
         expect(result.filteredCount).toBe(1);
         expect(result.targetCount).toBe(1);
+    });
+
+    it('initBulkSession import path counts a row that both ledgers found once', async () => {
+        const emailKey = Buffer.from('pat@example.com').toString('base64url');
+        mockGetAll.mockImplementation(async (...refs) => refs.map((ref) => {
+            const hit = ref.id === '+15551234567' || ref.id === emailKey;
+            return { id: ref.id, exists: hit, data: () => (hit ? { lastSentAt: new Date() } : undefined) };
+        }));
+
+        const result = await sessionController.initBulkSession({
+            auth: { uid: 'u1' },
+            data: {
+                companyId: 'co1',
+                filters: { leadType: 'import', excludeRecentDays: '7' },
+                config: { method: 'email', message: 'Hello there', subject: 'Hello' },
+                rawData: [
+                    { firstName: 'Pat', phone: '(555) 123-4567', email: 'pat@example.com' },
+                    { firstName: 'Lee', phone: '5559990000', email: 'lee@example.com' },
+                ],
+            },
+        });
+
+        expect(result.filteredCount).toBe(1);
+        expect(result.targetCount).toBe(1);
+    });
+
+    it('initBulkSession import path keeps the SMS ledger matches when the email ledger cannot be read', async () => {
+        const emailKeys = new Set(['pat@example.com', 'lee@example.com'].map((e) => Buffer.from(e).toString('base64url')));
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockGetAll.mockImplementation(async (...refs) => {
+            if (refs.some((ref) => emailKeys.has(ref.id))) throw new Error('email_sent_addresses unavailable');
+            return refs.map((ref) => {
+                const hit = ref.id === '+15551234567';
+                return { id: ref.id, exists: hit, data: () => (hit ? { lastSentAt: new Date() } : undefined) };
+            });
+        });
+
+        const result = await sessionController.initBulkSession({
+            auth: { uid: 'u1' },
+            data: {
+                companyId: 'co1',
+                filters: { leadType: 'import', excludeRecentDays: '7' },
+                config: { method: 'email', message: 'Hello there', subject: 'Hello' },
+                rawData: [
+                    { firstName: 'Pat', phone: '(555) 123-4567', email: 'pat@example.com' },
+                    { firstName: 'Lee', phone: '5559990000', email: 'lee@example.com' },
+                ],
+            },
+        });
+
+        expect(result.filteredCount).toBe(1);
+        expect(result.targetCount).toBe(1);
+        errors.mockRestore();
     });
 
     it('initBulkSession import path leaves out the rows the recruiter un-ticked, and stores nothing for them', async () => {
