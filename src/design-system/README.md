@@ -26,8 +26,8 @@ Before changing UI code, read:
 - `icons/` — the icon contract: `Icon`, a seven-step size scale, the
   accessible-name rule and a registry of **glyph tokens** that render only
   through `Icon`, so a call site cannot pass its own pixel number.
-  `npm run check:icon-contract` refuses a `lucide-react` import anywhere under
-  `src/` outside this directory, with nothing recorded and nothing exempt.
+  Lint refuses a `lucide-react` import anywhere under `src/` outside this
+  directory, with nothing exempt.
   `Icon` still accepts a bare component, which is how a design-system container
   resolves an `icon` prop. One file opens a glyph by hand — `VOEDocument.jsx`,
   through `glyphComponent`, because the exported §391.23 document must carry no
@@ -147,7 +147,7 @@ user-facing string. Boundaries worth knowing:
 ## Guardrails
 
 Every guard is blocking, and CI runs all of them. Before a UI pull request run
-`npm test`, `npm run check:ui-contract`, `npm run check:icon-contract`,
+`npm test`, `npm run lint:frontend`, `npm run check:ui-contract`,
 `npm run test:stories` and `npm run test:e2e -- --grep "@a11y"`; when
 components, tokens, styles or tables change, also run
 `npm run check:visual-contract`, `npm run check:table-layout` and

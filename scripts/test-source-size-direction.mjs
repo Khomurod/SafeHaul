@@ -25,9 +25,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { countLines } from './source-size.mjs';
 
-// The source-size check no longer has a backlog. These modules still compare
-// the UI-contract and icon-contract lists, and take the list's path as a
-// parameter, so a fixture path stands in for both.
+// The source-size check no longer has a backlog. These modules still serve the
+// UI-contract guard's base lookup and take a list's path as a parameter, so a
+// fixture path stands in.
 const BACKLOG_PATH = '.github/source-size-backlog.json';
 import { checkBacklogDirection } from './source-size-baseline.mjs';
 import { removeTree } from './lib/throwaway.mjs';

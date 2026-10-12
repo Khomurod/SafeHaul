@@ -1216,7 +1216,7 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 |---|---|---|
 | `npm test` (`design-system/tests/`) | yes | An import across a layer boundary, in stylesheets or modules; a broken token contract or a pairing below AA |
 | `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control, a hand-rolled tablist, toggle, current-item control or avatar disc (a raw `<button>` with `aria-pressed` or `aria-current`, or a round disc holding a person's initial), a raw file input, a hand-written `target="_blank"` — in JSX, stories and CSS |
-| `npm run check:icon-contract` | yes | **Any** file under `src/`, outside `src/design-system/icons/`, importing `lucide-react`; there is no exemption list |
+| `npm run lint:frontend` | yes | **Any** file under `src/`, outside `src/design-system/icons/`, importing `lucide-react`; there is no exemption list (`scripts/test-lint-rules.mjs` drives the rule) |
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — for `DataTable` and the `ds-native-table` contract |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours, and a frozen table column losing its opaque background |
 | `npm run test:stories` | yes | A story that fails to render, or fails axe |

@@ -103,39 +103,23 @@ Two lines in `glyphs.js`: import it aliased, export it wrapped. The registry
 holds every name measured in use on 2026-09-05 and nothing speculative, so a
 call site being migrated should never need one — but adding one is not an event.
 
-## The migration, and what ends it
+## How it is enforced
 
-178 files still import from `lucide-react` directly, recorded in
-`lucide-import.backlog.json`. Until that reaches zero, `Icon` also accepts a
-bare icon component and design-system containers resolve their `icon` prop
-through `glyphComponent`, because those files still hand raw components across
-prop boundaries — `<PageState icon={AlertTriangle} />` has to keep working while
-its file is unmigrated.
+No file under `src/` outside this directory may name `lucide-react`. Lint refuses
+an import, a re-export, a dynamic `import()` and a `require` of it, in quotes or
+backticks (`no-restricted-syntax` in `eslint.config.js`), and
+`scripts/test-lint-rules.mjs` drives the rule on sample code. The same test
+refuses a source file the rule does not reach: ESLint here lints JavaScript only,
+so a `.ts` or `.tsx` file under `src/` needs a TypeScript lint setup first. And
+no comment is an exception: the test lints every file that holds an ESLint
+comment again, with `eslint-disable` and inline rule settings ignored.
 
-`check:icon-contract` enforces the campaign over `src/` — the application, the
-same scope `check:ui-contract` governs, because that is what Vite bundles and a
-fixture in `scripts/` describing an import is not an import. The backlog is a
-**record of debt, not an allowlist**: a file not listed may not name the
-package at all; a
-listed file may never take more glyphs than its recorded count; a listed file
-that reaches zero must lose its entry, and the check fails until it does; an
-entry for a path that no longer exists fails too, so a rename cannot carry an
-exemption. When the last entry goes, so does the file.
+The scope is `src/`, the same scope `check:ui-contract` governs, because that is
+what Vite bundles; a fixture in `scripts/` describing an import is not an import.
+There is no list of exceptions.
 
-It is deliberately **not** an allowlist rule in `check:ui-contract`. That
-records an exception as a hand-written reason naming the roadmap row it rests
-on, which is right for a decision and wrong for 178 entries whose reason is "not
-migrated yet" — 178 boilerplate reasons is the `debt` escape hatch this
-repository already deleted once, renamed.
-
-And the direction is measured against **git, not the branch**: a change that
-adds a file together with its own entry, or raises a count to match a file it
-just grew, is refused, because a gate must not take its scope from the branch it
-is gating.
-
-When it is drained the only source of a glyph is this directory, every value
-flowing into `icon` is a token, and the passthrough branch is deleted with
-nothing left for it to catch.
+`Icon` accepts a bare component as well as a token: that is how a design-system
+container resolves the `icon` prop it is handed (`glyphComponent` in `glyph.js`).
 
 ## Branded artwork is not an icon
 

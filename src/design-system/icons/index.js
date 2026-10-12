@@ -8,7 +8,7 @@
  *
  * `glyph` is exported for the registry itself and for tests; application code
  * has no reason to mint a token by hand — add the name to `glyphs.js` instead,
- * which is two lines and is what `check:icon-contract` measures.
+ * which is two lines.
  */
 
 export { Icon, ICON_SIZES } from './Icon.jsx';
