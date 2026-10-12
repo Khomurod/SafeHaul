@@ -213,6 +213,35 @@ describe('sessionController phone compatibility', () => {
         expect(result.targetCount).toBe(1);
     });
 
+    it('initBulkSession import path keeps the SMS ledger matches when the email ledger cannot be read', async () => {
+        const emailKeys = new Set(['pat@example.com', 'lee@example.com'].map((e) => Buffer.from(e).toString('base64url')));
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockGetAll.mockImplementation(async (...refs) => {
+            if (refs.some((ref) => emailKeys.has(ref.id))) throw new Error('email_sent_addresses unavailable');
+            return refs.map((ref) => {
+                const hit = ref.id === '+15551234567';
+                return { id: ref.id, exists: hit, data: () => (hit ? { lastSentAt: new Date() } : undefined) };
+            });
+        });
+
+        const result = await sessionController.initBulkSession({
+            auth: { uid: 'u1' },
+            data: {
+                companyId: 'co1',
+                filters: { leadType: 'import', excludeRecentDays: '7' },
+                config: { method: 'email', message: 'Hello there', subject: 'Hello' },
+                rawData: [
+                    { firstName: 'Pat', phone: '(555) 123-4567', email: 'pat@example.com' },
+                    { firstName: 'Lee', phone: '5559990000', email: 'lee@example.com' },
+                ],
+            },
+        });
+
+        expect(result.filteredCount).toBe(1);
+        expect(result.targetCount).toBe(1);
+        errors.mockRestore();
+    });
+
     it('initBulkSession import path leaves out the rows the recruiter un-ticked, and stores nothing for them', async () => {
         const result = await sessionController.initBulkSession({
             auth: { uid: 'u1' },

@@ -17,7 +17,7 @@ const {
 const DAY = 24 * 60 * 60 * 1000;
 const daysAgo = (n) => new Date(Date.now() - n * DAY);
 
-function ledgerDb(entries) {
+function ledgerDb(entries, { failing = null } = {}) {
     const calls = [];
     let inFlight = 0;
     let maxInFlight = 0;
@@ -29,6 +29,9 @@ function ledgerDb(entries) {
         }),
         getAll: async (...refs) => {
             calls.push(refs.length);
+            if (failing && refs.some((ref) => ref.path.startsWith(`${failing}/`))) {
+                throw new Error(`${failing} unavailable`);
+            }
             inFlight += 1;
             maxInFlight = Math.max(maxInFlight, inFlight);
             await new Promise((resolve) => setImmediate(resolve));
@@ -129,6 +132,27 @@ describe('recipientsMessagedWithin', () => {
 
         expect([...sms]).toEqual([]);
         expect([...email]).toEqual(['p']);
+    });
+
+    it("keeps one ledger's matches when the other ledger cannot be read", async () => {
+        const entries = {
+            'sms_sent_phones/+15550000001': { lastSentAt: daysAgo(1) },
+            [`email_sent_addresses/${emailLedgerKey('pat@example.com')}`]: { lastSentAt: daysAgo(1) },
+        };
+        const recipients = [
+            { key: 'texted', phone: '5550000001', email: 'sam@example.com' },
+            { key: 'emailed', phone: '5550000002', email: 'pat@example.com' },
+        ];
+        const args = { companyId: 'co-1', window: excludeWindow('7'), method: 'email', recipients };
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        const emailDown = await recipientsMessagedWithin({ ...args, db: ledgerDb(entries, { failing: 'email_sent_addresses' }).db });
+        const smsDown = await recipientsMessagedWithin({ ...args, db: ledgerDb(entries, { failing: 'sms_sent_phones' }).db });
+
+        expect([...emailDown]).toEqual(['texted']);
+        expect([...smsDown]).toEqual(['emailed']);
+        expect(errors).toHaveBeenCalledTimes(2);
+        errors.mockRestore();
     });
 
     it('reads nothing without a window', async () => {

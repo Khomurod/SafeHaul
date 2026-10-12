@@ -60,25 +60,34 @@ function addTo(map, id, key) {
     map.get(id).add(key);
 }
 
-/** Reads the ledger documents named in `byId` and adds the keys of those inside the window. */
-async function readLedger({ db, collection, byId, window, messaged }) {
+/**
+ * Reads the ledger documents named in `byId` and adds the keys of those inside
+ * the window. A read that fails is logged and keeps what was found before it:
+ * it must not drop another ledger's matches, so each ledger fails on its own.
+ */
+async function readLedger({ db, collection, name, byId, window, messaged }) {
     const ids = [...byId.keys()];
     const chunks = [];
     for (let i = 0; i < ids.length; i += LOOKUP_CHUNK) chunks.push(ids.slice(i, i + LOOKUP_CHUNK));
-    for (let i = 0; i < chunks.length; i += LOOKUP_PARALLEL) {
-        const wave = chunks.slice(i, i + LOOKUP_PARALLEL);
-        const results = await Promise.all(wave.map((chunk) => db.getAll(...chunk.map((id) => collection.doc(id)))));
-        results.flat().forEach((snap) => {
-            if (!snap.exists || !withinWindow(snap.data()?.lastSentAt, window)) return;
-            byId.get(snap.id)?.forEach((key) => messaged.add(key));
-        });
+    try {
+        for (let i = 0; i < chunks.length; i += LOOKUP_PARALLEL) {
+            const wave = chunks.slice(i, i + LOOKUP_PARALLEL);
+            const results = await Promise.all(wave.map((chunk) => db.getAll(...chunk.map((id) => collection.doc(id)))));
+            results.flat().forEach((snap) => {
+                if (!snap.exists || !withinWindow(snap.data()?.lastSentAt, window)) return;
+                byId.get(snap.id)?.forEach((key) => messaged.add(key));
+            });
+        }
+    } catch (err) {
+        console.error(`[recentlyMessaged] ${name} read failed (proceeding with what was found):`, err);
     }
 }
 
 /**
  * The keys of the recipients messaged inside the window by the company's ledgers:
  * the SMS ledger for every campaign, under a number's canonical and legacy keys,
- * and the email ledger for an email campaign.
+ * and the email ledger for an email campaign. A ledger that cannot be read
+ * leaves out only its own matches.
  * @param {{ db: object, companyId: string, window: object, method?: string,
  *           recipients: Array<{ key: string, phone?: string, email?: string }> }} args
  * @returns {Promise<Set<string>>}
@@ -92,7 +101,7 @@ async function recipientsMessagedWithin({ db, companyId, window, method, recipie
     recipients.forEach(({ key, phone }) => {
         derivePhoneLedgerKeys(phone || "").lookupKeys.forEach((id) => addTo(byPhoneKey, id, key));
     });
-    await readLedger({ db, collection: company.collection("sms_sent_phones"), byId: byPhoneKey, window, messaged });
+    await readLedger({ db, collection: company.collection("sms_sent_phones"), name: "sms_sent_phones", byId: byPhoneKey, window, messaged });
 
     if (method === "email") {
         const byEmailKey = new Map();
@@ -100,7 +109,7 @@ async function recipientsMessagedWithin({ db, companyId, window, method, recipie
             const id = emailLedgerKey(email);
             if (id) addTo(byEmailKey, id, key);
         });
-        await readLedger({ db, collection: company.collection("email_sent_addresses"), byId: byEmailKey, window, messaged });
+        await readLedger({ db, collection: company.collection("email_sent_addresses"), name: "email_sent_addresses", byId: byEmailKey, window, messaged });
     }
     return messaged;
 }
