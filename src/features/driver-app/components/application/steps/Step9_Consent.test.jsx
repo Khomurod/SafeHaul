@@ -292,13 +292,14 @@ describe('Step9_Consent', () => {
     it('draws the signature back when its page is shown again, instead of "saved" over an empty pad', async () => {
         render(<Harness initial={{ agreementAcceptances: accepted('v1'), signature: DRAWN }} />);
         await screen.findByText('Final Certification & Signature');
-        expect(initializeSignatureCanvas).toHaveBeenLastCalledWith(expect.objectContaining({ restore: DRAWN }));
+        // The pad is set up by an effect, which can run after the heading is found.
+        await waitFor(() => expect(initializeSignatureCanvas).toHaveBeenLastCalledWith(expect.objectContaining({ restore: DRAWN })));
 
         await endStroke(DRAWN + 'B');
         fireEvent.click(screen.getByRole('button', { name: 'Back' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Continue to signature' }));
         await screen.findByText('Final Certification & Signature');
-        expect(initializeSignatureCanvas).toHaveBeenLastCalledWith(expect.objectContaining({ restore: DRAWN + 'B' }));
+        await waitFor(() => expect(initializeSignatureCanvas).toHaveBeenLastCalledWith(expect.objectContaining({ restore: DRAWN + 'B' })));
         expect(screen.getByText('Signature saved')).toBeInTheDocument();
     });
 
