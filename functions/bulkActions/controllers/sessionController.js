@@ -218,6 +218,8 @@ exports.retryFailedAttempts = onCall(
     const failedIds = logsSnap.docs.map(d => d.id);
 
     if (failedIds.length === 0) return { success: true, message: "No failed items to retry." };
+    // A retry messages them all again, so it is held to the launch limit too.
+    assertWithinLaunchLimit(failedIds.length, { source: 'retry' });
 
     // Create NEW session for retry
     const newSessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc();
@@ -255,5 +257,5 @@ exports.retryFailedAttempts = onCall(
 
     await enqueueWorker(companyId, newSessionId, 1, 1); // workerGeneration = 1
 
-    return { success: true, newSessionId };
+    return { success: true, newSessionId, targetCount: failedIds.length };
 });

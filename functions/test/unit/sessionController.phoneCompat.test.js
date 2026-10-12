@@ -323,6 +323,18 @@ describe('initBulkSession launch limit', () => {
         }));
     });
 
+    it('takes an un-ticked lead off the limited audience rather than letting another take its place', async () => {
+        // The screen counts Limit Volume first and then takes the un-ticked leads off.
+        mockBuildLeadQueries.mockReturnValue([leadsQuery(1500), leadsQuery(1500, 1500)]);
+
+        const result = await launch({ leadType: 'leads', campaignLimit: '2000', excludedLeadIds: ['lead5'] });
+
+        expect(result.targetCount).toBe(1999);
+        const { targetIds } = mockSessionSet.mock.calls[0][0];
+        expect(targetIds).not.toContain('lead5');
+        expect(targetIds).not.toContain('lead2000');
+    });
+
     it('refuses an uploaded list of 2,001 before any row is written', async () => {
         await expect(launch({ leadType: 'import', excludeRecentDays: 'off' }, rows(2001))).rejects.toMatchObject({
             code: 'invalid-argument',
@@ -344,5 +356,52 @@ describe('initBulkSession launch limit', () => {
 
         expect(result.filteredCount).toBe(100);
         expect(result.targetCount).toBe(2000);
+    });
+});
+
+// A retry is a launch too: it messages a session's failed recipients again.
+describe('retryFailedAttempts launch limit', () => {
+    let failedLogs = [];
+    const failed = (count) => Array.from({ length: count }, (_, i) => ({ id: `lead${i}` }));
+    const retry = () => sessionController.retryFailedAttempts({
+        auth: { uid: 'u1' },
+        data: { companyId: 'co1', originalSessionId: 'session-0' },
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockSessionRef.get = jest.fn(async () => ({
+            exists: true,
+            data: () => ({ name: 'Spring drive', config: { method: 'sms', message: 'Hello there' }, targetIds: [] }),
+        }));
+        mockSessionRef.collection.mockImplementation((name) => (name === 'logs'
+            ? { where: () => ({ get: async () => ({ docs: failedLogs }) }) }
+            : { doc: jest.fn((id) => makeTargetDoc(id)) }));
+    });
+
+    afterEach(() => {
+        delete mockSessionRef.get;
+        mockSessionRef.collection.mockImplementation(() => ({ doc: jest.fn((id) => makeTargetDoc(id)) }));
+    });
+
+    it('retries 2,000 failed recipients and says how many', async () => {
+        failedLogs = failed(2000);
+
+        const result = await retry();
+
+        expect(result).toMatchObject({ success: true, targetCount: 2000 });
+        expect(mockSessionSet.mock.calls[0][0].targetIds).toHaveLength(2000);
+        expect(mockEnqueueWorker).toHaveBeenCalled();
+    });
+
+    it('refuses a retry of 2,001 before the retry session exists', async () => {
+        failedLogs = failed(2001);
+
+        await expect(retry()).rejects.toMatchObject({
+            code: 'invalid-argument',
+            message: expect.stringContaining('this audience has 2,001. Launch the campaign again with Exclude Previously Messaged on'),
+        });
+        expect(mockSessionSet).not.toHaveBeenCalled();
+        expect(mockEnqueueWorker).not.toHaveBeenCalled();
     });
 });

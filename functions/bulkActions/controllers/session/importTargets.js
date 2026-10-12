@@ -57,7 +57,7 @@ const persistImportTargets = async ({ companyId, sessionRef, rawItems, filters, 
 
     const kept = rows.filter((row) => !messaged.has(row.key));
     // Refused here, before any row is written, rather than after.
-    assertWithinLaunchLimit(kept.length, { uploadedList: true });
+    assertWithinLaunchLimit(kept.length, { source: "upload" });
     const batches = [];
     for (let i = 0; i < kept.length; i += BATCH_WRITES) {
         const batch = db.batch();
