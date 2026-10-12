@@ -137,6 +137,9 @@ export function readAgentDocs({ cwd = process.cwd(), limits = AGENT_DOC_LIMITS }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    // Set by the GitHub runner, not SafeHaul configuration, so it is not in the
+    // environment registry; destructured like every other runner variable here.
+    const { GITHUB_ACTIONS } = process.env;
     const files = readAgentDocs();
     const { problems, warnings } = checkAgentDocs(files);
     problems.push(...missingPaths(files, trackedPaths()));
@@ -144,7 +147,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     for (const warning of warnings) {
         console.log(`\nwarning: ${warning}`);
         // A workflow annotation, so the warning shows on the pull request too.
-        if (process.env.GITHUB_ACTIONS === 'true') console.log(`::warning title=Agent docs::${warning}`);
+        if (GITHUB_ACTIONS === 'true') console.log(`::warning title=Agent docs::${warning}`);
     }
     if (problems.length > 0) {
         console.error(`\nAgent instruction files refused:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
