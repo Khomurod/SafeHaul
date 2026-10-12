@@ -77,6 +77,7 @@ export const pevRequestModalMock = () => ({
       <button type="button" onClick={() => onProceed('email', { email: 'hr@acme.test' })}>proceed-email</button>
       <button type="button" onClick={() => onProceed('fax', { fax: '5125550100' })}>proceed-fax</button>
       <button type="button" onClick={() => onProceed('manual', {})}>proceed-manual</button>
+      <button type="button" onClick={() => onProceed('manual', { email: 'hr@acme.test', fax: '5125550100' })}>proceed-manual-on-file</button>
     </div>
   ),
 });

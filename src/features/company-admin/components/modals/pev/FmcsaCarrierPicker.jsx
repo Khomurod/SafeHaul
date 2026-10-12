@@ -8,7 +8,9 @@
 //
 // Frozen contracts: `buildFmcsaRowKey`, the `onSelectRow(row, index)` argument
 // pair, the `data-testid="fmcsa-row-N"` hooks, `mapFmcsaRowToPevContact` as the
-// only source of displayed values, and every user-facing string.
+// only source of displayed values, and every user-facing string. The contact
+// notes speak of the email alone: the dialog has no fax delivery, and nothing
+// in it uses a phone.
 //
 // EXCEPTION RETIRED 2026-09-05. Each row is a selectable suggestion carrying
 // multi-line structured content (legal name, USDOT + city/state, and a
@@ -45,7 +47,7 @@ export function FmcsaCarrierPicker({
     fmcsaError,
     fmcsaRows,
     selectedFmcsaKey,
-    lastFmcsaRowHadContact,
+    lastFmcsaRowHadEmail,
     onSelectRow,
 }) {
     return (
@@ -63,7 +65,7 @@ export function FmcsaCarrierPicker({
                 </p>
             )}
             <p className="text-ds-xs leading-snug text-ds-content-secondary">
-                Tap a row to use that census record. Email and fax fill in only when FMCSA publishes them; otherwise enter them manually below.
+                Tap a row to use that census record. The email fills in only when FMCSA publishes one; otherwise enter it below.
             </p>
 
             {/*
@@ -92,7 +94,7 @@ export function FmcsaCarrierPicker({
                         const rowKey = buildFmcsaRowKey(row, idx);
                         const selected = selectedFmcsaKey === rowKey;
                         const sub = [m.phyCity, m.phyState].filter(Boolean).join(', ');
-                        const hasContact = !!(m.email || m.fax || m.phone);
+                        const hasEmail = !!m.email;
                         return (
                             <li key={rowKey}>
                                 <SelectableCard
@@ -109,9 +111,9 @@ export function FmcsaCarrierPicker({
                                                 {sub ? ` · ${sub}` : ''}
                                             </span>
                                             <span className="mt-0.5 block text-ds-xs text-ds-content-secondary">
-                                                {hasContact
-                                                    ? 'Includes email, fax, or phone from FMCSA — merged into the form'
-                                                    : 'Identity match — FMCSA did not list email/fax on this record'}
+                                                {hasEmail
+                                                    ? 'Includes an email from FMCSA — filled into the form'
+                                                    : 'Identity match — FMCSA did not list an email on this record'}
                                             </span>
                                         </span>
                                         {selected && (
@@ -130,14 +132,14 @@ export function FmcsaCarrierPicker({
                 </ul>
             )}
 
-            {selectedFmcsaKey != null && lastFmcsaRowHadContact === false && (
+            {selectedFmcsaKey != null && lastFmcsaRowHadEmail === false && (
                 /* The bold lead sentence becomes the `title`, which is the job
                    it was already doing by hand. The glyph normalises from
                    `AlertCircle` to the warning tone's own `AlertTriangle`: a
                    registry row with no contact details is a warning, and the
                    circle is what this application uses for danger. */
-                <Notice tone="warning" size="sm" title="No email or fax from this registry row.">
-                    Type the recipient email or fax below, or choose <strong>Download / Print</strong> so you do not need either.
+                <Notice tone="warning" size="sm" title="No email from this registry row.">
+                    Type the recipient email below, or choose <strong>Download / Print</strong> so you do not need one.
                 </Notice>
             )}
 
