@@ -27,7 +27,7 @@ import { Icon as DsIcon, FileText, ShieldCheck, ShieldOff, ShieldAlert } from '@
 import { Badge, Button, Card, FieldDisplay } from '@/design-system/components';
 import { EmptyState } from '@/design-system/patterns';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { signedApplicationFileUrl } from '../services/applicationFileLink';
+import { BLOCKED_TAB_MESSAGE, openApplicationFile } from '../services/openApplicationFile';
 
 /** A value the driver did not supply, said in words rather than left blank. */
 const NOT_PROVIDED_TONE = 'italic text-ds-content-muted';
@@ -60,33 +60,23 @@ function maskSensitive(value) {
  *
  * A button rather than a link because it acts first: the link is minted when it
  * is pressed, since a signed URL lives minutes and this screen can stay open for
- * hours.
- *
- * The tab is opened inside the press itself and pointed at the file once the link
- * arrives. A browser that allows a new tab only during the click's own user
- * activation blocks one opened after an `await`, and a cold callable can take
- * seconds — the tab would silently never appear. `opener` is cleared at once,
- * which is what `noopener` would have done for a URL opened directly.
+ * hours. `openApplicationFile` opens the tab inside the press and says why.
  */
 function OpenUploadedFile({ storagePath }) {
     const { showError } = useToast();
     const [opening, setOpening] = useState(false);
 
     const open = async () => {
-        const tab = window.open('', '_blank');
-        if (!tab) {
-            showError('Your browser blocked the new tab. Allow pop-ups for this site, then try again.');
+        const opened = openApplicationFile(storagePath);
+        if (!opened) {
+            showError(BLOCKED_TAB_MESSAGE);
             return;
         }
-        tab.opener = null;
         setOpening(true);
         try {
-            tab.location.href = await signedApplicationFileUrl(storagePath);
+            await opened;
         } catch (error) {
-            tab.close();
-            showError(error?.code === 'functions/not-found'
-                ? 'This file could not be found. It may have been deleted.'
-                : 'Could not open this file. Please try again.');
+            showError(error.message);
         } finally {
             setOpening(false);
         }

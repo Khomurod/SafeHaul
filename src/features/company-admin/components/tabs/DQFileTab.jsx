@@ -1,6 +1,6 @@
 import React, { useId, useRef, useState, useEffect, useMemo } from 'react';
 import { db, storage } from '@lib/firebase';
-import { collection, addDoc, getDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Icon, Upload, Trash2, FileText, Download } from '@design-system/icons';
 import { logActivity } from '@shared/utils/activityLogger';
@@ -14,6 +14,11 @@ import {
   NoPreservedPdfError,
   downloadPreservedApplicationPdf,
 } from '@features/applications/services/applicationPdfService';
+import {
+  BLOCKED_TAB_MESSAGE,
+  isDriverUploadPath,
+  openApplicationFile,
+} from '@features/applications/services/openApplicationFile';
 import { fetchAndSyncDqFiles } from './dqFileSync';
 
 /**
@@ -30,13 +35,21 @@ import { fetchAndSyncDqFiles } from './dqFileSync';
  * mappings and their expiration fields, which must stay in step with
  * `driverSync.js`; the de-duplication by `url`; the auto-sync payload including
  * `ownerUserIds`, `isSynced` and `sourceField`; the Storage path
- * `companies/{companyId}/applications/{applicationId}/dq_files/{type-with-non-alphanumerics-as-underscores}_{name}`
+ * `companies/{companyId}/applications/{applicationId}/dq_files/{ms}_{type-with-non-alphanumerics-as-underscores}_{name}`
  * — which deliberately uses `applications` even for leads to satisfy the existing
- * Storage rules; the manual-upload document shape; both
+ * Storage rules, and starts with the upload's time so a second file of one type
+ * and one name does not replace the first; the manual-upload document shape; both
  * `logActivity(..., 'dq_file_uploaded' | 'dq_file_deleted', ...)` calls and their
- * exact detail strings; the delete-from-Storage-then-Firestore order; the
- * expiration thresholds (`< 0` expired, `< 30` expiring) and their label text; the
- * 2-second upload-message reset; and every user-facing string.
+ * exact detail strings; the delete-from-Storage-then-Firestore order for a file
+ * the DQ tab uploaded; the expiration thresholds (`< 0` expired, `< 30` expiring)
+ * and their label text; the 2-second upload-message reset; and every user-facing
+ * string.
+ *
+ * A synced record (`isSynced`) files the application's own upload. Deleting it
+ * leaves the file, and keeps the record unlisted with `removedAt`: the sync files
+ * any upload no record matches, so a deleted one came straight back. A new upload
+ * of that type clears the mark (`driverSync.js`). A driver's upload opens from a
+ * link signed when it is pressed; the `url` it was copied with lived minutes.
  *
  * Defects fixed:
  *  1. **Blocking `window.confirm` on the destructive delete** → the shared
@@ -120,6 +133,17 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
     }
   };
 
+  /** A driver's upload, from a link signed now; see `openApplicationFile`. */
+  const openDriverUpload = (file) => {
+    setError('');
+    const opened = openApplicationFile(file.storagePath);
+    if (!opened) {
+      setError(BLOCKED_TAB_MESSAGE);
+      return;
+    }
+    opened.catch((err) => setError(err.message));
+  };
+
   const fileTypeFieldId = useId();
   const fileInputId = useId();
   // Replaces `document.getElementById('dq-file-input')`.
@@ -176,7 +200,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
     try {
       // NOTE: We use 'applications' in the storage path even for leads to satisfy existing Storage Rules
       // Storage Structure: companies/{companyId}/applications/{applicationId}/dq_files/...
-      const storagePath = `companies/${companyId}/applications/${applicationId}/dq_files/${selectedFileType.replace(/[^a-zA-Z0-9]/g, '_')}_${fileToUpload.name}`;
+      const storagePath = `companies/${companyId}/applications/${applicationId}/dq_files/${Date.now()}_${selectedFileType.replace(/[^a-zA-Z0-9]/g, '_')}_${fileToUpload.name}`;
       const storageRef = ref(storage, storagePath);
 
       // Upload
@@ -230,21 +254,26 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
   };
 
   // --- 4. Handle File Delete ---
-  // The blocking `window.confirm` guard now lives in `<DeleteFileDialog>`; the
-  // Storage/Firestore/activity-log sequence below is unchanged.
+  // The blocking `window.confirm` guard now lives in `<DeleteFileDialog>`.
   const confirmDelete = async (file) => {
     setPendingDelete(null);
     setLoading(true);
     setError('');
 
     try {
-      // Delete from Storage
-      const storageRef = ref(storage, file.storagePath);
-      await deleteObject(storageRef);
-
-      // Delete from Firestore
       const docRef = doc(dqFilesCollectionRef, file.id);
-      await deleteDoc(docRef);
+      if (file.isSynced) {
+        // The application's own upload: the file stays, and so does the record,
+        // marked removed, so that the sync does not file the upload again.
+        await updateDoc(docRef, { removedAt: serverTimestamp() });
+      } else {
+        // Delete from Storage
+        const storageRef = ref(storage, file.storagePath);
+        await deleteObject(storageRef);
+
+        // Delete from Firestore
+        await deleteDoc(docRef);
+      }
 
       // Log activity for the deletion
       await logActivity(
@@ -265,6 +294,9 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
       setLoading(false);
     }
   };
+
+  // A synced record marked removed is kept for the sync's matching, never shown.
+  const shownFiles = dqFiles.filter((file) => !file.removedAt);
 
   return (
     <Stack gap="lg">
@@ -340,12 +372,12 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
               Loading DQ files...
             </p>
           )}
-          {!loading && dqFiles.length === 0 && (
+          {!loading && shownFiles.length === 0 && (
             <p className="p-ds-4 text-center text-ds-content-secondary">
               No DQ files have been uploaded for this driver.
             </p>
           )}
-          {!loading && dqFiles.map(file => {
+          {!loading && shownFiles.map(file => {
             const status = getExpirationStatus(file.expirationDate);
             return (
               <div
@@ -379,6 +411,14 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
                       label={`Download ${file.fileType}: ${file.fileName}`}
                       variant="ghost"
                       onClick={() => handleAuditedDownload(file)}
+                    >
+                      <Icon icon={Download} size="lg" className="text-ds-status-info-fg" />
+                    </IconButton>
+                  ) : isDriverUploadPath(file.storagePath) ? (
+                    <IconButton
+                      label={`Download ${file.fileType}: ${file.fileName} (opens in a new tab)`}
+                      variant="ghost"
+                      onClick={() => openDriverUpload(file)}
                     >
                       <Icon icon={Download} size="lg" className="text-ds-status-info-fg" />
                     </IconButton>
@@ -444,11 +484,12 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
  * string.
  */
 function DeleteFileDialog({ file, onCancel, onConfirm }) {
+  const keeps = file.isSynced ? ' The application keeps its own copy.' : '';
   return (
     <ConfirmDialog
       tone="danger"
       title="Delete this DQ file?"
-      description={`Are you sure you want to delete "${file.fileName}"?`}
+      description={`Are you sure you want to delete "${file.fileName}"?${keeps}`}
       confirmLabel="Delete file"
       onCancel={onCancel}
       onConfirm={onConfirm}

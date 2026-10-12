@@ -6,7 +6,7 @@
 // delegate to it. See that file's header for the scope of this freeze.
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@lib/firebase', async () => (await import('./DossierBodies.contract.support')).libFirebaseMock());
 vi.mock('firebase/firestore', async () => (await import('./DossierBodies.contract.support')).firebaseFirestoreMock());
@@ -14,6 +14,7 @@ vi.mock('firebase/storage', async () => (await import('./DossierBodies.contract.
 vi.mock('@shared/utils/activityLogger', async () => (await import('./DossierBodies.contract.support')).activityLoggerMock());
 vi.mock('@features/applications/services/applicationPdfService', async () => (await import('./DossierBodies.contract.support')).applicationPdfServiceMock());
 vi.mock('@features/auth/services/userService', async () => (await import('./DossierBodies.contract.support')).userServiceMock());
+vi.mock('@features/applications/services/applicationFileLink', async () => (await import('./DossierBodies.contract.support')).applicationFileLinkMock());
 
 import { DQFileTab } from './DQFileTab';
 import {
@@ -25,6 +26,8 @@ import {
     storageMocks,
     logActivity,
     downloadPreserved,
+    signedFileUrl,
+    SYNCED_DRIVER_UPLOAD,
 } from './DossierBodies.contract.support';
 
 const renderDq = makeRenderDq(DQFileTab);
@@ -147,7 +150,8 @@ describe('DQFileTab — upload contract', () => {
         return file;
     }
 
-    it('writes to the frozen Storage path, keeping "applications" even for leads', async () => {
+    it('writes under the record\'s dq_files, keeping "applications" even for leads', async () => {
+        vi.spyOn(Date, 'now').mockReturnValue(1760000000000);
         render(<DQFileTab companyId="co-1" applicationId="app-1" collectionName="leads" />);
         const file = new File(['x'], 'road test.pdf', { type: 'application/pdf' });
         fireEvent.change(await screen.findByLabelText('File Type'), { target: { value: 'Road Test Certificate' } });
@@ -156,19 +160,43 @@ describe('DQFileTab — upload contract', () => {
 
         await waitFor(() => expect(storageMocks.ref).toHaveBeenCalledWith(
             {},
-            'companies/co-1/applications/app-1/dq_files/Road_Test_Certificate_road test.pdf',
+            'companies/co-1/applications/app-1/dq_files/1760000000000_Road_Test_Certificate_road test.pdf',
         ));
+        vi.restoreAllMocks();
+    });
+
+    // Two files of one type and one name used to share a path, so the second
+    // replaced the first in Storage while both records stayed listed.
+    it('keeps a second upload of the same name beside the first', async () => {
+        const now = vi.spyOn(Date, 'now');
+        renderDq();
+        for (const [at, uploads] of [[1760000000000, 1], [1760000000001, 2]]) {
+            now.mockReturnValue(at);
+            fireEvent.change(await screen.findByLabelText('File Type'), { target: { value: 'Road Test Certificate' } });
+            fireEvent.change(screen.getByLabelText('File'), {
+                target: { files: [new File(['x'], 'road test.pdf', { type: 'application/pdf' })] },
+            });
+            fireEvent.click(screen.getByRole('button', { name: /Upload File/ }));
+            await waitFor(() => expect(fs.addDoc).toHaveBeenCalledTimes(uploads));
+        }
+
+        const [first, second] = fs.addDoc.mock.calls.map(([, record]) => record.storagePath);
+        expect(first).not.toBe(second);
+        expect(storageMocks.ref.mock.calls.map(([, path]) => path)).toEqual([first, second]);
+        vi.restoreAllMocks();
     });
 
     it('writes the frozen Firestore document shape', async () => {
+        vi.spyOn(Date, 'now').mockReturnValue(1760000000000);
         await uploadFixture();
 
         await waitFor(() => expect(fs.addDoc).toHaveBeenCalled());
+        vi.restoreAllMocks();
         expect(fs.addDoc.mock.calls[0][1]).toMatchObject({
             fileType: 'Road Test Certificate',
             fileName: 'road test.pdf',
             url: 'https://example.test/signed',
-            storagePath: 'companies/co-1/applications/app-1/dq_files/Road_Test_Certificate_road test.pdf',
+            storagePath: 'companies/co-1/applications/app-1/dq_files/1760000000000_Road_Test_Certificate_road test.pdf',
             applicantId: null,
             driverId: null,
             userId: null,
@@ -242,6 +270,94 @@ describe('DQFileTab — delete contract (blocking confirm replaced)', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Delete Medical Card: medcard.pdf' }));
         fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
         expect(storageMocks.deleteObject).not.toHaveBeenCalled();
+    });
+});
+
+describe('DQFileTab — a driver upload filed from the application', () => {
+    /** The tab `window.open` hands back, opened blank inside the press. */
+    let tab;
+
+    beforeEach(() => {
+        tab = { opener: 'the dossier', location: { href: '' }, close: vi.fn() };
+        vi.spyOn(window, 'open').mockImplementation(() => tab);
+        fs.getDocs.mockResolvedValue(snap([['license_front', SYNCED_DRIVER_UPLOAD]]));
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it('opens from a link signed when it is pressed, not the copied one', async () => {
+        renderDq();
+
+        const open = await screen.findByRole('button', { name: /^Download CDL Front: cdl-front\.jpg/ });
+        expect(open).toHaveAccessibleName(expect.stringContaining('opens in a new tab'));
+        expect(screen.queryByRole('link', { name: /Download CDL Front/ })).toBeNull();
+
+        fireEvent.click(open);
+
+        // Opened during the press, before any await, so a popup blocker allows it.
+        expect(window.open).toHaveBeenCalledWith('', '_blank');
+        expect(tab.opener).toBeNull();
+        await waitFor(() => expect(tab.location.href).toBe('https://signed.test/driver-upload.jpg'));
+        expect(signedFileUrl).toHaveBeenCalledWith(SYNCED_DRIVER_UPLOAD.storagePath);
+    });
+
+    it('says so when the file is gone, and closes the tab it opened', async () => {
+        signedFileUrl.mockRejectedValue(Object.assign(new Error('gone'), { code: 'functions/not-found' }));
+        renderDq();
+
+        fireEvent.click(await screen.findByRole('button', { name: /^Download CDL Front/ }));
+
+        expect(await screen.findByText('This file could not be found. It may have been deleted.')).toBeInTheDocument();
+        expect(tab.close).toHaveBeenCalled();
+    });
+
+    it('says so when the browser blocks the tab, without asking for a link', async () => {
+        window.open.mockImplementation(() => null);
+        renderDq();
+
+        fireEvent.click(await screen.findByRole('button', { name: /^Download CDL Front/ }));
+
+        expect(await screen.findByText('Your browser blocked the new tab. Allow pop-ups for this site, then try again.'))
+            .toBeInTheDocument();
+        expect(signedFileUrl).not.toHaveBeenCalled();
+    });
+
+    it('removes only its DQ entry, never the application\'s own file, and it stays removed', async () => {
+        // The stored rows, as each load reads them. The application still holds
+        // the upload, which is what the tab's sync files from.
+        let rows = [['license_front', SYNCED_DRIVER_UPLOAD]];
+        fs.getDocs.mockImplementation(async () => snap(rows));
+        fs.updateDoc.mockImplementation(async (ref, data) => {
+            rows = rows.map(([id, row]) => [id, id === ref.id ? { ...row, ...data } : row]);
+        });
+        fs.getDoc.mockResolvedValue({
+            exists: () => true,
+            data: () => ({ 'cdl-front': { name: 'cdl-front.jpg', url: SYNCED_DRIVER_UPLOAD.url, storagePath: SYNCED_DRIVER_UPLOAD.storagePath } }),
+        });
+        renderDq();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Delete CDL Front: cdl-front.jpg' }));
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByText(
+            'Are you sure you want to delete "cdl-front.jpg"? The application keeps its own copy.',
+        )).toBeInTheDocument();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Delete file' }));
+
+        await waitFor(() => expect(logActivity).toHaveBeenCalledWith(
+            'co-1', 'applications', 'app-1',
+            'dq_file_deleted',
+            'Deleted DQ file: CDL Front - cdl-front.jpg',
+            'user',
+        ));
+        // Marked removed rather than deleted: the sync matches an upload against
+        // the records it finds, so a deleted record was filed again at once.
+        expect(fs.updateDoc).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'license_front' }),
+            { removedAt: 'SERVER_TIMESTAMP' },
+        );
+        expect(fs.deleteDoc).not.toHaveBeenCalled();
+        expect(storageMocks.deleteObject).not.toHaveBeenCalled();
+        expect(await screen.findByText('No DQ files have been uploaded for this driver.')).toBeInTheDocument();
+        expect(fs.addDoc).not.toHaveBeenCalled();
     });
 });
 

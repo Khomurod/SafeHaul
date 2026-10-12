@@ -43,6 +43,7 @@ export const fs = {
     getDoc: vi.fn(),
     addDoc: vi.fn(),
     deleteDoc: vi.fn(),
+    updateDoc: vi.fn(),
 };
 export const storageMocks = {
     uploadBytes: vi.fn(),
@@ -53,6 +54,7 @@ export const storageMocks = {
 export const logActivity = vi.fn();
 export const getPortalUser = vi.fn();
 export const downloadPreserved = vi.fn();
+export const signedFileUrl = vi.fn();
 
 // --- vi.mock factory bodies, verbatim from the original registrations ------
 
@@ -73,6 +75,7 @@ export const firebaseFirestoreMock = () => ({
     getDoc: (...a) => fs.getDoc(...a),
     addDoc: (...a) => fs.addDoc(...a),
     deleteDoc: (...a) => fs.deleteDoc(...a),
+    updateDoc: (...a) => fs.updateDoc(...a),
     serverTimestamp: () => 'SERVER_TIMESTAMP',
 });
 export const firebaseStorageMock = () => ({
@@ -87,6 +90,7 @@ export const applicationPdfServiceMock = () => ({
     downloadPreservedApplicationPdf: (...a) => downloadPreserved(...a),
 });
 export const userServiceMock = () => ({ getPortalUser: (...a) => getPortalUser(...a) });
+export const applicationFileLinkMock = () => ({ signedApplicationFileUrl: (...a) => signedFileUrl(...a) });
 
 // --- helpers and fixtures, verbatim ----------------------------------------
 
@@ -101,12 +105,14 @@ export function resetHarness() {
     fs.getDoc.mockResolvedValue({ exists: () => false, data: () => ({}) });
     fs.addDoc.mockResolvedValue({ id: 'new-1' });
     fs.deleteDoc.mockResolvedValue(undefined);
+    fs.updateDoc.mockResolvedValue(undefined);
     storageMocks.uploadBytes.mockResolvedValue(undefined);
     storageMocks.getDownloadURL.mockResolvedValue('https://example.test/signed');
     storageMocks.deleteObject.mockResolvedValue(undefined);
     logActivity.mockResolvedValue(undefined);
     getPortalUser.mockResolvedValue({ name: 'Test Recruiter' });
     downloadPreserved.mockResolvedValue({ url: 'https://signed.test/original.pdf' });
+    signedFileUrl.mockResolvedValue('https://signed.test/driver-upload.jpg');
     vi.spyOn(console, 'error').mockImplementation(() => {});
 }
 
@@ -117,6 +123,20 @@ export const DQ_FILE = {
     fileName: 'medcard.pdf',
     url: 'https://example.test/medcard.pdf',
     storagePath: 'companies/co-1/applications/app-1/dq_files/Medical_Card_medcard.pdf',
+};
+
+/**
+ * A driver's upload, filed in the DQ file from the application. Its `url` is the
+ * fifteen-minute signed link the application held when it was copied, long
+ * expired; the file is known by its `storagePath`.
+ */
+export const SYNCED_DRIVER_UPLOAD = {
+    fileType: 'CDL Front',
+    fileName: 'cdl-front.jpg',
+    url: 'https://storage.example.test/expired-signed-link',
+    storagePath: 'companies/co-1/applications/guest_uploads/1760000000000_ab12cd_cdl-front.jpg',
+    isSynced: true,
+    sourceField: 'cdl-front',
 };
 
 export const makeRenderDq = (DQFileTab) => (props = {}) =>

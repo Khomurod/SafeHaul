@@ -38,7 +38,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `getFilterCount` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | Audience size preview |
 | `getChangeReview` | [`ReviewChangePortal.jsx`](../src/features/driver-changes/ReviewChangePortal.jsx) | Driver loads company-proposed changes (before/after) |
 | `getPublicEnvelope` | [`SigningRoom.jsx`](../src/features/signing/SigningRoom.jsx) | Public e-sign load |
-| `getSignedApplicationFileUrl` | [`useAppFetch.js`](../src/features/applications/hooks/useAppFetch.js) | Re-sign guest-uploaded application files (CDL etc.) for company dossier view |
+| `getSignedApplicationFileUrl` | [`useAppFetch.js`](../src/features/applications/hooks/useAppFetch.js), [`applicationFileLink.js`](../src/features/applications/services/applicationFileLink.js) (through [`openApplicationFile.js`](../src/features/applications/services/openApplicationFile.js)) | Re-sign guest-uploaded application files (CDL etc.) for the company dossier view, the submitted record's **Open file** and the DQ tab's driver uploads |
 | `getSignedGuestUploadUrl` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Guest file read URL |
 | `getSignedPevUrl` | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) | Signed URL for PEV PDF |
 | `getSignedUploadUrl` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Auth/guest upload URL |

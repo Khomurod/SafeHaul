@@ -18,7 +18,8 @@ jest.mock('../../firebaseAdmin', () => {
             FieldValue: {
                 serverTimestamp: () => 'SERVER_TIMESTAMP',
                 arrayUnion: (val) => ['ARRAY_UNION', val],
-                increment: (val) => ['INCREMENT', val]
+                increment: (val) => ['INCREMENT', val],
+                delete: () => 'DELETE_FIELD'
             }
         },
         auth: () => ({
