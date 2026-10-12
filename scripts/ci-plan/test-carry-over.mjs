@@ -9,10 +9,10 @@
  * not count as passed.
  */
 
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { initThrowawayRepo, removeTree } from '../lib/throwaway.mjs';
 import {
     LANE_NAMES,
     carriedOverLanes,
@@ -120,20 +120,17 @@ assert('M6. a lane the pull request does not select is never carried over',
     // A rename out of a lane counts against that lane, on both diffs: git pairs
     // the delete and the add, and a bare `--name-only` prints only the new path.
     const dir = mkdtempSync(join(tmpdir(), 'ci-plan-rename-'));
-    const run = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
     try {
-        run('init', '-q');
-        run('config', 'user.email', 'test@example.com');
-        run('config', 'user.name', 'test');
+        const run = initThrowawayRepo(dir);
         mkdirSync(join(dir, 'functions'));
         writeFileSync(join(dir, 'functions/x.js'), 'module.exports = 1;\n');
         run('add', '-A');
-        run('-c', 'commit.gpgsign=false', 'commit', '-qm', 'base');
+        run('commit', '-qm', 'base');
         const base = run('rev-parse', 'HEAD');
         const beforeTree = run('rev-parse', 'HEAD^{tree}');
         mkdirSync(join(dir, 'docs'));
         run('mv', 'functions/x.js', 'docs/x.md');
-        run('-c', 'commit.gpgsign=false', 'commit', '-qm', 'move');
+        run('commit', '-qm', 'move');
 
         const between = changedBetweenTrees(beforeTree, run('rev-parse', 'HEAD^{tree}'), () => {}, run).sort();
         assert('M17. a rename out of a lane names both paths between the two trees',
@@ -144,7 +141,7 @@ assert('M6. a lane the pull request does not select is never carried over',
         assert('M19. so the lane the file left is not carried over',
             !carriedOverLanes({ selection: everything, changedSince: between }).includes('functions'));
     } finally {
-        rmSync(dir, { recursive: true, force: true });
+        removeTree(dir);
     }
 }
 
