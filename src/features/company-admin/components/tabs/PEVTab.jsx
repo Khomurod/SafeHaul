@@ -249,6 +249,9 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 employerId: result.data.employerId,
                 index: emp.index,
                 apply: (verification) => {
+                    // An older screen stored the previous request's link here; it is not this request's.
+                    delete verification.verificationUrl;
+                    delete verification.token;
                     verification.status = 'Sent';
                     verification.method = method;
                     verification.history = [...(verification.history || []), {
