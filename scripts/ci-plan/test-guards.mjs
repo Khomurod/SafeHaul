@@ -82,6 +82,7 @@ console.log('\nK. Guards that stay guards');
     for (const [step, script] of [
         ['Visual contract (geometry)', 'check:visual-contract'],
         ['Table layout check', 'check:table-layout'],
+        ['Application screenshots (pixel baselines)', 'test:visual'],
     ]) {
         const block = stepBlock(step);
         assert(`K1b. the "${step}" step exists`, block !== null,

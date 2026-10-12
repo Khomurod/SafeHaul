@@ -7,7 +7,7 @@
  * gate, so every case here is a way unvalidated code could have reached Testing.
  */
 
-import { ALWAYS_REQUIRED_JOBS, LANE_NAMES } from '../ci-plan.mjs';
+import { ALWAYS_REQUIRED_JOBS, LANES, LANE_NAMES } from '../ci-plan.mjs';
 import { evaluateValidation } from '../verify-release-validation.mjs';
 import { allJobs, assert, plan } from './test-support.mjs';
 
@@ -48,12 +48,29 @@ assert('D3. a lane that was skipped because it is already proven is complete',
 {
     const verdict = evaluateValidation({
         planResult: 'success',
-        jobResults: { ...allJobs('success'), 'frontend-e2e': 'skipped' },
+        jobResults: {
+            ...allJobs('success'),
+            ...Object.fromEntries(LANES.frontend_e2e.jobs.map((job) => [job, 'skipped'])),
+        },
         lanePlan: plan(() => ({ selected: true, attested: false })),
     });
     assert('D4. a RELEVANT lane skipped with no proof is a refusal, not a pass',
         verdict.ok === false
             && verdict.lanes.some((l) => l.lane === 'frontend_e2e' && l.verdict === 'unjustified skip'),
+        JSON.stringify(verdict.lanes.find((l) => l.lane === 'frontend_e2e')));
+}
+
+// The browser lane has two jobs, and both share one `if:`. One skipped while
+// the other ran means the workflow drifted, which no attestation can excuse.
+{
+    const verdict = evaluateValidation({
+        planResult: 'success',
+        jobResults: { ...allJobs('success'), 'app-visual': 'skipped' },
+        lanePlan: plan(() => ({ selected: true, attested: true })),
+    });
+    assert('D4b. a lane only half run is a refusal, even when attested',
+        verdict.ok === false
+            && verdict.lanes.some((l) => l.lane === 'frontend_e2e' && l.verdict === 'indeterminate'),
         JSON.stringify(verdict.lanes.find((l) => l.lane === 'frontend_e2e')));
 }
 

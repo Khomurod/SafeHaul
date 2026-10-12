@@ -513,6 +513,83 @@ jobs:
       - name: Frontend E2E Tests (Chromium, including the axe specs)
         run: npm run test:e2e -- --project=chromium --shard=${{ matrix.shard }}/4
 
+  # The pixel baselines of real application screens (`e2e/visual/app.spec.cjs`).
+  # They render feature screens, so they run in the browser lane, which every
+  # `src/features/` change selects; the catalog job below renders only the design
+  # system. Same blank credentials as that job, for the reason it gives: these
+  # screens render from `VITE_E2E_TEST_MODE=1` fixture data, and a screenshot of a
+  # real screen that needs a credential to render is a finding.
+  app-visual:
+    name: Application screenshots
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.run_frontend_e2e == 'true'
+    env:
+      VITE_FIREBASE_API_KEY: ''
+      VITE_FIREBASE_AUTH_DOMAIN: ''
+      VITE_FIREBASE_PROJECT_ID: ''
+      VITE_FIREBASE_STORAGE_BUCKET: ''
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ''
+      VITE_FIREBASE_APP_ID: ''
+      VITE_FACEBOOK_APP_ID: ''
+      VITE_SENTRY_DSN: ''
+      VITE_SUPER_ADMIN_EMAIL: ''
+      VITE_DRIVER_APP_URL: ''
+      VITE_SOCRATA_APP_TOKEN: ''
+      PROCESS_BULK_BATCH_URL: ''
+      BULK_WORKER_SECRET: ''
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      # The browser the other two Playwright jobs cache, so these baselines are
+      # compared on the same pinned build they were captured with.
+      - name: Cache the Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright Browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright OS dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # Blocking, like the catalog half (K1b).
+      - name: Application screenshots (pixel baselines)
+        id: visual-regression
+        run: npm run test:visual -- e2e/visual/app.spec.cjs
+
+      - name: Upload the screenshot diff
+        if: always() && steps.visual-regression.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-screenshots-diff
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Say so when an application screenshot moved
+        if: always() && steps.visual-regression.outcome == 'failure'
+        run: |
+          echo "::error title=Application screenshots moved::A pixel baseline changed. Download the"\
+               "app-screenshots-diff artifact. If the change is intended, run"\
+               "'npm run test:visual:update' and commit the baselines."
+
   storybook-build:
     name: Build the design-system catalog
     runs-on: ubuntu-latest
@@ -528,10 +605,8 @@ jobs:
     # been imported into the catalog that does not belong there, and this job
     # failing is the correct outcome.
     #
-    # The visual lane's application screens run here too, and they run against
-    # `VITE_E2E_TEST_MODE=1` fixture data with these same secrets blank — which
-    # is the point: if a screenshot of a real screen ever needs a credential to
-    # render, that is a finding, not a configuration problem.
+    # The application screens' baselines run in `app-visual`, in the browser
+    # lane: they render feature screens, which this catalog never loads.
     env:
       VITE_FIREBASE_API_KEY: ''
       VITE_FIREBASE_AUTH_DOMAIN: ''
@@ -620,10 +695,11 @@ jobs:
       # machine-dependent input left and this is enforced.
       #
       # `scripts/test-ci-plan.mjs` (K1) asserts this step carries no
-      # `continue-on-error`, so it cannot quietly go back to advisory.
+      # `continue-on-error`, so it cannot quietly go back to advisory. The
+      # catalog's baselines only: the application screens run in `app-visual`.
       - name: Visual regression (pixel baselines)
         id: visual-regression
-        run: npm run test:visual
+        run: npm run test:visual -- e2e/visual/catalog.spec.cjs
 
       # The step above fails the job now, so this needs `always()` to run at all —
       # and the artifact is more valuable than ever, because a red lane is now a
@@ -756,6 +832,7 @@ jobs:
       - frontend-build
       - frontend-quality
       - frontend-e2e
+      - app-visual
       - storybook-build
       - rules-emulator
     permissions:
@@ -786,6 +863,7 @@ jobs:
               "frontend-build": "${{ needs.frontend-build.result }}",
               "frontend-quality": "${{ needs.frontend-quality.result }}",
               "frontend-e2e": "${{ needs.frontend-e2e.result }}",
+              "app-visual": "${{ needs.app-visual.result }}",
               "storybook-build": "${{ needs.storybook-build.result }}",
               "rules-emulator": "${{ needs.rules-emulator.result }}"
             }
@@ -835,7 +913,10 @@ jobs:
           if-no-files-found: error
 
       - name: Attest frontend_e2e
-        if: github.event_name == 'pull_request' && needs.frontend-e2e.result == 'success'
+        if: >-
+          github.event_name == 'pull_request' &&
+          needs.frontend-e2e.result == 'success' &&
+          needs.app-visual.result == 'success'
         uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-frontend_e2e
