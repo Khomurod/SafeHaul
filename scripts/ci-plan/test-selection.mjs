@@ -130,15 +130,10 @@ const forcesFull = [
     ['a CI workflow', '.github/workflows/main.yml'],
     ['a release script', 'scripts/record-release.mjs'],
     ['the CI planner itself', 'scripts/ci-plan.mjs'],
-    ['shared UI', 'src/shared/components/form/InputField.jsx'],
-    ['the design system', 'src/design-system/Button.jsx'],
-    ['a shared hook', 'src/hooks/useCompany.js'],
-    ['shared library code', 'src/lib/applicationWrite.js'],
-    ['the app shell', 'src/app/routes.jsx'],
-    ['the test setup', 'src/tests/setup.js'],
-    ['the app entry point', 'src/main.jsx'],
-    ['the shared application/PDF architecture', 'src/features/applications/services/applicationPdfService.js'],
-    ['anything PDF-named', 'src/features/signing/pdfOverlay.js'],
+    ['the test setup the rules suites run under', 'src/tests/setup.js'],
+    ['a Firestore rules suite', 'src/tests/firestoreRules.tenancy.security.test.js'],
+    ['the rules suites\' shared harness', 'src/tests/firestoreRules.support.js'],
+    ['the Storage rules suite', 'src/tests/storage.rules.security.test.js'],
     ['the PDF worker asset', 'public/pdf.worker.min.mjs'],
     ['an unrecognised top-level file', 'Dockerfile'],
     ['an unrecognised directory', 'terraform/main.tf'],
@@ -149,6 +144,42 @@ for (const [label, path] of forcesFull) {
     assert(`B. ${label} (${path}) forces the full suite`,
         full === true && LANE_NAMES.every((lane) => lanes[lane]),
         `full=${full} lanes=${JSON.stringify(lanes)}`);
+}
+
+/*
+ * B36 — a shared `src/` change the rules suites cannot read runs every lane but
+ * rules. The suites import nothing from `src/` but their own harness, so the
+ * lane runs for the rules, the suites, the Vitest setup, and the CI and
+ * dependency files above.
+ */
+const everyLaneButRules = [
+    ['shared UI', 'src/shared/components/form/InputField.jsx'],
+    ['the design system', 'src/design-system/Button.jsx'],
+    ['a shared hook', 'src/hooks/useCompany.js'],
+    ['shared library code', 'src/lib/applicationWrite.js'],
+    ['the app shell', 'src/app/routes.jsx'],
+    ['the app entry point', 'src/main.jsx'],
+    ['another test under src/tests', 'src/tests/hostingConfig.test.js'],
+    ['the shared application/PDF architecture', 'src/features/applications/services/applicationPdfService.js'],
+    ['anything PDF-named', 'src/features/signing/pdfOverlay.js'],
+];
+for (const [label, path] of everyLaneButRules) {
+    const { lanes } = selectLanes({ changedFiles: [path] });
+    assert(`B36. ${label} (${path}) runs every lane but rules`,
+        !lanes.rules && LANE_NAMES.filter((lane) => lane !== 'rules').every((lane) => lanes[lane]),
+        JSON.stringify(lanes));
+}
+{
+    // The runner's own list: a suite added there but not under a rules input
+    // would be one this lane stopped running for the changes that touch it.
+    const runner = readFileSync(resolvePath(here, 'run-rules-stress.mjs'), 'utf8');
+    const suites = [...(runner.match(/const rulesTestArgs = \[([^\]]*)\]/)?.[1] ?? '').matchAll(/'(src\/[^']+)'/g)]
+        .map((match) => match[1]);
+    assert('B36b. every suite the rules runner runs selects the rules lane',
+        suites.length > 0 && suites.every((suite) => lanesForPath(suite) === null),
+        suites.filter((suite) => lanesForPath(suite) !== null).join(', ') || `${suites.length} suite(s) read`);
+    assert('B36c. a rules file among shared ones still forces the full suite',
+        selectLanes({ changedFiles: ['src/shared/components/form/InputField.jsx', 'src/firestore.rules'] }).full === true);
 }
 
 assert('B27. one cross-cutting file among many harmless ones still forces the full suite',

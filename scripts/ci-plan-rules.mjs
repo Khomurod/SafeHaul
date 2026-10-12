@@ -101,6 +101,15 @@ const CROSS_CUTTING_PREFIXES = Object.freeze([
     'public/',
 ]);
 
+/**
+ * The files under `src/` the rules lane reads: the two rules files, their suites
+ * and the Vitest setup they run under. The suites import nothing else from
+ * `src/`, so any other change there that runs every lane leaves this one out.
+ */
+const RULES_INPUT_FILES = Object.freeze(['src/firestore.rules', 'src/storage.rules', 'src/tests/setup.js']);
+const RULES_INPUT_PREFIXES = Object.freeze(['src/tests/firestoreRules.', 'src/tests/storage.rules.']);
+const EVERY_LANE_BUT_RULES = Object.freeze(LANE_NAMES.filter((lane) => lane !== 'rules'));
+
 /** Paths that ship nothing executable. */
 const DOC_PREFIXES = Object.freeze(['docs/', '.claude/']);
 const DOC_FILES = Object.freeze(['LICENSE', '.gitignore', '.gitattributes']);
@@ -111,12 +120,22 @@ const DOC_FILES = Object.freeze(['LICENSE', '.gitignore', '.gitattributes']);
  * Returns `null` to mean "cross-cutting — run everything". Returns an empty
  * array to mean "affects no lane". Anything this function does not recognise is
  * cross-cutting, so adding a new top-level directory errs towards a full run
- * until someone classifies it here.
+ * until someone classifies it here. A cross-cutting path under `src/` that the
+ * rules suites cannot read runs every lane but rules.
  *
  * @param {string} path repository-relative path, forward slashes
  * @returns {string[]|null}
  */
 export function lanesForPath(path) {
+    const lanes = classifyPath(path);
+    if (lanes === null && typeof path === 'string' && path.startsWith('src/')
+        && !RULES_INPUT_FILES.includes(path) && !RULES_INPUT_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+        return [...EVERY_LANE_BUT_RULES];
+    }
+    return lanes;
+}
+
+function classifyPath(path) {
     if (typeof path !== 'string' || path.length === 0) return null;
 
     // Anything named for PDF handling is shared application architecture.
