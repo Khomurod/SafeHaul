@@ -4,7 +4,7 @@
  * has never been seen to refuse is a report, not a lock.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +12,6 @@ import {
     checkAgentDocs, globToRegExp, hasPathsFrontmatter, missingPaths, namedPaths, readAgentDocs, trackedPaths,
 } from './check-agent-docs.mjs';
 import { AGENT_DOC_LIMITS, ALWAYS_LOADED, ALWAYS_LOADED_MAX_BYTES } from './agent-docs-limits.mjs';
-import { ALWAYS_REQUIRED_JOBS } from './ci-plan.mjs';
 import { initThrowawayRepo, removeTree } from './lib/throwaway.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -186,18 +185,6 @@ console.log('\nI. The command, in a repository of its own');
     } finally {
         removeTree(dir);
     }
-}
-
-console.log('\nJ. CI runs it where nothing can skip it');
-{
-    const workflow = readFileSync(join(repoRoot, '.github/workflows/main.yml'), 'utf8');
-    const afterHeading = workflow.slice(workflow.indexOf('\n  callable-contract:') + 1);
-    const nextJob = afterHeading.search(/\n {2}[a-z][a-z0-9-]*:\n/);
-    const job = nextJob === -1 ? afterHeading : afterHeading.slice(0, nextJob);
-    const tests = job.indexOf('- name: Verify the agent-docs guard\n        run: npm run test:agent-docs\n\n');
-    const check = job.indexOf('- name: Check agent instruction sizes\n        run: npm run check:agent-docs\n\n');
-    assert('J1. callable-contract runs the guard\'s tests, then the check, each plainly',
-        tests !== -1 && check > tests && ALWAYS_REQUIRED_JOBS.includes('callable-contract'));
 }
 
 console.log(failures === 0 ? '\nagent-docs guard: all assertions passed.' : `\n${failures} assertion(s) failed.`);

@@ -50,6 +50,10 @@ Testing version (Super Admin → Releases, `promote-production.yml`).
    lane attests on the gate's verdict (`steps.verify.outputs.attest_<lane>`), not
    on its job result, so a carried-over lane still leaves `main` a proof
    (`check:ci-plan` M).
+8. **Every `callable-contract` step is one row of `check:ci-plan` K5**
+   (`scripts/ci-plan/test-guards.mjs`): it runs its command and nothing more,
+   nothing makes it advisory, and a guard's tests run before its check. A new
+   step needs a row; a guard's own suite does not test its CI wiring.
 
 ## Security gates (secret scan)
 

@@ -17,7 +17,7 @@
  * moved it.
  *
  * The suite chain in `package.json` is asserted off DISK by
- * `test-ui-contract-ci.mjs` §W6, so this file cannot go unrun by being
+ * `ci-plan/test-guards.mjs` K5, so this file cannot go unrun by being
  * forgotten.
  */
 

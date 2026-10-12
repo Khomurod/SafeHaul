@@ -3,7 +3,9 @@
  *
  * K pins the steps that were once advisory and are now blocking, so none can
  * quietly go back to `continue-on-error`, and the public-claims step that was
- * documented as a CI gate before any job ran it — in the one job no plan skips. L pins the secret scanner's wiring: no
+ * documented as a CI gate before any job ran it — in the one job no plan skips.
+ * K5 holds every step of that job in one table: each guard's wiring is asserted
+ * here, not in the guard's own suite. L pins the secret scanner's wiring: no
  * third-party scanning action, full history checked out, no `if:` that can
  * condition it away, and an audit that reports without being able to block a
  * release.
@@ -169,6 +171,20 @@ console.log('\nK. Guards that stay guards');
             'the checker must be seen to fail on a fixture before it is trusted to fail on a build');
     }
 
+    /*
+     * K1e — the lint step. Lint refuses what would crash a screen and a glyph
+     * loaded around the design system (`scripts/test-lint-rules.mjs` drives
+     * both), so it is a gate like the ones above, and holds only while CI runs
+     * it and can fail on it.
+     */
+    const lintStep = stepBlock('Frontend Lint');
+    assert('K1e. the "Frontend Lint" step runs `npm run lint:frontend`',
+        lintStep !== null && /^\s+run: npm run lint:frontend\s*$/m.test(lintStep),
+        'the lint rules hold only where CI runs them');
+    assert('K1e. and it is blocking',
+        lintStep !== null && !/continue-on-error/.test(lintStep) && !/^\s+if:/m.test(lintStep),
+        'a lint step that cannot fail the run is a report, not a gate');
+
     assert('K2. no workflow step excludes the accessibility specs',
         !/--grep-invert[^\n]*@a11y/.test(workflowText),
         'the axe specs belong in the blocking lane, not behind a grep-invert');
@@ -303,6 +319,105 @@ console.log('\nK. Guards that stay guards');
     assert('K4. every public page sits where the checker looks',
         nestedHtml.length === 0,
         `the checker scans top-level web/*.html only; nested page(s) would be validated by nothing: ${nestedHtml.join(', ')}`);
+
+    /*
+     * K5 — every step of `callable-contract`, in one table.
+     *
+     * The job no plan can skip carries the repository's guards: a checker, the
+     * tests that show it can still refuse, or both. Each guard used to pin its
+     * own wiring in its own suite, with its own reading of this file. One table
+     * holds them now, so a new step is one row, and every row is held to the
+     * same rules: it runs in this job and nowhere else, it runs its commands and
+     * nothing more (no flag, no env, so no base commit or token it could lean
+     * on), nothing can make it advisory, and a guard's tests run before its
+     * check, because a checker proven after it passed proves nothing about the
+     * run that passed.
+     *
+     * Each row: the step's name, the commands its `run:` holds, and for a guard's
+     * test step, the pattern its suites match on disk. The list comes off disk
+     * because a hand-written one is the same hazard one level up: a suite split
+     * in two, with the half that moved never chained.
+     */
+    const GUARD_JOB = 'callable-contract';
+    const GUARD_STEPS = [
+        ['Verify frontend/backend callable contract', ['node scripts/check-callable-contract.mjs']],
+        [CLAIMS_STEP, [CLAIMS_SCRIPT]],
+        ['Verify the production-promotion gate', ['npm run check:release-scripts']],
+        ['Verify the CI plan and release-validation gate', ['npm run check:ci-plan']],
+        ["Verify the secret scanner's range selection and detection", ['npm run test:secret-scan']],
+        ['Verify the functions deploy planner', ['npm run check:function-exports', 'npm run check:deploy-script']],
+        ['Verify the source-size guard', ['npm run test:source-size'], /^test-source-size(-[a-z]+)?\.mjs$/],
+        ['Check source sizes', ['npm run check:source-size']],
+        ['Verify the agent-docs guard', ['npm run test:agent-docs']],
+        ['Check agent instruction sizes', ['npm run check:agent-docs']],
+        ['Verify the AI-boundary guard', ['npm run test:ai-boundary']],
+        ['Verify the AI provider boundary', ['npm run check:ai-boundary']],
+        ['Verify the UI-contract guard', ['npm run test:ui-contract'], /^test-ui-contract(-[a-z]+)?\.mjs$/],
+        ['UI contract ratchet', ['npm run check:ui-contract']],
+        ['Verify the lint rules', ['npm run test:lint-rules']],
+        ['Verify the bundle-budget guard', ['npm run test:bundle-budget']],
+    ];
+    /** A guard's tests, then its check. */
+    const TESTS_FIRST = [
+        ['Verify the source-size guard', 'Check source sizes'],
+        ['Verify the agent-docs guard', 'Check agent instruction sizes'],
+        ['Verify the AI-boundary guard', 'Verify the AI provider boundary'],
+        ['Verify the UI-contract guard', 'UI contract ratchet'],
+    ];
+    /** The commands a step runs: its one-line `run:`, or each line of a `run: |` block. */
+    const commandsOf = (step) => {
+        const single = step.match(/^\s+run: (?!\|)(.+)$/m);
+        if (single) return [single[1].trim()];
+        const block = step.match(/^ +run: \|\n((?: {10}.+\n?)+)/m);
+        return block ? block[1].split('\n').map((line) => line.trim()).filter(Boolean) : [];
+    };
+
+    const guardJob = jobBlock(GUARD_JOB) ?? '';
+    assert(`K5. ${GUARD_JOB} is always required and carries no job-level \`if:\``,
+        guardJob !== '' && ALWAYS_REQUIRED_JOBS.includes(GUARD_JOB) && !/^\s{4}if:/m.test(guardJob),
+        'a guard in a job a plan or a condition can skip makes a claim only about the runs that kept it');
+    // Every step that runs a command, the install aside. Setup steps (`uses:`)
+    // run none, so a renamed Node step is not a new guard.
+    const named = [...guardJob.matchAll(/^\s+- name: (.+)$/gm)].map((match) => match[1])
+        .filter((name) => name !== 'Install Dependencies' && /^\s+run:/m.test(stepIn(guardJob, name) ?? ''));
+    const rows = GUARD_STEPS.map(([name]) => name);
+    assert(`K5. the table names every step ${GUARD_JOB} runs, and nothing else`,
+        named.length === rows.length && named.every((name) => rows.includes(name)),
+        `job: ${named.join(' | ')}`);
+    const install = guardJob.indexOf('- name: Install Dependencies\n        run: npm ci\n');
+    const firstGuard = Math.min(...rows.map((name) => guardJob.indexOf(`- name: ${name}\n`)).filter((at) => at !== -1));
+    assert('K5. it installs dependencies before the first guard step',
+        install !== -1 && install < firstGuard,
+        'the table rule parses with @babel/parser and the lint test drives ESLint; neither is a Node builtin');
+
+    for (const [name, commands, suitePattern] of GUARD_STEPS) {
+        const step = stepIn(guardJob, name) ?? '';
+        assert(`K5. "${name}" runs ${commands.join(' and ')}, and nothing more`,
+            JSON.stringify(commandsOf(step)) === JSON.stringify(commands) && !/^\s+env:/m.test(step),
+            step.split('\n').slice(0, 3).join(' | ') || 'step missing');
+        assert('K5. and nothing makes it advisory',
+            step !== '' && !/continue-on-error/.test(step) && !/^\s+if:/m.test(step),
+            'a gate that cannot fail the run, or that a condition can skip, is documentation');
+        assert('K5. and no other job runs it',
+            workflowText.split(`- name: ${name}\n`).length === 2,
+            'a copy elsewhere is a second step to keep in step with this one');
+        const scripts = commands.map((command) => command.match(/^npm run ([\w:-]+)$/)?.[1]).filter(Boolean);
+        assert('K5. and each npm script it names exists',
+            scripts.every((script) => typeof pkg.scripts[script] === 'string'), scripts.join(', '));
+        if (suitePattern) {
+            const suites = readdirSync(here).filter((file) => suitePattern.test(file));
+            const chain = pkg.scripts[scripts[0]] ?? '';
+            assert(`K5. and ${scripts[0]} chains every suite the guard has (${suites.length})`,
+                suites.length > 0 && suites.every((file) => chain.includes(`scripts/${file}`)),
+                `${suites.join(', ')} vs ${chain}`);
+        }
+    }
+    for (const [tests, check] of TESTS_FIRST) {
+        const testsAt = guardJob.indexOf(`- name: ${tests}\n`);
+        assert(`K5. "${tests}" runs before "${check}"`,
+            testsAt !== -1 && testsAt < guardJob.indexOf(`- name: ${check}\n`),
+            'a checker proven after it passed proves nothing about the run that passed');
+    }
 }
 
 console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');

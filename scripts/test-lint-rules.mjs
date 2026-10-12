@@ -140,8 +140,6 @@ console.log('\nM. Lint refuses what would crash a screen');
     );
     assert('M2. a hook called conditionally is an error',
         conditionalHook.includes('react-hooks/rules-of-hooks'), conditionalHook.join(', '));
-    const workflow = readFileSync(resolve(repoRoot, '.github/workflows/main.yml'), 'utf8');
-    assert('M3. and a CI job runs the lint', /\n\s+run: npm run lint(:frontend)?\n/.test(workflow));
 }
 
 console.log(failures === 0 ? '\nlint rules: all assertions passed.' : `\n${failures} assertion(s) failed.`);

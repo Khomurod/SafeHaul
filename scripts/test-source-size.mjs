@@ -353,6 +353,22 @@ assert('F6. and every format left out says why it is not source',
   && UNMEASURED_FORMATS.every((f) => !SOURCE_EXTENSIONS.includes(f.extension)),
   'what a coverage claim does NOT look at is the half that goes stale silently');
 
+{
+  const checker = readFileSync(resolve(here, 'source-size.mjs'), 'utf8');
+  const scope = readFileSync(resolve(here, 'source-size-scope.mjs'), 'utf8');
+  assert('F7. the scan reads git, so moving a file cannot hide it',
+    /ls-files/.test(checker) && !/readdirSync/.test(checker),
+    'a directory walk can be steered by a path pattern; the tracked set cannot');
+  /*
+   * Tests are the one category without a limit. Anything else exempt would be
+   * an allowlist, and the checker carries none: no backlog file, no per-file
+   * ceiling, so there is nothing a branch could edit to let itself through.
+   */
+  assert('F8. nothing but a test is exempt, and no list can make it so',
+    !/backlog/i.test(checker) && !/EXCEPTIONS|maxLines/.test(checker + scope),
+    'an exemption list in the branch under test is an allowlist');
+}
+
 console.log(failures === 0
   ? '\nAll source-size checks passed.'
   : `\n${failures} check(s) failed.`);

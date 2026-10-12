@@ -5,8 +5,8 @@
  * selection, and attestation naming/validation/reading. The event glue (git
  * diff ranges, the GitHub API client, `main()` and the GITHUB_OUTPUT wiring)
  * stays in the entry, which re-exports this surface so every existing
- * importer (`test-source-size-ci.mjs`, `verify-release-validation.mjs`, the
- * `ci-plan/` test modules) keeps its import path.
+ * importer (`verify-release-validation.mjs` and the `ci-plan/` test modules)
+ * keeps its import path.
  */
 
 /**
