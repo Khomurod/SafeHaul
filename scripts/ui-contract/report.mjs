@@ -52,13 +52,6 @@ export function reportUntethered(untethered) {
     console.error('the invisible one carries the class too. It costs nothing.\n');
 }
 
-export function reportStale(stale) {
-    console.error('\nThe UI contract allowlist is out of date — these have been fixed:\n');
-    for (const line of stale) console.error(`  ${line}`);
-    console.error('\nRun `npm run check:ui-contract -- --update` and commit the result, so the');
-    console.error('inventory records the shrinkage rather than quietly permitting a regression');
-    console.error('back up to the old number.\n');
-}
 
 /** The broken-walker floor. Not a clean result — a broken check. */
 export function reportBrokenScan(scanned) {
@@ -72,43 +65,24 @@ export function reportIntact(scanned, toleratedTotal, fileCount) {
     );
 }
 
-export function reportUpdated(fileCount, total) {
-    console.log(`Inventory updated: ${fileCount} files, ${total} tolerated violations.`);
-}
-
-/**
- * `--update` was asked to raise a ceiling, and would not.
- *
- * Named additions rather than a count, because the fix is per entry: each one is
- * either a violation to fix or an exception to write down with a reason.
- */
-export function reportRefusedUpdate(problems, growth) {
-    console.error('\n`--update` refuses to write: this would ADD to the inventory, not shrink it.\n');
-    for (const problem of problems) console.error(`  ${problem}`);
-    for (const { file, rule, count, previous } of growth) {
-        const was = previous === null ? 'not recorded' : `was ${previous}`;
-        console.error(`  ${file}  ${rule}: ${count}  (${was})`);
-    }
-    console.error('\n`--update` exists to record shrinkage. Regenerating an increase is how an');
-    console.error('allowlist stops being an allowlist and becomes a description of whatever the');
-    console.error('branch happens to contain — a 2026-09-04 audit raised a count from 100 to 103');
-    console.error('this way and the check reported "none new".');
-    console.error('\nFix the violation, or add the entry by hand with a `reasons` line naming the');
-    console.error('roadmap item that justifies it. A hand-written entry still has to survive the');
-    console.error('baseline check: the base commit must already carry that violation.\n');
-}
-
-/**
- * The inventory itself moved the wrong way, or could not be shown not to have.
- *
- * Reported before the content verdicts: when the allowlist cannot be trusted,
- * "none new" is a statement about nothing.
- */
-export function reportTampered(problems) {
-    console.error('\nThe UI contract allowlist did not survive comparison with its base commit:\n');
+/** A count that is not a count, or a reason that is not a sentence. */
+export function reportMalformed(problems) {
+    console.error('\nThe UI contract allowlist is malformed:\n');
     for (const problem of problems) console.error(`  - ${problem}`);
-    console.error('\nAn entry records a violation that was ALREADY THERE. Adding one for code this');
-    console.error('change wrote — or raising a recorded count to match it — is a gate taking its');
-    console.error('scope from the branch it is gating, which is the shape of every hole this');
-    console.error('repository has had to close twice. Fix the violation instead.\n');
+    console.error('\nEvery count in src/design-system/ui-contract.allowlist.json is a whole number');
+    console.error('and every reason a sentence. Fix the file by hand.\n');
+}
+
+/** Entries the tree has outgrown, lowered on disk for this change to commit. */
+export function reportShrunk(stale) {
+    console.log('\nLowered these allowlist entries to what the tree still contains; commit the file:');
+    for (const line of stale) console.log(`  ${line}`);
+}
+
+/** The same in CI, which cannot write: one warning on the pull request per entry. */
+export function reportShrinkable(stale, { log = console.log } = {}) {
+    for (const line of stale) {
+        log(`::warning title=UI contract::${line} is fixed. Run npm run check:ui-contract `
+            + 'locally and commit the allowlist it lowers.');
+    }
 }

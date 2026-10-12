@@ -61,8 +61,8 @@ Testing version (Super Admin → Releases, `promote-production.yml`).
   validated" passed in the same run. No such ancestor, a base equal to the head,
   or any path that cannot determine a base: refuse. Resolve a base to its full SHA
   before comparing anything.
-- An override (`SECRET_SCAN_BASE`, `SOURCE_SIZE_BASE`) must name a validated
-  release that contains the automatic base — never the head, never older.
+- The override (`SECRET_SCAN_BASE`) must name a validated release that contains
+  the automatic base — never the head, never older.
 - A scanner that exits non-zero with an empty report did not finish: refuse, and
   refuse any scan that did not report success.
 - `.gitleaks.toml`'s non-comment content is pinned line for line (L24a);

@@ -30,7 +30,7 @@
  * |---------------------------------|--------------------------------------------|
  * | this one                        | are the decisions right?                   |
  * | `test-ui-contract-scope.mjs`    | is it still LOOKING at the whole tree?     |
- * | `test-ui-contract-baseline.mjs` | can the inventory be edited by the branch? |
+ * | `test-ui-contract-allowlist.mjs` | is the inventory read and lowered right? |
  * | `test-ui-contract-ci.mjs`       | does CI run it, and can that be skipped?   |
  *
  * The scope half was split out on 2026-09-04 when the coverage pins landed;
@@ -45,7 +45,7 @@ import {
 } from './ui-contract/rules.mjs';
 import { HTML_RULE_NAMES, STORY_RULE_NAMES } from './ui-contract/source-text.mjs';
 import { MIN_REASON_LENGTH, evaluate } from './ui-contract/verdict.mjs';
-import { regenerate, serialise } from './ui-contract/update.mjs';
+import { serialise, shrink } from './ui-contract/update.mjs';
 import { untetheredTables } from './ui-contract/tether.mjs';
 
 let failures = 0;
@@ -145,25 +145,33 @@ assert('V7. `reasons` is not itself a rule',
         { files: { 'a.jsx': withReason('raw-hex-colour', 1) } }).unexplained.length === 0);
 
 /* ========================================================================== */
-console.log('\nU. Regeneration records shrinkage without inventing reasons');
+console.log('\nU. A fixed violation lowers its entry, and nothing else moves');
 
 // U1. Mutation: carry `reasons` wholesale and a retired exception lingers as
 // cover for a future one.
 {
-    const { files } = regenerate(
+    const files = shrink(
         { 'a.jsx': { 'raw-hex-colour': 1 } },
         { files: { 'a.jsx': { 'raw-hex-colour': 3, 'raw-table': 1, reasons: { 'raw-hex-colour': reason, 'raw-table': reason } } } },
     );
     assert('U1a. a surviving rule keeps its reason', files['a.jsx'].reasons?.['raw-hex-colour'] === reason);
-    assert('U1b. a retired rule loses its reason', files['a.jsx'].reasons?.['raw-table'] === undefined);
-    assert('U1c. the count is recomputed from the tree', files['a.jsx']['raw-hex-colour'] === 1);
+    assert('U1b. a retired rule loses its count and its reason',
+        files['a.jsx']['raw-table'] === undefined && files['a.jsx'].reasons?.['raw-table'] === undefined);
+    assert('U1c. the count is lowered to what the tree still holds', files['a.jsx']['raw-hex-colour'] === 1);
 }
 
-// U2. Mutation: invent a reason for a new file. `--update` writing an
-// explanation would defeat the point of requiring one.
+// U2. Mutation: let the shrink write what it measures. Then a new violation, or
+// one more of an old one, would be recorded without anyone writing a reason.
 {
-    const { files } = regenerate({ 'new.jsx': { 'raw-hex-colour': 1 } }, { files: {} });
-    assert('U2. a newly measured file gets no reason', files['new.jsx'].reasons === undefined);
+    const files = shrink(
+        { 'a.jsx': { 'raw-hex-colour': 5, 'raw-table': 1 }, 'new.jsx': { 'raw-hex-colour': 1 } },
+        { files: { 'a.jsx': { 'raw-hex-colour': 3, reasons: { 'raw-hex-colour': reason } } } },
+    );
+    assert('U2. it never adds a file or a rule, nor raises a count',
+        !('new.jsx' in files) && files['a.jsx']['raw-table'] === undefined && files['a.jsx']['raw-hex-colour'] === 3,
+        JSON.stringify(files));
+    assert('U2b. a file with nothing left loses its entry',
+        !('gone.jsx' in shrink({}, { files: { 'gone.jsx': { 'raw-hex-colour': 2, reasons: { 'raw-hex-colour': reason } } } })));
 }
 
 // U3. The on-disk shape is stable: two keys, two-space indent, trailing newline.

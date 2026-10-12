@@ -154,7 +154,7 @@ components, tokens, styles or tables change, also run
 `npm run test:visual` (each after `npm run build-storybook`).
 
 Roadmap §7 has the full table — what each guard refuses and which CI job runs it
-— plus the allowlist's rules (an entry needs a reason and a violation the base
-commit already carried; `--update` only shrinks) and the one review step that is
-a person. `.github/pull_request_template.md` is the checklist, and it asks you
+— plus the allowlist's rules (an entry needs a reason; a fixed violation lowers
+its entry by itself; a new or larger one is a hand edit judged in review) and the
+one review step that is a person. `.github/pull_request_template.md` is the checklist, and it asks you
 never to tick a check you did not run.
