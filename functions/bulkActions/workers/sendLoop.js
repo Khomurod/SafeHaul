@@ -11,6 +11,7 @@ const { admin, db } = require("../../firebaseAdmin");
 const { isBlacklisted } = require("../../blacklist");
 const { normalizePhone } = require("../../utils/phoneUtils");
 const { pauseBeforeNextSend } = require("./sendPacing");
+const { escapeHtml, plainGuestText } = require("../../shared/plainText");
 
 /** Returns `{ batchSuccessCount, batchFailCount, pointerAdvanceCount }`. */
 async function runSendLoop({
@@ -28,8 +29,10 @@ async function runSendLoop({
     emailTransporter,
 }) {
     // A function replacer, so a "$&" in a name is text and not a replacement pattern.
+    // The lead's name can come from a public form: it goes out as plain text without
+    // its links, as in the other emails a company sends (`shared/plainText.js`).
     const fillPlaceholders = (text, leadData) => text
-        .replace(/\[Driver Name\]/g, () => leadData.firstName || 'Driver')
+        .replace(/\[Driver Name\]/g, () => plainGuestText(leadData.firstName, 40) || 'Driver')
         .replace(/\[Company Name\]/g, () => companyName)
         .replace(/\[Recruiter Name\]/g, () => recruiterName || 'your recruiter');
 
@@ -136,7 +139,7 @@ async function runSendLoop({
                                     // The composer offers the placeholders in the subject too.
                                     subject: config.subject ? fillPlaceholders(config.subject, leadData) : `Update from ${companyName}`,
                                     text: finalBody,
-                                    html: `<p>${finalBody.replace(/\n/g, '<br>')}</p>`
+                                    html: `<p>${escapeHtml(finalBody).replace(/\n/g, '<br>')}</p>`
                                 });
                                 success = true;
                             } else {

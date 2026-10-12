@@ -28,7 +28,7 @@ jest.mock('../../firebaseAdmin', () => {
     bulk_sessions: { doc: () => session },
     leads: {
       doc: () => ({
-        get: async () => mockSnap({ firstName: 'Alice', phone: '(555) 123-4567', email: 'alice@example.com' }),
+        get: async () => mockSnap(mockState.lead),
         update: async () => {},
       }),
     },
@@ -101,6 +101,7 @@ beforeEach(() => {
   mockSendSMS.mockResolvedValue(true);
   mockSendMail.mockResolvedValue({});
   mockState.company = { companyName: 'Artificial Freight LLC' };
+  mockState.lead = { firstName: 'Alice', phone: '(555) 123-4567', email: 'alice@example.com' };
   mockState.sender = { name: 'Dana Recruiter' };
   mockState.authName = null;
 });
@@ -148,6 +149,24 @@ describe('campaign placeholders', () => {
     await runBatch({ method: 'sms', message: MESSAGE });
 
     expect(mockSendSMS.mock.calls[0][1]).toBe('Hi Alice, Dana From Auth at Artificial Freight LLC here.');
+  });
+
+  it("sends a lead's name as plain text, without its links", async () => {
+    mockState.lead = { firstName: 'Win at https://evil.test now', phone: '(555) 123-4567' };
+
+    await runBatch({ method: 'sms', message: MESSAGE });
+
+    expect(mockSendSMS.mock.calls[0][1]).toBe('Hi Win at now, Dana Recruiter at Artificial Freight LLC here.');
+  });
+
+  it("escapes the email's HTML, so a name cannot add markup", async () => {
+    mockState.lead = { firstName: '<img src=x onerror=alert(1)>', email: 'alice@example.com' };
+
+    await runBatch({ method: 'email', message: `${MESSAGE}\nCall us.` });
+
+    const sent = mockSendMail.mock.calls[0][0];
+    expect(sent.html).toBe('<p>Hi &lt;img src=x onerror=alert(1)&gt;, Dana Recruiter at Artificial Freight LLC here.<br>Call us.</p>');
+    expect(sent.text).toBe('Hi <img src=x onerror=alert(1)>, Dana Recruiter at Artificial Freight LLC here.\nCall us.');
   });
 
   it('still sends, with the old wording, when no name can be found', async () => {
