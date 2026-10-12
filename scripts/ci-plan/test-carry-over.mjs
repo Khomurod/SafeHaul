@@ -106,6 +106,17 @@ assert('M6. a lane the pull request does not select is never carried over',
         docsOnly.previousTree === previous && docsOnly.carried.join() === LANE_NAMES.join(),
         JSON.stringify(docsOnly));
 
+    const notes = [];
+    await carryOverFromPreviousPush({
+        event: followUp, selection: everything, treeSha: current, api: proofsFor(previous), repositoryId: REPO_ID,
+        run: git(['docs/APP_BRIEF.md']), log: (message) => notes.push(message),
+    });
+    assert('M20. the log names the tree each carried proof is for, which is not this one',
+        notes.some((note) => note.startsWith(`previous push's tree: ${previous}; 1 file(s) changed since`))
+            && notes.some((note) => note.includes(`validated on tree ${previous} by run 9`))
+            && !notes.some((note) => note.includes(current) || note.includes('this tree')),
+        notes.join(' | '));
+
     const noProof = await carry(['docs/APP_BRIEF.md'], current);
     assert('M15. with no proof for the previous push\'s own tree, nothing carries over',
         noProof.carried.length === 0, JSON.stringify(noProof));

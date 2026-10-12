@@ -328,7 +328,7 @@ export async function readAttestations({ treeSha, lanes, api, repositoryId, log 
                 const verdict = isUsableAttestation(artifact, run, { name, repositoryId });
                 if (verdict.ok) {
                     accepted = true;
-                    log(`${lane}: validated on this tree by run ${artifact.workflow_run?.id}`);
+                    log(`${lane}: validated on tree ${treeSha} by run ${artifact.workflow_run?.id}`);
                     break;
                 }
                 log(`${lane}: rejected an attestation — ${verdict.why}`);
