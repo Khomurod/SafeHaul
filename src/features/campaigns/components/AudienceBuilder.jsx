@@ -137,7 +137,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
             setLocalFilters(prev => ({
                 ...prev,
                 leadType: 'import',
-                rawData: csvData,
+                // Back on this step the import hook starts empty, and the list
+                // is the one the editor kept: a new import replaces it, nothing else.
+                rawData: csvData.length > 0 ? csvData : (prev.rawData || []),
                 excludedLeadIds: shouldResetExclusions ? [] : (prev.excludedLeadIds || [])
             }));
         } else {

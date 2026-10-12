@@ -183,6 +183,26 @@ describe('AudienceBuilder', () => {
         expect(lastCall[1]).toBe(2);
     });
 
+    it('keeps an uploaded list and its un-ticks when the recruiter comes back to Audience', () => {
+        // The editor unmounts this step on Content and Launch. Back on Audience the
+        // import hook starts empty, and the list is the one the editor kept.
+        const rows = [
+            { normalizedPhone: '+15550000001', firstName: 'Alice', lastName: 'One' },
+            { normalizedPhone: '+15550000002', firstName: 'Bob', lastName: 'Two' },
+        ];
+        const handleChange = vi.fn();
+        const filters = { leadType: 'import', rawData: rows, excludedLeadIds: ['import_1'] };
+
+        render(<AudienceBuilder companyId="123" filters={filters} onChange={handleChange} campaignScopeKey="cmp-a" />);
+
+        expect(screen.getByText('Alice One')).toBeInTheDocument();
+        expect(screen.getByText('Bob Two')).toBeInTheDocument();
+        const [lastFilters, lastCount] = handleChange.mock.calls.at(-1);
+        expect(lastFilters.rawData).toEqual(rows);
+        expect(lastFilters.excludedLeadIds).toEqual(['import_1']);
+        expect(lastCount).toBe(1);
+    });
+
     it('resets manual skips when campaign scope changes', () => {
         mockCsvData = [{ normalizedPhone: '+15550000001', firstName: 'Alice' }];
         const handleChange = vi.fn();
