@@ -1035,14 +1035,14 @@ Long-running triggers guard themselves through a `processing_status` ledger
 
 ### Bulk campaigns
 
-A launch takes at most **2,000** recipients (`launchLimit.js`), refused before
-any write. A recursive worker sends **50 per batch** to fit function timeouts,
-re-checking the session, so a cancel stops at once. One rule
-(`recentlyMessaged.js`) excludes the recently messaged from count, preview and
-launch: **7 days** by default for an uploaded list, none for CRM. Company and
-global `blacklist`s hold SMS opt-outs, checked before **every** send
-(`isBlacklisted()` in `sendLoop.js`), failing closed on a bad number; nothing
-fills them from a reply (§12).
+A launch or retry sends at most **2,000** (`launchLimit.js`), refused before
+writing. A recursive worker sends **50 per batch**, re-checking the session: a
+cancel stops at once. One rule (`recentlyMessaged.js`) keeps the recently
+messaged out of count, preview and launch: **7 days** by default for uploads,
+none for CRM. A deleted record takes its `logs` and `targets`
+(`deleteBulkSessionData`). Company and global `blacklist`s hold SMS opt-outs,
+checked before **every** send (`isBlacklisted()`), failing closed on a bad
+number; no reply fills them (§12).
 
 ---
 
