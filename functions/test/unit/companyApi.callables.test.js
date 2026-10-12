@@ -49,7 +49,10 @@ describe('making a key', () => {
             createdByName: 'Dana Admin', lastUsedAt: null, revokedAt: null,
         }));
         expect(keyMatches(stored.hash, made.key)).toBe(true);
-        expect(JSON.stringify(stored)).not.toContain(made.key.split('_')[2]);
+        // The secret is all that follows the id: base64url, so it can hold an underscore of its own.
+        const secret = made.key.slice(`shk_${made.keyId}_`.length);
+        expect(secret).toHaveLength(43);
+        expect(JSON.stringify(stored)).not.toContain(secret);
     });
 
     it('refuses anyone but a Company Admin of that company, and keeps nothing', async () => {
