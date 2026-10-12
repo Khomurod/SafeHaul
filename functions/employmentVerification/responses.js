@@ -13,6 +13,53 @@ const { generateVerificationPDF } = require("./pdf");
 const { notifyCarrierVerificationComplete } = require("./notifications");
 const { normaliseSignature } = require("./signature");
 
+/**
+ * The checks an answer must pass. They run before the request is claimed: a
+ * claim left behind by a refused answer ('processing') took the request out of
+ * the reminder query (./reminders.js) for good, with no 30-day no-response mark.
+ */
+function validateResponse(formResponse) {
+    if (!formResponse.respondentName || !formResponse.respondentTitle || !formResponse.respondentPhone) {
+        throw new HttpsError('invalid-argument', 'Respondent name, title, and phone are required.');
+    }
+
+    // The signature is validated here, before anything is stored: a drawn
+    // PNG or a typed name (`TEXT_SIGNATURE:<name>`), nothing else. See
+    // ./signature.js for what is refused and why.
+    const signature = normaliseSignature(formResponse.signatureData, formResponse.signatureMethod);
+
+    // PEV-VAL-1 FIX: Server-side length limits to prevent oversized PDF / memory exhaustion
+    if (formResponse.violationDetails && formResponse.violationDetails.length > 2000) {
+        throw new HttpsError('invalid-argument', 'Violation details cannot exceed 2000 characters.');
+    }
+    if (formResponse.accidentDetails && formResponse.accidentDetails.length > 2000) {
+        throw new HttpsError('invalid-argument', 'Accident details cannot exceed 2000 characters.');
+    }
+    if (formResponse.additionalComments && formResponse.additionalComments.length > 2000) {
+        throw new HttpsError('invalid-argument', 'Additional comments cannot exceed 2000 characters.');
+    }
+    return signature;
+}
+
+/**
+ * Put back the status a request had before a submission that failed claimed it,
+ * so it stays in the reminder cycle and its employer can submit again. Only a
+ * request still 'processing' is touched: a claim does not refuse an overlapping
+ * submission, and one that completed keeps 'completed'. A request this
+ * submission found 'processing' already goes back to 'opened'.
+ */
+async function releaseClaim(docRef, previousStatus) {
+    const status = previousStatus && previousStatus !== 'processing' ? previousStatus : 'opened';
+    try {
+        await db.runTransaction(async (txn) => {
+            const snap = await txn.get(docRef);
+            if (snap.exists && snap.data().status === 'processing') txn.update(docRef, { status });
+        });
+    } catch (error) {
+        logger.error(`[PEV] Could not release the claim on ${docRef.id}:`, error);
+    }
+}
+
 // ============================================================
 // 3. SUBMIT VERIFICATION RESPONSE (Public endpoint — token-based)
 // ============================================================
@@ -33,6 +80,7 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
         // A non-atomic read-then-write allows two concurrent submissions to both pass the
         // 'completed' check, with the second overwriting a legitimate response.
         let verificationData = null;
+        let signature = null;
         try {
             await db.runTransaction(async (txn) => {
                 const snap = await txn.get(docRef);
@@ -45,6 +93,7 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
                 if (data.status === 'completed') {
                     throw new HttpsError('already-exists', 'This verification has already been completed.');
                 }
+                signature = validateResponse(formResponse);
 
                 // Claim the slot atomically — prevents double-submission race
                 txn.update(docRef, { status: 'processing', claimedAt: admin.firestore.FieldValue.serverTimestamp() });
@@ -56,27 +105,6 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
         }
 
         if (!verificationData) throw new HttpsError('internal', 'Verification data unavailable.');
-
-        // Validate required respondent fields (after transaction so we don't hold a lock during validation)
-        if (!formResponse.respondentName || !formResponse.respondentTitle || !formResponse.respondentPhone) {
-            throw new HttpsError('invalid-argument', 'Respondent name, title, and phone are required.');
-        }
-
-        // The signature is validated here, before anything is stored: a drawn
-        // PNG or a typed name (`TEXT_SIGNATURE:<name>`), nothing else. See
-        // ./signature.js for what is refused and why.
-        const signature = normaliseSignature(formResponse.signatureData, formResponse.signatureMethod);
-
-        // PEV-VAL-1 FIX: Server-side length limits to prevent oversized PDF / memory exhaustion
-        if (formResponse.violationDetails && formResponse.violationDetails.length > 2000) {
-            throw new HttpsError('invalid-argument', 'Violation details cannot exceed 2000 characters.');
-        }
-        if (formResponse.accidentDetails && formResponse.accidentDetails.length > 2000) {
-            throw new HttpsError('invalid-argument', 'Accident details cannot exceed 2000 characters.');
-        }
-        if (formResponse.additionalComments && formResponse.additionalComments.length > 2000) {
-            throw new HttpsError('invalid-argument', 'Additional comments cannot exceed 2000 characters.');
-        }
 
         const now = admin.firestore.Timestamp.now();
 
@@ -120,25 +148,29 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
         // referenced by path; a typed mark is stored as text. The method is
         // recorded from what was validated, not from what the client claimed.
         responseData.signatureMethod = signature.kind === 'none' ? null : signature.kind;
-        if (signature.kind === 'drawn') {
-            const signaturePath = `companies/${verificationData.companyId}/pev_signatures/${token}.png`;
-            const bucket = storage.bucket();
-            await bucket.file(signaturePath).save(signature.png, {
-                metadata: { contentType: 'image/png' },
-            });
-            responseData.signaturePath = signaturePath;
-        } else if (signature.kind === 'typed') {
-            responseData.signatureText = signature.name;
+        try {
+            if (signature.kind === 'drawn') {
+                const signaturePath = `companies/${verificationData.companyId}/pev_signatures/${token}.png`;
+                const bucket = storage.bucket();
+                await bucket.file(signaturePath).save(signature.png, {
+                    metadata: { contentType: 'image/png' },
+                });
+                responseData.signaturePath = signaturePath;
+            } else if (signature.kind === 'typed') {
+                responseData.signatureText = signature.name;
+            }
+
+            // The answer and the completion are one write. An answer kept on a
+            // request put back in the reminder cycle would draw reminders and a
+            // no-response mark, and the employer's retry would overwrite it.
+            const batch = db.batch();
+            batch.set(docRef.collection('responses').doc('submission'), responseData);
+            batch.update(docRef, { status: 'completed', completedAt: now });
+            await batch.commit();
+        } catch (claimedStepError) {
+            await releaseClaim(docRef, verificationData.status);
+            throw claimedStepError;
         }
-
-        // Store the response in a subcollection
-        await docRef.collection('responses').doc('submission').set(responseData);
-
-        // Update verification request status
-        await docRef.update({
-            status: 'completed',
-            completedAt: now,
-        });
 
         // Generate PDF for DQ file
         let pdfPath = null;

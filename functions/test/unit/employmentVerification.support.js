@@ -58,6 +58,10 @@ function verificationDocRef(token) {
       verificationDocs.set(token, { ...data });
     }),
     update: jest.fn(async (updates) => {
+      if (completionFailure && updates.status === 'completed') {
+        completionFailure = false;
+        throw new Error('firestore unavailable');
+      }
       const current = verificationDocs.get(token) || {};
       verificationDocs.set(token, { ...current, ...updates });
     }),
@@ -94,6 +98,21 @@ const bump = (key) => versions.set(key, (versions.get(key) || 0) + 1);
  */
 let interference = null;
 const setTransactionInterference = (fn) => { interference = fn; };
+
+/**
+ * A Storage save that fails, as Cloud Storage can in the middle of a submission.
+ * `before` runs first, so a suite can land a competing write at that moment. It
+ * fires once; `resetPevState` clears it.
+ */
+let storageFailure = null;
+const failNextStorageSave = (before = async () => {}) => { storageFailure = before; };
+
+/**
+ * The write that marks a request completed fails once, whether it is made alone
+ * or in a batch; a failed batch applies none of its writes, as Firestore's does.
+ */
+let completionFailure = false;
+const failNextCompletion = () => { completionFailure = true; };
 
 /** A write from outside any transaction, as a competing request would make it. */
 const writeApplicationOutOfBand = (key, data) => {
@@ -147,6 +166,25 @@ const mockDb = {
       doc: jest.fn(() => ({
         get: jest.fn(async () => ({ exists: false, data: () => null })),
       })),
+    };
+  }),
+  /** A batch: all of its writes, or none. */
+  batch: jest.fn(() => {
+    const writes = [];
+    let completes = false;
+    return {
+      set: (docRef, data) => { writes.push(() => docRef.set(data)); },
+      update: (docRef, updates) => {
+        writes.push(() => docRef.update(updates));
+        if (updates.status === 'completed') completes = true;
+      },
+      commit: async () => {
+        if (completionFailure && completes) {
+          completionFailure = false;
+          throw new Error('firestore unavailable');
+        }
+        for (const write of writes) await write();
+      },
     };
   }),
   /**
@@ -262,6 +300,12 @@ const firebaseAdminMock = () => ({
     bucket: jest.fn(() => ({
       file: jest.fn((path) => ({
         save: jest.fn(async () => {
+          if (storageFailure) {
+            const before = storageFailure;
+            storageFailure = null;
+            await before();
+            throw new Error('storage unavailable');
+          }
           savedStoragePaths.push(path);
         }),
         download: jest.fn(async () => [Buffer.from('')]),
@@ -279,6 +323,8 @@ function resetPevState() {
   companyDocs.clear();
   versions.clear();
   interference = null;
+  storageFailure = null;
+  completionFailure = false;
   savedStoragePaths.length = 0;
   mockSendDynamicEmail.mockResolvedValue({ success: true });
   mockCheckRateLimit.mockResolvedValue(true);
@@ -312,6 +358,8 @@ module.exports = {
   schedulerMock,
   uuidMock,
   resetPevState,
+  failNextStorageSave,
+  failNextCompletion,
   setTransactionInterference,
   writeApplicationOutOfBand,
 };
