@@ -29,12 +29,14 @@ async function sendReminderEmail(companyId, recipientEmail, emailParams, reminde
 }
 
 /**
- * Where the carrier's PEV notices go. Edit Company and Settings save the
- * company's email as `contact.email`; a company the older Create screen made
- * holds a flat `email` too, which can be out of date.
+ * Where the carrier's PEV notices go: the email Edit Company and Settings save
+ * (`contact.email`). An older company document may also hold an `adminEmail`,
+ * which no screen edits, and a company the older Create screen made a flat
+ * `email`; each is used only when the ones before it are blank.
  */
 function carrierEmail(companyData) {
-    return companyData.adminEmail || companyData.contact?.email || companyData.email || null;
+    const text = (value) => (typeof value === 'string' ? value.trim() : '');
+    return text(companyData.contact?.email) || text(companyData.adminEmail) || text(companyData.email) || null;
 }
 
 // ============================================================

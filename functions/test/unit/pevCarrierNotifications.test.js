@@ -1,7 +1,8 @@
 /**
  * The carrier's PEV notices go to the company's email, in whichever shape its
  * document holds it. Edit Company and Settings save `contact.email`; a company
- * the older Create screen made holds a flat `email` too, which can be out of date.
+ * the older Create screen made holds a flat `email` too, which can be out of date,
+ * and an older document an `adminEmail` no screen edits.
  * All addresses are artificial test fixtures.
  */
 const mockCompanies = new Map();
@@ -38,6 +39,18 @@ it('prefers the saved contact email to a stale flat one an edit left behind', as
     mockCompanies.set('co-1', { email: 'old@example.test', contact: { email: 'ops@example.test' } });
     await notifyCarrierNoResponse(VERIFICATION);
     expect(recipient()).toBe('ops@example.test');
+});
+
+it('prefers the saved contact email to an adminEmail no screen can change', async () => {
+    mockCompanies.set('co-1', { adminEmail: 'former-admin@example.test', email: 'old@example.test', contact: { email: 'ops@example.test' } });
+    await notifyCarrierVerificationComplete(VERIFICATION, { wasEmployed: true });
+    expect(recipient()).toBe('ops@example.test');
+});
+
+it('falls back to adminEmail, then the flat email, when the contact email is blank', async () => {
+    mockCompanies.set('co-1', { adminEmail: 'admin@example.test', email: 'old@example.test', contact: { email: '  ' } });
+    await notifyCarrierNoResponse(VERIFICATION);
+    expect(recipient()).toBe('admin@example.test');
 });
 
 it('still reaches a company created with a flat email', async () => {
