@@ -155,8 +155,10 @@ export const makeRenderTab = (PEVTab) => (overrides = {}) => {
 export function resetHarness() {
   vi.clearAllMocks();
   dataMock.value = { currentCompanyProfile: {} };
+  // A hand or fax delivery's reply: the server returns a link to pass on and
+  // never the bare token.
   fnMocks.callable.mockResolvedValue({
-    data: { success: true, token: 'tok-9', verificationUrl: 'https://portal.test/v/tok-9' },
+    data: { success: true, verificationUrl: 'https://portal.test/v/tok-9' },
   });
   storedDoc.employers = [];
   fsMocks.getDoc.mockImplementation(async () => ({

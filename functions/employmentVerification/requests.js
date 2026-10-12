@@ -214,13 +214,16 @@ exports.sendVerificationRequest = onCall({ cors: true }, async (request) => {
             emailResult = await sendDynamicEmail(companyId, employerEmail, subject, emailHTML);
         }
 
-        logger.info(`[PEV] Verification request created. Token: ${token}, Applicant: ${applicantName}, Employer: ${employerName}`);
+        // No token here: whoever reads the logs could answer as the employer.
+        logger.info(`[PEV] Verification request created. Applicant: ${applicantName}, Employer: ${employerName}`);
 
         return {
             success: true,
-            token,
             emailResult,
-            verificationUrl: `${baseUrl}/verify/${token}`,
+            // PEV-SEC-3: the link goes only to a sender who delivers it by hand
+            // or by fax. An emailed request reaches the employer directly, and
+            // the bare token is never returned.
+            ...(deliveryMethod === 'email' ? {} : { verificationUrl: `${baseUrl}/verify/${token}` }),
             // So the caller writing the initial mirror can find the row this
             // request was actually filed against, rather than the index it
             // pressed on. See `PEVTab.writeVerification`.

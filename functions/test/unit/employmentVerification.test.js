@@ -74,8 +74,10 @@ describe('employmentVerification callables', () => {
         'PEV/sendVerificationRequest',
       );
       expect(result.success).toBe(true);
-      expect(result.token).toBe('pev-token-123456');
-      expect(result.verificationUrl).toBe('https://safehaul.test/verify/pev-token-123456');
+      // PEV-SEC-3: the link reaches the employer by email, so the person who
+      // sent it is not handed a way to answer as that employer.
+      expect(result).not.toHaveProperty('token');
+      expect(result).not.toHaveProperty('verificationUrl');
       expect(mockSendDynamicEmail).toHaveBeenCalledWith(
         'co-1',
         'hr@oldcarrier.com',
@@ -94,6 +96,29 @@ describe('employmentVerification callables', () => {
       expect(stored.employerId).toMatch(/^[0-9a-f]{12}$/);
       expect(applicationDocs.get(appKey('co-1', 'applications', 'app-1')).employers[0].employerId)
         .toBe(stored.employerId);
+    });
+
+    it.each(['manual', 'fax'])('returns the link, never the bare token, when the sender delivers it (%s)', async (deliveryMethod) => {
+      applicationDocs.set(appKey('co-1', 'applications', 'app-1'), {
+        employers: [{ companyName: 'Old Carrier' }],
+      });
+
+      const result = await sendVerificationRequest({
+        auth: { uid: 'user-1' },
+        data: {
+          companyId: 'co-1',
+          applicationId: 'app-1',
+          employerIndex: 0,
+          applicantName: 'John Driver',
+          employerName: 'Old Carrier',
+          deliveryMethod,
+        },
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.verificationUrl).toBe('https://safehaul.test/verify/pev-token-123456');
+      expect(result).not.toHaveProperty('token');
+      expect(mockSendDynamicEmail).not.toHaveBeenCalled();
     });
 
     it('keeps an employer id a row already had, rather than re-minting it', async () => {

@@ -156,7 +156,7 @@ describe('PEVTab initiation flow and callable payload', () => {
 
     cleanup();
     vi.clearAllMocks();
-    fnMocks.callable.mockResolvedValue({ data: { success: true, token: 't', verificationUrl: 'u' } });
+    fnMocks.callable.mockResolvedValue({ data: { success: true, verificationUrl: 'u' } });
 
     renderTab();
     fireEvent.click(screen.getAllByRole('button', { name: /Initiate PEV/i })[0]);
@@ -215,6 +215,17 @@ describe('PEVTab initiation flow and callable payload', () => {
     expect(JSON.stringify(fsMocks.updateDoc.mock.calls)).not.toContain('tok-9');
   });
 
+  it('offers nothing to copy for an emailed request: the link went to the employer', async () => {
+    fnMocks.callable.mockResolvedValue({ data: { success: true } });
+    initiateFirst();
+    fireEvent.click(screen.getByText('proceed-email'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalled());
+    // Only the older row's stored link remains.
+    expect(screen.getAllByRole('button', { name: /Copy Link/i })).toHaveLength(1);
+  });
+
   it('keeps the link to copy when the application cannot be updated, and says the request exists', async () => {
     fsMocks.updateDoc.mockImplementation(async () => { throw new Error('offline'); });
     initiateFirst();
@@ -239,12 +250,8 @@ describe('PEVTab initiation flow and callable payload', () => {
    */
   it('does not erase the employer identity the callable just stamped', async () => {
     fnMocks.callable.mockResolvedValue({
-      data: {
-        success: true,
-        token: 'tok-9',
-        verificationUrl: 'https://portal.test/v/tok-9',
-        employerId: 'aaaaaaaaaaaa',
-      },
+      // An emailed request's reply: the link went to the employer, not here.
+      data: { success: true, employerId: 'aaaaaaaaaaaa' },
     });
     // The stored document has the id; the rendered prop does not, which is
     // exactly the state the server's stamp leaves behind.
@@ -267,12 +274,8 @@ describe('PEVTab initiation flow and callable payload', () => {
     // The array moved under the recruiter's screen. The index they pressed now
     // names a different employer; the identity does not.
     fnMocks.callable.mockResolvedValue({
-      data: {
-        success: true,
-        token: 'tok-9',
-        verificationUrl: 'https://portal.test/v/tok-9',
-        employerId: 'aaaaaaaaaaaa',
-      },
+      // An emailed request's reply: the link went to the employer, not here.
+      data: { success: true, employerId: 'aaaaaaaaaaaa' },
     });
     renderTab();
     storedDoc.employers = [
