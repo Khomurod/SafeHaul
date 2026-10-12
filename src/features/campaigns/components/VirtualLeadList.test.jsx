@@ -186,6 +186,32 @@ describe('VirtualLeadList — local data mode', () => {
     });
 });
 
+describe('VirtualLeadList — listed leads', () => {
+    it('reports the leads it holds once a load settles, never the empty list of a reload', async () => {
+        const onLeadsChange = vi.fn();
+        mockCallable.mockResolvedValue(page([lead('l1'), lead('l2')], null));
+        const { rerender } = render(<VirtualLeadList companyId="co-1" filters={{ status: ['new'] }} onLeadsChange={onLeadsChange} />);
+        await screen.findByText('Artificial L2');
+        expect(onLeadsChange).toHaveBeenLastCalledWith([lead('l1'), lead('l2')]);
+
+        // An un-tick hands the list new filters, and it reloads the same page.
+        // The audience count must not see the leads vanish in between.
+        onLeadsChange.mockClear();
+        rerender(<VirtualLeadList companyId="co-1" filters={{ status: ['new'], excludedLeadIds: ['l1'] }} onLeadsChange={onLeadsChange} />);
+        expect(screen.queryByText('Artificial L2')).not.toBeInTheDocument();
+        await screen.findByText('Artificial L2');
+        expect(mockCallable).toHaveBeenCalledTimes(2);
+        expect(onLeadsChange.mock.calls.map(([leads]) => leads.length)).toEqual([2]);
+    });
+
+    it('reports local rows as they are', () => {
+        const onLeadsChange = vi.fn();
+        const rows = [{ firstName: 'No', lastName: 'Id', phone: '555-0101' }];
+        render(<VirtualLeadList companyId="co-1" filters={{}} localData={rows} onLeadsChange={onLeadsChange} />);
+        expect(onLeadsChange).toHaveBeenLastCalledWith(rows);
+    });
+});
+
 describe('VirtualLeadList — selection semantics', () => {
     it('exposes each row as a keyboard-operable toggle with pressed state', () => {
         const onToggleExclusion = vi.fn();

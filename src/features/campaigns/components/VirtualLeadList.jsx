@@ -31,7 +31,7 @@ const STATUS_TONE = {
  */
 const PANEL_CLASS = 'h-[500px] w-full overflow-hidden rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse';
 
-export default function VirtualLeadList({ companyId, filters, excludedIds = [], onToggleExclusion, localData = null, excludedPhones = null }) {
+export default function VirtualLeadList({ companyId, filters, excludedIds = [], onToggleExclusion, localData = null, excludedPhones = null, onLeadsChange }) {
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(false);
     const [lastDocId, setLastDocId] = useState(null);
@@ -104,6 +104,13 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
             loadMore(true);
         }
     }, [filters, companyId, localData]);
+
+    // Tells the audience step which leads the preview holds once a load settles,
+    // so its count subtracts an un-ticked lead only while the lead is listed. A
+    // reload's empty list in between is not reported: every un-tick reloads.
+    useEffect(() => {
+        if (!loading) onLeadsChange?.(leads);
+    }, [leads, loading, onLeadsChange]);
 
     // Row Renderer
     const rowContent = (index, user) => {

@@ -32,12 +32,11 @@ const importMocks = vi.hoisted(() => ({
     processingSheet: false,
 }));
 
+// What the count hook answers. A test sets the numbers the ledger found.
+const defaultTargeting = () => ({ matchCount: 10, isLoading: false, excludedPhones: new Set() });
+let mockTargeting = defaultTargeting();
 vi.mock('../hooks/useCampaignTargeting', () => ({
-    useCampaignTargeting: () => ({
-        matchCount: 10,
-        isLoading: false,
-        excludedPhones: new Set(),
-    })
+    useCampaignTargeting: () => mockTargeting,
 }));
 
 // Captures the options AudienceBuilder passes, so the fix that stopped
@@ -64,30 +63,35 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({
 }));
 
 // Records the props the list receives so the frozen prop contract can be
-// verified, while keeping the two exclusion checkboxes the older tests drive.
+// verified. Like the real list, it shows the CRM leads or the uploaded rows,
+// names a row without an id by its place, and reports what it lists.
+const CRM_LEADS = [
+    { id: 'lead1', firstName: 'Alice', lastName: 'Driver' },
+    { id: 'lead2', firstName: 'Bob', lastName: 'Trucker' },
+];
+let mockCrmLeads = CRM_LEADS;
 const listProps = [];
 vi.mock('./VirtualLeadList', () => ({
-    default: (props) => {
-        const { filters, excludedIds, onToggleExclusion } = props;
+    default: function MockVirtualLeadList(props) {
+        const { filters, excludedIds, onToggleExclusion, localData, onLeadsChange } = props;
         listProps.push(props);
+        const leads = localData || mockCrmLeads;
+        React.useEffect(() => { onLeadsChange?.(leads); }, [filters, leads, onLeadsChange]);
         return (
             <div data-testid="virtual-lead-list">
-                <label>
-                    <input
-                        type="checkbox"
-                        checked={!excludedIds?.includes('lead1')}
-                        onChange={() => onToggleExclusion('lead1')}
-                    />
-                    Alice Driver
-                </label>
-                <label>
-                    <input
-                        type="checkbox"
-                        checked={!excludedIds?.includes('lead2')}
-                        onChange={() => onToggleExclusion('lead2')}
-                    />
-                    Bob Trucker
-                </label>
+                {leads.map((lead, index) => {
+                    const id = lead.id || `import_${index}`;
+                    return (
+                        <label key={id}>
+                            <input
+                                type="checkbox"
+                                checked={!excludedIds?.includes(id)}
+                                onChange={() => onToggleExclusion(id)}
+                            />
+                            {lead.firstName} {lead.lastName}
+                        </label>
+                    );
+                })}
             </div>
         );
     }
@@ -97,6 +101,8 @@ describe('AudienceBuilder', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockCsvData = [];
+        mockTargeting = defaultTargeting();
+        mockCrmLeads = CRM_LEADS;
     });
 
     it('renders and handles exclusions', () => {
@@ -159,11 +165,11 @@ describe('AudienceBuilder', () => {
         const { rerender } = render(<AudienceBuilder {...props} />);
 
         const checkboxes = screen.getAllByRole('checkbox');
-        fireEvent.click(checkboxes[0]); // exclude lead1
+        fireEvent.click(checkboxes[0]); // un-tick Alice, the first row
 
         expect(handleChange).toHaveBeenCalledWith(
-            expect.objectContaining({ excludedLeadIds: ['lead1'] }),
-            9
+            expect.objectContaining({ excludedLeadIds: ['import_0'] }),
+            1
         );
 
         mockCsvData = [
@@ -174,6 +180,7 @@ describe('AudienceBuilder', () => {
 
         const lastCall = handleChange.mock.calls.at(-1);
         expect(lastCall[0].excludedLeadIds || []).toEqual([]);
+        expect(lastCall[1]).toBe(2);
     });
 
     it('resets manual skips when campaign scope changes', () => {
@@ -190,10 +197,10 @@ describe('AudienceBuilder', () => {
         );
 
         const checkboxes = screen.getAllByRole('checkbox');
-        fireEvent.click(checkboxes[0]); // exclude lead1
+        fireEvent.click(checkboxes[0]); // un-tick Alice, the only row
         expect(handleChange).toHaveBeenCalledWith(
-            expect.objectContaining({ excludedLeadIds: ['lead1'] }),
-            9
+            expect.objectContaining({ excludedLeadIds: ['import_0'] }),
+            0
         );
 
         rerender(
@@ -224,14 +231,102 @@ describe('AudienceBuilder', () => {
         );
 
         const checkboxes = screen.getAllByRole('checkbox');
-        fireEvent.click(checkboxes[0]); // exclude lead1
+        fireEvent.click(checkboxes[0]); // un-tick Alice, the only row
 
         const excludeSelect = screen.getAllByRole('combobox').at(-1);
         fireEvent.change(excludeSelect, { target: { value: '30' } });
 
         const lastCall = handleChange.mock.calls.at(-1);
-        expect(lastCall[0].excludedLeadIds || []).toEqual(['lead1']);
+        expect(lastCall[0].excludedLeadIds || []).toEqual(['import_0']);
         expect(lastCall[0].excludeRecentDays).toBe('30');
+    });
+
+    it('stops subtracting an un-ticked lead the new filters no longer list', () => {
+        const handleChange = vi.fn();
+        render(<AudienceBuilder companyId="123" filters={{ excludedLeadIds: [] }} onChange={handleChange} />);
+
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Alice Driver' }));
+        expect(handleChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({ excludedLeadIds: ['lead1'] }),
+            9,
+        );
+
+        // Alice is an applicant, not one of "My Leads": the server's count of 10
+        // already leaves her out, and taking her off again would undercount. Her
+        // un-tick still goes to the server, in case the filters match her again.
+        mockCrmLeads = [{ id: 'lead3', firstName: 'Cara', lastName: 'Hauler' }];
+        fireEvent.change(screen.getByLabelText('Source'), { target: { value: 'leads' } });
+
+        expect(handleChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({ leadType: 'leads', excludedLeadIds: ['lead1'] }),
+            10,
+        );
+        expect(screen.queryByText(/manually excluded/)).not.toBeInTheDocument();
+    });
+
+    it('counts an un-ticked row the ledger then finds already messaged once', () => {
+        mockCsvData = [
+            { normalizedPhone: '+15550000001', firstName: 'Alice', lastName: 'One' },
+            { normalizedPhone: '+15550000002', firstName: 'Bob', lastName: 'Two' },
+            { normalizedPhone: '+15550000003', firstName: 'Cara', lastName: 'Three' },
+        ];
+        mockTargeting = { ...defaultTargeting(), matchCount: 3 };
+        const handleChange = vi.fn();
+        render(
+            <AudienceBuilder
+                companyId="123"
+                filters={{ leadType: 'import', excludeRecentDays: 'off', excludedLeadIds: [] }}
+                onChange={handleChange}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Alice One' }));
+        expect(handleChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({ excludedLeadIds: ['import_0'] }),
+            2,
+        );
+
+        // Under "Last 7 Days" the ledger finds Alice's number. She is left out
+        // once: two of the three rows are messaged, not one.
+        mockTargeting = { ...defaultTargeting(), matchCount: 2, excludedPhones: new Set(['+15550000001']) };
+        fireEvent.change(screen.getByLabelText('Exclude Previously Messaged'), { target: { value: '7' } });
+
+        expect(handleChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({ excludeRecentDays: '7', excludedLeadIds: ['import_0'] }),
+            2,
+        );
+        expect(screen.getByText('1 already messaged')).toBeInTheDocument();
+        expect(screen.queryByText(/manually excluded/)).not.toBeInTheDocument();
+    });
+
+    it('clears the un-ticks when any row of a re-imported list changes', () => {
+        const row = (n, firstName) => ({ normalizedPhone: `+1555000000${n}`, firstName, lastName: 'Driver' });
+        mockCsvData = ['Ann', 'Ben', 'Cal', 'Dee', 'Eve', 'Fay'].map((name, i) => row(i + 1, name));
+        const handleChange = vi.fn();
+        const props = {
+            companyId: '123',
+            filters: { leadType: 'import', excludedLeadIds: [] },
+            onChange: handleChange,
+            campaignScopeKey: 'cmp-a',
+        };
+        const { rerender } = render(<AudienceBuilder {...props} />);
+
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Fay Driver' }));
+        expect(handleChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({ excludedLeadIds: ['import_5'] }),
+            5,
+        );
+
+        // The sheet is imported again: the same length and the same first five
+        // rows, but someone else is sixth now, and they were never un-ticked.
+        mockCsvData = [...mockCsvData.slice(0, 5).map((r) => ({ ...r })), row(7, 'Gus')];
+        rerender(<AudienceBuilder {...props} />);
+
+        expect(handleChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({ excludedLeadIds: [] }),
+            6,
+        );
+        expect(screen.getByRole('checkbox', { name: 'Gus Driver' })).toBeChecked();
     });
 });
 
@@ -243,6 +338,8 @@ describe('AudienceBuilder — migrated presentation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockCsvData = [];
+        mockTargeting = defaultTargeting();
+        mockCrmLeads = CRM_LEADS;
         listProps.length = 0;
         importMocks.sheetUrl = '';
         importMocks.processingSheet = false;
@@ -397,6 +494,7 @@ describe('AudienceBuilder — migrated presentation', () => {
         expect(crmProps.excludedPhones).toBeNull();
         expect(crmProps.filters).toEqual(expect.objectContaining({ excludedLeadIds: [] }));
         expect(typeof crmProps.onToggleExclusion).toBe('function');
+        expect(typeof crmProps.onLeadsChange).toBe('function');
 
         fireEvent.click(screen.getByRole('tab', { name: /Upload List/ }));
         const uploadProps = listProps.at(-1);
