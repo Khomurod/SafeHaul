@@ -116,22 +116,26 @@ function deliveryFields(deliveryMethod) {
 }
 
 /**
- * What the server sends for a correction (`resendSignerOnCorrection`, whose
- * rule this is: change both): a new link, the old one void, when a contact the
- * link went to changed; the current link to a contact or channel it never went to.
+ * What the server sends for a correction (`functions/shared/signingLink.js`,
+ * whose rule this is: change both): a new link, the old one void, when the link
+ * went to an email or phone the request no longer has; the link to a contact or
+ * channel it has not reached. `linkSentTo` records where it went; a request
+ * saved before that record was sent by email unless switched off, and by text
+ * only when asked for.
  */
 function correctionDelivery(before, after) {
     if (before.status !== 'sent') return null;
-    const emailOf = (data) => String(data.recipientEmail || '').trim().toLowerCase();
-    const phoneOf = (data) => normalizePhone(data.recipientPhone);
-    const emailsLink = (data) => data.sendEmail !== false && Boolean(emailOf(data));
-    const textsLink = (data) => Boolean(data.sendSms) && Boolean(phoneOf(data));
-    const emailChanged = emailOf(before) !== emailOf(after);
-    const phoneChanged = phoneOf(before) !== phoneOf(after);
-    const newToken = (emailChanged && emailsLink(before)) || (phoneChanged && textsLink(before));
-    const email = emailsLink(after) && (newToken || emailChanged || !emailsLink(before));
-    const sms = textsLink(after) && (newToken || phoneChanged || !textsLink(before));
-    return newToken || email || sms ? { newToken, email, sms } : null;
+    const emailOf = (value) => String(value || '').trim().toLowerCase();
+    const sentTo = before.linkSentTo || {
+        email: before.sendEmail !== false ? before.recipientEmail : '',
+        phone: before.sendSms ? before.recipientPhone : '',
+    };
+    const [sentEmail, sentPhone] = [emailOf(sentTo.email), normalizePhone(sentTo.phone)];
+    const [email, phone] = [emailOf(after.recipientEmail), normalizePhone(after.recipientPhone)];
+    const newToken = Boolean((sentEmail && sentEmail !== email) || (sentPhone && sentPhone !== phone));
+    const sendsEmail = after.sendEmail !== false && Boolean(email) && (newToken || sentEmail !== email);
+    const sendsSms = Boolean(after.sendSms) && Boolean(phone) && (newToken || sentPhone !== phone);
+    return newToken || sendsEmail || sendsSms ? { newToken, email: sendsEmail, sms: sendsSms } : null;
 }
 
 /** What a saved correction tells its sender. */

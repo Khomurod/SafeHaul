@@ -115,6 +115,16 @@ describe('saveEnvelope correcting a sent request', () => {
         expect(showSuccess).toHaveBeenCalledWith('Document updated. The signing link is on its way by SMS.');
     });
 
+    it('reads where the link went from its record: a changed phone it was texted to gets a new link', async () => {
+        // SMS was switched off after the link was texted, so only the record says the phone has it.
+        mocks.getDoc.mockResolvedValue({
+            data: () => ({ ...SENT, linkSentTo: { email: 'dana@wrong.example.test', phone: '+15555550100' } }),
+        });
+        const { showSuccess } = await correct({ recipientPhone: '(555) 555-0199' });
+
+        expect(showSuccess).toHaveBeenCalledWith('Document corrected. A new signing link is on its way by Email, and the old one no longer works.');
+    });
+
     it('promises nothing for a request that is already signed', async () => {
         mocks.getDoc.mockResolvedValue({ data: () => ({ ...SENT, status: 'signed' }) });
         const { showSuccess } = await correct({ recipientEmail: 'dana@example.test' });

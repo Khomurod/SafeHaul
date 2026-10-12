@@ -70,6 +70,14 @@ it('texts the link once and records it', async () => {
     expect(mockRequest.fields).toMatchObject({ smsDeliveryId: 'event-1', smsStatus: 'sent' });
 });
 
+it('records the phone it texts with its claim, before the text is sent', async () => {
+    let recordedWhenSent;
+    mockSendSms.mockImplementation(async () => { recordedWhenSent = mockRequest.fields['linkSentTo.phone']; });
+    await created();
+
+    expect(recordedWhenSent).toBe('+15555550100');
+});
+
 it('texts nothing when the same event is delivered again', async () => {
     await created();
     await created();

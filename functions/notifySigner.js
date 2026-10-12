@@ -6,6 +6,7 @@
 const functions = require('firebase-functions/v1');
 const { sendDynamicEmail } = require('./emailService');
 const { escapeHtml } = require('./shared/plainText');
+const { emailOf } = require('./shared/signingLink');
 
 /** The link a signer opens, on the domain the request was sent from. */
 function signingLinkFor(companyId, requestId, data, accessToken) {
@@ -25,9 +26,11 @@ async function readSigningToken(ref, data) {
 
 /**
  * Emails a signing request's link to its signer and records on the request how
- * that went. `replacesEarlierLink` says the link sent before no longer works.
+ * that went. `replacesEarlierLink` says the link sent before no longer works;
+ * `recordSentTo` records the address in `linkSentTo` first (`shared/signingLink.js`),
+ * for a sender that has not claimed it already.
  */
-async function emailSigningLink({ companyId, requestId, ref, data, accessToken, replacesEarlierLink = false }) {
+async function emailSigningLink({ companyId, requestId, ref, data, accessToken, replacesEarlierLink = false, recordSentTo = false }) {
     // 1. Validate required fields before proceeding
     if (!data.recipientEmail || !accessToken) {
         console.warn(`[Notify] Skipped: Missing recipientEmail or accessToken for request ${requestId}`);
@@ -74,6 +77,7 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
 
     // 4. Send via unified email service (uses company's own SMTP settings)
     try {
+        if (recordSentTo) await ref.update({ 'linkSentTo.email': emailOf(data) });
         await sendDynamicEmail(companyId, data.recipientEmail, subject, html);
         console.log(`[Notify] Signing email sent to ${data.recipientEmail} for request ${requestId}`);
 
@@ -106,7 +110,7 @@ exports.notifySigner = functions.firestore
         }
 
         const accessToken = await readSigningToken(snap.ref, data);
-        await emailSigningLink({ companyId, requestId, ref: snap.ref, data, accessToken });
+        await emailSigningLink({ companyId, requestId, ref: snap.ref, data, accessToken, recordSentTo: true });
         return null;
     });
 

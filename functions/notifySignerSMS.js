@@ -9,18 +9,20 @@ const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { admin } = require('./firebaseAdmin');
 const SMSAdapterFactory = require('./integrations/factory');
 const { readSigningToken, signingLinkFor } = require('./notifySigner');
+const { phoneOf } = require('./shared/signingLink');
 const db = admin.firestore();
 
 /**
  * Claims a signing request's delivery for one event, in a transaction: true for
  * the first run that claims it under `field`, false for any other. Firestore
  * delivers an event at least once, so a trigger can run twice for one event.
+ * `record` is written with the claim.
  */
-function claimDelivery(ref, field, eventId) {
+function claimDelivery(ref, field, eventId, record = {}) {
     return db.runTransaction(async (tx) => {
         const current = await tx.get(ref);
         if (current.get(field) === eventId) return false;
-        tx.update(ref, { [field]: eventId });
+        tx.update(ref, { [field]: eventId, ...record });
         return true;
     });
 }
@@ -101,7 +103,9 @@ exports.notifySignerSMS = onDocumentCreated(
             ref,
             data,
             accessToken: readSigningToken(ref, data),
-            claim: () => claimDelivery(ref, 'smsDeliveryId', event.id),
+            // The phone goes into `linkSentTo` with the claim, before the text
+            // is sent (`shared/signingLink.js`).
+            claim: () => claimDelivery(ref, 'smsDeliveryId', event.id, { 'linkSentTo.phone': phoneOf(data) }),
         });
         return null;
     }

@@ -2,40 +2,25 @@
  * resendSignerOnCorrection.js — a corrected signing request goes out again.
  *
  * A request is sent once, when it is created (`notifySigner`, `notifySignerSMS`).
- * A recruiter who corrects the email or phone the link went to (Correct
- * Document) is saying it went to the wrong place, so the request gets a new
- * token, the old link stops working, and the new link goes out on every channel
- * the request uses. A contact the link never went to, or a channel the
- * correction switches on, gets the current link. Only an unsigned request
- * (`sent`) is sent again. `correctionDelivery` in `envelopePersistence.js`
- * follows the same rule to word its confirmation: change both.
+ * When Correct Document changes its email, phone or channels, the link is settled
+ * again (`shared/signingLink.js`): a link that went to an email or phone the
+ * request no longer has is replaced, so the old link stops working, and the link
+ * goes out on every channel whose contact it has not reached. Only an unsigned
+ * request (`sent`) is sent again.
  */
 const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
-const { randomUUID } = require('crypto');
-const { emailSigningLink, readSigningToken } = require('./notifySigner');
-const { claimDelivery, textSigningLink } = require('./notifySignerSMS');
-const { normalizePhone } = require('./shared/normalizePhone');
+const { admin } = require('./firebaseAdmin');
+const { emailSigningLink } = require('./notifySigner');
+const { textSigningLink } = require('./notifySignerSMS');
+const { emailOf, phoneOf, settleSigningLink } = require('./shared/signingLink');
+const db = admin.firestore();
 
-const emailOf = (data) => (typeof data?.recipientEmail === 'string' ? data.recipientEmail.trim().toLowerCase() : '');
-const phoneOf = (data) => normalizePhone(data?.recipientPhone)
-    || (typeof data?.recipientPhone === 'string' ? data.recipientPhone.replace(/\D/g, '') : '');
-// As the creation triggers read them: email unless switched off, a text only when asked for.
-const emailsLink = (data) => data.sendEmail !== false && Boolean(emailOf(data));
-const textsLink = (data) => Boolean(data.sendSms) && Boolean(phoneOf(data));
-
-/**
- * What a change to a signing request sends, or null for nothing: `newToken`
- * when a contact the link went to changed, and the channels to send on.
- */
-function correctionDelivery(before, after) {
-    if (!before || !after || after.status !== 'sent') return null;
-    const emailChanged = emailOf(before) !== emailOf(after);
-    const phoneChanged = phoneOf(before) !== phoneOf(after);
-    const newToken = (emailChanged && emailsLink(before)) || (phoneChanged && textsLink(before));
-    const email = emailsLink(after) && (newToken || emailChanged || !emailsLink(before));
-    const sms = textsLink(after) && (newToken || phoneChanged || !textsLink(before));
-    if (!newToken && !email && !sms) return null;
-    return { newToken, email, sms };
+/** Whether a change touched where a request's link goes. */
+function routeChanged(before, after) {
+    return emailOf(before) !== emailOf(after)
+        || phoneOf(before) !== phoneOf(after)
+        || (before.sendEmail !== false) !== (after.sendEmail !== false)
+        || Boolean(before.sendSms) !== Boolean(after.sendSms);
 }
 
 exports.resendSignerOnCorrection = onDocumentUpdated(
@@ -45,34 +30,26 @@ exports.resendSignerOnCorrection = onDocumentUpdated(
         secrets: ['SMS_ENCRYPTION_KEY']
     },
     async (event) => {
-        const after = event.data.after.data();
-        const delivery = correctionDelivery(event.data.before.data(), after);
-        if (!delivery) return null;
+        const before = event.data.before.data();
+        if (!routeChanged(before, event.data.after.data())) return null;
 
         const { companyId, requestId } = event.params;
         const ref = event.data.after.ref;
-        // Firestore delivers an event at least once: only the first run for a
-        // correction replaces the token and sends.
-        if (!(await claimDelivery(ref, 'correctionDeliveryId', event.id))) return null;
+        // Firestore delivers an event at least once and in no set order, so the
+        // work is decided on the request as it is now, in a transaction: a
+        // repeated or overtaken event finds the link already where it belongs.
+        const work = await db.runTransaction(async (tx) => {
+            const data = (await tx.get(ref)).data() || {};
+            return { data, ...(await settleSigningLink(tx, ref, data, { send: true, sentAs: before })) };
+        });
 
-        let accessToken;
-        if (delivery.newToken) {
-            // The signing room and Copy Link read `secrets/token` before any
-            // older token kept on the request itself, so this retires both.
-            accessToken = randomUUID();
-            await ref.collection('secrets').doc('token').set({ accessToken });
-        } else {
-            accessToken = await readSigningToken(ref, after);
+        const { data, accessToken } = work;
+        if (work.email) {
+            await emailSigningLink({ companyId, requestId, ref, data, accessToken, replacesEarlierLink: work.emailHeldOldLink });
         }
-
-        if (delivery.email) {
-            await emailSigningLink({ companyId, requestId, ref, data: after, accessToken, replacesEarlierLink: delivery.newToken });
-        }
-        if (delivery.sms) {
-            await textSigningLink({ companyId, requestId, ref, data: after, accessToken });
+        if (work.sms) {
+            await textSigningLink({ companyId, requestId, ref, data, accessToken });
         }
         return null;
     }
 );
-
-exports.correctionDelivery = correctionDelivery;
