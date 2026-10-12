@@ -27,16 +27,17 @@ on:
     inputs:
       source_size_base:
         description: >-
-          Optional baseline commit for the source-size guard AND the UI-contract
-          allowlist, which share it: one baseline question, one answer, one place
-          an operator can get it wrong. Leave it empty and both guards compare
+          Optional baseline commit for the guards that compare against one (the
+          agent-docs limits, the UI-contract allowlist and the icon-contract
+          backlog), which share it: one baseline question, one answer, one place
+          an operator can get it wrong. Leave it empty and the guards compare
           against the newest ancestor carrying a fully validated release, which
           they ask GitHub for. Set it only when that walk finds nothing and you
           can name a release you know was good. It clears a HIGHER bar than an
           inferred base, because an escape hatch nobody checks is a bypass: an
           ancestor, not the head, itself carrying a validated release, containing
           the base the walk would have chosen, and not from before the
-          source-size backlog or the UI-contract allowlist existed.
+          list it protects existed.
         required: false
         default: ''
       secret_scan_base:
@@ -174,19 +175,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # The source-size guard asks which ancestor last carried a fully validated
-      # release, which is a check-runs query. Read-only, and the same grant
-      # `secret-scan` carries for the same lookup.
+      # The agent-docs, UI-contract and icon-contract guards ask which ancestor
+      # last carried a fully validated release, which is a check-runs query.
+      # Read-only, and the same grant `secret-scan` carries for the same lookup.
       checks: read
     # Always runs. It is ~20 seconds and it is the self-test for the release
     # system itself — the promotion gate, and the CI planner and validation gate
     # that decide what may be skipped. Making the checks that guard the
     # optimisation skippable by the optimisation would be circular.
     steps:
-      # Full history: the source-size guard proves the backlog did not grow by
-      # reading its previous version out of git, and a depth-1 checkout has no
-      # previous version to read. Without this the guard refuses (which is the
-      # designed behaviour) rather than passing on an unverified backlog.
+      # Full history: the agent-docs, UI-contract and icon-contract guards read
+      # their previous version out of git, and a depth-1 checkout has none to
+      # read. Without this they refuse (the designed behaviour) rather than pass
+      # on an unverified list.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -263,31 +264,11 @@ jobs:
       - name: Verify the source-size guard
         run: npm run test:source-size
 
-      # `--require-baseline` is what stops the backlog being edited into an
-      # allowlist. The three backlog rules are enforced against the backlog in
-      # the branch under test, which that branch may edit, so the guard also
-      # reads the previous version out of git and refuses any entry added or any
-      # recorded count raised. A run that cannot find that previous version
-      # refuses too, here — there is no skip path where tampering is the concern.
+      # Runtime code and tooling warn past 500 lines and are refused past 700;
+      # tests have no limit. It compares with no base commit: there is no list
+      # of exemptions to protect.
       - name: Check source sizes
-        run: npm run check:source-size -- --require-baseline
-        env:
-          # Asking "which ancestor last carried a fully validated release" needs a
-          # token and `checks: read`, declared on this job above. It is the same
-          # question `scripts/secret-scan.mjs` and `scripts/resolve-deploy-base.mjs`
-          # both ask, for the same reason: `github.event.before` is only as good as
-          # the run that happened on it, and after a FAILED push it IS the failure.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # A pull request measures against what it was proposed against — a
-          # definition, so it needs no validated-release proof. Every other event
-          # asks GitHub.
-          GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          # An operator naming a base on a manual run, for when the walk finds
-          # nothing. It clears a HIGHER bar than an inferred base — an ancestor, not
-          # the head, carrying a validated release, containing whatever the walk
-          # would have chosen, and not from before the backlog existed — because an
-          # escape hatch nobody checks is a bypass, measured four times now.
-          SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
+        run: npm run check:source-size
 
       # The files AI agents read as instructions stay small: one nobody can hold
       # in mind is one nobody follows, and Codex silently cuts long ones off.
@@ -295,8 +276,8 @@ jobs:
       - name: Verify the agent-docs guard
         run: npm run test:agent-docs
 
-      # Limits may only move down, compared with the same base commit the
-      # source-size step above uses, from the same three inputs.
+      # Limits may only move down, compared with a base commit chosen from the
+      # same three inputs as the UI-contract step below.
       - name: Check agent instruction sizes
         run: npm run check:agent-docs -- --require-baseline
         env:
@@ -319,8 +300,8 @@ jobs:
         run: npm run check:ai-boundary
 
       # The design-system ratchet, moved here from `frontend-quality` on
-      # 2026-09-04 for the reason the source-size guard is here: it now proves the
-      # allowlist did not grow by reading the previous version out of git, which
+      # 2026-09-04: it proves the allowlist did not grow by reading the previous
+      # version out of git, which
       # needs `fetch-depth: 0`, `checks: read`, a token and the shared
       # `SOURCE_SIZE_BASE` — all of which this job already has — and it needs to
       # be unskippable, which a lane below `plan` is not. A design-system standard
@@ -342,9 +323,9 @@ jobs:
       - name: UI contract ratchet
         run: npm run check:ui-contract -- --require-baseline
         env:
-          # The same three as "Check source sizes" above, and deliberately the
-          # same override: one baseline question, one answer, one place an
-          # operator can get it wrong.
+          # The same three as "Check agent instruction sizes" above, and
+          # deliberately the same override: one baseline question, one answer,
+          # one place an operator can get it wrong.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
