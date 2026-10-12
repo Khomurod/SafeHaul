@@ -46,6 +46,7 @@ import { failureCount } from './ci-plan/test-support.mjs';
 const SECTIONS = [
     './ci-plan/test-selection.mjs',
     './ci-plan/test-gate.mjs',
+    './ci-plan/test-carry-over.mjs',
     './ci-plan/test-wiring.mjs',
     './ci-plan/test-deploy-base.mjs',
     './ci-plan/test-shipped.mjs',
