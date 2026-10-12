@@ -59,11 +59,12 @@ vi.mock('@lib/firebase', () => ({
 const mockCardProps = [];
 vi.mock('./components/CampaignCard', () => ({
     CampaignCard: (props) => {
-        const { campaign, onCancel, onDelete } = props;
+        const { campaign, onCancel, onDelete, onClick } = props;
         mockCardProps.push(props);
         return (
             <div data-testid="campaign-card">
                 {campaign.name} - {campaign.status}
+                {onClick && <button onClick={onClick}>open {campaign.id}</button>}
                 {onCancel && (
                     <button onClick={() => onCancel(campaign)}>cancel {campaign.id}</button>
                 )}
@@ -77,6 +78,15 @@ vi.mock('./components/CampaignCard', () => ({
 
 vi.mock('./CampaignEditor', () => ({
     CampaignEditor: () => <div>Editor</div>
+}));
+
+vi.mock('./components/CampaignDetails', () => ({
+    CampaignDetails: ({ campaign, onClose }) => (
+        <div data-testid="campaign-details">
+            {campaign.name}: {campaign.status}, {campaign.progress?.processedCount ?? 0} sent
+            <button onClick={onClose}>close details</button>
+        </div>
+    ),
 }));
 
 describe('CampaignsDashboard', () => {
@@ -441,5 +451,60 @@ describe('CampaignsDashboard shell', () => {
             rules: { region: { enabled: false } },
         });
         expect(results.violations).toEqual([]);
+    });
+});
+
+// The details of a sent campaign follow its live session document.
+describe('CampaignsDashboard campaign details', () => {
+    let draftCb;
+    let sessionCb;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        draftCb = undefined;
+        sessionCb = undefined;
+        mockOnSnapshot.mockImplementation((q, cb) => {
+            if (!draftCb) draftCb = cb;
+            else sessionCb = cb;
+        });
+        useData.mockReturnValue({ currentCompanyProfile: { features: { campaignsEnabled: true } } });
+    });
+
+    const session = (processedCount, status = 'active') => ({
+        id: 's1',
+        name: 'Spring drive',
+        status,
+        createdAt: { toDate: () => new Date() },
+        progress: { totalCount: 100, processedCount },
+    });
+    const emit = (sessions) => React.act(async () => {
+        sessionCb({ docs: sessions.map((s) => ({ id: s.id, data: () => s })) });
+    });
+    const openDetails = async () => {
+        render(<CampaignsDashboard companyId="co1" />);
+        await React.act(async () => { draftCb({ docs: [] }); });
+        await emit([session(10)]);
+        fireEvent.click(screen.getByText(/Past Sequences/i));
+        fireEvent.click(screen.getByText('open s1'));
+    };
+
+    it('updates the open details as the session sends', async () => {
+        await openDetails();
+        expect(screen.getByTestId('campaign-details')).toHaveTextContent('Spring drive: active, 10 sent');
+
+        await emit([session(60)]);
+        expect(screen.getByTestId('campaign-details')).toHaveTextContent('Spring drive: active, 60 sent');
+
+        await emit([session(100, 'completed')]);
+        expect(screen.getByTestId('campaign-details')).toHaveTextContent('Spring drive: completed, 100 sent');
+    });
+
+    it('goes back to the list when the open session is deleted', async () => {
+        await openDetails();
+
+        await emit([]);
+
+        expect(screen.queryByTestId('campaign-details')).not.toBeInTheDocument();
+        expect(screen.getByRole('tablist')).toBeInTheDocument();
     });
 });
