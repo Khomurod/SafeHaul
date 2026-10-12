@@ -3,15 +3,14 @@
 // The sequential send loop: one lead at a time — mid-batch cancel check,
 // idempotency check, data fetch, blacklist check, the send itself, the
 // atomic log+pointer transaction, the lead timestamp, and the SMS/email
-// dedup ledgers, with the 3-second pacing delay. Extracted verbatim from
-// `batchWorker.js` except the seam: the batch counters are locals here and
-// are returned, where the worker used to close over them.
+// dedup ledgers, with the 3-second pacing (`sendPacing.js`). Extracted
+// verbatim from `batchWorker.js` except the seam: the batch counters are
+// locals here and are returned, where the worker used to close over them.
 
 const { admin, db } = require("../../firebaseAdmin");
 const { isBlacklisted } = require("../../blacklist");
 const { normalizePhone } = require("../../utils/phoneUtils");
-
-const delay = ms => new Promise(res => setTimeout(res, ms));
+const { pauseBeforeNextSend } = require("./sendPacing");
 
 /** Returns `{ batchSuccessCount, batchFailCount, pointerAdvanceCount }`. */
 async function runSendLoop({
@@ -248,9 +247,7 @@ async function runSendLoop({
                 }
 
                 // 5. Safety Delay (3s requirement)
-                const elapsed = Date.now() - loopStart;
-                const waitTime = Math.max(3000 - elapsed, 100);
-                await delay(waitTime);
+                await pauseBeforeNextSend(Date.now() - loopStart);
             }
         } catch (loopError) {
             console.error("Critical Loop Error:", loopError);

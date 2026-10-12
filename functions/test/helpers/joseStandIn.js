@@ -8,7 +8,7 @@
  *
  * Only App Check and phone-number token checks call into jose; the app makes
  * neither and no unit test does, and a test that ever did would fail on this
- * empty object instead of passing on a fake. `firebaseAdmin.test.js` loads the
- * real entry point under plain Node, where the real jose runs.
+ * empty object instead of passing on a fake. `deployedEntryPoint.test.js` loads
+ * the real entry point under plain Node, where the real jose runs.
  */
 module.exports = {};

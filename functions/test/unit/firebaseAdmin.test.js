@@ -2,13 +2,13 @@
 // `admin.*` calls the code makes from the modular API. Nearly every suite mocks
 // that module, which means a call it does not provide passes every test and
 // throws only in production. This file is the one place the real module runs:
-// every `admin.<path>` a runtime file uses must exist on it, nothing may go back
-// to the removed namespace, and the deployed entry point must load under plain
-// Node, where the real SDK (and its ESM-only `jose`) is used.
+// every `admin.<path>` a runtime file uses must exist on it, and nothing may go
+// back to the removed namespace. The deployed entry point loading under plain
+// Node, where the real SDK (and its ESM-only `jose`) is used, is
+// `deployedEntryPoint.test.js`.
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
 
 const FUNCTIONS_DIR = path.join(__dirname, '..', '..');
 const IMPORTS_WRAPPER_ADMIN = /\{[^}]*\badmin\b[^}]*\}\s*=\s*require\(\s*['"][./]*firebaseAdmin['"]\s*\)/;
@@ -63,15 +63,4 @@ describe('firebaseAdmin', () => {
             .map(relative);
         expect(offenders).toEqual([]);
     });
-
-    it('loads the deployed entry point under plain Node', () => {
-        const run = spawnSync(
-            process.execPath,
-            ['-e', "process.stdout.write(String(Object.keys(require('./index.js')).length))"],
-            { cwd: FUNCTIONS_DIR, encoding: 'utf8', timeout: 60000 },
-        );
-        // A failed load reports Node's own error (or the spawn error) as the received value.
-        expect(run.status === 0 ? '' : String(run.error || run.stderr)).toBe('');
-        expect(Number(run.stdout.trim().split('\n').pop())).toBeGreaterThan(100);
-    }, 70000);
 });
