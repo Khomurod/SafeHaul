@@ -1,5 +1,5 @@
 /**
- * A signing session that crosses UTC midnight.
+ * Date Signed in the signing room.
  *
  * `submitPublicEnvelope` stamps Date Signed from the server clock at the moment
  * the submission lands. A document opened at 23:55 and submitted at 00:05 would
@@ -7,12 +7,17 @@
  * screen-versus-PDF disagreement this feature exists to prevent. The room
  * re-checks against the SERVER's clock (carried on `serverTime`, not the
  * device's) and makes the signer look at the corrected document once.
+ *
+ * The server stamps a field bound to the signing date whatever the signer
+ * entered, so the room treats it as locked even where it was saved editable,
+ * as AI-placed dates were.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '@shared/components/feedback';
+import { writeDraft } from '@features/signing/utils/signingDraft';
 
 const getEnvelopeFn = vi.fn();
 const submitFn = vi.fn();
@@ -146,6 +151,36 @@ describe('SigningRoom — the day rolls over mid-session', () => {
         // says 11 September, so nothing moves and nothing interrupts the signer.
         vi.setSystemTime(new Date('2026-09-10T23:55:00Z'));
         await openAndConsent();
+
+        fireEvent.click(screen.getAllByRole('button', { name: /Finish & Submit/ })[0]);
+        await waitFor(() => expect(submitFn).toHaveBeenCalledTimes(1));
+        expect(submitFn.mock.calls[0][0].fieldValues.date_signed).toBe('September 11, 2026');
+    });
+});
+
+describe('SigningRoom — a Date Signed saved editable', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        const envelope = envelopeStampedOnTheEleventh();
+        Object.assign(envelope.data.fields[0], { readOnly: false, prefillPolicy: 'editable' });
+        getEnvelopeFn.mockResolvedValue(envelope);
+        submitFn.mockResolvedValue({ data: { success: true } });
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date(OPENED_AT));
+        try { localStorage.clear(); } catch { /* best effort */ }
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('shows the stamped date, restores no draft over it and never asks for it', async () => {
+        // The signer once cleared the box while it was editable, and the room
+        // kept that in its draft.
+        writeDraft('co1', 'req1', { date_signed: '' });
+        const { container } = await openAndConsent();
+        expect(container.querySelector('[data-field-id="date_signed"]').textContent)
+            .toContain('September 11, 2026');
 
         fireEvent.click(screen.getAllByRole('button', { name: /Finish & Submit/ })[0]);
         await waitFor(() => expect(submitFn).toHaveBeenCalledTimes(1));

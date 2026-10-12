@@ -1,7 +1,6 @@
 import React from 'react';
 import { Icon, PenTool, Fingerprint } from '@design-system/icons';
 import { isFieldLocked } from '@features/signing/utils/prefillEngine';
-import { resolveSignedDateValue } from '@features/signing/utils/signedDate';
 import { SignerFieldOverlay } from '@features/signing/components/SignerFieldOverlay';
 
 /**
@@ -79,9 +78,7 @@ export function SignerField({
             );
         }
         case 'date': {
-            // A signing date shows the date stamped on it, even on a field saved
-            // unlocked: the server replaces whatever the signer enters there.
-            if (isFieldLocked(field) || resolveSignedDateValue(field) !== null) {
+            if (isFieldLocked(field)) {
                 return (
                     <SignerFieldOverlay field={field} interactive={false}>
                         <div className={`${fillClass} flex items-center overflow-hidden rounded-ds-sm border-2 border-ds-status-success-border bg-ds-status-success-bg px-2 text-ds-sm font-medium text-ds-content`}>

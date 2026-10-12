@@ -110,8 +110,15 @@ export function normalizePrefillPolicy(field = {}) {
   return field.readOnly ? 'locked' : 'editable';
 }
 
+/**
+ * Whether the signer can change the field: not when its prefill is locked, and
+ * not when it is bound to the signing date, which the server stamps at submit
+ * whatever the signer entered (`submitPublicEnvelope`). The signing room shows
+ * such a field, restores no draft over it and never asks for it.
+ */
 export function isFieldLocked(field = {}) {
-  return normalizePrefillPolicy(field) === 'locked';
+  return normalizePrefillPolicy(field) === 'locked'
+    || normalizeTokenKey(field.bindingKey) === SIGNING_DATE_KEY;
 }
 
 export function resolveFieldForSend(field = {}, context = {}, options = {}) {
