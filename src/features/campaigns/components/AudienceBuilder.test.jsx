@@ -3,6 +3,9 @@ import { axe } from 'vitest-axe';
 import { AudienceBuilder } from './AudienceBuilder';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
+import { ERROR_MESSAGES } from '../constants/campaignConstants';
+
+const { COUNT_FAILED } = ERROR_MESSAGES;
 
 // Mocks
 vi.mock('@/shared/hooks/useCompanyTeam', () => ({
@@ -612,6 +615,18 @@ describe('AudienceBuilder — migrated presentation', () => {
         mockTargeting = { ...defaultTargeting(), matchCount: 2001 };
         renderBuilder();
         expect(screen.getByText('Over the 2,000-per-launch limit')).toBeInTheDocument();
+    });
+
+    it('shows a failed count as a failure, with a way to try again', () => {
+        const retry = vi.fn();
+        mockTargeting = { ...defaultTargeting(), matchCount: 0, error: COUNT_FAILED, retry };
+        renderBuilder();
+
+        expect(screen.getByText('Could not count this audience')).toBeInTheDocument();
+        expect(screen.getByRole('status')).toHaveTextContent('The recipient count failed.');
+        expect(screen.queryByText('0')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+        expect(retry).toHaveBeenCalledTimes(1);
     });
 
     it('does not flag an audience of exactly 2,000', () => {

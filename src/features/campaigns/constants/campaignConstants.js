@@ -58,6 +58,8 @@ export const isCancellableSessionStatus = (status) =>
  */
 export const ERROR_MESSAGES = {
     ZERO_RESULTS: "No drivers match these filters. Try removing the 'Date' or 'Recruiter' filter to see more results.",
+    // The server could not count: not the same as nobody matching.
+    COUNT_FAILED: "The server could not count this audience. Check your connection and try again.",
     MISSING_AUTH: "Verifying your security credentials...",
     MISSING_COMPANY: "Selecting your company profile...",
     LOADING: "Scanning the network for active matches..."

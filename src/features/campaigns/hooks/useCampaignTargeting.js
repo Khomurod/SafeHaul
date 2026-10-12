@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
 import { ERROR_MESSAGES, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
@@ -12,6 +12,9 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
 
     // Debounce ref to prevent rapid-fire queries
     const timeoutRef = useRef(null);
+    // Bumped by `retry` to count the same filters again after a failure.
+    const [attempt, setAttempt] = useState(0);
+    const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
     useEffect(() => {
         // --- 1. DEFENSIVE GUARDS ---
@@ -110,7 +113,7 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                 console.error("Targeting Error:", err);
                 setMatchCount(0);
                 setExcludedPhones(new Set());
-                setError("Failed to calculate audience.");
+                setError(ERROR_MESSAGES.COUNT_FAILED);
             } finally {
                 if (!stale) setIsLoading(false);
             }
@@ -139,8 +142,9 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
         filters.campaignLimit,
         filters.rawData,        // Re-check when import data changes
         companyId,
-        currentUser
+        currentUser,
+        attempt
     ]);
 
-    return { matchCount, isLoading, error, excludedPhones };
+    return { matchCount, isLoading, error, excludedPhones, retry };
 }
