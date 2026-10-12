@@ -28,9 +28,9 @@ on:
       source_size_base:
         description: >-
           Optional baseline commit for the guards that compare against one (the
-          agent-docs limits, the UI-contract allowlist and the icon-contract
-          backlog), which share it: one baseline question, one answer, one place
-          an operator can get it wrong. Leave it empty and the guards compare
+          UI-contract allowlist and the icon-contract backlog), which share it:
+          one baseline question, one answer, one place an operator can get it
+          wrong. Leave it empty and the guards compare
           against the newest ancestor carrying a fully validated release, which
           they ask GitHub for. Set it only when that walk finds nothing and you
           can name a release you know was good. It clears a HIGHER bar than an
@@ -175,19 +175,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # The agent-docs, UI-contract and icon-contract guards ask which ancestor
-      # last carried a fully validated release, which is a check-runs query.
-      # Read-only, and the same grant `secret-scan` carries for the same lookup.
+      # The UI-contract and icon-contract guards ask which ancestor last carried
+      # a fully validated release, which is a check-runs query. Read-only, and
+      # the same grant `secret-scan` carries for the same lookup.
       checks: read
     # Always runs. It is ~20 seconds and it is the self-test for the release
     # system itself — the promotion gate, and the CI planner and validation gate
     # that decide what may be skipped. Making the checks that guard the
     # optimisation skippable by the optimisation would be circular.
     steps:
-      # Full history: the agent-docs, UI-contract and icon-contract guards read
-      # their previous version out of git, and a depth-1 checkout has none to
-      # read. Without this they refuse (the designed behaviour) rather than pass
-      # on an unverified list.
+      # Full history: the UI-contract and icon-contract guards read their
+      # previous version out of git, and a depth-1 checkout has none to read.
+      # Without this they refuse (the designed behaviour) rather than pass on an
+      # unverified list.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -276,14 +276,11 @@ jobs:
       - name: Verify the agent-docs guard
         run: npm run test:agent-docs
 
-      # Limits may only move down, compared with a base commit chosen from the
-      # same three inputs as the UI-contract step below.
+      # Only AGENTS.md and CLAUDE.md, which every session loads, are refused
+      # past their limits; every other instruction file warns. The refused
+      # limits are pinned in the guard's tests, so it needs no base commit.
       - name: Check agent instruction sizes
-        run: npm run check:agent-docs -- --require-baseline
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
+        run: npm run check:agent-docs
 
       # The shared AI platform is only worth having if it cannot be bypassed,
       # and this guard is what stops a feature growing its own vendor call. It
@@ -323,9 +320,9 @@ jobs:
       - name: UI contract ratchet
         run: npm run check:ui-contract -- --require-baseline
         env:
-          # The same three as "Check agent instruction sizes" above, and
-          # deliberately the same override: one baseline question, one answer,
-          # one place an operator can get it wrong.
+          # The same three as "Icon contract ratchet" below, and deliberately
+          # the same override: one baseline question, one answer, one place an
+          # operator can get it wrong.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}

@@ -109,9 +109,10 @@ other agent must open them.
 
 ## 7. Keeping these instructions small
 
-- `npm run check:agent-docs` fails CI when an instruction file outgrows its limit
-  (this page: 150 lines; each `.claude/rules/` file: 150). The limits live in
-  `scripts/agent-docs-limits.mjs`. Do not raise one; shorten the text.
+- `npm run check:agent-docs` fails CI when this page passes 150 lines or 16 KB,
+  `CLAUDE.md` 40 lines, or the two together 24 KB. Every other instruction file
+  only warns past its limit in `scripts/agent-docs-limits.mjs` (150 lines for
+  each `.claude/rules/` file). Shorten the text either way; never raise a limit.
 - Add a rule only when an agent made the same mistake twice or a review caught
   it. Write it as one or two lines that state the rule as it is now, in the file
   where it belongs, and back it with a test or a check when you can.
