@@ -20,10 +20,12 @@ const mockSessionRef = {
     }))
 };
 
+const mockBatchWrites = [];
+
 const mockDb = {
     getAll: mockGetAll,
     batch: jest.fn(() => ({
-        set: jest.fn(),
+        set: jest.fn((ref, data) => mockBatchWrites.push({ id: ref.id, data })),
         delete: jest.fn(),
         commit: jest.fn().mockResolvedValue(true),
     })),
@@ -91,6 +93,7 @@ describe('sessionController phone compatibility', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockGetAll.mockReset();
+        mockBatchWrites.length = 0;
     });
 
     it('initBulkSession import path excludes repeated same canonical number with legacy ledger key', async () => {
@@ -131,5 +134,29 @@ describe('sessionController phone compatibility', () => {
             targetIds: expect.arrayContaining([expect.stringMatching(/^imp_2_/)])
         }));
         expect(mockEnqueueWorker).toHaveBeenCalled();
+    });
+
+    it('initBulkSession import path leaves out the rows the recruiter un-ticked, and stores nothing for them', async () => {
+        const result = await sessionController.initBulkSession({
+            auth: { uid: 'u1' },
+            data: {
+                companyId: 'co1',
+                // The preview names a row without an id after its place in the list.
+                filters: { leadType: 'import', excludeRecentDays: 'off', excludedLeadIds: ['import_1', 'row-c'] },
+                config: { method: 'sms', message: 'Hello there' },
+                rawData: [
+                    { firstName: 'A', phone: '5551110001' },
+                    { firstName: 'B', phone: '5551110002' },
+                    { id: 'row-c', firstName: 'C', phone: '5551110003' },
+                    { firstName: 'D', phone: '5551110004' },
+                ],
+            },
+        });
+
+        expect(result.targetCount).toBe(2);
+        expect(result.filteredCount).toBe(0);
+        const { targetIds } = mockSessionSet.mock.calls[0][0];
+        expect(targetIds).toEqual([expect.stringMatching(/^imp_0_/), expect.stringMatching(/^imp_3_/)]);
+        expect(mockBatchWrites.map((write) => write.data.firstName)).toEqual(['A', 'D']);
     });
 });

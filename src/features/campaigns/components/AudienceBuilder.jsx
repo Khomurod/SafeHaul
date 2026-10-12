@@ -117,10 +117,21 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
         }
     }, [activeTab, csvData]);
 
-    // Effect: Sync filters + count to parent
+    // Calculated View State
+    const isUploadMode = activeTab === 'upload';
+    // For upload mode, matchCount is already the filtered count (from checkImportPhones)
+    const displayCount = matchCount;
+    const manualExcludedCount = localFilters.excludedLeadIds?.length || 0;
+    const phoneExcludedCount = isUploadMode ? excludedPhones.size : 0;
+
+    // Ensure final count doesn't go below zero
+    const finalCount = Math.max(0, displayCount - manualExcludedCount);
+
+    // Effect: Sync filters + count to parent. The count leaves out the rows the
+    // recruiter un-ticked: it is the number the launch screen says will be messaged.
     useEffect(() => {
-        onChange(localFilters, matchCount);
-    }, [localFilters, matchCount, onChange]);
+        onChange(localFilters, finalCount);
+    }, [localFilters, finalCount, onChange]);
 
 
 
@@ -139,15 +150,6 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
         handleFilterChange('excludedLeadIds', newExcluded);
     };
 
-    // Calculated View State
-    const isUploadMode = activeTab === 'upload';
-    // For upload mode, matchCount is already the filtered count (from checkImportPhones)
-    const displayCount = matchCount;
-    const manualExcludedCount = localFilters.excludedLeadIds?.length || 0;
-    const phoneExcludedCount = isUploadMode ? excludedPhones.size : 0;
-
-    // Ensure final count doesn't go below zero
-    const finalCount = Math.max(0, displayCount - manualExcludedCount);
 
     const activeImportTab = localFilters._importTab === 'sheet' ? 'sheet' : 'file';
 

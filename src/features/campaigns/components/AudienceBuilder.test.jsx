@@ -123,12 +123,13 @@ describe('AudienceBuilder', () => {
         // Uncheck Alice
         fireEvent.click(checkboxes[0]);
 
-        // Expect handleChange to be called with excludedLeadIds containing 'lead1'
+        // Expect handleChange to be called with excludedLeadIds containing 'lead1',
+        // and with the count that leaves Alice out: the launch screen shows it.
         expect(handleChange).toHaveBeenCalledWith(
             expect.objectContaining({
                 excludedLeadIds: ['lead1']
             }),
-            10
+            9
         );
 
         // Simulate parent updating props (as real app would)
@@ -162,7 +163,7 @@ describe('AudienceBuilder', () => {
 
         expect(handleChange).toHaveBeenCalledWith(
             expect.objectContaining({ excludedLeadIds: ['lead1'] }),
-            10
+            9
         );
 
         mockCsvData = [
@@ -192,7 +193,7 @@ describe('AudienceBuilder', () => {
         fireEvent.click(checkboxes[0]); // exclude lead1
         expect(handleChange).toHaveBeenCalledWith(
             expect.objectContaining({ excludedLeadIds: ['lead1'] }),
-            10
+            9
         );
 
         rerender(
@@ -370,13 +371,14 @@ describe('AudienceBuilder — migrated presentation', () => {
         const { onChange } = renderBuilder();
 
         fireEvent.click(screen.getAllByRole('checkbox')[0]); // exclude lead1
-        // Parent sync still reports the raw matchCount…
+        // Parent sync reports finalCount = 10 - 1, the number the launch screen
+        // says will be messaged…
         expect(onChange).toHaveBeenCalledWith(
             expect.objectContaining({ excludedLeadIds: ['lead1'] }),
-            10,
+            9,
         );
 
-        // …while the confirm action reports finalCount = 10 - 1.
+        // …and so does the confirm action.
         const confirm = screen.getByRole('button', { name: 'Confirm Audience (9)' });
         fireEvent.click(confirm);
         expect(onChange).toHaveBeenLastCalledWith(
