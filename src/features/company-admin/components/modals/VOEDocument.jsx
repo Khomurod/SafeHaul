@@ -24,6 +24,24 @@ const PrintShieldCheck = glyphComponent(ShieldCheck);
 const PrintAlertCircle = glyphComponent(AlertCircle);
 
 /**
+ * The day the applicant signed. The wizard stamps `signatureDate`, an ISO time
+ * (`Step9_Consent.jsx`); older applications carry the form builder's
+ * `signature-date`. With neither, the document says so: printing today's date
+ * would certify an authorization that has no date.
+ *
+ * The instant is dated in UTC, as the e-signing "Date Signed" is
+ * (`functions/shared/signedDate.js`), so every printout of one application
+ * carries the same date, whoever prints it and wherever they are.
+ */
+function authorizationDate(applicant) {
+    const stamped = applicant.signatureDate ? new Date(applicant.signatureDate) : null;
+    if (stamped && !Number.isNaN(stamped.getTime())) {
+        return stamped.toLocaleDateString('en-US', { timeZone: 'UTC', month: '2-digit', day: '2-digit', year: 'numeric' });
+    }
+    return applicant['signature-date'] || 'Not signed';
+}
+
+/**
  * The generated 49 CFR §391.23 verification document, extracted verbatim from
  * `VOEPreviewModal.jsx` — see that file's header for the full scope-of-
  * migration note and the frozen contracts.
@@ -143,13 +161,13 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                                 </div>
                             )}
                         </div>
-                        <p className="text-[9px] text-slate-500 mt-3 uppercase tracking-tighter">Attested to under penalty of perjury &bull; IP: {applicant.ipAddress || 'Verified'}</p>
+                        <p className="text-[9px] text-slate-500 mt-3 uppercase tracking-tighter">Attested to under penalty of perjury{applicant.ipAddress && <> &bull; IP: {applicant.ipAddress}</>}</p>
                     </div>
                     <div className="w-56">
                         <p className="text-[10px] font-black text-slate-500 uppercase mb-3 tracking-widest text-right">Date of Authorization</p>
                         <div className="h-24 border-b-2 border-slate-900 flex items-center justify-end pb-2">
                             <div className="text-right">
-                                <span className="text-2xl font-bold text-slate-900">{applicant['signature-date'] || new Date().toLocaleDateString()}</span>
+                                <span className="text-2xl font-bold text-slate-900">{authorizationDate(applicant)}</span>
                                 <p className="text-[10px] text-slate-500 mt-1 uppercase">Valid for 30 Days</p>
                             </div>
                         </div>

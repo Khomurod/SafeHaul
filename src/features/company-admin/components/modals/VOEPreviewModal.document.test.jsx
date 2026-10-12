@@ -24,6 +24,8 @@ import {
 } from './VOEPreviewModal.contract.support';
 
 const renderModal = makeRenderModal(VOEPreviewModal);
+// The "Date of Authorization" box: its label and the date under it.
+const authorizationDate = () => within(documentNode()).getByText('Date of Authorization').parentElement;
 
 beforeEach(resetHarness);
 
@@ -169,13 +171,15 @@ describe('VOEPreviewModal field values and fallbacks', () => {
     expect(documentNode()).toHaveTextContent('NOT DISCLOSED');
   });
 
-  it('keeps the IP attestation and its Verified fallback', () => {
+  it('shows the IP only when one was recorded, never a made-up "Verified"', () => {
     renderModal();
-    expect(documentNode()).toHaveTextContent('203.0.113.7');
+    expect(documentNode()).toHaveTextContent(/IP:\s*203\.0\.113\.7/);
     cleanup();
 
     renderModal({ applicant: { ...APPLICANT, ipAddress: undefined } });
-    expect(documentNode()).toHaveTextContent(/IP:\s*Verified/);
+    const attestation = within(documentNode()).getByText(/Attested to under penalty of perjury/);
+    expect(attestation.textContent).toBe('Attested to under penalty of perjury');
+    expect(documentNode()).not.toHaveTextContent(/IP:\s*Verified/);
   });
 });
 
@@ -214,13 +218,33 @@ describe('VOEPreviewModal signature rules', () => {
     expect(doc).toHaveTextContent('Application must be signed before transmission');
   });
 
-  it('keeps the authorization date and its today fallback', () => {
+  it('dates the authorization from the signature, never from today', () => {
+    // An older application, from the form builder's `signature-date`.
     renderModal();
-    expect(documentNode()).toHaveTextContent('07/01/2026');
+    expect(authorizationDate()).toHaveTextContent('07/01/2026');
+    cleanup();
+
+    // The wizard's own stamp, an ISO time (`Step9_Consent.jsx`).
+    renderModal({ applicant: { ...APPLICANT, 'signature-date': undefined, signatureDate: '2026-07-01T12:00:00.000Z' } });
+    expect(authorizationDate()).toHaveTextContent('07/01/2026');
     cleanup();
 
     renderModal({ applicant: { ...APPLICANT, 'signature-date': undefined } });
-    expect(documentNode()).toHaveTextContent(new Date().toLocaleDateString());
+    expect(authorizationDate()).toHaveTextContent('Not signed');
+    expect(authorizationDate()).not.toHaveTextContent(new Date().toLocaleDateString('en-US'));
+  });
+
+  it('prints the same authorization date whoever prints it, wherever they are', () => {
+    // 00:30 UTC on 1 July is still 30 June in every US time zone.
+    const previous = process.env.TZ;
+    process.env.TZ = 'America/Los_Angeles';
+    try {
+      renderModal({ applicant: { ...APPLICANT, 'signature-date': undefined, signatureDate: '2026-07-01T00:30:00.000Z' } });
+      expect(authorizationDate()).toHaveTextContent('07/01/2026');
+    } finally {
+      if (previous === undefined) delete process.env.TZ;
+      else process.env.TZ = previous;
+    }
   });
 
   it('keeps the 30-day validity note', () => {
