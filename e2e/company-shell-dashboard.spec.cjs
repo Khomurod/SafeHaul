@@ -73,7 +73,7 @@ test.describe('Company workspace shell and dashboard', () => {
     expect(Math.min(...geometry.metricWidths)).toBeGreaterThan(210);
   });
 
-  test('uses an off-canvas mobile navigation with Escape, focus return, and route close', async ({ page }, testInfo) => {
+  test('uses an off-canvas mobile navigation with Escape, focus return, and route close @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile shell behavior.');
     await openDashboard(page);
 
@@ -101,7 +101,8 @@ test.describe('Company workspace shell and dashboard', () => {
     await expect(menuButton).toBeFocused();
 
     await menuButton.click();
-    await navigation.getByRole('link', { name: 'Applications' }).click();
+    // `exact`: "Unfinished applications" sits in the same section.
+    await navigation.getByRole('link', { name: 'Applications', exact: true }).click();
     await expect(page).toHaveURL(/\/company\/drivers\/applications/);
     await expect(navigation).toHaveAttribute('data-open', 'false');
   });

@@ -1442,9 +1442,9 @@ Node. Under Jest the ES-module-only `jose` (App Check and phone-number tokens,
 neither used — §10) maps to an empty stand-in; Jest on Node 22 cannot
 `require()` it.
 
-**Playwright** runs in CI as a 4-way shard matrix with `workers: 1` and
-`retries: 2` per shard (§10). **Local test-runner safety** — one Playwright
-suite at a time, no broad `pkill`, and the rest — is in
+**Playwright** runs in CI as a 4-way shard matrix, `workers: 1` and
+`retries: 2` per shard (§10): desktop Chromium, plus the `@mobile` tests on an
+emulated Pixel 7. Local runner safety:
 [`.claude/rules/testing.md`](../.claude/rules/testing.md).
 
 **The first download has a budget.** `npm run check:bundle-budget` sums the

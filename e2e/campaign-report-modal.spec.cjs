@@ -49,7 +49,7 @@ test.describe('DetailedReportModal compatibility slice', () => {
     expect(focusedInDialog).toBe(true);
   });
 
-  test('does not overflow the document at desktop/tablet/mobile', async ({ page }, testInfo) => {
+  test('does not overflow the document at desktop/tablet/mobile @mobile', async ({ page }, testInfo) => {
     const widths = testInfo.project.name.startsWith('mobile') ? [412] : [1440, 1024];
     for (const width of widths) {
       await page.setViewportSize({ width, height: width === 412 ? 915 : 900 });

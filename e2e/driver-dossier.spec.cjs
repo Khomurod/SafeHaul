@@ -311,7 +311,7 @@ test.describe('Driver Dossier responsive presentation', () => {
 test.describe('Driver Dossier on a real mobile device lane', () => {
   test.describe.configure({ timeout: 120_000 });
 
-  test('is usable end to end on Mobile Chrome', async ({ page }, testInfo) => {
+  test('is usable end to end on Mobile Chrome @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Device-emulation lanes only.');
 
     await openList(page);
@@ -323,7 +323,9 @@ test.describe('Driver Dossier on a real mobile device lane', () => {
       const dlg = document.querySelector('[role="dialog"][aria-label="Driver dossier"]');
       const tablist = dlg.querySelector('[role="tablist"]');
       return {
-        orientation: tablist.getAttribute('aria-orientation'),
+        // `TabList` writes the attribute only for a vertical strip; WAI-ARIA's
+        // implicit value for a tablist is horizontal.
+        orientation: tablist.getAttribute('aria-orientation') ?? 'horizontal',
         flexDirection: getComputedStyle(tablist).flexDirection,
         panelWidth: Math.round(dlg.getBoundingClientRect().width),
         viewport: window.innerWidth,

@@ -120,7 +120,7 @@ test.describe('Company Settings Automated SMS compatibility slice', () => {
     expect(geometry.nestedHorizontalScrollerCount).toBe(0);
   });
 
-  test('uses a single-column mobile layout with wrapping and no overflow', async ({ page }, testInfo) => {
+  test('uses a single-column mobile layout with wrapping and no overflow @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openLoadedForm(page);

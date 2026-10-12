@@ -60,7 +60,7 @@ test.describe('Campaign results table slice', () => {
     }
   });
 
-  test('uses a mobile layout without document-level horizontal overflow', async ({ page }, testInfo) => {
+  test('uses a mobile layout without document-level horizontal overflow @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openResults(page);

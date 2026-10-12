@@ -38,7 +38,7 @@ test.describe('CampaignDetails compatibility slice', () => {
     await expect(page.getByRole('heading', { name: 'Campaigns' })).toBeVisible();
   });
 
-  test('keeps the detail view within the viewport (no document overflow)', async ({ page }, testInfo) => {
+  test('keeps the detail view within the viewport (no document overflow) @mobile', async ({ page }, testInfo) => {
     const widths = testInfo.project.name.startsWith('mobile') ? [412] : [1440, 1024];
     for (const width of widths) {
       await page.setViewportSize({ width, height: width === 412 ? 915 : 900 });

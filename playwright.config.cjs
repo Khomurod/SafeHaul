@@ -8,6 +8,12 @@ const chromiumLaunchOverride = chromiumExecutablePath
     ? { launchOptions: { executablePath: chromiumExecutablePath } }
     : {};
 
+// The mobile projects run only the tests written for a phone, tagged `@mobile`
+// in their title; the rest are written for the desktop lane. CI runs
+// `mobile-chrome` in the E2E shards, so a test with a mobile-only path must
+// carry the tag (`check:ci-plan` J8), or no lane runs that path.
+const MOBILE_TESTS = /@mobile/;
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -54,6 +60,7 @@ module.exports = defineConfig({
         {
             name: 'mobile-safari',
             testIgnore: '**/visual/**',
+            grep: MOBILE_TESTS,
             use: { ...devices['iPhone 13'] },
         },
         {
@@ -62,6 +69,7 @@ module.exports = defineConfig({
             // for the mobile lane too (CI/sandbox parity).
             name: 'mobile-chrome',
             testIgnore: '**/visual/**',
+            grep: MOBILE_TESTS,
             use: { ...devices['Pixel 7'], ...chromiumLaunchOverride },
         },
         /*
@@ -75,9 +83,10 @@ module.exports = defineConfig({
          *     fail — its catalog half needs `storybook-static` built first.
          *   - Naming the functional projects in the `test:e2e` script does not fix
          *     that either. `--project` ACCUMULATES on the command line, and CI
-         *     runs `npm run test:e2e -- --project=chromium`, so a baked-in list
-         *     unions with chromium and runs every project. That was tried on
-         *     2026-08-25 and put 113 firefox tests into the chromium shard lane.
+         *     names its projects there (`--project=chromium
+         *     --project=mobile-chrome`), so a baked-in list unions with them and
+         *     runs every project. That was tried on 2026-08-25 and put 113
+         *     firefox tests into the chromium shard lane.
          *
          * A separate config is the only arrangement where no caller can get it
          * wrong: the visual lane is unreachable unless you ask for that config.

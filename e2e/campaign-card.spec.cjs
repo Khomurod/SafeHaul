@@ -70,7 +70,7 @@ test.describe('CampaignCard compatibility slice', () => {
     }
   });
 
-  test('uses a mobile layout without horizontal overflow', async ({ page }, testInfo) => {
+  test('uses a mobile layout without horizontal overflow @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openCampaigns(page);

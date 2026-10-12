@@ -519,8 +519,12 @@ jobs:
       # roadmap requires accessibility to be enforced. `scripts/test-ci-plan.mjs`
       # (K2) asserts no workflow step excludes `@a11y`, so it cannot drift back
       # out.
-      - name: Frontend E2E Tests (Chromium, including the axe specs)
-        run: npm run test:e2e -- --project=chromium --shard=${{ matrix.shard }}/4
+      #
+      # `mobile-chrome` (Pixel 7 emulation, the same Chromium) runs only the
+      # `@mobile` tests, by its own `grep` in `playwright.config.cjs`. J6–J8 in
+      # `npm run check:ci-plan` pin the filter, this flag and the tags.
+      - name: Frontend E2E Tests (Chromium desktop and Pixel 7, including the axe specs)
+        run: npm run test:e2e -- --project=chromium --project=mobile-chrome --shard=${{ matrix.shard }}/4
 
   # The pixel baselines of real application screens (`e2e/visual/app.spec.cjs`).
   # They render feature screens, so they run in the browser lane, which every

@@ -82,7 +82,7 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByRole('button', { name: /Assign \(/ })).toHaveCount(0);
   });
 
-  test('exposes every column through the documented mobile scroll pattern', async ({ page }, testInfo) => {
+  test('exposes every column through the documented mobile scroll pattern @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation is verified in a mobile project.');
     await openCandidatePage(page, '/company/drivers/applications', 'Driver Applications');
 

@@ -57,7 +57,7 @@ test.describe('PEV portal response UX', () => {
     }
   });
 
-  test('uses a single-column mobile layout without horizontal overflow', async ({ page }, testInfo) => {
+  test('uses a single-column mobile layout without horizontal overflow @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await gotoMockPortal(page);
