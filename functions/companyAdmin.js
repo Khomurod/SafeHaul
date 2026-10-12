@@ -5,7 +5,8 @@ const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db } = require("./firebaseAdmin");
 const { deleteCompanySchema, sendEmailSchema } = require("./shared/schema");
-const { assertCompanyAdminStrict } = require('./shared/companyAccess');
+const { assertCompanyAccess, assertCompanyAdminStrict } = require('./shared/companyAccess');
+const { escapeHtml, plainGuestText } = require('./shared/plainText');
 const { buildPublicProfileDto } = require('./shared/publicProfileDto');
 const { reconcilePublicProfilesToCompletion } = require('./shared/publicProfileSync');
 const { ORIGINAL_PDF_PREFIX } = require('./shared/preserveApplicationPdf');
@@ -99,8 +100,11 @@ exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
     if (error) throw new HttpsError('invalid-argument', error.message);
     const { companyId, recipientEmail, triggerType, placeholders } = value;
 
+    // The "no answer" follow-up goes out when anyone on the company team logs a
+    // call nobody answered; the other templates stay with company admins.
+    const assertMaySend = triggerType === 'no_answer' ? assertCompanyAccess : assertCompanyAdminStrict;
     try {
-        await assertCompanyAdminStrict(request.auth.uid, companyId);
+        await assertMaySend(request.auth.uid, companyId);
     } catch (e) {
         throw new HttpsError('permission-denied', 'You do not have permission to send emails for this company.');
     }
@@ -110,7 +114,7 @@ exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
 
         // 1. Template Selection
         let subject = "Quick follow up";
-        let body = `<p>Hi ${placeholders?.driverfirstname || 'there'},</p>`;
+        let body = `<p>Hi ${escapeHtml(plainGuestText(placeholders?.driverfirstname, 80) || 'there')},</p>`;
 
         if (triggerType === 'manual_email') {
             subject = placeholders?.subject || 'Message from SafeHaul';
@@ -143,13 +147,18 @@ exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
                     </div>
                 </div>`;
         } else if (triggerType === 'no_answer') {
+            // The company's own name and application page, read here rather than
+            // taken from the caller, and the recruiter's name as text.
+            const companySnap = await db.collection('companies').doc(companyId).get();
+            const company = companySnap.exists ? companySnap.data() : {};
+            const applyUrl = `https://app.safehaul.io/apply/${encodeURIComponent(company.appSlug || companyId)}`;
             subject = "We missed you!";
-            body += `<p>I tried calling you regarding your interest in <strong>${placeholders?.companyname || 'our fleet'}</strong> but couldn't reach you.</p>`;
-            body += `<p>When you have a moment, please give me a call back or check out our application here: <a href="https://app.safehaul.io/apply/${placeholders?.companyslug}">Apply Now</a></p>`;
-            body += `<p>Best regards,<br>${placeholders?.recruitername || 'Recruiter'}</p>`;
+            body += `<p>I tried calling you regarding your interest in <strong>${escapeHtml(company.companyName || 'our fleet')}</strong> but couldn't reach you.</p>`;
+            body += `<p>When you have a moment, please give me a call back or check out our application here: <a href="${escapeHtml(applyUrl)}">Apply Now</a></p>`;
+            body += `<p>Best regards,<br>${escapeHtml(plainGuestText(placeholders?.recruitername, 80) || 'Recruiter')}</p>`;
         } else {
             body += `<p>I'm follow up regarding your application. Let me know if you have any questions!</p>`;
-            body += `<p>Best regards,<br>${placeholders?.recruitername || 'Recruiter'}</p>`;
+            body += `<p>Best regards,<br>${escapeHtml(plainGuestText(placeholders?.recruitername, 80) || 'Recruiter')}</p>`;
         }
 
         // 2. Send via Company SMTP
