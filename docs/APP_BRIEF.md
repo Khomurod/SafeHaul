@@ -1035,13 +1035,13 @@ Long-running triggers guard themselves through a `processing_status` ledger
 
 ### Bulk campaigns
 
-A recursive worker processes **50 recipients per batch** to stay inside function
-timeouts, re-checking session state each batch so a cancelled campaign stops at
-once rather than leaving a zombie worker. Recently-contacted numbers are
-excluded by a configurable window that **defaults to 7 days**. Company and
-global `blacklist` collections hold SMS opt-outs and are checked before
-**every** send (`isBlacklisted()` in `sendLoop.js`), failing closed on an
-unparseable number — but nothing populates them from a recipient's reply (§12).
+A recursive worker processes **50 recipients per batch** to fit function
+timeouts, re-checking the session each batch so a cancelled campaign stops at
+once. One rule (`recentlyMessaged.js`) excludes the recently messaged from the
+count, preview and launch: **7 days** by default for an uploaded list, none for
+CRM. Company and global `blacklist` collections hold SMS opt-outs and are
+checked before **every** send (`isBlacklisted()` in `sendLoop.js`), failing
+closed on an unparseable number — but nothing fills them from a reply (§12).
 
 ---
 
