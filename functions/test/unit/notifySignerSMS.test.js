@@ -10,18 +10,17 @@ jest.mock('firebase-functions/v2/firestore', () => ({
 }));
 
 const mockRequest = { fields: {}, updates: [] };
+mockRequest.ref = {
+    collection: () => ({
+        doc: () => ({ get: async () => ({ exists: true, data: () => ({ accessToken: 'token-1' }) }) }),
+    }),
+    update: async (data) => {
+        mockRequest.updates.push(data);
+        Object.assign(mockRequest.fields, data);
+    },
+};
 jest.mock('../../firebaseAdmin', () => {
-    const requestRef = {
-        collection: () => ({
-            doc: () => ({ get: async () => ({ exists: true, data: () => ({ accessToken: 'token-1' }) }) }),
-        }),
-        update: async (data) => {
-            mockRequest.updates.push(data);
-            Object.assign(mockRequest.fields, data);
-        },
-    };
     const db = {
-        collection: () => ({ doc: () => ({ collection: () => ({ doc: () => requestRef }) }) }),
         runTransaction: async (fn) => fn({
             get: async () => ({ get: (field) => mockRequest.fields[field] }),
             update: (_ref, data) => Object.assign(mockRequest.fields, data),
@@ -50,7 +49,7 @@ const REQUEST = {
 const created = (data = REQUEST, id = 'event-1') => notifySignerSMS({
     id,
     params: { companyId: 'co-1', requestId: 'req-1' },
-    data: { data: () => data },
+    data: { data: () => data, ref: mockRequest.ref },
 });
 
 beforeEach(() => {
@@ -69,6 +68,14 @@ it('texts the link once and records it', async () => {
         'user-1',
     );
     expect(mockRequest.fields).toMatchObject({ smsDeliveryId: 'event-1', smsStatus: 'sent' });
+});
+
+it('records the phone it texts with its claim, before the text is sent', async () => {
+    let recordedWhenSent;
+    mockSendSms.mockImplementation(async () => { recordedWhenSent = mockRequest.fields['linkSentTo.phone']; });
+    await created();
+
+    expect(recordedWhenSent).toBe('+15555550100');
 });
 
 it('texts nothing when the same event is delivered again', async () => {

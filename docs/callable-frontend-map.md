@@ -42,7 +42,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `getSignedGuestUploadUrl` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Guest file read URL |
 | `getSignedPevUrl` | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) | Signed URL for PEV PDF |
 | `getSignedUploadUrl` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Auth/guest upload URL |
-| `getSigningLink` | [`EnvelopeHistory.jsx`](../src/features/signing/components/EnvelopeHistory.jsx) | Resolve link with secret token |
+| `getSigningLink` | [`EnvelopeHistory.jsx`](../src/features/signing/components/EnvelopeHistory.jsx) | Resolve link with secret token; a link a correction left with an old email or phone is replaced first |
 | `getVerificationRequest` | [`VerificationPortal.jsx`](../src/features/verification/VerificationPortal.jsx) | PEV portal load |
 | `initBulkSession` | [`LaunchPad.jsx`](../src/features/campaigns/components/LaunchPad.jsx) | Start bulk SMS/email session |
 | `listCompanyTeam` | [`ManageTeamModal.jsx`](../src/shared/components/modals/ManageTeamModal.jsx) | Authoritative team roster: resolves each membership to a real name/email (Admin SDK, Firebase Auth fallback) and reports missing/stale/orphaned/duplicate records explicitly |

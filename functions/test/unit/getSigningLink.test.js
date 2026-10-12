@@ -17,8 +17,10 @@ const mockSigningRequestRef = {
 };
 
 jest.mock('../../firebaseAdmin', () => ({
-  db: { collection: jest.fn() },
+  db: { collection: jest.fn(), runTransaction: jest.fn() },
+  admin: { firestore: { Timestamp: { fromMillis: (ms) => ({ ms }) } } },
 }));
+const mockTx = { get: (ref) => ref.get(), set: jest.fn(), update: jest.fn() };
 
 jest.mock('../../shared/companyAccess', () => ({
   assertCompanyAccessForRequest: jest.fn(),
@@ -43,6 +45,7 @@ describe('getSigningLink', () => {
         })),
       })),
     }));
+    db.runTransaction.mockImplementation(async (fn) => fn(mockTx));
     assertCompanyAccessForRequest.mockResolvedValue(undefined);
     mockRequestGet.mockResolvedValue({
       exists: true,
@@ -74,6 +77,52 @@ describe('getSigningLink', () => {
       'getSigningLink',
     );
     expect(result.signingLink).toBe('https://app.test/sign/co1/req1?token=tok-abc');
+  });
+
+  it('replaces a link a correction left with the old address, so the copied link is the one the correction sends', async () => {
+    mockRequestGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        status: 'sent',
+        appBaseUrl: 'https://app.test',
+        recipientEmail: 'dana@example.test',
+        sendEmail: true,
+        linkSentTo: { email: 'dana@wrong.example.test' },
+      }),
+    });
+    const result = await getSigningLink({
+      auth: { uid: 'admin-1' },
+      data: { companyId: 'co1', requestId: 'req1' },
+    });
+
+    const [, written] = mockTx.set.mock.calls[0];
+    expect(written.accessToken).toMatch(/^[0-9a-f-]{36}$/);
+    expect(result.signingLink).toBe(`https://app.test/sign/co1/req1?token=${written.accessToken}`);
+    // The new link has reached no one yet, so the correction's trigger sends this one.
+    expect(mockTx.update).toHaveBeenCalledWith(mockSigningRequestRef, {
+      linkSentTo: {},
+      expiresAt: expect.objectContaining({ ms: expect.any(Number) }),
+    });
+  });
+
+  it('hands out the link unchanged when it went where the request says', async () => {
+    mockRequestGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        status: 'sent',
+        appBaseUrl: 'https://app.test',
+        recipientEmail: 'Dana@Example.test',
+        linkSentTo: { email: 'dana@example.test' },
+      }),
+    });
+    const result = await getSigningLink({
+      auth: { uid: 'admin-1' },
+      data: { companyId: 'co1', requestId: 'req1' },
+    });
+
+    expect(result.signingLink).toBe('https://app.test/sign/co1/req1?token=tok-abc');
+    expect(mockTx.set).not.toHaveBeenCalled();
+    expect(mockTx.update).not.toHaveBeenCalled();
   });
 
   it('rejects when document is already signed', async () => {
