@@ -13,7 +13,6 @@
 // Neither function holds state; every state change flows back through the
 // setters and callbacks the component provides.
 import { db, storage, auth } from '@lib/firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp, Timestamp, writeBatch, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
@@ -102,6 +101,9 @@ export async function hydrateEnvelopeForEdit({
         setHydrating(false);
     }
 }
+
+/** How a sent request's delivery is named in its confirmation. */
+const DELIVERY_LABELS = { email: 'Email', sms: 'SMS', both: 'Email + SMS' };
 
 /** Only reachable from a completed write. Also a safe history reset point. */
 export async function saveEnvelope({
@@ -275,26 +277,10 @@ export async function saveEnvelope({
                 const link = `${baseUrl}/sign/${companyId}/${signingRef.id}?token=${accessToken}`;
                 await navigator.clipboard.writeText(link);
                 showSuccess('Signing link copied to clipboard!');
-            } else if (sendSms && recipientPhone) {
-                try {
-                    const baseUrl = window.location.origin;
-                    const signingLink = `${baseUrl}/sign/${companyId}/${signingRef.id}?token=${accessToken}`;
-                    const smsMessage = `${senderName} sent you "${title || 'Document'}" to sign: ${signingLink}`;
-
-                    const functions = getFunctions();
-                    const sendSMSCallable = httpsCallable(functions, 'sendSMS');
-                    await sendSMSCallable({
-                        companyId,
-                        recipientPhone,
-                        messageBody: smsMessage
-                    });
-                    showSuccess('Document created & SMS sent!');
-                } catch (smsErr) {
-                    console.error('SMS send failed:', smsErr);
-                    showError(`Document created but SMS failed: ${smsErr.message}`);
-                }
             } else {
-                const methodLabel = deliveryMethod === 'both' ? 'Email + SMS' : 'Email';
+                // The server texts and emails the link (`notifySignerSMS`,
+                // `notifySigner`), as this request's `sendSms` and `sendEmail` say.
+                const methodLabel = DELIVERY_LABELS[deliveryMethod] || 'Email';
                 showSuccess(`Document created! ${methodLabel} delivery in progress...`);
             }
         }

@@ -10,7 +10,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { db, auth } from '@lib/firebase';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { collection, query, doc, getDocs, Timestamp, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -171,7 +170,7 @@ export function useTemplateSendFlow({
                 senderId: auth.currentUser.uid,
                 senderName,
                 sendEmail,
-                sendSms: false, // SMS is sent directly by frontend callable; do not trigger async function.
+                sendSms, // The server texts the link (`notifySignerSMS`), whoever sends it.
                 deliveryMethod, // Record what user chose for audit trail
                 appBaseUrl: window.location.origin, // DOMAIN FIX: Store sender's domain for backend link generation
                 fields: autoFilledFields,
@@ -199,30 +198,8 @@ export function useTemplateSendFlow({
                 await navigator.clipboard.writeText(link);
                 showSuccess('Signing link copied to clipboard!');
             } else {
-                // Send SMS directly via callable (not relying on async trigger)
-                if (sendSms && resolvedRecipientPhone) {
-                    try {
-                        const baseUrl = window.location.origin;
-                        const signingLink = `${baseUrl}/sign/${currentCompanyProfile.id}/${signingRef.id}?token=${accessToken}`;
-                        const senderName = auth.currentUser?.displayName || auth.currentUser?.email || 'Your Employer';
-                        const smsMessage = `${senderName} sent you "${selectedTemplate.title}" to sign: ${signingLink}`;
-
-                        const functions = getFunctions();
-                        const sendSMSCallable = httpsCallable(functions, 'sendSMS');
-                        await sendSMSCallable({
-                            companyId: currentCompanyProfile.id,
-                            recipientPhone: resolvedRecipientPhone,
-                            messageBody: smsMessage
-                        });
-                        showSuccess('Document created & SMS sent!');
-                    } catch (smsErr) {
-                        console.error('SMS send failed:', smsErr);
-                        showError(`Document created but SMS failed: ${smsErr.message}`);
-                    }
-                } else {
-                    const methodLabel = deliveryMethod === 'both' ? 'Email + SMS' : 'Email';
-                    showSuccess(`Document created! ${methodLabel} delivery in progress...`);
-                }
+                const methodLabel = { sms: 'SMS', both: 'Email + SMS' }[deliveryMethod] || 'Email';
+                showSuccess(`Document created! ${methodLabel} delivery in progress...`);
             }
 
             setShowDriverPicker(false);
