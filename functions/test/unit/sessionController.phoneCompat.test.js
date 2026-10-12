@@ -136,6 +136,33 @@ describe('sessionController phone compatibility', () => {
         expect(mockEnqueueWorker).toHaveBeenCalled();
     });
 
+    it('initBulkSession import path skips numbers messaged in the last 7 days when the window was left as shown', async () => {
+        const now = new Date();
+        mockGetAll.mockImplementation(async (...refs) => refs.map((ref) => ({
+            id: ref.id,
+            exists: ref.id === '+15551234567',
+            data: () => (ref.id === '+15551234567' ? { lastSentAt: now } : undefined),
+        })));
+
+        // The upload screen shows "Last 7 Days" without the recruiter choosing it,
+        // so the filters arrive without excludeRecentDays.
+        const result = await sessionController.initBulkSession({
+            auth: { uid: 'u1' },
+            data: {
+                companyId: 'co1',
+                filters: { leadType: 'import' },
+                config: { method: 'sms', message: 'Hello there' },
+                rawData: [
+                    { firstName: 'A', phone: '(555) 123-4567' },
+                    { firstName: 'B', phone: '5559990000' },
+                ],
+            },
+        });
+
+        expect(result.filteredCount).toBe(1);
+        expect(result.targetCount).toBe(1);
+    });
+
     it('initBulkSession import path leaves out the rows the recruiter un-ticked, and stores nothing for them', async () => {
         const result = await sessionController.initBulkSession({
             auth: { uid: 'u1' },

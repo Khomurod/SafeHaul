@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
-import { ERROR_MESSAGES } from '../constants/campaignConstants';
+import { ERROR_MESSAGES, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
 
 export function useCampaignTargeting(companyId, filters, currentUser) {
     const [matchCount, setMatchCount] = useState(0);
@@ -16,6 +16,10 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
     useEffect(() => {
         // --- 1. DEFENSIVE GUARDS ---
         if (!currentUser || !companyId) return;
+
+        // An answer for filters the recruiter has since changed arrives too late
+        // to count: it must not overwrite the count for the current ones.
+        let stale = false;
 
         const fetchCount = async () => {
             setIsLoading(true);
@@ -34,9 +38,10 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                     return;
                 }
 
-                // If no exclusion filter is set, just return raw count
-                const excludeSetting = filters.excludeRecentDays;
-                if (!excludeSetting || excludeSetting === 'off') {
+                // The window the screen shows applies until another is picked;
+                // only "No Exclusion" returns the raw count.
+                const excludeSetting = filters.excludeRecentDays || UPLOAD_EXCLUDE_DEFAULT;
+                if (excludeSetting === 'off') {
                     setMatchCount(importCount);
                     setExcludedPhones(new Set());
                     setIsLoading(false);
@@ -55,6 +60,7 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                         phones,
                         excludeRecentDays: excludeSetting
                     });
+                    if (stale) return;
 
                     const excluded = new Set(result.data.excludedPhones || []);
                     setExcludedPhones(excluded);
@@ -62,12 +68,13 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                     setMatchCount(filteredCount);
                     if (filteredCount === 0) setError(ERROR_MESSAGES.ZERO_RESULTS);
                 } catch (err) {
+                    if (stale) return;
                     console.error('checkImportPhones error:', err);
                     // Non-fatal: fall back to raw count so the user isn't blocked
                     setMatchCount(importCount);
                     setExcludedPhones(new Set());
                 } finally {
-                    setIsLoading(false);
+                    if (!stale) setIsLoading(false);
                 }
                 return;
             }
@@ -86,6 +93,7 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                 };
 
                 const result = await getCountFn({ companyId, filters: backendFilters });
+                if (stale) return;
                 let count = result.data.count || 0;
 
                 // Apply client-side cap visualization if set
@@ -98,12 +106,13 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                 if (count === 0) setError(ERROR_MESSAGES.ZERO_RESULTS);
 
             } catch (err) {
+                if (stale) return;
                 console.error("Targeting Error:", err);
                 setMatchCount(0);
                 setExcludedPhones(new Set());
                 setError("Failed to calculate audience.");
             } finally {
-                setIsLoading(false);
+                if (!stale) setIsLoading(false);
             }
         };
 
@@ -113,7 +122,10 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
         // Set new timeout (Debounce 500ms)
         timeoutRef.current = setTimeout(fetchCount, 500);
 
-        return () => clearTimeout(timeoutRef.current);
+        return () => {
+            stale = true;
+            clearTimeout(timeoutRef.current);
+        };
     }, [
         // Deep dependency check on relevant filter keys to trigger re-fetch
         filters.leadType,
