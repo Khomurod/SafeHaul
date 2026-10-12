@@ -1162,6 +1162,8 @@ unparseable number — but nothing populates them from a recipient's reply (§12
   nested pages.
 - **A `src/features/` change skips the catalog job** (it builds only
   `src/design-system/`); feature screens' baselines run in `app-visual` (A7).
+- **A follow-up push reuses its pull request's earlier results** for each lane
+  the files changed since cannot affect (`check:ci-plan` M).
 
 ---
 
