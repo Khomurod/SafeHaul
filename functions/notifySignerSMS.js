@@ -27,10 +27,23 @@ exports.notifySignerSMS = onDocumentCreated(
         }
 
         try {
+            // Firestore delivers an event at least once, so this can run twice
+            // for one request. Only the run that claims the request texts it.
+            const requestRef = db.collection('companies').doc(companyId)
+                .collection('signing_requests').doc(requestId);
+            const claimed = await db.runTransaction(async (tx) => {
+                const current = await tx.get(requestRef);
+                if (current.get('smsDeliveryId')) return false;
+                tx.update(requestRef, { smsDeliveryId: event.id });
+                return true;
+            });
+            if (!claimed) {
+                console.log(`[NotifySignerSMS] Skipped: request ${requestId} is already texted (event ${event.id})`);
+                return null;
+            }
+
             // Read accessToken from secrets subcollection (BUG-2 FIX)
-            const secretSnap = await db.collection('companies').doc(companyId)
-                .collection('signing_requests').doc(requestId)
-                .collection('secrets').doc('token').get();
+            const secretSnap = await requestRef.collection('secrets').doc('token').get();
 
             // ADV-4: Fallback to parent doc for pre-migration signing requests
             const accessToken = secretSnap.exists ? secretSnap.data().accessToken : (data.accessToken || null);

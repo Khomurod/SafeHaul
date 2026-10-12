@@ -107,6 +107,14 @@ describe('needs attention', () => {
         expect(within(section).getByText('Seal failed')).toBeInTheDocument();
     });
 
+    it('lists a text that failed as a failed delivery', () => {
+        renderOverview({ documents: [doc({ id: 's', status: 'sent', smsStatus: 'failed', title: 'Failed Text' })] });
+
+        const section = screen.getByRole('region', { name: 'Needs attention' });
+        expect(within(section).getByText('Failed Text')).toBeInTheDocument();
+        expect(within(section).getByText('Delivery failed')).toBeInTheDocument();
+    });
+
     it('says explicitly that waiting for a signature is not a failure', () => {
         renderOverview({ documents: [doc({ status: 'sent' })] });
         const section = screen.getByRole('region', { name: 'Needs attention' });

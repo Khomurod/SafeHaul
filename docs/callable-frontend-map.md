@@ -68,7 +68,6 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `savePlatformAlertToken` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: store a Telegram bot token, once Telegram has accepted it |
 | `sendAutomatedEmail` | [`useCallOutcome.js`](../src/shared/hooks/useCallOutcome.js) | Template email from dossier/call flow |
 | `sendPlatformAlertTest` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: send a test alert to the connected chat |
-| `sendSMS` | [`DocumentsManager.jsx`](../src/features/company-admin/views/DocumentsManager.jsx), [`EnvelopeCreator.jsx`](../src/features/signing/EnvelopeCreator.jsx) | Outbound SMS |
 | `sendTestSMS` | [`SMSDiagnosticModal.jsx`](../src/features/settings/components/SMSDiagnosticModal.jsx), [`IntegrationManager.jsx`](../src/features/super-admin/components/integrations/IntegrationManager.jsx) | SMS connectivity test |
 | `sendVerificationRequest` | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) | Start PEV request |
 | `submitChangeResolution` | [`ReviewChangePortal.jsx`](../src/features/driver-changes/ReviewChangePortal.jsx) | Driver approve/reject/edit company changes |
@@ -94,6 +93,7 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 |----------|-------|
 | `backfillAllSmsSentPhones` | All-company SMS history backfill. Its one-off System Health button was removed on 2026-10-11; no screen has shown it since the 2026-10-12 release |
 | `backfillSmsSentPhones` | Per-company SMS phone backfill; no UI |
+| `sendSMS` | Admin-only outbound SMS. Signing links are texted by the `notifySignerSMS` trigger alone; Production's e-document screens also call it until their next release |
 | `runSecurityAudit` | Called only by the Deep Diagnostic, removed on 2026-10-11; no caller since the 2026-10-12 release. It goes with `syncSystemStructure`: `scripts/test-deploy-incremental.mjs` uses their module as its real-graph fixture |
 | `syncSystemStructure` | **Retired 2026-10-11: refuses and changes nothing** (it wrote schema defaults into every live record). No caller since the 2026-10-12 release |
 | `listCompanyPreparedApplications` | Was the list behind "Start an application" until 2026-09-10, when that screen and "Started (unfinished)" became one workspace reading `listApplicationDrafts` alone. Kept, not deleted: its narrower `origin == 'company'` contract is correct and still tested, and removing a deployed callable is a larger change than the consolidation needed |

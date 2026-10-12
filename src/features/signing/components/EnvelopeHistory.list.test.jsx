@@ -123,6 +123,21 @@ describe('EnvelopeHistory — status presentation', () => {
         emit([makeDoc({ emailStatus: 'failed' })]);
         expect(screen.getByText('Email delivery failed')).toBeInTheDocument();
     });
+
+    // The server texts the link; a text that failed has no other way to show.
+    it('shows a text that failed as a failed delivery, with its error', () => {
+        renderHistory();
+        emit([makeDoc({ status: 'sent', sendSms: true, smsStatus: 'failed', smsError: 'Line unavailable (artificial)' })]);
+        expect(screen.getByText('Delivery Failed')).toBeInTheDocument();
+        expect(screen.queryByText('Sent')).not.toBeInTheDocument();
+        expect(screen.getByText('Line unavailable (artificial)')).toBeInTheDocument();
+    });
+
+    it('names the text in the fallback when its failure carries no detail', () => {
+        renderHistory();
+        emit([makeDoc({ sendSms: true, smsStatus: 'failed' })]);
+        expect(screen.getByText('SMS delivery failed')).toBeInTheDocument();
+    });
 });
 
 describe('EnvelopeHistory — delivery method and fallbacks', () => {

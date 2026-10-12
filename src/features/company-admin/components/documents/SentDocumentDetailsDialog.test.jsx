@@ -79,8 +79,15 @@ describe('SentDocumentDetailsDialog — content', () => {
     it('shows the full delivery error for a failed delivery', () => {
         renderDialog(makeDoc({ emailStatus: 'failed', emailError: 'SMTP 550 mailbox unavailable (artificial)' }));
         const alert = screen.getByRole('alert');
-        expect(alert).toHaveTextContent('Delivery error');
+        expect(alert).toHaveTextContent('Email delivery error');
         expect(alert).toHaveTextContent('SMTP 550 mailbox unavailable (artificial)');
+    });
+
+    it('shows a failed text the same way, naming it', () => {
+        renderDialog(makeDoc({ sendSms: true, smsStatus: 'failed', smsError: 'Line unavailable (artificial)' }));
+        const alert = screen.getByRole('alert');
+        expect(alert).toHaveTextContent('SMS delivery error');
+        expect(alert).toHaveTextContent('Line unavailable (artificial)');
     });
 
     it('shows the sealing error, with the exact fallback when no detail exists', () => {
