@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { useCampaignTargeting } from '../hooks/useCampaignTargeting';
 import { useCompanyTeam } from '@/shared/hooks/useCompanyTeam';
 import { useData } from '@/context/DataContext';
-import { APPLICATION_STATUSES, LAST_CALL_RESULTS } from '../constants/campaignConstants';
+import { APPLICATION_STATUSES, LAST_CALL_RESULTS, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
 import { Icon, Filter, Users, RefreshCw, CheckCircle2, FileSpreadsheet } from '@design-system/icons';
 import { useBulkImport } from '@/shared/hooks/useBulkImport';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -372,7 +372,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
 
                                     {/* Exclude Previously Messaged for Uploads */}
                                     <div className="border-t border-ds-border-subtle pt-ds-4">
-                                        {excludeRecentField('7')}
+                                        {excludeRecentField(UPLOAD_EXCLUDE_DEFAULT)}
                                     </div>
                                 </div>
 

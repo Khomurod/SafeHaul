@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
-import { ERROR_MESSAGES } from '../constants/campaignConstants';
+import { ERROR_MESSAGES, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
 
 export function useCampaignTargeting(companyId, filters, currentUser) {
     const [matchCount, setMatchCount] = useState(0);
@@ -34,9 +34,10 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                     return;
                 }
 
-                // If no exclusion filter is set, just return raw count
-                const excludeSetting = filters.excludeRecentDays;
-                if (!excludeSetting || excludeSetting === 'off') {
+                // The window the screen shows applies until another is picked;
+                // only "No Exclusion" returns the raw count.
+                const excludeSetting = filters.excludeRecentDays || UPLOAD_EXCLUDE_DEFAULT;
+                if (excludeSetting === 'off') {
                     setMatchCount(importCount);
                     setExcludedPhones(new Set());
                     setIsLoading(false);

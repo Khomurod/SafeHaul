@@ -19,6 +19,13 @@ export const APPLICATION_STATUSES = [
     { id: 'inactive', label: 'Inactive (30d+)', value: 'Inactive' }
 ];
 
+/**
+ * The "Exclude Previously Messaged" window an uploaded list is counted and sent
+ * with until the recruiter picks another. The server applies the same default
+ * (`functions/bulkActions/controllers/session/importTargets.js`).
+ */
+export const UPLOAD_EXCLUDE_DEFAULT = '7';
+
 export const LAST_CALL_RESULTS = [
     { id: 'no_answer', label: 'No Answer', value: 'No Answer' },
     { id: 'left_voicemail', label: 'Left Voicemail', value: 'Left Voicemail' },

@@ -16,6 +16,10 @@ const {
     findRecentlyMessagedCanonicalPhones,
 } = require("../../helpers/phoneLedger");
 
+// The window the upload screen shows until the recruiter picks another
+// (`AudienceBuilder`), so a list sent without one is filtered as it promised.
+const UPLOAD_EXCLUDE_DEFAULT = '7';
+
 /**
  * Persists raw import rows as session targets and applies the
  * recently-messaged filters. Returns the updated target-ID list and how many
@@ -23,8 +27,9 @@ const {
  */
 const persistImportTargets = async ({ companyId, sessionRef, rawItems, filters, config, finalTargetIds }) => {
     let importFilteredCount = 0;
-        const excludeRecentImport = filters.excludeRecentDays && filters.excludeRecentDays !== 'off';
-        const excludeForever = filters.excludeRecentDays === 'forever';
+        const excludeSetting = filters.excludeRecentDays || UPLOAD_EXCLUDE_DEFAULT;
+        const excludeRecentImport = excludeSetting !== 'off';
+        const excludeForever = excludeSetting === 'forever';
         const batchArray = [];
         let batch = db.batch();
         let count = 0;
@@ -81,7 +86,7 @@ const persistImportTargets = async ({ companyId, sessionRef, rawItems, filters, 
                 // Calculate threshold (7 days ago)
                 const thresholdDate = new Date();
                 if (!excludeForever) {
-                    const days = parseInt(filters.excludeRecentDays) || 7;
+                    const days = parseInt(excludeSetting) || 7;
                     thresholdDate.setDate(thresholdDate.getDate() - days);
                 } else {
                     // For 'forever', set threshold to epoch (include all records)
@@ -136,7 +141,7 @@ const persistImportTargets = async ({ companyId, sessionRef, rawItems, filters, 
             try {
                 const thresholdDate = new Date();
                 if (!excludeForever) {
-                    const days = parseInt(filters.excludeRecentDays) || 7;
+                    const days = parseInt(excludeSetting) || 7;
                     thresholdDate.setDate(thresholdDate.getDate() - days);
                 } else {
                     thresholdDate.setTime(0);
