@@ -54,7 +54,8 @@ Testing version (Super Admin → Releases, `promote-production.yml`).
    (`scripts/ci-plan/test-guards.mjs`), which refuses any line of the job it
    cannot read: a guard runs its command and nothing more, nothing makes it
    advisory, and its tests run before its check. A new step needs a row, a new
-   setup action an entry; a guard's own suite does not test its CI wiring.
+   setup action an entry; a guard's own suite does not test its CI wiring. CI
+   calls `scripts/test-ci-plan.mjs` by its file, so K5 can pin its npm script.
 
 ## Security gates (secret scan)
 

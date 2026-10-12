@@ -347,7 +347,7 @@ console.log('\nK. Guards that stay guards');
         ['Verify frontend/backend callable contract', ['node scripts/check-callable-contract.mjs']],
         [CLAIMS_STEP, [CLAIMS_SCRIPT]],
         ['Verify the production-promotion gate', ['npm run check:release-scripts']],
-        ['Verify the CI plan and release-validation gate', ['npm run check:ci-plan']],
+        ['Verify the CI plan and release-validation gate', ['node scripts/test-ci-plan.mjs']],
         ["Verify the secret scanner's range selection and detection", ['npm run test:secret-scan']],
         ['Verify the functions deploy planner', ['npm run check:function-exports', 'npm run check:deploy-script']],
         ['Verify the source-size guard', ['npm run test:source-size'], /^test-source-size(-[a-z]+)?\.mjs$/],
@@ -376,7 +376,6 @@ console.log('\nK. Guards that stay guards');
     const GUARD_SCRIPTS = {
         'check:public-claims': 'node scripts/check-public-claims.mjs',
         'check:release-scripts': 'node scripts/test-release-promotion.mjs',
-        'check:ci-plan': 'node scripts/test-ci-plan.mjs',
         'test:secret-scan': 'node scripts/test-secret-scan.mjs',
         'check:function-exports': 'node scripts/validate-function-index-parse.mjs',
         'check:deploy-script': 'node scripts/test-deploy-incremental.mjs',
@@ -394,8 +393,15 @@ console.log('\nK. Guards that stay guards');
         'test:lint-rules': 'node scripts/test-lint-rules.mjs',
         'test:bundle-budget': 'node scripts/test-bundle-budget.mjs',
     };
-    /** The steps that run no command: the action each uses, and the `with:` keys it may set. */
-    const SETUP_STEPS = { 'actions/checkout': [], 'actions/setup-node': ['node-version', 'cache'] };
+    /**
+     * The steps that run no command: the action each uses, revision included,
+     * and its `with:` settings, exactly. A Dependabot bump of either action
+     * updates this table in the same pull request.
+     */
+    const SETUP_STEPS = {
+        'actions/checkout@v7': [],
+        'actions/setup-node@v7': ['node-version: 22.x', "cache: 'npm'"],
+    };
     /** The commands a step runs: its one-line `run:`, or each line of a `run: |` block. */
     const commandsOf = (step) => {
         const single = step.match(/^\s+run: (?!\|)(.+)$/m);
@@ -471,17 +477,17 @@ console.log('\nK. Guards that stay guards');
     assert(`K5. every step of ${GUARD_JOB} that runs a command opens with its name, so it can have a row`,
         unnamed.length === 0, unnamed.map((step) => step.text.split('\n')[0].trim()).join(' | '));
     // A step that runs no command runs an action, and an action can run anything,
-    // or check out another tree: each is one K5 lists, with the keys it lists.
+    // check out another tree or set up another Node: each is one K5 lists, at the
+    // revision and with the settings it lists.
     for (const step of job.steps.filter((candidate) => !commandSteps.includes(candidate))) {
         const entry = (key) => step.entries.find((candidate) => candidate.key === key);
-        const action = entry('uses')?.value?.split('@')[0] ?? '';
+        const uses = entry('uses')?.value ?? '';
         const settings = entry('with');
-        const settingKeys = (settings?.nested ?? []).map((line) => line.match(/^ {10}([a-z][a-z-]*):/)?.[1] ?? line.trim());
-        assert(`K5. the setup step "${step.name ?? action}" uses an action K5 lists, and sets only what it lists`,
-            Object.hasOwn(SETUP_STEPS, action)
+        assert(`K5. the setup step "${step.name ?? uses}" is one K5 lists, exactly`,
+            Object.hasOwn(SETUP_STEPS, uses)
                 && keysOf(step).every((key) => ['name', 'uses', 'with'].includes(key))
                 && settings?.value === undefined
-                && settingKeys.every((key) => SETUP_STEPS[action].includes(key)),
+                && JSON.stringify((settings?.nested ?? []).map((line) => line.trim())) === JSON.stringify(SETUP_STEPS[uses]),
             step.text.trim().split('\n').map((line) => line.trim()).join(' | '));
     }
 
@@ -525,6 +531,11 @@ console.log('\nK. Guards that stay guards');
                 `${suites.join(', ')} vs ${chain}`);
         }
     }
+    // CI runs this suite by its file, because it could not see its own npm script
+    // pointed somewhere else; the script agents run locally runs the same file.
+    assert('K5. and `npm run check:ci-plan` runs the file CI runs',
+        pkg.scripts['check:ci-plan'] === 'node scripts/test-ci-plan.mjs',
+        `check:ci-plan = ${JSON.stringify(pkg.scripts['check:ci-plan'])}`);
     const scriptsNamed = GUARD_STEPS.flatMap(([, commands]) => commands)
         .map((command) => command.match(/^npm run ([\w:-]+)$/)?.[1]).filter(Boolean);
     assert('K5. and the table pins no script a row does not name',

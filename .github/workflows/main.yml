@@ -206,9 +206,11 @@ jobs:
 
       # And the same for the machinery that decides what CI is allowed to skip:
       # path selection, the conservative fallbacks, provenance, and the
-      # fail-closed verdict.
+      # fail-closed verdict. Run by its file, not through `npm run check:ci-plan`:
+      # this suite pins what every other guard's npm script runs, and could not
+      # see its own script pointed somewhere else.
       - name: Verify the CI plan and release-validation gate
-        run: npm run check:ci-plan
+        run: node scripts/test-ci-plan.mjs
 
       # The secret scanner's SCOPE is the thing that broke, so its scope has a
       # test: which commits each event compares against, and which secrets that
