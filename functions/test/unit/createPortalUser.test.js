@@ -8,10 +8,10 @@ jest.mock('firebase-functions/v2/firestore', () => ({ onDocumentWritten: jest.fn
 
 const mockGetUserByEmail = jest.fn();
 const mockCreateUser = jest.fn();
-const mockUserSet = jest.fn().mockResolvedValue();
-const mockUserGet = jest.fn().mockResolvedValue({ exists: false });
-const mockMembershipAdd = jest.fn().mockResolvedValue({ id: 'mem1' });
-const mockMembershipGet = jest.fn().mockResolvedValue({ empty: true });
+const mockUserSet = jest.fn();
+const mockUserGet = jest.fn();
+const mockMembershipAdd = jest.fn();
+const mockMembershipGet = jest.fn();
 
 jest.mock('../../firebaseAdmin', () => ({
   admin: { firestore: { FieldValue: { serverTimestamp: () => '__ts' } } },
@@ -45,12 +45,19 @@ jest.mock('../../firebaseAdmin', () => ({
 
 const { createPortalUser } = require('../../hrAdmin');
 
+// Jest 30's reset leaves every double returning undefined; each block below
+// then sets the answers its tests start from.
+beforeEach(() => {
+  jest.resetAllMocks();
+  mockUserSet.mockResolvedValue();
+  mockMembershipAdd.mockResolvedValue({ id: 'mem1' });
+});
+
 // Build a callable request with the given claims + payload.
 const req = (roles, data) => ({ auth: { uid: 'caller', token: { roles } }, data });
 
 describe('createPortalUser authorization (default-deny)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     mockMembershipGet.mockResolvedValue({ empty: true });
     mockUserGet.mockResolvedValue({ exists: false });
     // Default: email not found -> create a fresh user.
@@ -136,7 +143,6 @@ describe('createPortalUser mirrors a profile for pre-existing Auth accounts', ()
   }));
 
   beforeEach(() => {
-    jest.clearAllMocks();
     mockMembershipGet.mockResolvedValue({ empty: true });
     mockGetUserByEmail.mockResolvedValue(existingAuthUser);
     mockUserGet.mockResolvedValue({ exists: false });

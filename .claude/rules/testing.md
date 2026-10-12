@@ -72,10 +72,11 @@ because ignoring it once cost real time; the incidents are in
 
 ## Jest under `functions/`
 
-- Jest 30's `mockReset` replaces every implementation with one returning
-  `undefined`, so moving a file to `jest.resetAllMocks()` means re-establishing
-  each default in `beforeEach`. 18 files still pair `jest.clearAllMocks` with
-  `*Once` queues — a known leak, to be converted as its own measured change.
+- **The same rule holds: a file that queues any `*Once` value uses
+  `jest.resetAllMocks()`**, and so does every support module it requires. Jest
+  30's reset leaves every double returning `undefined`, so `beforeEach` puts back
+  each default the tests rely on, after the reset. Enforced by
+  `functions/test/unit/mockResetHygiene.test.js`.
 
 ## Playwright in CI
 

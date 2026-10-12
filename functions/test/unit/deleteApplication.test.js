@@ -6,15 +6,15 @@ jest.mock('firebase-functions/v2/https', () => ({
 }));
 jest.mock('firebase-functions', () => ({ logger: { info: jest.fn(), warn: jest.fn() } }));
 
-const mockAssertCompanyAdminStrict = jest.fn().mockResolvedValue(undefined);
+const mockAssertCompanyAdminStrict = jest.fn();
 jest.mock('../../shared/companyAccess', () => ({
   assertCompanyAdminStrict: (...a) => mockAssertCompanyAdminStrict(...a),
 }));
 
 const mockGet = jest.fn();
-const mockRecursiveDelete = jest.fn().mockResolvedValue();
-const mockFileDelete = jest.fn().mockResolvedValue();
-const mockDeleteFiles = jest.fn().mockResolvedValue();
+const mockRecursiveDelete = jest.fn();
+const mockFileDelete = jest.fn();
+const mockDeleteFiles = jest.fn();
 const mockRef = { id: 'app1' };
 
 jest.mock('../../firebaseAdmin', () => ({
@@ -37,7 +37,10 @@ const req = (data) => ({ auth: { uid: 'admin1' }, data });
 
 describe('deleteApplication', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    mockRecursiveDelete.mockResolvedValue();
+    mockFileDelete.mockResolvedValue();
+    mockDeleteFiles.mockResolvedValue();
     mockAssertCompanyAdminStrict.mockResolvedValue(undefined);
     mockGet.mockResolvedValue({ exists: true, data: () => ({ 'cdl-front': { storagePath: 'companies/co1/applications/guest_uploads/x.jpg' } }) });
     mockRef.get = (...a) => mockGet(...a);

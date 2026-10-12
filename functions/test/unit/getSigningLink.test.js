@@ -13,35 +13,37 @@ const mockSecretGet = jest.fn();
 
 const mockSigningRequestRef = {
   get: mockRequestGet,
-  collection: jest.fn(() => ({
-    doc: jest.fn(() => ({
-      get: mockSecretGet,
-    })),
-  })),
+  collection: jest.fn(),
 };
 
 jest.mock('../../firebaseAdmin', () => ({
-  db: {
-    collection: jest.fn(() => ({
+  db: { collection: jest.fn() },
+}));
+
+jest.mock('../../shared/companyAccess', () => ({
+  assertCompanyAccessForRequest: jest.fn(),
+}));
+
+const { getSigningLink } = require('../../getSigningLink');
+const { assertCompanyAccessForRequest } = require('../../shared/companyAccess');
+const { db } = require('../../firebaseAdmin');
+
+describe('getSigningLink', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockSigningRequestRef.collection.mockImplementation(() => ({
+      doc: jest.fn(() => ({
+        get: mockSecretGet,
+      })),
+    }));
+    db.collection.mockImplementation(() => ({
       doc: jest.fn(() => ({
         collection: jest.fn(() => ({
           doc: jest.fn(() => mockSigningRequestRef),
         })),
       })),
-    })),
-  },
-}));
-
-jest.mock('../../shared/companyAccess', () => ({
-  assertCompanyAccessForRequest: jest.fn().mockResolvedValue(undefined),
-}));
-
-const { getSigningLink } = require('../../getSigningLink');
-const { assertCompanyAccessForRequest } = require('../../shared/companyAccess');
-
-describe('getSigningLink', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+    }));
+    assertCompanyAccessForRequest.mockResolvedValue(undefined);
     mockRequestGet.mockResolvedValue({
       exists: true,
       data: () => ({

@@ -28,7 +28,7 @@ const auditWrites = [];
 const applicationData = { value: { applicantId: 'driver-1', driverId: 'driver-1', email: 'marcus@example.test' } };
 const mockExists = jest.fn();
 const mockGetSignedUrl = jest.fn();
-const mockAuditAdd = jest.fn(async (record) => { auditWrites.push(record); });
+const mockAuditAdd = jest.fn();
 const signedFilePath = { value: null };
 
 jest.mock('../../firebaseAdmin', () => ({
@@ -74,7 +74,8 @@ const request = (over = {}) => ({
 
 describe('getApplicationOriginalPdfUrl', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    mockAuditAdd.mockImplementation(async (record) => { auditWrites.push(record); });
     auditWrites.length = 0;
     applicationData.value = { applicantId: 'driver-1', driverId: 'driver-1', email: 'marcus@example.test' };
     mockAssertCompanyAccess.mockResolvedValue(undefined);
