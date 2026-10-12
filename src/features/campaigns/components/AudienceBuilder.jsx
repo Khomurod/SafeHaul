@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { useCampaignTargeting } from '../hooks/useCampaignTargeting';
 import { useCompanyTeam } from '@/shared/hooks/useCompanyTeam';
 import { useData } from '@/context/DataContext';
-import { APPLICATION_STATUSES, LAST_CALL_RESULTS, MAX_RECIPIENTS_PER_LAUNCH, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
+import { APPLICATION_STATUSES, ERROR_MESSAGES, LAST_CALL_RESULTS, MAX_RECIPIENTS_PER_LAUNCH, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
 import { Icon, Filter, Users, RefreshCw, CheckCircle2, FileSpreadsheet } from '@design-system/icons';
 import { useBulkImport } from '@/shared/hooks/useBulkImport';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import VirtualLeadList from './VirtualLeadList';
 import {
-    Badge, Button, Card, Chip, ChipGroup, FileInput, FormField, Input, Select,
+    Badge, Button, Card, Chip, ChipGroup, FileInput, FormField, Input, Notice, Select,
     TabList, TabPanel,
 } from '@/design-system/components';
 
@@ -96,7 +96,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
     }, []);
 
     // 1. CRM COUNT HOOK (Stateless now)
-    const { matchCount, isLoading: isCountLoading, excludedPhones } = useCampaignTargeting(companyId, localFilters, currentUser);
+    const { matchCount, isLoading: isCountLoading, excludedPhones, error: countError, retry: retryCount } = useCampaignTargeting(companyId, localFilters, currentUser);
+    // A count the server could not make is a failure, not an empty audience.
+    const countFailed = countError === ERROR_MESSAGES.COUNT_FAILED;
 
     // 2. IMPORT HOOK
     const {
@@ -406,7 +408,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                         {isUploadMode ? 'Import Manifest' : 'Live Database Query'}
                                     </div>
                                     <p className="flex items-baseline gap-ds-2">
-                                        <span className="text-ds-heading-xl font-bold tracking-tight text-ds-content-on-inverse">{finalCount}</span>
+                                        <span className="text-ds-heading-xl font-bold tracking-tight text-ds-content-on-inverse">{countFailed ? '—' : finalCount}</span>
                                         <span className="text-ds-body font-medium text-ds-content-on-inverse-muted">recipients</span>
                                     </p>
                                 </div>
@@ -419,7 +421,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                             <p role="status" className="ds-visually-hidden">
                                 {isCountLoading
                                     ? 'Updating recipient count…'
-                                    : `${finalCount} recipients selected.`}
+                                    : countFailed
+                                        ? 'The recipient count failed.'
+                                        : `${finalCount} recipients selected.`}
                             </p>
 
                             <div className="mt-ds-2 flex flex-wrap gap-ds-2">
@@ -437,6 +441,18 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                     <Badge tone="danger">Over the {MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')}-per-launch limit</Badge>
                                 )}
                             </div>
+
+                            {countFailed && !isCountLoading && (
+                                <Notice
+                                    tone="danger"
+                                    size="sm"
+                                    title="Could not count this audience"
+                                    className="mt-ds-3"
+                                    actions={<Button size="sm" variant="secondary" onClick={retryCount}>Try again</Button>}
+                                >
+                                    {ERROR_MESSAGES.COUNT_FAILED}
+                                </Notice>
+                            )}
                         </div>
 
                         {/* VIRTUAL LIST AREA */}
