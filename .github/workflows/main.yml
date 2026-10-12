@@ -1059,7 +1059,7 @@ jobs:
         run: npm run build
 
       # E1: Never publish *.map files to Firebase Hosting (no public source disclosure).
-      # Runs unconditionally, after any upload and before deploy.
+      # The build emits none (`vite.config.js`); this holds if one ever does.
       - name: Strip sourcemaps from deploy artifact
         run: find dist -name '*.map' -delete
 

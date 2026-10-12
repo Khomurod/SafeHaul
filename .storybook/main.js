@@ -50,9 +50,9 @@ const config = {
   },
 
   viteFinal: async (viteConfig) => {
-    // The application build pins a single `index.html` entry and emits hidden
-    // sourcemaps for the Sentry upload. Storybook supplies its own entry, and a
-    // catalog has no Sentry release, so both are dropped rather than inherited.
+    // The application build pins a single `index.html` entry; Storybook
+    // supplies its own, so that is dropped rather than inherited. Sourcemaps
+    // stay off, as in the application build.
     if (viteConfig.build?.rollupOptions?.input) {
       delete viteConfig.build.rollupOptions.input;
     }
