@@ -1,42 +1,19 @@
 #!/usr/bin/env node
-/** Quick check that deploy-functions-incremental export parsing matches functions/index.js */
-import { readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+/**
+ * Every `exports.<name>` in functions/index.js must map to the module it comes
+ * from, read the way the incremental deploy reads it: the deploy refuses to run
+ * when one does not (`deploy-functions-incremental.mjs`), so an unmappable
+ * export stops the next functions deploy.
+ *
+ * It asks the deploy's own parser. This file used to carry a copy of it, which
+ * would have kept passing after the real one changed.
+ */
+import { buildExportToFile } from './deploy-functions-resolve.mjs';
 
-const root = dirname(fileURLToPath(import.meta.url));
-const indexPath = join(root, '../functions/index.js');
-const src = readFileSync(indexPath, 'utf8');
-
-function modulePathToFile(rel) {
-  let n = rel.replace(/^\.\//, '');
-  if (!n.endsWith('.js')) n += '.js';
-  return join('functions', n).replace(/\\/g, '/');
-}
-
-const varToFile = new Map();
-const reRequire = /(?:const|let|var)\s+(\w+)\s*=\s*require\(['"](\.\/[^'"]+)['"]\)/g;
-let m;
-while ((m = reRequire.exec(src))) {
-  varToFile.set(m[1], modulePathToFile(m[2]));
-}
-
-const exportToFile = new Map();
-const reExportVar = /exports\.(\w+)\s*=\s*(\w+)\.(\w+)/g;
-while ((m = reExportVar.exec(src))) {
-  const f = varToFile.get(m[2]);
-  if (f) exportToFile.set(m[1], f);
-}
-const reExportReq = /exports\.(\w+)\s*=\s*require\(['"](\.\/[^'"]+)['"]\)\.(\w+)/g;
-while ((m = reExportReq.exec(src))) {
-  exportToFile.set(m[1], modulePathToFile(m[2]));
-}
-
-const raw = new Set([...src.matchAll(/exports\.(\w+)\s*=/g)].map((x) => x[1]));
-const ok = exportToFile.size === raw.size && [...raw].every((n) => exportToFile.has(n));
-console.log(ok ? 'OK' : 'FAIL', '| mapped', exportToFile.size, '| raw', raw.size);
-if (!ok) {
-  const missing = [...raw].filter((n) => !exportToFile.has(n));
+const { exportToFile, rawExportNames, parseOk } = buildExportToFile();
+console.log(parseOk ? 'OK' : 'FAIL', '| mapped', exportToFile.size, '| raw', rawExportNames.size);
+if (!parseOk) {
+  const missing = [...rawExportNames].filter((name) => !exportToFile.has(name));
   console.log('Missing from map:', missing.join(', ') || '(none)');
   process.exit(1);
 }

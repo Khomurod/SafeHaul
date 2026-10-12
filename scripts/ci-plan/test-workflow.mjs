@@ -89,6 +89,21 @@ console.log('\nI. Workflow wiring');
                 /^ {4}runs-on:/m.test(header), 'missing runs-on');
         }
     }
+
+    // The functions deploy refuses to run when an export in `functions/index.js`
+    // maps to no module. The checks that say so run on every event, in the job
+    // nothing can skip, and ask the deploy's own parser rather than a copy.
+    const contract = parseJobs(readFileSync(resolvePath(workflowDir, 'main.yml'), 'utf8'))
+        .find(({ id }) => id === 'callable-contract');
+    assert('I5. callable-contract runs both deploy-planner checks on every event',
+        contract !== undefined && !/^ {4}if:/m.test(contract.header)
+            && /npm run check:function-exports/.test(contract.block)
+            && /npm run check:deploy-script/.test(contract.block),
+        'a PR that breaks the export mapping would go green and stop the next functions deploy');
+    const validator = readFileSync(resolvePath(here, 'validate-function-index-parse.mjs'), 'utf8');
+    assert('I5b. check:function-exports asks the deploy\'s own parser',
+        /from '\.\/deploy-functions-resolve\.mjs'/.test(validator) && !/\.exec\(|matchAll/.test(validator),
+        'a copy of the parser keeps passing after the real one changes');
 }
 
 /*
