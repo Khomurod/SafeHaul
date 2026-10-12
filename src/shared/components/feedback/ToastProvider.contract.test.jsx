@@ -108,6 +108,47 @@ describe('ToastProvider — public API', () => {
     });
 });
 
+describe('ToastProvider — stable helpers', () => {
+    // Consumers list these helpers in effect dependencies: a document's hydration,
+    // a report's read. While they changed every time a notification came or went,
+    // those effects ran again: a document being corrected reloaded and lost its
+    // edits, and a read that reported its own failure read again, without end.
+
+    it('hands every consumer the same helpers while notifications come and go', () => {
+        const seen = [];
+        function Recorder() {
+            const [, rerender] = React.useReducer((n) => n + 1, 0);
+            seen.push(useToast());
+            return <button type="button" onClick={rerender}>render again</button>;
+        }
+        render(<ToastProvider><Harness /><Recorder /></ToastProvider>);
+        fireEvent.click(screen.getByRole('button', { name: 'fire success' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification: Saved successfully!' }));
+        fireEvent.click(screen.getByRole('button', { name: 'render again' }));
+
+        expect(seen.length).toBeGreaterThan(1);
+        for (const value of seen) expect(value).toBe(seen[0]);
+    });
+
+    it('runs an effect that depends on a helper once, though the effect raises a notification', async () => {
+        const runs = vi.fn();
+        function Reporter() {
+            const { showError } = useToast();
+            React.useEffect(() => {
+                runs();
+                // Capped, so the defect shows as a count instead of hanging the run.
+                if (runs.mock.calls.length <= 5) showError('Could not load');
+            }, [showError]);
+            return null;
+        }
+        render(<ToastProvider><Reporter /></ToastProvider>);
+        await act(async () => {});
+
+        expect(runs).toHaveBeenCalledTimes(1);
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+    });
+});
+
 describe('ToastProvider — dismiss control', () => {
     it('keeps the frozen accessible name including the message', () => {
         renderProvider();
