@@ -226,6 +226,41 @@ describe('PEVTab initiation flow and callable payload', () => {
     expect(screen.getAllByRole('button', { name: /Copy Link/i })).toHaveLength(1);
   });
 
+  it('drops the link an older screen stored when a new request is emailed for that employer', async () => {
+    fnMocks.callable.mockResolvedValue({ data: { success: true } });
+    renderTab();
+    // An older version of this screen stored the link and the bare token.
+    storedDoc.employers[1].verification.token = 'tok-1';
+    fireEvent.click(screen.getByRole('button', { name: 'Resend verification request to Legacy Hauling' }));
+    fireEvent.click(screen.getByText('proceed-email'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalled());
+    // The old link opens the previous request's form, not the one just sent.
+    const written = fsMocks.updateDoc.mock.calls[0][1].employers[1].verification;
+    expect(written).not.toHaveProperty('verificationUrl');
+    expect(written).not.toHaveProperty('token');
+    expect(written.status).toBe('Sent');
+    expect(written.history).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: /Copy Link/i })).toBeNull();
+  });
+
+  it('offers the new link, not the stored one, when a new request is sent by hand for that employer', async () => {
+    renderTab();
+    fireEvent.click(screen.getByRole('button', { name: 'Resend verification request to Legacy Hauling' }));
+    fireEvent.click(screen.getByText('proceed-manual'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalled());
+    // Stored, the old link would come back on the next load of this application.
+    expect(fsMocks.updateDoc.mock.calls[0][1].employers[1].verification).not.toHaveProperty('verificationUrl');
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    fireEvent.click(screen.getByRole('button', { name: /Copy Link/i }));
+    expect(writeText).toHaveBeenCalledWith('https://portal.test/v/tok-9');
+    vi.unstubAllGlobals();
+  });
+
   it('keeps the link to copy when the application cannot be updated, and says the request exists', async () => {
     fsMocks.updateDoc.mockImplementation(async () => { throw new Error('offline'); });
     initiateFirst();
