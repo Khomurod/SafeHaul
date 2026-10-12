@@ -157,14 +157,27 @@ export function evaluate(files) {
   return { ok: problems.length === 0, problems, warnings };
 }
 
+/**
+ * A file's mark in the report: `!` past the maximum, `~` past the warning, `?`
+ * unreadable. A test has no limit, so a long one is not marked.
+ */
+export function reportFlag(file) {
+  if (file.lines === null) return '?';
+  if (file.category === 'test') return ' ';
+  return file.lines > HARD_LIMIT ? '!' : file.lines > WARN_LIMIT ? '~' : ' ';
+}
+
 export function summarise(files) {
   const byCategory = new Map();
   for (const file of files) {
     const bucket = byCategory.get(file.category) || { count: 0, lines: 0, over: 0, warn: 0 };
     bucket.count += 1;
     bucket.lines += file.lines;
-    if (file.lines > HARD_LIMIT) bucket.over += 1;
-    else if (file.lines > WARN_LIMIT) bucket.warn += 1;
+    // A test has no limit, so it is never counted as past one.
+    if (file.category !== 'test') {
+      if (file.lines > HARD_LIMIT) bucket.over += 1;
+      else if (file.lines > WARN_LIMIT) bucket.warn += 1;
+    }
     byCategory.set(file.category, bucket);
   }
   return byCategory;
@@ -192,12 +205,13 @@ function main() {
   console.log(`| category | files | lines | >${HARD_LIMIT} | ${WARN_LIMIT + 1}-${HARD_LIMIT} |`);
   console.log('| --- | ---: | ---: | ---: | ---: |');
   for (const [category, b] of [...byCategory].sort((a, z) => z[1].lines - a[1].lines)) {
-    console.log(`| ${category} | ${b.count} | ${b.lines} | ${b.over} | ${b.warn} |`);
+    const limited = category !== 'test';
+    console.log(`| ${category} | ${b.count} | ${b.lines} | ${limited ? b.over : '—'} | ${limited ? b.warn : '—'} |`);
   }
 
   console.log(`\nLargest ${top}:\n`);
   for (const file of files.slice(0, top)) {
-    const flag = file.lines === null ? '?' : file.lines > HARD_LIMIT ? '!' : file.lines > WARN_LIMIT ? '~' : ' ';
+    const flag = reportFlag(file);
     const size = file.lines === null ? '  ???' : String(file.lines).padStart(5);
     console.log(`  ${flag} ${size}  ${file.category.padEnd(7)}  ${file.path}`);
   }

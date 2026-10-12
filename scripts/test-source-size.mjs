@@ -29,7 +29,9 @@ import {
   isSourcePath,
   listSourceFiles,
   measure,
+  reportFlag,
   reportWarnings,
+  summarise,
 } from './source-size.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -245,6 +247,14 @@ const withRoots = (...extra) => [...roots, ...extra];
     printed({ GITHUB_ACTIONS: 'true' }).includes('::warning title=Source size::src/a.js is 501 lines')
       && printed({}).includes('warning: src/a.js is 501 lines') && !printed({}).includes('::warning'),
     printed({ GITHUB_ACTIONS: 'true' }));
+}
+{
+  const files = [file('src/a.test.js', 900), file('e2e/b.spec.cjs', 600), file('src/c.js', 600)];
+  const { test, runtime } = Object.fromEntries(summarise(files));
+  assert('D7. the report counts and marks a long test against no limit',
+    test.over === 0 && test.warn === 0 && runtime.warn === 1
+      && reportFlag(files[0]) === ' ' && reportFlag(files[1]) === ' ' && reportFlag(files[2]) === '~',
+    JSON.stringify({ test, runtime }));
 }
 {
   // Found while probing the guard: `git ls-files` names what the INDEX knows,
