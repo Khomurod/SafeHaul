@@ -19,6 +19,7 @@ exports.cancelBulkSession = bulkActions.cancelBulkSession;
 exports.backfillSmsSentPhones = bulkActions.backfillSmsSentPhones;
 exports.backfillAllSmsSentPhones = bulkActions.backfillAllSmsSentPhones;
 exports.checkImportPhones = bulkActions.checkImportPhones;
+exports.deleteBulkSessionData = bulkActions.deleteBulkSessionData;
 
 
 
