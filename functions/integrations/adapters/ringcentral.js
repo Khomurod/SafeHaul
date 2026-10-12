@@ -1,6 +1,6 @@
 const BaseAdapter = require('./BaseAdapter');
 const RC = require('@ringcentral/sdk').SDK;
-const { isLikelyValidPhone } = require('../../utils/phoneUtils');
+const { isLikelyValidPhone, normalizePhoneForKeychain } = require('../../utils/phoneUtils');
 
 class RingCentralAdapter extends BaseAdapter {
     constructor(config) {
@@ -246,13 +246,10 @@ class RingCentralAdapter extends BaseAdapter {
             const filtered = uniqueRecords
                 .filter(record => record.phoneNumber && record.type !== 'FaxOnly')
                 .map(record => {
-                    // Force E.164 sanitization (remove all except numbers and +)
-                    const sanitized = (record.phoneNumber || "").replace(/[^0-9+]/g, '');
-                    // Ensure it has a leading +
-                    const finalPhone = sanitized.startsWith('+') ? sanitized : `+${sanitized}`;
-
+                    // The keychain's own rule, so the inventory merge finds a line
+                    // added by hand under the same number this sync reports.
                     return {
-                        phoneNumber: finalPhone,
+                        phoneNumber: normalizePhoneForKeychain(String(record.phoneNumber)),
                         type: record.type,           // e.g. VoiceFax
                         usageType: record.usageType, // e.g. DirectNumber
                         paymentType: record.paymentType,

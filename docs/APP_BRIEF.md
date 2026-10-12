@@ -959,8 +959,8 @@ projection, and `/apply/:slug` is not gated by any flag. See
   secret" are reported as different faults, since they need opposite actions.
 - **SMS credentials are resolved by a factory, never inline.**
   `SMSAdapterFactory` fetches, decrypts and instantiates the right adapter. A
-  per-user *keychain* (`.../sms_provider/keychain/{userId}`) maps a recruiter to
-  their own "From" number, falling back to the company main number.
+  *keychain* holds each line's JWT under its number (as typed with +, else US
+  +1); `assignments` give recruiters a "From" line, else the main line.
 - **The company API reads only its key's company and logs each answer.** It
   serves the frozen record, not the live one; files need `documents:read`, the
   full SSN `ssn:read`, the PDF both (it shows the SSN). Each answer is logged in
