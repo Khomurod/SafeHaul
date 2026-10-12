@@ -144,8 +144,8 @@ Company Profile has five tabs: *Standard Questions* (show / hide / require the
 DOT questions), *Application Rules* (§5), *Custom Questions*, *Agreements*
 (versioned legal wording) and *Integrations* (optional PSP-report and MVR
 import). Qualifications asks 49 CFR 40.25(j)'s drug and alcohol question
-(pre-employment, past two years), kept apart from the broader one it replaced
-(Production asks it until promoted); a draft lacking its answer goes back there.
+(pre-employment, past two years), kept apart from the broader one it replaced;
+a draft lacking its answer goes back there.
 Violations carries the one **MVR authorization** question (a versioned agreement
 answered Yes/No); a Yes/No question precedes the moving-violations and the
 accidents lists; Employment can offer PSP-report import and License MVR import,
@@ -273,9 +273,10 @@ notes, documents, assignment. Leads arrive by manual quick-add, CSV /
 spreadsheet import, or the Facebook Lead Ads webhook.
 
 **E-documents and signing.** Recruiters build envelopes with placed signer
-fields (optionally AI-suggested); recipients sign at
-`/sign/:companyId/:requestId` **with no account**. Signed envelopes are sealed
-into tamper-evident PDFs. Signing is unlimited and not billed per envelope.
+fields (optionally AI-suggested); recipients sign **with no account** at
+`/sign/:companyId/:requestId`. The server sends the link; a corrected email
+or phone gets a new one, voiding the old. Signed envelopes are sealed into
+tamper-evident PDFs. Signing is unlimited and not billed per envelope.
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
@@ -533,7 +534,7 @@ write.
   outright, as is one landing on the driver's other edited draft; a submission
   back to Review. The page takes the edits (never the driver's own), drops a
   stale signature and names them on every step. Nothing the driver cannot see
-  stops a submission; an older page (Production until promoted) can undo edits.
+  stops a submission.
 
 ### The frozen record
 

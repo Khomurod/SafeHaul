@@ -23,6 +23,7 @@ import {
 } from '@features/signing/utils/prefillEngine';
 import { serializeTemplateFields } from '@features/signing/utils/templateFieldSerializer';
 import { SAVE_STATES } from '@features/signing/utils/editorSaveState';
+import { normalizePhone } from '@shared/utils/helpers';
 
 /** PHASE 4: Hydrate from existing document for "Correct" / "Edit Template" flows */
 export async function hydrateEnvelopeForEdit({
@@ -104,6 +105,46 @@ export async function hydrateEnvelopeForEdit({
 
 /** How a sent request's delivery is named in its confirmation. */
 const DELIVERY_LABELS = { email: 'Email', sms: 'SMS', both: 'Email + SMS' };
+
+/** The delivery a request records, which the server's senders follow. */
+function deliveryFields(deliveryMethod) {
+    return {
+        sendEmail: deliveryMethod === 'email' || deliveryMethod === 'both',
+        sendSms: deliveryMethod === 'sms' || deliveryMethod === 'both',
+        deliveryMethod,
+    };
+}
+
+/**
+ * What the server sends for a correction (`resendSignerOnCorrection`, whose
+ * rule this is: change both): a new link, the old one void, when a contact the
+ * link went to changed; the current link to a contact or channel it never went to.
+ */
+function correctionDelivery(before, after) {
+    if (before.status !== 'sent') return null;
+    const emailOf = (data) => String(data.recipientEmail || '').trim().toLowerCase();
+    const phoneOf = (data) => normalizePhone(data.recipientPhone);
+    const emailsLink = (data) => data.sendEmail !== false && Boolean(emailOf(data));
+    const textsLink = (data) => Boolean(data.sendSms) && Boolean(phoneOf(data));
+    const emailChanged = emailOf(before) !== emailOf(after);
+    const phoneChanged = phoneOf(before) !== phoneOf(after);
+    const newToken = (emailChanged && emailsLink(before)) || (phoneChanged && textsLink(before));
+    const email = emailsLink(after) && (newToken || emailChanged || !emailsLink(before));
+    const sms = textsLink(after) && (newToken || phoneChanged || !textsLink(before));
+    return newToken || email || sms ? { newToken, email, sms } : null;
+}
+
+/** What a saved correction tells its sender. */
+function correctionMessage(before, after) {
+    const delivery = correctionDelivery(before, after);
+    if (!delivery) return 'Document updated successfully!';
+    const channels = [delivery.email && 'Email', delivery.sms && 'SMS'].filter(Boolean).join(' + ');
+    if (!channels) return 'Document corrected. The old signing link no longer works: copy the new one from History.';
+    if (delivery.newToken) {
+        return `Document corrected. A new signing link is on its way by ${channels}, and the old one no longer works.`;
+    }
+    return `Document updated. The signing link is on its way by ${channels}.`;
+}
 
 /** Only reachable from a completed write. Also a safe history reset point. */
 export async function saveEnvelope({
@@ -199,13 +240,15 @@ export async function saveEnvelope({
 
         if (isEditingRequest) {
             const docRef = doc(db, 'companies', companyId, 'signing_requests', editRequestId);
+            const before = (await getDoc(docRef)).data() || {};
             await updateDoc(docRef, {
                 ...commonData,
                 recipientEmail: recipientEmail || null,
                 recipientName,
                 recipientPhone: recipientPhone || null,
+                ...deliveryFields(deliveryMethod),
             });
-            showSuccess('Document updated successfully!');
+            showSuccess(correctionMessage(before, { recipientEmail, recipientPhone, ...deliveryFields(deliveryMethod) }));
             markSaved();
             if (onClose) onClose();
             return;
@@ -249,9 +292,6 @@ export async function saveEnvelope({
             const expiresAt = Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000);
             const senderName = auth.currentUser?.displayName || auth.currentUser?.email || 'Your Employer';
 
-            const sendEmail = deliveryMethod === 'email' || deliveryMethod === 'both';
-            const sendSms = deliveryMethod === 'sms' || deliveryMethod === 'both';
-
             const signingRef = doc(collection(db, 'companies', companyId, 'signing_requests'));
             const batch = writeBatch(db);
             batch.set(signingRef, {
@@ -264,9 +304,7 @@ export async function saveEnvelope({
                 expiresAt,
                 senderId: auth.currentUser.uid,
                 senderName,
-                sendEmail,
-                sendSms,
-                deliveryMethod,
+                ...deliveryFields(deliveryMethod),
                 appBaseUrl: window.location.origin
             });
             batch.set(doc(signingRef, 'secrets', 'token'), { accessToken });

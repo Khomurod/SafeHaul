@@ -27,6 +27,7 @@ const SENDER_FILES = [
     'integrations/controllers/config/lineInventoryController.js',   // add / remove line
     'integrations/controllers/config/lineAssignmentsController.js', // recruiter line assignments
     'notifySignerSMS.js',                      // e-doc signer SMS
+    'resendSignerOnCorrection.js',             // e-doc signer SMS after a correction
     // Super Admin Environment & Integrations vault: reveals decrypt stored
     // company credentials, and the inventory reports whether the Secret
     // Manager-backed keys are configured. Without the binding every one of

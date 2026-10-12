@@ -49,6 +49,9 @@ exports.cleanupOrphanedSignatures = digitalSealing.cleanupOrphanedSignatures;
 // FEAT-3: SMS notification for signing requests
 const notifySignerSMS = require('./notifySignerSMS');
 exports.notifySignerSMS = notifySignerSMS.notifySignerSMS;
+// A correction to the signer's email or phone sends a new link there
+const resendSignerOnCorrection = require('./resendSignerOnCorrection');
+exports.resendSignerOnCorrection = resendSignerOnCorrection.resendSignerOnCorrection;
 // ADV-1 FIX: Secure callable to retrieve full signing link (with token from secrets)
 const getSigningLink = require('./getSigningLink');
 exports.getSigningLink = getSigningLink.getSigningLink;
