@@ -99,6 +99,20 @@ describe('LaunchPad — migrated launch flow', () => {
             expect(alert).toHaveTextContent('Message content is empty');
         });
 
+        it('blocks an audience over the 2,000-a-launch limit and says by how much', () => {
+            renderPad({ campaign: { ...validCampaign, matchCount: 2001 } });
+
+            expect(screen.getByRole('alert')).toHaveTextContent('At most 2,000 recipients per launch (this audience has 2,001)');
+            expect(screen.getByRole('button', { name: /Launch Immediately/ })).toBeDisabled();
+        });
+
+        it('launches an audience of exactly 2,000', () => {
+            renderPad({ campaign: { ...validCampaign, matchCount: 2000 } });
+
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Launch Immediately/ })).toBeEnabled();
+        });
+
         it('shows an all-clear status with the estimated duration when valid', () => {
             renderPad();
             const status = screen.getAllByRole('status').find(n => n.textContent.includes('All Systems Go'));

@@ -990,7 +990,7 @@ released if the connect then fails.
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response` and notifies the carrier, documenting the good-faith effort |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing — without it, signature-image PII accumulates in Storage |
-| `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, never otherwise, and runs with or without a chat |
+| `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, and runs with or without a chat |
 | `refreshAiModelLists` | hourly at :25, America/Chicago | Daily, and within the hour of a lane failure, re-tests each enabled provider's photo and text model versions on a made-up licence; keeps those that pass, adds catalogue models that pass, never empties a lane; tells Telegram what changed or needs fixing |
 | Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is actually live and opens/closes a GitHub issue |
 
@@ -1035,13 +1035,14 @@ Long-running triggers guard themselves through a `processing_status` ledger
 
 ### Bulk campaigns
 
-A recursive worker processes **50 recipients per batch** to fit function
-timeouts, re-checking the session each batch so a cancelled campaign stops at
-once. One rule (`recentlyMessaged.js`) excludes the recently messaged from the
-count, preview and launch: **7 days** by default for an uploaded list, none for
-CRM. Company and global `blacklist` collections hold SMS opt-outs and are
-checked before **every** send (`isBlacklisted()` in `sendLoop.js`), failing
-closed on an unparseable number — but nothing fills them from a reply (§12).
+A launch takes at most **2,000** recipients (`launchLimit.js`), refused before
+any write. A recursive worker sends **50 per batch** to fit function timeouts,
+re-checking the session, so a cancel stops at once. One rule
+(`recentlyMessaged.js`) excludes the recently messaged from count, preview and
+launch: **7 days** by default for an uploaded list, none for CRM. Company and
+global `blacklist`s hold SMS opt-outs, checked before **every** send
+(`isBlacklisted()` in `sendLoop.js`), failing closed on a bad number; nothing
+fills them from a reply (§12).
 
 ---
 

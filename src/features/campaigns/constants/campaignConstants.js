@@ -26,6 +26,12 @@ export const APPLICATION_STATUSES = [
  */
 export const UPLOAD_EXCLUDE_DEFAULT = '7';
 
+/**
+ * The most recipients one launch may message. The server refuses a larger
+ * audience with the same limit (`functions/bulkActions/helpers/launchLimit.js`).
+ */
+export const MAX_RECIPIENTS_PER_LAUNCH = 2000;
+
 export const LAST_CALL_RESULTS = [
     { id: 'no_answer', label: 'No Answer', value: 'No Answer' },
     { id: 'left_voicemail', label: 'Left Voicemail', value: 'Left Voicemail' },

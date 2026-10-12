@@ -10,6 +10,7 @@
 
 const { admin, db } = require("../../../firebaseAdmin");
 const { excludeWindow, recipientsMessagedWithin } = require("../../helpers/recentlyMessaged");
+const { assertWithinLaunchLimit } = require("../../helpers/launchLimit");
 
 // The window the upload screen shows until the recruiter picks another
 // (`AudienceBuilder`), so a list sent without one is filtered as it promised.
@@ -55,6 +56,8 @@ const persistImportTargets = async ({ companyId, sessionRef, rawItems, filters, 
     }
 
     const kept = rows.filter((row) => !messaged.has(row.key));
+    // Refused here, before any row is written, rather than after.
+    assertWithinLaunchLimit(kept.length);
     const batches = [];
     for (let i = 0; i < kept.length; i += BATCH_WRITES) {
         const batch = db.batch();

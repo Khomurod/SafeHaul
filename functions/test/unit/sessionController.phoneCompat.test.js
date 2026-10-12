@@ -266,3 +266,69 @@ describe('sessionController phone compatibility', () => {
         expect(mockBatchWrites.map((write) => write.data.firstName)).toEqual(['A', 'D']);
     });
 });
+
+// One launch messages at most 2,000 recipients, counted after every exclusion,
+// and a larger audience is refused before anything is written.
+describe('initBulkSession launch limit', () => {
+    const phoneOf = (i) => `+1555${String(i).padStart(7, '0')}`;
+    const leadsQuery = (count) => ({
+        select: jest.fn().mockReturnThis(),
+        get: jest.fn().mockResolvedValue({
+            docs: Array.from({ length: count }, (_, i) => ({ id: `lead${i}`, data: () => ({ phone: phoneOf(i) }) })),
+            size: count,
+        }),
+    });
+    const rows = (count) => Array.from({ length: count }, (_, i) => ({ firstName: `R${i}`, phone: phoneOf(i) }));
+    const launch = (filters, rawData) => sessionController.initBulkSession({
+        auth: { uid: 'u1' },
+        data: { companyId: 'co1', filters, config: { method: 'sms', message: 'Hello there' }, rawData },
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockGetAll.mockReset();
+        mockBatchWrites.length = 0;
+        mockGetAll.mockImplementation(async (...refs) => refs.map((ref) => ({ id: ref.id, exists: false, data: () => undefined })));
+    });
+
+    it('launches an audience of exactly 2,000', async () => {
+        mockBuildLeadQueries.mockReturnValue([leadsQuery(2000)]);
+
+        const result = await launch({ leadType: 'leads' });
+
+        expect(result.targetCount).toBe(2000);
+    });
+
+    it('refuses an audience of 2,001 before the session exists', async () => {
+        mockBuildLeadQueries.mockReturnValue([leadsQuery(2001)]);
+
+        await expect(launch({ leadType: 'leads' })).rejects.toMatchObject({
+            code: 'invalid-argument',
+            message: expect.stringContaining('2,000'),
+        });
+        expect(mockSessionSet).not.toHaveBeenCalled();
+        expect(mockEnqueueWorker).not.toHaveBeenCalled();
+    });
+
+    it('refuses an uploaded list of 2,001 before any row is written', async () => {
+        await expect(launch({ leadType: 'import', excludeRecentDays: 'off' }, rows(2001))).rejects.toMatchObject({
+            code: 'invalid-argument',
+        });
+        expect(mockBatchWrites).toHaveLength(0);
+        expect(mockSessionSet).not.toHaveBeenCalled();
+    });
+
+    it('counts an uploaded list after the rows the ledger leaves out', async () => {
+        // 2,100 rows, 100 of them texted today: 2,000 recipients, inside the limit.
+        const recent = new Set(rows(100).map((row) => row.phone));
+        mockGetAll.mockImplementation(async (...refs) => refs.map((ref) => {
+            const hit = recent.has(ref.id);
+            return { id: ref.id, exists: hit, data: () => (hit ? { lastSentAt: new Date() } : undefined) };
+        }));
+
+        const result = await launch({ leadType: 'import', excludeRecentDays: '7' }, rows(2100));
+
+        expect(result.filteredCount).toBe(100);
+        expect(result.targetCount).toBe(2000);
+    });
+});
