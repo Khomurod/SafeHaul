@@ -115,6 +115,12 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
     } = useBulkImport({ onError: showError });
     const lastUploadFingerprintRef = useRef('empty');
     const lastCampaignScopeRef = useRef(campaignScopeKey);
+    // The editor unmounts this step on Content and Launch and keeps the uploaded
+    // list; the import hook starts empty on every mount. Until the hook has held
+    // a list of its own, the kept one is the list. Once it has, an empty hook is
+    // a replacement file being read, and the old list goes with its un-ticks.
+    const keptRowsRef = useRef(filters?.rawData || []);
+    const importHeldRowsRef = useRef(false);
 
     const fileInputRef = useRef(null);
     const rawId = useId().replace(/:/g, '');
@@ -125,21 +131,22 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
         if (lastCampaignScopeRef.current === campaignScopeKey) return;
         lastCampaignScopeRef.current = campaignScopeKey;
         lastUploadFingerprintRef.current = 'empty';
+        keptRowsRef.current = [];
         setLocalFilters(prev => ({ ...prev, excludedLeadIds: [] }));
     }, [campaignScopeKey]);
 
     // Effect: Keep localFilters in sync with active tab and imported data
     useEffect(() => {
         if (activeTab === 'upload') {
+            if (csvData.length > 0) importHeldRowsRef.current = true;
+            const rows = importHeldRowsRef.current ? csvData : keptRowsRef.current;
             const uploadFingerprint = getUploadFingerprint(csvData);
             const shouldResetExclusions = uploadFingerprint !== lastUploadFingerprintRef.current;
             if (shouldResetExclusions) lastUploadFingerprintRef.current = uploadFingerprint;
             setLocalFilters(prev => ({
                 ...prev,
                 leadType: 'import',
-                // Back on this step the import hook starts empty, and the list
-                // is the one the editor kept: a new import replaces it, nothing else.
-                rawData: csvData.length > 0 ? csvData : (prev.rawData || []),
+                rawData: rows,
                 excludedLeadIds: shouldResetExclusions ? [] : (prev.excludedLeadIds || [])
             }));
         } else {
