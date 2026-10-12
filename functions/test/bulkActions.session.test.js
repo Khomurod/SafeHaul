@@ -58,7 +58,7 @@ describe('Bulk Actions Tests', () => {
         const companyDocMock = {
             get: jest.fn().mockResolvedValue({
                 exists: true,
-                data: () => ({ name: 'Test Company', ownerId: 'user123' })
+                data: () => ({ companyName: 'Test Company', ownerId: 'user123' })
             }),
             collection: jest.fn((name) => {
                 if (name === 'bulk_sessions') return { doc: jest.fn(() => sessionDocMock) };
@@ -178,7 +178,7 @@ describe('Bulk Actions Tests', () => {
         const companyDocMock = {
             get: jest.fn().mockResolvedValue({
                 exists: true,
-                data: () => ({ name: 'Test Company' })
+                data: () => ({ companyName: 'Test Company' })
             }),
             collection: jest.fn((name) => {
                 if (name === 'bulk_sessions') return { doc: jest.fn(() => sessionRefMock) };

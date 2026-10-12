@@ -1040,7 +1040,7 @@ timeouts, re-checking session state each batch so a cancelled campaign stops at
 once rather than leaving a zombie worker. Recently-contacted numbers are
 excluded by a configurable window that **defaults to 7 days**. Company and
 global `blacklist` collections hold SMS opt-outs and are checked before
-**every** send (`isBlacklisted()` in `batchWorker.js`), failing closed on an
+**every** send (`isBlacklisted()` in `sendLoop.js`), failing closed on an
 unparseable number — but nothing populates them from a recipient's reply (§12).
 
 ---

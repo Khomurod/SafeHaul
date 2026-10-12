@@ -22,10 +22,17 @@ async function runSendLoop({
     leadSourceType,
     config,
     companyName,
+    recruiterName,
     senderId,
     adapter,
     emailTransporter,
 }) {
+    // A function replacer, so a "$&" in a name is text and not a replacement pattern.
+    const fillPlaceholders = (text, leadData) => text
+        .replace(/\[Driver Name\]/g, () => leadData.firstName || 'Driver')
+        .replace(/\[Company Name\]/g, () => companyName)
+        .replace(/\[Recruiter Name\]/g, () => recruiterName || 'your recruiter');
+
     let batchSuccessCount = 0;
     let batchFailCount = 0;
     let pointerAdvanceCount = 0;
@@ -109,10 +116,7 @@ async function runSendLoop({
                             recipientIdentity = phone || "No Phone";
 
                             if (recipientIdentity !== "No Phone") {
-                                const finalMsg = config.message
-                                    .replace(/\[Driver Name\]/g, leadData.firstName || 'Driver')
-                                    .replace(/\[Company Name\]/g, companyName)
-                                    .replace(/\[Recruiter Name\]/g, config.recruiterName || 'your recruiter');
+                                const finalMsg = fillPlaceholders(config.message, leadData);
 
                                 await adapter.sendSMS(recipientIdentity, finalMsg, senderId);
                                 success = true;
@@ -124,15 +128,13 @@ async function runSendLoop({
                             recipientIdentity = leadData.email || "No Email";
 
                             if (recipientIdentity !== "No Email") {
-                                const finalBody = config.message
-                                    .replace(/\[Driver Name\]/g, leadData.firstName || 'Driver')
-                                    .replace(/\[Company Name\]/g, companyName)
-                                    .replace(/\[Recruiter Name\]/g, config.recruiterName || 'your recruiter');
+                                const finalBody = fillPlaceholders(config.message, leadData);
 
                                 await emailTransporter.sendMail({
                                     from: `"${companyName}" <${emailTransporter.transporter.options.auth.user}>`,
                                     to: recipientIdentity,
-                                    subject: config.subject || `Update from ${companyName}`,
+                                    // The composer offers the placeholders in the subject too.
+                                    subject: config.subject ? fillPlaceholders(config.subject, leadData) : `Update from ${companyName}`,
                                     text: finalBody,
                                     html: `<p>${finalBody.replace(/\n/g, '<br>')}</p>`
                                 });

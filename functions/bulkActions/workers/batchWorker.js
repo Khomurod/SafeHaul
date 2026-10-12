@@ -4,11 +4,31 @@ const { admin, db } = require("../../firebaseAdmin");
 const { enqueueWorker } = require("../services/queueService");
 const { setupSender } = require("./senderSetup");
 const { runSendLoop } = require("./sendLoop");
+const { nameFromProfile, cleanString } = require("../../shared/userIdentity");
 
 // B4: hard per-session lifetime ceiling — a runaway-cost circuit breaker so a single
 // bulk_session can never process more than this many items total, regardless of how large
 // (or corrupted) its targetIds list is. Set far above any legitimate campaign; tunable via env.
 const MAX_SESSION_SENDS = Number(process.env.BULK_SESSION_MAX_SENDS) || 100000;
+
+/**
+ * Who [Recruiter Name] is: the staff member who launched the campaign, named by
+ * their profile and then their sign-in account, as the team roster names them
+ * (`shared/userIdentity.js`). A failed lookup never stops the batch: the message
+ * then says "your recruiter", as it always did.
+ */
+async function senderDisplayName(senderId) {
+    if (!senderId) return null;
+    try {
+        const profileSnap = await db.collection('users').doc(senderId).get();
+        const fromProfile = nameFromProfile(profileSnap.exists ? profileSnap.data() : null);
+        if (fromProfile) return fromProfile;
+        return cleanString((await admin.auth().getUser(senderId)).displayName);
+    } catch (error) {
+        console.warn(`[BatchWorker] Could not read the campaign sender's name: ${error.message}`);
+        return null;
+    }
+}
 
 // SMS_ENCRYPTION_KEY: this worker decrypts the company's SMS provider credentials /
 // per-line JWTs (via SMSAdapterFactory) and SMTP passwords for bulk campaigns. Without the
@@ -154,11 +174,16 @@ exports.processBulkBatch = onRequest({
         // console.log(`[Batch Worker] Processing ${batchIds.length} items (${currentPointer} - ${endPointer}) for session ${sessionId}`);
 
         // --- PRELOAD RESOURCES ---
+        // Companies store their name as `companyName`; reading `name` put "undefined"
+        // into every message.
         const companySnap = await db.collection('companies').doc(companyId).get();
-        const companyName = companySnap.exists ? companySnap.data().name : "SafeHaul Company";
+        const companyData = (companySnap.exists && companySnap.data()) || {};
+        const companyName = companyData.companyName || companyData.name || "SafeHaul Company";
 
         // Setup Sender (SMS or Email)
         const senderId = sessionData.createdBy;
+        const usesRecruiterName = [config.message, config.subject].some((text) => String(text || '').includes('[Recruiter Name]'));
+        const recruiterName = usesRecruiterName ? await senderDisplayName(senderId) : null;
         const setup = await setupSender({ companyId, sessionRef, config, senderId });
         if (setup.failed) {
             return res.status(200).send(setup.failed);
@@ -177,6 +202,7 @@ exports.processBulkBatch = onRequest({
             leadSourceType,
             config,
             companyName,
+            recruiterName,
             senderId,
             adapter,
             emailTransporter,

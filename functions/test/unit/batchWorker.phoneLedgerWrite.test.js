@@ -61,7 +61,7 @@ const mockDb = {
             doc: jest.fn(() => ({
                 get: jest.fn().mockResolvedValue({
                     exists: true,
-                    data: () => ({ name: 'Test Co' })
+                    data: () => ({ companyName: 'Test Co' })
                 }),
                 collection: jest.fn((sub) => {
                     if (sub === 'bulk_sessions') {

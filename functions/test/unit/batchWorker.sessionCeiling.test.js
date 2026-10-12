@@ -38,7 +38,7 @@ const mockDb = {
         if (name !== 'companies') return { doc: jest.fn(() => ({})) };
         return {
             doc: jest.fn(() => ({
-                get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ name: 'Test Co' }) }),
+                get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ companyName: 'Test Co' }) }),
                 collection: jest.fn((sub) =>
                     sub === 'bulk_sessions'
                         ? { doc: jest.fn(() => sessionRef) }
