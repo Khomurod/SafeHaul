@@ -6,10 +6,6 @@
  * and the same driver's other unfinished application at this company. Submitted
  * applications and hired drivers are never touched.
  *
- * `deleteApplicationDraft` (`admin.js`) stays as it was, removing the one
- * document, because the pages built before this (Production, until a release
- * promotes the new ones) still call it.
- *
  * ## Two calls: what would go, then the deletion
  *
  * `preview` answers what would be deleted: the application, how many files it

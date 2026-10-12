@@ -43,7 +43,7 @@
  */
 
 // The handlers live in `drafts/`, split by what they do to a draft: identify,
-// save, resume, list, a Company Admin's read, edit and delete, and the deletion
+// save, resume, list, a Company Admin's read and edit, and the deletion
 // of an application with everything in it (`drafts/purge.js`). This module is
 // the deployment surface and nothing else — `index.js` reads these names off
 // it, so **the export names here are the contract** and a rename is a
@@ -58,7 +58,7 @@ const {
 } = require('./drafts/resume');
 const { listApplicationDrafts } = require('./drafts/list');
 const {
-    getApplicationDraft, saveApplicationDraftEdits, deleteApplicationDraft,
+    getApplicationDraft, saveApplicationDraftEdits,
 } = require('./drafts/admin');
 const { purgeApplicationDraft } = require('./drafts/purge');
 
@@ -69,7 +69,6 @@ exports.startNewApplication = startNewApplication;
 exports.listApplicationDrafts = listApplicationDrafts;
 exports.getApplicationDraft = getApplicationDraft;
 exports.saveApplicationDraftEdits = saveApplicationDraftEdits;
-exports.deleteApplicationDraft = deleteApplicationDraft;
 exports.purgeApplicationDraft = purgeApplicationDraft;
 
 exports.__private = {

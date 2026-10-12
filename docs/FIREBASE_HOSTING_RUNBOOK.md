@@ -375,7 +375,7 @@ The retired function:
   stored ciphertext in `platform_settings/landing_page` was not deleted, so
   **rotate the bot token through BotFather** if that has not happened yet.
 
-### Deleting the retired callables from the project
+### Deleting retired callables from the project
 
 Retiring a function in `functions/index.js` does not remove it from Cloud. The
 deploy scripts (`scripts/deploy-functions-*.mjs`) only ever run
@@ -394,29 +394,34 @@ while a name that does not exist gets Cloud's `404 Page not found`.
 not a manual procedure. It is the *contract* half of expand → promote → contract
 (see "Shared-backend rules" below), and it runs at the one moment it is safe:
 after the promoted release is verified live on `app.safehaul.io` and recorded,
-so no Production frontend still calls the six. `scripts/retire-landing-functions.mjs`
-does, in order:
+so no Production frontend still calls what it deletes. `scripts/retire-functions.mjs`
+lists each retirement (`RETIREMENTS`): its functions and `since`, the commit that
+removed their last caller. It does, in order:
 
-1. **Proves the promoted release carries `LD-R3`** (`git merge-base
-   --is-ancestor f7c89d4 <sha>`; the promotion checkout has full history for
-   this). A release that predates it — a rollback to the 2026-08-10 build, say —
-   still calls the six, so nothing is deleted and the step says so. "Cannot
-   prove" is treated the same way.
-2. **Probes each of the six** by URL and plans to delete only the ones that
+1. **Proves the promoted release carries each `since`** (`git merge-base
+   --is-ancestor <since> <sha>`; the promotion checkout has full history for
+   this). A release that predates one — a rollback to the 2026-08-10 build, say —
+   still calls those functions, so they are not deleted and the step says so.
+   "Cannot prove" is treated the same way.
+2. **Probes each of their names** by URL and plans to delete only the ones that
    still answer, so a re-run after a partial failure finishes the job instead of
    erroring on names already gone.
 3. **Deletes only those**, region-qualified, `--force --non-interactive`.
    `listLandingLeads` is never in the set: it is the only path to the archive.
-4. **Verifies**: every one of the six must now return `404`, and
+4. **Verifies**: every one of them must now return `404`, and
    `listLandingLeads` must still answer. Either failing fails the step — after
    the release is already live and recorded, which is the right order.
 5. **Touches no data.** The `landing_leads` collection and `platform_settings/
    landing_page` are preserved by owner ruling; deleting a function deletes no
    documents, and nothing in this procedure does either.
 
-`scripts/test-release-promotion.mjs` scenarios 19–22 pin the planning rules and
-that the workflow runs the step after `record-release.mjs`, guarded by
-`already_live`. **Manual fallback**, if the step fails and cannot be re-run
+The list: `LD-R3`'s six; `runMigration` (since `7aaca38`, which removed the
+Deep Diagnostic) and `deleteApplicationDraft` (since `2d76227`, when the
+unfinished-applications page moved to `purgeApplicationDraft`). To retire
+another callable, remove it from `functions/index.js` and add an entry.
+`scripts/test-release-promotion.mjs` scenarios 19–22 pin the planning rules, that
+no retired name is still exported (19f), and that the workflow runs the step
+after `record-release.mjs`, guarded by `already_live`. **Manual fallback**, if the step fails and cannot be re-run
 through a promotion (it is skipped when Production already serves the release):
 `firebase functions:delete <the names that still answer> --region us-central1
 --project truckerapp-system --force`, then probe as in step 4.

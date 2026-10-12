@@ -266,8 +266,7 @@ nothing about a person is retained.
 
 A Company Admin's actions are the exception that says who and which:
 `company_viewed_draft` (`getApplicationDraft`), `company_edited_draft`
-(`saveApplicationDraftEdits`), `company_deleted_draft`
-(`deleteApplicationDraft`) and `company_purged_draft` (`purgeApplicationDraft`)
+(`saveApplicationDraftEdits`) and `company_purged_draft` (`purgeApplicationDraft`)
 add `actorUid` (the staff account), `applicantKey` (the draft's id, already a
 hash) and the draft's `origin` and `status`; an edit adds the ids of the answers
 it changed (`fields`) and its `revision`, and a draft purged with another names

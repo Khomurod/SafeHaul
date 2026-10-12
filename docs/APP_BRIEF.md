@@ -261,8 +261,7 @@ The admin column answers only `assertCompanyAdminStrict` and is audited.
 **Delete** shows what goes, then removes answers, links, ticked
 same-driver drafts (same identity, email or phone) and uploads nothing else
 uses, none a submission marked or older than 2026-10-12; its tokens learn
-"removed" (a device copy can still submit). `deleteApplicationDraft` (document
-only) serves older pages.
+"removed" (a device copy can still submit).
 **Edit answers** covers every page but what only the driver gives
 (`driverOnlyFields.json`), and never overwrites an answer changed since loading.
 
@@ -931,7 +930,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (admin-only subcollection); password encrypted with an `enc:v1:` prefix and **never returned to the browser**. A legacy fallback still reads `companies/{id}.emailSettings` for pre-migration tenants — do not delete it without migrating them |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`: one text task over whichever documents were attached, with a per-document vision fallback) | Secret Manager via the frozen registry in `functions/ai/registry` |
-| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health (the bot token is checked with Telegram before it is stored). The marketing-site bot is **retired** (`LD-R3`): `promote-production.yml` still runs the idempotent `scripts/retire-landing-functions.mjs` (never touching `listLandingLeads`); a rollback past `LD-R3` would call deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
+| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health (the bot token is checked with Telegram before it is stored). The marketing-site bot is **retired** (`LD-R3`): `promote-production.yml` still runs the idempotent `scripts/retire-functions.mjs` (never touching `listLandingLeads`); a rollback past `LD-R3` would call deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
 | **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
 | **Sentry** | Error monitoring for the browser app (`@sentry/react`); Cloud Functions log to Cloud Logging only | DSN |

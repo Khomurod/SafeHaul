@@ -164,33 +164,6 @@ exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
     }
 });
 
-// --- FEATURE 6: MANUAL MIGRATION TOOL ---
-
-// --- FEATURE 6: MANUAL MIGRATION TOOL ---
-const migrationLogic = onCall({
-    cors: true, region: "us-central1", maxInstances: 10
-}, async (request) => {
-    // P1-5 FIX: Require super_admin role, not just authentication
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-    const roles = request.auth.token?.roles || {};
-    const globalRole = request.auth.token?.globalRole || roles.globalRole;
-    if (globalRole !== 'super_admin') {
-        throw new HttpsError('permission-denied', 'Super admin access required for migrations.');
-    }
-
-    if (request.data?.mode === 'ping') return { success: true, message: "Pong!" };
-    try {
-        const companiesRef = db.collection('companies');
-        // No-op migration: the legacy dailyQuota backfill targeted the now-deleted
-        // Lead Distribution Engine. Kept as a callable for cloud-function ping diagnostics.
-        const snapshot = await companiesRef.get();
-        return { success: true, message: `Migration ran (no-op). Scanned ${snapshot.size} companies.` };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-});
-
-exports.runMigration = migrationLogic;
 /**
  * BACKFILL PUBLIC PROFILES
  * Super-admin callable that force-rewrites EVERY company's public profile,
