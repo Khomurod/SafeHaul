@@ -17,6 +17,7 @@ import {
     normalizeSearchApplicationId,
 } from '@shared/utils/searchNormalization';
 import { statusMatchesSegment } from '@shared/utils/applicationStatus';
+import { toUsStateCode, toUsStateName } from '@shared/utils/usStates';
 
 const CONFIRMATION_PATTERN = /^[A-Za-z]{2,5}\s*-\s*\d{4}\s*-\s*[A-Za-z0-9]{4,8}$/;
 const PHONE_PATTERN = /^[+()\-.\s\d]{7,}$/;
@@ -163,6 +164,29 @@ export function leadStatusMatchesSegment(rawStatus, segmentId) {
     return statuses.includes(String(rawStatus ?? ''));
 }
 
+/**
+ * The stored spellings the State filter matches for a picked state, used by the
+ * Firestore `in` and by the client-side mirror alike. An application holds its
+ * picker's full name ("Texas"), though one filled in from a licence may hold the
+ * postal code ("TX"); a lead holds whatever its import file or the quick-add box
+ * said. So the filter matches the name and the code as written and in either
+ * case: five values, which keeps a segment's `status in` (three at most) inside
+ * Firestore's 30 alternatives.
+ *
+ * @param {unknown} value the picked state, e.g. `'Texas'`
+ * @returns {string[]} e.g. `['Texas', 'TX', 'TEXAS', 'texas', 'tx']`; a value that
+ *   names no state is matched as it is
+ */
+export function stateFilterValues(value) {
+    const name = toUsStateName(value);
+    if (!name) {
+        const text = String(value ?? '').trim();
+        return text ? [text] : [];
+    }
+    const code = toUsStateCode(name);
+    return [...new Set([name, code, name.toUpperCase(), name.toLowerCase(), code.toLowerCase()])];
+}
+
 function matchesDateFilter(record, dateFilter) {
     if (!dateFilter) return true;
     const ts = record.submittedAt || record.createdAt;
@@ -219,7 +243,7 @@ export function applyClientSideFilters(records, {
                 return false;
             }
         }
-        if (filters.state && String(record.state || '').toUpperCase() !== filters.state.toUpperCase()) {
+        if (filters.state && !stateFilterValues(filters.state).includes(record.state)) {
             return false;
         }
         if (filters.driverType) {

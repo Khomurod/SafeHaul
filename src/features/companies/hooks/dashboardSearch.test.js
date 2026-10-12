@@ -6,6 +6,7 @@ import {
     applyClientSideFilters,
     mergeSearchResults,
     leadStatusMatchesSegment,
+    stateFilterValues,
     PREFIX_END,
 } from './dashboardSearch';
 
@@ -169,6 +170,21 @@ describe('applyClientSideFilters', () => {
         }).map((r) => r.id)).toEqual(['1', '3']);
     });
 
+    it('the State filter matches a picked state however the record spells it, as the query does', () => {
+        // Artificial records: the picker's name, a postal code, a hand-typed name.
+        const spelled = [
+            { id: 'picked', state: 'Texas' },
+            { id: 'code', state: 'TX' },
+            { id: 'typed', state: 'texas' },
+            { id: 'other', state: 'Illinois' },
+            { id: 'none' },
+        ];
+
+        expect(applyClientSideFilters(spelled, {
+            activeTab: 'applications', pipelineSegment: 'all', filters: { state: 'Texas' },
+        }).map((r) => r.id)).toEqual(['picked', 'code', 'typed']);
+    });
+
     it('assignee filter supports the unassigned sentinel', () => {
         expect(applyClientSideFilters(apps, {
             activeTab: 'applications', pipelineSegment: 'all', filters: { assignee: '__unassigned__' },
@@ -179,6 +195,25 @@ describe('applyClientSideFilters', () => {
         expect(leadStatusMatchesSegment('Contact Attempt 2', 'attempting')).toBe(true);
         expect(leadStatusMatchesSegment('New Lead', 'attempting')).toBe(false);
         expect(leadStatusMatchesSegment('In Process', 'in_process')).toBe(true);
+    });
+});
+
+describe('stateFilterValues', () => {
+    it('lists the name and the postal code of the state, as written and in either case', () => {
+        const texas = ['Texas', 'TX', 'TEXAS', 'texas', 'tx'];
+
+        expect(stateFilterValues('Texas')).toEqual(texas);
+        expect(stateFilterValues('tx')).toEqual(texas);
+        expect(stateFilterValues(' TEXAS ')).toEqual(texas);
+        expect(stateFilterValues('District of Columbia')).toEqual([
+            'District of Columbia', 'DC', 'DISTRICT OF COLUMBIA', 'district of columbia', 'dc',
+        ]);
+    });
+
+    it('keeps a value that is no state as it is, and gives nothing for an empty one', () => {
+        expect(stateFilterValues('Ontario')).toEqual(['Ontario']);
+        expect(stateFilterValues('   ')).toEqual([]);
+        expect(stateFilterValues(undefined)).toEqual([]);
     });
 });
 

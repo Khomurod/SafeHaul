@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import { US_STATE_NAMES } from '@shared/utils/usStates';
 import { DashboardToolbar } from './DashboardToolbar';
 
 /**
@@ -56,11 +57,22 @@ describe('DashboardToolbar filter panel', () => {
         renderToolbar({ setFilters });
 
         fireEvent.click(screen.getByRole('button', { name: /Filters/ }));
-        fireEvent.change(screen.getByLabelText('State'), { target: { value: 'TX' } });
+        fireEvent.change(screen.getByLabelText('State'), { target: { value: 'Texas' } });
 
         expect(setFilters).toHaveBeenCalledTimes(1);
         // Called with an updater, so apply it to see what it would store.
         expect(setFilters.mock.calls[0][0]({ driverType: 'Reefer' }))
-            .toEqual({ driverType: 'Reefer', state: 'TX' });
+            .toEqual({ driverType: 'Reefer', state: 'Texas' });
+    });
+
+    it('offers every state by its full name, the way applications store it', () => {
+        renderToolbar({ filters: { state: 'Texas' } });
+
+        fireEvent.click(screen.getByRole('button', { name: /Filters/ }));
+        const state = screen.getByRole('combobox', { name: 'State' });
+
+        expect(within(state).getAllByRole('option').map((option) => option.textContent))
+            .toEqual(['All States', ...US_STATE_NAMES]);
+        expect(state).toHaveValue('Texas');
     });
 });
