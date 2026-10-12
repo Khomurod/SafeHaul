@@ -271,7 +271,10 @@ exports.onApplicationSubmitted = onDocumentCreated({
         userId: data.userId || null,
         ownerUserIds: [data.driverId || data.userId || data.applicantId || appId],
         isSynced: true,
-        sourceField: mapping.field
+        sourceField: mapping.field,
+        // The DQ tab keeps a synced record it deleted, marked removed, so this
+        // upload is not filed twice; a new upload of the type shows again.
+        removedAt: admin.firestore.FieldValue.delete()
       }, { merge: true });
 
       console.log(`[onApplicationSubmitted] Fanned out ${mapping.type} to dq_files for ${appId}`);
@@ -366,7 +369,9 @@ exports.onApplicationUpdated = onDocumentUpdated({
           userId: afterData.userId || null,
           ownerUserIds: [afterData.driverId || afterData.userId || afterData.applicantId || appId],
           isSynced: true,
-          sourceField: mapping.field
+          sourceField: mapping.field,
+          // A new upload of a type whose entry the DQ tab removed shows again.
+          removedAt: admin.firestore.FieldValue.delete()
         }, { merge: true });
 
         syncCount++;

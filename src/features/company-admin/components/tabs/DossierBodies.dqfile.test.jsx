@@ -321,7 +321,18 @@ describe('DQFileTab — a driver upload filed from the application', () => {
         expect(signedFileUrl).not.toHaveBeenCalled();
     });
 
-    it('removes only its DQ entry, never the application\'s own file', async () => {
+    it('removes only its DQ entry, never the application\'s own file, and it stays removed', async () => {
+        // The stored rows, as each load reads them. The application still holds
+        // the upload, which is what the tab's sync files from.
+        let rows = [['license_front', SYNCED_DRIVER_UPLOAD]];
+        fs.getDocs.mockImplementation(async () => snap(rows));
+        fs.updateDoc.mockImplementation(async (ref, data) => {
+            rows = rows.map(([id, row]) => [id, id === ref.id ? { ...row, ...data } : row]);
+        });
+        fs.getDoc.mockResolvedValue({
+            exists: () => true,
+            data: () => ({ 'cdl-front': { name: 'cdl-front.jpg', url: SYNCED_DRIVER_UPLOAD.url, storagePath: SYNCED_DRIVER_UPLOAD.storagePath } }),
+        });
         renderDq();
 
         fireEvent.click(await screen.findByRole('button', { name: 'Delete CDL Front: cdl-front.jpg' }));
@@ -331,14 +342,22 @@ describe('DQFileTab — a driver upload filed from the application', () => {
         )).toBeInTheDocument();
         fireEvent.click(within(dialog).getByRole('button', { name: 'Delete file' }));
 
-        await waitFor(() => expect(fs.deleteDoc).toHaveBeenCalled());
-        expect(storageMocks.deleteObject).not.toHaveBeenCalled();
         await waitFor(() => expect(logActivity).toHaveBeenCalledWith(
             'co-1', 'applications', 'app-1',
             'dq_file_deleted',
             'Deleted DQ file: CDL Front - cdl-front.jpg',
             'user',
         ));
+        // Marked removed rather than deleted: the sync matches an upload against
+        // the records it finds, so a deleted record was filed again at once.
+        expect(fs.updateDoc).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'license_front' }),
+            { removedAt: 'SERVER_TIMESTAMP' },
+        );
+        expect(fs.deleteDoc).not.toHaveBeenCalled();
+        expect(storageMocks.deleteObject).not.toHaveBeenCalled();
+        expect(await screen.findByText('No DQ files have been uploaded for this driver.')).toBeInTheDocument();
+        expect(fs.addDoc).not.toHaveBeenCalled();
     });
 });
 

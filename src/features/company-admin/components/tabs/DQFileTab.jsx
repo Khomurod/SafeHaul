@@ -1,6 +1,6 @@
 import React, { useId, useRef, useState, useEffect, useMemo } from 'react';
 import { db, storage } from '@lib/firebase';
-import { collection, addDoc, getDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Icon, Upload, Trash2, FileText, Download } from '@design-system/icons';
 import { logActivity } from '@shared/utils/activityLogger';
@@ -45,10 +45,11 @@ import { fetchAndSyncDqFiles } from './dqFileSync';
  * and their label text; the 2-second upload-message reset; and every user-facing
  * string.
  *
- * A synced record (`isSynced`) files the application's own upload. Its file is
- * the application's: deleting the record leaves it, and a driver's upload opens
- * from a link signed when it is pressed, since the `url` it was copied with is a
- * signed link that lived minutes.
+ * A synced record (`isSynced`) files the application's own upload. Deleting it
+ * leaves the file, and keeps the record unlisted with `removedAt`: the sync files
+ * any upload no record matches, so a deleted one came straight back. A new upload
+ * of that type clears the mark (`driverSync.js`). A driver's upload opens from a
+ * link signed when it is pressed; the `url` it was copied with lived minutes.
  *
  * Defects fixed:
  *  1. **Blocking `window.confirm` on the destructive delete** → the shared
@@ -260,15 +261,19 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
     setError('');
 
     try {
-      // Delete from Storage, unless the file is the application's own upload.
-      if (!file.isSynced) {
+      const docRef = doc(dqFilesCollectionRef, file.id);
+      if (file.isSynced) {
+        // The application's own upload: the file stays, and so does the record,
+        // marked removed, so that the sync does not file the upload again.
+        await updateDoc(docRef, { removedAt: serverTimestamp() });
+      } else {
+        // Delete from Storage
         const storageRef = ref(storage, file.storagePath);
         await deleteObject(storageRef);
-      }
 
-      // Delete from Firestore
-      const docRef = doc(dqFilesCollectionRef, file.id);
-      await deleteDoc(docRef);
+        // Delete from Firestore
+        await deleteDoc(docRef);
+      }
 
       // Log activity for the deletion
       await logActivity(
@@ -289,6 +294,9 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
       setLoading(false);
     }
   };
+
+  // A synced record marked removed is kept for the sync's matching, never shown.
+  const shownFiles = dqFiles.filter((file) => !file.removedAt);
 
   return (
     <Stack gap="lg">
@@ -364,12 +372,12 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
               Loading DQ files...
             </p>
           )}
-          {!loading && dqFiles.length === 0 && (
+          {!loading && shownFiles.length === 0 && (
             <p className="p-ds-4 text-center text-ds-content-secondary">
               No DQ files have been uploaded for this driver.
             </p>
           )}
-          {!loading && dqFiles.map(file => {
+          {!loading && shownFiles.map(file => {
             const status = getExpirationStatus(file.expirationDate);
             return (
               <div

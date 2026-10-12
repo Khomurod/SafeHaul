@@ -43,6 +43,7 @@ export const fs = {
     getDoc: vi.fn(),
     addDoc: vi.fn(),
     deleteDoc: vi.fn(),
+    updateDoc: vi.fn(),
 };
 export const storageMocks = {
     uploadBytes: vi.fn(),
@@ -74,6 +75,7 @@ export const firebaseFirestoreMock = () => ({
     getDoc: (...a) => fs.getDoc(...a),
     addDoc: (...a) => fs.addDoc(...a),
     deleteDoc: (...a) => fs.deleteDoc(...a),
+    updateDoc: (...a) => fs.updateDoc(...a),
     serverTimestamp: () => 'SERVER_TIMESTAMP',
 });
 export const firebaseStorageMock = () => ({
@@ -103,6 +105,7 @@ export function resetHarness() {
     fs.getDoc.mockResolvedValue({ exists: () => false, data: () => ({}) });
     fs.addDoc.mockResolvedValue({ id: 'new-1' });
     fs.deleteDoc.mockResolvedValue(undefined);
+    fs.updateDoc.mockResolvedValue(undefined);
     storageMocks.uploadBytes.mockResolvedValue(undefined);
     storageMocks.getDownloadURL.mockResolvedValue('https://example.test/signed');
     storageMocks.deleteObject.mockResolvedValue(undefined);
