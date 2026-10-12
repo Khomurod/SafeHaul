@@ -9,9 +9,10 @@
  * release.
  */
 
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
-import { ALWAYS_REQUIRED_JOBS } from '../ci-plan.mjs';
+import { ALWAYS_REQUIRED_JOBS, lanesForPath } from '../ci-plan.mjs';
 import { evaluateValidation } from '../verify-release-validation.mjs';
 import { allJobs, assert, here, plan, workflow } from './test-support.mjs';
 
@@ -80,7 +81,6 @@ console.log('\nK. Guards that stay guards');
      */
     for (const [step, script] of [
         ['Visual contract (geometry)', 'check:visual-contract'],
-        ['Story render + accessibility checks', 'test:stories'],
         ['Table layout check', 'check:table-layout'],
     ]) {
         const block = stepBlock(step);
@@ -89,6 +89,56 @@ console.log('\nK. Guards that stay guards');
         assert(`K1b. and it is blocking`,
             block !== null && !/continue-on-error:\s*true/.test(block),
             'a design-system gate that cannot fail the run is a report, not a gate');
+    }
+
+    /*
+     * K1d — the story render and axe test runs once, in the unit lane. The
+     * catalog job used to run it again on every run that had both lanes. One
+     * run is enough only while the unit lane really runs the file and every
+     * change that selects the catalog lane selects the unit lane too. A unit
+     * lane skipped as already proven passed on this same tree, story test
+     * included.
+     */
+    {
+        const vitestConfig = readFileSync(resolvePath(here, '../vitest.config.js'), 'utf8');
+        const { scripts } = JSON.parse(readFileSync(resolvePath(here, '../package.json'), 'utf8'));
+        const jobText = (job, nextJob) => {
+            const start = workflowText.indexOf(`\n  ${job}:`);
+            const end = workflowText.indexOf(`\n  ${nextJob}:`);
+            return start >= 0 && end > start ? workflowText.slice(start, end) : '';
+        };
+        const unitJob = jobText('frontend-quality', 'frontend-e2e');
+        const catalogJob = jobText('storybook-build', 'rules-emulator');
+        assert('K1d. the story test exists',
+            existsSync(resolvePath(here, '../src/tests/designSystemStories.a11y.test.jsx')),
+            'renaming it would make the assertions below vacuous');
+        assert('K1d. the unit lane runs every test file under src/, the story test included',
+            /npm run test:coverage/.test(unitJob)
+                && scripts['test:coverage'] === 'vitest run --coverage'
+                && vitestConfig.includes("include: ['src/**/*.{test,spec}.{js,mjs,jsx,tsx}']")
+                && vitestConfig.includes("exclude: ['**/node_modules/**', 'e2e/**']"),
+            'the catalog job no longer renders the stories, so the unit lane must');
+        // Every file in the repository, not a sample: a rule that sent some
+        // path to the catalog lane without the unit lane would show up here.
+        let tracked = [];
+        try {
+            tracked = execFileSync('git', ['ls-files'], { cwd: resolvePath(here, '..'), encoding: 'utf8' })
+                .split('\n').filter(Boolean);
+        } catch {
+            // Reported by the assertion below: nothing listed is nothing checked.
+        }
+        const catalogWithoutUnit = tracked.filter((path) => {
+            const lanes = lanesForPath(path);
+            return lanes !== null && lanes.includes('storybook') && !lanes.includes('frontend_unit');
+        });
+        assert('K1d. every file whose change selects the catalog lane selects the unit lane too',
+            tracked.length > 0 && catalogWithoutUnit.length === 0,
+            tracked.length === 0
+                ? 'git ls-files listed nothing, so nothing was checked'
+                : `${catalogWithoutUnit.length} file(s) select the catalog lane alone, e.g. ${catalogWithoutUnit.slice(0, 5).join(', ')}`);
+        assert('K1d. and the catalog job does not run the story test a second time',
+            catalogJob !== '' && !/test:stories|designSystemStories/.test(catalogJob),
+            'one run in the unit lane is the whole check');
     }
 
     /*

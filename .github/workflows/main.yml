@@ -560,13 +560,10 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # `storybook build` bundles stories but does not execute them, so a story
-      # that throws at render would still produce a green build. This step renders
-      # every story and runs axe over it, and guards against the story glob
-      # silently resolving to nothing.
-      - name: Story render + accessibility checks
-        run: npm run test:stories
-
+      # `storybook build` bundles stories but does not execute them. Every story
+      # is rendered and run through axe in the unit lane instead:
+      # `frontend-quality` runs `src/tests/designSystemStories.a11y.test.jsx`, and
+      # every change that selects this job selects that lane too (K1d).
       - name: Build Storybook
         run: npm run build-storybook
 
