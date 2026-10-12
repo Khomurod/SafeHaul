@@ -7,6 +7,7 @@
  *
  *   npm run test:lint-rules
  */
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,7 +35,10 @@ console.log('\nL. Glyphs come from the design system');
         'a re-export': "export { Trash2 } from 'lucide-react';\n",
         'an export of everything': "export * from 'lucide-react';\n",
         'a dynamic import': "export const load = () => import('lucide-react');\n",
+        'a dynamic import in backticks': 'export const load = () => import(`lucide-react`);\n',
+        'a dynamic deep import built from a name': 'export const load = (name) => import(`lucide-react/dist/esm/icons/${name}`);\n',
         'a require': "const { Trash2 } = require('lucide-react');\nexport const glyph = Trash2;\n",
+        'a require in backticks': 'const { Trash2 } = require(`lucide-react`);\nexport const glyph = Trash2;\n',
     };
     for (const [way, code] of Object.entries(ways)) {
         const errors = await errorsFor(code, 'src/features/example/Widget.jsx');
@@ -49,10 +53,39 @@ console.log('\nL. Glyphs come from the design system');
     assert('L2. the icons directory may import it', !registry.includes('no-restricted-syntax'), registry.join(', '));
     const viaRegistry = await errorsFor("import { Icon, Trash2 } from '@design-system/icons';\nexport const a = [Icon, Trash2];\n",
         'src/features/example/Widget.jsx');
-    const lookalike = await errorsFor("import x from 'lucide-reactive';\nexport const a = x;\n", 'src/features/example/Widget.jsx');
+    const lookalike = await errorsFor(
+        "import x from 'lucide-reactive';\nexport const a = x;\nexport const load = () => import(`lucide-reactive`);\n",
+        'src/features/example/Widget.jsx',
+    );
     assert('L3. glyphs from the registry pass, and so does a package that only starts with the name',
         !viaRegistry.includes('no-restricted-syntax') && !lookalike.includes('no-restricted-syntax'),
         [...viaRegistry, ...lookalike].join(', '));
+
+    /*
+     * The rule holds only where ESLint looks, and ESLint here lints JavaScript
+     * alone: a `.ts` or `.tsx` file under src/ would reach no lint rule at all.
+     * So every source file the replaced checker governed, TypeScript included,
+     * must be one this rule reaches. Read from git, so a new file is judged in
+     * the pull request that adds it.
+     */
+    const governed = execFileSync('git', ['ls-files', '-z', 'src'], { cwd: repoRoot, encoding: 'utf8' })
+        .split('\0')
+        .filter((file) => /\.(?:[jt]sx?|mjs|cjs)$/.test(file) && !file.startsWith('src/design-system/icons/'));
+    const unreached = [];
+    for (const file of governed) {
+        const config = await eslint.calculateConfigForFile(file);
+        const [severity, ...options] = [config?.rules?.['no-restricted-syntax']].flat();
+        const reached = severity === 2 && options.some((option) => /lucide-react/.test(option?.message ?? ''));
+        if (!reached) unreached.push(file);
+    }
+    // A listing that came back empty would pass over nothing.
+    const unlisted = ['src/features/', 'src/shared/', 'src/design-system/']
+        .filter((root) => !governed.some((file) => file.startsWith(root)));
+    assert(`L4. the rule reaches every source file under src/ outside icons/ (${governed.length})`,
+        unlisted.length === 0 && unreached.length === 0,
+        unreached.length > 0
+            ? `${unreached.slice(0, 5).join(', ')}: ESLint does not apply the rule here; lint the file type before adding one`
+            : `git listed no source file under ${unlisted.join(', ')}`);
 }
 
 console.log('\nM. Lint refuses what would crash a screen');

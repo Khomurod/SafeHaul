@@ -106,12 +106,15 @@ call site being migrated should never need one — but adding one is not an even
 ## How it is enforced
 
 No file under `src/` outside this directory may name `lucide-react`. Lint refuses
-an import, a re-export, a dynamic `import()` and a `require` of it
-(`no-restricted-syntax` in `eslint.config.js`), and `scripts/test-lint-rules.mjs`
-drives the rule on sample code. The scope is `src/`, the same scope
-`check:ui-contract` governs, because that is what Vite bundles; a fixture in
-`scripts/` describing an import is not an import. There is no list of
-exceptions.
+an import, a re-export, a dynamic `import()` and a `require` of it, in quotes or
+backticks (`no-restricted-syntax` in `eslint.config.js`), and
+`scripts/test-lint-rules.mjs` drives the rule on sample code. The same test
+refuses a source file the rule does not reach: ESLint here lints JavaScript only,
+so a `.ts` or `.tsx` file under `src/` needs a TypeScript lint setup first.
+
+The scope is `src/`, the same scope `check:ui-contract` governs, because that is
+what Vite bundles; a fixture in `scripts/` describing an import is not an import.
+There is no list of exceptions.
 
 `Icon` accepts a bare component as well as a token: that is how a design-system
 container resolves the `icon` prop it is handed (`glyphComponent` in `glyph.js`).

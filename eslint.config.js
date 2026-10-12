@@ -80,8 +80,9 @@ export default [
   },
   // Glyphs come from `@design-system/icons`. Only `src/design-system/icons/` may
   // name `lucide-react`: the registry, and the test that proves a raw component
-  // still renders. Every way of loading a module is covered, and it is an error,
-  // so the lint step refuses it (`scripts/test-lint-rules.mjs` drives it).
+  // still renders. Every way of loading a module is covered, a specifier in
+  // backticks included, and it is an error, so the lint step refuses it
+  // (`scripts/test-lint-rules.mjs` drives it).
   {
     files: ['src/**/*.{js,jsx,cjs,mjs}'],
     ignores: ['src/design-system/icons/**'],
@@ -93,7 +94,13 @@ export default [
           message: 'Import glyphs from @design-system/icons, not lucide-react.',
         },
         {
-          selector: "CallExpression[callee.name='require'][arguments.0.value=/^lucide-react(\\/|$)/]",
+          // A template literal has no `value`; its leading text is the package.
+          selector: 'ImportExpression[source.quasis.0.value.cooked=/^lucide-react(\\/|$)/]',
+          message: 'Import glyphs from @design-system/icons, not lucide-react.',
+        },
+        {
+          selector: "CallExpression[callee.name='require']:matches("
+            + '[arguments.0.value=/^lucide-react(\\/|$)/], [arguments.0.quasis.0.value.cooked=/^lucide-react(\\/|$)/])',
           message: 'Import glyphs from @design-system/icons, not lucide-react.',
         },
       ],
