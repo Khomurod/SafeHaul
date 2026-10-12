@@ -242,6 +242,16 @@ jobs:
       - name: Verify the secret scanner's range selection and detection
         run: npm run test:secret-scan
 
+      # The functions deploy reads `functions/index.js` with its own parser and
+      # refuses to run when an export does not map to a module. These two ran
+      # only in `deploy-functions`, after the merge, so a PR that broke the
+      # mapping went green and stopped the next Testing deploy. Both take under
+      # a second and read files only.
+      - name: Verify the functions deploy planner
+        run: |
+          npm run check:function-exports
+          npm run check:deploy-script
+
       # Physical line counts across every handwritten source file, and the guard
       # that stops a new one arriving over the limit. It lives in this job for
       # the same reason as the checks above: `callable-contract` is in
