@@ -35,7 +35,7 @@ export function CampaignsDashboard({ companyId }) {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('drafts'); // 'drafts' | 'history'
     const [selectedCampaignId, setSelectedCampaignId] = useState(null);
-    const [viewingSession, setViewingSession] = useState(null);
+    const [viewingSessionId, setViewingSessionId] = useState(null);
     const [selectedReportSessionId, setSelectedReportSessionId] = useState(null);
     // Replace the two blocking `window.confirm` guards. Each holds the target
     // captured at the moment its dialog opened, so a tab switch or a live
@@ -246,11 +246,15 @@ export function CampaignsDashboard({ companyId }) {
         );
     }
 
+    // The details follow the live session, not the copy the card was clicked
+    // with, so progress and status update while they are open; a deleted
+    // session takes them back to the list.
+    const viewingSession = viewingSessionId ? sessions.find((session) => session.id === viewingSessionId) : null;
     if (viewingSession) {
         return (
             <CampaignDetails
                 campaign={viewingSession}
-                onClose={() => setViewingSession(null)}
+                onClose={() => setViewingSessionId(null)}
             />
         );
     }
@@ -334,7 +338,7 @@ export function CampaignsDashboard({ companyId }) {
                                         <CampaignCard
                                             key={campaign.id}
                                             campaign={campaign}
-                                            onClick={() => activeTab === 'drafts' ? setSelectedCampaignId(campaign.id) : setViewingSession(campaign)}
+                                            onClick={() => activeTab === 'drafts' ? setSelectedCampaignId(campaign.id) : setViewingSessionId(campaign.id)}
                                             onDelete={requestDeleteCampaign}
                                             onCancel={activeTab === 'drafts' ? undefined : requestCancelCampaign}
                                             onViewReport={() => setSelectedReportSessionId(campaign.id)}
