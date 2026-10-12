@@ -21,6 +21,7 @@ import {
     resolveFieldsForSend,
 } from '@features/signing/utils/prefillEngine';
 import { resolveSignedDateValue } from '@features/signing/utils/signedDate';
+import { copySigningLink, LINK_NOT_COPIED } from '@features/signing/utils/copySigningLink';
 
 export function useTemplateSendFlow({
     currentCompanyProfile,
@@ -29,6 +30,7 @@ export function useTemplateSendFlow({
     setActiveTab,
     showSuccess,
     showError,
+    showWarning,
 }) {
     const [showDriverPicker, setShowDriverPicker] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -191,12 +193,14 @@ export function useTemplateSendFlow({
             batch.set(doc(signingRef, 'secrets', 'token'), { accessToken });
             await batch.commit();
 
-            // FEAT-4: Copy Link mode - copy URL to clipboard instead of sending
+            // FEAT-4: Copy Link mode - copy URL to clipboard instead of sending.
+            // The request is saved by now: a refused clipboard must not read as
+            // a failed send, or sending again would create a second request.
             if (deliveryMethod === 'copy') {
                 const baseUrl = window.location.origin;
                 const link = `${baseUrl}/sign/${currentCompanyProfile.id}/${signingRef.id}?token=${accessToken}`;
-                await navigator.clipboard.writeText(link);
-                showSuccess('Signing link copied to clipboard!');
+                if (await copySigningLink(link)) showSuccess('Signing link copied to clipboard!');
+                else showWarning(LINK_NOT_COPIED);
             } else {
                 const methodLabel = { sms: 'SMS', both: 'Email + SMS' }[deliveryMethod] || 'Email';
                 showSuccess(`Document created! ${methodLabel} delivery in progress...`);

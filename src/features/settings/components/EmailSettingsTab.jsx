@@ -210,7 +210,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                             Currently linked and sending emails as: <strong>{emailSettings.smtpUser}</strong>
                         </p>
                         <p className="text-ds-sm text-ds-content">
-                            This email account is automatically being used to safely send **E-Docs** and **Previous Employment Verification (PEV)** forms.
+                            This email account is automatically being used to safely send <strong>E-Docs</strong> and <strong>Previous Employment Verification (PEV)</strong> forms.
                         </p>
                     </div>
                 ) : (

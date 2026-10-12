@@ -105,7 +105,7 @@ describe('saveEnvelope correcting a sent request', () => {
         const { showSuccess } = await correct({ recipientEmail: 'dana@example.test', deliveryMethod: 'copy' });
 
         expect(saved()).toMatchObject({ sendEmail: false, sendSms: false, deliveryMethod: 'copy' });
-        expect(showSuccess).toHaveBeenCalledWith('Document corrected. The old signing link no longer works: copy the new one from History.');
+        expect(showSuccess).toHaveBeenCalledWith('Document corrected. The old signing link no longer works: copy the new one from Sent Documents.');
     });
 
     it('says the current link is on its way by SMS when the correction switches SMS on', async () => {

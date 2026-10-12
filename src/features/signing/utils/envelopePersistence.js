@@ -23,6 +23,7 @@ import {
 } from '@features/signing/utils/prefillEngine';
 import { serializeTemplateFields } from '@features/signing/utils/templateFieldSerializer';
 import { SAVE_STATES } from '@features/signing/utils/editorSaveState';
+import { copySigningLink, LINK_NOT_COPIED } from '@features/signing/utils/copySigningLink';
 import { normalizePhone } from '@shared/utils/helpers';
 
 /** PHASE 4: Hydrate from existing document for "Correct" / "Edit Template" flows */
@@ -143,7 +144,7 @@ function correctionMessage(before, after) {
     const delivery = correctionDelivery(before, after);
     if (!delivery) return 'Document updated successfully!';
     const channels = [delivery.email && 'Email', delivery.sms && 'SMS'].filter(Boolean).join(' + ');
-    if (!channels) return 'Document corrected. The old signing link no longer works: copy the new one from History.';
+    if (!channels) return 'Document corrected. The old signing link no longer works: copy the new one from Sent Documents.';
     if (delivery.newToken) {
         return `Document corrected. A new signing link is on its way by ${channels}, and the old one no longer works.`;
     }
@@ -170,6 +171,7 @@ export async function saveEnvelope({
     onClose,
     showError,
     showSuccess,
+    showWarning,
     setLoading,
     setSaveState,
     markSaved,
@@ -317,8 +319,10 @@ export async function saveEnvelope({
             if (deliveryMethod === 'copy') {
                 const baseUrl = window.location.origin;
                 const link = `${baseUrl}/sign/${companyId}/${signingRef.id}?token=${accessToken}`;
-                await navigator.clipboard.writeText(link);
-                showSuccess('Signing link copied to clipboard!');
+                // The request is saved by now: a refused clipboard must not read
+                // as a failed save, or a second Send would create a second request.
+                if (await copySigningLink(link)) showSuccess('Signing link copied to clipboard!');
+                else showWarning(LINK_NOT_COPIED);
             } else {
                 // The server texts and emails the link (`notifySignerSMS`,
                 // `notifySigner`), as this request's `sendSms` and `sendEmail` say.

@@ -65,6 +65,17 @@ describe('EnvelopeHistory — copy link action', () => {
         consoleError.mockRestore();
     });
 
+    it('says plainly when the browser refuses the clipboard, never with its own wording', async () => {
+        navigator.clipboard.writeText.mockRejectedValueOnce(new DOMException('Document is not focused.', 'NotAllowedError'));
+        renderHistory();
+        emit([makeDoc({ status: 'sent' })]);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Link for Offer Letter' }));
+        await waitFor(() => expect(toast.showError).toHaveBeenCalledWith('The browser blocked copying the link. Try again.'));
+        expect(toast.showError).not.toHaveBeenCalledWith('Document is not focused.');
+        expect(toast.showSuccess).not.toHaveBeenCalled();
+    });
+
     it('shows a busy state on the copying row only', async () => {
         let resolveLink;
         callables.getSigningLink.mockReturnValue(new Promise((resolve) => { resolveLink = resolve; }));

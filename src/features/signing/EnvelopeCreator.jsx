@@ -53,7 +53,7 @@ export default function EnvelopeCreator({
     editTemplateId = null,
     companyName = '',
 }) {
-    const { showSuccess, showError } = useToast();
+    const { showSuccess, showError, showWarning } = useToast();
     const [loading, setLoading] = useState(false);
     const [hydrating, setHydrating] = useState(Boolean(editRequestId || editTemplateId));
     const [creatorMode, setCreatorMode] = useState(editTemplateId ? 'template' : initialMode); // 'request' or 'template'
@@ -317,6 +317,7 @@ export default function EnvelopeCreator({
         onClose,
         showError,
         showSuccess,
+        showWarning,
         setLoading,
         setSaveState,
         markSaved,

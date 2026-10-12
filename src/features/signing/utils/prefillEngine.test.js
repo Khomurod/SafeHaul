@@ -90,6 +90,14 @@ describe('prefillEngine', () => {
     expect(isFieldLocked({ readOnly: true })).toBe(true);
     expect(isFieldLocked({ readOnly: false })).toBe(false);
   });
+
+  it('locks a field bound to the signing date for the signer, even one saved editable', () => {
+    expect(isFieldLocked({ bindingKey: 'current_date', prefillPolicy: 'editable', readOnly: false })).toBe(true);
+    expect(isFieldLocked({ bindingKey: ' Current_Date ' })).toBe(true);
+    // Any other binding keeps its own policy, and so does the send path.
+    expect(isFieldLocked({ bindingKey: 'date_of_birth', prefillPolicy: 'editable' })).toBe(false);
+    expect(normalizePrefillPolicy({ bindingKey: 'current_date', prefillPolicy: 'editable' })).toBe('editable');
+  });
 });
 
 describe('E-Doc grouped template prefills', () => {

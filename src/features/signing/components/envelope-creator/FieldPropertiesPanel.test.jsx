@@ -84,22 +84,21 @@ describe('FieldPropertiesPanel — option toggles', () => {
         expect(updateActiveField).toHaveBeenCalledWith('required', true);
     });
 
-    it('writes both readOnly and prefillPolicy when locking', () => {
+    it('writes readOnly and prefillPolicy together when locking, so one Undo reverses both', () => {
         const { updateActiveField } = setup({ activeField: field({ readOnly: false }) });
         fireEvent.click(screen.getByRole('checkbox', { name: /Read Only/ }));
 
-        expect(updateActiveField).toHaveBeenNthCalledWith(1, 'readOnly', true);
-        expect(updateActiveField).toHaveBeenNthCalledWith(2, 'prefillPolicy', 'locked');
-        expect(updateActiveField).toHaveBeenCalledTimes(2);
+        expect(updateActiveField).toHaveBeenCalledWith({ readOnly: true, prefillPolicy: 'locked' });
+        expect(updateActiveField).toHaveBeenCalledTimes(1);
     });
 
-    it('writes both readOnly and prefillPolicy when unlocking', () => {
+    it('writes readOnly and prefillPolicy together when unlocking', () => {
         const { updateActiveField } = setup({ activeField: field({ readOnly: true }) });
         expect(screen.getByRole('checkbox', { name: /Read Only/ })).toBeChecked();
         fireEvent.click(screen.getByRole('checkbox', { name: /Read Only/ }));
 
-        expect(updateActiveField).toHaveBeenNthCalledWith(1, 'readOnly', false);
-        expect(updateActiveField).toHaveBeenNthCalledWith(2, 'prefillPolicy', 'editable');
+        expect(updateActiveField).toHaveBeenCalledWith({ readOnly: false, prefillPolicy: 'editable' });
+        expect(updateActiveField).toHaveBeenCalledTimes(1);
     });
 
     it('keeps both toggles keyboard reachable', () => {
@@ -143,9 +142,8 @@ describe('FieldPropertiesPanel — prefill behavior', () => {
         const { updateActiveField } = setup();
         fireEvent.change(screen.getByLabelText('Prefill Behavior'), { target: { value: mode } });
 
-        expect(updateActiveField).toHaveBeenNthCalledWith(1, 'prefillPolicy', mode);
-        expect(updateActiveField).toHaveBeenNthCalledWith(2, 'readOnly', expectedReadOnly);
-        expect(updateActiveField).toHaveBeenCalledTimes(2);
+        expect(updateActiveField).toHaveBeenCalledWith({ prefillPolicy: mode, readOnly: expectedReadOnly });
+        expect(updateActiveField).toHaveBeenCalledTimes(1);
     });
 });
 

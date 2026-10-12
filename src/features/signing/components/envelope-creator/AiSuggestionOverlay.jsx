@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
 import { Icon, Check, Scaling, Sparkles, X } from '@design-system/icons';
 import { IconButton } from '@/design-system/components';
+import { startCornerResize } from './cornerResize';
 
 /**
  * One AI suggestion drawn over the PDF.
@@ -45,32 +46,9 @@ export function AiSuggestionOverlay({
         sizeRef.current = next;
     }, [wPx, hPx]);
 
-    const handleResizeMouseDown = (event) => {
-        event.stopPropagation();
-        const startX = event.clientX;
-        const startY = event.clientY;
-        const startWidth = sizeRef.current.width;
-        const startHeight = sizeRef.current.height;
-
-        const doDrag = (dragEvent) => {
-            const next = {
-                width: Math.max(8, startWidth + dragEvent.clientX - startX),
-                height: Math.max(8, startHeight + dragEvent.clientY - startY),
-            };
-            sizeRef.current = next;
-            setSize(next);
-        };
-
-        const stopDrag = () => {
-            window.removeEventListener('mousemove', doDrag);
-            window.removeEventListener('mouseup', stopDrag);
-            const { width, height } = sizeRef.current;
-            onResize(suggestion.suggestionId, (width / pageWidth) * 100, (height / safePageHeight) * 100);
-        };
-
-        window.addEventListener('mousemove', doDrag);
-        window.addEventListener('mouseup', stopDrag);
-    };
+    const handleResizeStart = (event) => startCornerResize(event, sizeRef, setSize, (width, height) => {
+        onResize(suggestion.suggestionId, (width / pageWidth) * 100, (height / safePageHeight) * 100);
+    });
 
     const handleKeyDown = (event) => {
         const step = event.shiftKey ? 5 : 1;
@@ -196,8 +174,8 @@ export function AiSuggestionOverlay({
                     drawn where it always was — and the same reason for the glyph's
                     size: the container owns a size the scale cannot express. */}
                 <div
-                    className="resize-handle absolute -bottom-3 -right-3 flex h-6 w-6 cursor-se-resize items-start justify-start p-0.5 opacity-60 transition group-hover:opacity-100 [&>svg]:h-2.5 [&>svg]:w-2.5"
-                    onMouseDown={handleResizeMouseDown}
+                    className="resize-handle absolute -bottom-3 -right-3 flex h-6 w-6 cursor-se-resize touch-none items-start justify-start p-0.5 opacity-60 transition group-hover:opacity-100 [&>svg]:h-2.5 [&>svg]:w-2.5"
+                    onPointerDown={handleResizeStart}
                     aria-hidden="true"
                 >
                     <Icon icon={Scaling} className="text-ds-content-secondary" />

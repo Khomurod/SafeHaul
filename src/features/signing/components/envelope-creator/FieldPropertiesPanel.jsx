@@ -60,8 +60,7 @@ export const FieldPropertiesPanel = React.memo(({ activeField, updateActiveField
                         checked={Boolean(activeField.readOnly)}
                         onChange={() => {
                             const nextReadOnly = !activeField.readOnly;
-                            updateActiveField('readOnly', nextReadOnly);
-                            updateActiveField('prefillPolicy', nextReadOnly ? 'locked' : 'editable');
+                            updateActiveField({ readOnly: nextReadOnly, prefillPolicy: nextReadOnly ? 'locked' : 'editable' });
                         }}
                     />
                     <Icon icon={Lock} size="xs" className="text-ds-content-muted" />
@@ -73,8 +72,7 @@ export const FieldPropertiesPanel = React.memo(({ activeField, updateActiveField
                             value={activeField.prefillPolicy || (activeField.readOnly ? 'locked' : 'editable')}
                             onChange={(e) => {
                                 const mode = e.target.value;
-                                updateActiveField('prefillPolicy', mode);
-                                updateActiveField('readOnly', mode === 'locked');
+                                updateActiveField({ prefillPolicy: mode, readOnly: mode === 'locked' });
                             }}
                         >
                             <option value="editable">Editable when prefilled</option>

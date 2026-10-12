@@ -16,7 +16,7 @@ import {
     templateIdForCategory,
 } from './aiFieldSuggestions';
 import { FIELD_TEMPLATES } from '../components/envelope-creator/fieldDefinitions';
-import { BINDING_LABELS, buildPrefillContext } from './prefillEngine';
+import { BINDING_LABELS, buildPrefillContext, resolveFieldsForSend } from './prefillEngine';
 
 const suggestion = (overrides = {}) => ({
     category: 'signature',
@@ -258,17 +258,31 @@ describe('applySuggestionsToFields', () => {
         });
     });
 
-    it('never marks an AI-placed field locked, even for a locked-by-default template', () => {
+    it('locks an AI-placed signing date like the palette Date Signed, which the signer never types', () => {
         const { appended } = applySuggestionsToFields({
             fields: [],
-            // date_signed is `locked` in the palette; an unreviewed lock would
-            // block the send on missing prefill data.
             suggestions: [normalizeSuggestion(suggestion({ category: 'date' }), { idFactory: ids() })],
             idFactory: ids(),
         });
-        expect(FIELD_TEMPLATES.date_signed.prefillPolicy).toBe('locked');
-        expect(appended[0].prefillPolicy).toBe('editable');
-        expect(appended[0].readOnly).toBe(false);
+        expect(FIELD_TEMPLATES.date_signed).toMatchObject({ prefillPolicy: 'locked', readOnly: true });
+        expect(appended[0]).toMatchObject({
+            bindingKey: 'current_date',
+            defaultValue: '{{current_date}}',
+            prefillPolicy: 'locked',
+            readOnly: true,
+        });
+        // The stamp is always there to send, so the lock never blocks the send.
+        expect(resolveFieldsForSend(appended, {}).missingLockedRequired).toEqual([]);
+    });
+
+    it('never locks any other AI-placed field, even a date the reviewer unbound', () => {
+        const unbound = { ...normalizeSuggestion(suggestion({ category: 'date' }), { idFactory: ids() }), bindingKey: '' };
+        const { appended } = applySuggestionsToFields({
+            fields: [],
+            suggestions: [unbound, normalizeSuggestion(suggestion({ category: 'email' }), { idFactory: ids() })],
+            idFactory: ids(),
+        });
+        expect(appended.map((field) => [field.prefillPolicy, field.readOnly])).toEqual([['editable', false], ['editable', false]]);
     });
 
     it('carries the reviewed geometry and label, not the palette defaults', () => {

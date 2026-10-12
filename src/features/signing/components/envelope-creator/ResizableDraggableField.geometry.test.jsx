@@ -6,6 +6,7 @@
 // delegates to it. All fixtures are artificial.
 import React from 'react';
 import { screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-draggable', async () => (await import('./ResizableDraggableField.support')).reactDraggableMock());
@@ -68,10 +69,10 @@ describe('ResizableDraggableField — geometry', () => {
 });
 
 describe('ResizableDraggableField — drag contract', () => {
-    it('constrains dragging to the page and cancels on the handle and label', () => {
+    it('constrains dragging to the page and cancels on the handle, the label and the Remove badge', () => {
         renderField();
         expect(draggableProps.current.bounds).toBe('parent');
-        expect(draggableProps.current.cancel).toBe('.resize-handle, .label-input');
+        expect(draggableProps.current.cancel).toBe('.resize-handle, .label-input, .field-remove');
     });
 
     it('reports the drop position back as percentages of the page', () => {
@@ -115,10 +116,10 @@ describe('ResizableDraggableField — resize contract', () => {
     it('grows the rendered box live while dragging', () => {
         const { container } = renderField({ width: 25, height: 5 }, { isSelected: true });
         const handle = container.querySelector('.resize-handle');
-        fireEvent.mouseDown(handle, { clientX: 0, clientY: 0 });
-        fireEvent(window, new MouseEvent('mousemove', { clientX: 100, clientY: 20 }));
+        fireEvent.pointerDown(handle, { clientX: 0, clientY: 0 });
+        fireEvent(window, new PointerEvent('pointermove', { clientX: 100, clientY: 20 }));
         expect(container.querySelector('[data-draggable]')).toHaveStyle({ width: '300px', height: '70px' });
-        fireEvent(window, new MouseEvent('mouseup', {}));
+        fireEvent(window, new PointerEvent('pointerup', {}));
     });
 
     it('stops tracking the pointer after the gesture ends', () => {
@@ -126,17 +127,42 @@ describe('ResizableDraggableField — resize contract', () => {
         resizeBy(container, 100, 100);
         handlers.onResize.mockClear();
 
-        // A stray move after mouseup must not resize anything further.
-        fireEvent(window, new MouseEvent('mousemove', { clientX: 999, clientY: 999 }));
-        fireEvent(window, new MouseEvent('mouseup', {}));
+        // A stray move after the press ends must not resize anything further.
+        fireEvent(window, new PointerEvent('pointermove', { clientX: 999, clientY: 999 }));
+        fireEvent(window, new PointerEvent('pointerup', {}));
+        expect(handlers.onResize).not.toHaveBeenCalled();
+    });
+
+    it('resizes with a finger, and the handle never lets the page scroll instead', () => {
+        const { container } = renderField({ width: 25, height: 5 }, { isSelected: true });
+        resizeBy(container, 200, 50, 'touch');
+        expect(handlers.onResize).toHaveBeenCalledWith('f-1', 50, 10);
+        expect(container.querySelector('.resize-handle').className.split(/\s+/)).toContain('touch-none');
+    });
+
+    it('keeps the size a cancelled press reached, and stops tracking', () => {
+        const { container } = renderField({ width: 25, height: 5 }, { isSelected: true });
+        const handle = container.querySelector('.resize-handle');
+        fireEvent.pointerDown(handle, { clientX: 0, clientY: 0, pointerType: 'touch' });
+        fireEvent(window, new PointerEvent('pointermove', { clientX: 200, clientY: 50, pointerType: 'touch' }));
+        fireEvent(window, new PointerEvent('pointercancel', { pointerType: 'touch' }));
+        expect(handlers.onResize).toHaveBeenCalledWith('f-1', 50, 10);
+
+        fireEvent(window, new PointerEvent('pointermove', { clientX: 999, clientY: 999 }));
+        expect(handlers.onResize).toHaveBeenCalledTimes(1);
+    });
+
+    it('records nothing for a tap on the handle', () => {
+        const { container } = renderField({ width: 25, height: 5 }, { isSelected: true });
+        resizeBy(container, 0, 0, 'touch');
         expect(handlers.onResize).not.toHaveBeenCalled();
     });
 
     it('uses the page-height fallback in the resize conversion', () => {
         const { container } = renderField({ width: 25, height: 5 }, { pageHeight: undefined, isSelected: true });
-        resizeBy(container, 0, 0);
-        // Height starts at 5% of the 800px fallback = 40px → back to 5%.
-        expect(handlers.onResize).toHaveBeenCalledWith('f-1', 25, 5);
+        resizeBy(container, 0, 40);
+        // Height starts at 5% of the 800px fallback = 40px; 40px more is 10%.
+        expect(handlers.onResize).toHaveBeenCalledWith('f-1', 25, 10);
     });
 });
 
@@ -186,10 +212,23 @@ describe('ResizableDraggableField — selection, label and removal', () => {
         expect(container.querySelector('.label-input')).not.toBeNull();
     });
 
-    it('removes by id on mousedown so the drag never starts', () => {
+    it('removes by id on click, and the press never starts a drag or selects the field', () => {
         renderField({}, { isSelected: true });
         const remove = screen.getByRole('button', { name: 'Remove Full Name from page 1' });
         fireEvent.mouseDown(remove);
+        expect(handlers.onRemove).not.toHaveBeenCalled();
+        fireEvent.click(remove);
+        expect(handlers.onRemove).toHaveBeenCalledWith('f-1');
+        expect(handlers.onSelect).not.toHaveBeenCalled();
+    });
+
+    it('removes the field from the keyboard, with Enter or Space on its Remove button', async () => {
+        const user = userEvent.setup();
+        renderField({}, { isSelected: true });
+        screen.getByRole('button', { name: 'Remove Full Name from page 1' }).focus();
+        await user.keyboard('{Enter}');
+        await user.keyboard(' ');
+        expect(handlers.onRemove).toHaveBeenCalledTimes(2);
         expect(handlers.onRemove).toHaveBeenCalledWith('f-1');
     });
 
