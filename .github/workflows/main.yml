@@ -300,6 +300,10 @@ jobs:
       # actually run. It belongs here rather than in a skippable lane: it takes
       # under a second, needs no install, and a boundary guard that CI is
       # allowed to skip is a boundary guard that eventually stops holding.
+      # Its own tests first: it must read every tracked source file.
+      - name: Verify the AI-boundary guard
+        run: npm run test:ai-boundary
+
       - name: Verify the AI provider boundary
         run: npm run check:ai-boundary
 

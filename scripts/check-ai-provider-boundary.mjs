@@ -14,14 +14,10 @@
  * It never means adding a fetch somewhere convenient.
  */
 
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
-
-/** Directories walked. Everything outside these is not application code. */
-const SCAN_ROOTS = ['functions', 'src', 'scripts', 'landing', 'e2e'];
 
 /**
  * The only paths allowed to contain vendor specifics.
@@ -31,10 +27,7 @@ const SCAN_ROOTS = ['functions', 'src', 'scripts', 'landing', 'e2e'];
  * to assert against vendor shapes — that is how we know the adapters are right
  * — and documentation is allowed to describe them.
  */
-const ALLOWED_PATH_PREFIXES = [
-    join('functions', 'ai', 'providers'),
-    join('functions', 'ai', 'registry'),
-];
+const ALLOWED_PATH_PREFIXES = ['functions/ai/providers/', 'functions/ai/registry/'];
 
 /** Test and documentation files may reference vendors anywhere. */
 const ALLOWED_PATTERNS = [
@@ -44,8 +37,6 @@ const ALLOWED_PATTERNS = [
     /[\\/]__mocks__[\\/]/,
     /\.md$/,
 ];
-
-const SKIP_DIRECTORIES = new Set(['node_modules', '.git', 'dist', 'coverage', 'storybook-static', 'playwright-report']);
 
 const SCANNED_EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.html']);
 
@@ -75,67 +66,66 @@ const RULES = [
 ];
 
 function isAllowed(relPath) {
-    const normalized = relPath.split('/').join(sep);
-    if (ALLOWED_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix))) return true;
+    if (ALLOWED_PATH_PREFIXES.some((prefix) => relPath.startsWith(prefix))) return true;
     return ALLOWED_PATTERNS.some((pattern) => pattern.test(relPath));
 }
 
-function walk(dir, files = []) {
-    let entries;
+/**
+ * Every source file git tracks, or would (new files not yet added, minus the
+ * ignored), not a list of folders. A listed folder that no longer existed was
+ * skipped without a word, and a folder nobody listed was never read: the
+ * public site, `index.html` and the catalog's configuration all sat outside
+ * the scan.
+ */
+export function scannedFiles(repoRoot) {
+    const listed = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+    }).split('\0').filter(Boolean);
+    if (listed.length === 0) throw new Error('git ls-files listed nothing, so nothing would be checked');
+    return [...new Set(listed)].filter((relPath) => SCANNED_EXTENSIONS.has(extname(relPath)));
+}
+
+/** The vendor fingerprints in one file, unless the file is allowed to carry them. */
+export function violationsIn(relPath, contents) {
+    if (isAllowed(relPath)) return [];
+    const found = [];
+    const lines = contents.split('\n');
+    for (const rule of RULES) {
+        lines.forEach((line, index) => {
+            if (rule.pattern.test(line)) found.push({ file: relPath, line: index + 1, rule: rule.id, label: rule.label });
+        });
+    }
+    return found;
+}
+
+function main() {
+    const repoRoot = fileURLToPath(new URL('..', import.meta.url));
+    const files = scannedFiles(repoRoot);
+    // A tracked file deleted in this working copy has nothing left to read.
+    const present = files.filter((relPath) => existsSync(join(repoRoot, relPath)));
+    const violations = present.flatMap((relPath) => violationsIn(relPath, readFileSync(join(repoRoot, relPath), 'utf8')));
+
+    if (violations.length > 0) {
+        console.error('\nAI provider boundary violated.\n');
+        console.error('Only functions/ai/providers/ may contain AI vendor endpoints or SDKs.');
+        console.error('Features must call a task interface from functions/ai/tasks/ instead.\n');
+        for (const violation of violations) {
+            console.error(`  ${violation.file}:${violation.line}  ${violation.label} (${violation.rule})`);
+        }
+        console.error(`\n${violations.length} violation(s).\n`);
+        return 1;
+    }
+
+    console.log(`AI provider boundary intact: ${present.length} source files, no direct vendor calls outside functions/ai/providers/.`);
+    return 0;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
     try {
-        entries = readdirSync(dir);
-    } catch {
-        return files;
-    }
-    for (const entry of entries) {
-        if (SKIP_DIRECTORIES.has(entry)) continue;
-        const full = join(dir, entry);
-        let stats;
-        try {
-            stats = statSync(full);
-        } catch {
-            continue;
-        }
-        if (stats.isDirectory()) walk(full, files);
-        else if (SCANNED_EXTENSIONS.has(entry.slice(entry.lastIndexOf('.')))) files.push(full);
-    }
-    return files;
-}
-
-const violations = [];
-
-for (const root of SCAN_ROOTS) {
-    for (const file of walk(join(REPO_ROOT, root))) {
-        const relPath = relative(REPO_ROOT, file).split(sep).join('/');
-        if (isAllowed(relPath)) continue;
-
-        let contents;
-        try {
-            contents = readFileSync(file, 'utf8');
-        } catch {
-            continue;
-        }
-
-        const lines = contents.split('\n');
-        for (const rule of RULES) {
-            lines.forEach((line, index) => {
-                if (rule.pattern.test(line)) {
-                    violations.push({ file: relPath, line: index + 1, rule: rule.id, label: rule.label });
-                }
-            });
-        }
+        process.exit(main());
+    } catch (error) {
+        console.error(`AI provider boundary not checked: ${error.message}`);
+        process.exit(1);
     }
 }
-
-if (violations.length > 0) {
-    console.error('\nAI provider boundary violated.\n');
-    console.error('Only functions/ai/providers/ may contain AI vendor endpoints or SDKs.');
-    console.error('Features must call a task interface from functions/ai/tasks/ instead.\n');
-    for (const violation of violations) {
-        console.error(`  ${violation.file}:${violation.line}  ${violation.label} (${violation.rule})`);
-    }
-    console.error(`\n${violations.length} violation(s).\n`);
-    process.exit(1);
-}
-
-console.log('AI provider boundary intact: no direct vendor calls outside functions/ai/providers/.');
