@@ -142,7 +142,7 @@ export async function carryOverFromPreviousPush({
     const changedSince = changedBetweenTrees(previousTree, treeSha, log, run);
     const candidates = carriedOverLanes({ selection, changedSince });
     log(`previous push's tree: ${previousTree}; ${changedSince?.length ?? 'unknown'} file(s) changed since; `
-        + `nothing since affects ${candidates.join(', ') || 'no lane'}`);
+        + `lanes they cannot affect: ${candidates.join(', ') || 'none'}`);
     if (candidates.length === 0) return { previousTree, carried: [] };
     const proof = await readAttestations({ treeSha: previousTree, lanes: candidates, api, repositoryId, log });
     return { previousTree, carried: candidates.filter((lane) => proof[lane]) };
