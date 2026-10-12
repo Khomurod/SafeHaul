@@ -111,10 +111,18 @@ export function previousPushTree({ event, log = () => {}, run = git }) {
     }
 }
 
-function changedBetweenTrees(fromTree, toTree, log, run) {
+/**
+ * Every path that differs between two trees, both sides of a rename included.
+ *
+ * `--no-renames` is load-bearing in both diffs here: git pairs a delete and an
+ * add into one rename and `--name-only` then prints only the new path, so moving
+ * `functions/x.js` to `docs/x.md` read as a documentation edit and skipped the
+ * functions lane.
+ */
+export function changedBetweenTrees(fromTree, toTree, log = () => {}, run = git) {
     if (fromTree === toTree) return [];
     try {
-        return run('diff', '--name-only', fromTree, toTree).split('\n').filter(Boolean);
+        return run('diff', '--name-only', '--no-renames', fromTree, toTree).split('\n').filter(Boolean);
     } catch (error) {
         log(`could not diff the previous push's tree: ${error.message}`);
         return null;
@@ -140,11 +148,11 @@ export async function carryOverFromPreviousPush({
     return { previousTree, carried: candidates.filter((lane) => proof[lane]) };
 }
 
-function changedFilesFor(range, log) {
+export function changedFilesFor(range, log = () => {}, run = git) {
     if (!range) return null;
     try {
         const spec = range.threeDot ? `${range.base}...HEAD` : `${range.base}..HEAD`;
-        return git('diff', '--name-only', spec).split('\n').filter(Boolean);
+        return run('diff', '--name-only', '--no-renames', spec).split('\n').filter(Boolean);
     } catch (error) {
         log(`could not diff ${range.base}: ${error.message}`);
         return null;

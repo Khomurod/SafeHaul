@@ -9,10 +9,16 @@
  * not count as passed.
  */
 
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
     LANE_NAMES,
     carriedOverLanes,
     carryOverFromPreviousPush,
+    changedBetweenTrees,
+    changedFilesFor,
     previousPushTree,
     selectLanes,
 } from '../ci-plan.mjs';
@@ -108,6 +114,38 @@ assert('M6. a lane the pull request does not select is never carried over',
     assert('M16. a lane touched since runs again, though its old proof exists',
         !touched.carried.includes('functions') && touched.carried.length === LANE_NAMES.length - 1,
         JSON.stringify(touched));
+}
+
+{
+    // A rename out of a lane counts against that lane, on both diffs: git pairs
+    // the delete and the add, and a bare `--name-only` prints only the new path.
+    const dir = mkdtempSync(join(tmpdir(), 'ci-plan-rename-'));
+    const run = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+    try {
+        run('init', '-q');
+        run('config', 'user.email', 'test@example.com');
+        run('config', 'user.name', 'test');
+        mkdirSync(join(dir, 'functions'));
+        writeFileSync(join(dir, 'functions/x.js'), 'module.exports = 1;\n');
+        run('add', '-A');
+        run('-c', 'commit.gpgsign=false', 'commit', '-qm', 'base');
+        const base = run('rev-parse', 'HEAD');
+        const beforeTree = run('rev-parse', 'HEAD^{tree}');
+        mkdirSync(join(dir, 'docs'));
+        run('mv', 'functions/x.js', 'docs/x.md');
+        run('-c', 'commit.gpgsign=false', 'commit', '-qm', 'move');
+
+        const between = changedBetweenTrees(beforeTree, run('rev-parse', 'HEAD^{tree}'), () => {}, run).sort();
+        assert('M17. a rename out of a lane names both paths between the two trees',
+            between.join() === 'docs/x.md,functions/x.js', between.join());
+        const sinceBase = changedFilesFor({ base, threeDot: false }, () => {}, run).sort();
+        assert('M18. and in the change set against the base',
+            sinceBase.join() === 'docs/x.md,functions/x.js', sinceBase.join());
+        assert('M19. so the lane the file left is not carried over',
+            !carriedOverLanes({ selection: everything, changedSince: between }).includes('functions'));
+    } finally {
+        rmSync(dir, { recursive: true, force: true });
+    }
 }
 
 {
