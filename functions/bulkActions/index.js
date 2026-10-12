@@ -9,6 +9,6 @@ module.exports = {
     ...analyticsService,
     ...batchWorker,
     ...adminTools,
-    ...sessionDeleted
+    deleteBulkSessionData: sessionDeleted.deleteBulkSessionData
 };
 

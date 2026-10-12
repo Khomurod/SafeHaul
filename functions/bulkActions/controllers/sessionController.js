@@ -255,6 +255,15 @@ exports.retryFailedAttempts = onCall(
         workerGeneration: 1
     });
 
+    // A session deleted while this retry was being written may already have
+    // had its uploaded rows deleted (`workers/sessionDeleted.js`), which keeps
+    // them only for the sessions it can see. Read again now the retry exists:
+    // the deletion either sees this retry or is seen here.
+    if (!(await sessionRef.get()).exists) {
+        await newSessionRef.delete();
+        return { success: false, message: "This campaign was deleted, so it cannot be retried." };
+    }
+
     await enqueueWorker(companyId, newSessionId, 1, 1); // workerGeneration = 1
 
     return { success: true, newSessionId, targetCount: failedIds.length };

@@ -381,6 +381,7 @@ describe('retryFailedAttempts launch limit', () => {
 
     afterEach(() => {
         delete mockSessionRef.get;
+        delete mockSessionRef.delete;
         mockSessionRef.collection.mockImplementation(() => ({ doc: jest.fn((id) => makeTargetDoc(id)) }));
     });
 
@@ -392,6 +393,22 @@ describe('retryFailedAttempts launch limit', () => {
         expect(result).toMatchObject({ success: true, targetCount: 2000 });
         expect(mockSessionSet.mock.calls[0][0].targetIds).toHaveLength(2000);
         expect(mockEnqueueWorker).toHaveBeenCalled();
+    });
+
+    it('gives the retry up when its campaign is deleted while it is written', async () => {
+        failedLogs = failed(3);
+        let reads = 0;
+        mockSessionRef.get = jest.fn(async () => {
+            reads += 1;
+            return { exists: reads === 1, data: () => ({ name: 'Spring drive', config: { method: 'sms', message: 'Hello there' } }) };
+        });
+        mockSessionRef.delete = jest.fn().mockResolvedValue(true);
+
+        const result = await retry();
+
+        expect(result).toEqual({ success: false, message: 'This campaign was deleted, so it cannot be retried.' });
+        expect(mockSessionRef.delete).toHaveBeenCalledTimes(1);
+        expect(mockEnqueueWorker).not.toHaveBeenCalled();
     });
 
     it('refuses a retry of 2,001 before the retry session exists', async () => {

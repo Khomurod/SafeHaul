@@ -35,7 +35,7 @@ jest.mock('../../firebaseAdmin', () => {
     };
 });
 
-const { deleteBulkSessionData } = require('../../bulkActions/workers/sessionDeleted');
+const { deleteBulkSessionData, __private: { RETRY_WAITS_MS, timing } } = require('../../bulkActions/workers/sessionDeleted');
 
 const SESSIONS = 'companies/co1/bulk_sessions';
 const deleted = (sessionId, data = {}) => deleteBulkSessionData({
@@ -44,10 +44,14 @@ const deleted = (sessionId, data = {}) => deleteBulkSessionData({
 });
 const deletedPaths = () => mockRecursiveDelete.mock.calls.map(([ref]) => ref.path);
 
+const waits = [];
 beforeEach(() => {
     jest.resetAllMocks();
     mockSessions.clear();
     mockRecursiveDelete.mockResolvedValue(undefined);
+    waits.length = 0;
+    timing.wait = jest.fn(async (ms) => { waits.push(ms); });
+    jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 describe('deleteBulkSessionData', () => {
@@ -77,5 +81,32 @@ describe('deleteBulkSessionData', () => {
         await deleted('r1', { importSourceSessionId: 's1' });
 
         expect(deletedPaths()).toEqual([`${SESSIONS}/r1/logs`, `${SESSIONS}/s1/targets`]);
+    });
+});
+
+// Nothing else would finish the cleanup once the session document is gone, and
+// the platform does not retry the function, so it tries again itself.
+describe('deleteBulkSessionData when a step fails', () => {
+    it('tries again after a failure and finishes', async () => {
+        let calls = 0;
+        mockRecursiveDelete.mockImplementation(async () => {
+            calls += 1;
+            if (calls === 1) throw new Error('UNAVAILABLE');
+        });
+
+        await deleted('s1');
+
+        expect(waits).toEqual([RETRY_WAITS_MS[0]]);
+        expect(deletedPaths()).toEqual([`${SESSIONS}/s1/logs`, `${SESSIONS}/s1/logs`, `${SESSIONS}/s1/targets`]);
+    });
+
+    it('gives up after three tries and reports it', async () => {
+        mockRecursiveDelete.mockRejectedValue(new Error('UNAVAILABLE'));
+
+        await expect(deleted('s1')).rejects.toThrow('UNAVAILABLE');
+
+        expect(mockRecursiveDelete).toHaveBeenCalledTimes(3);
+        expect(waits).toEqual(RETRY_WAITS_MS);
+        expect(console.error).toHaveBeenCalledWith(expect.stringContaining('co1/s1'), expect.any(Error));
     });
 });
