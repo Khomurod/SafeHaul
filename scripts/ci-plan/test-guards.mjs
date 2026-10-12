@@ -337,7 +337,8 @@ console.log('\nK. Guards that stay guards');
      * refused.
      *
      * Each row: the step's name, the commands its `run:` holds, and for a guard's
-     * test step, the pattern its suites match on disk. The list comes off disk
+     * test step, the pattern its suites match on disk; `GUARD_SCRIPTS` pins what
+     * each npm script a row names runs. The list of suites comes off disk
      * because a hand-written one is the same hazard one level up: a suite split
      * in two, with the half that moved never chained.
      */
@@ -367,6 +368,32 @@ console.log('\nK. Guards that stay guards');
         ['Verify the AI-boundary guard', 'Verify the AI provider boundary'],
         ['Verify the UI-contract guard', 'UI contract ratchet'],
     ];
+    /**
+     * What each npm script a row names runs, exactly. The script is the next hop
+     * from the step, so `|| true`, a flag, an env or another file there is the
+     * step's own.
+     */
+    const GUARD_SCRIPTS = {
+        'check:public-claims': 'node scripts/check-public-claims.mjs',
+        'check:release-scripts': 'node scripts/test-release-promotion.mjs',
+        'check:ci-plan': 'node scripts/test-ci-plan.mjs',
+        'test:secret-scan': 'node scripts/test-secret-scan.mjs',
+        'check:function-exports': 'node scripts/validate-function-index-parse.mjs',
+        'check:deploy-script': 'node scripts/test-deploy-incremental.mjs',
+        'test:source-size': 'node scripts/test-source-size.mjs',
+        'check:source-size': 'node scripts/source-size.mjs',
+        'test:agent-docs': 'node scripts/test-agent-docs.mjs',
+        'check:agent-docs': 'node scripts/check-agent-docs.mjs',
+        'test:ai-boundary': 'node scripts/test-ai-boundary.mjs',
+        'check:ai-boundary': 'node scripts/check-ai-provider-boundary.mjs',
+        'test:ui-contract': [
+            'node scripts/test-ui-contract.mjs', 'node scripts/test-ui-contract-state.mjs',
+            'node scripts/test-ui-contract-scope.mjs', 'node scripts/test-ui-contract-allowlist.mjs',
+        ].join(' && '),
+        'check:ui-contract': 'node scripts/check-ui-contract.mjs',
+        'test:lint-rules': 'node scripts/test-lint-rules.mjs',
+        'test:bundle-budget': 'node scripts/test-bundle-budget.mjs',
+    };
     /** The steps that run no command: the action each uses, and the `with:` keys it may set. */
     const SETUP_STEPS = { 'actions/checkout': [], 'actions/setup-node': ['node-version', 'cache'] };
     /** The commands a step runs: its one-line `run:`, or each line of a `run: |` block. */
@@ -486,10 +513,9 @@ console.log('\nK. Guards that stay guards');
         assert('K5. and no other job runs it',
             workflowText.split(`- name: ${name}\n`).length === 2,
             'a copy elsewhere is a second step to keep in step with this one');
-        // The script is the next hop: `|| true` there is advisory, a flag or an env a lean.
         const scripts = commands.map((command) => command.match(/^npm run ([\w:-]+)$/)?.[1]).filter(Boolean);
-        assert('K5. and each npm script it names runs node on its files, and nothing more',
-            scripts.every((script) => /^node scripts\/[\w./-]+\.mjs( && node scripts\/[\w./-]+\.mjs)*$/.test(pkg.scripts[script] ?? '')),
+        assert('K5. and each npm script it names runs exactly what the table pins',
+            scripts.every((script) => Object.hasOwn(GUARD_SCRIPTS, script) && pkg.scripts[script] === GUARD_SCRIPTS[script]),
             scripts.map((script) => `${script} = ${JSON.stringify(pkg.scripts[script])}`).join(', '));
         if (suitePattern) {
             const suites = readdirSync(here).filter((file) => suitePattern.test(file));
@@ -499,6 +525,11 @@ console.log('\nK. Guards that stay guards');
                 `${suites.join(', ')} vs ${chain}`);
         }
     }
+    const scriptsNamed = GUARD_STEPS.flatMap(([, commands]) => commands)
+        .map((command) => command.match(/^npm run ([\w:-]+)$/)?.[1]).filter(Boolean);
+    assert('K5. and the table pins no script a row does not name',
+        Object.keys(GUARD_SCRIPTS).every((script) => scriptsNamed.includes(script)),
+        Object.keys(GUARD_SCRIPTS).filter((script) => !scriptsNamed.includes(script)).join(', '));
     for (const [tests, check] of TESTS_FIRST) {
         assert(`K5. "${tests}" runs before "${check}"`,
             stepAt(tests) !== -1 && stepAt(tests) < stepAt(check),
