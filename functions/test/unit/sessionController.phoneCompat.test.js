@@ -271,10 +271,10 @@ describe('sessionController phone compatibility', () => {
 // and a larger audience is refused before anything is written.
 describe('initBulkSession launch limit', () => {
     const phoneOf = (i) => `+1555${String(i).padStart(7, '0')}`;
-    const leadsQuery = (count) => ({
+    const leadsQuery = (count, from = 0) => ({
         select: jest.fn().mockReturnThis(),
         get: jest.fn().mockResolvedValue({
-            docs: Array.from({ length: count }, (_, i) => ({ id: `lead${i}`, data: () => ({ phone: phoneOf(i) }) })),
+            docs: Array.from({ length: count }, (_, i) => ({ id: `lead${from + i}`, data: () => ({ phone: phoneOf(from + i) }) })),
             size: count,
         }),
     });
@@ -304,15 +304,29 @@ describe('initBulkSession launch limit', () => {
 
         await expect(launch({ leadType: 'leads' })).rejects.toMatchObject({
             code: 'invalid-argument',
-            message: expect.stringContaining('2,000'),
+            message: expect.stringContaining('at most 2,000 recipients, and this audience has 2,001. Narrow the filters'),
         });
         expect(mockSessionSet).not.toHaveBeenCalled();
         expect(mockEnqueueWorker).not.toHaveBeenCalled();
     });
 
+    it('holds Limit Volume to the whole audience when the filters split into two queries', async () => {
+        // "Not contacted since" splits the filters into two queries
+        // (`buildLeadQueries`), and each query takes Limit Volume on its own.
+        mockBuildLeadQueries.mockReturnValue([leadsQuery(1500), leadsQuery(1500, 1500)]);
+
+        const result = await launch({ leadType: 'leads', campaignLimit: '2000' });
+
+        expect(result.targetCount).toBe(2000);
+        expect(mockSessionSet).toHaveBeenCalledWith(expect.objectContaining({
+            targetIds: expect.arrayContaining(['lead0', 'lead1499', 'lead1500']),
+        }));
+    });
+
     it('refuses an uploaded list of 2,001 before any row is written', async () => {
         await expect(launch({ leadType: 'import', excludeRecentDays: 'off' }, rows(2001))).rejects.toMatchObject({
             code: 'invalid-argument',
+            message: expect.stringContaining('this audience has 2,001. Upload the list in parts'),
         });
         expect(mockBatchWrites).toHaveLength(0);
         expect(mockSessionSet).not.toHaveBeenCalled();

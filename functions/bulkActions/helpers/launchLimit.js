@@ -10,13 +10,17 @@ const { HttpsError } = require("firebase-functions/v2/https");
 
 const MAX_RECIPIENTS_PER_LAUNCH = 2000;
 
-function assertWithinLaunchLimit(count) {
+// The server's text is what the screens show when it refuses, so it names
+// what the recruiter can change on the tab they launched from.
+function assertWithinLaunchLimit(count, { uploadedList = false } = {}) {
     if (count <= MAX_RECIPIENTS_PER_LAUNCH) return;
     const limit = MAX_RECIPIENTS_PER_LAUNCH.toLocaleString("en-US");
+    const narrow = uploadedList
+        ? "Upload the list in parts, or un-tick rows."
+        : "Narrow the filters, set Limit Volume, or un-tick leads, then launch the rest separately.";
     throw new HttpsError(
         "invalid-argument",
-        `A launch can message at most ${limit} recipients, and this audience has ${count.toLocaleString("en-US")}. ` +
-        "Narrow the filters, set Limit Volume, or un-tick rows, then launch the rest separately."
+        `A launch can message at most ${limit} recipients, and this audience has ${count.toLocaleString("en-US")}. ${narrow}`
     );
 }
 

@@ -135,7 +135,12 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
             console.error('[initBulkSession] Ledger cross-check error (proceeding without):', ledgerErr);
         }
 
-        return [...candidates.keys()].filter((id) => !messaged.has(id));
+        const ids = [...candidates.keys()].filter((id) => !messaged.has(id));
+        // Limit Volume holds the whole audience. Each query already takes it,
+        // but filters split into two queries (`buildLeadQueries`) would
+        // otherwise bring back up to twice as many.
+        const limit = parseInt(filters.campaignLimit);
+        return limit > 0 ? ids.slice(0, limit) : ids;
     } catch (qErr) {
         throw new HttpsError('internal', `Query execution failed: ${qErr.message}`);
     }
