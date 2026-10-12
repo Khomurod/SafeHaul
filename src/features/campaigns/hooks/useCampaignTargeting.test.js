@@ -14,6 +14,9 @@ const ROWS = [
     { firstName: 'Alice', normalizedPhone: '5551110001' },
     { firstName: 'Bob', normalizedPhone: '5551110002' },
 ];
+const USER = { uid: 'u1' };
+const UPLOAD = { leadType: 'import', rawData: ROWS };
+const UPLOAD_OFF = { ...UPLOAD, excludeRecentDays: 'off' };
 
 // The count waits 500 ms after the last change before it asks the server.
 const settle = () => act(() => vi.advanceTimersByTimeAsync(500));
@@ -30,7 +33,7 @@ afterEach(() => {
 
 describe('useCampaignTargeting — an uploaded list', () => {
     it('counts with the 7-day window the screen shows when none was picked', async () => {
-        const { result } = renderHook(() => useCampaignTargeting('co-1', { leadType: 'import', rawData: ROWS }, { uid: 'u1' }));
+        const { result } = renderHook(() => useCampaignTargeting('co-1', UPLOAD, USER));
         await settle();
 
         expect(result.current.matchCount).toBe(1);
@@ -39,10 +42,30 @@ describe('useCampaignTargeting — an uploaded list', () => {
     });
 
     it('counts every row when the recruiter turned the window off', async () => {
-        const { result } = renderHook(() => useCampaignTargeting('co-1', { leadType: 'import', rawData: ROWS, excludeRecentDays: 'off' }, { uid: 'u1' }));
+        const { result } = renderHook(() => useCampaignTargeting('co-1', UPLOAD_OFF, USER));
         await settle();
 
         expect(result.current.matchCount).toBe(2);
         expect(checkImportPhones).not.toHaveBeenCalled();
+    });
+
+    it('keeps the count for the window picked last when an earlier answer comes back late', async () => {
+        let answerSevenDays;
+        checkImportPhones.mockImplementation(() => new Promise((resolve) => { answerSevenDays = resolve; }));
+        const { result, rerender } = renderHook(({ filters }) => useCampaignTargeting('co-1', filters, USER), {
+            initialProps: { filters: UPLOAD },
+        });
+        await settle(); // the 7-day check is now in flight
+
+        rerender({ filters: UPLOAD_OFF });
+        await settle();
+        expect(result.current.matchCount).toBe(2);
+
+        // The 7-day answer arrives after the recruiter chose "No Exclusion".
+        await act(async () => { answerSevenDays({ data: { excludedPhones: ['5551110001'] } }); });
+
+        expect(result.current.matchCount).toBe(2);
+        expect([...result.current.excludedPhones]).toEqual([]);
+        expect(result.current.isLoading).toBe(false);
     });
 });
