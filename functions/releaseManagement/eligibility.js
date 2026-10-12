@@ -78,9 +78,7 @@ class IneligibleReleaseError extends Error {}
  * `Verify the release is fully validated`, which cannot be satisfied by a lane
  * that neither ran nor has proof it passed on this code.
  *
- * `typecheck` and `e2e-a11y` are absent for a different reason: both are declared
- * non-blocking baselines in `main.yml` and run with `continue-on-error`, so
- * requiring them here would contradict the workflow.
+ * The typecheck runs inside `frontend-quality`, so it is covered the same way.
  */
 const REQUIRED_RELEASE_CHECKS = Object.freeze([
     // Scans commit HISTORY, so it can never be satisfied by a tree-hash proof

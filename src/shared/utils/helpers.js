@@ -77,10 +77,11 @@ export function formatDate(date, includeTime = false) {
         }
 
         // Validate Date
-        if (!(dateObj instanceof Date) || isNaN(dateObj)) {
+        if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) {
             return '--';
         }
 
+        /** @type {Intl.DateTimeFormatOptions} */
         const options = {
             year: 'numeric',
             month: 'short',

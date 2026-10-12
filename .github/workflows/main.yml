@@ -447,6 +447,11 @@ jobs:
       - name: Frontend Lint
         run: npm run lint:frontend
 
+      # Blocking. It ran as its own job with `continue-on-error`, and twelve
+      # errors piled up in the modules `jsconfig.json` checks before anyone saw one.
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Frontend Unit Tests + Coverage (baseline-ratchet gate)
         run: npm run test:coverage
 
@@ -784,36 +789,6 @@ jobs:
             firebase-debug.log
             storage-debug.log
             ui-debug.log
-
-  # ---------------------------------------------------------------------------
-  # Non-blocking baselines — advisory, never in the required set
-  #
-  # `e2e-a11y` used to live here and no longer does: its axe specs run inside the
-  # blocking `frontend-e2e` lane as of 2026-08-25. `typecheck` is the only
-  # advisory lane left, and it is advisory for a different reason — it is a
-  # ratchet over pre-existing `checkJs` findings in modules this campaign does not
-  # touch, not a gate someone decided to switch off.
-  # ---------------------------------------------------------------------------
-  typecheck:
-    runs-on: ubuntu-latest
-    needs: plan
-    if: needs.plan.outputs.run_frontend_unit == 'true'
-    # D3: non-blocking type-safety baseline (checkJs on scoped high-leverage
-    # modules via jsconfig.json). Surfaces latent type issues to ratchet over
-    # time; intentionally NOT part of the release-validation lane set so it never
-    # blocks a release.
-    steps:
-      - uses: actions/checkout@v7
-      - name: Use Node.js 22.x
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22.x
-          cache: 'npm'
-      - name: Install Dependencies
-        run: npm ci
-      - name: Typecheck (non-blocking baseline)
-        run: npm run typecheck
-        continue-on-error: true
 
   # ---------------------------------------------------------------------------
   # THE gate

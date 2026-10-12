@@ -19,6 +19,7 @@
 
 import { US_STATE_NAMES, toUsStateName } from './usStates';
 
+/** @type {ReadonlyArray<readonly [string, string]>} */
 const CANADA = Object.freeze([
     ['AB', 'Alberta'], ['BC', 'British Columbia'], ['MB', 'Manitoba'], ['NB', 'New Brunswick'],
     ['NL', 'Newfoundland and Labrador'], ['NS', 'Nova Scotia'], ['NT', 'Northwest Territories'],
@@ -26,6 +27,7 @@ const CANADA = Object.freeze([
     ['SK', 'Saskatchewan'], ['YT', 'Yukon'],
 ]);
 
+/** @type {ReadonlyArray<readonly [string, string]>} */
 const MEXICO = Object.freeze([
     ['AG', 'Aguascalientes'], ['BN', 'Baja California'], ['BS', 'Baja California Sur'],
     ['CP', 'Campeche'], ['CS', 'Chiapas'], ['CI', 'Chihuahua'], ['CH', 'Coahuila'], ['CL', 'Colima'],
@@ -52,17 +54,19 @@ const BY_COUNTRY = Object.freeze({
     MX: new Map(MEXICO),
 });
 
-const OUTSIDE_US_BY_NAME = new Map([
-    ...CANADA.map(([code, name]) => [name, Object.freeze({ country: 'CA', code })]),
-    ...MEXICO.map(([code, name]) => [name, Object.freeze({ country: 'MX', code })]),
-]);
+/** @typedef {{country: 'CA'|'MX', code: string}} OutsideUsRegion */
+
+/** @type {(country: 'CA'|'MX') => ([code, name]: readonly [string, string]) => [string, Readonly<OutsideUsRegion>]} */
+const byName = (country) => ([code, name]) => [name, Object.freeze({ country, code })];
+
+const OUTSIDE_US_BY_NAME = new Map([...CANADA.map(byName('CA')), ...MEXICO.map(byName('MX'))]);
 
 /**
  * FMCSA's country and code for a Canadian province or territory or a Mexican
  * state, by its listed name; null for a US state or anything else.
  *
  * @param {unknown} name e.g. `'Ontario'`, `'Nuevo León'`
- * @returns {{country: 'CA'|'MX', code: string} | null}
+ * @returns {Readonly<OutsideUsRegion> | null}
  */
 export function fmcsaRegionOutsideUs(name) {
     return OUTSIDE_US_BY_NAME.get(String(name ?? '').trim()) || null;

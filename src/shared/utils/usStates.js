@@ -22,7 +22,10 @@
  * carriers in all five under the same codes (about 7,200 in Puerto Rico).
  */
 
-/** USPS code and name, in the order the pickers list them. */
+/**
+ * USPS code and name, in the order the pickers list them.
+ * @type {ReadonlyArray<readonly [string, string]>}
+ */
 const US_STATES = Object.freeze([
     ['AL', 'Alabama'], ['AK', 'Alaska'], ['AS', 'American Samoa'], ['AZ', 'Arizona'], ['AR', 'Arkansas'],
     ['CA', 'California'], ['CO', 'Colorado'], ['CT', 'Connecticut'], ['DE', 'Delaware'],

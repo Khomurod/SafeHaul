@@ -288,7 +288,7 @@ function calculateBackoff(attempt) {
  * Process a single queue entry
  * @param {Object} entry - Queue entry
  * @param {Function} submitFn - Async function that performs the actual submission
- * @returns {Promise<{success: boolean, error?: Error}>}
+ * @returns {Promise<{success: boolean, error?: Error, result?: unknown, refused?: boolean, exhausted?: boolean}>}
  */
 export async function processEntry(entry, submitFn) {
     const fresh = await getQueueEntry(entry?.id);
