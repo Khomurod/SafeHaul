@@ -25,73 +25,73 @@ const mockTokenRef = { __kind: 'token' };
 let mockLastRequestDocId = null;
 const mockRequestRef = {
   get id() { return mockLastRequestDocId; },
-  collection: jest.fn(() => ({ doc: jest.fn(() => mockTokenRef) })),
+  collection: jest.fn(),
 };
+
+// Jest 30's reset leaves every double returning undefined, so the Firestore
+// doubles' implementations are named here and put back before each test.
+function mockCollection(name) {
+  if (name === 'public_profiles') {
+    return {
+      doc: jest.fn(() => ({
+        get: mockPublicProfileGet,
+      })),
+    };
+  }
+  if (name === 'companies') {
+    return {
+      doc: jest.fn(() => ({
+        collection: jest.fn((sub) => {
+          if (sub === 'applications') {
+            return { doc: jest.fn(() => ({ get: mockApplicationGet })) };
+          }
+          if (sub === 'templates') {
+            return { doc: jest.fn(() => ({ get: mockTemplateGet })) };
+          }
+          if (sub === 'signing_requests') {
+            return {
+              doc: jest.fn((id) => {
+                mockLastRequestDocId = id;
+                return mockRequestRef;
+              }),
+            };
+          }
+          return { doc: jest.fn() };
+        }),
+      })),
+    };
+  }
+  return { doc: jest.fn() };
+}
+
+const mockRunTransaction = async (fn) => fn({
+  get: jest.fn(async (ref) => (ref === mockTokenRef ? mockTokenTxnGet() : mockRequestTxnGet())),
+  set: mockTxnSet,
+  update: mockTxnUpdate,
+});
 
 jest.mock('../../firebaseAdmin', () => ({
   admin: {
     firestore: {
-      FieldValue: {
-        serverTimestamp: jest.fn(() => ({ __ts: true })),
-      },
-      Timestamp: {
-        fromMillis: jest.fn((n) => ({ __millis: n, toMillis: () => n })),
-      },
+      FieldValue: { serverTimestamp: jest.fn() },
+      Timestamp: { fromMillis: jest.fn() },
     },
   },
-  db: {
-    collection: jest.fn((name) => {
-      if (name === 'public_profiles') {
-        return {
-          doc: jest.fn(() => ({
-            get: mockPublicProfileGet,
-          })),
-        };
-      }
-      if (name === 'companies') {
-        return {
-          doc: jest.fn(() => ({
-            collection: jest.fn((sub) => {
-              if (sub === 'applications') {
-                return { doc: jest.fn(() => ({ get: mockApplicationGet })) };
-              }
-              if (sub === 'templates') {
-                return { doc: jest.fn(() => ({ get: mockTemplateGet })) };
-              }
-              if (sub === 'signing_requests') {
-                return {
-                  doc: jest.fn((id) => {
-                    mockLastRequestDocId = id;
-                    return mockRequestRef;
-                  }),
-                };
-              }
-              return { doc: jest.fn() };
-            }),
-          })),
-        };
-      }
-      return { doc: jest.fn() };
-    }),
-    runTransaction: jest.fn(async (fn) => fn({
-      get: jest.fn(async (ref) => (ref === mockTokenRef ? mockTokenTxnGet() : mockRequestTxnGet())),
-      set: mockTxnSet,
-      update: mockTxnUpdate,
-    })),
-  },
+  db: { collection: jest.fn(), runTransaction: jest.fn() },
 }));
 
 jest.mock('../../shared/rateLimiter', () => ({
-  checkRateLimit: jest.fn().mockResolvedValue(true),
+  checkRateLimit: jest.fn(),
 }));
 
 jest.mock('../../shared/companyTenant', () => ({
-  assertCompanyAcceptingIntake: jest.fn().mockResolvedValue({ companyName: 'Demo Co', isActive: true }),
+  assertCompanyAcceptingIntake: jest.fn(),
 }));
 
 const { createPostApplicationSigningRequest, __private } = require('../../postApplicationEdocs');
 const { checkRateLimit } = require('../../shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('../../shared/companyTenant');
+const { admin, db } = require('../../firebaseAdmin');
 
 const requestPayloadFromTxnSet = () => {
   const call = mockTxnSet.mock.calls.find(([ref]) => ref === mockRequestRef);
@@ -116,7 +116,14 @@ describe('createPostApplicationSigningRequest', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    mockRequestRef.collection.mockImplementation(() => ({ doc: jest.fn(() => mockTokenRef) }));
+    admin.firestore.FieldValue.serverTimestamp.mockImplementation(() => ({ __ts: true }));
+    admin.firestore.Timestamp.fromMillis.mockImplementation((n) => ({ __millis: n, toMillis: () => n }));
+    db.collection.mockImplementation(mockCollection);
+    db.runTransaction.mockImplementation(mockRunTransaction);
+    checkRateLimit.mockResolvedValue(true);
+    assertCompanyAcceptingIntake.mockResolvedValue({ companyName: 'Demo Co', isActive: true });
     mockLastRequestDocId = null;
     mockPublicProfileGet.mockResolvedValue({
       exists: true,

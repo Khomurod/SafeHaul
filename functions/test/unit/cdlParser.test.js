@@ -24,10 +24,10 @@ jest.mock('firebase-functions/v1', () => {
 
 jest.mock('../../firebaseAdmin', () => ({ db: {} }));
 jest.mock('../../shared/companyTenant', () => ({
-  assertCompanyAcceptingIntake: jest.fn().mockResolvedValue({ companyName: 'Tenant Co' }),
+  assertCompanyAcceptingIntake: jest.fn(),
 }));
 jest.mock('../../shared/rateLimiter', () => ({
-  checkRateLimit: jest.fn().mockResolvedValue(true),
+  checkRateLimit: jest.fn(),
 }));
 
 const mockExtractCdlFields = jest.fn();
@@ -64,7 +64,9 @@ const SUCCESSFUL_EXTRACTION = {
 
 describe('parseCdlWithGroq', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    assertCompanyAcceptingIntake.mockResolvedValue({ companyName: 'Tenant Co' });
+    checkRateLimit.mockResolvedValue(true);
     mockExtractCdlFields.mockResolvedValue(SUCCESSFUL_EXTRACTION);
   });
 

@@ -16,7 +16,7 @@ jest.mock('../../firebaseAdmin', () => ({
     db: { collection: () => ({ add: mockAdd }) },
 }));
 
-const mockAdd = jest.fn().mockResolvedValue({ id: 'doc1' });
+const mockAdd = jest.fn();
 
 const {
     sanitize,
@@ -28,7 +28,10 @@ const {
     VENDOR_CODE_PATTERN,
 } = require('../../ai/telemetry/record');
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+    jest.resetAllMocks();
+    mockAdd.mockResolvedValue({ id: 'doc1' });
+});
 
 describe('transaction shape', () => {
     it('keeps the fields an operator needs to reconstruct a request', () => {

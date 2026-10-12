@@ -7,9 +7,9 @@ jest.mock('firebase-functions/v2/https', () => ({
 jest.mock('firebase-functions', () => ({ logger: { info: jest.fn(), warn: jest.fn() } }));
 jest.mock('uuid', () => ({ v4: () => 'tok-123' }));
 
-const mockAssert = jest.fn().mockResolvedValue(undefined);
+const mockAssert = jest.fn();
 jest.mock('../../shared/companyAccess', () => ({ assertCompanyAdminStrict: (...a) => mockAssert(...a) }));
-const mockRateLimit = jest.fn().mockResolvedValue(true);
+const mockRateLimit = jest.fn();
 jest.mock('../../shared/rateLimiter', () => ({ checkRateLimit: (...a) => mockRateLimit(...a) }));
 
 // Mutable per-test state (mock-prefixed for jest hoisting).
@@ -20,11 +20,11 @@ const mockState = {
   pendingDocs: [],
   reviewSnap: { exists: true, data: () => ({}) },
 };
-const mockBatch = { set: jest.fn(), commit: jest.fn().mockResolvedValue() };
-const mockAdd = jest.fn().mockResolvedValue();
+const mockBatch = { set: jest.fn(), commit: jest.fn() };
+const mockAdd = jest.fn();
 const mockAppRef = {
   get: () => Promise.resolve(mockState.appSnap),
-  set: jest.fn().mockResolvedValue(),
+  set: jest.fn(),
   collection: (name) => {
     if (name === 'pending_changes') {
       return {
@@ -36,7 +36,7 @@ const mockAppRef = {
     return { add: (...a) => mockAdd(...a) };
   },
 };
-const mockReviewRef = { get: () => Promise.resolve(mockState.reviewSnap), set: jest.fn().mockResolvedValue() };
+const mockReviewRef = { get: () => Promise.resolve(mockState.reviewSnap), set: jest.fn() };
 
 jest.mock('../../firebaseAdmin', () => ({
   admin: {
@@ -62,9 +62,13 @@ const {
 const auth = { uid: 'admin1', token: { name: 'Rec' } };
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.resetAllMocks();
   mockAssert.mockResolvedValue(undefined);
   mockRateLimit.mockResolvedValue(true);
+  mockBatch.commit.mockResolvedValue();
+  mockAdd.mockResolvedValue();
+  mockAppRef.set.mockResolvedValue();
+  mockReviewRef.set.mockResolvedValue();
   mockState.appSnap = { exists: true, data: () => ({ firstName: 'John', lastName: 'Doe' }) };
   mockState.pendingEmpty = true; mockState.pendingSize = 0; mockState.pendingDocs = [];
   mockState.reviewSnap = { exists: true, data: () => ({ companyId: 'co1', applicationId: 'app1', collectionName: 'applications', applicantName: 'John Doe', expiresAt: { toMillis: () => Date.now() + 1e9 }, status: 'open' }) };

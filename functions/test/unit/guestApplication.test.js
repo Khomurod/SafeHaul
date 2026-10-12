@@ -14,7 +14,7 @@ jest.mock('firebase-admin/firestore', () => ({
   FieldValue: { serverTimestamp: () => ({ __srv: true }) },
 }));
 
-const mockSet = jest.fn().mockResolvedValue(undefined);
+const mockSet = jest.fn();
 
 /**
  * Writes of the APPLICATION DOCUMENT itself.
@@ -28,7 +28,7 @@ const applicationWrites = () => mockSet.mock.calls.filter(
   ([data]) => !(data && typeof data === 'object' && Object.keys(data).length === 1 && 'submissionRecord' in data)
 );
 
-const mockGet = jest.fn().mockResolvedValue({ exists: false, data: () => null });
+const mockGet = jest.fn();
 /**
  * The draft document, read separately from the application document.
  *
@@ -38,58 +38,65 @@ const mockGet = jest.fn().mockResolvedValue({ exists: false, data: () => null })
  * read — which is how a dedup test starts failing for a reason that has nothing
  * to do with deduplication.
  */
-const mockDraftGet = jest.fn().mockResolvedValue({ exists: false, data: () => null });
+const mockDraftGet = jest.fn();
+
+// Jest 30's reset leaves every double returning undefined, so the Firestore
+// double's implementation is named here and put back before each test.
+function mockCollection(col) {
+  if (col === 'public_profiles') {
+    return {
+      doc: jest.fn(() => ({
+        get: jest.fn().mockResolvedValue({ exists: false }),
+      })),
+    };
+  }
+  if (col === 'companies') {
+    return {
+      doc: jest.fn(() => ({
+        collection: jest.fn((sub) => ({
+          doc: jest.fn(() => (sub === 'application_drafts'
+            ? { get: mockDraftGet, delete: jest.fn().mockResolvedValue(undefined) }
+            : { set: mockSet, get: mockGet })),
+          // `legal_agreements`: no company wording published.
+          get: jest.fn().mockResolvedValue({ docs: [] }),
+        })),
+      })),
+    };
+  }
+  return { doc: jest.fn() };
+}
 
 jest.mock('../../firebaseAdmin', () => ({
-  db: {
-    collection: jest.fn((col) => {
-      if (col === 'public_profiles') {
-        return {
-          doc: jest.fn(() => ({
-            get: jest.fn().mockResolvedValue({ exists: false }),
-          })),
-        };
-      }
-      if (col === 'companies') {
-        return {
-          doc: jest.fn(() => ({
-            collection: jest.fn((sub) => ({
-              doc: jest.fn(() => (sub === 'application_drafts'
-                ? { get: mockDraftGet, delete: jest.fn().mockResolvedValue(undefined) }
-                : { set: mockSet, get: mockGet })),
-              // `legal_agreements`: no company wording published.
-              get: jest.fn().mockResolvedValue({ docs: [] }),
-            })),
-          })),
-        };
-      }
-      return { doc: jest.fn() };
-    }),
-  },
+  db: { collection: jest.fn() },
 }));
 
 jest.mock('../../shared/companyTenant', () => ({
-  assertCompanyAcceptingIntake: jest.fn().mockResolvedValue({
-    companyName: 'Tenant Co',
-    applicationConfig: {
-      cdlUpload: { hidden: false, required: false },
-      medCardUpload: { hidden: false, required: false },
-    },
-  }),
+  assertCompanyAcceptingIntake: jest.fn(),
 }));
 
 jest.mock('../../shared/rateLimiter', () => ({
-  checkRateLimit: jest.fn().mockResolvedValue(true),
+  checkRateLimit: jest.fn(),
 }));
 
 const { submitGuestApplication } = require('../../guestApplication');
 const companyTenant = require('../../shared/companyTenant');
+const { checkRateLimit } = require('../../shared/rateLimiter');
+const { db } = require('../../firebaseAdmin');
 
 describe('submitGuestApplication', () => {
   const emulatorBackup = process.env.FUNCTIONS_EMULATOR;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    db.collection.mockImplementation(mockCollection);
+    companyTenant.assertCompanyAcceptingIntake.mockResolvedValue({
+      companyName: 'Tenant Co',
+      applicationConfig: {
+        cdlUpload: { hidden: false, required: false },
+        medCardUpload: { hidden: false, required: false },
+      },
+    });
+    checkRateLimit.mockResolvedValue(true);
     mockSet.mockResolvedValue(undefined);
     mockGet.mockResolvedValue({ exists: false, data: () => null });
     mockDraftGet.mockResolvedValue({ exists: false, data: () => null });
@@ -368,7 +375,6 @@ describe('submitGuestApplication', () => {
       ...(applicantToday === undefined ? {} : { applicantToday }),
       formData: { ...validPayload.formData, ...statementFor(theirDay) },
     }, ctxBase);
-    const tenantDefault = companyTenant.assertCompanyAcceptingIntake.getMockImplementation();
 
     beforeEach(() => {
       companyTenant.assertCompanyAcceptingIntake.mockResolvedValue({
@@ -379,9 +385,6 @@ describe('submitGuestApplication', () => {
         },
         applicationRules: { hoursOfServiceStatement: 'application' },
       });
-    });
-    afterEach(() => {
-      companyTenant.assertCompanyAcceptingIntake.mockImplementation(tenantDefault);
     });
 
     it('accepts the statement the wizard accepted, on the day the applicant sent', async () => {

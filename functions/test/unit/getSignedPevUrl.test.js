@@ -15,30 +15,31 @@ jest.mock('firebase-functions', () => ({
   },
 }));
 
-const mockAssertCompanyAccessForRequest = jest.fn().mockResolvedValue(undefined);
+const mockAssertCompanyAccessForRequest = jest.fn();
 jest.mock('../../shared/companyAccess', () => ({
   assertCompanyAccessForRequest: (...args) => mockAssertCompanyAccessForRequest(...args),
 }));
 
-const mockExists = jest.fn().mockResolvedValue([true]);
-const mockGetSignedUrl = jest.fn().mockResolvedValue(['https://signed.safehaul.test/pev.pdf']);
+const mockExists = jest.fn();
+const mockGetSignedUrl = jest.fn();
 
 jest.mock('../../firebaseAdmin', () => ({
-  storage: {
-    bucket: jest.fn(() => ({
+  storage: { bucket: jest.fn() },
+}));
+
+const { getSignedPevUrl } = require('../../getSignedPevUrl');
+const { storage } = require('../../firebaseAdmin');
+
+describe('getSignedPevUrl', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockAssertCompanyAccessForRequest.mockResolvedValue(undefined);
+    storage.bucket.mockImplementation(() => ({
       file: jest.fn(() => ({
         exists: (...args) => mockExists(...args),
         getSignedUrl: (...args) => mockGetSignedUrl(...args),
       })),
-    })),
-  },
-}));
-
-const { getSignedPevUrl } = require('../../getSignedPevUrl');
-
-describe('getSignedPevUrl', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+    }));
     mockExists.mockResolvedValue([true]);
     mockGetSignedUrl.mockResolvedValue(['https://signed.safehaul.test/pev.pdf']);
   });

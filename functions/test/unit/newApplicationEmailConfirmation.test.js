@@ -9,24 +9,16 @@ jest.mock('firebase-functions/v2/firestore', () => ({
 }));
 
 jest.mock('../../firebaseAdmin', () => ({
-  db: {
-    collection: jest.fn(() => ({
-      doc: jest.fn(() => ({
-        get: jest.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({ companyName: 'Acme Trucking' }),
-        }),
-      })),
-    })),
-  },
+  db: { collection: jest.fn() },
 }));
 
 jest.mock('../../emailService', () => ({
-  sendDynamicEmail: jest.fn().mockResolvedValue({ success: true }),
+  sendDynamicEmail: jest.fn(),
 }));
 
 const { sendDynamicEmail } = require('../../emailService');
 const { onNewApplicationEmailConfirmation } = require('../../notificationTriggers');
+const { db } = require('../../firebaseAdmin');
 
 function buildEvent(overrides = {}) {
   const { params = {}, data = {} } = overrides;
@@ -46,7 +38,18 @@ function buildEvent(overrides = {}) {
 }
 
 describe('onNewApplicationEmailConfirmation', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.resetAllMocks();
+    db.collection.mockImplementation(() => ({
+      doc: jest.fn(() => ({
+        get: jest.fn().mockResolvedValue({
+          exists: true,
+          data: () => ({ companyName: 'Acme Trucking' }),
+        }),
+      })),
+    }));
+    sendDynamicEmail.mockResolvedValue({ success: true });
+  });
 
   it('calls sendDynamicEmail with positional (companyId, to, subject, html) args', async () => {
     await onNewApplicationEmailConfirmation(buildEvent());

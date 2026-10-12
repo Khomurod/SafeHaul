@@ -10,43 +10,25 @@ jest.mock('firebase-functions/v2/https', () => ({
 
 const mockGet = jest.fn();
 const mockSecretGet = jest.fn();
-const mockGetSignedUrl = jest.fn().mockResolvedValue(['https://signed.example/doc.pdf']);
+const mockGetSignedUrl = jest.fn();
 
 const mockRequestDocRef = {
   get: mockGet,
-  collection: jest.fn(() => ({
-    doc: jest.fn(() => ({
-      get: mockSecretGet,
-    })),
-  })),
+  collection: jest.fn(),
 };
 
 jest.mock('../../firebaseAdmin', () => ({
-  db: {
-    collection: jest.fn(() => ({
-      doc: jest.fn(() => ({
-        collection: jest.fn(() => ({
-          doc: jest.fn(() => mockRequestDocRef),
-        })),
-      })),
-    })),
-  },
-  storage: {
-    bucket: jest.fn(() => ({
-      name: 'test-bucket',
-      file: jest.fn(() => ({
-        getSignedUrl: mockGetSignedUrl,
-      })),
-    })),
-  },
+  db: { collection: jest.fn() },
+  storage: { bucket: jest.fn() },
 }));
 
 jest.mock('../../shared/rateLimiter', () => ({
-  checkRateLimit: jest.fn().mockResolvedValue(true),
+  checkRateLimit: jest.fn(),
 }));
 
 const { getPublicEnvelope } = require('../../publicSigning');
 const { checkRateLimit } = require('../../shared/rateLimiter');
+const { db, storage } = require('../../firebaseAdmin');
 
 function baseEnvelope(overrides = {}) {
   return {
@@ -62,7 +44,27 @@ function baseEnvelope(overrides = {}) {
 
 describe('getPublicEnvelope', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    mockGetSignedUrl.mockResolvedValue(['https://signed.example/doc.pdf']);
+    mockRequestDocRef.collection.mockImplementation(() => ({
+      doc: jest.fn(() => ({
+        get: mockSecretGet,
+      })),
+    }));
+    db.collection.mockImplementation(() => ({
+      doc: jest.fn(() => ({
+        collection: jest.fn(() => ({
+          doc: jest.fn(() => mockRequestDocRef),
+        })),
+      })),
+    }));
+    storage.bucket.mockImplementation(() => ({
+      name: 'test-bucket',
+      file: jest.fn(() => ({
+        getSignedUrl: mockGetSignedUrl,
+      })),
+    }));
+    checkRateLimit.mockResolvedValue(true);
     mockGet.mockResolvedValue({
       exists: true,
       data: () => baseEnvelope(),

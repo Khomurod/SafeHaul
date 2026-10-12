@@ -11,39 +11,39 @@ jest.mock('firebase-functions/v1', () => {
   return { https };
 });
 
-const mockExists = jest.fn().mockResolvedValue([true]);
-const mockGetSignedUrl = jest.fn().mockResolvedValue(['https://signed.example/guest.jpg']);
+const mockExists = jest.fn();
+const mockGetSignedUrl = jest.fn();
 
 jest.mock('../../firebaseAdmin', () => ({
   db: {},
-  storage: {
-    bucket: jest.fn(() => ({
-      file: jest.fn(() => ({
-        exists: mockExists,
-        getSignedUrl: mockGetSignedUrl,
-      })),
-    })),
-  },
+  storage: { bucket: jest.fn() },
 }));
 
 jest.mock('../../shared/companyTenant', () => ({
-  assertCompanyAcceptingIntake: jest.fn().mockResolvedValue({}),
+  assertCompanyAcceptingIntake: jest.fn(),
 }));
 
 jest.mock('../../shared/rateLimiter', () => ({
-  checkRateLimit: jest.fn().mockResolvedValue(true),
+  checkRateLimit: jest.fn(),
 }));
 
 const { checkRateLimit } = require('../../shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('../../shared/companyTenant');
 const { getSignedGuestUploadUrl } = require('../../getSignedGuestUploadUrl');
+const { storage } = require('../../firebaseAdmin');
 
 describe('getSignedGuestUploadUrl', () => {
   const validPath = 'companies/co1/applications/guest_uploads/123_scan.jpg';
   const ctx = { rawRequest: { ip: '203.0.113.5' } };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    storage.bucket.mockImplementation(() => ({
+      file: jest.fn(() => ({
+        exists: mockExists,
+        getSignedUrl: mockGetSignedUrl,
+      })),
+    }));
     mockExists.mockResolvedValue([true]);
     mockGetSignedUrl.mockResolvedValue(['https://signed.example/guest.jpg']);
     checkRateLimit.mockResolvedValue(true);

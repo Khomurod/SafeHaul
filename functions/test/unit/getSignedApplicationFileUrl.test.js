@@ -12,32 +12,32 @@ jest.mock('firebase-functions', () => ({
   logger: { info: jest.fn(), error: jest.fn() },
 }));
 
-const mockAssertCompanyAccessForRequest = jest.fn().mockResolvedValue(undefined);
+const mockAssertCompanyAccessForRequest = jest.fn();
 jest.mock('../../shared/companyAccess', () => ({
   assertCompanyAccessForRequest: (...args) => mockAssertCompanyAccessForRequest(...args),
 }));
 
-const mockExists = jest.fn().mockResolvedValue([true]);
-const mockGetSignedUrl = jest.fn().mockResolvedValue(['https://signed.safehaul.test/cdl.jpg']);
+const mockExists = jest.fn();
+const mockGetSignedUrl = jest.fn();
 
 jest.mock('../../firebaseAdmin', () => ({
-  storage: {
-    bucket: jest.fn(() => ({
-      file: jest.fn(() => ({
-        exists: (...args) => mockExists(...args),
-        getSignedUrl: (...args) => mockGetSignedUrl(...args),
-      })),
-    })),
-  },
+  storage: { bucket: jest.fn() },
 }));
 
 const { getSignedApplicationFileUrl } = require('../../getSignedApplicationFileUrl');
+const { storage } = require('../../firebaseAdmin');
 
 const GUEST_PATH = 'companies/co-1/applications/guest_uploads/abc_license.jpg';
 
 describe('getSignedApplicationFileUrl', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    storage.bucket.mockImplementation(() => ({
+      file: jest.fn(() => ({
+        exists: (...args) => mockExists(...args),
+        getSignedUrl: (...args) => mockGetSignedUrl(...args),
+      })),
+    }));
     mockExists.mockResolvedValue([true]);
     mockGetSignedUrl.mockResolvedValue(['https://signed.safehaul.test/cdl.jpg']);
     mockAssertCompanyAccessForRequest.mockResolvedValue(undefined);

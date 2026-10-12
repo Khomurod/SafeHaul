@@ -4,30 +4,31 @@
 // Note: shared mock vars are `mock`-prefixed so the jest.mock factories may
 // reference them (babel-plugin-jest-hoist rule).
 
-const mockSet = jest.fn().mockResolvedValue();
-const mockUpdate = jest.fn().mockResolvedValue();
+const mockSet = jest.fn();
+const mockUpdate = jest.fn();
 const mockSessionRef = {
   id: 'newsess',
   set: mockSet,
   update: mockUpdate,
-  collection: jest.fn(() => mockChain),
+  collection: jest.fn(),
 };
 const mockChain = {
-  doc: jest.fn(() => mockSessionRef),
-  collection: jest.fn(() => mockChain),
+  doc: jest.fn(),
+  collection: jest.fn(),
 };
 
 jest.mock('../../firebaseAdmin', () => ({
   admin: { firestore: { FieldValue: { serverTimestamp: () => 'TS' } } },
-  db: { collection: jest.fn(() => mockChain) },
+  db: { collection: jest.fn() },
 }));
 
-const mockEnqueue = jest.fn().mockResolvedValue();
+const mockEnqueue = jest.fn();
 jest.mock('../../bulkActions/services/queueService', () => ({
   enqueueWorker: (...args) => mockEnqueue(...args),
 }));
 
 const { createAndStartBulkSession } = require('../../bulkActions/helpers/sessionFactory');
+const { db } = require('../../firebaseAdmin');
 
 const params = () => ({
   companyId: 'co1',
@@ -38,7 +39,13 @@ const params = () => ({
 
 describe('createAndStartBulkSession (A3)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    mockSet.mockResolvedValue();
+    mockUpdate.mockResolvedValue();
+    mockSessionRef.collection.mockImplementation(() => mockChain);
+    mockChain.doc.mockImplementation(() => mockSessionRef);
+    mockChain.collection.mockImplementation(() => mockChain);
+    db.collection.mockImplementation(() => mockChain);
     mockEnqueue.mockResolvedValue();
   });
 

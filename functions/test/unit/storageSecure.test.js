@@ -19,20 +19,22 @@ jest.mock('../../firebaseAdmin', () => ({
 }));
 
 jest.mock('../../shared/companyTenant', () => ({
-  assertCompanyAcceptingIntake: jest.fn().mockResolvedValue({}),
+  assertCompanyAcceptingIntake: jest.fn(),
 }));
 
 jest.mock('../../shared/rateLimiter', () => ({
-  checkRateLimit: jest.fn().mockResolvedValue(true),
+  checkRateLimit: jest.fn(),
 }));
 
 const { assertCompanyAcceptingIntake } = require('../../shared/companyTenant');
 const { getSignedUploadUrl } = require('../../storageSecure');
+const { checkRateLimit } = require('../../shared/rateLimiter');
 
 describe('getSignedUploadUrl (guest upload path reservation)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     assertCompanyAcceptingIntake.mockResolvedValue({});
+    checkRateLimit.mockResolvedValue(true);
   });
 
   const authedCtx = {

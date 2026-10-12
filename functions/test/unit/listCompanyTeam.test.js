@@ -15,7 +15,7 @@ const state = {
   authThrows: false,
 };
 const mockBatchSet = jest.fn();
-const mockBatchCommit = jest.fn().mockResolvedValue();
+const mockBatchCommit = jest.fn();
 
 jest.mock('../../firebaseAdmin', () => ({
   admin: { firestore: { FieldValue: { serverTimestamp: () => '__ts', delete: () => '__del' } } },
@@ -70,7 +70,7 @@ const asAdmin = (data = { companyId: 'co-a' }) => listCompanyTeam(req({ 'co-a': 
 const byId = (res, id) => res.members.find((m) => m.id === id);
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.resetAllMocks();
   mockBatchCommit.mockResolvedValue();
   state.memberships = [];
   state.users = {};

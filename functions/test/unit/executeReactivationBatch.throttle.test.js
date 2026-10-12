@@ -13,23 +13,23 @@ jest.mock('firebase-functions/v2/https', () => ({
   },
 }));
 
-const mockSendSMS = jest.fn().mockResolvedValue({ ok: true });
+const mockSendSMS = jest.fn();
 jest.mock('../../integrations/factory', () => ({
   getAdapter: jest.fn(),
-  getAdapterForUser: jest.fn().mockResolvedValue({ sendSMS: mockSendSMS, config: {} }),
+  getAdapterForUser: jest.fn(),
   getAdapterForNumber: jest.fn(),
 }));
 
 jest.mock('../../shared/companyAccess', () => ({
-  assertCompanyAdminStrict: jest.fn().mockResolvedValue(undefined),
+  assertCompanyAdminStrict: jest.fn(),
 }));
 
 jest.mock('../../shared/rateLimiter', () => ({
-  checkRateLimit: jest.fn().mockResolvedValue(true),
+  checkRateLimit: jest.fn(),
 }));
 
 // Worker rail: mock the session factory so the callable's job is just to delegate.
-const mockCreateAndStart = jest.fn().mockResolvedValue({ sessionId: 'sess123', targetCount: 2 });
+const mockCreateAndStart = jest.fn();
 jest.mock('../../bulkActions/helpers/sessionFactory', () => ({
   createAndStartBulkSession: (...args) => mockCreateAndStart(...args),
 }));
@@ -37,6 +37,7 @@ jest.mock('../../bulkActions/helpers/sessionFactory', () => ({
 const { checkRateLimit } = require('../../shared/rateLimiter');
 const { assertCompanyAdminStrict } = require('../../shared/companyAccess');
 const { executeReactivationBatch } = require('../../integrations/services/smsService');
+const { getAdapterForUser } = require('../../integrations/factory');
 
 const baseRequest = () => ({
   auth: { uid: 'admin1' },
@@ -45,7 +46,9 @@ const baseRequest = () => ({
 
 describe('executeReactivationBatch throttle (A3)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    mockSendSMS.mockResolvedValue({ ok: true });
+    getAdapterForUser.mockResolvedValue({ sendSMS: mockSendSMS, config: {} });
     checkRateLimit.mockResolvedValue(true);
     assertCompanyAdminStrict.mockResolvedValue(undefined);
     mockCreateAndStart.mockResolvedValue({ sessionId: 'sess123', targetCount: 2 });
