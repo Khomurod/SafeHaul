@@ -376,6 +376,12 @@ console.log('\nK. Guards that stay guards');
     assert(`K5. ${GUARD_JOB} is always required and carries no job-level \`if:\``,
         guardJob !== '' && ALWAYS_REQUIRED_JOBS.includes(GUARD_JOB) && !/^\s{4}if:/m.test(guardJob),
         'a guard in a job a plan or a condition can skip makes a claim only about the runs that kept it');
+    // Every step, named or not: an unnamed `- run:` step would be a command no
+    // row holds to these rules.
+    const unnamed = guardJob.split(/^(?= {6}- )/m).slice(1)
+        .filter((step) => /^ {6}- run:|^\s+run:/m.test(step) && !/^ {6}- name: /.test(step));
+    assert(`K5. every step of ${GUARD_JOB} that runs a command is named, so it can have a row`,
+        unnamed.length === 0, unnamed.map((step) => step.split('\n')[0].trim()).join(' | '));
     // Every step that runs a command, the install aside. Setup steps (`uses:`)
     // run none, so a renamed Node step is not a new guard.
     const named = [...guardJob.matchAll(/^\s+- name: (.+)$/gm)].map((match) => match[1])
@@ -398,6 +404,10 @@ console.log('\nK. Guards that stay guards');
         assert('K5. and nothing makes it advisory',
             step !== '' && !/continue-on-error/.test(step) && !/^\s+if:/m.test(step),
             'a gate that cannot fail the run, or that a condition can skip, is documentation');
+        // A `working-directory:` or `shell:` changes what the same command runs.
+        const keys = [...step.matchAll(/^ {8}([A-Za-z-]+):/gm)].map((match) => match[1]);
+        assert('K5. and the step holds nothing but its name and its command',
+            keys.length > 0 && keys.every((key) => key === 'run'), keys.join(', '));
         assert('K5. and no other job runs it',
             workflowText.split(`- name: ${name}\n`).length === 2,
             'a copy elsewhere is a second step to keep in step with this one');
