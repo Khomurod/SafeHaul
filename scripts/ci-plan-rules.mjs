@@ -36,7 +36,7 @@
 export const LANES = Object.freeze({
     frontend_build: Object.freeze({ jobs: Object.freeze(['frontend-build']) }),
     frontend_unit: Object.freeze({ jobs: Object.freeze(['frontend-quality']) }),
-    frontend_e2e: Object.freeze({ jobs: Object.freeze(['frontend-e2e']) }),
+    frontend_e2e: Object.freeze({ jobs: Object.freeze(['frontend-e2e', 'app-visual']) }),
     storybook: Object.freeze({ jobs: Object.freeze(['storybook-build']) }),
     functions: Object.freeze({ jobs: Object.freeze(['test-functions']) }),
     rules: Object.freeze({ jobs: Object.freeze(['rules-emulator']) }),
@@ -50,7 +50,13 @@ export const ALWAYS_REQUIRED_JOBS = Object.freeze(['secret-scan', 'callable-cont
 const ALL_LANES = () => Object.fromEntries(LANE_NAMES.map((lane) => [lane, true]));
 const NO_LANES = () => Object.fromEntries(LANE_NAMES.map((lane) => [lane, false]));
 
-const FRONTEND_LANES = ['frontend_build', 'frontend_unit', 'frontend_e2e', 'storybook'];
+/**
+ * The lanes a feature change can affect. Not the catalog: it builds only
+ * `src/design-system/`, which may not import a feature
+ * (`src/design-system/tests/architecture.test.js`). Feature screens have pixel
+ * baselines too, and they run in the browser lane (`app-visual`).
+ */
+const FRONTEND_LANES = ['frontend_build', 'frontend_unit', 'frontend_e2e'];
 
 /**
  * Exact paths whose contents can change the behaviour of anything in the repo.
@@ -127,6 +133,15 @@ export function lanesForPath(path) {
     // Cloud Functions source. Their package files are cross-cutting and were
     // already matched above.
     if (path.startsWith('functions/')) return ['functions'];
+
+    // Pixel baselines run in two jobs: the application screens in the browser
+    // lane, the catalog in the catalog job (with the unit lane, K1d). A spec and
+    // its baselines select the job that runs them; a shared helper selects both.
+    if (path.startsWith('e2e/visual/')) {
+        if (/(^|\/)app\.spec\.cjs(\/|$)/.test(path)) return ['frontend_e2e'];
+        if (/(^|\/)catalog(\.spec|Server)\.cjs(\/|$)/.test(path)) return ['storybook', 'frontend_unit'];
+        return ['frontend_e2e', 'storybook', 'frontend_unit'];
+    }
 
     // End-to-end specs and their helpers only change what the browser lane runs.
     if (path.startsWith('e2e/')) return ['frontend_e2e'];

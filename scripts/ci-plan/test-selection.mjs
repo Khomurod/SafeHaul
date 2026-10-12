@@ -9,7 +9,10 @@
  * this exact source tree.
  */
 
+import { readFileSync, readdirSync } from 'node:fs';
+import { resolve as resolvePath } from 'node:path';
 import {
+    LANES,
     LANE_NAMES,
     attestationName,
     diffRange,
@@ -18,7 +21,7 @@ import {
     readAttestations,
     selectLanes,
 } from '../ci-plan.mjs';
-import { REPO_ID, TREE, assert, chosen } from './test-support.mjs';
+import { REPO_ID, TREE, assert, chosen, here, workflow } from './test-support.mjs';
 
 /* ========================================================================== */
 console.log('\nA. Path selection');
@@ -28,9 +31,10 @@ assert('A1. a Cloud Functions change runs only the functions lane',
     JSON.stringify(chosen(['functions/leads/onLead.js'])) === JSON.stringify(['functions']),
     JSON.stringify(chosen(['functions/leads/onLead.js'])));
 
-assert('A2. a feature-only frontend change skips the backend and rules lanes',
+// The catalog builds only the design system, so a feature change cannot alter it.
+assert('A2. a feature-only frontend change skips the backend, rules and catalog lanes',
     JSON.stringify(chosen(['src/features/campaigns/CampaignCard.jsx']))
-        === JSON.stringify(['frontend_build', 'frontend_e2e', 'frontend_unit', 'storybook'].sort()),
+        === JSON.stringify(['frontend_build', 'frontend_e2e', 'frontend_unit'].sort()),
     JSON.stringify(chosen(['src/features/campaigns/CampaignCard.jsx'])));
 
 assert('A3. an e2e spec change runs only the browser lane',
@@ -57,8 +61,55 @@ assert('A5b. a public-site change still skips the backend, rules and browser lan
 
 assert('A6. a mixed frontend + backend change runs both sides',
     JSON.stringify(chosen(['src/features/auth/Login.jsx', 'functions/auth/claims.js']))
-        === JSON.stringify(['frontend_build', 'frontend_e2e', 'frontend_unit', 'functions', 'storybook'].sort()),
+        === JSON.stringify(['frontend_build', 'frontend_e2e', 'frontend_unit', 'functions'].sort()),
     JSON.stringify(chosen(['src/features/auth/Login.jsx', 'functions/auth/claims.js'])));
+
+/*
+ * A7 — each pixel spec runs in exactly one job, and a change to the spec, to its
+ * baselines or to a helper it requires selects that job's lane. Read from the
+ * folder and the workflow, so a new spec or a moved step is checked too.
+ */
+{
+    const visualDir = resolvePath(here, '../e2e/visual');
+    const specs = readdirSync(visualDir).filter((name) => name.endsWith('.spec.cjs'));
+    const jobs = [...workflow.matchAll(/^ {2}([a-z][a-z0-9-]*):$/gm)];
+    const runs = [...workflow.matchAll(/^ +run: npm run test:visual\b(.*)$/gm)];
+    const laneOf = (run) => {
+        const job = jobs.filter((match) => match.index < run.index).at(-1)?.[1];
+        return LANE_NAMES.find((lane) => LANES[lane].jobs.includes(job));
+    };
+    assert('A7. every pixel step runs exactly one named spec',
+        specs.length > 0 && runs.length > 0
+            && runs.every((run) => (run[1].match(/e2e\/visual\/[\w.-]+\.spec\.cjs/g) || []).length === 1),
+        runs.map((run) => run[0].trim()).join(' | '));
+    const laneBySpec = {};
+    for (const spec of specs) {
+        const steps = runs.filter((run) => run[1].includes(`e2e/visual/${spec}`));
+        const lane = steps.length === 1 ? laneOf(steps[0]) : undefined;
+        laneBySpec[spec] = lane;
+        assert(`A7. ${spec} runs in one job, in a lane`, Boolean(lane), `${steps.length} step(s) run it`);
+        const helpers = [...readFileSync(resolvePath(visualDir, spec), 'utf8').matchAll(/require\(['"]\.\/([^'"]+)['"]\)/g)]
+            .map((match) => `e2e/visual/${match[1]}`);
+        const missed = [`e2e/visual/${spec}`, `e2e/visual/__screenshots__/${spec}/any-desktop.png`, ...helpers]
+            .filter((path) => !(lanesForPath(path) || LANE_NAMES).includes(lane));
+        assert(`A7. a change to ${spec}, its baselines or its helpers selects ${lane}`,
+            missed.length === 0, `not selected by: ${missed.join(', ')}`);
+    }
+    // The application screens render feature code.
+    assert('A7. a feature change selects the lane that runs the application screens',
+        chosen(['src/features/campaigns/CampaignCard.jsx']).includes(laneBySpec['app.spec.cjs']),
+        `app.spec.cjs runs in ${laneBySpec['app.spec.cjs']}`);
+}
+
+assert('A8. an application-screen baseline runs the browser lane, not the catalog',
+    JSON.stringify(chosen(['e2e/visual/__screenshots__/app.spec.cjs/company-leads-mobile.png']))
+        === JSON.stringify(['frontend_e2e']),
+    JSON.stringify(chosen(['e2e/visual/__screenshots__/app.spec.cjs/company-leads-mobile.png'])));
+
+assert('A8b. a catalog baseline runs the catalog lane, not the browser lane',
+    JSON.stringify(chosen(['e2e/visual/__screenshots__/catalog.spec.cjs/button-desktop.png']))
+        === JSON.stringify(['frontend_unit', 'storybook']),
+    JSON.stringify(chosen(['e2e/visual/__screenshots__/catalog.spec.cjs/button-desktop.png'])));
 
 /* ========================================================================== */
 console.log('\nB. Conservative fallback to the full suite');
