@@ -92,7 +92,12 @@ function serveStatic(root) {
                 res.writeHead(404).end('not found');
                 return;
             }
-            res.writeHead(200, { 'content-type': MIME[extname(target)] || 'application/octet-stream' });
+            res.writeHead(200, {
+                'content-type': MIME[extname(target)] || 'application/octet-stream',
+                // The catalog cannot change during a run, so every page reuses the
+                // browser's cached and compiled copy instead of fetching it again.
+                'cache-control': 'max-age=3600',
+            });
             createReadStream(target).pipe(res);
         });
         server.on('error', reject);
@@ -175,6 +180,30 @@ function measureTables() {
     return { findings, tableCount };
 }
 
+/**
+ * Opens one story and returns once Storybook reports it finished: rendered,
+ * its play function run and its finite animations settled (the `finished`
+ * phase, when Storybook emits `storyFinished`). Then web fonts, which change
+ * text metrics and so the whole measurement, and two painted frames.
+ *
+ * Tied to observable state, never to a delay or to network quiet. A flat 80ms
+ * wait once reported a clean run against 37px of real overflow, because the
+ * stories had not finished rendering when it measured.
+ */
+async function openStory(page, base, id) {
+    await page.goto(`${base}/iframe.html?id=${id}&viewMode=story`);
+    try {
+        await page.waitForFunction((storyId) => {
+            const render = window.__STORYBOOK_PREVIEW__?.currentRender;
+            return render?.id === storyId && render.phase === 'finished';
+        }, id);
+    } catch (error) {
+        throw new Error(`story ${id} never finished rendering (${error?.message || error})`);
+    }
+    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+}
+
 async function main() {
     const { url } = parseArgs(process.argv.slice(2));
 
@@ -224,23 +253,12 @@ async function main() {
     const violations = [];
     let tablesMeasured = 0;
 
+    // One page at a time, like every Playwright run in CI (`.claude/rules/testing.md`).
     for (const viewport of VIEWPORTS) {
         const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
         const page = await context.newPage();
         for (const id of storyIds) {
-            await page.goto(`${base}/iframe.html?id=${id}&viewMode=story`, { waitUntil: 'networkidle' });
-
-            // Settle deliberately rather than on a timeout. An earlier revision
-            // of this script waited a flat 80ms and silently reported a clean
-            // run against a tree with 37px of real overflow in it, because the
-            // stories had not finished rendering when it measured. A guard that
-            // passes because it looked too early is worse than no guard, so the
-            // wait is now tied to observable state: web fonts resolved (they
-            // change text metrics, which is the whole measurement) and two
-            // frames painted.
-            await page.evaluate(() => document.fonts.ready);
-            await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-
+            await openStory(page, base, id);
             const result = await page.evaluate(measureTables);
             tablesMeasured += result.tableCount;
             for (const finding of result.findings) {
