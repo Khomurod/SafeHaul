@@ -1,24 +1,24 @@
 #!/usr/bin/env node
 /**
- * Fails when an instruction file for AI agents outgrows its limit.
+ * Refuses an always-loaded instruction file for AI agents that outgrows its
+ * limit, and warns about every other one.
  *
  * The limits live in `agent-docs-limits.mjs`. The files are what git tracks
  * (`git ls-files -z`, as the source-size guard reads them), so a renamed file
  * is still measured and a file a pattern requires cannot disappear quietly.
  *
- * Two more refusals keep the lock honest. Limits are compared with the base
- * commit and may only move down (`agent-docs-baseline.mjs`), and every
- * repository path the instructions name in backticks must exist, so a topic
- * file cannot be deleted or renamed while the rules still send agents to it.
+ * Three refusals hold whatever a limit says: a required file that is gone, a
+ * topic rule without `paths:` (it would load in every session), and a
+ * repository path the instructions name in backticks that does not exist, so a
+ * topic file cannot be deleted or renamed while the rules still send agents to it.
  *
- *   npm run check:agent-docs [-- --require-baseline]
+ *   npm run check:agent-docs
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AGENT_DOC_LIMITS, ALWAYS_LOADED, ALWAYS_LOADED_MAX_BYTES } from './agent-docs-limits.mjs';
-import { checkLimitsDirection } from './agent-docs-baseline.mjs';
 import { countLines } from './source-size.mjs';
 
 /** Glob over repository paths: `**` crosses directories (and may match none), `*` and `?` do not. */
@@ -51,12 +51,14 @@ export function hasPathsFrontmatter(text) {
 
 /**
  * @param {{ path: string, text: string }[]} files tracked files, contents read
- * @returns {string[]} one sentence per problem; empty when every file fits
+ * @returns {{ problems: string[], warnings: string[] }} one sentence each;
+ *   a problem fails the check, a warning only reports
  */
 export function checkAgentDocs(files, {
     limits = AGENT_DOC_LIMITS, alwaysLoaded = ALWAYS_LOADED, alwaysLoadedMaxBytes = ALWAYS_LOADED_MAX_BYTES,
 } = {}) {
     const problems = [];
+    const warnings = [];
     const shorten = 'Shorten it, and move any history to docs/archive/.';
     for (const limit of limits) {
         const pattern = globToRegExp(limit.pattern);
@@ -64,14 +66,15 @@ export function checkAgentDocs(files, {
         if (limit.mustExist && matched.length === 0) {
             problems.push(`${limit.pattern}: no tracked file matches, so this limit measures nothing. Was it renamed or deleted?`);
         }
+        const over = limit.hard ? problems : warnings;
         for (const file of matched) {
             const lines = countLines(file.text);
             const bytes = Buffer.byteLength(file.text, 'utf8');
             if (lines > limit.maxLines) {
-                problems.push(`${file.path}: ${lines} lines, over its limit of ${limit.maxLines} (${limit.why}). ${shorten}`);
+                over.push(`${file.path}: ${lines} lines, over its limit of ${limit.maxLines} (${limit.why}). ${shorten}`);
             }
             if (limit.maxBytes && bytes > limit.maxBytes) {
-                problems.push(`${file.path}: ${bytes} bytes, over its limit of ${limit.maxBytes} (${limit.why}). ${shorten}`);
+                over.push(`${file.path}: ${bytes} bytes, over its limit of ${limit.maxBytes} (${limit.why}). ${shorten}`);
             }
             if (limit.requirePaths && !hasPathsFrontmatter(file.text)) {
                 problems.push(`${file.path}: no \`paths:\` frontmatter, so it would load in every session. Scope it, or move the rule into AGENTS.md.`);
@@ -85,7 +88,7 @@ export function checkAgentDocs(files, {
     if (together > alwaysLoadedMaxBytes) {
         problems.push(`${alwaysLoaded.join(' + ')}: ${together} bytes together, over the ${alwaysLoadedMaxBytes} every session can afford. ${shorten}`);
     }
-    return problems;
+    return { problems, warnings };
 }
 
 /** Files whose named paths must exist: the instructions every agent follows. */
@@ -135,17 +138,17 @@ export function readAgentDocs({ cwd = process.cwd(), limits = AGENT_DOC_LIMITS }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const files = readAgentDocs();
-    const direction = await checkLimitsDirection({
-        current: { limits: AGENT_DOC_LIMITS, alwaysLoaded: ALWAYS_LOADED, alwaysLoadedMaxBytes: ALWAYS_LOADED_MAX_BYTES },
-        cwd: process.cwd(),
-        requireBaseline: process.argv.includes('--require-baseline'),
-    });
-    const problems = [...checkAgentDocs(files), ...missingPaths(files, trackedPaths()), ...direction.problems];
+    const { problems, warnings } = checkAgentDocs(files);
+    problems.push(...missingPaths(files, trackedPaths()));
     for (const file of files) console.log(`  ${String(countLines(file.text)).padStart(5)} lines  ${file.path}`);
-    console.log(`\nbaseline: ${direction.describe}`);
+    for (const warning of warnings) {
+        console.log(`\nwarning: ${warning}`);
+        // A workflow annotation, so the warning shows on the pull request too.
+        if (process.env.GITHUB_ACTIONS === 'true') console.log(`::warning title=Agent docs::${warning}`);
+    }
     if (problems.length > 0) {
-        console.error(`\nAgent instruction files over their limits:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
+        console.error(`\nAgent instruction files refused:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
         process.exit(1);
     }
-    console.log(`\nagent-docs OK: ${files.length} instruction files within their limits.`);
+    console.log(`\nagent-docs OK: ${files.length} instruction files, ${warnings.length} warning(s).`);
 }

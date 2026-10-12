@@ -27,8 +27,8 @@ import { join, resolve } from 'node:path';
 import { countLines } from './source-size.mjs';
 
 // The source-size check no longer has a backlog. These modules still compare
-// the agent-docs, UI-contract and icon-contract lists, and take the list's path
-// as a parameter, so a fixture path stands in for all of them.
+// the UI-contract and icon-contract lists, and take the list's path as a
+// parameter, so a fixture path stands in for both.
 const BACKLOG_PATH = '.github/source-size-backlog.json';
 import { checkBacklogDirection, resolveBaselineRef } from './source-size-baseline.mjs';
 import { resolveValidatedBaseline } from './source-size-validated.mjs';

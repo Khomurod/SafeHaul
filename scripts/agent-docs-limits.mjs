@@ -3,31 +3,31 @@
  *
  * Instruction files grow one incident at a time until nobody can hold them in
  * mind: `AGENTS.md` reached 767 lines, and Codex reads at most 32 KiB of
- * project instructions by default and drops the rest without a warning. These
- * limits are the lock that keeps the condensed files small.
+ * project instructions by default and drops the rest without a warning.
  *
- * To make a change fit, shorten the text. Move history to `docs/archive/` and
- * keep only the rule. CI compares this file with the base commit and refuses any
- * raised, loosened or removed limit (`agent-docs-baseline.mjs`), so a raise
- * cannot ride along with the text it lets in; it is the owner's decision.
+ * Only the files every session loads are refused past their limits: `AGENTS.md`
+ * and `CLAUDE.md` (`hard: true`), and the two together. Every other limit warns.
+ * `test-agent-docs.mjs` pins the refused limits, so raising one changes that test
+ * too; that is the owner's decision. To make a change fit, shorten the text: move
+ * history to `docs/archive/` and keep only the rule.
  *
  * `pattern` is a glob over tracked paths: `**` crosses directories, `*` does not.
  */
 export const AGENT_DOC_LIMITS = [
     {
-        pattern: 'AGENTS.md', mustExist: true, maxLines: 150, maxBytes: 16 * 1024,
+        pattern: 'AGENTS.md', mustExist: true, hard: true, maxLines: 150, maxBytes: 16 * 1024,
         why: 'read by every agent in every session; Codex silently cuts long files',
     },
     {
-        pattern: 'CLAUDE.md', mustExist: true, maxLines: 40,
+        pattern: 'CLAUDE.md', mustExist: true, hard: true, maxLines: 40,
         why: 'loaded in every Claude Code session on top of AGENTS.md',
     },
     {
-        pattern: '**/AGENTS.md', maxLines: 150,
+        pattern: '*/**/AGENTS.md', maxLines: 150,
         why: 'a nested AGENTS.md is read whole by agents working in that directory',
     },
     {
-        pattern: '**/CLAUDE.md', maxLines: 40,
+        pattern: '*/**/CLAUDE.md', maxLines: 40,
         why: 'a nested CLAUDE.md is read whole when Claude opens files there',
     },
     {

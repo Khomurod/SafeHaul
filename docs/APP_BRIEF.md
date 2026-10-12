@@ -1428,10 +1428,10 @@ the details are in `.claude/rules/source-size.md`.
 **Instructions for AI agents stay small.** `AGENTS.md` is one page every agent
 reads; `.claude/rules/` holds topic rules loaded per area; history lives in
 `docs/archive/`. `npm run check:agent-docs` (unskippable, in
-`callable-contract`) fails any file over its limit in
-`scripts/agent-docs-limits.mjs` (this brief included), refuses a limit raised
-against the base commit, and refuses a path the instructions name that does not
-exist.
+`callable-contract`) refuses `AGENTS.md` and `CLAUDE.md`, which every session
+loads, past their pinned limits in `scripts/agent-docs-limits.mjs`, and warns
+for every other file there, this brief included. It also refuses a topic rule
+without `paths:` and a path the instructions name that does not exist.
 
 **Cloud Functions reach the Admin SDK through `functions/firebaseAdmin.js`**
 (its `admin`, `db`, `auth`, `storage`) or a modular `firebase-admin/<service>`

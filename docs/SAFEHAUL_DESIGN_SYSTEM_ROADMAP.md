@@ -533,5 +533,5 @@ This file states the current standard only; history lives in
 work, update the relevant row here in the same change. Add an entry only when it
 is a rule, an approved exception, a guardrail or an open decision; completion
 narratives, dated verification tables, test counts and implementation logs
-belong in the pull request and in Git history. `npm run check:agent-docs` caps
-this file's length.
+belong in the pull request and in Git history. `npm run check:agent-docs` warns
+when this file outgrows its length limit.
