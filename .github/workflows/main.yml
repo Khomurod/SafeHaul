@@ -713,9 +713,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Firestore/Storage rules tests with emulators (5x flake guard)
+      # Once per run: repeating the suite tests its stability, not the rules,
+      # and `npm run test:rules:stress` (20 runs) still does that on demand.
+      - name: Run Firestore/Storage rules tests with emulators
         env:
-          RULES_STRESS_LOOPS: '5'
+          RULES_STRESS_LOOPS: '1'
         run: npm run test:rules:stress
 
       - name: Upload emulator logs on failure

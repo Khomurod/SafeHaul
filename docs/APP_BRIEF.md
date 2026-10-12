@@ -1155,15 +1155,15 @@ unparseable number — but nothing populates them from a recipient's reply (§12
   counts only where it names SafeHaul (`claimScope.js`), and an overstatement
   slips past it. Never claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks,
   document-expiry monitoring, a job board, or any named carrier endorsement.
-- **A `web/` change runs the `frontend_unit` CI lane**, where
-  `src/tests/hostingConfig.test.js` tests it (`check:ci-plan` A5). The claims
-  check is not in that lane (a registry change selects only `functions`): K4
-  pins it, blocking and install-free, to an always-required job, and it refuses
-  nested pages.
+- **A `web/` change runs the `frontend_unit` CI lane**
+  (`src/tests/hostingConfig.test.js`, A5). Its claims check runs in an
+  always-required job, blocking and install-free, and refuses nested pages (K4).
 - **A `src/features/` change skips the catalog job** (it builds only
   `src/design-system/`); feature screens' baselines run in `app-visual` (A7).
+- **The rules job runs its suites once, only for what they read:** the rules,
+  the suites, the Vitest setup, or a CI or dependency file (B36).
 - **A follow-up push reuses its pull request's earlier results** for each lane
-  the files changed since cannot affect (`check:ci-plan` M).
+  the files changed since cannot affect (M).
 
 ---
 
