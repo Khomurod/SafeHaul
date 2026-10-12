@@ -28,11 +28,15 @@ const PrintAlertCircle = glyphComponent(AlertCircle);
  * (`Step9_Consent.jsx`); older applications carry the form builder's
  * `signature-date`. With neither, the document says so: printing today's date
  * would certify an authorization that has no date.
+ *
+ * The instant is dated in UTC, as the e-signing "Date Signed" is
+ * (`functions/shared/signedDate.js`), so every printout of one application
+ * carries the same date, whoever prints it and wherever they are.
  */
 function authorizationDate(applicant) {
     const stamped = applicant.signatureDate ? new Date(applicant.signatureDate) : null;
     if (stamped && !Number.isNaN(stamped.getTime())) {
-        return stamped.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+        return stamped.toLocaleDateString('en-US', { timeZone: 'UTC', month: '2-digit', day: '2-digit', year: 'numeric' });
     }
     return applicant['signature-date'] || 'Not signed';
 }

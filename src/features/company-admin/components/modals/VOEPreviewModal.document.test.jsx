@@ -234,6 +234,19 @@ describe('VOEPreviewModal signature rules', () => {
     expect(authorizationDate()).not.toHaveTextContent(new Date().toLocaleDateString('en-US'));
   });
 
+  it('prints the same authorization date whoever prints it, wherever they are', () => {
+    // 00:30 UTC on 1 July is still 30 June in every US time zone.
+    const previous = process.env.TZ;
+    process.env.TZ = 'America/Los_Angeles';
+    try {
+      renderModal({ applicant: { ...APPLICANT, 'signature-date': undefined, signatureDate: '2026-07-01T00:30:00.000Z' } });
+      expect(authorizationDate()).toHaveTextContent('07/01/2026');
+    } finally {
+      if (previous === undefined) delete process.env.TZ;
+      else process.env.TZ = previous;
+    }
+  });
+
   it('keeps the 30-day validity note', () => {
     renderModal();
     expect(documentNode()).toHaveTextContent('Valid for 30 Days');
