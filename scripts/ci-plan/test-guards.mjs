@@ -500,14 +500,21 @@ console.log('\nK. Guards that stay guards');
             === JSON.stringify(Object.keys(SETUP_STEPS)) && opening.every((step) => setupSteps.includes(step)),
         job.steps.slice(0, 3).map((step) => step.text.split('\n')[0].trim()).join(' | '));
 
-    // Every step that runs a command, the install aside.
-    const named = commandSteps.map((step) => step.name).filter((name) => name !== 'Install Dependencies');
+    // A name is how a step is found, so two steps may not share one: a second
+    // `Install Dependencies` would be a command that only the first is held to.
+    const names = job.steps.map((step) => step.name).filter((name) => name !== undefined);
+    assert(`K5. every step of ${GUARD_JOB} has a name of its own`,
+        new Set(names).size === names.length,
+        names.filter((name, at) => names.indexOf(name) !== at).join(', '));
+    const stepAt = (name) => job.steps.findIndex((step) => step.name === name);
+    const install = job.steps[stepAt('Install Dependencies')];
+
+    // Every step that runs a command, the one install aside.
+    const named = commandSteps.filter((step) => step !== install).map((step) => step.name);
     const rows = GUARD_STEPS.map(([name]) => name);
     assert(`K5. the table names every step ${GUARD_JOB} runs, and nothing else`,
         named.length === rows.length && named.every((name) => rows.includes(name)),
         `job: ${named.join(' | ')}`);
-    const stepAt = (name) => job.steps.findIndex((step) => step.name === name);
-    const install = job.steps[stepAt('Install Dependencies')];
     const firstGuard = Math.min(...rows.map(stepAt).filter((at) => at !== -1));
     assert('K5. it installs dependencies with `npm ci` before the first guard step',
         install !== undefined && keysOf(install).join() === 'name,run'
