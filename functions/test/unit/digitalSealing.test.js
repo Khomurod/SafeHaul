@@ -1,7 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { PDFDocument, StandardFonts } = require('pdf-lib');
+const { PDFDocument, PDFPage, StandardFonts } = require('pdf-lib');
 
 let sealHandler;
 
@@ -127,5 +127,83 @@ describe('sealDocument trigger', () => {
     await sealHandler(change, { params: { companyId: 'co1', requestId: 'req2' } });
     expect(mockDownload).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
+  });
+});
+
+// The seal draws in a standard font, which encodes WinAnsi only: pdf-lib throws
+// on any other character. A signer named outside Latin script, or an answer
+// typed in one, left the envelope at 'error_sealing' for good.
+describe('sealDocument with text a standard font cannot encode', () => {
+  const drawn = [];
+  const originalDrawText = PDFPage.prototype.drawText;
+  let drawTextSpy;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUpdate.mockResolvedValue(undefined);
+    drawn.length = 0;
+    drawTextSpy = jest.spyOn(PDFPage.prototype, 'drawText').mockImplementation(function record(text, options) {
+      drawn.push(text);
+      return originalDrawText.call(this, text, options);
+    });
+  });
+
+  afterEach(() => drawTextSpy.mockRestore());
+
+  async function seal(data, requestId) {
+    const tempPdf = path.join(os.tmpdir(), `seal-test-${requestId}.pdf`);
+    await createMinimalPdf(tempPdf);
+    mockDownload.mockImplementation(async ({ destination }) => {
+      fs.copyFileSync(tempPdf, destination);
+    });
+    try {
+      await sealHandler({
+        before: { data: () => ({ status: 'sent' }) },
+        after: {
+          data: () => ({
+            status: 'pending_seal',
+            storagePath: 'secure_documents/co1/templates/offer.pdf',
+            ...data,
+          }),
+          ref: { update: mockUpdate },
+        },
+      }, { params: { companyId: 'co1', requestId } });
+    } finally {
+      fs.unlinkSync(tempPdf);
+    }
+  }
+
+  const field = (id, type) => ({ id, type, pageNumber: 1, x: 10, y: 60, width: 40, height: 5, required: true });
+
+  it('seals a document signed by a name outside Latin script, the letters drawn as "?"', async () => {
+    await seal({
+      title: 'Договор 🚚',
+      recipientName: 'Иван Петров',
+      recipientEmail: 'ivan@example.test',
+      auditTrail: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0' },
+      fields: [field('name', 'text'), field('signedOn', 'date')],
+      fieldValues: { name: '王小明', signedOn: '10/12/2026' },
+    }, 'req-seal-unicode');
+
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: 'signed' }));
+    expect(mockUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ status: 'error_sealing' }));
+    expect(drawn).toContain('???');
+    expect(drawn).toContain('10/12/2026');
+    const audit = drawn.find((text) => text.includes('SIGNER NAME'));
+    expect(audit).toMatch(/DOCUMENT TITLE: \?{7} \?+\n/);
+    expect(audit).toContain('SIGNER NAME: ???? ??????');
+    expect(audit).toContain('SIGNER EMAIL: ivan@example.test');
+  });
+
+  it('keeps the lines of an answer typed on several lines, and drops what cannot be drawn', async () => {
+    await seal({
+      title: 'Offer Letter',
+      recipientName: 'Jane Doe',
+      fields: [field('notes', 'text')],
+      fieldValues: { notes: 'Line one\r\nLine two\u0007' },
+    }, 'req-seal-lines');
+
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: 'signed' }));
+    expect(drawn).toContain('Line one\nLine two');
   });
 });

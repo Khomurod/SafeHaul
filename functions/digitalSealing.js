@@ -8,6 +8,10 @@ const crypto = require('crypto'); // M2 FIX
 
 // Fail-fast: If pdf-lib is missing, crash immediately at cold start
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+// Helvetica encodes WinAnsi only, and pdf-lib throws on anything else: a signer
+// named outside Latin script left the envelope at 'error_sealing'. Every string
+// a signer or sender supplied is drawn through this.
+const { sanitizeForStandardFont } = require('./shared/pdf/layout');
 
 exports.sealDocument = functions.runWith({
     memory: '1GB',
@@ -105,7 +109,7 @@ exports.sealDocument = functions.runWith({
                         ? parseInt(field.fontSize)
                         : Math.max(6, fieldH * 0.7);
 
-                    page.drawText(String(val), {
+                    page.drawText(sanitizeForStandardFont(val), {
                         x: x + 2,
                         y: y - (fieldH * 0.8), // Vertical centering adjustment
                         size: calculatedSize,
@@ -205,7 +209,7 @@ exports.sealDocument = functions.runWith({
         The layout and metadata are preserved in the platform's audit logs.
       `;
 
-            auditPage.drawText(auditLog, {
+            auditPage.drawText(sanitizeForStandardFont(auditLog), {
                 x: 50,
                 y: auditHeight - 150,
                 size: 10,
