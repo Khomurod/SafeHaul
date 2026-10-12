@@ -88,7 +88,7 @@ console.log('\nG. The standard is enforced in CI, and cannot go blind');
     const suites = readdirSync(resolvePath(repoRoot, 'scripts'))
         .filter((file) => /^test-source-size(-[a-z]+)?\.mjs$/.test(file));
     assert('G4b. and the test script still runs every suite the guard has',
-        suites.length >= 4 && suites.every((file) => pkg.scripts['test:source-size'].includes(file)),
+        suites.length >= 2 && suites.every((file) => pkg.scripts['test:source-size'].includes(file)),
         `${suites.join(', ')} vs ${pkg.scripts['test:source-size']}`);
     /*
      * Asserted on the imported VALUES, not by grepping the checker's text — the

@@ -4,17 +4,14 @@
  *
  * The sibling of `scripts/test-source-size-ci.mjs`, and a different subject from
  * `test-ui-contract.mjs` (which asks whether the checker measures correctly) and
- * `test-ui-contract-baseline.mjs` (which asks whether the inventory can be
- * edited). These ask whether CI runs it, whether the job it runs in can be
- * skipped, and whether the baseline it compares against can be chosen by the
- * change under test.
+ * `test-ui-contract-allowlist.mjs` (which asks how the inventory is read and
+ * lowered). These ask whether CI runs it and whether the job it runs in can be
+ * skipped.
  *
  * Every assertion here is over the WIRING — `main.yml`, `package.json`,
  * `ci-plan.mjs` — because each of those is a way for a guard that looks present
- * to do nothing. The check spent its whole life in `frontend-quality`, a lane
- * `plan` can skip on a tree-hash proof; that was survivable while it only read
- * the working tree, and stopped being survivable the moment it started making a
- * claim about history.
+ * to do nothing. The check runs in `callable-contract`, which no tree-hash proof
+ * can skip, so a change that edits only the allowlist still meets it.
  *
  * Run by `npm run test:ui-contract`.
  */
@@ -111,21 +108,20 @@ console.log('\nW. The UI contract is enforced in CI, and cannot go blind');
         `${suites.join(', ')} vs ${pkg.scripts['test:ui-contract']}`);
 
     /*
-     * W7: without the flag the guard SKIPS the comparison when it cannot find a
-     * base, which is the right default for a contributor's shallow clone and
-     * exactly wrong in the place tampering is the concern. A flag CI does not
-     * pass is decorative.
+     * W7: the check compares with no base commit (owner ruling, 2026-10-11), so
+     * it needs no flag, token or history; and it refuses a malformed allowlist
+     * before it judges anything with it.
      */
     const checkStep = stepIn(CHECK_STEP) || '';
-    assert('W7. CI proves the allowlist did not grow, rather than trusting it',
-        /check:ui-contract -- --require-baseline/.test(checkStep),
-        'without the flag a run that cannot find a base passes instead of refusing');
-
-    // Any major of actions/checkout will do: the claim is about history depth,
-    // not the action's version, so a Dependabot bump of the action must not fail it.
-    assert('W8. and that job has the history the proof needs',
-        /- uses: actions\/checkout@v\d+\n\s+with:\n\s+fetch-depth: 0/.test(jobBody),
-        'a depth-1 checkout has no previous allowlist to compare against');
+    const checker = readFileSync(resolvePath(here, 'check-ui-contract.mjs'), 'utf8');
+    assert('W7. CI runs the check plainly',
+        /name: UI contract ratchet\n\s+run: npm run check:ui-contract\n/.test(checkStep) && !/env:/.test(checkStep),
+        checkStep.split('\n').slice(0, 3).join(' | '));
+    assert('W8. and the check reads no base commit',
+        !/require-baseline|resolveValidatedBaseline|checkAllowlistDirection|execFileSync/.test(checker));
+    assert('W8b. a malformed allowlist is refused before any verdict',
+        checker.indexOf('allowlistShapeProblems(allowlist.files)') !== -1
+            && checker.indexOf('allowlistShapeProblems(allowlist.files)') < checker.indexOf('evaluate(measured, allowlist)'));
 
     /*
      * W9: the native-table rule parses with `@babel/parser`, so this job — which
@@ -136,40 +132,6 @@ console.log('\nW. The UI contract is enforced in CI, and cannot go blind');
     assert('W9. the job installs dependencies, because the table rule parses',
         /- name: Install Dependencies\n\s+run: npm ci/.test(jobBody),
         '@babel/parser is not a Node builtin');
-
-    /*
-     * W10: the base is asked of GitHub, never taken from the event's `before` —
-     * that is the previous push's tip, and after a push that FAILED this check it
-     * IS the failure, so the next push measures from it and the tampered
-     * inventory looks unchanged. Asserted on the ENV VALUES rather than the step
-     * text, so a comment mentioning `before` cannot satisfy it.
-     */
-    const envValues = [...checkStep.matchAll(/^\s+([A-Z_]+): (.*)$/gm)]
-        .reduce((all, [, key, value]) => ({ ...all, [key]: value }), {});
-    assert('W10. the base comes from the event or from GitHub, never from `before`',
-        /github\.event\.pull_request\.base\.sha/.test(envValues.GITHUB_PR_BASE_SHA || '')
-        && !Object.values(envValues).some((value) => /github\.event\.before/.test(value)),
-        JSON.stringify(envValues));
-    assert('W11. and it can ask, because the job carries a token and checks: read',
-        /secrets\.GITHUB_TOKEN/.test(envValues.GITHUB_TOKEN || '')
-        && /permissions:\n\s+contents: read\n(\s+#.*\n)*\s+checks: read/.test(jobBody),
-        'without checks:read the lookup returns nothing and every push refuses');
-
-    /*
-     * W12: one override, shared with the size guard. Two env vars meaning "the
-     * baseline" would be two places an operator can get it wrong, and the second
-     * one would be the one nobody documents.
-     */
-    assert('W12. the manual-run override is the one the size guard already has',
-        /github\.event\.inputs\.source_size_base/.test(envValues.SOURCE_SIZE_BASE || '')
-        && !/UI_CONTRACT_BASE/.test(workflow),
-        'the refusal names SOURCE_SIZE_BASE; a second variable would be a second bypass');
-    const dispatchInput = workflow.slice(
-        workflow.indexOf('      source_size_base:'), workflow.indexOf("        default: ''"),
-    );
-    assert('W12b. and the dispatch dialog says it feeds this guard too',
-        /UI.contract/i.test(dispatchInput),
-        'an operator setting it for one guard must know it moves the other');
 
     /*
      * W13: the two clauses that would make the step advisory. `continue-on-error`

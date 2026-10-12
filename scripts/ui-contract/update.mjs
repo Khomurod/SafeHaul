@@ -1,81 +1,54 @@
 /**
- * Regenerating the inventory after a migration.
+ * Lowering the allowlist to what the tree still contains.
  *
- * `--update` exists so that *shrinkage* is cheap to record: a slice that retires
- * an exception should not also require hand-editing a JSON file, and the check
- * fails on a decrease precisely so the shrinkage lands in its own diff.
+ * A fixed violation should cost neither a hand edit nor a red build. So when an
+ * entry records more than the tree still has, the checker lowers it to the count
+ * it measures, and drops an entry that reached zero together with its reason. It
+ * never adds a file, a rule or a higher count: an exception that grows is written
+ * by hand, with a reason, where review sees it.
  *
- * Extracted from `check-ui-contract.mjs` on 2026-09-04.
- *
- * ## `--update` may only shrink, and that is the point of the flag
- *
- * A 2026-09-04 audit reproduced the bypass in two commands: bump
- * `VOEDocument.jsx`'s raw-palette-class count from 100 to 103, run `--update`,
- * and the check reports "239 known violations, none new". The flag rewrote every
- * number it found, so the inventory it maintained was whatever the branch's
- * source happened to contain — an allowlist that regenerates itself is not an
- * allowlist, it is a description.
- *
- * So `additions` computes what a regeneration would ADD — a file, a rule, or a
- * higher count — and the CLI refuses to write when there is any. Shrinkage and
- * re-sync still write, because that is the case the flag exists for and the one
- * `stale` already forces.
- *
- * The refusal is deliberately offline and one step earlier than
- * `./baseline.mjs`: an addition is compared against the allowlist ON DISK, so it
- * fires in a fresh clone with no history and needs no ref to resolve. A
- * hand-written entry that the base already carried still passes the baseline
- * check afterwards — which is exactly the rule-widening case, and the reason the
- * refusal says "add it by hand with a reason" rather than "you may not".
+ * Locally the lowered file is written back for the change to commit. CI cannot
+ * write, so there the same finding is a warning on the pull request.
  */
 
-import { compareAllowlist } from './direction.mjs';
 import { ALLOWLIST_VERSION } from './allowlist.mjs';
 
 /**
- * Recompute the inventory from a fresh scan, preserving written reasons.
+ * Every entry lowered to what the tree still holds; nothing added.
+ *
+ * Files keep their order and rules keep theirs, with `reasons` last, so the
+ * written file differs from the one on disk only where a count fell.
  *
  * @param {object} measured rule counts per file, from `scan()`
  * @param {object} allowlist the loaded allowlist document
- * @returns {{files: object, total: number}}
+ * @returns {object} the lowered `files` map
  */
-export function regenerate(measured, allowlist) {
+export function shrink(measured, allowlist) {
     const files = {};
-    for (const [file, counts] of Object.entries(measured).sort()) {
-        const previous = allowlist.files?.[file] ?? {};
-        files[file] = { ...counts };
-        // Annotations survive a regeneration; only the numbers are recomputed.
-        // A `reasons` entry for a rule the file no longer breaks is dropped
-        // with it, so a retired exception cannot linger as cover for a
-        // future one.
-        if (previous.reasons) {
-            const live = Object.fromEntries(
-                Object.entries(previous.reasons).filter(([rule]) => rule in counts),
-            );
-            if (Object.keys(live).length > 0) files[file].reasons = live;
+    for (const [file, entry] of Object.entries(allowlist.files ?? {})) {
+        const counts = measured[file] ?? {};
+        const kept = {};
+        for (const [rule, permitted] of Object.entries(entry)) {
+            if (rule === 'reasons') continue;
+            const count = Math.min(permitted, counts[rule] ?? 0);
+            if (count > 0) kept[rule] = count;
         }
-        /*
-         * `debt` used to be the other way to pass — "a migration slice still
-         * owes work here". It is deliberately not carried forward: since
-         * 2026-08-25 every entry needs a reason, and `--update` inventing one
-         * would defeat the point. An entry whose rule has no reason fails the
-         * check instead, which is where the author has to write it.
-         */
+        if (Object.keys(kept).length === 0) continue;
+        // A reason for a rule the file no longer breaks goes with it, so a
+        // retired exception cannot linger as cover for a future one.
+        const reasons = Object.fromEntries(
+            Object.entries(entry.reasons ?? {}).filter(([rule]) => rule in kept),
+        );
+        files[file] = Object.keys(reasons).length > 0 ? { ...kept, reasons } : kept;
     }
-
-    const total = Object.values(measured).reduce(
-        (sum, counts) => sum + Object.values(counts).reduce((a, b) => a + b, 0), 0,
-    );
-
-    return { files, total };
+    return files;
 }
 
 /**
  * The on-disk form: three keys, two-space indent, trailing newline.
  *
- * `version` is written unconditionally at the current value rather than echoed
- * from the input — a regeneration writes today's key format, so it must declare
- * today's version or the next reader normalises a v2 document as v1.
+ * `version` is written at the current value rather than echoed from the input:
+ * the written keys are today's format, so the document declares today's version.
  */
 export function serialise(allowlist, files) {
     return `${JSON.stringify(
@@ -84,18 +57,16 @@ export function serialise(allowlist, files) {
 }
 
 /**
- * What a regeneration would add, and what it would write.
+ * What to do about entries the tree has outgrown: lower them on disk, or in CI
+ * only say so.
  *
- * `problems` carries a malformed on-disk allowlist — refused before anything is
- * compared, because every rule below uses `>` and a non-number coerces to `NaN`,
- * for which every comparison is false.
- *
- * @returns {{files: object, total: number, problems: string[], growth: Array}}
+ * @param {{measured: object, allowlist: object, stale: string[], env?: object,
+ *   write: (text: string) => void}} options
+ * @returns {'none'|'warned'|'written'}
  */
-export function additions(measured, allowlist) {
-    const { files, total } = regenerate(measured, allowlist);
-    const { problems, growth } = compareAllowlist(
-        allowlist.files || {}, files, 'the allowlist on disk',
-    );
-    return { files, total, problems, growth };
+export function settleShrinkage({ measured, allowlist, stale, env = process.env, write }) {
+    if (stale.length === 0) return 'none';
+    if (env.GITHUB_ACTIONS === 'true') return 'warned';
+    write(serialise(allowlist, shrink(measured, allowlist)));
+    return 'written';
 }

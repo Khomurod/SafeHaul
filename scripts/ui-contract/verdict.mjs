@@ -15,8 +15,7 @@
  * Deliberately a length rather than a shape: the check cannot know whether a
  * sentence is *true*, and pretending otherwise would be a guard that lies. What
  * it can insist on is that somebody wrote something a reviewer can disagree
- * with. The baseline comparison in `./baseline.mjs` is what stops a filler
- * sentence buying a *new* exemption.
+ * with, and review is where a new one is judged.
  */
 export const MIN_REASON_LENGTH = 20;
 

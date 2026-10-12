@@ -1226,9 +1226,9 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 - **Inter is self-hosted** in `src/design-system/fonts/` (SIL OFL 1.1), never
   fetched from a third party at runtime: CI renders the real typeface, nobody
   sees a fallback font, and no user's IP is disclosed to render text.
-- `check:ui-contract` is zero-tolerance against
-  `src/design-system/ui-contract.allowlist.json`, which records every violation
-  kept deliberately **and why**; an entry without a reason fails.
+- `check:ui-contract` refuses any violation that
+  `src/design-system/ui-contract.allowlist.json` does not record with a reason.
+  A fixed violation lowers its entry; growth is a hand edit, judged in review.
 - Tailwind's radius and shadow scales share names with the `--ds-*` ones and sit
   one step off (`rounded-lg` is 8px, `rounded-ds-lg` 12px): convert by value,
   never name.

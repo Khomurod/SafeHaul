@@ -11,7 +11,7 @@
  * |----------------------------------|-------------------------------------------|
  * | `test-ui-contract.mjs`           | are the DECISIONS right?                  |
  * | `test-ui-contract-scope.mjs`     | is it still LOOKING at the whole tree?    |
- * | `test-ui-contract-baseline.mjs`  | can the inventory be edited by the branch?|
+ * | `test-ui-contract-allowlist.mjs` | is the inventory read and lowered right?  |
  * | `test-ui-contract-ci.mjs`        | does CI run it, and can that be skipped?  |
  *
  * ## The way a guard fails is silently
@@ -345,8 +345,7 @@ console.log('\nX. The CLI stays out of the Vitest module graph');
     /*
      * Mutation: import `check-ui-contract.mjs` from a test under `src/`. Vitest
      * rewrites `import.meta.url`, so anything at the CLI's module scope — or at
-     * the module scope of anything it imports, such as the git-baseline helpers,
-     * which resolve the repository root on import — runs inside that rewrite and
+     * the module scope of anything it imports — runs inside that rewrite and
      * throws before a single assertion runs. `paths.mjs` puts every path behind a
      * function call for this reason.
      *
@@ -359,14 +358,14 @@ console.log('\nX. The CLI stays out of the Vitest module graph');
         // grep exits 1 when it matches nothing, which is the passing case here.
         found = execFileSync('grep',
             ['-rlE', '--include=*.js', '--include=*.jsx',
-                String.raw`(from|import\()\s*['"][^'"]*(check-ui-contract|ui-contract/baseline)`,
+                String.raw`(from|import\()\s*['"][^'"]*check-ui-contract`,
                 resolve(repoRoot, 'src')],
             { encoding: 'utf8', cwd: repoRoot });
     } catch (error) {
         if (error.status !== 1) throw error;
     }
     const offenders = found.trim().split('\n').filter(Boolean);
-    assert('X1. nothing under src/ imports the CLI entry or the git baseline',
+    assert('X1. nothing under src/ imports the CLI entry',
         offenders.length === 0, offenders.join(', '));
 }
 

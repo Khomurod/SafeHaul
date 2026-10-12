@@ -1,31 +1,12 @@
 /**
- * The allowlist's key format, and how to read an older one.
- *
- * ## Why the keys moved
+ * The allowlist's key format and shape.
  *
  * Version 1 keyed every entry relative to `src/`, because `src/` was the only
- * thing the guard walked. Widening the scan to `index.html` — which Tailwind
- * compiles, and which had carried `<body class="bg-gray-50">` unseen for the
- * whole campaign — put a file OUTSIDE `src/` into the inventory, and there is no
- * honest `src/`-relative name for it. So version 2 keys everything from the
- * repository root: `src/features/…/Thing.jsx`, `index.html`.
- *
- * ## Why this is a function and not a one-off rewrite
- *
- * The inventory is compared against the base commit now
- * (`./baseline.mjs`), and the base is version 1. Without a normaliser, the
- * version bump would read as **43 files deleted and 43 files added** — every
- * entry refused as "a new exemption", and the migration impossible to land.
- *
- * So both sides are normalised to repo-relative before anything is compared:
- * the live loader normalises what it reads from disk, and `readAllowlistAt`
- * normalises what it reads out of git. A v1 base and a v2 branch then compare
- * equal, which is the only way a key-format change can pass a guard that
- * refuses additions.
- *
- * The reverse also has to hold, and it is the easier half to forget: reading a
- * v2 document must be the identity, or normalising twice would prefix `src/`
- * onto keys that already carry it.
+ * thing the guard walked. Widening the scan to `index.html`, which Tailwind
+ * compiles, put a file outside `src/` into the inventory, and there is no honest
+ * `src/`-relative name for it. So version 2 keys everything from the repository
+ * root: `src/features/…/Thing.jsx`, `index.html`. Reading a version-1 document
+ * still lifts its keys; reading a version-2 one is the identity.
  */
 
 /** The format the checker writes today. */
@@ -53,4 +34,48 @@ export function normaliseAllowlist(document) {
             entry,
         ]),
     );
+}
+
+/** `reasons` is metadata, not a rule. */
+const REASONS_KEY = 'reasons';
+
+/**
+ * A malformed entry is refused rather than ignored.
+ *
+ * The verdicts compare counts, and a count that is not a whole number compares
+ * false either way, so `{"raw-table": "unbounded"}` would read as a ceiling
+ * nothing can reach. Nothing is judged until the shape is sound.
+ *
+ * @returns {string[]} one sentence per malformed entry
+ */
+export function allowlistShapeProblems(files, label = 'the allowlist') {
+    const problems = [];
+    for (const [file, entry] of Object.entries(files ?? {})) {
+        if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+            problems.push(`${label} records ${file} as ${JSON.stringify(entry)}, which is not a set `
+                + 'of rule counts.');
+            continue;
+        }
+        for (const [rule, value] of Object.entries(entry)) {
+            if (rule === REASONS_KEY) {
+                if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+                    problems.push(`${label} records ${file} → reasons as ${JSON.stringify(value)}, `
+                        + 'which is not a map of rule to explanation.');
+                    continue;
+                }
+                for (const [reasonRule, text] of Object.entries(value)) {
+                    if (typeof text !== 'string') {
+                        problems.push(`${label} records ${file} → reasons → ${reasonRule} as `
+                            + `${JSON.stringify(text)}, which is not an explanation.`);
+                    }
+                }
+                continue;
+            }
+            if (!Number.isInteger(value) || value < 0) {
+                problems.push(`${label} records ${file} → ${rule} as ${JSON.stringify(value)}, which `
+                    + 'is not a violation count. Use a whole number.');
+            }
+        }
+    }
+    return problems;
 }
