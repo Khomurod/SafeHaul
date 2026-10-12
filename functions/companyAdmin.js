@@ -7,6 +7,7 @@ const { admin, db } = require("./firebaseAdmin");
 const { deleteCompanySchema, sendEmailSchema } = require("./shared/schema");
 const { assertCompanyAccess, assertCompanyAdminStrict } = require('./shared/companyAccess');
 const { escapeHtml, plainGuestText } = require('./shared/plainText');
+const { checkRateLimit } = require('./shared/rateLimiter');
 const { buildPublicProfileDto } = require('./shared/publicProfileDto');
 const { reconcilePublicProfilesToCompletion } = require('./shared/publicProfileSync');
 const { ORIGINAL_PDF_PREFIX } = require('./shared/preserveApplicationPdf');
@@ -91,6 +92,29 @@ exports.deleteCompany = onCall({
 
 
 // --- FEATURE 4: SEND AUTOMATED EMAIL ---
+
+/** At most this many "no answer" emails an hour from one sender. */
+const NO_ANSWER_EMAILS_PER_HOUR = 100;
+
+/**
+ * Team access lets any recruiter call `sendAutomatedEmail`, so its "no answer"
+ * email goes only where a call log sends it: to one of the company's own leads
+ * or applicants, looked up under the address as sent and as validated, and at
+ * most `NO_ANSWER_EMAILS_PER_HOUR` an hour from one sender.
+ */
+async function assertNoAnswerRecipient(uid, companyId, sentEmail, recipientEmail) {
+    const addresses = [...new Set([String(sentEmail || '').trim(), recipientEmail].filter(Boolean))];
+    const company = db.collection('companies').doc(companyId);
+    const [leads, applications] = await Promise.all(['leads', 'applications'].map((name) =>
+        company.collection(name).where('email', 'in', addresses).limit(1).get()));
+    if (leads.empty && applications.empty) {
+        throw new HttpsError('permission-denied', 'The "no answer" email goes only to a lead or applicant of this company.');
+    }
+    if (!(await checkRateLimit(`no_answer_email_${uid}`, NO_ANSWER_EMAILS_PER_HOUR, 3600, 'closed'))) {
+        throw new HttpsError('resource-exhausted', 'Too many "no answer" emails this hour. Try again later.');
+    }
+}
+
 exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
     // SECURITY: Strict Auth Check
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
@@ -107,6 +131,9 @@ exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
         await assertMaySend(request.auth.uid, companyId);
     } catch (e) {
         throw new HttpsError('permission-denied', 'You do not have permission to send emails for this company.');
+    }
+    if (triggerType === 'no_answer') {
+        await assertNoAnswerRecipient(request.auth.uid, companyId, request.data?.recipientEmail, recipientEmail);
     }
 
     try {

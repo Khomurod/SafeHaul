@@ -1,8 +1,9 @@
 /**
  * The automated email a call log sends when nobody answered: every member of
- * the company team may send it, it names the company and links its own
- * application page, and the names in it arrive as text. The other templates
- * stay with company admins.
+ * the company team may send it, only to one of the company's own leads or
+ * applicants and a bounded number of times; it names the company and links its
+ * own application page, and the names in it arrive as text. The other
+ * templates stay with company admins.
  */
 jest.mock('firebase-functions/v2/https', () => {
     class HttpsError extends Error {
@@ -14,15 +15,29 @@ jest.mock('firebase-functions/v2/firestore', () => ({ onDocumentWritten: (path, 
 jest.mock('firebase-functions/v2/scheduler', () => ({ onSchedule: (opts, handler) => handler }));
 
 const mockCompany = { data: null };
+// The addresses on file, by collection, as stored.
+const mockOnFile = { leads: [], applications: [] };
 jest.mock('../../firebaseAdmin', () => ({
     admin: { firestore: { FieldValue: { serverTimestamp: () => 'ts', delete: () => 'del' } } },
     db: {
         collection: () => ({
             doc: () => ({
                 async get() { return { exists: Boolean(mockCompany.data), data: () => mockCompany.data || undefined }; },
+                collection: (name) => ({
+                    where: (field, op, values) => ({
+                        limit: () => ({
+                            async get() { return { empty: !mockOnFile[name].some((email) => values.includes(email)) }; },
+                        }),
+                    }),
+                }),
             }),
         }),
     },
+}));
+
+const mockCheckRateLimit = jest.fn();
+jest.mock('../../shared/rateLimiter', () => ({
+    checkRateLimit: (...args) => mockCheckRateLimit(...args),
 }));
 
 const mockAssertCompanyAccess = jest.fn();
@@ -58,6 +73,9 @@ beforeEach(() => {
     mockAssertCompanyAccess.mockResolvedValue(undefined);
     mockAssertCompanyAdminStrict.mockRejectedValue(Object.assign(new Error('Company admin access required.'), { code: 'permission-denied' }));
     mockSendDynamicEmail.mockResolvedValue({ success: true });
+    mockOnFile.leads = ['driver@example.com'];
+    mockOnFile.applications = [];
+    mockCheckRateLimit.mockResolvedValue(true);
 });
 
 describe('sendAutomatedEmail — the "no answer" follow-up', () => {
@@ -67,6 +85,33 @@ describe('sendAutomatedEmail — the "no answer" follow-up', () => {
         expect(result).toEqual({ success: true });
         expect(mockAssertCompanyAccess).toHaveBeenCalledWith('recruiter-1', 'co1');
         expect(mockSendDynamicEmail).toHaveBeenCalledWith('co1', 'driver@example.com', 'We missed you!', expect.any(String));
+    });
+
+    it('goes only to a lead or applicant of the company', async () => {
+        const stranger = noAnswer();
+        stranger.data.recipientEmail = 'someone@example.org';
+
+        await expect(sendAutomatedEmail(stranger)).rejects.toMatchObject({ code: 'permission-denied' });
+        expect(mockSendDynamicEmail).not.toHaveBeenCalled();
+    });
+
+    it('finds the applicant under the address as the call log sent it', async () => {
+        mockOnFile.leads = [];
+        mockOnFile.applications = ['Driver@Example.com'];
+        const call = noAnswer();
+        call.data.recipientEmail = 'Driver@Example.com';
+
+        await sendAutomatedEmail(call);
+
+        expect(mockSendDynamicEmail).toHaveBeenCalledWith('co1', 'driver@example.com', 'We missed you!', expect.any(String));
+    });
+
+    it('is refused past the hourly limit for one sender', async () => {
+        mockCheckRateLimit.mockResolvedValue(false);
+
+        await expect(sendAutomatedEmail(noAnswer())).rejects.toMatchObject({ code: 'resource-exhausted' });
+        expect(mockCheckRateLimit).toHaveBeenCalledWith('no_answer_email_recruiter-1', 100, 3600, 'closed');
+        expect(mockSendDynamicEmail).not.toHaveBeenCalled();
     });
 
     it('is refused for someone outside the company', async () => {
