@@ -33,9 +33,14 @@ const persistImportTargets = async ({ companyId, sessionRef, rawItems, filters, 
         const phoneToIdMap = new Map(); // canonical phone -> Set(importId)
         const emailToIdMap = new Map(); // normalizedEmail -> importId (BUG-8)
         const isEmailCampaignImport = (config?.method === 'email');
+        // The rows the recruiter un-ticked in the preview are neither stored nor sent.
+        // The preview names a row by its `id`, or by its place in the list when it has
+        // none (`VirtualLeadList`), and rawItems arrive in that same order.
+        const excludedRows = new Set(Array.isArray(filters.excludedLeadIds) ? filters.excludedLeadIds : []);
 
         for (let i = 0; i < rawItems.length; i++) {
             const item = rawItems[i];
+            if (excludedRows.has(item?.id || `import_${i}`)) continue;
             const importId = `imp_${i}_${Date.now()}`; // Simple unique ID within session context
             finalTargetIds.push(importId);
 

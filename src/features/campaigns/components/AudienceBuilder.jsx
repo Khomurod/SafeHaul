@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useId, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { useCampaignTargeting } from '../hooks/useCampaignTargeting';
 import { useCompanyTeam } from '@/shared/hooks/useCompanyTeam';
 import { useData } from '@/context/DataContext';
@@ -12,15 +12,37 @@ import {
     TabList, TabPanel,
 } from '@/design-system/components';
 
+// Which uploaded list the un-ticks belong to. The preview names an un-ticked row
+// by its place in the list (`VirtualLeadList`), so a change to any row, not only
+// to the first few, clears them; otherwise the launch would leave out whoever
+// now sits in that place.
 const getUploadFingerprint = (rows) => {
     if (!Array.isArray(rows) || rows.length === 0) return 'empty';
-    const sample = rows.slice(0, 5).map((row) => [
+    const identity = rows.map((row) => [
         row.normalizedPhone || row.phone || '',
         row.email || '',
         row.firstName || '',
         row.lastName || '',
     ].join('|')).join('||');
-    return `${rows.length}:${sample}`;
+    return `${rows.length}:${identity}`;
+};
+
+// Who the audience leaves out, each recipient once. An uploaded row the ledger
+// finds is "already messaged" whether or not it was also un-ticked. A CRM lead
+// counts as un-ticked only while the preview lists it: the server's count
+// already leaves out a lead the filters no longer match.
+const countExclusions = ({ uploadRows, excludedIds, excludedPhones, listedLeadIds }) => {
+    if (!uploadRows) {
+        return { manual: excludedIds.filter((id) => listedLeadIds.has(id)).length, phone: 0 };
+    }
+    const unticked = new Set(excludedIds);
+    let manual = 0;
+    let phone = 0;
+    uploadRows.forEach((row, index) => {
+        if (row.normalizedPhone && excludedPhones.has(row.normalizedPhone)) phone += 1;
+        else if (unticked.has(row.id || `import_${index}`)) manual += 1;
+    });
+    return { manual, phone };
 };
 
 // Feature-owned tab models. The design system has no tab primitive yet, so the
@@ -62,6 +84,16 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
     });
 
     const { showError } = useToast();
+
+    // The CRM leads the preview lists. Only a listed lead can be un-ticked.
+    const [listedLeadIds, setListedLeadIds] = useState(() => new Set());
+    const handleLeadsChange = useCallback((leads) => {
+        setListedLeadIds((prev) => {
+            const next = new Set(leads.map((lead) => lead.id).filter(Boolean));
+            const same = next.size === prev.size && [...next].every((id) => prev.has(id));
+            return same ? prev : next;
+        });
+    }, []);
 
     // 1. CRM COUNT HOOK (Stateless now)
     const { matchCount, isLoading: isCountLoading, excludedPhones } = useCampaignTargeting(companyId, localFilters, currentUser);
@@ -117,10 +149,26 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
         }
     }, [activeTab, csvData]);
 
-    // Effect: Sync filters + count to parent
+    // Calculated View State
+    const isUploadMode = activeTab === 'upload';
+    const uploadRows = isUploadMode ? (csvData.length > 0 ? csvData : localFilters.rawData || []) : null;
+    const { manual: manualExcludedCount, phone: phoneExcludedCount } = countExclusions({
+        uploadRows,
+        excludedIds: localFilters.excludedLeadIds || [],
+        excludedPhones,
+        listedLeadIds,
+    });
+
+    // An upload is counted row by row; a CRM audience starts from the server's count.
+    const finalCount = uploadRows
+        ? uploadRows.length - phoneExcludedCount - manualExcludedCount
+        : Math.max(0, matchCount - manualExcludedCount);
+
+    // Effect: Sync filters + count to parent. The count leaves out the rows the
+    // recruiter un-ticked: it is the number the launch screen says will be messaged.
     useEffect(() => {
-        onChange(localFilters, matchCount);
-    }, [localFilters, matchCount, onChange]);
+        onChange(localFilters, finalCount);
+    }, [localFilters, finalCount, onChange]);
 
 
 
@@ -139,15 +187,6 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
         handleFilterChange('excludedLeadIds', newExcluded);
     };
 
-    // Calculated View State
-    const isUploadMode = activeTab === 'upload';
-    // For upload mode, matchCount is already the filtered count (from checkImportPhones)
-    const displayCount = matchCount;
-    const manualExcludedCount = localFilters.excludedLeadIds?.length || 0;
-    const phoneExcludedCount = isUploadMode ? excludedPhones.size : 0;
-
-    // Ensure final count doesn't go below zero
-    const finalCount = Math.max(0, displayCount - manualExcludedCount);
 
     const activeImportTab = localFilters._importTab === 'sheet' ? 'sheet' : 'file';
 
@@ -396,8 +435,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                 filters={localFilters}
                                 excludedIds={localFilters.excludedLeadIds}
                                 onToggleExclusion={handleToggleExclusion}
-                                localData={isUploadMode ? (csvData.length > 0 ? csvData : localFilters.rawData || []) : null}
+                                localData={uploadRows}
                                 excludedPhones={isUploadMode ? excludedPhones : null}
+                                onLeadsChange={handleLeadsChange}
                             />
                         </div>
 
