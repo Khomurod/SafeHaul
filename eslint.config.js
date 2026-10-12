@@ -82,7 +82,8 @@ export default [
   // name `lucide-react`: the registry, and the test that proves a raw component
   // still renders. Every way of loading a module is covered, a specifier in
   // backticks included, and it is an error, so the lint step refuses it
-  // (`scripts/test-lint-rules.mjs` drives it).
+  // (`scripts/test-lint-rules.mjs` drives it, and re-lints with disable comments
+  // ignored, so no comment is an exception).
   {
     files: ['src/**/*.{js,jsx,cjs,mjs}'],
     ignores: ['src/design-system/icons/**'],

@@ -110,7 +110,9 @@ an import, a re-export, a dynamic `import()` and a `require` of it, in quotes or
 backticks (`no-restricted-syntax` in `eslint.config.js`), and
 `scripts/test-lint-rules.mjs` drives the rule on sample code. The same test
 refuses a source file the rule does not reach: ESLint here lints JavaScript only,
-so a `.ts` or `.tsx` file under `src/` needs a TypeScript lint setup first.
+so a `.ts` or `.tsx` file under `src/` needs a TypeScript lint setup first. And
+no comment is an exception: the test lints every file that names the package
+again with `eslint-disable` and inline rule settings ignored.
 
 The scope is `src/`, the same scope `check:ui-contract` governs, because that is
 what Vite bundles; a fixture in `scripts/` describing an import is not an import.

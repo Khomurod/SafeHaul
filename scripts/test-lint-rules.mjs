@@ -9,7 +9,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
 
@@ -86,6 +86,35 @@ console.log('\nL. Glyphs come from the design system');
         unreached.length > 0
             ? `${unreached.slice(0, 5).join(', ')}: ESLint does not apply the rule here; lint the file type before adding one`
             : `git listed no source file under ${unlisted.join(', ')}`);
+
+    /*
+     * An `eslint-disable` comment silences any lint rule, and the checker this
+     * replaced had no such door. So the files that name the package are linted
+     * once more with inline configuration ignored: what a comment hides, this
+     * run still sees. Only those files, because an import has to name it.
+     */
+    const strict = new ESLint({ cwd: repoRoot, allowInlineConfig: false });
+    const refusedStrictly = async (code) => {
+        const [result] = await strict.lintText(code, { filePath: resolve(repoRoot, 'src/features/example/Widget.jsx') });
+        return result.messages.some((message) => message.severity === 2 && /lucide-react/.test(message.message));
+    };
+    const disabled = {
+        'a disable comment on the line': "// eslint-disable-next-line no-restricted-syntax\nimport { Trash2 } from 'lucide-react';\nexport const glyph = Trash2;\n",
+        'a disable comment for the file': "/* eslint-disable */\nimport { Trash2 } from 'lucide-react';\nexport const glyph = Trash2;\n",
+        'a rule switched off inline': "/* eslint no-restricted-syntax: off */\nimport { Trash2 } from 'lucide-react';\nexport const glyph = Trash2;\n",
+    };
+    const hiddenSamples = [];
+    for (const [way, code] of Object.entries(disabled)) {
+        if (!(await refusedStrictly(code))) hiddenSamples.push(way);
+    }
+    assert('L5. a comment that switches the rule off does not hide an import from this test',
+        hiddenSamples.length === 0, hiddenSamples.join(', '));
+    const naming = governed.filter((file) => readFileSync(resolve(repoRoot, file), 'utf8').includes('lucide-react'));
+    const hidden = naming.length === 0 ? [] : (await strict.lintFiles(naming))
+        .filter((result) => result.messages.some((message) => message.severity === 2 && /lucide-react/.test(message.message)))
+        .map((result) => relative(repoRoot, result.filePath));
+    assert(`L5b. and no file under src/ hides one behind a comment (${naming.length} name the package)`,
+        hidden.length === 0, `${hidden.join(', ')}: import glyphs from @design-system/icons`);
 }
 
 console.log('\nM. Lint refuses what would crash a screen');
