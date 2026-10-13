@@ -6,6 +6,19 @@ import { LEAD_IMPORT_PLACEHOLDERS } from '@/config/leadImportPlaceholders';
 import { PLACEHOLDER_DOMAIN } from '@/config/placeholderDomains';
 import { LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
 
+const cleanText = (value) => (typeof value === 'string' ? value.trim() : '');
+
+/**
+ * A member's name under whichever field their profile keeps it
+ * (`nameFromProfile` in functions/shared/userIdentity.js), else the email: the
+ * batch that writes an assigned lead refuses an undefined `assignedToName`.
+ */
+function memberName(profile) {
+    const firstLast = [cleanText(profile.firstName), cleanText(profile.lastName)].filter(Boolean).join(' ');
+    return cleanText(profile.name) || cleanText(profile.fullName) || cleanText(profile.displayName)
+        || firstLast || cleanText(profile.email) || 'Unknown';
+}
+
 /**
  * Firestore-backed bulk lead import for a company.
  *
@@ -54,7 +67,7 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                 for (const m of snap.docs) {
                     const userSnap = await getDoc(doc(db, "users", m.data().userId));
                     if (userSnap.exists()) {
-                        members.push({ id: userSnap.id, name: userSnap.data().name });
+                        members.push({ id: userSnap.id, name: memberName(userSnap.data() || {}) });
                     }
                 }
                 setTeamMembers(members);
