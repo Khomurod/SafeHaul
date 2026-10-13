@@ -1275,17 +1275,17 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   Firestore sorts by it (newest first, or as the Added Date arrows say): a sort
   leaves it out. A notice counts such records (`UndatedRecordsNotice`) and
   search finds them; dating them is the owner's data change.
-- **Facebook lead capture is switched off, and leads may be stranded.** An
-  earlier defect wrote a connected page's leads to `companies/{uid}/leads`,
-  which no screen reads; `scripts/audit-facebook-lead-tenancy.mjs` (read-only)
-  reports any. Connect rules: §7.
-- **`users/{uid}` may carry orphaned `onboardingTourCompleted` and
-  `tourCompletedAt`** from the removed welcome tour, read by nothing; they stay
-  (removal is a data migration).
+- **An unassigned lead stores `assignedTo: ''`**, which the Unassigned filter
+  asks for. Older leads with `null` (imported) or no field (quick-added) are
+  not found there; fixing them is the owner's data change.
+- **Facebook lead capture is switched off; an earlier defect may have stranded
+  leads** in `companies/{uid}/leads`, which no screen reads
+  (`scripts/audit-facebook-lead-tenancy.mjs` reports any). Connect rules: §7.
+- **`users/{uid}` may keep `onboardingTourCompleted` and `tourCompletedAt`**
+  from the removed welcome tour; nothing reads them; removal is a migration.
 - **"Read the documents" reads only what the current browser holds.** A
-  prepared application re-opened later has its documents but nothing to read;
-  the panel names them, and re-attaching one makes it readable. Files are not
-  fetched back (that needs bucket CORS, which is not set).
+  prepared application re-opened later names its documents, readable once
+  re-attached; files are not fetched back (that needs bucket CORS, not set).
 - **A continuation link cannot verify the SSN of a draft with no `identityKey`**
   — the company set `ssn` Optional or Hidden (`GATE_DEFAULT_REQUIRED.ssn` is
   `true`, so opt-out), the driver pressed *Save as Draft* on page one before
@@ -1320,10 +1320,10 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   standard fields needs a survey of every folder a legitimate file can live in.
 - **The dossier's *Edit Application* offers fields the server will not change.**
   Every schema section is editable, but `proposeApplicationChanges` applies only
-  its allowlist and returns the rest as `skipped`, unmentioned — an edit to,
-  say, a qualification answer disappears.
+  its allowlist and silently returns the rest as `skipped`: an edit to, say, a
+  qualification answer disappears.
 - **HEIC photos cannot be read** (an iPhone's default; browsers cannot decode
-  it): the reader takes PDF, JPG, PNG and WebP and refuses HEIC, naming those.
+  it): the reader refuses it, naming what it takes: PDF, JPG, PNG, WebP.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan");
   marketing prices ($199 / $299 a month) are **not** enforced.
@@ -1331,8 +1331,7 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   blacklist (§8), but `handleOptOut` (`functions/blacklist.js`) triggers on
   `companies/{companyId}/inbound_messages/{msgId}`, which **nothing writes** (no
   inbound SMS webhook): a STOP reply reaches the company's own provider, and a
-  number reaches the blacklist only if written directly, with no admin
-  interface.
+  number enters the blacklist only by a direct write (no admin screen).
 - **Frontend coverage thresholds are a ratchet** (`vitest.config.js`), a few
   points under measured coverage: raise them as it improves, never lower them.
 - **Mixed Functions v1/v2 is intentional.** The generations run as different
@@ -1347,14 +1346,14 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 - **Historical reconstruction is an ongoing migration.** Applications submitted
   before snapshot preservation get a record and PDF rebuilt only from surviving
   evidence and **marked as reconstructed** (`reconstructHistoricalApplications`);
-  `surveyHistoricalReconstruction` counts what is outstanding for the temporary
-  Super Admin action, which retires itself when the work is verified done. See
+  `surveyHistoricalReconstruction` counts what is left for the temporary Super
+  Admin action, which retires itself once the work is verified. See
   [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md).
-- **A deleted blog article does not free its slot.** Deletion is a tombstone and
-  `slotIsFilled` tests only that the slot's document exists, so the slot stays
-  filled and the day stays closed (the ledger records a row saying so).
-  Reopening one means changing the `create()`-based anti-double-publish
-  guarantee; see [`docs/news-and-insights.md`](./news-and-insights.md).
+- **A deleted blog article does not free its slot.** Deletion leaves a tombstone
+  and `slotIsFilled` checks only that the slot's document exists, so the day
+  stays closed (the ledger says so). Reopening it means changing the
+  `create()`-based anti-double-publish guarantee; see
+  [`docs/news-and-insights.md`](./news-and-insights.md).
 - **The blog's word floor is 150 words**, not the 700–1,200 first specified: a
   recorded owner decision for free-tier provider limits; a higher tier undoes it.
 - **`themesAreDistinct` is exported, tested and called by nothing**: one article

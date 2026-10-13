@@ -134,8 +134,8 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
             companyId: COMPANY_ID,
             status: LEAD_DEFAULT_STATUS,
             createdAt: '__serverTimestamp__',
-            assignedTo: null,
-            assignedToName: null,
+            assignedTo: '',
+            assignedToName: '',
         });
 
         const [logRef, logPayload] = fs.set.mock.calls[1];
@@ -253,13 +253,14 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
         ]);
     });
 
-    it('leaves leads unassigned in the default mode', async () => {
+    it('leaves leads unassigned in the default mode, as the Unassigned filter matches them', async () => {
         const { result } = await mountHook();
         await act(async () => {
             await result.current.uploadLeads([{ firstName: 'One' }], 'file');
         });
+        // The lists' Unassigned filter asks for assignedTo == '', which a null never matches.
         expect(fs.set.mock.calls[0][1]).toMatchObject({
-            assignedTo: null, assignedToName: null,
+            assignedTo: '', assignedToName: '',
         });
     });
 

@@ -173,8 +173,9 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                 setProgress(`Processing ${i + 1} / ${csvData.length}...`);
                 setProgressCount({ current: i + 1, total: csvData.length });
 
-                let assignedTo = null;
-                let assignedToName = null;
+                // Unassigned is '', the value the lists' Unassigned filter asks for.
+                let assignedTo = '';
+                let assignedToName = '';
 
                 if (assignmentMode !== 'unassigned' && distributionPool.length > 0) {
                     const member = distributionPool[poolIndex % distributionPool.length];

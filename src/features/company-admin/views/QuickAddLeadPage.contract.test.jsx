@@ -150,6 +150,11 @@ describe('Quick Add Lead — preserved contracts', () => {
             status: ATS_STATUS_NEW,
             source: 'manual_entry',
             createdBy: UID,
+            // Unassigned as the lists' Unassigned filter matches it, and the
+            // phone key the lead import finds a duplicate by.
+            assignedTo: '',
+            assignedToName: '',
+            normalizedPhone: '5550000000',
         });
 
         await waitFor(() => expect(toastMocks.showSuccess)
