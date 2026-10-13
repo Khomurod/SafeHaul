@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Button, IconButton } from '@/design-system/components';
 import { Icon, LayoutDashboard, Users, Building2, User, Search, FileText, Megaphone, Upload, PlusCircle, Settings, ChevronRight, ChevronsLeft, ChevronsRight, GitBranch, Hourglass, X } from '@design-system/icons';
 import { useData } from '@/context/DataContext';
@@ -49,7 +49,6 @@ export const CompanySidebar = ({
 
   const { currentCompanyProfile, currentUserClaims } = useData();
   const location = useLocation();
-  const navigate = useNavigate();
   const routeLookup = useMemo(
     () => new Map(COMPANY_ROUTE_MANIFEST.map((route) => [route.id, route])),
     [],
@@ -204,27 +203,11 @@ export const CompanySidebar = ({
               <span className="text-ds-content font-medium truncate">
                 {currentCompanyProfile?.companyName || currentCompanyProfile?.name || 'Company'}
               </span>
-              {isCompanyAdmin ? (
-                /*
-                  `Button variant="link"` — an action that reads as inline text.
-                  It was a hand-written one: `text-ds-content-link` plus
-                  `hover:underline` plus its own focus ring, which is the sixth
-                  copy of a treatment the variant was added on 2026-08-25 to own.
-                */
-                <Button
-                  variant="link"
-                  justify="start"
-                  className="truncate"
-                  onClick={() => {
-                    navigate('/company/settings');
-                    onNavigate?.();
-                  }}
-                >
-                  Company Settings
-                </Button>
-              ) : (
-                <span className="text-ds-xs text-ds-content-muted truncate">Team Member</span>
-              )}
+              {/* Who you are in this company. Settings is the account section's
+                  own item, so the header does not link to it a second time. */}
+              <span className="text-ds-xs text-ds-content-muted truncate">
+                {isCompanyAdmin ? 'Company Admin' : 'Team Member'}
+              </span>
             </div>
           )}
         </div>
