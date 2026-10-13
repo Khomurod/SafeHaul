@@ -9,6 +9,34 @@ async function openCandidatePage(page, path, heading) {
   await expect(page.getByRole('table', { name: `${heading} table` })).toBeVisible();
 }
 
+/** All Applications with its filter panel open, and what the layout tests reach for. */
+async function openApplicationsWithFilters(page) {
+  await openCandidatePage(page, '/company/drivers/applications', 'Driver Applications');
+  const filters = page.getByRole('button', { name: 'Filters', exact: true });
+  await filters.click();
+  return {
+    filters,
+    region: page.getByRole('region', {
+      name: 'Driver Applications table. Scroll horizontally to view all columns.',
+    }),
+    firstRow: page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' }),
+    clearFilters: page.getByRole('button', { name: 'Clear all filters' }),
+  };
+}
+
+// From the top of the list, the wheel over `anchor`, as a person scrolls:
+// `scrollIntoView` would also move a box no person can scroll.
+async function scrollToWithWheel(page, anchor, target) {
+  await page.evaluate(() => {
+    for (const element of document.querySelectorAll('*')) element.scrollTop = 0;
+  });
+  const from = await anchor.boundingBox();
+  const to = await target.boundingBox();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.wheel(0, Math.max(0, to.y + to.height - page.viewportSize().height + 8));
+  await expect(target).toBeInViewport();
+}
+
 test.describe('Company candidate-list DataTable pilot', () => {
   test.describe.configure({ timeout: 90_000 });
 
@@ -115,6 +143,28 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
+  });
+
+  test('keeps the rows and the whole filter panel in reach on a phone @mobile', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('mobile'), 'Phone layout is verified in a mobile project.');
+    const { filters, region, firstRow, clearFilters } = await openApplicationsWithFilters(page);
+
+    // Upright, upright on a small phone, and on its side.
+    for (const size of [null, { width: 412, height: 640 }, { width: 915, height: 412 }]) {
+      if (size) await page.setViewportSize(size);
+      await scrollToWithWheel(page, filters, clearFilters);
+      await scrollToWithWheel(page, filters, firstRow);
+      expect(await region.evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(240);
+    }
+  });
+
+  test('keeps the rows in reach in a short, wide window', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'A desktop window.');
+    await page.setViewportSize({ width: 1024, height: 412 });
+    const { filters, region, firstRow } = await openApplicationsWithFilters(page);
+
+    await scrollToWithWheel(page, filters, firstRow);
+    expect(await region.evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(160);
   });
 
   test('has no serious or critical accessibility violations in the table surface', async ({ page }) => {
