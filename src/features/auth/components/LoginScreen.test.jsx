@@ -110,6 +110,17 @@ describe('LoginScreen — design-system migration', () => {
         expect(mocks.getMembershipsForUser).not.toHaveBeenCalled();
     });
 
+    it('ignores a requested route that is not a page of this site', async () => {
+        mocks.getMembershipsForUser.mockResolvedValue({ empty: false });
+        renderLogin({ from: '//elsewhere.example/phish' });
+        submitLogin();
+
+        await waitFor(() => {
+            expect(mocks.navigate).toHaveBeenCalledWith('/company/dashboard', { replace: true });
+        });
+        expect(mocks.navigate).toHaveBeenCalledTimes(1);
+    });
+
     it('redirects a Super Admin (claims) to the super-admin console', async () => {
         mocks.loginUser.mockResolvedValue(authenticatedUser({ super_admin: true }));
         renderLogin();

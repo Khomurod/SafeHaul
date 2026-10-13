@@ -3,6 +3,7 @@ import React, { useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { loginUser, resetPassword } from '../services/authService';
 import { getPortalUser, getMembershipsForUser } from '../services/userService';
+import { returnPathFrom } from '../returnPath';
 import {
   Icon,
   ArrowRight,
@@ -87,7 +88,7 @@ export function LoginScreen() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const from = location.state?.from;
+    const from = returnPathFrom(location.state);
 
     try {
       const user = await loginUser(email, password);
