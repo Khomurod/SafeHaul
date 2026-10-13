@@ -56,8 +56,10 @@ async function sendContactAttemptSmsIfNeeded({ companyId, beforeData, afterData 
   }
 
   const driverName = driverDisplayName(afterData);
+  // The assignee's name only while the record has an assignee: unassigning in
+  // the dossier once stored "Unassigned" as the name.
   const userName =
-    afterData.assignedToName ||
+    (afterData.assignedTo && afterData.assignedToName) ||
     afterData.lastModifiedByName ||
     'Your recruiter';
 
