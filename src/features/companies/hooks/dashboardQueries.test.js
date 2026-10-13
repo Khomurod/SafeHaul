@@ -22,8 +22,10 @@ vi.mock('firebase/firestore', () => ({
     documentId: vi.fn(),
     where: (field, op, value) => ({ kind: 'where', field, op, value }),
     orderBy: (field, direction = 'asc') => ({ kind: 'orderBy', field, direction }),
+    startAt: (...values) => ({ kind: 'startAt', values }),
     startAfter: (...values) => ({ kind: 'startAfter', values }),
     endAt: (...values) => ({ kind: 'endAt', values }),
+    endBefore: (...values) => ({ kind: 'endBefore', values }),
 }));
 vi.mock('@lib/firebase', () => ({ db: {}, auth: { currentUser: { uid: 'recruiter-1' } } }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => false }));
@@ -44,16 +46,20 @@ const SEGMENTS_BY_TAB = {
  * filters, has the sorted field (a sort leaves out records without it), and
  * lies between the cursors, which count along the sort's direction.
  */
+const CURSORS = new Set(['startAt', 'startAfter', 'endAt', 'endBefore']);
+
 function matches(record, constraints) {
     const order = constraints.find((c) => c.kind === 'orderBy');
     return constraints.every((c) => {
         if (c.kind === 'orderBy') return record[c.field] != null;
-        if (c.kind === 'startAfter' || c.kind === 'endAt') {
-            const value = record[order.field];
-            const [bound] = c.values;
-            const descending = order.direction === 'desc';
-            if (c.kind === 'startAfter') return descending ? value < bound : value > bound;
-            return descending ? value >= bound : value <= bound;
+        if (CURSORS.has(c.kind)) {
+            // Along a descending sort, "after" a value means below it.
+            const sign = order.direction === 'desc' ? -1 : 1;
+            const along = sign * (record[order.field] - c.values[0]);
+            if (c.kind === 'startAt') return along >= 0;
+            if (c.kind === 'startAfter') return along > 0;
+            if (c.kind === 'endAt') return along <= 0;
+            return along < 0;
         }
         const value = record[c.field];
         if (c.op === '==') return value === c.value;
@@ -114,11 +120,22 @@ function everyListQuery() {
                     for (const assignee of ['', 'recruiter-2', '__unassigned__']) {
                         for (const myAssignmentsOnly of [false, true]) {
                             for (const dateFilter of ['', '2026-10-12']) {
-                                const filters = { state, driverType, assignee, myAssignmentsOnly, dob: '', dateFilter };
+                                for (const dateOrder of ['desc', 'asc']) {
+                                    const filters = { state, driverType, assignee, myAssignmentsOnly, dob: '', dateFilter };
+                                    queries.push({
+                                        label: `${activeTab}/${pipelineSegment} ${JSON.stringify({ state, driverType, assignee, myAssignmentsOnly, dateFilter, dateOrder })}`,
+                                        collectionGroup: COLLECTION_BY_TAB[activeTab],
+                                        constraints: buildDashboardConstraints({ activeTab, pipelineSegment, filters, dateOrder }),
+                                    });
+                                }
+                                // The count of records without createdAt runs the filters alone.
                                 queries.push({
-                                    label: `${activeTab}/${pipelineSegment} ${JSON.stringify({ state, driverType, assignee, myAssignmentsOnly, dateFilter })}`,
+                                    label: `${activeTab}/${pipelineSegment} unordered ${JSON.stringify({ state, driverType, assignee, myAssignmentsOnly })}`,
                                     collectionGroup: COLLECTION_BY_TAB[activeTab],
-                                    constraints: buildDashboardConstraints({ activeTab, pipelineSegment, filters }),
+                                    constraints: buildDashboardConstraints({
+                                        activeTab, pipelineSegment, ordered: false,
+                                        filters: { state, driverType, assignee, myAssignmentsOnly, dob: '', dateFilter },
+                                    }),
                                 });
                             }
                         }
@@ -215,13 +232,13 @@ describe('the date filter', () => {
             .toEqual(['midnight', 'late']);
     });
 
-    it('sorts the picked day newest first on All Applications, which keeps its order without one', () => {
-        const orderOf = (dateFilter) => buildDashboardConstraints({
-            activeTab: 'applications', pipelineSegment: 'all', filters: { dateFilter },
-        }).filter((c) => c.kind === 'orderBy');
+    it.each(['applications', 'company_leads', 'my_leads'])('finds the picked day earliest first on %s too', (activeTab) => {
+        const constraints = buildDashboardConstraints({
+            activeTab, pipelineSegment: 'all', filters: { dateFilter: '2026-10-12' }, dateOrder: 'asc',
+        });
 
-        expect(orderOf('2026-10-12')).toEqual([{ kind: 'orderBy', field: 'createdAt', direction: 'desc' }]);
-        expect(orderOf('')).toEqual([]);
+        expect(records.filter((record) => matches(record, constraints)).map((record) => record.id))
+            .toEqual(['midnight', 'late']);
     });
 
     it('sets no date constraint for a day that does not exist', () => {
@@ -229,7 +246,52 @@ describe('the date filter', () => {
             activeTab: 'applications', pipelineSegment: 'all', filters: { dateFilter: '2026-02-30' },
         });
 
-        expect(constraints).toEqual([]);
+        expect(constraints).toEqual([{ kind: 'orderBy', field: 'createdAt', direction: 'desc' }]);
+    });
+});
+
+describe('the order of the lists', () => {
+    const everyView = Object.entries(SEGMENTS_BY_TAB)
+        .flatMap(([activeTab, segments]) => segments.map((pipelineSegment) => [activeTab, pipelineSegment]));
+    const sortsOf = (constraints) => constraints.filter((c) => c.kind === 'orderBy');
+
+    it.each(everyView)('lists %s/%s newest first on the server', (activeTab, pipelineSegment) => {
+        const constraints = buildDashboardConstraints({ activeTab, pipelineSegment, filters: {} });
+
+        expect(sortsOf(constraints)).toEqual([{ kind: 'orderBy', field: 'createdAt', direction: 'desc' }]);
+    });
+
+    it.each(everyView)('turns %s/%s earliest first on the server', (activeTab, pipelineSegment) => {
+        const constraints = buildDashboardConstraints({ activeTab, pipelineSegment, filters: {}, dateOrder: 'asc' });
+
+        expect(sortsOf(constraints)).toEqual([{ kind: 'orderBy', field: 'createdAt', direction: 'asc' }]);
+    });
+
+    it('leaves out a record without createdAt, which only the unordered query counts', () => {
+        // Artificial records: one dated, one without createdAt.
+        const stored = [
+            { id: 'dated', createdAt: new Date('2026-10-01T15:00:00Z') },
+            { id: 'undated' },
+        ];
+        const filters = { state: '', dateFilter: '' };
+        const ordered = buildDashboardConstraints({ activeTab: 'applications', pipelineSegment: 'all', filters });
+        const unordered = buildDashboardConstraints({ activeTab: 'applications', pipelineSegment: 'all', filters, ordered: false });
+
+        expect(stored.filter((record) => matches(record, ordered)).map((record) => record.id)).toEqual(['dated']);
+        expect(stored.filter((record) => matches(record, unordered)).map((record) => record.id)).toEqual(['dated', 'undated']);
+    });
+
+    it('keeps the same filters in the unordered query', () => {
+        const args = {
+            activeTab: 'company_leads',
+            pipelineSegment: 'attempting',
+            filters: { state: 'Texas', driverType: 'Reefer', assignee: 'recruiter-2', myAssignmentsOnly: true },
+        };
+        const filtersOf = (constraints) => constraints.filter((c) => c.kind === 'where');
+
+        expect(filtersOf(buildDashboardConstraints({ ...args, ordered: false })))
+            .toEqual(filtersOf(buildDashboardConstraints(args)));
+        expect(buildDashboardConstraints({ ...args, ordered: false }).every((c) => c.kind === 'where')).toBe(true);
     });
 });
 

@@ -18,8 +18,10 @@ import {
     where,
     getCountFromServer,
     documentId,
+    startAt,
     startAfter,
     endAt,
+    endBefore,
 } from 'firebase/firestore';
 import { db, auth } from '@lib/firebase';
 import { shouldPreferDashboardRollup } from '@lib/runtime/dashboardRollup';
@@ -54,32 +56,19 @@ function pipelineConstraints({ activeTab, pipelineSegment }) {
     return [];
 }
 
-function usesPipelineOrderBy({ activeTab, pipelineSegment }) {
-    if (activeTab === 'applications' && pipelineSegment !== 'all') return true;
-    if ((activeTab === 'company_leads' || activeTab === 'my_leads') && pipelineSegment !== 'all') return true;
-    return false;
-}
+/**
+ * The list query for a tab, a pipeline segment and the toolbar's filters: the
+ * equality filters, then the createdAt order (`dateOrder`, newest first unless
+ * the Added Date arrows turn it), then the picked day as cursors on that order.
+ * A sort leaves out records without createdAt, which no date order can list;
+ * `ordered: false` returns the filters alone, so the hook can count those
+ * records and the page can say how to find them.
+ */
+export function buildDashboardConstraints({ activeTab, pipelineSegment, filters, dateOrder = 'desc', ordered = true }) {
+    const constraints = [];
 
-export function buildDashboardConstraints({ activeTab, pipelineSegment, filters }) {
-    let constraints = [];
-    const day = dateFilterRange(filters.dateFilter);
-
-    if (activeTab === 'applications') {
-        if (!usesPipelineOrderBy({ activeTab, pipelineSegment }) && day) {
-            // The picked day is a stretch of the createdAt order (below), so the
-            // list takes that order, newest first, as the segments do. Without a
-            // date, the legacy browse keeps document-id order (no orderBy).
-            constraints.push(orderBy("createdAt", "desc"));
-        }
-    } else if (activeTab === 'company_leads') {
-        if (!usesPipelineOrderBy({ activeTab, pipelineSegment })) {
-            constraints.push(orderBy("createdAt", "desc"));
-        }
-    } else if (activeTab === 'my_leads' && auth.currentUser) {
+    if (activeTab === 'my_leads' && auth.currentUser) {
         constraints.push(where("assignedTo", "==", auth.currentUser.uid));
-        if (!usesPipelineOrderBy({ activeTab, pipelineSegment })) {
-            constraints.push(orderBy("createdAt", "desc"));
-        }
     }
 
     constraints.push(...pipelineConstraints({ activeTab, pipelineSegment }));
@@ -104,17 +93,21 @@ export function buildDashboardConstraints({ activeTab, pipelineSegment, filters 
         }
     }
 
-    if (usesPipelineOrderBy({ activeTab, pipelineSegment })) {
-        constraints.push(orderBy('createdAt', 'desc'));
-    }
+    if (!ordered) return constraints;
 
+    const direction = dateOrder === 'asc' ? 'asc' : 'desc';
+    constraints.push(orderBy('createdAt', direction));
+
+    const day = dateFilterRange(filters.dateFilter);
     if (day) {
         // The recruiter's own day, from local midnight to the next, as cursors
         // on the createdAt order rather than range filters: equality filters
         // with a sort are what Firestore serves by merging the declared
         // indexes. A later page's startAfter(lastDoc) replaces the first cursor
         // and keeps the second.
-        constraints.push(startAfter(day.end), endAt(day.start));
+        constraints.push(...(direction === 'asc'
+            ? [startAt(day.start), endBefore(day.end)]
+            : [startAfter(day.end), endAt(day.start)]));
     }
 
     return constraints;

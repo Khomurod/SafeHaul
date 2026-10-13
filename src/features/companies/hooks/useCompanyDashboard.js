@@ -15,6 +15,9 @@ import {
     classifySearchTerm,
     recordMatchesSearch,
     applyClientSideFilters,
+    createdAtMillis,
+    dateFilterRange,
+    sortByAddedDate,
 } from './dashboardSearch';
 // The Firestore side — constraint planning, the parallel search execution and
 // the stats counts — lives in `dashboardQueries.js` since the 2026-09-01
@@ -48,14 +51,23 @@ export function useCompanyDashboard(companyId) {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [listTotalCount, setListTotalCount] = useState(0);
+    // Records the list's createdAt order cannot show, because they have no
+    // createdAt: counted so the page can say how many there are and that search
+    // finds them.
+    const [undatedCount, setUndatedCount] = useState(0);
 
     const lastVisibleDocsRef = useRef({});
     // Monotonic fetch id — a stale (slower) fetch must never overwrite the
     // results of a newer query, or cleared searches briefly show old rows.
     const fetchVersionRef = useRef(0);
+    // The same for the list's counts: a late answer belongs to an earlier list.
+    const countVersionRef = useRef(0);
 
     const [activeTab, setActiveTab] = useState('applications');
     const [pipelineSegment, setPipelineSegment] = useState('all');
+    // The list's order by Added Date: newest first, or 'asc' from the column's
+    // "Earliest first" arrow. Firestore sorts, so it holds across pages.
+    const [dateOrder, setDateOrder] = useState('desc');
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filters, setFilters] = useState({
@@ -114,8 +126,8 @@ export function useCompanyDashboard(companyId) {
     // Same recreation set as before the split: the old useCallback depended on
     // [activeTab, filters] plus builders that recreated on pipelineSegment.
     const buildConstraints = useCallback(
-        () => buildDashboardConstraints({ activeTab, pipelineSegment, filters }),
-        [activeTab, pipelineSegment, filters],
+        () => buildDashboardConstraints({ activeTab, pipelineSegment, filters, dateOrder }),
+        [activeTab, pipelineSegment, filters, dateOrder],
     );
 
     const clientFilterContext = useCallback(() => ({
@@ -129,11 +141,18 @@ export function useCompanyDashboard(companyId) {
 
     const fetchListTotalCount = useCallback(async () => {
         if (!companyId || debouncedSearch) return;
+        const countVersion = ++countVersionRef.current;
         setListCountError('');
+
+        // A record without createdAt matches no day, so with a date picked
+        // there is nothing to count outside the list.
+        const countsUndated = !dateFilterRange(filters.dateFilter);
 
         if (isE2ETestMode) {
             const records = applyClientSideFilters(e2eRecordsForTab(activeTab), clientFilterContext());
-            setListTotalCount(records.length);
+            const listed = records.filter((record) => createdAtMillis(record) !== null).length;
+            setListTotalCount(listed);
+            setUndatedCount(countsUndated ? records.length - listed : 0);
             return;
         }
 
@@ -141,14 +160,31 @@ export function useCompanyDashboard(companyId) {
             const collectionName = activeTab === 'applications' ? 'applications' : 'leads';
             const baseRef = collection(db, "companies", companyId, collectionName);
             const constraints = buildConstraints();
-            const snap = await getCountFromServer(query(baseRef, ...constraints));
-            setListTotalCount(snap.data().count);
+            const [listedSnap, allSnap] = await Promise.all([
+                getCountFromServer(query(baseRef, ...constraints)),
+                countsUndated
+                    ? getCountFromServer(query(baseRef, ...buildDashboardConstraints({
+                        activeTab, pipelineSegment, filters, ordered: false,
+                    }))).catch((e) => {
+                        // Only the notice reads this count: the list and its
+                        // own count stand without it, and the notice stays hidden.
+                        console.error('fetchListTotalCount (records without createdAt)', e);
+                        return null;
+                    })
+                    : null,
+            ]);
+            if (countVersion !== countVersionRef.current) return;
+            const listed = listedSnap.data().count;
+            setListTotalCount(listed);
+            setUndatedCount(allSnap ? Math.max(0, allSnap.data().count - listed) : 0);
         } catch (e) {
+            if (countVersion !== countVersionRef.current) return;
             console.error('fetchListTotalCount', e);
             setListTotalCount(0);
+            setUndatedCount(0);
             setListCountError(e?.message || 'Could not load total count.');
         }
-    }, [companyId, activeTab, debouncedSearch, buildConstraints, clientFilterContext, e2eRecordsForTab]);
+    }, [companyId, activeTab, pipelineSegment, filters, debouncedSearch, buildConstraints, clientFilterContext, e2eRecordsForTab]);
 
     useEffect(() => {
         fetchListTotalCount();
@@ -176,7 +212,11 @@ export function useCompanyDashboard(companyId) {
                 if (isSearch) {
                     const classified = classifySearchTerm(debouncedSearch);
                     records = records.filter((record) => recordMatchesSearch(record, classified));
+                } else {
+                    // As the list query: only records with createdAt, in its order.
+                    records = records.filter((record) => createdAtMillis(record) !== null);
                 }
+                records = sortByAddedDate(records, dateOrder);
                 if (fetchVersion !== fetchVersionRef.current) return;
                 setData(records);
                 if (isSearch) setTotalPages(1);
@@ -189,7 +229,7 @@ export function useCompanyDashboard(companyId) {
             let newData;
 
             if (isSearch) {
-                newData = await runSearchQuery(debouncedSearch.trim());
+                newData = sortByAddedDate(await runSearchQuery(debouncedSearch.trim()), dateOrder);
             } else {
                 let constraints = buildConstraints();
 
@@ -248,7 +288,7 @@ export function useCompanyDashboard(companyId) {
                 setLoading(false);
             }
         }
-    }, [companyId, activeTab, currentPage, itemsPerPage, debouncedSearch, buildConstraints, runSearchQuery, clientFilterContext, e2eRecordsForTab]);
+    }, [companyId, activeTab, currentPage, itemsPerPage, debouncedSearch, dateOrder, buildConstraints, runSearchQuery, clientFilterContext, e2eRecordsForTab]);
 
     useEffect(() => {
         if (debouncedSearch) {
@@ -294,11 +334,11 @@ export function useCompanyDashboard(companyId) {
         setData([]);
         lastVisibleDocsRef.current = {};
         setCurrentPage(1);
-    }, [activeTab, companyId, debouncedSearch, filters, pipelineSegment]);
+    }, [activeTab, companyId, debouncedSearch, filters, pipelineSegment, dateOrder]);
 
     useEffect(() => {
         fetchData();
-    }, [companyId, activeTab, currentPage, itemsPerPage, debouncedSearch, filters, pipelineSegment, fetchData]);
+    }, [companyId, activeTab, currentPage, itemsPerPage, debouncedSearch, filters, pipelineSegment, dateOrder, fetchData]);
 
     const handleSetItemsPerPage = (num) => {
         setItemsPerPage(num);
@@ -343,6 +383,7 @@ export function useCompanyDashboard(companyId) {
         itemsPerPage,
         totalPages,
         totalCount: headerTotalCount,
+        undatedCount: debouncedSearch ? 0 : undatedCount,
 
         setItemsPerPage: handleSetItemsPerPage,
         nextPage: () => setCurrentPage(p => p + 1),
@@ -352,6 +393,8 @@ export function useCompanyDashboard(companyId) {
         setActiveTab,
         pipelineSegment,
         setPipelineSegment,
+        dateOrder,
+        setDateOrder,
         searchQuery,
         setSearchQuery,
         filters,

@@ -47,10 +47,18 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Close call result' }).click();
 
-    await page.getByRole('button', { name: 'Sort by latest added date' }).click();
+    // Newest first is the list's own order, and the arrow says so; Earliest
+    // first turns the whole list, and pressed again turns it back.
+    const latest = page.getByRole('button', { name: 'Sort by latest added date' });
+    const earliest = page.getByRole('button', { name: 'Sort by earliest added date' });
+    await expect(latest).toHaveAttribute('aria-pressed', 'true');
     await expect(table.locator('tbody tr').first()).toContainText(/James Mcdonald/i);
-    await page.getByRole('button', { name: 'Sort by latest added date' }).click();
-    await expect(table.locator('tbody tr').first()).toContainText(/Maria Garcia/i);
+    await earliest.click();
+    await expect(earliest).toHaveAttribute('aria-pressed', 'true');
+    await expect(table.locator('tbody tr').first()).toContainText(/Linda Petrov/i);
+    await earliest.click();
+    await expect(latest).toHaveAttribute('aria-pressed', 'true');
+    await expect(table.locator('tbody tr').first()).toContainText(/James Mcdonald/i);
   });
 
   test('uses native page-aware selection with a mixed select-all state', async ({ page }) => {
