@@ -49,6 +49,7 @@ vi.mock('firebase/firestore', () => {
     };
 });
 vi.mock('@lib/firebase', () => ({ db: {}, auth: { currentUser: { uid: 'recruiter-1' } } }));
+vi.mock('@/context/DataContext', () => ({ useData: () => ({ currentCompanyProfile: { id: 'co-1', teamMembers: [] }, currentUserClaims: null }) }));
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => false }));
 

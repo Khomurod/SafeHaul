@@ -29,6 +29,7 @@ import {
     runDashboardSearch,
 } from './dashboardQueries';
 import { E2E_DASHBOARD_APPLICATIONS, E2E_DASHBOARD_LEADS } from './e2eDashboardFixtures';
+import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
 
 /** applications: all | new | hired | terminated | declined — leads: all | attempting | in_process | interested */
 export function useCompanyDashboard(companyId) {
@@ -37,9 +38,10 @@ export function useCompanyDashboard(companyId) {
     const [error, setError] = useState('');
     const [statsFetchError, setStatsFetchError] = useState('');
     const [listCountError, setListCountError] = useState('');
+    // The Assigned to filter's team, each member keyed by the uid it matches.
+    const { team: teamMembers } = useCompanyTeam(companyId);
 
     const [latestBatchTime, setLatestBatchTime] = useState(null);
-    const [teamMembers, setTeamMembers] = useState([]);
     const [stats, setStats] = useState({
         applications: 0,
         companyLeads: 0,
@@ -308,25 +310,6 @@ export function useCompanyDashboard(companyId) {
     useEffect(() => {
         fetchStats();
     }, [companyId, fetchStats]);
-
-    useEffect(() => {
-        const fetchTeamMembers = async () => {
-            if (!companyId) return;
-            if (isE2ETestMode) {
-                setTeamMembers([{ id: 'e2e-company_admin', name: 'E2E Admin' }]);
-                return;
-            }
-            try {
-                const teamRef = collection(db, "companies", companyId, "team");
-                const snapshot = await getDocs(teamRef);
-                const members = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                setTeamMembers(members);
-            } catch (e) {
-                console.error("Error fetching team members:", e);
-            }
-        };
-        fetchTeamMembers();
-    }, [companyId]);
 
     // Any change to scope, search, filters, or pipeline resets pagination and
     // clears page cursors so stale cursors can never leak across queries.

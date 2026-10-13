@@ -114,6 +114,8 @@ export function DataProvider({ children }) {
         companyName: isMarketingDemo() ? DEMO_COMPANY_NAME : 'E2E Logistics',
         appSlug: 'e2e-company',
         applicationConfig: {},
+        // The team cache the server keeps on a company document.
+        teamMembers: [{ userId: 'e2e-company_admin', name: 'E2E Admin', email: 'company_admin@safehaul.local', role: 'company_admin' }],
       };
 
       if (e2eAuthMode === 'none') {

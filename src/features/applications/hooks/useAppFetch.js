@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { db, storage, functions } from '@lib/firebase';
 import { getCompanyProfile } from '@features/companies';
+import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
 
 const simpleRetry = async (fn, retries = 3, delay = 1000) => {
   for (let i = 0; i < retries; i++) {
@@ -24,41 +25,11 @@ export function useAppFetch(companyId, applicationId) {
   const [collectionName, setCollectionName] = useState('applications');
   const [fileUrls, setFileUrls] = useState({});
   const [currentStatus, setCurrentStatus] = useState('');
-  const [teamMembers, setTeamMembers] = useState([]);
   const [assignedTo, setAssignedTo] = useState('');
+  // The Assign To picker's team, each member keyed by the uid it saves.
+  const { team: teamMembers } = useCompanyTeam(companyId, companyProfile);
 
   const isGlobal = false;
-
-  useEffect(() => {
-    if (!companyId || isGlobal) return;
-
-    const fetchTeam = async () => {
-      // OPTIMIZATION: Use denormalized data if available
-      if (companyProfile?.teamMembers && Array.isArray(companyProfile.teamMembers)) {
-        setTeamMembers(companyProfile.teamMembers);
-        return;
-      }
-
-      // FALLBACK: Manual fetch (Optimized to Parallel)
-      try {
-        const q = query(collection(db, "memberships"), where("companyId", "==", companyId));
-        const snap = await simpleRetry(() => getDocs(q));
-
-        const userPromises = snap.docs.map(m => getDoc(doc(db, "users", m.data().userId)));
-        const userSnaps = await Promise.all(userPromises);
-
-        const members = userSnaps
-          .filter(s => s.exists())
-          .map(s => ({ id: s.id, name: s.data().name || s.data().displayName || 'Unknown' }));
-
-        setTeamMembers(members);
-      } catch (e) {
-        console.error("Failed to load team.", e);
-      }
-    };
-
-    fetchTeam();
-  }, [companyId, isGlobal, companyProfile]);
 
   const loadApplication = useCallback(async () => {
     if (!companyId || !applicationId) return;
