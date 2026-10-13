@@ -117,6 +117,39 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
   });
 
+  test('keeps the rows and the whole filter panel in reach on a phone @mobile', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('mobile'), 'Phone layout is verified in a mobile project.');
+    await openCandidatePage(page, '/company/drivers/applications', 'Driver Applications');
+    const filters = page.getByRole('button', { name: 'Filters', exact: true });
+    const region = page.getByRole('region', {
+      name: 'Driver Applications table. Scroll horizontally to view all columns.',
+    });
+    const firstRow = page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' });
+    const clearFilters = page.getByRole('button', { name: 'Clear all filters' });
+    await filters.click();
+
+    // From the top of the list, the wheel over the toolbar, as a person
+    // scrolls: `scrollIntoView` would also move a box no person can scroll.
+    const scrollToWithWheel = async (target) => {
+      await page.evaluate(() => {
+        for (const element of document.querySelectorAll('*')) element.scrollTop = 0;
+      });
+      const from = await filters.boundingBox();
+      const to = await target.boundingBox();
+      await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+      await page.mouse.wheel(0, Math.max(0, to.y + to.height - page.viewportSize().height + 8));
+      await expect(target).toBeInViewport();
+    };
+
+    // Upright, upright on a small phone, and on its side.
+    for (const size of [null, { width: 412, height: 640 }, { width: 915, height: 412 }]) {
+      if (size) await page.setViewportSize(size);
+      await scrollToWithWheel(clearFilters);
+      await scrollToWithWheel(firstRow);
+      expect(await region.evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(240);
+    }
+  });
+
   test('has no serious or critical accessibility violations in the table surface', async ({ page }) => {
     await openCandidatePage(page, '/company/drivers/leads/company', 'Company Leads');
 

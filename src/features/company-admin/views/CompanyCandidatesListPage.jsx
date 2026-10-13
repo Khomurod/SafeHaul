@@ -164,8 +164,11 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                 <p className="text-ds-body text-ds-content-muted">Manage and track your driver pipeline.</p>
             </div>
 
-            {/* List Content */}
-            <div className="flex-1 overflow-hidden p-3 sm:p-6 flex flex-col gap-0">
+            {/* List Content. It scrolls once the toolbar, its filter panel open,
+                leaves the table less than its minimum height (a phone or a
+                tablet, upright or on its side), so the rows and every filter
+                stay in reach. */}
+            <div className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-6 flex flex-col gap-0">
                 <UndatedRecordsNotice count={dashboard.undatedCount} />
                 {/* Toolbar — search, filters, timer, assign */}
                 <div className="rounded-t-ds-lg border border-b-0 border-ds-border-subtle bg-ds-surface">
@@ -228,7 +231,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                 </div>
 
                 {/* Candidate-list DataTable pilot */}
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 min-h-[448px] overflow-hidden lg:min-h-0">
                     <DataTable
                         ariaLabel={`${getPageTitle()} table`}
                         data={sortedData}
