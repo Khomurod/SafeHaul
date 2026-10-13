@@ -4,11 +4,26 @@ import { formatPhoneNumber, normalizePhone } from '@/shared/utils/helpers';
 import { PLACEHOLDER_DOMAIN } from '@/config/placeholderDomains';
 import { LEAD_IMPORT_PLACEHOLDERS } from '@/config/leadImportPlaceholders';
 
-// Helper to find key in row object
-const findKey = (row, keywords) => {
-    const rowKeys = Object.keys(row);
-    return rowKeys.find(k => keywords.some(keyword => k.toLowerCase().includes(keyword)));
+// A column belongs to a field when its whole header, lowercased and without
+// spaces or punctuation, is one of the field's names: "CDL Expiration" is not
+// the experience, "Mailing Address" not the email, "License Type" not the
+// driver type. The import template's headers are among the names.
+const HEADER_NAMES = {
+    firstName: ['firstname', 'first', 'fname', 'givenname', 'given'],
+    lastName: ['lastname', 'last', 'lname', 'surname', 'familyname'],
+    fullName: ['fullname', 'name', 'drivername', 'driver'],
+    email: ['email', 'emailaddress', 'mail', 'contactemail', 'driveremail', 'primaryemail', 'email1'],
+    phone: ['phone', 'phonenumber', 'phoneno', 'mobile', 'mobilephone', 'mobilenumber', 'cell', 'cellphone',
+        'cellnumber', 'telephone', 'tel', 'contact', 'contactnumber', 'contactphone', 'homephone', 'primaryphone',
+        'driverphone', 'phone1'],
+    driverType: ['type', 'drivertype', 'jobtype', 'role', 'position'],
+    experience: ['experience', 'exp', 'years', 'yearsofexperience', 'yearsexperience', 'experienceyears', 'yrsexp',
+        'yearsexp', 'cdlexperience', 'drivingexperience', 'yearsofdrivingexperience'],
+    city: ['city', 'location'],
+    state: ['state', 'province', 'stateprovince'],
 };
+const headerName = (header) => String(header).toLowerCase().replace(/[^a-z0-9]/g, '');
+const findKey = (row, field) => Object.keys(row).find((k) => HEADER_NAMES[field].includes(headerName(k)));
 
 self.onmessage = async (e) => {
     const { buffer, fileType, fileName } = e.data;
@@ -76,16 +91,16 @@ self.onmessage = async (e) => {
         }
 
         const parsedRows = jsonData.map((row, index) => {
-            const firstKey = findKey(row, ['firstname', 'first name', 'fname', 'first', 'given']);
-            const lastKey = findKey(row, ['lastname', 'last name', 'lname', 'last', 'surname']);
-            const fullNameKey = findKey(row, ['fullname', 'full name', 'name', 'driver name', 'driver']);
+            const firstKey = findKey(row, 'firstName');
+            const lastKey = findKey(row, 'lastName');
+            const fullNameKey = findKey(row, 'fullName');
 
-            const emailKey = findKey(row, ['email', 'e-mail', 'mail']);
-            const phoneKey = findKey(row, ['phone', 'mobile', 'cell', 'contact']);
-            const typeKey = findKey(row, ['type', 'role', 'position', 'driver type']);
-            const expKey = findKey(row, ['experience', 'exp', 'years']);
-            const cityKey = findKey(row, ['city', 'location']);
-            const stateKey = findKey(row, ['state', 'province']);
+            const emailKey = findKey(row, 'email');
+            const phoneKey = findKey(row, 'phone');
+            const typeKey = findKey(row, 'driverType');
+            const expKey = findKey(row, 'experience');
+            const cityKey = findKey(row, 'city');
+            const stateKey = findKey(row, 'state');
 
             const safeVal = (val) => (val === undefined || val === null) ? '' : String(val).trim();
 
