@@ -87,6 +87,19 @@ describe('useCompanyTeam', () => {
         expect(fx.getDocs.mock.calls[0][0]).toMatchObject({ path: 'memberships' });
     });
 
+    it.each([
+        ['at the top of the claims', { globalRole: 'super_admin' }],
+        ['under roles', { roles: { globalRole: 'super_admin' } }],
+    ])('builds a super admin\'s team from the memberships, with the claim %s', async (_where, claims) => {
+        fx.data = { currentCompanyProfile: { id: 'co-1' }, currentUserClaims: claims };
+        fx.getDocs.mockResolvedValue({ docs: [{ data: () => ({ userId: 'uid-ann', role: 'company_admin' }) }] });
+        fx.getDoc.mockResolvedValue({ exists: () => true, data: () => ({ fullName: 'Ann Admin', email: 'ann@example.com' }) });
+        const { result } = renderHook(() => useCompanyTeam('co-1'));
+
+        await waitFor(() => expect(result.current.team).toHaveLength(1));
+        expect(fx.getDocs).toHaveBeenCalledTimes(1);
+    });
+
     it("prefers a fresher profile of the same company, which the caller read itself", async () => {
         fx.data = { currentCompanyProfile: { id: 'co-1', teamMembers: CACHE.slice(0, 1) }, currentUserClaims: recruiter };
         const fresh = { id: 'co-1', teamMembers: [...CACHE.slice(0, 1), { userId: 'uid-cara', name: 'Cara Recruiter', email: 'cara@example.com', role: 'recruiter' }] };

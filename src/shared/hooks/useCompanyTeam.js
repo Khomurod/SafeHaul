@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { db } from '@lib/firebase';
 import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
 import { useData } from '@/context/DataContext';
+import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 const memberName = (name, email) => (name && name !== 'Unknown' ? name : email || 'Unknown');
 
@@ -24,8 +25,8 @@ export function useCompanyTeam(companyId, companyProfile) {
     const { currentCompanyProfile, currentUserClaims } = useData();
     const profile = [companyProfile, currentCompanyProfile].find((p) => p?.id === companyId);
     const cached = profile?.teamMembers;
-    const roles = currentUserClaims?.roles || {};
-    const mayListMemberships = roles.globalRole === 'super_admin' || roles[companyId] === 'company_admin';
+    // The memberships are readable by an admin of this company or a super admin.
+    const mayListMemberships = isCompanyAdminForRoute(currentUserClaims, companyId);
 
     const cachedTeam = useMemo(() => (Array.isArray(cached)
         ? cached
