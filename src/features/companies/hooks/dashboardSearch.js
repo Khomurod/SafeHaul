@@ -18,6 +18,7 @@ import {
 } from '@shared/utils/searchNormalization';
 import { statusMatchesSegment } from '@shared/utils/applicationStatus';
 import { toUsStateCode, toUsStateName } from '@shared/utils/usStates';
+import { NORTH_AMERICAN_REGION_NAMES, fmcsaRegionOutsideUs } from '@shared/utils/northAmericanRegions';
 
 const CONFIRMATION_PATTERN = /^[A-Za-z]{2,5}\s*-\s*\d{4}\s*-\s*[A-Za-z0-9]{4,8}$/;
 const PHONE_PATTERN = /^[+()\-.\s\d]{7,}$/;
@@ -164,27 +165,46 @@ export function leadStatusMatchesSegment(rawStatus, segmentId) {
     return statuses.includes(String(rawStatus ?? ''));
 }
 
+const REGION_BY_LOWER_NAME = new Map(NORTH_AMERICAN_REGION_NAMES.map((name) => [name.toLowerCase(), name]));
+
+const regionCode = (name) => toUsStateCode(name) || fmcsaRegionOutsideUs(name)?.code || '';
+
+/** Postal codes two regions share ("NL": Newfoundland and Labrador, Nuevo León). */
+const SHARED_REGION_CODES = (() => {
+    const seen = new Set();
+    const shared = new Set();
+    for (const code of NORTH_AMERICAN_REGION_NAMES.map(regionCode)) {
+        if (seen.has(code)) shared.add(code);
+        seen.add(code);
+    }
+    return shared;
+})();
+
 /**
- * The stored spellings the State filter matches for a picked state, used by the
- * Firestore `in` and by the client-side mirror alike. An application holds its
- * picker's full name ("Texas"), though one filled in from a licence may hold the
- * postal code ("TX"); a lead holds whatever its import file or the quick-add box
- * said. So the filter matches the name and the code as written and in either
- * case: five values, which keeps a segment's `status in` (three at most) inside
- * Firestore's 30 alternatives.
+ * The stored spellings the State filter matches for a picked region, used by
+ * the Firestore `in` and by the client-side mirror alike. The picker offers the
+ * regions the application's own address pickers do (the US, Canada, Mexico). An
+ * application holds its picker's full name ("Texas"), though one filled in from
+ * a licence may hold the postal code ("TX"); a lead holds whatever its import
+ * file or the quick-add box said. So the filter matches the name as written, in
+ * capitals and in lower case, and the code in every casing ("TX", "tx", "Tx",
+ * "tX"), unless two regions share the code. At most seven values, which keeps a
+ * segment's `status in` (three at most) inside Firestore's 30 alternatives. A
+ * name typed in mixed case ("tExAs") is not matched.
  *
- * @param {unknown} value the picked state, e.g. `'Texas'`
- * @returns {string[]} e.g. `['Texas', 'TX', 'TEXAS', 'texas', 'tx']`; a value that
- *   names no state is matched as it is
+ * @param {unknown} value the picked region, e.g. `'Texas'`
+ * @returns {string[]} e.g. `['Texas', 'TEXAS', 'texas', 'TX', 'tx', 'Tx', 'tX']`;
+ *   a value that names no region is matched as it is
  */
 export function stateFilterValues(value) {
-    const name = toUsStateName(value);
-    if (!name) {
-        const text = String(value ?? '').trim();
-        return text ? [text] : [];
-    }
-    const code = toUsStateCode(name);
-    return [...new Set([name, code, name.toUpperCase(), name.toLowerCase(), code.toLowerCase()])];
+    const text = String(value ?? '').trim();
+    const name = toUsStateName(text) || REGION_BY_LOWER_NAME.get(text.toLowerCase()) || '';
+    if (!name) return text ? [text] : [];
+    const code = regionCode(name);
+    const codes = code && !SHARED_REGION_CODES.has(code)
+        ? [code, code.toLowerCase(), code[0] + code[1].toLowerCase(), code[0].toLowerCase() + code[1]]
+        : [];
+    return [...new Set([name, name.toUpperCase(), name.toLowerCase(), ...codes])];
 }
 
 function matchesDateFilter(record, dateFilter) {

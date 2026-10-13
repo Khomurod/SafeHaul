@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { US_STATE_NAMES } from '@shared/utils/usStates';
+import { NORTH_AMERICAN_REGION_NAMES } from '@shared/utils/northAmericanRegions';
 import { DashboardToolbar } from './DashboardToolbar';
 
 /**
@@ -65,14 +65,16 @@ describe('DashboardToolbar filter panel', () => {
             .toEqual({ driverType: 'Reefer', state: 'Texas' });
     });
 
-    it('offers every state by its full name, the way applications store it', () => {
-        renderToolbar({ filters: { state: 'Texas' } });
+    it('offers by full name the regions an application address can be in', () => {
+        renderToolbar({ filters: { state: 'Ontario' } });
 
         fireEvent.click(screen.getByRole('button', { name: /Filters/ }));
         const state = screen.getByRole('combobox', { name: 'State' });
 
         expect(within(state).getAllByRole('option').map((option) => option.textContent))
-            .toEqual(['All States', ...US_STATE_NAMES]);
-        expect(state).toHaveValue('Texas');
+            .toEqual(['All States', ...NORTH_AMERICAN_REGION_NAMES]);
+        expect(within(state).getAllByRole('group').map((group) => group.getAttribute('label')))
+            .toEqual(['United States', 'Canada', 'Mexico']);
+        expect(state).toHaveValue('Ontario');
     });
 });

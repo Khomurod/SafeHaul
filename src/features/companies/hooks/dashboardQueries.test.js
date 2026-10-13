@@ -124,7 +124,9 @@ describe('the State filter', () => {
         { id: 'code', state: 'TX' },
         { id: 'typed-lower', state: 'texas' },
         { id: 'typed-code-lower', state: 'tx' },
+        { id: 'typed-code-mixed', state: 'Tx' },
         { id: 'other', state: 'Illinois' },
+        { id: 'province', state: 'ON' },
         { id: 'none' },
     ].map((record) => ({ ...record, assignedTo: 'recruiter-1' }));
 
@@ -134,7 +136,16 @@ describe('the State filter', () => {
         });
 
         expect(stored.filter((record) => matches(record, constraints)).map((record) => record.id))
-            .toEqual(['picked', 'code', 'typed-lower', 'typed-code-lower']);
+            .toEqual(['picked', 'code', 'typed-lower', 'typed-code-lower', 'typed-code-mixed']);
+    });
+
+    it('finds a Canadian province picked by name, stored by its code', () => {
+        const constraints = buildDashboardConstraints({
+            activeTab: 'company_leads', pipelineSegment: 'all', filters: { state: 'Ontario' },
+        });
+
+        expect(stored.filter((record) => matches(record, constraints)).map((record) => record.id))
+            .toEqual(['province']);
     });
 
     it('stays within the 30 alternatives Firestore allows, with the widest segment', () => {

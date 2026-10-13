@@ -1,6 +1,6 @@
 import React, { useId, useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
-import { getCompanyProfile } from '@features/companies';
+import { getCompanyProfile } from '@features/companies/services/companyService';
 import { Icon, Briefcase, LogOut } from '@design-system/icons';
 import { Button, SelectableCard } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
