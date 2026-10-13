@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { db } from '@lib/firebase';
-import { collection, doc, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import {
     NoPreservedPdfError,
     downloadPreservedApplicationPdf,
@@ -25,28 +25,33 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate, onC
     const [showMoveModal, setShowMoveModal] = useState(false);
     const [showOfferModal, setShowOfferModal] = useState(false);
     const [activeSection, setActiveSection] = useState('application'); // 'application' | 'dq' | 'files' | 'contact' | 'pev' | 'notes' | 'activity'
-    const [dqFiles, setDqFiles] = useState([]);
+    // The DQ File tab's entries; `null` until they have loaded, or when they
+    // cannot be read.
+    const [dqFiles, setDqFiles] = useState(null);
+    const recordLoaded = Boolean(appData);
 
     // --- DQ Logic ---
+    // Live, so an upload, a removal or a sync in the DQ File tab moves the
+    // sidebar's marker at once. It waits for the record: until it loads,
+    // `collectionName` is the default `applications`, also for a lead.
     useEffect(() => {
-        const fetchDQFiles = async () => {
-            if (!companyId || !applicationId) return;
-            try {
-                const collName = collectionName || 'applications';
-                const appRef = doc(db, 'companies', companyId, collName, applicationId);
-                const dqFilesRef = collection(appRef, 'dq_files');
-                const q = query(dqFilesRef, orderBy('createdAt', 'desc'));
-                const snapshot = await getDocs(q);
-                const files = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                setDqFiles(files);
-            } catch (err) {
+        if (!companyId || !applicationId || !recordLoaded) return undefined;
+        setDqFiles(null);
+        const appRef = doc(db, 'companies', companyId, collectionName || 'applications', applicationId);
+        return onSnapshot(
+            query(collection(appRef, 'dq_files'), orderBy('createdAt', 'desc')),
+            (snapshot) => setDqFiles(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))),
+            (err) => {
                 console.error('Error fetching DQ files:', err);
-            }
-        };
-        fetchDQFiles();
-    }, [companyId, applicationId, collectionName]);
+                setDqFiles(null);
+            },
+        );
+    }, [companyId, applicationId, collectionName, recordLoaded]);
 
+    // `'complete'` or `'incomplete'`, the values the sidebar's marker reads;
+    // `null` while the entries are unknown, so no marker claims what nobody saw.
     const dqStatus = useMemo(() => {
+        if (!dqFiles) return null;
         const requiredDocTypes = ['mvr', 'medical', 'roadtest', 'psp', 'clearinghouse', 'clearinghouse_annual', 'violations'];
         const keyMappings = {
             'mvr': ['mvr', 'mvr (annual)', 'motor vehicle record'],
@@ -58,9 +63,11 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate, onC
             'violations': ['certificate of violations', 'violations', 'certificate of violations (annual)']
         };
 
+        // The entries the tab lists: removing one keeps its record, with `removedAt`.
+        const listed = dqFiles.filter((f) => !f.removedAt);
         let completeCount = 0;
         requiredDocTypes.forEach(docKey => {
-            const matches = dqFiles.filter(f => {
+            const matches = listed.filter(f => {
                 const type = (f.fileType || f.type || f.docType || '').toLowerCase();
                 const name = (f.fileName || f.name || '').toLowerCase();
                 const keywords = keyMappings[docKey] || [docKey];
@@ -69,7 +76,7 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate, onC
             if (matches.length > 0) completeCount++;
         });
 
-        return { complete: completeCount, total: requiredDocTypes.length };
+        return completeCount === requiredDocTypes.length ? 'complete' : 'incomplete';
     }, [dqFiles]);
 
     // --- Helpers ---
