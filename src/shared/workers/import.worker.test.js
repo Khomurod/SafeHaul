@@ -45,3 +45,46 @@ describe('the import worker', () => {
         });
     });
 });
+
+describe("the import worker's column headers", () => {
+    it("reads the template's own headers", async () => {
+        const [row] = await parseCsv(
+            'First Name,Last Name,Email,Phone,City,State,Experience,Job Type\n'
+            + 'Ann,Baker,ann@example.com,(555) 123-4567,Austin,TX,5,OTR\n',
+        );
+
+        expect(row).toMatchObject({
+            firstName: 'Ann', lastName: 'Baker', email: 'ann@example.com', phone: '(555) 123-4567',
+            city: 'Austin', state: 'TX', experience: '5', driverType: 'OTR',
+        });
+    });
+
+    it('reads the usual spellings of a header', async () => {
+        const [row] = await parseCsv(
+            'Driver Name,E-mail Address,Driver Phone,CDL Experience,Driver Type,State/Province\n'
+            + 'Ann Baker,ann@example.com,555.123.4567,3 years,OTR,TX\n',
+        );
+
+        expect(row).toMatchObject({
+            firstName: 'Ann', lastName: 'Baker', email: 'ann@example.com', phone: '(555) 123-4567',
+            experience: '3 years', driverType: 'OTR', state: 'TX',
+        });
+    });
+
+    it('reads a whole header, not a word inside another column', async () => {
+        const [row] = await parseCsv(
+            'Mailing Address,Contact Email,Emergency Contact,Phone Number,CDL Expiration,License Type,License State,Full Name\n'
+            + '1 Main St,ann@example.com,Bob 5559998888,5551234567,2027-01-31,Class A,NM,Ann Baker\n',
+        );
+
+        expect(row).toMatchObject({
+            firstName: 'Ann',
+            lastName: 'Baker',
+            email: 'ann@example.com',
+            phone: '(555) 123-4567',
+            experience: '',
+            driverType: LEAD_IMPORT_PLACEHOLDERS.driverType,
+            state: '',
+        });
+    });
+});
