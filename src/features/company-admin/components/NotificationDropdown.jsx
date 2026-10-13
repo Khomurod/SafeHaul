@@ -26,9 +26,18 @@ const timeAgo = (date) => {
     return `${Math.floor(diff / 86400)}d ago`;
 };
 
-export function NotificationDropdown({ companyId }) {
+// The server's notifications name the record they are about, and the dossier
+// finds an application or a lead by its id.
+const recordIdOf = (notif) =>
+    notif.relatedId && (notif.relatedType === 'application' || notif.relatedType === 'lead')
+        ? notif.relatedId
+        : null;
+
+/** `onOpenRecord(id)` opens a record's dossier; the shell renders it. */
+export function NotificationDropdown({ companyId, onOpenRecord }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
+    const bellRef = useRef(null);
 
     const {
         notifications,
@@ -37,6 +46,19 @@ export function NotificationDropdown({ companyId }) {
         markAsRead,
         markAllAsRead
     } = useCompanyNotifications(companyId);
+
+    const openNotification = (notif) => {
+        // A failed write is logged by the hook; the record opens either way.
+        if (!notif.read) markAsRead(notif.id).catch(() => {});
+        const recordId = recordIdOf(notif);
+        if (recordId && onOpenRecord) {
+            // The row goes with the panel, so the dossier, which returns focus
+            // to where it found it, returns it to the bell.
+            bellRef.current?.focus();
+            setIsOpen(false);
+            onOpenRecord(recordId);
+        }
+    };
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -53,6 +75,7 @@ export function NotificationDropdown({ companyId }) {
         <div className="relative" ref={dropdownRef}>
             {/* Bell Button */}
             <IconButton
+                ref={bellRef}
                 label="Notifications"
                 variant="ghost"
                 onClick={() => setIsOpen(!isOpen)}
@@ -111,29 +134,36 @@ export function NotificationDropdown({ companyId }) {
                             notifications.map(notif => (
                                 <div
                                     key={notif.id}
-                                    onClick={() => !notif.read && markAsRead(notif.id)}
-                                    className={`px-4 py-3 border-b border-ds-border-subtle hover:bg-ds-surface-hover cursor-pointer transition-colors ${!notif.read ? 'bg-ds-status-info-bg' : ''}`}
+                                    className={`px-4 py-3 border-b border-ds-border-subtle hover:bg-ds-surface-hover transition-colors ${!notif.read ? 'bg-ds-status-info-bg' : ''}`}
                                 >
-                                    <div className="flex gap-3">
-                                        <div className={`w-8 h-8 rounded-ds-md flex items-center justify-center ${!notif.read ? 'bg-ds-surface shadow-ds-sm' : 'bg-ds-surface-subtle'}`}>
+                                    {/* The row's own button, unstyled: the row above
+                                        draws it. It opens the record the notification is
+                                        about, from the keyboard too. */}
+                                    <button
+                                        type="button"
+                                        onClick={() => openNotification(notif)}
+                                        className="flex w-full gap-3 text-left focus-visible:shadow-ds-focus"
+                                    >
+                                        <span className={`w-8 h-8 rounded-ds-md flex items-center justify-center ${!notif.read ? 'bg-ds-surface shadow-ds-sm' : 'bg-ds-surface-subtle'}`}>
                                             {getNotificationIcon(notif.type)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`text-ds-body ${!notif.read ? 'font-semibold text-ds-content' : 'text-ds-content-secondary'}`}>
+                                        </span>
+                                        <span className="flex-1 min-w-0">
+                                            <span className={`block text-ds-body ${!notif.read ? 'font-semibold text-ds-content' : 'text-ds-content-secondary'}`}>
                                                 {notif.title || 'Notification'}
-                                            </p>
-                                            <p className="text-ds-xs text-ds-content-muted mt-0.5 truncate">
+                                                {!notif.read && <span className="ds-visually-hidden"> (unread)</span>}
+                                            </span>
+                                            <span className="block text-ds-xs text-ds-content-muted mt-0.5 truncate">
                                                 {notif.message}
-                                            </p>
-                                            <p className="text-ds-xs text-ds-content-muted mt-1 flex items-center gap-1">
+                                            </span>
+                                            <span className="text-ds-xs text-ds-content-muted mt-1 flex items-center gap-1">
                                                 <Icon icon={Clock} size="xs" />
                                                 {timeAgo(notif.createdAt)}
-                                            </p>
-                                        </div>
+                                            </span>
+                                        </span>
                                         {!notif.read && (
-                                            <div className="w-2 h-2 bg-ds-action-primary rounded-ds-full mt-2"></div>
+                                            <span aria-hidden="true" className="w-2 h-2 bg-ds-action-primary rounded-ds-full mt-2"></span>
                                         )}
-                                    </div>
+                                    </button>
                                 </div>
                             ))
                         )}

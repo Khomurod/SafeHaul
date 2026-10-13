@@ -18,6 +18,7 @@ export const CompanyTopbar = ({
     isNavigationOpen,
     onOpenNavigation,
     navigationTriggerRef,
+    onOpenRecord,
 }) => {
     const { currentUser, handleLogout, currentCompanyProfile, currentUserClaims, returnToCompanyChooser } = useData();
     const companyId = currentCompanyProfile?.id;
@@ -79,7 +80,7 @@ export const CompanyTopbar = ({
             {/* Right: Actions */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 {/* Notifications */}
-                <NotificationDropdown companyId={companyId} />
+                <NotificationDropdown companyId={companyId} onOpenRecord={onOpenRecord} />
 
                 <div className="h-8 w-px bg-ds-border-subtle mx-1 hidden sm:block" aria-hidden="true" />
 
