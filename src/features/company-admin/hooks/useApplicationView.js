@@ -63,13 +63,21 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate, onC
             'violations': ['certificate of violations', 'violations', 'certificate of violations (annual)']
         };
 
-        // The entries the tab lists: removing one keeps its record, with `removedAt`.
-        const listed = dqFiles.filter((f) => !f.removedAt);
+        const textOf = (f) => ({
+            type: (f.fileType || f.type || f.docType || '').toLowerCase(),
+            name: (f.fileName || f.name || '').toLowerCase(),
+        });
+        // The entries the tab lists (removing one keeps its record, with
+        // `removedAt`), less the consents the application syncs: an MVR Consent
+        // is the driver's permission, not the MVR it permits.
+        const listed = dqFiles.filter((f) => {
+            const { type, name } = textOf(f);
+            return !f.removedAt && !type.includes('consent') && !name.includes('consent');
+        });
         let completeCount = 0;
         requiredDocTypes.forEach(docKey => {
             const matches = listed.filter(f => {
-                const type = (f.fileType || f.type || f.docType || '').toLowerCase();
-                const name = (f.fileName || f.name || '').toLowerCase();
+                const { type, name } = textOf(f);
                 const keywords = keyMappings[docKey] || [docKey];
                 return keywords.some(kw => type.includes(kw) || name.includes(kw));
             });

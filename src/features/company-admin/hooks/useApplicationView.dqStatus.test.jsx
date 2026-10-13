@@ -92,6 +92,23 @@ describe("useApplicationView's DQ status", () => {
         expect(result.current.dqStatus).toBe('incomplete');
     });
 
+    it.each([
+        ['as the DQ File tab syncs it', { fileType: 'MVR Consent', fileName: 'IMG_1001.jpg' }],
+        ['as the server syncs it', { fileType: 'MVR Consent', type: 'mvr_consent', fileName: 'consent.pdf' }],
+    ])('does not take an MVR Consent for the MVR, %s', (_how, consent) => {
+        const { result } = mount();
+        deliver([...ALL_REQUIRED.slice(1), { id: 'dq-consent', ...consent }]);
+
+        expect(result.current.dqStatus).toBe('incomplete');
+    });
+
+    it('takes the MVR the server syncs, under its label', () => {
+        const { result } = mount();
+        deliver([...ALL_REQUIRED.slice(1), { id: 'dq-mvr', fileType: 'MVR', type: 'mvr', fileName: 'record.pdf' }]);
+
+        expect(result.current.dqStatus).toBe('complete');
+    });
+
     it('follows the entries as they change', () => {
         const { result } = mount();
         deliver(ALL_REQUIRED.slice(1));
