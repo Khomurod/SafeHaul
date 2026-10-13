@@ -16,6 +16,8 @@ import {
     getDoc,
     doc,
     where,
+    or,
+    and,
     getCountFromServer,
     documentId,
     startAt,
@@ -65,7 +67,7 @@ function pipelineConstraints({ activeTab, pipelineSegment }) {
  * records and the page can say how to find them.
  */
 export function buildDashboardConstraints({ activeTab, pipelineSegment, filters, dateOrder = 'desc', ordered = true }) {
-    const constraints = [];
+    let constraints = [];
 
     if (activeTab === 'my_leads' && auth.currentUser) {
         constraints.push(where("assignedTo", "==", auth.currentUser.uid));
@@ -82,8 +84,20 @@ export function buildDashboardConstraints({ activeTab, pipelineSegment, filters,
     if (states.length > 0) {
         constraints.push(where("state", "in", states));
     }
-    if (filters.driverType) {
-        constraints.push(where("driverType", "array-contains", filters.driverType));
+    // Every writer stores a freight type as one value: the import's Job Type
+    // column and the Call Outcome's Freight Type both write text. An
+    // application may hold a list instead, a shape its readers allow for, so
+    // that tab asks for either. The lead tabs ask for the one value: an `or`
+    // there doubles the Attempting segment's 3 statuses times the State
+    // filter's 7 spellings to 42 alternatives, past Firestore's 30.
+    const typeInEitherShape = activeTab === 'applications' && Boolean(filters.driverType);
+    if (typeInEitherShape) {
+        constraints.push(or(
+            where('driverType', '==', filters.driverType),
+            where('driverType', 'array-contains', filters.driverType),
+        ));
+    } else if (filters.driverType) {
+        constraints.push(where('driverType', '==', filters.driverType));
     }
     if (filters.assignee) {
         if (filters.assignee === '__unassigned__') {
@@ -92,6 +106,8 @@ export function buildDashboardConstraints({ activeTab, pipelineSegment, filters,
             constraints.push(where("assignedTo", "==", filters.assignee));
         }
     }
+    // The SDK takes an `or` only as a query's one top-level filter.
+    if (typeInEitherShape) constraints = [and(...constraints)];
 
     if (!ordered) return constraints;
 

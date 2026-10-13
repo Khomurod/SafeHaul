@@ -153,6 +153,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "driverType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "leads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "status",
           "order": "ASCENDING"
         },
@@ -197,6 +211,20 @@
         {
           "fieldPath": "driverType",
           "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "leads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "driverType",
+          "order": "ASCENDING"
         },
         {
           "fieldPath": "createdAt",
@@ -333,6 +361,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "driverType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "applications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "status",
           "order": "ASCENDING"
         },
@@ -377,6 +419,20 @@
         {
           "fieldPath": "driverType",
           "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "applications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "driverType",
+          "order": "ASCENDING"
         },
         {
           "fieldPath": "createdAt",
