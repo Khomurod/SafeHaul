@@ -21,8 +21,6 @@ vi.mock('firebase/firestore', () => ({
     getCountFromServer: vi.fn(),
     documentId: vi.fn(),
     where: (field, op, value) => ({ kind: 'where', field, op, value }),
-    or: (...filters) => ({ kind: 'or', filters }),
-    and: (...filters) => ({ kind: 'and', filters }),
     orderBy: (field, direction = 'asc') => ({ kind: 'orderBy', field, direction }),
     startAt: (...values) => ({ kind: 'startAt', values }),
     startAfter: (...values) => ({ kind: 'startAfter', values }),
@@ -50,16 +48,6 @@ const SEGMENTS_BY_TAB = {
  */
 const CURSORS = new Set(['startAt', 'startAfter', 'endAt', 'endBefore']);
 
-function passes(record, filter) {
-    if (filter.kind === 'and') return filter.filters.every((f) => passes(record, f));
-    if (filter.kind === 'or') return filter.filters.some((f) => passes(record, f));
-    const value = record[filter.field];
-    if (filter.op === '==') return value === filter.value;
-    if (filter.op === 'in') return filter.value.includes(value);
-    if (filter.op === 'array-contains') return Array.isArray(value) && value.includes(filter.value);
-    throw new Error(`no model for ${filter.op}`);
-}
-
 function matches(record, constraints) {
     const order = constraints.find((c) => c.kind === 'orderBy');
     return constraints.every((c) => {
@@ -73,34 +61,33 @@ function matches(record, constraints) {
             if (c.kind === 'endAt') return along <= 0;
             return along < 0;
         }
-        return passes(record, c);
+        const value = record[c.field];
+        if (c.op === '==') return value === c.value;
+        if (c.op === 'in') return c.value.includes(value);
+        if (c.op === 'array-contains') return Array.isArray(value) && value.includes(c.value);
+        throw new Error(`no model for ${c.op}`);
     });
 }
 
-const FILTER_KINDS = new Set(['where', 'and', 'or']);
-
 /**
- * A query's filters in disjunctive normal form, as Firestore runs them: each
- * alternative is the field filters one record must pass, an `or` adding its
- * branches and an `and` combining its parts. `in` stays one filter here, as
- * an index treats it like an equality; `alternatives` counts its values.
+ * What Firestore counts against its query limits, once it has expanded the
+ * query into alternatives (each `in` value one): at most 30 alternatives, and
+ * at most 100 filters, sort orders and parent, the filters counted in every
+ * alternative and the rest once. The sorts are the createdAt order and the
+ * document-name order Firestore adds; the parent is the company the list's
+ * collection sits under. The emulator reports the same count when it refuses a
+ * query ("120 filters, 2 sort orders, and one ancestor filter").
  */
-function disjuncts(filter) {
-    if (filter.kind === 'or') return filter.filters.flatMap(disjuncts);
-    if (filter.kind === 'and') {
-        return filter.filters.reduce(
-            (sofar, part) => sofar.flatMap((left) => disjuncts(part).map((right) => [...left, ...right])),
-            [[]],
-        );
-    }
-    return [[filter]];
+function alternatives(constraints) {
+    return constraints
+        .filter((c) => c.kind === 'where' && c.op === 'in')
+        .reduce((product, c) => product * c.value.length, 1);
 }
 
-/** The number of disjunctions Firestore counts against its limit of 30. */
-function alternatives(constraints) {
-    return disjuncts({ kind: 'and', filters: constraints.filter((c) => FILTER_KINDS.has(c.kind)) })
-        .reduce((total, conjunction) => total + conjunction
-            .reduce((product, c) => product * (c.op === 'in' ? c.value.length : 1), 1), 0);
+function components(constraints) {
+    const filters = constraints.filter((c) => c.kind === 'where').length;
+    const sorts = constraints.filter((c) => c.kind === 'orderBy').length + 1;
+    return alternatives(constraints) * filters + sorts + 1;
 }
 
 const EQUALITY_OPS = new Set(['==', 'in', 'array-contains']);
@@ -112,15 +99,8 @@ const RANGE_OPS = new Set(['<', '<=', '>', '>=']);
  * range, which sorts by its field) with equalities needs, for each filtered
  * field, a composite whose other fields are all filtered by equality and whose
  * last field is the sort field in the sort's direction. Firestore merges those.
- * A query with an `or` is served alternative by alternative, so each must be.
  */
 function servable(constraints, collectionGroup) {
-    const nonFilters = constraints.filter((c) => !FILTER_KINDS.has(c.kind));
-    return disjuncts({ kind: 'and', filters: constraints.filter((c) => FILTER_KINDS.has(c.kind)) })
-        .every((conjunction) => servableConjunction([...conjunction, ...nonFilters], collectionGroup));
-}
-
-function servableConjunction(constraints, collectionGroup) {
     const filters = constraints.filter((c) => c.kind === 'where');
     const order = constraints.find((c) => c.kind === 'orderBy');
     const ranges = filters.filter((c) => RANGE_OPS.has(c.op));
@@ -222,16 +202,43 @@ describe('the State filter', () => {
             .toEqual(['province']);
     });
 
-    it.each([
-        ['company_leads', 'attempting'],
-        ['applications', 'new'],
-    ])('stays within the 30 alternatives Firestore allows on %s, with its widest segment and a freight type', (activeTab, pipelineSegment) => {
+    it('stays within the 30 alternatives Firestore allows, with the widest segment', () => {
         const constraints = buildDashboardConstraints({
-            activeTab, pipelineSegment, filters: { state: 'District of Columbia', driverType: 'Reefer' },
+            activeTab: 'company_leads', pipelineSegment: 'attempting', filters: { state: 'District of Columbia' },
+        });
+        const alternatives = constraints
+            .filter((c) => c.kind === 'where' && c.op === 'in')
+            .reduce((product, c) => product * c.value.length, 1);
+
+        expect(alternatives).toBeGreaterThan(1);
+        expect(alternatives).toBeLessThanOrEqual(30);
+    });
+
+    it.each([
+        // The widest segment, the State filter's 7 spellings, a freight type and one assignee.
+        ['company_leads', 'attempting', { myAssignmentsOnly: true }],
+        ['my_leads', 'attempting', {}],
+        ['applications', 'new', { assignee: 'recruiter-2', myAssignmentsOnly: true }],
+    ])('stays within the 100 filters, sort orders and parent Firestore allows on %s', (activeTab, pipelineSegment, more) => {
+        const constraints = buildDashboardConstraints({
+            activeTab, pipelineSegment, filters: { state: 'District of Columbia', driverType: 'Reefer', ...more },
         });
 
-        expect(alternatives(constraints)).toBeGreaterThan(1);
-        expect(alternatives(constraints)).toBeLessThanOrEqual(30);
+        expect(components(constraints)).toBeLessThanOrEqual(100);
+    });
+
+    it('counts those as the emulator does when it refuses a query', () => {
+        // 10 spellings × 3 statuses, Freight type and an assignee, newest first:
+        // "120 filters, 2 sort orders, and one ancestor filter".
+        const constraints = [
+            { kind: 'where', field: 'state', op: 'in', value: Array.from({ length: 10 }, (_, i) => `state-${i}`) },
+            { kind: 'where', field: 'status', op: 'in', value: ['Contact Attempt 1', 'Contact Attempt 2', 'Contact Attempt 3'] },
+            { kind: 'where', field: 'driverType', op: '==', value: 'Reefer' },
+            { kind: 'where', field: 'assignedTo', op: '==', value: 'recruiter-1' },
+            { kind: 'orderBy', field: 'createdAt', direction: 'desc' },
+        ];
+
+        expect(components(constraints)).toBe(120 + 2 + 1);
     });
 
     it('sets no state constraint when no state is picked', () => {
@@ -244,40 +251,22 @@ describe('the State filter', () => {
 describe('the Freight type filter', () => {
     // Artificial records. Every writer stores a freight type as one value: the
     // import's Job Type column and the Call Outcome's Freight Type both write
-    // text. An application may hold a list instead, a shape its readers allow for.
+    // text. A list holding it, which no current writer stores, is not found.
     const stored = [
         { id: 'one-value', driverType: 'Reefer' },
         { id: 'list', driverType: ['Reefer'] },
         { id: 'longer-list', driverType: ['Dry Van', 'Reefer'] },
         { id: 'other-value', driverType: 'Dry Van' },
-        { id: 'other-list', driverType: ['Flatbed'] },
         { id: 'none' },
     ].map((record) => ({ ...record, assignedTo: 'recruiter-1', createdAt: new Date('2026-10-01T15:00:00Z') }));
 
-    it.each(['company_leads', 'my_leads'])('finds a lead by the one value it stores on %s', (activeTab) => {
+    it.each(['applications', 'company_leads', 'my_leads'])('finds a record by the one value it stores on %s', (activeTab) => {
         const constraints = buildDashboardConstraints({
             activeTab, pipelineSegment: 'all', filters: { driverType: 'Reefer' },
         });
 
         expect(stored.filter((record) => matches(record, constraints)).map((record) => record.id))
             .toEqual(['one-value']);
-    });
-
-    it('finds an application by that value or by a list holding it', () => {
-        const constraints = buildDashboardConstraints({
-            activeTab: 'applications', pipelineSegment: 'all', filters: { driverType: 'Reefer' },
-        });
-
-        expect(stored.filter((record) => matches(record, constraints)).map((record) => record.id))
-            .toEqual(['one-value', 'list', 'longer-list']);
-    });
-
-    it('sends the application query its filters in one and(), the only form the SDK takes beside an or()', () => {
-        const constraints = buildDashboardConstraints({
-            activeTab: 'applications', pipelineSegment: 'new', filters: { state: 'Texas', driverType: 'Reefer' },
-        });
-
-        expect(constraints.filter((c) => FILTER_KINDS.has(c.kind)).map((c) => c.kind)).toEqual(['and']);
     });
 });
 
@@ -362,20 +351,17 @@ describe('the order of the lists', () => {
         expect(stored.filter((record) => matches(record, unordered)).map((record) => record.id)).toEqual(['dated', 'undated']);
     });
 
-    it.each([
-        ['company_leads', 'attempting'],
-        ['applications', 'new'],
-    ])('keeps the same filters in the unordered query on %s', (activeTab, pipelineSegment) => {
+    it('keeps the same filters in the unordered query', () => {
         const args = {
-            activeTab,
-            pipelineSegment,
+            activeTab: 'company_leads',
+            pipelineSegment: 'attempting',
             filters: { state: 'Texas', driverType: 'Reefer', assignee: 'recruiter-2', myAssignmentsOnly: true },
         };
-        const filtersOf = (constraints) => constraints.filter((c) => FILTER_KINDS.has(c.kind));
+        const filtersOf = (constraints) => constraints.filter((c) => c.kind === 'where');
 
         expect(filtersOf(buildDashboardConstraints({ ...args, ordered: false })))
             .toEqual(filtersOf(buildDashboardConstraints(args)));
-        expect(buildDashboardConstraints({ ...args, ordered: false }).every((c) => FILTER_KINDS.has(c.kind))).toBe(true);
+        expect(buildDashboardConstraints({ ...args, ordered: false }).every((c) => c.kind === 'where')).toBe(true);
     });
 });
 
