@@ -7,6 +7,7 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 
 const fixture = vi.hoisted(() => {
@@ -65,7 +66,7 @@ beforeEach(() => {
 
 describe('the Added Date arrows', () => {
     it('show newest first as the order in force, and leave the rows as the list query returned them', () => {
-        render(<CompanyCandidatesListPage scope="applications" />);
+        render(<MemoryRouter><CompanyCandidatesListPage scope="applications" /></MemoryRouter>);
 
         expect(latest()).toHaveAttribute('aria-pressed', 'true');
         expect(earliest()).toHaveAttribute('aria-pressed', 'false');
@@ -73,19 +74,19 @@ describe('the Added Date arrows', () => {
     });
 
     it('turn the whole list earliest first, and back to newest first when Earliest first is pressed again', async () => {
-        const { rerender } = render(<CompanyCandidatesListPage scope="applications" />);
+        const { rerender } = render(<MemoryRouter><CompanyCandidatesListPage scope="applications" /></MemoryRouter>);
         await userEvent.click(earliest());
         expect(fixture.setDateOrder).toHaveBeenLastCalledWith('asc');
 
         fixture.dateOrder = 'asc';
-        rerender(<CompanyCandidatesListPage scope="applications" />);
+        rerender(<MemoryRouter><CompanyCandidatesListPage scope="applications" /></MemoryRouter>);
         expect(earliest()).toHaveAttribute('aria-pressed', 'true');
         await userEvent.click(earliest());
         expect(fixture.setDateOrder).toHaveBeenLastCalledWith('desc');
     });
 
     it('keep newest first when Latest first is pressed', async () => {
-        render(<CompanyCandidatesListPage scope="applications" />);
+        render(<MemoryRouter><CompanyCandidatesListPage scope="applications" /></MemoryRouter>);
         await userEvent.click(latest());
 
         expect(fixture.setDateOrder).toHaveBeenLastCalledWith('desc');

@@ -55,6 +55,19 @@ test.describe('Company workspace shell and dashboard', () => {
     await expect(page.getByRole('heading', { name: 'Import Leads' })).toBeVisible();
   });
 
+  test('opens the Hired applications from the Hired card', async ({ page }) => {
+    await openDashboard(page);
+
+    await page.getByRole('button', { name: 'Hired: 2' }).click();
+
+    await expect(page).toHaveURL(/\/company\/drivers\/applications/);
+    await expect(page.getByRole('button', { name: 'Hired', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    // Hired: 'Hired' + legacy 'Approved', as the segment counts them.
+    await expect(page.getByText('Aisha Robinson')).toBeVisible();
+    await expect(page.getByText('Derek Nguyen')).toBeVisible();
+    await expect(page.getByText('Showing 2 of 2 records')).toBeVisible();
+  });
+
   test('keeps laptop content usable without document-level horizontal overflow', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Laptop viewport check.');
     await page.setViewportSize({ width: 1024, height: 768 });

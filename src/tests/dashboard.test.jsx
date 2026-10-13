@@ -181,4 +181,20 @@ describe('CompanyAdminDashboard Smoke Tests', () => {
         fireEvent.click(applications);
         expect(window.location.pathname).toBe('/company/drivers/applications');
     });
+
+    it('opens the applications list on its Hired segment from the Hired card', () => {
+        render(
+            <BrowserRouter>
+                <MockDataProvider value={{ currentCompanyProfile: { id: 'test-company-123', companyName: 'Test Logistics' } }}>
+                    <CompanyAdminDashboard />
+                </MockDataProvider>
+            </BrowserRouter>
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Hired: 2' }));
+
+        expect(window.location.pathname).toBe('/company/drivers/applications');
+        // React Router keeps a link's state under `usr`.
+        expect(window.history.state?.usr).toEqual({ segment: 'hired' });
+    });
 });

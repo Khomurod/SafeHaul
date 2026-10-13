@@ -32,7 +32,7 @@ import { E2E_DASHBOARD_APPLICATIONS, E2E_DASHBOARD_LEADS } from './e2eDashboardF
 import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
 
 /** applications: all | new | hired | terminated | declined — leads: all | attempting | in_process | interested */
-export function useCompanyDashboard(companyId) {
+export function useCompanyDashboard(companyId, { initialTab = 'applications', initialSegment = 'all' } = {}) {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -65,8 +65,8 @@ export function useCompanyDashboard(companyId) {
     // The same for the list's counts: a late answer belongs to an earlier list.
     const countVersionRef = useRef(0);
 
-    const [activeTab, setActiveTab] = useState('applications');
-    const [pipelineSegment, setPipelineSegment] = useState('all');
+    const [activeTab, setActiveTab] = useState(initialTab);
+    const [pipelineSegment, setPipelineSegment] = useState(initialSegment);
     // The list's order by Added Date: newest first, or 'asc' from the column's
     // "Earliest first" arrow. Firestore sorts, so it holds across pages.
     const [dateOrder, setDateOrder] = useState('desc');
@@ -88,9 +88,13 @@ export function useCompanyDashboard(companyId) {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    useEffect(() => {
+    // Another tab opens on its 'all' segment. Set while rendering, so the first
+    // tab keeps `initialSegment` and no query goes out for the segment a tab left.
+    const [segmentTab, setSegmentTab] = useState(activeTab);
+    if (segmentTab !== activeTab) {
+        setSegmentTab(activeTab);
         setPipelineSegment('all');
-    }, [activeTab]);
+    }
 
     // E2E fixture dataset: the placeholder Firebase project is unreachable in
     // E2E runs, so search/filters/tabs are exercised against in-memory records
