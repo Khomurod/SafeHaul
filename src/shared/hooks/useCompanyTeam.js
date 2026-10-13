@@ -1,58 +1,69 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { db } from '@lib/firebase';
-import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
+import { useData } from '@/context/DataContext';
 
+const memberName = (name, email) => (name && name !== 'Unknown' ? name : email || 'Unknown');
+
+/**
+ * The company's team for its pickers and filters: `{ id, name, email, role }`
+ * per member, `id` being the uid that `assignedTo` stores.
+ *
+ * The company document carries the team (`teamMembers`, which
+ * `functions/hrAdmin/membership.js` rewrites on every membership change, keyed
+ * by `userId`), and the whole team may read it. A company whose document has no
+ * team yet is listed from its `memberships`, which only an admin may read: a
+ * recruiter's browser is not sent a query the rules refuse it, and gets an
+ * empty team instead.
+ */
 export function useCompanyTeam(companyId) {
-    const [team, setTeam] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const { currentCompanyProfile, currentUserClaims } = useData();
+    const cached = currentCompanyProfile?.id === companyId ? currentCompanyProfile?.teamMembers : undefined;
+    const roles = currentUserClaims?.roles || {};
+    const mayListMemberships = roles.globalRole === 'super_admin' || roles[companyId] === 'company_admin';
+
+    const cachedTeam = useMemo(() => (Array.isArray(cached)
+        ? cached
+            .filter((m) => m && (m.userId || m.id))
+            .map((m) => ({ id: m.userId || m.id, name: memberName(m.name, m.email), email: m.email || '', role: m.role }))
+        : null), [cached]);
+
+    const [fetched, setFetched] = useState({ companyId: null, team: [], error: null });
+    const needsMemberships = Boolean(companyId) && !cachedTeam && mayListMemberships;
 
     useEffect(() => {
-        if (!companyId) {
-            setIsLoading(false);
-            return;
-        }
-
-        const q = query(collection(db, "memberships"), where("companyId", "==", companyId));
-
-        const unsubscribe = onSnapshot(q, async (snapshot) => {
+        if (!needsMemberships) return undefined;
+        let cancelled = false;
+        (async () => {
             try {
-                const membersPromises = snapshot.docs.map(async (memDoc) => {
-                    const memData = memDoc.data();
-                    const userId = memData.userId;
-
-                    let userData = { name: 'Unknown', email: '' };
+                const snapshot = await getDocs(query(collection(db, 'memberships'), where('companyId', '==', companyId)));
+                const team = await Promise.all(snapshot.docs.map(async (memDoc) => {
+                    const { userId, role } = memDoc.data();
+                    let name = '';
+                    let email = '';
                     try {
-                        const userDoc = await getDoc(doc(db, "users", userId));
+                        const userDoc = await getDoc(doc(db, 'users', userId));
                         if (userDoc.exists()) {
                             const d = userDoc.data();
-                            // Handle various name fields (fullName, firstName/lastName, etc.)
-                            const name = d.fullName || d.displayName || (d.firstName && d.lastName ? `${d.firstName} ${d.lastName}` : d.email || 'Unknown User');
-                            userData = { name, email: d.email };
+                            name = d.fullName || d.name || d.displayName || (d.firstName && d.lastName ? `${d.firstName} ${d.lastName}` : '');
+                            email = d.email || '';
                         }
                     } catch (e) {
                         console.warn(`Error fetching user profile for ${userId}:`, e);
                     }
-
-                    return {
-                        id: userId,
-                        role: memData.role,
-                        ...userData
-                    };
-                });
-
-                const members = await Promise.all(membersPromises);
-                setTeam(members);
-                setIsLoading(false);
+                    return { id: userId, name: memberName(name, email), email, role };
+                }));
+                if (!cancelled) setFetched({ companyId, team, error: null });
             } catch (err) {
-                console.error("Error processing team members:", err);
-                setError(err.message);
-                setIsLoading(false);
+                console.error('Error loading the team:', err);
+                if (!cancelled) setFetched({ companyId, team: [], error: err.message });
             }
-        });
+        })();
+        return () => { cancelled = true; };
+    }, [companyId, needsMemberships]);
 
-        return () => unsubscribe();
-    }, [companyId]);
-
-    return { team, isLoading, error };
+    if (cachedTeam) return { team: cachedTeam, isLoading: false, error: null };
+    if (!needsMemberships) return { team: [], isLoading: false, error: null };
+    const settled = fetched.companyId === companyId;
+    return { team: settled ? fetched.team : [], isLoading: !settled, error: settled ? fetched.error : null };
 }
