@@ -129,6 +129,30 @@ describe('sendAutomatedEmail — the "no answer" follow-up', () => {
         expect(sentBody()).not.toMatch(/Someone Else|elsewhere|our fleet/);
     });
 
+    it.each([
+        // What the lead import writes for a row without an email, now and before.
+        'placeholder_9f2c1a@placeholder.safehaulapp.com',
+        'driver_123@placeholder.com',
+    ])("is not sent to an imported lead's made-up address %s", async (address) => {
+        mockOnFile.leads = [address];
+        const call = noAnswer();
+        call.data.recipientEmail = address;
+
+        const result = await sendAutomatedEmail(call);
+
+        expect(result).toEqual({ success: false, skipped: 'placeholder-recipient' });
+        expect(mockSendDynamicEmail).not.toHaveBeenCalled();
+        expect(mockCheckRateLimit).not.toHaveBeenCalled();
+    });
+
+    it('refuses someone outside the company before it looks at the address', async () => {
+        mockAssertCompanyAccess.mockRejectedValue(Object.assign(new Error('No access.'), { code: 'permission-denied' }));
+        const call = noAnswer();
+        call.data.recipientEmail = 'placeholder_9f2c1a@placeholder.safehaulapp.com';
+
+        await expect(sendAutomatedEmail(call)).rejects.toMatchObject({ code: 'permission-denied' });
+    });
+
     it('shows the names as text', async () => {
         await sendAutomatedEmail(noAnswer({ driverfirstname: '<b>Bob</b>', recruitername: 'Rita <a href="https://evil.test">here</a>' }));
 
