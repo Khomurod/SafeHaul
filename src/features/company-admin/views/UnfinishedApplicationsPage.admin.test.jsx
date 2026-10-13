@@ -286,8 +286,8 @@ describe('a Company Admin', () => {
         const dialog = await screen.findByRole('dialog', { name: 'Delete this unfinished application?' });
         expect(within(dialog).getByText('Everything saved for Dana Alvarez will be deleted for good: its answers and any link sent for it.'))
             .toBeInTheDocument();
-        // The safe action is the one focused first.
-        expect(within(dialog).getByRole('button', { name: 'Keep application' })).toHaveFocus();
+        // The safe action is the one focused first, by the dialog's effect.
+        await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Keep application' })).toHaveFocus());
         // Asked what would go, and nothing more.
         expect(purgeSpy).toHaveBeenCalledTimes(1);
         expect(purgeSpy).toHaveBeenCalledWith({ companyId: 'company-1', applicantKey: DRIVER_STARTED.applicantKey, preview: true });
