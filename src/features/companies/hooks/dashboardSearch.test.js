@@ -6,6 +6,7 @@ import {
     applyClientSideFilters,
     mergeSearchResults,
     leadStatusMatchesSegment,
+    stateFilterValues,
     PREFIX_END,
 } from './dashboardSearch';
 
@@ -169,6 +170,22 @@ describe('applyClientSideFilters', () => {
         }).map((r) => r.id)).toEqual(['1', '3']);
     });
 
+    it('the State filter matches a picked state however the record spells it, as the query does', () => {
+        // Artificial records: the picker's name, a postal code, a hand-typed name.
+        const spelled = [
+            { id: 'picked', state: 'Texas' },
+            { id: 'code', state: 'TX' },
+            { id: 'typed', state: 'texas' },
+            { id: 'typed-code', state: 'Tx' },
+            { id: 'other', state: 'Illinois' },
+            { id: 'none' },
+        ];
+
+        expect(applyClientSideFilters(spelled, {
+            activeTab: 'applications', pipelineSegment: 'all', filters: { state: 'Texas' },
+        }).map((r) => r.id)).toEqual(['picked', 'code', 'typed', 'typed-code']);
+    });
+
     it('assignee filter supports the unassigned sentinel', () => {
         expect(applyClientSideFilters(apps, {
             activeTab: 'applications', pipelineSegment: 'all', filters: { assignee: '__unassigned__' },
@@ -179,6 +196,37 @@ describe('applyClientSideFilters', () => {
         expect(leadStatusMatchesSegment('Contact Attempt 2', 'attempting')).toBe(true);
         expect(leadStatusMatchesSegment('New Lead', 'attempting')).toBe(false);
         expect(leadStatusMatchesSegment('In Process', 'in_process')).toBe(true);
+    });
+});
+
+describe('stateFilterValues', () => {
+    it('lists the name as written, in capitals and in lower case, and the postal code in every casing', () => {
+        const texas = ['Texas', 'TEXAS', 'texas', 'TX', 'tx', 'Tx', 'tX'];
+
+        expect(stateFilterValues('Texas')).toEqual(texas);
+        expect(stateFilterValues('tx')).toEqual(texas);
+        expect(stateFilterValues(' TEXAS ')).toEqual(texas);
+        expect(stateFilterValues('District of Columbia')).toEqual([
+            'District of Columbia', 'DISTRICT OF COLUMBIA', 'district of columbia', 'DC', 'dc', 'Dc', 'dC',
+        ]);
+    });
+
+    it('does the same for a Canadian province or a Mexican state', () => {
+        expect(stateFilterValues('Ontario')).toEqual(['Ontario', 'ONTARIO', 'ontario', 'ON', 'on', 'On', 'oN']);
+        expect(stateFilterValues('jalisco')).toEqual(['Jalisco', 'JALISCO', 'jalisco', 'JA', 'ja', 'Ja', 'jA']);
+    });
+
+    it('leaves out a code two regions share, which would find the other one too', () => {
+        expect(stateFilterValues('Nuevo León')).toEqual(['Nuevo León', 'NUEVO LEÓN', 'nuevo león']);
+        expect(stateFilterValues('Newfoundland and Labrador')).toEqual([
+            'Newfoundland and Labrador', 'NEWFOUNDLAND AND LABRADOR', 'newfoundland and labrador',
+        ]);
+    });
+
+    it('keeps a value that names no region as it is, and gives nothing for an empty one', () => {
+        expect(stateFilterValues('Atlantis')).toEqual(['Atlantis']);
+        expect(stateFilterValues('   ')).toEqual([]);
+        expect(stateFilterValues(undefined)).toEqual([]);
     });
 });
 

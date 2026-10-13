@@ -137,4 +137,20 @@ test.describe('Applications search and pipeline filters', () => {
     await searchFor(page, 'james');
     await expect(page.getByText('No records found.')).toBeVisible();
   });
+
+  test('the State filter picks a state by name and finds its applications', async ({ page }) => {
+    await openApplications(page);
+    await page.getByRole('button', { name: /^Filters/ }).click();
+
+    // The fixture stores these three by postal code ("TX"); the list holds names.
+    await page.getByRole('combobox', { name: 'State' }).selectOption('Texas');
+    await expect(page.getByText('Showing 3 of 3 records')).toBeVisible();
+    await expect(page.getByText('Maria Garcia')).toBeVisible();
+    await expect(page.getByText('Aisha Robinson')).toBeVisible();
+    await expect(page.getByText('Derek Nguyen')).toBeVisible();
+    await expect(page.getByText('James McDonald')).toHaveCount(0);
+
+    await page.getByRole('combobox', { name: 'State' }).selectOption('All States');
+    await expect(page.getByText('Showing 8 of 8 records')).toBeVisible();
+  });
 });

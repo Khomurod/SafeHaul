@@ -28,6 +28,7 @@ import {
     recordMatchesSearch,
     applyClientSideFilters,
     mergeSearchResults,
+    stateFilterValues,
     SEARCH_PLAN_LIMIT,
     PREFIX_END,
 } from './dashboardSearch';
@@ -81,8 +82,9 @@ export function buildDashboardConstraints({ activeTab, pipelineSegment, filters 
         constraints.push(where('assignedTo', '==', auth.currentUser.uid));
     }
 
-    if (filters.state) {
-        constraints.push(where("state", "==", filters.state.toUpperCase()));
+    const states = stateFilterValues(filters.state);
+    if (states.length > 0) {
+        constraints.push(where("state", "in", states));
     }
     if (filters.driverType) {
         constraints.push(where("driverType", "array-contains", filters.driverType));

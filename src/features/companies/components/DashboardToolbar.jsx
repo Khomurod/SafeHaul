@@ -3,6 +3,7 @@
 import React, { useState, useMemo, memo } from 'react';
 import { Icon, Search, Filter, X, Briefcase, Users, UserCircle } from '@design-system/icons';
 import { Button, FormField, Input, Select } from '@design-system/components';
+import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions';
 
 /**
  * The candidate/lead list toolbar.
@@ -180,13 +181,21 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                             </Select>
                         </FormField>
 
+                        {/* The regions the application's address pickers offer, by
+                            the full name they store; the query also matches a
+                            stored postal code (`stateFilterValues`). */}
                         <FormField id="toolbar-state" label="State">
-                            <Input
-                                placeholder="e.g. IL, TX"
+                            <Select
                                 value={filters?.state || ''}
                                 onChange={(e) => handleFilterChange('state', e.target.value)}
-                                maxLength={2}
-                            />
+                            >
+                                <option value="">All States</option>
+                                {NORTH_AMERICAN_REGION_GROUPS.map((group) => (
+                                    <optgroup key={group.label} label={group.label}>
+                                        {group.options.map((name) => <option key={name} value={name}>{name}</option>)}
+                                    </optgroup>
+                                ))}
+                            </Select>
                         </FormField>
 
                         <FormField id="toolbar-assignee" label="Assigned to">
