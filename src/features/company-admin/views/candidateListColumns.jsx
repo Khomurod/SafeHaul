@@ -37,11 +37,14 @@ export const getCandidateName = (item) => item.fullName
     ? toTitleCase(item.fullName)
     : toTitleCase(`${item.firstName || 'Unknown'} ${item.lastName || 'Driver'}`.trim());
 
-// ── Format Firestore timestamp to MM/DD/YYYY ──
+// ── A record's Added Date, which the column shows and its arrows sort by ──
 // The day the record was created, which the date filter searches by; an
 // application without one shows its submission day.
+export const addedDateOf = (item) => item.createdAt || item.submittedAt;
+
+// ── Format Firestore timestamp to MM/DD/YYYY ──
 export const formatAddedDate = (item) => {
-    const ts = item.createdAt || item.submittedAt;
+    const ts = addedDateOf(item);
     if (!ts) return null;
     try {
         const date = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
