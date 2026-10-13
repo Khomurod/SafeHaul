@@ -127,7 +127,7 @@ export function CompanyAdminDashboard() {
                                 value={dashboard.counts?.hired || 0}
                                 icon={<Icon icon={CheckCircle} size="xl" />}
                                 tone="success"
-                                onActivate={() => navigate('/company/drivers/applications')}
+                                onActivate={() => navigate('/company/drivers/applications', { state: { segment: 'hired' } })}
                             />
                         </ResponsiveGrid>
                     </Section>

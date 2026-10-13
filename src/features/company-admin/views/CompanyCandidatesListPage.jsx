@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { DashboardToolbar, useCompanyDashboard } from '@features/companies';
 import { Chip, ChipGroup, DataTable } from '@/design-system/components';
 import { useData } from '@/context/DataContext';
@@ -18,7 +19,15 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     const isCompanyAdmin = currentUserClaims?.roles?.[companyId] === 'company_admin'
         || currentUserClaims?.roles?.globalRole === 'super_admin';
 
-    const dashboard = useCompanyDashboard(companyId);
+    const pipelineTabs =
+        scope === 'applications' ? APPLICATION_PIPELINE_TABS : LEAD_PIPELINE_TABS;
+    // A link can open the list on one of its segments, as the dashboard's Hired
+    // card does with `{ state: { segment: 'hired' } }`.
+    const openedSegment = useLocation().state?.segment;
+    const dashboard = useCompanyDashboard(companyId, {
+        initialTab: scope,
+        initialSegment: pipelineTabs.some((tab) => tab.id === openedSegment) ? openedSegment : 'all',
+    });
     const { showError, showSuccess } = useToast();
 
     // Local State
@@ -129,9 +138,6 @@ export const CompanyCandidatesListPage = ({ scope }) => {
 
     const showPipelineTabs =
         scope === 'applications' || scope === 'company_leads' || scope === 'my_leads';
-
-    const pipelineTabs =
-        scope === 'applications' ? APPLICATION_PIPELINE_TABS : LEAD_PIPELINE_TABS;
 
     const getRowTone = (item) => {
         const level = staleContactMeta(item);
