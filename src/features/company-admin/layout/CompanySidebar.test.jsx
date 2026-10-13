@@ -51,6 +51,14 @@ describe('CompanySidebar', () => {
         expect(screen.getByText('Team Member')).toBeInTheDocument();
     });
 
+    it("leads a company admin into Settings once, through the account section's item", () => {
+        renderSidebar({ role: 'company_admin' });
+
+        expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/company/settings');
+        expect(screen.queryByRole('button', { name: 'Company Settings' })).not.toBeInTheDocument();
+        expect(screen.getByText('Company Admin')).toBeInTheDocument();
+    });
+
     it('preserves expandable navigation and route callbacks', () => {
         const onExpandedChange = vi.fn();
         const onNavigate = vi.fn();
