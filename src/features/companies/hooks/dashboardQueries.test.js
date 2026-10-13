@@ -69,6 +69,27 @@ function matches(record, constraints) {
     });
 }
 
+/**
+ * What Firestore counts against its query limits, once it has expanded the
+ * query into alternatives (each `in` value one): at most 30 alternatives, and
+ * at most 100 filters, sort orders and parent, the filters counted in every
+ * alternative and the rest once. The sorts are the createdAt order and the
+ * document-name order Firestore adds; the parent is the company the list's
+ * collection sits under. The emulator reports the same count when it refuses a
+ * query ("120 filters, 2 sort orders, and one ancestor filter").
+ */
+function alternatives(constraints) {
+    return constraints
+        .filter((c) => c.kind === 'where' && c.op === 'in')
+        .reduce((product, c) => product * c.value.length, 1);
+}
+
+function components(constraints) {
+    const filters = constraints.filter((c) => c.kind === 'where').length;
+    const sorts = constraints.filter((c) => c.kind === 'orderBy').length + 1;
+    return alternatives(constraints) * filters + sorts + 1;
+}
+
 const EQUALITY_OPS = new Set(['==', 'in', 'array-contains']);
 const RANGE_OPS = new Set(['<', '<=', '>', '>=']);
 
@@ -193,10 +214,59 @@ describe('the State filter', () => {
         expect(alternatives).toBeLessThanOrEqual(30);
     });
 
+    it.each([
+        // The widest segment, the State filter's 7 spellings, a freight type and one assignee.
+        ['company_leads', 'attempting', { myAssignmentsOnly: true }],
+        ['my_leads', 'attempting', {}],
+        ['applications', 'new', { assignee: 'recruiter-2', myAssignmentsOnly: true }],
+    ])('stays within the 100 filters, sort orders and parent Firestore allows on %s', (activeTab, pipelineSegment, more) => {
+        const constraints = buildDashboardConstraints({
+            activeTab, pipelineSegment, filters: { state: 'District of Columbia', driverType: 'Reefer', ...more },
+        });
+
+        expect(components(constraints)).toBeLessThanOrEqual(100);
+    });
+
+    it('counts those as the emulator does when it refuses a query', () => {
+        // 10 spellings × 3 statuses, Freight type and an assignee, newest first:
+        // "120 filters, 2 sort orders, and one ancestor filter".
+        const constraints = [
+            { kind: 'where', field: 'state', op: 'in', value: Array.from({ length: 10 }, (_, i) => `state-${i}`) },
+            { kind: 'where', field: 'status', op: 'in', value: ['Contact Attempt 1', 'Contact Attempt 2', 'Contact Attempt 3'] },
+            { kind: 'where', field: 'driverType', op: '==', value: 'Reefer' },
+            { kind: 'where', field: 'assignedTo', op: '==', value: 'recruiter-1' },
+            { kind: 'orderBy', field: 'createdAt', direction: 'desc' },
+        ];
+
+        expect(components(constraints)).toBe(120 + 2 + 1);
+    });
+
     it('sets no state constraint when no state is picked', () => {
         const constraints = buildDashboardConstraints({ activeTab: 'applications', pipelineSegment: 'all', filters: { state: '' } });
 
         expect(constraints.filter((c) => c.field === 'state')).toEqual([]);
+    });
+});
+
+describe('the Freight type filter', () => {
+    // Artificial records. Every writer stores a freight type as one value: the
+    // import's Job Type column and the Call Outcome's Freight Type both write
+    // text. A list holding it, which no current writer stores, is not found.
+    const stored = [
+        { id: 'one-value', driverType: 'Reefer' },
+        { id: 'list', driverType: ['Reefer'] },
+        { id: 'longer-list', driverType: ['Dry Van', 'Reefer'] },
+        { id: 'other-value', driverType: 'Dry Van' },
+        { id: 'none' },
+    ].map((record) => ({ ...record, assignedTo: 'recruiter-1', createdAt: new Date('2026-10-01T15:00:00Z') }));
+
+    it.each(['applications', 'company_leads', 'my_leads'])('finds a record by the one value it stores on %s', (activeTab) => {
+        const constraints = buildDashboardConstraints({
+            activeTab, pipelineSegment: 'all', filters: { driverType: 'Reefer' },
+        });
+
+        expect(stored.filter((record) => matches(record, constraints)).map((record) => record.id))
+            .toEqual(['one-value']);
     });
 });
 

@@ -82,8 +82,12 @@ export function buildDashboardConstraints({ activeTab, pipelineSegment, filters,
     if (states.length > 0) {
         constraints.push(where("state", "in", states));
     }
+    // Every writer stores a freight type as one value: the import's Job Type
+    // column and the Call Outcome's Freight Type both write text. Also asking
+    // for a list holding it (an `or` with array-contains) would double the
+    // alternatives Firestore expands this query into, past its limits.
     if (filters.driverType) {
-        constraints.push(where("driverType", "array-contains", filters.driverType));
+        constraints.push(where('driverType', '==', filters.driverType));
     }
     if (filters.assignee) {
         if (filters.assignee === '__unassigned__') {
