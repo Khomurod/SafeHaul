@@ -11,6 +11,7 @@ const { checkRateLimit } = require('./shared/rateLimiter');
 const { buildPublicProfileDto } = require('./shared/publicProfileDto');
 const { reconcilePublicProfilesToCompletion } = require('./shared/publicProfileSync');
 const { ORIGINAL_PDF_PREFIX } = require('./shared/preserveApplicationPdf');
+const { isPlaceholderEmail } = require('./shared/placeholderDomains');
 
 /**
  * Where the reconciler records how far it got.
@@ -131,6 +132,11 @@ exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
         await assertMaySend(request.auth.uid, companyId);
     } catch (e) {
         throw new HttpsError('permission-denied', 'You do not have permission to send emails for this company.');
+    }
+    // A lead imported without an email holds a made-up address: nobody reads
+    // it, and the bounce counts against the company's mail server.
+    if (isPlaceholderEmail(recipientEmail)) {
+        return { success: false, skipped: 'placeholder-recipient' };
     }
     if (triggerType === 'no_answer') {
         await assertNoAnswerRecipient(request.auth.uid, companyId, request.data?.recipientEmail, recipientEmail);

@@ -4,6 +4,7 @@ import { addDoc, collection, serverTimestamp, doc, updateDoc, getDoc, setDoc } f
 import { httpsCallable } from 'firebase/functions';
 import { sendNotification } from '@lib/notificationService';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { isPlaceholderEmail } from '@/config/placeholderDomains';
 
 const OUTCOMES = [
     { id: 'interested', isContact: true, label: 'Connected / Interested', status: 'Contacted', archive: false },
@@ -194,7 +195,9 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
                 });
             }
 
-            if (['no_answer', 'voicemail'].includes(outcome) && lead.email && !lead.email.includes('placeholder.com')) {
+            // Not to a lead without a real address: the import gives one a made-up
+            // address, and an email to it only bounces.
+            if (['no_answer', 'voicemail'].includes(outcome) && !isPlaceholderEmail(lead.email)) {
                 const sendEmail = httpsCallable(functions, 'sendAutomatedEmail');
                 sendEmail({
                     companyId,
