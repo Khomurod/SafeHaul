@@ -49,8 +49,8 @@ import { DriverProfileModal } from './DriverProfileModal';
 const baseView = () => ({
   loading: false,
   error: '',
+  // As `useAppFetch` loads it: `docSnap.data()`, which holds no `id`.
   appData: {
-    id: 'app-12345678',
     firstName: 'Maria',
     lastName: 'Garcia',
     email: 'maria@example.com',
@@ -215,6 +215,20 @@ describe('DriverProfileModal nested delete confirmation', () => {
       expect(screen.queryByRole('dialog', { name: 'Driver dossier' })).toBeNull();
       expect(document.activeElement).toBe(trigger);
     });
+  });
+});
+
+describe('DriverProfileModal header', () => {
+  it("shows the record's own id, which the loaded record does not hold", () => {
+    renderFromTrigger();
+    expect(screen.getByText('App ID: app-1234')).toBeInTheDocument();
+  });
+
+  it('downloads through the dossier, which says when there is no file to give', () => {
+    viewState = { ...baseView(), handleDownloadPdf: vi.fn() };
+    renderFromTrigger();
+    fireEvent.click(screen.getByRole('button', { name: 'Download application PDF' }));
+    expect(viewState.handleDownloadPdf).toHaveBeenCalledTimes(1);
   });
 });
 

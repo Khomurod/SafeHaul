@@ -79,7 +79,6 @@ export function DriverProfileModal({
         loading,
         error,
         appData,
-        companyProfile,
         currentStatus,
         isEditing,
         setIsEditing,
@@ -89,6 +88,7 @@ export function DriverProfileModal({
         handleAssignChange,
         handleSaveEdit,
         handleManagementComplete,
+        handleDownloadPdf,
         fileUrls,
         dqStatus,
         collectionName,
@@ -170,7 +170,7 @@ export function DriverProfileModal({
                             <DossierHeader
                                 activeTab={activeTab}
                                 appData={appData}
-                                companyProfile={companyProfile}
+                                recordId={driverId}
                                 currentStatus={currentStatus}
                                 onClose={onClose}
                                 onStatusUpdate={handleStatusUpdate}
@@ -180,6 +180,7 @@ export function DriverProfileModal({
                                 onAssignChange={handleAssignChange}
                                 canDelete={isCompanyAdmin}
                                 onDelete={() => setConfirmingDelete(true)}
+                                onDownload={handleDownloadPdf}
                             />
                         </div>
 
