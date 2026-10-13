@@ -153,4 +153,17 @@ test.describe('Applications search and pipeline filters', () => {
     await page.getByRole('combobox', { name: 'State' }).selectOption('All States');
     await expect(page.getByText('Showing 8 of 8 records')).toBeVisible();
   });
+
+  test('the date filter shows the applications created that day, and counts only them', async ({ page }) => {
+    await openApplications(page);
+    await page.getByRole('button', { name: /^Filters/ }).click();
+
+    await page.getByLabel('Filter by date').fill('2026-07-10');
+    await expect(page.getByText('Showing 1 of 1 records')).toBeVisible();
+    await expect(page.getByText('Maria Garcia')).toBeVisible();
+    await expect(page.getByText('James McDonald')).toHaveCount(0);
+
+    await page.getByLabel('Filter by date').fill('');
+    await expect(page.getByText('Showing 8 of 8 records')).toBeVisible();
+  });
 });

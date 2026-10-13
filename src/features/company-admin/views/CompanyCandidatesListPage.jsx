@@ -8,7 +8,7 @@ import { CallOutcomeModal } from '@shared/components/modals/CallOutcomeModal';
 import { LeadAssignmentModal } from '../components/LeadAssignmentModal';
 import { DriverProfileModal } from '../components/modals/driver-dossier/DriverProfileModal';
 
-import { buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_PIPELINE_TABS, LEAD_PIPELINE_TABS } from './candidateListColumns';
+import { addedDateOf, buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_PIPELINE_TABS, LEAD_PIPELINE_TABS } from './candidateListColumns';
 
 export const CompanyCandidatesListPage = ({ scope }) => {
     const { currentCompanyProfile, currentUserClaims } = useData();
@@ -66,8 +66,8 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                     aVal = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase();
                     bVal = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
                 } else if (sortConfig.key === 'date') {
-                    aVal = a.submittedAt?.seconds || a.createdAt?.seconds || 0;
-                    bVal = b.submittedAt?.seconds || b.createdAt?.seconds || 0;
+                    aVal = addedDateOf(a)?.seconds || 0;
+                    bVal = addedDateOf(b)?.seconds || 0;
                 } else {
                     aVal = a[sortConfig.key];
                     bVal = b[sortConfig.key];

@@ -214,24 +214,6 @@ export function useCompanyDashboard(companyId) {
                     };
                 });
 
-                if (filters.dateFilter) {
-                    const filterDate = new Date(filters.dateFilter + 'T00:00:00');
-                    const filterYear = filterDate.getFullYear();
-                    const filterMonth = filterDate.getMonth();
-                    const filterDay = filterDate.getDate();
-
-                    newData = newData.filter(item => {
-                        const ts = item.submittedAt || item.createdAt;
-                        if (!ts) return false;
-                        try {
-                            const d = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
-                            return d.getFullYear() === filterYear && d.getMonth() === filterMonth && d.getDate() === filterDay;
-                        } catch {
-                            return false;
-                        }
-                    });
-                }
-
                 if (fetchVersion === fetchVersionRef.current && snapshot.docs.length > 0) {
                     const lastDoc = snapshot.docs[snapshot.docs.length - 1];
                     lastVisibleDocsRef.current[currentPage] = lastDoc;
@@ -266,7 +248,7 @@ export function useCompanyDashboard(companyId) {
                 setLoading(false);
             }
         }
-    }, [companyId, activeTab, currentPage, itemsPerPage, debouncedSearch, filters, buildConstraints, runSearchQuery, clientFilterContext, e2eRecordsForTab]);
+    }, [companyId, activeTab, currentPage, itemsPerPage, debouncedSearch, buildConstraints, runSearchQuery, clientFilterContext, e2eRecordsForTab]);
 
     useEffect(() => {
         if (debouncedSearch) {

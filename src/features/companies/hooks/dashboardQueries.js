@@ -18,6 +18,8 @@ import {
     where,
     getCountFromServer,
     documentId,
+    startAfter,
+    endAt,
 } from 'firebase/firestore';
 import { db, auth } from '@lib/firebase';
 import { shouldPreferDashboardRollup } from '@lib/runtime/dashboardRollup';
@@ -29,6 +31,7 @@ import {
     applyClientSideFilters,
     mergeSearchResults,
     stateFilterValues,
+    dateFilterRange,
     SEARCH_PLAN_LIMIT,
     PREFIX_END,
 } from './dashboardSearch';
@@ -59,10 +62,14 @@ function usesPipelineOrderBy({ activeTab, pipelineSegment }) {
 
 export function buildDashboardConstraints({ activeTab, pipelineSegment, filters }) {
     let constraints = [];
+    const day = dateFilterRange(filters.dateFilter);
 
     if (activeTab === 'applications') {
-        if (!usesPipelineOrderBy({ activeTab, pipelineSegment })) {
-            // legacy browse: no orderBy (document-id ordering)
+        if (!usesPipelineOrderBy({ activeTab, pipelineSegment }) && day) {
+            // The picked day is a stretch of the createdAt order (below), so the
+            // list takes that order, newest first, as the segments do. Without a
+            // date, the legacy browse keeps document-id order (no orderBy).
+            constraints.push(orderBy("createdAt", "desc"));
         }
     } else if (activeTab === 'company_leads') {
         if (!usesPipelineOrderBy({ activeTab, pipelineSegment })) {
@@ -99,6 +106,15 @@ export function buildDashboardConstraints({ activeTab, pipelineSegment, filters 
 
     if (usesPipelineOrderBy({ activeTab, pipelineSegment })) {
         constraints.push(orderBy('createdAt', 'desc'));
+    }
+
+    if (day) {
+        // The recruiter's own day, from local midnight to the next, as cursors
+        // on the createdAt order rather than range filters: equality filters
+        // with a sort are what Firestore serves by merging the declared
+        // indexes. A later page's startAfter(lastDoc) replaces the first cursor
+        // and keeps the second.
+        constraints.push(startAfter(day.end), endAt(day.start));
     }
 
     return constraints;

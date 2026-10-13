@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -22,6 +22,8 @@ vi.mock('firebase/firestore', () => ({
     documentId: vi.fn(),
     where: (field, op, value) => ({ kind: 'where', field, op, value }),
     orderBy: (field, direction = 'asc') => ({ kind: 'orderBy', field, direction }),
+    startAfter: (...values) => ({ kind: 'startAfter', values }),
+    endAt: (...values) => ({ kind: 'endAt', values }),
 }));
 vi.mock('@lib/firebase', () => ({ db: {}, auth: { currentUser: { uid: 'recruiter-1' } } }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => false }));
@@ -37,10 +39,22 @@ const SEGMENTS_BY_TAB = {
     my_leads: ['all', 'attempting', 'in_process', 'interested'],
 };
 
-/** Firestore's answer to "does this record pass these filters?". */
+/**
+ * Firestore's answer to "is this record in the query's result?": it passes the
+ * filters, has the sorted field (a sort leaves out records without it), and
+ * lies between the cursors, which count along the sort's direction.
+ */
 function matches(record, constraints) {
+    const order = constraints.find((c) => c.kind === 'orderBy');
     return constraints.every((c) => {
-        if (c.kind !== 'where') return true;
+        if (c.kind === 'orderBy') return record[c.field] != null;
+        if (c.kind === 'startAfter' || c.kind === 'endAt') {
+            const value = record[order.field];
+            const [bound] = c.values;
+            const descending = order.direction === 'desc';
+            if (c.kind === 'startAfter') return descending ? value < bound : value > bound;
+            return descending ? value >= bound : value <= bound;
+        }
         const value = record[c.field];
         if (c.op === '==') return value === c.value;
         if (c.op === 'in') return c.value.includes(value);
@@ -99,12 +113,14 @@ function everyListQuery() {
                 for (const driverType of ['', 'Reefer']) {
                     for (const assignee of ['', 'recruiter-2', '__unassigned__']) {
                         for (const myAssignmentsOnly of [false, true]) {
-                            const filters = { state, driverType, assignee, myAssignmentsOnly, dob: '', dateFilter: '' };
-                            queries.push({
-                                label: `${activeTab}/${pipelineSegment} ${JSON.stringify({ state, driverType, assignee, myAssignmentsOnly })}`,
-                                collectionGroup: COLLECTION_BY_TAB[activeTab],
-                                constraints: buildDashboardConstraints({ activeTab, pipelineSegment, filters }),
-                            });
+                            for (const dateFilter of ['', '2026-10-12']) {
+                                const filters = { state, driverType, assignee, myAssignmentsOnly, dob: '', dateFilter };
+                                queries.push({
+                                    label: `${activeTab}/${pipelineSegment} ${JSON.stringify({ state, driverType, assignee, myAssignmentsOnly, dateFilter })}`,
+                                    collectionGroup: COLLECTION_BY_TAB[activeTab],
+                                    constraints: buildDashboardConstraints({ activeTab, pipelineSegment, filters }),
+                                });
+                            }
                         }
                     }
                 }
@@ -128,7 +144,7 @@ describe('the State filter', () => {
         { id: 'other', state: 'Illinois' },
         { id: 'province', state: 'ON' },
         { id: 'none' },
-    ].map((record) => ({ ...record, assignedTo: 'recruiter-1' }));
+    ].map((record) => ({ ...record, assignedTo: 'recruiter-1', createdAt: new Date('2026-10-01T15:00:00Z') }));
 
     it.each(['applications', 'company_leads', 'my_leads'])('finds every record of the picked state on %s', (activeTab) => {
         const constraints = buildDashboardConstraints({
@@ -164,6 +180,56 @@ describe('the State filter', () => {
         const constraints = buildDashboardConstraints({ activeTab: 'applications', pipelineSegment: 'all', filters: { state: '' } });
 
         expect(constraints.filter((c) => c.field === 'state')).toEqual([]);
+    });
+});
+
+describe('the date filter', () => {
+    let zone;
+
+    beforeEach(() => {
+        zone = process.env.TZ;
+        process.env.TZ = 'America/Chicago';
+    });
+
+    afterEach(() => {
+        if (zone === undefined) delete process.env.TZ;
+        else process.env.TZ = zone;
+    });
+
+    // Artificial records around 12 October on a recruiter's clock in Chicago
+    // (UTC-5), all assigned to the signed-in recruiter.
+    const records = [
+        { id: 'evening-before', createdAt: new Date('2026-10-12T04:59:00Z') }, // 11 Oct, 23:59
+        { id: 'midnight', createdAt: new Date('2026-10-12T05:00:00Z') }, // 12 Oct, 00:00
+        { id: 'late', createdAt: new Date('2026-10-13T04:59:00Z') }, // 12 Oct, 23:59
+        { id: 'next-day', createdAt: new Date('2026-10-13T05:00:00Z') }, // 13 Oct, 00:00
+        { id: 'no-date' },
+    ].map((record) => ({ ...record, assignedTo: 'recruiter-1' }));
+
+    it.each(['applications', 'company_leads', 'my_leads'])('asks the server for the picked day on %s, not a page of it', (activeTab) => {
+        const constraints = buildDashboardConstraints({
+            activeTab, pipelineSegment: 'all', filters: { dateFilter: '2026-10-12' },
+        });
+
+        expect(records.filter((record) => matches(record, constraints)).map((record) => record.id))
+            .toEqual(['midnight', 'late']);
+    });
+
+    it('sorts the picked day newest first on All Applications, which keeps its order without one', () => {
+        const orderOf = (dateFilter) => buildDashboardConstraints({
+            activeTab: 'applications', pipelineSegment: 'all', filters: { dateFilter },
+        }).filter((c) => c.kind === 'orderBy');
+
+        expect(orderOf('2026-10-12')).toEqual([{ kind: 'orderBy', field: 'createdAt', direction: 'desc' }]);
+        expect(orderOf('')).toEqual([]);
+    });
+
+    it('sets no date constraint for a day that does not exist', () => {
+        const constraints = buildDashboardConstraints({
+            activeTab: 'applications', pipelineSegment: 'all', filters: { dateFilter: '2026-02-30' },
+        });
+
+        expect(constraints).toEqual([]);
     });
 });
 
