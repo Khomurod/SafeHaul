@@ -19,7 +19,8 @@ vi.mock('firebase/firestore', () => ({
     doc: vi.fn(),
     query: vi.fn(),
     orderBy: vi.fn(),
-    getDocs: vi.fn(async () => ({ docs: [] })),
+    // The DQ File entries: a live listener, which these tests leave silent.
+    onSnapshot: vi.fn(() => () => {}),
 }));
 vi.mock('@features/applications/services/applicationPdfService', () => ({
     NoPreservedPdfError: pdf.NoPreservedPdfError,
