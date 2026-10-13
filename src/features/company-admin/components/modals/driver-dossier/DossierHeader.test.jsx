@@ -7,8 +7,8 @@ afterEach(cleanup);
 
 const baseProps = {
     activeTab: 'application',
-    appData: { id: 'app12345678' },
-    companyProfile: {},
+    appData: {},
+    recordId: 'app12345678',
     currentStatus: 'New',
     onClose: () => {},
     onStatusUpdate: () => {},

@@ -3,20 +3,12 @@
  *
  * Frozen: the per-tab title strings, the App-ID presentation rule, the status
  * option set and its dedupe/`'New'` fallback, the assign option labels and their
- * fallback chain, the exact single-argument callbacks, the PDF payload, and the
- * `canEdit` / `canDelete` visibility rules.
+ * fallback chain, the exact single-argument callbacks, the Download forwarding,
+ * and the `canEdit` / `canDelete` visibility rules.
  */
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-
-// Download fetches the PRESERVED original; it no longer regenerates the
-// document in the browser from live application data.
-const downloadPreservedSpy = vi.fn().mockResolvedValue({ url: 'https://signed.test/x.pdf' });
-vi.mock('@features/applications/services/applicationPdfService', () => ({
-  NoPreservedPdfError: class NoPreservedPdfError extends Error {},
-  downloadPreservedApplicationPdf: (...args) => downloadPreservedSpy(...args),
-}));
 
 import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
 import { DossierHeader } from './DossierHeader';
@@ -25,8 +17,9 @@ afterEach(cleanup);
 
 const baseProps = () => ({
   activeTab: 'application',
-  appData: { id: 'app12345678' },
-  companyProfile: { companyName: 'Acme' },
+  // As the dossier loads it: the record's fields, without its document id.
+  appData: { firstName: 'Maria' },
+  recordId: 'app12345678',
   currentStatus: 'New',
   onClose: vi.fn(),
   onStatusUpdate: vi.fn(),
@@ -36,6 +29,7 @@ const baseProps = () => ({
   onAssignChange: vi.fn(),
   canDelete: false,
   onDelete: vi.fn(),
+  onDownload: vi.fn(),
 });
 
 const renderHeader = (overrides = {}) => {
@@ -60,7 +54,7 @@ describe('DossierHeader titles', () => {
 });
 
 describe('DossierHeader application id', () => {
-  it('shows the first 8 characters of the id on the application tab', () => {
+  it("shows the first 8 characters of the record's id on the application tab", () => {
     renderHeader();
     expect(screen.getByText('App ID: app12345')).toBeInTheDocument();
   });
@@ -165,30 +159,10 @@ describe('DossierHeader permission gating', () => {
 });
 
 describe('DossierHeader actions', () => {
-  beforeEach(() => downloadPreservedSpy.mockClear());
-
-  it('asks for the preserved original by company and application', () => {
-    renderHeader({ appData: { id: 'app12345678', companyId: 'company-abc' } });
+  it("leaves the download to the dossier's own handler", () => {
+    const props = renderHeader();
     fireEvent.click(screen.getByRole('button', { name: /download/i }));
-    expect(downloadPreservedSpy).toHaveBeenCalledWith({
-      companyId: 'company-abc',
-      applicationId: 'app12345678',
-    });
-  });
-
-  it('falls back to the company profile for records that predate companyId stamping', () => {
-    renderHeader({ appData: { id: 'app12345678' }, companyProfile: { id: 'company-xyz', companyName: 'Acme' } });
-    fireEvent.click(screen.getByRole('button', { name: /download/i }));
-    expect(downloadPreservedSpy).toHaveBeenCalledWith({
-      companyId: 'company-xyz',
-      applicationId: 'app12345678',
-    });
-  });
-
-  it('does not attempt a download when there is no application data', () => {
-    renderHeader({ appData: null });
-    fireEvent.click(screen.getByRole('button', { name: /download/i }));
-    expect(downloadPreservedSpy).not.toHaveBeenCalled();
+    expect(props.onDownload).toHaveBeenCalledTimes(1);
   });
 
   it('closes the dossier from a named close control', () => {

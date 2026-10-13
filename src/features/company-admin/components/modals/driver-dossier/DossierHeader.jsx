@@ -1,9 +1,5 @@
 import React, { useId, useMemo } from 'react';
 import { Icon, X, Download, Trash2 } from '@design-system/icons';
-import {
-    NoPreservedPdfError,
-    downloadPreservedApplicationPdf,
-} from '@features/applications/services/applicationPdfService';
 import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
 import { Badge, IconButton, Select } from '@/design-system/components';
 
@@ -15,7 +11,8 @@ import { Badge, IconButton, Select } from '@/design-system/components';
  * primitives with `--ds-*` tokens (2026-07-27).
  *
  * Frozen contracts: every per-tab title string, the `App ID: <first 8 chars>`
- * presentation and its `Loading...` placeholder, the status option set
+ * presentation (of `recordId`, the record's document id: the loaded record
+ * holds no `id`) and its `Loading...` placeholder, the status option set
  * (`ATS_STATUS_DROPDOWN_OPTIONS` plus the current status, deduplicated) with its
  * `'New'` fallback, the `onStatusUpdate(value)` and `onAssignChange(value)`
  * single-argument callbacks, the `name || displayName || email || id` assignee
@@ -26,7 +23,9 @@ import { Badge, IconButton, Select } from '@/design-system/components';
  * application with the browser-side jsPDF generator over live data. It fetches
  * the PRESERVED original, rendered once on the server from the frozen submission
  * record and stored — so the document a recruiter downloads today is the same
- * document they would have downloaded the day it was submitted.
+ * document they would have downloaded the day it was submitted. The dossier's
+ * `handleDownloadPdf` (`useApplicationView`) does it as `onDownload`, and says
+ * when there is no file to give.
  *
  * DEFECTS FIXED (2026-07-27):
  * - **The close button had no accessible name at all** — an icon-only `<button>`
@@ -49,7 +48,7 @@ import { Badge, IconButton, Select } from '@/design-system/components';
 export function DossierHeader({
     activeTab,
     appData,
-    companyProfile,
+    recordId,
     currentStatus,
     onClose,
     onStatusUpdate,
@@ -59,6 +58,7 @@ export function DossierHeader({
     onAssignChange,
     canDelete = false,
     onDelete,
+    onDownload,
 }) {
     const rawId = useId().replace(/:/g, '');
     const statusId = `dossier-status-${rawId}`;
@@ -73,33 +73,6 @@ export function DossierHeader({
             case 'notes': return 'Internal Notes';
             case 'pev': return 'Previous Employment Verification';
             default: return 'Driver Dossier';
-        }
-    };
-
-    const handleDownload = async () => {
-        // `companyId` is stamped on every application document; the profile is a
-        // fallback for the manual-entry records that predate that stamping.
-        //
-        // `applicationId` before `id`: useAppFetch assigns `docSnap.data()`
-        // without adding the Firestore document id, so `appData.id` is usually
-        // undefined on a guest application — relying on it made Download do
-        // nothing at all, silently. `buildApplicationDoc` writes `applicationId`
-        // into the document itself, so that is the identifier that is really there.
-        const companyId = appData?.companyId || companyProfile?.id;
-        const applicationId = appData?.applicationId || appData?.id || appData?.applicantId;
-        if (!companyId || !applicationId) return;
-        try {
-            await downloadPreservedApplicationPdf({ companyId, applicationId });
-        } catch (error) {
-            // A dossier header has no toast of its own; the same download is
-            // available from the application view, which reports failures. What
-            // matters here is not silently pretending a file was produced.
-            console.error(
-                error instanceof NoPreservedPdfError
-                    ? `No preserved application PDF: ${error.message}`
-                    : 'Preserved application PDF unavailable:',
-                error,
-            );
         }
     };
 
@@ -126,7 +99,7 @@ export function DossierHeader({
                 {activeTab === 'application' && (
                     <span className="shrink-0">
                         <Badge tone="neutral">
-                            {appData ? `App ID: ${appData.id?.slice(0, 8)}` : 'Loading...'}
+                            {appData ? `App ID: ${String(recordId ?? '').slice(0, 8)}` : 'Loading...'}
                         </Badge>
                     </span>
                 )}
@@ -196,7 +169,7 @@ export function DossierHeader({
                 <IconButton
                     variant="ghost"
                     label="Download application PDF"
-                    onClick={handleDownload}
+                    onClick={onDownload}
                 >
                     <Icon icon={Download} size="xl" />
                 </IconButton>
