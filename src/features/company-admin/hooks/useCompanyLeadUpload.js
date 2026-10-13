@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { db, auth } from '@lib/firebase';
 import { writeBatch, collection, doc, serverTimestamp, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { formatPhoneNumber, normalizePhone } from '@shared/utils/helpers';
+import { LEAD_IMPORT_PLACEHOLDERS } from '@/config/leadImportPlaceholders';
 import { PLACEHOLDER_DOMAIN } from '@/config/placeholderDomains';
 import { LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
 
@@ -222,7 +223,18 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                 };
 
                 if (existingDoc) {
-                    currentBatch.update(existingDoc.ref, leadPayload);
+                    // A re-import adds what the file gives and keeps the rest:
+                    // no blank, filled-in name or type, or placeholder email
+                    // goes over what the lead holds, and its source stays.
+                    const updates = { updatedAt: leadPayload.updatedAt };
+                    ['firstName', 'lastName', 'phone', 'normalizedPhone', 'experience', 'driverType', 'city', 'state']
+                        .filter((key) => leadPayload[key] && leadPayload[key] !== LEAD_IMPORT_PLACEHOLDERS[key])
+                        .forEach((key) => { updates[key] = leadPayload[key]; });
+                    if (leadPayload.email && !leadPayload.isEmailPlaceholder) {
+                        updates.email = leadPayload.email;
+                        updates.isEmailPlaceholder = false;
+                    }
+                    currentBatch.update(existingDoc.ref, updates);
 
                     const logRef = collection(db, "companies", companyId, "leads", existingDoc.id, "activity_logs");
                     const logDoc = doc(logRef);

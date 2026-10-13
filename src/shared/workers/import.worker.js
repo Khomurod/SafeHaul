@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import Papa from 'papaparse';
 import { formatPhoneNumber, normalizePhone } from '@/shared/utils/helpers';
 import { PLACEHOLDER_DOMAIN } from '@/config/placeholderDomains';
+import { LEAD_IMPORT_PLACEHOLDERS } from '@/config/leadImportPlaceholders';
 
 // Helper to find key in row object
 const findKey = (row, keywords) => {
@@ -107,22 +108,22 @@ self.onmessage = async (e) => {
                             if (parts.length > 1) {
                                 lName = parts.slice(1).join(' ');
                             } else {
-                                lName = 'Driver';
+                                lName = LEAD_IMPORT_PLACEHOLDERS.lastName;
                             }
                         }
                     }
                 }
             }
 
-            if (!fName) fName = 'Unknown';
-            if (!lName) lName = 'Driver';
+            if (!fName) fName = LEAD_IMPORT_PLACEHOLDERS.firstName;
+            if (!lName) lName = LEAD_IMPORT_PLACEHOLDERS.lastName;
 
             const rawPhone = phoneKey ? safeVal(row[phoneKey]) : '';
             const formattedPhone = rawPhone ? formatPhoneNumber(rawPhone) : '';
             const normPhone = normalizePhone(rawPhone);
 
             let typeVal = typeKey ? safeVal(row[typeKey]) : '';
-            if (!typeVal || typeVal.toLowerCase() === 'undefined') typeVal = 'unidentified';
+            if (!typeVal || typeVal.toLowerCase() === 'undefined') typeVal = LEAD_IMPORT_PLACEHOLDERS.driverType;
 
             const record = {
                 firstName: fName,
