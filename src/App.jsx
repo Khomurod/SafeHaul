@@ -10,8 +10,8 @@ import {
 } from '@shared/components/feedback';
 import { QueueStatusIndicator } from '@shared/components/feedback/QueueStatusIndicator';
 import { featureScreens, companyChildRouteDefs } from '@app/routes/featureRegistry';
-import { isCompanyWorkspaceRole } from '@app/auth/roles';
 import { CompanyAdminRoute } from '@app/routes/CompanyAdminRoute';
+import { AuthGuardedLogin, ProtectedRoute, RootRedirect } from '@app/routes/authRouteGuards';
 import {
   COMPANY_WORKSPACE_ROUTE,
   PROTECTED_FEATURE_ROUTE_MANIFEST,
@@ -19,9 +19,6 @@ import {
 } from '@app/routes/appRouteManifest';
 
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
-
-// Keep Auth screens eager-loaded as they are the entry point
-import { LoginScreen } from '@features/auth';
 
 /**
  * E2E-only mount point for `VOEPreviewModal`, whose Print pipeline can only be
@@ -40,35 +37,6 @@ function withFeatureBoundary(featureName, element) {
       {element}
     </FeatureErrorBoundary>
   );
-}
-
-// --- ROUTE GUARDS ---
-function RootRedirect() {
-  const { currentUser, userRole, loading } = useData();
-  if (loading) return <GlobalLoadingState />;
-  if (!currentUser) return <Navigate to="/login" />;
-
-  if (userRole === 'super_admin') return <Navigate to="/super-admin" />;
-  if (isCompanyWorkspaceRole(userRole)) return <Navigate to="/company/dashboard" />;
-
-  if (!userRole) return null;
-
-  return <Navigate to="/login" />;
-}
-
-// P3-12 FIX: Redirect authenticated users away from login page
-function AuthGuardedLogin() {
-  const { currentUser, loading } = useData();
-  if (loading) return <GlobalLoadingState />;
-  if (currentUser) return <Navigate to="/" replace />;
-  return <LoginScreen />;
-}
-function ProtectedRoute({ children, allowedRoles }) {
-  const { currentUser, userRole, loading } = useData();
-  if (loading) return <GlobalLoadingState />;
-  if (!currentUser) return <Navigate to="/login" />;
-  if (allowedRoles && !allowedRoles.includes(userRole)) return <Navigate to="/" />;
-  return children;
 }
 
 // --- MAIN ROUTER ---
