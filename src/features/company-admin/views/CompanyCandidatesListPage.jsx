@@ -8,7 +8,8 @@ import { CallOutcomeModal } from '@shared/components/modals/CallOutcomeModal';
 import { LeadAssignmentModal } from '../components/LeadAssignmentModal';
 import { DriverProfileModal } from '../components/modals/driver-dossier/DriverProfileModal';
 
-import { addedDateOf, buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_PIPELINE_TABS, LEAD_PIPELINE_TABS } from './candidateListColumns';
+import { buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_PIPELINE_TABS, LEAD_PIPELINE_TABS } from './candidateListColumns';
+import { UndatedRecordsNotice } from './UndatedRecordsNotice';
 
 export const CompanyCandidatesListPage = ({ scope }) => {
     const { currentCompanyProfile, currentUserClaims } = useData();
@@ -26,16 +27,12 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     const [assigningLeads, setAssigningLeads] = useState([]);
     const [selectedRowIds, setSelectedRowIds] = useState([]);
 
-    // Sorting — date sort lives here; other sortConfig keys reserved for future use
-    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-
-    // Toggle date sort direction on arrow click
+    // The Added Date arrows set the order Firestore sorts the whole list by.
+    // Latest first is the default; Earliest first, pressed again, turns back.
+    const { dateOrder, setDateOrder } = dashboard;
+    const sortConfig = useMemo(() => ({ key: 'date', direction: dateOrder }), [dateOrder]);
     const handleDateSort = (direction) => {
-        setSortConfig(prev =>
-            prev.key === 'date' && prev.direction === direction
-                ? { key: null, direction: 'asc' }   // clicking same arrow again clears sort
-                : { key: 'date', direction }
-        );
+        setDateOrder(direction === 'asc' && dateOrder !== 'asc' ? 'asc' : 'desc');
     };
 
     // Force hook to respect the scope prop
@@ -54,31 +51,11 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         dashboard.searchQuery,
         dashboard.pipelineSegment,
         dashboard.filters,
+        dateOrder,
     ]);
 
-    // Sorted data
-    const sortedData = useMemo(() => {
-        let items = [...dashboard.paginatedData];
-        if (sortConfig.key) {
-            items.sort((a, b) => {
-                let aVal, bVal;
-                if (sortConfig.key === 'name') {
-                    aVal = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase();
-                    bVal = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase();
-                } else if (sortConfig.key === 'date') {
-                    aVal = addedDateOf(a)?.seconds || 0;
-                    bVal = addedDateOf(b)?.seconds || 0;
-                } else {
-                    aVal = a[sortConfig.key];
-                    bVal = b[sortConfig.key];
-                }
-                if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
-            });
-        }
-        return items;
-    }, [dashboard.paginatedData, sortConfig]);
+    // Already in the Added Date order: the hook asks Firestore for it.
+    const sortedData = dashboard.paginatedData;
 
     // ── Handlers ──
     const handlePhoneClick = (e, item) => {
@@ -183,6 +160,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
 
             {/* List Content */}
             <div className="flex-1 overflow-hidden p-3 sm:p-6 flex flex-col gap-0">
+                <UndatedRecordsNotice count={dashboard.undatedCount} />
                 {/* Toolbar — search, filters, timer, assign */}
                 <div className="rounded-t-ds-lg border border-b-0 border-ds-border-subtle bg-ds-surface">
                     <DashboardToolbar

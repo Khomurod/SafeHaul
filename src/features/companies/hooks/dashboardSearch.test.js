@@ -8,6 +8,7 @@ import {
     leadStatusMatchesSegment,
     stateFilterValues,
     dateFilterRange,
+    sortByAddedDate,
     PREFIX_END,
 } from './dashboardSearch';
 
@@ -285,7 +286,42 @@ describe('the date filter, on a clock in Chicago', () => {
     });
 });
 
+describe('sortByAddedDate', () => {
+    // Artificial records: created on days 1-3, one only submitted (day 2.5),
+    // and one with no date at all.
+    const day = (n) => ({ seconds: n * 86400 });
+    const records = [
+        { id: 'second', createdAt: day(2) },
+        { id: 'undated' },
+        { id: 'first', createdAt: day(1), submittedAt: day(9) },
+        { id: 'submitted-only', submittedAt: day(2.5) },
+        { id: 'third', createdAt: day(3) },
+    ];
+
+    it('puts the newest Added Date first, the creation day before a later submission', () => {
+        expect(sortByAddedDate(records).map((r) => r.id))
+            .toEqual(['third', 'submitted-only', 'second', 'first', 'undated']);
+    });
+
+    it('puts the earliest first for the Earliest first arrow, with the undated record still last', () => {
+        expect(sortByAddedDate(records, 'asc').map((r) => r.id))
+            .toEqual(['first', 'second', 'submitted-only', 'third', 'undated']);
+    });
+
+    it('leaves its input as it was', () => {
+        const before = records.map((r) => r.id);
+        sortByAddedDate(records, 'asc');
+        expect(records.map((r) => r.id)).toEqual(before);
+    });
+});
+
 describe('mergeSearchResults', () => {
+    it('sorts by the day a record was created, before a later submission', () => {
+        const created = { id: 'created-late', createdAt: { seconds: 500 }, submittedAt: { seconds: 500 } };
+        const resubmitted = { id: 'resubmitted', createdAt: { seconds: 100 }, submittedAt: { seconds: 900 } };
+        expect(mergeSearchResults([[resubmitted], [created]]).map((r) => r.id)).toEqual(['created-late', 'resubmitted']);
+    });
+
     it('dedupes by id and sorts newest first', () => {
         const a = { id: 'a', submittedAt: { seconds: 100 } };
         const b = { id: 'b', submittedAt: { seconds: 300 } };

@@ -1271,6 +1271,10 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   drafts** (`listApplicationDrafts`, by `updatedAt`), and says when there are
   more (`truncated`). No pagination — a second list would break one-query,
   one-row-per-document.
+- **A record without `createdAt` is missing from the candidate lists**, which
+  Firestore sorts by it (newest first, or as the Added Date arrows say): a sort
+  leaves it out. A notice counts such records (`UndatedRecordsNotice`) and
+  search finds them; dating them is the owner's data change.
 - **Facebook lead capture is switched off, and leads may be stranded.** An
   earlier defect wrote a connected page's leads to `companies/{uid}/leads`,
   which no screen reads; `scripts/audit-facebook-lead-tenancy.mjs` (read-only)
@@ -1318,22 +1322,19 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   Every schema section is editable, but `proposeApplicationChanges` applies only
   its allowlist and returns the rest as `skipped`, unmentioned — an edit to,
   say, a qualification answer disappears.
-- **HEIC photos cannot be read.** The reader takes PDF, JPG, PNG and WebP;
-  browsers cannot decode HEIC (an iPhone's default), so it is refused, naming
-  the accepted formats (re-take as JPG, or upload a PDF).
+- **HEIC photos cannot be read** (an iPhone's default; browsers cannot decode
+  it): the reader takes PDF, JPG, PNG and WebP and refuses HEIC, naming those.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
-  `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
-  Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the
-  app.
+  `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan");
+  marketing prices ($199 / $299 a month) are **not** enforced.
 - **Opt-out enforcement works; opt-out *capture* does not.** Sends check the
   blacklist (§8), but `handleOptOut` (`functions/blacklist.js`) triggers on
   `companies/{companyId}/inbound_messages/{msgId}`, which **nothing writes** (no
   inbound SMS webhook): a STOP reply reaches the company's own provider, and a
   number reaches the blacklist only if written directly, with no admin
   interface.
-- **Frontend coverage thresholds are a ratchet**, a few points under measured
-  coverage (`vitest.config.js`) to block a real drop. Raise them as coverage
-  improves; never lower them to pass a build.
+- **Frontend coverage thresholds are a ratchet** (`vitest.config.js`), a few
+  points under measured coverage: raise them as it improves, never lower them.
 - **Mixed Functions v1/v2 is intentional.** The generations run as different
   service accounts (§7), so binding a secret from a generation that never bound
   it fails the **entire** functions deploy until that account is granted access
@@ -1354,16 +1355,13 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   filled and the day stays closed (the ledger records a row saying so).
   Reopening one means changing the `create()`-based anti-double-publish
   guarantee; see [`docs/news-and-insights.md`](./news-and-insights.md).
-- **The blog's enforced word floor is 150 words**, far below the 700–1,200
-  originally specified — a recorded owner decision against free-tier provider
-  limits, not drift. Raising a provider tier reverses it.
-- **`themesAreDistinct` is not wired into the blog pipeline** — exported and
-  tested, called by nothing; with one article a day there is no day's set to
-  check, and the 60-day duplicate window keeps successive days apart.
-- **The AI live-credential checks cannot run in CI.** The credential-access
-  diagnostic, per-capability connection tests, model-pin verification and a
-  manual publication check need real credentials in a deployed environment; a
-  green test run is not evidence any of them passed.
+- **The blog's word floor is 150 words**, not the 700–1,200 first specified: a
+  recorded owner decision for free-tier provider limits; a higher tier undoes it.
+- **`themesAreDistinct` is exported, tested and called by nothing**: one article
+  a day leaves no set to check, and the 60-day duplicate window keeps days apart.
+- **The AI live-credential checks cannot run in CI**: the credential-access
+  diagnostic, connection tests, model-pin verification and manual publication
+  check need a deployed environment's credentials; a green run proves none.
 - **Known dependency advisories.** `npm audit` (root and `functions/`) gives the
   live list; most have an in-range fix. A few wait on a major or upstream: root
   `exceljs` and the `firebase` SDK's pinned `@grpc/grpc-js` 1.9; in `functions/`,

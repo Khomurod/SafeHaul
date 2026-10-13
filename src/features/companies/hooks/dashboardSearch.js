@@ -227,17 +227,44 @@ export function dateFilterRange(dateFilter) {
     };
 }
 
+/** A stored time (a Firestore Timestamp or its plain `{ seconds }` form) in milliseconds; `null` if there is none. */
+function timeMillis(ts) {
+    if (!ts) return null;
+    try {
+        const millis = ts.toDate ? ts.toDate().getTime() : ts.seconds * 1000;
+        return Number.isFinite(millis) ? millis : null;
+    } catch {
+        return null;
+    }
+}
+
+/** When a record was created; `null` for one without createdAt, which the list's date order leaves out. */
+export function createdAtMillis(record) {
+    return timeMillis(record?.createdAt);
+}
+
 function matchesDateFilter(record, dateFilter) {
     const range = dateFilterRange(dateFilter);
     if (!range) return true;
-    const ts = record.createdAt;
-    if (!ts) return false;
-    try {
-        const at = (ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000)).getTime();
-        return at >= range.start.getTime() && at < range.end.getTime();
-    } catch {
-        return false;
-    }
+    const at = createdAtMillis(record);
+    return at !== null && at >= range.start.getTime() && at < range.end.getTime();
+}
+
+/**
+ * Records in the order of the list's Added Date: the day each was created, else
+ * submitted, newest first or, with `'asc'`, earliest first. A record with
+ * neither comes last. The browse list gets this order from Firestore; search
+ * results, at most 50, and the E2E fixtures are sorted here.
+ */
+export function sortByAddedDate(records, direction = 'desc') {
+    const sign = direction === 'asc' ? 1 : -1;
+    const addedAt = (record) => createdAtMillis(record) ?? timeMillis(record?.submittedAt);
+    return [...(records || [])].sort((a, b) => {
+        const aAt = addedAt(a);
+        const bAt = addedAt(b);
+        if (aAt === null || bAt === null) return (aAt === null) - (bAt === null);
+        return sign * (aAt - bAt);
+    });
 }
 
 /**
@@ -294,7 +321,7 @@ export function applyClientSideFilters(records, {
     });
 }
 
-/** Merge result lists, dedupe by id, newest submittedAt/createdAt first. */
+/** Merge result lists, dedupe by id, newest Added Date first (`sortByAddedDate`), capped. */
 export function mergeSearchResults(lists, cap = SEARCH_RESULT_LIMIT) {
     const byId = new Map();
     for (const list of lists || []) {
@@ -304,11 +331,5 @@ export function mergeSearchResults(lists, cap = SEARCH_RESULT_LIMIT) {
             }
         }
     }
-    const merged = [...byId.values()];
-    merged.sort((a, b) => {
-        const aTs = a.submittedAt?.seconds || a.createdAt?.seconds || 0;
-        const bTs = b.submittedAt?.seconds || b.createdAt?.seconds || 0;
-        return bTs - aTs;
-    });
-    return merged.slice(0, cap);
+    return sortByAddedDate([...byId.values()], 'desc').slice(0, cap);
 }
