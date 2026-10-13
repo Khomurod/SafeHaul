@@ -15,10 +15,15 @@ const memberName = (name, email) => (name && name !== 'Unknown' ? name : email |
  * team yet is listed from its `memberships`, which only an admin may read: a
  * recruiter's browser is not sent a query the rules refuse it, and gets an
  * empty team instead.
+ *
+ * The signed-in profile is read when the user enters the company; a caller
+ * holding a fresher read of the same company (the dossier reads it on opening)
+ * passes it as `companyProfile`, so a member who joined since is listed.
  */
-export function useCompanyTeam(companyId) {
+export function useCompanyTeam(companyId, companyProfile) {
     const { currentCompanyProfile, currentUserClaims } = useData();
-    const cached = currentCompanyProfile?.id === companyId ? currentCompanyProfile?.teamMembers : undefined;
+    const profile = [companyProfile, currentCompanyProfile].find((p) => p?.id === companyId);
+    const cached = profile?.teamMembers;
     const roles = currentUserClaims?.roles || {};
     const mayListMemberships = roles.globalRole === 'super_admin' || roles[companyId] === 'company_admin';
 

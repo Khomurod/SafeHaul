@@ -87,6 +87,20 @@ describe('useCompanyTeam', () => {
         expect(fx.getDocs.mock.calls[0][0]).toMatchObject({ path: 'memberships' });
     });
 
+    it("prefers a fresher profile of the same company, which the caller read itself", async () => {
+        fx.data = { currentCompanyProfile: { id: 'co-1', teamMembers: CACHE.slice(0, 1) }, currentUserClaims: recruiter };
+        const fresh = { id: 'co-1', teamMembers: [...CACHE.slice(0, 1), { userId: 'uid-cara', name: 'Cara Recruiter', email: 'cara@example.com', role: 'recruiter' }] };
+        const { result, rerender } = renderHook(({ profile }) => useCompanyTeam('co-1', profile), { initialProps: { profile: null } });
+
+        expect(result.current.team.map((m) => m.id)).toEqual(['uid-ann']);
+        rerender({ profile: fresh });
+        expect(result.current.team.map((m) => m.id)).toEqual(['uid-ann', 'uid-cara']);
+        // Another company's profile is not this company's team.
+        rerender({ profile: { ...fresh, id: 'co-2' } });
+        expect(result.current.team.map((m) => m.id)).toEqual(['uid-ann']);
+        expect(fx.getDocs).not.toHaveBeenCalled();
+    });
+
     it("does not take another company's team for this one", async () => {
         fx.data = { currentCompanyProfile: { id: 'co-2', teamMembers: CACHE }, currentUserClaims: recruiter };
         const { result } = renderHook(() => useCompanyTeam('co-1'));

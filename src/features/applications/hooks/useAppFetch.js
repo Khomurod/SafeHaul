@@ -27,7 +27,7 @@ export function useAppFetch(companyId, applicationId) {
   const [currentStatus, setCurrentStatus] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
   // The Assign To picker's team, each member keyed by the uid it saves.
-  const { team: teamMembers } = useCompanyTeam(companyId);
+  const { team: teamMembers } = useCompanyTeam(companyId, companyProfile);
 
   const isGlobal = false;
 

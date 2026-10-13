@@ -12,6 +12,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 
 const fx = vi.hoisted(() => ({
     profile: null,
+    freshProfile: null,
     claims: { roles: { 'co-1': 'recruiter' } },
     getDocs: vi.fn(),
 }));
@@ -20,7 +21,8 @@ vi.mock('@/context/DataContext', () => ({
     useData: () => ({ currentCompanyProfile: fx.profile, currentUserClaims: fx.claims }),
 }));
 vi.mock('@lib/firebase', () => ({ db: {}, storage: {}, functions: {} }));
-vi.mock('@features/companies', () => ({ getCompanyProfile: async () => fx.profile }));
+// The company profile the dossier reads itself on opening.
+vi.mock('@features/companies', () => ({ getCompanyProfile: async () => fx.freshProfile || fx.profile }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => async () => ({ data: {} }) }));
 vi.mock('firebase/storage', () => ({ ref: vi.fn(), getDownloadURL: vi.fn() }));
 vi.mock('firebase/firestore', () => ({
@@ -42,6 +44,7 @@ vi.mock('firebase/firestore', () => ({
 import { useAppFetch } from './useAppFetch';
 
 afterEach(() => {
+    fx.freshProfile = null;
     fx.getDocs.mockReset();
 });
 
@@ -58,5 +61,15 @@ describe("useAppFetch's team", () => {
         await waitFor(() => expect(result.current.teamMembers).toHaveLength(1));
         expect(result.current.teamMembers[0]).toMatchObject({ id: 'uid-ben', name: 'Ben Recruiter' });
         expect(fx.getDocs.mock.calls.filter(([q]) => q?.path === 'memberships')).toHaveLength(0);
+    });
+
+    it('lists a member who joined after sign-in, from the profile the dossier reads on opening', async () => {
+        const ben = { userId: 'uid-ben', name: 'Ben Recruiter', email: 'ben@example.com', role: 'recruiter' };
+        fx.profile = { id: 'co-1', teamMembers: [ben] };
+        fx.freshProfile = { id: 'co-1', teamMembers: [ben, { userId: 'uid-cara', name: 'Cara Recruiter', email: 'cara@example.com', role: 'recruiter' }] };
+        const { result } = renderHook(() => useAppFetch('co-1', 'app-1'));
+
+        await waitFor(() => expect(result.current.teamMembers).toHaveLength(2));
+        expect(result.current.teamMembers[1]).toMatchObject({ id: 'uid-cara', name: 'Cara Recruiter' });
     });
 });
