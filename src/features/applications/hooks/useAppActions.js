@@ -47,8 +47,11 @@ export function useAppActions({
   };
 
   const handleAssignChange = async (newUserId) => {
-    const newOwnerName = teamMembers.find(m => m.id === newUserId)?.name || 'Unassigned';
-    const prevName = appData?.assignedToName || 'Unassigned';
+    // '' unassigns, and an unassigned record holds no assignee's name: the lists
+    // show it as Unassigned, and the automated status SMS does not sign with it.
+    const newOwnerName = newUserId ? (teamMembers.find(m => m.id === newUserId)?.name || '') : '';
+    const prevName = (appData?.assignedTo && appData?.assignedToName) || 'Unassigned';
+    const shownName = newOwnerName || 'Unassigned';
     const actor =
       auth.currentUser?.displayName ||
       auth.currentUser?.email ||
@@ -61,15 +64,17 @@ export function useAppActions({
         assignedTo: newUserId,
         assignedToName: newOwnerName
       }));
+      // The next change in this dossier is logged as from this one.
+      setAppData((prev) => (prev ? { ...prev, assignedTo: newUserId, assignedToName: newOwnerName } : prev));
 
       await logActivity(
         companyId,
         collectionName,
         applicationId,
         "Assignment Changed",
-        `${actor} reassigned this from ${prevName} to ${newOwnerName}`
+        `${actor} reassigned this from ${prevName} to ${shownName}`
       );
-      showSuccess(`Assigned to ${newOwnerName}`);
+      showSuccess(`Assigned to ${shownName}`);
       if (onStatusUpdate) onStatusUpdate();
     } catch (error) {
       console.error("Error assigning:", error);

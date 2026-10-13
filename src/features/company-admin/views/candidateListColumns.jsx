@@ -279,7 +279,9 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             width: 'md',
             priority: 'secondary',
             render: (item) => {
-                if (item.assignedToName) {
+                // A name without an assignee is a leftover: unassigning once
+                // stored "Unassigned" as the name.
+                if (item.assignedTo && item.assignedToName) {
                     return (
                         <span className="inline-flex items-center gap-1.5 text-ds-xs font-medium text-ds-content bg-ds-surface-subtle px-2 py-1 rounded-ds-full border border-ds-border-subtle">
                             <Avatar size="xs" tone="accent">
