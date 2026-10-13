@@ -60,6 +60,8 @@ export function useCompanyDashboard(companyId) {
     // Monotonic fetch id — a stale (slower) fetch must never overwrite the
     // results of a newer query, or cleared searches briefly show old rows.
     const fetchVersionRef = useRef(0);
+    // The same for the list's counts: a late answer belongs to an earlier list.
+    const countVersionRef = useRef(0);
 
     const [activeTab, setActiveTab] = useState('applications');
     const [pipelineSegment, setPipelineSegment] = useState('all');
@@ -139,6 +141,7 @@ export function useCompanyDashboard(companyId) {
 
     const fetchListTotalCount = useCallback(async () => {
         if (!companyId || debouncedSearch) return;
+        const countVersion = ++countVersionRef.current;
         setListCountError('');
 
         // A record without createdAt matches no day, so with a date picked
@@ -170,10 +173,12 @@ export function useCompanyDashboard(companyId) {
                     })
                     : null,
             ]);
+            if (countVersion !== countVersionRef.current) return;
             const listed = listedSnap.data().count;
             setListTotalCount(listed);
             setUndatedCount(allSnap ? Math.max(0, allSnap.data().count - listed) : 0);
         } catch (e) {
+            if (countVersion !== countVersionRef.current) return;
             console.error('fetchListTotalCount', e);
             setListTotalCount(0);
             setUndatedCount(0);

@@ -13,6 +13,9 @@ const fs = vi.hoisted(() => ({
     listedCount: 10,
     everyCount: 13,
     failEveryCount: false,
+    // Leads count 2 either way; applications' counts can be held back.
+    leadsCount: 2,
+    applicationsGate: null,
     queries: [],
 }));
 
@@ -38,6 +41,8 @@ vi.mock('firebase/firestore', () => {
         getCountFromServer: async (q) => {
             fs.queries.push({ kind: 'count', ...q });
             const sorted = (q.constraints || []).some((c) => c.kind === 'orderBy');
+            if (q.path.endsWith('/leads')) return { data: () => ({ count: fs.leadsCount }) };
+            if (fs.applicationsGate) await fs.applicationsGate;
             if (!sorted && fs.failEveryCount) throw new Error('The query requires an index.');
             return { data: () => ({ count: sorted ? fs.listedCount : fs.everyCount }) };
         },
@@ -56,6 +61,7 @@ const listQueries = (kind) => fs.queries.filter((q) => q.kind === kind && q.path
 afterEach(() => {
     fs.queries = [];
     fs.failEveryCount = false;
+    fs.applicationsGate = null;
     vi.restoreAllMocks();
 });
 
@@ -89,6 +95,25 @@ describe('useCompanyDashboard order', () => {
         expect(result.current.undatedCount).toBe(0);
         expect(result.current.listCountError).toBe('');
         expect(listQueries('count').some((q) => !sortOf(q))).toBe(true);
+    });
+
+    it("keeps the counts of the list on screen when an earlier list's count answers last", async () => {
+        // The page mounts the hook on All Applications and then switches it to
+        // its own tab; here the applications' counts answer after the leads'.
+        let release;
+        fs.applicationsGate = new Promise((resolve) => { release = resolve; });
+        const { result } = renderHook(() => useCompanyDashboard('co-1'));
+        await waitFor(() => expect(listQueries('count').length).toBeGreaterThan(0));
+
+        act(() => result.current.setActiveTab('company_leads'));
+        await waitFor(() => expect(result.current.totalCount).toBe(2));
+
+        await act(async () => {
+            release();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+        expect(result.current.totalCount).toBe(2);
+        expect(result.current.undatedCount).toBe(0);
     });
 
     it('counts nothing outside the list when a day is picked, which no undated record can match', async () => {
