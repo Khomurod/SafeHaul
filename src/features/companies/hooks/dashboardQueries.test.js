@@ -214,20 +214,7 @@ describe('the State filter', () => {
         expect(alternatives).toBeLessThanOrEqual(30);
     });
 
-    it.each([
-        // The widest segment, the State filter's 7 spellings, a freight type and one assignee.
-        ['company_leads', 'attempting', { myAssignmentsOnly: true }],
-        ['my_leads', 'attempting', {}],
-        ['applications', 'new', { assignee: 'recruiter-2', myAssignmentsOnly: true }],
-    ])('stays within the 100 filters, sort orders and parent Firestore allows on %s', (activeTab, pipelineSegment, more) => {
-        const constraints = buildDashboardConstraints({
-            activeTab, pipelineSegment, filters: { state: 'District of Columbia', driverType: 'Reefer', ...more },
-        });
-
-        expect(components(constraints)).toBeLessThanOrEqual(100);
-    });
-
-    it('counts those as the emulator does when it refuses a query', () => {
+    it('counts the 100 filters, sort orders and parent as the emulator does when it refuses a query', () => {
         // 10 spellings × 3 statuses, Freight type and an assignee, newest first:
         // "120 filters, 2 sort orders, and one ancestor filter".
         const constraints = [
@@ -355,7 +342,7 @@ describe('the order of the lists', () => {
         const args = {
             activeTab: 'company_leads',
             pipelineSegment: 'attempting',
-            filters: { state: 'Texas', driverType: 'Reefer', assignee: 'recruiter-2', myAssignmentsOnly: true },
+            filters: { state: 'Texas', driverType: 'Reefer', assignee: 'recruiter-1', myAssignmentsOnly: true },
         };
         const filtersOf = (constraints) => constraints.filter((c) => c.kind === 'where');
 
@@ -365,9 +352,46 @@ describe('the order of the lists', () => {
     });
 });
 
+describe('a list that asks for two assignees at once', () => {
+    it.each([
+        ['my_leads', { assignee: 'recruiter-2' }],
+        ['my_leads', { assignee: '__unassigned__' }],
+        ['company_leads', { myAssignmentsOnly: true, assignee: 'recruiter-2' }],
+        ['applications', { myAssignmentsOnly: true, assignee: '__unassigned__' }],
+    ])('asks Firestore nothing on %s with %o, as no record has two assignees', (activeTab, filters) => {
+        expect(buildDashboardConstraints({ activeTab, pipelineSegment: 'all', filters })).toBeNull();
+        expect(buildDashboardConstraints({ activeTab, pipelineSegment: 'all', filters, ordered: false })).toBeNull();
+    });
+
+    it.each([
+        ['my_leads', { assignee: 'recruiter-1' }],
+        ['company_leads', { myAssignmentsOnly: true, assignee: 'recruiter-1' }],
+    ])('asks once for the same assignee named twice on %s', (activeTab, filters) => {
+        const constraints = buildDashboardConstraints({ activeTab, pipelineSegment: 'all', filters });
+
+        expect(constraints.filter((c) => c.field === 'assignedTo')).toEqual([
+            { kind: 'where', field: 'assignedTo', op: '==', value: 'recruiter-1' },
+        ]);
+    });
+});
+
+describe('the queries the candidate lists send', () => {
+    // A list asking for two assignees at once sends nothing (`null`).
+    const sent = () => everyListQuery().filter(({ constraints }) => constraints);
+
+    it('stay within the 30 alternatives and the 100 filters, sort orders and parent Firestore allows', () => {
+        const refused = sent()
+            .filter(({ constraints }) => alternatives(constraints) > 30 || components(constraints) > 100)
+            .map(({ label }) => label);
+
+        expect(refused).toEqual([]);
+    });
+});
+
 describe('the indexes the candidate lists need', () => {
     it('are declared for every tab, segment and filter combination', () => {
         const unserved = everyListQuery()
+            .filter(({ constraints }) => constraints)
             .filter(({ constraints, collectionGroup }) => !servable(constraints, collectionGroup))
             .map(({ label }) => label);
 

@@ -57,26 +57,43 @@ function pipelineConstraints({ activeTab, pipelineSegment }) {
 }
 
 /**
+ * The assignees a list asks for, once each: the signed-in recruiter on My Leads
+ * and with My assignments, and the Assigned to pick ('' for Unassigned).
+ */
+function wantedAssignees({ activeTab, filters }) {
+    const uid = auth.currentUser?.uid;
+    const wanted = [];
+    if (activeTab === 'my_leads' && uid) wanted.push(uid);
+    if (filters.myAssignmentsOnly && uid && (activeTab === 'applications' || activeTab === 'company_leads')) {
+        wanted.push(uid);
+    }
+    if (filters.assignee) wanted.push(filters.assignee === '__unassigned__' ? '' : filters.assignee);
+    return [...new Set(wanted)];
+}
+
+/**
  * The list query for a tab, a pipeline segment and the toolbar's filters: the
  * equality filters, then the createdAt order (`dateOrder`, newest first unless
  * the Added Date arrows turn it), then the picked day as cursors on that order.
  * A sort leaves out records without createdAt, which no date order can list;
  * `ordered: false` returns the filters alone, so the hook can count those
  * records and the page can say how to find them.
+ *
+ * `null` when the filters ask for two different assignees, which no record
+ * has: the list is empty without asking Firestore, which would also refuse the
+ * widest such query (two assignee filters in every alternative it expands).
  */
 export function buildDashboardConstraints({ activeTab, pipelineSegment, filters, dateOrder = 'desc', ordered = true }) {
+    const assignees = wantedAssignees({ activeTab, filters });
+    if (assignees.length > 1) return null;
+
     const constraints = [];
 
-    if (activeTab === 'my_leads' && auth.currentUser) {
-        constraints.push(where("assignedTo", "==", auth.currentUser.uid));
+    if (assignees.length === 1) {
+        constraints.push(where('assignedTo', '==', assignees[0]));
     }
 
     constraints.push(...pipelineConstraints({ activeTab, pipelineSegment }));
-
-    if (filters.myAssignmentsOnly && auth.currentUser &&
-        (activeTab === 'applications' || activeTab === 'company_leads')) {
-        constraints.push(where('assignedTo', '==', auth.currentUser.uid));
-    }
 
     const states = stateFilterValues(filters.state);
     if (states.length > 0) {
@@ -88,13 +105,6 @@ export function buildDashboardConstraints({ activeTab, pipelineSegment, filters,
     // alternatives Firestore expands this query into, past its limits.
     if (filters.driverType) {
         constraints.push(where('driverType', '==', filters.driverType));
-    }
-    if (filters.assignee) {
-        if (filters.assignee === '__unassigned__') {
-            constraints.push(where("assignedTo", "==", ""));
-        } else {
-            constraints.push(where("assignedTo", "==", filters.assignee));
-        }
     }
 
     if (!ordered) return constraints;

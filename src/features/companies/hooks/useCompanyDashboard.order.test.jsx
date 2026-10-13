@@ -117,6 +117,20 @@ describe('useCompanyDashboard order', () => {
         expect(result.current.undatedCount).toBe(0);
     });
 
+    it('lists and counts nothing, asking Firestore nothing, when the filters want two assignees', async () => {
+        const { result } = renderHook(() => useCompanyDashboard('co-1'));
+        await waitFor(() => expect(result.current.totalCount).toBe(10));
+
+        fs.queries = [];
+        act(() => result.current.setFilters((prev) => ({ ...prev, myAssignmentsOnly: true, assignee: 'recruiter-2' })));
+
+        await waitFor(() => expect(result.current.totalCount).toBe(0));
+        expect(result.current.paginatedData).toEqual([]);
+        expect(result.current.undatedCount).toBe(0);
+        expect(listQueries('docs')).toEqual([]);
+        expect(listQueries('count')).toEqual([]);
+    });
+
     it('counts nothing outside the list when a day is picked, which no undated record can match', async () => {
         const { result } = renderHook(() => useCompanyDashboard('co-1'));
         await waitFor(() => expect(result.current.undatedCount).toBe(3));

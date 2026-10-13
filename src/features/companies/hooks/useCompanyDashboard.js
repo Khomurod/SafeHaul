@@ -162,6 +162,12 @@ export function useCompanyDashboard(companyId) {
             const collectionName = activeTab === 'applications' ? 'applications' : 'leads';
             const baseRef = collection(db, "companies", companyId, collectionName);
             const constraints = buildConstraints();
+            // Two different assignees match no record: nothing to count.
+            if (!constraints) {
+                setListTotalCount(0);
+                setUndatedCount(0);
+                return;
+            }
             const [listedSnap, allSnap] = await Promise.all([
                 getCountFromServer(query(baseRef, ...constraints)),
                 countsUndated
@@ -234,6 +240,11 @@ export function useCompanyDashboard(companyId) {
                 newData = sortByAddedDate(await runSearchQuery(debouncedSearch.trim()), dateOrder);
             } else {
                 let constraints = buildConstraints();
+                // Two different assignees match no record: nothing to ask for.
+                if (!constraints) {
+                    setData([]);
+                    return;
+                }
 
                 if (currentPage > 1) {
                     const prevPageLastDoc = lastVisibleDocsRef.current[currentPage - 1];
