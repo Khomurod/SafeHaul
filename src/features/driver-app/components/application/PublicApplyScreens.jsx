@@ -101,7 +101,12 @@ export function ApplyLinkErrorScreen({ error }) {
 
 // It used to print the photo's raw Storage path under the spinner. That path is
 // now the application's own CDL front, and meant nothing to a driver anyway.
-export function ParsingCdlScreen() {
+/**
+ * The photo on its way and being read. Cancel stops both and goes back to the
+ * choice: the wait has an end the driver controls, and the page under it, not
+ * `LoadingState` (which takes no actions), holds the control.
+ */
+export function ParsingCdlScreen({ onCancel }) {
   const headingId = `apply-parsing-cdl-${useId().replace(/:/g, '')}`;
   return (
     <StatusPage labelledBy={headingId}>
@@ -112,6 +117,11 @@ export function ParsingCdlScreen() {
           title="Reading your CDL..."
           description="Our AI is extracting your basic details so you can skip typing."
         />
+        {onCancel && (
+          <div className="mt-ds-4 flex justify-center">
+            <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          </div>
+        )}
       </div>
     </StatusPage>
   );
@@ -305,7 +315,7 @@ export function SubmissionQueuedScreen({ onGoHome }) {
  * Returns `null` when the wizard itself should render.
  */
 export function resolveApplyStatusScreen({
-  loading, error, isParsingCdl,
+  loading, error, isParsingCdl, cancelCdlAutoFill,
   sandbox, sandboxSubmission, onSandboxRestart,
   submissionStatus, postApplicationTemplates, submittedApplicationId, postSubmitDocs,
   openingTemplateId, handleOpenPostApplicationTemplate, submittedConfirmationNumber,
@@ -317,7 +327,7 @@ export function resolveApplyStatusScreen({
 }) {
   if (loading) return <ApplyLoadingScreen />;
   if (error) return <ApplyLinkErrorScreen error={error} />;
-  if (isParsingCdl) return <ParsingCdlScreen />;
+  if (isParsingCdl) return <ParsingCdlScreen onCancel={cancelCdlAutoFill} />;
 
   if (sandbox && sandboxSubmission) {
     return (

@@ -62,8 +62,8 @@ async function stubAutoFillNetwork(page, fullAddress = '2210 ELM ST, AUSTIN, TX 
     }));
 }
 
-/** Pick "Upload CDL for Auto-Fill" and wait for page one to be filled from it. */
-async function autoFillFromLicence(page) {
+/** Pick "Upload CDL for Auto-Fill" and choose the photo, without waiting for what comes of it. */
+async function pickLicencePhoto(page) {
     // `e2eIntake=choice` shows the chooser, as `guest-application-intake.spec.cjs` does.
     await page.goto('/apply/e2e-company?e2eIntake=choice');
     await expect(page.getByRole('button', { name: /Upload CDL for Auto-Fill/ })).toBeVisible();
@@ -73,7 +73,11 @@ async function autoFillFromLicence(page) {
         mimeType: 'image/jpeg',
         buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0xff, 0xd9]),
     });
+}
 
+/** Pick "Upload CDL for Auto-Fill" and wait for page one to be filled from it. */
+async function autoFillFromLicence(page) {
+    await pickLicencePhoto(page);
     await expectStep(page, 'Personal Information');
 }
 
@@ -156,4 +160,36 @@ test.describe('CDL photo auto-fill', () => {
         await continueToLicenseStep(page);
         await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'uploaded');
     });
+
+    // The photo goes to Storage while the licence is read, and a photo that could
+    // not be sent no longer throws away what was read.
+    test('fills page one from the licence when the photo could not be sent, and asks for it again', async ({ page }) => {
+        await stubAutoFillNetwork(page);
+        await page.route('https://firebasestorage.googleapis.com/**', (route) => route.fulfill({
+            status: 403,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: { code: 403, message: 'Permission denied.' } }),
+        }));
+        await autoFillFromLicence(page);
+
+        await expect(page.locator('#first-name')).toHaveValue('LUIS');
+        await expect(page.getByText(/photo was not saved/)).toBeVisible();
+        await continueToLicenseStep(page);
+        await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'empty');
+    });
+
+    test('Cancel on the reading screen goes back to the choice @mobile', async ({ page }) => {
+        await stubAutoFillNetwork(page);
+        // A reader that never answers: the wait has to have an end the driver controls.
+        await page.route('**/parseCdlWithGroq', () => {});
+        await pickLicencePhoto(page);
+
+        await expect(page.getByRole('heading', { level: 1, name: 'Reading your CDL...' })).toBeVisible();
+        await page.getByRole('button', { name: 'Cancel' }).click();
+
+        await expect(page.getByRole('button', { name: /Upload CDL for Auto-Fill/ })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Reading your CDL...' })).toHaveCount(0);
+        await page.unrouteAll({ behavior: 'ignoreErrors' });
+    });
 });
+

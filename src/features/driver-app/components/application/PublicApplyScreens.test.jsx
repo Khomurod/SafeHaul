@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import {
   ApplyLoadingScreen,
   ApplyLinkErrorScreen,
@@ -65,6 +65,13 @@ describe('ParsingCdlScreen', () => {
   it('shows the driver no Storage path', () => {
     render(<ParsingCdlScreen />);
     expect(screen.queryByText(/guest_uploads|companies\//)).toBeNull();
+  });
+
+  it('offers Cancel, which ends the wait', () => {
+    const onCancel = vi.fn();
+    render(<ParsingCdlScreen onCancel={onCancel} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
 

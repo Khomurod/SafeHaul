@@ -88,9 +88,8 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
 
   const { isUploading, handleFileUpload: sendFile } = useGuestFileUpload(company?.id);
   const {
-    isParsingCdl,
+    isParsingCdl, cancelCdlAutoFill, handleChooseAutoFill,
     cdlInputRef: cdlAutoFillInputRef,
-    handleChooseAutoFill,
     handleCdlFileChange: handleCdlAutoFillFileChange,
   } = useCdlAutoFill({
     companyId: company?.id,
@@ -411,7 +410,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const statusScreen = resolveApplyStatusScreen({
     loading,
     error,
-    isParsingCdl,
+    isParsingCdl, cancelCdlAutoFill,
     sandbox,
     sandboxSubmission,
     onSandboxRestart: () => {
