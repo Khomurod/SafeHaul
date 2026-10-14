@@ -323,19 +323,35 @@ describe('UserMembershipsManager — listing contract', () => {
         });
     });
 
-    it('keeps the two differing role vocabularies', async () => {
+    it('keeps the two differing role vocabularies, each with every role a member can hold', async () => {
         renderMemberships();
 
         // Per-row select says "Company Admin".
         const rowSelect = await firstMembershipRow();
-        expect([...rowSelect.options].map((o) => o.textContent)).toEqual(['HR User', 'Company Admin']);
+        expect([...rowSelect.options].map((o) => o.textContent)).toEqual(['HR User', 'Recruiter', 'Company Admin']);
 
         // Add form says "Admin". Scoped to the add form: the per-row label also
         // starts with "Role", and the required marker makes the label text
         // "Role* required".
         const addForm = screen.getByLabelText(/^Add to Company/).closest('form');
         const addSelect = within(addForm).getByLabelText(/^Role/);
-        expect([...addSelect.options].map((o) => o.textContent)).toEqual(['HR User', 'Admin']);
+        expect([...addSelect.options].map((o) => o.textContent)).toEqual(['HR User', 'Recruiter', 'Admin']);
+    });
+
+    it('shows a recruiter as a recruiter, and a role outside the menu as stored', async () => {
+        getMembershipsForUser.mockResolvedValueOnce({
+            docs: [
+                { id: 'mem-r', data: () => ({ companyId: 'co-1', role: 'recruiter' }) },
+                { id: 'mem-s', data: () => ({ companyId: 'co-2', role: 'super_admin' }) },
+            ],
+        });
+        renderMemberships();
+        const recruiter = await screen.findByLabelText('Role for Artificial Freight Co', {}, INITIAL_LOAD);
+        expect(recruiter).toHaveValue('recruiter');
+        expect(recruiter.selectedOptions[0].textContent).toBe('Recruiter');
+        const other = screen.getByLabelText('Role for Placeholder Logistics');
+        expect(other).toHaveValue('super_admin');
+        expect([...other.options].map((o) => o.textContent)).toEqual(['super_admin', 'HR User', 'Recruiter', 'Company Admin']);
     });
 });
 
