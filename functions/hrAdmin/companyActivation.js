@@ -20,12 +20,16 @@ const timing = { wait: (ms) => new Promise((resolve) => { setTimeout(resolve, ms
 
 /** Re-syncs one member's claims, three tries; ends their sessions when a role was taken away. */
 async function updateMember(userId, endSessions) {
+    // Kept across the tries: a role taken back in one try still ends the
+    // sessions when that try's revocation failed and the next sync is quiet.
+    let revoke = endSessions;
     for (let attempt = 0; ; attempt += 1) {
         try {
             const synced = await syncUserClaims(userId);
+            if (synced?.removedDuringSync) revoke = true;
             // A session keeps its current token for up to an hour; revoking makes the
             // next refresh fail, so the new claims cannot be ignored.
-            if (synced && !synced.isGlobalAdmin && (endSessions || synced.removedDuringSync)) {
+            if (synced && !synced.isGlobalAdmin && revoke) {
                 await auth.revokeRefreshTokens(userId);
             }
             return;
@@ -77,16 +81,18 @@ function stillGranted(customClaims, companyId) {
 /**
  * Every hour: a deactivated company's members whose claims still carry its role
  * (a run that failed, a company deactivated before the trigger existed) are
- * re-synced and their sessions ended.
+ * re-synced and their sessions ended. Every company is read, two fields each,
+ * and judged as the trigger judges it: `isActive: false` or an inactive status.
  */
 exports.reconcileDeactivatedCompanyClaims = onSchedule({
     schedule: 'every 60 minutes',
     region: 'us-central1',
     timeoutSeconds: 300,
 }, async () => {
-    const companies = await db.collection("companies").where("isActive", "==", false).get();
+    const snap = await db.collection("companies").select("isActive", "status").get();
+    const companies = snap.docs.filter((doc) => isCompanyDeactivated(doc.data()));
     let fixed = 0;
-    for (const company of companies.docs) {
+    for (const company of companies) {
         for (const userId of await memberIds(company.id)) {
             try {
                 const user = await auth.getUser(userId);
@@ -99,7 +105,7 @@ exports.reconcileDeactivatedCompanyClaims = onSchedule({
             }
         }
     }
-    console.log(`[reconcileDeactivatedCompanyClaims] ${companies.size} deactivated compan(ies); ${fixed} member(s) re-synced.`);
+    console.log(`[reconcileDeactivatedCompanyClaims] ${companies.length} deactivated compan(ies); ${fixed} member(s) re-synced.`);
 });
 
 exports.__test = { timing };

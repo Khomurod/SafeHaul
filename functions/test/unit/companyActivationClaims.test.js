@@ -19,6 +19,7 @@ const mockCompanies = new Map();
 const mockClaims = new Map();
 const mockRevoked = [];
 const mockGetUserFailures = new Map(); // uid -> tries that fail before one succeeds
+const mockRevokeFailures = new Map(); // uid -> revocations that fail before one succeeds
 const mockOnClaimsWrite = { fn: null };
 jest.mock('../../firebaseAdmin', () => {
     const db = {
@@ -37,11 +38,12 @@ jest.mock('../../firebaseAdmin', () => {
             }
             if (name === 'companies') {
                 return {
-                    where: (field, _op, value) => ({
+                    select: (...fields) => ({
                         get: async () => {
-                            const docs = [...mockCompanies.entries()]
-                                .filter(([, data]) => data[field] === value)
-                                .map(([id, data]) => ({ id, data: () => data }));
+                            const docs = [...mockCompanies.entries()].map(([id, data]) => ({
+                                id,
+                                data: () => Object.fromEntries(fields.filter((f) => f in data).map((f) => [f, data[f]])),
+                            }));
                             return { docs, size: docs.length };
                         },
                     }),
@@ -70,7 +72,14 @@ jest.mock('../../firebaseAdmin', () => {
                 mockClaims.set(uid, claims);
                 if (mockOnClaimsWrite.fn) mockOnClaimsWrite.fn(uid);
             },
-            revokeRefreshTokens: async (uid) => { mockRevoked.push(uid); },
+            revokeRefreshTokens: async (uid) => {
+                const failures = mockRevokeFailures.get(uid) || 0;
+                if (failures > 0) {
+                    mockRevokeFailures.set(uid, failures - 1);
+                    throw Object.assign(new Error('auth unavailable'), { code: 'auth/internal-error' });
+                }
+                mockRevoked.push(uid);
+            },
         },
     };
 });
@@ -94,6 +103,7 @@ beforeEach(() => {
     mockClaims.clear();
     mockRevoked.length = 0;
     mockGetUserFailures.clear();
+    mockRevokeFailures.clear();
     mockOnClaimsWrite.fn = null;
     mockMemberships.push(
         { userId: 'recruiter-1', companyId: 'co-a', role: 'recruiter' },
@@ -173,6 +183,21 @@ describe('a change racing the claims write', () => {
         expect(mockClaims.get('recruiter-1')).toEqual({ roles: { 'co-b': 'recruiter' }, companyTeamIds: ['co-b'] });
         expect(mockRevoked).toContain('recruiter-1');
     });
+
+    it('still ends the session when that revocation failed and the next try finds nothing to change', async () => {
+        mockCompanies.set('co-a', { isActive: true });
+        mockOnClaimsWrite.fn = (uid) => {
+            if (uid === 'recruiter-1') { mockOnClaimsWrite.fn = null; mockCompanies.set('co-a', { isActive: false }); }
+        };
+        mockRevokeFailures.set('recruiter-1', 1);
+        await onCompanyActivationChange({
+            params: { companyId: 'co-a' },
+            data: { before: { data: () => ({ isActive: false }) }, after: { data: () => ({ isActive: true }) } },
+        });
+
+        expect(mockClaims.get('recruiter-1').roles).toEqual({ 'co-b': 'recruiter' });
+        expect(mockRevoked).toContain('recruiter-1');
+    });
 });
 
 describe('a member whose claims cannot be written at once', () => {
@@ -212,5 +237,17 @@ describe('the hourly pass', () => {
         expect(mockClaims.get('admin-1')).toEqual({ roles: {} });
         expect(mockClaims.get('owner-1')).toEqual(OWNER_CLAIMS);
         expect(mockRevoked).toEqual(['recruiter-1']);
+    });
+});
+
+describe('the hourly pass, for a company deactivated by its status', () => {
+    it('finds it as the trigger does, without isActive', async () => {
+        mockCompanies.set('co-a', { status: 'Suspended' });
+        mockClaims.set('admin-1', { roles: { 'co-a': 'company_admin' }, companyTeamIds: ['co-a'] });
+
+        await reconcileDeactivatedCompanyClaims();
+
+        expect(mockClaims.get('admin-1')).toEqual({ roles: {} });
+        expect(mockRevoked).toEqual(['admin-1']);
     });
 });
