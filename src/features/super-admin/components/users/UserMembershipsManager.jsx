@@ -33,7 +33,10 @@ import { ConfirmDialog } from '@design-system/patterns';
  * the `allCompaniesMap.get(...) || 'Unknown Company'` fallback; the two role
  * option sets (note the add-form deliberately labels `company_admin` as "Admin"
  * while the per-row select labels it "Company Admin" — both preserved); and every
- * user-facing string.
+ * user-facing string. Both sets offer every role the server gives a company
+ * member (`createPortalUser`): HR User, Recruiter, Company Admin. A row whose
+ * stored role is none of these shows that role as stored, rather than the first
+ * option in its place.
  *
  * Defects fixed:
  *  1. **Two blocking `alert()` calls** (role-change failure, remove failure) and
@@ -55,6 +58,9 @@ import { ConfirmDialog } from '@design-system/patterns';
  *  6. **The add-membership error was not announced**, and a hand-built
  *     `border-t-red-600` div spinner stood in for a loading state.
  */
+
+/** The roles the server gives a company member (`ASSIGNABLE_PORTAL_ROLES`, `createPortalUser`). */
+const MEMBER_ROLES = ['hr_user', 'recruiter', 'company_admin'];
 
 // --- MembershipItem Component ---
 function MembershipItem({ membership, companyName, onUpdate, onRemove }) {
@@ -115,7 +121,9 @@ function MembershipItem({ membership, companyName, onUpdate, onRemove }) {
             onChange={handleRoleChange}
             disabled={loading || removeLoading}
           >
+            {!MEMBER_ROLES.includes(currentRole) && <option value={currentRole}>{currentRole}</option>}
             <option value="hr_user">HR User</option>
+            <option value="recruiter">Recruiter</option>
             <option value="company_admin">Company Admin</option>
           </Select>
           <IconButton
@@ -302,6 +310,7 @@ export function UserMembershipsManager({ userId, allCompaniesMap, onDataUpdate }
           <FormField id={addRoleFieldId} label="Role" required>
             <Select value={addRole} onChange={(e) => setAddRole(e.target.value)}>
               <option value="hr_user">HR User</option>
+              <option value="recruiter">Recruiter</option>
               <option value="company_admin">Admin</option>
             </Select>
           </FormField>

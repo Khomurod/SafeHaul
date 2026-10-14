@@ -1,16 +1,15 @@
 import React from 'react';
-import { Icon, Building, Users, FileText } from '@design-system/icons';
+import { Icon, Building, Users, FileText, UserPlus } from '@design-system/icons';
 import { MetricCard } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import { HistoricalMigrationPanel } from './HistoricalMigrationPanel';
 
 /**
- * Super Admin landing view: the three platform-wide counts.
- *
- * Migrated to the design system 2026-07-28. Presentation only — the three
- * metrics, their order, the `stats.companyCount` / `userCount` / `appCount`
- * fields, and the per-metric `statsError` flags are unchanged, as is the
- * "..." placeholder while loading and the "Error" value on failure.
+ * Super Admin landing view: the platform-wide counts — companies, users,
+ * applications and leads, each its own count (`stats.companyCount` / `userCount`
+ * / `appCount` / `leadCount`). "Total Applications" read the leads' count until
+ * 2026-10-14, and a count that failed read 0; each now shows "Error" from its
+ * own flag (`statsError.<field>`), with the "..." placeholder while loading.
  *
  * Fixed here:
  *  - Legacy palette (`bg-white`, `text-gray-*`, `bg-blue-100`, `bg-red-100`)
@@ -30,10 +29,11 @@ const METRICS = [
   { key: 'companies', title: 'Total Companies', icon: Building, field: 'companyCount' },
   { key: 'users', title: 'Total Users', icon: Users, field: 'userCount' },
   { key: 'apps', title: 'Total Applications', icon: FileText, field: 'appCount' },
+  { key: 'leads', title: 'Total Leads', icon: UserPlus, field: 'leadCount' },
 ];
 
 export function DashboardView({ stats, statsLoading, statsError }) {
-  const failed = METRICS.filter((m) => statsError[m.key]);
+  const failed = METRICS.filter((m) => statsError[m.field]);
 
   return (
     <Stack gap="lg">
@@ -50,7 +50,7 @@ export function DashboardView({ stats, statsLoading, statsError }) {
       <ResponsiveGrid minItemWidth="240px">
         {/* `icon: Glyph`, not `icon: Icon`: the contract's component is called `Icon` and this file imports it, so holding a glyph under that name would shadow it — and a token throws. */}
         {METRICS.map(({ key, title, icon: Glyph, field }) => {
-          const hasError = Boolean(statsError[key]);
+          const hasError = Boolean(statsError[field]);
           let value = stats[field];
           if (statsLoading) value = '...';
           if (hasError) value = 'Error';

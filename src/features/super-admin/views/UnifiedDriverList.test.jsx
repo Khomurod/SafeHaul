@@ -2,9 +2,10 @@
  * Contract freeze + defect proof for the migrated `UnifiedDriverList`.
  *
  * This view permanently deletes lead/application records, so the delete path and
- * its guard are frozen first. The headline fix is that `loadMore`/`hasMore` were
- * passed in by `ViewRouter` and silently ignored, leaving older records
- * unreachable.
+ * its guard are frozen first: the `deleteApplication` callable, as a company
+ * admin's delete, never a bare `deleteDoc` that left the record's subcollections
+ * and files behind. The headline fix is that `loadMore`/`hasMore` were passed in
+ * by `ViewRouter` and silently ignored, leaving older records unreachable.
  *
  * All driver names, phone numbers and company names below are artificial.
  */
@@ -12,16 +13,23 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const deleteApplication = vi.fn(() => Promise.resolve({ data: { success: true } }));
 const deleteDoc = vi.fn(() => Promise.resolve());
 const showSuccess = vi.fn();
 const showError = vi.fn();
 
-vi.mock('@lib/firebase', () => ({ db: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('firebase/functions', () => ({
+    httpsCallable: (_functions, name) => (...a) => (name === 'deleteApplication'
+        ? deleteApplication(...a)
+        : Promise.reject(new Error(`unexpected callable ${name}`))),
+}));
+// Present only so a document delete from the browser would be seen.
 vi.mock('firebase/firestore', () => ({
     doc: vi.fn((_db, ...path) => ({ path: path.join('/') })),
     deleteDoc: (...a) => deleteDoc(...a),
 }));
-vi.mock('@shared/components/feedback', () => ({
+vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showSuccess, showError }),
 }));
 
@@ -86,23 +94,28 @@ describe('UnifiedDriverList — Load More wiring (defect)', () => {
     });
 });
 
-describe('UnifiedDriverList — frozen delete contract', () => {
-    it('deletes applications from the applications subcollection', async () => {
+describe('UnifiedDriverList — delete through the server', () => {
+    it('deletes an application through deleteApplication, with its files and subcollections', async () => {
         renderView();
         fireEvent.click(screen.getByRole('button', { name: 'Delete Artificial Driver' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Permanently delete' }));
 
-        await waitFor(() => expect(deleteDoc).toHaveBeenCalled());
-        expect(deleteDoc).toHaveBeenCalledWith({ path: 'companies/co-1/applications/a-1' });
-        expect(showSuccess).toHaveBeenCalledWith('Record deleted successfully.');
+        await waitFor(() => expect(deleteApplication).toHaveBeenCalledWith({
+            companyId: 'co-1', applicationId: 'a-1', collectionName: 'applications',
+        }));
+        expect(deleteDoc).not.toHaveBeenCalled();
+        await waitFor(() => expect(showSuccess).toHaveBeenCalledWith('Application deleted.'));
     });
 
-    it('deletes leads from the leads subcollection', async () => {
+    it('deletes a lead from the leads collection', async () => {
         renderView();
         fireEvent.click(screen.getByRole('button', { name: 'Delete Second Lead' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Permanently delete' }));
 
-        await waitFor(() => expect(deleteDoc).toHaveBeenCalledWith({ path: 'companies/co-2/leads/l-1' }));
+        await waitFor(() => expect(deleteApplication).toHaveBeenCalledWith({
+            companyId: 'co-2', applicationId: 'l-1', collectionName: 'leads',
+        }));
+        expect(deleteDoc).not.toHaveBeenCalled();
     });
 
     it('refreshes the dashboard data after a delete', async () => {
@@ -114,13 +127,15 @@ describe('UnifiedDriverList — frozen delete contract', () => {
         await waitFor(() => expect(onDataUpdate).toHaveBeenCalled());
     });
 
-    it('reports a failed delete through the frozen toast', async () => {
-        deleteDoc.mockRejectedValueOnce(new Error('nope'));
-        renderView();
+    it('reports a refused delete in the server\'s words, and does not refresh', async () => {
+        const onDataUpdate = vi.fn();
+        deleteApplication.mockRejectedValueOnce(new Error('Application not found.'));
+        renderView({ onDataUpdate });
         fireEvent.click(screen.getByRole('button', { name: 'Delete Artificial Driver' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Permanently delete' }));
 
-        await waitFor(() => expect(showError).toHaveBeenCalledWith('Failed to delete. Check console.'));
+        await waitFor(() => expect(showError).toHaveBeenCalledWith('Application not found.'));
+        expect(onDataUpdate).not.toHaveBeenCalled();
     });
 });
 
@@ -132,7 +147,7 @@ describe('UnifiedDriverList — blocking confirm replaced (defect)', () => {
         renderView();
         fireEvent.click(screen.getByRole('button', { name: 'Delete Artificial Driver' }));
 
-        expect(deleteDoc).not.toHaveBeenCalled();
+        expect(deleteApplication).not.toHaveBeenCalled();
         const dialog = await screen.findByRole('dialog');
         expect(dialog).toHaveAccessibleName('SUPER ADMIN WARNING');
         expect(confirmSpy).not.toHaveBeenCalled();
@@ -151,7 +166,7 @@ describe('UnifiedDriverList — blocking confirm replaced (defect)', () => {
         renderView();
         fireEvent.click(screen.getByRole('button', { name: 'Delete Artificial Driver' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
-        expect(deleteDoc).not.toHaveBeenCalled();
+        expect(deleteApplication).not.toHaveBeenCalled();
     });
 });
 

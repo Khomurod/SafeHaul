@@ -101,8 +101,13 @@ const SCREENS = [
          * `DashboardView` announces the transition itself, so waiting on that
          * announcement pins the screenshot to the *settled* state rather than to
          * whichever side of the race the machine happened to be on.
+         *
+         * Either settled sentence: E2E mode has no backend, so the lists come
+         * back empty from the cache and every count, which only the server can
+         * answer, fails. The cards say "Error", not the 0 they once showed for a
+         * count that failed.
          */
-        ready: (page) => page.getByText('Platform totals loaded.'),
+        ready: (page) => page.getByText(/^(Platform totals loaded\.|\d+ of \d+ platform totals failed to load: .+\.)$/),
     },
     {
         name: 'login',

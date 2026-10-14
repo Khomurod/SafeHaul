@@ -118,6 +118,20 @@ describe('UsersView — frozen role and membership mapping', () => {
     });
 });
 
+describe('UsersView — Load More from Database', () => {
+    it('offers the next users while there are more, and asks the hook for them', () => {
+        const loadMore = vi.fn();
+        renderUsers({ hasMore: true, loadMore });
+        fireEvent.click(screen.getByRole('button', { name: 'Load More from Database' }));
+        expect(loadMore).toHaveBeenCalledWith('users');
+    });
+
+    it('shows no Load More once every user is read, or before the hook says there are more', () => {
+        renderUsers({ hasMore: false, loadMore: vi.fn() });
+        expect(screen.queryByRole('button', { name: 'Load More from Database' })).not.toBeInTheDocument();
+    });
+});
+
 describe('UsersView — accessible names (defect)', () => {
     it('names every icon-only action after its user', () => {
         renderUsers();

@@ -16,6 +16,8 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { SESSION_KEYS } from '@/context/dataContext/sessionKeys';
+import { loadCompanies } from '@features/companies/services/companyService';
+import { USERS_PAGE_SIZE, usersPageQuery, withMemberships } from './superAdminUsers';
 
 function readCachedPlatformCompanyCount() {
     try {
@@ -27,6 +29,11 @@ function readCachedPlatformCompanyCount() {
         return 0;
     }
 }
+
+const NO_STATS_ERRORS = Object.freeze({
+    companies: false, users: false, apps: false,
+    companyCount: false, userCount: false, appCount: false, leadCount: false,
+});
 
 export function useSuperAdminData() {
     const { showError } = useToast();
@@ -42,10 +49,13 @@ export function useSuperAdminData() {
 
     // Pagination Cursors
     const [lastCompanyDoc, setLastCompanyDoc] = useState(null);
+    const [lastUserDoc, setLastUserDoc] = useState(null);
     const [lastAppDoc, setLastAppDoc] = useState(null);
     const [lastLeadDoc, setLastLeadDoc] = useState(null);
 
     const [hasMoreCompanies, setHasMoreCompanies] = useState(true);
+    // Off until a full first page says there may be more: the button is not offered while the list loads.
+    const [hasMoreUsers, setHasMoreUsers] = useState(false);
     const [hasMoreApps, setHasMoreApps] = useState(true);
 
     // Database "Load More" concurrency guard. Two fast clicks on the visible
@@ -55,20 +65,19 @@ export function useSuperAdminData() {
     // so a second invocation in the same tick is rejected at the handler level
     // rather than only being hidden visually. `loadingMore` is the observable
     // mirror that lets each view disable its button and show an accurate state.
-    const loadMoreInFlight = useRef({ companies: false, applications: false });
-    const [loadingMore, setLoadingMore] = useState({ companies: false, applications: false });
+    const loadMoreInFlight = useRef({ companies: false, users: false, applications: false });
+    const [loadingMore, setLoadingMore] = useState({ companies: false, users: false, applications: false });
 
-    // Preserved Error State
-    const [statsError, setStatsError] = useState({
-        companies: false,
-        users: false,
-        apps: false,
-    });
+    // Whether each list failed to load (`companies`, `users`, `apps`), and each
+    // dashboard count, by its stat's name (`companyCount` …): a count that fails
+    // says so instead of reading 0.
+    const [statsError, setStatsError] = useState(NO_STATS_ERRORS);
 
     const [stats, setStats] = useState({
         companyCount: readCachedPlatformCompanyCount(),
         userCount: 0,
-        appCount: 0
+        appCount: 0,
+        leadCount: 0,
     });
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -76,7 +85,7 @@ export function useSuperAdminData() {
     // --- 1. LOAD RECENT DATA (Initial Paginated Fetch) ---
     const loadRecentData = useCallback(async () => {
         setLoading(true);
-        setStatsError({ companies: false, users: false, apps: false });
+        setStatsError(NO_STATS_ERRORS);
 
         // Helper to safely fetch with logging
         const safeFetch = async (promise, label, fallback = []) => {
@@ -92,26 +101,33 @@ export function useSuperAdminData() {
         try {
             // A. Prepare Queries
             const companiesQuery = query(collection(db, "companies"), orderBy('createdAt', 'desc'), limit(20));
-            const usersQuery = query(collection(db, "users"), orderBy('createdAt', 'desc'), limit(50));
+            const usersQuery = usersPageQuery(null);
             const leadsQuery = query(collectionGroup(db, 'leads'), orderBy('createdAt', 'desc'), limit(15));
             const appsQuery = query(collectionGroup(db, 'applications'), orderBy('createdAt', 'desc'), limit(15));
 
             // B. Execute Fetches Independently (Parallel)
             const [
                 compResult,
+                everyCompanyResult,
                 userResult,
                 leadsResult,
                 appsResult,
                 countCompResult,
                 countUserResult,
+                countAppsResult,
                 countLeadsResult
             ] = await Promise.all([
                 safeFetch(getDocs(companiesQuery), "Companies"),
+                // Every company, for the names and the membership picker: the
+                // table above is a page of 20, and the 21st company was missing
+                // from both ("Unknown Company", and no way to add anyone to it).
+                safeFetch(loadCompanies(), "All Companies"),
                 safeFetch(getDocs(usersQuery), "Users"),
                 safeFetch(getDocs(leadsQuery), "Leads"),
                 safeFetch(getDocs(appsQuery), "Applications"),
                 safeFetch(getCountFromServer(collection(db, "companies")), "Count Companies", { data: () => ({ count: 0 }) }),
                 safeFetch(getCountFromServer(collection(db, "users")), "Count Users", { data: () => ({ count: 0 }) }),
+                safeFetch(getCountFromServer(collectionGroup(db, "applications")), "Count Applications", { data: () => ({ count: 0 }) }),
                 safeFetch(getCountFromServer(collectionGroup(db, "leads")), "Count Leads", { data: () => ({ count: 0 }) })
             ]);
 
@@ -119,61 +135,33 @@ export function useSuperAdminData() {
             setStatsError({
                 companies: !compResult.success,
                 users: !userResult.success,
-                apps: !leadsResult.success && !appsResult.success
+                apps: !leadsResult.success && !appsResult.success,
+                companyCount: !countCompResult.success,
+                userCount: !countUserResult.success,
+                appCount: !countAppsResult.success,
+                leadCount: !countLeadsResult.success,
             });
 
             // D. Process Companies
             if (compResult.success) {
-                const companies = [];
-                const compMap = new Map();
-
-                compResult.data.forEach((doc) => {
-                    const data = doc.data();
-                    companies.push({ id: doc.id, ...data });
-                    compMap.set(doc.id, data.companyName);
-                });
-
-                setCompanyList(companies);
-                setAllCompaniesMap(compMap);
+                setCompanyList(compResult.data.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
                 setLastCompanyDoc(compResult.data.docs[compResult.data.docs.length - 1]);
                 setHasMoreCompanies(compResult.data.docs.length === 20);
+            }
+            // Every company's name; the page's alone when they could not all be read.
+            if (everyCompanyResult.success || compResult.success) {
+                const named = everyCompanyResult.success ? everyCompanyResult.data : compResult.data;
+                const compMap = new Map();
+                named.forEach((doc) => compMap.set(doc.id, doc.data().companyName));
+                setAllCompaniesMap(compMap);
             }
 
             // E. Process Users
             if (userResult.success) {
-                const initialUsers = userResult.data.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                // Fetch Memberships (Nested Safety)
-                const userIds = initialUsers.map(u => u.id);
-                const membershipMap = new Map();
-
-                if (userIds.length > 0) {
-                    try {
-                        const chunks = [];
-                        for (let i = 0; i < userIds.length; i += 10) {
-                            chunks.push(userIds.slice(i, i + 10));
-                        }
-
-                        await Promise.all(chunks.map(async (chunk) => {
-                            const q = query(collection(db, "memberships"), where("userId", "in", chunk));
-                            const snap = await getDocs(q);
-                            snap.forEach(doc => {
-                                const m = doc.data();
-                                const current = membershipMap.get(m.userId) || [];
-                                current.push(m);
-                                membershipMap.set(m.userId, current);
-                            });
-                        }));
-                    } catch (memErr) {
-                        console.error("⚠️ Error fetching memberships:", memErr);
-                    }
-                }
-
-                const users = initialUsers.map(user => ({
-                    ...user,
-                    memberships: membershipMap.get(user.id) || []
-                }));
-                setUserList(users);
+                const { docs } = userResult.data;
+                setUserList(await withMemberships(docs.map((doc) => ({ id: doc.id, ...doc.data() }))));
+                setLastUserDoc(docs[docs.length - 1] || null);
+                setHasMoreUsers(docs.length === USERS_PAGE_SIZE);
             }
 
             // F. Process Unified Activity
@@ -239,12 +227,13 @@ export function useSuperAdminData() {
             setStats({
                 companyCount: countCompResult.success ? countCompResult.data.data().count : 0,
                 userCount: countUserResult.success ? countUserResult.data.data().count : 0,
-                appCount: countLeadsResult.success ? countLeadsResult.data.data().count : 0
+                appCount: countAppsResult.success ? countAppsResult.data.data().count : 0,
+                leadCount: countLeadsResult.success ? countLeadsResult.data.data().count : 0,
             });
 
         } catch (e) {
             console.error("🔥 Fatal Error loading recent data:", e);
-            setStatsError({ companies: true, users: true, apps: true });
+            setStatsError(Object.fromEntries(Object.keys(NO_STATS_ERRORS).map((key) => [key, true])));
             showError("Failed to load dashboard data.");
         } finally {
             setLoading(false);
@@ -253,10 +242,11 @@ export function useSuperAdminData() {
 
     // --- 2. LOAD MORE (Pagination Logic) ---
     const loadMore = useCallback(async (type) => {
-        if (type !== 'companies' && type !== 'applications') return;
+        if (type !== 'companies' && type !== 'users' && type !== 'applications') return;
         // Reject a duplicate concurrent invocation before touching any cursor.
         if (loadMoreInFlight.current[type]) return;
         if (type === 'companies' && (!lastCompanyDoc || !hasMoreCompanies)) return;
+        if (type === 'users' && (!lastUserDoc || !hasMoreUsers)) return;
         if (type === 'applications' && (!lastAppDoc && !lastLeadDoc && !hasMoreApps)) return;
 
 
@@ -289,6 +279,16 @@ export function useSuperAdminData() {
                     newCompanies.forEach(c => newMap.set(c.id, c.companyName));
                     return newMap;
                 });
+            } else if (type === 'users') {
+                const snap = await getDocs(usersPageQuery(lastUserDoc));
+                if (snap.empty) {
+                    setHasMoreUsers(false);
+                    return;
+                }
+                const newUsers = await withMemberships(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+                setUserList((prev) => [...prev, ...newUsers]);
+                setLastUserDoc(snap.docs[snap.docs.length - 1]);
+                setHasMoreUsers(snap.docs.length === USERS_PAGE_SIZE);
             } else if (type === 'applications') {
                 // Fetch next batches
                 const leadsPromise = lastLeadDoc ? getDocs(query(
@@ -358,7 +358,7 @@ export function useSuperAdminData() {
             loadMoreInFlight.current[type] = false;
             setLoadingMore(prev => ({ ...prev, [type]: false }));
         }
-    }, [lastCompanyDoc, lastAppDoc, lastLeadDoc, hasMoreCompanies, hasMoreApps, showError]);
+    }, [lastCompanyDoc, lastUserDoc, lastAppDoc, lastLeadDoc, hasMoreCompanies, hasMoreUsers, hasMoreApps, showError]);
 
     // --- 3. CLIENT-SIDE SEARCH (Direct Firestore) ---
     const performClientSearch = useCallback(async (term) => {
@@ -452,6 +452,7 @@ export function useSuperAdminData() {
         loadMore,
         loadingMore,
         hasMoreCompanies,
+        hasMoreUsers,
         hasMoreApps,
         // UI expects this structure for rendering tables
         searchResults: {

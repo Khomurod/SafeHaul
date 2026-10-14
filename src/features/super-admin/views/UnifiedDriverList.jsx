@@ -6,8 +6,11 @@
  * lead/application list, the `sourceType` values, the search across
  * name/email/phone/company, the four filters, the sort keys, the 50-per-page
  * client pagination, the docs-status rule (4 required docs), the 14-day stale
- * rule, the relative-time buckets, the `companies/{id}/{applications|leads}/{id}`
- * delete path and every toast string are unchanged.
+ * rule and the relative-time buckets are unchanged.
+ *
+ * Delete goes through the `deleteApplication` callable (`useApplicationDelete`),
+ * as a company admin's does, so the record's subcollections and uploaded files
+ * go with it. A bare `deleteDoc` here removed the document alone.
  *
  * Defects fixed here:
  *  1. **Load More was wired but never used.** `ViewRouter` passes `loadMore` and
@@ -38,11 +41,9 @@
  * `UnifiedDriverList.bulkSafety.test.jsx` pins the absence.
  */
 import React, { useId, useState, useMemo, useCallback } from 'react';
-import { db } from '@lib/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
 import { Icon, Search, Filter } from '@design-system/icons';
-import { useToast } from '@shared/components/feedback';
 import { ModernDriverTable } from '@shared/components/table';
+import { useApplicationDelete } from '@features/applications/hooks/useApplicationDelete';
 import { Button, Card, Input, Select } from '@/design-system/components';
 
 // ========== SOURCE BADGE COMPONENT ==========
@@ -60,7 +61,7 @@ export function UnifiedDriverList({
     hasMore,
     isLoading = false
 }) {
-    const { showSuccess, showError } = useToast();
+    const { deleteApplication } = useApplicationDelete();
     const searchId = useId();
     const filterIdBase = useId();
 
@@ -194,26 +195,18 @@ export function UnifiedDriverList({
     }, []);
 
     // --- Delete Handler ---
-    // The blocking `window.confirm` guard moved to `<DeleteRecordDialog>`; the
-    // wording and the delete itself are unchanged.
+    // The blocking `window.confirm` guard moved to `<DeleteRecordDialog>`. The
+    // hook says how it went, in the server's words when it refused.
     const handleDelete = async (item) => {
         setPendingDelete(null);
         setDeletingId(item.id);
         try {
-            let docRef;
-            if (item.companyId) {
-                const collectionName = item.sourceType === 'Company App' ? 'applications' : 'leads';
-                docRef = doc(db, "companies", item.companyId, collectionName, item.id);
-            } else {
-                throw new Error("Missing company ID for this record.");
-            }
-
-            await deleteDoc(docRef);
-            showSuccess("Record deleted successfully.");
-            onDataUpdate();
-        } catch (err) {
-            console.error("Delete failed:", err);
-            showError("Failed to delete. Check console.");
+            const deleted = await deleteApplication({
+                companyId: item.companyId,
+                applicationId: item.id,
+                collectionName: item.sourceType === 'Company App' ? 'applications' : 'leads',
+            });
+            if (deleted) onDataUpdate();
         } finally {
             setDeletingId(null);
         }

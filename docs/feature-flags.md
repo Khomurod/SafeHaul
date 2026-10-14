@@ -4,7 +4,7 @@ Per-tenant feature toggles live on **`companies/{companyId}`** as two parallel m
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `features` | `Record<string, boolean>` | Current on/off state. **Enabled only when value is strictly `true`.** |
+| `features` | `Record<string, boolean>` | Current on/off state. **A missing key is on; only an explicit `false` turns a feature off.** |
 | `featureSchedules` | `Record<string, string \| null>` | ISO-8601 datetime when a feature should auto-disable |
 
 Super admins manage both via [`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx). Company users see scheduled shutdown warnings via [`FeatureDeactivationWarning.jsx`](../src/features/company-admin/components/FeatureDeactivationWarning.jsx).
