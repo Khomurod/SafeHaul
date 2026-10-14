@@ -6,10 +6,13 @@
  *  1. The outstanding count is READ, never assumed. A hard-coded total would be a
  *     claim about production that rots silently, so the button's own label has to
  *     come from the server survey — even when that disagrees with expectations.
- *  2. It self-destructs only on VERIFIED completion. Disappearing while records or
- *     PDFs are still missing would retire the only surface that can finish them.
+ *  2. It says the work is done only on VERIFIED completion. Saying so while
+ *     records or PDFs are still missing would hide the only action that can
+ *     finish them.
  *  3. It survives failure visibly. A partial run must leave the action available
  *     and say exactly what is left.
+ *  4. It reads nothing until asked. The survey reads every application and checks
+ *     every PDF; on the dashboard it ran on every visit.
  *
  * All company ids and names below are artificial.
  */
@@ -76,9 +79,36 @@ beforeEach(() => {
 
 const migrateButton = () => screen.getByRole('button', { name: /Migrate the remaining/ });
 
+/** The panel after its operator pressed "Check what is left". */
+function renderChecked() {
+    const utils = render(<HistoricalMigrationPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check what is left' }));
+    return utils;
+}
+
+describe('read when asked', () => {
+    it('reads nothing until the operator asks, then reads once', async () => {
+        render(<HistoricalMigrationPanel />);
+        expect(screen.getByText(/Historical application records/)).toBeInTheDocument();
+        expect(survey).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Check what is left' }));
+        await waitFor(() => expect(migrateButton()).toBeInTheDocument());
+        expect(survey).toHaveBeenCalledTimes(1);
+    });
+
+    // The app renders in StrictMode, whose rehearsal unmount runs the panel's
+    // unmount guard before the operator ever presses the button.
+    it('shows the answer in StrictMode', async () => {
+        render(<React.StrictMode><HistoricalMigrationPanel /></React.StrictMode>);
+        fireEvent.click(screen.getByRole('button', { name: 'Check what is left' }));
+        await waitFor(() => expect(migrateButton()).toBeInTheDocument());
+    });
+});
+
 describe('the count comes from the records, not from the code', () => {
     it('labels the button with whatever the survey reports', async () => {
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         expect(migrateButton()).toHaveAccessibleName('Migrate the remaining 12');
     });
@@ -86,13 +116,13 @@ describe('the count comes from the records, not from the code', () => {
     // The whole point: a number nobody expected must still be the number shown.
     it('shows a different count when production disagrees with expectations', async () => {
         wire({ surveyImpl: async () => ({ data: surveyData({ totals: { remaining: 4 } }) }) });
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         expect(migrateButton()).toHaveAccessibleName('Migrate the remaining 4');
     });
 
     it('asks the survey to check PDFs, on the frozen callable name and timeout', async () => {
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(survey).toHaveBeenCalled());
         expect(httpsCallable).toHaveBeenCalledWith(
             { __functions: true }, 'surveyHistoricalReconstruction', { timeout: 540000 },
@@ -101,16 +131,17 @@ describe('the count comes from the records, not from the code', () => {
     });
 
     it('says the figures were counted just now', async () => {
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         expect(await screen.findByText(/Counted from the stored records just now/)).toBeInTheDocument();
     });
 });
 
-describe('self-destruct', () => {
-    it('renders nothing at all once the survey reports verified completion', async () => {
+describe('when the work is done', () => {
+    it('says nothing is left once the survey reports verified completion, and offers no action', async () => {
         wire({ surveyImpl: async () => ({ data: surveyData({ complete: true }) }) });
-        const { container } = render(<HistoricalMigrationPanel />);
-        await waitFor(() => expect(container).toBeEmptyDOMElement());
+        renderChecked();
+        expect(await screen.findByText('Nothing is left to do')).toBeInTheDocument();
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     // The trap: `remaining: 0` alone is not completion. A preserved record with no
@@ -132,7 +163,7 @@ describe('self-destruct', () => {
                 }),
             }),
         });
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         expect(await screen.findByText(/Historical application records/)).toBeInTheDocument();
 
         // Offering to "migrate 0" would misdescribe the work: the run repairs the
@@ -146,7 +177,7 @@ describe('self-destruct', () => {
         await waitFor(() => expect(reconstruct).toHaveBeenCalledWith({ companyId: 'co-a' }));
     });
 
-    it('disappears after a run the survey then verifies as complete', async () => {
+    it('says nothing is left after a run the survey then verifies as complete', async () => {
         let call = 0;
         wire({
             surveyImpl: async () => {
@@ -154,28 +185,29 @@ describe('self-destruct', () => {
                 return { data: surveyData(call === 1 ? {} : { complete: true }) };
             },
         });
-        const { container } = render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
 
         fireEvent.click(migrateButton());
         fireEvent.click(screen.getByRole('button', { name: /^Migrate 12 applications$/ }));
 
-        await waitFor(() => expect(container).toBeEmptyDOMElement());
+        expect(await screen.findByText('Nothing is left to do')).toBeInTheDocument();
         expect(survey).toHaveBeenCalledTimes(2);
     });
 
     // A survey that failed is not evidence of success.
     it('stays visible, with the reason, when the survey itself fails', async () => {
         wire({ surveyImpl: async () => { throw new Error('permission-denied'); } });
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         expect(await screen.findByRole('alert')).toHaveTextContent(/permission-denied/);
         expect(screen.getByText(/Historical application records/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Check what is left' })).toBeEnabled();
     });
 });
 
 describe('confirmation before writing', () => {
     it('does not migrate until the operator confirms', async () => {
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
 
         fireEvent.click(migrateButton());
@@ -187,7 +219,7 @@ describe('confirmation before writing', () => {
     });
 
     it('states what will not be touched and what is never invented', async () => {
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         fireEvent.click(migrateButton());
 
@@ -201,7 +233,7 @@ describe('confirmation before writing', () => {
 
 describe('running the migration', () => {
     it('runs company by company, on the frozen callable name and payload', async () => {
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         fireEvent.click(migrateButton());
         fireEvent.click(screen.getByRole('button', { name: /^Migrate 12 applications$/ }));
@@ -225,7 +257,7 @@ describe('running the migration', () => {
                 }),
             }),
         });
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         fireEvent.click(migrateButton());
         fireEvent.click(screen.getByRole('button', { name: /^Migrate 12 applications$/ }));
@@ -250,7 +282,7 @@ describe('running the migration', () => {
                 ) };
             },
         });
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         fireEvent.click(migrateButton());
         fireEvent.click(screen.getByRole('button', { name: /^Migrate 12 applications$/ }));
@@ -262,7 +294,7 @@ describe('running the migration', () => {
     });
 
     it('announces progress rather than running silently', async () => {
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         fireEvent.click(migrateButton());
         fireEvent.click(screen.getByRole('button', { name: /^Migrate 12 applications$/ }));
@@ -290,7 +322,7 @@ describe('when something fails', () => {
 
     it('keeps the action available and says what is left', async () => {
         wire(withFailures);
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         fireEvent.click(migrateButton());
         fireEvent.click(screen.getByRole('button', { name: /^Migrate 12 applications$/ }));
@@ -301,7 +333,7 @@ describe('when something fails', () => {
 
     it('reports failures per company, truncating application ids', async () => {
         wire(withFailures);
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         fireEvent.click(migrateButton());
         fireEvent.click(screen.getByRole('button', { name: /^Migrate 12 applications$/ }));
@@ -322,7 +354,7 @@ describe('when something fails', () => {
                 return { data: migrationResult({ reconstructed: 3, pdfs: 3 }) };
             },
         });
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         fireEvent.click(migrateButton());
         fireEvent.click(screen.getByRole('button', { name: /^Migrate 12 applications$/ }));
@@ -349,7 +381,7 @@ describe('unreadable applications', () => {
                 }),
             }),
         });
-        render(<HistoricalMigrationPanel />);
+        renderChecked();
 
         expect(await screen.findByText(/1 application could not be read/)).toBeInTheDocument();
         expect(document.body.textContent).toContain('brokenap…');
@@ -358,14 +390,19 @@ describe('unreadable applications', () => {
 });
 
 describe('accessibility', () => {
-    it('has no detectable violations in its idle state', async () => {
+    it('has no detectable violations before it is asked', async () => {
         const { container } = render(<HistoricalMigrationPanel />);
+        expect((await axe(container)).violations).toEqual([]);
+    });
+
+    it('has no detectable violations in its idle state', async () => {
+        const { container } = renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         expect((await axe(container)).violations).toEqual([]);
     });
 
     it('has no detectable violations with the confirmation open', async () => {
-        const { container, baseElement } = render(<HistoricalMigrationPanel />);
+        const { container, baseElement } = renderChecked();
         await waitFor(() => expect(migrateButton()).toBeInTheDocument());
         fireEvent.click(migrateButton());
         await screen.findByRole('dialog');

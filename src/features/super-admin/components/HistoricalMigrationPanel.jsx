@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { Icon, CheckCircle, History, Play } from '@design-system/icons';
+import { Icon, CheckCircle, History, Play, Search } from '@design-system/icons';
 import { Badge, Button, Card, Notice, ProgressBar } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
@@ -15,25 +15,27 @@ import { ConfirmDialog } from '@design-system/patterns';
  *
  * WHY IT COUNTS INSTEAD OF BEING TOLD
  * -----------------------------------
- * The outstanding total is read from `surveyHistoricalReconstruction` every time
- * this panel mounts, and again after every run. No count is written into this
- * file. A hard-coded figure is a claim about production that starts rotting the
- * moment anyone submits an application, and an operator reading a stale number
- * has no way to tell — so the button's own label is whatever the records
- * currently say, even if that disagrees with what anyone expected.
+ * The outstanding total is read from `surveyHistoricalReconstruction` when the
+ * operator presses "Check what is left", and again after every run. No count is
+ * written into this file. A hard-coded figure is a claim about production that
+ * starts rotting the moment anyone submits an application, and an operator
+ * reading a stale number has no way to tell — so the button's own label is
+ * whatever the records currently say, even if that disagrees with what anyone
+ * expected.
  *
- * WHY IT REMOVES ITSELF
+ * WHY IT WAITS TO BE ASKED
+ * ------------------------
+ * The survey reads every application of every company and checks each preserved
+ * record's PDF in Storage. Run on mount, it ran on every visit to the dashboard,
+ * the console's heaviest read, for a migration that ends.
+ *
+ * WHEN THE WORK IS DONE
  * ---------------------
- * This is scaffolding for a migration that ends. It renders nothing at all once
- * the server reports the work genuinely finished: no application still eligible,
- * no preserved record without its PDF, nothing unreadable, no company left
- * unscanned. That verdict comes from the survey, which counts the records
- * independently of the migration that wrote them — a verifier sharing its
- * subject's code could not contradict it.
- *
- * Disappearing is a UI decision only. `reconstructHistoricalApplications` and
- * `surveyHistoricalReconstruction` both remain deployed and callable, so the
- * capability to migrate and to audit does not go away with the button.
+ * Once the survey reports the work finished (nothing eligible, no record without
+ * its PDF, nothing unreadable, no company unscanned), the panel says so in place
+ * of the counts and the action. The survey counts the records independently of
+ * the migration that wrote them, so it can contradict it. Both callables stay
+ * deployed either way.
  *
  * If anything fails, the panel deliberately stays, shows exactly what is left,
  * and can be run again — the callable is create-only and idempotent, so a repeat
@@ -51,18 +53,42 @@ const shortId = (id) => `${String(id).slice(0, 8)}…`;
 
 const emptyTotals = () => ({ reconstructed: 0, pdfs: 0, failed: 0, skipped: 0, unsubmitted: 0 });
 
+/** The panel's title and what the action is for, the same in every state. */
+function PanelHeading() {
+    return (
+        <div className="flex flex-wrap items-start justify-between gap-ds-3">
+            <div>
+                <h3 className="mb-ds-2 flex items-center gap-ds-2 text-ds-heading-sm font-semibold text-ds-content">
+                    <Icon icon={History} size="lg" />
+                    Historical application records
+                </h3>
+                <p className="max-w-prose text-ds-sm text-ds-content-secondary">
+                    Applications submitted before records were preserved have no immutable
+                    submission record and no official PDF. This one-off action gives them one,
+                    built only from evidence that survives and clearly marked as reconstructed.
+                    Unfinished drafts and already-preserved records are left untouched.
+                </p>
+            </div>
+            <Badge tone="warning">Temporary</Badge>
+        </div>
+    );
+}
+
 export function HistoricalMigrationPanel() {
     const [survey, setSurvey] = useState(null);
-    const [phase, setPhase] = useState('surveying');
+    const [phase, setPhase] = useState('unchecked');
     const [error, setError] = useState('');
     const [confirming, setConfirming] = useState(false);
     const [progress, setProgress] = useState([]);
     const [runTotals, setRunTotals] = useState(emptyTotals());
 
-    // Guards against a survey that resolves after this panel has unmounted, or
-    // after a newer run has already replaced its answer.
+    // Guards against a survey that resolves after this panel has unmounted; set on
+    // every mount, or StrictMode's rehearsal unmount leaves it false for good.
     const activeRef = useRef(true);
-    useEffect(() => () => { activeRef.current = false; }, []);
+    useEffect(() => {
+        activeRef.current = true;
+        return () => { activeRef.current = false; };
+    }, []);
 
     const runSurvey = useCallback(async ({ includePdfCheck = true } = {}) => {
         const surveyFn = httpsCallable(functions, 'surveyHistoricalReconstruction', {
@@ -72,23 +98,24 @@ export function HistoricalMigrationPanel() {
         return response.data;
     }, []);
 
-    // Initial count. Until it answers, nothing is claimed either way.
-    useEffect(() => {
-        (async () => {
-            try {
-                const data = await runSurvey();
-                if (!activeRef.current) return;
-                setSurvey(data);
-                setPhase(data.complete ? 'complete' : 'idle');
-            } catch (err) {
-                if (!activeRef.current) return;
-                // A survey that failed is not evidence the work is done, so the
-                // panel stays and says why.
-                setError(err?.message || 'Could not read the historical record counts.');
-                setPhase('idle');
-            }
-        })();
-    }, [runSurvey]);
+    // The count, read when the operator asks. Until it answers, nothing is
+    // claimed either way.
+    const check = async () => {
+        setError('');
+        setPhase('surveying');
+        try {
+            const data = await runSurvey();
+            if (!activeRef.current) return;
+            setSurvey(data);
+            setPhase(data.complete ? 'complete' : 'idle');
+        } catch (err) {
+            if (!activeRef.current) return;
+            // A survey that failed is not evidence the work is done, so the
+            // panel stays, says why, and offers the check again.
+            setError(err?.message || 'Could not read the historical record counts.');
+            setPhase('unchecked');
+        }
+    };
 
     const migrate = async () => {
         setConfirming(false);
@@ -184,15 +211,44 @@ export function HistoricalMigrationPanel() {
         }
     };
 
-    // Self-destruct: verified complete means there is nothing to offer.
-    if (phase === 'complete') return null;
-
-    if (phase === 'surveying') {
+    // Verified complete: there is nothing to offer, and the panel says so.
+    if (phase === 'complete') {
         return (
             <Card padding="lg">
-                <p role="status" className="text-ds-sm text-ds-content-secondary">
-                    Checking whether any historical applications still need a preserved record…
-                </p>
+                <Stack gap="lg">
+                    <PanelHeading />
+                    <Notice announce="polite" tone="success" title="Nothing is left to do" titleAs="h4">
+                        <p>
+                            Counted from the stored records just now: every submitted application
+                            has its preserved record and its official PDF.
+                        </p>
+                    </Notice>
+                </Stack>
+            </Card>
+        );
+    }
+
+    if (phase === 'unchecked' || phase === 'surveying') {
+        const surveying = phase === 'surveying';
+        return (
+            <Card padding="lg" className="border-ds-status-warning-border">
+                <Stack gap="lg">
+                    <PanelHeading />
+                    <p role="status" className="sr-only">
+                        {surveying ? 'Checking whether any historical applications still need a preserved record.' : ''}
+                    </p>
+                    {error && (
+                        <Notice announce="assertive" tone="danger" title="Something went wrong" titleAs="h4">
+                            {error}
+                        </Notice>
+                    )}
+                    <div>
+                        <Button variant="secondary" onClick={check} disabled={surveying} loading={surveying}>
+                            {!surveying && <Icon icon={Search} />}
+                            {surveying ? 'Checking…' : 'Check what is left'}
+                        </Button>
+                    </div>
+                </Stack>
             </Card>
         );
     }
@@ -208,21 +264,7 @@ export function HistoricalMigrationPanel() {
     return (
         <Card padding="lg" className="border-ds-status-warning-border">
             <Stack gap="lg">
-                <div className="flex flex-wrap items-start justify-between gap-ds-3">
-                    <div>
-                        <h3 className="mb-ds-2 flex items-center gap-ds-2 text-ds-heading-sm font-semibold text-ds-content">
-                            <Icon icon={History} size="lg" />
-                            Historical application records
-                        </h3>
-                        <p className="max-w-prose text-ds-sm text-ds-content-secondary">
-                            Applications submitted before records were preserved have no immutable
-                            submission record and no official PDF. This one-off action gives them one,
-                            built only from evidence that survives and clearly marked as reconstructed.
-                            Unfinished drafts and already-preserved records are left untouched.
-                        </p>
-                    </div>
-                    <Badge tone="warning">Temporary</Badge>
-                </div>
+                <PanelHeading />
 
                 {/* A multi-minute action must never be silent. */}
                 <p role="status" className="sr-only">
