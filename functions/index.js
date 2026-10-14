@@ -62,6 +62,7 @@ exports.deletePortalUser = hrAdmin.deletePortalUser;
 exports.updatePortalUser = hrAdmin.updatePortalUser;
 exports.onMembershipWrite = hrAdmin.onMembershipWrite;
 exports.onCompanyActivationChange = hrAdmin.onCompanyActivationChange;
+exports.reconcileDeactivatedCompanyClaims = hrAdmin.reconcileDeactivatedCompanyClaims;
 // Authoritative team roster: resolves each membership to a real name/email using
 // the Admin SDK + Firebase Auth as fallback, and reports missing/stale/orphaned/
 // duplicate records explicitly instead of as unknown users.
