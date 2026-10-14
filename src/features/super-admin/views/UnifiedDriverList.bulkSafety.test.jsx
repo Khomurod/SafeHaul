@@ -84,13 +84,9 @@ describe('UnifiedDriverList — no bulk controls, because none does anything', (
     it('renders no bulk-action group and none of the four placeholder controls', () => {
         renderList();
         expect(screen.queryByRole('group', { name: 'Bulk actions for selected records' })).not.toBeInTheDocument();
-        for (const name of ['Assign', 'Move Status', 'Archive']) {
+        // Nor any Message: the row's own did nothing either, and went with them.
+        for (const name of ['Message', 'Assign', 'Move Status', 'Archive']) {
             expect(screen.queryByRole('button', { name: new RegExp(`^${name}`) })).not.toBeInTheDocument();
-        }
-        // "Message" survives only as the real per-record action, never as a bulk one.
-        for (const button of screen.queryAllByRole('button', { name: /^Message/ })) {
-            expect(button).not.toBeDisabled();
-            expect(button.getAttribute('aria-describedby')).toBeNull();
         }
     });
 

@@ -101,32 +101,38 @@ function isCompanyLeadActivityPath(path, companyId) {
 }
 
 /**
+ * One page of a company's `collectionName` documents, under any of its records.
+ *
+ * A collection-group range on the document id takes document paths for its
+ * bounds: `companies/{id}` and `companies/{id}\uf8ff` hold every path below that
+ * company (and below any company whose id begins with it, which the caller
+ * leaves out). A bound ending in "/" has an odd number of segments, which the
+ * SDK refuses before reading anything: every backfill failed that way.
+ */
+function companyActivityPage(companyId, collectionName, lastDoc) {
+    const documentId = admin.firestore.FieldPath.documentId();
+    const companyPath = `companies/${companyId}`;
+    const page = db
+        .collectionGroup(collectionName)
+        .where(documentId, '>=', companyPath)
+        .where(documentId, '<', `${companyPath}\uf8ff`)
+        .orderBy(documentId)
+        .limit(COLLECTION_GROUP_PAGE_SIZE);
+    return lastDoc ? page.startAfter(lastDoc) : page;
+}
+
+/**
  * Cost-optimized reader for company activity documents.
  * Uses collection-group scans with documentId range + pagination to avoid
  * N+1 parent collection scans.
  */
 async function accumulateByDayFromCollectionGroup(companyId, collectionName, byDay) {
-    const documentId = admin.firestore.FieldPath.documentId();
-    const prefix = `companies/${companyId}/`;
-    const upperBound = `${prefix}\uf8ff`;
-
     let total = 0;
     let lastDoc = null;
 
     let hasMore = true;
     while (hasMore) {
-        let query = db
-            .collectionGroup(collectionName)
-            .where(documentId, '>=', prefix)
-            .where(documentId, '<', upperBound)
-            .orderBy(documentId)
-            .limit(COLLECTION_GROUP_PAGE_SIZE);
-
-        if (lastDoc) {
-            query = query.startAfter(lastDoc);
-        }
-
-        const snap = await query.get();
+        const snap = await companyActivityPage(companyId, collectionName, lastDoc).get();
         if (snap.empty) break;
 
         for (const d of snap.docs) {
@@ -267,3 +273,5 @@ exports.backfillAllStats = onCall(
         };
     }
 );
+
+exports.__test = { companyActivityPage };

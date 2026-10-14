@@ -1349,8 +1349,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Historical reconstruction is an ongoing migration.** Applications submitted
   before snapshot preservation get a record and PDF rebuilt only from surviving
   evidence and **marked as reconstructed** (`reconstructHistoricalApplications`);
-  `surveyHistoricalReconstruction` counts what is left for the temporary Super
-  Admin action, which retires itself once the work is verified. See
+  `surveyHistoricalReconstruction` counts what is left when the owner presses
+  the dashboard's "Check what is left", and says when nothing is. See
   [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md).
 - **A deleted blog article does not free its slot.** Deletion leaves a tombstone
   and `slotIsFilled` checks only that the slot's document exists, so the day

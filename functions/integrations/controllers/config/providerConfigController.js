@@ -6,7 +6,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
 const SMSAdapterFactory = require('../../factory');
-const { encrypt } = require('../../encryption');
+const { encrypt, decrypt } = require('../../encryption');
 const RingCentralAdapter = require('../../adapters/ringcentral');
 const EightByEightAdapter = require('../../adapters/eightbyeight');
 const { isLikelyValidPhone } = require('../../../utils/phoneUtils');
@@ -87,6 +87,16 @@ exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => 
             continue; // Move to the next item.
         }
 
+        // The screen before this one filled its form with what it read, and every
+        // value here is stored encrypted: it sends the ciphertext back (the sender
+        // number with its non-digits stripped). That is the stored value, not a
+        // new one; encrypting it again lost the SubAccount ID and the number.
+        const stored = existingConfig[key];
+        if (value && typeof stored === 'string' && (value === stored || value === stored.replace(/[^\d+]/g, ''))) {
+            finalConfig[key] = stored;
+            continue;
+        }
+
         // For all other keys, encrypt the value if it's not empty.
         if (value) {
             finalConfig[key] = encrypt(value);
@@ -96,20 +106,37 @@ exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => 
         }
     }
 
+    // The values the provider is checked with: the ones being stored, readable. A
+    // key the form left blank arrives as __PRESERVE__, and that marker is no
+    // credential. A value that does not decrypt is left out, as the factory does.
+    const storedValues = {};
+    for (const [key, value] of Object.entries(finalConfig)) {
+        if (key === 'isSandbox') {
+            storedValues[key] = value;
+            continue;
+        }
+        try {
+            storedValues[key] = decrypt(value);
+        } catch (decryptError) {
+            console.warn(`[saveIntegrationConfig] Could not read stored key '${key}':`, decryptError.message);
+        }
+    }
+
     // --- NEW: Verify Credentials & Fetch Inventory (Non-Blocking) ---
     let inventory = [];
+    let inventorySynced = false;
     let verificationWarning = null;
     let adapter = null;
     try {
-        // IMPORTANT: Use the raw, unencrypted config for adapter instantiation for verification
         if (provider === 'ringcentral') {
-            adapter = new RingCentralAdapter(config);
+            adapter = new RingCentralAdapter(storedValues);
         } else if (provider === '8x8') {
-            adapter = new EightByEightAdapter(config);
+            adapter = new EightByEightAdapter(storedValues);
         }
 
         if (adapter && adapter.fetchAvailablePhoneNumbers) {
             inventory = await adapter.fetchAvailablePhoneNumbers();
+            inventorySynced = true;
             console.log(`Inventory Sync: Fetched ${inventory.length} numbers for ${provider}`);
         }
     } catch (error) {
@@ -128,9 +155,9 @@ exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => 
             defaultPhoneNumber = existingDoc.data().defaultPhoneNumber || null;
         }
 
-        // For 8x8: use the phoneNumber from the form config if provided
-        if (provider === '8x8' && config.phoneNumber) {
-            defaultPhoneNumber = config.phoneNumber;
+        // For 8x8: the sender number being stored, typed or kept
+        if (provider === '8x8' && storedValues.phoneNumber) {
+            defaultPhoneNumber = storedValues.phoneNumber;
         }
 
         if (!defaultPhoneNumber && inventory && inventory.length > 0) {
@@ -148,7 +175,11 @@ exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => 
 
         let finalInventory = [...inventory]; // Start with the fresh sync
 
-        if (existingDoc && existingDoc.exists) {
+        // A sync that could not run read no numbers, which is not "the account has
+        // none": the lines already stored stay, all of them, for the same provider.
+        if (!inventorySynced && !providerChanged && existingDoc && existingDoc.exists) {
+            finalInventory = existingDoc.data().inventory || [];
+        } else if (existingDoc && existingDoc.exists) {
             const currentInventory = existingDoc.data().inventory || [];
 
             // Find items to preserve:
