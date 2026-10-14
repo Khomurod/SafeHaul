@@ -74,9 +74,7 @@ async function undersizedText(page) {
 
 /**
  * Serious/critical only, matching the project-wide convention in
- * `e2e/a11y.spec.cjs`: `meta-viewport` (moderate, from the app's
- * `maximum-scale=1` tag) is a pre-existing, app-wide condition on every route,
- * not something this campaign introduced or can fix from a feature slice.
+ * `e2e/a11y.spec.cjs`.
  */
 async function axeViolations(page) {
     const results = await new AxeBuilder({ page }).analyze();
