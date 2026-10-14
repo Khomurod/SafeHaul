@@ -10,6 +10,7 @@ import { ApplicationRulesPanel } from './rules/ApplicationRulesPanel';
 import { ApplicationIntegrationsPanel } from './rules/ApplicationIntegrationsPanel';
 import { AgreementsPanel } from './rules/AgreementsPanel';
 import { companyDetailsFields, companyDetailsOf } from '@features/companies/services/companyDetails';
+import { withoutBlankOptions } from '@/config/customQuestionOptions';
 
 // The Company Information fields, which "Edit Profile" opens and Cancel puts back.
 const INFO_FIELDS = ['companyName', ...Object.keys(companyDetailsOf({}))];
@@ -64,12 +65,14 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 companyName: compData.companyName,
                 ...companyDetailsFields(compData, currentCompanyProfile),
                 applicationConfig: compData.applicationConfig,
-                customQuestions: compData.customQuestions,
+                // An option whose text was cleared is no choice: a driver's page cannot draw it.
+                customQuestions: withoutBlankOptions(compData.customQuestions),
                 companyLogoUrl: compData.companyLogoUrl,
                 applicationRules: compData.applicationRules,
                 applicationIntegrations: compData.applicationIntegrations,
             };
             await saveCompanySettings(currentCompanyProfile.id, payload);
+            setCompData(prev => ({ ...prev, customQuestions: payload.customQuestions }));
             showSuccess('Company settings saved successfully.');
             setIsEditing(false);
         } catch (error) {
