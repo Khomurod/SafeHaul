@@ -7,14 +7,95 @@ function createDbMock(existingQueue) {
   const appCollection = jest.fn(() => ({ doc: appDoc }));
   const companyDoc = jest.fn(() => ({ collection: appCollection }));
   const collection = jest.fn(() => ({ doc: companyDoc }));
+  const runTransaction = async (fn) => fn({
+    get: (ref) => ref.get(),
+    set: (ref, data, options) => ref.set(data, options),
+  });
   return {
-    db: { collection },
+    db: { collection, runTransaction },
     set,
     get,
   };
 }
 
+/**
+ * Records kept by id, with transactions that run one at a time and write when
+ * they finish, as Firestore runs them on one document. Plain reads and writes
+ * still interleave.
+ */
+function createStoreMock() {
+  const records = new Map();
+  let tail = Promise.resolve();
+  const ref = (id) => ({
+    get: async () => ({ exists: records.has(id), data: () => records.get(id) }),
+    set: async (data) => { records.set(id, { ...(records.get(id) || {}), ...data }); },
+  });
+  const db = {
+    collection: () => ({ doc: () => ({ collection: () => ({ doc: ref }) }) }),
+    runTransaction: (fn) => {
+      const run = tail.then(async () => {
+        const writes = [];
+        const result = await fn({
+          get: (target) => target.get(),
+          set: (target, data) => { writes.push(() => target.set(data)); },
+        });
+        for (const write of writes) await write();
+        return result;
+      });
+      tail = run.catch(() => {});
+      return run;
+    },
+  };
+  return { db, records };
+}
+
+const submission = (confirmationNumber) => ({
+  applicationId: 'app1',
+  applicantId: 'app1',
+  status: 'New Application',
+  confirmationNumber,
+});
+
 describe('upsertApplicationDoc', () => {
+  it('reads the record once', async () => {
+    const { db, get } = createDbMock([]);
+
+    await upsertApplicationDoc({
+      db, companyId: 'co1', applicationId: 'app1', applicantKeyFull: 'full',
+      applicationDoc: submission('SAF-2026-NEW11'), now: { __srv: true }, logLabel: 'test',
+    });
+
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives two submissions at once one record and one confirmation number', async () => {
+    const { db, records } = createStoreMock();
+    const upsert = (confirmationNumber) => upsertApplicationDoc({
+      db, companyId: 'co1', applicationId: 'app1', applicantKeyFull: 'full',
+      applicationDoc: submission(confirmationNumber), now: 'server-time', logLabel: 'test',
+    });
+
+    const [first, second] = await Promise.all([upsert('SAF-2026-AAAAA'), upsert('SAF-2026-BBBBB')]);
+
+    expect(first.confirmationNumber).toBe('SAF-2026-AAAAA');
+    expect(second.confirmationNumber).toBe('SAF-2026-AAAAA');
+    expect([first.deduplicated, second.deduplicated]).toEqual([false, true]);
+    expect(records.get('app1').confirmationNumber).toBe('SAF-2026-AAAAA');
+  });
+
+  it("leaves the caller's document as it was", async () => {
+    const { db } = createDbMock([{ exists: true, data: () => ({ applicantKeyFull: 'other' }) }]);
+    const applicationDoc = { ...submission('SAF-2026-NEW11'), lifecycle: { status: 'submitted' } };
+    const before = JSON.parse(JSON.stringify(applicationDoc));
+
+    await upsertApplicationDoc({
+      db, companyId: 'co1', applicationId: 'app1', applicantKeyFull: 'full',
+      applicationDoc, now: 'server-time', logLabel: 'test',
+    });
+
+    expect(applicationDoc).toEqual(before);
+  });
+
   it('preserves progressed status and lifecycle on retry', async () => {
     const existing = {
       exists: true,
@@ -26,7 +107,7 @@ describe('upsertApplicationDoc', () => {
         lifecycle: { status: 'complete', submittedAt: 'submitted' },
       }),
     };
-    const { db, set } = createDbMock([existing, existing]);
+    const { db, set } = createDbMock([existing]);
     const applicationDoc = {
       applicationId: 'app1',
       applicantId: 'app1',
@@ -56,7 +137,6 @@ describe('upsertApplicationDoc', () => {
     const { db, set } = createDbMock([
       { exists: true, data: () => ({ applicantKeyFull: 'other' }) },
       { exists: false, data: () => null },
-      { exists: false, data: () => null },
     ]);
     const applicationDoc = {
       applicationId: 'app1',
@@ -82,7 +162,6 @@ describe('upsertApplicationDoc', () => {
   it('recomputes applicationIdNormalized for the suffixed collision id', async () => {
     const { db, set } = createDbMock([
       { exists: true, data: () => ({ applicantKeyFull: 'other' }) },
-      { exists: false, data: () => null },
       { exists: false, data: () => null },
     ]);
     const applicationDoc = {
@@ -116,7 +195,7 @@ describe('upsertApplicationDoc', () => {
         createdAt: 'created',
       }),
     };
-    const { db, set } = createDbMock([existing, existing]);
+    const { db, set } = createDbMock([existing]);
     const applicationDoc = {
       applicationId: 'app1',
       applicantId: 'app1',

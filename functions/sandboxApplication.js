@@ -7,8 +7,11 @@ const { db, storage } = require('./firebaseAdmin');
 const { FieldValue } = require('firebase-admin/firestore');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
 const { collectStoragePaths, deleteApplicationFiles } = require('./shared/applicationStorage');
+const { ORIGINAL_PDF_PREFIX } = require('./shared/preserveApplicationPdf');
 
 const SANDBOX_ID = 'SANDBOX';
+/** Documents written per batch, under Firestore's 500. */
+const COPY_BATCH = 400;
 const INACTIVE_STATUSES = ['inactive', 'suspended', 'disabled'];
 
 function assertSuperAdmin(context) {
@@ -87,6 +90,53 @@ exports.deleteSandboxApplication = functions
     return { success: true };
   });
 
+/**
+ * Copies the application's preserved PDFs (the submission originals, which
+ * carry the full SSN) to the target company's path, never over an object
+ * already there: one is, from an earlier try of this transfer. Returns each
+ * old path with its new one.
+ */
+async function copyPreservedPdfs(bucket, applicationId, targetCompanyId) {
+  const from = `${ORIGINAL_PDF_PREFIX}/${SANDBOX_ID}/${applicationId}/`;
+  const to = `${ORIGINAL_PDF_PREFIX}/${targetCompanyId}/${applicationId}/`;
+  const [files] = await bucket.getFiles({ prefix: from });
+  const moved = new Map();
+  for (const file of files) {
+    const destination = `${to}${file.name.slice(from.length)}`;
+    try {
+      await file.copy(bucket.file(destination), { preconditionOpts: { ifGenerationMatch: 0 } });
+    } catch (err) {
+      if (err?.code !== 412) throw err;
+    }
+    moved.set(file.name, destination);
+  }
+  return moved;
+}
+
+/**
+ * Copies every subcollection of the sandbox record (the frozen submission and
+ * its attempt claims, the DQ entries, the history) under the target record,
+ * with the tenant field and the moved PDFs' paths pointed at the target.
+ */
+async function copySubcollections(sourceRef, destRef, targetCompanyId, movedPdfs) {
+  const retarget = (data) => {
+    const copy = { ...data };
+    if (copy.companyId === SANDBOX_ID) copy.companyId = targetCompanyId;
+    if (movedPdfs.has(copy.storagePath)) copy.storagePath = movedPdfs.get(copy.storagePath);
+    return copy;
+  };
+  for (const collection of await sourceRef.listCollections()) {
+    const { docs } = await collection.get();
+    for (let i = 0; i < docs.length; i += COPY_BATCH) {
+      const batch = db.batch();
+      for (const doc of docs.slice(i, i + COPY_BATCH)) {
+        batch.set(destRef.collection(collection.id).doc(doc.id), retarget(doc.data() || {}));
+      }
+      await batch.commit();
+    }
+  }
+}
+
 exports.transferSandboxApplication = functions
   .runWith({ memory: '512MB', timeoutSeconds: 60 })
   .https.onCall(async (data, context) => {
@@ -130,7 +180,17 @@ exports.transferSandboxApplication = functions
       updatedAt: FieldValue.serverTimestamp(),
     };
 
+    // Everything is copied before anything is deleted, so a failure leaves the
+    // sandbox record whole and the transfer can be run again.
+    const bucket = storage.bucket();
+    const movedPdfs = await copyPreservedPdfs(bucket, applicationId, targetCompanyId);
+    await copySubcollections(sourceRef, destRef, targetCompanyId, movedPdfs);
     await destRef.set(moved);
+    for (const path of movedPdfs.keys()) {
+      await bucket.file(path).delete().catch((err) => {
+        console.warn(`[transferSandboxApplication] Sandbox copy of ${path} not removed: ${err?.message || err}`);
+      });
+    }
     await db.recursiveDelete(sourceRef);
 
     return { success: true, companyId: targetCompanyId, companyName, applicationId };

@@ -153,10 +153,11 @@ const firebaseAdminMock = () => ({
         const writes = [];
         const tx = {
           get: (ref) => ref.get(),
-          create: (ref, data) => { writes.push([ref, data]); },
+          create: (ref, data) => { writes.push(() => ref.create(data)); },
+          set: (ref, data, options) => { writes.push(() => ref.set(data, options)); },
         };
         const result = await fn(tx);
-        for (const [ref, data] of writes) await ref.create(data);
+        for (const write of writes) await write();
         return result;
       } finally {
         mockState.txLock = null;
