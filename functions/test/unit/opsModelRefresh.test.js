@@ -30,7 +30,11 @@ jest.mock('../../firebaseAdmin', () => {
 const mockStore = { readAllConfigs: jest.fn(), resolveCredentials: jest.fn() };
 jest.mock('../../ai/credentials/store', () => mockStore);
 const mockSave = jest.fn();
-jest.mock('../../ai/credentials/modelLists', () => ({ saveModelCheck: (...args) => mockSave(...args) }));
+const mockClear = jest.fn();
+jest.mock('../../ai/credentials/modelLists', () => ({
+    saveModelCheck: (...args) => mockSave(...args),
+    clearModelLists: (...args) => mockClear(...args),
+}));
 const mockCheck = jest.fn();
 jest.mock('../../ai/tasks/modelCheck', () => ({ checkProvider: (...args) => mockCheck(...args) }));
 const mockSettings = { readSettings: jest.fn(), readBotToken: jest.fn() };
@@ -40,8 +44,9 @@ jest.mock('../../ops/telegram', () => ({ sendMessage: (...args) => mockSend(...a
 
 const { mockLeaseDoc } = require('../../firebaseAdmin');
 const {
-    runModelRefresh, dueReason, refreshAiModelLists, readCheckState, setAutoSelect,
+    runModelRefresh, dueReason, refreshAiModelLists, readCheckState, setAutoSelect, resetModelLists,
 } = require('../../ops/modelRefresh');
+const { PROVIDERS, isRetired } = require('../../ai/registry/providers');
 const { RESULT } = require('../../ai/tasks/modelVerification');
 
 const HOUR = 60 * 60 * 1000;
@@ -69,6 +74,7 @@ beforeEach(() => {
         : { complete: false, values: {}, unreadable: [] }));
     mockCheck.mockResolvedValue(checked({ vision: laneResult(), text: laneResult() }));
     mockSave.mockResolvedValue(undefined);
+    mockClear.mockResolvedValue(undefined);
     mockSettings.readSettings.mockResolvedValue({ telegram: { chatId: 222 } });
     mockSettings.readBotToken.mockResolvedValue(TOKEN);
     mockSend.mockResolvedValue(undefined);
@@ -450,6 +456,40 @@ describe('one run at a time', () => {
         expect(outcome).toMatchObject({ checked: ['gemini=error'], errors: 1 });
         expect(mockLeaseDoc.data.leaseUntil).toBe(0);
         console.error.mockRestore();
+    });
+
+    it('puts the built-in lists back only under the lease, so a running check cannot write its list over them', async () => {
+        mockLeaseDoc.data = { leaseUntil: DAY + 60 * 1000, lastRunAt: 'last-run' };
+
+        await expect(resetModelLists({ now: DAY })).resolves.toEqual({ skipped: 'running' });
+        expect(mockClear).not.toHaveBeenCalled();
+        expect(mockLeaseDoc.data.leaseUntil).toBe(DAY + 60 * 1000);
+    });
+
+    it('puts the built-in lists back for every unretired provider, and leaves the last check its own record', async () => {
+        mockLeaseDoc.data = { autoSelect: false, lastRunAt: 'last-run', lastRunSummary: 'gemini=vision:ok' };
+
+        const outcome = await resetModelLists({ now: DAY });
+
+        const unretired = PROVIDERS.filter((provider) => !isRetired(provider)).map((provider) => provider.id);
+        expect(outcome).toEqual({ reset: unretired });
+        expect(mockClear.mock.calls.map(([id]) => id).sort()).toEqual([...unretired].sort());
+        expect(mockLeaseDoc.data).toMatchObject({
+            leaseUntil: 0, autoSelect: false, lastRunAt: 'last-run', lastRunSummary: 'gemini=vision:ok',
+        });
+    });
+
+    it('releases the lease when a reset fails, once every write has settled, and says it failed', async () => {
+        let settled = 0;
+        mockClear.mockImplementation(async (id) => {
+            if (id === 'gemini') throw new Error('unavailable');
+            await new Promise((resolve) => setImmediate(resolve));
+            settled += 1;
+        });
+
+        await expect(resetModelLists({ now: DAY })).rejects.toThrow('unavailable');
+        expect(settled).toBe(mockClear.mock.calls.length - 1);
+        expect(mockLeaseDoc.data.leaseUntil).toBe(0);
     });
 
     it('runs from the schedule and logs a summary without message text', async () => {

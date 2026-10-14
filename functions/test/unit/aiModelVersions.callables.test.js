@@ -34,11 +34,14 @@ jest.mock('../../ai/router/order', () => ({
     ...jest.requireActual('../../ai/router/order'),
     readProviderOrder: async () => [],
 }));
-const mockRefresh = { runModelRefresh: jest.fn(), readCheckState: jest.fn(), setAutoSelect: jest.fn() };
+const mockRefresh = {
+    runModelRefresh: jest.fn(), readCheckState: jest.fn(), setAutoSelect: jest.fn(), resetModelLists: jest.fn(),
+};
 jest.mock('../../ops/modelRefresh', () => ({
     runModelRefresh: (...args) => mockRefresh.runModelRefresh(...args),
     readCheckState: (...args) => mockRefresh.readCheckState(...args),
     setAutoSelect: (...args) => mockRefresh.setAutoSelect(...args),
+    resetModelLists: (...args) => mockRefresh.resetModelLists(...args),
 }));
 
 const aiCallables = require('../../ai/callables');
@@ -101,6 +104,7 @@ beforeEach(() => {
     mockRefresh.readCheckState.mockResolvedValue({ autoSelect: true, running: false, lastRunAt: CHECKED_AT });
     mockRefresh.runModelRefresh.mockResolvedValue({ checked: ['gemini=vision:ok,text:ok', 'cerebras=text:ok'], delivered: true, messageLines: 0 });
     mockRefresh.setAutoSelect.mockResolvedValue(undefined);
+    mockRefresh.resetModelLists.mockResolvedValue({ reset: ['gemini', 'groq'] });
 });
 
 afterEach(() => {
@@ -298,5 +302,51 @@ describe('setAiModelAutoSelect', () => {
 
         await expect(aiCallables.setAiModelAutoSelect(request({ enabled: true }))).rejects.toMatchObject({ code: 'internal' });
         expect(mockRefresh.setAutoSelect).toHaveBeenCalledWith(true);
+    });
+});
+
+describe('resetAiModelLists', () => {
+    it('is guarded as a mutation before anything runs', async () => {
+        // That index.js exports it is the callable contract check's job (the card calls it).
+        mockGuards.guardPrivileged.mockRejectedValue(Object.assign(new Error('REAUTH_REQUIRED'), { code: 'unauthenticated' }));
+
+        await expect(aiCallables.resetAiModelLists(request())).rejects.toMatchObject({ code: 'unauthenticated' });
+        expect(mockGuards.guardPrivileged).toHaveBeenCalledWith(expect.anything(), 'mutate', ACTIONS.UPDATE, {
+            setting: 'model-lists-reset',
+        });
+        expect(mockRefresh.resetModelLists).not.toHaveBeenCalled();
+    });
+
+    it('puts the built-in lists back for every service, records who did, and returns the table', async () => {
+        const result = await aiCallables.resetAiModelLists(request());
+
+        expect(mockRefresh.resetModelLists).toHaveBeenCalledWith();
+        expect(mockAudit).toHaveBeenCalledWith(expect.objectContaining({
+            action: ACTIONS.UPDATE,
+            result: RESULTS.SUCCESS,
+            metadata: expect.objectContaining({ setting: 'model-lists-reset', resetCount: 2, reason: null }),
+        }));
+        expect(result).toMatchObject({ skipped: null, autoSelect: true });
+        expect(result.providers.length).toBeGreaterThan(0);
+    });
+
+    it('says so, and changes nothing, while a check holds the lease', async () => {
+        mockRefresh.resetModelLists.mockResolvedValue({ skipped: 'running' });
+
+        const result = await aiCallables.resetAiModelLists(request());
+
+        expect(result).toMatchObject({ skipped: 'running' });
+        expect(mockAudit).toHaveBeenCalledWith(expect.objectContaining({
+            result: RESULTS.FAILED, metadata: expect.objectContaining({ resetCount: 0, reason: 'already-running' }),
+        }));
+    });
+
+    it('answers a failure with the generic error, never its message', async () => {
+        mockRefresh.resetModelLists.mockRejectedValue(new Error('firestore said: SECRETVALUE'));
+
+        const failure = await aiCallables.resetAiModelLists(request()).catch((error) => error);
+
+        expect(failure).toMatchObject({ code: 'internal' });
+        expect(failure.message).not.toMatch(/SECRETVALUE/);
     });
 });

@@ -305,6 +305,7 @@ function stubCallables(overrides = {}) {
     callables.getAiModelVersions = vi.fn().mockResolvedValue({ data: versionsFor([]) });
     callables.checkAiModelVersionsNow = vi.fn().mockResolvedValue({ data: { ...versionsFor([]), skipped: null, checkedCount: 0 } });
     callables.setAiModelAutoSelect = vi.fn().mockResolvedValue({ data: versionsFor([]) });
+    callables.resetAiModelLists = vi.fn().mockResolvedValue({ data: { ...versionsFor([]), skipped: null } });
     callables.diagnoseAiCredentialAccessV1 = vi.fn().mockResolvedValue({
         data: {
             generation: 'v1',
