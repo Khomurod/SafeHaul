@@ -208,6 +208,32 @@ function resolveStructuredMode(provider, capability) {
     return override || provider.structuredMode;
 }
 
+/**
+ * The required non-secret settings a stored config lacks (Cloudflare's account
+ * id, for instance). A provider missing one is not configured, whatever its
+ * credentials: the router, Test connection, the daily model check and the
+ * console all ask this, so none of them can call it ready while another skips it.
+ *
+ * @returns {object[]} the missing `configFields` rows, in registry order
+ */
+function missingRequiredConfig(provider, config) {
+    return provider.configFields.filter((field) => field.required
+        && !(typeof config?.[field.name] === 'string' && config[field.name].trim()));
+}
+
+/**
+ * Whether resolved credentials let a provider be called: `ready`; `missing`
+ * when one is not there; `unreadable` when one is there and this runtime may not
+ * read it, which needs a grant, not a new key.
+ *
+ * @param {{ complete?: boolean, unreadable?: string[] }} credentials what `store.resolveCredentials` returned
+ * @returns {'ready'|'missing'|'unreadable'}
+ */
+function credentialReadiness(credentials) {
+    if ((credentials?.unreadable || []).length > 0) return 'unreadable';
+    return credentials?.complete ? 'ready' : 'missing';
+}
+
 module.exports = {
     PROVIDERS,
     DEFAULT_FALLBACK_ORDER,
@@ -220,4 +246,6 @@ module.exports = {
     builtInModels,
     resolveModel,
     resolveStructuredMode,
+    missingRequiredConfig,
+    credentialReadiness,
 };

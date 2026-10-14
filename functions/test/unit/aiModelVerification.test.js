@@ -15,7 +15,7 @@ const fs = require('fs');
 
 const { AiError } = require('../../ai/router/errors');
 const { requireProvider } = require('../../ai/registry/providers');
-const { CDL_PROMPT, CDL_JSON_SCHEMA } = require('../../ai/tasks/cdlExtraction');
+const { CDL_PROMPT, CDL_PAGES_NOTE, CDL_JSON_SCHEMA } = require('../../ai/tasks/cdlExtraction');
 const { RESULT, SPECIMEN_PATH, verifyModel, readSpecimenRight } = require('../../ai/tasks/modelVerification');
 
 const RIGHT = Object.freeze({
@@ -28,8 +28,8 @@ const RIGHT = Object.freeze({
 });
 
 const mistral = requireProvider('mistral');
-const check = (lane = 'vision') => verifyModel({
-    provider: mistral, lane, model: 'ministral-14b-2512', credentials: { values: { apiKey: 'k' } }, config: {},
+const check = (lane = 'vision', provider = mistral) => verifyModel({
+    provider, lane, model: 'ministral-14b-2512', credentials: { values: { apiKey: 'k' } }, config: {},
 });
 
 beforeEach(() => {
@@ -69,12 +69,38 @@ describe('reading it right', () => {
 
 describe('verifyModel', () => {
     it('asks for the licence exactly as a driver\'s read does, with the fake licence', async () => {
-        await expect(check()).resolves.toMatchObject({ model: 'ministral-14b-2512', result: RESULT.PASSED, category: null });
+        // Hugging Face reads one photo only, so its photo lane serves only the driver's read.
+        await expect(check('vision', requireProvider('huggingface')))
+            .resolves.toMatchObject({ model: 'ministral-14b-2512', result: RESULT.PASSED, category: null });
 
         const [request] = mockExecute.mock.calls[0];
-        expect(request).toMatchObject({ model: 'ministral-14b-2512', inputText: CDL_PROMPT, schema: CDL_JSON_SCHEMA, temperature: 0 });
+        expect(request).toMatchObject({
+            model: 'ministral-14b-2512', capability: 'vision', inputText: CDL_PROMPT, schema: CDL_JSON_SCHEMA, temperature: 0,
+        });
         expect(request.images).toHaveLength(1);
         expect(request.images[0].dataUrl).toMatch(/^data:image\/jpeg;base64,\/9j\//);
+    });
+
+    it('asks a provider that reads several photos for both sides of a licence, the printed side second', async () => {
+        // One photo list serves the driver's photo and the carrier's two-sided
+        // read, so a version must read the licence from the second of two pages.
+        await expect(check()).resolves.toMatchObject({ result: RESULT.PASSED });
+
+        const [request] = mockExecute.mock.calls[0];
+        expect(request).toMatchObject({
+            capability: 'multi_image', inputText: `${CDL_PROMPT} ${CDL_PAGES_NOTE}`, schema: CDL_JSON_SCHEMA,
+        });
+        expect(request.images).toHaveLength(2);
+        expect(request.images[0].dataUrl).toMatch(/^data:image\/png;base64,/);
+        expect(request.images[1].dataUrl).toMatch(/^data:image\/jpeg;base64,\/9j\//);
+    });
+
+    it('fails a version that reads one photo but not the licence among two', async () => {
+        mockExecute.mockImplementation(async ({ images }) => ({
+            text: JSON.stringify(images.length === 1 ? RIGHT : { ...RIGHT, cdlNumber: '' }),
+        }));
+
+        await expect(check()).resolves.toMatchObject({ result: RESULT.MISREAD, category: 'wrong_answer' });
     });
 
     it('asks the text lane for a structured answer, with no image', async () => {

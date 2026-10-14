@@ -12,7 +12,10 @@
  *   its prompt, schema and output budget) on a fake licence, then compared
  *   field by field. A version passes only when it reads all six fields right,
  *   because that is the job; "it accepted an image" is what Test connection
- *   already proves.
+ *   already proves. One photo list also serves every read of several pages (a
+ *   carrier's two-sided licence, reports), so a provider that reads several
+ *   photos is asked the way a two-page read is: a plain one-colour page first
+ *   and the licence second, so a version that looks only at the first page fails.
  * - **Text:** the structured-JSON probe from `./healthProbes.js`, which is the
  *   shape every text task asks for and the one that broke Groq in production
  *   while plain text still worked.
@@ -33,8 +36,8 @@ const { LANES, CAPABILITIES } = require('../registry/capabilities');
 const { getAdapter } = require('../providers');
 const { AiError } = require('../router/errors');
 const { normalizeOutput } = require('../router/output');
-const { CDL_JSON_SCHEMA, CDL_PROMPT, normalizeFields } = require('./cdlExtraction');
-const { PROBES } = require('./healthProbes');
+const { CDL_JSON_SCHEMA, CDL_PAGES_NOTE, CDL_PROMPT, normalizeFields } = require('./cdlExtraction');
+const { PROBES, RED_PNG } = require('./healthProbes');
 
 const SPECIMEN_PATH = path.join(__dirname, 'verification', 'cdl-specimen.jpg');
 
@@ -115,12 +118,15 @@ function readSpecimenRight(output) {
 const STRUCTURED_PROBE = PROBES.find((probe) => probe.id === 'structured_json');
 
 /** The request each lane is checked with. */
-function requestFor(lane) {
+function requestFor(lane, provider) {
     if (lane === LANES.VISION) {
+        const pages = provider.capabilities.includes(CAPABILITIES.MULTI_IMAGE);
         return {
-            capability: CAPABILITIES.VISION,
-            inputText: CDL_PROMPT,
-            images: [{ dataUrl: specimenImage() }],
+            capability: pages ? CAPABILITIES.MULTI_IMAGE : CAPABILITIES.VISION,
+            inputText: pages ? `${CDL_PROMPT} ${CDL_PAGES_NOTE}` : CDL_PROMPT,
+            images: pages
+                ? [{ dataUrl: RED_PNG }, { dataUrl: specimenImage() }]
+                : [{ dataUrl: specimenImage() }],
             schema: CDL_JSON_SCHEMA,
             schemaName: 'safehaul_model_check_cdl',
             maxOutputTokens: 450,
@@ -151,7 +157,7 @@ function requestFor(lane) {
  * @returns {Promise<{ model: string, result: string, category: (string|null), latencyMs: number }>}
  */
 async function verifyModel({ provider, lane, model, credentials, config, deps = {} }) {
-    const request = requestFor(lane);
+    const request = requestFor(lane, provider);
     const startedAt = Date.now();
     const outcome = (result, category) => ({ model, result, category, latencyMs: Date.now() - startedAt });
     try {

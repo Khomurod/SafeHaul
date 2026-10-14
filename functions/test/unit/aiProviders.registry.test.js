@@ -11,7 +11,7 @@ jest.mock('../../firebaseAdmin', () => require('./aiProviders.support').firebase
 
 const { getAdapter, ADAPTERS } = require('../../ai/providers');
 const {
-    getProvider, PROVIDERS, resolveModel, resolveModels,
+    getProvider, PROVIDERS, resolveModel, resolveModels, requireProvider, missingRequiredConfig, credentialReadiness,
 } = require('../../ai/registry/providers');
 const { MODEL_VERSIONS, MAX_VERSIONS_PER_LANE } = require('../../ai/registry/modelVersions');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
@@ -257,5 +257,29 @@ describe('model versions', () => {
         expect(resolveModels(row, CAPABILITIES.VISION, {})).toEqual(['my-org/text']);
         expect(resolveModels({ configFields: [], defaultModels: {} }, CAPABILITIES.TEXT, {})).toEqual([]);
         expect(resolveModel({ configFields: [], defaultModels: {} }, CAPABILITIES.TEXT, {})).toBeNull();
+    });
+});
+
+describe('one rule for "configured"', () => {
+    it('names a required setting that is absent or blank, whatever the credentials', () => {
+        const cloudflare = requireProvider('cloudflare');
+        const names = (config) => missingRequiredConfig(cloudflare, config).map((field) => field.name);
+
+        expect(names({})).toEqual(['accountId']);
+        expect(names(undefined)).toEqual(['accountId']);
+        expect(names({ accountId: '   ' })).toEqual(['accountId']);
+        expect(names({ accountId: 42 })).toEqual(['accountId']);
+        expect(names({ accountId: 'a'.repeat(32) })).toEqual([]);
+        expect(missingRequiredConfig(requireProvider('groq'), {})).toEqual([]);
+    });
+
+    it('calls credentials ready only when every one is there and readable', () => {
+        expect(credentialReadiness({ complete: true, unreadable: [] })).toBe('ready');
+        expect(credentialReadiness({ complete: true })).toBe('ready');
+        // There, and this runtime may not read it: a grant, not a new key.
+        expect(credentialReadiness({ complete: true, unreadable: ['apiKey'] })).toBe('unreadable');
+        expect(credentialReadiness({ complete: false, unreadable: ['apiKey'] })).toBe('unreadable');
+        expect(credentialReadiness({ complete: false, unreadable: [] })).toBe('missing');
+        expect(credentialReadiness(null)).toBe('missing');
     });
 });

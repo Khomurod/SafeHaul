@@ -25,7 +25,9 @@
  * provider's state: it clears the cooldowns, the recovery step the runbook gives.
  */
 
-const { requireProvider, resolveModels, isRetired } = require('../registry/providers');
+const {
+    requireProvider, resolveModels, isRetired, missingRequiredConfig, credentialReadiness,
+} = require('../registry/providers');
 const { CAPABILITIES } = require('../registry/capabilities');
 const { getAdapter } = require('../providers');
 const { AiError } = require('../router/errors');
@@ -325,9 +327,7 @@ async function testProviderConnection(providerId, deps = {}) {
         return unavailable('internal', 'Provider settings could not be read, so the test did not run.');
     }
 
-    const missingConfig = provider.configFields
-        .filter((field) => field.required)
-        .filter((field) => !(typeof config[field.name] === 'string' && config[field.name].trim()));
+    const missingConfig = missingRequiredConfig(provider, config);
     if (missingConfig.length > 0) {
         return unavailable(
             'not_configured',
@@ -344,10 +344,9 @@ async function testProviderConnection(providerId, deps = {}) {
     }
     // Unreadable is not absent. "Add credentials before testing" is actively
     // misleading when the credential is present and the runtime cannot read it.
-    if (Array.isArray(credentials.unreadable) && credentials.unreadable.length > 0) {
-        return unavailable(CREDENTIAL_ERROR_CATEGORY, CREDENTIAL_ERROR_MESSAGE);
-    }
-    if (!credentials.complete) {
+    const readiness = credentialReadiness(credentials);
+    if (readiness === 'unreadable') return unavailable(CREDENTIAL_ERROR_CATEGORY, CREDENTIAL_ERROR_MESSAGE);
+    if (readiness === 'missing') {
         return unavailable('not_configured', 'Add credentials before testing this provider.');
     }
 

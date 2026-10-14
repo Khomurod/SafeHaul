@@ -328,9 +328,10 @@ due: daily at about 03:25 (and at any hour after 36 h), on the first run after
 it is set up, and within the hour of the router recording a new failure in one
 of its lanes (`laneHealth`, begun at `laneFailedAt`; a 429 is not one), then at most every 6 h
 while the last check still finds the lane failing (only the router's own
-answers reset `laneHealth`). Only enabled, configured,
-unretired providers, only the lanes they already serve, and never a lane an
-operator chose a model for by hand.
+answers reset `laneHealth`). Only enabled, configured (required settings and
+readable credentials, the router's own test: `missingRequiredConfig`,
+`credentialReadiness`), unretired providers, only the lanes they already
+serve, and never a lane an operator chose a model for by hand.
 
 For each lane (`ai/tasks/modelCheck.js`):
 
@@ -342,7 +343,9 @@ For each lane (`ai/tasks/modelCheck.js`):
    (`ai/tasks/modelVerification.js`). **Photos:** the licence read exactly as a
    driver's is, on a made-up licence (`ai/tasks/verification/cdl-specimen.jpg`,
    its SHA-256 pinned in `aiModelVerification.test.js`). It passes only by
-   reading all six fields right. **Text:** the structured-JSON probe.
+   reading all six fields right. The photo list also serves reads of several
+   pages, so a provider that reads several photos gets it as a two-page read:
+   a plain one-colour page first, the licence second. **Text:** the structured-JSON probe.
 3. While the lane has room (three at most), new names from the catalogue are
    tried, two per lane per run, in the order of `registry/modelCandidates.js`:
    stable names only, never a preview or a `-latest` alias.
@@ -836,7 +839,9 @@ production features. The migration is deliberately reversible.
    for. A fallback taken after a read failure reports
    `source: 'legacy-env-after-read-failure'`, and the console says so, because
    running on the legacy binding *because the managed read is broken* is a
-   different situation from not having migrated yet.
+   different situation from not having migrated yet. `store.legacyCredential`
+   alone decides when the binding counts; the router, the provider list and a
+   reveal all ask it.
 2. AI Integrations shows Groq as configured, with "Using the legacy deploy
    binding, not the managed credential."
 3. **Migrate legacy key** copies the token into Secret Manager entirely

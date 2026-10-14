@@ -129,6 +129,7 @@ module.exports = {
     extractCdlFields,
     CDL_JSON_SCHEMA,
     CDL_PROMPT,
+    CDL_PAGES_NOTE,
     CDL_TOTAL_DEADLINE_MS,
     CDL_PER_ATTEMPT_MS,
     normalizeFields,

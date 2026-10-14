@@ -40,7 +40,7 @@ jest.mock('../../ops/telegram', () => ({ sendMessage: (...args) => mockSend(...a
 
 const { mockLeaseDoc } = require('../../firebaseAdmin');
 const {
-    runModelRefresh, dueReason, refreshAiModelLists, readCheckState, setAutoSelect, credentialsReady,
+    runModelRefresh, dueReason, refreshAiModelLists, readCheckState, setAutoSelect,
 } = require('../../ops/modelRefresh');
 const { RESULT } = require('../../ai/tasks/modelVerification');
 
@@ -140,6 +140,21 @@ describe('which providers it checks', () => {
         expect(asked).not.toContain('mistral');
         expect(asked).not.toContain('groq');
         expect(asked).not.toContain('github-models');
+    });
+
+    it('never one missing a required setting, as the router would not use it: Cloudflare without its account id', async () => {
+        mockStore.readAllConfigs.mockResolvedValue(configs({
+            gemini: { enabled: true, ...checkedLongAgo },
+            cloudflare: { enabled: true, ...checkedLongAgo },
+        }));
+        mockStore.resolveCredentials.mockResolvedValue({ complete: true, values: { apiToken: 't' }, unreadable: [] });
+
+        await runModelRefresh({ now: DAY, force: true });
+
+        const asked = mockCheck.mock.calls.map(([params]) => params.provider.id);
+        expect(asked).toContain('gemini');
+        expect(asked).not.toContain('cloudflare');
+        expect(mockStore.resolveCredentials).not.toHaveBeenCalledWith('cloudflare', expect.anything());
     });
 
     it('checks every enabled, configured provider when asked to, due or not', async () => {
@@ -416,12 +431,6 @@ describe('what the console reads and switches', () => {
         expect(mockLeaseDoc.data.autoSelect).toBe(true);
     });
 
-    it('treats a provider as checkable only with every credential present and readable', () => {
-        expect(credentialsReady({ complete: true, unreadable: [] })).toBe(true);
-        expect(credentialsReady({ complete: true, unreadable: ['apiKey'] })).toBe(false);
-        expect(credentialsReady({ complete: false, unreadable: [] })).toBe(false);
-        expect(credentialsReady(null)).toBe(false);
-    });
 });
 
 describe('one run at a time', () => {
