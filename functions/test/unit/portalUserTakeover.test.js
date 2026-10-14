@@ -89,6 +89,14 @@ jest.mock('../../firebaseAdmin', () => ({
 }));
 
 const { auth } = require('../../firebaseAdmin');
+// The company's deactivation is read in shared/companyAccess.js (its own tests);
+// here the company is active unless a case says otherwise.
+const mockAssertCompanyActive = jest.fn();
+jest.mock('../../shared/companyAccess', () => ({
+    ...jest.requireActual('../../shared/companyAccess'),
+    assertCompanyActive: (...args) => mockAssertCompanyActive(...args),
+}));
+
 const { createPortalUser, deletePortalUser, updatePortalUser } = require('../../hrAdmin');
 
 const req = (uid, roles, data) => ({ auth: { uid, token: { roles } }, data });
@@ -96,6 +104,7 @@ const ADMIN_OF_X = ['admin-x', { 'co-x': 'company_admin' }];
 const OWNER = ['owner-uid', { globalRole: 'super_admin', 'co-home': 'super_admin' }];
 
 beforeEach(() => {
+    mockAssertCompanyActive.mockReset().mockResolvedValue(undefined);
     mockUsers.clear();
     mockMemberships.clear();
     mockAuthUsers.clear();

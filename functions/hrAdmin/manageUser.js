@@ -6,6 +6,7 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, auth } = require("./../firebaseAdmin");
+const { assertCompanyActive } = require("../shared/companyAccess");
 
 // Remove a user's dedicated SMS line assignment when they leave a company. Without
 // this, deleting a recruiter who had a line assigned leaves an orphaned entry in
@@ -45,6 +46,10 @@ exports.deletePortalUser = onCall({ maxInstances: 2 }, async (request) => {
     if (!isSuperAdmin && !isCompanyAdmin) {
         throw new HttpsError("permission-denied", "Permission denied.");
     }
+
+    // A deactivated company's admins are refused; a super admin never is, the
+    // role at the token root (an older token) included.
+    if (!isSuperAdmin && request.auth.token.globalRole !== "super_admin") await assertCompanyActive(companyId);
 
     try {
         if (isSuperAdmin && !companyId) {

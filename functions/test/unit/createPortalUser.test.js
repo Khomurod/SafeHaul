@@ -43,12 +43,21 @@ jest.mock('../../firebaseAdmin', () => ({
   },
 }));
 
+// The company's deactivation is read in shared/companyAccess.js (its own tests);
+// here the company is active unless a case says otherwise.
+const mockAssertCompanyActive = jest.fn();
+jest.mock('../../shared/companyAccess', () => ({
+  ...jest.requireActual('../../shared/companyAccess'),
+  assertCompanyActive: (...args) => mockAssertCompanyActive(...args),
+}));
+
 const { createPortalUser } = require('../../hrAdmin');
 
 // Jest 30's reset leaves every double returning undefined; each block below
 // then sets the answers its tests start from.
 beforeEach(() => {
   jest.resetAllMocks();
+  mockAssertCompanyActive.mockResolvedValue(undefined);
   mockUserSet.mockResolvedValue();
   mockMembershipAdd.mockResolvedValue({ id: 'mem1' });
 });
@@ -200,5 +209,23 @@ describe('createPortalUser mirrors a profile for pre-existing Auth accounts', ()
     expect(res.message).toBe('User is already in this company.');
     expect(mockUserSet).toHaveBeenCalledTimes(1);
     expect(mockMembershipAdd).not.toHaveBeenCalled();
+  });
+});
+
+describe('createPortalUser for a deactivated company', () => {
+  it("refuses the company's admin before creating anyone", async () => {
+    mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+    await expect(createPortalUser(req({ co1: 'company_admin' }, { email: 'new@example.com', companyId: 'co1', role: 'hr_user' })))
+      .rejects.toMatchObject({ code: 'permission-denied', message: 'This company has been deactivated.' });
+    expect(mockAssertCompanyActive).toHaveBeenCalledWith('co1');
+    expect(mockCreateUser).not.toHaveBeenCalled();
+    expect(mockMembershipAdd).not.toHaveBeenCalled();
+  });
+
+  it('never asks for a super admin whose role sits at the token root', async () => {
+    mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+    const token = { globalRole: 'super_admin', roles: { co1: 'company_admin' } };
+    await createPortalUser({ auth: { uid: 'caller', token }, data: { email: 'new@example.com', companyId: 'co1', role: 'hr_user' } }).catch(() => {});
+    expect(mockAssertCompanyActive).not.toHaveBeenCalled();
   });
 });

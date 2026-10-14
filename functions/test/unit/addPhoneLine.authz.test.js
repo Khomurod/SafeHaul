@@ -66,6 +66,14 @@ const VALID_KEY = '01234567890123456789012345678901'; // 32 chars
 process.env.SMS_ENCRYPTION_KEY = VALID_KEY;
 const enc = require('../../integrations/encryption');
 
+// The company's deactivation is read in shared/companyAccess.js (its own tests);
+// here the company is active unless a case says otherwise.
+const mockAssertCompanyActive = jest.fn();
+jest.mock('../../shared/companyAccess', () => ({
+  ...jest.requireActual('../../shared/companyAccess'),
+  assertCompanyActive: (...args) => mockAssertCompanyActive(...args),
+}));
+
 const { addPhoneLine, removePhoneLine } = require('../../integrations/controllers/configController');
 
 const req = (data, token = { roles: {} }) => ({ auth: { uid: 'u1', token }, data });
@@ -82,6 +90,7 @@ const VALID = {
 beforeEach(() => {
   mockWrites.length = 0;
   jest.clearAllMocks();
+  mockAssertCompanyActive.mockReset().mockResolvedValue(undefined);
   process.env.SMS_ENCRYPTION_KEY = VALID_KEY;
   if (enc._resetEncryptionKeyForTesting) enc._resetEncryptionKeyForTesting();
 });
@@ -120,6 +129,15 @@ describe('addPhoneLine — authorization matrix', () => {
   it('allows a global super admin', async () => {
     const res = await addPhoneLine(req(VALID, { globalRole: 'super_admin', roles: {} }));
     expect(res.success).toBe(true);
+    expect(mockAssertCompanyActive).not.toHaveBeenCalled();
+  });
+
+  it("rejects a deactivated company's admin, writing nothing", async () => {
+    mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+    await expect(addPhoneLine(req(VALID, { roles: { co1: 'company_admin' } })))
+      .rejects.toMatchObject({ code: 'permission-denied', message: 'This company has been deactivated.' });
+    expect(mockAssertCompanyActive).toHaveBeenCalledWith('co1');
+    expect(mockWrites).toHaveLength(0);
   });
 });
 
@@ -177,5 +195,13 @@ describe('removePhoneLine — authorization matrix', () => {
   it('rejects a non-admin of the company', async () => {
     await expect(removePhoneLine(req(RVALID, { roles: { co1: 'hr_user' } })))
       .rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it("rejects a deactivated company's admin, writing nothing", async () => {
+    mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+    await expect(removePhoneLine(req(RVALID, { roles: { co1: 'company_admin' } })))
+      .rejects.toMatchObject({ code: 'permission-denied', message: 'This company has been deactivated.' });
+    expect(mockAssertCompanyActive).toHaveBeenCalledWith('co1');
+    expect(mockWrites).toHaveLength(0);
   });
 });

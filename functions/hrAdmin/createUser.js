@@ -7,6 +7,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, auth } = require("./../firebaseAdmin");
 const { resolveUserIdentity, profileRepairPayload, cleanString } = require("../shared/userIdentity");
+const { assertCompanyActive } = require("../shared/companyAccess");
 
 // --- 1. CREATE USER ---
 // Roles a company admin may grant within their own company. `super_admin` is
@@ -92,6 +93,10 @@ exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
         // Unknown / unsupported role — reject outright.
         throw new HttpsError("invalid-argument", `Unsupported role: ${role}`);
     }
+
+    // A deactivated company's admins are refused; a super admin never is, the
+    // role at the token root (an older token) included.
+    if (!isGlobalSuperAdmin && request.auth.token.globalRole !== "super_admin") await assertCompanyActive(companyId);
 
     let userId;
     let isNewUser = false;

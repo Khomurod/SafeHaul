@@ -63,6 +63,14 @@ jest.mock('../../firebaseAdmin', () => ({
   },
 }));
 
+// The company's deactivation is read in shared/companyAccess.js (its own tests);
+// here the company is active unless a case says otherwise.
+const mockAssertCompanyActive = jest.fn();
+jest.mock('../../shared/companyAccess', () => ({
+  ...jest.requireActual('../../shared/companyAccess'),
+  assertCompanyActive: (...args) => mockAssertCompanyActive(...args),
+}));
+
 const { listCompanyTeam } = require('../../hrAdmin');
 
 const req = (roles, data) => ({ auth: { uid: 'caller', token: { roles } }, data });
@@ -71,6 +79,7 @@ const byId = (res, id) => res.members.find((m) => m.id === id);
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockAssertCompanyActive.mockResolvedValue(undefined);
   mockBatchCommit.mockResolvedValue();
   state.memberships = [];
   state.users = {};
@@ -308,5 +317,21 @@ describe('listCompanyTeam degrades safely', () => {
     const res = await asAdmin();
     expect(res.members[0].name).toBe('Ben Brown');
     consoleError.mockRestore();
+  });
+});
+
+describe('listCompanyTeam for a deactivated company', () => {
+  it("refuses the company's admin", async () => {
+    state.memberships = [{ id: 'm1', userId: 'u1', companyId: 'co-a', role: 'recruiter' }];
+    mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+    await expect(asAdmin()).rejects.toMatchObject({ code: 'permission-denied', message: 'This company has been deactivated.' });
+    expect(mockAssertCompanyActive).toHaveBeenCalledWith('co-a');
+  });
+
+  it('never asks for a super admin whose role sits at the token root', async () => {
+    mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+    const token = { globalRole: 'super_admin', roles: { 'co-a': 'company_admin' } };
+    await listCompanyTeam({ auth: { uid: 'caller', token }, data: { companyId: 'co-a' } }).catch(() => {});
+    expect(mockAssertCompanyActive).not.toHaveBeenCalled();
   });
 });

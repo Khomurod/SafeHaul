@@ -5,6 +5,7 @@
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
+const { assertCompanyActive } = require('../../../shared/companyAccess');
 const SMSAdapterFactory = require('../../factory');
 const { decrypt } = require('../../encryption');
 const RC = require('@ringcentral/sdk').SDK;
@@ -41,6 +42,9 @@ exports.testLineConnection = onCall(encryptedCallOptions, async (request) => {
     if (!isSuperAdmin && roles[companyId] !== 'company_admin') {
         throw new HttpsError('permission-denied', 'Only Company Admins can test this company\'s lines.');
     }
+
+    // A deactivated company's admins are refused; a super admin never is.
+    if (!isSuperAdmin) await assertCompanyActive(companyId);
 
     // Start with provided credentials
     let effectiveClientId = clientId;
@@ -151,6 +155,9 @@ exports.verifyLineConnection = onCall(encryptedCallOptions, async (request) => {
     if (!isSuperAdmin && !isCompanyAdmin) {
         throw new HttpsError('permission-denied', 'Only Company Admins can verify connections.');
     }
+
+    // A deactivated company's admins are refused; a super admin never is.
+    if (!isSuperAdmin) await assertCompanyActive(companyId);
 
     try {
         const adapter = await SMSAdapterFactory.getAdapter(companyId, phoneNumber);
