@@ -175,7 +175,7 @@ export function DataProvider({ children }) {
         if (authVersionRef.current !== thisVersion) return;
 
         const claims = idTokenResult.claims;
-        const { roles, hasCompanyRoles, isSuperAdmin } = extractRoleContext(claims);
+        const { roles, companyRoleKeys, hasCompanyRoles, isSuperAdmin } = extractRoleContext(claims);
 
         setCurrentUser(user);
         setCurrentUserClaims(claims);
@@ -209,9 +209,15 @@ export function DataProvider({ children }) {
 
         if (hasCompanyRoles) {
           setUserRole(getPrimaryCompanyRole(claims));
+          // The company chosen last, if the account still belongs to it; else the
+          // only one it belongs to. Signing out forgets the choice, so without the
+          // second a one-company member was asked to choose at every sign-in.
           const savedCompanyId = localStorage.getItem(SESSION_KEYS.SELECTED_COMPANY_ID);
-          if (savedCompanyId) {
-            await loginToCompany(savedCompanyId, null, true);
+          const companyId = companyRoleKeys.includes(savedCompanyId)
+            ? savedCompanyId
+            : (companyRoleKeys.length === 1 ? companyRoleKeys[0] : null);
+          if (companyId) {
+            await loginToCompany(companyId, null, true);
           } else {
             setShowCompanyChooser(true);
           }
