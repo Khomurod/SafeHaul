@@ -78,7 +78,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 | Cloud Functions | `functions/` | Node 22, **mixed v1 and v2** |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |
-| Public site | `web/` | Hand-written CSS, **no build step, no framework**. Serves the server-rendered blog's assets and a standalone privacy page, and redirects `/` to `/news`. The `landing/` marketing site was removed; see [`DESIGN.md`](../DESIGN.md) |
+| Public site | `web/` | Hand-written CSS, **no build step, no framework**. Serves the server-rendered blog's assets and a standalone privacy page, and redirects `/` to `/news`. |
 | Design system | `src/design-system/` | Business-neutral visual contract; see §11 |
 
 **Three communication patterns**, used deliberately: (1) **direct Firestore
@@ -94,10 +94,12 @@ Routing is **manifest-driven**, not hand-edited JSX:
 — one source of truth, so they cannot drift). Add routes there, not in
 `App.jsx`.
 
-**Startup** (`src/app/startup/`): when the Hosting config
-(`/__/firebase/init.json`) cannot load, the page shows a reload screen, not a
-blank page. A tab whose files a release removed reloads once, only when
-`/release.json` names a SHA other than its `VITE_RELEASE_SHA`.
+**Startup** (`src/app/startup/`): an unloadable Hosting config
+(`/__/firebase/init.json`) shows a reload screen, not a blank page; a tab whose
+files a release removed reloads once, only when `/release.json` names a SHA
+other than its `VITE_RELEASE_SHA`. Sign-in returns to the page asked for; an
+account in no company (a removed member keeps the login) gets a no-access
+screen with Sign out.
 
 ### Public (unauthenticated) routes
 
@@ -900,11 +902,11 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   Stored URLs expire or are absent, so views re-sign at view time.
 
 **Starting an application for a driver is company-workspace access, not admin.**
-`/company/drivers/unfinished` (and the `drivers/start-application` redirect) is
-deliberately not `adminOnly` — a recruiter holding a driver's file does this,
-and nothing it produces is filed. Its callables use
-`assertCompanyAccessForRequest` / `assertCompanyAccess` (the admin's read, edit
-and delete, `assertCompanyAdminStrict`) with per-user fail-closed rate limits.
+`/company/drivers/unfinished` is deliberately not `adminOnly` — a recruiter
+holding a driver's file does this, and nothing it produces is filed. Its
+callables use `assertCompanyAccessForRequest` / `assertCompanyAccess` (the
+admin's read, edit and delete, `assertCompanyAdminStrict`) with per-user
+fail-closed rate limits.
 
 **Application configuration is split by sensitivity.** A Company Admin manages
 Standard Questions, Application Rules, Custom Questions and Integrations
