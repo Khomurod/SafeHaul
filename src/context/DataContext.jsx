@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useContext, createContext, useCallback, useRef, useMemo } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '@lib/firebase';
-import { doc, getDoc, collection, getCountFromServer } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { CompanyChooserModal } from '@shared/components/modals';
 import { SESSION_KEYS } from './dataContext/sessionKeys';
@@ -182,24 +182,6 @@ export function DataProvider({ children }) {
 
         setCurrentUser(user);
         setCurrentUserClaims(claims);
-
-        if (isSuperAdmin) {
-          try {
-            const [companiesSnap, driversSnap] = await Promise.all([
-              getCountFromServer(collection(db, 'companies')),
-              getCountFromServer(collection(db, 'drivers')),
-            ]);
-            if (authVersionRef.current !== thisVersion) return;
-            const platformStats = {
-              companies: companiesSnap.data().count || 0,
-              drivers: driversSnap.data().count || 0,
-              updatedAt: Date.now(),
-            };
-            localStorage.setItem(SESSION_KEYS.PLATFORM_STATS, JSON.stringify(platformStats));
-          } catch (statsErr) {
-            console.warn('Could not cache platform stats:', statsErr);
-          }
-        }
 
         if (isSuperAdmin) {
           setUserRole('super_admin');

@@ -64,9 +64,6 @@ vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showError: vi.fn() }),
 }));
-vi.mock('@/context/dataContext/sessionKeys', () => ({
-    SESSION_KEYS: { PLATFORM_STATS: 'test-platform-stats' },
-}));
 
 import { useSuperAdminData } from './useSuperAdminData';
 
