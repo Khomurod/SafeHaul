@@ -197,7 +197,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
         expect(companyDetailsOf({ ...FLAT_COMPANY, ...saved }).mcNumber).toBe('');
     });
 
-    it('preserves the existing cancel behavior without saving', () => {
+    it('puts the information back on Cancel, without saving', () => {
         renderProfile();
         fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
         fireEvent.change(screen.getByRole('textbox', { name: 'City' }), {
@@ -209,8 +209,46 @@ describe('CompanyProfileTab information compatibility slice', () => {
         const editProfile = screen.getByRole('button', { name: 'Edit Profile' });
         expect(editProfile).toHaveFocus();
         fireEvent.click(editProfile);
-        expect(screen.getByRole('textbox', { name: 'City' }))
-            .toHaveValue('Fort Worth');
+        expect(screen.getByRole('textbox', { name: 'City' })).toHaveValue('Dallas');
+    });
+
+    it('does not store a cancelled edit with the next save', async () => {
+        renderProfile();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'City' }), {
+            target: { value: 'Fort Worth' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'Phone' }), {
+            target: { value: '555-0199' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        await waitFor(() => expect(serviceMocks.saveCompanySettings).toHaveBeenCalledTimes(1));
+        const [, saved] = serviceMocks.saveCompanySettings.mock.calls[0];
+        expect(saved.address.city).toBe('Dallas');
+        expect(saved.contact.phone).toBe('555-0199');
+    });
+
+    it('puts back what was saved before, not what the company first held', async () => {
+        renderProfile();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'City' }), {
+            target: { value: 'Austin' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Profile' })).toBeInTheDocument());
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'City' }), {
+            target: { value: 'Fort Worth' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+
+        expect(screen.getByRole('textbox', { name: 'City' })).toHaveValue('Austin');
     });
 
     it('preserves save errors and re-enables the save action', async () => {

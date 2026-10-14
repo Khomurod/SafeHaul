@@ -11,6 +11,9 @@ import { ApplicationIntegrationsPanel } from './rules/ApplicationIntegrationsPan
 import { AgreementsPanel } from './rules/AgreementsPanel';
 import { companyDetailsFields, companyDetailsOf } from '@features/companies/services/companyDetails';
 
+// The Company Information fields, which "Edit Profile" opens and Cancel puts back.
+const INFO_FIELDS = ['companyName', ...Object.keys(companyDetailsOf({}))];
+
 export function CompanyProfileTab({ currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
     const { currentUserClaims } = useData();
@@ -22,6 +25,8 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
     const [isEditing, setIsEditing] = useState(false);
     const editButtonRef = useRef(null);
     const wasEditingRef = useRef(false);
+    // The information as it was when editing began.
+    const editStartRef = useRef({});
 
     const isSuperAdmin = currentUserClaims?.roles?.globalRole === 'super_admin'
         || currentUserClaims?.globalRole === 'super_admin';
@@ -96,6 +101,18 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
         setCompData(prev => ({ ...prev, [field]: value }));
     };
 
+    const startEditing = () => {
+        editStartRef.current = Object.fromEntries(INFO_FIELDS.map((field) => [field, compData[field]]));
+        setIsEditing(true);
+    };
+
+    // Puts the information back as it was, so a later save cannot store what
+    // was cancelled. The other sections keep their own changes.
+    const cancelEditing = () => {
+        setCompData(prev => ({ ...prev, ...editStartRef.current }));
+        setIsEditing(false);
+    };
+
     // The application's settings, in the order a company thinks about them:
     // which questions are asked, what happens when an answer needs more attention,
     // and which optional data sources help the applicant answer.
@@ -118,7 +135,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                     <Button
                         variant="secondary"
                         ref={editButtonRef}
-                        onClick={() => setIsEditing(true)}
+                        onClick={startEditing}
                     >
                         <Icon icon={Edit2} />
                         Edit Profile
@@ -128,7 +145,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                     <div className="flex flex-wrap gap-ds-2">
                         <Button
                             variant="ghost"
-                            onClick={() => setIsEditing(false)}
+                            onClick={cancelEditing}
                         >
                             Cancel
                         </Button>
