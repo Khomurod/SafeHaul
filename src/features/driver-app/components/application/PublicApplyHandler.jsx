@@ -392,7 +392,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     setSubmittedConfirmationNumber,
     setFormData,
     setCurrentStep,
-    draftIdRef,
+    draftIdRef, discardMarkRef, restoredFromDraftRef, forgetDraftOwnership,
     navigate,
     showError,
     showSuccess,

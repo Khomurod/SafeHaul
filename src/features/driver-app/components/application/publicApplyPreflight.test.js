@@ -13,6 +13,11 @@ vi.mock('@shared/components/layout/Stepper', () => ({
     // The semantic step is what is under test; the index it maps to is the
     // Stepper's own contract.
     resolveWizardStepIndex: (semanticStep, hasCustomQuestions) => `${semanticStep}${hasCustomQuestions ? '+custom' : ''}`,
+    // The real order, which decides the earliest page.
+    buildSemanticStepOrder: (hasCustomQuestions) => [
+        'contact', 'qualifications', 'license', 'violations', 'accidents', 'employment', 'general',
+        ...(hasCustomQuestions ? ['custom_questions'] : []), 'review', 'consent',
+    ],
 }));
 
 import { runSubmissionPreflight } from './publicApplyPreflight';
@@ -173,7 +178,7 @@ describe('runSubmissionPreflight', () => {
         expect(showError.mock.calls[0][0]).toMatch(/Social Security/);
     });
 
-    it('refuses an impossible date wherever it is, before any other check', () => {
+    it('refuses an impossible date and sends the applicant to its page', () => {
         const { result, setCurrentStep, showError } = run({
             formData: completeForm({ dob: '1990-02-30', signature: '' }),
         });
@@ -182,7 +187,7 @@ describe('runSubmissionPreflight', () => {
         expect(showError.mock.calls[0][0]).toMatch(/date/i);
     });
 
-    it('routes a missing required upload to the licence page after the rules hold', () => {
+    it('routes a missing required upload to the licence page', () => {
         const { result, setCurrentStep, showError } = run({
             formData: completeForm(),
             uploads: { cdl: { hidden: false, required: true } },
@@ -217,6 +222,59 @@ describe('runSubmissionPreflight', () => {
         expect(badPhone.result.ok).toBe(false);
         expect(badPhone.setCurrentStep).toHaveBeenCalledWith('contact');
         expect(badPhone.showError).toHaveBeenCalledWith('Enter a 10-digit US phone number.');
+    });
+
+    // Every check runs and the earliest page wins, so an applicant fixing what
+    // they were sent to is not then sent back to an earlier page.
+    describe('with problems on several pages, the earliest page first', () => {
+        it('a missing upload (page 3) before an employer\'s missing reason for leaving (page 6)', () => {
+            const { setCurrentStep, showError } = run({
+                formData: completeForm({
+                    employers: [{
+                        companyName: 'Acme Freight', startDate: '2020-01', endDate: `${TODAY.getFullYear()}-01`,
+                        reasonForLeaving: '', subjectToFmcsrs: 'yes', subjectToDotTesting: 'no',
+                    }],
+                }),
+                company: { applicationConfig: { employmentHistory: { hidden: false, required: true } } },
+                uploads: { cdl: { hidden: false, required: true } },
+            });
+            expect(setCurrentStep).toHaveBeenCalledWith('license');
+            expect(showError).toHaveBeenCalledTimes(1);
+            expect(showError.mock.calls[0][0]).toMatch(/CDL Front, CDL Back/);
+        });
+
+        it('a page-one rule before the drug and alcohol question (page 2)', () => {
+            const { setCurrentStep, showError } = run({
+                formData: completeForm({ 'pre-employment-test-positive': undefined, 'residence-3-years': 'no' }),
+                company: { applicationRules: { requirePreviousAddressUnderThreeYears: true } },
+            });
+            expect(setCurrentStep).toHaveBeenCalledWith('contact');
+            expect(showError.mock.calls[0][0]).toMatch(/previous address/);
+        });
+
+        it('an expired licence (page 3) before an impossible date on page 7', () => {
+            const { setCurrentStep, showError } = run({
+                formData: completeForm({ cdlExpiration: LAST_YEAR, hosLastRelievedDate: '2026-02-30' }),
+                company: { applicationRules: { expiredCdl: 'block' } },
+            });
+            expect(setCurrentStep).toHaveBeenCalledWith('license');
+            expect(showError.mock.calls[0][0]).toMatch(/expir/i);
+        });
+
+        it('an invalid email (page 1) before a missing upload (page 3)', () => {
+            const { setCurrentStep, showError } = run({
+                formData: completeForm({ email: 'nope' }),
+                uploads: { cdl: { hidden: false, required: true } },
+            });
+            expect(setCurrentStep).toHaveBeenCalledWith('contact');
+            expect(showError).toHaveBeenCalledWith('Invalid Email Address.');
+        });
+
+        it('on one page, the first check: the Social Security Number before the email', () => {
+            const { showError } = run({ formData: completeForm({ ssn: '', email: 'nope' }) });
+            expect(showError).toHaveBeenCalledTimes(1);
+            expect(showError.mock.calls[0][0]).toMatch(/Social Security/);
+        });
     });
 });
 

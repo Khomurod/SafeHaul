@@ -143,7 +143,9 @@ export default function DateTripletField({
         }
         const y = p.year;
         if (!y) {
-            setInner({ ...p, month: m, day: '' });
+            // The day stays: without a year it cannot be checked against the
+            // month, and the year's arrival clamps it (`onYearChange`).
+            setInner({ ...p, month: m });
             return;
         }
         let mm = m;

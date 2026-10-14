@@ -31,9 +31,13 @@ import { ConfirmDialog } from '@design-system/patterns';
  * the build on a reachable native dialog.
  */
 export function ResumeApplicationDialog({ prompt, loading, error, onContinue, onStartOver }) {
-    const [confirmingStartOver, setConfirmingStartOver] = useState(false);
+    // The prompt the confirmation was opened for. The dialog stays mounted between
+    // prompts, so a plain flag would open the next prompt on "Delete it and start
+    // over" instead of on the question.
+    const [confirmingFor, setConfirmingFor] = useState(null);
 
     if (!prompt) return null;
+    const confirmingStartOver = confirmingFor === prompt;
 
     const started = prompt.startedAt ? new Date(prompt.startedAt) : null;
     const when = started && !Number.isNaN(started.getTime())
@@ -52,7 +56,7 @@ export function ResumeApplicationDialog({ prompt, loading, error, onContinue, on
                 error={error}
                 onConfirm={onStartOver}
                 // Back to the choice, not on to a deletion.
-                onCancel={() => setConfirmingStartOver(false)}
+                onCancel={() => setConfirmingFor(null)}
             />
         );
     }
@@ -71,7 +75,7 @@ export function ResumeApplicationDialog({ prompt, loading, error, onContinue, on
             onConfirm={onContinue}
             // Escape lands here too, and it must not delete anything — so this
             // opens the confirmation rather than performing the discard.
-            onCancel={() => setConfirmingStartOver(true)}
+            onCancel={() => setConfirmingFor(prompt)}
         />
     );
 }
