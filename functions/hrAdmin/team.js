@@ -7,6 +7,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { db, auth } = require("./../firebaseAdmin");
 const { resolveUserIdentity, profileRepairPayload, cleanString } = require("../shared/userIdentity");
+const { assertCompanyActive } = require("../shared/companyAccess");
 
 // --- 5. JOIN TEAM (REMOVED) ---
 // The `joinCompanyTeam` callable was permanently disabled because it had no
@@ -77,6 +78,9 @@ exports.listCompanyTeam = onCall({ maxInstances: 3 }, async (request) => {
     if (!isSuperAdmin && !isCompanyAdmin) {
         throw new HttpsError('permission-denied', 'Permission denied.');
     }
+
+    // A deactivated company's admins are refused; a super admin never is.
+    if (!isSuperAdmin) await assertCompanyActive(companyId);
 
     const memSnap = await db.collection('memberships').where('companyId', '==', companyId).get();
 

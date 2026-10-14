@@ -5,6 +5,7 @@
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
+const { assertCompanyActive } = require('../../../shared/companyAccess');
 const { encrypt, decrypt } = require('../../encryption');
 const RingCentralAdapter = require('../../adapters/ringcentral');
 const { normalizePhoneForKeychain } = require('../../../utils/phoneUtils');
@@ -41,6 +42,9 @@ exports.addPhoneLine = onCall(encryptedCallOptions, async (request) => {
         console.warn(`[PermissionDenied] User: ${request.auth.uid}, GlobalRole: ${globalRole}, Target: ${companyId}`);
         throw new HttpsError('permission-denied', 'You do not have permission to add phone lines to this company.');
     }
+
+    // A deactivated company's admins are refused; a super admin never is.
+    if (!isSuperAdmin) await assertCompanyActive(companyId);
 
     const db = admin.firestore();
     const providerDocRef = db.collection('companies').doc(companyId).collection('integrations').doc('sms_provider');
@@ -215,6 +219,9 @@ exports.removePhoneLine = onCall(encryptedCallOptions, async (request) => {
         console.warn(`[PermissionDenied] User: ${request.auth.uid}, GlobalRole: ${globalRole}, Target: ${companyId}`);
         throw new HttpsError('permission-denied', 'You do not have permission to remove phone lines from this company.');
     }
+
+    // A deactivated company's admins are refused; a super admin never is.
+    if (!isSuperAdmin) await assertCompanyActive(companyId);
 
     const db = admin.firestore();
     const { normalizePhoneForKeychain } = require('../../../utils/phoneUtils');

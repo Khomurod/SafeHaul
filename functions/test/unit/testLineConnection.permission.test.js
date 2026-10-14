@@ -40,11 +40,20 @@ jest.mock('../../firebaseAdmin', () => ({
     },
 }));
 
+// The company's deactivation is read in shared/companyAccess.js (its own tests);
+// here the company is active unless a case says otherwise.
+const mockAssertCompanyActive = jest.fn();
+jest.mock('../../shared/companyAccess', () => ({
+    ...jest.requireActual('../../shared/companyAccess'),
+    assertCompanyActive: (...args) => mockAssertCompanyActive(...args),
+}));
+
 const { testLineConnection } = require('../../integrations/controllers/configController');
 
 const call = (token, data) => testLineConnection({ auth: { uid: 'u1', token }, data: { jwt: 'their-jwt', ...data } });
 
 beforeEach(() => {
+    mockAssertCompanyActive.mockReset().mockResolvedValue(undefined);
     mockDecrypt.mockClear();
     mockLogin.mockClear();
 });
@@ -63,6 +72,15 @@ describe('testLineConnection', () => {
     it('needs a company', async () => {
         await expect(call({ roles: { globalRole: 'super_admin' } }, { clientId: 'id', clientSecret: 'secret' }))
             .rejects.toMatchObject({ code: 'invalid-argument' });
+        expect(mockLogin).not.toHaveBeenCalled();
+    });
+
+    it("refuses a deactivated company's admin, before touching its credentials", async () => {
+        mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+        await expect(call({ roles: { co1: 'company_admin' } }, { companyId: 'co1' }))
+            .rejects.toMatchObject({ code: 'permission-denied', message: 'This company has been deactivated.' });
+        expect(mockAssertCompanyActive).toHaveBeenCalledWith('co1');
+        expect(mockDecrypt).not.toHaveBeenCalled();
         expect(mockLogin).not.toHaveBeenCalled();
     });
 

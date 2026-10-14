@@ -55,6 +55,14 @@ jest.mock('../../firebaseAdmin', () => ({
   auth: { deleteUser: jest.fn().mockResolvedValue() },
 }));
 
+// The company's deactivation is read in shared/companyAccess.js (its own tests);
+// here the company is active unless a case says otherwise.
+const mockAssertCompanyActive = jest.fn();
+jest.mock('../../shared/companyAccess', () => ({
+  ...jest.requireActual('../../shared/companyAccess'),
+  assertCompanyActive: (...args) => mockAssertCompanyActive(...args),
+}));
+
 const { deletePortalUser } = require('../../hrAdmin');
 
 const req = (roles, data) => ({ auth: { uid: 'caller', token: { roles } }, data });
@@ -63,6 +71,7 @@ const memDoc = (companyId) => ({ ref: { id: 'mem_' + companyId }, data: () => ({
 describe('deletePortalUser — frees SMS line assignment on removal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAssertCompanyActive.mockReset().mockResolvedValue(undefined);
     mockSmsDocData = { assignments: { recruiterX: '+15550000002', someoneElse: '+15550000003' } };
     mockMembershipDocs = [memDoc('co1')];
     mockRemainingAfterDelete = []; // user has no other memberships
@@ -84,6 +93,15 @@ describe('deletePortalUser — frees SMS line assignment on removal', () => {
     mockSmsDocData = null;
     const res = await deletePortalUser(req({ co1: 'company_admin' }, { userId: 'recruiterX', companyId: 'co1' }));
     expect(res.message).toMatch(/removed/i);
+    expect(mockSmsUpdate).not.toHaveBeenCalled();
+  });
+
+  it("refuses a deactivated company's admin and leaves the assignments alone", async () => {
+    mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+    await expect(
+      deletePortalUser(req({ co1: 'company_admin' }, { userId: 'recruiterX', companyId: 'co1' })),
+    ).rejects.toMatchObject({ code: 'permission-denied', message: 'This company has been deactivated.' });
+    expect(mockAssertCompanyActive).toHaveBeenCalledWith('co1');
     expect(mockSmsUpdate).not.toHaveBeenCalled();
   });
 

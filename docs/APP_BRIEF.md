@@ -849,6 +849,9 @@ applications `New Application`. Firestore rules validate status transitions and
 create and stay unchanged on update, so a record can never be filed under one
 company while claiming another.
 
+**A deactivated company** (`isActive: false`) takes no applications and passes
+no server staff check; a super admin always does. Rules read only token `roles`.
+
 ---
 
 ## 6. Permissions and access rules
@@ -1284,8 +1287,6 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Facebook lead capture is switched off; an earlier defect may have stranded
   leads** in `companies/{uid}/leads`, which no screen reads
   (`scripts/audit-facebook-lead-tenancy.mjs` reports any). Connect rules: §7.
-- **`users/{uid}` may keep `onboardingTourCompleted` and `tourCompletedAt`**
-  from the removed welcome tour; nothing reads them; removal is a migration.
 - **"Read the documents" reads only what the current browser holds.** A
   prepared application re-opened later names its documents, readable once
   re-attached; files are not fetched back (that needs bucket CORS, not set).
@@ -1393,10 +1394,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 job runs `lint:frontend`, not the root `npm run lint`, so a check that lives
 only in the root lint is not a CI gate. `npm run typecheck` runs in
 `frontend-quality` and blocks like the rest; the modules `jsconfig.json` checks
-have no type errors. TypeScript 7 reads a JSDoc `{object}` strictly (name the fields a
-function reads, or use `Record<string, unknown>`) and has no `baseUrl` (paths in
-`jsconfig.json` are relative); a `TS5xxx` error means the configuration was
-rejected and nothing was checked.
+have no type errors. TypeScript 7 reads a JSDoc `{object}` strictly (name the
+fields, or `Record<string, unknown>`) and has no `baseUrl`; a `TS5xxx` error
+means the configuration was rejected and nothing was checked.
 
 **The secret scan covers what the change introduced** — this event's commit
 range plus the resulting source tree — never the whole history. A pull request

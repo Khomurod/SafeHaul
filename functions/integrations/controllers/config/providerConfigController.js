@@ -5,6 +5,7 @@
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
+const { assertCompanyActive } = require('../../../shared/companyAccess');
 const SMSAdapterFactory = require('../../factory');
 const { encrypt, decrypt } = require('../../encryption');
 const RingCentralAdapter = require('../../adapters/ringcentral');
@@ -50,6 +51,9 @@ exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => 
     if (!isSuperAdmin && !isCompanyAdmin) {
         throw new HttpsError('permission-denied', 'Only Company Admins can save integration configs.');
     }
+
+    // A deactivated company's admins are refused; a super admin never is.
+    if (!isSuperAdmin) await assertCompanyActive(companyId);
 
     // CRITICAL: Fetch existing config to preserve credentials if __PRESERVE__ marker is sent
     const docRef = admin.firestore()
@@ -247,6 +251,9 @@ exports.verifySmsConfig = onCall(encryptedCallOptions, async (request) => {
     if (!isSuperAdmin && !isCompanyAdmin) {
         throw new HttpsError('permission-denied', 'Only Company Admins can verify SMS configs.');
     }
+
+    // A deactivated company's admins are refused; a super admin never is.
+    if (!isSuperAdmin) await assertCompanyActive(companyId);
 
     try {
         const adapter = await SMSAdapterFactory.getAdapter(companyId);

@@ -1,5 +1,6 @@
 const { HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("../firebaseAdmin");
+const { isCompanyDeactivated } = require("./companyTenant");
 
 const COMPANY_TEAM_ROLES = new Set(['company_admin', 'hr_user', 'recruiter', 'admin', 'owner']);
 
@@ -15,13 +16,33 @@ function isPermissionDeniedError(err) {
     return normalized === 'permission-denied';
 }
 
+function refuseIfDeactivated(companyData) {
+    if (isCompanyDeactivated(companyData)) {
+        throw new HttpsError('permission-denied', 'This company has been deactivated.');
+    }
+}
+
+async function readCompany(companyId) {
+    const snap = await db.collection('companies').doc(companyId).get();
+    return snap.exists ? snap.data() : null;
+}
+
+/**
+ * Refuses a company that Super Admin deactivated. For callables that check the
+ * caller's role themselves: call it after that check, except for a super admin.
+ */
+async function assertCompanyActive(companyId) {
+    refuseIfDeactivated(await readCompany(companyId));
+}
+
 /**
  * Strict company-access assertion used by callable functions that take `companyId`.
  * Access is granted when the user is:
- *  - super_admin (custom claims)
+ *  - super_admin (custom claims), even for a deactivated company
  *  - assigned a role for the company in custom claims
  *  - present in companies/{companyId}/team/{uid}
  *  - owner/creator of the company doc
+ * and, but for a super admin, the company is not deactivated.
  */
 async function assertCompanyAccess(userId, companyId) {
     if (!userId) {
@@ -42,7 +63,9 @@ async function assertCompanyAccess(userId, companyId) {
     const globalRole = claims.globalRole || roles.globalRole;
     const isSuperAdmin = globalRole === 'super_admin';
 
-    if (isSuperAdmin || isCompanyTeamRole(roles[companyId])) {
+    if (isSuperAdmin) return;
+    if (isCompanyTeamRole(roles[companyId])) {
+        await assertCompanyActive(companyId);
         return;
     }
 
@@ -65,6 +88,7 @@ async function assertCompanyAccess(userId, companyId) {
         companyData.createdBy === userId;
 
     if (isCompanyTeamRole(teamRole) || isCompanyTeamRole(membershipRole) || isOwner) {
+        refuseIfDeactivated(companyData);
         return;
     }
 
@@ -78,6 +102,7 @@ function isAdminRole(role) {
 /**
  * Strict admin assertion for sensitive configuration and outbound actions.
  * Unlike general access checks, this does NOT allow generic team membership.
+ * A deactivated company is refused, but for a super admin.
  */
 async function assertCompanyAdminStrict(userId, companyId) {
     if (!userId) {
@@ -97,7 +122,10 @@ async function assertCompanyAdminStrict(userId, companyId) {
     const roles = claims.roles || {};
     const globalRole = claims.globalRole || roles.globalRole;
     if (globalRole === 'super_admin') return;
-    if (isAdminRole(roles[companyId])) return;
+    if (isAdminRole(roles[companyId])) {
+        await assertCompanyActive(companyId);
+        return;
+    }
 
     const [membershipSnap, companySnap] = await Promise.all([
         db.collection('memberships')
@@ -108,13 +136,11 @@ async function assertCompanyAdminStrict(userId, companyId) {
         db.collection('companies').doc(companyId).get(),
     ]);
 
-    if (!membershipSnap.empty) {
-        const role = membershipSnap.docs[0].data()?.role;
-        if (isAdminRole(role)) return;
-    }
-
     const companyData = companySnap.exists ? companySnap.data() : {};
-    if (companyData.ownerId === userId || companyData.createdBy === userId || companyData.adminId === userId) {
+    const membershipRole = !membershipSnap.empty ? membershipSnap.docs[0].data()?.role : null;
+    if (isAdminRole(membershipRole)
+        || companyData.ownerId === userId || companyData.createdBy === userId || companyData.adminId === userId) {
+        refuseIfDeactivated(companyData);
         return;
     }
 
@@ -141,6 +167,7 @@ async function assertCompanyAccessForRequest(request, companyId, logLabel = 'com
 
 module.exports = {
     assertCompanyAccess,
+    assertCompanyActive,
     assertCompanyAdminStrict,
     assertCompanyAccessForRequest,
     isPermissionDeniedError,

@@ -38,15 +38,7 @@ async function assertCompanyAcceptingIntake(db, companyId) {
 
   const d = snap.data() || {};
 
-  if (d.isActive === false) {
-    throw new functions.https.HttpsError(
-      'failed-precondition',
-      'This company is not accepting applications.'
-    );
-  }
-
-  const st = typeof d.status === 'string' ? d.status.toLowerCase() : '';
-  if (st !== '' && INACTIVE_STATUSES.includes(st)) {
+  if (isCompanyDeactivated(d)) {
     throw new functions.https.HttpsError(
       'failed-precondition',
       'This company is not accepting applications.'
@@ -56,4 +48,12 @@ async function assertCompanyAcceptingIntake(db, companyId) {
   return d;
 }
 
-module.exports = { assertCompanyAcceptingIntake };
+/** Super Admin → Companies deactivated it (`isActive: false`), or its status says so. */
+function isCompanyDeactivated(company) {
+  if (!company) return false;
+  if (company.isActive === false) return true;
+  const st = typeof company.status === 'string' ? company.status.toLowerCase() : '';
+  return st !== '' && INACTIVE_STATUSES.includes(st);
+}
+
+module.exports = { assertCompanyAcceptingIntake, isCompanyDeactivated };
