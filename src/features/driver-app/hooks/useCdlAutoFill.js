@@ -12,19 +12,26 @@
  * is read and never uploaded, as no one would ever open it. Parsed values only
  * fill fields that are still empty: what the driver typed always wins.
  *
+ * The photo is sent and read side by side: the reader takes the image itself,
+ * so it never waits for Storage. The upload is `transferGuestUpload`'s, which
+ * ends one that moves no bytes for 45 seconds. `cancelCdlAutoFill` (the reading
+ * screen's Cancel) stops waiting and drops what the read brings back; a photo
+ * already stored stays the CDL front, as the guest cannot delete it, and one
+ * still on its way is stopped.
+ *
  * Navigation side effects stay with the caller:
  *  - `onAutoFilled(updater)` applies the updater and enters the wizard. It fires
- *    on success, and also when the photo uploaded but could not be read, so the
- *    driver goes on by hand with the photo already attached;
+ *    when the licence was read, with the photo attached if it was sent, and
+ *    when only the photo was sent (the read failed, or was cancelled after the
+ *    photo was stored), so the driver goes on by hand with it;
  *  - `onReturnToChooser()` fires when the picker is dismissed, the file is
- *    refused, the upload itself fails, or a photo that is not kept could not be
- *    read — nothing was kept, so the driver stays on the choice screen instead
+ *    refused, the auto-fill is cancelled before the photo was stored, or nothing
+ *    was read and nothing kept, so the driver stays on the choice screen instead
  *    of being force-routed into the wizard.
  */
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { ref, uploadBytes } from 'firebase/storage';
-import { functions, storage } from '@lib/firebase';
+import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { parseAddressPartsFromCdl } from '@shared/utils/parseCdlAddress';
 import { aiReadErrorMessage } from '@shared/utils/aiReadErrors';
@@ -36,11 +43,67 @@ import {
   fileToDataUrl,
 } from '../components/application/publicApplyHelpers';
 import { shrinkPhoto } from './guestUploadImage';
+import { transferGuestUpload } from './guestUploadTransfer';
+
+/** Reserves a path for the photo as the application's CDL front and sends it there. */
+async function sendCdlFront(companyId, file, signal) {
+  const prepareUpload = httpsCallable(functions, 'getSignedUploadUrl');
+  const { data: uploadData } = await prepareUpload({
+    companyId,
+    fileName: file.name,
+    fileType: file.type,
+    folder: 'applications',
+  });
+  const storagePath = uploadData?.storagePath;
+  if (!storagePath) {
+    throw new Error('Could not reserve upload path.');
+  }
+  await transferGuestUpload(storagePath, file, { contentType: file.type, signal });
+  return { name: file.name, storagePath };
+}
+
+/** The licence's fields, read by the secure server-side parser (no API key in the frontend). */
+async function readCdl(companyId, file) {
+  const imageDataUrl = await fileToDataUrl(file);
+  const parseFn = httpsCallable(functions, 'parseCdlWithGroq', { timeout: 60000 });
+  const { data } = await parseFn({ companyId, imageDataUrl });
+  return data?.fields || {};
+}
+
+/** Attaches a stored photo as the CDL front, unless one is already attached. */
+const attachFrontOf = (cdlFront) => (prev) => (cdlFront ? { 'cdl-front': prev['cdl-front'] || cdlFront } : {});
 
 export function useCdlAutoFill({ companyId, applicationConfig, onAutoFilled, onReturnToChooser }) {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const [isParsingCdl, setIsParsingCdl] = useState(false);
   const cdlInputRef = useRef(null);
+  // The auto-fill on its way: its upload's controller, and the photo once it is
+  // stored. Cancel, a later pick or leaving the page clears it, and a result
+  // whose run is not this one is dropped.
+  const runRef = useRef(null);
+
+  const dropRun = useCallback(() => {
+    const run = runRef.current;
+    runRef.current = null;
+    run?.controller.abort();
+    return run;
+  }, []);
+
+  useEffect(() => dropRun, [dropRun]);
+
+  const cancelCdlAutoFill = () => {
+    const run = dropRun();
+    if (!run) return;
+    setIsParsingCdl(false);
+    if (run.landed) {
+      // Stored, the photo is the CDL front whatever becomes of the read, so the
+      // driver goes on by hand with it, as when the read fails.
+      showInfo('Your photo is attached. Please fill in the form.');
+      onAutoFilled((prev) => ({ ...prev, ...attachFrontOf(run.landed)(prev) }));
+      return;
+    }
+    onReturnToChooser();
+  };
 
   const handleChooseAutoFill = () => {
     // Keep the user on the choice screen until a file is actually selected.
@@ -73,44 +136,33 @@ export function useCdlAutoFill({ companyId, applicationConfig, onAutoFilled, onR
       return;
     }
 
+    if (!companyId) {
+      showError('Company is missing. Please refresh and try again.');
+      onReturnToChooser();
+      return;
+    }
+
+    // A photo the company does not ask for is only read, never stored.
     const keepPhoto = !resolveApplicationGate(applicationConfig, 'cdlUpload').hidden;
-    // Set once a kept photo is in Storage; from then on it is never thrown away.
-    let cdlFront = null;
-    try {
-      if (!companyId) {
-        throw new Error('Company is missing. Please refresh and try again.');
-      }
+    dropRun();
+    const run = { controller: new AbortController(), landed: null };
+    runRef.current = run;
+    setIsParsingCdl(true);
+    const sending = keepPhoto ? sendCdlFront(companyId, file, run.controller.signal) : Promise.resolve(null);
+    // Known the moment it lands, so a Cancel during the read keeps it.
+    sending.then((front) => { run.landed = front; }, () => {});
+    const [sent, read] = await Promise.allSettled([sending, readCdl(companyId, file)]);
+    if (runRef.current !== run) return;
+    runRef.current = null;
+    setIsParsingCdl(false);
 
-      setIsParsingCdl(true);
+    // Once in Storage the photo is the CDL front, and it is never thrown away.
+    const cdlFront = sent.status === 'fulfilled' ? sent.value : null;
+    if (sent.status === 'rejected') console.error('[useCdlAutoFill] CDL photo upload failed:', sent.reason);
+    const attachFront = attachFrontOf(cdlFront);
 
-      // 1) Upload as the application's CDL front, where any guest upload goes.
-      //    A photo the company does not ask for is only read, never stored.
-      let storagePath = null;
-      if (keepPhoto) {
-        const prepareUpload = httpsCallable(functions, 'getSignedUploadUrl');
-        const { data: uploadData } = await prepareUpload({
-          companyId,
-          fileName: file.name,
-          fileType: file.type,
-          folder: 'applications',
-        });
-        storagePath = uploadData?.storagePath;
-        if (!storagePath) {
-          throw new Error('Could not reserve upload path.');
-        }
-        await uploadBytes(ref(storage, storagePath), file, { contentType: file.type });
-        cdlFront = { name: file.name, storagePath };
-      }
-
-      // 2) Send image to secure Groq parser callable (no API key in frontend)
-      const imageDataUrl = await fileToDataUrl(file);
-      const parseFn = httpsCallable(functions, 'parseCdlWithGroq', { timeout: 60000 });
-      const { data } = await parseFn({
-        companyId,
-        imageDataUrl,
-        storagePath,
-      });
-      const fields = data?.fields || {};
+    if (read.status === 'fulfilled') {
+      const fields = read.value;
       const dobIso = parseIsoFromLooseDate(fields.dateOfBirth);
       const cdlExpIso = parseIsoFromLooseDate(fields.expirationDate);
       const addr = parseAddressPartsFromCdl(fields.fullAddress);
@@ -132,31 +184,35 @@ export function useCdlAutoFill({ companyId, applicationConfig, onAutoFilled, onR
         cdlExpiration: prev.cdlExpiration || cdlExpIso || '',
         // Best-effort: when address parsing yields a valid state, mirror to CDL state too.
         cdlState: prev.cdlState || stateName || '',
-        ...(cdlFront ? { 'cdl-front': prev['cdl-front'] || cdlFront } : {}),
+        ...attachFront(prev),
       }));
 
-      showSuccess('CDL auto-fill complete. Please review your information.');
-    } catch (err) {
-      console.error('[useCdlAutoFill] CDL auto-fill failed:', err);
-      if (cdlFront) {
-        // The photo is in Storage and is the CDL front either way, so the driver
-        // goes on by hand with it attached instead of taking it again. Nothing
-        // here says the licence was unreadable: the service may simply be down.
-        showError('Auto-fill did not work this time. Your photo is attached; please fill in the form.');
-        onAutoFilled((prev) => ({ ...prev, 'cdl-front': prev['cdl-front'] || cdlFront }));
-        return;
+      if (keepPhoto && !cdlFront) {
+        showError('Your details were filled in, but the photo was not saved. Please add it again on the licence step.');
+      } else {
+        showSuccess('CDL auto-fill complete. Please review your information.');
       }
-      showError(aiReadErrorMessage(err, 'Auto-fill did not work this time. You can continue manually.'));
-      // Nothing was kept, so the driver stays on the choice screen rather than
-      // being force-routed into the full manual wizard unexpectedly.
-      onReturnToChooser();
-    } finally {
-      setIsParsingCdl(false);
+      return;
     }
+
+    console.error('[useCdlAutoFill] CDL auto-fill failed:', read.reason);
+    if (cdlFront) {
+      // The photo is in Storage and is the CDL front either way, so the driver
+      // goes on by hand with it attached instead of taking it again. Nothing
+      // here says the licence was unreadable: the service may simply be down.
+      showError('Auto-fill did not work this time. Your photo is attached; please fill in the form.');
+      onAutoFilled((prev) => ({ ...prev, ...attachFront(prev) }));
+      return;
+    }
+    showError(aiReadErrorMessage(read.reason, 'Auto-fill did not work this time. You can continue manually.'));
+    // Nothing was kept, so the driver stays on the choice screen rather than
+    // being force-routed into the full manual wizard unexpectedly.
+    onReturnToChooser();
   };
 
   return {
     isParsingCdl,
+    cancelCdlAutoFill,
     cdlInputRef,
     handleChooseAutoFill,
     handleCdlFileChange,

@@ -1,23 +1,28 @@
 // The CDL photo taken for auto-fill is the application's CDL front, so the driver
 // never photographs the licence twice, and what the AI reads only fills fields
-// the driver left empty.
+// the driver left empty. The photo is sent and read side by side, and Cancel
+// ends both.
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     httpsCallable: vi.fn(),
     reserveUpload: vi.fn(),
     parseCdl: vi.fn(),
-    uploadBytes: vi.fn(),
+    transfer: vi.fn(),
     showSuccess: vi.fn(),
     showError: vi.fn(),
+    showInfo: vi.fn(),
 }));
 
 vi.mock('firebase/functions', () => ({ httpsCallable: mocks.httpsCallable }));
-vi.mock('firebase/storage', () => ({ ref: vi.fn(() => ({})), uploadBytes: mocks.uploadBytes }));
+vi.mock('./guestUploadTransfer', async (importOriginal) => ({
+    ...(await importOriginal()),
+    transferGuestUpload: mocks.transfer,
+}));
 vi.mock('@lib/firebase', () => ({ functions: {}, storage: {} }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
-    useToast: () => ({ showSuccess: mocks.showSuccess, showError: mocks.showError }),
+    useToast: () => ({ showSuccess: mocks.showSuccess, showError: mocks.showError, showInfo: mocks.showInfo }),
 }));
 vi.mock('../components/application/publicApplyHelpers', async (importOriginal) => ({
     ...(await importOriginal()),
@@ -25,6 +30,7 @@ vi.mock('../components/application/publicApplyHelpers', async (importOriginal) =
 }));
 
 import { useCdlAutoFill } from './useCdlAutoFill';
+import { GuestUploadError } from './guestUploadTransfer';
 
 const STORAGE_PATH = 'companies/co-1/applications/guest_uploads/1_cdl.jpg';
 const PHOTO = new File(['jpeg'], 'cdl.jpg', { type: 'image/jpeg' });
@@ -43,8 +49,12 @@ beforeEach(() => {
         name === 'getSignedUploadUrl' ? mocks.reserveUpload : mocks.parseCdl
     ));
     mocks.reserveUpload.mockImplementation(async () => ({ data: { storagePath: STORAGE_PATH } }));
-    mocks.uploadBytes.mockImplementation(async () => ({}));
+    mocks.transfer.mockImplementation(async () => {});
     mocks.parseCdl.mockImplementation(async () => ({ data: { fields: FIELDS } }));
+});
+
+afterEach(() => {
+    vi.restoreAllMocks();
 });
 
 /** Runs one pick of `PHOTO` and returns the updater the hook handed back, if any. */
@@ -59,6 +69,31 @@ async function pickPhoto(applicationConfig = {}) {
     });
     return { onAutoFilled, onReturnToChooser, updater: onAutoFilled.mock.calls[0]?.[0] };
 }
+
+/** A promise the test settles itself. */
+function deferred() {
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+    return { promise, resolve, reject };
+}
+
+/** Starts one pick of `PHOTO` without waiting for it, for a test that steps in while it runs. */
+function startPick() {
+    const onAutoFilled = vi.fn();
+    const onReturnToChooser = vi.fn();
+    const hook = renderHook(() => useCdlAutoFill({
+        companyId: 'co-1', applicationConfig: {}, onAutoFilled, onReturnToChooser,
+    }));
+    let picked;
+    act(() => {
+        picked = hook.result.current.handleCdlFileChange({ target: { files: [PHOTO], value: 'cdl.jpg' } });
+    });
+    return { ...hook, picked, onAutoFilled, onReturnToChooser };
+}
+
+/** Lets the pick's awaits before the upload and the read (the photo's resize) run. */
+const settle = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
 
 describe('useCdlAutoFill', () => {
     it("uploads the photo as the application's CDL front", async () => {
@@ -109,14 +144,122 @@ describe('useCdlAutoFill', () => {
         });
     });
 
-    it('returns to the choice screen when the upload itself fails, keeping nothing', async () => {
+    it('fills the details when only the photo could not be sent, and asks for it on the licence step', async () => {
+        mocks.transfer.mockImplementation(async () => { throw new GuestUploadError('stalled'); });
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        const { updater, onReturnToChooser } = await pickPhoto();
+
+        expect(onReturnToChooser).not.toHaveBeenCalled();
+        const next = updater({});
+        expect(next.firstName).toBe('LUIS');
+        expect(next).not.toHaveProperty('cdl-front');
+        expect(mocks.showError).toHaveBeenCalledWith(expect.stringMatching(/photo was not saved.*licence step/));
+        expect(mocks.showSuccess).not.toHaveBeenCalled();
+    });
+
+    it('returns to the choice screen when the photo was not sent and the licence not read, keeping nothing', async () => {
         mocks.reserveUpload.mockImplementation(async () => { throw new Error('offline'); });
+        mocks.parseCdl.mockImplementation(async () => { throw new Error('offline'); });
+        vi.spyOn(console, 'error').mockImplementation(() => {});
 
         const { onAutoFilled, onReturnToChooser } = await pickPhoto();
 
         expect(onAutoFilled).not.toHaveBeenCalled();
         expect(onReturnToChooser).toHaveBeenCalledTimes(1);
-        expect(mocks.parseCdl).not.toHaveBeenCalled();
+    });
+
+    it('sends the photo and reads it side by side, so the read never waits for Storage', async () => {
+        const upload = deferred();
+        mocks.transfer.mockImplementation(() => upload.promise);
+        const { picked, result, onAutoFilled } = startPick();
+        await settle();
+
+        expect(mocks.transfer).toHaveBeenCalledTimes(1);
+        expect(mocks.parseCdl).toHaveBeenCalledWith({ companyId: 'co-1', imageDataUrl: 'data:image/jpeg;base64,AAAA' });
+        expect(result.current.isParsingCdl).toBe(true);
+        expect(onAutoFilled).not.toHaveBeenCalled();
+
+        await act(async () => { upload.resolve(); await picked; });
+        expect(result.current.isParsingCdl).toBe(false);
+        expect(onAutoFilled.mock.calls[0][0]({})).toEqual(expect.objectContaining({
+            firstName: 'LUIS',
+            'cdl-front': { name: 'cdl.jpg', storagePath: STORAGE_PATH },
+        }));
+    });
+
+    it('sends through the transfer that ends a stalled upload, with a signal Cancel can fire', async () => {
+        await pickPhoto();
+
+        expect(mocks.transfer).toHaveBeenCalledWith(
+            STORAGE_PATH,
+            expect.any(File),
+            expect.objectContaining({ contentType: 'image/jpeg', signal: expect.any(AbortSignal) }),
+        );
+    });
+
+    it('Cancel stops an upload on its way, drops what comes back, and returns to the choice screen', async () => {
+        const upload = deferred();
+        const read = deferred();
+        mocks.transfer.mockImplementation(() => upload.promise);
+        mocks.parseCdl.mockImplementation(() => read.promise);
+        const { picked, result, onAutoFilled, onReturnToChooser } = startPick();
+        await settle();
+        const { signal } = mocks.transfer.mock.calls[0][2];
+
+        act(() => result.current.cancelCdlAutoFill());
+
+        expect(signal.aborted).toBe(true);
+        expect(result.current.isParsingCdl).toBe(false);
+        expect(onReturnToChooser).toHaveBeenCalledTimes(1);
+        await act(async () => {
+            upload.reject(new GuestUploadError('cancelled'));
+            read.resolve({ data: { fields: FIELDS } });
+            await picked;
+        });
+        expect(onAutoFilled).not.toHaveBeenCalled();
+        expect(mocks.showSuccess).not.toHaveBeenCalled();
+        expect(mocks.showError).not.toHaveBeenCalled();
+    });
+
+    // The photo usually lands before the read ends, and a guest cannot delete it:
+    // dropped, it stayed in Storage, tied to no application.
+    it('Cancel after the photo is stored keeps it as the CDL front, and the driver goes on by hand', async () => {
+        const read = deferred();
+        mocks.parseCdl.mockImplementation(() => read.promise);
+        const { picked, result, onAutoFilled, onReturnToChooser } = startPick();
+        await settle();
+
+        act(() => result.current.cancelCdlAutoFill());
+
+        expect(result.current.isParsingCdl).toBe(false);
+        expect(onReturnToChooser).not.toHaveBeenCalled();
+        expect(onAutoFilled).toHaveBeenCalledTimes(1);
+        expect(onAutoFilled.mock.calls[0][0]({ firstName: 'Luis' })).toEqual({
+            firstName: 'Luis',
+            'cdl-front': { name: 'cdl.jpg', storagePath: STORAGE_PATH },
+        });
+        expect(mocks.showInfo).toHaveBeenCalledWith('Your photo is attached. Please fill in the form.');
+
+        await act(async () => { read.resolve({ data: { fields: FIELDS } }); await picked; });
+        // What the read brought back after the Cancel is not used.
+        expect(onAutoFilled).toHaveBeenCalledTimes(1);
+        expect(mocks.showSuccess).not.toHaveBeenCalled();
+    });
+
+    it('stops the upload when the page goes, and reports nothing after', async () => {
+        const upload = deferred();
+        mocks.transfer.mockImplementation(() => upload.promise);
+        const { picked, unmount, onAutoFilled } = startPick();
+        await settle();
+        const { signal } = mocks.transfer.mock.calls[0][2];
+
+        unmount();
+
+        expect(signal.aborted).toBe(true);
+        await act(async () => { upload.reject(new GuestUploadError('cancelled')); await picked; });
+        expect(onAutoFilled).not.toHaveBeenCalled();
+        expect(mocks.showError).not.toHaveBeenCalled();
     });
 
     describe('at a company that hides the CDL upload', () => {
@@ -128,8 +271,8 @@ describe('useCdlAutoFill', () => {
             const { updater } = await pickPhoto(hidden);
 
             expect(mocks.reserveUpload).not.toHaveBeenCalled();
-            expect(mocks.uploadBytes).not.toHaveBeenCalled();
-            expect(mocks.parseCdl).toHaveBeenCalledWith(expect.objectContaining({ storagePath: null }));
+            expect(mocks.transfer).not.toHaveBeenCalled();
+            expect(mocks.parseCdl).toHaveBeenCalledWith({ companyId: 'co-1', imageDataUrl: 'data:image/jpeg;base64,AAAA' });
             const next = updater({});
             expect(next.firstName).toBe('LUIS');
             expect(next).not.toHaveProperty('cdl-front');
