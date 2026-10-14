@@ -72,6 +72,24 @@ const EXISTING_RC_DOC = {
     }),
 };
 
+/**
+ * A stored 8x8 setup. The server encrypts every value but the sandbox flag, the
+ * SubAccount ID and the sender number included.
+ */
+const EXISTING_8X8_DOC = {
+    exists: () => true,
+    data: () => ({
+        provider: '8x8',
+        config: {
+            apiKey: 'encrypted-key:iv-fixture',
+            apiSecret: 'encrypted-secret:iv-fixture',
+            subAccountId: 'encrypted-sub:iv-fixture',
+            phoneNumber: '0a1b2c3d:4e5f6a7b',
+            isSandbox: 'false',
+        },
+    }),
+};
+
 const NO_DOC = { exists: () => false };
 
 async function renderManager(props = {}) {
@@ -165,6 +183,39 @@ describe('IntegrationManager — __PRESERVE__ sentinel and validation', () => {
         fireEvent.submit(container.querySelector('form'));
         expect(toastMocks.showError).toHaveBeenCalledWith('Client ID and Client Secret are required.');
         expect(saveIntegrationConfig).not.toHaveBeenCalled();
+    });
+
+    // RingCentral's stored keys are not 8x8's: "keep existing" sent the marker
+    // for keys never stored, and the 8x8 setup was saved without any.
+    it('asks for the 8x8 keys after a switch, though RingCentral\'s are stored', async () => {
+        getDoc.mockResolvedValue(EXISTING_RC_DOC);
+        const { container } = await renderManager();
+        fireEvent.click(screen.getByRole('button', { name: '8x8' }));
+
+        expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+        fireEvent.submit(container.querySelector('form'));
+        expect(toastMocks.showError).toHaveBeenCalledWith('API Key and API Secret are required.');
+        expect(saveIntegrationConfig).not.toHaveBeenCalled();
+    });
+
+    // Shown as read, they went back encrypted: the server encrypted them again,
+    // and the number lost its letters and colon on the way.
+    it('never shows the stored SubAccount ID or sender number, and keeps both on save', async () => {
+        getDoc.mockResolvedValue(EXISTING_8X8_DOC);
+        const { container } = await renderManager();
+
+        expect(container.innerHTML).not.toContain('encrypted-sub');
+        expect(screen.queryByDisplayValue(/0a1b2c3d/)).not.toBeInTheDocument();
+        expect(screen.getAllByPlaceholderText('(Leave blank to keep existing)')).toHaveLength(4);
+
+        fireEvent.click(screen.getByRole('button', { name: /Secure Save/ }));
+        await waitFor(() => expect(saveIntegrationConfig).toHaveBeenCalled());
+        expect(saveIntegrationConfig.mock.calls[0][0].config).toMatchObject({
+            apiKey: '__PRESERVE__',
+            apiSecret: '__PRESERVE__',
+            subAccountId: '__PRESERVE__',
+            phoneNumber: '__PRESERVE__',
+        });
     });
 
     it('requires 8x8 credentials when none exist yet', async () => {

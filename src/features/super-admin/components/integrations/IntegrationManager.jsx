@@ -51,8 +51,11 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
         isSandbox: true // Default to true for safety
     });
 
-    // Track if credentials already exist (stored encrypted in Firestore)
-    const [hasExistingCredentials, setHasExistingCredentials] = useState(false);
+    // The settings stored (encrypted) for this company, by key. Encrypted values
+    // never reach the form: a blank field keeps the stored value. Each provider
+    // has its own keys, so a switch to the other one asks for its keys.
+    const [stored, setStored] = useState({});
+    const hasExistingCredentials = provider === '8x8' ? Boolean(stored.apiKey) : Boolean(stored.clientId);
 
     const [testPhone, setTestPhone] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -86,20 +89,29 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
                     const existingApiSecret = data.config?.apiSecret;
 
                     // Check if credentials exist (encrypted values contain a colon separator)
-                    const rcCredsExist = !!(existingClientId && existingClientId.includes(':'));
-                    const eightCredsExist = !!(existingApiKey && existingApiKey.includes(':'));
-                    setHasExistingCredentials(rcCredsExist || eightCredsExist);
+                    const isEncrypted = (value) => typeof value === 'string' && value.includes(':');
+                    const existingSubAccountId = data.config?.subAccountId;
+                    const existingPhoneNumber = data.config?.phoneNumber;
+                    setStored({
+                        clientId: isEncrypted(existingClientId),
+                        clientSecret: isEncrypted(existingClientSecret),
+                        apiKey: isEncrypted(existingApiKey),
+                        apiSecret: isEncrypted(existingApiSecret),
+                        subAccountId: isEncrypted(existingSubAccountId),
+                        phoneNumber: isEncrypted(existingPhoneNumber),
+                    });
 
                     setConfig(prev => ({
                         ...prev,
                         isSandbox: data.config?.isSandbox === 'true' || data.config?.isSandbox === true,
-                        phoneNumber: data.config?.phoneNumber || '',
+                        // The server stores these encrypted too: shown only when readable.
+                        phoneNumber: isEncrypted(existingPhoneNumber) ? '' : (existingPhoneNumber || ''),
                         // Leave credentials empty - user enters new values if updating
                         clientId: '',
                         clientSecret: '',
                         apiKey: '',
                         apiSecret: '',
-                        subAccountId: data.config?.subAccountId || ''
+                        subAccountId: isEncrypted(existingSubAccountId) ? '' : (existingSubAccountId || '')
                     }));
                 }
             } catch (err) {
@@ -160,8 +172,15 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
                 }
             }
 
+            // The SubAccount ID and the sender number are stored encrypted as well.
+            for (const key of ['subAccountId', 'phoneNumber']) {
+                if (stored[key] && !(payloadConfig[key] && payloadConfig[key].trim() !== '')) {
+                    payloadConfig[key] = '__PRESERVE__';
+                }
+            }
+
             // 1. Sanitize Phone Number (RingCentral needs E.164, e.g. +15551234567)
-            if (payloadConfig.phoneNumber) {
+            if (payloadConfig.phoneNumber && payloadConfig.phoneNumber !== '__PRESERVE__') {
                 payloadConfig.phoneNumber = payloadConfig.phoneNumber.replace(/[^\d+]/g, '');
             }
 
@@ -364,24 +383,30 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
                                     placeholder={hasExistingCredentials ? "(Leave blank to keep existing)" : "Paste Secret from 8x8 Admin Console"}
                                 />
                             </FormField>
-                            <FormField label="SubAccount ID" required>
+                            <FormField
+                                label="SubAccount ID"
+                                required={!stored.subAccountId}
+                                description={stored.subAccountId ? 'Leave blank to keep the existing value.' : undefined}
+                            >
                                 <Input
                                     type="text"
                                     value={config.subAccountId || ''}
                                     onChange={e => updateConfig('subAccountId', e.target.value)}
-                                    placeholder="e.g. yourcompany_hq"
+                                    placeholder={stored.subAccountId ? "(Leave blank to keep existing)" : "e.g. yourcompany_hq"}
                                 />
                             </FormField>
                             <FormField
                                 label="Sender Phone Number"
-                                required
-                                description="US carriers require a real phone number — alphanumeric sender IDs are rejected"
+                                required={!stored.phoneNumber}
+                                description={stored.phoneNumber
+                                    ? 'Leave blank to keep the existing value. US carriers require a real phone number — alphanumeric sender IDs are rejected'
+                                    : 'US carriers require a real phone number — alphanumeric sender IDs are rejected'}
                             >
                                 <Input
                                     type="text"
                                     value={config.phoneNumber || ''}
                                     onChange={e => updateConfig('phoneNumber', e.target.value)}
-                                    placeholder="+1234567890 (your 8x8 provisioned number)"
+                                    placeholder={stored.phoneNumber ? "(Leave blank to keep existing)" : "+1234567890 (your 8x8 provisioned number)"}
                                 />
                             </FormField>
                             {/* Also a label over prose — these are STEPS, not
