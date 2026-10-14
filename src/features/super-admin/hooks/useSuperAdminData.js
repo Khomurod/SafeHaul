@@ -28,6 +28,11 @@ function readCachedPlatformCompanyCount() {
     }
 }
 
+const NO_STATS_ERRORS = Object.freeze({
+    companies: false, users: false, apps: false,
+    companyCount: false, userCount: false, appCount: false, leadCount: false,
+});
+
 export function useSuperAdminData() {
     const { showError } = useToast();
 
@@ -58,17 +63,16 @@ export function useSuperAdminData() {
     const loadMoreInFlight = useRef({ companies: false, applications: false });
     const [loadingMore, setLoadingMore] = useState({ companies: false, applications: false });
 
-    // Preserved Error State
-    const [statsError, setStatsError] = useState({
-        companies: false,
-        users: false,
-        apps: false,
-    });
+    // Whether each list failed to load (`companies`, `users`, `apps`), and each
+    // dashboard count, by its stat's name (`companyCount` …): a count that fails
+    // says so instead of reading 0.
+    const [statsError, setStatsError] = useState(NO_STATS_ERRORS);
 
     const [stats, setStats] = useState({
         companyCount: readCachedPlatformCompanyCount(),
         userCount: 0,
-        appCount: 0
+        appCount: 0,
+        leadCount: 0,
     });
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -76,7 +80,7 @@ export function useSuperAdminData() {
     // --- 1. LOAD RECENT DATA (Initial Paginated Fetch) ---
     const loadRecentData = useCallback(async () => {
         setLoading(true);
-        setStatsError({ companies: false, users: false, apps: false });
+        setStatsError(NO_STATS_ERRORS);
 
         // Helper to safely fetch with logging
         const safeFetch = async (promise, label, fallback = []) => {
@@ -104,6 +108,7 @@ export function useSuperAdminData() {
                 appsResult,
                 countCompResult,
                 countUserResult,
+                countAppsResult,
                 countLeadsResult
             ] = await Promise.all([
                 safeFetch(getDocs(companiesQuery), "Companies"),
@@ -112,6 +117,7 @@ export function useSuperAdminData() {
                 safeFetch(getDocs(appsQuery), "Applications"),
                 safeFetch(getCountFromServer(collection(db, "companies")), "Count Companies", { data: () => ({ count: 0 }) }),
                 safeFetch(getCountFromServer(collection(db, "users")), "Count Users", { data: () => ({ count: 0 }) }),
+                safeFetch(getCountFromServer(collectionGroup(db, "applications")), "Count Applications", { data: () => ({ count: 0 }) }),
                 safeFetch(getCountFromServer(collectionGroup(db, "leads")), "Count Leads", { data: () => ({ count: 0 }) })
             ]);
 
@@ -119,7 +125,11 @@ export function useSuperAdminData() {
             setStatsError({
                 companies: !compResult.success,
                 users: !userResult.success,
-                apps: !leadsResult.success && !appsResult.success
+                apps: !leadsResult.success && !appsResult.success,
+                companyCount: !countCompResult.success,
+                userCount: !countUserResult.success,
+                appCount: !countAppsResult.success,
+                leadCount: !countLeadsResult.success,
             });
 
             // D. Process Companies
@@ -239,12 +249,13 @@ export function useSuperAdminData() {
             setStats({
                 companyCount: countCompResult.success ? countCompResult.data.data().count : 0,
                 userCount: countUserResult.success ? countUserResult.data.data().count : 0,
-                appCount: countLeadsResult.success ? countLeadsResult.data.data().count : 0
+                appCount: countAppsResult.success ? countAppsResult.data.data().count : 0,
+                leadCount: countLeadsResult.success ? countLeadsResult.data.data().count : 0,
             });
 
         } catch (e) {
             console.error("🔥 Fatal Error loading recent data:", e);
-            setStatsError({ companies: true, users: true, apps: true });
+            setStatsError(Object.fromEntries(Object.keys(NO_STATS_ERRORS).map((key) => [key, true])));
             showError("Failed to load dashboard data.");
         } finally {
             setLoading(false);
