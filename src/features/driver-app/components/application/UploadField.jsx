@@ -91,9 +91,18 @@ const UploadField = ({
     // file still lands in the answers, which outlive this field.
     const uploadRef = useRef(null);
     // The second "Uploaded Successfully" shows after a success. It goes with the
-    // field, and a new upload, a removal or a cancel ends it.
+    // field, and a new upload, a removal or a cancel ends it. An upload that
+    // lands after the field has gone still hands over its file, and touches
+    // nothing of the field's own.
     const settleTimerRef = useRef(null);
-    useEffect(() => () => clearTimeout(settleTimerRef.current), []);
+    const mountedRef = useRef(true);
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+            clearTimeout(settleTimerRef.current);
+        };
+    }, []);
     const rawId = useId().replace(/:/g, '');
     const labelId = `upload-${name}-label-${rawId}`;
 
@@ -132,7 +141,7 @@ const UploadField = ({
             const result = await onUpload(name, file, {
                 // A cancelled upload no longer moves the bar, which may be a newer one's.
                 onProgress: (fraction) => {
-                    if (!upload.signal.aborted) setProgress(Math.min(100, Math.max(0, fraction * 100)));
+                    if (!upload.signal.aborted && mountedRef.current) setProgress(Math.min(100, Math.max(0, fraction * 100)));
                 },
                 signal: upload.signal,
             });
@@ -142,12 +151,13 @@ const UploadField = ({
                 throw new Error('Upload completed but no file metadata was returned.');
             }
 
+            // Notify Parent
+            onChange(name, result);
+            if (!mountedRef.current) return;
+
             setProgress(100);
             setStatus('success');
             setErrorMsg(null);
-
-            // Notify Parent
-            onChange(name, result);
 
             // Reset status after a moment to show the "File Card"
             settleTimerRef.current = setTimeout(() => {
@@ -155,7 +165,7 @@ const UploadField = ({
             }, 1000);
 
         } catch (err) {
-            if (upload.signal.aborted || err?.code === 'cancelled') return;
+            if (upload.signal.aborted || err?.code === 'cancelled' || !mountedRef.current) return;
             setProgress(0);
             console.error("Upload failed in component:", err);
             setStatus('error');

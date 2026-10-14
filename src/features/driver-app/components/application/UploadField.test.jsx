@@ -273,11 +273,12 @@ describe('UploadField unmounting mid-upload', () => {
   it('does not let the second after one success end the next upload', async () => {
     vi.useFakeTimers();
     try {
-      // The first upload lands; the second never does.
+      // The first upload lands at once; the second when the test says so.
       let uploads = 0;
+      let landSecond;
       const onUpload = vi.fn(() => (++uploads === 1
         ? Promise.resolve({ name: 'first.pdf', storagePath: 'p1' })
-        : new Promise(() => {})));
+        : new Promise((resolve) => { landSecond = resolve; })));
       renderField({ onUpload });
 
       await act(async () => {
@@ -292,6 +293,28 @@ describe('UploadField unmounting mid-upload', () => {
 
       expect(wrapper()).toHaveAttribute('data-upload-state', 'uploading');
       expect(screen.getByRole('button', { name: /Cancel upload/ })).toBeInTheDocument();
+
+      await act(async () => { landSecond({ name: 'second.pdf', storagePath: 'p2' }); });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hands over the file of an upload that lands after it has gone, and keeps no timer', async () => {
+    vi.useFakeTimers();
+    try {
+      let land;
+      const onUpload = vi.fn(() => new Promise((resolve) => { land = resolve; }));
+      const { unmount, onChange } = renderField({ onUpload });
+
+      await act(async () => {
+        fireEvent.change(input(), { target: { files: [file()] } });
+      });
+      unmount();
+      await act(async () => { land({ name: 'cdl.pdf', storagePath: 'p' }); });
+
+      expect(onChange).toHaveBeenCalledWith('cdl-front', { name: 'cdl.pdf', storagePath: 'p' });
+      expect(vi.getTimerCount()).toBe(0);
     } finally {
       vi.useRealTimers();
     }
