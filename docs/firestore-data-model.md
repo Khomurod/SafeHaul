@@ -338,7 +338,7 @@ Server-only (Admin SDK, no client rule): `{path=**}/submission/{version}` by `co
 | `isCompanyTeam(companyId)` | super, admin, or `hr_user` / `recruiter` |
 | `isStaff()` | any user with non-empty `roles` map |
 
-Custom claims are set via `onMembershipWrite` and HR admin callables ([`functions/hrAdmin.js`](../functions/hrAdmin.js)).
+Custom claims are set via `onMembershipWrite` and `onCompanyActivationChange` ([`functions/hrAdmin.js`](../functions/hrAdmin.js)). A deactivated company's role is left out of its staff's claims, never a super admin's.
 
 ---
 

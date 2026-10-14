@@ -850,7 +850,8 @@ create and stay unchanged on update, so a record can never be filed under one
 company while claiming another.
 
 **A deactivated company** (`isActive: false`) takes no applications and passes
-no server staff check; a super admin always does. Rules read only token `roles`.
+no server staff check; `onCompanyActivationChange` takes its roles out of its
+staff's tokens and ends their sessions. A super admin is never refused.
 
 ---
 
@@ -862,9 +863,8 @@ Firestore rules and Storage rules use the same signals:
 - `globalRole: 'super_admin'` (at the token root, or nested under `roles` for
   legacy tokens).
 - `roles[companyId]` = `company_admin` \| `hr_user` \| `recruiter`.
-- `companyTeamIds`, a denormalized convenience claim. Storage rules accept
-  **either** it or `roles[companyId]`, because it can be stale until
-  `onMembershipWrite` re-runs *and* the client refreshes its token.
+- `companyTeamIds`, a convenience claim. Storage rules accept **either** it or
+  `roles[companyId]`: either can lag until the client refreshes its token.
 
 Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
 `isCompanyTeam(companyId)` (admin + hr_user + recruiter + super admin) ·
