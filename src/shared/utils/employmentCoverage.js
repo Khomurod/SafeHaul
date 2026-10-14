@@ -10,11 +10,15 @@
 //
 // Keep the two files structurally identical apart from module syntax.
 
+import { parseApplicationDate } from '@/config/applicationDates';
+
 /** Months of history the application must account for. */
 export const REQUIRED_COVERAGE_MONTHS = 36;
 
 /**
- * Parse the date shapes the form actually produces: `YYYY-MM`, `YYYY-MM-DD`,
+ * Parse every date shape the application validator accepts (`parseApplicationDate`:
+ * `YYYY-MM`, `YYYY-MM-DD`, legacy `M/YYYY` and `M/D/YYYY`), read as written,
+ * then the looser shapes this always took: a `YYYY-MM-DD` the calendar lacks,
  * and anything `Date` can read. Returns an absolute month index (year * 12 +
  * month) so spans are simple arithmetic, or null when unparseable.
  *
@@ -25,6 +29,9 @@ export function parseMonthIndex(value) {
     if (value === null || value === undefined) return null;
     const raw = String(value).trim();
     if (!raw) return null;
+
+    const date = parseApplicationDate(raw);
+    if (date) return date.year * 12 + (date.month - 1);
 
     const ym = /^(\d{4})-(\d{1,2})$/.exec(raw);
     if (ym) {

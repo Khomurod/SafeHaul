@@ -198,6 +198,29 @@ describe('health and cooldown are tracked per lane', () => {
         expect(config.laneFailures).toMatchObject({ vision: 2, text: 1 });
     });
 
+    it('counts every failure recorded at once, and cools the lane on the third', async () => {
+        await Promise.all([fail('groq', 'text'), fail('groq', 'text'), fail('groq', 'text')]);
+
+        const config = await store.readConfig('groq');
+
+        expect(config.laneFailures.text).toBe(3);
+        expect(store.cooldownState(config, Date.now(), 'text').active).toBe(true);
+    });
+
+    it("keeps another lane's failure that lands at the same moment", async () => {
+        await fail('gemini', 'vision');
+        await Promise.all([fail('gemini', 'vision'), store.recordProviderOutcome('gemini', { success: true, lane: 'text' })]);
+
+        const config = await store.readConfig('gemini');
+
+        expect(config.laneFailures).toMatchObject({ vision: 2, text: 0 });
+        expect(config.laneHealth).toMatchObject({ vision: 'degraded', text: 'healthy' });
+    });
+
+    it('records nothing, and throws nothing, for a provider the registry does not know', async () => {
+        await expect(store.recordProviderOutcome('no-such-provider', { success: false, lane: 'text' })).resolves.toBeUndefined();
+    });
+
     it('cools only the failing lane, leaving the working one routable', async () => {
         await fail('groq', 'vision');
         await fail('groq', 'vision');

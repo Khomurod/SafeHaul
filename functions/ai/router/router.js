@@ -100,8 +100,9 @@ async function runAiTask(task, deps = {}) {
         startedAt, totalDeadlineMs, perAttemptDeadlineMs, signal: deadlineController.signal,
     };
 
-    const providers = await resolveProviderOrder(deps);
-    const configs = await resolveConfigs();
+    // Two independent reads on every call, so neither waits for the other.
+    // Neither throws: each answers with its fallback.
+    const [providers, configs] = await Promise.all([resolveProviderOrder(deps), resolveConfigs()]);
     const now = typeof deps.now === 'number' ? deps.now : Date.now();
     // `null` means config could not be read and this instance has no cached
     // copy, so it cannot tell which providers an operator disabled. See

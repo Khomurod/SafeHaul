@@ -1,21 +1,33 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { admin, db } = require("../../firebaseAdmin");
+const { db } = require("../../firebaseAdmin");
 const { assertCompanyAdminStrict } = require("../../shared/companyAccess");
 const { normalizePhone } = require("../../utils/phoneUtils");
 const { isCanonicalPhoneLedgerKey } = require("../helpers/phoneLedger");
 
+/** Ledger documents read and written per transaction, under its 500-write limit. */
+const LEDGER_CHUNK = 400;
+
+/** Milliseconds of a stored time (a Firestore Timestamp, a Date or a number), or null. */
+function timeOf(value) {
+    if (typeof value?.toMillis === 'function') return value.toMillis();
+    if (value instanceof Date) return value.getTime();
+    return Number.isFinite(value) ? value : null;
+}
+
 /**
  * Internal: backfill SMS phones for a single company. Does NOT perform auth
  * checks — callers are responsible. Returns counts.
+ *
+ * Each number gets its newest delivery: sessions and their logs come back in
+ * id order, not in time order. A delivery with no time is skipped, since it
+ * cannot say how recent it was. And the ledger is written only where it holds
+ * nothing newer, in a transaction, because the live sender stamps a number as
+ * it texts it, and that stamp must never go back to an older delivery.
  */
 async function _backfillSmsForCompany(companyId) {
-    let totalBackfilled = 0;
-    let sessionsProcessed = 0;
-
-    const sessionsSnap = await db
-        .collection('companies').doc(companyId)
-        .collection('bulk_sessions')
-        .get();
+    const company = db.collection('companies').doc(companyId);
+    const sessionsSnap = await company.collection('bulk_sessions').get();
+    const newest = new Map();
 
     for (const sessionDoc of sessionsSnap.docs) {
         const sessionId = sessionDoc.id;
@@ -23,18 +35,12 @@ async function _backfillSmsForCompany(companyId) {
         const method = sessionData.config?.method || sessionData.messageType || null;
         if (method && method === 'email') continue;
 
-        const logsSnap = await db
-            .collection('companies').doc(companyId)
+        const logsSnap = await company
             .collection('bulk_sessions').doc(sessionId)
             .collection('logs')
             .where('status', '==', 'delivered')
             .get();
         if (logsSnap.empty) continue;
-
-        const batchArray = [];
-        let batch = db.batch();
-        let count = 0;
-        let sessionPhones = 0;
 
         for (const logDoc of logsSnap.docs) {
             const logData = logDoc.data();
@@ -42,25 +48,37 @@ async function _backfillSmsForCompany(companyId) {
             if (!rawPhone || rawPhone === 'N/A' || rawPhone === 'No Phone' || rawPhone === 'No Email') continue;
             const normPhone = normalizePhone(rawPhone);
             if (!isCanonicalPhoneLedgerKey(normPhone)) continue;
-
-            const phoneRef = db
-                .collection('companies').doc(companyId)
-                .collection('sms_sent_phones').doc(normPhone);
-            batch.set(phoneRef, {
-                lastSentAt: logData.timestamp || admin.firestore.FieldValue.serverTimestamp(),
-                sessionId,
-                backfilled: true,
-            }, { merge: true });
-
-            count++; totalBackfilled++; sessionPhones++;
-            if (count >= 490) { batchArray.push(batch); batch = db.batch(); count = 0; }
+            const sentMs = timeOf(logData.timestamp);
+            if (sentMs === null) continue;
+            const known = newest.get(normPhone);
+            if (!known || sentMs > known.sentMs) newest.set(normPhone, { sentAt: logData.timestamp, sentMs, sessionId });
         }
-        if (count > 0) batchArray.push(batch);
-        for (const b of batchArray) await b.commit();
-        if (sessionPhones > 0) sessionsProcessed++;
     }
 
-    return { sessionsProcessed, phonesBackfilled: totalBackfilled };
+    const ledger = company.collection('sms_sent_phones');
+    const phones = [...newest.keys()];
+    const sessions = new Set();
+    let phonesBackfilled = 0;
+    for (let i = 0; i < phones.length; i += LEDGER_CHUNK) {
+        const chunk = phones.slice(i, i + LEDGER_CHUNK);
+        const refs = chunk.map((phone) => ledger.doc(phone));
+        const written = await db.runTransaction(async (transaction) => {
+            const snaps = await transaction.getAll(...refs);
+            const ids = [];
+            snaps.forEach((snap, index) => {
+                const entry = newest.get(chunk[index]);
+                const storedMs = snap.exists ? timeOf(snap.data()?.lastSentAt) : null;
+                if (storedMs !== null && storedMs >= entry.sentMs) return;
+                transaction.set(refs[index], { lastSentAt: entry.sentAt, sessionId: entry.sessionId, backfilled: true }, { merge: true });
+                ids.push(entry.sessionId);
+            });
+            return ids;
+        });
+        written.forEach((sessionId) => sessions.add(sessionId));
+        phonesBackfilled += written.length;
+    }
+
+    return { sessionsProcessed: sessions.size, phonesBackfilled };
 }
 
 /**
@@ -70,7 +88,7 @@ async function _backfillSmsForCompany(companyId) {
  * extracts the phone numbers, and writes them to the `sms_sent_phones` ledger.
  *
  * Run once from the Firebase Console or via a client call after deploying.
- * Safe to re-run — uses merge: true so it never overwrites newer data.
+ * Safe to re-run: it never overwrites a newer ledger entry.
  *
  * FIX (v2): Removed the config.method === 'sms' filter — historical sessions
  * may not have this field set. Instead, we detect phone numbers from the
@@ -122,21 +140,29 @@ exports.backfillAllSmsSentPhones = onCall(
 
         console.log('[Backfill-All] Starting global SMS phone backfill.');
 
-        const companiesSnap = await db.collection('companies').get();
+        // In id order, from the company after the one a cut-short run named, so
+        // re-running reaches the companies the last run did not.
+        const { startAfterCompanyId } = request.data || {};
+        const companies = db.collection('companies').orderBy('__name__');
+        const companiesSnap = await (typeof startAfterCompanyId === 'string' && startAfterCompanyId
+            ? companies.startAfter(startAfterCompanyId)
+            : companies).get();
         const summaries = [];
         let totalPhones = 0;
         let totalSessions = 0;
         let processedCompanies = 0;
         let failedCompanies = 0;
         let truncated = false;
+        let lastCompanyId = null;
 
         for (const doc of companiesSnap.docs) {
             if (Date.now() - startedAt > TIMEOUT_BUDGET_MS) {
                 truncated = true;
-                console.warn(`[Backfill-All] Time budget exceeded; deferring remaining ${companiesSnap.size - processedCompanies} companies.`);
+                console.warn(`[Backfill-All] Time budget exceeded; deferring remaining ${companiesSnap.size - summaries.length} companies.`);
                 break;
             }
             const companyId = doc.id;
+            lastCompanyId = companyId;
             try {
                 const result = await _backfillSmsForCompany(companyId);
                 processedCompanies++;
@@ -160,8 +186,9 @@ exports.backfillAllSmsSentPhones = onCall(
             sessionsProcessed: totalSessions,
             phonesBackfilled: totalPhones,
             summaries,
+            nextCompanyId: truncated ? lastCompanyId : null,
             message: truncated
-                ? `Partial backfill: processed ${processedCompanies}/${companiesSnap.size} companies before timeout. Re-run to finish.`
+                ? `Partial backfill: processed ${processedCompanies}/${companiesSnap.size} companies before timeout. Re-run with startAfterCompanyId "${lastCompanyId}" to finish.`
                 : `Backfill complete across ${processedCompanies} companies. ${totalPhones} phones from ${totalSessions} sessions.`,
         };
     }

@@ -25,7 +25,11 @@ function configRef(providerId) {
  *   explicit enable step.
  */
 async function readConfig(providerId) {
-    const snapshot = await configRef(providerId).get();
+    return configFromSnapshot(await configRef(providerId).get());
+}
+
+/** The stored settings in a snapshot of the document, as `readConfig` returns them. */
+function configFromSnapshot(snapshot) {
     if (!snapshot.exists) return { enabled: true };
     const data = snapshot.data() || {};
     return { enabled: data.enabled !== false, ...data };
@@ -77,6 +81,7 @@ async function writeConfig(providerId, patch) {
 module.exports = {
     COLLECTION,
     configRef,
+    configFromSnapshot,
     readConfig,
     readAllConfigs,
     writeConfig,

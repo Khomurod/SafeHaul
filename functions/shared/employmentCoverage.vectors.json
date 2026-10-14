@@ -11,7 +11,11 @@
     { "input": "2024-1", "expected": 24288 },
     { "input": "2024-12", "expected": 24299 },
     { "input": "2024-03-17", "expected": 24290 },
-    { "input": "2024-3-7", "expected": 24290 }
+    { "input": "2024-3-7", "expected": 24290 },
+    { "//": "Legacy month/year and US dates, read as the application's validator reads them.", "input": "7/2024", "expected": 24294 },
+    { "input": "07/2024", "expected": 24294 },
+    { "input": "07-2024", "expected": 24294 },
+    { "//": "The first of a month stays in its month east of UTC too.", "input": "7/1/2024", "expected": 24294 }
   ],
   "formatMonthIndex": [
     { "input": 24288, "expected": "2024-01" },
@@ -49,6 +53,24 @@
       "//": "One ongoing job started before the window covers everything.",
       "input": [
         { "employers": [{ "startDate": "2020-01-01", "endDate": "" }] },
+        { "referenceDate": "2026-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 36,
+        "missingMonths": 0,
+        "isComplete": true,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [],
+        "accountedKinds": ["employment"],
+        "unparseableRecords": 0
+      }
+    },
+    {
+      "//": "A legacy MM/YYYY start covers its months like YYYY-MM.",
+      "input": [
+        { "employers": [{ "startDate": "01/2020", "endDate": "Present" }] },
         { "referenceDate": "2026-06-15T00:00:00Z" }
       ],
       "expected": {

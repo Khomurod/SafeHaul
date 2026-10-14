@@ -108,6 +108,27 @@ function mergeLikeFirestore(current, patch) {
     return merged;
 }
 
+/**
+ * Transactions run one at a time, their writes applied when the callback
+ * returns, which is what Firestore guarantees for transactions on one
+ * document. Plain `get` and `set` still interleave, so a read-then-write
+ * outside a transaction loses updates here as it would there.
+ */
+let mockTransactionTail = Promise.resolve();
+function mockRunTransaction(callback) {
+    const run = mockTransactionTail.then(async () => {
+        const writes = [];
+        const result = await callback({
+            get: (ref) => ref.get(),
+            set: (ref, patch, options) => { writes.push(() => ref.set(patch, options)); },
+        });
+        for (const write of writes) await write();
+        return result;
+    });
+    mockTransactionTail = run.catch(() => {});
+    return run;
+}
+
 const firebaseAdminMock = () => ({
     admin: {
         firestore: {
@@ -118,6 +139,7 @@ const firebaseAdminMock = () => ({
         },
     },
     db: {
+        runTransaction: mockRunTransaction,
         collection: (name) => ({
             doc: (id) => ({
                 get: async () => ({
