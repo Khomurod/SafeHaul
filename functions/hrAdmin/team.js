@@ -79,8 +79,9 @@ exports.listCompanyTeam = onCall({ maxInstances: 3 }, async (request) => {
         throw new HttpsError('permission-denied', 'Permission denied.');
     }
 
-    // A deactivated company's admins are refused; a super admin never is.
-    if (!isSuperAdmin) await assertCompanyActive(companyId);
+    // A deactivated company's admins are refused; a super admin never is, the
+    // role at the token root (an older token) included.
+    if (!isSuperAdmin && request.auth.token.globalRole !== 'super_admin') await assertCompanyActive(companyId);
 
     const memSnap = await db.collection('memberships').where('companyId', '==', companyId).get();
 

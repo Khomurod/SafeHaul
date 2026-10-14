@@ -105,6 +105,13 @@ describe('deletePortalUser — frees SMS line assignment on removal', () => {
     expect(mockSmsUpdate).not.toHaveBeenCalled();
   });
 
+  it('never asks for a super admin whose role sits at the token root', async () => {
+    mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+    const token = { globalRole: 'super_admin', roles: { co1: 'company_admin' } };
+    await deletePortalUser({ auth: { uid: 'caller', token }, data: { userId: 'recruiterX', companyId: 'co1' } }).catch(() => {});
+    expect(mockAssertCompanyActive).not.toHaveBeenCalled();
+  });
+
   it('rejects callers who are neither super admin nor company admin', async () => {
     await expect(
       deletePortalUser(req({ co1: 'recruiter' }, { userId: 'recruiterX', companyId: 'co1' })),

@@ -327,4 +327,11 @@ describe('listCompanyTeam for a deactivated company', () => {
     await expect(asAdmin()).rejects.toMatchObject({ code: 'permission-denied', message: 'This company has been deactivated.' });
     expect(mockAssertCompanyActive).toHaveBeenCalledWith('co-a');
   });
+
+  it('never asks for a super admin whose role sits at the token root', async () => {
+    mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+    const token = { globalRole: 'super_admin', roles: { 'co-a': 'company_admin' } };
+    await listCompanyTeam({ auth: { uid: 'caller', token }, data: { companyId: 'co-a' } }).catch(() => {});
+    expect(mockAssertCompanyActive).not.toHaveBeenCalled();
+  });
 });

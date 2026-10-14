@@ -94,8 +94,9 @@ exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
         throw new HttpsError("invalid-argument", `Unsupported role: ${role}`);
     }
 
-    // A deactivated company's admins are refused; a super admin never is.
-    if (!isGlobalSuperAdmin) await assertCompanyActive(companyId);
+    // A deactivated company's admins are refused; a super admin never is, the
+    // role at the token root (an older token) included.
+    if (!isGlobalSuperAdmin && request.auth.token.globalRole !== "super_admin") await assertCompanyActive(companyId);
 
     let userId;
     let isNewUser = false;

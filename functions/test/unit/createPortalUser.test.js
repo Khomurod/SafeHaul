@@ -221,4 +221,11 @@ describe('createPortalUser for a deactivated company', () => {
     expect(mockCreateUser).not.toHaveBeenCalled();
     expect(mockMembershipAdd).not.toHaveBeenCalled();
   });
+
+  it('never asks for a super admin whose role sits at the token root', async () => {
+    mockAssertCompanyActive.mockRejectedValue(Object.assign(new Error('This company has been deactivated.'), { code: 'permission-denied' }));
+    const token = { globalRole: 'super_admin', roles: { co1: 'company_admin' } };
+    await createPortalUser({ auth: { uid: 'caller', token }, data: { email: 'new@example.com', companyId: 'co1', role: 'hr_user' } }).catch(() => {});
+    expect(mockAssertCompanyActive).not.toHaveBeenCalled();
+  });
 });
