@@ -272,7 +272,6 @@ const employmentVerification = require('./employmentVerification');
 exports.sendVerificationRequest = employmentVerification.sendVerificationRequest;
 exports.getVerificationRequest = employmentVerification.getVerificationRequest;
 exports.submitVerificationResponse = employmentVerification.submitVerificationResponse;
-exports.trackVerificationOpen = employmentVerification.trackVerificationOpen;
 exports.processVerificationReminders = employmentVerification.processVerificationReminders;
 // PEV-BRK-3 companion: On-demand signed URL generation for PEV result PDFs
 exports.getSignedPevUrl = require('./getSignedPevUrl').getSignedPevUrl;

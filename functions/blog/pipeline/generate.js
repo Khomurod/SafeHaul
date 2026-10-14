@@ -23,7 +23,7 @@
  * unlicensed image because the daily count would otherwise be short.
  */
 
-const { getTheme } = require('./themes');
+const { getTheme, THEME_IDS } = require('./themes');
 const { gatherSourceItems, fetchDocumentText } = require('../research/fetchSources');
 const { isPrimary } = require('../research/sources');
 const dedupe = require('./dedupe');
@@ -221,11 +221,13 @@ async function runSlot(slot, context) {
         }
     } else {
         // The SafeHaul theme is written from the approved capability package.
-        // Rotating by date keeps successive days on different features without
-        // storing extra state.
+        // Rotating by date keeps successive turns on different features without
+        // storing extra state. The theme's own day comes round every
+        // THEME_IDS.length days, so the count is of its turns, not of days:
+        // with 12 features and 3 themes, a day count reaches every third one.
         const features = knowledgePackage.availableFeatures();
         const dayNumber = Math.floor(Date.parse(`${slot.publicationDate}T00:00:00Z`) / 86400000);
-        const feature = features[dayNumber % features.length];
+        const feature = features[Math.floor(dayNumber / THEME_IDS.length) % features.length];
         topic = {
             title: `${feature.name}: what it does and where it stops`,
             angle: `Explain the problem ${feature.name.toLowerCase()} addresses for a carrier, what SafeHaul actually does, and state its limitations honestly.`,

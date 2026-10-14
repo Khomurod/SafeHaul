@@ -150,6 +150,15 @@ describe('the PEV emails', () => {
         expect(html.replace(/\u200B/g, '')).toContain('Amazon.com Services &lt;i&gt;LLC&lt;/i&gt;');
     });
 
+    it('points the past employer at the form alone, with no tracking image', () => {
+        // The app's hosting answered the old pixel's path with the app page, so
+        // it never reached a function; "opened" is recorded when the form loads.
+        const html = buildVerificationEmailHTML(request);
+        const urls = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map((match) => match[1]);
+        expect(new Set(urls)).toEqual(new Set(['https://app.test/verify/tok123']));
+        expect(html).not.toMatch(/<img\b/i);
+    });
+
     it('links no employer name, whatever the driver typed', () => {
         const html = buildVerificationEmailHTML({ ...request, employerName: 'https://evil.example/login' });
         expect(html).not.toContain('evil.example');

@@ -23,8 +23,9 @@ jest.mock('../../blog/media/credentials', () => require('./blogPipeline.support'
 const themes = require('../../blog/pipeline/themes');
 const generate = require('../../blog/pipeline/generate');
 const store = require('../../blog/store');
+const knowledge = require('../../ai/knowledge/safehaulCapabilities');
 const {
-    mockSelectTopic, researchFetch, resetBlogState,
+    mockGenerateArticle, mockSelectTopic, researchFetch, resetBlogState,
 } = require('./blogPipeline.support');
 
 beforeEach(resetBlogState);
@@ -258,5 +259,29 @@ describe('item relevance — feed topics are not item topics', () => {
 
         expect(candidates).toHaveLength(1);
         expect(candidates[0].title).toContain('FMCSA');
+    });
+});
+
+describe('SafeHaul theme topics', () => {
+    it('reach every available feature, one each time the theme comes round', async () => {
+        const names = knowledge.availableFeatures().map((feature) => feature.name);
+        // The theme's own days: it opens every third calendar day.
+        const ownDays = [];
+        for (let ms = Date.parse('2026-08-01T00:00:00Z'); ownDays.length < names.length; ms += 86400000) {
+            const date = new Date(ms).toISOString().slice(0, 10);
+            if (themes.themesInOrderFor(date)[0].id === 'safehaul-education') ownDays.push(date);
+        }
+
+        const written = [];
+        for (const date of ownDays) {
+            mockGenerateArticle.mockClear();
+            await generate.runSlot(
+                { themeId: 'safehaul-education', publicationDate: date, key: themes.slotKey(date, 'safehaul-education'), slotIndex: 2 },
+                { store, fetchImpl: researchFetch(), now: Date.parse(`${date}T13:00:00Z`) },
+            );
+            written.push(mockGenerateArticle.mock.calls[0]?.[0].topic.title);
+        }
+
+        expect(written.sort()).toEqual(names.map((name) => `${name}: what it does and where it stops`).sort());
     });
 });
