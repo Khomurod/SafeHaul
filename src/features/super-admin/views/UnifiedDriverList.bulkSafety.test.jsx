@@ -22,17 +22,18 @@
  * unaffected.
  */
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const toastMocks = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }));
-const deleteDoc = vi.hoisted(() => vi.fn());
+const deleteApplication = vi.hoisted(() => vi.fn());
 
-vi.mock('@shared/components/feedback', () => ({ useToast: () => toastMocks }));
-vi.mock('@lib/firebase', () => ({ db: {} }));
-vi.mock('firebase/firestore', () => ({
-    doc: (_db, ...path) => ({ path: path.join('/') }),
-    deleteDoc: (...a) => deleteDoc(...a),
+vi.mock('@shared/components/feedback/ToastProvider', () => ({ useToast: () => toastMocks }));
+vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('firebase/functions', () => ({
+    httpsCallable: (_functions, name) => (...a) => (name === 'deleteApplication'
+        ? deleteApplication(...a)
+        : Promise.reject(new Error(`unexpected callable ${name}`))),
 }));
 
 import { UnifiedDriverList } from './UnifiedDriverList';
@@ -69,7 +70,7 @@ function renderList(props = {}) {
 
 beforeEach(() => {
     vi.resetAllMocks();
-    deleteDoc.mockResolvedValue(undefined);
+    deleteApplication.mockResolvedValue({ data: { success: true } });
     vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -113,7 +114,7 @@ describe('UnifiedDriverList — no bulk controls, because none does anything', (
         const dialog = await screen.findByRole('dialog');
         fireEvent.click(within(dialog).getByRole('button', { name: 'Permanently delete' }));
 
-        // The genuine delete still targets the frozen document path.
-        expect(deleteDoc).toHaveBeenCalledTimes(1);
+        // The genuine delete, through the server.
+        await waitFor(() => expect(deleteApplication).toHaveBeenCalledTimes(1));
     });
 });
