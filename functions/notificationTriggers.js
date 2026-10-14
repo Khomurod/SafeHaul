@@ -187,7 +187,9 @@ exports.onLeadCallbackScheduled = onDocumentCreated(
 exports.onNewApplicationEmailConfirmation = onDocumentCreated(
     {
         document: 'companies/{companyId}/applications/{appId}',
-        region: 'us-central1'
+        region: 'us-central1',
+        // Decrypts an SMTP password stored encrypted (emailService.js).
+        secrets: ['SMS_ENCRYPTION_KEY'],
     },
     async (event) => {
         const data = event.data?.data();

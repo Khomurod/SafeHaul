@@ -15,7 +15,8 @@ const {
 // ============================================================
 // 5. AUTOMATED REMINDERS (Scheduled — runs every 24 hours)
 // ============================================================
-exports.processVerificationReminders = onSchedule("every 24 hours", async () => {
+// The secret decrypts an SMTP password stored encrypted (emailService.js).
+exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', secrets: ['SMS_ENCRYPTION_KEY'] }, async () => {
     logger.info('[PEV Reminders] Starting reminder processing...');
 
     try {

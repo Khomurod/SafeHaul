@@ -49,7 +49,8 @@ function isValidEmail(email) {
 // ============================================================
 // 1. SEND VERIFICATION REQUEST (Called from PEVTab)
 // ============================================================
-exports.sendVerificationRequest = onCall({ cors: true }, async (request) => {
+// The secret decrypts an SMTP password stored encrypted (emailService.js).
+exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'] }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
 
     const {

@@ -35,7 +35,33 @@ const SENDER_FILES = [
     'environmentVault/index.js',
 ];
 
+// Every function that sends a company's email through emailService.js. An SMTP
+// password stored encrypted (`enc:v1:`) is decrypted there, in the calling
+// function, so each binds the secret on its own trigger options: without it the
+// decrypt throws and the email is not sent.
+const EMAIL_SENDERS = [
+    ['notifySigner.js', 'notifySigner'],                                         // signing-request email
+    ['resendSignerOnCorrection.js', 'resendSignerOnCorrection'],                 // the same, after a correction
+    ['companyAdmin.js', 'sendAutomatedEmail'],                                   // the "no answer" email
+    ['notificationTriggers.js', 'onNewApplicationEmailConfirmation'],            // the applicant's confirmation
+    ['employmentVerification/requests.js', 'sendVerificationRequest'],           // the PEV request
+    ['employmentVerification/responses.js', 'submitVerificationResponse'],       // "verification complete" to the carrier
+    ['employmentVerification/reminders.js', 'processVerificationReminders'],     // PEV reminders and "no response"
+];
+
+/** The text from `exports.<name> =` to the function's handler: its options, in every SDK form. */
+function definitionHead(src, name) {
+    const start = src.indexOf(`exports.${name} =`);
+    return start === -1 ? null : src.slice(start, src.indexOf('async', start));
+}
+
 describe('SMS_ENCRYPTION_KEY secret bindings', () => {
+    test.each(EMAIL_SENDERS)('%s: %s binds SMS_ENCRYPTION_KEY on its own options', (rel, name) => {
+        const head = definitionHead(fs.readFileSync(path.join(ROOT, rel), 'utf8'), name);
+        expect(head).not.toBeNull();
+        expect(head).toMatch(/secrets:\s*\[[^\]]*['"]SMS_ENCRYPTION_KEY['"]/);
+    });
+
     test.each(SENDER_FILES)('%s binds SMS_ENCRYPTION_KEY', (rel) => {
         const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
         expect(src).toMatch(/secrets:\s*\[[^\]]*['"]SMS_ENCRYPTION_KEY['"]/);
