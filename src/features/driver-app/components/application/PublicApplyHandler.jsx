@@ -11,8 +11,8 @@ import { useGuestFileUpload } from '../../hooks/useGuestFileUpload';
 import { useCdlAutoFill } from '../../hooks/useCdlAutoFill';
 import { useInviteIdentityCheck } from '../../hooks/useInviteIdentityCheck';
 import { resolveApplyStatusScreen } from './PublicApplyScreens';
+import { ApplyingCompanyScope } from './ApplyingCompanyScope';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { useData } from '@/context/DataContext';
 import { ResumeApplicationDialog } from './ResumeApplicationDialog';
 // The submission path lives in publicApplySubmit.js since the 2026-09-01
 // source-size split (PA-1a); the bootstrap — session restore and the company
@@ -50,7 +50,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { showSuccess, showError, showInfo } = useToast();
-  const { setCurrentCompanyProfile } = useData();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -213,7 +212,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       draftIdRef,
       discardedElsewhere,
       restorePostApplySession,
-      setCurrentCompanyProfile,
       setError,
       setLoading,
       setCompany,
@@ -221,7 +219,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       setCurrentStep,
       setIntakeMode,
     });
-  }, [slug, sandbox, searchParams, setCurrentCompanyProfile, restorePostApplySession, adoptResumeToken, resetGenerationRef, restoredFromDraftRef, draftIdRef]);
+  }, [slug, sandbox, searchParams, restorePostApplySession, adoptResumeToken, resetGenerationRef, restoredFromDraftRef, draftIdRef]);
 
   /**
    * Latest form state, read by things that run later than the render they belong
@@ -465,6 +463,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         </div>
       </header>
       <Card as="main" padding="none" className="mx-auto mt-ds-6 max-w-4xl overflow-hidden">
+        <ApplyingCompanyScope company={company}>
         <Stepper
           step={currentStep}
           formData={formData}
@@ -479,6 +478,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
           isSandboxMode={sandbox}
           onMagicFillStep={sandbox ? handleMagicFillStep : undefined}
         />
+        </ApplyingCompanyScope>
       </Card>
 
       {/* Offered on the first forward move, once the identity a resume is

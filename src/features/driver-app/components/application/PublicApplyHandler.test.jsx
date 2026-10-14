@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-vi.mock('@/context/DataContext', () => ({
-  useData: () => ({ setCurrentCompanyProfile: vi.fn() }),
+vi.mock('@/context/DataContext', async () => ({
+  useData: () => ({}),
+  DataContext: (await import('react')).createContext(null),
 }));
 
 vi.mock('@shared/components/feedback/ToastProvider', () => ({

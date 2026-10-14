@@ -91,7 +91,6 @@ export async function loadPublicApplyCompany({
   // Where the exchange's verdict goes. `PublicApplyHandler` gates the server-draft
   // reconciliation on it and renders the failure screen from it.
   setInviteOutcome,
-  setCurrentCompanyProfile,
   setError,
   setLoading,
   setCompany,
@@ -160,9 +159,6 @@ export async function loadPublicApplyCompany({
             ? { id: SANDBOX_COMPANY_ID, ...snap.data() }
             : buildDefaultSandboxPublicProfile();
           setCompany(companyData);
-          if (setCurrentCompanyProfile) {
-            setCurrentCompanyProfile(companyData);
-          }
           const sandboxDraft = readApplicationDraft(slug);
           if (sandboxDraft) {
             setFormData((prev) => ({ ...prev, ...sandboxDraft.data }));
@@ -180,9 +176,6 @@ export async function loadPublicApplyCompany({
         if (isE2ETestMode) {
           const mockCompany = buildE2EPublicProfile(slug);
           setCompany(mockCompany);
-          if (setCurrentCompanyProfile) {
-            setCurrentCompanyProfile(mockCompany);
-          }
           sessionStorage.setItem('pending_application_company', mockCompany.id);
           // Same order as the production branch below, and kept that way
           // deliberately: the comment there records that a divergence between the
@@ -220,10 +213,6 @@ export async function loadPublicApplyCompany({
         }
 
         setCompany(companyData);
-        // Important: Global context setter preserved
-        if (setCurrentCompanyProfile) {
-          setCurrentCompanyProfile(companyData);
-        }
 
         // Deliberately AFTER the company is set. `openInvite` returns straight out
         // of `loadCompany`, and the wizard it hands the driver reads
