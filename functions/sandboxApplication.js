@@ -12,6 +12,15 @@ const { ORIGINAL_PDF_PREFIX } = require('./shared/preserveApplicationPdf');
 const SANDBOX_ID = 'SANDBOX';
 /** Documents written per batch, under Firestore's 500. */
 const COPY_BATCH = 400;
+/**
+ * What a transfer carries besides the record: the frozen submission, its
+ * attempt claims (a redelivery then finds its snapshot instead of writing a
+ * second) and the DQ entries, the preserved PDF's among them. Not the history:
+ * an `activity_logs` or `activities` document created under the company sets
+ * off its triggers, so an old sandbox callback would notify the company's
+ * staff and test calls would count in its daily statistics.
+ */
+const CARRIED_SUBCOLLECTIONS = Object.freeze(['submission', 'submission_attempts', 'dq_files']);
 const INACTIVE_STATUSES = ['inactive', 'suspended', 'disabled'];
 
 function assertSuperAdmin(context) {
@@ -114,9 +123,8 @@ async function copyPreservedPdfs(bucket, applicationId, targetCompanyId) {
 }
 
 /**
- * Copies every subcollection of the sandbox record (the frozen submission and
- * its attempt claims, the DQ entries, the history) under the target record,
- * with the tenant field and the moved PDFs' paths pointed at the target.
+ * Copies the carried subcollections of the sandbox record under the target
+ * record, with the tenant field and the moved PDFs' paths pointed at the target.
  */
 async function copySubcollections(sourceRef, destRef, targetCompanyId, movedPdfs) {
   const retarget = (data) => {
@@ -125,12 +133,12 @@ async function copySubcollections(sourceRef, destRef, targetCompanyId, movedPdfs
     if (movedPdfs.has(copy.storagePath)) copy.storagePath = movedPdfs.get(copy.storagePath);
     return copy;
   };
-  for (const collection of await sourceRef.listCollections()) {
-    const { docs } = await collection.get();
+  for (const name of CARRIED_SUBCOLLECTIONS) {
+    const { docs } = await sourceRef.collection(name).get();
     for (let i = 0; i < docs.length; i += COPY_BATCH) {
       const batch = db.batch();
       for (const doc of docs.slice(i, i + COPY_BATCH)) {
-        batch.set(destRef.collection(collection.id).doc(doc.id), retarget(doc.data() || {}));
+        batch.set(destRef.collection(name).doc(doc.id), retarget(doc.data() || {}));
       }
       await batch.commit();
     }

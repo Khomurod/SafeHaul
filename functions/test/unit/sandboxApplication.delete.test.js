@@ -42,13 +42,12 @@ const mockRefFor = (companyId, applicationId) => {
       ? { exists: true, data: () => mockDocs.get(key) }
       : { exists: false, data: () => undefined }),
     set: (...a) => mockSet(key, ...a),
-    listCollections: async () => Object.keys(mockSubDocs.get(key) || {}).map((id) => ({
-      id,
+    collection: (sub) => ({
       get: async () => ({
-        docs: Object.entries(mockSubDocs.get(key)[id]).map(([docId, data]) => ({ id: docId, data: () => data })),
+        docs: Object.entries((mockSubDocs.get(key) || {})[sub] || {}).map(([docId, data]) => ({ id: docId, data: () => data })),
       }),
-    })),
-    collection: (sub) => ({ doc: (docId) => ({ key: `${key}/${sub}/${docId}` }) }),
+      doc: (docId) => ({ key: `${key}/${sub}/${docId}` }),
+    }),
   };
 };
 
@@ -168,22 +167,24 @@ describe('transferSandboxApplication', () => {
       submission: { v1: { companyId: 'SANDBOX', sequence: 1, frozen: true } },
       submission_attempts: { a1: { snapshotId: 'v1', sequence: 1 } },
       dq_files: { 'application-pdf-v1': { companyId: 'SANDBOX', storagePath: originalPdf } },
-      activity_logs: { l1: { action: 'viewed_original_pdf' } },
+      activity_logs: { l1: { action: 'callback_scheduled' } },
+      activities: { c1: { type: 'call' } },
     });
     mockObjects.add(originalPdf);
   }
 
-  it('takes the frozen submission and the rest of its subcollections, pointed at the company', async () => {
+  it('takes the frozen submission, its attempt claims and DQ entries, pointed at the company, and not the history', async () => {
     seedSubmission();
 
     await transfer();
 
+    // History created under the company would set off its call and callback
+    // triggers, so it stays behind with the sandbox record.
     const written = Object.fromEntries(mockSubSet.mock.calls);
     expect(written).toEqual({
       'REAL/app1/submission/v1': { companyId: 'REAL', sequence: 1, frozen: true },
       'REAL/app1/submission_attempts/a1': { snapshotId: 'v1', sequence: 1 },
       'REAL/app1/dq_files/application-pdf-v1': { companyId: 'REAL', storagePath: movedPdf },
-      'REAL/app1/activity_logs/l1': { action: 'viewed_original_pdf' },
     });
   });
 
