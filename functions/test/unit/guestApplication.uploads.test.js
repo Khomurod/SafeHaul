@@ -54,7 +54,13 @@ jest.mock('../../firebaseAdmin', () => ({
       }),
     }),
   },
-  db: { collection: () => mockCollection() },
+  db: {
+    collection: () => mockCollection(),
+    runTransaction: async (fn) => fn({
+      get: (ref) => ref.get(),
+      set: (ref, data, options) => ref.set(data, options),
+    }),
+  },
 }));
 
 jest.mock('../../shared/companyTenant', () => ({

@@ -1,7 +1,8 @@
 // deleteSandboxApplication removes the test application's files as well as its
 // record, and only files inside the sandbox's own Storage tree. Transferring a
-// sandbox application to a real company must still leave its files in place,
-// because the moved record keeps pointing at them.
+// sandbox application to a real company must still leave its uploads in place,
+// because the moved record keeps pointing at them, and takes its frozen
+// submission, the rest of its subcollections and its preserved PDF with it.
 
 jest.mock('firebase-functions/v1', () => {
   class HttpsError extends Error {
@@ -16,10 +17,22 @@ jest.mock('../../shared/companyTenant', () => ({
 }));
 
 const mockDocs = new Map();
-const mockRecursiveDelete = jest.fn(async () => {});
-const mockSet = jest.fn(async () => {});
-const mockFileDelete = jest.fn(async () => {});
+/** `company/application` -> { subcollection: { docId: data } } */
+const mockSubDocs = new Map();
+/** Stored object paths, for the preserved PDFs. */
+const mockObjects = new Set();
+/** What happened, in order, so a test can see nothing is deleted before it is copied. */
+const mockEvents = [];
+const mockRecursiveDelete = jest.fn(async (key) => { mockEvents.push(`recursiveDelete ${key}`); });
+const mockSet = jest.fn(async (key) => { mockEvents.push(`set ${key}`); });
+const mockSubSet = jest.fn();
+const mockFileDelete = jest.fn(async (path) => { mockEvents.push(`delete ${path}`); });
 const mockDeleteFiles = jest.fn(async () => {});
+const mockCopy = jest.fn(async (from, to) => {
+  if (mockObjects.has(to)) throw Object.assign(new Error('precondition failed'), { code: 412 });
+  mockObjects.add(to);
+  mockEvents.push(`copy ${from} -> ${to}`);
+});
 
 const mockRefFor = (companyId, applicationId) => {
   const key = `${companyId}/${applicationId}`;
@@ -29,6 +42,12 @@ const mockRefFor = (companyId, applicationId) => {
       ? { exists: true, data: () => mockDocs.get(key) }
       : { exists: false, data: () => undefined }),
     set: (...a) => mockSet(key, ...a),
+    collection: (sub) => ({
+      get: async () => ({
+        docs: Object.entries((mockSubDocs.get(key) || {})[sub] || {}).map(([docId, data]) => ({ id: docId, data: () => data })),
+      }),
+      doc: (docId) => ({ key: `${key}/${sub}/${docId}` }),
+    }),
   };
 };
 
@@ -37,11 +56,27 @@ jest.mock('../../firebaseAdmin', () => ({
     collection: () => ({
       doc: (companyId) => ({ collection: () => ({ doc: (applicationId) => mockRefFor(companyId, applicationId) }) }),
     }),
+    batch: () => {
+      const pending = [];
+      return {
+        set: (ref, data) => pending.push([ref.key, data]),
+        commit: async () => pending.forEach(([key, data]) => { mockSubSet(key, data); mockEvents.push(`set ${key}`); }),
+      };
+    },
     recursiveDelete: (ref) => mockRecursiveDelete(ref.key),
   },
   storage: {
     bucket: () => ({
-      file: (path) => ({ delete: () => mockFileDelete(path) }),
+      file: (path) => ({
+        name: path,
+        delete: () => mockFileDelete(path),
+        copy: (destination, options) => mockCopy(path, destination.name, options),
+      }),
+      getFiles: async ({ prefix }) => [[...mockObjects].filter((path) => path.startsWith(prefix)).map((path) => ({
+        name: path,
+        copy: (destination, options) => mockCopy(path, destination.name, options),
+        delete: () => mockFileDelete(path),
+      }))],
       deleteFiles: (...a) => mockDeleteFiles(...a),
     }),
   },
@@ -104,12 +139,113 @@ describe('deleteSandboxApplication', () => {
 });
 
 describe('transferSandboxApplication', () => {
+  const originalPdf = 'application_originals/SANDBOX/app1/v1.pdf';
+  const movedPdf = 'application_originals/REAL/app1/v1.pdf';
+
   beforeEach(() => {
-    // Jest's reset drops every implementation, so the tenant check's answer is set again here.
+    // Jest's reset drops every implementation, so each one is set again here.
     jest.resetAllMocks();
     assertCompanyAcceptingIntake.mockResolvedValue({ companyName: 'Real Co' });
+    mockRecursiveDelete.mockImplementation(async (key) => { mockEvents.push(`recursiveDelete ${key}`); });
+    mockSet.mockImplementation(async (key) => { mockEvents.push(`set ${key}`); });
+    mockFileDelete.mockImplementation(async (path) => { mockObjects.delete(path); mockEvents.push(`delete ${path}`); });
+    mockCopy.mockImplementation(async (from, to) => {
+      if (mockObjects.has(to)) throw Object.assign(new Error('precondition failed'), { code: 412 });
+      mockObjects.add(to);
+      mockEvents.push(`copy ${from} -> ${to}`);
+    });
     mockDocs.clear();
+    mockSubDocs.clear();
+    mockObjects.clear();
+    mockEvents.length = 0;
     mockDocs.set('SANDBOX/app1', { companyId: 'SANDBOX', 'cdl-front': { storagePath: upload } });
+  });
+
+  const transfer = () => transferSandboxApplication({ applicationId: 'app1', targetCompanyId: 'REAL' }, superAdmin);
+
+  function seedSubmission() {
+    mockSubDocs.set('SANDBOX/app1', {
+      submission: { v1: { companyId: 'SANDBOX', sequence: 1, frozen: true } },
+      submission_attempts: { a1: { snapshotId: 'v1', sequence: 1 } },
+      dq_files: { 'application-pdf-v1': { companyId: 'SANDBOX', storagePath: originalPdf } },
+      activity_logs: { l1: { action: 'callback_scheduled' } },
+      activities: { c1: { type: 'call' } },
+    });
+    mockObjects.add(originalPdf);
+  }
+
+  it('takes the frozen submission, its attempt claims and DQ entries, pointed at the company, and not the history', async () => {
+    seedSubmission();
+
+    await transfer();
+
+    // History created under the company would set off its call and callback
+    // triggers, so it stays behind with the sandbox record.
+    const written = Object.fromEntries(mockSubSet.mock.calls);
+    expect(written).toEqual({
+      'REAL/app1/submission/v1': { companyId: 'REAL', sequence: 1, frozen: true },
+      'REAL/app1/submission_attempts/a1': { snapshotId: 'v1', sequence: 1 },
+      'REAL/app1/dq_files/application-pdf-v1': { companyId: 'REAL', storagePath: movedPdf },
+    });
+  });
+
+  it('copies the preserved PDF and the entries, removes the sandbox PDF, then writes the record and removes the sandbox one', async () => {
+    seedSubmission();
+
+    await transfer();
+
+    expect(mockCopy).toHaveBeenCalledWith(originalPdf, movedPdf, { preconditionOpts: { ifGenerationMatch: 0 } });
+    const at = (event) => mockEvents.indexOf(event);
+    expect(at(`copy ${originalPdf} -> ${movedPdf}`)).toBeLessThan(at('set REAL/app1/submission/v1'));
+    expect(at('set REAL/app1/dq_files/application-pdf-v1')).toBeLessThan(at(`delete ${originalPdf}`));
+    expect(at(`delete ${originalPdf}`)).toBeLessThan(at('set REAL/app1'));
+    expect(at('set REAL/app1')).toBeLessThan(at('recursiveDelete SANDBOX/app1'));
+  });
+
+  it('stops with the sandbox record kept when a sandbox PDF cannot be removed, and a second run finishes', async () => {
+    seedSubmission();
+    const secondPdf = 'application_originals/SANDBOX/app1/v2.pdf';
+    mockObjects.add(secondPdf);
+    mockSubDocs.get('SANDBOX/app1').dq_files['application-pdf-v2'] = { companyId: 'SANDBOX', storagePath: secondPdf };
+    mockFileDelete.mockImplementation(async (path) => {
+      if (path === secondPdf) throw new Error('storage busy');
+      mockObjects.delete(path);
+    });
+
+    await expect(transfer()).rejects.toThrow('storage busy');
+    expect(mockSet).not.toHaveBeenCalled();
+    expect(mockRecursiveDelete).not.toHaveBeenCalled();
+
+    mockFileDelete.mockImplementation(async (path) => { mockObjects.delete(path); });
+    mockSubSet.mockClear();
+    await expect(transfer()).resolves.toMatchObject({ success: true });
+
+    // The first PDF's sandbox copy went on the first run; its entry still moves.
+    expect(mockSubSet).toHaveBeenCalledWith('REAL/app1/dq_files/application-pdf-v1', expect.objectContaining({ storagePath: movedPdf }));
+    expect(mockSubSet).toHaveBeenCalledWith('REAL/app1/dq_files/application-pdf-v2', expect.objectContaining({ storagePath: 'application_originals/REAL/app1/v2.pdf' }));
+    expect([...mockObjects].filter((path) => path.startsWith('application_originals/SANDBOX/'))).toEqual([]);
+    expect(mockRecursiveDelete).toHaveBeenCalledWith('SANDBOX/app1');
+  });
+
+  it('keeps the sandbox record and its PDF when the copy fails', async () => {
+    seedSubmission();
+    mockCopy.mockRejectedValue(new Error('storage down'));
+
+    await expect(transfer()).rejects.toThrow('storage down');
+
+    expect(mockRecursiveDelete).not.toHaveBeenCalled();
+    expect(mockFileDelete).not.toHaveBeenCalled();
+    expect(mockSet).not.toHaveBeenCalled();
+  });
+
+  it('finishes a transfer run again after a PDF was already copied', async () => {
+    seedSubmission();
+    mockObjects.add(movedPdf);
+
+    await expect(transfer()).resolves.toMatchObject({ success: true });
+
+    expect(mockSubSet).toHaveBeenCalledWith('REAL/app1/dq_files/application-pdf-v1', expect.objectContaining({ storagePath: movedPdf }));
+    expect(mockRecursiveDelete).toHaveBeenCalledWith('SANDBOX/app1');
   });
 
   it('moves the record and leaves its files where the moved record points', async () => {

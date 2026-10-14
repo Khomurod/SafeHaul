@@ -67,7 +67,7 @@ function mockCollection(col) {
 }
 
 jest.mock('../../firebaseAdmin', () => ({
-  db: { collection: jest.fn() },
+  db: { collection: jest.fn(), runTransaction: jest.fn() },
 }));
 
 jest.mock('../../shared/companyTenant', () => ({
@@ -89,6 +89,11 @@ describe('submitGuestApplication', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     db.collection.mockImplementation(mockCollection);
+    // The application record is read and written in one transaction.
+    db.runTransaction.mockImplementation(async (fn) => fn({
+      get: (ref) => ref.get(),
+      set: (ref, data, options) => ref.set(data, options),
+    }));
     companyTenant.assertCompanyAcceptingIntake.mockResolvedValue({
       companyName: 'Tenant Co',
       applicationConfig: {
@@ -129,9 +134,7 @@ describe('submitGuestApplication', () => {
   };
 
   it('submits without App Check token', async () => {
-    mockGet
-      .mockResolvedValueOnce({ exists: false, data: () => null })
-      .mockResolvedValueOnce({ exists: false, data: () => null });
+    mockGet.mockResolvedValueOnce({ exists: false, data: () => null });
     const res = await submitGuestApplication(validPayload, ctxBase);
     expect(res.success).toBe(true);
   });
@@ -143,9 +146,7 @@ describe('submitGuestApplication', () => {
   });
 
   it('writes a deterministic 20-char applicationId using set+merge', async () => {
-    mockGet
-      .mockResolvedValueOnce({ exists: false, data: () => null })
-      .mockResolvedValueOnce({ exists: false, data: () => null });
+    mockGet.mockResolvedValueOnce({ exists: false, data: () => null });
     const res = await submitGuestApplication(validPayload, ctxBase);
     expect(res.success).toBe(true);
     expect(res.applicationId).toMatch(/^[a-z0-9]{20}$/);
@@ -164,16 +165,12 @@ describe('submitGuestApplication', () => {
       status: 'New Application',
     });
 
-    // First submission: doc does NOT exist (initial + final get)
-    mockGet
-      .mockResolvedValueOnce({ exists: false, data: () => null })
-      .mockResolvedValueOnce({ exists: false, data: () => null });
+    // First submission: the record does NOT exist (one read)
+    mockGet.mockResolvedValueOnce({ exists: false, data: () => null });
     const first = await submitGuestApplication(validPayload, ctxBase);
 
-    // Second submission: doc exists on both reads
-    mockGet
-      .mockResolvedValueOnce({ exists: true, data: existingData })
-      .mockResolvedValueOnce({ exists: true, data: existingData });
+    // Second submission: it exists
+    mockGet.mockResolvedValueOnce({ exists: true, data: existingData });
     const second = await submitGuestApplication(validPayload, ctxBase);
 
     expect(first.success).toBe(true);
@@ -196,7 +193,6 @@ describe('submitGuestApplication', () => {
         exists: true,
         data: () => ({ applicantKeyFull: 'different-full-hash-value' }),
       })
-      .mockResolvedValueOnce({ exists: false, data: () => null })
       .mockResolvedValueOnce({ exists: false, data: () => null });
 
     const res = await submitGuestApplication(validPayload, ctxBase);
@@ -224,9 +220,7 @@ describe('submitGuestApplication', () => {
       createdAt: 'orig-ts',
       status: 'Hired',
     });
-    mockGet
-      .mockResolvedValueOnce({ exists: true, data: progressed })
-      .mockResolvedValueOnce({ exists: true, data: progressed });
+    mockGet.mockResolvedValueOnce({ exists: true, data: progressed });
 
     await submitGuestApplication(validPayload, ctxBase);
     const writes = applicationWrites();
