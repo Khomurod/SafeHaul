@@ -90,6 +90,52 @@ describe('model pin reconciliation', () => {
         expect(cloudflare.status).toBe('unsupported');
     });
 
+    it('asks every vendor at once, so the run fits inside the call', async () => {
+        // One at a time, nine vendors at up to 15 s each outran the 60 s the
+        // console waits for an answer.
+        let inFlight = 0;
+        let peak = 0;
+        const answer = catalogueReturning({ groq: ['openai/gpt-oss-20b'] });
+        const fetchImpl = async (url) => {
+            inFlight += 1;
+            peak = Math.max(peak, inFlight);
+            await new Promise((resolve) => setImmediate(resolve));
+            inFlight -= 1;
+            return answer(url);
+        };
+
+        await diagnoseModelPins({ fetchImpl });
+
+        expect(peak).toBeGreaterThan(1);
+    });
+
+    it('reports a vendor whose check never finishes as timed out, and still checks the rest', async () => {
+        // A credential read has no time limit of its own; one that never returns
+        // must not hold up the answer for every other vendor.
+        const configured = await mockStore.resolveCredentials();
+        mockStore.resolveCredentials.mockImplementation(async (providerId) => (
+            providerId === 'gemini' ? new Promise(() => {}) : configured
+        ));
+
+        const result = await diagnoseModelPins({
+            fetchImpl: catalogueReturning({ groq: ['openai/gpt-oss-20b'] }),
+            deadlineMs: 20,
+        });
+        const gemini = result.providers.find((entry) => entry.providerId === 'gemini');
+
+        expect(gemini).toEqual({
+            providerId: 'gemini',
+            displayName: expect.any(String),
+            status: 'unreachable',
+            message: 'Timed out.',
+            pins: [],
+        });
+        expect(result.providers.find((entry) => entry.providerId === 'groq').status).toBe('stale');
+        expect(result.providers.map((entry) => entry.providerId))
+            .toEqual(require('../../ai/registry/providers').PROVIDERS.map((provider) => provider.id));
+        expect(result.complete).toBe(false);
+    });
+
     it('skips an unconfigured provider instead of reporting it broken', async () => {
         mockStore.resolveCredentials.mockResolvedValue({ complete: false, values: {}, missing: ['apiKey'], source: null });
 

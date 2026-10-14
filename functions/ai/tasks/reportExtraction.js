@@ -113,6 +113,14 @@ function fullYear(twoDigits, now = new Date()) {
 
 const pad2 = (value) => String(value).padStart(2, '0');
 const isMonth = (month) => month >= 1 && month <= 12;
+const MONTH_NAMES = Object.freeze(['january', 'february', 'march', 'april', 'may', 'june', 'july',
+    'august', 'september', 'october', 'november', 'december']);
+
+/** 1-12 for a month's name or its abbreviation of three letters or more ("Jul", "Sept"), else 0. */
+function monthOfName(word) {
+    const lower = word.toLowerCase();
+    return lower.length >= 3 ? MONTH_NAMES.findIndex((name) => name.startsWith(lower)) + 1 : 0;
+}
 
 /** `YYYY-MM-DD` for a day the calendar has, else '': "02/31" is a misreading, not a date. */
 function isoDay(year, month, day) {
@@ -141,9 +149,16 @@ function looseDateToIso(raw) {
     if ((match = /^(\d{1,2})[/-](\d{4})$/.exec(value))) {
         return isMonth(Number(match[1])) ? `${match[2]}-${pad2(match[1])}` : '';
     }
-    if ((match = /^(\d{4})-(\d{1,2})$/.exec(value))) {
+    if ((match = /^(\d{4})[-/.\s](\d{1,2})$/.exec(value))) {
         return isMonth(Number(match[2])) ? `${match[1]}-${pad2(match[2])}` : '';
     }
+    if ((match = /^([a-z]+)\.?,?[\s/-]*(\d{4})$/i.exec(value))) {
+        const month = monthOfName(match[1]);
+        return month ? `${match[2]}-${pad2(month)}` : '';
+    }
+    // Only a date that prints its day besides its year: "July 2024" or "2024"
+    // read as a full date would gain a first of the month, or of January.
+    if (!/\d/.test(value.replace(/\d{4}/, ''))) return '';
     const parsed = new Date(value);
     if (!Number.isNaN(parsed.getTime()) && /\d{4}/.test(value)) {
         return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;

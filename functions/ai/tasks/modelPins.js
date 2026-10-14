@@ -128,14 +128,36 @@ async function checkProvider(provider, { fetchImpl = fetch, deps = {} } = {}) {
 }
 
 /**
+ * The longest one vendor's check may take: its catalogue read gives up at
+ * CATALOGUE_TIMEOUT_MS, but its credential reads have no limit of their own.
+ * Every vendor is checked at once, so the whole run stays inside the 60 s the
+ * console waits for an answer.
+ */
+const PIN_CHECK_DEADLINE_MS = 20000;
+
+function withinDeadline(provider, work, deadlineMs) {
+    let timer;
+    const late = new Promise((resolve) => {
+        timer = setTimeout(() => resolve({
+            providerId: provider.id,
+            displayName: provider.displayName,
+            status: 'unreachable',
+            message: 'Timed out.',
+            pins: [],
+        }), deadlineMs);
+    });
+    return Promise.race([work, late]).finally(() => clearTimeout(timer));
+}
+
+/**
  * @param {object} [options]
  * @returns {Promise<{ providers: Array, stalePins: number }>}
  */
 async function diagnoseModelPins(options = {}) {
-    const providers = [];
-    for (const provider of PROVIDERS) {
-        providers.push(await checkProvider(provider, options));
-    }
+    const deadlineMs = options.deadlineMs ?? PIN_CHECK_DEADLINE_MS;
+    const providers = await Promise.all(PROVIDERS.map((provider) => (
+        withinDeadline(provider, checkProvider(provider, options), deadlineMs)
+    )));
     const stalePins = providers.reduce(
         (total, entry) => total + entry.pins.filter((pin) => !pin.present).length,
         0,

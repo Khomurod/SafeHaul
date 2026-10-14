@@ -289,6 +289,19 @@ describe('health and cooldown are tracked per lane', () => {
         clock.mockRestore();
     });
 
+    it('starts no run of failures for a 429, which says nothing about the version', async () => {
+        const clock = jest.spyOn(Date, 'now');
+        clock.mockReturnValue(1000);
+        await fail('gemini', 'vision', 'rate_limited');
+        expect((await store.readConfig('gemini')).laneFailedAt).toBeUndefined();
+
+        // A real failure after it begins the run then.
+        clock.mockReturnValue(2000);
+        await fail('gemini', 'vision', 'model_unavailable');
+        expect((await store.readConfig('gemini')).laneFailedAt).toEqual({ vision: 2000 });
+        clock.mockRestore();
+    });
+
     it('reports the worst lane, and unknown when nothing has been recorded', () => {
         expect(store.worstLaneHealth({ text: 'healthy', vision: 'quota' })).toBe('quota');
         expect(store.worstLaneHealth({ text: 'healthy', vision: 'degraded' })).toBe('degraded');

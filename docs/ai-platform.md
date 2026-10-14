@@ -153,7 +153,9 @@ version in each lane's list, spares included — still resolve.
 It is deliberately not in CI and not on a schedule — it needs real credentials.
 Where a vendor publishes no readable catalogue it reports "unsupported" rather
 than guessing, and an unreachable one reports "unreachable"; both are honest
-answers where "ok" would be a lie.
+answers where "ok" would be a lie. Every vendor is asked at once, and a vendor
+whose check passes 20 s reports "unreachable — Timed out.", so the run stays
+inside the 60 s the console waits.
 
 ### Verified live against the vendors, 2026-08-19
 
@@ -324,7 +326,7 @@ to a built-in one.
 the saved lists true without a programmer. A provider is checked when it is
 due: daily at about 03:25 (and at any hour after 36 h), on the first run after
 it is set up, and within the hour of the router recording a new failure in one
-of its lanes (`laneHealth`, begun at `laneFailedAt`), then at most every 6 h
+of its lanes (`laneHealth`, begun at `laneFailedAt`; a 429 is not one), then at most every 6 h
 while the last check still finds the lane failing (only the router's own
 answers reset `laneHealth`). Only enabled, configured,
 unretired providers, only the lanes they already serve, and never a lane an

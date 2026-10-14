@@ -126,13 +126,15 @@ function outcomeUpdate(current, lane, outcome, now) {
         laneFailures[lane] = failures;
         update.lastFailureCategory = typeof category === 'string' ? category.slice(0, 40) : 'internal';
         update.lastFailureLane = lane;
+        const quotaFailure = category === 'quota_exceeded' || category === 'rate_limited';
         // When this lane's run of failures began: the daily model check looks at a
-        // failure within the hour only when it is new since its last look.
-        if (!laneHealth[lane] || laneHealth[lane] === 'healthy') update.laneFailedAt = { [lane]: now };
+        // failure within the hour only when it is new since its last look. A 429
+        // begins none: the vendor asked for time, which says nothing about the
+        // version, so a real failure after it begins the run.
+        if (!quotaFailure && laneHealth[lane] !== 'degraded') update.laneFailedAt = { [lane]: now };
         laneHealth[lane] = 'degraded';
         update.consecutiveFailures = failures;
 
-        const quotaFailure = category === 'quota_exceeded' || category === 'rate_limited';
         if (quotaFailure) {
             // Provider-wide: an exhausted allowance is not a property of one lane.
             update.cooldownUntil = now + quotaCooldownMs(outcome.retryAfterHintMs);
