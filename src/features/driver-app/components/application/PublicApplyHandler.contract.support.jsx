@@ -122,7 +122,9 @@ export const profileOutcome = { current: null };
 // --- vi.mock factory bodies, verbatim from the original registrations ------
 
 export const dataContextMock = () => ({
-  useData: () => ({ setCurrentCompanyProfile: vi.fn() }),
+  useData: () => ({}),
+  // The handler scopes the applied-to company to its steps with this provider.
+  DataContext: React.createContext(null),
 });
 
 export const toastProviderMock = () => ({

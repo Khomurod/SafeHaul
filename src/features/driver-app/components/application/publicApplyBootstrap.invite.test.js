@@ -85,7 +85,6 @@ function harness(params = {}) {
             restorePostApplySession: vi.fn(),
             adoptResumeToken: vi.fn(),
             setInviteOutcome: (value) => { state.invite = value; },
-            setCurrentCompanyProfile: vi.fn(),
             setError: (value) => { state.error = value; },
             setLoading: (value) => { state.loading = value; },
             setCompany: vi.fn(),
@@ -135,9 +134,6 @@ describe('opening an application a carrier prepared', () => {
         // company before calling the helper, which is why no browser test saw it.
         expect(args.setCompany).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'co-1', companyName: 'Blue Line Freight' }),
-        );
-        expect(args.setCurrentCompanyProfile).toHaveBeenCalledWith(
-            expect.objectContaining({ id: 'co-1' }),
         );
     });
 
