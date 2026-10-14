@@ -248,6 +248,52 @@ describe('UploadField unmounting mid-upload', () => {
       vi.useRealTimers();
     }
   });
+
+  /*
+   * After a success the field shows "Uploaded Successfully" for a second, then
+   * settles. That timer must go with the field, and must not reach into the
+   * next upload.
+   */
+  it('takes the second after a success with it when it is unmounted', async () => {
+    vi.useFakeTimers();
+    try {
+      const { unmount } = renderField();
+
+      await act(async () => {
+        fireEvent.change(input(), { target: { files: [file()] } });
+      });
+      unmount();
+
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not let the second after one success end the next upload', async () => {
+    vi.useFakeTimers();
+    try {
+      const onUpload = vi.fn()
+        .mockResolvedValueOnce({ name: 'first.pdf', storagePath: 'p1' })
+        .mockImplementationOnce(() => new Promise(() => {}));
+      renderField({ onUpload });
+
+      await act(async () => {
+        fireEvent.change(input(), { target: { files: [file('first.pdf')] } });
+      });
+      await act(async () => {
+        fireEvent.change(input(), { target: { files: [file('second.pdf')] } });
+      });
+      expect(wrapper()).toHaveAttribute('data-upload-state', 'uploading');
+
+      await act(async () => { vi.advanceTimersByTime(1000); });
+
+      expect(wrapper()).toHaveAttribute('data-upload-state', 'uploading');
+      expect(screen.getByRole('button', { name: /Cancel upload/ })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('UploadField rejected-drop feedback', () => {

@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Icon, X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from '@design-system/icons';
 import {
     Button, FileInput, IconButton, IconButtonLink, Notice,
@@ -90,6 +90,10 @@ const UploadField = ({
     // The upload on its way, for Cancel. Leaving the page does not cancel it: the
     // file still lands in the answers, which outlive this field.
     const uploadRef = useRef(null);
+    // The second "Uploaded Successfully" shows after a success. It goes with the
+    // field, and a new upload, a removal or a cancel ends it.
+    const settleTimerRef = useRef(null);
+    useEffect(() => () => clearTimeout(settleTimerRef.current), []);
     const rawId = useId().replace(/:/g, '');
     const labelId = `upload-${name}-label-${rawId}`;
 
@@ -114,6 +118,7 @@ const UploadField = ({
         const file = e.target.files?.[0];
         if (!file) return;
 
+        clearTimeout(settleTimerRef.current);
         setStatus('uploading');
         setProgress(0);
         setErrorMsg(null);
@@ -145,7 +150,7 @@ const UploadField = ({
             onChange(name, result);
 
             // Reset status after a moment to show the "File Card"
-            setTimeout(() => {
+            settleTimerRef.current = setTimeout(() => {
                 setStatus('idle');
             }, 1000);
 
@@ -161,6 +166,7 @@ const UploadField = ({
     };
 
     const cancelUpload = () => {
+        clearTimeout(settleTimerRef.current);
         uploadRef.current?.abort();
         setStatus('idle');
         setProgress(0);
@@ -184,6 +190,7 @@ const UploadField = ({
     };
 
     const confirmClear = () => {
+        clearTimeout(settleTimerRef.current);
         setPendingClear(false);
         onChange(name, null);
         setStatus('idle');
