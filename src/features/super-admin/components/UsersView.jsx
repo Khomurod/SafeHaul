@@ -35,7 +35,10 @@ export function UsersView({
     userList = [],
     allCompaniesMap,
     onEdit,
-    onDelete
+    onDelete,
+    loadMore,
+    isLoadingMore = false,
+    hasMore = false,
 }) {
     const [userSearch, setUserSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -218,6 +221,19 @@ export function UsersView({
                     </div>
                 </div>
             </div>
+
+            {/* Database Pagination (Load More): the list above is the users read so far, 50 at a time. */}
+            {hasMore && (
+                <div className="shrink-0 border-t border-ds-border-subtle bg-ds-surface p-ds-4 text-center">
+                    <Button
+                        variant="secondary"
+                        loading={isLoadingMore}
+                        onClick={() => loadMore('users')}
+                    >
+                        {isLoadingMore ? 'Loading…' : 'Load More from Database'}
+                    </Button>
+                </div>
+            )}
         </Card>
     );
 }

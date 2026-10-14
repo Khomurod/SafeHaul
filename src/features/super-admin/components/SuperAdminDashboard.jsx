@@ -27,6 +27,7 @@ export function SuperAdminDashboard() {
     loadMore,
     loadingMore,
     hasMoreCompanies,
+    hasMoreUsers,
     hasMoreApps,
     searchQuery,
     setSearchQuery,
@@ -189,6 +190,7 @@ export function SuperAdminDashboard() {
               loadMore={loadMore}
               loadingMore={loadingMore}
               hasMoreCompanies={hasMoreCompanies}
+              hasMoreUsers={hasMoreUsers}
               hasMoreApps={hasMoreApps}
             />
           </main>

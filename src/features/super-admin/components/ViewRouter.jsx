@@ -50,8 +50,9 @@ export function ViewRouter({
     onDeleteUser,
     onDataUpdate,
     loadMore,
-    loadingMore = { companies: false, applications: false },
+    loadingMore = { companies: false, users: false, applications: false },
     hasMoreCompanies,
+    hasMoreUsers,
     hasMoreApps,
     // Integration Specific
     selectedIntegrationCompany,
@@ -110,6 +111,9 @@ export function ViewRouter({
                     allCompaniesMap={allCompaniesMap}
                     onEdit={onEditUser}
                     onDelete={onDeleteUser}
+                    loadMore={loadMore}
+                    isLoadingMore={loadingMore.users}
+                    hasMore={hasMoreUsers}
                 />
             );
         case SUPER_ADMIN_VIEWS.APPLICATIONS:
