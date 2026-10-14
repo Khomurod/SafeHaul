@@ -6,9 +6,9 @@
 // verbatim from `store.js`.
 
 const { createHash } = require('crypto');
-const { admin } = require('../../firebaseAdmin');
+const { admin, db } = require('../../firebaseAdmin');
 const { LANES, ALL_LANES, isLane } = require('../registry/capabilities');
-const { configRef, readConfig } = require('./configDoc');
+const { configRef, configFromSnapshot } = require('./configDoc');
 
 /** Cooldown windows. Quota exhaustion earns a longer rest than a blip. */
 const FAILURE_COOLDOWN_MS = 5 * 60 * 1000;
@@ -77,12 +77,30 @@ function quotaCooldownMs(retryAfterHintMs) {
  * `health` is still written as a single scalar for the console's summary, derived
  * as the worst of the lanes that have a recorded state, so nothing that reads it
  * breaks — it is simply no longer the only thing recorded.
+ *
+ * Read and written in one transaction: instances recording at once would each
+ * count from the same stored failures, so a burst of failures reached the
+ * cooldown late or never, and each wrote back the other lanes as it had read
+ * them.
  */
 async function recordProviderOutcome(providerId, outcome) {
-    const { success, category } = outcome;
     const lane = isLane(outcome.lane) ? outcome.lane : LANES.TEXT;
-    const now = Date.now();
-    const current = await readConfig(providerId).catch(() => ({}));
+    try {
+        const ref = configRef(providerId);
+        await db.runTransaction(async (transaction) => {
+            const current = configFromSnapshot(await transaction.get(ref));
+            transaction.set(ref, outcomeUpdate(current, lane, outcome, Date.now()), { merge: true });
+        });
+    } catch (error) {
+        // Health bookkeeping must never turn a successful AI call into a
+        // failure, nor mask a real one.
+        console.error(`[ai/credentials] Could not record outcome for ${providerId}: ${error?.message}`);
+    }
+}
+
+/** What one outcome writes to the provider's document, given what it holds now. */
+function outcomeUpdate(current, lane, outcome, now) {
+    const { success, category } = outcome;
     const laneHealth = { ...(current.laneHealth || {}) };
     const laneFailures = { ...(current.laneFailures || {}) };
 
@@ -131,14 +149,7 @@ async function recordProviderOutcome(providerId, outcome) {
     update.health = worstLaneHealth(laneHealth);
     const versionRest = versionRestUpdate(current, lane, outcome);
     if (versionRest) update.versionRest = versionRest;
-
-    try {
-        await configRef(providerId).set(update, { merge: true });
-    } catch (error) {
-        // Health bookkeeping must never turn a successful AI call into a
-        // failure, nor mask a real one.
-        console.error(`[ai/credentials] Could not record outcome for ${providerId}: ${error?.message}`);
-    }
+    return update;
 }
 
 /**
