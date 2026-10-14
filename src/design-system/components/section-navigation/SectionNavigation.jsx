@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { CheckCircle2, Circle, Icon as DsIcon } from '../../icons';
+import { contractViolation } from '../../contract';
 import './SectionNavigation.css';
 
 const KEYBOARD_KEYS = new Set(['ArrowDown', 'ArrowUp', 'Home', 'End']);
@@ -63,19 +64,20 @@ export function SectionNavigation({
   const instanceId = useId().replace(/:/g, '');
 
   if (!Array.isArray(groups)) {
-    throw new TypeError('SectionNavigation groups must be an array.');
+    contractViolation('SectionNavigation groups must be an array.');
+    groups = [];
   }
 
   if (!MOBILE_LAYOUTS.has(mobileLayout)) {
-    throw new TypeError(`Unsupported SectionNavigation mobileLayout: ${mobileLayout}`);
+    contractViolation(`Unsupported SectionNavigation mobileLayout: ${mobileLayout}`);
   }
 
   if (!CURRENT_TYPES.has(currentType)) {
-    throw new TypeError(`Unsupported SectionNavigation currentType: ${currentType}`);
+    contractViolation(`Unsupported SectionNavigation currentType: ${currentType}`);
   }
 
   if (!FRAMES.has(frame)) {
-    throw new TypeError(`Unsupported SectionNavigation frame: ${frame}`);
+    contractViolation(`Unsupported SectionNavigation frame: ${frame}`);
   }
 
   return (
@@ -113,7 +115,7 @@ export function SectionNavigation({
                   const Icon = item.icon;
                   const isCurrent = item.id === currentId;
                   if (item.status !== undefined && !(item.status in STATUSES)) {
-                    throw new TypeError(
+                    contractViolation(
                       `Unsupported SectionNavigation item status: ${item.status}`,
                     );
                   }

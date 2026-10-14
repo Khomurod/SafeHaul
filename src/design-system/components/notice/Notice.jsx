@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, Icon as DsIcon, Info, Sparkles } from '../../icons';
+import { contractViolation } from '../../contract';
 import './Notice.css';
 
 const SIZES = new Set(['md', 'sm']);
@@ -126,19 +127,20 @@ export const Notice = React.forwardRef(function Notice({
   ...props
 }, ref) {
   if (!(tone in TONES)) {
-    throw new TypeError(`Unsupported Notice tone: ${tone}`);
+    contractViolation(`Unsupported Notice tone: ${tone}`);
   }
   if (!SIZES.has(size)) {
-    throw new TypeError(`Unsupported Notice size: ${size}`);
+    contractViolation(`Unsupported Notice size: ${size}`);
   }
   if (!(announce in ANNOUNCE)) {
-    throw new TypeError(`Unsupported Notice announce: ${announce}`);
+    contractViolation(`Unsupported Notice announce: ${announce}`);
   }
   if (title !== undefined && (typeof title !== 'string' || title.trim() === '')) {
-    throw new TypeError('Notice title must be a non-empty string.');
+    contractViolation('Notice title must be a non-empty string.');
   }
   if (!TITLE_ELEMENTS.has(titleAs)) {
-    throw new TypeError(`Unsupported Notice titleAs: ${titleAs}`);
+    contractViolation(`Unsupported Notice titleAs: ${titleAs}`);
+    titleAs = 'p';
   }
 
   /*

@@ -46,6 +46,7 @@
 import React, { useRef, useState } from 'react';
 import { Shield } from '@design-system/icons';
 import DateTripletField from '@shared/components/form/DateTripletField';
+import { shownOptions } from '@/config/customQuestionOptions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { StepNavigation } from './components/StepNavigation';
 import TimeSelectField from './components/TimeSelectField';
@@ -238,7 +239,7 @@ export function DynamicQuestionsStep({
             case 'radio':
                 return (
                     <ChoiceGroup legend={label} description={field.helpText} required={field.required}>
-                        {(field.options || []).map((opt, i) => {
+                        {shownOptions(field.options).map((opt, i) => {
                             const { value: optValue, label: optLabel } = optionParts(opt);
                             return (
                                 <Radio
@@ -261,7 +262,7 @@ export function DynamicQuestionsStep({
                 const checkedValues = Array.isArray(value) ? value : [];
                 return (
                     <ChoiceGroup legend={label} description={field.helpText} required={field.required}>
-                        {(field.options || []).map((opt, i) => {
+                        {shownOptions(field.options).map((opt, i) => {
                             const { value: optValue, label: optLabel } = optionParts(opt);
                             return (
                                 <Checkbox
@@ -284,7 +285,7 @@ export function DynamicQuestionsStep({
                     <FormField id={controlId} label={label} description={field.helpText} required={field.required}>
                         <Select value={value} onChange={(e) => handleChange(key, e.target.value)}>
                             <option value="">Select an option...</option>
-                            {(field.options || []).map((opt, i) => {
+                            {shownOptions(field.options).map((opt, i) => {
                                 const { value: optValue, label: optLabel } = optionParts(opt);
                                 return <option key={i} value={optValue}>{optLabel}</option>;
                             })}

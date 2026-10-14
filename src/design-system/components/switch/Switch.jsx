@@ -1,4 +1,5 @@
 import React from 'react';
+import { contractViolation } from '../../contract';
 import './Switch.css';
 
 /**
@@ -32,10 +33,10 @@ export function Switch({
   ...props
 }) {
   if (typeof label !== 'string' || label.trim() === '') {
-    throw new TypeError('Switch requires a non-empty label naming what it turns on.');
+    contractViolation('Switch requires a non-empty label naming what it turns on.');
   }
   if (!TONES.has(tone)) {
-    throw new TypeError(`Unsupported Switch tone: ${tone}`);
+    contractViolation(`Unsupported Switch tone: ${tone}`);
   }
 
   return (

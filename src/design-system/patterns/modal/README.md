@@ -40,7 +40,8 @@ props:
 colour, blur and stacking layer. Those are what makes a dialog look like this
 product's dialog, so they are fixed chrome with no prop at all.
 
-**An unsupported value throws.** A silent fallback to the default is exactly how
+**An unsupported value throws** (outside a production build; a production build
+reports it to Sentry and draws the default). A silent fallback is exactly how
 thirty spellings accumulated without anyone noticing.
 
 `scroll="body"` deserves the emphasis it gets: without it, a dialog whose

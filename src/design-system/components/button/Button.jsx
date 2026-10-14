@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { contractViolation } from '../../contract';
 import './Button.css';
 
 /**
@@ -68,7 +69,7 @@ const TONE_REFUSALS = {
 function assertTone(variant, tone) {
   if (TONES_BY_VARIANT[variant].has(tone)) return;
   const allowed = [...TONES_BY_VARIANT[variant]].map((value) => `'${value}'`).join(', ');
-  throw new TypeError(
+  contractViolation(
     `Button variant="${variant}" cannot carry tone="${tone}". It accepts ${allowed}. `
     + (TONE_REFUSALS[variant] ?? ''),
   );
@@ -77,7 +78,8 @@ function assertTone(variant, tone) {
 function normalizeOption(value, options, fallback, name) {
   const normalized = value ?? fallback;
   if (!options.has(normalized)) {
-    throw new TypeError(`Unsupported Button ${name}: ${normalized}`);
+    contractViolation(`Unsupported Button ${name}: ${normalized}`);
+    return fallback;
   }
   return normalized;
 }
@@ -160,10 +162,10 @@ export const IconButton = forwardRef(function IconButton({
   ...props
 }, ref) {
   if (typeof label !== 'string' || label.trim() === '') {
-    throw new TypeError('IconButton requires a non-empty label.');
+    contractViolation('IconButton requires a non-empty label.');
   }
   if (!SHAPES.has(shape)) {
-    throw new TypeError(
+    contractViolation(
       `Unsupported IconButton shape: ${shape}. Expected 'square' or 'round'.`,
     );
   }
@@ -175,7 +177,7 @@ export const IconButton = forwardRef(function IconButton({
    * target size; use `ghost` for a quiet one.
    */
   if (props.variant === 'link') {
-    throw new TypeError(
+    contractViolation(
       'IconButton cannot use variant="link": it would drop below the minimum target size. Use variant="ghost".',
     );
   }

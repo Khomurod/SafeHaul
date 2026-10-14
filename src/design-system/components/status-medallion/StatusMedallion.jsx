@@ -1,4 +1,5 @@
 import React from 'react';
+import { contractViolation } from '../../contract';
 import './StatusMedallion.css';
 
 const TONES = new Set(['neutral', 'info', 'success', 'warning', 'danger', 'accent']);
@@ -26,10 +27,10 @@ const SIZES = new Set(['md', 'lg']);
  */
 export function StatusMedallion({ children, tone = 'neutral', size = 'md', className = '' }) {
   if (!TONES.has(tone)) {
-    throw new TypeError(`Unsupported StatusMedallion tone: ${tone}`);
+    contractViolation(`Unsupported StatusMedallion tone: ${tone}`);
   }
   if (!SIZES.has(size)) {
-    throw new TypeError(`Unsupported StatusMedallion size: ${size}`);
+    contractViolation(`Unsupported StatusMedallion size: ${size}`);
   }
 
   return (

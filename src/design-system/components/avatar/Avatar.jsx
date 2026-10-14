@@ -1,4 +1,5 @@
 import React from 'react';
+import { contractViolation } from '../../contract';
 import './Avatar.css';
 
 /**
@@ -30,31 +31,37 @@ const SIZES = new Set(['xs', 'sm', 'md', 'lg', 'xl']);
  * one consumer that needs this already used by hand.
  */
 function normalizeSize(size) {
+  // In a production build a check reports and returns (`contractViolation`), and a
+  // step the stylesheet does not size falls back: `md` for the base, none at `sm`.
   if (typeof size === 'string') {
     if (!SIZES.has(size)) {
-      throw new TypeError(
+      contractViolation(
         `Unsupported Avatar size: ${size}. Expected one of ${[...SIZES].map((s) => `'${s}'`).join(', ')}, `
         + 'or a responsive { base, sm }.',
       );
+      return { base: 'md', sm: undefined };
     }
     return { base: size, sm: undefined };
   }
   if (size && typeof size === 'object') {
-    const { base, sm } = size;
+    let { base, sm } = size;
     if (!SIZES.has(base)) {
-      throw new TypeError(`Avatar responsive size needs a valid \`base\`; got ${base}.`);
+      contractViolation(`Avatar responsive size needs a valid \`base\`; got ${base}.`);
+      base = 'md';
     }
     if (sm !== undefined && !SIZES.has(sm)) {
-      throw new TypeError(`Unsupported Avatar size at \`sm\`: ${sm}.`);
+      contractViolation(`Unsupported Avatar size at \`sm\`: ${sm}.`);
+      sm = undefined;
     }
     if (sm === base) {
-      throw new TypeError(
+      contractViolation(
         `Avatar responsive size is the same at both steps ('${base}'). Pass the plain string instead.`,
       );
     }
     return { base, sm };
   }
-  throw new TypeError(`Unsupported Avatar size: ${size}. Expected a step name or { base, sm }.`);
+  contractViolation(`Unsupported Avatar size: ${size}. Expected a step name or { base, sm }.`);
+  return { base: 'md', sm: undefined };
 }
 
 /**
@@ -83,10 +90,10 @@ export function Avatar({
 }) {
   const { base, sm } = normalizeSize(size);
   if (!SHAPES.has(shape)) {
-    throw new TypeError(`Unsupported Avatar shape: ${shape}. Expected 'circle' or 'square'.`);
+    contractViolation(`Unsupported Avatar shape: ${shape}. Expected 'circle' or 'square'.`);
   }
   if (!TONES.has(tone)) {
-    throw new TypeError(`Unsupported Avatar tone: ${tone}.`);
+    contractViolation(`Unsupported Avatar tone: ${tone}.`);
   }
 
   return (

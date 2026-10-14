@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { contractViolation } from '../../contract';
 import './SelectableCard.css';
 
 /**
@@ -56,22 +57,23 @@ export const SelectableCard = forwardRef(function SelectableCard({
   ...props
 }, ref) {
   if (as !== 'button' && as !== 'div') {
-    throw new TypeError(`Unsupported SelectableCard element: ${as}. Expected 'button' or 'div'.`);
+    contractViolation(`Unsupported SelectableCard element: ${as}. Expected 'button' or 'div'.`);
+    as = 'button';
   }
   if (!PADDINGS.has(padding)) {
-    throw new TypeError(`Unsupported SelectableCard padding: ${padding}.`);
+    contractViolation(`Unsupported SelectableCard padding: ${padding}.`);
   }
   if (!SURFACES.has(surface)) {
-    throw new TypeError(`Unsupported SelectableCard surface: ${surface}.`);
+    contractViolation(`Unsupported SelectableCard surface: ${surface}.`);
   }
   if (!TONES.has(tone)) {
-    throw new TypeError(
+    contractViolation(
       `Unsupported SelectableCard tone: ${tone}. Expected one of `
       + `${[...TONES].map((t) => `'${t}'`).join(', ')}.`,
     );
   }
   if (selected !== undefined && current !== undefined) {
-    throw new TypeError(
+    contractViolation(
       'SelectableCard cannot be both `selected` and `current`. `selected` is a two-state '
       + 'choice (aria-pressed); `current` is which one of a set you are on (aria-current).',
     );
@@ -83,7 +85,7 @@ export const SelectableCard = forwardRef(function SelectableCard({
    * spelling it as a div, so both are refused rather than dropped.
    */
   if (as === 'div' && (selected !== undefined || current !== undefined || onSelect)) {
-    throw new TypeError(
+    contractViolation(
       'SelectableCard as="div" is the non-interactive twin: it takes no state and no '
       + '`onSelect`. Use as="button" for a card a person can pick.',
     );

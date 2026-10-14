@@ -1207,19 +1207,20 @@ dialog goes through `Modal` and takes its size and shape from the chrome
 contract (props that would replace it throw); and every glyph comes from
 `@design-system/icons` at a step on the icon scale (`xs`…`3xl`, 12–32px) — the
 registry hands out **tokens**, not components, so `<Trash2 size={13} />` throws
-by name. A glyph **inside a design-system container states no step**: `Button`,
-`IconButton`, `Tabs`, `Chip`, `SegmentedControl`, `FileInput` and
-`StatusMedallion` size what they hold. Every file outside the registry is on the
-contract, nothing exempt; the one file that opens a glyph by hand is
-`VOEDocument.jsx`, via the contract's own `glyphComponent`, because the exported
-verification document must carry no `ds-*` class and `Icon` stamps one.
+by name. Such a throw, as every design-system prop check, happens outside a
+production build; a production build reports it to Sentry and draws the default
+(`src/design-system/contract.js`). A glyph **inside a design-system container
+states no step**: `Button`, `IconButton`, `Tabs`, `Chip`, `SegmentedControl`,
+`FileInput` and `StatusMedallion` size what they hold. The one file that opens a
+glyph by hand is `VOEDocument.jsx`, via `glyphComponent`: the exported
+verification document must carry no `ds-*` class, and `Icon` stamps one.
 
 **These rules are checked, not just written:**
 
 | Command | Blocking | Catches |
 |---|---|---|
 | `npm test` (`design-system/tests/`) | yes | An import across a layer boundary, in stylesheets or modules; a broken token contract or a pairing below AA |
-| `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control, a hand-rolled tablist, toggle, current-item control or avatar disc (a raw `<button>` with `aria-pressed` or `aria-current`, or a round disc holding a person's initial), a raw file input, a hand-written `target="_blank"` — in JSX, stories and CSS |
+| `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control, a hand-rolled tablist, toggle, current-item control or avatar disc, a raw file input, a hand-written `target="_blank"` — in JSX, stories and CSS |
 | `npm run lint:frontend` | yes | **Any** file under `src/`, outside `src/design-system/icons/`, importing `lucide-react`; there is no exemption list (`scripts/test-lint-rules.mjs` drives the rule) |
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — for `DataTable` and the `ds-native-table` contract |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours, and a frozen table column losing its opaque background |

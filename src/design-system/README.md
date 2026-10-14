@@ -153,6 +153,12 @@ components, tokens, styles or tables change, also run
 `npm run check:visual-contract`, `npm run check:table-layout` and
 `npm run test:visual` (each after `npm run build-storybook`).
 
+**"Throws" in these pages means outside a production build.** A prop check
+(`contract.js`) throws a `TypeError` in Vitest, `vite dev`, Playwright and
+Storybook. A production build (Testing and Production) reports it once per
+message, to the console and Sentry, and the component draws its default, so one
+misused prop never takes a page down.
+
 Roadmap §7 has the full table — what each guard refuses and which CI job runs it
 — plus the allowlist's rules (an entry needs a reason; a fixed violation lowers
 its entry by itself; a new or larger one is a hand edit judged in review) and the

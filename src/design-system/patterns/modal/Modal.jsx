@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
+import { contractViolation } from '../../contract';
 import './Modal.css';
 
 /**
@@ -7,7 +8,8 @@ import './Modal.css';
  * A misspelled value must throw rather than render something plausible. The
  * campaign's own history is the argument: `size="3xl"` silently falling back to
  * the default is exactly how 30 spellings of one intention accumulated without
- * anyone noticing, because nothing ever said no.
+ * anyone noticing, because nothing ever said no. A production build reports it
+ * instead, and draws the default (`contractViolation`).
  */
 const CHROME = {
     size: ['sm', 'md', 'lg', 'xl', '2xl', '4xl', '5xl', '7xl'],
@@ -17,16 +19,22 @@ const CHROME = {
     tone: ['neutral', 'danger'],
 };
 
-function assertChrome(values) {
+const CHROME_DEFAULTS = { size: 'lg', scroll: 'panel', mobile: 'inset', placement: 'center', tone: 'neutral' };
+
+/** The chrome asked for, with each unsupported value reported and replaced by its default. */
+function checkedChrome(values) {
+    const chrome = { ...values };
     for (const [prop, allowed] of Object.entries(CHROME)) {
         if (allowed.includes(values[prop])) continue;
-        throw new TypeError(
+        contractViolation(
             `Modal: unsupported ${prop} "${values[prop]}". Expected one of `
             + `${allowed.map((value) => `'${value}'`).join(', ')}. The dialog chrome is a `
             + 'contract, not a class list — if none of these is the shape you need, add the '
             + 'case here with the roadmap row that justifies it.',
         );
+        chrome[prop] = CHROME_DEFAULTS[prop];
     }
+    return chrome;
 }
 
 
@@ -103,9 +111,9 @@ export function Modal({
     className,
     children,
 }) {
-    assertChrome({ size, scroll, mobile, placement, tone });
+    ({ size, scroll, mobile, placement, tone } = checkedChrome({ size, scroll, mobile, placement, tone }));
     if (overlayClassName !== undefined || className !== undefined) {
-        throw new TypeError(
+        contractViolation(
             'Modal: `className` and `overlayClassName` were removed on 2026-09-05. They '
             + 'REPLACED the dialog chrome rather than extending it, which is how 38 call '
             + 'sites came to write 30 spellings of the same six intentions. Use `size`, '

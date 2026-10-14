@@ -448,3 +448,31 @@ describe('DynamicQuestionsStep required gate', () => {
     expect(screen.getByText('No additional questions for this company.')).toBeInTheDocument();
   });
 });
+
+/**
+ * An answer option whose text a company cleared in the questions editor.
+ *
+ * It was saved as "", and a radio or checkbox without a label is refused by the
+ * design system, so the whole step failed to draw and the driver could not get
+ * past it. The server's application definition already leaves such options out.
+ */
+describe('DynamicQuestionsStep blank answer options', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('leaves out a multiple-choice option with no text, and draws the rest', () => {
+    renderStep([{ id: 'q1', label: 'Endorsement', type: 'multipleChoice', options: ['Hazmat', '', '  ', 'Tanker'] }]);
+    expect(screen.getAllByRole('radio').map((radio) => radio.value)).toEqual(['Hazmat', 'Tanker']);
+  });
+
+  it('leaves out a checkbox option with no text, and draws the rest', () => {
+    renderStep([{ id: 'q2', label: 'Equipment', type: 'checkboxes', options: ['', 'Reefer', 'Flatbed'] }]);
+    expect(screen.getAllByRole('checkbox').map((box) => box.value)).toEqual(['Reefer', 'Flatbed']);
+  });
+
+  it('offers a dropdown no empty choice beside its own prompt', () => {
+    renderStep([{ id: 'q3', label: 'Shift', type: 'dropdown', options: ['Days', '', 'Nights'] }]);
+    const choices = [...screen.getByLabelText('Shift').options].map((option) => option.textContent);
+    expect(choices).toEqual(['Select an option...', 'Days', 'Nights']);
+  });
+});
+

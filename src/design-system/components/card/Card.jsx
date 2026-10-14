@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { contractViolation } from '../../contract';
 import './Card.css';
 
 const TONES = new Set(['neutral', 'info', 'success', 'warning', 'danger', 'accent']);
@@ -12,7 +13,7 @@ export const Card = forwardRef(function Card({
   ...props
 }, ref) {
   if (!PADDINGS.has(padding)) {
-    throw new TypeError(`Unsupported Card padding: ${padding}`);
+    contractViolation(`Unsupported Card padding: ${padding}`);
   }
 
   return (
@@ -37,7 +38,7 @@ export const MetricCard = forwardRef(function MetricCard({
   onActivate,
 }, ref) {
   if (!TONES.has(tone)) {
-    throw new TypeError(`Unsupported MetricCard tone: ${tone}`);
+    contractViolation(`Unsupported MetricCard tone: ${tone}`);
   }
 
   const Element = onActivate ? 'button' : 'div';

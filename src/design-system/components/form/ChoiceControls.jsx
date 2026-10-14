@@ -1,5 +1,6 @@
 import React, { forwardRef, useId } from 'react';
 import { FieldMessage } from './FormControls';
+import { contractViolation } from '../../contract';
 import './ChoiceControls.css';
 
 /**
@@ -58,7 +59,7 @@ const ChoiceControl = forwardRef(function ChoiceControl({
   const errorId = error ? `${controlId}-error` : undefined;
 
   if (typeof label !== 'string' || label.trim() === '') {
-    throw new TypeError(`${type === 'radio' ? 'Radio' : 'Checkbox'} requires a non-empty label.`);
+    contractViolation(`${type === 'radio' ? 'Radio' : 'Checkbox'} requires a non-empty label.`);
   }
 
   return (
@@ -102,7 +103,7 @@ export const Checkbox = forwardRef(function Checkbox(props, ref) {
 
 export const Radio = forwardRef(function Radio(props, ref) {
   if (typeof props.name !== 'string' || props.name.trim() === '') {
-    throw new TypeError('Radio requires a non-empty name so the browser can group it.');
+    contractViolation('Radio requires a non-empty name so the browser can group it.');
   }
   return <ChoiceControl {...props} ref={ref} type="radio" />;
 });
@@ -129,10 +130,10 @@ export function ChoiceGroup({
   const errorId = error ? `ds-choice-group-${generatedId}-error` : undefined;
 
   if (typeof legend !== 'string' || legend.trim() === '') {
-    throw new TypeError('ChoiceGroup requires a non-empty legend.');
+    contractViolation('ChoiceGroup requires a non-empty legend.');
   }
   if (!ORIENTATIONS.has(orientation)) {
-    throw new TypeError(`Unsupported ChoiceGroup orientation: ${orientation}`);
+    contractViolation(`Unsupported ChoiceGroup orientation: ${orientation}`);
   }
 
   return (

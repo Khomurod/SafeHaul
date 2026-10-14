@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
 import { Check } from '../../icons';
 import { Icon } from '../../icons/Icon';
+import { contractViolation } from '../../contract';
 import './Chip.css';
 
 /**
@@ -47,12 +48,12 @@ export const Chip = forwardRef(function Chip({
   ...props
 }, ref) {
   if (!TONES.has(tone)) {
-    throw new TypeError(
+    contractViolation(
       `Unsupported Chip tone: ${tone}. Expected one of ${[...TONES].map((t) => `'${t}'`).join(', ')}.`,
     );
   }
   if (!SIZES.has(size)) {
-    throw new TypeError(`Unsupported Chip size: ${size}. Expected 'xs' or 'sm'.`);
+    contractViolation(`Unsupported Chip size: ${size}. Expected 'xs' or 'sm'.`);
   }
   /*
    * A link goes somewhere; it is not a two-state control. `aria-pressed` on an
@@ -61,12 +62,12 @@ export const Chip = forwardRef(function Chip({
    * a quiet drop, and it names the two shapes that are actually wanted.
    */
   if (href !== undefined && pressed !== undefined) {
-    throw new TypeError(
+    contractViolation(
       'Chip cannot be both a link and a toggle. Drop `href` for a toggle, or `pressed` for a link.',
     );
   }
   if (href === undefined && external) {
-    throw new TypeError('Chip `external` only means something with an `href`.');
+    contractViolation('Chip `external` only means something with an `href`.');
   }
 
   const isPressed = pressed === true;
@@ -131,7 +132,7 @@ export function ChipGroup({
   const named = (typeof ariaLabel === 'string' && ariaLabel.trim() !== '')
     || (typeof ariaLabelledBy === 'string' && ariaLabelledBy.trim() !== '');
   if (!named) {
-    throw new TypeError('ChipGroup requires an ariaLabel or ariaLabelledBy naming the set.');
+    contractViolation('ChipGroup requires an ariaLabel or ariaLabelledBy naming the set.');
   }
 
   return (
