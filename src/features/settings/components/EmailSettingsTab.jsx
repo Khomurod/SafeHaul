@@ -75,6 +75,16 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
         loadSettings();
     }, [currentCompanyProfile?.id]);
 
+    // The server checks the connection on every save; "Successfully Linked" follows its answer.
+    const reportUnverifiedSave = (data) => {
+        setEmailSettings(prev => ({ ...prev, isVerified: false }));
+        setTestResult({
+            success: false,
+            message: `Settings saved, but the server could not connect with them: ${data.verificationError || 'The connection could not be verified.'}`,
+        });
+        showError('Settings saved, but the connection could not be verified.');
+    };
+
     const handleTestConnection = async () => {
         // Test connection always requires a plaintext password from user input.
         if (!smtpPassInput) {
@@ -101,7 +111,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                 // Auto-save on successful test
                 try {
                     const saveSettingsFn = httpsCallable(functions, 'saveEmailSettings');
-                    await saveSettingsFn({
+                    const saved = await saveSettingsFn({
                         companyId: currentCompanyProfile.id,
                         smtpHost: emailSettings.smtpHost,
                         smtpPort: emailSettings.smtpPort,
@@ -110,8 +120,12 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                         signature: emailSettings.signature,
                     });
                     setHasExistingPassword(true); // Password now saved
-                    setTestResult({ success: true, message: 'Settings verified and saved securely!' });
-                    showSuccess('✅ Connection successful and settings saved!');
+                    if (saved?.data?.verified === false) {
+                        reportUnverifiedSave(saved.data);
+                    } else {
+                        setTestResult({ success: true, message: 'Settings verified and saved securely!' });
+                        showSuccess('✅ Connection successful and settings saved!');
+                    }
                 } catch (saveError) {
                     console.error('Save error:', saveError);
                     setTestResult({ success: false, message: 'Verified but failed to save to database.' });
@@ -159,10 +173,15 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
             if (smtpPassInput) {
                 payload.smtpPass = smtpPassInput; // Only send plaintext if user typed a new password
             }
-            await saveSettingsFn(payload);
+            const saved = await saveSettingsFn(payload);
             if (smtpPassInput) setHasExistingPassword(true);
-            showSuccess('Email settings saved securely!');
-            setTestResult(null);
+            if (saved?.data?.verified === false) {
+                reportUnverifiedSave(saved.data);
+            } else {
+                if (saved?.data?.verified === true) setEmailSettings(prev => ({ ...prev, isVerified: true }));
+                showSuccess('Email settings saved securely!');
+                setTestResult(null);
+            }
         } catch (error) {
             console.error("Error saving email settings:", error);
             showError("Failed to save email settings.");

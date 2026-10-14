@@ -222,6 +222,38 @@ describe('EmailSettingsTab — manual save', () => {
         err.mockRestore();
     });
 
+    // Save Settings runs no Test Connection, and the server marked every save
+    // verified, so a mistyped server still read "Successfully Linked".
+    it('shows Successfully Linked after a save only when the server connected', async () => {
+        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
+        callableMocks.saveEmailSettings.mockResolvedValue({ data: { success: true, verified: true } });
+        await renderLoaded();
+        expect(screen.queryByText('Successfully Linked')).not.toBeInTheDocument();
+
+        fireEvent.click(saveButton());
+
+        expect(await screen.findByText('Successfully Linked')).toBeInTheDocument();
+        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Email settings saved securely!');
+    });
+
+    it('says the save could not connect, and why, instead of Successfully Linked', async () => {
+        callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true, isVerified: true }));
+        callableMocks.saveEmailSettings.mockResolvedValue({
+            data: { success: true, verified: false, verificationError: 'Authentication failed. Please check your email and password.' },
+        });
+        await renderLoaded();
+        expect(screen.getByText('Successfully Linked')).toBeInTheDocument();
+
+        fireEvent.click(saveButton());
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Settings saved, but the server could not connect with them: Authentication failed. Please check your email and password.',
+        );
+        expect(screen.queryByText('Successfully Linked')).not.toBeInTheDocument();
+        expect(toastMocks.showSuccess).not.toHaveBeenCalled();
+        expect(toastMocks.showError).toHaveBeenCalledWith('Settings saved, but the connection could not be verified.');
+    });
+
     it('disables the save button with aria-busy while saving', async () => {
         callableMocks.getEmailSettingsMeta.mockResolvedValue(metaResponse({ hasPassword: true }));
         let resolveSave;

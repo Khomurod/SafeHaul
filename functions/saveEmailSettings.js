@@ -2,6 +2,8 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("./firebaseAdmin");
 const { checkRateLimit } = require("./shared/rateLimiter");
 const { assertCompanyAdminStrict } = require("./shared/companyAccess");
+const { testEmailCredentials } = require("./emailService");
+const { normalizeSmtpSettings } = require("./shared/smtpSettings");
 
 /**
  * Save email settings to admin-only subcollection.
@@ -19,9 +21,14 @@ const { assertCompanyAdminStrict } = require("./shared/companyAccess");
  *     so encryption only added complexity without real security benefit.
  *
  * The SMTP password is NEVER returned to the frontend.
+ *
+ * `isVerified` ("Successfully Linked" on the settings screen) is set from a
+ * connection the server opens with the values it saves, on every save: Save
+ * Settings runs no Test Connection first.
  */
 exports.saveEmailSettings = onCall(
-    { cors: true },
+    // The secret decrypts a stored password saved encrypted (shared/smtpSettings.js) for that check.
+    { cors: true, secrets: ['SMS_ENCRYPTION_KEY'] },
     async (request) => {
         if (!request.auth) {
             throw new HttpsError('unauthenticated', 'Login required.');
@@ -67,13 +74,26 @@ exports.saveEmailSettings = onCall(
             }
         }
 
+        // The settings are saved either way; only a connection that opens marks them verified.
+        let check;
+        try {
+            check = await testEmailCredentials({
+                smtpHost: smtpHost.trim(),
+                smtpPort,
+                smtpUser: smtpUser.trim(),
+                smtpPass: normalizeSmtpSettings({ smtpPass: finalPassword }).pass,
+            });
+        } catch (err) {
+            check = { success: false, error: err.message };
+        }
+
         const emailConfig = {
             smtpHost: smtpHost.trim(),
             smtpPort: parseInt(smtpPort) || 587,
             smtpUser: smtpUser.trim(),
             smtpPass: finalPassword,           // Plaintext — subcollection is admin-only
             signature: signature || '',
-            isVerified: true,                  // Only saved after testEmailConnection succeeds
+            isVerified: check.success === true,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedBy: request.auth.uid,
         };
@@ -97,7 +117,11 @@ exports.saveEmailSettings = onCall(
         // NEVER return smtpPass to the client
         return {
             success: true,
-            message: 'Email settings saved securely.',
+            verified: emailConfig.isVerified,
+            ...(emailConfig.isVerified ? {} : { verificationError: check.error || 'The connection could not be verified.' }),
+            message: emailConfig.isVerified
+                ? 'Email settings saved securely.'
+                : 'Email settings saved, but the connection could not be verified.',
             hasPassword: true,
         };
     }
