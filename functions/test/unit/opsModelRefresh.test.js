@@ -106,6 +106,14 @@ describe('when a provider is due', () => {
         expect(dueReason({ ...failing, modelCheck: { ...lastCheck('ok'), fullCheckAt: at(37) } }, DAY)).toBe('daily');
     });
 
+    it('not for a lane only resting on a 429: the vendor asked for time, not for another version', () => {
+        const quota = { laneHealth: { vision: 'quota' }, laneFailedAt: { vision: DAY - 1 * HOUR } };
+        expect(dueReason({ ...quota, modelCheck: { fullCheckAt: at(2), checkedAt: at(2), lanes: { vision: { status: 'ok' } } } }, DAY)).toBeNull();
+        expect(dueReason({ ...quota, modelCheck: { fullCheckAt: at(7), checkedAt: at(7), lanes: { vision: { status: 'unknown' } } } }, DAY)).toBeNull();
+        // The day's check still comes.
+        expect(dueReason({ ...quota, modelCheck: { fullCheckAt: at(37), checkedAt: at(37) } }, DAY)).toBe('daily');
+    });
+
     it('within the hour of a failure that began after the last check, however recent that check', () => {
         const check = { fullCheckAt: at(2), checkedAt: at(2) };
         // 03:25 check, 04:00 failure: looked at by the next run, not at 09:25.

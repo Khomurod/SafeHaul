@@ -48,6 +48,23 @@ describe('looseDateToIso', () => {
         expect(looseDateToIso(raw)).toBe(expected);
     });
 
+    it.each([
+        ['July 2024', '2024-07'],
+        ['Jul 2024', '2024-07'],
+        ['JUL-2024', '2024-07'],
+        ['July, 2024', '2024-07'],
+        ['Sept 2024', '2024-09'],
+        ['2024/07', '2024-07'],
+        ['2024.07', '2024-07'],
+        ['2024', ''],
+    ])('reads %s, which prints no day, as %s, never a made-up first of the month', (raw, expected) => {
+        expect(looseDateToIso(raw)).toBe(expected);
+    });
+
+    it('offers an MVR expiry printed as a month and year as that month, not its first day', () => {
+        expect(normalizeMvrOutput({ expirationDate: 'JUL 2027' }).license.cdlExpiration).toBe('2027-07');
+    });
+
     it('reads a two-digit year in the nearer century, so a birth year is not in the future', () => {
         // "03/11/88" used to become 2088, and a driver read from their own
         // licence was told they were too young to apply.

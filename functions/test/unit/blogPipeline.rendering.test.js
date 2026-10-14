@@ -141,6 +141,10 @@ describe('public rendering', () => {
         expect(sitemap.statusCode).toBe(200);
         expect(sitemap.headers['Content-Type']).toMatch(/xml/);
         expect(sitemap.body).toContain(`https://safehaul.io/news/${PUBLISHED.slug}`);
+        // The root only redirects to /news (firebase.json), and a sitemap lists
+        // the pages a search engine should keep, not a redirect.
+        expect(sitemap.body).not.toContain('<loc>https://safehaul.io/</loc>');
+        expect(sitemap.body).toContain('<loc>https://safehaul.io/news</loc>');
 
         const feed = await call('/news/feed.xml');
         expect(feed.statusCode).toBe(200);

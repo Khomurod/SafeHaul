@@ -7,8 +7,8 @@
 
 const { safeUrl, wordCount } = require('../pipeline/sanitize');
 const { getTheme } = require('../pipeline/themes');
+const { PUBLIC_ORIGIN: ORIGIN } = require('../pipeline/seo');
 
-const ORIGIN = 'https://safehaul.io';
 const SITE_NAME = 'SafeHaul';
 const SECTION_NAME = 'SafeHaul News & Insights';
 const AUTHOR = 'SafeHaul Editorial Team';

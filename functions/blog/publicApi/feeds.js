@@ -40,7 +40,6 @@ ${entries}
 
 function renderSitemap(entries) {
     const staticUrls = [
-        { loc: `${ORIGIN}/`, priority: '1.0', changefreq: 'weekly' },
         { loc: `${ORIGIN}/news`, priority: '0.9', changefreq: 'daily' },
         { loc: `${ORIGIN}/privacy.html`, priority: '0.3', changefreq: 'yearly' },
     ];

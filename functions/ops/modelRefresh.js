@@ -11,7 +11,8 @@
  * - **failing**, within the hour of the router recording a new failure in one
  *   of its lanes (`laneHealth`, begun at `laneFailedAt`), whether a driver's
  *   request or the hourly watcher found it; then at most every 6 hours while
- *   the last check still found the lane failing.
+ *   the last check still found the lane failing. A quota or rate limit (429)
+ *   is not a failure here: the vendor asked for time, not for another version.
  *
  * Only enabled, configured, unretired providers, and only the lanes they already
  * serve: the check never adds a provider, enables one or changes the order.
@@ -60,8 +61,10 @@ function dueReason(config, now) {
     if (!Number.isFinite(lastFull)) return 'first';
     if (now - lastFull >= 36 * HOUR_MS) return 'daily';
     if (chicagoHour(now) === DAILY_HOUR && now - lastFull >= 20 * HOUR_MS) return 'daily';
+    // A lane resting on a quota or rate limit is not failing: the vendor asked
+    // for time, not for another version.
     const failing = Object.entries(config.laneHealth || {})
-        .filter(([, health]) => health && health !== 'healthy')
+        .filter(([, health]) => health && health !== 'healthy' && health !== 'quota')
         .map(([lane]) => lane);
     if (failing.length === 0) return null;
     // A failure that began after the last check is looked at within the hour; one
