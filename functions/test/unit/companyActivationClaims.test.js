@@ -23,6 +23,7 @@ const mockRevokeFailures = new Map(); // uid -> revocations that fail before one
 const mockOnClaimsWrite = { fn: null };
 const mockClaimsWriteFailures = new Set(); // uids whose claims can never be written
 const mockJobs = new Map();
+const mockOwed = new Map(); // uid -> sessions owed an end
 jest.mock('../../firebaseAdmin', () => {
     const db = {
         collection: (name) => {
@@ -68,10 +69,22 @@ jest.mock('../../firebaseAdmin', () => {
                 };
             }
             if (name === 'system_jobs') {
+                const owed = {
+                    doc: (uid) => ({ set: async (data) => { mockOwed.set(uid, data); } }),
+                    limit: (n) => ({
+                        get: async () => ({
+                            docs: [...mockOwed.keys()].slice(0, n).map((uid) => ({ id: uid, ref: { delete: async () => { mockOwed.delete(uid); } } })),
+                        }),
+                    }),
+                };
                 return {
                     doc: (id) => ({
                         get: async () => ({ exists: mockJobs.has(id), data: () => mockJobs.get(id) }),
                         set: async (data, opts) => { mockJobs.set(id, opts?.merge ? { ...mockJobs.get(id), ...data } : data); },
+                        collection: (sub) => {
+                            if (sub !== 'revocationsOwed') throw new Error(`unexpected ${sub}`);
+                            return owed;
+                        },
                     }),
                 };
             }
@@ -132,6 +145,7 @@ beforeEach(() => {
     mockOnClaimsWrite.fn = null;
     mockClaimsWriteFailures.clear();
     mockJobs.clear();
+    mockOwed.clear();
     timing.wait = async () => {};
     timing.now = () => 0;
     mockMemberships.push(
@@ -212,6 +226,45 @@ describe('an unrelated membership write after a deactivation run failed', () => 
     });
 });
 
+describe('a super admin whose claim sits at the token root', () => {
+    it('keeps it, with every role and session, when a company they belong to is deactivated', async () => {
+        // No super_admin membership: only the root claim says so.
+        mockClaims.set('admin-1', { globalRole: 'super_admin', roles: { 'co-a': 'company_admin' }, companyTeamIds: ['co-a'] });
+        await change('co-a', { isActive: true }, { isActive: false });
+
+        expect(mockClaims.get('admin-1')).toEqual({ globalRole: 'super_admin', roles: { 'co-a': 'company_admin' }, companyTeamIds: ['co-a'] });
+        expect(mockRevoked).not.toContain('admin-1');
+    });
+});
+
+describe('a deactivation handled after the re-activation that followed it', () => {
+    it('ends no session, the company being active again', async () => {
+        mockCompanies.set('co-a', { isActive: true });
+        await onCompanyActivationChange({
+            params: { companyId: 'co-a' },
+            data: { before: { data: () => ({ isActive: true }) }, after: { data: () => ({ isActive: false }) } },
+        });
+
+        expect(mockClaims.get('admin-1')).toEqual({ roles: { 'co-a': 'company_admin' }, companyTeamIds: ['co-a'] });
+        expect(mockRevoked).toEqual([]);
+    });
+});
+
+describe('sessions every try failed to end', () => {
+    it('are recorded and ended by the hourly pass', async () => {
+        mockRevokeFailures.set('admin-1', 3);
+        await change('co-a', { isActive: true }, { isActive: false });
+        expect(mockClaims.get('admin-1')).toEqual({ roles: {} });
+        expect(mockRevoked).not.toContain('admin-1');
+        expect([...mockOwed.keys()]).toEqual(['admin-1']);
+
+        await reconcileCompanyClaims();
+
+        expect(mockRevoked).toContain('admin-1');
+        expect(mockOwed.size).toBe(0);
+    });
+});
+
 describe('re-activating a company', () => {
     it('puts the roles back and ends no session', async () => {
         mockCompanies.set('co-a', { isActive: false });
@@ -265,12 +318,16 @@ describe('a change racing the claims write', () => {
 
     it('still ends the session when the claims kept changing until a try gave up, and the next try is quiet', async () => {
         mockCompanies.set('co-a', { isActive: true });
-        // co-a is turned off, on and off again by recruiter-1's first three writes.
+        // recruiter-1's co-a membership is removed, restored and removed again by
+        // their first three writes; co-a itself stays active throughout.
+        const membership = mockMemberships[0];
         let writes = 0;
         mockOnClaimsWrite.fn = (uid) => {
             if (uid !== 'recruiter-1' || writes === 3) return;
             writes += 1;
-            mockCompanies.set('co-a', { isActive: writes === 2 });
+            const at = mockMemberships.indexOf(membership);
+            if (writes === 2) mockMemberships.push(membership);
+            else mockMemberships.splice(at, 1);
         };
         await onCompanyActivationChange({
             params: { companyId: 'co-a' },

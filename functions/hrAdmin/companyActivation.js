@@ -11,7 +11,7 @@ const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db, auth } = require("./../firebaseAdmin");
 const { isCompanyDeactivated } = require("../shared/companyTenant");
-const { syncClaimsAndSessions, TEAM_ROLES, timing } = require("./claims");
+const { syncClaimsAndSessions, REVOCATIONS_OWED, TEAM_ROLES, timing } = require("./claims");
 
 /**
  * Where the hourly pass stopped: the company it was in and the last member it
@@ -52,7 +52,7 @@ exports.onCompanyActivationChange = onDocumentUpdated({
     const userIds = [...(await memberRoles(companyId)).keys()];
     for (const userId of userIds) {
         try {
-            await syncClaimsAndSessions(userId, deactivated);
+            await syncClaimsAndSessions(userId, companyId);
         } catch (err) {
             // The hourly pass below removes a role this run could not.
             console.error(`[onCompanyActivationChange] ${companyId}: claims for ${userId} not updated:`, err.message || err);
@@ -118,7 +118,7 @@ async function reconcileCompany(companyId, deactivated, afterUserId, stopAt, cou
                 && (deactivated ? stillGranted(claims, companyId) : !holdsRole(claims, companyId, roles.get(userId)));
             if (wrong) {
                 try {
-                    await syncClaimsAndSessions(userId, deactivated);
+                    await syncClaimsAndSessions(userId, companyId);
                     counts.fixed += 1;
                 } catch (err) {
                     // Tried again by the next walk; this one moves on.
@@ -129,6 +129,30 @@ async function reconcileCompany(companyId, deactivated, afterUserId, stopAt, cou
         }
     }
     return { finished: true };
+}
+
+/** Ends the sessions every try of an earlier run failed to end (claims.js records them). */
+async function deliverOwedRevocations(stopAt, counts) {
+    let owed;
+    try {
+        owed = await REVOCATIONS_OWED().limit(PAGE_SIZE).get();
+    } catch (err) {
+        console.error('[reconcileCompanyClaims] Could not read the sessions owed an end:', err.message || err);
+        return;
+    }
+    for (const doc of owed.docs) {
+        if (timing.now() >= stopAt) return;
+        try {
+            await auth.revokeRefreshTokens(doc.id).catch((err) => {
+                // An account deleted since has no session left to end.
+                if (err?.code !== 'auth/user-not-found') throw err;
+            });
+            await doc.ref.delete();
+            counts.ended += 1;
+        } catch (err) {
+            console.error(`[reconcileCompanyClaims] Sessions of ${doc.id} not ended:`, err.message || err);
+        }
+    }
 }
 
 /** Walks the companies in id order from `resume`, a page at a time; returns where it stopped, or null at the end. */
@@ -153,7 +177,8 @@ async function walkCompanies(resume, stopAt, counts) {
  * A deactivated company's role still in a token (a run that failed, a company
  * deactivated before the trigger existed) is removed and that session ended;
  * an active company's role missing from a token, or not the membership's (a
- * re-activation or a membership write whose run failed), is set right. Companies are read in id
+ * re-activation or a membership write whose run failed), is set right. The
+ * sessions an earlier run owed an end, every try failing, are ended first. Companies are read in id
  * order, two fields each, and judged as the trigger judges them; members are
  * looked up 100 at a time. A run out of time records where it stopped, and the
  * next run continues from there.
@@ -164,7 +189,8 @@ exports.reconcileCompanyClaims = onSchedule({
     timeoutSeconds: 300,
 }, async () => {
     const stopAt = timing.now() + RUN_BUDGET_MS;
-    const counts = { companies: 0, fixed: 0 };
+    const counts = { companies: 0, fixed: 0, ended: 0 };
+    await deliverOwedRevocations(stopAt, counts);
     const stoppedAt = await walkCompanies(await resumePoint(), stopAt, counts);
     // Cleared once the walk is complete, so the next run starts again from the
     // first company.
@@ -173,7 +199,7 @@ exports.reconcileCompanyClaims = onSchedule({
         resumeAfterUserId: stoppedAt?.afterUserId || null,
         lastRunAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
-    console.log(`[reconcileCompanyClaims] ${counts.companies} compan(ies) checked; ${counts.fixed} member(s) re-synced`
+    console.log(`[reconcileCompanyClaims] ${counts.ended} owed session end(s) delivered; ${counts.companies} compan(ies) checked; ${counts.fixed} member(s) re-synced`
         + (stoppedAt ? `; out of time, the next run continues in ${stoppedAt.companyId}.` : '.'));
 });
 

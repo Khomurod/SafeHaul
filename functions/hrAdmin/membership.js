@@ -21,7 +21,7 @@ exports.onMembershipWrite = onDocumentWritten({
 
     // Claims from every membership; a deactivated company's role stays out, and
     // one a live token may carry ends the sessions (claims.js).
-    const synced = await syncClaimsAndSessions(userId, false);
+    const synced = await syncClaimsAndSessions(userId);
     if (!synced) return;
 
     // SEC-002: mirror the user's company memberships onto users/{uid}.companyIds so
