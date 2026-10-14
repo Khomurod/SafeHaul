@@ -6,7 +6,7 @@
 
 const { createPortalUser } = require("./hrAdmin/createUser");
 const { onMembershipWrite } = require("./hrAdmin/membership");
-const { onCompanyActivationChange, reconcileDeactivatedCompanyClaims } = require("./hrAdmin/companyActivation");
+const { onCompanyActivationChange, reconcileCompanyClaims } = require("./hrAdmin/companyActivation");
 const { deletePortalUser, updatePortalUser } = require("./hrAdmin/manageUser");
 const { listCompanyTeam } = require("./hrAdmin/team");
 
@@ -14,7 +14,7 @@ module.exports = {
     createPortalUser,
     onMembershipWrite,
     onCompanyActivationChange,
-    reconcileDeactivatedCompanyClaims,
+    reconcileCompanyClaims,
     deletePortalUser,
     updatePortalUser,
     listCompanyTeam,

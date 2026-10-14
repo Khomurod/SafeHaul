@@ -90,6 +90,10 @@ jest.mock('../../firebaseAdmin', () => {
                 }
                 return { uid, customClaims: mockClaims.get(uid) };
             },
+            getUsers: async (identifiers) => {
+                if (identifiers.length > 100) throw new Error('at most 100 identifiers');
+                return { users: identifiers.map(({ uid }) => ({ uid, customClaims: mockClaims.get(uid) })), notFound: [] };
+            },
             setCustomUserClaims: async (uid, claims) => {
                 if (mockClaimsWriteFailures.has(uid)) throw Object.assign(new Error('claims too large'), { code: 'auth/claims-too-large' });
                 mockClaims.set(uid, claims);
@@ -107,7 +111,7 @@ jest.mock('../../firebaseAdmin', () => {
     };
 });
 
-const { onMembershipWrite, onCompanyActivationChange, reconcileDeactivatedCompanyClaims } = require('../../hrAdmin');
+const { onMembershipWrite, onCompanyActivationChange, reconcileCompanyClaims } = require('../../hrAdmin');
 const { __test: { timing } } = require('../../hrAdmin/companyActivation');
 
 const OWNER_CLAIMS = { roles: { 'co-a': 'super_admin', globalRole: 'super_admin' } };
@@ -260,7 +264,7 @@ describe('a member whose claims cannot be written at once', () => {
         expect(mockClaims.get('admin-1').roles).toEqual({ 'co-a': 'company_admin' });
 
         mockRevoked.length = 0;
-        await reconcileDeactivatedCompanyClaims();
+        await reconcileCompanyClaims();
 
         expect(mockClaims.get('admin-1')).toEqual({ roles: {} });
         expect(mockRevoked).toEqual(['admin-1']);
@@ -275,7 +279,7 @@ describe('the hourly pass', () => {
         mockClaims.set('admin-1', { roles: {} });
         mockClaims.set('owner-1', OWNER_CLAIMS);
 
-        await reconcileDeactivatedCompanyClaims();
+        await reconcileCompanyClaims();
 
         expect(mockClaims.get('recruiter-1')).toEqual({ roles: { 'co-b': 'recruiter' }, companyTeamIds: ['co-b'] });
         expect(mockClaims.get('admin-1')).toEqual({ roles: {} });
@@ -284,12 +288,31 @@ describe('the hourly pass', () => {
     });
 });
 
+describe('the hourly pass, for an active company', () => {
+    it('puts back a role a re-activation could not restore, and ends no session', async () => {
+        mockCompanies.set('co-a', { isActive: true });
+        mockClaims.set('admin-1', { roles: {} });
+        // Every try of the re-activation fails for admin-1.
+        mockGetUserFailures.set('admin-1', 3);
+        await onCompanyActivationChange({
+            params: { companyId: 'co-a' },
+            data: { before: { data: () => ({ isActive: false }) }, after: { data: () => ({ isActive: true }) } },
+        });
+        expect(mockClaims.get('admin-1')).toEqual({ roles: {} });
+
+        await reconcileCompanyClaims();
+
+        expect(mockClaims.get('admin-1')).toEqual({ roles: { 'co-a': 'company_admin' }, companyTeamIds: ['co-a'] });
+        expect(mockRevoked).toEqual([]);
+    });
+});
+
 describe('the hourly pass, for a company deactivated by its status', () => {
     it('finds it as the trigger does, without isActive', async () => {
         mockCompanies.set('co-a', { status: 'Suspended' });
         mockClaims.set('admin-1', { roles: { 'co-a': 'company_admin' }, companyTeamIds: ['co-a'] });
 
-        await reconcileDeactivatedCompanyClaims();
+        await reconcileCompanyClaims();
 
         expect(mockClaims.get('admin-1')).toEqual({ roles: {} });
         expect(mockRevoked).toEqual(['admin-1']);
@@ -313,24 +336,24 @@ describe('the hourly pass, out of time', () => {
         timing.now = () => clock;
         mockOnClaimsWrite.fn = (uid) => { if (uid === 'hr-3') clock = Number.POSITIVE_INFINITY; };
 
-        await reconcileDeactivatedCompanyClaims();
+        await reconcileCompanyClaims();
 
         expect(mockRevoked).toEqual(['hr-3']);
         expect(mockClaims.get('hr-4')).toEqual(stale('co-d'));
-        expect(mockJobs.get('deactivatedCompanyClaims')).toMatchObject({ resumeCompanyId: 'co-d', resumeAfterUserId: null });
+        expect(mockJobs.get('companyClaims')).toMatchObject({ resumeCompanyId: 'co-d', resumeAfterUserId: null });
 
         // co-c's role back in hr-3's token: a run that starts at co-d leaves it there.
         mockOnClaimsWrite.fn = null;
         clock = 0;
         mockClaims.set('hr-3', stale('co-c'));
-        await reconcileDeactivatedCompanyClaims();
+        await reconcileCompanyClaims();
 
         expect(mockClaims.get('hr-4')).toEqual({ roles: {} });
         expect(mockClaims.get('hr-3')).toEqual(stale('co-c'));
-        expect(mockJobs.get('deactivatedCompanyClaims')).toMatchObject({ resumeCompanyId: null, resumeAfterUserId: null });
+        expect(mockJobs.get('companyClaims')).toMatchObject({ resumeCompanyId: null, resumeAfterUserId: null });
 
         // That walk was complete, so the next run starts again from the first company.
-        await reconcileDeactivatedCompanyClaims();
+        await reconcileCompanyClaims();
 
         expect(mockClaims.get('hr-3')).toEqual({ roles: {} });
         expect(mockRevoked).toEqual(['hr-3', 'hr-4', 'hr-3']);
@@ -352,17 +375,17 @@ describe('the hourly pass, out of time', () => {
         timing.now = () => clock;
         timing.wait = async (ms) => { clock += ms; };
 
-        await reconcileDeactivatedCompanyClaims();
+        await reconcileCompanyClaims();
 
         // 240 s of waits: 30 members, then the run stops inside co-c.
-        expect(mockJobs.get('deactivatedCompanyClaims')).toMatchObject({ resumeCompanyId: 'co-c', resumeAfterUserId: 'hr-c30' });
+        expect(mockJobs.get('companyClaims')).toMatchObject({ resumeCompanyId: 'co-c', resumeAfterUserId: 'hr-c30' });
         expect(mockClaims.get('hr-4')).toEqual(stale('co-d'));
 
-        await reconcileDeactivatedCompanyClaims();
+        await reconcileCompanyClaims();
 
         expect(mockClaims.get('hr-4')).toEqual({ roles: {} });
         expect(mockRevoked).toEqual(['hr-4']);
-        expect(mockJobs.get('deactivatedCompanyClaims')).toMatchObject({ resumeCompanyId: null, resumeAfterUserId: null });
+        expect(mockJobs.get('companyClaims')).toMatchObject({ resumeCompanyId: null, resumeAfterUserId: null });
     });
 
     it('reads every page of companies', async () => {
@@ -371,9 +394,9 @@ describe('the hourly pass, out of time', () => {
         mockMemberships.push({ userId: 'hr-z', companyId: 'co-z', role: 'hr_user' });
         mockClaims.set('hr-z', stale('co-z'));
 
-        await reconcileDeactivatedCompanyClaims();
+        await reconcileCompanyClaims();
 
         expect(mockClaims.get('hr-z')).toEqual({ roles: {} });
-        expect(mockJobs.get('deactivatedCompanyClaims')).toMatchObject({ resumeCompanyId: null, resumeAfterUserId: null });
+        expect(mockJobs.get('companyClaims')).toMatchObject({ resumeCompanyId: null, resumeAfterUserId: null });
     });
 });

@@ -994,7 +994,7 @@ released if the connect then fails.
 | `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger cannot reach (after a projection change) |
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response` and notifies the carrier: the good-faith record |
-| `reconcileDeactivatedCompanyClaims` | every 60 min | Removes a deactivated company's role left in a token, ending that session (`onCompanyActivationChange` does it at once) |
+| `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
 | `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, and runs with or without a chat |
 | `refreshAiModelLists` | hourly at :25, America/Chicago | Daily, and within the hour of a lane failure, re-tests each enabled provider's photo and text model versions on a made-up licence; keeps those that pass, adds catalogue models that pass, never empties a lane; tells Telegram what changed or needs fixing |
