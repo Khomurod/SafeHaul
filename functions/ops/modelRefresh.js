@@ -33,7 +33,9 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 
 const { db } = require('../firebaseAdmin');
-const { PROVIDERS, isRetired } = require('../ai/registry/providers');
+const {
+    PROVIDERS, isRetired, missingRequiredConfig, credentialReadiness,
+} = require('../ai/registry/providers');
 const store = require('../ai/credentials/store');
 const { saveModelCheck } = require('../ai/credentials/modelLists');
 const { checkProvider } = require('../ai/tasks/modelCheck');
@@ -125,11 +127,6 @@ async function setAutoSelect(enabled) {
     await SETTINGS_REF().set({ autoSelect: enabled === true }, { merge: true });
 }
 
-/** Whether a provider's credentials let the check run: all present, all readable. */
-function credentialsReady(credentials) {
-    return Boolean(credentials?.complete) && (credentials.unreadable || []).length === 0;
-}
-
 /** The providers to check now, with what each needs. */
 async function dueProviders({ now, force, providerIds, deps }) {
     const configs = await store.readAllConfigs();
@@ -140,8 +137,10 @@ async function dueProviders({ now, force, providerIds, deps }) {
         if (config.enabled === false) continue;
         const reason = force ? 'requested' : dueReason(config, now);
         if (!reason) continue;
+        // Configured as the router means it: a provider it would never use is not checked.
+        if (missingRequiredConfig(provider, config).length > 0) continue;
         const credentials = await store.resolveCredentials(provider.id, deps);
-        if (!credentialsReady(credentials)) continue;
+        if (credentialReadiness(credentials) !== 'ready') continue;
         due.push({ provider, config, credentials, reason });
     }
     return due;
@@ -320,4 +319,3 @@ module.exports.dueReason = dueReason;
 module.exports.recordFor = recordFor;
 module.exports.readCheckState = readCheckState;
 module.exports.setAutoSelect = setAutoSelect;
-module.exports.credentialsReady = credentialsReady;

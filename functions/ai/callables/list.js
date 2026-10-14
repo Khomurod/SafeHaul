@@ -11,7 +11,7 @@ const { MASK, callableOptions, onCall, safeFailure } = require('./options');
 
 const { assertSuperAdmin, assertWithinRateLimit } = require('../../environmentVault/guards');
 const { ACTIONS, RESULTS, recordAuditEvent } = require('../../environmentVault/audit');
-const { PROVIDERS, resolveModel } = require('../registry/providers');
+const { PROVIDERS, missingRequiredConfig, resolveModel } = require('../registry/providers');
 const { CAPABILITIES, CAPABILITY_LABELS } = require('../registry/capabilities');
 const { describeRouting } = require('../router/router');
 const routingOrder = require('../router/order');
@@ -56,18 +56,13 @@ async function buildProviderRow(provider, configs, rank) {
     // earns its keep. `resolveCredentials` makes the same allowance.
     let credentialSource = credentials.complete ? 'secret-manager' : null;
     let configured = credentials.complete;
-    if (!configured && provider.id === 'groq' && process.env.GROQ_API_KEY) {
+    if (!configured && store.legacyCredential(provider.id, 'apiKey')) {
         configured = true;
-        credentialSource = unreadable.includes('apiKey')
-            ? 'legacy-env-after-read-failure'
-            : 'legacy-env';
+        credentialSource = store.legacySource(unreadable.includes('apiKey'));
     }
 
     const cooldown = store.cooldownState(config);
-    const missingConfig = provider.configFields
-        .filter((field) => field.required)
-        .filter((field) => !(typeof config[field.name] === 'string' && config[field.name].trim()))
-        .map((field) => field.name);
+    const missingConfig = missingRequiredConfig(provider, config).map((field) => field.name);
 
     return {
         id: provider.id,
@@ -90,7 +85,7 @@ async function buildProviderRow(provider, configs, rank) {
             description: field.description,
             required: field.required,
             configured: Boolean(credentials.values[field.name])
-                || (provider.id === 'groq' && field.name === 'apiKey' && credentialSource === 'legacy-env'),
+                || (credentialSource === 'legacy-env' && Boolean(store.legacyCredential(provider.id, field.name))),
             // Always the same fixed mask. Never a real value or its length.
             maskedValue: MASK,
         })),

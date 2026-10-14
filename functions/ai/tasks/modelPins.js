@@ -27,7 +27,9 @@
  * answers "does the name still resolve", the probes answer "does it do the job".
  */
 
-const { PROVIDERS, isRetired, resolveModels } = require('../registry/providers');
+const {
+    PROVIDERS, isRetired, resolveModels, missingRequiredConfig, credentialReadiness,
+} = require('../registry/providers');
 const { CAPABILITIES } = require('../registry/capabilities');
 const store = require('../credentials/store');
 
@@ -94,10 +96,9 @@ async function checkProvider(provider, { fetchImpl = fetch, deps = {} } = {}) {
     }
     // Unreadable is a different fault from unconfigured, and only one of them is
     // fixed by adding a credential.
-    if (Array.isArray(credentials.unreadable) && credentials.unreadable.length > 0) {
-        return { ...base, status: 'credential_error', pins: [] };
-    }
-    if (!credentials.complete) {
+    const readiness = credentialReadiness(credentials);
+    if (readiness === 'unreadable') return { ...base, status: 'credential_error', pins: [] };
+    if (readiness === 'missing' || missingRequiredConfig(provider, config).length > 0) {
         return { ...base, status: 'unconfigured', pins: [] };
     }
 

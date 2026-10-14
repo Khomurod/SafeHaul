@@ -113,6 +113,31 @@ describe('an unreadable credential is not an absent one', () => {
         expect(JSON.stringify(read)).not.toMatch(/PERMISSION_DENIED/);
         expect(JSON.stringify(read)).not.toMatch(/projects\//);
     });
+
+    it('decides when the legacy Groq binding counts in one place, so the router, the list and a reveal agree', () => {
+        const fs = require('fs');
+        const path = require('path');
+        const root = path.resolve(__dirname, '../..');
+        const readers = [];
+        const walk = (dir) => {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                if (entry.name === 'node_modules' || entry.name === 'test') continue;
+                const full = path.join(dir, entry.name);
+                if (entry.isDirectory()) walk(full);
+                else if (entry.name.endsWith('.js') && fs.readFileSync(full, 'utf8').includes('process.env.GROQ_API_KEY')) {
+                    readers.push(path.relative(root, full));
+                }
+            }
+        };
+        walk(root);
+
+        // Besides the store's fallback: the migration copies the binding into
+        // Secret Manager, and the access diagnostic reports whether this runtime
+        // has it. Neither decides whether a request may use it.
+        expect(readers.sort()).toEqual([
+            'ai/callables/credentials.js', 'ai/credentials/store.js', 'ai/tasks/credentialAccess.js',
+        ]);
+    });
 });
 
 /**

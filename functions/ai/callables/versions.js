@@ -15,14 +15,14 @@ const { HttpsError, callableOptions, onCall, safeFailure } = require('./options'
 
 const { assertSuperAdmin, assertWithinRateLimit, guardPrivileged } = require('../../environmentVault/guards');
 const { ACTIONS, RESULTS, recordAuditEvent } = require('../../environmentVault/audit');
-const { PROVIDERS, isRetired, resolveModels } = require('../registry/providers');
+const {
+    PROVIDERS, isRetired, resolveModels, missingRequiredConfig, credentialReadiness,
+} = require('../registry/providers');
 const routingOrder = require('../router/order');
 const store = require('../credentials/store');
 const { lanesOf, operatorChose } = require('../tasks/modelCheck');
 const { RESULT } = require('../tasks/modelVerification');
-const {
-    credentialsReady, readCheckState, runModelRefresh, setAutoSelect,
-} = require('../../ops/modelRefresh');
+const { readCheckState, runModelRefresh, setAutoSelect } = require('../../ops/modelRefresh');
 
 /**
  * "Check now" stops starting tests after this: the last one ends within its own
@@ -84,16 +84,15 @@ function versionsRow(provider, config, credentials, { autoSelect }) {
 }
 
 /**
- * Whether the check can run for a provider: `ready` by the test the check itself
- * applies (`credentialsReady`), `missing` when a credential is not there, and
- * `unreadable` when it is there and this runtime may not read it. The last needs
- * a grant, not a new key, so the console says so (as `list.js` does).
+ * Whether the check can run for a provider, by the rules the check itself
+ * applies: `missing` when a required setting or a credential is not there, and
+ * `unreadable` when a credential is there and this runtime may not read it. The
+ * last needs a grant, not a new key, so the console says so (as `list.js` does).
  */
-async function credentialState(providerId) {
+async function credentialState(provider, config) {
+    if (missingRequiredConfig(provider, config).length > 0) return 'missing';
     try {
-        const credentials = await store.resolveCredentials(providerId);
-        if (credentialsReady(credentials)) return 'ready';
-        return (credentials?.unreadable || []).length > 0 ? 'unreadable' : 'missing';
+        return credentialReadiness(await store.resolveCredentials(provider.id));
     } catch {
         return 'unreadable';
     }
@@ -107,11 +106,12 @@ async function readVersions() {
         readCheckState(),
     ]);
     const providers = routingOrder.orderProviders(PROVIDERS, storedOrder).filter((provider) => !isRetired(provider));
-    const credentials = await Promise.all(providers.map((provider) => credentialState(provider.id)));
+    const configOf = (provider) => configs.get(provider.id) || { enabled: true };
+    const credentials = await Promise.all(providers.map((provider) => credentialState(provider, configOf(provider))));
     return {
         ...checkState,
         providers: providers.map((provider, index) => versionsRow(
-            provider, configs.get(provider.id) || { enabled: true }, credentials[index], checkState,
+            provider, configOf(provider), credentials[index], checkState,
         )),
         generatedAt: new Date().toISOString(),
     };

@@ -9,7 +9,9 @@
  * public surface; these modules are the pieces it decides with.
  */
 
-const { supportsAllCapabilities, resolveModels, isRetired } = require('../registry/providers');
+const {
+    supportsAllCapabilities, resolveModels, isRetired, missingRequiredConfig, credentialReadiness,
+} = require('../registry/providers');
 const { CAPABILITIES, laneForCapability } = require('../registry/capabilities');
 const store = require('../credentials/store');
 const { orderForWalk } = require('./versionPolicy');
@@ -91,10 +93,7 @@ async function evaluateProvider(provider, { capabilities, primaryCapability, con
 
     // Required non-secret settings (Cloudflare's account id, for instance) are
     // part of being configured, not an optional extra.
-    const missingConfig = provider.configFields
-        .filter((field) => field.required)
-        .some((field) => !(typeof config[field.name] === 'string' && config[field.name].trim()));
-    if (missingConfig) return { eligible: false, reason: SKIP_REASONS.UNCONFIGURED };
+    if (missingRequiredConfig(provider, config).length > 0) return { eligible: false, reason: SKIP_REASONS.UNCONFIGURED };
 
     const credentials = await store.resolveCredentials(provider.id, deps);
     // A credential that could not be *read* is an infrastructure fault, not an
@@ -102,10 +101,9 @@ async function evaluateProvider(provider, { capabilities, primaryCapability, con
     // now reports which it was, so this no longer depends on an exception
     // reaching `safeEvaluateProvider` to tell the difference — though that catch
     // remains, because a store implementation is still allowed to throw.
-    if (Array.isArray(credentials.unreadable) && credentials.unreadable.length > 0) {
-        return { eligible: false, reason: SKIP_REASONS.CREDENTIAL_ERROR };
-    }
-    if (!credentials.complete) return { eligible: false, reason: SKIP_REASONS.UNCONFIGURED };
+    const readiness = credentialReadiness(credentials);
+    if (readiness === 'unreadable') return { eligible: false, reason: SKIP_REASONS.CREDENTIAL_ERROR };
+    if (readiness === 'missing') return { eligible: false, reason: SKIP_REASONS.UNCONFIGURED };
 
     const versions = resolveModels(provider, primaryCapability, config);
     if (versions.length === 0) return { eligible: false, reason: SKIP_REASONS.NO_MODEL };

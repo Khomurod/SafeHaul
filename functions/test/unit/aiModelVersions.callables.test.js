@@ -39,8 +39,6 @@ jest.mock('../../ops/modelRefresh', () => ({
     runModelRefresh: (...args) => mockRefresh.runModelRefresh(...args),
     readCheckState: (...args) => mockRefresh.readCheckState(...args),
     setAutoSelect: (...args) => mockRefresh.setAutoSelect(...args),
-    // The real rule, so "not set up" here cannot drift from what the check skips.
-    credentialsReady: (...args) => jest.requireActual('../../ops/modelRefresh').credentialsReady(...args),
 }));
 
 const aiCallables = require('../../ai/callables');
@@ -158,6 +156,17 @@ describe('getAiModelVersions', () => {
         expect(row(result, 'sambanova').state).toBe('key_unreadable');
         // A credential read that throws is that, for this row, not a failed table.
         expect(row(result, 'openrouter').state).toBe('key_unreadable');
+    });
+
+    it('calls a provider missing a required setting not set up, whatever its key: Cloudflare without its account id', async () => {
+        const stored = await mockStore.readAllConfigs();
+        mockStore.resolveCredentials.mockResolvedValue({ complete: true, values: { apiToken: KEY_VALUE }, unreadable: [] });
+
+        mockStore.readAllConfigs.mockResolvedValue(new Map([...stored, ['cloudflare', { enabled: true }]]));
+        expect(row(await aiCallables.getAiModelVersions(request()), 'cloudflare').state).toBe('not_set_up');
+
+        mockStore.readAllConfigs.mockResolvedValue(new Map([...stored, ['cloudflare', { enabled: true, accountId: 'a'.repeat(32) }]]));
+        expect(row(await aiCallables.getAiModelVersions(request()), 'cloudflare').state).toBe('ready');
     });
 
     it('shows only the lanes a provider serves', async () => {

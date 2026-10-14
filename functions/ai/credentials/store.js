@@ -97,6 +97,22 @@ async function readCredentials(providerId, options = {}) {
 }
 
 /**
+ * The pre-migration deploy binding for a credential, or null: only Groq's API
+ * key has one (`GROQ_API_KEY`). The only reader of that binding as a fallback,
+ * so the router, the console and a reveal cannot disagree about when it counts.
+ */
+function legacyCredential(providerId, fieldName) {
+    return providerId === 'groq' && fieldName === 'apiKey' && process.env.GROQ_API_KEY
+        ? process.env.GROQ_API_KEY
+        : null;
+}
+
+/** Which route reached the legacy binding: after a failed managed read (a fault to fix), or with none saved. */
+function legacySource(readFailed) {
+    return readFailed ? 'legacy-env-after-read-failure' : 'legacy-env';
+}
+
+/**
  * Credentials plus the legacy fallback.
  *
  * Before migration, Groq's key exists only as the deploy-time `GROQ_API_KEY`
@@ -131,34 +147,18 @@ async function resolveCredentials(providerId, options = {}) {
 
     const apiKeyUnavailable = resolved.missing.includes('apiKey')
         || resolved.unreadable.includes('apiKey');
-    if (providerId === 'groq' && apiKeyUnavailable) {
-        const legacy = process.env.GROQ_API_KEY;
-        if (legacy) {
-            return {
-                complete: true,
-                values: { ...resolved.values, apiKey: legacy },
-                missing: [],
-                unreadable: [],
-                source: resolved.unreadable.includes('apiKey')
-                    ? 'legacy-env-after-read-failure'
-                    : 'legacy-env',
-            };
-        }
+    const legacy = apiKeyUnavailable ? legacyCredential(providerId, 'apiKey') : null;
+    if (legacy) {
+        return {
+            complete: true,
+            values: { ...resolved.values, apiKey: legacy },
+            missing: [],
+            unreadable: [],
+            source: legacySource(resolved.unreadable.includes('apiKey')),
+        };
     }
 
     return { ...resolved, source: null };
-}
-
-/** True when every required credential *and* every required config field is present. */
-async function isConfigured(providerId, options = {}) {
-    const provider = requireProvider(providerId);
-    const credentials = await resolveCredentials(providerId, options);
-    if (!credentials.complete) return false;
-
-    const config = options.config || await readConfig(providerId);
-    return provider.configFields
-        .filter((field) => field.required)
-        .every((field) => typeof config[field.name] === 'string' && config[field.name].trim());
 }
 
 async function saveCredential(providerId, fieldName, value, options = {}) {
@@ -203,12 +203,8 @@ async function revealCredential(providerId, fieldName, options = {}) {
     }
     if (value) return { value, source: 'secret-manager' };
 
-    if (provider.id === 'groq' && field.name === 'apiKey' && process.env.GROQ_API_KEY) {
-        return {
-            value: process.env.GROQ_API_KEY,
-            source: readFailed ? 'legacy-env-after-read-failure' : 'legacy-env',
-        };
-    }
+    const legacy = legacyCredential(provider.id, field.name);
+    if (legacy) return { value: legacy, source: legacySource(readFailed) };
     return { value: null, source: null, unreadable: readFailed };
 }
 
@@ -226,7 +222,8 @@ module.exports = {
     readCredentials,
     resolveCredentials,
     revealCredential,
-    isConfigured,
+    legacyCredential,
+    legacySource,
     saveCredential,
     deleteCredential,
     recordProviderOutcome,
