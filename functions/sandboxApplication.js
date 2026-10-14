@@ -99,38 +99,44 @@ exports.deleteSandboxApplication = functions
     return { success: true };
   });
 
+/** Where an application's preserved PDFs live under a company. */
+const originalsPrefix = (companyId, applicationId) => `${ORIGINAL_PDF_PREFIX}/${companyId}/${applicationId}/`;
+
 /**
  * Copies the application's preserved PDFs (the submission originals, which
  * carry the full SSN) to the target company's path, never over an object
- * already there: one is, from an earlier try of this transfer. Returns each
- * old path with its new one.
+ * already there: one is, from an earlier try of this transfer. Returns the
+ * sandbox objects it copied.
  */
 async function copyPreservedPdfs(bucket, applicationId, targetCompanyId) {
-  const from = `${ORIGINAL_PDF_PREFIX}/${SANDBOX_ID}/${applicationId}/`;
-  const to = `${ORIGINAL_PDF_PREFIX}/${targetCompanyId}/${applicationId}/`;
+  const from = originalsPrefix(SANDBOX_ID, applicationId);
+  const to = originalsPrefix(targetCompanyId, applicationId);
   const [files] = await bucket.getFiles({ prefix: from });
-  const moved = new Map();
   for (const file of files) {
-    const destination = `${to}${file.name.slice(from.length)}`;
     try {
-      await file.copy(bucket.file(destination), { preconditionOpts: { ifGenerationMatch: 0 } });
+      await file.copy(bucket.file(`${to}${file.name.slice(from.length)}`), { preconditionOpts: { ifGenerationMatch: 0 } });
     } catch (err) {
       if (err?.code !== 412) throw err;
     }
-    moved.set(file.name, destination);
   }
-  return moved;
+  return files;
 }
 
 /**
  * Copies the carried subcollections of the sandbox record under the target
- * record, with the tenant field and the moved PDFs' paths pointed at the target.
+ * record, with the tenant field and every preserved-PDF path pointed at the
+ * target. By prefix: an entry whose sandbox PDF an earlier try already
+ * deleted moves too.
  */
-async function copySubcollections(sourceRef, destRef, targetCompanyId, movedPdfs) {
+async function copySubcollections(sourceRef, destRef, applicationId, targetCompanyId) {
+  const from = originalsPrefix(SANDBOX_ID, applicationId);
+  const to = originalsPrefix(targetCompanyId, applicationId);
   const retarget = (data) => {
     const copy = { ...data };
     if (copy.companyId === SANDBOX_ID) copy.companyId = targetCompanyId;
-    if (movedPdfs.has(copy.storagePath)) copy.storagePath = movedPdfs.get(copy.storagePath);
+    if (typeof copy.storagePath === 'string' && copy.storagePath.startsWith(from)) {
+      copy.storagePath = `${to}${copy.storagePath.slice(from.length)}`;
+    }
     return copy;
   };
   for (const name of CARRIED_SUBCOLLECTIONS) {
@@ -188,17 +194,15 @@ exports.transferSandboxApplication = functions
       updatedAt: FieldValue.serverTimestamp(),
     };
 
-    // Everything is copied before anything is deleted, so a failure leaves the
-    // sandbox record whole and the transfer can be run again.
+    // The copies first, then the sandbox PDFs go, then the company's record
+    // appears and the sandbox record goes. A step that fails stops the transfer
+    // with the sandbox record still there, and running it again finishes it:
+    // no PDF with the full SSN is left where no record points at it.
     const bucket = storage.bucket();
-    const movedPdfs = await copyPreservedPdfs(bucket, applicationId, targetCompanyId);
-    await copySubcollections(sourceRef, destRef, targetCompanyId, movedPdfs);
+    const sandboxPdfs = await copyPreservedPdfs(bucket, applicationId, targetCompanyId);
+    await copySubcollections(sourceRef, destRef, applicationId, targetCompanyId);
+    for (const file of sandboxPdfs) await file.delete();
     await destRef.set(moved);
-    for (const path of movedPdfs.keys()) {
-      await bucket.file(path).delete().catch((err) => {
-        console.warn(`[transferSandboxApplication] Sandbox copy of ${path} not removed: ${err?.message || err}`);
-      });
-    }
     await db.recursiveDelete(sourceRef);
 
     return { success: true, companyId: targetCompanyId, companyName, applicationId };
