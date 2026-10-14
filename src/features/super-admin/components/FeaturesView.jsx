@@ -294,7 +294,9 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                                             {company.companyName}
                                         </th>
                                         {ALL_FEATURES.map(f => {
-                                            const isEnabled = company.features?.[f.key] === true;
+                                            // On unless switched off, as every screen that honours
+                                            // the flag reads it (`features.{key} === false` hides it).
+                                            const isEnabled = company.features?.[f.key] !== false;
                                             const schedule = company.featureSchedules?.[f.key];
 
                                             return (

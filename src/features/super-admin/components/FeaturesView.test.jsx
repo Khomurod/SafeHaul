@@ -106,6 +106,18 @@ describe('FeaturesView — toggles are named and stateful (defect)', () => {
         expect(screen.getByRole('switch', { name: 'E-Docs for Artificial Freight Co' })).not.toBeChecked();
     });
 
+    it('shows a feature the company never set as on, as the app treats it, and switches it off', async () => {
+        renderView();
+        const campaigns = screen.getByRole('switch', { name: 'Campaigns for Second Artificial Carrier' });
+        expect(campaigns).toBeChecked();
+
+        fireEvent.click(campaigns);
+        await waitFor(() => expect(updateDoc).toHaveBeenCalledWith(
+            { path: 'companies/co-2' },
+            { 'features.campaignsEnabled': false, 'featureSchedules.campaignsEnabled': null },
+        ));
+    });
+
     it('is operable by keyboard', async () => {
         renderView();
         const box = screen.getByRole('switch', { name: 'E-Docs for Artificial Freight Co' });
