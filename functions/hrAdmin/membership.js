@@ -4,8 +4,8 @@
 // cache in sync with `memberships/`. The claims come from claims.js.
 
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
-const { admin, db, auth } = require("./../firebaseAdmin");
-const { syncUserClaims } = require("./claims");
+const { admin, db } = require("./../firebaseAdmin");
+const { syncClaimsAndSessions } = require("./claims");
 
 
 // --- 2. SYNC CLAIMS TRIGGER (The Critical Fix) ---
@@ -19,14 +19,10 @@ exports.onMembershipWrite = onDocumentWritten({
     const userId = after ? after.userId : before?.userId;
     if (!userId) return;
 
-    // Claims from every membership; a deactivated company's role stays out (claims.js).
-    const synced = await syncUserClaims(userId);
+    // Claims from every membership; a deactivated company's role stays out, and
+    // one a live token may carry ends the sessions (claims.js).
+    const synced = await syncClaimsAndSessions(userId, false);
     if (!synced) return;
-    // A role this sync wrote and then took back, its company deactivated in
-    // between, may sit in a token minted meanwhile; ending the sessions voids it.
-    if (synced.removedDuringSync && !synced.isGlobalAdmin) {
-        await auth.revokeRefreshTokens(userId);
-    }
 
     // SEC-002: mirror the user's company memberships onto users/{uid}.companyIds so
     // Firestore rules can allow same-company teammate reads (readerSharesCompany)

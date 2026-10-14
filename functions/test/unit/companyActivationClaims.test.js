@@ -188,6 +188,28 @@ describe('a membership write racing a deactivation', () => {
         expect(mockClaims.get('recruiter-1')).toEqual({ roles: { 'co-b': 'recruiter' }, companyTeamIds: ['co-b'] });
         expect(mockRevoked).toEqual(['recruiter-1']);
     });
+
+    it('tries the revocation again when it fails', async () => {
+        mockCompanies.set('co-a', { isActive: true });
+        mockOnClaimsWrite.fn = (uid) => {
+            if (uid === 'recruiter-1') { mockOnClaimsWrite.fn = null; mockCompanies.set('co-a', { isActive: false }); }
+        };
+        mockRevokeFailures.set('recruiter-1', 1);
+        await onMembershipWrite({ data: { before: { data: () => undefined }, after: { data: () => mockMemberships[0] } } });
+
+        expect(mockRevoked).toEqual(['recruiter-1']);
+    });
+});
+
+describe('an unrelated membership write after a deactivation run failed', () => {
+    it("removes the company's role the token still held, and ends the sessions", async () => {
+        mockCompanies.set('co-a', { isActive: false });
+        mockClaims.set('recruiter-1', { roles: { 'co-a': 'recruiter', 'co-b': 'recruiter' }, companyTeamIds: ['co-a', 'co-b'] });
+        await onMembershipWrite({ data: { before: { data: () => undefined }, after: { data: () => mockMemberships[1] } } });
+
+        expect(mockClaims.get('recruiter-1')).toEqual({ roles: { 'co-b': 'recruiter' }, companyTeamIds: ['co-b'] });
+        expect(mockRevoked).toEqual(['recruiter-1']);
+    });
 });
 
 describe('re-activating a company', () => {

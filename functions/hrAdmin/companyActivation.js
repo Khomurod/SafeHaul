@@ -11,10 +11,7 @@ const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db, auth } = require("./../firebaseAdmin");
 const { isCompanyDeactivated } = require("../shared/companyTenant");
-const { syncUserClaims, TEAM_ROLES } = require("./claims");
-
-/** The waits before a member's second and third try. */
-const RETRY_WAITS_MS = Object.freeze([2000, 6000]);
+const { syncClaimsAndSessions, TEAM_ROLES, timing } = require("./claims");
 
 /**
  * Where the hourly pass stopped: the company it was in and the last member it
@@ -29,33 +26,6 @@ const PAGE_SIZE = 200;
 const AUTH_LOOKUP_CHUNK = 100;
 /** No member is started after this, inside the 300 s timeout: one member's tries take seconds. */
 const RUN_BUDGET_MS = 240 * 1000;
-
-/** Replaced by the tests, which have no seconds to spend. */
-const timing = {
-    wait: (ms) => new Promise((resolve) => { setTimeout(resolve, ms); }),
-    now: () => Date.now(),
-};
-
-/** Re-syncs one member's claims, three tries; ends their sessions when a role was taken away. */
-async function updateMember(userId, endSessions) {
-    // Shared by the tries: a role one of them wrote and the claims then lost
-    // ends the sessions, even when that try failed and the next sync is quiet.
-    const written = new Set();
-    for (let attempt = 0; ; attempt += 1) {
-        try {
-            const synced = await syncUserClaims(userId, written);
-            // A session keeps its current token for up to an hour; revoking makes the
-            // next refresh fail, so the new claims cannot be ignored.
-            if (synced && !synced.isGlobalAdmin && (endSessions || synced.removedDuringSync)) {
-                await auth.revokeRefreshTokens(userId);
-            }
-            return;
-        } catch (err) {
-            if (attempt === RETRY_WAITS_MS.length) throw err;
-            await timing.wait(RETRY_WAITS_MS[attempt]);
-        }
-    }
-}
 
 /** Each member's role in the company, from the memberships; the claims carry nothing for one without a role. */
 const memberRoles = async (companyId) => {
@@ -82,7 +52,7 @@ exports.onCompanyActivationChange = onDocumentUpdated({
     const userIds = [...(await memberRoles(companyId)).keys()];
     for (const userId of userIds) {
         try {
-            await updateMember(userId, deactivated);
+            await syncClaimsAndSessions(userId, deactivated);
         } catch (err) {
             // The hourly pass below removes a role this run could not.
             console.error(`[onCompanyActivationChange] ${companyId}: claims for ${userId} not updated:`, err.message || err);
@@ -148,7 +118,7 @@ async function reconcileCompany(companyId, deactivated, afterUserId, stopAt, cou
                 && (deactivated ? stillGranted(claims, companyId) : !holdsRole(claims, companyId, roles.get(userId)));
             if (wrong) {
                 try {
-                    await updateMember(userId, deactivated);
+                    await syncClaimsAndSessions(userId, deactivated);
                     counts.fixed += 1;
                 } catch (err) {
                     // Tried again by the next walk; this one moves on.
