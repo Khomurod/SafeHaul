@@ -163,9 +163,10 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
             }
         }
 
-        // 2. Email — the rule the final pre-flight and the field's own check apply
-        // (`isValidEmail`). A stricter pattern here refused o'neil@example.com and
-        // any address outside plain ASCII, though Submit would have taken it.
+        // 2. Email — the rule the final pre-flight and the field's inline check apply
+        // (`isValidEmail`). A stricter pattern here refused o'neil@example.com,
+        // though Submit would have taken it. The browser's own `type="email"`
+        // check below still refuses a letter outside ASCII.
         if (!isValidEmail(formData.email)) {
             showError("Please enter a valid email address.");
             return false;
