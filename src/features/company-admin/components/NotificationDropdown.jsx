@@ -47,17 +47,14 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
         markAllAsRead
     } = useCompanyNotifications(companyId);
 
-    const openNotification = (notif) => {
+    const openNotification = (notif, recordId) => {
         // A failed write is logged by the hook; the record opens either way.
         if (!notif.read) markAsRead(notif.id).catch(() => {});
-        const recordId = recordIdOf(notif);
-        if (recordId && onOpenRecord) {
-            // The row goes with the panel, so the dossier, which returns focus
-            // to where it found it, returns it to the bell.
-            bellRef.current?.focus();
-            setIsOpen(false);
-            onOpenRecord(recordId);
-        }
+        // The row goes with the panel, so the dossier, which returns focus to
+        // where it found it, returns it to the bell.
+        bellRef.current?.focus();
+        setIsOpen(false);
+        onOpenRecord(recordId);
     };
 
     // Close dropdown on outside click
@@ -131,19 +128,10 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
                                 <p className="text-ds-xs text-ds-content-muted mt-1">No new notifications</p>
                             </div>
                         ) : (
-                            notifications.map(notif => (
-                                <div
-                                    key={notif.id}
-                                    className={`px-4 py-3 border-b border-ds-border-subtle hover:bg-ds-surface-hover transition-colors ${!notif.read ? 'bg-ds-status-info-bg' : ''}`}
-                                >
-                                    {/* The row's own button, unstyled: the row above
-                                        draws it. It opens the record the notification is
-                                        about, from the keyboard too. */}
-                                    <button
-                                        type="button"
-                                        onClick={() => openNotification(notif)}
-                                        className="flex w-full gap-3 text-left focus-visible:shadow-ds-focus"
-                                    >
+                            notifications.map((notif) => {
+                                const recordId = onOpenRecord ? recordIdOf(notif) : null;
+                                const content = (
+                                    <>
                                         <span className={`w-8 h-8 rounded-ds-md flex items-center justify-center ${!notif.read ? 'bg-ds-surface shadow-ds-sm' : 'bg-ds-surface-subtle'}`}>
                                             {getNotificationIcon(notif.type)}
                                         </span>
@@ -163,9 +151,32 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
                                         {!notif.read && (
                                             <span aria-hidden="true" className="w-2 h-2 bg-ds-action-primary rounded-ds-full mt-2"></span>
                                         )}
-                                    </button>
-                                </div>
-                            ))
+                                    </>
+                                );
+                                return (
+                                    <div
+                                        key={notif.id}
+                                        className={`px-4 py-3 border-b border-ds-border-subtle transition-colors ${recordId ? 'hover:bg-ds-surface-hover' : ''} ${!notif.read ? 'bg-ds-status-info-bg' : ''}`}
+                                    >
+                                        {/* A notification about a record is the row's own
+                                            button, unstyled: the row draws it. It opens the
+                                            record, from the keyboard too. One about no record
+                                            has nothing to open, so it is plain text, and
+                                            "Mark all read" clears it. */}
+                                        {recordId ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => openNotification(notif, recordId)}
+                                                className="flex w-full gap-3 text-left focus-visible:shadow-ds-focus"
+                                            >
+                                                {content}
+                                            </button>
+                                        ) : (
+                                            <div className="flex w-full gap-3">{content}</div>
+                                        )}
+                                    </div>
+                                );
+                            })
                         )}
                     </div>
                 </div>

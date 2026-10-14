@@ -1,7 +1,7 @@
 /**
  * A notification in the bell opens the record it is about: one naming an
  * application or a lead asks for that record's dossier and closes the panel,
- * and opening one marks it read. One about no record only marks itself read.
+ * and opening one marks it read. One about no record is plain text.
  *
  * All names and ids below are artificial.
  */
@@ -78,14 +78,16 @@ describe('a notification in the bell', () => {
         expect(onOpenRecord).toHaveBeenCalledWith('app-7');
     });
 
-    it('only marks itself read when it is about no record', async () => {
+    it('is plain text when it is about no record, so no control does nothing', async () => {
         const onOpenRecord = await openBell([PLAIN]);
 
-        await userEvent.click(screen.getByRole('button', { name: /Team update/ }));
+        expect(screen.getByText(/Team update/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Team update/ })).not.toBeInTheDocument();
 
-        expect(hook.markAsRead).toHaveBeenCalledWith('n-3');
+        await userEvent.click(screen.getByRole('button', { name: 'Mark all read' }));
+
+        expect(hook.markAllAsRead).toHaveBeenCalledTimes(1);
         expect(onOpenRecord).not.toHaveBeenCalled();
-        expect(screen.getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
     });
 
     it('still opens the record when marking it read fails', async () => {
