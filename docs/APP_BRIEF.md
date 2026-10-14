@@ -315,7 +315,7 @@ multi-step drips.
 
 **Super admin operations.** Companies, users, unified driver DB, global feature
 flags, SMS integrations, Environment & Integrations vault, AI providers, blog,
-website-lead archive, form builder (its schema is read by nothing), system health, stats backfill, releases.
+website-lead archive, form builder (read by nothing), system health, stats backfill, releases.
 
 ---
 
@@ -946,14 +946,15 @@ projection, and `/apply/:slug` is not gated by any flag. See
 - **No feature may call an AI vendor directly.** Every request goes through
   `functions/ai/` (task interface → capability-aware router → provider adapter →
   schema-validated response); `npm run check:ai-boundary` fails CI otherwise.
-  Each request carries a transaction id and records a per-provider timeline in
+  Each request records a transaction id and a per-provider timeline in
   `ai_telemetry` (Super Admin → AI Integrations → **Logs**). The connection test
-  probes every capability a provider claims, reports a throttled probe as
-  untested; a full pass clears cooldowns. Health and cooldown are **per lane**
+  probes every claimed capability, calls a throttled probe untested; a full
+  pass clears cooldowns. Health and cooldown are **per lane**
   (text / vision), each up to three versions, kept by `refreshAiModelLists`
   (**Model versions**, **Check versions now**, auto-select, built-in reset); a re-pin in code
   wins. A failing version rests while the next is tried; document reads cap each
-  attempt and wait out no long vendor pause. See [`docs/ai-platform.md`](./ai-platform.md).
+  attempt and skip a vendor pause over 5 s unless no other can serve. See
+  [`docs/ai-platform.md`](./ai-platform.md).
 - **Credential access differs by function generation; grant both.** 1st- and
   2nd-generation functions default to *different* runtime service accounts (App
   Engine and Compute Engine), so `roles/secretmanager.secretAccessor` is needed
@@ -1012,9 +1013,9 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
 ### Firestore triggers
 
 - **Driver sync** — a new application or lead files its details (no SSN) under
-  `drivers/{id}/pending_updates`, which nothing reads yet, and adds the company to
-  an existing profile (`{id}`: the Auth uid for a known email, else the document
-  id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created.
+  `drivers/{id}/pending_updates`, read by nothing, and adds the company to an
+  existing profile (`{id}`: the Auth uid of a known email, else a profile matched by
+  phone, else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created.
 - **Stats** — `activity_logs` writes roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.

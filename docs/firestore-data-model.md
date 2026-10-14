@@ -152,7 +152,7 @@ on `create` under `companies/{id}/applications/{appId}`:
 `onNewApplicationNotification`, `onNewApplicationEmailConfirmation`,
 `onApplicationSubmitted` (driver sync: a `drivers/{id}/pending_updates` entry) and the stats rollup.
 Writing drafts there would email every half-finished applicant "we received your
-application" and create driver profiles for people who typed a name and left.
+application" and file driver details for people who typed a name and left.
 
 The document id is the **existing deterministic applicant key** —
 `sha256(companyId:email:phone)` truncated to 20 hex, from
