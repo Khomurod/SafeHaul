@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Icon, X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from '@design-system/icons';
 import {
     Button, FileInput, IconButton, IconButtonLink, Notice,
@@ -90,6 +90,19 @@ const UploadField = ({
     // The upload on its way, for Cancel. Leaving the page does not cancel it: the
     // file still lands in the answers, which outlive this field.
     const uploadRef = useRef(null);
+    // The second "Uploaded Successfully" shows after a success. It goes with the
+    // field, and a new upload, a removal or a cancel ends it. An upload that
+    // lands after the field has gone still hands over its file, and touches
+    // nothing of the field's own.
+    const settleTimerRef = useRef(null);
+    const mountedRef = useRef(true);
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+            clearTimeout(settleTimerRef.current);
+        };
+    }, []);
     const rawId = useId().replace(/:/g, '');
     const labelId = `upload-${name}-label-${rawId}`;
 
@@ -114,6 +127,7 @@ const UploadField = ({
         const file = e.target.files?.[0];
         if (!file) return;
 
+        clearTimeout(settleTimerRef.current);
         setStatus('uploading');
         setProgress(0);
         setErrorMsg(null);
@@ -127,7 +141,7 @@ const UploadField = ({
             const result = await onUpload(name, file, {
                 // A cancelled upload no longer moves the bar, which may be a newer one's.
                 onProgress: (fraction) => {
-                    if (!upload.signal.aborted) setProgress(Math.min(100, Math.max(0, fraction * 100)));
+                    if (!upload.signal.aborted && mountedRef.current) setProgress(Math.min(100, Math.max(0, fraction * 100)));
                 },
                 signal: upload.signal,
             });
@@ -137,20 +151,21 @@ const UploadField = ({
                 throw new Error('Upload completed but no file metadata was returned.');
             }
 
+            // Notify Parent
+            onChange(name, result);
+            if (!mountedRef.current) return;
+
             setProgress(100);
             setStatus('success');
             setErrorMsg(null);
 
-            // Notify Parent
-            onChange(name, result);
-
             // Reset status after a moment to show the "File Card"
-            setTimeout(() => {
+            settleTimerRef.current = setTimeout(() => {
                 setStatus('idle');
             }, 1000);
 
         } catch (err) {
-            if (upload.signal.aborted || err?.code === 'cancelled') return;
+            if (upload.signal.aborted || err?.code === 'cancelled' || !mountedRef.current) return;
             setProgress(0);
             console.error("Upload failed in component:", err);
             setStatus('error');
@@ -161,6 +176,7 @@ const UploadField = ({
     };
 
     const cancelUpload = () => {
+        clearTimeout(settleTimerRef.current);
         uploadRef.current?.abort();
         setStatus('idle');
         setProgress(0);
@@ -184,6 +200,7 @@ const UploadField = ({
     };
 
     const confirmClear = () => {
+        clearTimeout(settleTimerRef.current);
         setPendingClear(false);
         onChange(name, null);
         setStatus('idle');
