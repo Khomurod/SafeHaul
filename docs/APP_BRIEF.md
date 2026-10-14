@@ -846,11 +846,11 @@ applications `New Application`. Firestore rules validate status transitions and
 **cannot import JS**, so renaming a value means editing the rules too.
 
 **Tenant binding is immutable.** Rules require `companyId` to match the path on
-create and stay unchanged on update, so a record can never be filed under one
-company while claiming another.
+create and stay unchanged on update, so no record is filed under one company
+while claiming another.
 
 **A deactivated company** (`isActive: false`) takes no applications, passes no
-server staff check, and its roles leave its staff's tokens (§8); never a super admin's.
+server staff check, drops out of its staff's tokens (§8) and closes their workspace; never a super admin's.
 
 ---
 
