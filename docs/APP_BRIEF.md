@@ -315,7 +315,7 @@ multi-step drips.
 
 **Super admin operations.** Companies, users, unified driver DB, global feature
 flags, SMS integrations, Environment & Integrations vault, AI providers, blog,
-website-lead archive, form builder (read by nothing), system health, stats backfill, releases.
+website-lead archive, form builder (unused by the application), system health, stats backfill, releases.
 
 ---
 
@@ -932,10 +932,10 @@ projection, and `/apply/:slug` is not gated by any flag. See
 |---|---|---|
 | **Firebase** (Auth, Firestore, Storage, Functions, Hosting) | Everything | Project config |
 | **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
-| **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (its admins may read it); password in plain text by decision, returned by no screen or callable. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until migrated); it decrypts an `enc:v1:` password |
+| **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (its admins may read it); password in plain text by decision, shown only by the vault's audited reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until migrated); it decrypts an `enc:v1:` password |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
-| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health. The marketing-site bot is **retired** (`LD-R3`): `promote-production.yml` still runs the idempotent `scripts/retire-functions.mjs` (never touching `listLandingLeads`); a rollback past `LD-R3` would call deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
+| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health. The marketing-site bot is **retired** (`LD-R3`): promotion's `scripts/retire-functions.mjs` keeps `listLandingLeads`; a rollback past it calls deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
 | **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
 | **Sentry** | Error monitoring for the browser app (`@sentry/react`); Cloud Functions log to Cloud Logging only | DSN |
@@ -952,9 +952,9 @@ projection, and `/apply/:slug` is not gated by any flag. See
   pass clears cooldowns. Health and cooldown are **per lane**
   (text / vision), each up to three versions, kept by `refreshAiModelLists`
   (**Model versions**, **Check versions now**, auto-select, built-in reset); a re-pin in code
-  wins. A failing version rests while the next is tried; document reads cap each
-  attempt and skip a vendor pause over 5 s unless no other can serve. See
-  [`docs/ai-platform.md`](./ai-platform.md).
+  wins. One gone, off the plan or rate-limited rests; the next is tried while two
+  slices remain. Document reads cap each attempt and skip a vendor's pause over
+  5 s while another can serve. See [`docs/ai-platform.md`](./ai-platform.md).
 - **Credential access differs by function generation; grant both.** 1st- and
   2nd-generation functions default to *different* runtime service accounts (App
   Engine and Compute Engine), so `roles/secretmanager.secretAccessor` is needed
