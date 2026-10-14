@@ -37,7 +37,7 @@ const {
     PROVIDERS, isRetired, missingRequiredConfig, credentialReadiness,
 } = require('../ai/registry/providers');
 const store = require('../ai/credentials/store');
-const { saveModelCheck } = require('../ai/credentials/modelLists');
+const { saveModelCheck, clearModelLists } = require('../ai/credentials/modelLists');
 const { checkProvider } = require('../ai/tasks/modelCheck');
 const { TIMEZONE } = require('../blog/pipeline/themes');
 const { notesFor, composeMessage, LANE_WORDS } = require('./modelRefreshMessages');
@@ -93,6 +93,26 @@ async function acquireLease(now) {
 
 async function releaseLease(summary) {
     await SETTINGS_REF().set({ leaseUntil: 0, lastRunAt: new Date().toISOString(), lastRunSummary: summary }, { merge: true });
+}
+
+/**
+ * Puts the built-in version lists back for every unretired provider: forgets
+ * what the daily check saved (`modelLists`), so `resolveModels` answers from
+ * the release's own lists again. Under the check's lease, because a check
+ * running now would otherwise save the list it began with over the reset.
+ * Keeps what the checks found, versions chosen by hand and the auto-select
+ * switch; with auto-select on, the next check may change a list again.
+ */
+async function resetModelLists({ now = Date.now() } = {}) {
+    if (!await acquireLease(now)) return { skipped: 'running' };
+    const ids = PROVIDERS.filter((provider) => !isRetired(provider)).map((provider) => provider.id);
+    // Every write settles before the lease goes, so no check starts among them.
+    const results = await Promise.allSettled(ids.map((id) => clearModelLists(id)));
+    // Releases only: the last run's time and summary stay that run's.
+    await SETTINGS_REF().set({ leaseUntil: 0 }, { merge: true });
+    const failed = results.find((result) => result.status === 'rejected');
+    if (failed) throw failed.reason;
+    return { reset: ids };
 }
 
 /** Whether changes are applied, whether a run holds the lease, and when the last one ended: for the console. */
@@ -319,3 +339,4 @@ module.exports.dueReason = dueReason;
 module.exports.recordFor = recordFor;
 module.exports.readCheckState = readCheckState;
 module.exports.setAutoSelect = setAutoSelect;
+module.exports.resetModelLists = resetModelLists;

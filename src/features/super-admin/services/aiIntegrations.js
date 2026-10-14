@@ -172,6 +172,16 @@ export async function setAiModelAutoSelect(enabled) {
 }
 
 /**
+ * Puts every provider's built-in version lists back, the ones this release
+ * ships, and returns the table. Refused (`skipped: 'running'`) while a check runs.
+ */
+export async function resetAiModelLists() {
+    const call = httpsCallable(functions, 'resetAiModelLists');
+    const result = await call({});
+    return result.data;
+}
+
+/**
  * Asks both Functions generations whether they can read the AI credentials.
  *
  * Both, not one, and that is the whole point: 1st generation functions default

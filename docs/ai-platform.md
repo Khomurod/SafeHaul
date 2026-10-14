@@ -373,7 +373,13 @@ it could not (an audit `failed`); the page then re-reads its provider rows and
 routing. The auto-select switch writes `autoSelect`, which a run reads again
 just before it saves: off keeps every list exactly as it is, a run already under
 way included, so the check only suggests (`modelCheck.lanes.<lane>.suggested`,
-shown only while it is off); on applies from the next run. Both are mutations: recent
+shown only while it is off); on applies from the next run. **Use built-in
+versions** (`resetAiModelLists`, after a confirmation) forgets every provider's
+saved `modelLists`, so `resolveModels` answers from the release's built-in lists
+again. It runs under the check's lease and is refused while a check holds it,
+because that check would otherwise save its list back over the reset.
+`modelCheck`, versions chosen by hand and `autoSelect` stay: with auto-select on,
+the next check may change a list again. All three are mutations: recent
 sign-in, the mutate budget, and an audit record.
 
 Results go to the provider's config: `modelLists.<lane>` when a list changed

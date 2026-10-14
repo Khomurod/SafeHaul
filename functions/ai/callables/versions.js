@@ -22,7 +22,9 @@ const routingOrder = require('../router/order');
 const store = require('../credentials/store');
 const { lanesOf, operatorChose } = require('../tasks/modelCheck');
 const { RESULT } = require('../tasks/modelVerification');
-const { readCheckState, runModelRefresh, setAutoSelect } = require('../../ops/modelRefresh');
+const {
+    readCheckState, resetModelLists, runModelRefresh, setAutoSelect,
+} = require('../../ops/modelRefresh');
 
 /**
  * "Check now" stops starting tests after this: the last one ends within its own
@@ -192,6 +194,34 @@ exports.setAiModelAutoSelect = onCall(callableOptions, async (request) => {
         return await readVersions();
     } catch (error) {
         return safeFailure(error, 'setAiModelAutoSelect');
+    }
+});
+
+/**
+ * "Use built-in versions": every provider's lists go back to the ones this
+ * release ships (`resetModelLists`). A change of what the router uses, so it is
+ * guarded as a mutation; refused while a check holds the lease.
+ */
+exports.resetAiModelLists = onCall(callableOptions, async (request) => {
+    await guardPrivileged(request, 'mutate', ACTIONS.UPDATE, { setting: 'model-lists-reset' });
+
+    try {
+        const outcome = await resetModelLists();
+        const resetCount = outcome.reset?.length || 0;
+        await recordAuditEvent({
+            auth: request.auth,
+            action: ACTIONS.UPDATE,
+            result: outcome.skipped ? RESULTS.FAILED : RESULTS.SUCCESS,
+            metadata: {
+                integration: 'AI model versions',
+                setting: 'model-lists-reset',
+                resetCount,
+                reason: outcome.skipped ? 'already-running' : null,
+            },
+        });
+        return { skipped: outcome.skipped ? 'running' : null, ...(await readVersions()) };
+    } catch (error) {
+        return safeFailure(error, 'resetAiModelLists');
     }
 });
 

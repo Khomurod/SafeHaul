@@ -950,8 +950,8 @@ projection, and `/apply/:slug` is not gated by any flag. See
   `ai_telemetry` (Super Admin → AI Integrations → **Logs**). The connection test
   probes every capability a provider claims, reports a throttled probe as
   untested; a full pass clears cooldowns. Health and cooldown are **per lane**
-  (text / vision), each with up to three versions, kept by `refreshAiModelLists`
-  (**Model versions**, **Check versions now**, auto-select); a re-pin in code
+  (text / vision), each up to three versions, kept by `refreshAiModelLists`
+  (**Model versions**, **Check versions now**, auto-select, built-in reset); a re-pin in code
   wins. One gone, off the plan or rate-limited rests; the next is tried while two
   slices remain. Document reads cap each attempt and skip a vendor's pause over
   5 s while another can serve. See [`docs/ai-platform.md`](./ai-platform.md).

@@ -39,7 +39,9 @@ const { testAiProvider } = require('./callables/health');
 const {
     diagnoseAiModelPins, listAiTelemetry, normalizeLogFilters,
 } = require('./callables/telemetry');
-const { checkAiModelVersionsNow, getAiModelVersions, setAiModelAutoSelect } = require('./callables/versions');
+const {
+    checkAiModelVersionsNow, getAiModelVersions, resetAiModelLists, setAiModelAutoSelect,
+} = require('./callables/versions');
 const { MASK, requireRegisteredProvider } = require('./callables/options');
 
 exports.listAiProviders = listAiProviders;
@@ -57,5 +59,6 @@ exports.diagnoseAiModelPins = diagnoseAiModelPins;
 exports.getAiModelVersions = getAiModelVersions;
 exports.checkAiModelVersionsNow = checkAiModelVersionsNow;
 exports.setAiModelAutoSelect = setAiModelAutoSelect;
+exports.resetAiModelLists = resetAiModelLists;
 
 exports.__test = { buildProviderRow, MASK, requireRegisteredProvider, normalizeLogFilters };

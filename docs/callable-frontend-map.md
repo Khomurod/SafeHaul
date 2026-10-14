@@ -179,6 +179,7 @@ no request can name an arbitrary Secret Manager resource.
 | `getAiModelVersions` | [`AiModelVersionsCard.jsx`](../src/features/super-admin/components/ai/AiModelVersionsCard.jsx) | The model versions table: each lane's versions in use now, what the daily check last found, and the auto-select state. |
 | `checkAiModelVersionsNow` | same | Runs the daily model check now for every enabled provider with its key (180 s); a mutation, since with auto-select on it can change the lists. |
 | `setAiModelAutoSelect` | same | Turns auto-select on or off. Off keeps every list as it is; the check then only suggests. |
+| `resetAiModelLists` | same | "Use built-in versions": forgets every provider's saved lists, so the release's built-in ones apply; under the check's lease (refused while a check runs). A mutation. |
 | `migrateGroqCredential` | same | Copies the legacy binding into Secret Manager server-side. The token is never returned. |
 | `diagnoseAiCredentialAccess` | same | Per-secret: does it exist, and can **this 2nd-generation runtime** read it. Names the runtime service account, read from the metadata server. No credential value is read or returned. |
 | `diagnoseAiCredentialAccessV1` | same | The same question asked of the **1st-generation** runtime, which defaults to a different service account. The browser calls both with `Promise.allSettled` and shows them side by side, because a per-generation difference is the fault being looked for. |

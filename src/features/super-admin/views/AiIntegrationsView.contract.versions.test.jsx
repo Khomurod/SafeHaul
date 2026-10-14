@@ -1,6 +1,6 @@
 /**
  * Model versions: the table of versions each service uses, "Check versions
- * now", and the auto-select switch.
+ * now", the auto-select switch and "Use built-in versions".
  *
  * Part of the AiIntegrationsView contract suite. The fixtures, callable stubs,
  * spies and the security-proof context live in
@@ -282,5 +282,81 @@ describe('the auto-select switch', () => {
         await waitFor(() => expect(autoSelectSwitch().getAttribute('aria-checked')).toBe('false'));
         expect(callables.setAiModelAutoSelect).toHaveBeenLastCalledWith({ enabled: false });
         expect(showSuccess).toHaveBeenCalledWith('Auto-select is off. Every list stays as it is now.');
+    });
+});
+
+describe('Use built-in versions', () => {
+    const resetButton = () => screen.getByRole('button', { name: 'Use built-in versions' });
+    const confirmDialog = () => screen.getByRole('dialog', { name: 'Use the built-in versions?' });
+
+    it('asks first, then puts every built-in list back and shows the table it returns', async () => {
+        const after = ROWS.map((row) => (row.id === 'gemini'
+            ? { ...row, lanes: [lane('vision', ['gemini-3.6-flash', 'gemini-3.5-flash-lite']), row.lanes[1]] }
+            : row));
+        stubCallables({
+            getAiModelVersions: vi.fn().mockResolvedValue({ data: versionsFor(ROWS) }),
+            resetAiModelLists: vi.fn().mockResolvedValue({ data: { ...versionsFor(after), skipped: null } }),
+        });
+        await renderView();
+        await waitFor(() => expect(rowFor('Google Gemini')).toBeTruthy());
+
+        fireEvent.click(resetButton());
+        // Says what stays, and what auto-select may do afterwards.
+        expect(within(confirmDialog()).getByText(/chose by hand stay/)).toBeTruthy();
+        expect(within(confirmDialog()).getByText(/switch it off first/)).toBeTruthy();
+        expect(callables.resetAiModelLists).not.toHaveBeenCalled();
+        fireEvent.click(within(confirmDialog()).getByRole('button', { name: 'Use built-in versions' }));
+
+        await waitFor(() => expect(within(rowFor('Google Gemini')).getByText('gemini-3.5-flash-lite')).toBeTruthy());
+        expect(callables.resetAiModelLists).toHaveBeenCalledTimes(1);
+        expect(callables.resetAiModelLists).toHaveBeenCalledWith({});
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(showSuccess).toHaveBeenCalledWith('Every service uses its built-in versions now.');
+        // The provider rows and routing cards show the same lists, so they are read again.
+        await waitFor(() => expect(callables.listAiProviders).toHaveBeenCalledTimes(2));
+    });
+
+    it('changes nothing when the operator keeps the current versions', async () => {
+        await renderView();
+        await waitFor(() => expect(rowFor('Google Gemini')).toBeTruthy());
+
+        fireEvent.click(resetButton());
+        fireEvent.click(within(confirmDialog()).getByRole('button', { name: 'Keep current versions' }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(callables.resetAiModelLists).not.toHaveBeenCalled();
+    });
+
+    it('says so, and changes nothing, while a check is running', async () => {
+        stubCallables({
+            getAiModelVersions: vi.fn().mockResolvedValue({ data: versionsFor(ROWS) }),
+            resetAiModelLists: vi.fn().mockResolvedValue({ data: { ...versionsFor(ROWS, { running: true }), skipped: 'running' } }),
+        });
+        await renderView();
+        await waitFor(() => expect(rowFor('Google Gemini')).toBeTruthy());
+
+        fireEvent.click(resetButton());
+        fireEvent.click(within(confirmDialog()).getByRole('button', { name: 'Use built-in versions' }));
+
+        await waitFor(() => expect(showInfo).toHaveBeenCalledWith('A check is already running. Try again in a few minutes.'));
+        expect(showSuccess).not.toHaveBeenCalled();
+        expect(callables.listAiProviders).toHaveBeenCalledTimes(1);
+    });
+
+    it('says it could not, when the server refuses', async () => {
+        stubCallables({
+            getAiModelVersions: vi.fn().mockResolvedValue({ data: versionsFor(ROWS) }),
+            resetAiModelLists: vi.fn().mockRejectedValue(Object.assign(new Error('internal'), { code: 'functions/internal' })),
+        });
+        await renderView();
+        await waitFor(() => expect(rowFor('Google Gemini')).toBeTruthy());
+
+        fireEvent.click(resetButton());
+        fireEvent.click(within(confirmDialog()).getByRole('button', { name: 'Use built-in versions' }));
+
+        await waitFor(() => expect(showError).toHaveBeenCalledTimes(1));
+        expect(showSuccess).not.toHaveBeenCalled();
+        // The table still shows the lists in use.
+        expect(within(rowFor('Google Gemini')).getByText('gemini-3.7-flash')).toBeTruthy();
     });
 });

@@ -335,6 +335,7 @@ exports.diagnoseAiModelPins = aiIntegrations.diagnoseAiModelPins;
 exports.getAiModelVersions = aiIntegrations.getAiModelVersions;
 exports.checkAiModelVersionsNow = aiIntegrations.checkAiModelVersionsNow;
 exports.setAiModelAutoSelect = aiIntegrations.setAiModelAutoSelect;
+exports.resetAiModelLists = aiIntegrations.resetAiModelLists;
 exports.migrateGroqCredential = aiIntegrations.migrateGroqCredential;
 // Credential access is diagnosed from BOTH Functions generations on purpose:
 // 1st gen defaults to the App Engine service account and 2nd gen to the Compute

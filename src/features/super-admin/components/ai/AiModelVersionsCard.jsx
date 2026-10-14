@@ -3,12 +3,12 @@
  * and what the daily check last found (`functions/ops/modelRefresh.js`).
  *
  * The card owns its state, unlike the diagnostics cards beside it: it loads its
- * own table and is the only place that changes it. The two actions that can
- * change what the router uses, "Check versions now" and the auto-select switch,
- * go through the view's `runGuarded`, so a stale session is answered with the
- * same re-authentication prompt as every other change on this screen. A check
- * that ran tells the view (`onVersionsChanged`), whose provider rows and routing
- * cards show the same lists.
+ * own table and is the only place that changes it. The three actions that can
+ * change what the router uses, "Check versions now", the auto-select switch and
+ * "Use built-in versions", go through the view's `runGuarded`, so a stale
+ * session is answered with the same re-authentication prompt as every other
+ * change on this screen. A check that ran, or lists put back, tell the view
+ * (`onVersionsChanged`), whose provider rows and routing cards show the same lists.
  *
  * Every version shown is what the router uses now, not what the check last
  * recorded, so the table cannot describe a list nothing is using.
@@ -23,6 +23,7 @@ import {
     Switch,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
+import { ConfirmDialog } from '@design-system/patterns';
 import { useToast } from '@shared/components/feedback';
 
 import {
@@ -30,6 +31,7 @@ import {
     describeAiError,
     getAiModelVersions,
     isReauthCancelled,
+    resetAiModelLists,
     setAiModelAutoSelect,
 } from '../../services/aiIntegrations';
 import {
@@ -42,6 +44,10 @@ import {
 
 const AUTO_SELECT_ON = 'On: a version that fails the check is replaced by one that passes, and Telegram says so.';
 const AUTO_SELECT_OFF = 'Off: every list stays exactly as it is. The check still runs and shows what it would change.';
+const RESET_DESCRIPTION = 'Every service goes back to the versions this release of SafeHaul ships with. What the '
+    + 'checks found and any version you chose by hand stay. With auto-select on, the next check may change a list '
+    + 'again; to keep the built-in versions, switch it off first.';
+const ALREADY_RUNNING = 'A check is already running. Try again in a few minutes.';
 
 function LaneCell({ row, laneId, absent }) {
     const lane = row.lanes.find((entry) => entry.id === laneId);
@@ -129,6 +135,8 @@ export function AiModelVersionsCard({ runGuarded, onVersionsChanged }) {
     const [loadError, setLoadError] = useState(null);
     const [checking, setChecking] = useState(false);
     const [switching, setSwitching] = useState(false);
+    const [confirmingReset, setConfirmingReset] = useState(false);
+    const [resetting, setResetting] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -151,7 +159,7 @@ export function AiModelVersionsCard({ runGuarded, onVersionsChanged }) {
             const result = await runGuarded(() => checkAiModelVersionsNow());
             setVersions(result);
             if (result.skipped === 'running') {
-                showInfo('A check is already running. Try again in a few minutes.');
+                showInfo(ALREADY_RUNNING);
                 return;
             }
             onVersionsChanged?.();
@@ -188,6 +196,28 @@ export function AiModelVersionsCard({ runGuarded, onVersionsChanged }) {
         }
     }, [runGuarded, showError, showSuccess]);
 
+    // The question closes before the change runs, so a re-authentication prompt
+    // never opens over it.
+    const handleReset = useCallback(async () => {
+        setConfirmingReset(false);
+        setResetting(true);
+        try {
+            const result = await runGuarded(() => resetAiModelLists());
+            setVersions(result);
+            if (result.skipped === 'running') {
+                showInfo(ALREADY_RUNNING);
+                return;
+            }
+            onVersionsChanged?.();
+            showSuccess('Every service uses its built-in versions now.');
+        } catch (error) {
+            if (isReauthCancelled(error)) return;
+            showError(describeAiError(error, 'The built-in versions could not be put back.'));
+        } finally {
+            setResetting(false);
+        }
+    }, [onVersionsChanged, runGuarded, showError, showInfo, showSuccess]);
+
     const autoSelect = versions?.autoSelect !== false;
     const lastRun = formatCheckedAt(versions?.lastRunAt);
     const rows = useMemo(() => versions?.providers || [], [versions]);
@@ -204,9 +234,21 @@ export function AiModelVersionsCard({ runGuarded, onVersionsChanged }) {
                             that fail are replaced by ones that pass, never by a service you have not turned on.
                         </p>
                     </div>
-                    <Button variant="secondary" size="sm" loading={checking} onClick={handleCheckNow}>
-                        Check versions now
-                    </Button>
+                    <div className="flex flex-wrap gap-ds-2">
+                        <Button variant="secondary" size="sm" loading={checking} onClick={handleCheckNow}>
+                            Check versions now
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            loading={resetting}
+                            // A check under way holds the lease the server would refuse it with.
+                            disabled={!versions || checking}
+                            onClick={() => setConfirmingReset(true)}
+                        >
+                            Use built-in versions
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="flex items-start gap-ds-3">
@@ -247,6 +289,16 @@ export function AiModelVersionsCard({ runGuarded, onVersionsChanged }) {
                     empty={{ title: 'No AI service is listed.' }}
                 />
             </Stack>
+            <ConfirmDialog
+                isOpen={confirmingReset}
+                title="Use the built-in versions?"
+                description={RESET_DESCRIPTION}
+                tone="warning"
+                confirmLabel="Use built-in versions"
+                cancelLabel="Keep current versions"
+                onConfirm={handleReset}
+                onCancel={() => setConfirmingReset(false)}
+            />
         </Card>
     );
 }
