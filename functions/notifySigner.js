@@ -97,7 +97,8 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
     }
 }
 
-exports.notifySigner = functions.firestore
+// The secret decrypts an SMTP password stored encrypted (emailService.js).
+exports.notifySigner = functions.runWith({ secrets: ['SMS_ENCRYPTION_KEY'] }).firestore
     .document('companies/{companyId}/signing_requests/{requestId}')
     .onCreate(async (snap, context) => {
         const data = snap.data();

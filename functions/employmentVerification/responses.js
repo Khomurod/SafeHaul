@@ -63,7 +63,8 @@ async function releaseClaim(docRef, previousStatus) {
 // ============================================================
 // 3. SUBMIT VERIFICATION RESPONSE (Public endpoint — token-based)
 // ============================================================
-exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeoutSeconds: 120 }, async (request) => {
+// The secret decrypts an SMTP password stored encrypted (emailService.js).
+exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeoutSeconds: 120, secrets: ['SMS_ENCRYPTION_KEY'] }, async (request) => {
     const { token, response: formResponse } = request.data || {};
 
     if (!token || !formResponse) {

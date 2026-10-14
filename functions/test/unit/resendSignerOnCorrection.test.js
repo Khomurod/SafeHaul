@@ -8,9 +8,10 @@
  * least once and in no set order, so the tests also deliver corrections twice
  * and out of order. All names, addresses and numbers are artificial.
  */
-jest.mock('firebase-functions/v1', () => ({
-    firestore: { document: () => ({ onCreate: (fn) => fn }) },
-}));
+jest.mock('firebase-functions/v1', () => {
+    const firestore = { document: () => ({ onCreate: (fn) => fn }) };
+    return { firestore, runWith: () => ({ firestore }) };
+});
 jest.mock('firebase-functions/v2/firestore', () => ({
     onDocumentCreated: (_opts, fn) => fn,
     onDocumentUpdated: (_opts, fn) => fn,

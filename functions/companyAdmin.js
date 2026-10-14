@@ -116,7 +116,8 @@ async function assertNoAnswerRecipient(uid, companyId, sentEmail, recipientEmail
     }
 }
 
-exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
+// The secret decrypts an SMTP password stored encrypted (emailService.js).
+exports.sendAutomatedEmail = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'] }, async (request) => {
     // SECURITY: Strict Auth Check
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
 

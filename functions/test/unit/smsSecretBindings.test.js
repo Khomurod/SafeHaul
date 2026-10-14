@@ -35,7 +35,34 @@ const SENDER_FILES = [
     'environmentVault/index.js',
 ];
 
+// Every function that reads a company's stored SMTP password (shared/smtpSettings.js),
+// to send through emailService.js or to verify it. A password stored encrypted
+// (`enc:v1:`) is decrypted in the calling function, so each binds the secret on
+// its own trigger options: without it the decrypt throws and nothing is sent.
+const SMTP_PASSWORD_READERS = [
+    ['notifySigner.js', 'notifySigner'],                                         // signing-request email
+    ['resendSignerOnCorrection.js', 'resendSignerOnCorrection'],                 // the same, after a correction
+    ['companyAdmin.js', 'sendAutomatedEmail'],                                   // the "no answer" email
+    ['notificationTriggers.js', 'onNewApplicationEmailConfirmation'],            // the applicant's confirmation
+    ['employmentVerification/requests.js', 'sendVerificationRequest'],           // the PEV request
+    ['employmentVerification/responses.js', 'submitVerificationResponse'],       // "verification complete" to the carrier
+    ['employmentVerification/reminders.js', 'processVerificationReminders'],     // PEV reminders and "no response"
+    ['saveEmailSettings.js', 'saveEmailSettings'],                               // verifies the settings it saves
+];
+
+/** The text from `exports.<name> =` to the function's handler: its options, in every SDK form. */
+function definitionHead(src, name) {
+    const start = src.indexOf(`exports.${name} =`);
+    return start === -1 ? null : src.slice(start, src.indexOf('async', start));
+}
+
 describe('SMS_ENCRYPTION_KEY secret bindings', () => {
+    test.each(SMTP_PASSWORD_READERS)('%s: %s binds SMS_ENCRYPTION_KEY on its own options', (rel, name) => {
+        const head = definitionHead(fs.readFileSync(path.join(ROOT, rel), 'utf8'), name);
+        expect(head).not.toBeNull();
+        expect(head).toMatch(/secrets:\s*\[[^\]]*['"]SMS_ENCRYPTION_KEY['"]/);
+    });
+
     test.each(SENDER_FILES)('%s binds SMS_ENCRYPTION_KEY', (rel) => {
         const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
         expect(src).toMatch(/secrets:\s*\[[^\]]*['"]SMS_ENCRYPTION_KEY['"]/);

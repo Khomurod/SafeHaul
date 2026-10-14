@@ -63,7 +63,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `resumeBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Resume campaign |
 | `retryFailedAttempts` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx), [`DetailedReportModal.jsx`](../src/features/campaigns/components/DetailedReportModal.jsx) | Retry failed bulk sends |
 | `revealEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: reveal exactly one value (recent auth required) |
-| `saveEmailSettings` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) | Persist SMTP config |
+| `saveEmailSettings` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) | Persist SMTP config; `verified` says whether the server connected with it |
 | `saveIntegrationConfig` | [`IntegrationManager.jsx`](../src/features/super-admin/components/integrations/IntegrationManager.jsx) | Save encrypted SMS credentials |
 | `savePlatformAlertToken` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: store a Telegram bot token, once Telegram has accepted it |
 | `sendAutomatedEmail` | [`useCallOutcome.js`](../src/shared/hooks/useCallOutcome.js) | Template email from dossier/call flow |
