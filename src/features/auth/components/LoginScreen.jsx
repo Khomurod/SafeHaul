@@ -285,7 +285,7 @@ export function LoginScreen() {
                 </div>
                 <div>
                   <h3 className="mb-ds-1 font-semibold text-ds-content-on-inverse">For Drivers</h3>
-                  <p className="text-ds-body text-ds-content-on-inverse-muted">Apply to top carriers, track your applications, and find the perfect driving job that fits your lifestyle.</p>
+                  <p className="text-ds-body text-ds-content-on-inverse-muted">No account needed: apply from your phone through the link a carrier sends you, and sign your documents the same way.</p>
                 </div>
               </div>
 

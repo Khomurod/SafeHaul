@@ -73,6 +73,15 @@ describe('LoginScreen — design-system migration', () => {
         mocks.resetPassword.mockResolvedValue({ success: true });
     });
 
+    // Drivers have no sign-in: they apply and sign through a carrier's link. The
+    // panel promised they could "track your applications" here.
+    it('tells a driver that applying needs no account, and promises no tracking', () => {
+        renderLogin();
+        const drivers = screen.getByRole('heading', { name: 'For Drivers' }).parentElement;
+        expect(drivers).toHaveTextContent('No account needed: apply from your phone through the link a carrier sends you');
+        expect(screen.queryByText(/track your applications/i)).not.toBeInTheDocument();
+    });
+
     it('renders labelled, accessible login controls with autofill attributes', async () => {
         const { container } = renderLogin();
 

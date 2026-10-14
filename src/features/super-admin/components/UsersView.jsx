@@ -9,7 +9,7 @@ import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
  *
  * Migrated to the design system 2026-07-28. Presentation only — the
  * name/email search, the client-side 20/50/100 pagination, the
- * `globalRole === 'super_admin'` precedence over memberships, the
+ * Super Admin precedence over memberships (`isSuperAdmin`), the
  * `mem.role === 'company_admin' ? 'Admin' : 'User'` label rule, the
  * `allCompaniesMap.get(...) || "Unknown"` fallback, the `{ id }` /
  * `{ id, name }` callback shapes and every frozen string are unchanged.
@@ -29,6 +29,15 @@ import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
  *    like the sibling companies table.
  *  - Legacy palette throughout, including the `bg-ds-status-accent-bg` avatar.
  */
+/**
+ * Whether the user holds the Super Admin claim. The claims trigger
+ * (`onMembershipWrite`) grants it for a membership whose role is `super_admin`,
+ * and nothing writes `users/{uid}.globalRole`, so that field alone left such a
+ * user unmarked. An older account may still carry the field; it counts too.
+ */
+const isSuperAdmin = (user) => user.globalRole === 'super_admin'
+    || (user.memberships || []).some((membership) => membership.role === 'super_admin');
+
 export function UsersView({
     listLoading,
     statsError,
@@ -138,7 +147,7 @@ export function UsersView({
                                         </th>
                                         <td>
                                             <div className="flex flex-wrap gap-ds-2">
-                                                {user.globalRole === 'super_admin' ? (
+                                                {isSuperAdmin(user) ? (
                                                     <Badge tone="danger" icon={ShieldCheck}>Super Admin</Badge>
                                                 ) : (user.memberships?.length || 0) > 0 ? (
                                                     user.memberships.map(mem => (

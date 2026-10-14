@@ -6,6 +6,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
 import { attachSessionReplay, initSentry, whenIdle } from '@lib/monitoring/sentry';
+import { capZoomOnIOS } from '@app/startup/viewportZoom';
 
 // The pdf.js worker wiring that used to sit here moved to `@lib/pdf/pdfWorker`,
 // imported by the PDF features themselves, so the 117 kB pdfjs chunk no longer
@@ -18,6 +19,8 @@ import { attachSessionReplay, initSentry, whenIdle } from '@lib/monitoring/sentr
 initSentry();
 whenIdle(() => { attachSessionReplay(); });
 // -------------------------------
+
+capZoomOnIOS();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -50,6 +50,18 @@ describe('UsersView — frozen role and membership mapping', () => {
         expect(within(row).getByText('Super Admin')).toBeInTheDocument();
     });
 
+    // The claims trigger grants the Super Admin claim for a super_admin
+    // membership, and nothing writes users/{uid}.globalRole: such a user showed
+    // as "User at …".
+    it('shows Super Admin for a super_admin membership, which is what grants the claim', () => {
+        renderUsers({
+            userList: [{ id: 'u-4', name: 'Membership Admin', email: 'm@example.test', memberships: [{ companyId: 'co-1', role: 'super_admin' }] }],
+        });
+        const row = screen.getByText('Membership Admin').closest('tr');
+        expect(within(row).getByText('Super Admin')).toBeInTheDocument();
+        expect(within(row).queryByText(/at Artificial Freight Co/)).not.toBeInTheDocument();
+    });
+
     it('labels company_admin as Admin and anything else as User', () => {
         renderUsers();
         const row = screen.getByText('Artificial Recruiter').closest('tr');
