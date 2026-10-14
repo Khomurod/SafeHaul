@@ -8,7 +8,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const session = vi.hoisted(() => ({ claims: null, companies: [] }));
+const session = vi.hoisted(() => ({ claims: null, companies: [], unreadable: [] }));
 
 vi.mock('@lib/firebase', () => ({ auth: {}, db: {} }));
 vi.mock('firebase/auth', () => ({
@@ -19,11 +19,14 @@ vi.mock('firebase/auth', () => ({
 }));
 vi.mock('firebase/firestore', () => ({
     doc: (_db, _collection, id) => ({ id }),
-    getDoc: vi.fn(async ({ id }) => ({
-        exists: () => session.companies.includes(id),
-        id,
-        data: () => ({ companyName: `Carrier ${id}` }),
-    })),
+    getDoc: vi.fn(async ({ id }) => {
+        if (session.unreadable.includes(id)) throw new Error('Failed to get document because the client is offline.');
+        return {
+            exists: () => session.companies.includes(id),
+            id,
+            data: () => ({ companyName: `Carrier ${id}` }),
+        };
+    }),
     collection: vi.fn(),
     getCountFromServer: vi.fn(),
 }));
@@ -48,6 +51,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
     session.companies = ['co-1', 'co-2', 'co-gone'];
+    session.unreadable = [];
 });
 
 describe('after signing in, a staff member', () => {
@@ -85,4 +89,30 @@ describe('after signing in, a staff member', () => {
         expect(await screen.findByText('Choose Company')).toBeInTheDocument();
         expect(getDoc).not.toHaveBeenCalled();
     });
+
+    it('chooses when their only company cannot be read just now, instead of an empty workspace', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        session.unreadable = ['co-1'];
+        signIn({ 'co-1': 'recruiter' });
+
+        expect(await screen.findByText('Choose Company')).toBeInTheDocument();
+        expect(screen.getByText('In no company')).toBeInTheDocument();
+        consoleError.mockRestore();
+    });
+
+    it('leaves a super admin whose saved company cannot be read at the console, without the chooser', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        session.unreadable = ['co-1'];
+        session.claims = { globalRole: 'super_admin', roles: { globalRole: 'super_admin' } };
+        localStorage.setItem(SESSION_KEYS.SELECTED_COMPANY_ID, 'co-1');
+        render(<DataProvider><SignedInCompany /></DataProvider>);
+
+        expect(await screen.findByText('In no company')).toBeInTheDocument();
+        expect(getDoc).toHaveBeenCalledWith({ id: 'co-1' });
+        expect(screen.queryByText('Choose Company')).not.toBeInTheDocument();
+        consoleError.mockRestore();
+        consoleWarn.mockRestore();
+    });
 });
+

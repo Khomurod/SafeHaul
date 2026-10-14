@@ -63,6 +63,7 @@ export function DataProvider({ children }) {
   const companyProfileCacheRef = useRef({ companyId: null, data: null, fetchedAt: 0 });
   const COMPANY_PROFILE_CACHE_MS = 60_000;
 
+  /** Opens a company's workspace; resolves true when its profile loaded. */
   const loginToCompany = useCallback(async (companyId, _role, isAutoLogin = false, options = {}) => {
     const forceRefresh = options?.forceRefresh === true;
     if (!isAutoLogin) setLoading(true);
@@ -78,7 +79,7 @@ export function DataProvider({ children }) {
         setCurrentCompanyProfile(cache.data);
         localStorage.setItem(SESSION_KEYS.SELECTED_COMPANY_ID, companyId);
         setShowCompanyChooser(false);
-        return;
+        return true;
       }
 
       const companyDoc = await getDoc(doc(db, 'companies', companyId));
@@ -88,6 +89,7 @@ export function DataProvider({ children }) {
         setCurrentCompanyProfile(companyData);
         localStorage.setItem(SESSION_KEYS.SELECTED_COMPANY_ID, companyId);
         setShowCompanyChooser(false);
+        return true;
       } else {
         companyProfileCacheRef.current = { companyId: null, data: null, fetchedAt: 0 };
         console.warn('Saved company ID no longer exists.');
@@ -100,6 +102,7 @@ export function DataProvider({ children }) {
     } finally {
       if (!isAutoLogin) setLoading(false);
     }
+    return false;
   }, []);
 
   useEffect(() => {
@@ -216,9 +219,9 @@ export function DataProvider({ children }) {
           const companyId = companyRoleKeys.includes(savedCompanyId)
             ? savedCompanyId
             : (companyRoleKeys.length === 1 ? companyRoleKeys[0] : null);
-          if (companyId) {
-            await loginToCompany(companyId, null, true);
-          } else {
+          // A company that cannot be read just now (offline, say) leaves the
+          // chooser, which lists the companies again, rather than an empty workspace.
+          if (!companyId || !(await loginToCompany(companyId, null, true))) {
             setShowCompanyChooser(true);
           }
           return;
