@@ -11,6 +11,8 @@ const mockAssertCompanyAdminStrict = jest.fn().mockResolvedValue(true);
 const mockSessions = new Map();
 /** `companyId/phone` -> ledger entry */
 const mockLedger = new Map();
+/** Companies whose sessions cannot be read. */
+const mockFailing = new Set();
 const mockLedgerWrites = [];
 
 const at = (iso) => ({ toMillis: () => Date.parse(iso), iso });
@@ -40,7 +42,10 @@ const mockDb = {
                     if (sub === 'bulk_sessions') {
                         const sessions = mockSessions.get(companyId) || [];
                         return {
-                            get: async () => ({ docs: sessions.map((s) => ({ id: s.id, data: () => s.data })) }),
+                            get: async () => {
+                                if (mockFailing.has(companyId)) throw new Error('unavailable');
+                                return { docs: sessions.map((s) => ({ id: s.id, data: () => s.data })) };
+                            },
                             doc: (sessionId) => ({
                                 collection: () => ({
                                     where: () => ({
@@ -99,6 +104,7 @@ beforeEach(() => {
     mockSessions.clear();
     mockLedger.clear();
     mockLedgerWrites.length = 0;
+    mockFailing.clear();
 });
 
 describe('backfillSmsSentPhones', () => {
@@ -162,6 +168,24 @@ describe('backfillAllSmsSentPhones', () => {
         expect(result.summaries.map((summary) => summary.companyId)).toEqual(['co2', 'co3']);
         expect(result.truncated).toBe(false);
         expect(result.nextCompanyId).toBeNull();
+    });
+
+    it('resumes before a company that failed, so the next run tries it again', async () => {
+        for (const id of ['co1', 'co2', 'co3']) mockSessions.set(id, []);
+        mockFailing.add('co2');
+        const realNow = Date.now;
+        let calls = 0;
+        // The start and the checks before co1 and co2 are in time; co3's is not.
+        Date.now = () => (calls++ < 3 ? 0 : 9 * 60 * 1000);
+        try {
+            const result = await backfillTools.backfillAllSmsSentPhones({ auth: SUPER_ADMIN, data: {} });
+
+            expect(result.truncated).toBe(true);
+            expect(result.failedCompanies).toBe(1);
+            expect(result.nextCompanyId).toBe('co1');
+        } finally {
+            Date.now = realNow;
+        }
     });
 
     it('names the last company it finished when it runs out of time', async () => {

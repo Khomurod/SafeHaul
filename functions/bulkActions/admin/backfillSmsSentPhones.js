@@ -153,7 +153,9 @@ exports.backfillAllSmsSentPhones = onCall(
         let processedCompanies = 0;
         let failedCompanies = 0;
         let truncated = false;
-        let lastCompanyId = null;
+        // Where a re-run continues: after the last company done before the first
+        // failure, so a company that failed is tried again rather than skipped.
+        let resumeAfter = typeof startAfterCompanyId === 'string' && startAfterCompanyId ? startAfterCompanyId : null;
 
         for (const doc of companiesSnap.docs) {
             if (Date.now() - startedAt > TIMEOUT_BUDGET_MS) {
@@ -162,9 +164,9 @@ exports.backfillAllSmsSentPhones = onCall(
                 break;
             }
             const companyId = doc.id;
-            lastCompanyId = companyId;
             try {
                 const result = await _backfillSmsForCompany(companyId);
+                if (failedCompanies === 0) resumeAfter = companyId;
                 processedCompanies++;
                 totalPhones += result.phonesBackfilled;
                 totalSessions += result.sessionsProcessed;
@@ -186,9 +188,9 @@ exports.backfillAllSmsSentPhones = onCall(
             sessionsProcessed: totalSessions,
             phonesBackfilled: totalPhones,
             summaries,
-            nextCompanyId: truncated ? lastCompanyId : null,
+            nextCompanyId: truncated ? resumeAfter : null,
             message: truncated
-                ? `Partial backfill: processed ${processedCompanies}/${companiesSnap.size} companies before timeout. Re-run with startAfterCompanyId "${lastCompanyId}" to finish.`
+                ? `Partial backfill: processed ${processedCompanies}/${companiesSnap.size} companies before timeout. Re-run ${resumeAfter ? `with startAfterCompanyId "${resumeAfter}" ` : ''}to finish.`
                 : `Backfill complete across ${processedCompanies} companies. ${totalPhones} phones from ${totalSessions} sessions.`,
         };
     }
