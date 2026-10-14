@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Icon, Trash2, Eye, MessageSquare, Clock, MapPin } from '@design-system/icons';
+import { Icon, Trash2, Eye, Clock, MapPin } from '@design-system/icons';
 import { formatPhoneNumber } from '@shared/utils/helpers';
 import { StatusBadge } from '@shared/components/badges';
 import { IconButton } from '@/design-system/components';
@@ -134,13 +134,6 @@ export function buildDriverListColumns({
                             {/* 15 -> `sm` (14): one pixel, following the same snap
                                 `candidateListColumns` took in the chip slice. */}
                             <Icon icon={Eye} size="sm" />
-                        </IconButton>
-                        <IconButton
-                            label={`Message ${who}`}
-                            variant="ghost"
-                            size="sm"
-                        >
-                            <Icon icon={MessageSquare} size="sm" />
                         </IconButton>
                         <IconButton
                             label={`Delete ${who}`}

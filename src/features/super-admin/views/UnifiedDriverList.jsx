@@ -4,9 +4,11 @@
  *
  * Migrated to the design system 2026-07-28. Presentation only — the combined
  * lead/application list, the `sourceType` values, the search across
- * name/email/phone/company, the four filters, the sort keys, the 50-per-page
- * client pagination, the docs-status rule (4 required docs), the 14-day stale
- * rule and the relative-time buckets are unchanged.
+ * name/email/phone/company, the sort keys, the 50-per-page client pagination,
+ * the docs-status rule (4 required docs), the 14-day stale rule and the
+ * relative-time buckets are unchanged. The status and driver-type filters offer
+ * the values the loaded records hold (`FILTERS`), and the source filter only the
+ * two sources a record has.
  *
  * Delete goes through the `deleteApplication` callable (`useApplicationDelete`),
  * as a company admin's does, so the record's subcollections and uploaded files
@@ -22,8 +24,8 @@
  *     `CompaniesView` already uses, so the presentation is consistent and no new
  *     workflow is invented.
  *  2. **Row actions were invisible until hover** (`opacity-0 group-hover:*`),
- *     so keyboard users could not see View/Message/Delete at all. They now also
- *     appear on focus.
+ *     so keyboard users could not see View/Delete at all. They now also appear
+ *     on focus. The row's Message action had no handler and is gone.
  *  3. Icon-only actions carried only a `title`, so they had no accessible name.
  *  4. Blocking `window.confirm` on the destructive delete, replaced with an
  *     accessible dialog. The SUPER ADMIN WARNING wording is preserved verbatim.
@@ -49,6 +51,23 @@ import { Button, Card, Input, Select } from '@/design-system/components';
 // ========== SOURCE BADGE COMPONENT ==========
 import { FILTERS, DeleteRecordDialog } from '../components/driver-list/UnifiedDriverListParts';
 import { buildDriverListColumns } from '../components/driver-list/driverListColumns';
+
+/**
+ * The options of a filter that offers what the records hold: each value once,
+ * sorted, a list read whole, and the value already chosen kept even when the
+ * records loaded since no longer hold it.
+ */
+function heldOptions(records, { read, allText }, chosen) {
+    const values = new Set();
+    for (const record of records) {
+        const held = read(record);
+        for (const value of Array.isArray(held) ? held : [held]) {
+            if (typeof value === 'string' && value.trim() !== '') values.add(value);
+        }
+    }
+    if (chosen !== 'All') values.add(chosen);
+    return [['All', allText], ...[...values].sort((a, b) => a.localeCompare(b)).map((value) => [value, value])];
+}
 
 // ========== MAIN COMPONENT ==========
 export function UnifiedDriverList({
@@ -220,6 +239,11 @@ export function UnifiedDriverList({
 
     const hasActiveFilters = search || Object.values(filters).some(v => v !== 'All');
 
+    const filterOptions = useMemo(() => Object.fromEntries(FILTERS.map((filter) => [
+        filter.key,
+        filter.options || heldOptions(allApplications, filter, filters[filter.key]),
+    ])), [allApplications, filters]);
+
     // --- Modern Table Column Config ---
     const tableColumns = useMemo(() => buildDriverListColumns({
         deletingId,
@@ -262,7 +286,7 @@ export function UnifiedDriverList({
                         <Icon icon={Filter} size="xs" /> Filters:
                     </span>
 
-                    {FILTERS.map(({ key, label, options }) => (
+                    {FILTERS.map(({ key, label }) => (
                         <span key={key} className="flex items-center gap-1">
                             <label htmlFor={`${filterIdBase}-${key}`} className="sr-only">{label}</label>
                             <Select
@@ -271,7 +295,7 @@ export function UnifiedDriverList({
                                 value={filters[key]}
                                 onChange={(e) => setFilters(f => ({ ...f, [key]: e.target.value }))}
                             >
-                                {options.map(([value, text]) => (
+                                {filterOptions[key].map(([value, text]) => (
                                     <option key={value} value={value}>{text}</option>
                                 ))}
                             </Select>

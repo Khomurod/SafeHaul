@@ -126,6 +126,7 @@ export function ViewRouter({
                     loadMore={loadMore}
                     isLoadingMore={loadingMore.applications}
                     hasMore={hasMoreApps}
+                    isLoading={listLoading}
                 />
             );
         case SUPER_ADMIN_VIEWS.FEATURES:

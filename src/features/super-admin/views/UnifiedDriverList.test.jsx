@@ -174,8 +174,13 @@ describe('UnifiedDriverList — naming and filters (defects)', () => {
     it('names every row action after its driver', () => {
         renderView();
         expect(screen.getByRole('button', { name: 'View Artificial Driver' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Message Artificial Driver' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Delete Second Lead' })).toBeInTheDocument();
+    });
+
+    // It had no handler: pressing it did nothing.
+    it('offers no Message action', () => {
+        renderView();
+        expect(screen.queryByRole('button', { name: /^Message/ })).not.toBeInTheDocument();
     });
 
     it('labels the search box and all four filters', () => {
@@ -189,7 +194,47 @@ describe('UnifiedDriverList — naming and filters (defects)', () => {
         renderView();
         const source = screen.getByLabelText('Filter by source');
         const values = within(source).getAllByRole('option').map((o) => o.value);
-        expect(values).toEqual(['All', 'Company App', 'Company Lead', 'Company Import']);
+        expect(values).toEqual(['All', 'Company App', 'Company Lead']);
+    });
+
+    // The status and type menus listed values no record holds (OTR, "In Review",
+    // "Company Import"), so most choices emptied the list. They now offer what the
+    // loaded records hold.
+    it('offers the statuses and freight types the records hold, and each one finds its records', () => {
+        renderView({
+            allApplications: [
+                { ...APPLICATIONS[0], status: 'New Application', driverType: 'Reefer' },
+                { ...APPLICATIONS[1], status: 'Contact Attempt 1', driverType: ['Flatbed'] },
+            ],
+        });
+        const optionValues = (label) => within(screen.getByLabelText(label)).getAllByRole('option').map((o) => o.value);
+        expect(optionValues('Filter by status')).toEqual(['All', 'Contact Attempt 1', 'New Application']);
+        expect(optionValues('Filter by driver type')).toEqual(['All', 'Flatbed', 'Reefer']);
+
+        fireEvent.change(screen.getByLabelText('Filter by driver type'), { target: { value: 'Flatbed' } });
+        expect(screen.getByText('Second Lead')).toBeInTheDocument();
+        expect(screen.queryByText('Artificial Driver')).not.toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText('Filter by driver type'), { target: { value: 'All' } });
+        fireEvent.change(screen.getByLabelText('Filter by status'), { target: { value: 'New Application' } });
+        expect(screen.getByText('Artificial Driver')).toBeInTheDocument();
+        expect(screen.queryByText('Second Lead')).not.toBeInTheDocument();
+    });
+
+    it('keeps a chosen value on offer when the loaded records change', () => {
+        const { rerender } = renderView();
+        fireEvent.change(screen.getByLabelText('Filter by status'), { target: { value: 'Qualified' } });
+        rerender(
+            <UnifiedDriverList
+                allApplications={[APPLICATIONS[0]]}
+                allCompaniesMap={COMPANIES_MAP}
+                onAppClick={vi.fn()}
+                onDataUpdate={vi.fn()}
+                loadMore={vi.fn()}
+                hasMore={false}
+            />,
+        );
+        expect(screen.getByLabelText('Filter by status')).toHaveValue('Qualified');
     });
 
     it('filters by source using the frozen sourceType values', () => {

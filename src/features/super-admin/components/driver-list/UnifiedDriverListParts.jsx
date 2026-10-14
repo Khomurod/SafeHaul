@@ -22,20 +22,17 @@ const SourceBadge = ({ type }) => {
     return <Badge tone={c.tone} icon={c.icon}>{c.label}</Badge>;
 };
 
-// ========== BULK ACTION BAR ==========
-/** Filter definitions. Values and visible text preserved verbatim. */
+/**
+ * Filter definitions. Source and documents have fixed options. Status and driver
+ * type offer the values the loaded records hold (`read`): their fixed lists named
+ * values no record carries (OTR, "In Review"), so most choices emptied the list.
+ */
 const FILTERS = [
-    { key: 'status', label: 'Filter by status', options: [
-        ['All', 'All Status'], ['New', 'New'], ['In Review', 'In Review'],
-        ['Qualified', 'Qualified'], ['Hold', 'Hold'], ['Approved', 'Approved'], ['Rejected', 'Rejected'],
-    ] },
+    { key: 'status', label: 'Filter by status', allText: 'All Status', read: (item) => item.status || 'New' },
     { key: 'source', label: 'Filter by source', options: [
-        ['All', 'All Sources'], ['Company App', 'Direct Applications'],
-        ['Company Lead', 'Company Leads'], ['Company Import', 'Company Imports'],
+        ['All', 'All Sources'], ['Company App', 'Direct Applications'], ['Company Lead', 'Company Leads'],
     ] },
-    { key: 'driverType', label: 'Filter by driver type', options: [
-        ['All', 'All Types'], ['OTR', 'OTR'], ['Regional', 'Regional'], ['Local', 'Local'], ['Team', 'Team'],
-    ] },
+    { key: 'driverType', label: 'Filter by driver type', allText: 'All Types', read: (item) => item.driverType },
     { key: 'docsStatus', label: 'Filter by documents status', options: [
         ['All', 'All Docs'], ['Complete', 'Complete'], ['Partial', 'Partial'], ['Missing', 'Missing'],
     ] },
