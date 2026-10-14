@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { serverMessageOf } from '@shared/utils/callableErrors';
 import { Icon, Loader2, Check, X, Pencil, ShieldCheck, CheckCircle2 } from '@design-system/icons';
 import { Button, Card, Input, Notice, SegmentedControl, StatusMedallion } from '@/design-system/components';
 import { isEmployerChange, summarizeEmployerChange } from './employerChangeSummary';
@@ -110,15 +111,44 @@ const ACTIONS = [
     { id: 'edit', label: 'Edit', icon: Pencil, tone: 'info' },
 ];
 
+const KEPT = 'Your choices are still on this page';
+
+/**
+ * Where a failed submission leaves the driver. A refusal of the link itself
+ * (expired, replaced by a newer link, already complete, gone) ends the review
+ * on the server's words; anything else keeps every choice for Try again.
+ */
+function submitFailure(e) {
+    const said = serverMessageOf(e);
+    switch (e?.code) {
+        case 'functions/failed-precondition':
+        case 'functions/not-found':
+            if (said) return { ends: said };
+            break;
+        case 'functions/invalid-argument':
+        case 'functions/resource-exhausted':
+            if (said) return { message: `Your responses were not sent: ${said} ${KEPT}.` };
+            break;
+        default:
+            break;
+    }
+    return { message: `Your responses were not sent. ${KEPT}: check your connection and try again.` };
+}
+
 export function ReviewChangePortal() {
     const { token } = useParams();
     const isMock = isE2ETestMode && getE2EQueryParam('e2eReview', '') === 'mock';
 
     const [loading, setLoading] = useState(true);
+    // The link itself failed: this replaces the review.
     const [error, setError] = useState('');
     const [data, setData] = useState(null);
     const [resolutions, setResolutions] = useState({});
     const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState('');
+    // Submit pressed with a change still undecided; each press moves focus to the list.
+    const [undecidedAttempts, setUndecidedAttempts] = useState(0);
+    const undecidedRef = useRef(null);
     const [done, setDone] = useState(false);
 
     useEffect(() => {
@@ -137,9 +167,11 @@ export function ReviewChangePortal() {
                 }
                 if (cancelled) return;
                 setData(res);
+                // No decision is made for the driver: approving is something
+                // they do, change by change, on every visit.
                 const init = {};
                 (res.changes || []).filter((c) => c.status === 'pending').forEach((c) => {
-                    init[c.fieldKey] = { action: 'approve', value: isScalar(c.proposedValue) ? String(c.proposedValue ?? '') : c.proposedValue };
+                    init[c.fieldKey] = { action: null, value: isScalar(c.proposedValue) ? String(c.proposedValue ?? '') : c.proposedValue };
                 });
                 setResolutions(init);
             } catch (e) {
@@ -155,16 +187,25 @@ export function ReviewChangePortal() {
     const setValue = (fieldKey, value) => setResolutions((p) => ({ ...p, [fieldKey]: { ...p[fieldKey], value } }));
 
     const pending = (data?.changes || []).filter((c) => c.status === 'pending');
+    const undecided = pending.filter((c) => !resolutions[c.fieldKey]?.action);
+
+    useEffect(() => {
+        if (undecidedAttempts > 0) undecidedRef.current?.focus();
+    }, [undecidedAttempts]);
 
     const handleSubmit = async () => {
+        if (undecided.length > 0) {
+            setUndecidedAttempts((n) => n + 1);
+            return;
+        }
         const payload = pending.map((c) => {
-            const r = resolutions[c.fieldKey] || { action: 'approve' };
+            const r = resolutions[c.fieldKey];
             const out = { fieldKey: c.fieldKey, action: r.action };
             if (r.action === 'edit') out.value = isScalar(c.proposedValue) ? r.value : c.proposedValue;
             return out;
         });
         setSubmitting(true);
-        setError('');
+        setSubmitError('');
         try {
             if (!isMock) {
                 const fn = httpsCallable(functions, 'submitChangeResolution');
@@ -172,7 +213,9 @@ export function ReviewChangePortal() {
             }
             setDone(true);
         } catch (e) {
-            setError(e?.message || 'Could not submit your review. Please try again.');
+            const failure = submitFailure(e);
+            if (failure.ends) setError(failure.ends);
+            else setSubmitError(failure.message);
         } finally {
             setSubmitting(false);
         }
@@ -226,7 +269,7 @@ export function ReviewChangePortal() {
                     ) : (
                         <div className="space-y-5">
                             {pending.map((c) => {
-                                const r = resolutions[c.fieldKey] || { action: 'approve' };
+                                const r = resolutions[c.fieldKey] || {};
                                 const canEdit = isScalar(c.proposedValue) && isScalar(c.originalValue);
                                 const fieldName = c.fieldLabel || c.fieldKey;
                                 return (
@@ -278,6 +321,26 @@ export function ReviewChangePortal() {
                                 );
                             })}
 
+                            {undecidedAttempts > 0 && undecided.length > 0 && (
+                                <Notice
+                                    ref={undecidedRef}
+                                    tabIndex={-1}
+                                    tone="danger"
+                                    announce="assertive"
+                                    title="Choose a decision for each change"
+                                >
+                                    {`Still to decide: ${undecided.map((c) => c.fieldLabel || c.fieldKey).join(', ')}.`}
+                                </Notice>
+                            )}
+                            {submitError && !submitting && (
+                                <Notice
+                                    tone="danger"
+                                    announce="assertive"
+                                    actions={<Button size="sm" variant="secondary" onClick={handleSubmit}>Try again</Button>}
+                                >
+                                    {submitError}
+                                </Notice>
+                            )}
                             <Button type="button" variant="primary" size="lg" fullWidth loading={submitting} onClick={handleSubmit}>
                                 Submit my responses
                             </Button>

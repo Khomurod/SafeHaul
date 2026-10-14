@@ -169,7 +169,7 @@ describe('useVerificationPortal — token-load and submission contract', () => {
         scrollTo.mockRestore();
     });
 
-    it('surfaces a submission failure without completing', async () => {
+    it('surfaces a submission failure on the form, without completing or leaving it', async () => {
         callables.submitVerificationResponse.mockRejectedValue(new Error('submit down'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         const { result } = renderHook(() => useVerificationPortal('token-abc'));
@@ -182,7 +182,10 @@ describe('useVerificationPortal — token-load and submission contract', () => {
         });
 
         expect(result.current.completed).toBe(false);
-        expect(result.current.error).toBe('submit down');
+        expect(result.current.error).toBeNull();
+        expect(result.current.submitError).toBe(
+            'Your response was not sent. Your answers are still on this page: check your connection and try again.',
+        );
         consoleError.mockRestore();
         scrollTo.mockRestore();
     });
