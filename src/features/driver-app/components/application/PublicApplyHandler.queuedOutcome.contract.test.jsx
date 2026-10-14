@@ -12,7 +12,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 vi.mock('@/context/DataContext', async () => (await import('./PublicApplyHandler.contract.support')).dataContextMock());
@@ -33,8 +33,12 @@ vi.mock('@shared/components/layout/Stepper', async () => (await import('./Public
 
 import { PublicApplyHandler } from './PublicApplyHandler';
 import { QUEUED_APPLICATION_EVENT } from './queuedApplicationOutcome';
+import { closeDraftAfterDelayedSubmission } from '../../services/applicationDraftService';
 import {
   showError,
+  showInfo,
+  saveProgressSpy,
+  findResumableSpy,
   callableSpy,
   enqueueSpy,
   dequeueSpy,
@@ -191,6 +195,62 @@ describe('a submission the page queued', () => {
 
     expect(screen.getByRole('heading', { name: 'Not sent yet' })).toBeInTheDocument();
     expect(screen.queryByText('CONF-1')).toBeNull();
+  });
+});
+
+describe('a new application after the queue sent this one', () => {
+  /** Start a new application, type on page one and press Next. */
+  async function startNewAndContinue() {
+    fireEvent.click(await screen.findByRole('button', { name: 'Start a new application' }));
+    fireEvent.click(await screen.findByText('probe-edit'));
+    saveProgressSpy.mockClear();
+    fireEvent.click(screen.getByText('probe-next'));
+  }
+
+  // The queue sent it from this tab, as it does when the page is kept open: the
+  // close it wrote raised no storage event here.
+  it('keeps the new answers, with no word of another tab', async () => {
+    await renderNamedDraft();
+    await queueIt();
+    closeDraftAfterDelayedSubmission('acme', { draftId: 'draft-x' });
+    announce({ outcome: 'sent', applyDraftId: 'draft-x', applicationId: 'app-9', confirmationNumber: 'CONF-9' });
+
+    await startNewAndContinue();
+
+    await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('1'));
+    expect(showInfo).not.toHaveBeenCalledWith(expect.stringMatching(/submitted in another tab/));
+    const stored = JSON.parse(localStorage.getItem('draft_acme'));
+    expect(stored.data.phone).toBe('5559999');
+    expect(stored.meta.draftId).not.toBe('draft-x');
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+  });
+
+  // Sent from another tab: this one took up the close while it showed the queued
+  // screen, and must not carry the submitted draft's token into the next one.
+  it('saves the new application without the submitted one\'s token', async () => {
+    localStorage.setItem('apply_resume_acme', JSON.stringify({ resumeToken: 'token-old', applicantKey: 'key-old' }));
+    await renderNamedDraft();
+    await queueIt();
+    act(() => {
+      localStorage.setItem('apply_discarded_acme', 'submit:x');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'apply_discarded_acme', newValue: 'submit:x' }));
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'safehaul:queued-application',
+        newValue: JSON.stringify({
+          slug: 'acme', companyId: 'company-1', entryId: 'queue-1', outcome: 'sent',
+          applyDraftId: 'draft-x', applicationId: 'app-9', confirmationNumber: 'CONF-9',
+        }),
+      }));
+    });
+    expect(await screen.findByRole('heading', { name: 'Application Submitted!' })).toBeInTheDocument();
+    findResumableSpy.mockClear();
+
+    await startNewAndContinue();
+
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    expect(saveProgressSpy.mock.calls.at(-1)[0].resumeToken).toBeNull();
+    // Asked first, as for any application this browser does not own yet.
+    expect(findResumableSpy).toHaveBeenCalled();
   });
 });
 

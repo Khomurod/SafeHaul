@@ -368,6 +368,17 @@ describe('PublicApplyHandler submission contract', () => {
     expect(callableSpy).not.toHaveBeenCalled();
   });
 
+  // The phone is checked after the uploads; the page that holds it still comes first.
+  it('routes to page one for an old-format phone even when an upload is missing too', async () => {
+    await renderResumedAtStep(5, { phone: '+52 55 1234 5678', 'medical-card-upload': null });
+    await submit();
+
+    expect(showError).toHaveBeenCalledWith('Enter a 10-digit US phone number.');
+    expect(showError).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('current-step')).toHaveTextContent('0');
+    expect(callableSpy).not.toHaveBeenCalled();
+  });
+
   it('submits without an SSN when the company marks it optional', async () => {
     profileOverride.current = {
       applicationConfig: {

@@ -16,6 +16,7 @@ import {
   setSigningReturnPath,
 } from './postApplyDocsStorage';
 import { useQueuedApplicationOutcome } from './useQueuedApplicationOutcome';
+import { readDiscardMark } from './applicationDraftStorage';
 
 export function usePostSubmitDocuments({
   slug,
@@ -34,6 +35,9 @@ export function usePostSubmitDocuments({
   setFormData,
   setCurrentStep,
   draftIdRef,
+  discardMarkRef,
+  restoredFromDraftRef,
+  forgetDraftOwnership,
   navigate,
   showError,
   showSuccess,
@@ -85,7 +89,16 @@ export function usePostSubmitDocuments({
     // submitted one's name; this is here so the invariant holds from either direction,
     // including a queued submission that has not landed yet.
     draftIdRef.current = null;
-  }, [company?.id, draftIdRef, setPostSubmitDocs, setSubmissionStatus, setSubmittedApplicationId, setSubmittedConfirmationNumber, setFormData, setCurrentStep]);
+    // And what a direct submission's close also takes up, which a queued one that
+    // landed did not: its mark (written in this tab, so no storage event told this
+    // tab, and the next Next would read it as a discard elsewhere and reset the new
+    // answers) and its resume token (the submitted draft's, which the server
+    // deleted, so every save of the new application would be refused as stale).
+    discardMarkRef.current = readDiscardMark(slug);
+    forgetDraftOwnership();
+    // Typed here from now on, as after Start Over.
+    restoredFromDraftRef.current = false;
+  }, [company?.id, slug, draftIdRef, discardMarkRef, restoredFromDraftRef, forgetDraftOwnership, setPostSubmitDocs, setSubmissionStatus, setSubmittedApplicationId, setSubmittedConfirmationNumber, setFormData, setCurrentStep]);
 
   const handleOpenPostApplicationTemplate = async (template) => {
     if (!template?.templateId || !company?.id || !submittedApplicationId) {

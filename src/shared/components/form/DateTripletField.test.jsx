@@ -117,6 +117,32 @@ describe('DateTripletField — emit rules', () => {
         expect(onChange).toHaveBeenCalledWith('dateOfBirth', '1985-11-09');
     });
 
+    it('keeps a chosen day when the month is chosen or changed before the year', () => {
+        renderField();
+        fireEvent.change(selects().day, { target: { value: '14' } });
+        fireEvent.change(selects().month, { target: { value: '3' } });
+        expect(selects().day).toHaveValue('14');
+
+        fireEvent.change(selects().year, { target: { value: '1990' } });
+        expect(onChange).toHaveBeenLastCalledWith('dateOfBirth', '1990-03-14');
+    });
+
+    it('clamps a day kept without a year once the year arrives', () => {
+        renderField();
+        fireEvent.change(selects().day, { target: { value: '29' } });
+        fireEvent.change(selects().month, { target: { value: '2' } });
+        fireEvent.change(selects().year, { target: { value: '2001' } });
+        expect(onChange).toHaveBeenLastCalledWith('dateOfBirth', '2001-02-28');
+
+        onChange.mockClear();
+        fireEvent.change(selects().year, { target: { value: '' } });
+        fireEvent.change(selects().month, { target: { value: '1' } });
+        fireEvent.change(selects().day, { target: { value: '31' } });
+        fireEvent.change(selects().month, { target: { value: '4' } });
+        fireEvent.change(selects().year, { target: { value: '1990' } });
+        expect(onChange).toHaveBeenLastCalledWith('dateOfBirth', '1990-04-30');
+    });
+
     it('zero-pads month and day in the emitted ISO value', () => {
         renderField();
         fireEvent.change(selects().year, { target: { value: '2001' } });
