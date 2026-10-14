@@ -273,9 +273,11 @@ describe('UploadField unmounting mid-upload', () => {
   it('does not let the second after one success end the next upload', async () => {
     vi.useFakeTimers();
     try {
-      const onUpload = vi.fn()
-        .mockResolvedValueOnce({ name: 'first.pdf', storagePath: 'p1' })
-        .mockImplementationOnce(() => new Promise(() => {}));
+      // The first upload lands; the second never does.
+      let uploads = 0;
+      const onUpload = vi.fn(() => (++uploads === 1
+        ? Promise.resolve({ name: 'first.pdf', storagePath: 'p1' })
+        : new Promise(() => {})));
       renderField({ onUpload });
 
       await act(async () => {
