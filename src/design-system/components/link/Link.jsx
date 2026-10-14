@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { contractViolation } from '../../contract';
 import './Link.css';
 import '../button/Button.css';
 
@@ -61,7 +62,7 @@ export const Link = forwardRef(function Link({
   ...props
 }, ref) {
   if (typeof href !== 'string' || href.trim() === '') {
-    throw new TypeError('Link requires a non-empty href. For an action, use Button.');
+    contractViolation('Link requires a non-empty href. For an action, use Button.');
   }
 
   return (
@@ -100,7 +101,7 @@ export const ButtonLink = forwardRef(function ButtonLink({
   ...props
 }, ref) {
   if (typeof href !== 'string' || href.trim() === '') {
-    throw new TypeError('ButtonLink requires a non-empty href. For an action, use Button.');
+    contractViolation('ButtonLink requires a non-empty href. For an action, use Button.');
   }
 
   return (
@@ -134,7 +135,7 @@ export const IconButtonLink = forwardRef(function IconButtonLink({
   ...props
 }, ref) {
   if (typeof label !== 'string' || label.trim() === '') {
-    throw new TypeError('IconButtonLink requires a non-empty label.');
+    contractViolation('IconButtonLink requires a non-empty label.');
   }
 
   return (

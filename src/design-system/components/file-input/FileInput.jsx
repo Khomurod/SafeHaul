@@ -2,6 +2,7 @@ import React, { forwardRef, useCallback, useId, useState } from 'react';
 import { Icon, Loader2, Upload } from '../../icons';
 import { resolveDroppedFiles } from './dropAcceptance';
 import { useFocusRestore } from './useFocusRestore';
+import { contractViolation } from '../../contract';
 import './FileInput.css';
 
 /**
@@ -84,10 +85,10 @@ export const FileInput = forwardRef(function FileInput({
   ...props
 }, ref) {
   if (typeof label !== 'string' || label.trim() === '') {
-    throw new TypeError('FileInput requires a non-empty label naming what is being uploaded.');
+    contractViolation('FileInput requires a non-empty label naming what is being uploaded.');
   }
   if (!VARIANTS.has(variant)) {
-    throw new TypeError(`Unsupported FileInput variant: ${variant}`);
+    contractViolation(`Unsupported FileInput variant: ${variant}`);
   }
 
   const generatedId = useId().replace(/:/g, '');

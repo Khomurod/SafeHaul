@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { ChevronDown, Icon } from '../../icons';
+import { contractViolation } from '../../contract';
 import './Disclosure.css';
 
 const VARIANTS = new Set(['default', 'card']);
@@ -69,28 +70,29 @@ export function Disclosure({
   ...props
 }) {
   if (typeof title !== 'string' || title.trim() === '') {
-    throw new TypeError('Disclosure requires a non-empty title.');
+    contractViolation('Disclosure requires a non-empty title.');
   }
   if (![1, 2, 3, 4, 5, 6].includes(headingLevel)) {
-    throw new TypeError(`Unsupported Disclosure headingLevel: ${headingLevel}`);
+    contractViolation(`Unsupported Disclosure headingLevel: ${headingLevel}`);
+    headingLevel = 3;
   }
   if (!VARIANTS.has(variant)) {
-    throw new TypeError(`Unsupported Disclosure variant: ${variant}`);
+    contractViolation(`Unsupported Disclosure variant: ${variant}`);
   }
   const isCard = variant === 'card';
   if (description !== undefined) {
     if (!isCard) {
-      throw new TypeError('Disclosure description requires variant="card".');
+      contractViolation('Disclosure description requires variant="card".');
     }
     if (typeof description !== 'string' || description.trim() === '') {
-      throw new TypeError('Disclosure description must be a non-empty string.');
+      contractViolation('Disclosure description must be a non-empty string.');
     }
   }
   if (leading !== undefined && !isCard) {
-    throw new TypeError('Disclosure leading requires variant="card".');
+    contractViolation('Disclosure leading requires variant="card".');
   }
   if (meta !== undefined && isCard) {
-    throw new TypeError('Disclosure meta is not supported by variant="card".');
+    contractViolation('Disclosure meta is not supported by variant="card".');
   }
 
   const generatedId = useId().replace(/:/g, '');

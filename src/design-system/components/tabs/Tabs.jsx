@@ -1,5 +1,6 @@
 import React, { forwardRef, useCallback, useRef } from 'react';
 import { Icon as DsIcon } from '../../icons';
+import { contractViolation } from '../../contract';
 import './Tabs.css';
 
 /**
@@ -28,7 +29,7 @@ import './Tabs.css';
  */
 export function tabIds(idBase, tabId) {
   if (typeof idBase !== 'string' || idBase.trim() === '') {
-    throw new TypeError('tabIds requires a non-empty idBase.');
+    contractViolation('tabIds requires a non-empty idBase.');
   }
   return {
     tabId: `${idBase}-tab-${tabId}`,
@@ -86,22 +87,24 @@ export function TabList({
   ...props
 }) {
   if (typeof ariaLabel !== 'string' || ariaLabel.trim() === '') {
-    throw new TypeError('TabList requires an ariaLabel naming what the tabs switch between.');
+    contractViolation('TabList requires an ariaLabel naming what the tabs switch between.');
   }
   if (!Array.isArray(tabs) || tabs.length === 0) {
-    throw new TypeError('TabList requires at least one tab.');
+    contractViolation('TabList requires at least one tab.');
+    if (!Array.isArray(tabs)) tabs = [];
   }
   if (!ORIENTATIONS.has(orientation)) {
-    throw new TypeError(`Unsupported TabList orientation: ${orientation}`);
+    contractViolation(`Unsupported TabList orientation: ${orientation}`);
+    orientation = 'horizontal';
   }
   if (!VARIANTS.has(variant)) {
-    throw new TypeError(`Unsupported TabList variant: ${variant}`);
+    contractViolation(`Unsupported TabList variant: ${variant}`);
   }
   if (variant === 'pill' && orientation === 'vertical') {
     // Not a limitation worth designing around: nothing in the product wants it,
     // and a silently-ignored combination is how a component starts lying about
     // what it supports.
-    throw new TypeError('TabList does not support variant="pill" with orientation="vertical".');
+    contractViolation('TabList does not support variant="pill" with orientation="vertical".');
   }
 
   const buttonRefs = useRef({});

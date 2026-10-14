@@ -1,5 +1,6 @@
 import React from 'react';
 import { glyphComponent, glyphEntry } from './glyph.js';
+import { contractViolation } from '../contract.js';
 import './Icon.css';
 
 /**
@@ -53,15 +54,16 @@ export function Icon({
 }) {
     const Glyph = glyphComponent(icon);
     if (typeof Glyph !== 'function' && (typeof Glyph !== 'object' || Glyph === null)) {
-        throw new TypeError(
+        contractViolation(
             'Icon: `icon` must be a glyph from `@design-system/icons` — received '
             + `${icon === undefined ? 'nothing' : typeof icon}. Import the name from the `
             + 'design system rather than from an icon package directly.',
         );
+        return null;
     }
     if (!ICON_SIZES.includes(size)) {
         const named = glyphEntry(icon)?.name;
-        throw new TypeError(
+        contractViolation(
             `Icon: unsupported size ${JSON.stringify(size)}${named ? ` for ${named}` : ''}. `
             + `Expected one of ${ICON_SIZES.map((step) => `'${step}'`).join(', ')}. A pixel `
             + 'number is what this contract exists to replace — 209 call sites had each '
@@ -69,7 +71,7 @@ export function Icon({
         );
     }
     if (label !== undefined && (typeof label !== 'string' || label.trim() === '')) {
-        throw new TypeError(
+        contractViolation(
             'Icon: `label` must be a non-empty string. Omit it entirely for a decorative '
             + 'glyph — an empty label renders `role="img"` with no name, which announces '
             + 'an image and then says nothing about it.',

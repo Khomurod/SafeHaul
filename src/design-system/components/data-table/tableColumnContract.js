@@ -1,3 +1,4 @@
+import { contractViolation } from '../../contract';
 const ALIGNMENTS = new Set(['start', 'center', 'end']);
 const WIDTHS = new Set(['auto', 'xs', 'sm', 'md', 'lg', 'xl', 'actions']);
 const PRIORITIES = new Set(['primary', 'secondary', 'tertiary', 'actions']);
@@ -15,59 +16,71 @@ export const TABLE_COLUMN_PRIORITIES = Object.freeze([...PRIORITIES]);
  */
 export function defineTableColumns(columns) {
   if (!Array.isArray(columns)) {
-    throw new TypeError('DataTable columns must be an array.');
+    contractViolation('DataTable columns must be an array.');
+    return Object.freeze([]);
   }
 
   const keys = new Set();
 
-  return Object.freeze(columns.map((column) => {
+  // In a production build a check reports and returns (`contractViolation`): a
+  // column that cannot be drawn is left out, and a bad option takes its default.
+  return Object.freeze(columns.flatMap((column) => {
     if (!column || typeof column !== 'object') {
-      throw new TypeError('Each DataTable column must be an object.');
+      contractViolation('Each DataTable column must be an object.');
+      return [];
     }
 
     if (typeof column.key !== 'string' || column.key.trim() === '') {
-      throw new TypeError('Each DataTable column requires a non-empty string key.');
+      contractViolation('Each DataTable column requires a non-empty string key.');
     }
 
     if (keys.has(column.key)) {
-      throw new TypeError(`Duplicate DataTable column key: ${column.key}`);
+      contractViolation(`Duplicate DataTable column key: ${column.key}`);
     }
     keys.add(column.key);
 
     if (typeof column.render !== 'function') {
-      throw new TypeError(`DataTable column "${column.key}" requires a render function.`);
+      contractViolation(`DataTable column "${column.key}" requires a render function.`);
+      return [];
     }
 
-    const align = column.align ?? 'start';
-    const width = column.width ?? 'auto';
-    const priority = column.priority ?? (column.rowHeader ? 'primary' : 'secondary');
+    const defaultPriority = column.rowHeader ? 'primary' : 'secondary';
+    let align = column.align ?? 'start';
+    let width = column.width ?? 'auto';
+    let priority = column.priority ?? defaultPriority;
+    let { mobileLabel } = column;
 
     if (!ALIGNMENTS.has(align)) {
-      throw new TypeError(`Unsupported DataTable alignment "${align}" for "${column.key}".`);
+      contractViolation(`Unsupported DataTable alignment "${align}" for "${column.key}".`);
+      align = 'start';
     }
 
     if (!WIDTHS.has(width)) {
-      throw new TypeError(`Unsupported DataTable width "${width}" for "${column.key}".`);
+      contractViolation(`Unsupported DataTable width "${width}" for "${column.key}".`);
+      width = 'auto';
     }
 
     if (!PRIORITIES.has(priority)) {
-      throw new TypeError(`Unsupported DataTable priority "${priority}" for "${column.key}".`);
+      contractViolation(`Unsupported DataTable priority "${priority}" for "${column.key}".`);
+      priority = defaultPriority;
     }
 
     // The label a cell shows beside its value when the table is cards on a phone;
     // `''` shows none, and the cell takes the card's full width.
-    if (column.mobileLabel !== undefined && typeof column.mobileLabel !== 'string') {
-      throw new TypeError(`DataTable column "${column.key}" needs a string mobileLabel.`);
+    if (mobileLabel !== undefined && typeof mobileLabel !== 'string') {
+      contractViolation(`DataTable column "${column.key}" needs a string mobileLabel.`);
+      mobileLabel = undefined;
     }
 
-    return Object.freeze({
+    return [Object.freeze({
       ...column,
       align,
       width,
       priority,
+      mobileLabel,
       rowHeader: Boolean(column.rowHeader),
       stopPropagation: Boolean(column.stopPropagation),
       truncate: Boolean(column.truncate),
-    });
+    })];
   }));
 }

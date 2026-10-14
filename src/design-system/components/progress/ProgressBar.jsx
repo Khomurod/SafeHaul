@@ -1,4 +1,5 @@
 import React, { useId } from 'react';
+import { contractViolation } from '../../contract';
 import './ProgressBar.css';
 
 const TONES = new Set(['info', 'success', 'warning', 'danger']);
@@ -26,16 +27,18 @@ export function ProgressBar({
   ...props
 }) {
   if (!TONES.has(tone)) {
-    throw new TypeError(`Unsupported ProgressBar tone: ${tone}`);
+    contractViolation(`Unsupported ProgressBar tone: ${tone}`);
   }
   if (typeof max !== 'number' || !Number.isFinite(max) || max <= 0) {
-    throw new TypeError('ProgressBar requires a positive finite max.');
+    contractViolation('ProgressBar requires a positive finite max.');
+    max = 100;
   }
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    throw new TypeError('ProgressBar requires a finite numeric value.');
+    contractViolation('ProgressBar requires a finite numeric value.');
+    value = 0;
   }
   if (!labelledBy && (typeof label !== 'string' || label.trim() === '')) {
-    throw new TypeError('ProgressBar requires a label or labelledBy.');
+    contractViolation('ProgressBar requires a label or labelledBy.');
   }
 
   const generatedId = useId().replace(/:/g, '');

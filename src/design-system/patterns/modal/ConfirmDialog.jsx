@@ -2,6 +2,7 @@ import React, { useId, useRef } from 'react';
 import { AlertTriangle, HelpCircle, Icon as DsIcon } from '../../icons';
 import { Button, Notice, StatusMedallion } from '@design-system/components';
 import { Modal } from './Modal';
+import { contractViolation } from '../../contract';
 
 /**
  * Business-neutral confirmation dialog, built on the approved accessible `Modal`.
@@ -89,10 +90,11 @@ export function ConfirmDialog({
     if (!isOpen) return null;
 
     if (typeof title !== 'string' || title.trim() === '') {
-        throw new TypeError('ConfirmDialog requires a non-empty title.');
+        contractViolation('ConfirmDialog requires a non-empty title.');
     }
     if (!TONES[tone]) {
-        throw new TypeError(`Unsupported ConfirmDialog tone: ${tone}`);
+        contractViolation(`Unsupported ConfirmDialog tone: ${tone}`);
+        tone = 'danger';
     }
 
     const { medallion, confirmVariant, Icon } = TONES[tone];

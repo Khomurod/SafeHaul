@@ -1,4 +1,5 @@
 import React from 'react';
+import { contractViolation } from '../../contract';
 import './Avatar.css';
 
 /**
@@ -32,7 +33,7 @@ const SIZES = new Set(['xs', 'sm', 'md', 'lg', 'xl']);
 function normalizeSize(size) {
   if (typeof size === 'string') {
     if (!SIZES.has(size)) {
-      throw new TypeError(
+      contractViolation(
         `Unsupported Avatar size: ${size}. Expected one of ${[...SIZES].map((s) => `'${s}'`).join(', ')}, `
         + 'or a responsive { base, sm }.',
       );
@@ -42,19 +43,20 @@ function normalizeSize(size) {
   if (size && typeof size === 'object') {
     const { base, sm } = size;
     if (!SIZES.has(base)) {
-      throw new TypeError(`Avatar responsive size needs a valid \`base\`; got ${base}.`);
+      contractViolation(`Avatar responsive size needs a valid \`base\`; got ${base}.`);
     }
     if (sm !== undefined && !SIZES.has(sm)) {
-      throw new TypeError(`Unsupported Avatar size at \`sm\`: ${sm}.`);
+      contractViolation(`Unsupported Avatar size at \`sm\`: ${sm}.`);
     }
     if (sm === base) {
-      throw new TypeError(
+      contractViolation(
         `Avatar responsive size is the same at both steps ('${base}'). Pass the plain string instead.`,
       );
     }
     return { base, sm };
   }
-  throw new TypeError(`Unsupported Avatar size: ${size}. Expected a step name or { base, sm }.`);
+  contractViolation(`Unsupported Avatar size: ${size}. Expected a step name or { base, sm }.`);
+  return { base: 'md', sm: undefined };
 }
 
 /**
@@ -83,10 +85,10 @@ export function Avatar({
 }) {
   const { base, sm } = normalizeSize(size);
   if (!SHAPES.has(shape)) {
-    throw new TypeError(`Unsupported Avatar shape: ${shape}. Expected 'circle' or 'square'.`);
+    contractViolation(`Unsupported Avatar shape: ${shape}. Expected 'circle' or 'square'.`);
   }
   if (!TONES.has(tone)) {
-    throw new TypeError(`Unsupported Avatar tone: ${tone}.`);
+    contractViolation(`Unsupported Avatar tone: ${tone}.`);
   }
 
   return (

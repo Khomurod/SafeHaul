@@ -8,6 +8,7 @@ import {
 } from '../../icons';
 import { defineTableColumns } from './tableColumnContract';
 import { useCardsLayout } from './useCardsLayout';
+import { contractViolation } from '../../contract';
 import './DataTable.css';
 import './pinnedColumn.css';
 import './mobileCards.css';
@@ -177,7 +178,7 @@ export const DataTable = memo(function DataTable({
   /** Cards on screen now; at 768px and up the same table can scroll sideways. */
   const cardsOnScreen = useCardsLayout(cards);
   if (cards && showSelection) {
-    throw new TypeError('A DataTable with mobilePresentation="cards" takes no selection; use mobilePresentation="scroll".');
+    contractViolation('A DataTable with mobilePresentation="cards" takes no selection; use mobilePresentation="scroll".');
   }
   /** A role stated outright, in cards only; a table's own markup carries it otherwise. */
   const role = (name) => (cards ? name : undefined);

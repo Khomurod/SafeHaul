@@ -34,6 +34,7 @@
  * this module, every value flowing into `icon` is a token, and the passthrough
  * branch can be deleted with nothing left to catch.
  */
+import { contractViolation } from '../contract.js';
 
 /**
  * `Symbol.for` rather than a module-local symbol: Vitest and Storybook can each
@@ -57,14 +58,14 @@ export const GLYPH = Symbol.for('safehaul.design-system.glyph');
  */
 export function glyph(component, name) {
     if (typeof name !== 'string' || name.trim() === '') {
-        throw new TypeError('glyph: `name` must be a non-empty string.');
+        contractViolation('glyph: `name` must be a non-empty string.');
     }
     if (component === null || component === undefined) {
-        throw new TypeError(`glyph: no icon component was supplied for ${name}.`);
+        contractViolation(`glyph: no icon component was supplied for ${name}.`);
     }
 
     const token = function GlyphToken() {
-        throw new TypeError(
+        contractViolation(
             `${name} is an icon token, not a component. Render it through the `
             + `contract instead:  <Icon icon={${name}} size="md" />  — with a step `
             + 'from the scale rather than a pixel number, which is what the icon '

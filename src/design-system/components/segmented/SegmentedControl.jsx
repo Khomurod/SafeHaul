@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon as DsIcon } from '../../icons';
+import { contractViolation } from '../../contract';
 import './SegmentedControl.css';
 
 /**
@@ -45,14 +46,15 @@ export function SegmentedControl({
   const named = (typeof ariaLabel === 'string' && ariaLabel.trim() !== '')
     || (typeof ariaLabelledBy === 'string' && ariaLabelledBy.trim() !== '');
   if (!named) {
-    throw new TypeError('SegmentedControl requires an ariaLabel or ariaLabelledBy naming the choice.');
+    contractViolation('SegmentedControl requires an ariaLabel or ariaLabelledBy naming the choice.');
   }
   if (!Array.isArray(options) || options.length === 0) {
-    throw new TypeError('SegmentedControl requires at least one option.');
+    contractViolation('SegmentedControl requires at least one option.');
+    if (!Array.isArray(options)) options = [];
   }
   for (const option of options) {
     if (option.tone && !TONES.has(option.tone)) {
-      throw new TypeError(`Unsupported SegmentedControl tone: ${option.tone}`);
+      contractViolation(`Unsupported SegmentedControl tone: ${option.tone}`);
     }
   }
 

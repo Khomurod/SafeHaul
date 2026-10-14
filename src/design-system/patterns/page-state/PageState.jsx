@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AlertTriangle, Icon as DsIcon, Loader2 } from '../../icons';
 import { Card, StatusMedallion } from '@design-system/components';
+import { contractViolation } from '../../contract';
 import './PageState.css';
 
 /**
@@ -115,22 +116,23 @@ export function PageState({
   }, [focusOnMount]);
 
   if (!TONES.has(tone)) {
-    throw new TypeError(`Unsupported PageState tone: ${tone}`);
+    contractViolation(`Unsupported PageState tone: ${tone}`);
   }
   if (typeof title !== 'string' || title.trim() === '') {
-    throw new TypeError('PageState requires a title. The tone is not the message.');
+    contractViolation('PageState requires a title. The tone is not the message.');
   }
   if (!HEADING_LEVELS.has(headingLevel)) {
-    throw new TypeError(`Unsupported PageState headingLevel: ${headingLevel}`);
+    contractViolation(`Unsupported PageState headingLevel: ${headingLevel}`);
+    headingLevel = 2;
   }
 
   const resolvedAnnounce = announce ?? (tone === 'danger' ? 'assertive' : 'polite');
   if (!ANNOUNCEMENTS.has(resolvedAnnounce)) {
-    throw new TypeError(`Unsupported PageState announce: ${resolvedAnnounce}`);
+    contractViolation(`Unsupported PageState announce: ${resolvedAnnounce}`);
   }
 
   if (!SURFACES.has(surface)) {
-    throw new TypeError(`Unsupported PageState surface: ${surface}`);
+    contractViolation(`Unsupported PageState surface: ${surface}`);
   }
 
   const Heading = `h${headingLevel}`;
@@ -223,7 +225,7 @@ export function ErrorState({ icon = AlertTriangle, ...props }) {
  */
 export function LoadingState({ tone = 'info', icon = Loader2, className = '', ...props }) {
   if (props.actions) {
-    throw new TypeError('LoadingState takes no actions: there is nothing to do but wait.');
+    contractViolation('LoadingState takes no actions: there is nothing to do but wait.');
   }
   return (
     <PageState

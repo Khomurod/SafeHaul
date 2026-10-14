@@ -5,6 +5,7 @@ import React, {
   useId,
 } from 'react';
 import { Card } from '../card';
+import { contractViolation } from '../../contract';
 import './FormControls.css';
 
 function joinIds(...ids) {
@@ -41,7 +42,7 @@ export function FieldMessage({
   ...props
 }) {
   if (!['help', 'error', 'success'].includes(tone)) {
-    throw new TypeError(`Unsupported FieldMessage tone: ${tone}`);
+    contractViolation(`Unsupported FieldMessage tone: ${tone}`);
   }
 
   return (
@@ -64,10 +65,10 @@ export function FieldDisplay({
   ...props
 }) {
   if (typeof label !== 'string' || label.trim() === '') {
-    throw new TypeError('FieldDisplay requires a non-empty label.');
+    contractViolation('FieldDisplay requires a non-empty label.');
   }
   if (!['normal', 'strong'].includes(emphasis)) {
-    throw new TypeError(`Unsupported FieldDisplay emphasis: ${emphasis}`);
+    contractViolation(`Unsupported FieldDisplay emphasis: ${emphasis}`);
   }
 
   return (
@@ -97,13 +98,15 @@ export function FormField({
   const errorId = error ? `${controlId}-error` : undefined;
 
   if (typeof label !== 'string' || label.trim() === '') {
-    throw new TypeError('FormField requires a non-empty label.');
+    contractViolation('FormField requires a non-empty label.');
   }
-  if (!isValidElement(children)) {
-    throw new TypeError('FormField requires one valid form control child.');
+  const isControl = isValidElement(children);
+  if (!isControl) {
+    contractViolation('FormField requires one valid form control child.');
   }
 
-  const control = cloneElement(children, {
+  // Anything but one element is shown as it came, without the field's wiring.
+  const control = !isControl ? children : cloneElement(children, {
     id: children.props.id || controlId,
     required: children.props.required ?? required,
     'aria-required': children.props['aria-required'] ?? (required || undefined),
@@ -117,7 +120,7 @@ export function FormField({
 
   return (
     <div className={`ds-form-field ${className}`.trim()} data-invalid={Boolean(error) || undefined}>
-      <Label htmlFor={control.props.id} required={required}>{label}</Label>
+      <Label htmlFor={isControl ? control.props.id : undefined} required={required}>{label}</Label>
       {control}
       {description && (
         <FieldMessage id={descriptionId} tone="help">{description}</FieldMessage>
@@ -148,7 +151,7 @@ const CONTROL_SIZES = new Set(['sm', 'md', 'lg']);
 
 function controlSize(size, component) {
   if (!CONTROL_SIZES.has(size)) {
-    throw new TypeError(
+    contractViolation(
       `Unsupported ${component} size: ${size}. Expected 'sm', 'md' or 'lg' — `
       + `this is the design system's control scale, not the native size attribute. `
       + `For width, use the layout around the control.`,
@@ -222,20 +225,20 @@ export const Input = forwardRef(function Input({
   ...props
 }, ref) {
   if (!INPUT_VARIANTS.has(variant)) {
-    throw new TypeError(
+    contractViolation(
       `Unsupported Input variant: ${variant}. Expected 'default' or 'inline'.`,
     );
   }
   if (!INLINE_ALIGNS.has(align)) {
-    throw new TypeError(`Unsupported Input align: ${align}.`);
+    contractViolation(`Unsupported Input align: ${align}.`);
   }
   if (!INLINE_WIDTHS.has(width)) {
-    throw new TypeError(`Unsupported Input width: ${width}. Expected 'auto' or 'compact'.`);
+    contractViolation(`Unsupported Input width: ${width}. Expected 'auto' or 'compact'.`);
   }
   const named = ['aria-label', 'aria-labelledby', 'id']
     .some((attribute) => typeof props[attribute] === 'string' && props[attribute].trim() !== '');
   if (variant === 'inline' && !named) {
-    throw new TypeError(
+    contractViolation(
       'Input variant="inline" requires an aria-label, an aria-labelledby or an id a '
       + '<label> points at. It has no FormField wrapper to name it, so without one it '
       + 'announces as an unlabelled field.',
@@ -301,7 +304,7 @@ export function FormSection({
   const titleId = props['aria-label'] ? undefined : `ds-form-section-${generatedId}`;
 
   if (!props['aria-label'] && (typeof title !== 'string' || title.trim() === '')) {
-    throw new TypeError('FormSection requires a title or aria-label.');
+    contractViolation('FormSection requires a title or aria-label.');
   }
 
   return (
