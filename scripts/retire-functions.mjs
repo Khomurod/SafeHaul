@@ -72,6 +72,13 @@ export const RETIREMENTS = Object.freeze([
         since: '2d76227b27c1bb65ec6b9b48a5ff8dea7a1cdbf6',
         names: Object.freeze(['deleteApplicationDraft']),
     }),
+    Object.freeze({
+        // The PEV email's open pixel. The app host answered its path with the
+        // app page, so no email ever reached the function.
+        id: 'pev-open-pixel',
+        since: '9f266376438c613f57118048389f12de6f0a0f1e',
+        names: Object.freeze(['trackVerificationOpen']),
+    }),
 ]);
 
 export const REGION = 'us-central1';

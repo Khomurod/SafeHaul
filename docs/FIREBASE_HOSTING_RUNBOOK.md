@@ -418,8 +418,10 @@ than the script. It does, in order:
    documents, and nothing in this procedure does either.
 
 The list: `LD-R3`'s six; `runMigration` (since `7aaca38`, which removed the
-Deep Diagnostic) and `deleteApplicationDraft` (since `2d76227`, when the
-unfinished-applications page moved to `purgeApplicationDraft`). To retire
+Deep Diagnostic); `deleteApplicationDraft` (since `2d76227`, when the
+unfinished-applications page moved to `purgeApplicationDraft`); and
+`trackVerificationOpen` (since `9f26637`, which removed the PEV email's pixel,
+whose path the app host had always answered with the app page). To retire
 another callable, remove it from `functions/index.js` and add an entry.
 `scripts/test-release-promotion.mjs` scenarios 19–22 pin the planning rules, that
 no retired name is still exported (19f), and that the workflow runs the step
