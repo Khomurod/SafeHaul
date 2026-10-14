@@ -21,6 +21,7 @@ const mockRevoked = [];
 const mockGetUserFailures = new Map(); // uid -> tries that fail before one succeeds
 const mockRevokeFailures = new Map(); // uid -> revocations that fail before one succeeds
 const mockOnClaimsWrite = { fn: null };
+const mockClaimsWriteFailures = new Set(); // uids whose claims can never be written
 const mockJobs = new Map();
 jest.mock('../../firebaseAdmin', () => {
     const db = {
@@ -38,17 +39,18 @@ jest.mock('../../firebaseAdmin', () => {
                 };
             }
             if (name === 'companies') {
-                // Only what the hourly pass asks: chosen fields, in id order, after a cursor, a page at a time.
-                const query = ({ fields, after = null, max = Infinity }) => ({
+                // Only what the hourly pass asks: chosen fields, in id order, from a cursor, a page at a time.
+                const query = ({ fields, from = () => true, max = Infinity }) => ({
                     orderBy: (field) => {
                         if (field !== '__name__') throw new Error(`unexpected order ${field}`);
-                        return query({ fields, after, max });
+                        return query({ fields, from, max });
                     },
-                    startAfter: (id) => query({ fields, after: id, max }),
-                    limit: (n) => query({ fields, after, max: n }),
+                    startAt: (cursor) => query({ fields, from: (id) => id >= cursor, max }),
+                    startAfter: (cursor) => query({ fields, from: (id) => id > cursor, max }),
+                    limit: (n) => query({ fields, from, max: n }),
                     get: async () => {
                         const docs = [...mockCompanies.keys()].sort()
-                            .filter((id) => after === null || id > after)
+                            .filter(from)
                             .slice(0, max)
                             .map((id) => {
                                 const data = mockCompanies.get(id);
@@ -89,6 +91,7 @@ jest.mock('../../firebaseAdmin', () => {
                 return { uid, customClaims: mockClaims.get(uid) };
             },
             setCustomUserClaims: async (uid, claims) => {
+                if (mockClaimsWriteFailures.has(uid)) throw Object.assign(new Error('claims too large'), { code: 'auth/claims-too-large' });
                 mockClaims.set(uid, claims);
                 if (mockOnClaimsWrite.fn) mockOnClaimsWrite.fn(uid);
             },
@@ -107,8 +110,6 @@ jest.mock('../../firebaseAdmin', () => {
 const { onMembershipWrite, onCompanyActivationChange, reconcileDeactivatedCompanyClaims } = require('../../hrAdmin');
 const { __test: { timing } } = require('../../hrAdmin/companyActivation');
 
-timing.wait = async () => {};
-
 const OWNER_CLAIMS = { roles: { 'co-a': 'super_admin', globalRole: 'super_admin' } };
 
 /** The company document changing from `before` to `after`. */
@@ -125,7 +126,9 @@ beforeEach(() => {
     mockGetUserFailures.clear();
     mockRevokeFailures.clear();
     mockOnClaimsWrite.fn = null;
+    mockClaimsWriteFailures.clear();
     mockJobs.clear();
+    timing.wait = async () => {};
     timing.now = () => 0;
     mockMemberships.push(
         { userId: 'recruiter-1', companyId: 'co-a', role: 'recruiter' },
@@ -296,7 +299,7 @@ describe('the hourly pass, for a company deactivated by its status', () => {
 describe('the hourly pass, out of time', () => {
     const stale = (companyId) => ({ roles: { [companyId]: 'hr_user' }, companyTeamIds: [companyId] });
 
-    it('continues the next run after the last company it finished, then starts again from the first', async () => {
+    it('continues the next run where the last one stopped, then starts again from the first company', async () => {
         mockMemberships.push(
             { userId: 'hr-3', companyId: 'co-c', role: 'hr_user' },
             { userId: 'hr-4', companyId: 'co-d', role: 'hr_user' },
@@ -314,9 +317,9 @@ describe('the hourly pass, out of time', () => {
 
         expect(mockRevoked).toEqual(['hr-3']);
         expect(mockClaims.get('hr-4')).toEqual(stale('co-d'));
-        expect(mockJobs.get('deactivatedCompanyClaims').resumeAfterCompanyId).toBe('co-c');
+        expect(mockJobs.get('deactivatedCompanyClaims')).toMatchObject({ resumeCompanyId: 'co-d', resumeAfterUserId: null });
 
-        // co-c's role back in hr-3's token: a run that starts after co-c leaves it there.
+        // co-c's role back in hr-3's token: a run that starts at co-d leaves it there.
         mockOnClaimsWrite.fn = null;
         clock = 0;
         mockClaims.set('hr-3', stale('co-c'));
@@ -324,13 +327,42 @@ describe('the hourly pass, out of time', () => {
 
         expect(mockClaims.get('hr-4')).toEqual({ roles: {} });
         expect(mockClaims.get('hr-3')).toEqual(stale('co-c'));
-        expect(mockJobs.get('deactivatedCompanyClaims').resumeAfterCompanyId).toBeNull();
+        expect(mockJobs.get('deactivatedCompanyClaims')).toMatchObject({ resumeCompanyId: null, resumeAfterUserId: null });
 
         // That walk was complete, so the next run starts again from the first company.
         await reconcileDeactivatedCompanyClaims();
 
         expect(mockClaims.get('hr-3')).toEqual({ roles: {} });
         expect(mockRevoked).toEqual(['hr-3', 'hr-4', 'hr-3']);
+    });
+
+    it('never lets a company whose members keep failing hold back the later ones', async () => {
+        // 40 members of co-c whose claims cannot be written: each spends its tries' 8 s of waits.
+        const failing = Array.from({ length: 40 }, (_, i) => `hr-c${String(i + 1).padStart(2, '0')}`);
+        failing.forEach((userId) => {
+            mockMemberships.push({ userId, companyId: 'co-c', role: 'hr_user' });
+            mockClaims.set(userId, stale('co-c'));
+            mockClaimsWriteFailures.add(userId);
+        });
+        mockMemberships.push({ userId: 'hr-4', companyId: 'co-d', role: 'hr_user' });
+        mockCompanies.set('co-c', { isActive: false });
+        mockCompanies.set('co-d', { isActive: false });
+        mockClaims.set('hr-4', stale('co-d'));
+        let clock = 0;
+        timing.now = () => clock;
+        timing.wait = async (ms) => { clock += ms; };
+
+        await reconcileDeactivatedCompanyClaims();
+
+        // 240 s of waits: 30 members, then the run stops inside co-c.
+        expect(mockJobs.get('deactivatedCompanyClaims')).toMatchObject({ resumeCompanyId: 'co-c', resumeAfterUserId: 'hr-c30' });
+        expect(mockClaims.get('hr-4')).toEqual(stale('co-d'));
+
+        await reconcileDeactivatedCompanyClaims();
+
+        expect(mockClaims.get('hr-4')).toEqual({ roles: {} });
+        expect(mockRevoked).toEqual(['hr-4']);
+        expect(mockJobs.get('deactivatedCompanyClaims')).toMatchObject({ resumeCompanyId: null, resumeAfterUserId: null });
     });
 
     it('reads every page of companies', async () => {
@@ -342,6 +374,6 @@ describe('the hourly pass, out of time', () => {
         await reconcileDeactivatedCompanyClaims();
 
         expect(mockClaims.get('hr-z')).toEqual({ roles: {} });
-        expect(mockJobs.get('deactivatedCompanyClaims').resumeAfterCompanyId).toBeNull();
+        expect(mockJobs.get('deactivatedCompanyClaims')).toMatchObject({ resumeCompanyId: null, resumeAfterUserId: null });
     });
 });

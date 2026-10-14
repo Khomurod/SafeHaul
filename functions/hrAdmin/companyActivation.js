@@ -17,9 +17,10 @@ const { syncUserClaims } = require("./claims");
 const RETRY_WAITS_MS = Object.freeze([2000, 6000]);
 
 /**
- * Where the hourly pass stopped. Server-only: `system_jobs` has no Firestore
- * rule. Without it, a run out of time would start again at the first company
- * every hour and never reach the last ones.
+ * Where the hourly pass stopped: the company it was in and the last member it
+ * finished there. Server-only: `system_jobs` has no Firestore rule. Without it,
+ * a run out of time would start again at the first company every hour, and a
+ * company whose members keep failing would hold back every later one.
  */
 const RESUME_REF = () => db.collection("system_jobs").doc("deactivatedCompanyClaims");
 /** Companies read per page, two fields each. */
@@ -95,44 +96,54 @@ function stillGranted(customClaims, companyId) {
 async function resumePoint() {
     try {
         const snap = await RESUME_REF().get();
-        return (snap.exists && snap.data()?.resumeAfterCompanyId) || null;
+        const data = (snap.exists && snap.data()) || {};
+        return { companyId: data.resumeCompanyId || null, afterUserId: data.resumeAfterUserId || null };
     } catch (err) {
         console.warn('[reconcileDeactivatedCompanyClaims] Could not read the resume point:', err.message || err);
-        return null;
+        return { companyId: null, afterUserId: null };
     }
 }
 
-/** Re-syncs the company's members whose claims still grant it; false when the run's time ran out first. */
-async function reconcileCompany(companyId, stopAt, counts) {
-    for (const userId of await memberIds(companyId)) {
-        if (timing.now() >= stopAt) return false;
+/**
+ * Re-syncs the company's members, in id order after `afterUserId`, whose claims
+ * still grant it. Out of time, it returns the last member it finished.
+ */
+async function reconcileCompany(companyId, afterUserId, stopAt, counts) {
+    const userIds = (await memberIds(companyId)).sort().filter((id) => !afterUserId || id > afterUserId);
+    let last = afterUserId;
+    for (const userId of userIds) {
+        if (timing.now() >= stopAt) return { finished: false, afterUserId: last };
         try {
             const user = await auth.getUser(userId);
-            if (!stillGranted(user.customClaims, companyId)) continue;
-            await updateMember(userId, true);
-            counts.fixed += 1;
+            if (stillGranted(user.customClaims, companyId)) {
+                await updateMember(userId, true);
+                counts.fixed += 1;
+            }
         } catch (err) {
-            if (err?.code === 'auth/user-not-found') continue;
-            console.error(`[reconcileDeactivatedCompanyClaims] ${companyId}: claims for ${userId} not updated:`, err.message || err);
+            // Tried again by the next walk; this one moves on.
+            if (err?.code !== 'auth/user-not-found') {
+                console.error(`[reconcileDeactivatedCompanyClaims] ${companyId}: claims for ${userId} not updated:`, err.message || err);
+            }
         }
+        last = userId;
     }
-    return true;
+    return { finished: true };
 }
 
-/** Walks the companies after `startAfter`, a page at a time; `resumeAfter` is the last one finished. */
-async function walkCompanies(startAfter, stopAt, counts) {
+/** Walks the companies in id order from `resume`, a page at a time; returns where it stopped, or null at the end. */
+async function walkCompanies(resume, stopAt, counts) {
     const companies = db.collection("companies").select("isActive", "status").orderBy("__name__");
-    let done = startAfter;
+    let page = await (resume.companyId ? companies.startAt(resume.companyId) : companies).limit(PAGE_SIZE).get();
     for (;;) {
-        const page = await (done ? companies.startAfter(done) : companies).limit(PAGE_SIZE).get();
         for (const company of page.docs) {
-            if (isCompanyDeactivated(company.data())) {
-                counts.deactivated += 1;
-                if (!(await reconcileCompany(company.id, stopAt, counts))) return { finished: false, resumeAfter: done };
-            }
-            done = company.id;
+            if (!isCompanyDeactivated(company.data())) continue;
+            counts.deactivated += 1;
+            const afterUserId = company.id === resume.companyId ? resume.afterUserId : null;
+            const result = await reconcileCompany(company.id, afterUserId, stopAt, counts);
+            if (!result.finished) return { companyId: company.id, afterUserId: result.afterUserId };
         }
-        if (page.size < PAGE_SIZE) return { finished: true, resumeAfter: null };
+        if (page.size < PAGE_SIZE) return null;
+        page = await companies.startAfter(page.docs[page.docs.length - 1].id).limit(PAGE_SIZE).get();
     }
 }
 
@@ -141,8 +152,8 @@ async function walkCompanies(startAfter, stopAt, counts) {
  * (a run that failed, a company deactivated before the trigger existed) are
  * re-synced and their sessions ended. Companies are read in id order, two
  * fields each, and judged as the trigger judges them: `isActive: false` or an
- * inactive status. A run out of time records the last company it finished, and
- * the next run continues after it.
+ * inactive status. A run out of time records where it stopped, and the next
+ * run continues from there.
  */
 exports.reconcileDeactivatedCompanyClaims = onSchedule({
     schedule: 'every 60 minutes',
@@ -151,15 +162,16 @@ exports.reconcileDeactivatedCompanyClaims = onSchedule({
 }, async () => {
     const stopAt = timing.now() + RUN_BUDGET_MS;
     const counts = { deactivated: 0, fixed: 0 };
-    const { finished, resumeAfter } = await walkCompanies(await resumePoint(), stopAt, counts);
-    // Null once the walk is complete, so the next run starts again from the
+    const stoppedAt = await walkCompanies(await resumePoint(), stopAt, counts);
+    // Cleared once the walk is complete, so the next run starts again from the
     // first company and finds the ones deactivated since.
     await RESUME_REF().set({
-        resumeAfterCompanyId: resumeAfter,
+        resumeCompanyId: stoppedAt?.companyId || null,
+        resumeAfterUserId: stoppedAt?.afterUserId || null,
         lastRunAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
     console.log(`[reconcileDeactivatedCompanyClaims] ${counts.deactivated} deactivated compan(ies); ${counts.fixed} member(s) re-synced`
-        + (finished ? '.' : `; out of time, the next run continues ${resumeAfter ? `after ${resumeAfter}` : 'from the first company'}.`));
+        + (stoppedAt ? `; out of time, the next run continues in ${stoppedAt.companyId}.` : '.'));
 });
 
 exports.__test = { timing };
