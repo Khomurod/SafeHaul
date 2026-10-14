@@ -89,4 +89,4 @@ async function syncUserClaims(userId, written = new Set()) {
     }
 }
 
-module.exports = { syncUserClaims };
+module.exports = { syncUserClaims, TEAM_ROLES };

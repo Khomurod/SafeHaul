@@ -11,7 +11,7 @@ const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db, auth } = require("./../firebaseAdmin");
 const { isCompanyDeactivated } = require("../shared/companyTenant");
-const { syncUserClaims } = require("./claims");
+const { syncUserClaims, TEAM_ROLES } = require("./claims");
 
 /** The waits before a member's second and third try. */
 const RETRY_WAITS_MS = Object.freeze([2000, 6000]);
@@ -57,11 +57,12 @@ async function updateMember(userId, endSessions) {
     }
 }
 
-/** The users whose membership gives them a role in the company: the claims carry nothing for any other. */
-const memberIds = async (companyId) => {
+/** Each member's role in the company, from the memberships; the claims carry nothing for one without a role. */
+const memberRoles = async (companyId) => {
     const memSnap = await db.collection("memberships").where("companyId", "==", companyId).get();
-    const members = memSnap.docs.map((doc) => doc.data()).filter((m) => m.userId && m.role);
-    return [...new Set(members.map((m) => m.userId))];
+    const roles = new Map();
+    memSnap.docs.map((doc) => doc.data()).filter((m) => m.userId && m.role).forEach((m) => roles.set(m.userId, m.role));
+    return roles;
 };
 
 exports.onCompanyActivationChange = onDocumentUpdated({
@@ -78,7 +79,7 @@ exports.onCompanyActivationChange = onDocumentUpdated({
     if (isCompanyDeactivated(before) === deactivated) return;
 
     const { companyId } = event.params;
-    const userIds = await memberIds(companyId);
+    const userIds = [...(await memberRoles(companyId)).keys()];
     for (const userId of userIds) {
         try {
             await updateMember(userId, deactivated);
@@ -97,8 +98,11 @@ function stillGranted(customClaims, companyId) {
     return companyId in roles || (customClaims?.companyTeamIds || []).includes(companyId);
 }
 
-/** Does the user's token lack the role their membership gives them? */
-const lacksRole = (customClaims, companyId) => !(companyId in (customClaims?.roles || {}));
+/** Does the token carry exactly the role the membership gives, a staff role in the team list too? */
+function holdsRole(customClaims, companyId, role) {
+    const inTeam = (customClaims?.companyTeamIds || []).includes(companyId);
+    return customClaims?.roles?.[companyId] === role && inTeam === TEAM_ROLES.includes(role);
+}
 
 async function resumePoint() {
     try {
@@ -126,11 +130,13 @@ async function authUsers(companyId, userIds) {
 /**
  * Checks the company's members, in id order after `afterUserId`, and re-syncs
  * each whose token disagrees with the company: a deactivated company's role
- * still there (that session is ended), or an active company's role missing.
- * Out of time, it returns the last member it finished.
+ * still there (that session is ended), or an active company's role missing or
+ * not the one the membership gives. Out of time, it returns the last member it
+ * finished.
  */
 async function reconcileCompany(companyId, deactivated, afterUserId, stopAt, counts) {
-    const userIds = (await memberIds(companyId)).sort().filter((id) => !afterUserId || id > afterUserId);
+    const roles = await memberRoles(companyId);
+    const userIds = [...roles.keys()].sort().filter((id) => !afterUserId || id > afterUserId);
     let last = afterUserId;
     for (let i = 0; i < userIds.length; i += AUTH_LOOKUP_CHUNK) {
         const chunk = userIds.slice(i, i + AUTH_LOOKUP_CHUNK);
@@ -139,7 +145,7 @@ async function reconcileCompany(companyId, deactivated, afterUserId, stopAt, cou
             if (timing.now() >= stopAt) return { finished: false, afterUserId: last };
             const claims = users?.get(userId)?.customClaims;
             const wrong = users?.has(userId)
-                && (deactivated ? stillGranted(claims, companyId) : lacksRole(claims, companyId));
+                && (deactivated ? stillGranted(claims, companyId) : !holdsRole(claims, companyId, roles.get(userId)));
             if (wrong) {
                 try {
                     await updateMember(userId, deactivated);
@@ -176,8 +182,8 @@ async function walkCompanies(resume, stopAt, counts) {
  * Every hour: a member whose token disagrees with their company is re-synced.
  * A deactivated company's role still in a token (a run that failed, a company
  * deactivated before the trigger existed) is removed and that session ended;
- * an active company's role missing from a token (a re-activation or a
- * membership write whose run failed) is put back. Companies are read in id
+ * an active company's role missing from a token, or not the membership's (a
+ * re-activation or a membership write whose run failed), is set right. Companies are read in id
  * order, two fields each, and judged as the trigger judges them; members are
  * looked up 100 at a time. A run out of time records where it stopped, and the
  * next run continues from there.

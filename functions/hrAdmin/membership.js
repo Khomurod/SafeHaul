@@ -4,7 +4,7 @@
 // cache in sync with `memberships/`. The claims come from claims.js.
 
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
-const { admin, db } = require("./../firebaseAdmin");
+const { admin, db, auth } = require("./../firebaseAdmin");
 const { syncUserClaims } = require("./claims");
 
 
@@ -22,6 +22,11 @@ exports.onMembershipWrite = onDocumentWritten({
     // Claims from every membership; a deactivated company's role stays out (claims.js).
     const synced = await syncUserClaims(userId);
     if (!synced) return;
+    // A role this sync wrote and then took back, its company deactivated in
+    // between, may sit in a token minted meanwhile; ending the sessions voids it.
+    if (synced.removedDuringSync && !synced.isGlobalAdmin) {
+        await auth.revokeRefreshTokens(userId);
+    }
 
     // SEC-002: mirror the user's company memberships onto users/{uid}.companyIds so
     // Firestore rules can allow same-company teammate reads (readerSharesCompany)

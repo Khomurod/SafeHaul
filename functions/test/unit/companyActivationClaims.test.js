@@ -177,6 +177,19 @@ describe('a membership written for a deactivated company', () => {
     });
 });
 
+describe('a membership write racing a deactivation', () => {
+    it('ends the sessions when the role it wrote was taken back', async () => {
+        mockCompanies.set('co-a', { isActive: true });
+        mockOnClaimsWrite.fn = (uid) => {
+            if (uid === 'recruiter-1') { mockOnClaimsWrite.fn = null; mockCompanies.set('co-a', { isActive: false }); }
+        };
+        await onMembershipWrite({ data: { before: { data: () => undefined }, after: { data: () => mockMemberships[0] } } });
+
+        expect(mockClaims.get('recruiter-1')).toEqual({ roles: { 'co-b': 'recruiter' }, companyTeamIds: ['co-b'] });
+        expect(mockRevoked).toEqual(['recruiter-1']);
+    });
+});
+
 describe('re-activating a company', () => {
     it('puts the roles back and ends no session', async () => {
         mockCompanies.set('co-a', { isActive: false });
@@ -303,6 +316,19 @@ describe('the hourly pass, for an active company', () => {
         await reconcileCompanyClaims();
 
         expect(mockClaims.get('admin-1')).toEqual({ roles: { 'co-a': 'company_admin' }, companyTeamIds: ['co-a'] });
+        expect(mockRevoked).toEqual([]);
+    });
+});
+
+describe('the hourly pass, for a role its membership no longer gives', () => {
+    it('writes the role the membership gives', async () => {
+        mockCompanies.set('co-a', { isActive: true });
+        // recruiter-1 was company_admin of co-b, and the write that lowered it failed.
+        mockClaims.set('recruiter-1', { roles: { 'co-a': 'recruiter', 'co-b': 'company_admin' }, companyTeamIds: ['co-a', 'co-b'] });
+
+        await reconcileCompanyClaims();
+
+        expect(mockClaims.get('recruiter-1')).toEqual({ roles: { 'co-a': 'recruiter', 'co-b': 'recruiter' }, companyTeamIds: ['co-a', 'co-b'] });
         expect(mockRevoked).toEqual([]);
     });
 });
