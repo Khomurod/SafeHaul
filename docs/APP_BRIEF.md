@@ -802,10 +802,10 @@ carrier's link).
 
 **Company edits to a submitted application need driver approval.** A company
 admin's edits become per-field `pending_changes`; the main document stays the
-**canonical original** until each field resolves, so exports show originals
-until approved. The driver approves, rejects or corrects them through a
+**canonical original** until each field resolves, so exports show originals.
+The driver approves, rejects or corrects each, none preselected, through a
 token link (`/review-change/:token`, 30-day TTL, newest only);
-`hasPendingCompanyChanges` clears only when all are resolved. Only callables
+`hasPendingCompanyChanges` clears once all are resolved. Only callables
 write `pending_changes`.
 
 **Previous employers are editable there.** `SchemaSection` renders `array`

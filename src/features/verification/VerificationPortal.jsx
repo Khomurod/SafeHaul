@@ -64,6 +64,7 @@ export function VerificationPortal() {
         loading,
         submitting,
         error,
+        submitError,
         completed,
         alreadyCompleted,
         expired,
@@ -179,6 +180,18 @@ export function VerificationPortal() {
                         updateSignature={updateSignature}
                         isE2EVerifyMock={isE2EVerifyMock}
                     />
+
+                    {/* A response the server did not take: the answers stay, and
+                        Try again submits this same form. */}
+                    {submitError && !submitting && (
+                        <Notice
+                            tone="danger"
+                            announce="assertive"
+                            actions={<Button type="submit" size="sm" variant="secondary">Try again</Button>}
+                        >
+                            {submitError}
+                        </Notice>
+                    )}
 
                     {/* Submit Button */}
                     <Button type="submit" variant="primary" size="lg" fullWidth loading={submitting}>

@@ -11,17 +11,38 @@ async function gotoMock(page) {
     .toBeVisible({ timeout: 20_000 });
 }
 
+const decision = (page, fieldName) => page.getByRole('group', { name: new RegExp(`Decision for ${fieldName}`, 'i') });
+
 test.describe('Change Review Portal', () => {
   test.describe.configure({ timeout: 60_000 });
 
-  test('completes the review with default approve decisions', async ({ page }) => {
+  test('completes the review once each change has a decision', async ({ page }) => {
     await gotoMock(page);
     await expect(page.getByText('First Name')).toBeVisible();
     await expect(page.getByText('Phone')).toBeVisible();
 
+    await decision(page, 'First Name').getByRole('button', { name: /approve/i }).click();
+    await decision(page, 'Phone').getByRole('button', { name: /reject/i }).click();
     await page.getByRole('button', { name: /Submit my responses/i }).click();
     await expect(page.getByText('Thank you!')).toBeVisible();
     await expect(page.getByText('Your responses have been recorded.')).toBeVisible();
+  });
+
+  test('approves nothing by itself: Submit names each change still to decide', async ({ page }) => {
+    await gotoMock(page);
+    await expect(decision(page, 'First Name').getByRole('button', { pressed: true })).toHaveCount(0);
+
+    await page.getByRole('button', { name: /Submit my responses/i }).click();
+    const notice = page.getByRole('alert').filter({ hasText: 'Choose a decision for each change' });
+    await expect(notice).toContainText('Still to decide: First Name, Phone.');
+    await expect(notice).toBeFocused();
+    await expect(page.getByText('Thank you!')).toHaveCount(0);
+
+    await decision(page, 'First Name').getByRole('button', { name: /approve/i }).click();
+    await decision(page, 'Phone').getByRole('button', { name: /approve/i }).click();
+    await expect(notice).toHaveCount(0);
+    await page.getByRole('button', { name: /Submit my responses/i }).click();
+    await expect(page.getByText('Thank you!')).toBeVisible();
   });
 
   test('keeps decision controls grouped, keyboard-focusable, and visibly focused (desktop)', async ({ page }, testInfo) => {
@@ -34,6 +55,8 @@ test.describe('Change Review Portal', () => {
     const approve = group.getByRole('button', { name: /approve/i });
     await approve.focus();
     await expect(approve).toBeFocused();
+    await expect(approve).toHaveAttribute('aria-pressed', 'false');
+    await page.keyboard.press('Enter');
     await expect(approve).toHaveAttribute('aria-pressed', 'true');
 
     const focusPresentation = await approve.evaluate((el) => {

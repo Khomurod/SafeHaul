@@ -34,6 +34,15 @@ function loadResolves(response) {
     });
 }
 
+/** A callable failure as the web SDK delivers it: the code, and the server's sentence or the bare code. */
+const callableError = (code, message) => Object.assign(new Error(message), { code: `functions/${code}` });
+
+/** Press one decision for a change, by the change's label. */
+function decide(fieldName, action) {
+    const group = screen.getByRole('group', { name: new RegExp(`Decision for ${fieldName}`, 'i') });
+    fireEvent.click(within(group).getByRole('button', { name: new RegExp(`^${action}$`, 'i') }));
+}
+
 function renderPortal(token = 'tok-1') {
     return render(
         <MemoryRouter initialEntries={[`/review-change/${token}`]}>
@@ -108,12 +117,16 @@ describe('ReviewChangePortal', () => {
         await waitFor(() => expect(screen.getByText('There are no changes left to review.')).toBeInTheDocument());
     });
 
-    it('defaults every field to Approve and keeps decisions mutually exclusive', async () => {
+    it('starts with no decision on any change, and keeps decisions mutually exclusive', async () => {
         renderPortal();
         await screen.findByText('First Name');
         const group = screen.getByRole('group', { name: /First Name/i });
+        for (const name of [/approve/i, /reject/i, /edit/i]) {
+            expect(within(group).getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
+        }
+
+        fireEvent.click(within(group).getByRole('button', { name: /approve/i }));
         expect(within(group).getByRole('button', { name: /approve/i })).toHaveAttribute('aria-pressed', 'true');
-        expect(within(group).getByRole('button', { name: /reject/i })).toHaveAttribute('aria-pressed', 'false');
 
         fireEvent.click(within(group).getByRole('button', { name: /reject/i }));
         expect(within(group).getByRole('button', { name: /reject/i })).toHaveAttribute('aria-pressed', 'true');
@@ -131,9 +144,11 @@ describe('ReviewChangePortal', () => {
         expect(input).toHaveAttribute('placeholder', 'Enter the correct value');
     });
 
-    it('submits the exact approve-default payload in pending order', async () => {
+    it('submits the decisions made, in pending order', async () => {
         renderPortal();
         await screen.findByText('First Name');
+        decide('City', 'Approve');
+        decide('First Name', 'Approve');
         fireEvent.click(screen.getByRole('button', { name: /Submit my responses/i }));
 
         await waitFor(() => expect(mockCallable).toHaveBeenCalledWith('submitChangeResolution', {
@@ -177,6 +192,8 @@ describe('ReviewChangePortal', () => {
         });
         renderPortal();
         await screen.findByText('First Name');
+        decide('First Name', 'Approve');
+        decide('City', 'Approve');
         fireEvent.click(screen.getByRole('button', { name: /Submit my responses/i }));
 
         await waitFor(() => expect(screen.getByRole('button', { name: /Submit my responses/i })).toBeDisabled());
@@ -207,9 +224,13 @@ describe('ReviewChangePortal', () => {
         });
         renderPortal();
         await screen.findByText('First Name');
+        decide('First Name', 'Approve');
+        decide('City', 'Approve');
         fireEvent.click(screen.getByRole('button', { name: /Submit my responses/i }));
         const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent('Could not submit your review. Please try again.');
+        expect(alert).toHaveTextContent(
+            'Your responses were not sent. Your choices are still on this page: check your connection and try again.',
+        );
     });
 
     it('does not update state after unmount (cancellation guard)', async () => {
@@ -286,11 +307,117 @@ describe('an employers change', () => {
         renderPortal();
         await screen.findByText('Removed');
 
+        decide('Employment History', 'Approve');
         fireEvent.click(screen.getByRole('button', { name: /Submit my responses/i }));
 
         await waitFor(() => expect(mockCallable).toHaveBeenCalledWith('submitChangeResolution', {
             token: 'tok-1',
             resolutions: [{ fieldKey: 'employers', action: 'approve' }],
         }));
+    });
+});
+
+/**
+ * Nothing is approved by itself, and nothing chosen is lost.
+ *
+ * Every change used to start on Approve, so Submit approved whatever the driver
+ * had not looked at, and a reload put every Reject and Edit back to Approve. A
+ * failed submission replaced the choices with its error, and a reload was the
+ * only way back to them.
+ */
+describe('decisions are the driver\'s own', () => {
+    it('sends nothing while a change has no decision, and names the ones left', async () => {
+        renderPortal();
+        await screen.findByText('First Name');
+        decide('City', 'Reject');
+        fireEvent.click(screen.getByRole('button', { name: /Submit my responses/i }));
+
+        const notice = await screen.findByRole('alert');
+        expect(notice).toHaveTextContent('Choose a decision for each change');
+        expect(notice).toHaveTextContent('Still to decide: First Name.');
+        await waitFor(() => expect(notice).toHaveFocus());
+        expect(mockCallable).not.toHaveBeenCalledWith('submitChangeResolution', expect.anything());
+
+        decide('First Name', 'Approve');
+        expect(screen.queryByText('Choose a decision for each change')).not.toBeInTheDocument();
+    });
+
+    it('starts every change undecided again after a reload', async () => {
+        const first = renderPortal();
+        await screen.findByText('First Name');
+        decide('City', 'Reject');
+        first.unmount();
+
+        renderPortal();
+        await screen.findByText('First Name');
+        for (const fieldName of ['First Name', 'City']) {
+            const group = screen.getByRole('group', { name: new RegExp(`Decision for ${fieldName}`, 'i') });
+            expect(within(group).queryByRole('button', { pressed: true })).not.toBeInTheDocument();
+        }
+    });
+
+    it('keeps every choice when the responses are not sent, and Try again sends the same ones', async () => {
+        let attempts = 0;
+        mockCallable.mockImplementation((name) => {
+            if (name === 'getChangeReview') return Promise.resolve(REVIEW);
+            attempts += 1;
+            return attempts === 1
+                ? Promise.reject(callableError('internal', 'internal'))
+                : Promise.resolve({ data: { success: true, completed: true } });
+        });
+        renderPortal();
+        await screen.findByText('First Name');
+        decide('First Name', 'Edit');
+        fireEvent.change(screen.getByLabelText(/Corrected value for First Name/i), { target: { value: 'Johnny' } });
+        decide('City', 'Reject');
+        fireEvent.click(screen.getByRole('button', { name: /Submit my responses/i }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('Your responses were not sent.');
+        expect(screen.getByLabelText(/Corrected value for First Name/i)).toHaveValue('Johnny');
+        const city = screen.getByRole('group', { name: /Decision for City/i });
+        expect(within(city).getByRole('button', { name: /reject/i })).toHaveAttribute('aria-pressed', 'true');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+        await waitFor(() => expect(screen.getByText(/Thank you/i)).toBeInTheDocument());
+        const sent = mockCallable.mock.calls.filter(([name]) => name === 'submitChangeResolution');
+        expect(sent).toHaveLength(2);
+        expect(sent[1]).toEqual(sent[0]);
+        expect(sent[0][1].resolutions).toEqual([
+            { fieldKey: 'firstName', action: 'edit', value: 'Johnny' },
+            { fieldKey: 'city', action: 'reject' },
+        ]);
+    });
+
+    it("says the server's own reason, such as too many submissions, and keeps the choices", async () => {
+        mockCallable.mockImplementation((name) => {
+            if (name === 'getChangeReview') return Promise.resolve(REVIEW);
+            return Promise.reject(callableError('resource-exhausted', 'Too many submissions. Please wait.'));
+        });
+        renderPortal();
+        await screen.findByText('First Name');
+        decide('First Name', 'Approve');
+        decide('City', 'Reject');
+        fireEvent.click(screen.getByRole('button', { name: /Submit my responses/i }));
+
+        const notice = await screen.findByRole('alert');
+        expect(notice).toHaveTextContent('Too many submissions. Please wait.');
+        expect(notice).toHaveTextContent('Your choices are still on this page');
+        expect(screen.getByRole('button', { name: /Submit my responses/i })).toBeInTheDocument();
+    });
+
+    it('ends on the server\'s words when the link can no longer take answers', async () => {
+        mockCallable.mockImplementation((name) => {
+            if (name === 'getChangeReview') return Promise.resolve(REVIEW);
+            return Promise.reject(callableError('failed-precondition', 'This review is already complete.'));
+        });
+        renderPortal();
+        await screen.findByText('First Name');
+        decide('First Name', 'Approve');
+        decide('City', 'Approve');
+        fireEvent.click(screen.getByRole('button', { name: /Submit my responses/i }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('This review is already complete.');
+        expect(screen.queryByRole('button', { name: /Submit my responses/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     });
 });
