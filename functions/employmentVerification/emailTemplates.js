@@ -125,9 +125,6 @@ function buildVerificationEmailHTML(params) {
                 </table>
             </td></tr>
         </table>
-
-        <!-- Tracking Pixel -->
-        <img src="${baseUrl}/api/verification/track-open?t=${token}" width="1" height="1" style="display:none;" alt="" />
     </div>`;
 }
 

@@ -81,3 +81,46 @@ describe('Rate Limiter', () => {
         expect(result).toBe(true);
     });
 });
+
+describe('rate_limits retention', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const config = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../firestore.indexes.json'), 'utf8'));
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        // The mocked Timestamp reads the clock whenever it is asked.
+        jest.useFakeTimers({ now: Date.parse('2026-10-14T12:00:00Z') });
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it('declares the TTL policy that deletes a window once it has ended', () => {
+        const override = (config.fieldOverrides || []).find((entry) => (
+            entry.collectionGroup === 'rate_limits' && entry.fieldPath === 'expiresAt'
+        ));
+
+        expect(override).toBeDefined();
+        expect(override.ttl).toBe(true);
+    });
+
+    it('stamps expiresAt at the end of the window, for a first request and for a new window', async () => {
+        const writes = [];
+        const run = (doc) => db.runTransaction.mockImplementation(async (callback) => {
+            await callback({ get: jest.fn().mockResolvedValue(doc), set: (_ref, data) => writes.push(data), update: jest.fn() });
+        });
+        const before = Date.now();
+
+        run({ exists: false, data: () => undefined });
+        await checkRateLimit('test_key', 5, 60);
+        run({ exists: true, data: () => ({ count: 5, windowStart: { toMillis: () => before - 120000 } }) });
+        await checkRateLimit('test_key', 5, 60);
+
+        expect(writes).toHaveLength(2);
+        for (const data of writes) {
+            expect(data.expiresAt.toMillis() - data.windowStart.toMillis()).toBe(60000);
+        }
+    });
+});

@@ -137,7 +137,9 @@ Each entry records name, status, verified description, intended users, business
 benefit, limitations, supporting source files, documentation, approved claims,
 and the commit it was last verified against. Only `available` and `partial`
 features reach the generator; `planned` and `retired` entries appear solely in a
-"do not claim" list, so there is nothing for a model to write from.
+"do not claim" list, so there is nothing for a model to write from. Each turn of
+the SafeHaul theme writes about one feature, the next one each time the theme
+comes round, so every feature comes up in turn.
 
 `PROHIBITED_CLAIMS` records claims that must never be made, with reasons —
 including several the landing page once made: "free forever" (contradicted by

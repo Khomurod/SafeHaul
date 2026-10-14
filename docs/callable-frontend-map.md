@@ -110,7 +110,6 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 |--------|------|------------|
 | `processBulkBatch` | HTTP `onRequest` | Cloud Tasks → POST with `X-SafeHaul-Internal-Auth` |
 | `facebookWebhook`, `facebookWebhookV1` | HTTP | Facebook Lead Ads |
-| `trackVerificationOpen` | HTTP | 1×1 tracking pixel |
 | `companyApi` | HTTP `onRequest` | Another service, with a company's API key: `GET https://us-central1-truckerapp-system.cloudfunctions.net/companyApi/v1/...` and `Authorization: Bearer <key>`. Read-only; see [`companyApi/routes.js`](../functions/companyApi/routes.js) |
 | `onApplicationSubmitted`, `onLeadWrittenDashboardRollup`, … | Firestore triggers | Automatic on writes |
 | `enforceFeatureSchedules`, `cleanupOrphanedSignatures`, `processVerificationReminders` | Scheduled | Cloud Scheduler |

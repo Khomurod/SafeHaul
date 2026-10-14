@@ -1027,9 +1027,9 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
   `companies/{id}/settings/automated_sms`. Transition-only, so idempotent; no
   template, no message.
 - **Segments** — application create/update maintains segment membership.
-- **Retention** — activity logs carry `expiresAt` for a future TTL policy;
-  so do `blog_runs`, `application_drafts` and `application_draft_audit`, with
-  TTL overrides in `firestore.indexes.json`, deployed with the rest. An
+- **Retention** — TTL overrides in `firestore.indexes.json` delete
+  `blog_runs`, `application_drafts`, `application_draft_audit` and
+  `rate_limits` at `expiresAt`; activity logs carry it for a future policy. An
   unfinished application expires 30 days after its last save, its uploads by
   the same rules (`deleteExpiredDraftFiles`).
 

@@ -13,7 +13,7 @@
  *
  * Implementation modules (one responsibility each; this file only aggregates):
  *  - ./employmentVerification/requests.js       — verification request creation
- *  - ./employmentVerification/portal.js         — public token portal reads + open tracking
+ *  - ./employmentVerification/portal.js         — public token portal read
  *  - ./employmentVerification/responses.js      — verification response processing
  *  - ./employmentVerification/reminders.js      — scheduled reminders / 30-day no-response
  *  - ./employmentVerification/emailTemplates.js — email HTML builders
@@ -23,6 +23,5 @@
 
 exports.sendVerificationRequest = require('./employmentVerification/requests').sendVerificationRequest;
 exports.getVerificationRequest = require('./employmentVerification/portal').getVerificationRequest;
-exports.trackVerificationOpen = require('./employmentVerification/portal').trackVerificationOpen;
 exports.submitVerificationResponse = require('./employmentVerification/responses').submitVerificationResponse;
 exports.processVerificationReminders = require('./employmentVerification/reminders').processVerificationReminders;
