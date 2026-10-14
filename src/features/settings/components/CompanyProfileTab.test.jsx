@@ -251,6 +251,25 @@ describe('CompanyProfileTab information compatibility slice', () => {
         expect(screen.getByRole('textbox', { name: 'City' })).toHaveValue('Austin');
     });
 
+    it('keeps Cancel unavailable while a save is on its way, so what is saved stays on screen', async () => {
+        let finishSave;
+        serviceMocks.saveCompanySettings.mockImplementation(() => new Promise((resolve) => { finishSave = resolve; }));
+        renderProfile();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'City' }), { target: { value: 'Fort Worth' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        await waitFor(() => expect(serviceMocks.saveCompanySettings).toHaveBeenCalledTimes(1));
+        const cancel = screen.getByRole('button', { name: 'Cancel' });
+        expect(cancel).toBeDisabled();
+        fireEvent.click(cancel);
+        expect(screen.getByRole('textbox', { name: 'City' })).toHaveValue('Fort Worth');
+
+        finishSave();
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Company settings saved successfully.'));
+        expect(screen.getByText('Fort Worth')).toBeInTheDocument();
+    });
+
     it('preserves save errors and re-enables the save action', async () => {
         serviceMocks.saveCompanySettings.mockRejectedValueOnce(new Error('offline'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});

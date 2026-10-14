@@ -143,9 +143,12 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 )}
                 {isEditing && (
                     <div className="flex flex-wrap gap-ds-2">
+                        {/* Not while a save is on its way: it stores the edit, and Cancel
+                            would put back what it replaced, for the next save to store. */}
                         <Button
                             variant="ghost"
                             onClick={cancelEditing}
+                            disabled={loading}
                         >
                             Cancel
                         </Button>
