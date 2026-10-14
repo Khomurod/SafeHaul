@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '@lib/firebase';
+import { onIdTokenChanged } from 'firebase/auth';
+import { auth, db } from '@lib/firebase';
 import { useData } from '@/context/DataContext';
 import { isCompanyDeactivated } from '@/config/companyStatus';
 
@@ -15,6 +16,12 @@ export function useCompanyDeactivated() {
     const companyId = currentCompanyProfile?.id || null;
     const watch = Boolean(companyId) && userRole !== 'super_admin';
     const [live, setLive] = useState({ companyId: null, deactivated: false });
+    // A listener the rules refuse stops for good: the next token, which may
+    // carry the company's role again, starts another.
+    const [attempt, setAttempt] = useState(0);
+    const [refusedKey, setRefusedKey] = useState(null);
+    const key = `${companyId}:${attempt}`;
+    const refused = watch && refusedKey === key;
 
     useEffect(() => {
         if (!watch) return undefined;
@@ -26,9 +33,19 @@ export function useCompanyDeactivated() {
                 // loaded still does.
                 if (snap.exists()) setLive({ companyId, deactivated: isCompanyDeactivated(snap.data()) });
             },
-            () => {},
+            () => setRefusedKey(key),
         );
-    }, [companyId, watch]);
+    }, [companyId, watch, key]);
+
+    useEffect(() => {
+        if (!refused) return undefined;
+        // The first call reports the token in hand; only a new one is worth a try.
+        let first = true;
+        return onIdTokenChanged(auth, () => {
+            if (first) { first = false; return; }
+            setAttempt((n) => n + 1);
+        });
+    }, [refused]);
 
     if (!watch) return false;
     return live.companyId === companyId ? live.deactivated : isCompanyDeactivated(currentCompanyProfile);

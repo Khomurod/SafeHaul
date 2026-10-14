@@ -6,10 +6,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
-const fx = vi.hoisted(() => ({ data: {}, listeners: [], unsubscribed: [] }));
+const fx = vi.hoisted(() => ({ data: {}, listeners: [], unsubscribed: [], tokenObservers: [] }));
 
 vi.mock('@/context/DataContext', () => ({ useData: () => fx.data }));
-vi.mock('@lib/firebase', () => ({ db: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, auth: {} }));
+vi.mock('firebase/auth', () => ({
+    onIdTokenChanged: (_auth, observer) => {
+        fx.tokenObservers.push(observer);
+        return () => { fx.tokenObservers.splice(fx.tokenObservers.indexOf(observer), 1); };
+    },
+}));
 vi.mock('firebase/firestore', () => ({
     doc: (_db, ...path) => ({ path: path.join('/') }),
     onSnapshot: (ref, next, error) => {
@@ -28,6 +34,7 @@ afterEach(() => {
     fx.data = {};
     fx.listeners.length = 0;
     fx.unsubscribed.length = 0;
+    fx.tokenObservers.length = 0;
 });
 
 describe('useCompanyDeactivated', () => {
@@ -73,6 +80,28 @@ describe('useCompanyDeactivated', () => {
         const { result } = renderHook(() => useCompanyDeactivated());
 
         act(() => { fx.listeners[0].error(Object.assign(new Error('denied'), { code: 'permission-denied' })); });
+        expect(result.current).toBe(false);
+    });
+
+    it('watches again with the next token after the rules refused the read, so a re-activation reopens', () => {
+        fx.data = { currentCompanyProfile: { id: 'co-1', isActive: true }, userRole: 'recruiter' };
+        const { result } = renderHook(() => useCompanyDeactivated());
+        emit({ isActive: false });
+        expect(result.current).toBe(true);
+
+        // The token loses the company's role: the listener is refused and stops.
+        act(() => { fx.listeners[0].error(Object.assign(new Error('denied'), { code: 'permission-denied' })); });
+        expect(result.current).toBe(true);
+        expect(fx.tokenObservers).toHaveLength(1);
+
+        // The first call reports the token in hand; a new one starts another listener.
+        act(() => { fx.tokenObservers[0]({ uid: 'u-1' }); });
+        expect(fx.listeners).toHaveLength(1);
+        act(() => { fx.tokenObservers[0]({ uid: 'u-1' }); });
+        expect(fx.listeners).toHaveLength(2);
+        expect(fx.tokenObservers).toHaveLength(0);
+
+        emit({ isActive: true });
         expect(result.current).toBe(false);
     });
 
