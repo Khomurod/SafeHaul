@@ -61,6 +61,7 @@ import {
   saveProgressSpy,
   showError,
   stubDraftCallables,
+  updateQueueEntrySpy,
   makeRenderers,
 } from './PublicApplyHandler.contract.support';
 
@@ -250,6 +251,24 @@ describe('a Company Admin\'s edits, on the driver\'s page', () => {
     await waitFor(() => expect(callableSpy).toHaveBeenCalledTimes(4));
     expect(callableSpy.mock.calls[3][0].seenRevision).toBeNull();
     expect(showError).not.toHaveBeenCalled();
+  });
+
+  it('queue the copy for later as signed too, so its replay is not refused for the same edits', async () => {
+    inTurn(
+      resumeDraftSpy,
+      { data: { restored: false } },
+      draftReply({ firstName: 'Ada' }, { companyRevision: R, companyEdits: { firstName: R } }),
+    );
+    inTurn(callableSpy, CARRIER_UPDATED, new Error('offline'));
+
+    await renderWithCompleteDraft();
+    await submit();
+
+    // The edits answered once, then three deliveries lost: the queue sends it later.
+    await waitFor(() => expect(callableSpy).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(updateQueueEntrySpy).toHaveBeenCalledWith('queue-1', { nextRetryAt: expect.any(Number) }));
+    expect(enqueueSpy.mock.calls.at(-1)[2]).toMatchObject({ seenRevision: 0 });
+    expect(updateQueueEntrySpy).toHaveBeenCalledWith('queue-1', { seenRevision: null });
   });
 
   it('never stop a submission when they cannot be fetched', async () => {

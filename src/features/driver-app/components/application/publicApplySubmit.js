@@ -393,6 +393,9 @@ export async function submitPublicApplication({
             carrierChecked = true;
             if (await onCarrierUpdated?.(formData)) break;
             seenRevision = null;
+            // The copy queued for later goes as signed too: kept with the old
+            // revision, its replay would be refused for the same edits, every time.
+            if (queueId) await updateQueueEntry(queueId, { seenRevision: null }).catch(() => {});
             // Not one of the three: nothing went wrong with the delivery.
             attempt -= 1;
             continue;

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useCallback } from 'react';
 import InputField from '@shared/components/form/InputField';
 import { useFieldValidation } from '@shared/hooks/useFieldValidation';
 import { required, email as emailRule, phone as phoneRule, PHONE_RULE_MESSAGE } from '@shared/utils/fieldValidators';
-import { isValidPhone } from '@shared/utils/validation';
+import { isValidEmail, isValidPhone } from '@shared/utils/validation';
 import TypedDateField from './components/TypedDateField';
 import { ageFromIsoDate } from '@shared/utils/dateFormHelpers';
 import RadioGroup from '@shared/components/form/RadioGroup';
@@ -163,9 +163,10 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
             }
         }
 
-        // 2. Strict Email Regex
-        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        if (!emailRegex.test(formData.email)) {
+        // 2. Email — the rule the final pre-flight and the field's own check apply
+        // (`isValidEmail`). A stricter pattern here refused o'neil@example.com and
+        // any address outside plain ASCII, though Submit would have taken it.
+        if (!isValidEmail(formData.email)) {
             showError("Please enter a valid email address.");
             return false;
         }
