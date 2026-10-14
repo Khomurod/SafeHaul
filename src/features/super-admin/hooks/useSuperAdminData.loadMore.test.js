@@ -92,9 +92,6 @@ const showError = vi.fn();
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showError }),
 }));
-vi.mock('@/context/dataContext/sessionKeys', () => ({
-    SESSION_KEYS: { PLATFORM_STATS: 'test-platform-stats' },
-}));
 
 import { useSuperAdminData } from './useSuperAdminData';
 

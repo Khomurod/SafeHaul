@@ -32,7 +32,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('@shared/components/modals', () => ({ CompanyChooserModal: () => <p>Choose Company</p> }));
 
-import { getDoc } from 'firebase/firestore';
+import { getCountFromServer, getDoc } from 'firebase/firestore';
 import { DataProvider, useData } from './DataContext';
 import { SESSION_KEYS } from './dataContext/sessionKeys';
 
@@ -113,6 +113,14 @@ describe('after signing in, a staff member', () => {
         expect(screen.queryByText('Choose Company')).not.toBeInTheDocument();
         consoleError.mockRestore();
         consoleWarn.mockRestore();
+    });
+
+    it('takes a super admin to the console without counting the platform first', async () => {
+        session.claims = { globalRole: 'super_admin', roles: { globalRole: 'super_admin' } };
+        render(<DataProvider><SignedInCompany /></DataProvider>);
+
+        expect(await screen.findByText('In no company')).toBeInTheDocument();
+        expect(getCountFromServer).not.toHaveBeenCalled();
     });
 });
 

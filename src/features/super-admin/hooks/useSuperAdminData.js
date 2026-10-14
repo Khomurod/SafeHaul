@@ -15,20 +15,8 @@ import {
     startAfter
 } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { SESSION_KEYS } from '@/context/dataContext/sessionKeys';
 import { loadCompanies } from '@features/companies/services/companyService';
 import { USERS_PAGE_SIZE, usersPageQuery, withMemberships } from './superAdminUsers';
-
-function readCachedPlatformCompanyCount() {
-    try {
-        const raw = localStorage.getItem(SESSION_KEYS.PLATFORM_STATS);
-        if (!raw) return 0;
-        const parsed = JSON.parse(raw);
-        return typeof parsed.companies === 'number' ? parsed.companies : 0;
-    } catch {
-        return 0;
-    }
-}
 
 const NO_STATS_ERRORS = Object.freeze({
     companies: false, users: false, apps: false,
@@ -74,7 +62,7 @@ export function useSuperAdminData() {
     const [statsError, setStatsError] = useState(NO_STATS_ERRORS);
 
     const [stats, setStats] = useState({
-        companyCount: readCachedPlatformCompanyCount(),
+        companyCount: 0,
         userCount: 0,
         appCount: 0,
         leadCount: 0,
@@ -423,17 +411,23 @@ export function useSuperAdminData() {
     }, [showError]);
 
     // --- 4. CONTROLLER ---
+    // The search text the lists were last read for: null until the first read.
+    const readFor = useRef(null);
     useEffect(() => {
-        const timer = setTimeout(() => {
-            if (searchQuery && searchQuery.trim().length >= 2) {
-                performClientSearch(searchQuery);
-            } else {
-                if (searchQuery.trim().length === 0) {
-                    loadRecentData();
-                }
-            }
-        }, 600);
-
+        if (searchQuery === readFor.current) return undefined;
+        const read = () => {
+            readFor.current = searchQuery;
+            const term = searchQuery.trim();
+            if (term.length >= 2) performClientSearch(searchQuery);
+            else if (term.length === 0) loadRecentData();
+        };
+        // The console reads the platform the moment it opens; a change to the
+        // search text waits for a pause in typing.
+        if (readFor.current === null) {
+            read();
+            return undefined;
+        }
+        const timer = setTimeout(read, 600);
         return () => clearTimeout(timer);
     }, [searchQuery, loadRecentData, performClientSearch]);
 

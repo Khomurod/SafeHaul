@@ -14,6 +14,8 @@
  *  - The slug auto-generation rule and the fact that it stops once `appSlug` has
  *    a value.
  *  - `withAdmin` default `true`, and that unchecking it skips `createPortalUser`.
+ *  - When the admin step fails, Create again with the company form unchanged
+ *    adds only the admin, to the company already written.
  *  - `result.data?.error` throwing on the standalone flow.
  *  - The exact four outcome strings that used to be `alert()`s, including the
  *    `Error: ` and `Failed: ` prefixes.
@@ -256,6 +258,66 @@ describe('CreateView — company creation contract', () => {
         const select = screen.getByLabelText(/^Role/);
         expect(select).toHaveValue('company_admin');
         expect([...select.options].map((o) => o.value)).toEqual(['company_admin', 'hr_user']);
+    });
+});
+
+describe('CreateView — a company whose admin was not created', () => {
+    it('says the company was created, and Create again adds only the admin to it', async () => {
+        createPortalUser.mockRejectedValueOnce(new Error('The email address is already in use by another account.'));
+        const { onDataUpdate } = renderView();
+        fillCompany();
+        submitCompanyForm();
+
+        expect(await screen.findByText(
+            'Error: The company was created, but its admin was not: The email address is already in use by another account. '
+            + 'Correct the admin details and press Create Company again; only the admin will be added.',
+        )).toBeInTheDocument();
+        expect(onDataUpdate).toHaveBeenCalledTimes(1);
+        expect(screen.getByLabelText(/^Company Name/)).toHaveValue('Artificial Freight Co');
+
+        fireEvent.change(screen.getByLabelText(/^Login Email/), { target: { value: 'admin2@example.test' } });
+        submitCompanyForm();
+
+        expect(await screen.findByText('Company (and Admin) created successfully!')).toBeInTheDocument();
+        expect(createNewCompany).toHaveBeenCalledTimes(1);
+        expect(createPortalUser).toHaveBeenCalledTimes(2);
+        expect(createPortalUser).toHaveBeenLastCalledWith(expect.objectContaining({
+            email: 'admin2@example.test',
+            companyId: 'new-co-9',
+        }));
+    });
+
+    it('creates the company again once its details are changed', async () => {
+        createPortalUser.mockRejectedValueOnce(new Error('simulated admin failure'));
+        createNewCompany.mockResolvedValueOnce({ id: 'new-co-9' }).mockResolvedValueOnce({ id: 'new-co-10' });
+        renderView();
+        fillCompany();
+        submitCompanyForm();
+        await screen.findByText(/^Error: The company was created, but its admin was not: simulated admin failure/);
+
+        fireEvent.change(screen.getByLabelText(/^URL Slug/), { target: { value: 'artificial-freight-two' } });
+        submitCompanyForm();
+
+        expect(await screen.findByText('Company (and Admin) created successfully!')).toBeInTheDocument();
+        expect(createNewCompany).toHaveBeenCalledTimes(2);
+        expect(createNewCompany).toHaveBeenLastCalledWith(expect.objectContaining({ appSlug: 'artificial-freight-two' }));
+        expect(createPortalUser).toHaveBeenLastCalledWith(expect.objectContaining({ companyId: 'new-co-10' }));
+    });
+
+    it('creates a new company after a success, though the next form matches the last', async () => {
+        createPortalUser.mockRejectedValueOnce(new Error('simulated admin failure'));
+        createNewCompany.mockResolvedValueOnce({ id: 'new-co-9' }).mockResolvedValueOnce({ id: 'new-co-10' });
+        renderView();
+        fillCompany();
+        submitCompanyForm();
+        await screen.findByText(/^Error: The company was created, but its admin was not/);
+        submitCompanyForm();
+        await screen.findByText('Company (and Admin) created successfully!');
+
+        fillCompany();
+        submitCompanyForm();
+        await waitFor(() => expect(createNewCompany).toHaveBeenCalledTimes(2));
+        expect(createPortalUser).toHaveBeenLastCalledWith(expect.objectContaining({ companyId: 'new-co-10' }));
     });
 });
 

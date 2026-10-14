@@ -17,6 +17,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Captured once, before any spy exists. Re-binding inside the helper would bind
 // the *spy* on the second call and recurse until the stack blew.
 const REAL_CREATE_ELEMENT = document.createElement.bind(document);
+const REAL_CREATE_OBJECT_URL = URL.createObjectURL;
+const REAL_REVOKE_OBJECT_URL = URL.revokeObjectURL;
 
 const useAnalytics = vi.fn();
 vi.mock('@features/analytics', () => ({ useAnalytics: () => useAnalytics() }));
@@ -50,35 +52,48 @@ afterEach(() => {
     // The export helper spies on document.createElement; leaving it installed
     // breaks every later render.
     vi.restoreAllMocks();
+    URL.createObjectURL = REAL_CREATE_OBJECT_URL;
+    URL.revokeObjectURL = REAL_REVOKE_OBJECT_URL;
 });
 
 describe('AnalyticsView — frozen export contract', () => {
-    /** Captures the anchor the export builds without letting jsdom navigate. */
+    /** Captures the file the export saves, and its name, without letting the browser navigate. */
     function captureExport() {
         const captured = {};
+        URL.createObjectURL = (blob) => { captured.blob = blob; return 'blob:stub'; };
+        URL.revokeObjectURL = () => {};
         vi.spyOn(document, 'createElement').mockImplementation((tag) => {
             const node = REAL_CREATE_ELEMENT(tag);
             if (tag === 'a') {
-                node.click = () => { captured.href = node.getAttribute('href'); captured.download = node.getAttribute('download'); };
+                node.click = () => { captured.download = node.download; };
             }
             return node;
         });
         return captured;
     }
 
-    it('exports companies with the exact headers, order and filename', () => {
+    /** The saved file's rows, without the BOM that tells Excel it is UTF-8. */
+    async function savedRows(captured) {
+        const text = await captured.blob.text();
+        expect(text.startsWith('\uFEFF')).toBe(true);
+        return text.slice(1).split('\r\n');
+    }
+
+    it('exports companies with the exact headers, order and filename', async () => {
         const captured = captureExport();
         render(<AnalyticsView />);
 
         fireEvent.click(screen.getByRole('button', { name: /Export Companies/ }));
 
         expect(captured.download).toBe('company_performance_30d.csv');
-        const decoded = decodeURI(captured.href);
-        expect(decoded).toContain('Company Name,Calls Made,Total Actions');
-        expect(decoded).toContain('Artificial Freight Co,30,55');
+        expect(await savedRows(captured)).toEqual([
+            '"Company Name","Calls Made","Total Actions"',
+            '"Artificial Freight Co","30","55"',
+            '"Second Artificial Carrier","5","8"',
+        ]);
     });
 
-    it('exports recruiters with the exact headers, order and filename', () => {
+    it('exports recruiters with the exact headers, order and filename, Last Active in one cell', async () => {
         const captured = captureExport();
         render(<AnalyticsView />);
 
@@ -86,7 +101,44 @@ describe('AnalyticsView — frozen export contract', () => {
         fireEvent.click(screen.getByRole('button', { name: /Export Recruiters/ }));
 
         expect(captured.download).toBe('recruiter_performance_30d.csv');
-        expect(decodeURI(captured.href)).toContain('Recruiter Name,Company,Calls Made,Last Active');
+        // The date holds a comma; joined raw, it split into two columns.
+        const lastActive = new Date(1700000000000).toLocaleString();
+        expect(await savedRows(captured)).toEqual([
+            '"Recruiter Name","Company","Calls Made","Last Active"',
+            `"Artificial Recruiter","Artificial Freight Co","21","${lastActive}"`,
+        ]);
+    });
+
+    it('keeps a comma, a quote, a # and a formula in a name inside its own cell', async () => {
+        useAnalytics.mockReturnValue({
+            loading: false,
+            dateRange: '30d',
+            setDateRange,
+            stats: {
+                ...STATS,
+                companyPerformance: [
+                    { companyId: 'c3', companyName: 'Artificial Carrier #2, "East"', callsMade: 4, actions: 6 },
+                    { companyId: 'c4', companyName: '=HYPERLINK("http://example.test","x")', callsMade: 1, actions: 2 },
+                ],
+            },
+        });
+        const captured = captureExport();
+        render(<AnalyticsView />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Export Companies/ }));
+
+        // In a `data:` URL the file ended at the first `#`; the second row was lost.
+        expect(await savedRows(captured)).toEqual([
+            '"Company Name","Calls Made","Total Actions"',
+            '"Artificial Carrier #2, ""East""","4","6"',
+            `"'=HYPERLINK(""http://example.test"",""x"")","1","2"`,
+        ]);
+    });
+
+    it('shows no Platform Health card: nothing measured it', () => {
+        render(<AnalyticsView />);
+        expect(screen.queryByText('Platform Health')).not.toBeInTheDocument();
+        expect(screen.getByText('Total Calls')).toBeInTheDocument();
     });
 
     it('keeps the exact date-range values', () => {

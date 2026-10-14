@@ -17,18 +17,19 @@ import { ConfirmDialog } from '@design-system/patterns';
  * afterwards.
  */
 
-const shortSha = (sha) => (typeof sha === 'string' ? sha.slice(0, 7) : 'unknown');
-
-function VersionLine({ label, sha, note }) {
+function DialogLine({ label, children }) {
     return (
         <div className="flex items-baseline justify-between gap-ds-3">
             <span className="text-ds-sm text-ds-content-secondary">{label}</span>
-            <span className="text-ds-sm text-ds-content">
-                <code className="font-mono">{shortSha(sha)}</code>
-                {note && <span className="ml-ds-2 text-ds-content-secondary">{note}</span>}
-            </span>
+            <span className="text-ds-sm text-ds-content">{children}</span>
         </div>
     );
+}
+
+/** A version as its short hash, or "Not recorded" when the release state has none. */
+function Version({ sha }) {
+    if (typeof sha === 'string' && sha.trim() !== '') return <code className="font-mono">{sha.slice(0, 7)}</code>;
+    return <span className="text-ds-content-secondary">Not recorded</span>;
 }
 
 export function ReleaseConfirmDialog({
@@ -62,19 +63,16 @@ export function ReleaseConfirmDialog({
         >
             <div className="mt-ds-4 space-y-ds-3 text-start">
                 <div className="space-y-ds-2 rounded-ds-md bg-ds-surface-subtle p-ds-3">
-                    <VersionLine
-                        label={isRollback ? 'Rolling back to' : 'Releasing version'}
-                        sha={target?.sha}
-                    />
-                    <VersionLine
-                        label="Production currently"
-                        sha={production?.sha}
-                        note={production ? undefined : '(not recorded)'}
-                    />
+                    <DialogLine label={isRollback ? 'Rolling back to' : 'Releasing version'}>
+                        <Version sha={target?.sha} />
+                    </DialogLine>
+                    <DialogLine label="Production currently">
+                        <Version sha={production?.sha} />
+                    </DialogLine>
                     {!isRollback && (
                         <>
-                            <VersionLine label="Checks" sha={undefined} note={testing?.checksPassed ? 'Passed' : 'Not passed'} />
-                            <VersionLine label="Testing" sha={undefined} note={testing?.backendReleased ? 'Healthy' : 'Incomplete'} />
+                            <DialogLine label="Checks">{testing?.checksPassed ? 'Passed' : 'Not passed'}</DialogLine>
+                            <DialogLine label="Testing">{testing?.backendReleased ? 'Healthy' : 'Incomplete'}</DialogLine>
                         </>
                     )}
                 </div>

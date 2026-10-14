@@ -101,6 +101,14 @@ export function CreateView({ onDataUpdate, setActiveView }) {
     const [withAdmin, setWithAdmin] = useState(true);
     const [companyAdminData, setCompanyAdminData] = useState(EMPTY_ADMIN_DATA);
 
+    /**
+     * The company written by a Create whose admin step then failed, with the form
+     * it was written from. Create again, with that form unchanged, adds only the
+     * admin: writing the company a second time was refused for its own slug
+     * ("already taken"), so the admin could never be added.
+     */
+    const [createdCompany, setCreatedCompany] = useState(null);
+
     // --- STATE: CREATE USER ---
     const [userForm, setUserForm] = useState(EMPTY_USER_FORM);
 
@@ -136,28 +144,44 @@ export function CreateView({ onDataUpdate, setActiveView }) {
         setLoading(true);
         setOutcome(null);
         try {
-            // 1. Create Company Doc. The contact and registration details go in
-            // the nested shape Edit Company, Settings and the application PDF use.
-            const { mcNumber, dotNumber, email, phone, address, city, state, zip, ...company } = companyForm;
-            const newCompanyRef = await createNewCompany({
-                ...company,
-                ...companyDetailsFields({ mcNumber, dotNumber, email, phone, street: address, city, state, zip }),
-                isActive: true,
-                createdAt: new Date()
-            });
+            const formKey = JSON.stringify(companyForm);
+            let companyId = createdCompany?.formKey === formKey ? createdCompany.id : null;
+
+            if (!companyId) {
+                // 1. Create Company Doc. The contact and registration details go in
+                // the nested shape Edit Company, Settings and the application PDF use.
+                const { mcNumber, dotNumber, email, phone, address, city, state, zip, ...company } = companyForm;
+                const newCompanyRef = await createNewCompany({
+                    ...company,
+                    ...companyDetailsFields({ mcNumber, dotNumber, email, phone, street: address, city, state, zip }),
+                    isActive: true,
+                    createdAt: new Date()
+                });
+                companyId = newCompanyRef.id;
+            }
 
             // 2. Create Admin User (If selected)
             if (withAdmin) {
                 const createFn = httpsCallable(functions, 'createPortalUser');
-                await createFn({
-                    fullName: companyAdminData.name,
-                    email: companyAdminData.email,
-                    password: companyAdminData.password,
-                    companyId: newCompanyRef.id,
-                    role: companyAdminData.role
-                });
+                try {
+                    await createFn({
+                        fullName: companyAdminData.name,
+                        email: companyAdminData.email,
+                        password: companyAdminData.password,
+                        companyId,
+                        role: companyAdminData.role
+                    });
+                } catch (adminError) {
+                    setCreatedCompany({ id: companyId, formKey });
+                    if (onDataUpdate) onDataUpdate();
+                    throw new Error(
+                        `The company was created, but its admin was not: ${adminError.message} `
+                        + 'Correct the admin details and press Create Company again; only the admin will be added.',
+                    );
+                }
             }
 
+            setCreatedCompany(null);
             setOutcome({ tone: 'success', message: 'Company (and Admin) created successfully!' });
             if (onDataUpdate) onDataUpdate();
             setCompanyForm(EMPTY_COMPANY_FORM);

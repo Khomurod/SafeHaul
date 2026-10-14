@@ -7,7 +7,7 @@
  * All ids and names below are synthetic test fixtures.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 
 const COUNTS = { companies: 3, users: 5, applications: 7, leads: 11 };
 let failingCount = null;
@@ -17,6 +17,7 @@ const getCountFromServer = vi.fn(async (target) => {
     if (name === failingCount) throw new Error(`simulated ${name} count failure`);
     return { data: () => ({ count: COUNTS[name] }) };
 });
+const getDocs = vi.fn(async () => ({ docs: [], empty: true, forEach: () => {} }));
 
 vi.mock('firebase/firestore', () => ({
     collection: (_db, name) => ({ __coll: name }),
@@ -26,16 +27,13 @@ vi.mock('firebase/firestore', () => ({
     where: (...a) => ({ __op: 'where', a }),
     startAfter: (cursor) => ({ __op: 'startAfter', cursor }),
     query: (...parts) => ({ __query: true, parts }),
-    getDocs: async () => ({ docs: [], empty: true, forEach: () => {} }),
+    getDocs: (...a) => getDocs(...a),
     getCountFromServer: (...a) => getCountFromServer(...a),
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => vi.fn() }));
 vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showError: vi.fn() }),
-}));
-vi.mock('@/context/dataContext/sessionKeys', () => ({
-    SESSION_KEYS: { PLATFORM_STATS: 'test-platform-stats' },
 }));
 
 import { useSuperAdminData } from './useSuperAdminData';
@@ -69,5 +67,31 @@ describe('useSuperAdminData — platform counts', () => {
             companyCount: false, userCount: false, appCount: true, leadCount: false,
         });
         expect(result.current.stats.leadCount).toBe(11);
+    });
+});
+
+describe('useSuperAdminData — when it reads', () => {
+    it('reads the platform the moment the console opens, with no pause first', async () => {
+        const { result } = renderHook(() => useSuperAdminData());
+        expect(getCountFromServer).toHaveBeenCalledTimes(4);
+        await waitFor(() => expect(result.current.loading).toBe(false));
+    });
+
+    it('still searches only once typing pauses', async () => {
+        const { result } = await mountLoaded();
+        vi.useFakeTimers();
+        try {
+            getDocs.mockClear();
+            act(() => result.current.setSearchQuery('Ar'));
+            await act(async () => { await vi.advanceTimersByTimeAsync(599); });
+            expect(getDocs).not.toHaveBeenCalled();
+
+            await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+            expect(getDocs).toHaveBeenCalledWith(expect.objectContaining({
+                parts: expect.arrayContaining([{ __op: 'where', a: ['companyName', '>=', 'Ar'] }]),
+            }));
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
