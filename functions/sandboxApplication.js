@@ -196,8 +196,8 @@ exports.transferSandboxApplication = functions
 
     // The copies first, then the sandbox PDFs go, then the company's record
     // appears and the sandbox record goes. A step that fails stops the transfer
-    // with the sandbox record still there, and running it again finishes it:
-    // no PDF with the full SSN is left where no record points at it.
+    // with the sandbox record still there, and running it again finishes it, so
+    // a finished transfer leaves no PDF with the full SSN that no record names.
     const bucket = storage.bucket();
     const sandboxPdfs = await copyPreservedPdfs(bucket, applicationId, targetCompanyId);
     await copySubcollections(sourceRef, destRef, applicationId, targetCompanyId);
