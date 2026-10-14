@@ -21,6 +21,7 @@ const mockRevoked = [];
 const mockGetUserFailures = new Map(); // uid -> tries that fail before one succeeds
 const mockRevokeFailures = new Map(); // uid -> revocations that fail before one succeeds
 const mockOnClaimsWrite = { fn: null };
+const mockJobs = new Map();
 jest.mock('../../firebaseAdmin', () => {
     const db = {
         collection: (name) => {
@@ -37,19 +38,38 @@ jest.mock('../../firebaseAdmin', () => {
                 };
             }
             if (name === 'companies') {
+                // Only what the hourly pass asks: chosen fields, in id order, after a cursor, a page at a time.
+                const query = ({ fields, after = null, max = Infinity }) => ({
+                    orderBy: (field) => {
+                        if (field !== '__name__') throw new Error(`unexpected order ${field}`);
+                        return query({ fields, after, max });
+                    },
+                    startAfter: (id) => query({ fields, after: id, max }),
+                    limit: (n) => query({ fields, after, max: n }),
+                    get: async () => {
+                        const docs = [...mockCompanies.keys()].sort()
+                            .filter((id) => after === null || id > after)
+                            .slice(0, max)
+                            .map((id) => {
+                                const data = mockCompanies.get(id);
+                                return { id, data: () => Object.fromEntries(fields.filter((f) => f in data).map((f) => [f, data[f]])) };
+                            });
+                        return { docs, size: docs.length, empty: docs.length === 0 };
+                    },
+                });
                 return {
-                    select: (...fields) => ({
-                        get: async () => {
-                            const docs = [...mockCompanies.entries()].map(([id, data]) => ({
-                                id,
-                                data: () => Object.fromEntries(fields.filter((f) => f in data).map((f) => [f, data[f]])),
-                            }));
-                            return { docs, size: docs.length };
-                        },
-                    }),
+                    select: (...fields) => query({ fields }),
                     doc: (id) => ({
                         get: async () => ({ exists: mockCompanies.has(id), data: () => mockCompanies.get(id) }),
                         update: async () => {},
+                    }),
+                };
+            }
+            if (name === 'system_jobs') {
+                return {
+                    doc: (id) => ({
+                        get: async () => ({ exists: mockJobs.has(id), data: () => mockJobs.get(id) }),
+                        set: async (data, opts) => { mockJobs.set(id, opts?.merge ? { ...mockJobs.get(id), ...data } : data); },
                     }),
                 };
             }
@@ -105,6 +125,8 @@ beforeEach(() => {
     mockGetUserFailures.clear();
     mockRevokeFailures.clear();
     mockOnClaimsWrite.fn = null;
+    mockJobs.clear();
+    timing.now = () => 0;
     mockMemberships.push(
         { userId: 'recruiter-1', companyId: 'co-a', role: 'recruiter' },
         { userId: 'recruiter-1', companyId: 'co-b', role: 'recruiter' },
@@ -198,6 +220,25 @@ describe('a change racing the claims write', () => {
         expect(mockClaims.get('recruiter-1').roles).toEqual({ 'co-b': 'recruiter' });
         expect(mockRevoked).toContain('recruiter-1');
     });
+
+    it('still ends the session when the claims kept changing until a try gave up, and the next try is quiet', async () => {
+        mockCompanies.set('co-a', { isActive: true });
+        // co-a is turned off, on and off again by recruiter-1's first three writes.
+        let writes = 0;
+        mockOnClaimsWrite.fn = (uid) => {
+            if (uid !== 'recruiter-1' || writes === 3) return;
+            writes += 1;
+            mockCompanies.set('co-a', { isActive: writes === 2 });
+        };
+        await onCompanyActivationChange({
+            params: { companyId: 'co-a' },
+            data: { before: { data: () => ({ isActive: false }) }, after: { data: () => ({ isActive: true }) } },
+        });
+
+        expect(writes).toBe(3);
+        expect(mockClaims.get('recruiter-1')).toEqual({ roles: { 'co-b': 'recruiter' }, companyTeamIds: ['co-b'] });
+        expect(mockRevoked).toEqual(['recruiter-1']);
+    });
 });
 
 describe('a member whose claims cannot be written at once', () => {
@@ -249,5 +290,58 @@ describe('the hourly pass, for a company deactivated by its status', () => {
 
         expect(mockClaims.get('admin-1')).toEqual({ roles: {} });
         expect(mockRevoked).toEqual(['admin-1']);
+    });
+});
+
+describe('the hourly pass, out of time', () => {
+    const stale = (companyId) => ({ roles: { [companyId]: 'hr_user' }, companyTeamIds: [companyId] });
+
+    it('continues the next run after the last company it finished, then starts again from the first', async () => {
+        mockMemberships.push(
+            { userId: 'hr-3', companyId: 'co-c', role: 'hr_user' },
+            { userId: 'hr-4', companyId: 'co-d', role: 'hr_user' },
+        );
+        mockCompanies.set('co-c', { isActive: false });
+        mockCompanies.set('co-d', { isActive: false });
+        mockClaims.set('hr-3', stale('co-c'));
+        mockClaims.set('hr-4', stale('co-d'));
+        // The run's time runs out while co-c's member is re-synced.
+        let clock = 0;
+        timing.now = () => clock;
+        mockOnClaimsWrite.fn = (uid) => { if (uid === 'hr-3') clock = Number.POSITIVE_INFINITY; };
+
+        await reconcileDeactivatedCompanyClaims();
+
+        expect(mockRevoked).toEqual(['hr-3']);
+        expect(mockClaims.get('hr-4')).toEqual(stale('co-d'));
+        expect(mockJobs.get('deactivatedCompanyClaims').resumeAfterCompanyId).toBe('co-c');
+
+        // co-c's role back in hr-3's token: a run that starts after co-c leaves it there.
+        mockOnClaimsWrite.fn = null;
+        clock = 0;
+        mockClaims.set('hr-3', stale('co-c'));
+        await reconcileDeactivatedCompanyClaims();
+
+        expect(mockClaims.get('hr-4')).toEqual({ roles: {} });
+        expect(mockClaims.get('hr-3')).toEqual(stale('co-c'));
+        expect(mockJobs.get('deactivatedCompanyClaims').resumeAfterCompanyId).toBeNull();
+
+        // That walk was complete, so the next run starts again from the first company.
+        await reconcileDeactivatedCompanyClaims();
+
+        expect(mockClaims.get('hr-3')).toEqual({ roles: {} });
+        expect(mockRevoked).toEqual(['hr-3', 'hr-4', 'hr-3']);
+    });
+
+    it('reads every page of companies', async () => {
+        for (let i = 0; i < 250; i += 1) mockCompanies.set(`co-p${String(i).padStart(3, '0')}`, { isActive: true });
+        mockCompanies.set('co-z', { isActive: false });
+        mockMemberships.push({ userId: 'hr-z', companyId: 'co-z', role: 'hr_user' });
+        mockClaims.set('hr-z', stale('co-z'));
+
+        await reconcileDeactivatedCompanyClaims();
+
+        expect(mockClaims.get('hr-z')).toEqual({ roles: {} });
+        expect(mockJobs.get('deactivatedCompanyClaims').resumeAfterCompanyId).toBeNull();
     });
 });

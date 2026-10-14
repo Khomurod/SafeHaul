@@ -58,10 +58,12 @@ const sameClaims = (a, b) => JSON.stringify(Object.entries(a.roles).sort()) === 
  *
  * After each write the claims are worked out again: a company deactivated or a
  * membership changed in the meantime would otherwise leave what an earlier
- * reading called for. `removedDuringSync` says a role written here was taken
- * back, so a token minted in between may carry it.
+ * reading called for. `written` collects every company whose role a write put
+ * in the token; a caller that tries again passes the same set, so a role
+ * written by a try that failed counts too. `removedDuringSync` says one of them
+ * is not in the claims that settled, so a token minted in between may carry it.
  */
-async function syncUserClaims(userId) {
+async function syncUserClaims(userId, written = new Set()) {
     try {
         // We verify the user exists before trying to set claims
         await auth.getUser(userId);
@@ -72,15 +74,16 @@ async function syncUserClaims(userId) {
     }
 
     let wanted = await computeClaims(userId);
-    let removedDuringSync = false;
     for (let write = 1; ; write += 1) {
+        // Counted before the write: one that fails may still have been applied.
+        companyRoles(wanted.claims).forEach((id) => written.add(id));
         await auth.setCustomUserClaims(userId, wanted.claims);
         const now = await computeClaims(userId);
         if (sameClaims(now.claims, wanted.claims)) {
             console.log(`Claims synced for user ${userId}. Global Admin: ${now.isGlobalAdmin}`);
+            const removedDuringSync = [...written].some((id) => !(id in now.claims.roles));
             return { isGlobalAdmin: now.isGlobalAdmin, memberCompanyIds: now.memberCompanyIds, removedDuringSync };
         }
-        if (companyRoles(wanted.claims).some((id) => !(id in now.claims.roles))) removedDuringSync = true;
         if (write === MAX_WRITES) throw new Error(`Claims for ${userId} kept changing while they were written.`);
         wanted = now;
     }
