@@ -66,6 +66,9 @@ async function computeClaims(userId, storedClaims) {
     return { claims, isGlobalAdmin, memberCompanyIds, deactivated };
 }
 
+/** What a user's tries share; see syncUserClaims. */
+const newSyncState = () => ({ written: new Set(), removing: false, isGlobalAdmin: false, deactivated: new Set() });
+
 const companyRoles = (claims) => Object.keys(claims?.roles || {}).filter((key) => key !== 'globalRole');
 const sameClaims = (a, b) => JSON.stringify(Object.entries(a.roles).sort()) === JSON.stringify(Object.entries(b.roles).sort())
     && JSON.stringify(a.companyTeamIds || []) === JSON.stringify(b.companyTeamIds || [])
@@ -79,13 +82,14 @@ const sameClaims = (a, b) => JSON.stringify(Object.entries(a.roles).sort()) === 
  *
  * After each write the claims are worked out again: a company deactivated or a
  * membership changed in the meantime would otherwise leave what an earlier
- * reading called for. `written` collects every company whose role a live token
- * may carry: one a write put in the token, or a deactivated company's role the
- * stored claims still held (a run that failed left it). A caller that tries
- * again passes the same set, so a try that failed counts too.
+ * reading called for. `state.written` collects every company whose role a live
+ * token may carry: one a write put in the token, or a deactivated company's
+ * role the stored claims still held (a run that failed left it). A caller that
+ * tries again passes the same state, so a try that failed counts too.
  * `removedDuringSync` says one of them is not in the claims that settled.
  */
-async function syncUserClaims(userId, written = new Set()) {
+async function syncUserClaims(userId, state = newSyncState()) {
+    const { written } = state;
     let user;
     try {
         // We verify the user exists before trying to set claims
@@ -99,6 +103,9 @@ async function syncUserClaims(userId, written = new Set()) {
     let wanted = await computeClaims(userId, user.customClaims);
     companyRoles(user.customClaims).filter((id) => wanted.deactivated.has(id)).forEach((id) => written.add(id));
     for (let write = 1; ; write += 1) {
+        // What the latest reading called for, for a caller whose every try fails.
+        Object.assign(state, { isGlobalAdmin: wanted.isGlobalAdmin, deactivated: wanted.deactivated });
+        if ([...written].some((id) => !(id in wanted.claims.roles))) state.removing = true;
         // Counted before the write: one that fails may still have been applied.
         companyRoles(wanted.claims).forEach((id) => written.add(id));
         await auth.setCustomUserClaims(userId, wanted.claims);
@@ -138,11 +145,11 @@ async function syncClaimsAndSessions(userId, companyId = null) {
     // Shared by the tries: a role one of them saw in a token and the claims
     // then lost ends the sessions, even when that try failed and the next
     // sync is quiet.
-    const written = new Set();
+    const state = newSyncState();
     let owed = false;
     for (let attempt = 0; ; attempt += 1) {
         try {
-            const synced = await syncUserClaims(userId, written);
+            const synced = await syncUserClaims(userId, state);
             // Decided by the state the claims settled on, not the event that
             // asked: a deactivation handled after the re-activation ends nothing.
             owed = Boolean(synced && !synced.isGlobalAdmin
@@ -151,7 +158,11 @@ async function syncClaimsAndSessions(userId, companyId = null) {
             return synced;
         } catch (err) {
             if (attempt === RETRY_WAITS_MS.length) {
-                if (owed) await recordRevocationOwed(userId);
+                // No try settled: judged by the latest reading, a role being
+                // taken away or the company deactivated still owes an end.
+                const unsettled = !state.isGlobalAdmin
+                    && (state.removing || (companyId !== null && state.deactivated.has(companyId)));
+                if (owed || unsettled) await recordRevocationOwed(userId);
                 throw err;
             }
             await timing.wait(RETRY_WAITS_MS[attempt]);

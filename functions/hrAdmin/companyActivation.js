@@ -61,11 +61,13 @@ exports.onCompanyActivationChange = onDocumentUpdated({
     console.log(`[onCompanyActivationChange] ${companyId} ${deactivated ? 'deactivated' : 're-activated'}: ${userIds.length} member(s).`);
 });
 
+/** Is there a super admin claim, at the token root or under `roles`? */
+const superAdminClaim = (customClaims) => (customClaims?.globalRole || customClaims?.roles?.globalRole) === 'super_admin';
+
 /** Does the user's token still grant this company, for anyone but a super admin? */
 function stillGranted(customClaims, companyId) {
-    const roles = customClaims?.roles || {};
-    if ((customClaims?.globalRole || roles.globalRole) === 'super_admin') return false;
-    return companyId in roles || (customClaims?.companyTeamIds || []).includes(companyId);
+    if (superAdminClaim(customClaims)) return false;
+    return companyId in (customClaims?.roles || {}) || (customClaims?.companyTeamIds || []).includes(companyId);
 }
 
 /** Does the token carry exactly the role the membership gives, a staff role in the team list too? */
@@ -101,8 +103,9 @@ async function authUsers(companyId, userIds) {
  * Checks the company's members, in id order after `afterUserId`, and re-syncs
  * each whose token disagrees with the company: a deactivated company's role
  * still there (that session is ended), or an active company's role missing or
- * not the one the membership gives. Out of time, it returns the last member it
- * finished.
+ * not the one the membership gives. A super admin, who keeps every role, is
+ * held to the membership's role either way. Out of time, it returns the last
+ * member it finished.
  */
 async function reconcileCompany(companyId, deactivated, afterUserId, stopAt, counts) {
     const roles = await memberRoles(companyId);
@@ -114,8 +117,11 @@ async function reconcileCompany(companyId, deactivated, afterUserId, stopAt, cou
         for (const userId of chunk) {
             if (timing.now() >= stopAt) return { finished: false, afterUserId: last };
             const claims = users?.get(userId)?.customClaims;
-            const wrong = users?.has(userId)
-                && (deactivated ? stillGranted(claims, companyId) : !holdsRole(claims, companyId, roles.get(userId)));
+            const role = roles.get(userId);
+            const keepsEveryRole = role === 'super_admin' || superAdminClaim(claims);
+            const wrong = users?.has(userId) && (deactivated && !keepsEveryRole
+                ? stillGranted(claims, companyId)
+                : !holdsRole(claims, companyId, role));
             if (wrong) {
                 try {
                     await syncClaimsAndSessions(userId, companyId);
@@ -147,8 +153,11 @@ async function deliverOwedRevocations(stopAt, counts) {
                 // An account deleted since has no session left to end.
                 if (err?.code !== 'auth/user-not-found') throw err;
             });
-            await doc.ref.delete();
             counts.ended += 1;
+            // Only the record this run read: one written since owes a later end.
+            await doc.ref.delete({ lastUpdateTime: doc.updateTime }).catch((err) => {
+                console.log(`[reconcileCompanyClaims] A newer end owed to ${doc.id} is kept for the next run:`, err.message || err);
+            });
         } catch (err) {
             console.error(`[reconcileCompanyClaims] Sessions of ${doc.id} not ended:`, err.message || err);
         }
