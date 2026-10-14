@@ -15,10 +15,11 @@ const MAX_WRITES = 3;
 const RETRY_WAITS_MS = Object.freeze([2000, 6000]);
 
 /**
- * Users whose sessions every try failed to end; the hourly pass ends them.
- * Server-only: `system_jobs` has no Firestore rule.
+ * Users whose claims sync failed every try. The hourly pass syncs them again,
+ * and ends their sessions while a role a live token may carry, listed in
+ * `companyIds`, is still missing. Server-only: `system_jobs` has no rule.
  */
-const REVOCATIONS_OWED = () => db.collection("system_jobs").doc("companyClaims").collection("revocationsOwed");
+const OWED_USERS = () => db.collection("system_jobs").doc("companyClaims").collection("owedUsers");
 
 /** Replaced by the tests, which have no seconds to spend. */
 const timing = {
@@ -67,7 +68,7 @@ async function computeClaims(userId, storedClaims) {
 }
 
 /** What a user's tries share; see syncUserClaims. */
-const newSyncState = () => ({ written: new Set(), removing: false, isGlobalAdmin: false, deactivated: new Set() });
+const newSyncState = () => ({ written: new Set(), isGlobalAdmin: false, roles: {}, deactivated: new Set() });
 
 const companyRoles = (claims) => Object.keys(claims?.roles || {}).filter((key) => key !== 'globalRole');
 const sameClaims = (a, b) => JSON.stringify(Object.entries(a.roles).sort()) === JSON.stringify(Object.entries(b.roles).sort())
@@ -84,9 +85,9 @@ const sameClaims = (a, b) => JSON.stringify(Object.entries(a.roles).sort()) === 
  * membership changed in the meantime would otherwise leave what an earlier
  * reading called for. `state.written` collects every company whose role a live
  * token may carry: one a write put in the token, or a deactivated company's
- * role the stored claims still held (a run that failed left it). A caller that
- * tries again passes the same state, so a try that failed counts too.
- * `removedDuringSync` says one of them is not in the claims that settled.
+ * role the stored claims still held (a run that failed left it). The state
+ * also keeps what the latest reading called for. A caller that tries again
+ * passes the same state, so a try that failed counts too.
  */
 async function syncUserClaims(userId, state = newSyncState()) {
     const { written } = state;
@@ -104,20 +105,18 @@ async function syncUserClaims(userId, state = newSyncState()) {
     companyRoles(user.customClaims).filter((id) => wanted.deactivated.has(id)).forEach((id) => written.add(id));
     for (let write = 1; ; write += 1) {
         // What the latest reading called for, for a caller whose every try fails.
-        Object.assign(state, { isGlobalAdmin: wanted.isGlobalAdmin, deactivated: wanted.deactivated });
-        if ([...written].some((id) => !(id in wanted.claims.roles))) state.removing = true;
+        Object.assign(state, { isGlobalAdmin: wanted.isGlobalAdmin, roles: wanted.claims.roles, deactivated: wanted.deactivated });
         // Counted before the write: one that fails may still have been applied.
         companyRoles(wanted.claims).forEach((id) => written.add(id));
         await auth.setCustomUserClaims(userId, wanted.claims);
         const now = await computeClaims(userId, user.customClaims);
         if (sameClaims(now.claims, wanted.claims)) {
             console.log(`Claims synced for user ${userId}. Global Admin: ${now.isGlobalAdmin}`);
-            const removedDuringSync = [...written].some((id) => !(id in now.claims.roles));
             return {
                 isGlobalAdmin: now.isGlobalAdmin,
                 memberCompanyIds: now.memberCompanyIds,
                 deactivated: now.deactivated,
-                removedDuringSync,
+                roles: now.claims.roles,
             };
         }
         if (write === MAX_WRITES) throw new Error(`Claims for ${userId} kept changing while they were written.`);
@@ -125,15 +124,30 @@ async function syncUserClaims(userId, state = newSyncState()) {
     }
 }
 
-/** Records an end owed to the user's sessions, three tries of its own. */
-async function recordRevocationOwed(userId) {
+/**
+ * The companies whose role a live token may carry and the latest claims lack,
+ * for anyone but a super admin. Decided by the state the claims came to, not
+ * the event that asked: a deactivation handled after the re-activation that
+ * followed it ends nothing.
+ */
+function rolesToEnd({ isGlobalAdmin, roles, deactivated, written }, companyId) {
+    if (isGlobalAdmin) return [];
+    const ids = new Set([...written].filter((id) => !(id in roles)));
+    if (companyId !== null && deactivated.has(companyId)) ids.add(companyId);
+    return [...ids].sort();
+}
+
+/** Records a user the hourly pass must sync again, three tries of its own. */
+async function recordOwed(userId, companyIds) {
+    const data = { since: admin.firestore.FieldValue.serverTimestamp() };
+    if (companyIds.length > 0) data.companyIds = admin.firestore.FieldValue.arrayUnion(...companyIds);
     for (let attempt = 0; ; attempt += 1) {
         try {
-            await REVOCATIONS_OWED().doc(userId).set({ since: admin.firestore.FieldValue.serverTimestamp() });
+            await OWED_USERS().doc(userId).set(data, { merge: true });
             return;
         } catch (err) {
             if (attempt === RETRY_WAITS_MS.length) {
-                console.error(`[claims] The sessions owed an end for ${userId} were not recorded:`, err.message || err);
+                console.error(`[claims] ${userId} was not recorded for another sync:`, err.message || err);
                 return;
             }
             await timing.wait(RETRY_WAITS_MS[attempt]);
@@ -144,33 +158,24 @@ async function recordRevocationOwed(userId) {
 /**
  * Re-syncs one user's claims, three tries, and ends their sessions when the
  * claims settle with `companyId` deactivated, or a role a live token may carry
- * was taken away: a session keeps its current token for up to an hour, and
- * revoking makes the next refresh fail. Never a super admin's. An end every
- * try failed to deliver is recorded for the hourly pass. Returns what
- * syncUserClaims did.
+ * was taken away (rolesToEnd): a session keeps its current token for up to an
+ * hour, and revoking makes the next refresh fail. Never a super admin's. When
+ * every try fails, the user is recorded for the hourly pass with the roles
+ * still to end. Returns what syncUserClaims did.
  */
 async function syncClaimsAndSessions(userId, companyId = null) {
     // Shared by the tries: a role one of them saw in a token and the claims
     // then lost ends the sessions, even when that try failed and the next
     // sync is quiet.
     const state = newSyncState();
-    let owed = false;
     for (let attempt = 0; ; attempt += 1) {
         try {
             const synced = await syncUserClaims(userId, state);
-            // Decided by the state the claims settled on, not the event that
-            // asked: a deactivation handled after the re-activation ends nothing.
-            owed = Boolean(synced && !synced.isGlobalAdmin
-                && (synced.removedDuringSync || (companyId !== null && synced.deactivated.has(companyId))));
-            if (owed) await auth.revokeRefreshTokens(userId);
+            if (synced && rolesToEnd(state, companyId).length > 0) await auth.revokeRefreshTokens(userId);
             return synced;
         } catch (err) {
             if (attempt === RETRY_WAITS_MS.length) {
-                // No try settled: judged by the latest reading, a role being
-                // taken away or the company deactivated still owes an end.
-                const unsettled = !state.isGlobalAdmin
-                    && (state.removing || (companyId !== null && state.deactivated.has(companyId)));
-                if (owed || unsettled) await recordRevocationOwed(userId);
+                await recordOwed(userId, rolesToEnd(state, companyId));
                 throw err;
             }
             await timing.wait(RETRY_WAITS_MS[attempt]);
@@ -178,4 +183,4 @@ async function syncClaimsAndSessions(userId, companyId = null) {
     }
 }
 
-module.exports = { syncUserClaims, syncClaimsAndSessions, REVOCATIONS_OWED, TEAM_ROLES, timing };
+module.exports = { syncUserClaims, syncClaimsAndSessions, OWED_USERS, TEAM_ROLES, timing };

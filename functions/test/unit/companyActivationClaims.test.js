@@ -23,7 +23,7 @@ const mockRevokeFailures = new Map(); // uid -> revocations that fail before one
 const mockOnClaimsWrite = { fn: null };
 const mockClaimsWriteFailures = new Set(); // uids whose claims can never be written
 const mockJobs = new Map();
-const mockOwed = new Map(); // uid -> { data, version }: sessions owed an end
+const mockOwed = new Map(); // uid -> { data, version }: users owed another sync
 const mockOwedVersion = { n: 0 };
 const mockOnRevoke = { fn: null };
 const mockFailMembershipReads = new Set(); // uids whose own memberships cannot be read
@@ -74,39 +74,58 @@ jest.mock('../../firebaseAdmin', () => {
                 };
             }
             if (name === 'system_jobs') {
+                // A merge write, arrayUnion included, bumps the record's version (its updateTime).
+                const writeOwed = (uid, data, opts) => {
+                    const before = opts?.merge ? (mockOwed.get(uid)?.data || {}) : {};
+                    const next = { ...before };
+                    Object.entries(data).forEach(([key, value]) => {
+                        next[key] = value?.mockArrayUnion ? [...new Set([...(before[key] || []), ...value.mockArrayUnion])] : value;
+                    });
+                    mockOwed.set(uid, { data: next, version: ++mockOwedVersion.n });
+                };
                 const owed = {
                     doc: (uid) => ({
-                        set: async (data) => {
+                        set: async (data, opts) => {
                             if (mockOwedWriteFailures.n > 0) {
                                 mockOwedWriteFailures.n -= 1;
                                 throw new Error('firestore unavailable');
                             }
-                            mockOwed.set(uid, { data, version: ++mockOwedVersion.n });
+                            writeOwed(uid, data, opts);
                         },
                     }),
-                    limit: (n) => ({
-                        get: async () => ({
-                            docs: [...mockOwed.entries()].slice(0, n).map(([uid, { version }]) => ({
-                                id: uid,
-                                updateTime: version,
-                                ref: {
-                                    delete: async (precondition) => {
-                                        if (precondition && mockOwed.get(uid)?.version !== precondition.lastUpdateTime) {
-                                            throw Object.assign(new Error('the document was updated'), { code: 9 });
-                                        }
-                                        mockOwed.delete(uid);
-                                    },
-                                },
-                            })),
-                        }),
-                    }),
+                    orderBy: (field) => {
+                        if (field !== 'since') throw new Error(`unexpected order ${field}`);
+                        return {
+                            limit: (n) => ({
+                                get: async () => ({
+                                    docs: [...mockOwed.entries()]
+                                        .sort((a, b) => a[1].version - b[1].version)
+                                        .slice(0, n)
+                                        .map(([uid, { data, version }]) => ({
+                                            id: uid,
+                                            updateTime: version,
+                                            data: () => data,
+                                            ref: {
+                                                set: async (d, o) => writeOwed(uid, d, o),
+                                                delete: async (precondition) => {
+                                                    if (precondition && mockOwed.get(uid)?.version !== precondition.lastUpdateTime) {
+                                                        throw Object.assign(new Error('the document was updated'), { code: 9 });
+                                                    }
+                                                    mockOwed.delete(uid);
+                                                },
+                                            },
+                                        })),
+                                }),
+                            }),
+                        };
+                    },
                 };
                 return {
                     doc: (id) => ({
                         get: async () => ({ exists: mockJobs.has(id), data: () => mockJobs.get(id) }),
                         set: async (data, opts) => { mockJobs.set(id, opts?.merge ? { ...mockJobs.get(id), ...data } : data); },
                         collection: (sub) => {
-                            if (sub !== 'revocationsOwed') throw new Error(`unexpected ${sub}`);
+                            if (sub !== 'owedUsers') throw new Error(`unexpected ${sub}`);
                             return owed;
                         },
                     }),
@@ -117,7 +136,7 @@ jest.mock('../../firebaseAdmin', () => {
     };
     return {
         db,
-        admin: { firestore: { FieldValue: { serverTimestamp: () => 'server-time' } } },
+        admin: { firestore: { FieldValue: { serverTimestamp: () => 'server-time', arrayUnion: (...items) => ({ mockArrayUnion: items }) } } },
         auth: {
             getUser: async (uid) => {
                 const failures = mockGetUserFailures.get(uid) || 0;
@@ -285,10 +304,42 @@ describe('sessions every try failed to end', () => {
         expect(mockClaims.get('admin-1')).toEqual({ roles: {} });
         expect(mockRevoked).not.toContain('admin-1');
         expect([...mockOwed.keys()]).toEqual(['admin-1']);
+        expect(mockOwed.get('admin-1').data.companyIds).toEqual(['co-a']);
 
         await reconcileCompanyClaims();
 
         expect(mockRevoked).toContain('admin-1');
+        expect(mockOwed.size).toBe(0);
+    });
+});
+
+describe('an owed end whose company was turned back on since', () => {
+    it('ends no session, the role being back', async () => {
+        mockRevokeFailures.set('admin-1', 3);
+        await change('co-a', { isActive: true }, { isActive: false });
+        expect(mockOwed.get('admin-1').data.companyIds).toEqual(['co-a']);
+
+        await change('co-a', { isActive: false }, { isActive: true });
+        mockRevoked.length = 0;
+        await reconcileCompanyClaims();
+
+        expect(mockClaims.get('admin-1')).toEqual({ roles: { 'co-a': 'company_admin' }, companyTeamIds: ['co-a'] });
+        expect(mockRevoked).toEqual([]);
+        expect(mockOwed.size).toBe(0);
+    });
+});
+
+describe('a removed member whose membership write failed every try', () => {
+    it('is synced again by the hourly pass, and loses the role', async () => {
+        mockClaims.set('recruiter-1', { roles: { 'co-a': 'recruiter', 'co-b': 'recruiter' }, companyTeamIds: ['co-a', 'co-b'] });
+        const removed = mockMemberships.shift(); // recruiter-1 in co-a
+        mockGetUserFailures.set('recruiter-1', 3);
+        await expect(onMembershipWrite({ data: { before: { data: () => removed }, after: { data: () => undefined } } })).rejects.toThrow();
+        expect([...mockOwed.keys()]).toEqual(['recruiter-1']);
+
+        await reconcileCompanyClaims();
+
+        expect(mockClaims.get('recruiter-1')).toEqual({ roles: { 'co-b': 'recruiter' }, companyTeamIds: ['co-b'] });
         expect(mockOwed.size).toBe(0);
     });
 });
@@ -318,8 +369,9 @@ describe('an owed end whose record cannot be written at once', () => {
 
 describe('the hourly pass, delivering the sessions owed an end', () => {
     it('ends no session of a user made super admin since, and clears the record', async () => {
-        mockOwed.set('admin-1', { data: {}, version: ++mockOwedVersion.n });
-        mockClaims.set('admin-1', { roles: { 'co-a': 'super_admin', globalRole: 'super_admin' } });
+        mockCompanies.set('co-a', { isActive: false });
+        mockOwed.set('admin-1', { data: { companyIds: ['co-a'] }, version: ++mockOwedVersion.n });
+        mockMemberships.push({ userId: 'admin-1', companyId: 'co-b', role: 'super_admin' });
 
         await reconcileCompanyClaims();
 
@@ -328,7 +380,9 @@ describe('the hourly pass, delivering the sessions owed an end', () => {
     });
 
     it('keeps a record written again while it delivered the earlier one', async () => {
-        mockOwed.set('admin-1', { data: {}, version: ++mockOwedVersion.n });
+        mockCompanies.set('co-a', { isActive: false });
+        mockClaims.set('admin-1', { roles: {} });
+        mockOwed.set('admin-1', { data: { companyIds: ['co-a'] }, version: ++mockOwedVersion.n });
         // Another run owes admin-1 a later end while this one revokes.
         mockOnRevoke.fn = (uid) => {
             if (uid === 'admin-1') { mockOnRevoke.fn = null; mockOwed.set('admin-1', { data: {}, version: ++mockOwedVersion.n }); }
@@ -581,10 +635,8 @@ describe('the hourly pass, out of time', () => {
         expect(mockClaims.get('hr-4')).toEqual({ roles: {} });
         expect(mockRevoked).toContain('hr-4');
         expect(mockJobs.get('companyClaims')).toMatchObject({ resumeCompanyId: null, resumeAfterUserId: null });
-        // The members whose claims could not be written still owe an end: the
-        // first 30 were ended at the start of this run, the last 10 wait for the next.
-        expect(mockRevoked).toEqual(expect.arrayContaining(failing.slice(0, 30)));
-        expect([...mockOwed.keys()].sort()).toEqual(failing.slice(30));
+        // Every member whose claims could not be written waits for another sync.
+        expect([...mockOwed.keys()].sort()).toEqual(failing);
     });
 
     it('reads every page of companies', async () => {

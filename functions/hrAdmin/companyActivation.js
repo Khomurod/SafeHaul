@@ -11,7 +11,7 @@ const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db, auth } = require("./../firebaseAdmin");
 const { isCompanyDeactivated } = require("../shared/companyTenant");
-const { syncClaimsAndSessions, REVOCATIONS_OWED, TEAM_ROLES, timing } = require("./claims");
+const { syncClaimsAndSessions, OWED_USERS, TEAM_ROLES, timing } = require("./claims");
 
 /**
  * Where the hourly pass stopped: the company it was in and the last member it
@@ -26,6 +26,8 @@ const PAGE_SIZE = 200;
 const AUTH_LOOKUP_CHUNK = 100;
 /** No member is started after this, inside the 300 s timeout: one member's tries take seconds. */
 const RUN_BUDGET_MS = 240 * 1000;
+/** The share of a run the users owed a sync may take, so the walk always moves on. */
+const OWED_BUDGET_MS = 80 * 1000;
 
 /** Each member's role in the company, from the memberships; the claims carry nothing for one without a role. */
 const memberRoles = async (companyId) => {
@@ -137,34 +139,38 @@ async function reconcileCompany(companyId, deactivated, afterUserId, stopAt, cou
     return { finished: true };
 }
 
-/** Ends the sessions every try of an earlier run failed to end (claims.js records them). */
-async function deliverOwedRevocations(stopAt, counts) {
+/**
+ * Users whose claims sync failed every try (claims.js records them, a removed
+ * member included): synced again, and their sessions ended while a recorded
+ * role is still missing, so a role given back since ends nothing. Oldest first,
+ * within a share of the run; a record that fails again moves to the back.
+ */
+async function settleOwedUsers(stopAt, counts) {
+    const owedStopAt = Math.min(stopAt, timing.now() + OWED_BUDGET_MS);
     let owed;
     try {
-        owed = await REVOCATIONS_OWED().limit(PAGE_SIZE).get();
+        owed = await OWED_USERS().orderBy("since").limit(PAGE_SIZE).get();
     } catch (err) {
-        console.error('[reconcileCompanyClaims] Could not read the sessions owed an end:', err.message || err);
+        console.error('[reconcileCompanyClaims] Could not read the users owed a sync:', err.message || err);
         return;
     }
     for (const doc of owed.docs) {
-        if (timing.now() >= stopAt) return;
+        if (timing.now() >= owedStopAt) return;
         try {
-            const user = await auth.getUser(doc.id).catch((err) => {
-                if (err?.code === 'auth/user-not-found') return null;
-                throw err;
-            });
-            // An account deleted since has no session left to end, and a user
-            // made super admin since keeps every session.
-            if (user && !superAdminClaim(user.customClaims)) {
+            const synced = await syncClaimsAndSessions(doc.id);
+            const companyIds = doc.data()?.companyIds || [];
+            if (synced && !synced.isGlobalAdmin && companyIds.some((id) => !(id in synced.roles))) {
                 await auth.revokeRefreshTokens(doc.id);
                 counts.ended += 1;
             }
-            // Only the record this run read: one written since owes a later end.
+            counts.settled += 1;
+            // Only the record this run read: one written since stays for the next run.
             await doc.ref.delete({ lastUpdateTime: doc.updateTime }).catch((err) => {
-                console.log(`[reconcileCompanyClaims] A newer end owed to ${doc.id} is kept for the next run:`, err.message || err);
+                console.log(`[reconcileCompanyClaims] A newer record for ${doc.id} is kept for the next run:`, err.message || err);
             });
         } catch (err) {
-            console.error(`[reconcileCompanyClaims] Sessions of ${doc.id} not ended:`, err.message || err);
+            console.error(`[reconcileCompanyClaims] ${doc.id} not settled; tried again next run:`, err.message || err);
+            await doc.ref.set({ since: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(() => {});
         }
     }
 }
@@ -191,8 +197,8 @@ async function walkCompanies(resume, stopAt, counts) {
  * A deactivated company's role still in a token (a run that failed, a company
  * deactivated before the trigger existed) is removed and that session ended;
  * an active company's role missing from a token, or not the membership's (a
- * re-activation or a membership write whose run failed), is set right. The
- * sessions an earlier run owed an end, every try failing, are ended first. Companies are read in id
+ * re-activation or a membership write whose run failed), is set right. Users
+ * an earlier run could not sync at all are synced again first. Companies are read in id
  * order, two fields each, and judged as the trigger judges them; members are
  * looked up 100 at a time. A run out of time records where it stopped, and the
  * next run continues from there.
@@ -203,8 +209,8 @@ exports.reconcileCompanyClaims = onSchedule({
     timeoutSeconds: 300,
 }, async () => {
     const stopAt = timing.now() + RUN_BUDGET_MS;
-    const counts = { companies: 0, fixed: 0, ended: 0 };
-    await deliverOwedRevocations(stopAt, counts);
+    const counts = { companies: 0, fixed: 0, settled: 0, ended: 0 };
+    await settleOwedUsers(stopAt, counts);
     const stoppedAt = await walkCompanies(await resumePoint(), stopAt, counts);
     // Cleared once the walk is complete, so the next run starts again from the
     // first company.
@@ -213,7 +219,7 @@ exports.reconcileCompanyClaims = onSchedule({
         resumeAfterUserId: stoppedAt?.afterUserId || null,
         lastRunAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
-    console.log(`[reconcileCompanyClaims] ${counts.ended} owed session end(s) delivered; ${counts.companies} compan(ies) checked; ${counts.fixed} member(s) re-synced`
+    console.log(`[reconcileCompanyClaims] ${counts.settled} owed user(s) synced, ${counts.ended} session end(s); ${counts.companies} compan(ies) checked; ${counts.fixed} member(s) re-synced`
         + (stoppedAt ? `; out of time, the next run continues in ${stoppedAt.companyId}.` : '.'));
 });
 
