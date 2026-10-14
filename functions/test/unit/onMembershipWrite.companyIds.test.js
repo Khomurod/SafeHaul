@@ -8,6 +8,7 @@ jest.mock('firebase-functions/v2/https', () => ({
 // handler back so it can be invoked directly.
 jest.mock('firebase-functions/v2/firestore', () => ({
   onDocumentWritten: jest.fn((optsOrFn, maybeFn) => (typeof maybeFn === 'function' ? maybeFn : optsOrFn)),
+  onDocumentUpdated: jest.fn((optsOrFn, maybeFn) => (typeof maybeFn === 'function' ? maybeFn : optsOrFn)),
 }));
 
 // Artificial companies, uids and roles only.
@@ -30,7 +31,13 @@ jest.mock('../../firebaseAdmin', () => ({
         };
       }
       if (name === 'companies') {
-        return { doc: (cid) => ({ update: (...a) => mockCompanyUpdate(cid, ...a) }) };
+        return {
+          doc: (cid) => ({
+            update: (...a) => mockCompanyUpdate(cid, ...a),
+            // Every company here is active (companyActivationClaims.test.js covers a deactivated one).
+            get: async () => ({ exists: false }),
+          }),
+        };
       }
       // memberships
       return {

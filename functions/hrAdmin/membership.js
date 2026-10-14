@@ -1,10 +1,11 @@
 // functions/hrAdmin/membership.js
 //
 // The membership-write trigger that keeps custom claims and the company team
-// cache in sync with `memberships/`. Extracted verbatim from `hrAdmin.js`.
+// cache in sync with `memberships/`. The claims come from claims.js.
 
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
-const { admin, db, auth } = require("./../firebaseAdmin");
+const { admin, db } = require("./../firebaseAdmin");
+const { syncClaimsAndSessions } = require("./claims");
 
 
 // --- 2. SYNC CLAIMS TRIGGER (The Critical Fix) ---
@@ -18,72 +19,17 @@ exports.onMembershipWrite = onDocumentWritten({
     const userId = after ? after.userId : before?.userId;
     if (!userId) return;
 
-    const newClaims = { roles: {} };
-    // Companies where this user holds a STAFF role. Drives the `companyTeamIds`
-    // capability claim — i.e. which companies' data this user may read.
-    const teamRoleCompanyIds = new Set();
-    // EVERY company this user belongs to, whatever the role. Drives
-    // `users/{uid}.companyIds`, which is about who may read THIS user's profile,
-    // not about what this user may read.
-    //
-    // These two sets are deliberately different. Deriving profile visibility from
-    // the staff-role allowlist meant a member holding any other role (e.g. a
-    // company-scoped super_admin) got `companyIds: []` and became unreadable to
-    // their own teammates, so the team roster showed them as "Unknown / No Email".
-    // It also silently contradicted backfillUserCompanyIds, which maps every
-    // membership with a companyId: the backfill repaired such a user, then the very
-    // next membership write reverted them. This set matches the backfill.
-    const memberCompanyIds = new Set();
-    let isGlobalAdmin = false;
-
-    try {
-        // We verify the user exists before trying to set claims
-        await auth.getUser(userId);
-    } catch (e) {
-        console.error("Error fetching user for claims sync:", e);
-        if (e.code === 'auth/user-not-found') return;
-        throw e;
-    }
-
-    // Fetch ALL memberships to rebuild the permissions from scratch
-    const memSnap = await db.collection("memberships").where("userId", "==", userId).get();
-
-    memSnap.forEach(doc => {
-        const m = doc.data();
-
-        // CRITICAL FIX: Detect the super_admin role and set the global flag
-        if (m.role === 'super_admin') {
-            isGlobalAdmin = true;
-        }
-
-        // Add company-specific roles
-        if (m.companyId && m.role) {
-            newClaims.roles[m.companyId] = m.role;
-            memberCompanyIds.add(m.companyId);
-            if (["company_admin", "hr_user", "recruiter"].includes(m.role)) {
-                teamRoleCompanyIds.add(m.companyId);
-            }
-        }
-    });
-
-    if (teamRoleCompanyIds.size > 0) {
-        newClaims.companyTeamIds = Array.from(teamRoleCompanyIds).sort();
-    }
-
-    // Apply the Global Role if found
-    if (isGlobalAdmin) {
-        newClaims.roles.globalRole = 'super_admin';
-    }
-
-    await auth.setCustomUserClaims(userId, newClaims);
-    console.log(`Claims synced for user ${userId}. Global Admin: ${isGlobalAdmin}`);
+    // Claims from every membership; a deactivated company's role stays out, and
+    // one a live token may carry ends the sessions (claims.js).
+    const synced = await syncClaimsAndSessions(userId);
+    if (!synced) return;
 
     // SEC-002: mirror the user's company memberships onto users/{uid}.companyIds so
     // Firestore rules can allow same-company teammate reads (readerSharesCompany)
     // without exposing the profile across tenants. Server-only write (Admin SDK);
     // clients are blocked from editing companyIds. merge:true preserves name/email.
     try {
-        const companyIdsList = Array.from(memberCompanyIds).sort();
+        const companyIdsList = [...synced.memberCompanyIds].sort();
         await db.collection('users').doc(userId).set(
             { companyIds: companyIdsList },
             { merge: true }

@@ -849,8 +849,8 @@ applications `New Application`. Firestore rules validate status transitions and
 create and stay unchanged on update, so a record can never be filed under one
 company while claiming another.
 
-**A deactivated company** (`isActive: false`) takes no applications and passes
-no server staff check; a super admin always does. Rules read only token `roles`.
+**A deactivated company** (`isActive: false`) takes no applications, passes no
+server staff check, and its roles leave its staff's tokens (§8); never a super admin's.
 
 ---
 
@@ -862,9 +862,8 @@ Firestore rules and Storage rules use the same signals:
 - `globalRole: 'super_admin'` (at the token root, or nested under `roles` for
   legacy tokens).
 - `roles[companyId]` = `company_admin` \| `hr_user` \| `recruiter`.
-- `companyTeamIds`, a denormalized convenience claim. Storage rules accept
-  **either** it or `roles[companyId]`, because it can be stale until
-  `onMembershipWrite` re-runs *and* the client refreshes its token.
+- `companyTeamIds`, a convenience claim. Storage rules accept **either** it or
+  `roles[companyId]`: either can lag until the client refreshes its token.
 
 Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
 `isCompanyTeam(companyId)` (admin + hr_user + recruiter + super admin) ·
@@ -992,10 +991,11 @@ released if the connect then fails.
 | Job | Cadence | What it does |
 |---|---|---|
 | `enforceFeatureSchedules` | every 15 min | Auto-disables features whose `featureSchedules` entry has passed |
-| `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger can never reach (e.g. after the projection itself changes) |
+| `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger cannot reach (after a projection change) |
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
-| `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response` and notifies the carrier, documenting the good-faith effort |
-| `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing — without it, signature-image PII accumulates in Storage |
+| `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response` and notifies the carrier: the good-faith record |
+| `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
+| `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
 | `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, and runs with or without a chat |
 | `refreshAiModelLists` | hourly at :25, America/Chicago | Daily, and within the hour of a lane failure, re-tests each enabled provider's photo and text model versions on a made-up licence; keeps those that pass, adds catalogue models that pass, never empties a lane; tells Telegram what changed or needs fixing |
 | Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is actually live and opens/closes a GitHub issue |

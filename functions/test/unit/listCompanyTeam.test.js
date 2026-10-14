@@ -4,7 +4,7 @@ jest.mock('firebase-functions/v2/https', () => ({
     constructor(code, message) { super(message); this.code = code; }
   },
 }));
-jest.mock('firebase-functions/v2/firestore', () => ({ onDocumentWritten: jest.fn(() => () => {}) }));
+jest.mock('firebase-functions/v2/firestore', () => ({ onDocumentWritten: jest.fn(() => () => {}), onDocumentUpdated: jest.fn(() => () => {}) }));
 
 // Artificial companies, uids, names and emails only.
 const state = {
