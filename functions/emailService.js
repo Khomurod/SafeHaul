@@ -1,101 +1,29 @@
-const { admin } = require('./firebaseAdmin');
 const nodemailer = require('nodemailer');
-const { decrypt } = require('./integrations/encryption');
+const { readSmtpSettings, smtpTransportOptions, smtpFingerprint } = require('./shared/smtpSettings');
 
 /**
  * Dynamic Email Service for SafeHaul
  * Sends emails using company-specific SMTP credentials stored in Firestore
  */
 
-// --- Transporter cache (keyed by companyId, expires after 10 minutes) ---
+// --- Transporter cache: one pooled connection per company, while its settings stay the same ---
 const transporterCache = new Map();
-const TRANSPORTER_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-function getCachedTransporter(companyId, smtpConfig) {
-    const cacheKey = companyId;
-    const cached = transporterCache.get(cacheKey);
+function getCachedTransporter(companyId, settings) {
+    const fingerprint = smtpFingerprint(settings);
+    const cached = transporterCache.get(companyId);
+    if (cached && cached.fingerprint === fingerprint) return cached.transporter;
 
-    if (cached && (Date.now() - cached.createdAt) < TRANSPORTER_TTL_MS) {
-        return cached.transporter;
-    }
-
+    // The settings changed: the old connection's server, account or password is no longer the company's.
+    if (cached) cached.transporter.close();
     const transporter = nodemailer.createTransport({
-        host: smtpConfig.smtpHost,
-        port: smtpConfig.smtpPort || 587,
-        secure: smtpConfig.smtpPort === 465,
-        auth: {
-            user: smtpConfig.smtpUser,
-            // CONN-1 FIX: Decrypt password (supports both encrypted and legacy plain-text)
-            pass: decryptSmtpPassword(smtpConfig.smtpPass),
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 30000,
+        ...smtpTransportOptions(settings),
         pool: true,         // use connection pooling
         maxConnections: 3,
         maxMessages: 50,
     });
-
-    transporterCache.set(cacheKey, { transporter, createdAt: Date.now() });
+    transporterCache.set(companyId, { transporter, fingerprint });
     return transporter;
-}
-
-/**
- * Shared helper: Fetch email settings for a company.
- * REFACTOR: Prefers admin-only subcollection 'system_settings/email_config' (new).
- * Falls back to legacy root 'emailSettings' field for pre-migration companies.
- * @param {string} companyId
- * @returns {Promise<{settings: object, companyName: string}>}
- */
-async function getEmailSettings(companyId) {
-    const db = admin.firestore();
-    const companyDoc = await db.collection('companies').doc(companyId).get();
-
-    if (!companyDoc.exists) {
-        throw new Error(`Company not found: ${companyId}`);
-    }
-
-    const companyData = companyDoc.data();
-
-    // PRIMARY: Read from admin-only subcollection (new location)
-    const settingsDoc = await db.collection('companies').doc(companyId)
-        .collection('system_settings').doc('email_config').get();
-
-    if (settingsDoc.exists && settingsDoc.data().smtpPass) {
-        return { settings: settingsDoc.data(), companyName: companyData.companyName || 'SafeHaul' };
-    }
-
-    // LEGACY FALLBACK: Read from root emailSettings (pre-migration companies)
-    // This path handles both encrypted (enc:v1:) and legacy plaintext passwords.
-    const legacySettings = companyData.emailSettings;
-    if (legacySettings) {
-        return { settings: legacySettings, companyName: companyData.companyName || 'SafeHaul' };
-    }
-
-    return { settings: null, companyName: companyData.companyName || 'SafeHaul' };
-}
-
-/**
- * CONN-1 FIX: Decrypt SMTP password if it was stored with the `enc:v1:` versioned prefix.
- * Passwords saved by the new saveEmailSettings Cloud Function are encrypted.
- * Legacy plain-text passwords (no prefix) are returned as-is for backwards compatibility.
- * CONN-12 FIX: Use versioned prefix check instead of fragile `includes(':')` heuristic.
- * @param {string} rawPass - The raw password value from Firestore
- * @returns {string} - The decrypted (or plain-text legacy) password
- */
-function decryptSmtpPassword(rawPass) {
-    if (!rawPass) return rawPass;
-    // Versioned prefix ensures we only attempt decryption on known-encrypted values.
-    // A plain-text password containing ':' will never match 'enc:v1:' — no false positives.
-    if (rawPass.startsWith('enc:v1:')) {
-        try {
-            return decrypt(rawPass.slice('enc:v1:'.length));
-        } catch (err) {
-            console.error('[emailService] Failed to decrypt SMTP password:', err.message);
-            throw new Error('Email configuration error: could not decrypt SMTP credentials.');
-        }
-    }
-    return rawPass; // Legacy plain-text password — accepted until migrated
 }
 
 /**
@@ -109,10 +37,10 @@ function decryptSmtpPassword(rawPass) {
  */
 async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
     try {
-        const { settings: emailSettings, companyName } = await getEmailSettings(companyId);
+        const { settings: emailSettings, companyName } = await readSmtpSettings(companyId);
 
-        // Validate SMTP settings exist
-        if (!emailSettings || !emailSettings.smtpHost || !emailSettings.smtpUser || !emailSettings.smtpPass) {
+        // Validate SMTP settings exist (a password is in every settings the reader returns)
+        if (!emailSettings || !emailSettings.user) {
             throw new Error(
                 `Missing email configuration for company ${companyId}. ` +
                 `Please configure SMTP settings in Company Settings > Email tab. ` +
@@ -120,12 +48,12 @@ async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
             );
         }
 
-        // Reuse cached Nodemailer transporter (pooled, per-company, 10-min TTL)
+        // Reuse the company's pooled Nodemailer transporter while its settings stay the same
         const transporter = getCachedTransporter(companyId, emailSettings);
 
         // Prepare email options
         const mailOptions = {
-            from: `"${companyName}" <${emailSettings.smtpUser}>`,
+            from: `"${companyName}" <${emailSettings.user}>`,
             to: Array.isArray(to) ? to.join(', ') : to,
             subject: subject,
             html: html,
@@ -145,7 +73,7 @@ async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
         return {
             success: true,
             messageId: info.messageId,
-            from: emailSettings.smtpUser,
+            from: emailSettings.user,
         };
 
     } catch (error) {
@@ -161,9 +89,9 @@ async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
  */
 async function testEmailConnection(companyId) {
     try {
-        const { settings: emailSettings } = await getEmailSettings(companyId);
+        const { settings: emailSettings } = await readSmtpSettings(companyId);
 
-        if (!emailSettings || !emailSettings.smtpHost || !emailSettings.smtpUser || !emailSettings.smtpPass) {
+        if (!emailSettings || !emailSettings.user) {
             return {
                 success: false,
                 error: 'Missing SMTP configuration. Please provide host, port, user, and password.',
@@ -171,16 +99,7 @@ async function testEmailConnection(companyId) {
         }
 
         // Create transporter
-        const transporter = nodemailer.createTransport({
-            host: emailSettings.smtpHost,
-            port: emailSettings.smtpPort || 587,
-            secure: emailSettings.smtpPort === 465,
-            auth: {
-                user: emailSettings.smtpUser,
-                pass: decryptSmtpPassword(emailSettings.smtpPass),
-            },
-            connectionTimeout: 10000,
-        });
+        const transporter = nodemailer.createTransport(smtpTransportOptions(emailSettings));
 
         // Verify connection
         await transporter.verify();
@@ -189,8 +108,8 @@ async function testEmailConnection(companyId) {
         return {
             success: true,
             message: 'SMTP connection verified successfully!',
-            host: emailSettings.smtpHost,
-            user: emailSettings.smtpUser,
+            host: emailSettings.host,
+            user: emailSettings.user,
         };
 
     } catch (error) {
@@ -294,7 +213,6 @@ async function testEmailCredentials(smtpConfig) {
 }
 
 module.exports = {
-    getEmailSettings,
     sendDynamicEmail,
     testEmailConnection,
     testEmailCredentials,

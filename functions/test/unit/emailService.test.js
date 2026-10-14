@@ -1,105 +1,71 @@
 /**
  * emailService — Unit Tests
  *
- * Tests the getEmailSettings precedence logic and decryptSmtpPassword
- * backward compatibility for the migration window.
+ * Where a company's SMTP settings are read from, and how a stored password is
+ * read, through the real reader (`shared/smtpSettings.js`) that the company's
+ * emails and bulk campaigns share. These cases tested a copy of the old
+ * reader's logic; they now run the code itself. Every value is artificial.
  */
-
 const VALID_KEY = '12345678901234567890123456789012'; // 32 chars for AES-256
+process.env.SMS_ENCRYPTION_KEY = VALID_KEY;
 
-describe('emailService — getEmailSettings Precedence', () => {
-    it('should prefer subcollection data when it has smtpPass', () => {
-        // Simulate: subcollection has smtpPass, root also has smtpPass
-        const subcollectionData = { smtpHost: 'smtp.gmail.com', smtpPass: 'new-plaintext' };
-        const rootData = { smtpHost: 'smtp.old.com', smtpPass: 'enc:v1:old-encrypted' };
+const mockDocs = new Map();
+jest.mock('../../firebaseAdmin', () => {
+    const ref = (path) => ({
+        get: async () => {
+            const data = mockDocs.get(path);
+            return { exists: data !== undefined, data: () => data };
+        },
+        collection: (name) => ({ doc: (id) => ref(`${path}/${name}/${id}`) }),
+    });
+    return { db: { collection: (name) => ({ doc: (id) => ref(`${name}/${id}`) }) } };
+});
 
-        // Simulate precedence logic from getEmailSettings
-        let settings;
-        if (subcollectionData && subcollectionData.smtpPass) {
-            settings = subcollectionData;
-        } else {
-            settings = rootData;
-        }
+const enc = require('../../integrations/encryption');
+const { normalizeSmtpSettings, readSmtpSettings } = require('../../shared/smtpSettings');
 
-        expect(settings.smtpPass).toBe('new-plaintext');
-        expect(settings.smtpHost).toBe('smtp.gmail.com');
+const EMAIL_CONFIG = 'companies/co-1/system_settings/email_config';
+
+beforeEach(() => {
+    mockDocs.clear();
+    enc._resetEncryptionKeyForTesting();
+});
+
+describe('emailService — where the settings are read from', () => {
+    it('should prefer subcollection data when it has smtpPass', async () => {
+        mockDocs.set('companies/co-1', { emailSettings: { smtpHost: 'smtp.old.example.com', smtpPass: 'old-plaintext' } });
+        mockDocs.set(EMAIL_CONFIG, { smtpHost: 'smtp.example.com', smtpUser: 'hiring@example.com', smtpPass: 'new-plaintext' });
+
+        const { settings } = await readSmtpSettings('co-1');
+        expect(settings).toMatchObject({ host: 'smtp.example.com', pass: 'new-plaintext' });
     });
 
-    it('should fallback to root when subcollection is empty', () => {
-        const subcollectionData = null;
-        const rootData = { smtpHost: 'smtp.gmail.com', smtpPass: 'enc:v1:abc123' };
+    it('should fallback to root when subcollection is empty', async () => {
+        mockDocs.set('companies/co-1', { emailSettings: { smtpHost: 'smtp.example.com', smtpPass: `enc:v1:${enc.encrypt('legacy-pass')}` } });
 
-        let settings;
-        if (subcollectionData && subcollectionData.smtpPass) {
-            settings = subcollectionData;
-        } else {
-            settings = rootData;
-        }
-
-        expect(settings.smtpPass).toBe('enc:v1:abc123');
-        expect(settings.smtpHost).toBe('smtp.gmail.com');
+        const { settings } = await readSmtpSettings('co-1');
+        expect(settings).toMatchObject({ host: 'smtp.example.com', pass: 'legacy-pass' });
     });
 
-    it('should fallback to root when subcollection exists but no smtpPass', () => {
-        const subcollectionData = { smtpHost: 'smtp.gmail.com' }; // no smtpPass
-        const rootData = { smtpHost: 'smtp.gmail.com', smtpPass: 'legacy-pass' };
+    it('should fallback to root when subcollection exists but no smtpPass', async () => {
+        mockDocs.set('companies/co-1', { emailSettings: { smtpHost: 'smtp.example.com', smtpPass: 'legacy-pass' } });
+        mockDocs.set(EMAIL_CONFIG, { smtpHost: 'smtp.example.com' });
 
-        let settings;
-        if (subcollectionData && subcollectionData.smtpPass) {
-            settings = subcollectionData;
-        } else {
-            settings = rootData;
-        }
-
-        expect(settings.smtpPass).toBe('legacy-pass');
+        const { settings } = await readSmtpSettings('co-1');
+        expect(settings.pass).toBe('legacy-pass');
     });
 
-    it('should return null when neither source has settings', () => {
-        const subcollectionData = null;
-        const rootData = null;
+    it('should return null when neither source has settings', async () => {
+        mockDocs.set('companies/co-1', { companyName: 'Artificial Freight LLC' });
 
-        let settings;
-        if (subcollectionData && subcollectionData.smtpPass) {
-            settings = subcollectionData;
-        } else if (rootData) {
-            settings = rootData;
-        } else {
-            settings = null;
-        }
-
-        expect(settings).toBeNull();
+        expect(await readSmtpSettings('co-1')).toEqual({ settings: null, companyName: 'Artificial Freight LLC' });
     });
 });
 
-describe('emailService — decryptSmtpPassword Compatibility', () => {
-    let decrypt;
-
-    beforeEach(() => {
-        process.env.SMS_ENCRYPTION_KEY = VALID_KEY;
-        const enc = require('../../integrations/encryption');
-        enc._resetEncryptionKeyForTesting();
-        decrypt = enc.decrypt;
-    });
-
-    afterEach(() => {
-        delete process.env.SMS_ENCRYPTION_KEY;
-    });
-
+describe('emailService — stored password compatibility', () => {
     it('should decrypt enc:v1: prefixed passwords (legacy support)', () => {
-        const enc = require('../../integrations/encryption');
-        const plaintext = 'my-smtp-password';
-        const encrypted = enc.encrypt(plaintext);
-        const storedValue = `enc:v1:${encrypted}`;
-
-        // Simulate decryptSmtpPassword logic
-        let result;
-        if (storedValue.startsWith('enc:v1:')) {
-            result = decrypt(storedValue.slice('enc:v1:'.length));
-        } else {
-            result = storedValue;
-        }
-
-        expect(result).toBe(plaintext);
+        const storedValue = `enc:v1:${enc.encrypt('my-smtp-password')}`;
+        expect(normalizeSmtpSettings({ smtpPass: storedValue }).pass).toBe('my-smtp-password');
     });
 
     it('should pass plaintext passwords through unchanged', () => {
@@ -109,21 +75,14 @@ describe('emailService — decryptSmtpPassword Compatibility', () => {
             'xxxx xxxx xxxx xxxx',
         ];
 
-        plaintextValues.forEach(value => {
-            let result;
-            if (value.startsWith('enc:v1:')) {
-                result = decrypt(value.slice('enc:v1:'.length));
-            } else {
-                result = value;
-            }
-            expect(result).toBe(value);
+        plaintextValues.forEach((value) => {
+            expect(normalizeSmtpSettings({ smtpPass: value }).pass).toBe(value);
         });
     });
 
-    it('should handle empty/null passwords gracefully', () => {
-        [null, undefined, ''].forEach(value => {
-            // decryptSmtpPassword returns rawPass as-is for falsy values
-            expect(value || null).toBeFalsy();
+    it('should treat empty/null passwords as no settings', () => {
+        [null, undefined, ''].forEach((value) => {
+            expect(normalizeSmtpSettings({ smtpHost: 'smtp.example.com', smtpPass: value })).toBeNull();
         });
     });
 });
