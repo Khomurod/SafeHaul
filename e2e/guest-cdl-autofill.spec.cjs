@@ -81,6 +81,19 @@ async function autoFillFromLicence(page) {
     await expectStep(page, 'Personal Information');
 }
 
+/** Page one's answers the licence would have given, typed by hand. */
+async function fillPageOneByHand(page) {
+    await page.fill('#first-name', 'Luis');
+    await page.fill('#last-name', 'Ortega');
+    await page.selectOption('#state', 'Texas');
+    await page.fill('#street', '2210 Elm St');
+    await page.fill('#city', 'Austin');
+    await page.fill('#zip', '78701');
+    await page.fill('#dob-month', '03');
+    await page.fill('#dob-day', '14');
+    await page.fill('#dob-year', '1984');
+}
+
 /** Finish page one and step two, which the licence cannot answer, to reach the License step. */
 async function continueToLicenseStep(page) {
     await page.fill('#ssn', '123-45-6789');
@@ -131,15 +144,7 @@ test.describe('CDL photo auto-fill', () => {
 
         // The driver goes on by hand: nothing was read, so page one is empty.
         await expect(page.locator('#first-name')).toHaveValue('');
-        await page.fill('#first-name', 'Luis');
-        await page.fill('#last-name', 'Ortega');
-        await page.selectOption('#state', 'Texas');
-        await page.fill('#street', '2210 Elm St');
-        await page.fill('#city', 'Austin');
-        await page.fill('#zip', '78701');
-        await page.fill('#dob-month', '03');
-        await page.fill('#dob-day', '14');
-        await page.fill('#dob-year', '1984');
+        await fillPageOneByHand(page);
 
         await continueToLicenseStep(page);
         await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'uploaded');
@@ -178,9 +183,10 @@ test.describe('CDL photo auto-fill', () => {
         await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'empty');
     });
 
-    test('Cancel on the reading screen goes back to the choice @mobile', async ({ page }) => {
+    test('Cancel on the reading screen goes back to the choice while the photo is on its way @mobile', async ({ page }) => {
         await stubAutoFillNetwork(page);
-        // A reader that never answers: the wait has to have an end the driver controls.
+        // Neither Storage nor the reader answers: the wait has to have an end the driver controls.
+        await page.route('https://firebasestorage.googleapis.com/**', () => {});
         await page.route('**/parseCdlWithGroq', () => {});
         await pickLicencePhoto(page);
 
@@ -189,6 +195,26 @@ test.describe('CDL photo auto-fill', () => {
 
         await expect(page.getByRole('button', { name: /Upload CDL for Auto-Fill/ })).toBeVisible();
         await expect(page.getByRole('heading', { name: 'Reading your CDL...' })).toHaveCount(0);
+        await page.unrouteAll({ behavior: 'ignoreErrors' });
+    });
+
+    // The photo usually lands long before the read ends, and a guest cannot delete it.
+    test('Cancel after the photo is stored keeps it as the CDL front, and the driver goes on by hand', async ({ page }) => {
+        await stubAutoFillNetwork(page);
+        await page.route('**/parseCdlWithGroq', () => {});
+        // A photo this small goes in one request, and its answer is the photo stored.
+        const stored = page.waitForResponse('https://firebasestorage.googleapis.com/**');
+        await pickLicencePhoto(page);
+
+        await expect(page.getByRole('heading', { level: 1, name: 'Reading your CDL...' })).toBeVisible();
+        await (await stored).finished();
+        await page.getByRole('button', { name: 'Cancel' }).click();
+
+        await expectStep(page, 'Personal Information');
+        await expect(page.getByText('Your photo is attached. Please fill in the form.')).toBeVisible();
+        await fillPageOneByHand(page);
+        await continueToLicenseStep(page);
+        await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'uploaded');
         await page.unrouteAll({ behavior: 'ignoreErrors' });
     });
 });

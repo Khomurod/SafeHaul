@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     transfer: vi.fn(),
     showSuccess: vi.fn(),
     showError: vi.fn(),
+    showInfo: vi.fn(),
 }));
 
 vi.mock('firebase/functions', () => ({ httpsCallable: mocks.httpsCallable }));
@@ -21,7 +22,7 @@ vi.mock('./guestUploadTransfer', async (importOriginal) => ({
 }));
 vi.mock('@lib/firebase', () => ({ functions: {}, storage: {} }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
-    useToast: () => ({ showSuccess: mocks.showSuccess, showError: mocks.showError }),
+    useToast: () => ({ showSuccess: mocks.showSuccess, showError: mocks.showError, showInfo: mocks.showInfo }),
 }));
 vi.mock('../components/application/publicApplyHelpers', async (importOriginal) => ({
     ...(await importOriginal()),
@@ -197,7 +198,7 @@ describe('useCdlAutoFill', () => {
         );
     });
 
-    it('Cancel stops the upload, drops what comes back, and returns to the choice screen', async () => {
+    it('Cancel stops an upload on its way, drops what comes back, and returns to the choice screen', async () => {
         const upload = deferred();
         const read = deferred();
         mocks.transfer.mockImplementation(() => upload.promise);
@@ -219,6 +220,31 @@ describe('useCdlAutoFill', () => {
         expect(onAutoFilled).not.toHaveBeenCalled();
         expect(mocks.showSuccess).not.toHaveBeenCalled();
         expect(mocks.showError).not.toHaveBeenCalled();
+    });
+
+    // The photo usually lands before the read ends, and a guest cannot delete it:
+    // dropped, it stayed in Storage, tied to no application.
+    it('Cancel after the photo is stored keeps it as the CDL front, and the driver goes on by hand', async () => {
+        const read = deferred();
+        mocks.parseCdl.mockImplementation(() => read.promise);
+        const { picked, result, onAutoFilled, onReturnToChooser } = startPick();
+        await settle();
+
+        act(() => result.current.cancelCdlAutoFill());
+
+        expect(result.current.isParsingCdl).toBe(false);
+        expect(onReturnToChooser).not.toHaveBeenCalled();
+        expect(onAutoFilled).toHaveBeenCalledTimes(1);
+        expect(onAutoFilled.mock.calls[0][0]({ firstName: 'Luis' })).toEqual({
+            firstName: 'Luis',
+            'cdl-front': { name: 'cdl.jpg', storagePath: STORAGE_PATH },
+        });
+        expect(mocks.showInfo).toHaveBeenCalledWith('Your photo is attached. Please fill in the form.');
+
+        await act(async () => { read.resolve({ data: { fields: FIELDS } }); await picked; });
+        // What the read brought back after the Cancel is not used.
+        expect(onAutoFilled).toHaveBeenCalledTimes(1);
+        expect(mocks.showSuccess).not.toHaveBeenCalled();
     });
 
     it('stops the upload when the page goes, and reports nothing after', async () => {

@@ -14,17 +14,20 @@
  *
  * The photo is sent and read side by side: the reader takes the image itself,
  * so it never waits for Storage. The upload is `transferGuestUpload`'s, which
- * ends one that moves no bytes for 45 seconds, and `cancelCdlAutoFill` (the
- * reading screen's Cancel) stops it and drops whatever either brings back.
+ * ends one that moves no bytes for 45 seconds. `cancelCdlAutoFill` (the reading
+ * screen's Cancel) stops waiting and drops what the read brings back; a photo
+ * already stored stays the CDL front, as the guest cannot delete it, and one
+ * still on its way is stopped.
  *
  * Navigation side effects stay with the caller:
  *  - `onAutoFilled(updater)` applies the updater and enters the wizard. It fires
  *    when the licence was read, with the photo attached if it was sent, and
- *    when only the photo was sent, so the driver goes on by hand with it;
+ *    when only the photo was sent (the read failed, or was cancelled after the
+ *    photo was stored), so the driver goes on by hand with it;
  *  - `onReturnToChooser()` fires when the picker is dismissed, the file is
- *    refused, the auto-fill is cancelled, or nothing was read and nothing kept,
- *    so the driver stays on the choice screen instead of being force-routed
- *    into the wizard.
+ *    refused, the auto-fill is cancelled before the photo was stored, or nothing
+ *    was read and nothing kept, so the driver stays on the choice screen instead
+ *    of being force-routed into the wizard.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
@@ -67,26 +70,38 @@ async function readCdl(companyId, file) {
   return data?.fields || {};
 }
 
+/** Attaches a stored photo as the CDL front, unless one is already attached. */
+const attachFrontOf = (cdlFront) => (prev) => (cdlFront ? { 'cdl-front': prev['cdl-front'] || cdlFront } : {});
+
 export function useCdlAutoFill({ companyId, applicationConfig, onAutoFilled, onReturnToChooser }) {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const [isParsingCdl, setIsParsingCdl] = useState(false);
   const cdlInputRef = useRef(null);
-  // The auto-fill on its way, by its upload's controller. Cancel, a later pick
-  // or leaving the page clears it, and a result whose run is not this one is dropped.
+  // The auto-fill on its way: its upload's controller, and the photo once it is
+  // stored. Cancel, a later pick or leaving the page clears it, and a result
+  // whose run is not this one is dropped.
   const runRef = useRef(null);
 
   const dropRun = useCallback(() => {
     const run = runRef.current;
     runRef.current = null;
-    run?.abort();
+    run?.controller.abort();
     return run;
   }, []);
 
   useEffect(() => dropRun, [dropRun]);
 
   const cancelCdlAutoFill = () => {
-    if (!dropRun()) return;
+    const run = dropRun();
+    if (!run) return;
     setIsParsingCdl(false);
+    if (run.landed) {
+      // Stored, the photo is the CDL front whatever becomes of the read, so the
+      // driver goes on by hand with it, as when the read fails.
+      showInfo('Your photo is attached. Please fill in the form.');
+      onAutoFilled((prev) => ({ ...prev, ...attachFrontOf(run.landed)(prev) }));
+      return;
+    }
     onReturnToChooser();
   };
 
@@ -130,13 +145,13 @@ export function useCdlAutoFill({ companyId, applicationConfig, onAutoFilled, onR
     // A photo the company does not ask for is only read, never stored.
     const keepPhoto = !resolveApplicationGate(applicationConfig, 'cdlUpload').hidden;
     dropRun();
-    const run = new AbortController();
+    const run = { controller: new AbortController(), landed: null };
     runRef.current = run;
     setIsParsingCdl(true);
-    const [sent, read] = await Promise.allSettled([
-      keepPhoto ? sendCdlFront(companyId, file, run.signal) : Promise.resolve(null),
-      readCdl(companyId, file),
-    ]);
+    const sending = keepPhoto ? sendCdlFront(companyId, file, run.controller.signal) : Promise.resolve(null);
+    // Known the moment it lands, so a Cancel during the read keeps it.
+    sending.then((front) => { run.landed = front; }, () => {});
+    const [sent, read] = await Promise.allSettled([sending, readCdl(companyId, file)]);
     if (runRef.current !== run) return;
     runRef.current = null;
     setIsParsingCdl(false);
@@ -144,7 +159,7 @@ export function useCdlAutoFill({ companyId, applicationConfig, onAutoFilled, onR
     // Once in Storage the photo is the CDL front, and it is never thrown away.
     const cdlFront = sent.status === 'fulfilled' ? sent.value : null;
     if (sent.status === 'rejected') console.error('[useCdlAutoFill] CDL photo upload failed:', sent.reason);
-    const attachFront = (prev) => (cdlFront ? { 'cdl-front': prev['cdl-front'] || cdlFront } : {});
+    const attachFront = attachFrontOf(cdlFront);
 
     if (read.status === 'fulfilled') {
       const fields = read.value;
