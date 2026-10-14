@@ -5,6 +5,8 @@ import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { CompanySidebar } from './CompanySidebar';
 import { CompanyTopbar } from './CompanyTopbar';
 import { FeatureDeactivationWarning } from '../components/FeatureDeactivationWarning';
+import { useCompanyDeactivated } from '../hooks/useCompanyDeactivated';
+import { CompanyDeactivatedScreen } from './CompanyDeactivatedScreen';
 import { useData } from '@/context/DataContext';
 
 const SIDEBAR_STORAGE_KEY = 'companySidebarMode';
@@ -20,6 +22,7 @@ export const CompanyAppShell = () => {
     const location = useLocation();
     const navigationTriggerRef = useRef(null);
     const { currentCompanyProfile } = useData();
+    const deactivated = useCompanyDeactivated();
     const [isNavigationOpen, setIsNavigationOpen] = useState(false);
     const [openRecordId, setOpenRecordId] = useState(null);
     const [isNavigationExpanded, setIsNavigationExpanded] = useState(() => {
@@ -38,6 +41,8 @@ export const CompanyAppShell = () => {
         setIsNavigationOpen(false);
         setOpenRecordId(null);
     }, [location.pathname]);
+
+    if (deactivated) return <CompanyDeactivatedScreen />;
 
     return (
         <>

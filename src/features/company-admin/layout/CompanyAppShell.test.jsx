@@ -9,9 +9,14 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/context/DataContext', () => ({ useData: () => ({ currentCompanyProfile: { id: 'co-1' } }) }));
+const fx = vi.hoisted(() => ({ deactivated: false, logout: vi.fn() }));
+
+vi.mock('@/context/DataContext', () => ({
+    useData: () => ({ currentCompanyProfile: { id: 'co-1', companyName: 'Acme Freight' }, handleLogout: fx.logout }),
+}));
+vi.mock('../hooks/useCompanyDeactivated', () => ({ useCompanyDeactivated: () => fx.deactivated }));
 vi.mock('./CompanySidebar', () => ({ CompanySidebar: () => null }));
 vi.mock('../components/FeatureDeactivationWarning', () => ({ FeatureDeactivationWarning: () => null }));
 vi.mock('./CompanyTopbar', () => ({
@@ -77,5 +82,25 @@ describe('the record a notification names', () => {
 
         expect(await screen.findByText('Other page')).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: 'Driver dossier' })).not.toBeInTheDocument();
+    });
+});
+
+describe('a deactivated company', () => {
+    afterEach(() => {
+        fx.deactivated = false;
+        fx.logout.mockReset();
+    });
+
+    it('closes the workspace with a screen that says why and signs out', async () => {
+        fx.deactivated = true;
+        renderShell();
+
+        expect(screen.getByRole('heading', { level: 1, name: 'This company has been deactivated' })).toBeInTheDocument();
+        expect(screen.getByText(/The Acme Freight workspace is closed/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Go elsewhere' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Open a notification' })).not.toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+        expect(fx.logout).toHaveBeenCalledTimes(1);
     });
 });
