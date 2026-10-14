@@ -1,6 +1,7 @@
 import React, { useId, useState } from 'react';
-import { Icon, BarChart3, Download, Users, Phone, Zap, TrendingUp, ArrowUpRight, User } from '@design-system/icons';
+import { Icon, BarChart3, Download, Users, Phone, TrendingUp, ArrowUpRight, User } from '@design-system/icons';
 import { useAnalytics } from '@features/analytics';
+import { downloadCsv, toCsvText } from '../services/csvExport';
 import {
     Badge, Button, Card, MetricCard, TabList, TabPanel,
 } from '@/design-system/components';
@@ -12,11 +13,17 @@ import { ResponsiveGrid, Stack } from '@/design-system/layouts';
  * Migrated to the design system 2026-07-28. Presentation only — `useAnalytics`
  * is untouched, the `7d`/`30d`/`90d` range values, the CSV export column order,
  * header text, filename patterns (`recruiter_performance_{range}.csv` /
- * `company_performance_{range}.csv`), the `data:text/csv;charset=utf-8` link
- * technique, the top-5 slices, the `callsMade > 20` High/Low rule, and every
- * frozen string are unchanged.
+ * `company_performance_{range}.csv`), the top-5 slices, the `callsMade > 20`
+ * High/Low rule, and every frozen string are unchanged.
  *
  * Fixed here:
+ *  - The export joined raw values with commas into a `data:` URL: "Last Active"
+ *    ("10/14/2026, 4:05 PM") split into two columns, a comma or quote in a name
+ *    shifted the row, a name beginning `=` ran as a formula, and the file ended at
+ *    the first `#` in any name. It now writes through `csvExport.js`, as the
+ *    website-leads export does: every cell escaped, saved as a UTF-8 Blob.
+ *  - A "Platform Health 100%" card showed a constant that measured nothing. It
+ *    is gone; the other three cards are the figures `useAnalytics` reads.
  *  - The three view tabs were raw buttons with no tab semantics: the selected
  *    tab was conveyed by border+text colour only, with no `aria-selected` and no
  *    arrow-key movement. They are now a real WAI-ARIA tab interface.
@@ -170,14 +177,9 @@ export function AnalyticsView() {
             filename = `company_performance_${dateRange}.csv`;
         }
 
-        const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].map(e => e.join(",")).join("\n");
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", filename);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // Every cell escaped: "Last Active" holds a comma ("10/14/2026, 4:05 PM") and
+        // a name can hold a comma, a quote, a formula or a `#`.
+        downloadCsv(filename, toCsvText([headers, ...rows]));
     };
 
     if (loading) {
@@ -234,7 +236,6 @@ export function AnalyticsView() {
                 <MetricCard label="Total Calls" value={stats.summary.totalCalls} tone="info" icon={<Icon icon={Phone} size="xl" />} />
                 <MetricCard label="Active Companies" value={stats.companyPerformance.length} tone="accent" icon={<Icon icon={Users} size="xl" />} />
                 <MetricCard label="Active Recruiters" value={stats.summary.activeRecruiters} tone="warning" icon={<Icon icon={User} size="xl" />} />
-                <MetricCard label="Platform Health" value="100%" tone="success" icon={<Icon icon={Zap} size="xl" />} />
             </ResponsiveGrid>
 
             {/* 3. Tabs & Content */}

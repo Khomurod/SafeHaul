@@ -6,6 +6,7 @@ import { Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
 
 import { describeLeadsError, listWebsiteLeads } from '../services/websiteLeads';
+import { downloadCsv, toCsvText } from '../services/csvExport';
 
 /**
  * Super Admin → Website Leads.
@@ -49,26 +50,12 @@ const CSV_COLUMNS = [
     ['deliveryAttempts', (lead) => lead.delivery?.attempts],
 ];
 
-/**
- * Escapes one CSV cell.
- *
- * **The leading apostrophe is not decoration.** Every value here was typed by a
- * member of the public, and a spreadsheet treats a cell beginning `=`, `+`, `-`
- * or `@` as a formula — so `=HYPERLINK(...)` in a "company name" runs when an
- * operator opens the export. Prefixing those with `'` makes the cell text.
- * Quote-doubling handles the ordinary case of a comma or quote in a field.
- */
-function csvCell(value) {
-    if (value === null || value === undefined) return '';
-    const raw = String(value);
-    const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
-    return `"${safe.replaceAll('"', '""')}"`;
-}
-
+/** Every value here was typed by a member of the public: `csvCell` makes a formula text. */
 function toCsv(leads) {
-    const header = CSV_COLUMNS.map(([name]) => csvCell(name)).join(',');
-    const rows = leads.map((lead) => CSV_COLUMNS.map(([, read]) => csvCell(read(lead))).join(','));
-    return [header, ...rows].join('\r\n');
+    return toCsvText([
+        CSV_COLUMNS.map(([name]) => name),
+        ...leads.map((lead) => CSV_COLUMNS.map(([, read]) => read(lead))),
+    ]);
 }
 
 export function WebsiteLeadsView() {
@@ -94,17 +81,7 @@ export function WebsiteLeadsView() {
     const exportCsv = useCallback(() => {
         if (!leads.length) return;
         try {
-            // A BOM, so Excel reads the file as UTF-8 rather than the local
-            // codepage — without it an accented name arrives mangled.
-            const blob = new Blob([`\uFEFF${toCsv(leads)}`], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `safehaul-website-leads-${new Date().toISOString().slice(0, 10)}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            downloadCsv(`safehaul-website-leads-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(leads));
             showSuccess(`Exported ${leads.length} lead${leads.length === 1 ? '' : 's'}.`);
         } catch (error) {
             showError('That export could not be created.');
