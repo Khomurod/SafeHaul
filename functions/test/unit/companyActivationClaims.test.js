@@ -27,6 +27,7 @@ const mockOwed = new Map(); // uid -> { data, version }: sessions owed an end
 const mockOwedVersion = { n: 0 };
 const mockOnRevoke = { fn: null };
 const mockFailMembershipReads = new Set(); // uids whose own memberships cannot be read
+const mockOwedWriteFailures = { n: 0 }; // owed records that fail before one is written
 jest.mock('../../firebaseAdmin', () => {
     const db = {
         collection: (name) => {
@@ -74,7 +75,15 @@ jest.mock('../../firebaseAdmin', () => {
             }
             if (name === 'system_jobs') {
                 const owed = {
-                    doc: (uid) => ({ set: async (data) => { mockOwed.set(uid, { data, version: ++mockOwedVersion.n }); } }),
+                    doc: (uid) => ({
+                        set: async (data) => {
+                            if (mockOwedWriteFailures.n > 0) {
+                                mockOwedWriteFailures.n -= 1;
+                                throw new Error('firestore unavailable');
+                            }
+                            mockOwed.set(uid, { data, version: ++mockOwedVersion.n });
+                        },
+                    }),
                     limit: (n) => ({
                         get: async () => ({
                             docs: [...mockOwed.entries()].slice(0, n).map(([uid, { version }]) => ({
@@ -164,6 +173,7 @@ beforeEach(() => {
     mockOwed.clear();
     mockOnRevoke.fn = null;
     mockFailMembershipReads.clear();
+    mockOwedWriteFailures.n = 0;
     timing.wait = async () => {};
     timing.now = () => 0;
     mockMemberships.push(
@@ -296,7 +306,27 @@ describe('sessions owed an end when no try settles', () => {
     });
 });
 
+describe('an owed end whose record cannot be written at once', () => {
+    it('is written by a later try', async () => {
+        mockRevokeFailures.set('admin-1', 3);
+        mockOwedWriteFailures.n = 2;
+        await change('co-a', { isActive: true }, { isActive: false });
+
+        expect([...mockOwed.keys()]).toEqual(['admin-1']);
+    });
+});
+
 describe('the hourly pass, delivering the sessions owed an end', () => {
+    it('ends no session of a user made super admin since, and clears the record', async () => {
+        mockOwed.set('admin-1', { data: {}, version: ++mockOwedVersion.n });
+        mockClaims.set('admin-1', { roles: { 'co-a': 'super_admin', globalRole: 'super_admin' } });
+
+        await reconcileCompanyClaims();
+
+        expect(mockRevoked).toEqual([]);
+        expect(mockOwed.size).toBe(0);
+    });
+
     it('keeps a record written again while it delivered the earlier one', async () => {
         mockOwed.set('admin-1', { data: {}, version: ++mockOwedVersion.n });
         // Another run owes admin-1 a later end while this one revokes.

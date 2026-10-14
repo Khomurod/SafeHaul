@@ -149,11 +149,16 @@ async function deliverOwedRevocations(stopAt, counts) {
     for (const doc of owed.docs) {
         if (timing.now() >= stopAt) return;
         try {
-            await auth.revokeRefreshTokens(doc.id).catch((err) => {
-                // An account deleted since has no session left to end.
-                if (err?.code !== 'auth/user-not-found') throw err;
+            const user = await auth.getUser(doc.id).catch((err) => {
+                if (err?.code === 'auth/user-not-found') return null;
+                throw err;
             });
-            counts.ended += 1;
+            // An account deleted since has no session left to end, and a user
+            // made super admin since keeps every session.
+            if (user && !superAdminClaim(user.customClaims)) {
+                await auth.revokeRefreshTokens(doc.id);
+                counts.ended += 1;
+            }
             // Only the record this run read: one written since owes a later end.
             await doc.ref.delete({ lastUpdateTime: doc.updateTime }).catch((err) => {
                 console.log(`[reconcileCompanyClaims] A newer end owed to ${doc.id} is kept for the next run:`, err.message || err);

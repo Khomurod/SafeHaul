@@ -125,11 +125,19 @@ async function syncUserClaims(userId, state = newSyncState()) {
     }
 }
 
+/** Records an end owed to the user's sessions, three tries of its own. */
 async function recordRevocationOwed(userId) {
-    try {
-        await REVOCATIONS_OWED().doc(userId).set({ since: admin.firestore.FieldValue.serverTimestamp() });
-    } catch (err) {
-        console.error(`[claims] The sessions owed an end for ${userId} were not recorded:`, err.message || err);
+    for (let attempt = 0; ; attempt += 1) {
+        try {
+            await REVOCATIONS_OWED().doc(userId).set({ since: admin.firestore.FieldValue.serverTimestamp() });
+            return;
+        } catch (err) {
+            if (attempt === RETRY_WAITS_MS.length) {
+                console.error(`[claims] The sessions owed an end for ${userId} were not recorded:`, err.message || err);
+                return;
+            }
+            await timing.wait(RETRY_WAITS_MS[attempt]);
+        }
     }
 }
 
