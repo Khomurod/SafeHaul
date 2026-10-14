@@ -31,22 +31,27 @@ const SIZES = new Set(['xs', 'sm', 'md', 'lg', 'xl']);
  * one consumer that needs this already used by hand.
  */
 function normalizeSize(size) {
+  // In a production build a check reports and returns (`contractViolation`), and a
+  // step the stylesheet does not size falls back: `md` for the base, none at `sm`.
   if (typeof size === 'string') {
     if (!SIZES.has(size)) {
       contractViolation(
         `Unsupported Avatar size: ${size}. Expected one of ${[...SIZES].map((s) => `'${s}'`).join(', ')}, `
         + 'or a responsive { base, sm }.',
       );
+      return { base: 'md', sm: undefined };
     }
     return { base: size, sm: undefined };
   }
   if (size && typeof size === 'object') {
-    const { base, sm } = size;
+    let { base, sm } = size;
     if (!SIZES.has(base)) {
       contractViolation(`Avatar responsive size needs a valid \`base\`; got ${base}.`);
+      base = 'md';
     }
     if (sm !== undefined && !SIZES.has(sm)) {
       contractViolation(`Unsupported Avatar size at \`sm\`: ${sm}.`);
+      sm = undefined;
     }
     if (sm === base) {
       contractViolation(

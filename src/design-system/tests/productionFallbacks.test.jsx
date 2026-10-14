@@ -47,9 +47,22 @@ afterEach(() => {
 const reported = () => captureException.mock.calls.map(([error]) => error.message);
 
 describe('a production build draws the default after a misused prop', () => {
-    it('Avatar: a size that is neither a step nor { base, sm } draws md', () => {
-        render(<Avatar size={42}>AO</Avatar>);
-        expect(screen.getByText('AO').closest('[data-size]')).toHaveAttribute('data-size', 'md');
+    it('Avatar: a size that is not a step draws md, and a bad step at sm draws none', () => {
+        render(
+            <>
+                <Avatar size={42}>AO</Avatar>
+                <Avatar size="medium">BK</Avatar>
+                <Avatar size={{ base: 'huge', sm: 'xl' }}>CL</Avatar>
+                <Avatar size={{ base: 'sm', sm: 'giant' }}>DM</Avatar>
+            </>,
+        );
+        const sized = (initials) => screen.getByText(initials).closest('[data-size]');
+        expect(sized('AO')).toHaveAttribute('data-size', 'md');
+        expect(sized('BK')).toHaveAttribute('data-size', 'md');
+        expect(sized('CL')).toHaveAttribute('data-size', 'md');
+        expect(sized('CL')).toHaveAttribute('data-size-sm', 'xl');
+        expect(sized('DM')).toHaveAttribute('data-size', 'sm');
+        expect(sized('DM')).not.toHaveAttribute('data-size-sm');
     });
 
     it('Button: an unknown variant and size draw the defaults', () => {
@@ -59,20 +72,22 @@ describe('a production build draws the default after a misused prop', () => {
         expect(button).toHaveAttribute('data-size', 'md');
     });
 
-    it('DataTable columns: what cannot be drawn is left out, a bad option takes its default', () => {
+    it('DataTable columns: what cannot be drawn or told apart is left out, a bad option takes its default', () => {
         expect(defineTableColumns('name')).toEqual([]);
 
         const columns = defineTableColumns([
             null,
             { key: 'notes', header: 'Notes' },
+            { header: 'No key', render: cell },
             { key: 'name', header: 'Name', render: cell, align: 'middle', width: 'huge', priority: 'top', mobileLabel: 5 },
+            { key: 'name', header: 'Name again', render: cell },
         ]);
         expect(columns).toHaveLength(1);
-        expect(columns[0]).toMatchObject({ key: 'name', align: 'start', width: 'auto', priority: 'secondary', mobileLabel: undefined });
+        expect(columns[0]).toMatchObject({ key: 'name', header: 'Name', align: 'start', width: 'auto', priority: 'secondary', mobileLabel: undefined });
 
         render(<DataTable ariaLabel="Drivers" columns={columns} data={[{ id: 'd1', name: 'Ada Lovelace' }]} />);
         expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
-        expect(reported()).toHaveLength(7);
+        expect(reported()).toHaveLength(9);
     });
 
     it('Disclosure: a heading level that is not one is an h3', () => {

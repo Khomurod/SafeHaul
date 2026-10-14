@@ -23,7 +23,9 @@ export function defineTableColumns(columns) {
   const keys = new Set();
 
   // In a production build a check reports and returns (`contractViolation`): a
-  // column that cannot be drawn is left out, and a bad option takes its default.
+  // column that cannot be drawn, or not told apart from another by its key (the
+  // React key of its header and of every cell), is left out, and a bad option
+  // takes its default.
   return Object.freeze(columns.flatMap((column) => {
     if (!column || typeof column !== 'object') {
       contractViolation('Each DataTable column must be an object.');
@@ -32,10 +34,12 @@ export function defineTableColumns(columns) {
 
     if (typeof column.key !== 'string' || column.key.trim() === '') {
       contractViolation('Each DataTable column requires a non-empty string key.');
+      return [];
     }
 
     if (keys.has(column.key)) {
       contractViolation(`Duplicate DataTable column key: ${column.key}`);
+      return [];
     }
     keys.add(column.key);
 
