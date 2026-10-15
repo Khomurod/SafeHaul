@@ -5,7 +5,8 @@
 > with only the comment markers removed. The code now states each rule in a line
 > or two. Read this only to learn *why* a rule exists: the defects, measurements
 > and review rounds behind it. Do not follow it as current guidance where the
-> code differs.
+> code differs. A production identifier in a note — a person's name, a
+> record id — is replaced with a placeholder in square brackets.
 
 ---
 
@@ -3754,4 +3755,1188 @@ inside this workspace. Not `adminOnly`: a recruiter with a driver's
 paperwork in hand is exactly who starts one, and nothing it produces is
 filed — the driver still completes and signs it — so the bar is
 company-workspace access, as it is for the dossier.
+```
+
+## `functions/ai/providers/gemini.js`
+
+```text
+Measured against the live API on 2026-08-03 with `gemini-3.6-flash`: a
+one-word answer consumed 83 thought tokens at the default thinking level and
+58 at `thinking_level: low`. A 16-token budget produced 13 thought tokens,
+zero output tokens and `status: "incomplete"` — the model never got to
+answer. Real prompts reason more than a one-word reply does, so the headroom
+is set well above the measured figures rather than at them.
+```
+
+```text
+An image is a content entry of `type: 'image'` carrying `mime_type` and
+base64 `data` as *sibling* fields — not nested, and not a `data:` URL, which
+is why the caller's data URL is split. Verified live on 2026-08-03 against
+`gemini-3.6-flash`, which read an 8×8 red PNG and answered "Red".
+```
+
+```text
+This originally read a top-level `output` array, which the API does not
+return. Every Gemini call therefore failed as `malformed_response` — the
+model answered correctly and the adapter could not see it. Verified against
+the live API on 2026-08-03.
+```
+
+```text
+A plain string, not `{ parts: [{ text }] }`. The Interactions API
+rejects the parts form outright:
+  400 "The value is invalid for 'system_instruction'.
+       Expected string, unexpected character: '{'"
+The parts form is the `:generateContent` convention, which is
+where this came from. Verified live on 2026-08-03.
+```
+
+## `functions/ai/providers/groq.js`
+
+```text
+Groq's catalogue is now reasoning-first: `openai/gpt-oss-*` think before
+answering and charge that thinking against `max_output_tokens`. Measured
+against the live API on 2026-08-03, `openai/gpt-oss-120b` asked for a
+one-word answer inside 32 tokens returned `status: "incomplete"`,
+`incomplete_details.reason: "max_output_tokens"`, and a single `reasoning`
+output item — no answer at all.
+```
+
+## `functions/ai/providers/http.js`
+
+```text
+Mistral's free plan answers its Medium and Small models with
+`x-ratelimit-limit-req-minute: 0`; Gemini's free tier answers its Pro models
+with a quota error stating `limit: 0`. Both measured 2026-10-07. The header
+must be the literal `0`: a missing header is not a zero, though `Number(null)`
+is. The body is read for that one token and nothing leaves this function but
+the boolean.
+```
+
+```text
+Only a row's own `versionRefusalCodes` count, the way only its own
+`quotaDetection` decides a quota: Mistral answers a paid-only model with
+`403 code: "1910", type: "tier_not_allowed"`, a Labs model with
+`403 code: "1913", type: "labs_not_enabled"`, and a model id it no longer
+knows with `400 type: "invalid_model"` (2026-10-07). Every other 403 is still
+a rejected credential and every other 400 a rejected request. Both fields are
+checked, because `extractVendorCode` keeps only the first.
+```
+
+## `functions/ai/registry/modelCandidates.js`
+
+```text
+Mistral says which models read images. Dated names only; the Ministral
+family first, because a free key can call it (Medium and Small had a
+limit of zero on the free plan on 2026-10-07).
+```
+
+## `functions/ai/registry/modelVersions.js`
+
+```text
+Every text entry verified against the live Groq API on 2026-08-03 for
+both plain text *and* `json_schema` structured output.
+
+The previous values were wrong, behind a comment claiming they were
+"pinned to the models the production CDL and E-Doc paths already use".
+That was true only of the two vision models, and both had since been
+withdrawn. The text models were never used in production by anything.
+
+`llama-3.3-70b-versatile` and `llama-3.1-8b-instant` are rejected
+outright for structured output:
+
+  400 "This model does not support response format `json_schema`."
+
+Groq's health check sends plain text with no schema, so it passed while
+every schema-using task — article generation, topic selection, CDL
+extraction, E-Doc placement — failed. That is what produced
+`failed_generation (all_providers_failed)` in production.
+
+`qwen/qwen3.6-27b` was rejected the same way. `openai/gpt-oss-20b`
+answered both shapes correctly and leads every text lane.
+
+`openai/gpt-oss-120b` is its spare. In August it burned so much
+reasoning budget that a small plain text request came back
+`status: incomplete`; on 2026-10-07 it answered the 16-token text
+probe, the JSON probe and the claim check, and wrote a 390-word
+article in 5s on the same request `openai/gpt-oss-20b` failed with
+`400 json_validate_failed`. It has its own per-minute allowance, so a
+rate-limited 20b does not take it down too.
+```
+
+```text
+Groq's only multimodal model, one lane among several rather than
+anything SafeHaul depends on: 131k context, three images per
+request, and about 1,800 input tokens a photo against the free
+tier's 7,000 input tokens a minute. Verified 2026-10-07. No spare:
+Groq offers no other model that reads images.
+```
+
+```text
+`gemini-3.5-flash-lite` is the spare for photos and structured text: on
+2026-10-07, while the Flash versions answered 503 "high demand", it read
+the fake licence in full on one and two photos and answered the claim
+check, in about 2s — though 13-16s an hour earlier, which is why an
+overloaded vendor's spares are left to work that has the time. It is not an article spare — it rejects the article
+request with `400 invalid_request` — so articles keep one version.
+`gemini-3.5-flash` answered 503 to every check that day, so it is not
+listed until it can be verified.
+```
+
+```text
+Was `@cf/meta/llama-3.1-8b-instruct`, which the Workers AI
+catalogue now marks deprecated. Folded into the same model as the
+other lanes rather than pinning a second one to keep current.
+Verified 2026-08-17.
+```
+
+```text
+Mistral's free plan moved under us twice. `mistral-large-*` is paid
+only (`403 tier_not_allowed`, 2026-09-03), and on 2026-10-07 the free
+plan gave `mistral-medium-*` and `mistral-small-*` a limit of zero
+requests a minute (`429`, `x-ratelimit-limit-req-minute: 0`), so every
+Mistral lane failed on a key that authenticates.
+
+`ministral-14b-2512` read a CDL photo, two and five photos at once, and
+answered the claim check, verified that day on a free key. It took
+33-48s to write an article against the row's 45s timeout, so articles
+go to `ministral-8b-2512`, which wrote one in 9-11s.
+
+`ministral-8b-2512` is the spare everywhere else: it read the licence
+in full on one and two photos and answered the claim check, the same
+day. `mistral-medium-latest` comes last, for a paid plan: it was this
+row's pin until 2026-10-07, and on a free key it answers with a limit
+of zero, which the router reads as "not on this plan" and rests for a
+day.
+```
+
+```text
+Every previous pin was gone. `llama-3.3-70b` and `llama3.1-8b` are
+both absent from Cerebras' public catalogue, which now offers
+`gpt-oss-120b` (production), `gemma-4-31b` and `zai-glm-4.7`
+(preview) — so Cerebras was contributing nothing to the fallback
+order but a wasted round trip. Verified 2026-08-17.
+```
+
+```text
+Was `Meta-Llama-3.1-8B-Instruct`, which no longer appears among
+SambaNova Cloud's supported models. Verified 2026-08-17.
+```
+
+```text
+The slug was `meta-llama/llama-4-scout-17b-16e-instruct` — Groq's
+naming for the same weights, not OpenRouter's. OpenRouter does
+not list it, so every OpenRouter image request 404'd on a model
+that was in fact available under a different name. Confirmed
+against OpenRouter's live catalogue (414 models) 2026-08-17.
+```
+
+## `functions/ai/registry/providerTable.js`
+
+```text
+Needed because Groq's schema support is per *model*, not per vendor. Only
+`openai/gpt-oss-20b`, `openai/gpt-oss-120b` and
+`openai/gpt-oss-safeguard-20b` accept `json_schema`; every other model,
+including the only vision-capable one, answers a schema request with a
+400. Verified against Groq's structured-outputs documentation 2026-08-17.
+```
+
+```text
+Position 2, not 1. The brief specified Groq first, and the owner
+reversed it on 2026-08-03 after measurement: on the free tiers
+`openai/gpt-oss-20b` writes 175-213 word articles while Gemini writes
+311-417 from the same or thinner sources. Groq stays as the fallback
+because it is the more *available* of the two — Gemini's free tier caps
+at 20 requests — so a short article beats no article.
+```
+
+```text
+Groq withdrew both llama-4 vision models in 2026 (Maverick 03-09,
+Scout 07-17), and on 2026-10-07 the Qwen pinned in their place,
+`qwen/qwen3.6-27b`, answered 404 `model_not_found`: every photo
+request to Groq failed. `qwen/qwen3.8-27b` replaced it, verified that
+day on the live API: it read a CDL photo, and two photos at once.
+
+Groq's schema support is per *model*. `qwen/qwen3.6-27b` answered
+`json_schema` with a 400 and was asked in JSON object mode through
+`structuredModeByCapability`; `qwen/qwen3.8-27b` accepts it with
+images (CDL, medical card, PSP, MVR and E-Doc schemas, 2026-10-07),
+so every Groq lane now asks in schema mode and Groq enforces the shape.
+
+`maxImages` is the model's per-request cap, and the router enforces
+it. `qwen/qwen3.8-27b` takes three (`400 "This model supports up to 3
+images"`, 2026-10-07), so a four- or five-page E-Doc goes to the next
+provider instead of spending a request that cannot succeed.
+```
+
+```text
+The refusals that are about one model rather than the key or the
+request: a paid-only model on a free plan (403), a Labs model nobody
+enabled (403), and a model id Mistral no longer knows, which it
+answers with a 400 rather than a 404. Read by `providers/http.js`, so
+they cost a version, not the provider. Verified live 2026-10-07.
+```
+
+## `functions/ai/registry/providers.js`
+
+```text
+The **default** fallback order, and since 2026-08-08 only the default.
+```
+
+## `functions/ai/router/versionPolicy.js`
+
+```text
+A vendor withdraws, overloads or re-tiers one version far more often than it
+goes down whole, and on 2026-10-07 all three happened at once: Groq answered
+404 for its vision model, Mistral's free plan gave two versions a limit of
+zero requests a minute, and Gemini's Flash versions were overloaded. With one
+version per lane, each of those took the whole provider out of the lane.
+```
+
+## `functions/ai/tasks/healthCheck.js`
+
+```text
+Measured on 2026-08-18: a two-image probe against Groq's free tier
+returned `429 … tokens per minute (TPM): Limit 8000, Used 3051, Requested
+5023`. A vision probe costs roughly 2.5k of that budget and the
+multi-image one roughly 5k, so six serial probes cannot all fit inside one
+minute — and the connection test was spending the allowance and then
+reporting the resulting 429 as "this provider cannot read images".
+```
+
+## `functions/ai/tasks/healthProbes.js`
+
+```text
+They were 8x8, on the reasoning that a probe should cost a rounding error.
+That was measured against the live vendors on 2026-08-18 and it made the
+probes lie — in the *pessimistic* direction, which is the harder kind to
+notice, because a false failure looks like diligence:
+
+  Mistral  multi-image, 8x8   -> {"answer":"unknown"}   FAILED
+  Mistral  multi-image, 256px -> {"answer":"blue"}      passed
+  Gemini   multi-image, 8x8   -> HTTP 504 Deadline expired before operation
+  Gemini   multi-image, 256px -> {"answer":"blue"}      passed
+
+Vision models tokenise an image into patches. An 8x8 image is under a single
+patch, so it carries almost no signal and vendors handle the degenerate case
+inconsistently — Mistral spent 15 prompt tokens on one and declined to answer.
+Reporting "this provider cannot read images" on that basis was wrong, and it
+is what put two working vision providers on the console as broken while CDL
+auto-fill had nothing to fall back to.
+
+256x256 is still flat colour, still generated, still ~570 bytes, and still
+costs a rounding error — it is simply large enough for the question to be a
+fair one. **If these are ever shrunk again, the probes stop testing the
+vendors and start testing their tolerance of degenerate input.**
+```
+
+```text
+They used to be hand-rolled minimal PNGs pasted in as base64. Mistral's newer
+models (`mistral-small`, `mistral-medium`) reject those outright with `400
+invalid_request_file` while reading a standard, properly zlib-compressed PNG
+of the exact same pixels perfectly (measured 2026-09-03 on a free key). A
+false "vision failed" is the pessimistic lie this file already exists to
+prevent, so the images are now emitted by `solidColorPng` below: a conformant
+encoding is the most compatible one, and generating it means the bytes can
+never rot into a form a strict decoder refuses.
+```
+
+## `functions/ai/tasks/modelPins.js`
+
+```text
+A registry pin is a claim about the world, and the world moves. On 2026-08-17
+an audit found six pins naming models their vendors had retired — two of them
+the entire Mistral vision lane, retired 2025-12-31 and 2026-05-31, and one an
+OpenRouter slug that had never been OpenRouter's naming at all. Every CDL and
+E-Doc image request routed to those providers had been failing for months.
+
+Nothing in the repository could have noticed. Unit tests use fixtures by
+design, the connection test never resolved the vision model, and a pin is
+just a string until a request is made with it. So the only thing that can
+catch this class of drift is asking the vendor — which means real
+credentials, and therefore not CI.
+```
+
+## `functions/ai/tasks/reportExtraction.js`
+
+```text
+Read the whole value, then take the number — the same lesson as the state code
+below. Cutting to twelve characters first turned "USDOT 1234567" into "123456"
+(found 2026-10-01): seven digits is the ordinary length now, and the wrong number
+became the identity a carrier then LOCKED, so the driver was held to an employer
+nobody had. A labelled number wins over an unlabelled one ("MC 765432 USDOT …").
+```
+
+## `functions/blog/pipeline/candidates.js`
+
+```text
+That is not a hypothetical. On 2026-08-03 the twelve top candidates for the
+industry-news slot were, in order: high-speed train noise standards, three VHF
+omnidirectional range amendments, Class D/E airspace over Morgantown WV, a TVA
+categorical exclusion, an unleaded aviation gasoline transition plan,
+locomotive engineer certification, and Jet Route J-24. Not one concerned
+trucking. A trucking publication that runs an article about jet routes is
+worse than one that runs nothing, so this gate is deliberately applied before
+anything reaches an editor or a model.
+```
+
+## `functions/blog/pipeline/generate.js`
+
+```text
+A 7-day window looked like editorial rigour and was actually a
+guarantee of thin articles: FMCSA does not publish substantive
+rules weekly. Measured on 2026-08-03, the only primary documents
+inside 7 days were one-to-three page exemption notices, and an
+honest article from a three-page notice runs ~355 words against a
+450-word floor. Widening to 21 days surfaced a ten-page rule —
+real regulatory substance to write about.
+```
+
+## `functions/blog/pipeline/themes.js`
+
+```text
+One article publishes every calendar day. The day's theme rotates through the
+three, so each comes round every third day; when the day's theme has nothing
+it may publish (no current sources, only repeats, a refused draft), the next
+run offers the day to the next theme. It was three a day, one per theme, until
+the owner chose fewer articles in October 2026.
+```
+
+## `functions/blog/pipeline/validation.js`
+
+```text
+**150, down from 450 in three owner decisions** on 2026-08-03. The trade-off was
+put to them each time: the free tiers of both AI providers cannot sustain a longer
+article, and the alternative was a paid tier. This is recorded at length because
+it is a deliberate reduction in article substance below the 700-1,200 words
+originally specified — not a constant that drifted.
+
+350, then 200, then 150 — each step measured against what the providers actually
+produce rather than chosen. Groq's observed drafts were 165, 175 and 213 words,
+so a 200 floor discarded two of three sound articles and published nothing. 150
+is set below the measured floor of Groq's output so that a day never passes with
+nothing published.
+```
+
+## `functions/companyApplications/aiExtract.js`
+
+```text
+The licence reader keeps dates "exactly as printed" — its own prompt
+asks for that — so they are normalised here, as every other reader's
+already were. Passed through, "03/11/1988" filled the carrier's date
+of birth as a value no date control can show, and the expiration was
+dropped by the fill plan as not being a date at all (2026-10-01).
+```
+
+## `functions/companyApplications/invite.js`
+
+```text
+The token algebra those two questions are asked with — which hashes open a
+draft, and until when — lives in `./inviteTokens.js`, together with the account
+of the defect that made composing them independently a revival rather than a
+retirement.
+```
+
+```text
+Once the driver has saved — `driver_in_progress` — the answers are theirs, and
+`shared/companyPreparedDraft.js` says the carrier stops being able to read them.
+That cutoff was enforced at only one of the two doors: `companyApplications/read.js`
+consulted `companyMayReadAnswers`, while this file consulted `isCompanyPrepared`,
+which tests `origin` — a field recording who *created* the draft, which
+deliberately never changes. So a carrier could mint a link, exchange it itself,
+and recover exactly the answers the cutoff had just withheld, plus a resume token
+that could rewrite them. The driver's first save does not clear
+`inviteTokenHash` either, so the ORIGINAL link already did this — gating the mint
+would not have closed it. Found and fixed 2026-09-08.
+
+So the link is **tiered**, and since 2026-09-09 the tier is decided by
+`companyMayReadAnswers` — the very predicate the other door has always used.
+Two questions composed into one boundary is the shape of every defect this file
+records, so there is now one question.
+```
+
+```text
+**The claim is checked against the draft this link names**, in `./inviteIdentity.js`.
+The original plan delegated that to `findResumableApplication`, and neither half
+of the delegation worked: the client had no screen for `requiresIdentity` at all,
+so the driver was dropped into the fresh-application chooser, and the lookup
+queries `identityKey ==` — which autosave was erasing on every save issued
+without an SSN in memory. Both measured in production on 2026-09-09 against the
+reported application. A link that already resolved the document has no business
+asking "does any draft here match this identity"; it asks "is this that
+applicant".
+```
+
+```text
+Both of these were missing until 2026-09-08, which made this the only one of
+the five prepared-application callables with neither.
+```
+
+```text
+Where the driver actually was. Withheld until 2026-09-09, which was
+survivable only because a carrier-prepared draft is always on page
+one: a driver confirming their identity to continue their own
+application would otherwise be handed their answers and dropped back
+at the start of the wizard.
+```
+
+## `functions/companyApplications/inviteIdentity.js`
+
+```text
+## Why this file exists, and what was actually broken
+
+`invite.js` describes a **tiered** link: while the answers are the carrier's own
+the exchange hands over everything, and once they are the driver's it hands over
+nothing and answers `requiresIdentity`. The second tier was a sentence, not a
+mechanism. Three things were missing, all measured in production on 2026-09-09:
+
+1. **Nothing rendered it.** `requires_identity` reached
+   `resolveApplyStatusScreen`, matched no branch, and fell through to the intake
+   chooser — so the driver was shown "How would you like to start your driver
+   application?" with no indication that their own half-finished application was
+   sitting behind the link they had just opened. That is the reported symptom.
+
+2. **The verification it delegated to could not run.** The plan was
+   `findResumableApplication`, which queries `identityKey ==`. But autosave wrote
+   `identityKey: identityKey || null` on every save and the HMAC needs a Social
+   Security Number, which a draft deliberately never stores — so the first save
+   after a page reload erased it. `[name redacted]`, the reported application, held
+   `identityKey: null` at the consent step. The lookup could never have matched
+   it. Fixed in `drafts/identity.js` (`identityKeyForSave`); this file is what
+   covers the drafts already in that state.
+
+3. **A global lookup is the wrong question.** The link already names the draft —
+   `exchangeApplicationInvite` resolved it from the token before deciding
+   anything. Asking "does any draft at this company match this identity" throws
+   that away, needs a composite index, needs the applicant to guess which contact
+   detail the carrier used, and cannot answer at all for a draft whose stored
+   identity was lost. So the claim is checked **against the one draft the token
+   opened**, and nothing else.
+```
+
+```text
+  Both of those answers, and the tier refuses rather than checking whichever it
+  has: the date of birth is the one compared fact the carrier is never shown, so
+  waiving it when the draft does not hold one leaves a check made entirely of
+  things the carrier already knows. Review found that on 2026-09-09.
+```
+
+```text
+Honest about its own limit: in the `answers` tier the SSN is *required* and not
+*verified* — any nine digits pass — so the tier is exactly as strong as the date
+of birth the carrier is never shown. That holds only for a draft the driver
+started. On one the carrier **prepared**, the carrier typed the last name, the
+date of birth and the contact detail itself, so the tier compared nothing it did
+not already know and a recruiter could pass it and be handed the driver's
+answers and a resume token. Since 2026-10-02 a prepared draft with no HMAC is
+refused as `unverifiable` instead: the driver continues on the device that holds
+their resume token, which asks nothing, or starts a new application. The proper
+fix for a driver who has lost that device is out-of-band delivery (App Brief §12).
+```
+
+## `functions/companyApplications/inviteTokens.js`
+
+```text
+Split out of `invite.js` on 2026-09-09 for the source-size standard, and it is
+the right seam: everything here is a pure function of a stored document and a
+presented token, with no Firestore, no callable and no policy. `invite.js` is
+the two callables and the decisions they make.
+```
+
+```text
+This is the shape of a defect found on 2026-09-08, and the reason the code below
+looks the way it does. Matching accepted the current hash *or* any prior hash,
+while validity read a single document-level `inviteTokenExpiresAt` that every
+mint rewrote unconditionally — two independent questions composed into one
+answer. So regenerating did not retire the old link, it **revived** it: a link
+that had been dead for a week opened again, with a fresh resume token, for
+another fourteen days. The panel meanwhile told the recruiter that "creating a
+new one retires this one".
+
+So each accepted hash now carries its own expiry, and `liveInviteFor` asks both
+questions of one entry — which is what makes the old composition impossible to
+write again. The prior hash is kept for the reason it always claimed: a driver
+who opened the old link a moment ago should not find it dead mid-page. That is a
+minutes-scale concern, so it is a minutes-scale grace.
+```
+
+## `functions/drafts/admin.js`
+
+```text
+Nobody at the carrier could, before 2026-10-06. `getCompanyPreparedDraft`
+answers only for the carrier's own prepared work, and only until the driver
+writes (`companyMayReadAnswers`). The owner decided that a Company Admin sees
+every unfinished application: the driver typed those answers into this
+carrier's own form, to apply to this carrier, and a recruiter following up
+should start from what is there. Recruiters and HR users keep the old rule.
+Only the strict admin check `deleteApplication` uses opens these two doors.
+```
+
+## `functions/drafts/identity.js`
+
+```text
+**A save must never be able to erase one.** `identityKey` used to be written as
+`identityKey || null` on every save, and the HMAC needs the Social Security
+Number — which a draft deliberately never stores. So the SSN lives only in the
+browser's form state, and any save issued after a reload (or after a restore
+from the server copy, which has no SSN either) recomputed the key as null and
+wiped it. `findResumableApplication` queries `identityKey ==`, so the applicant
+silently lost cross-device resume, and a carrier-prepared application lost the
+only thing that could ever prove the driver owns it.
+
+Measured in production on 2026-09-09: three of six live drafts held
+`identityKey: null`, including one at the consent step whose `resumeApplicationDraft`
+restore was followed 46 seconds later by the save that erased it.
+```
+
+```text
+`supersedeOtherDrafts` above cannot reach it, and that is not an oversight in
+this function — it is a consequence of what it queries. It sweeps by
+`identityKey`, and a carrier-prepared draft has none: the HMAC is built from the
+driver's own last name, date of birth and SSN digits, and the carrier does not
+know the SSN, so `prepare.js` writes `identityKey: null` and says so. A driver
+who corrects their email before their first save has landed therefore left the
+prepared document alive — with its invite token hash intact — which contradicts
+what `shared/companyPreparedDraft.js` says the non-travel of those hashes is
+for: "two live drafts answering one link is a worse problem than a claimed link
+that has to be sent again". Found 2026-09-08.
+```
+
+## `functions/drafts/list.js`
+
+```text
+## Why this is the ONLY list, as of 2026-09-10
+
+There used to be two. This one reads the whole collection; the narrower
+`listCompanyPreparedApplications` reads `origin == 'company'` — so a draft the
+carrier prepared was returned by BOTH, and the product showed it on two
+different screens with two different sets of columns and actions. That was never
+a security boundary: both callables return contact-and-progress and neither has
+ever returned an answer. The read rule lives in `getCompanyPreparedDraft`
+(`companyMayReadAnswers`, plus an outright refusal of any draft the carrier did
+not author), which is unchanged and unaffected by who lists what.
+
+So the unified workspace reads this one, and every row it shows is one document
+from one query. **Deduplication is structural rather than a merge step somebody
+has to keep correct** — there is no union of two result sets to reconcile, and no
+key to match them on wrongly. `toCompanySummary` supplies the shape, because it
+was already the answer-free summary and already resolved `origin` for
+driver-authored drafts.
+```
+
+## `functions/drafts/purge.js`
+
+```text
+The owner asked for this on 2026-10-07: deleting an unfinished application
+deletes its answers, its uploaded photos and documents, every link sent for it,
+and the same driver's other unfinished application at this company. Submitted
+applications and hired drivers are never touched.
+```
+
+## `functions/drafts/related.js`
+
+```text
+A driver who typed a different email or phone on a second visit has a second
+draft, at a second key. The owner decided that deleting one deletes the other
+as well (2026-10-07), with the Company Admin shown each one first and free to
+keep any that is somebody else's, since a shared phone looks the same.
+```
+
+## `functions/employmentVerification/requests.js`
+
+```text
+`withEmployerIds` mints an id for every row that lacks one and the write
+is the whole array, so two recruiters sending requests for two different
+employers on the same unstamped application at the same time each mint a
+*different* set of ids and each write all of them. The second write wins,
+and the first request is left recording an `employerId` that is no longer
+on the document — which `recordVerificationResponse` then cannot resolve,
+so the answer that comes back has nowhere to go. Exactly the orphaning the
+identity was introduced to prevent, arriving by a different door. Review
+found it on 2026-09-09.
+```
+
+## `functions/employmentVerification/signature.js`
+
+```text
+The respondent signs the §391.23 response either by drawing on the canvas
+(a PNG data URL) or, since 2026-09-06 (audit step J), by typing their full
+name — stored as `TEXT_SIGNATURE:<name>`, the convention the driver
+application already uses for typed marks. Under the ESIGN Act
+(15 U.S.C. §7006(5)) and UETA a name typed with intent to sign is an
+electronic signature, so both forms are stored with equal standing and the
+method is recorded beside the mark.
+```
+
+## `functions/eslint.config.js`
+
+```text
+Migrated from `.eslintrc.js` on 2026-09-08 for ESLint 10, which reads only
+this format — `ESLINT_USE_FLAT_CONFIG=false` and `--ext` are gone. The
+policy is unchanged: `eslint:recommended`, then eslint-config-google's
+rules, then the local overrides, in that order, so a severity-only override
+keeps the options of the layer beneath it exactly as the eslintrc cascade
+did (`no-unused-vars: 'error'` still carries google's `{ args: 'none' }`).
+```
+
+```text
+Measured before the switch: 0 errors, 0 warnings under ESLint 8 and the
+legacy file. The same after it, under ESLint 10 and this file.
+```
+
+```text
+ESLint 10's `recommended` adds rules ESLint 8's did not have. Adopting
+them is a change to the functions code, measured on 2026-09-08 at 24
+sites: no-useless-assignment 12, preserve-caught-error 6, and
+no-unused-vars on `catch (e)` bindings 6 — ESLint 9 changed that rule's
+`caughtErrors` default from "none" to "all". This migration keeps the
+policy ESLint 8 enforced; those three are the follow-up, deliberately.
+```
+
+## `functions/shared/applicationLockedFields.js`
+
+```text
+A lock is a snapshot of an employer's identity taken at the moment the carrier
+pressed Lock, and the carrier goes on editing the rows afterwards. Nothing kept
+the two in step, so four ordinary carrier actions produced an application the
+driver was blocked on and could not fix (found 2026-09-08):
+
+  - deleting a locked row left the lock behind as an invisible requirement,
+    with the row's own Unlock button gone along with the row;
+  - correcting the NAME on a row locked by USDOT number tripped
+    `locked-employer-changed`, and the wizard renders a locked row's identity
+    as a record rather than a field — so the driver was blocked on the one
+    field they are not allowed to touch;
+  - correcting the name on a row locked by name moved its signature, and
+  - adding a USDOT number to a row locked by name moved it too, both landing on
+    `locked-employer-missing` for a row that is sitting right there.
+
+Two things fix that together, and this is the second. The carrier's editor now
+renders a locked row's identity read-only, so a signature cannot drift while
+the lock exists — the carrier unlocks, corrects, and locks again, which mints a
+lock that matches. This handles the case that leaves no trace to render: a
+deleted row.
+```
+
+## `functions/shared/applicationStorage.js`
+
+```text
+A custom file question keeps its upload inside `customAnswers` (since
+2026-10-02). Those values are whatever the applicant's browser sent, so only a
+path in the namespace `getSignedUploadUrl` issues application uploads into is
+taken from there — `companies/{companyId}/applications/guest_uploads/`. The
+company prefix alone was not enough: a crafted answer could name one of the
+same company's DQ or PEV files, and this deletion runs with the Admin SDK.
+```
+
+## `functions/shared/buildApplicationDoc.js`
+
+```text
+The wizard checks "the last seven days" of the Hours of Service statement and
+whether a card has "expired" against the applicant's calendar, and this process
+runs on UTC. Judged on our day, every submission sent between 00:00 UTC and the
+applicant's own midnight — each US evening — failed a statement the wizard had
+just accepted, and one whose card expires that day failed an expiry it had just
+passed (found 2026-10-01). The browser sends its day; it is believed only within
+a day of ours, which every real timezone is, so it cannot carry a week-old
+statement through or backdate an expiry by more than the clock already allows.
+```
+
+## `functions/shared/companyPreparedDraft.js`
+
+```text
+The contact-and-progress shape — and since 2026-09-10, the ONLY list shape.
+```
+
+## `functions/shared/publicProfileDto.js`
+
+```text
+The shape version of this projection. Version 3 (2026-09-02) added
+`applicationRules` and `applicationIntegrations`.
+```
+
+## `functions/test/unit/aiHealthCheck.pins.test.js`
+
+```text
+Measured against the live vendors on 2026-08-18: a two-image probe against
+Groq's free tier returned `429 ... tokens per minute (TPM): Limit 8000, Used
+3051, Requested 5023`. One vision probe costs roughly 2.5k of an 8k/minute
+budget and the multi-image one roughly 5k, so six serial probes cannot fit --
+the connection test was spending the allowance and then reporting the
+resulting 429 as "this provider cannot read images". Groq's preview vision
+model separately returned `503 ... currently over capacity`. Neither says
+anything about the capability.
+```
+
+## `functions/test/unit/aiProviders.failures.test.js`
+
+```text
+Measured live on 2026-08-18: the Gemini free tier allows 20 requests per
+minute and states the wait in the error BODY, not a header —
+"Please retry in 44.26781542s". Nothing read that sentence, so a
+45-second cap earned the flat 30-minute quota cooldown and removed the
+highest-priority provider from every lane.
+```
+
+```text
+A version this account cannot use at all is not a spent allowance and not a
+bad key. Both shapes measured on the live vendors, 2026-10-07.
+```
+
+## `functions/test/unit/aiProviders.groq.test.js`
+
+```text
+`qwen/qwen3.6-27b` rejected `json_schema` with a 400 and was asked in
+JSON object mode. Its successor accepts the schema with images
+(verified live 2026-10-07 on every photo-reading schema), so Groq now
+enforces the shape itself rather than only being told it in the prompt.
+```
+
+```text
+These are assertions about the *vendor*, not about our code, and they exist
+because getting them wrong silently broke every schema-using AI feature in
+production while the health check stayed green.
+
+Verified against the live Groq API on 2026-08-03 with a real key.
+```
+
+```text
+Groq rejects the others outright:
+  400 "This model does not support response format `json_schema`."
+Groq's structured-outputs documentation lists exactly the gpt-oss
+models as schema-capable (verified 2026-08-17).
+
+`qwen/qwen3.8-27b` joined them (verified live with images, 2026-10-07).
+```
+
+```text
+Vision was withdrawn on 2026-08-03 when Groq retired both llama-4
+vision models, came back on `qwen/qwen3.6-27b` (2026-08-17), and moved
+to `qwen/qwen3.8-27b` when Groq retired that one too (2026-10-07).
+```
+
+```text
+`qwen/qwen3.8-27b` accepts at most three images per request and
+answers a fourth with `400 "This model supports up to 3 images"`
+(2026-10-07). E-Doc sends up to five pages, so the registry states the
+cap and the router sends a four- or five-page document elsewhere.
+```
+
+## `functions/test/unit/aiProviders.registry.test.js`
+
+```text
+A registry pin is a claim about the world, and the world moves. Every
+entry below was live in the registry and dead at the vendor — silently,
+because the connection test sent plain text and never touched the model
+a real task would have resolved.
+
+These assertions are cheap insurance against the same drift returning by
+copy-paste. They cannot detect *new* drift; `diagnoseAiModelPins`
+reconciles the pins against the vendors' live catalogues for that.
+
+All verified against vendor documentation and live catalogues 2026-08-17.
+```
+
+```text
+Distinct from a retired pin: `mistral-large-latest` is a live, working
+model — it is simply *paid-tier only*. A free key gets `403
+tier_not_allowed` and Large is not even in its catalogue, so pinning it
+meant every Mistral lane 403'd and the connection test reported six
+failures on a key that authenticates and does inference. On 2026-10-07
+the free plan also gave Medium and Small a limit of zero requests a
+minute, and the Ministral models serve every lane — text, structured JSON
+and vision — on the free entitlement (verified against the live API).
+```
+
+## `functions/test/unit/aiProviders.support.js`
+
+```text
+Gemini fixtures **captured verbatim from the live API** on 2026-08-03 against
+`gemini-3.6-flash`, trimmed of ids and timings.
+
+This matters more than it looks. The original version of this group invented
+its fixtures from the adapter's own assumptions — it asserted an `output_text`
+field and a `parts`/`inline_data` request shape. The API returns neither. So
+the tests passed, the adapter shipped, and *every* Gemini call failed in
+production: text, structured JSON and vision alike. A test that asserts the
+code's beliefs back to it cannot catch the code being wrong about the world.
+```
+
+## `functions/test/unit/aiRouter.routing.test.js`
+
+```text
+Gemini leads and Groq is the fallback. The brief specified Groq first;
+the owner reversed it on 2026-08-03 after measurement — on the free
+tiers Groq's model writes 175-213 word articles against Gemini's
+311-417, while Gemini's request cap makes it the less available of the
+two. Gemini for quality, Groq for availability.
+```
+
+## `functions/test/unit/applicationDocument.test.js`
+
+```text
+The MVR authorization joined the set on 2026-09-02; it is answered on
+the driving-record step and preserved with the same rigour.
+```
+
+## `functions/test/unit/applicationDraftIndexes.test.js`
+
+```text
+The carrier-prepared surface reads the same collection, so an equality query
+there needs its index declared too: on 2026-09-03 review found `origin ==
+'company'` ordered by `updatedAt` with no index declared, which would have failed
+with `FAILED_PRECONDITION` in a deployed project while every test here passed.
+None of these files queries by equality now; a new query must bring its index.
+```
+
+## `functions/test/unit/applicationDrafts.guards.test.js`
+
+```text
+Until 2026-09-10 a carrier-prepared draft was returned by this callable AND
+by the narrower `listCompanyPreparedApplications`, and the product listed it
+on two separate screens. One query over one collection means one row per
+document — there is no union to reconcile and no key to match wrongly — so
+the property below is structural, not a merge step to keep correct.
+```
+
+## `functions/test/unit/applicationDrafts.saving.test.js`
+
+```text
+## The defect, measured in production on 2026-09-09
+
+`identityKey` was written as `identityKey || null` on **every** save. The HMAC
+needs a Social Security Number, and a draft deliberately never stores one — so
+the SSN lives only in the page's own state, and the first autosave issued after
+a reload (or after a restore from the server copy, which has none either)
+recomputed the key as null and erased it.
+
+`findResumableApplication` queries `identityKey ==`, so what the applicant
+silently lost was cross-device resume — and, for a carrier-prepared
+application, the only thing that could ever prove the driver owns it. Three of
+six live drafts held `identityKey: null`, one of them at the consent step, its
+`resumeApplicationDraft` restore followed 46 seconds later by the save that
+erased it.
+```
+
+## `functions/test/unit/applicationDrafts.support.js`
+
+```text
+`resetDraftState` calls `jest.resetAllMocks()`, which drops a queued `*Once`
+value that its test never consumed; `clearAllMocks` left it queued, and one
+leaked for real on 2026-09-08 (a `mockCheckRateLimit.mockResolvedValueOnce(false)`
+surfaced in the NEXT test's `prepare()`). Jest 30's reset leaves every double
+returning `undefined`, so `resetDraftState` puts the four doubles' defaults
+back, and a suite with doubles of its own sets theirs after calling it
+(`.claude/rules/testing.md`).
+```
+
+```text
+A real `DocumentReference` carries its own id, and code that compares
+"is the document I read the one I am writing?" reads it. Missing here
+until 2026-09-08, it made every such comparison see `undefined` and
+answer "different" — so a correct guard looked like a bug, and an
+incorrect one would have passed. Same reasoning as the `ref` note above.
+```
+
+## `functions/test/unit/blogPipeline.content.test.js`
+
+```text
+Split from a 1496-line `blogPipeline.test.js` on 2026-08-29. The mocks and
+fixtures live in `./blogPipeline.support`; the `jest.mock` calls stay here
+because Jest hoists them per file and they cannot register from a helper.
+```
+
+## `functions/test/unit/blogPipeline.ledger.test.js`
+
+```text
+Split from a 1496-line `blogPipeline.test.js` on 2026-08-29. The mocks and
+fixtures live in `./blogPipeline.support`; the `jest.mock` calls stay here
+because Jest hoists them per file and they cannot register from a helper.
+```
+
+## `functions/test/unit/blogPipeline.rendering.test.js`
+
+```text
+Split from a 1496-line `blogPipeline.test.js` on 2026-08-29. The mocks and
+fixtures live in `./blogPipeline.support`; the `jest.mock` calls stay here
+because Jest hoists them per file and they cannot register from a helper.
+```
+
+## `functions/test/unit/blogPipeline.scheduling.test.js`
+
+```text
+Split from a 1496-line `blogPipeline.test.js` on 2026-08-29. The mocks and
+fixtures live in `./blogPipeline.support`; the `jest.mock` calls stay here
+because Jest hoists them per file and they cannot register from a helper.
+```
+
+## `functions/test/unit/blogPipeline.sourcing.test.js`
+
+```text
+Split from a 1496-line `blogPipeline.test.js` on 2026-08-29. The mocks and
+fixtures live in `./blogPipeline.support`; the `jest.mock` calls stay here
+because Jest hoists them per file and they cannot register from a helper.
+```
+
+## `functions/test/unit/blogPipeline.topics.test.js`
+
+```text
+Split from a 1496-line `blogPipeline.test.js` on 2026-08-29. The mocks and
+fixtures live in `./blogPipeline.support`; the `jest.mock` calls stay here
+because Jest hoists them per file and they cannot register from a helper.
+```
+
+```text
+Titles taken verbatim from the live `federal-register-dot` feed on
+2026-08-03. Every one arrived tagged `regulation, compliance,
+freight-market` — the *source's* topics — and every one passed the theme
+filter. They were the top candidates for the industry-news slot.
+```
+
+## `functions/test/unit/companyApplications.aiExtract.test.js`
+
+```text
+The licence reader keeps dates "exactly as printed". Passed through, the
+carrier's date of birth held "03/11/1988" — a value no date control can
+show — and the expiration was dropped by the fill plan (2026-10-01).
+```
+
+## `functions/test/unit/companyApplications.identity-move.test.js`
+
+```text
+The draft's id is `sha256(company:email:phone)`, so those two fields are not
+contact details — they are the address. A driver who fixes a typo on page one
+is therefore writing to a DIFFERENT document than the one the carrier prepared,
+and before this was fixed that document was an ordinary `in_progress` draft
+with no `origin`, no `inviteClaimedAt` and no `lockedEmployers`.
+
+That is not a lost record, it is a lost rule. `submitGuestApplication` reads the
+locks from the key it computes off the *submitted* contact details, so the
+employers the carrier locked from a PSP report could be renamed or deleted by
+anyone who corrected a typo — the one thing the lock exists to prevent, undone
+without touching a locked field.
+
+Found in review on 2026-09-03. These tests pin both halves: the carrier's facts
+travel with the applicant, and nothing about a driver-authored draft changes.
+```
+
+```text
+Leaving the invite hash behind is only half a promise: the document it
+is on has to go too, or the carrier's link still opens a live draft
+holding the pre-correction answers while the driver fills in another —
+exactly the "two live drafts answering one link" the non-travel of those
+hashes exists to avoid. `supersedeOtherDrafts` cannot do it: it sweeps
+by `identityKey`, and a prepared draft has none, because the carrier
+does not know the SSN the HMAC is built from. Found 2026-09-08.
+```
+
+## `functions/test/unit/companyApplications.invite.continuation.test.js`
+
+```text
+## The production failure this file is built from
+
+`companies/[company id]/application_drafts/[draft id]`, read
+on 2026-09-09: `origin: 'company'`, `status: 'driver_in_progress'`,
+`lastSemanticStep: 'consent'`, `clientSeq: 10`, `inviteClaimedAt` at 16:02 —
+and **`identityKey: null`**. The recruiter minted a replacement link at 16:41,
+the driver opened it twice (both exchanges returned 200), and both times the
+page rendered the fresh-application chooser.
+
+Two independent defects, and the suite covers both:
+
+1. `requiresIdentity` had no verification path that could run. It delegated to
+   `findResumableApplication`, which queries `identityKey ==`, and that field was
+   null — erased by the first autosave issued after a page reload, because the
+   HMAC needs an SSN and a draft never stores one.
+2. Nothing rendered `requires_identity`, which is the client half
+   (`PublicApplyScreens`).
+
+Every fixture here is synthetic. `driverStartedWithoutIdentity` reproduces the
+*shape* of that record — a taken-over prepared draft with no identity HMAC — and
+`driverStartedWithIdentity` the shape every draft written from now on has.
+
+**Since 2026-10-02 the first shape is refused.** On a prepared draft the carrier
+typed the last name, the date of birth and the contact detail itself, and with
+no HMAC the SSN cannot be checked, so the claim that rescued the reported record
+was one a recruiter could make too — and be handed the driver's answers. It is
+now `unverifiable`, the driver's own device still resumes with its token, and the
+`answers` tier survives for a draft the driver started, whose date of birth the
+carrier has never seen. `driverStartedOwnWithoutIdentity` is that shape.
+```
+
+```text
+Where they actually were. Withheld entirely until 2026-09-09, which would
+have dropped a confirmed driver back onto page one of their own form.
+```
+
+```text
+The hole closed on 2026-10-02. Every fact in this claim is one the carrier
+typed into its own prepared application, and with no HMAC on file the SSN
+cannot be checked — so a match proves nothing about who is asking.
+```
+
+```text
+The hole review found on 2026-09-09, and the reason the `answers` tier wants
+BOTH stored facts rather than whichever it happens to have.
+```
+
+## `functions/test/unit/companyApplications.invite.expiry.test.js`
+
+```text
+## The defect this file exists for
+
+Found 2026-09-08. Validity was modelled per DOCUMENT while matching was
+modelled per GENERATION: `inviteNamesDraft` accepted the current hash or any
+prior hash, `inviteStillValid` read one document-level `inviteTokenExpiresAt`,
+and the mint rewrote that field unconditionally. Composing the two
+independently meant an expired token could ride on a newer token's expiry —
+so "Create a new link" did not retire the old link, it **revived** it, for a
+further fourteen days, even when it had been dead for a week.
+
+`companyApplications.invite.test.js` could not see it: it calls
+`setInviteExpiry` *after* both mints, which forces a live expiry and makes the
+reset invisible. The sequence that matters is expire → regenerate → present
+the old token, and it is the first case below.
+```
+
+## `functions/test/unit/companyApplications.invite.privacy.test.js`
+
+```text
+## The defect this file exists for
+
+Found 2026-09-08. `shared/companyPreparedDraft.js` states the boundary: a
+carrier may read the answers of its own prepared draft until the driver's first
+save, and from then on sees contact and progress only. It was enforced at one of
+the two doors that read those answers. `companyApplications/read.js` consulted
+`companyMayReadAnswers`, which tests `status`; `companyApplications/invite.js`
+consulted `isCompanyPrepared`, which tests `origin` — the field that records who
+*created* the draft and deliberately never changes.
+
+So a carrier could mint a link, exchange it itself from anything (the exchange is
+unauthenticated by necessity — the driver has no account), and recover exactly the
+answers the cutoff had just withheld, plus a resume token that could rewrite them.
+`StartApplicationPage` rendered the mint button on the very screen that tells the
+recruiter the answers are the driver's now.
+
+**Gating the mint would not have closed it.** The driver's first save leaves
+`inviteTokenHash` untouched, so the link the carrier had already copied kept
+working. The fix is at the exchange, which is what these cases pin.
+```
+
+## `functions/test/unit/companyApplications.invite.test.js`
+
+```text
+Opening alone is deliberately NOT the fact (moved 2026-09-08). The
+carrier holds this link too, and stamping the claim on the exchange let
+it arm locked-employer enforcement for a driver who had never been shown
+the rows — the exact refusal the field exists to prevent.
+```
+
+## `functions/test/unit/connectFacebookPage.authz.test.js`
+
+```text
+Until 2026-08-25 this callable did:
+
+    const companyId = request.auth.uid; // Assumes 1:1 user-company mapping
+
+SafeHaul has never worked that way. Companies carry generated ids and users
+join them through `memberships`; a user can belong to several, which is why
+there is a company chooser. So every page connected through this callable
+wrote `integrations_index/{pageId}.companyId = <a user id>`, and every lead
+the webhook later ingested went to `companies/{uid}/leads` — a tree belonging
+to no company, which no screen reads. The leads were not delivered to the
+wrong tenant; they were silently dropped into nowhere.
+
+The caller now names the company and the server authorizes it. These tests
+cover the full matrix, because the failure mode of getting this wrong the
+*other* way — trusting a client-supplied id — is worse than the bug being
+fixed: it would plant one company's leads in another's tenant.
+```
+
+## `functions/test/unit/deleteApplication.test.js`
+
+```text
+A custom file question keeps its upload inside `customAnswers` (2026-10-02).
+```
+
+## `functions/test/unit/employmentVerification.responses.test.js`
+
+```text
+Split from the single 525-line suite on 2026-09-09 for the source-size standard;
+`employmentVerification.support.js` holds the harness, and every `describe`
+keeps its original title so full test names are unchanged.
+```
+
+```text
+Step J (2026-09-06): the signature arrives as a drawn PNG or a typed
+name and is validated by employmentVerification/signature.js before
+anything is stored. These three pin what submitVerificationResponse
+does with each outcome; the normaliser's own rules live in
+pevSignature.test.js.
+```
+
+## `functions/test/unit/employmentVerification.support.js`
+
+```text
+Split out of the single 525-line file on 2026-09-09 for the source-size
+standard, when the request suite grew the cases that pin employer identity —
+a Previous Employment Verification must never be able to land on the wrong
+employer, and proving that takes more than one case.
+```
+
+## `functions/test/unit/employmentVerification.test.js`
+
+```text
+The identity's own lost-update race, found in review on 2026-09-09.
+```
+
+## `functions/test/unit/guestApplication.test.js`
+
+```text
+The wizard checks "the last seven days" against the applicant's calendar, and
+this process runs on UTC, so every submission sent between 00:00 UTC and the
+applicant's own midnight — each US evening — failed an Hours of Service
+statement the wizard had just accepted (proven 2026-10-01 against these very
+modules). Built from the process's OWN calendar, so the scenario "the
+applicant is a day behind us" holds in whatever timezone the suite runs.
+```
+
+## `functions/test/unit/pevSignature.test.js`
+
+```text
+Until 2026-09-06 the server accepted any string that started with
+`data:image`, decoded whatever followed and wrote it to Cloud Storage as a
+PNG. Every refusal below is a shape that would have reached Storage, the
+response record or the DQ-file PDF under that rule.
+```
+
+## `functions/test/unit/reportExtraction.test.js`
+
+```text
+Seven digits is the ordinary length now. The value used to be cut to twelve
+characters BEFORE the digits were taken, so these became 123456 and 3 —
+and the wrong number became the identity a carrier locked (2026-10-01).
+```
+
+## `functions/test/unit/secretBindingGenerations.test.js`
+
+```text
+On 2026-08-19 a green pull request merged and `main` shipped nothing. Four new
+**1st-generation** callables declared `secrets: ['SMS_ENCRYPTION_KEY']`, and
+every previous consumer of that secret was **2nd generation**. The two
+generations default to different runtime service accounts — App Engine for v1,
+Compute Engine for v2 — so the Firebase CLI tried to add a binding the secret's
+IAM policy did not have:
+
+    i functions: ensuring truckerapp-system@appspot.gserviceaccount.com
+                 access to secret SMS_ENCRYPTION_KEY.
+    Error: ... Permission 'secretmanager.secrets.setIamPolicy' denied
+
+The CI deploy account can deploy functions but cannot rewrite secret IAM. So
+`deploy-functions` aborted — for **every** function, not only the new ones —
+and the shared backend that Production also runs on stayed on the previous
+revision. `verify-shipped` caught it, which is the only reason anybody knew.
+
+Nothing in the test suite could have caught it: the functions load fine, the
+unit tests pass, and a pull request never deploys. This test is the guard.
 ```
