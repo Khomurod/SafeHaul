@@ -935,7 +935,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (its admins may read it); password in plain text by decision, shown only by the vault's audited reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until migrated); it decrypts an `enc:v1:` password |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
-| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health. The marketing-site bot is **retired** (`LD-R3`): promotion's `scripts/retire-functions.mjs` keeps `listLandingLeads`; a rollback past it calls deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
+| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat connected in Super Admin → System Health. The marketing-site bot is **retired** (`LD-R3`): promotion's `scripts/retire-functions.mjs` keeps `listLandingLeads`; a rollback past it calls deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
 | **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
 | **Sentry** | Error monitoring for the browser app (`@sentry/react`); Cloud Functions log to Cloud Logging only | DSN |
@@ -951,7 +951,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
   probes every claimed capability, calls a throttled probe untested; a full
   pass clears cooldowns. Health and cooldown are **per lane**
   (text / vision), each up to three versions, kept by `refreshAiModelLists`
-  (**Model versions**, **Check versions now**, auto-select, built-in reset); a re-pin in code
+  (**Model versions**); a re-pin in code
   wins. One gone, off the plan or rate-limited rests; the next is tried while two
   slices remain. Document reads cap each attempt and skip a vendor's pause over
   5 s while another can serve. See [`docs/ai-platform.md`](./ai-platform.md).
@@ -1012,10 +1012,10 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
 
 ### Firestore triggers
 
-- **Driver sync** — a new application or lead files its details (no SSN) under
-  `drivers/{id}/pending_updates`, read by nothing, and adds the company to an
-  existing profile (`{id}`: the Auth uid of a known email, else a profile matched by
-  phone, else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created.
+- **Driver sync** — a new lead, or a new signed application (an unsigned one is
+  marked `validation_error`), files its details (no SSN) under `drivers/{id}/pending_updates`,
+  read by nothing, and adds the company to an existing profile (`{id}`: the Auth uid of a known email;
+  for a placeholder email, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created.
 - **Stats** — `activity_logs` writes roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
@@ -1136,8 +1136,8 @@ number; no reply fills them (§12).
   approved.
 - **Unfinished and carrier-started applications are drafts in their own
   collection, never early `applications` documents**, whose four `create`
-  triggers would notify a recruiter, email "application received", create a
-  `drivers/{id}` staging entry and move the dashboard counters before anyone
+  triggers would notify a recruiter, email "application received", mark the
+  unsigned record `validation_error` and move the dashboard counters before anyone
   read, consented to or signed anything. The driver's own submission promotes a
   draft (§5).
 - **Discarding a draft is never a dismissal.** `ConfirmDialog` routes Escape to
