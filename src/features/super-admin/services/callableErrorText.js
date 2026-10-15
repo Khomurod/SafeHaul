@@ -16,6 +16,8 @@ export const serverReason = (error, fallback) => error.message?.replace(/^.*?:\s
 /** The server's message exactly as sent, else the fallback. */
 export const serverMessage = (error, fallback) => error.message || fallback;
 
+const has = (map, key) => Object.prototype.hasOwnProperty.call(map, key);
+
 const COMMON_TEXT = Object.freeze({
     unauthenticated: 'Your session has ended. Sign in again to continue.',
     'permission-denied': 'Super Admin access is required for this action.',
@@ -36,8 +38,8 @@ export function callableErrorText(error, fallback, texts = {}) {
     const code = typeof error.code === 'string' && error.code.startsWith('functions/')
         ? error.code.slice('functions/'.length)
         : null;
-    const text = (code && Object.hasOwn(texts, code) ? texts[code] : null)
-        ?? (code && Object.hasOwn(COMMON_TEXT, code) ? COMMON_TEXT[code] : null)
+    const text = (code && has(texts, code) ? texts[code] : null)
+        ?? (code && has(COMMON_TEXT, code) ? COMMON_TEXT[code] : null)
         ?? texts.default
         ?? fallback;
     return typeof text === 'function' ? text(error, fallback) : text;

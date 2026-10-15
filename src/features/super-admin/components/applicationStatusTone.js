@@ -14,5 +14,5 @@ const STATUS_TONES = Object.freeze({
 });
 
 export function applicationStatusTone(status) {
-    return Object.hasOwn(STATUS_TONES, status) ? STATUS_TONES[status] : 'neutral';
+    return Object.prototype.hasOwnProperty.call(STATUS_TONES, status) ? STATUS_TONES[status] : 'neutral';
 }
