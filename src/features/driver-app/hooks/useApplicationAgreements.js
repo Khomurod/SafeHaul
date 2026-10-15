@@ -13,12 +13,47 @@
 // hook reports the failure and the consent step blocks submission. Letting an
 // applicant certify against agreements that never rendered would manufacture
 // exactly the false evidence this work exists to prevent.
+//
+// ONE READ PER PAGE
+// -----------------
+// Step 4 and Step 9 both show agreements, and a driver moves between them and
+// back. The set a company's page received is the one shown on every step, so it
+// is read once per page load; a failure, or an empty set, is never remembered,
+// and Try again or the next step asks afresh.
 
 import { useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
 import { E2E_AGREEMENTS, E2E_AGREEMENT_VERSION } from './e2eAgreementFixtures';
+
+/** companyId -> the read in flight or done; a failed read is removed. */
+const agreementReads = new Map();
+
+function readAgreements(companyId) {
+    if (!agreementReads.has(companyId)) {
+        const read = (async () => {
+            const call = httpsCallable(functions, 'getApplicationAgreements');
+            const { data } = await call({ companyId });
+            const list = Array.isArray(data?.agreements) ? data.agreements : [];
+            if (list.length === 0) {
+                // An empty set is a failure, not an application with no
+                // agreements. Treating it as "nothing to accept" would let the
+                // driver sign a certification with no disclosures attached.
+                throw new Error('No agreements were returned.');
+            }
+            return { agreements: list, agreementVersion: data?.agreementVersion || null };
+        })();
+        agreementReads.set(companyId, read);
+        read.catch(() => { if (agreementReads.get(companyId) === read) agreementReads.delete(companyId); });
+    }
+    return agreementReads.get(companyId);
+}
+
+/** For tests: forget every read. */
+export function resetApplicationAgreementsCache() {
+    agreementReads.clear();
+}
 
 export function useApplicationAgreements(companyId) {
     const [agreements, setAgreements] = useState([]);
@@ -57,20 +92,10 @@ export function useApplicationAgreements(companyId) {
 
         (async () => {
             try {
-                const call = httpsCallable(functions, 'getApplicationAgreements');
-                const { data } = await call({ companyId });
+                const { agreements: list, agreementVersion: version } = await readAgreements(companyId);
                 if (!active) return;
-
-                const list = Array.isArray(data?.agreements) ? data.agreements : [];
-                if (list.length === 0) {
-                    // An empty set is a failure, not an application with no
-                    // agreements. Treating it as "nothing to accept" would let the
-                    // driver sign a certification with no disclosures attached.
-                    throw new Error('No agreements were returned.');
-                }
-
                 setAgreements(list);
-                setAgreementVersion(data?.agreementVersion || null);
+                setAgreementVersion(version);
             } catch (err) {
                 if (!active) return;
                 setAgreements([]);

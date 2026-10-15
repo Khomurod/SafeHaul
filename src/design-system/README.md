@@ -33,8 +33,9 @@ Before changing UI code, read:
   through `glyphComponent`, because the exported §391.23 document must carry no
   `ds-*` class and `Icon` stamps one; the reason is written above the calls. See
   `icons/README.md`.
-- `fonts/` — Inter's two variable faces (SIL OFL 1.1), served from this
-  repository rather than a CDN (roadmap §6).
+- `fonts/` — Inter's two variable faces (SIL OFL 1.1) and the parts cut from
+  them by script, served from this repository rather than a CDN (roadmap §6;
+  `fonts/README.md`).
 - `stories/` — the component catalog, built with Storybook 10 and configured in
   `.storybook/`. `npm run storybook` runs it; `npm run test:stories` renders
   every story and runs axe over it. See `stories/README.md`.

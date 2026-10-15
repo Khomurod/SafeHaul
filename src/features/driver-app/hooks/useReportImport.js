@@ -15,11 +15,7 @@ import { useCallback, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { aiReadErrorMessage } from '@shared/utils/aiReadErrors';
-import {
-    compressImageFile,
-    loadPdfDocument,
-    renderPageToDataUrl,
-} from '@features/signing/utils/pdfPageRasterizer';
+import { compressImageFile } from '@features/signing/utils/imageCompression';
 import { fileToDataUrl } from '../components/application/publicApplyHelpers';
 
 /** Must match the callable's `MAX_PAGES`. */
@@ -36,6 +32,16 @@ function assertPageFits(dataUrl) {
 }
 
 /**
+ * The PDF reader, fetched when a PDF is chosen: pdf.js is about 116 KB gzipped,
+ * every driver opens the application page and few import a report.
+ */
+async function pdfReader(deps) {
+    if (deps.loadPdf && deps.renderPage) return { loadPdf: deps.loadPdf, renderPage: deps.renderPage };
+    const { loadPdfDocument, renderPageToDataUrl } = await import('@features/signing/utils/pdfPageRasterizer');
+    return { loadPdf: deps.loadPdf || loadPdfDocument, renderPage: deps.renderPage || renderPageToDataUrl };
+}
+
+/**
  * A PDF becomes up to `REPORT_MAX_PAGES` JPEG data URLs; a photo becomes one.
  * Every page is held to the callable's own per-page ceiling here, so nothing is
  * sent that the server is certain to refuse. Anything else is refused with a
@@ -44,16 +50,12 @@ function assertPageFits(dataUrl) {
  * @returns {Promise<{pages: string[], totalPages: number}>}
  */
 export async function fileToPageImages(file, deps = {}) {
-    const {
-        loadPdf = loadPdfDocument,
-        renderPage = renderPageToDataUrl,
-        readImage = fileToDataUrl,
-        compressImage = compressImageFile,
-    } = deps;
+    const { readImage = fileToDataUrl, compressImage = compressImageFile } = deps;
     if (!file) throw new Error('Choose a file to import.');
     if (file.size > REPORT_MAX_FILE_BYTES) throw new Error('That file is too large. Please upload a file under 15 MB.');
 
     if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '')) {
+        const { loadPdf, renderPage } = await pdfReader(deps);
         const document = await loadPdf(file);
         try {
             const count = Math.min(document.numPages, REPORT_MAX_PAGES);

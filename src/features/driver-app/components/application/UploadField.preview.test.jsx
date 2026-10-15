@@ -22,6 +22,7 @@ vi.mock('@lib/firebase', () => ({ functions: {}, storage: {} }));
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false, getE2EQueryParam: () => null }));
 
 import UploadField from './UploadField';
+import { resetSignedPreviewCache } from '../../hooks/useSignedUploadPreview';
 
 /** What an upload leaves behind now: the durable path, and no signature. */
 const ATTACHED = {
@@ -53,6 +54,8 @@ beforeEach(() => {
     // test never consumes leaks into the next one. `src/tests/mockResetHygiene.test.js`
     // fails the build for the pair, which is how this was caught.
     vi.resetAllMocks();
+    // A signed link is reused for ten minutes within a page; each case here is a page of its own.
+    resetSignedPreviewCache();
     mocks.httpsCallable.mockReturnValue(mocks.call);
     mocks.call.mockResolvedValue({ data: { success: true, url: 'https://signed.example/fresh' } });
 });
