@@ -11,8 +11,8 @@ import { MISSING_TOKEN, lineDisplay, sanitizePhone } from '../../utils/linePhone
  * from `NumberAssignmentManager.jsx`, where this row was originally inlined.
  * The row stays a real `<tr>` (not the approved `DataTable`): editable
  * per-row `<select>`s and verify actions are outside `DataTable`'s proven
- * display-table contract, per the 2026-07-23 deep-audit; see
- * `NumberAssignmentManager.jsx` for the full rationale.
+ * display-table contract; see `NumberAssignmentManager.jsx` for the full
+ * rationale.
  *
  * Defects fixed here:
  *  - the assignment `<select>` had no accessible name (now `aria-label`);
@@ -25,11 +25,11 @@ import { MISSING_TOKEN, lineDisplay, sanitizePhone } from '../../utils/linePhone
  *    a `title` attribute — no visible or accessible text (now paired with a
  *    visually-hidden status string).
  *
- * Since 2026-09-06 (audit step K) the row is also a card on a phone: every
- * `<td>` names its column in `data-label`, and the roles are stated explicitly
- * so the table semantics survive `display: block` — see `AssignmentTable.jsx`.
- * The hand-written hover tint is gone with it: the contract reserves a hover
- * for rows that activate, and a matrix of form controls has no row activation.
+ * The row is also a card on a phone: every `<td>` names its column in
+ * `data-label`, and the roles are stated explicitly so the table semantics
+ * survive `display: block` — see `AssignmentTable.jsx`. It has no hover tint:
+ * the contract reserves a hover for rows that activate, and a matrix of form
+ * controls has no row activation.
  */
 export function AssignmentRow({
     user,

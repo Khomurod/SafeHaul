@@ -6,14 +6,12 @@ import { isValidEmail, isValidPhone } from '@shared/utils/validation';
  *
  * ## Why this exists rather than a `disabled` attribute
  *
- * Save and "Create the driver's link" were `disabled` whenever their
- * prerequisites were unmet, and nothing on the screen said what those were. The
- * link's real precondition was *"save first"* — `canMint` was
- * `Boolean(prep.applicantKey)`, which only a save sets — and that sentence
- * appeared nowhere at all. The precise message for the other one already existed
- * and was unreachable: `functions/companyApplications/prepare.js` says "Enter the
- * driver's email or phone first — it identifies the application", and the client
- * guard is what stopped anyone ever seeing it. Found 2026-09-08.
+ * A `disabled` control says nothing about what it is waiting for. The link's
+ * real precondition is *"save first"* — `canMint` is
+ * `Boolean(prep.applicantKey)`, which only a save sets — and
+ * `functions/companyApplications/prepare.js` already has the precise message for
+ * the other one: "Enter the driver's email or phone first — it identifies the
+ * application". A client guard that disables the control hides both.
  *
  * So the controls stay clickable and the click validates. Modelled on
  * `publicApplyPreflight.js` on the driver's side, which does the same job for

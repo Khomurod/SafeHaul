@@ -1,10 +1,9 @@
-// The envelope editor's field-manipulation handlers, split out of
-// `EnvelopeCreator.jsx` on 2026-09-01 for the source-size standard (SG-1b).
+// The envelope editor's field-manipulation handlers, kept apart from
+// `EnvelopeCreator.jsx` for the source-size standard.
 // Everything here is a mutation of the placed-field array routed through the
-// history hook's `commitFields`, plus the purely visual drag guides. Bodies
-// verbatim from the component; `file`, `activePage` and `selectedFieldId` are
-// hook arguments now, and each useCallback keeps its original dependency list
-// with those names unchanged.
+// history hook's `commitFields`, plus the purely visual drag guides. `file`,
+// `activePage` and `selectedFieldId` are hook arguments, under the same names
+// in each useCallback's dependency list.
 import { useState, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { FIELD_TEMPLATES } from '../components/envelope-creator/fieldDefinitions';

@@ -2,31 +2,26 @@ import { useCallback, useEffect, useRef } from 'react';
 
 /*
  * `loading` disables the input, and disabling the element that currently has
- * focus drops focus to `<body>` — so an upload started from the keyboard ended
- * with the user at the top of the document once it finished. The two pickers
- * this component replaced each had their own focus-return effect for exactly
- * this; deleting them without putting the behaviour here is what a review of
- * 2026-08-25 caught.
+ * focus drops focus to `<body>` — so without this an upload started from the
+ * keyboard would end with the user at the top of the document.
  *
  * It belongs in the primitive rather than at each call site: `loading` is this
  * component's prop, so this is this component's consequence.
  *
- * ## Focus goes back only if it was HERE to begin with (2026-08-26)
+ * ## Focus goes back only if it was HERE to begin with
  *
- * The first version armed the flag on every `change`, reasoning that "the
- * change event comes from the input, so the input is focused". True of the
- * picker, false of a drop: `handleDrop` below assigns the dropped files to
- * this input and dispatches `change` *from* it, and a drop moves no focus at
- * all. Measured in Chromium — after a drop on the panel `document.activeElement`
- * is still `<body>`, and the dispatched `change` arrives with it still there.
+ * A `change` does not mean the input is focused. True of the picker, false of
+ * a drop: `handleDrop` below assigns the dropped files to this input and
+ * dispatches `change` *from* it, and a drop moves no focus at all. Measured in
+ * Chromium — after a drop on the panel `document.activeElement` is still
+ * `<body>`, and the dispatched `change` arrives with it still there.
  *
- * So a mouse user who dragged a logo onto the dashed panel had focus jump into
- * a 1x1 clipped input the moment the upload finished. The restore guard below
- * cannot catch that, because `<body>` is both "the user had nothing focused"
- * and "focus was just taken away from this input" — the two states it exists
- * to tell apart. Found in review on 2026-08-26.
+ * Arming the flag on every `change` would make focus jump into a 1x1 clipped
+ * input when a dragged-in upload finished. The restore guard below cannot catch
+ * that, because `<body>` is both "the user had nothing focused" and "focus was
+ * just taken away from this input" — the two states it exists to tell apart.
  *
- * The fix asks the question the guard cannot: was this input *itself* what
+ * So the flag asks the question the guard cannot: was this input *itself* what
  * focus was on when the file arrived? That is exactly what separates the
  * paths, and each half was measured rather than assumed:
  *

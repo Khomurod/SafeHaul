@@ -10,31 +10,25 @@ import { applicationStatusTone } from '../applicationStatusTone';
  * Read-only list of a company's driver applications, opened from the Super Admin
  * companies table.
  *
- * Migrated to the approved accessible `Modal` 2026-07-28. Presentation only — the
+ * Presentation only, in the approved accessible `Modal`. Frozen contracts: the
  * `loadApplications(companyId)` call, the multi-shape name/email/phone resolvers,
  * the client-side filter across name/email/status, the `submittedAt` →
- * `createdAt` → `'--'` date precedence, and every frozen string are unchanged.
+ * `createdAt` → `'--'` date precedence, and every frozen string.
  * The `view-apps-modal` id is preserved for existing selectors.
  *
- * Fixed here:
- *  - Hand-built overlay replaced by the approved `Modal`. The old one closed on any
- *    click on the backdrop *and* relied on `stopPropagation` inside the panel —
- *    which meant a click that started inside the panel and ended on the backdrop
- *    (a drag while selecting text in the table) closed the dialog and lost the
- *    view. It also had no dialog role, focus trap, Escape or focus restoration.
- *  - The filter `<input>` had no label, only a placeholder.
- *  - The unnamed icon-only close control.
- *  - Loading and error states were not announced (`role="status"` / `role="alert"`
- *    now). The empty state still was not, until 2026-08-25: filtering the list to
- *    nothing replaced the whole table with "No matches found." and announced
- *    nothing. The error and empty panels are the approved `ErrorState` and
- *    `EmptyState`, which own that announcement; the brand loader stays, because
- *    `LoadingState`'s spinner is not it.
- *  - **Status was communicated by colour alone.** The old markup passed the
- *    status through `getStatusColor(...).replace('bg-', ...).replace('text-', ...)`,
- *    a brittle string rewrite that produced a colour-only pill built from legacy
- *    palette classes. Status is now an approved `Badge` whose text carries the
- *    meaning, with the domain→tone mapping owned by this feature.
+ * Rules this dialog keeps:
+ *  - It is the approved `Modal`: dialog role, focus trap, Escape and focus
+ *    restoration, and only a click that starts on the backdrop closes it, so a
+ *    drag while selecting text in the table cannot lose the view.
+ *  - The filter `<input>` has a label, not only a placeholder.
+ *  - The icon-only close control has an accessible name.
+ *  - Loading, error and empty states are announced (`role="status"` /
+ *    `role="alert"`). The error and empty panels are the approved `ErrorState`
+ *    and `EmptyState`, which own that announcement, so filtering the list to
+ *    nothing is announced too; the brand loader stays, because `LoadingState`'s
+ *    spinner is not it.
+ *  - **Status is never colour alone.** It is an approved `Badge` whose text
+ *    carries the meaning, with the domain→tone mapping owned by this feature.
  *
  * `DataTable` is deliberately not used: this is a display-only table nested
  * inside a dialog with its own scroll container and sticky header, and the

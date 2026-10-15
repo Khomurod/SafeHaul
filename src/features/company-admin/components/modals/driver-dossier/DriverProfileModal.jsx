@@ -16,8 +16,8 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * The main container for the Driver Dossier. It manages the active tab state and
  * orchestrates data fetching via `useApplicationView`.
  *
- * Presentation migrated to the approved accessible `Modal`, the approved `Button`
- * and `--ds-*` tokens (2026-07-27).
+ * Presentation uses the approved accessible `Modal`, the approved `Button`
+ * and `--ds-*` tokens.
  *
  * Frozen contracts: the dialog's accessible name **"Driver dossier"** and the
  * fact that Escape closes it (both asserted by
@@ -29,25 +29,19 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * `company_admin`-of-this-company OR `super_admin` delete rule; and every
  * confirmation string.
  *
- * DEFECTS FIXED (2026-07-27):
- * - The dialog was hand-rolled: `role="dialog"`/`aria-modal` with **no focus
- *   containment, no focus move-in and no focus restoration**. Tab walked straight
- *   out of the dossier into the page behind it, and closing dumped the keyboard
- *   user back at the top of the document. It now uses the shared accessible
- *   `Modal`, which owns all three.
- * - Escape was a `window` listener owned by this component. While a delete was
- *   in flight the confirmation's own `onClose` is intentionally `undefined`, so
- *   nothing stopped the event and Escape tore down the whole dossier
- *   mid-delete. `Modal` now owns Escape per dialog, so Escape dismisses the
- *   topmost one and is inert while deleting.
- * - The layout was `flex-row` with a fixed **280 px** sidebar inside a `90vw`
- *   panel. At 412 px that left roughly 90 px for the actual content. The panel is
- *   now full-screen below `sm` with the navigation as a horizontal strip, and the
- *   three-pane desktop layout from `sm` up.
- * - Loading was a bare spinning icon (no role, no text) and the error was a plain
- *   `<div>`; neither was announced. They are now `role="status"` / `role="alert"`.
- * - The destructive confirmation focused its first focusable element, which was
- *   the destructive button. It now opens with focus on Cancel.
+ * Rules this dialog keeps:
+ * - It is the shared accessible `Modal`, which owns focus containment, focus
+ *   move-in and focus restoration, so Tab cannot walk out of the dossier into
+ *   the page behind it and closing returns the keyboard user where they were.
+ * - `Modal` owns Escape per dialog, so Escape dismisses the topmost one and is
+ *   inert while deleting. No `window` listener here: while a delete is in flight
+ *   the confirmation's own `onClose` is intentionally `undefined`, so such a
+ *   listener would tear down the whole dossier mid-delete.
+ * - The panel is full-screen below `sm` with the navigation as a horizontal
+ *   strip, and the three-pane desktop layout from `sm` up; a fixed 280 px
+ *   sidebar would leave about 90 px for the content at 412 px.
+ * - Loading and error are announced: `role="status"` / `role="alert"`.
+ * - The destructive confirmation opens with focus on Cancel.
  */
 export function DriverProfileModal({
     companyId,

@@ -99,13 +99,9 @@ export const voePreviewModalMock = () => ({
 /**
  * A factory, not a shared constant.
  *
- * It was that way because `handleFinalSend` and `handleUploadResult` took a
- * shallow `[...employers]` copy and then mutated the employer objects inside it —
- * the very objects handed in through `appData` — so a shared fixture carried one
- * test's "Sent" status into the next. That in-place mutation of a prop is gone as
- * of 2026-09-09: `writeVerification` re-reads the document and replaces the row,
- * so nothing reaches back into the prop. The factory stays, because a fixture
- * shared between tests is a bad idea whether or not anything mutates it.
+ * `writeVerification` re-reads the document and replaces the row, so nothing
+ * reaches back into the prop — but a fixture shared between tests is a bad idea
+ * whether or not anything mutates it.
  */
 export const makeEmployers = () => [
   {

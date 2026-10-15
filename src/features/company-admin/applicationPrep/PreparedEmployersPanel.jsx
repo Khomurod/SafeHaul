@@ -21,22 +21,21 @@ import { employerSignature, isLockedEmployerRow } from '@/config/applicationLock
  * button: the name and USDOT number stop being editable, and everything else about
  * the row stays theirs.
  *
- * ## A locked row's identity is read-only HERE too, which it was not
+ * ## A locked row's identity is read-only HERE too
  *
- * The lock stores a snapshot of the row's identity, and this panel let the carrier
- * go on editing the very fields that snapshot is taken from. The two drifted, and
- * four ordinary edits produced an application the driver was blocked on at
- * submission and could not fix — the sharpest being a corrected NAME on a row
- * locked by USDOT number, which trips `locked-employer-changed` while the wizard
- * renders that identity as a record rather than a field, so the driver was blocked
- * on the one field they are not allowed to touch. Found 2026-09-08.
+ * The lock stores a snapshot of the row's identity, so the carrier may not go on
+ * editing the fields that snapshot is taken from: the two would drift, and the
+ * driver would be blocked at submission on a field they are not allowed to touch
+ * — a corrected NAME on a row locked by USDOT number trips
+ * `locked-employer-changed` while the wizard renders that identity as a record
+ * rather than a field.
  *
  * So the identity is a read-only display while the lock exists, and correcting it
  * means Unlock → correct → Lock, which mints a lock that matches. That is the same
  * rule the design system already states for a field its viewer may not change, and
  * the same shape the driver's wizard uses — the wording differs because the
- * audience does. The other half of the fix is `reconcileLockedEmployers`, for the
- * edit that leaves nothing to render: a deleted row.
+ * audience does. `reconcileLockedEmployers` covers the edit that leaves nothing to
+ * render: a deleted row.
  */
 export function PreparedEmployersPanel({ formData, updateFormData, lockedEmployers, onLock, onUnlock }) {
     const ty = new Date().getFullYear();

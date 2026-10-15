@@ -9,16 +9,13 @@ import { Button, Card, FieldMessage } from '@/design-system/components';
  * never can again. So the panel says so rather than implying a link can be looked
  * up later, and offers the honest remedy: make a new one, which retires the old.
  *
- * ## The copy below is a claim about the server, and it was false
+ * ## The copy below is a claim about the server
  *
- * "Creating a new one retires this one" described the intent while the server did
- * the opposite: one document-level expiry, rewritten by every mint and shared by
- * every accepted hash, so regenerating revived the old link for a further fourteen
- * days instead of retiring it. Fixed on 2026-09-08 in
- * `functions/companyApplications/invite.js`, where each hash now carries its own
- * expiry and a replaced link keeps a ten-minute grace so a driver mid-page is not
- * cut off. **The sentence names the grace**, because "retires this one" on its own
- * is the wording that was wrong before.
+ * "Creating a new link retires this one" is true because
+ * `functions/companyApplications/invite.js` gives each hash its own expiry, and a
+ * replaced link keeps a ten-minute grace so a driver mid-page is not cut off.
+ * **The sentence names the grace**, because "retires this one" on its own would
+ * overstate it.
  */
 /**
  * `driverStarted` is not a permission — the boundary is enforced in
@@ -29,12 +26,8 @@ import { Button, Card, FieldMessage } from '@/design-system/components';
  * own application and asks them to confirm who they are. Hiding the button would
  * remove a workflow the boundary does not require removing.
  *
- * **And until 2026-09-09 that last sentence was another claim about the server
- * that was not true.** The link did reach the right application and did ask for
- * identity — and the browser had no screen for that answer at all, so the driver
- * landed on the fresh-application chooser. The sentence below names all four
- * things the screen now asks for, because naming only two of them is the same
- * kind of drift the expiry copy above records.
+ * **That last sentence is a claim about the server too**, so the sentence below
+ * names all four things the confirmation screen asks for, not two of them.
  */
 export function InviteLinkPanel({ link, busy, error, copied, copyFailed, driverStarted, onMint, onCopy }) {
     return (

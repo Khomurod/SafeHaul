@@ -8,9 +8,9 @@ import { Modal } from '@design-system/patterns';
 /**
  * Destructive confirmation for deleting a company.
  *
- * Migrated to the approved accessible `Modal` 2026-07-28. Presentation only — the
+ * Presentation only, in the approved accessible `Modal`. Frozen contracts: the
  * `deleteCompany` callable name and its `{ companyId }` payload, the
- * `onConfirm()` → `onClose()` order, and every frozen string are unchanged.
+ * `onConfirm()` → `onClose()` order, and every frozen string.
  *
  * Fixed here:
  *  - The hand-built `fixed inset-0` overlay had no dialog semantics, no focus

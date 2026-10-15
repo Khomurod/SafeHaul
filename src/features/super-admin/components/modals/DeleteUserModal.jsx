@@ -8,9 +8,9 @@ import { Modal } from '@design-system/patterns';
 /**
  * Destructive confirmation for deleting a portal user.
  *
- * Migrated to the approved accessible `Modal` 2026-07-28. Presentation only — the
+ * Presentation only, in the approved accessible `Modal`. Frozen contracts: the
  * `deletePortalUser` callable name and its `{ userId }` payload, the
- * `onConfirm()` → `onClose()` order, and every frozen string are unchanged.
+ * `onConfirm()` → `onClose()` order, and every frozen string.
  *
  * Same defect set as `DeleteCompanyModal`: no dialog semantics, no focus trap,
  * no Escape, no focus restoration, an unnamed icon-only close control, and an

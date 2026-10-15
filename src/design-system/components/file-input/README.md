@@ -3,13 +3,9 @@
 The approved file-picker contract. Nine places were feature-owned for want of
 one, and between them had three different ways of opening a picker.
 
-Every one of those nine carried a comment saying "the design system has no
-approved file-input contract yet". It shipped on 2026-08-21; four days later this
-component had **two** consumers and the other nine were untouched. Migrating them
-(2026-08-25) showed why, and it was not neglect: **the contract existed and its
-API covered one of the product's three shapes.** A primitive that fits a third of
-its call sites does not get adopted. `check:ui-contract`'s `raw-file-input` rule
-is what stops the tenth being written.
+**The API covers all three of the product's shapes**, because a primitive that
+fits a third of its call sites does not get adopted. `check:ui-contract`'s
+`raw-file-input` rule is what stops a tenth being written.
 
 ## The one structural rule
 
@@ -32,7 +28,7 @@ filtering come for free; dropped files are handled explicitly by `onDrop`.
 | Prop | For |
 |---|---|
 | default | A picker beside other controls — a settings field, a per-row upload |
-| `variant="dropzone"` | The full-width dashed panel. `BulkUploadLayout`, the driver application's `UploadField`, the campaign recipient import and the e-doc envelope creator had each built this by hand. As a `<label>` the whole panel is the click target, and `onDrop` accepts a file dropped anywhere on it — none of the four hand-built versions had the second, and neither did this until 2026-08-25: the docs claimed the label supplied it, but a label forwards a click to its control and never a drop, so dropped files were silently discarded |
+| `variant="dropzone"` | The full-width dashed panel, used by `BulkUploadLayout`, the driver application's `UploadField`, the campaign recipient import and the e-doc envelope creator. As a `<label>` the whole panel is the click target, and `onDrop` accepts a file dropped anywhere on it: a label forwards a click to its control and never a drop, so the drop needs its own handler |
 | `loading` | An upload in flight: it spins, says so with `aria-busy`, and refuses a second file. The avatar and company-logo pickers used `Button loading` plus a hidden input for exactly this |
 | `labelHidden` | A picker whose field is already named on screen — a photo preview beside it. Same prop and meaning as `Checkbox`'s |
 
@@ -48,25 +44,16 @@ all of that around it.
 ## `loading` owns the focus it takes away
 
 `loading` disables the input, and disabling the element that currently has focus
-drops focus to `<body>`. An upload started from the keyboard therefore ended with
-the user at the top of the document once it finished — the picker they were on had
-been disabled underneath them.
-
-The two hand-built pickers this component replaced each had their own
-focus-return effect for exactly this, and deleting them without putting the
-behaviour here is a real regression a review caught on 2026-08-25. It lives in
-the component now, because `loading` is the component's prop and this is the
+drops focus to `<body>`, so without a restore an upload started from the
+keyboard would end with the user at the top of the document. The restore lives
+in the component, because `loading` is the component's prop and this is the
 component's consequence.
 
-It is a **restore**, not a grab, and it asks a narrower question than it first
-did. An earlier version armed the flag on every `change`, reasoning that the
-event comes from the input so the input must be focused. True of the picker,
-false of a drop: `handleDrop` dispatches `change` *from* the input and a drop
-moves no focus at all, so a mouse user who dragged a logo onto the panel had
-focus jump into a clipped 1x1 input when the upload finished. The flag is now
-armed only when this input *is* `document.activeElement` as the file arrives, and
-focus is returned only if nothing meaningful holds it when `loading` clears. A
-user who tabbed away during the upload keeps their place.
+It is a **restore**, not a grab. The flag is armed only when this input *is*
+`document.activeElement` as the file arrives — not on every `change`, because
+`handleDrop` dispatches `change` *from* the input and a drop moves no focus at
+all — and focus is returned only if nothing meaningful holds it when `loading`
+clears. A user who tabbed away during the upload keeps their place.
 
 ## Rules the tests pin
 
@@ -83,8 +70,8 @@ user who tabbed away during the upload keeps their place.
   worst kind of override.
 - **A drop the `accept` list refuses says so.** The native picker will not offer
   a file it cannot accept; a drop inherits none of that, so `handleDrop` enforces
-  `accept` itself — and, since 2026-08-26, reports what it refused instead of
-  returning in silence. The message is a `role="alert"`, matching `FieldMessage`'s
+  `accept` itself — and reports what it refused instead of returning in
+  silence. The message is a `role="alert"`, matching `FieldMessage`'s
   rule that errors are assertive and everything else polite, and it is visible as
   well as announced. While it stands the input is `aria-invalid` and the message
   joins its `aria-describedby`; any later selection clears all three.
@@ -94,15 +81,14 @@ user who tabbed away during the upload keeps their place.
 - **`onReject` transfers ownership of that message**, and a call site that
   removes the picker needs it. `EnvelopeSidebar` renders the picker only while
   `!file` and `UploadField` only in its idle state, so on a *mixed* drop the
-  accepted file unmounts the alert in the commit that created it — found in
-  review on 2026-08-26 and reproduced. `onReject` fires **after** `onChange`, so
-  a call site can clear stale state in its own handler and still receive the
-  message that arrived with this drop. **`FileInput` still shows its own message
-  whenever it is mounted**; a call site that takes `onReject` shows it only while
-  the picker is *gone*. Those are exact complements, so there is never a second
-  copy and never a render where the visible text disagrees with the input's
-  `aria-invalid` — and no transition has to be enumerated to keep them in step,
-  which is what three earlier attempts got wrong.
+  accepted file unmounts the alert in the commit that created it. `onReject`
+  fires **after** `onChange`, so a call site can clear stale state in its own
+  handler and still receive the message that arrived with this drop.
+  **`FileInput` still shows its own message whenever it is mounted**; a call site
+  that takes `onReject` shows it only while the picker is *gone*. Those are exact
+  complements, so there is never a second copy and never a render where the
+  visible text disagrees with the input's `aria-invalid` — and no transition has
+  to be enumerated to keep them in step.
 - **`loading` implies `disabled`**, so a second file cannot replace the first
   mid-upload.
 - **`disabled` dims the label with the control**, not separately.

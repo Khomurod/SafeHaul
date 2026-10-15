@@ -11,16 +11,14 @@
  *     "A native table is not a licence to style a table by hand. Each of these
  *      uses --ds-table-header-bg, --ds-table-header-fg and the density roles."
  *
- * On 2026-08-25 that was measured. **Seven of the eleven approved native tables
- * referenced no `--ds-table-*` role at all**, and the four that did referenced
- * one or two. ("Eleven" throughout this file is the count of approved *files*;
- * three of them hold more than one `<table>`, for fifteen in total — fourteen
- * visible, all on this contract, plus one `sr-only` table that has no appearance
- * and is exempt. `check:ui-contract` counts tables rather than files, so a
- * three-table file cannot satisfy the rule with one class.) They looked right because `bg-ds-surface-subtle` and
- * `text-ds-content-secondary` happen to be what the header roles resolve to —
- * a coincidence, not a contract, and one that a change to either role would
- * break silently.
+ * Hand-picked classes that happen to resolve to what the header roles do
+ * (`bg-ds-surface-subtle`, `text-ds-content-secondary`) are a coincidence, not a
+ * contract, and a change to either role would break them silently. ("Eleven"
+ * throughout this file is the count of approved *files*; three of them hold more
+ * than one `<table>`, for fifteen in total — fourteen visible, all on this
+ * contract, plus one `sr-only` table that has no appearance and is exempt.
+ * `check:ui-contract` counts tables rather than files, so a three-table file
+ * cannot satisfy the rule with one class.)
  *
  * Cell padding had already drifted for the same reason: `px-ds-6` (24px) in
  * `CompaniesView`, `px-ds-5` (20px) and `px-ds-4` (16px) in `ModernDriverTable`,
@@ -130,17 +128,15 @@
    * which is exactly the behaviour wanted here: a short row gets the contract's
    * row height, and a row with two stacked lines still grows past it.
    *
-   * So the density role was a no-op on every body cell from the day this file was
-   * written, and the rows were whatever their content happened to make them. The
-   * `thead` rule above always used `height`, which is why headers matched
-   * `DataTable` at 48px and bodies did not.
+   * So with `min-height` the density role would be a no-op on every body cell,
+   * and the rows would be whatever their content made them. The `thead` rule
+   * above uses `height` for the same reason, so headers and bodies both match
+   * `DataTable`.
    *
-   * Found in review on 2026-08-25 — and worth being blunt about: the guard had
-   * already caught it. `visual-contract.snapshot.json` recorded
-   * `nativeTable.cell` at 60.5px desktop / 63.5px mobile beside `DataTable`'s
-   * body cell at 72px, in the same file, and I read that as "56 measurements
-   * recorded" without noticing the two numbers disagreed. A guard that captures
-   * the defect is only half of one; somebody has to read what it captured.
+   * `visual-contract.snapshot.json` records `nativeTable.cell` beside
+   * `DataTable`'s body cell, in the same file, and the two must agree. A guard
+   * that captures a defect is only half of one; somebody has to read what it
+   * captured.
    */
   height: var(--ds-native-table-row-height);
   padding: var(--ds-native-table-cell-padding-block) var(--ds-table-cell-padding-inline);
@@ -170,9 +166,8 @@
  * stays put while the row scrolls horizontally underneath it — so with a
  * transparent background the other columns' text paints straight through the
  * frozen first column. `FeaturesView`'s feature matrix is 20+ columns wide and
- * freezes the company name; it had `bg-ds-surface` by hand before the contract
- * arrived, that class was removed with the rest of the hand-picked styling, and a
- * review on 2026-08-25 caught the consequence.
+ * freezes the company name, and relies on this rule rather than a hand-picked
+ * background.
  *
  * The header and body take their own surfaces so a frozen column reads as part of
  * the row it belongs to, and the hover tint follows for a table that has one:
@@ -231,7 +226,7 @@
 /*
  * CARDS ON A PHONE: `data-mobile-presentation="cards"`.
  *
- * ## The decision (audit step K, 2026-09-06)
+ * ## The decision
  *
  * The rule for a table on a phone is in `pinnedColumn.css`: a table whose rows
  * are COMPARED keeps the table, scrolls sideways and pins its first column.

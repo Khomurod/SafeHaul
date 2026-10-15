@@ -62,8 +62,7 @@ native table and all actions, and a mobile-only hint explains the gesture.
 
 ### Tables on phones: the rule
 
-Decided 2026-09-06 (audit step K), after the roadmap had carried it as an open
-per-table decision. The standard applied is Nielsen Norman Group's guidance for
+The standard applied is Nielsen Norman Group's guidance for
 mobile tables (Amy Schade, *Mobile Tables: Comparisons and Other Data Tables*,
 2017): when a table must scroll sideways, *"the leftmost column … should be
 locked in place, so users can see the necessary labels at all times"*, sticky
@@ -133,10 +132,8 @@ about one icon button's worth of room. A cell holding two buttons with text
 labels measures roughly 90px and does not fit — pick `sm` or wider for those.
 The name is the trap: it describes the column's role, not its capacity.
 
-Until 2026-08-21 that overflow was invisible, because an icon inside a button
-could be squeezed by a pixel or two to make the content fit. `Button` now pins
-icon size and sets `flex: 0 0 auto`, so a cell that is too small reports it
-instead of quietly distorting its glyphs.
+`Button` pins icon size and sets `flex: 0 0 auto`, so a cell that is too small
+reports its overflow instead of quietly distorting its glyphs to fit.
 
 `npm run check:table-layout` measures the built catalog in a real browser and
 fails on a cell whose content is wider than its column. It cannot be a unit test:

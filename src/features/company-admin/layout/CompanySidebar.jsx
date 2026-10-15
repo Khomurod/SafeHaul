@@ -53,13 +53,11 @@ function NavItem({ item, isChild = false, isExpanded, onNavigate }) {
         `focus-visible:outline-none focus-visible:shadow-ds-focus` — the
         product's focus ring.
 
-        Without it these twelve links rendered the browser's own
+        Without it these twelve links would render the browser's own
         `auto 1px rgb(16, 16, 16)`: a black ring, in a product whose focus
-        colour is blue, on the most-tabbed element there is. The 2026-08-25
-        walkthrough fixed seven call sites with this defect and missed the whole
-        primary navigation of the company workspace; a keyboard walk in
-        `e2e/a11y.spec.cjs` is what found it, because axe cannot see the
-        difference between one focus ring and another.
+        colour is blue, on the most-tabbed element there is. A keyboard walk in
+        `e2e/a11y.spec.cjs` checks it, because axe cannot see the difference
+        between one focus ring and another.
       */
       className={({ isActive }) => `
         min-h-10 flex items-center gap-3 px-3 py-2 rounded-ds-md transition-colors duration-200 group relative

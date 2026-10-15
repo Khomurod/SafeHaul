@@ -46,12 +46,11 @@ const PAGE_SIZE = 25;
  * workspace passes its already-filtered documents in instead, so the workspace
  * and this table never open two listeners on the same collection.
  *
- * Action hierarchy (2026-07-29 redesign): every row is activatable and opens
- * the details dialog, and the Actions column holds exactly one status-specific
- * quick action — Download when signed, Copy Link when sent, Review/View
- * details otherwise. Correct and Void moved out of the rows into the details
- * dialog; their callable/Firestore contracts, confirmation dialog, toasts and
- * per-document busy states are unchanged.
+ * Action hierarchy: every row is activatable and opens the details dialog, and
+ * the Actions column holds exactly one status-specific quick action — Download
+ * when signed, Copy Link when sent, Review/View details otherwise. Correct and
+ * Void live in the details dialog, not in the rows, with their callable/Firestore
+ * contracts, confirmation dialog, toasts and per-document busy states.
  */
 export default function EnvelopeHistory({
     companyId,

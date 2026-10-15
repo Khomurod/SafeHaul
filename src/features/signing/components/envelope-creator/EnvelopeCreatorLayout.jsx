@@ -1,6 +1,5 @@
-// The envelope editor's arrangement, split out of `EnvelopeCreator.jsx` on
-// 2026-09-01 for the source-size standard (SG-1c). JSX verbatim from the
-// component's return: the top bar, the three-column desktop layout, the
+// The envelope editor's arrangement, kept apart from `EnvelopeCreator.jsx` for
+// the source-size standard: the top bar, the three-column desktop layout, the
 // compact bottom bar with its one-sheet-at-a-time presentation, the preview
 // and scan dialogs, and the leave-without-saving confirmation. Purely
 // presentation-owned state lives here (which sheet is open, whether preview

@@ -9,10 +9,11 @@ import { TelegramAlertsCard } from './alerts/TelegramAlertsCard';
  * System Health — the hourly AI and blog watcher's alerts, and the one
  * maintenance action left: re-syncing every company's public profile.
  *
- * The Deep Diagnostic (it created test users and records in the live database
- * with a fixed password), "Sync Backend Structure" (it wrote schema defaults into
- * every live record missing a field) and the one-off SMS history backfill were
- * removed on 2026-10-11, and the server callables behind them on 2026-10-15.
+ * There is no Deep Diagnostic (it created test users and records in the live
+ * database with a fixed password) and no "Sync Backend Structure" (it wrote
+ * schema defaults into every live record missing a field), in this view or as a
+ * server callable. The one-off SMS history backfill
+ * (`backfillAllSmsSentPhones`) has no button here.
  *
  * The action's explanation is visible help text, not a `title` tooltip, and its
  * outcome is an announced `Badge`. The output log is the approved inverse

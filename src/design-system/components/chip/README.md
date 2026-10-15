@@ -1,7 +1,6 @@
 # Chip
 
-**Status: Approved.** Added 2026-09-05, retiring six recorded exceptions across
-four files.
+**Status: Approved.**
 
 The interactive twin of `Badge` — the same pill, the same 12px semibold text,
 the same six status tints, the same 12px leading glyph — plus a pointer, a focus

@@ -16,10 +16,10 @@
  * iconography and a screen-reader user would otherwise not get at all: a live
  * region's status, a link's "opens in a new tab", the word "required".
  *
- * It lived in `components/form/FormControls.css` until 2026-08-21, which meant
- * it only existed on a page that had rendered a form control. `Link` is the
- * component that would have broken on that: an external link on a page with no
- * form would have shown its hidden hint as visible text.
+ * It lives here, not in `components/form/FormControls.css`, so it exists on
+ * every page: there it would exist only where a form control had rendered, and
+ * an external `Link` on a page with no form would show its hidden hint as
+ * visible text.
  *
  * `clip` rather than `display: none` or `visibility: hidden`, both of which
  * remove the element from the accessibility tree — which is the opposite of the
@@ -42,14 +42,12 @@
  *
  * The design-system focus ring is a `box-shadow`, so it does not replace the
  * browser's own `outline` — it draws *next to* it. The convention is to write
- * `focus-visible:outline-none` alongside `focus-visible:shadow-ds-focus`, and 67
- * of the 74 call sites do. The seven that forgot showed the UA outline instead:
- * `auto 1px rgb(16, 16, 16)`, a black ring in a product whose focus colour is
- * blue. The 2026-08-25 walkthrough found one of them on the driver
- * application's step heading, which every applicant sees on every step.
+ * `focus-visible:outline-none` alongside `focus-visible:shadow-ds-focus`; a call
+ * site that forgets shows the UA outline instead: `auto 1px rgb(16, 16, 16)`, a
+ * black ring in a product whose focus colour is blue.
  *
- * Doing it here rather than at those seven call sites means the next one cannot
- * forget either. The attribute selector matches the Tailwind utility by name
+ * Doing it here rather than at each call site means none can forget. The
+ * attribute selector matches the Tailwind utility by name
  * because that is how call sites ask for the ring; `.ds-*` components set the
  * shadow in their own CSS and already reset their outline.
  */
@@ -60,13 +58,8 @@
 /*
  * Motion, off, when the user has asked the operating system for that.
  *
- * A global rule, and the one thing in
- * `src/shared/styles/designTokens.css` that still had an effect when that file
- * was retired on 2026-08-25. Everything else in it — a second colour, type,
- * radius, shadow, spacing, z-index and focus-ring scale, plus `.focus-ring`,
- * `.skip-link`, `.hide-mobile` and `.two-column-layout` — had no consumer left
- * anywhere in `src/`. This did, and it belongs here: it is a decision every
- * component inherits, which is exactly what this file is for.
+ * A global rule, and it belongs here: it is a decision every component
+ * inherits, which is exactly what this file is for.
  *
  * Individual components disable their own specific animations under the same
  * query (`PageState`, `DataTable`, `Switch`, `ProgressBar`, `Card`,

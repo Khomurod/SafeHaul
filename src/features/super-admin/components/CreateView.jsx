@@ -22,7 +22,7 @@ import { CreateUserForm } from './create/CreateUserForm';
  * with an initial portal user in the same submit) and **standalone user**. There
  * is no third entity type; `SUPER_ADMIN_VIEWS.CREATE` routes only to this view.
  *
- * Migrated to the design system 2026-07-28. Presentation only. Frozen and
+ * Presentation only. Frozen and
  * unchanged: the `activeTab` values `'company'` / `'user'` with `'company'`
  * initial; every form key and initial value (including `planType: 'free'`,
  * `companyAdminData.role: 'company_admin'`, `userForm.role: 'hr_user'`);

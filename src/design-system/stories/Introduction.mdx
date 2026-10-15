@@ -36,13 +36,11 @@ one.
 Where a page says *Needs review*, it says exactly what is unresolved. Those
 caveats are the roadmap's open items, not hedging.
 
-**The two decisions that held the visible families were answered on 2026-09-04.**
-The owner approved the semantic brand and action colours as they stand and
-confirmed WCAG 2.2 AA as the permanent standard, which were the last two items
-holding the visible families; the roadmap now records both as standing rulings
-(sections 1 and 6). A page still marked *Needs review* is now waiting on
-something specific to itself, not on a palette or a standard nobody had signed
-off.
+**The visible families are owner-approved.** The owner approved the semantic
+brand and action colours as they stand and confirmed WCAG 2.2 AA as the
+permanent standard; the roadmap records both as standing rulings (sections 1 and
+6). A page marked *Needs review* is waiting on something specific to itself, not
+on a palette or a standard.
 
 ## Icons
 
@@ -62,8 +60,7 @@ the glyph inside it (`Button`, `IconButton`, `Tabs`, `SegmentedControl`,
 `FileInput`, `Chip`, `StatusMedallion`) still wins, so an icon in a small button
 is small because the button says so.
 
-**Every file in the application is on this contract** as of 2026-09-06 — the
-migration drained 178 files and its backlog file was deleted, so the rule has no
+**Every file in the application is on this contract**, and the rule has no
 exception list to add to. Where a container's real geometry cannot be expressed on
 the scale (a 12px drag handle, a 128px logo frame), the container carries the size
 and the arithmetic is recorded at the call site. See **Foundations → Icons**.
@@ -89,113 +86,76 @@ its own cancel-and-confirm footer — is made entirely of approved primitives, s
 it passes every automated rule while duplicating a pattern that exists. Use
 `patterns/page-state` and `ConfirmDialog`.
 
-## Recently closed
+## Rules the families carry
 
-Closed on 2026-08-21, so the exceptions that cited them are retired:
+Each family's own page holds its full contract; these are the rules that cut
+across them, or that are easiest to get wrong.
 
-- **Tabs** (`TabList` / `TabPanel`). Nine screens had hand-rolled the tablist and
-  seven had each written the same keyboard handler.
-- **Switch** (ARIA `switch`), promoted from a feature-owned implementation that
-  was already correct.
-- **SegmentedControl**, retiring four `role="group"` / `aria-pressed` exceptions.
-- **Disclosure**, for a collapsible section whose trigger sits inside a heading.
-- **FileInput**, the picker contract four upload controls were waiting on.
-- **Link / ButtonLink / IconButtonLink**. `external` is the reason: every
-  external anchor in the product opened a new tab with no announcement. Do not
-  hand-write `target="_blank"`.
-- **EmptyState / ErrorState / LoadingState** in `@design-system/patterns`. This
-  catalog used to document the composition and ask you to copy it, which is a
-  component waiting to be written.
-
-Closed on 2026-09-05:
-
-- **Chip / ChipGroup**, the interactive twin of `Badge`: the same pill, the same
-  12px semibold text, the same six tints, plus a pointer, a focus ring and a
-  pressed state. It closed **two** recorded gaps that turned out to be one
-  primitive — the filter chip and the tinted chip link. Six exceptions retired
-  across four files, and one screen-reader repair on the way: the candidate
-  list's pipeline strip had neither a group name nor `aria-pressed`.
-- **`pressed` on Button and IconButton**, for a toggle that must keep its
+- **Use the primitive, never a hand-rolled copy.** Tab strips use `TabList` /
+  `TabPanel`, toggle groups `SegmentedControl`, file pickers `FileInput`, and
+  status screens, panel-level empties and confirmation dialogs
+  `patterns/page-state` or `ConfirmDialog`. Every approved native `<table>`
+  applies the `ds-native-table` contract, so a table that is not `DataTable`
+  still gets `DataTable`'s header, divider, density and cell padding from the
+  same `--ds-table-*` roles.
+- **Hand-rolled shapes are refused**: a raw `<button>` carrying `aria-pressed` or
+  `aria-current`, a round disc holding a person's initial, and a
+  `<button aria-expanded>` **inside a heading**. That last scope is the whole
+  rule: menus, a combobox, a navigation group, a drawer and a filter toggle use
+  `aria-expanded` too, and `Disclosure` replaces none of them. `SegmentedControl`
+  and `Chip` are the toggle shapes, a `Button` with `pressed` is the third, and
+  `SelectableCard` is the card. A step indicator that is read rather than
+  operated has no primitive yet and is recorded as an open gap rather than
+  demanded by a rule.
+- **`Link` / `ButtonLink` / `IconButtonLink`**: `external` opens a new tab and
+  announces it. Do not hand-write `target="_blank"`.
+- **`Button variant="link"`** is an action that reads as inline text. It is
+  still a `<button>`, because it acts rather than navigates; use `Link` when the
+  address bar changes.
+- **`pressed` on `Button` and `IconButton`** is for a toggle that must keep its
   variant. It draws a fill and an inset ring at a specificity nothing
-  feature-side can beat — which is the point, because the two sort arrows it was
-  built for marked the active direction with a text utility that lost to the
-  variant's own `color` rule, and lost silently.
-- **SelectableCard**, for a block of record content that behaves as one option —
-  an FMCSA suggestion row, a lead row, a company row, a page thumbnail. It closed
-  a gap this catalog had recorded three times under three names, because the
-  audit found one shape behind all of them. `selected` and `current` are two
-  different ARIA answers that render identically on purpose, and passing both
-  throws.
-- **Avatar**, the disc standing for a person or an organisation. Its scale is not
-  ours: all five steps are GitHub Primer's, which is also where the responsive
-  `{ base, sm }` size and the circle-for-a-person/square-for-an-organisation rule
-  come from. It is always `aria-hidden` with no way to opt out — five of the eight
-  discs it replaced were announcing a bare initial beside the name it abbreviates.
-- **`Input variant="inline"`**, a field inside running content rather than a
-  form. It is deliberately *not* the published `InlineEdit` pattern — none of
-  its consumers has a read view — and it refuses to render without a name,
-  because it has no `FormField` wrapper to give it one.
-- **`Disclosure variant="card"`**, a prominent titled section — leading slot,
-  `heading-sm` title, a description line, a 24px chevron. It does *not* draw the
-  card it is named for: `Card` owns the surface, and the variant only takes off
-  the rail chrome that would fight it. `description` and `leading` throw on the
-  rail; `meta` throws on a card.
-- **`SectionNavigation` as a step rail**, four props from the page rail it
-  already was: `currentType="step"` (what ARIA defines for a position in a
-  process), a per-item `status` announced as part of the item's name rather
-  than shown by colour, an optional `group.label`, and `frame="none"` for a
-  rail inside a container that already draws one.
-- **Notice**, the tinted message block — the most copy-pasted shape in the
-  application, at 66 hand-built copies across 52 files. Every default in it is a
-  number from that audit rather than a preference: `announce` is off because only
-  26 of the 64 announce themselves today, and each tone's glyph is the one the
-  application already reaches for. Six tinted blocks in the tree hold form
-  controls instead of a message; those are regions, and this is not for them.
-  Its **actions sit under the message**, the order Atlassian's `SectionMessage`
-  and Polaris' `Banner` both use and the one the blocks it replaces already used
-  2 to 1 — corrected after the first migration slice disagreed with the shipped
-  placement, along with `titleAs` for the eight titles that are real headings.
-- A raw `<button>` carrying `aria-pressed` or `aria-current`, a round disc
-  holding a person's initial, and a `<button aria-expanded>` **inside a
-  heading**, are refused from here on. That last scope is the whole rule: ten
-  other live `aria-expanded` controls are menus, a combobox, a navigation group,
-  a drawer and a filter toggle, and `Disclosure` replaces none of them. `SegmentedControl` and `Chip` are the toggle shapes, a `Button` with
-  `pressed` is the third, and `SelectableCard` is the card. A step indicator that
-  is read rather than operated has no primitive yet and is recorded as an open
-  gap rather than demanded by a rule.
+  feature-side can beat — which is the point: a text utility marking the active
+  state loses silently to the variant's own `color` rule.
+- **`Chip` / `ChipGroup`** is the interactive twin of `Badge`: the same pill, the
+  same 12px semibold text, the same six tints, plus a pointer, a focus ring and a
+  pressed state. It is both the filter chip and the tinted chip link.
+- **`SelectableCard`** is a block of record content that behaves as one option —
+  an FMCSA suggestion row, a lead row, a company row, a page thumbnail.
+  `selected` and `current` are two different ARIA answers that render
+  identically on purpose, and passing both throws.
+- **`Avatar`** is the disc standing for a person or an organisation. Its scale is
+  not ours: all five steps are GitHub Primer's, which is also where the
+  responsive `{ base, sm }` size and the
+  circle-for-a-person/square-for-an-organisation rule come from. It is always
+  `aria-hidden` with no way to opt out: a bare initial beside the name it
+  abbreviates is noise.
+- **`Input variant="inline"`** is a field inside running content rather than a
+  form. It is deliberately *not* the published `InlineEdit` pattern — none of its
+  consumers has a read view — and it refuses to render without a name, because it
+  has no `FormField` wrapper to give it one.
+- **`Disclosure`** is a collapsible section whose trigger sits inside a heading.
+  `variant="card"` is a prominent titled section — leading slot, `heading-sm`
+  title, a description line, a 24px chevron — that does *not* draw the card it is
+  named for: `Card` owns the surface, and the variant only takes off the rail
+  chrome that would fight it. `description` and `leading` throw on the rail;
+  `meta` throws on a card.
+- **`SectionNavigation` as a step rail**: `currentType="step"` (what ARIA
+  defines for a position in a process), a per-item `status` announced as part of
+  the item's name rather than shown by colour, an optional `group.label`, and
+  `frame="none"` for a rail inside a container that already draws one.
+- **`Notice`**, the tinted message block. Every default in it is a number from
+  its audit rather than a preference — see its page. Its **actions sit under the
+  message**, the order Atlassian's `SectionMessage` and Polaris' `Banner` both
+  use, and `titleAs` is for a title that is a real heading. A tinted block that
+  holds form controls is a region, not a notice.
+- **The brand colours** (`ds-brand-primary`, `ds-brand-accent`): the accent is
+  for the inverse surface only — on a light one it is about 1.6:1.
+- **`PageState`** takes `titleId`, `children` and `focusOnMount`; its story page
+  documents all three.
 
-Closed on 2026-08-25:
-
-- **`Button variant="link"`** — an action that reads as inline text. Six screens
-  had written it by hand, in two font weights and three sizes between them. It
-  is still a `<button>`, because it acts rather than navigates; use `Link` when
-  the address bar changes.
-- **Named brand colours** (`ds-brand-primary`, `ds-brand-accent`). The mark's own
-  two colours were bare hexes in four places. The accent is for the inverse
-  surface only — on a light one it is about 1.6:1.
-
-Also closed on 2026-08-25, by **adoption** rather than by building anything:
-
-- Every hand-rolled tab strip, toggle group and file picker in the product now
-  uses `TabList`/`TabPanel`, `SegmentedControl` and `FileInput`. The primitives
-  above had shipped on 2026-08-21 with zero, zero and two consumers while eleven
-  tab strips, five toggle groups and nine raw file inputs stayed in the tree.
-- Every status screen, panel-level empty and confirmation dialog uses
-  `patterns/page-state` or `ConfirmDialog`. Fifteen states and six dialogs were
-  still hand-composed out of the right primitives in the wrong shape, several of
-  them written *after* the pattern existed.
-- Every approved native `<table>` applies the `ds-native-table` contract, so a
-  table that is not `DataTable` still gets `DataTable`'s header, divider, density
-  and cell padding from the same `--ds-table-*` roles.
-
-`PageState` gained three capabilities on the way, each because more than one
-consumer had hand-written it: `titleId`, `children` and `focusOnMount`. Its
-story page documents all three.
-
-As of 2026-08-25 every remaining exception in the product carries a written
-reason; none is left marked as migration debt. That does not make the gaps above
-less real — an exception with a good reason is still a call site waiting for a
-primitive.
+Every remaining exception in the product carries a written reason; none is
+marked as migration debt. That does not make the gaps above less real — an
+exception with a good reason is still a call site waiting for a primitive.
 
 ## Appearance
 

@@ -8,8 +8,8 @@ import { Card, IconButton, IconButtonLink } from '@/design-system/components';
  * Dossier document gallery: the applicant's uploaded documents with preview and
  * download.
  *
- * Presentation migrated to the approved `Card` / `IconButton` primitives and
- * `--ds-*` tokens (2026-07-27).
+ * Presentation uses the approved `Card` / `IconButton` primitives and
+ * `--ds-*` tokens.
  *
  * Frozen contracts: the eight standard document keys and their labels in this
  * exact order; the URL resolution precedence
@@ -19,20 +19,18 @@ import { Card, IconButton, IconButtonLink } from '@/design-system/components';
  * `No documents found for this applicant.` empty copy; and the download link's
  * `download` attribute and `target`/`rel` pair.
  *
- * DEFECTS FIXED (2026-07-27):
- * - Each document card was a `<div onClick>`: not focusable, not activatable by
- *   keyboard, no role and no accessible name. The whole gallery was
- *   mouse-only. Cards are now real buttons that name the document they open.
- * - The preview lightbox was a hand-rolled overlay with **no `role="dialog"`, no
- *   focus containment, no focus restoration and no Escape**, layered on top of a
- *   modal dialog. It now uses the approved accessible `Modal`.
- * - The document date used `text-[10px]`, below the 12 px interface floor.
- * - The close and download controls in the lightbox had no accessible names.
- * - The list was a bare grid of `<div>`s; it is now a real list, so assistive
- *   technology announces how many documents there are.
- * - The empty panel was a hand-composed icon-and-copy block (2026-08-25). It is
- *   the approved `EmptyState`; the frozen copy is unchanged and is now the
- *   state's heading rather than a loose paragraph.
+ * Rules this gallery keeps:
+ * - Each document card is a real button that names the document it opens, so
+ *   the gallery works from the keyboard.
+ * - The preview lightbox is the approved accessible `Modal` (`role="dialog"`,
+ *   focus containment, focus restoration, Escape), because it opens on top of
+ *   a modal dialog.
+ * - No interface text below the 12 px floor, the document date included.
+ * - The close and download controls in the lightbox have accessible names.
+ * - The documents are a real list, so assistive technology announces how many
+ *   there are.
+ * - The empty panel is the approved `EmptyState`, with the frozen copy as the
+ *   state's heading.
  */
 
 const STANDARD_DOCUMENTS = [

@@ -3,10 +3,10 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 /**
  * Compatibility redirect for the old "Start an application" URL.
  *
- * `Started (unfinished)` and `Start an application` became one workspace on
- * 2026-09-10 — see `UnfinishedApplicationsPage` for why they were separate and why
- * merging them changed no permission. Starting an application is now the primary
- * action *inside* that workspace, so this path has no screen of its own.
+ * `Started (unfinished)` and `Start an application` are one workspace — see
+ * `UnfinishedApplicationsPage` for why that changes no permission. Starting an
+ * application is the primary action *inside* that workspace, so this path has
+ * no screen of its own.
  *
  * It is not deleted, because a recruiter may have bookmarked it and internal links
  * may still point at it: a route that 404s is a worse outcome than a route that

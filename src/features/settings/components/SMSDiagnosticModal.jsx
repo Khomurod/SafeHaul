@@ -12,13 +12,10 @@ import { Modal } from '@design-system/patterns';
  * Allows admins to test specific phone lines from their inventory
  * by selecting a source number and sending to a destination.
  *
- * Migrated to the design system 2026-07-27. The previous overlay was a bare
- * `fixed inset-0` div with no dialog semantics (no focus move/trap/restore,
- * no Escape) and its close control was icon-only with no accessible name;
- * both now come from the approved accessible `Modal`. The sender `<select>`
- * had a visually adjacent `<label>` with no `htmlFor`/`id` pairing, so it was
- * never programmatically associated — now a `FormField`. Every
- * `verifySmsConfig`/`sendTestSMS` payload, guard, and message is unchanged.
+ * It is the approved accessible `Modal` — dialog semantics, focus move, trap and
+ * restore, Escape, and a named close control — and the sender `<select>` is a
+ * `FormField`, so its label is programmatically associated. Frozen: every
+ * `verifySmsConfig`/`sendTestSMS` payload, guard, and message.
  */
 export function SMSDiagnosticModal({ companyId, inventory, onClose }) {
     const { showSuccess, showError } = useToast();

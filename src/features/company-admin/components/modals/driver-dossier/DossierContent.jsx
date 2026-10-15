@@ -13,13 +13,13 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
 /**
  * Routes the active dossier tab to its content component.
  *
- * Presentation migrated to `--ds-*` tokens (2026-07-27). Every prop handed to
+ * Presentation uses `--ds-*` tokens. Frozen contracts: every prop handed to
  * every tab, the lazy-loading split, and the `'application' | 'documents' | 'dq'
- * | 'pev' | 'activity' | 'notes'` routing values are unchanged.
+ * | 'pev' | 'activity' | 'notes'` routing values.
  *
- * DEFECT FIXED (2026-07-27): the lazy-tab loading fallback was a bare spinner
- * with no live region, so switching to Previous Employment, Activity or Notes
- * announced nothing at all while the chunk downloaded.
+ * The lazy-tab loading fallback is a `role="status"` region, so switching to
+ * Previous Employment, Activity or Notes is announced while the chunk
+ * downloads.
  */
 export function DossierContent({
     activeTab,

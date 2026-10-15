@@ -17,17 +17,16 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * destination after a completed import, and every string on this page. All
  * layout and controls come from the design system.
  *
- * Migrated 2026-07-27. Defects fixed, presentation only:
+ * Rules this page keeps (presentation only):
  *
- *  1. This page has always passed `isEmbedded` to `CompanyBulkUpload`, but the
- *     prop was never consumed, so a full-screen modal overlay rendered on top of
- *     the page's own "Import Leads" header — the header was unreachable and the
- *     page behind the overlay was still in the tab order. The prop is honoured
- *     now, and the import surface renders in place.
- *  2. The access-denied state had no `<h1>` (only an `<h2>`), so a keyboard or
- *     screen-reader user landing on it heard an unnamed page, and its action was
- *     a raw `<button>`.
- *  3. Both states used hard-coded palette classes instead of `--ds-*` tokens.
+ *  1. It passes `isEmbedded` to `CompanyBulkUpload`, which honours it, so the
+ *     import surface renders in place — not as a full-screen overlay on top of
+ *     the page's own "Import Leads" header, with the page behind it still in the
+ *     tab order.
+ *  2. The access-denied state has an `<h1>`, so a keyboard or screen-reader user
+ *     landing on it hears a named page, and its action is a design-system
+ *     `Button`.
+ *  3. Both states use `--ds-*` tokens, not hard-coded palette classes.
  *
  * Frozen: the "Import Leads" heading and its description, the access-denied
  * copy, the "Return to Dashboard" label, the feature-flag rule (locked only when
@@ -54,8 +53,7 @@ export const ImportLeadsPage = () => {
             <div className="min-h-full bg-ds-canvas">
                 <PageContainer width="standard">
                     {/*
-                     * The approved page-state pattern since 2026-08-25; this was a
-                     * hand-composed Card + medallion + heading + action. `announce`
+                     * The approved page-state pattern. `announce`
                      * is `off` deliberately: this is ordinary page content on
                      * navigation, not a state that appeared in response to
                      * something the user just did, and an assertive announcement

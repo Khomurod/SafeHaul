@@ -8,12 +8,12 @@ import ApplicationDocumentsPanel from './ApplicationDocumentsPanel';
 import PreparedEmployersPanel from './PreparedEmployersPanel';
 
 /**
- * Two schema fields are not offered to the carrier at all (found 2026-10-01). The
- * Social Security Number is the driver's to give: a draft never holds one, so the
- * server discarded what a recruiter typed and the driver was asked for it anyway —
- * a box whose contents silently vanished. And the medical card's upload belongs to
- * the documents panel below; rendered by the schema it was a second, text-box copy
- * of the same field, reading "[object Object]".
+ * Two schema fields are not offered to the carrier at all. The Social Security
+ * Number is the driver's to give: a draft never holds one, so the server would
+ * discard what a recruiter typed and the driver would be asked for it anyway — a
+ * box whose contents silently vanish. And the medical card's upload belongs to the
+ * documents panel below; rendered by the schema it would be a second, text-box
+ * copy of the same field, reading "[object Object]".
  */
 const NOT_ASKED_OF_THE_CARRIER = Object.freeze({
     ssn: { hidden: true },

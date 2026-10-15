@@ -10,16 +10,12 @@ import { FieldMessage, FileInput } from '@/design-system/components';
  * which owns `uploadCompanyLogo` (Storage) and `saveCompanySettings` (Firestore).
  * This component adds no Company, Firebase, or branding knowledge.
  *
- * The picker is the design system's `FileInput` (2026-08-25), which is where the
- * `loading` state it needed now lives. It was a hidden input driven by a `Button`
- * calling `.click()` on it, under a comment saying the design system had no
- * file-input primitive — untrue from 2026-08-21. Same change, and the same
- * reasoning, as `ProfileAvatarField`: the accessible name belongs on the field
- * rather than on the trigger, and the `role="status"` region and the
- * focus-restoring effect this component used to own now live in `FileInput`,
- * beside the `loading` prop that causes both. The migration first replaced them
- * with `aria-busy` and the button text, which announce nothing; a review on
- * 2026-08-26 caught that and put the region back in the primitive.
+ * The picker is the design system's `FileInput`, which owns the `loading` state
+ * it needs. Same reasoning as `ProfileAvatarField`: the accessible name belongs
+ * on the field rather than on a trigger, and the `role="status"` region and the
+ * focus-restoring effect live in `FileInput`, beside the `loading` prop that
+ * causes both. `aria-busy` and the button text announce nothing, so they cannot
+ * replace the region.
  */
 export function BrandingSection({
     companyLogoUrl,

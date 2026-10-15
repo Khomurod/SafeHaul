@@ -7,10 +7,9 @@
   --ds-color-surface-selected: var(--ds-color-blue-50);
   --ds-color-overlay: rgb(15 23 42 / 0.6);
 
-  /* Inverse (dark) surface role.
-     Added 2026-07-28 for console/log output surfaces, which the product renders
-     as dark monospace panels. Previously every such panel picked its own raw
-     `bg-gray-900` / `text-gray-300` pairing, and one of them measured 2.2:1.
+  /* Inverse (dark) surface role, for console/log output surfaces, which the
+     product renders as dark monospace panels — never a raw `bg-gray-900` /
+     `text-gray-300` pairing picked per panel.
      The design system owns the role; features decide what text goes in it.
      Every pairing below is pinned in `tests/tokens.test.js`. */
   --ds-color-surface-inverse: var(--ds-color-slate-900);
@@ -23,17 +22,14 @@
   --ds-color-status-warning-fg-on-inverse: var(--ds-color-amber-200);
   --ds-color-status-danger-fg-on-inverse: var(--ds-color-red-200);
   /* The inverse family's hover step, completing the same base / subtle / hover
-     shape the light surfaces already have. Added 2026-08-25 for the login hero's
-     feature cards, which were hand-rolling `hover:bg-white/15`. */
+     shape the light surfaces have; the login hero's feature cards use it. */
   --ds-color-surface-inverse-hover: var(--ds-color-slate-700);
 
   /* Brand.
-     Added 2026-08-25. The product has carried its two brand colours as bare
-     hexes since the beginning — in the logo SVG, the loader, the favicon and the
-     login hero — and the login hero is the one place they are used as *interface*
-     colour rather than inside artwork: an icon, a stat numeral, a chip. Naming
-     them stops the next branded surface re-typing `#0BE2A4` and getting it
-     slightly wrong.
+     The two brand colours appear as hexes inside artwork — the logo SVG, the
+     loader, the favicon — and the login hero is the one place they are used as
+     *interface* colour: an icon, a stat numeral, a chip. Naming them stops the
+     next branded surface re-typing `#0BE2A4` and getting it slightly wrong.
 
      `brand-accent` is legible on the inverse surface (pinned in
      `tests/tokens.test.js`) and is deliberately NOT offered as a colour for text
@@ -175,9 +171,9 @@
    * first: `FormControls` also RECOLOURS a disabled field, so it needs less
    * dimming on top to stay readable. Two roles, two reasons.
    *
-   * Migrated on 2026-09-05 only where the value already matched, so this change
-   * moves no pixels. The four sites that diverge — DataTable 0.45 and 0.5,
-   * Switch 0.6, ChoiceControls 0.6 — are a deliberate visual normalisation and
+   * The roles are used only where the value already matched, so they move no
+   * pixels. The four sites that diverge — DataTable 0.45 and 0.5, Switch 0.6,
+   * ChoiceControls 0.6 — are a deliberate visual normalisation still to do, and
    * belong in a slice that re-records the baselines they move.
    */
   --ds-opacity-disabled: 0.55;

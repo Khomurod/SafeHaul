@@ -4,7 +4,7 @@
 // Pure/stateless — receives lookup state + selection and reports row clicks via
 // onSelectRow. Extracted from PEVRequestModal (no refs involved, so a safe split).
 //
-// Presentation migrated to `--ds-*` tokens and the approved `Badge` (2026-07-27).
+// Presentation uses `--ds-*` tokens and approved design-system components.
 //
 // Frozen contracts: `buildFmcsaRowKey`, the `onSelectRow(row, index)` argument
 // pair, the `data-testid="fmcsa-row-N"` hooks, `mapFmcsaRowToPevContact` as the
@@ -12,23 +12,20 @@
 // notes speak of the email alone: the dialog has no fax delivery, and nothing
 // in it uses a phone.
 //
-// EXCEPTION RETIRED 2026-09-05. Each row is a selectable suggestion carrying
-// multi-line structured content (legal name, USDOT + city/state, and a
-// contact-availability note), which is why the approved `Button` could never
-// host it — `Button` takes inline children and owns its own layout. That is the
-// gap `SelectableCard` was built for, and these rows are one of its four
-// consumers. `selected` carries the ARIA; the selected state is also stated in
-// text below, never by colour alone.
+// Each row is a `SelectableCard`: a selectable suggestion carrying multi-line
+// structured content (legal name, USDOT + city/state, and a contact-availability
+// note), which the approved `Button` cannot host — `Button` takes inline
+// children and owns its own layout. `selected` carries the ARIA; the selected
+// state is also stated in text below, never by colour alone.
 //
-// DEFECTS FIXED (2026-07-27):
-// - Six separate runs of 10 px interface text (the state note, the usage hint,
+// Rules this block keeps:
+// - No interface text below the 12 px floor: the state note, the usage hint,
 //   the per-row contact note, the "Selected" marker, the no-contact banner and
-//   the census disclaimer), all below the 12 px floor.
-// - The loading state was a bare spinner with no live region, so a screen-reader
-//   user was told nothing while the registry was queried; the error and
-//   no-results states were equally silent. All three are now announced.
-// - The suggestion list was not a labelled region, so there was nothing to tell
-//   assistive technology what the group of rows was for.
+//   the census disclaimer included.
+// - The loading, error and no-results states are announced, so a screen-reader
+//   user hears what the registry query is doing.
+// - The suggestion list is a labelled region, so assistive technology knows
+//   what the group of rows is for.
 
 import React from 'react';
 import { Icon, Building2, Loader2, CheckCircle2 } from '@design-system/icons';

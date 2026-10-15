@@ -11,9 +11,9 @@ export function isCompanyWorkspaceRole(role) {
 }
 
 /**
- * Whether Firebase custom claims make a super admin: `globalRole` at the root
- * (older tokens) or under `roles`, as the Firestore and Storage rules and the
- * server's checks read it.
+ * Whether Firebase custom claims make a super admin: `roles.globalRole`, which a
+ * `super_admin` membership grants, or `globalRole` at the token root, which the
+ * claims writer keeps. The Firestore and Storage rules and the server read both.
  *
  * @param {object|null|undefined} claims - Firebase custom claims (currentUserClaims)
  * @returns {boolean}

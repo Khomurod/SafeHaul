@@ -7,11 +7,9 @@ import { Modal } from '@design-system/patterns';
  * Schedule the automatic deactivation of one feature for one company: a date
  * and a time, confirmed from the feature matrix.
  *
- * Split out of `FeaturesView.jsx` on 2026-09-06 (audit step K), when labelling
- * the alert-stats table's scroll region took that file past the 500-line
- * maximum. This dialog is the one piece of that file with no table in it, so
- * moving it changes no design-system inventory: the two approved raw tables
- * stay where the allowlist records them. Behaviour is unchanged.
+ * Kept apart from `FeaturesView.jsx` for the source-size limit. It holds no
+ * table, so the two approved raw tables stay in `FeaturesView.jsx`, where the
+ * allowlist records them.
  */
 export function ScheduleDeactivationDialog({ info, date, time, onDateChange, onTimeChange, loading, onCancel, onConfirm }) {
     const titleId = useId();

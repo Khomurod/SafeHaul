@@ -46,9 +46,9 @@ Three situations look identical and must not read identically:
 ## Which scale of "nothing here" is this?
 
 Three different things are all called an empty state, and only one of them is
-this pattern. Getting the scale wrong in either direction is why four panels in
-this product were still hand-composed on 2026-08-25 — the pattern looked too
-big for some of them, so nobody used it for any of them.
+this pattern. Getting the scale wrong in either direction is how panels end up
+hand-composed: when the pattern looks too big for some of them, nobody uses it
+for any of them.
 
 | The slot | Use | Not this |
 |---|---|---|
@@ -112,9 +112,8 @@ So with the default surface, a layout class passed here lands *inside* the card:
 </div>
 ```
 
-Nine of the fifteen screens migrated on 2026-08-25 were written the first way,
-and the rendered result is close enough to correct that only reading the diff
-caught it. The wrapper shape is the one `ErrorBoundary` has always used.
+The first way renders close enough to correct that only reading the diff
+catches it. The wrapper shape is the one `ErrorBoundary` uses.
 
 ```jsx
 <main aria-labelledby={headingId} className="…">
@@ -139,13 +138,9 @@ actions, every ingredient an approved primitive, arranged into the shape these
 three components own. No `check:ui-contract` rule can see one — there is nothing
 wrong with any of the parts.
 
-Fifteen of them were found in the product on 2026-08-25, several written *after*
-this pattern existed. Nine were full-page status screens in the signing room and
-the public application, and between them they had two title sizes, two medallion
-sizes, icons at 28/32/40/48px and three different gaps under the medallion: five
-appearances for one thing. Two more were page-level — a document-load failure and
-a permissions boundary. Four were panel-level empties, two of which announced
-nothing at all when a filter emptied the list. The guardrail is a review step,
+Hand-composed states drift: one kind of screen ends up with several title
+sizes, medallion sizes, icon sizes and gaps, and a panel-level empty can
+announce nothing when a filter empties the list. The guardrail is a review step,
 recorded in roadmap §7 — if you are arranging primitives into this shape, use the
 pattern.
 

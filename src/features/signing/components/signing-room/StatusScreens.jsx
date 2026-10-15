@@ -16,15 +16,10 @@ import { ErrorState, LoadingState, PageState } from '@design-system/patterns';
  * The circular status disc is the approved `StatusMedallion`; this feature keeps
  * only the domain → tone/icon decision, not the shape or spacing.
  *
- * **2026-08-25: the four status screens are the approved page-state pattern.**
- * They had been hand-composed `Card` + `StatusMedallion` + heading + body +
- * actions — which is what `PageState` is, built later and never applied here. The
- * cost was measured: across these four and the five in `PublicApplyScreens`, one
- * kind of screen had `heading-sm` and `heading-md` titles, default and `lg`
- * medallions, icons at 28/32/40/48px, and three different gaps under the
- * medallion. Five appearances for one thing. The pattern owns all of that now, so
- * the feature keeps the words, the tone, the icon and the actions — and the
- * screens cannot drift apart again.
+ * **The four status screens are the approved page-state pattern.** The pattern
+ * owns the title size, the medallion, the icon size and the spacing, so the
+ * feature keeps the words, the tone, the icon and the actions — and the screens
+ * cannot drift apart.
  *
  * `EsignConsentScreen` deliberately stays hand-composed: it is a consent *form*
  * with a nested `<h2>` disclosure region, a bulleted legal notice and a two-way

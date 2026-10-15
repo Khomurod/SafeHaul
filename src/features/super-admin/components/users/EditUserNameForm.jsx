@@ -11,10 +11,7 @@ import { ConfirmDialog } from '@design-system/patterns';
 /**
  * User profile editor inside the Super Admin Edit User dialog.
  *
- * Migrated to the design system 2026-07-28. This file was missed by the Super
- * Admin dialog pass: `EditUserModal`'s own shell was migrated, but the two
- * bodies it renders — this form and `UserMembershipsManager` — were still fully
- * legacy.
+ * Built on the design system's components and `--ds-*` tokens.
  *
  * Presentation only. Frozen and unchanged: the
  * `updateUser(userId, { name, email }, companyId)` call and argument order, the
@@ -24,26 +21,21 @@ import { ConfirmDialog } from '@design-system/patterns';
  * save-message reset, the `!userEmail` early return on reset, and every
  * user-facing string including the `Error: ` prefix.
  *
- * Defects fixed:
- *  1. **Two blocking `window.confirm` guards** (password reset, delete user) →
- *     shared accessible dialogs, wording preserved verbatim.
- *  2. **Four blocking `alert()` calls** carried the reset and delete outcomes →
- *     announced in-page messages, wording preserved verbatim. A destructive
- *     delete previously reported success only through a modal alert.
- *  3. **The save message was colour-only** — red or green text with no role, so
- *     a screen-reader user got no confirmation that a save succeeded or failed.
- *     It is now a `FieldMessage` in a live region, and the tone is secondary to
- *     the text.
- *  4. Raw inputs with `focus:ring-blue-500`, raw buttons, `bg-orange-50` /
- *     `bg-red-50` action tints and a hand-built `Loader2` spinner replaced by
- *     `FormField`/`Input`/`Button` and the primitives' own loading state.
- *  5. **A local component called `ConfirmDialog`** — the same name as the
- *     approved pattern, shadowing it in this file (fixed 2026-08-25). It
- *     reproduced the medallion/heading/description/Cancel-Confirm structure the
- *     pattern owns, and lost two things that are not cosmetic on "Delete this
- *     user?": initial focus lands on **Cancel** rather than on the destructive
- *     action, and `onConfirm` is guarded by a synchronous ref, so two activations
- *     dispatched inside one React render cannot both fire the callable.
+ * Rules this form keeps:
+ *  1. **Password reset and user delete ask through the shared accessible
+ *     dialog**, never a blocking `window.confirm`; the wording is verbatim.
+ *  2. **Reset and delete outcomes are announced in-page messages**, never a
+ *     blocking `alert()`; the wording is verbatim.
+ *  3. **The save message is a `FieldMessage` in a live region**, so a
+ *     screen-reader user hears whether a save succeeded or failed; the tone is
+ *     secondary to the text.
+ *  4. `FormField`/`Input`/`Button` and the primitives' own loading state — no raw
+ *     inputs, raw buttons, action tints or hand-built spinner.
+ *  5. **The confirmation is the approved `ConfirmDialog`**, never a local
+ *     component of the same name: on "Delete this user?" initial focus lands on
+ *     **Cancel** rather than on the destructive action, and `onConfirm` is
+ *     guarded by a synchronous ref, so two activations dispatched inside one
+ *     React render cannot both fire the callable.
  *
  *     The pattern's in-flight guards (Escape and backdrop dismissal disabled
  *     while `loading`) are deliberately not used here: both handlers close the

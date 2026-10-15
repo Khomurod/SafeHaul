@@ -7,9 +7,9 @@ import { HistoricalMigrationPanel } from './HistoricalMigrationPanel';
 /**
  * Super Admin landing view: the platform-wide counts — companies, users,
  * applications and leads, each its own count (`stats.companyCount` / `userCount`
- * / `appCount` / `leadCount`). "Total Applications" read the leads' count until
- * 2026-10-14, and a count that failed read 0; each now shows "Error" from its
- * own flag (`statsError.<field>`), with the "..." placeholder while loading.
+ * / `appCount` / `leadCount`). A count that failed shows "Error" from its own
+ * flag (`statsError.<field>`), never 0, with the "..." placeholder while
+ * loading.
  *
  * Fixed here:
  *  - Legacy palette (`bg-white`, `text-gray-*`, `bg-blue-100`, `bg-red-100`)

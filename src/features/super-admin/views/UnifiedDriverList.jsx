@@ -2,11 +2,11 @@
 /**
  * Unified Driver Database — combined company leads and applications.
  *
- * Migrated to the design system 2026-07-28. Presentation only — the combined
- * lead/application list, the `sourceType` values, the search across
- * name/email/phone/company, the sort keys, the 50-per-page client pagination,
- * the docs-status rule (4 required docs), the 14-day stale rule and the
- * relative-time buckets are unchanged. The status and driver-type filters offer
+ * Presentation only. Frozen contracts: the combined lead/application list, the
+ * `sourceType` values, the search across name/email/phone/company, the sort
+ * keys, the 50-per-page client pagination, the docs-status rule (4 required
+ * docs), the 14-day stale rule and the relative-time buckets. The status and
+ * driver-type filters offer
  * the values the loaded records hold (`FILTERS`), and the source filter only the
  * two sources a record has.
  *
@@ -33,11 +33,8 @@
  *  6. `SourceBadge` and the docs-status text were legacy-palette pills.
  *  7. Dead `FilterChip` component removed (never rendered).
  *
- * Bulk actions — REMOVED 2026-09-06. Message, Assign, Move Status and Archive
- * were placeholders: first they reported a false success, then (2026-07-28) they
- * sat disabled and labelled unavailable while an owner decision was pending. The
- * decision, per the bulk-action UX guidance (never show controls that do
- * nothing): the bar and the row-selection checkboxes that fed it are gone. A
+ * Bulk actions — none, by owner decision, per the bulk-action UX guidance (never
+ * show controls that do nothing): no bulk bar and no row-selection checkboxes. A
  * real bulk action returns together with its selection when a recruiter asks for
  * one — "Export" first, and "Archive" only once an archived state is defined.
  * `UnifiedDriverList.bulkSafety.test.jsx` pins the absence.

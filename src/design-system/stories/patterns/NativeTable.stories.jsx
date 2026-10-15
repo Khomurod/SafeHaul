@@ -224,8 +224,8 @@ export const EmptyRow = {
 /**
  * A frozen first column, which is the case that needs the contract's sticky rule:
  * the row paints the surface, not the cell, so a transparent frozen cell lets
- * the scrolled columns paint through it. Since 2026-09-06 the whole of it is one
- * attribute — surface, hover tint, stacking and the seam. Scroll this one
+ * the scrolled columns paint through it. The whole of it is one attribute —
+ * surface, hover tint, stacking and the seam. Scroll this one
  * sideways.
  */
 export const StickyFirstColumn = {

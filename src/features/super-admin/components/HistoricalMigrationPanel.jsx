@@ -444,14 +444,10 @@ function MigrateConfirmDialog({ remaining, missingPdfs = 0, companies, onCancel,
     return (
         <ConfirmDialog
             /*
-             * The approved pattern since 2026-08-25. This was a hand-composed
-             * `Modal` body reproducing the medallion/heading/description/footer it
-             * owns — one of six in the product, which between them had two
-             * confirm-button variants for the same amber medallion and one dialog
-             * with no medallion at all. The tone map decides that once: `warning`
-             * pairs with a danger-styled confirm, which is the right pairing for an
-             * action that writes permanent, immutable records across every company.
-             * The confirm button therefore changes from primary to danger here.
+             * The approved pattern, whose tone map decides the confirm variant
+             * once: `warning` pairs with a danger-styled confirm, which is the
+             * right pairing for an action that writes permanent, immutable records
+             * across every company.
              */
             tone="warning"
             title={repairOnly

@@ -279,10 +279,10 @@ export default function DocumentsManager() {
         setViewMode('create');
     };
 
-    // BELOW every hook on purpose. Until 2026-09-06 this returned before three
-    // hooks, so a profile arriving with E-Docs off after the first paint changed
-    // the hook count and React threw ("Rendered fewer hooks than expected")
-    // instead of showing the lock. The views test flips the flag on a mounted screen.
+    // BELOW every hook on purpose: returning before any of them changes the hook
+    // count when a profile arrives with E-Docs off after the first paint, and
+    // React throws ("Rendered fewer hooks than expected") instead of showing the
+    // lock. The views test flips the flag on a mounted screen.
     if (currentCompanyProfile?.features?.eDocs === false) {
         return <FeatureLockedModal featureName="E-Docs" onClose={() => navigate('/company/dashboard')} />;
     }

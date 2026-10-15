@@ -1,10 +1,6 @@
 /**
- * Contract freeze + a11y proof for the three dossier tab bodies migrated on
- * 2026-07-28: `DQFileTab`, `ActivityHistoryTab` and `NotesTab`.
- *
- * All three were deliberately left unmigrated by the 2026-07-27 dossier
- * foundation slice ("DQ, PEV/VOE, Activity and Notes bodies are deliberately not
- * migrated") and recorded as residual debt since. PEV/VOE was closed separately.
+ * Contract freeze + a11y proof for three dossier tab bodies: `DQFileTab`,
+ * `ActivityHistoryTab` and `NotesTab`.
  *
  * These bodies own DOT-compliance data, so the paths, payloads and audit-log
  * calls are frozen here before any presentation change:

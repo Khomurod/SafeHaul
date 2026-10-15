@@ -7,9 +7,7 @@ import { Avatar, Badge, Button, Card, FormField, Select } from '@/design-system/
 /**
  * Audit trail for one application or lead.
  *
- * Migrated to the design system 2026-07-28. This was one of the four dossier tab
- * bodies deliberately left unmigrated by the 2026-07-27 dossier foundation slice
- * and recorded as residual debt since.
+ * Built on the design system's components and `--ds-*` tokens.
  *
  * Presentation only. Frozen and unchanged: the `collectionName === 'leads' ?
  * 'leads' : 'applications'` normalisation, the

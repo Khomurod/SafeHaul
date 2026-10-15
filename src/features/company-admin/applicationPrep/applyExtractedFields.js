@@ -44,9 +44,9 @@ function isBlank(value) {
 
 /**
  * A date the form's date controls can show, or nothing — the rule the fill plan
- * already applies to the licence expiration. A value they cannot show is held by
- * the form and seen by nobody: the carrier's box and the driver's picker were both
- * blank over "03/11/1988" (2026-10-01).
+ * already applies to the licence expiration. A value they cannot show, such as
+ * "03/11/1988", is held by the form and seen by nobody: the carrier's box and the
+ * driver's picker both render it blank.
  */
 const FULL_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const fullDate = (value) => (FULL_DATE.test(String(value ?? '').trim()) ? String(value).trim() : '');
@@ -128,13 +128,13 @@ export function applyExtractedFields(formData, extracted, options = {}) {
             // would be a duplicate row nobody asked for.
             //
             // And it is the ROW that is locked, as it stands. Locking the report's
-            // own spelling made a lock no driver could satisfy (found 2026-10-01): a
-            // row "Acme Trucking LLC" matched by USDOT to the report's "ACME
-            // TRUCKING" passed every carrier save, then failed submission as
+            // own spelling would make a lock no driver could satisfy: a row
+            // "Acme Trucking LLC" matched by USDOT to the report's "ACME TRUCKING"
+            // would pass every carrier save, then fail submission as
             // `locked-employer-changed` — on a name the wizard shows the driver as a
             // record they cannot edit. Matched by name with no number on the row, the
-            // report's number gave the lock a signature no row had, and the save
-            // silently dropped it.
+            // report's number would give the lock a signature no row has, and the
+            // save would silently drop it.
             lockedCarriers.push({ companyName: listed.companyName || '', dotNumber: listed.dotNumber || '' });
             return;
         }

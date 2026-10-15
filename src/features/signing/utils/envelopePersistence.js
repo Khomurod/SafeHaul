@@ -1,6 +1,6 @@
-// The envelope editor's Firebase persistence paths, split out of
-// `EnvelopeCreator.jsx` on 2026-09-01 for the source-size standard. Two
-// functions, both React-free, bodies verbatim from the component:
+// The envelope editor's Firebase persistence paths, kept apart from
+// `EnvelopeCreator.jsx` for the source-size standard. Two functions, both
+// React-free:
 //
 //  - `hydrateEnvelopeForEdit` — the "Correct" / "Edit Template" load: reads
 //    the Firestore document, converts stored fields back to editor format,

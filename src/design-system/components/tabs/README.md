@@ -10,10 +10,9 @@ Company Profile, had tab *behaviour* with no tab semantics at all: plain
 `<button>`s, `activeTab` state and a coloured border, so assistive technology
 could not tell it was a tab interface or say which section was current.
 
-All eleven are migrated (2026-08-25). `check:ui-contract`'s
-`hand-rolled-tablist` rule is what keeps the twelfth from being written: this
-component was built on 2026-08-21 and still had **zero** consumers four days
-later, because a roadmap line is not a guard.
+All eleven are migrated. `check:ui-contract`'s `hand-rolled-tablist` rule is
+what keeps the twelfth from being written, because a roadmap line is not a
+guard.
 
 ```jsx
 const [active, setActive] = useState('documents');

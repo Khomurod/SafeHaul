@@ -7,8 +7,8 @@ import { Badge, IconButton, Select } from '@/design-system/components';
  * Dossier header: the current section's title, the application reference, the
  * status/assignment controls, and the primary actions.
  *
- * Presentation migrated to the approved `IconButton`, `Select` and `Badge`
- * primitives with `--ds-*` tokens (2026-07-27).
+ * Presentation uses the approved `IconButton`, `Select` and `Badge`
+ * primitives with `--ds-*` tokens.
  *
  * Frozen contracts: every per-tab title string, the `App ID: <first 8 chars>`
  * presentation (of `recordId`, the record's document id: the loaded record
@@ -27,23 +27,17 @@ import { Badge, IconButton, Select } from '@/design-system/components';
  * `handleDownloadPdf` (`useApplicationView`) does it as `onDownload`, and says
  * when there is no file to give.
  *
- * DEFECTS FIXED (2026-07-27):
- * - **The close button had no accessible name at all** — an icon-only `<button>`
- *   with neither `title` nor `aria-label`. Screen-reader users were offered an
- *   unlabelled control as the only way out of a modal dialog.
- * - The Status and Assign To selects took their accessible name from a `<span>`
- *   marked `hidden lg:inline`. Below `lg` that span is `display:none`, which
- *   removes it from the accessible name computation — so on every tablet and
- *   phone both selects were **completely unlabelled**. The label text is now
- *   always present, visually hidden below `lg` instead of removed.
- * - The Download action relied on `title` alone for its name; it now carries an
- *   explicit `aria-label`.
- * - **At 412 px the Close and Delete actions were off-screen entirely.** The
- *   action group was `shrink-0`, so its `flex-wrap` never engaged: it stayed at
- *   its 489 px max-content width inside a 412 px dialog panel whose
- *   `overflow-hidden` then clipped it. On a phone — which has no Escape key —
- *   there was no way at all to close the dossier. The group now shrinks and
- *   wraps.
+ * Rules this header keeps:
+ * - **The close button has an accessible name**: it is the only way out of a
+ *   modal dialog.
+ * - The Status and Assign To labels stay in the accessible name computation —
+ *   visually hidden on narrow headers, never `display:none`, which would leave
+ *   both selects unlabelled on tablets and phones.
+ * - The Download action has an explicit accessible name, not `title` alone.
+ * - **At 412 px the Close and Delete actions stay on screen.** The action group
+ *   shrinks and wraps: a `shrink-0` group never wraps and is clipped by the
+ *   dialog panel's `overflow-hidden`, and a phone has no Escape key to close
+ *   the dossier with.
  */
 export function DossierHeader({
     activeTab,

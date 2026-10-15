@@ -19,9 +19,9 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
 /**
  * Previous Employment Verification — initiation and tracking.
  *
- * Presentation migrated to the approved `Card`, `MetricCard`, `Badge`, `Button`
+ * Presentation uses the approved `Card`, `MetricCard`, `Badge`, `Button`
  * and `IconButton` primitives, the approved accessible `Modal`, and `--ds-*`
- * tokens (2026-07-27).
+ * tokens.
  *
  * DELIBERATELY NOT MIGRATED in this campaign: `VOEPreviewModal`'s generated
  * document layout and its PDF/print rendering, and the external employer
@@ -43,29 +43,24 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
  * 'manual'` delivery values and their `Email | Fax | Manual` labels; the
  * `'Manual Download'` recipient fallback; and every toast string.
  *
- * DEFECTS FIXED (2026-07-27):
- * - **The verification-history overlay was not a dialog.** A bare
- *   `<div class="fixed inset-0">` with no `role="dialog"`, no `aria-modal`, no
- *   focus containment, no focus restoration and no Escape — opened on top of the
- *   driver dossier, which *is* a modal dialog. Keyboard users tabbed straight
- *   through it into the page behind. It now uses the approved accessible `Modal`.
- * - **Its close control had no accessible name** and was a `Plus` icon rotated
- *   45° to fake an X, so assistive technology was offered an unlabelled button
- *   whose icon claimed "add".
- * - **The history dialog was titled "Not Specified" for legacy employers.** It
- *   read `employer.companyName` only, while the list uses
- *   `companyName || name`. The one place that tells you *whose* verification
- *   trail you are reading got it wrong.
- * - **The Resend action had no accessible name** — an icon-only `<button>` whose
- *   only name source was a `title` attribute.
- * - **Interface text at 10 px and 11 px** in the summary cards, the status
- *   badges and the FMCSA notes, below the 12 px floor.
- * - **The employer list was a bare `<div>` grid**, so assistive technology never
- *   announced how many employers there were. It is now a real list.
- * - **The in-flight upload and signed-URL fetches were silent.** Both now
- *   announce through a `role="status"` live region.
- * - **Status was carried by a coloured strip and a colour-only pill.** The pill
- *   is now an approved `Badge` whose tone is layered over its own text.
+ * Rules this tab keeps:
+ * - **The verification-history overlay is the approved accessible `Modal`**
+ *   (`role="dialog"`, `aria-modal`, focus containment, focus restoration,
+ *   Escape), because it opens on top of the driver dossier, which *is* a modal
+ *   dialog.
+ * - **Its close control has an accessible name** and a real close icon.
+ * - **The history dialog's title reads `companyName || name`**, the same chain
+ *   as the list, so a legacy employer is named rather than "Not Specified": it
+ *   is the one place that tells you *whose* verification trail you are reading.
+ * - **The Resend action has an accessible name**, not a `title` alone.
+ * - **No interface text below the 12 px floor**, the summary cards, the status
+ *   badges and the FMCSA notes included.
+ * - **The employer list is a real list**, so assistive technology announces how
+ *   many employers there are.
+ * - **The in-flight upload and signed-URL fetches announce** through a
+ *   `role="status"` live region.
+ * - **Status is never colour alone**: the pill is an approved `Badge` whose tone
+ *   is layered over its own text.
  */
 
 export function PEVTab({ companyId, applicationId, appData, collectionName = 'applications' }) {
@@ -107,13 +102,10 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
      * Write a verification mirror onto one employer row, without clobbering the rest.
      *
      * `[...employers]` from `appData` is a snapshot of whenever the dossier last
-     * read the application, and this writes the WHOLE array back — so anything
-     * that changed on another row in between is lost. That was survivable while
-     * the only thing on a row was what the recruiter typed. It stopped being
-     * survivable on 2026-09-09, when `sendVerificationRequest` began stamping a
-     * stable `employerId` on the rows it resolves: the callable would mint the
-     * identity, the write-back below would erase it a moment later, and the
-     * employer's own answer would then have no row it could safely be filed
+     * read the application, and writing the WHOLE array back would lose anything
+     * that changed on another row in between — including the stable `employerId`
+     * that `sendVerificationRequest` stamps on the rows it resolves, after which
+     * the employer's own answer would have no row it could safely be filed
      * against.
      *
      * So the document is re-read here and the change applied to what is actually

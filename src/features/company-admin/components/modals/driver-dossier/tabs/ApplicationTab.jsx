@@ -20,9 +20,9 @@ import {
  * Dossier Application tab.
  *
  * The read-only summary (identity, license, safety, employment, consent), the
- * summary/full toggle and the pending-changes banner are migrated to the
- * approved `Card` / `Button` / `IconButton` / `Badge` / `FieldDisplay`
- * primitives and `--ds-*` tokens (2026-07-27).
+ * summary/full toggle and the pending-changes banner use the approved
+ * `Card` / `Button` / `IconButton` / `Badge` / `FieldDisplay` primitives and
+ * `--ds-*` tokens.
  *
  * DELIBERATELY NOT MIGRATED in this campaign: the full-application
  * `SchemaSection` rendering/editing path and the propose-changes / review-link
@@ -32,11 +32,10 @@ import {
  * ## Employment history is edited by its own component, and that is not cosmetic
  *
  * `SchemaSection` renders an `array` section read-only whatever `isEditing` says,
- * so until 2026-09-09 "Edit application" could change every scalar field and none
- * of the employment history — the section a recruiter most often has to correct.
+ * and employment history is the section a recruiter most often has to correct.
  * That renderer is shared with the driver's own wizard, so the editor lives in the
  * applications feature (`PreviousEmployersEditor`) and is swapped in here for the
- * one section while editing. Every other section renders exactly as before.
+ * one section while editing. Every other section renders through `SchemaSection`.
  *
  * The verification mirror on each employer row is never edited or moved: the
  * server strips whatever a client sends and re-attaches it by employer identity
@@ -48,23 +47,18 @@ import {
  * (`'agreed'` / `'yes'` / `true`), the data-url-only signature rendering, the
  * `'summary'` initial view, and the `previewValue` truncation rules.
  *
- * DEFECTS FIXED (2026-07-27):
- * - With no SSN on the application the mask was applied to the literal fallback
- *   string `'Unknown'`, so the card displayed **`***-**-nown`**. An absent SSN
- *   now renders the fully-masked `***-**-****`.
- * - The SSN reveal toggle was an icon-only `<button>` with no accessible name,
- *   so a screen-reader user was offered an unlabelled control that exposes a
- *   social security number. It is now a named `IconButton` whose label reflects
- *   its state.
- * - The summary/full toggle was two `<button>`s with no pressed state, so
- *   assistive technology could not tell which view was active — selection was
- *   carried by background colour alone.
- * - Card titles were `<h3>`; they now sit at `<h4>` beneath the header's `<h3>`.
- * - With no application data the tab rendered **nothing at all**, leaving the
- *   dossier's tab panel blank with no explanation. It now renders an announced
- *   empty state.
- * - Summary rows applied `truncate` to the value, so long addresses and names
- *   were clipped with no tooltip and no way to read them. Values now wrap.
+ * Rules this tab keeps:
+ * - An absent SSN renders the fully-masked `***-**-****`; the mask is never
+ *   applied to a fallback string (`'Unknown'` would show as `***-**-nown`).
+ * - The SSN reveal toggle is a named `IconButton` whose label reflects its
+ *   state, because it exposes a social security number.
+ * - The view toggle exposes its pressed state, so assistive technology can tell
+ *   which view is active and selection is not carried by colour alone.
+ * - Card titles are `<h4>`, beneath the header's `<h3>`.
+ * - With no application data the tab renders an announced empty state, never a
+ *   blank panel.
+ * - Summary values wrap rather than `truncate`, so long addresses and names stay
+ *   readable.
  */
 
 /** Compact value preview for the pending-changes before/after list. */
@@ -237,14 +231,10 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
             )}
 
             {/*
-              Toggle Header — the design system's `SegmentedControl` since
-              2026-08-25. It was a hand-built `role="group"` of `aria-pressed`
-              buttons, recorded as an exception because "the design system has no
-              Segmented/ToggleGroup primitive yet"; one shipped on 2026-08-21
-              naming this call site. The semantics are the same by design — the
-              primitive is `role="group"` + `aria-pressed`, not a radiogroup — and
-              the icon size now comes from the control-icon token instead of a
-              `size={14}` chosen here.
+              Toggle Header — the design system's `SegmentedControl`:
+              `role="group"` + `aria-pressed`, not a radiogroup, by design. The
+              icon size comes from the control-icon token, not from this call
+              site.
             */}
             <SegmentedControl
                 ariaLabel="Application view"

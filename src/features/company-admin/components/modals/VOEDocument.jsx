@@ -179,8 +179,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
             {/* Labels inside this faded block are text-slate-700, two steps darker than the
                 text-slate-500 the rest of the form uses, because the block renders at 80%
                 opacity: slate-500 blends to 3.25:1 here and slate-700 to 5.74:1. WCAG 2.2 SC
-                1.4.3 (AA, 4.5:1) has no exemption for legal small print — recoloured
-                2026-09-06 from slate-400 (2.56:1 / 2.07:1 faded), the audit's item 7. */}
+                1.4.3 (AA, 4.5:1) has no exemption for legal small print. */}
             <div className="opacity-80 pointer-events-none grayscale border-t-2 border-dashed border-slate-300 pt-8 mt-12 bg-slate-50/20 p-8 rounded-xl">
                 <h4 className="text-[11px] font-black uppercase text-slate-800 mb-8 tracking-widest text-center border-b border-slate-200 pb-2">Employment History Questionnaire (To be completed by Recipient)</h4>
 

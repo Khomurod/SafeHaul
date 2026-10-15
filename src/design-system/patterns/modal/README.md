@@ -16,16 +16,9 @@ migration replaced was missing the same four behaviours:
 
 ## Chrome contract
 
-Added 2026-09-05. Before it, `Modal` took a `className` and an
-`overlayClassName` that **replace** the panel and backdrop wholesale, and 38 of
-the 41 call sites used them — writing 30 different spellings of the same handful
-of intentions. A hairline border here and none there; `max-h-[85vh]` beside
-`max-h-[92vh]`; `backdrop-blur-md` beside `backdrop-blur-sm`. None of it was
-visible to any guard, because every one of those classes is perfectly
-on-contract. The variation was the problem, not the classes.
-
-So the chrome moved into `Modal.css` and the variation became six enumerated
-props:
+The chrome lives in `Modal.css`. Free classes are no contract — each can be
+perfectly on-contract while the dialogs drift apart, and no guard sees the
+variation — so what a caller may vary is six enumerated props:
 
 | Prop | Values | Default | For |
 |---|---|---|---|
@@ -51,9 +44,8 @@ there is.
 
 ### The legacy props are gone
 
-`className` and `overlayClassName` were removed on 2026-09-05, and passing
-either now throws. They REPLACED the chrome rather than extending it, which is
-how 38 call sites came to write 30 spellings of the same six intentions.
+Passing `className` or `overlayClassName` throws: either would replace the
+chrome rather than extend it.
 
 They are still *named* in the signature, deliberately: a removed prop that falls
 into a `...rest` lands on the DOM as an unknown attribute, which is the quiet
@@ -124,13 +116,10 @@ application's resume flow is the reference case.
 
 ## Why this is in the design system
 
-Dialog structure was always meant to be a pattern. It sat in
-`src/shared/components/modals` until 2026-08-21 for one reason: `ConfirmDialog`
-composes `Modal`, and the design system may not depend on `shared`, so moving
-either alone would have created the exact dependency inversion the migration
-exists to remove. They moved together, and `tests/architecture.test.js` now
-forbids `shared` imports from this directory outright — a rule that could not be
-written while these two files were the counterexample.
+Dialog structure is a pattern. `ConfirmDialog` composes `Modal`, and the design
+system may not depend on `shared`, so the two live here together;
+`tests/architecture.test.js` forbids `shared` imports from this directory
+outright.
 
 No blocking browser dialogs. `confirm()` and `alert()` are rejected by
 `src/tests/noBlockingBrowserDialogs.test.js`; use `ConfirmDialog` for a

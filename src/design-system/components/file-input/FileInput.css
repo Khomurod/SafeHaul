@@ -111,10 +111,8 @@
  *
  * As a `<label>` the whole panel is the click target for the input it labels,
  * which none of the hand-built versions managed. It is a drop target too, but not
- * for free: this comment claimed "with no event handler at all" until 2026-08-25,
- * and that was wrong — a label forwards a click to its control, never a drop, so
- * a file dropped on the panel landed on the label and was discarded. `FileInput`
- * has an explicit `onDrop` now; see the note beside it.
+ * for free: a label forwards a click to its control, never a drop, so `FileInput`
+ * has an explicit `onDrop`; see the note beside it.
  */
 .ds-file-input[data-variant='dropzone'] .ds-file-input__control {
   flex-direction: column;

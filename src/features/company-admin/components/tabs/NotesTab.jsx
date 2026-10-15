@@ -13,9 +13,7 @@ import { EmptyState, LoadingState } from '@design-system/patterns';
  * Internal notes for one application or lead, plus anonymised shared history from
  * previous companies.
  *
- * Migrated to the design system 2026-07-28. This was one of the four dossier tab
- * bodies deliberately left unmigrated by the 2026-07-27 dossier foundation slice
- * and recorded as residual debt since.
+ * Built on the design system's components and `--ds-*` tokens.
  *
  * Presentation only. Frozen and unchanged: the
  * `companies/{companyId}/{collectionName}/{applicationId}/internal_notes` path and
@@ -29,31 +27,27 @@ import { EmptyState, LoadingState } from '@design-system/patterns';
  * `getPortalUser` → `'Admin'` fallback; the empty-note no-op; and every
  * user-facing string.
  *
- * Defects fixed:
- *  1. **`alert("Failed to save note.")`** — a blocking dialog for a routine save
- *     failure. Now an announced in-place message with the wording preserved.
- *  2. **The note composer had no accessible name.** The `<label>` had no
- *     `htmlFor` and the `<textarea>` had no `id`, so a screen reader announced an
- *     unnamed multiline field. `FormField` owns the association, and the
- *     "Visible only to your team" line is now its accessible description rather
- *     than unrelated text below it.
- *  3. **Sub-12px functional text** — `text-[9px]` on the "Shared History" badge
- *     and `text-[10px]` on every timestamp.
- *  4. **`text-gray-400` on white = 2.56:1** on the privacy note and all
- *     timestamps, and `text-gray-300` on the empty-state icon.
- *  5. **The loading state was an unannounced bare spinner.**
- *  6. **Duplicate submission was possible** — `sending` is React state, so two
- *     activations inside one render both passed it.
- *  7. **A `title` attribute was the only marker on the shared-history avatar**,
- *     duplicating the visible badge; it is removed rather than relied on.
- *  8. Legacy palette throughout (purple-50/100/200/600/800, gray-*, blue-600) and
- *     a hand-rolled inline `<svg>` shield replaced by the approved Lucide icon.
- *  9. **The loading and empty panels were two different shapes** — a line of
- *     small text and a dashed bordered block — in the same slot (2026-08-25).
- *     They are the approved `LoadingState` and `EmptyState`, which is the
- *     pattern's own rule: the three states of one slot look alike, and the empty
- *     one is announced when the notes finish loading instead of appearing
- *     silently.
+ * Rules this tab keeps:
+ *  1. **A failed save is an announced in-place message** worded "Failed to save
+ *     note.", never a blocking `alert()`.
+ *  2. **The note composer has an accessible name.** `FormField` owns the
+ *     label/field association, and the "Visible only to your team" line is its
+ *     accessible description.
+ *  3. **No functional text below 12px**, the "Shared History" badge and every
+ *     timestamp included.
+ *  4. **Contrast holds** on the privacy note, the timestamps and the
+ *     empty-state icon (`text-gray-400` on white is 2.56:1).
+ *  5. **The loading state is announced.**
+ *  6. **Duplicate submission is blocked by a ref** — `sending` is React state,
+ *     so two activations inside one render would both pass it.
+ *  7. **The shared-history avatar carries no `title`**; the visible badge is the
+ *     marker.
+ *  8. `--ds-*` tokens and the approved Lucide icons throughout, not the legacy
+ *     palette or a hand-rolled inline `<svg>`.
+ *  9. **The loading and empty panels are the approved `LoadingState` and
+ *     `EmptyState`**, which is the pattern's own rule: the three states of one
+ *     slot look alike, and the empty one is announced when the notes finish
+ *     loading instead of appearing silently.
  */
 export function NotesTab({ companyId, applicationId, collectionName = 'applications' }) {
     const [notes, setNotes] = useState([]);

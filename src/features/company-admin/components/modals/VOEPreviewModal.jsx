@@ -16,7 +16,7 @@ import { VOEDocument } from './VOEDocument';
  * VOE preview: the generated 49 CFR §391.23 verification request, with print,
  * PDF export and transmission.
  *
- * ── SCOPE OF THE 2026-07-27 MIGRATION ────────────────────────────────────────
+ * ── SCOPE OF THE MIGRATION ───────────────────────────────────────────────────
  * Only the **app chrome** is migrated — the dialog shell, header,
  * recipient/applicant summary, the Print / Download PDF / Edit Request /
  * Transmit actions, and the loading, export-failure and missing-data states.
@@ -29,7 +29,7 @@ import { VOEDocument } from './VOEDocument';
  * for a rasteriser, so any edit to it changes every exported PDF and every
  * printed page.
  *
- * Note what that reason is NOT, corrected 2026-09-04: it is not that the export
+ * Note what that reason is NOT: it is not that the export
  * paths lack the custom properties. `handleDownloadPDF` rasterises with
  * html2canvas from **computed** style, which resolves `var()` first; and
  * `handlePrint` inlines the application's own stylesheets through
@@ -39,7 +39,7 @@ import { VOEDocument } from './VOEDocument';
  * contain no `ds-*` class and no `var(--ds-…)` value. Do not "finish the
  * migration" by tokenising it without first proving export parity.
  *
- * ── PRINT PIPELINE (rebuilt 2026-07-27) ──────────────────────────────────────
+ * ── PRINT PIPELINE ───────────────────────────────────────────────────────────
  * See `@shared/utils/printDocument` for the reasoning. In short: the document is
  * **cloned as a DOM tree** into the print window rather than serialised,
  * sanitised as user content and re-parsed; the application's own stylesheets are
@@ -59,22 +59,22 @@ import { VOEDocument } from './VOEDocument';
  * 20 px body padding; and the `onClose` / `onSend()` callbacks, including that
  * `onClose` returns to `PEVRequestModal`.
  *
- * DEFECTS FIXED (2026-07-27):
- * - **The dialog was hand-rolled**: no `role="dialog"`, no `aria-modal`, no
- *   focus containment, no focus restoration and no Escape — layered on top of
+ * Rules this dialog keeps:
+ * - **It is the approved `Modal`** — `role="dialog"`, `aria-modal`, focus
+ *   containment, focus restoration and Escape — because it opens on top of
  *   `PEVRequestModal`, which is itself a dialog inside the driver dossier, which
- *   is a third. Tab walked straight out of all three.
- * - **The close control had no accessible name.**
- * - **Export failure used `window.alert`**, which blocks the thread and is not
- *   announced as part of the dialog. It is now an in-dialog `role="alert"`.
- * - **A blocked pop-up crashed the print action** with a TypeError on
- *   `windowPrint.document`, with nothing shown to the user.
- * - **PDF generation was silent** — an icon swap with no live region.
- * - **Missing data rendered `null`**, so choosing "Continue to Preview" opened
- *   nothing at all with no explanation and no way back.
- * - **The disabled Transmit action never said why** it was disabled; the reason
- *   was only visible inside the document image.
- * - `text-[10px]` chrome text below the 12 px floor.
+ *   is a third.
+ * - **The close control has an accessible name.**
+ * - **Export failure is an in-dialog `role="alert"`**, never `window.alert`,
+ *   which blocks the thread and is not announced as part of the dialog.
+ * - **A blocked pop-up is reported to the user**, not left to throw on
+ *   `windowPrint.document`.
+ * - **PDF generation is announced** in a live region, not by an icon swap alone.
+ * - **Missing data renders an explanation and a way back**, never `null`, so
+ *   "Continue to Preview" always opens something.
+ * - **The disabled Transmit action says why** it is disabled, outside the
+ *   document image.
+ * - No chrome text below the 12 px floor.
  */
 export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
     const hasRequiredData = Boolean(employer && applicant);
@@ -142,14 +142,13 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
     /**
      * Build and print a standalone copy of the generated document.
      *
-     * DEFECT FIX (2026-07-27): this used to serialise the document to a string,
-     * run it through `sanitizeUserContent` — the strict *user-content* policy —
-     * and write the result into the print window. That policy allows no `div`,
-     * no `class` and no `img`, so Print emitted a flat, unstyled text dump with
-     * the applicant's signature deleted: an unsigned §391.23 release. See
-     * `@shared/utils/printDocument` for why trusted structure needs its own
-     * policy and why the shared sanitiser must not be loosened to accommodate
-     * this call site.
+     * The document is cloned as a DOM tree, never serialised through
+     * `sanitizeUserContent` — the strict *user-content* policy. That policy
+     * allows no `div`, no `class` and no `img`, so it would print a flat,
+     * unstyled text dump with the applicant's signature deleted: an unsigned
+     * §391.23 release. See `@shared/utils/printDocument` for why trusted
+     * structure needs its own policy and why the shared sanitiser must not be
+     * loosened to accommodate this call site.
      */
     const handlePrint = async () => {
         const printContent = documentRef.current;

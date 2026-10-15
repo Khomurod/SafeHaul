@@ -7,12 +7,8 @@ SafeHaul uses two token levels:
 - `semantic.css` assigns UI meaning such as surface, content, action, status,
   focus, and table roles.
 
-The `--ds-*` namespace was originally there to avoid colliding with the legacy
-variables in `src/shared/styles/designTokens.css`. That file is **deleted** as of
-2026-08-25 — not one of its ~60 variables had a consumer left — so the namespace
-now serves only its second purpose: making a design-system token visible as one
-at every call site. Tailwind exposes selected semantic tokens with `ds-`-prefixed
-utilities.
+The `--ds-*` namespace makes a design-system token visible as one at every call
+site. Tailwind exposes selected semantic tokens with `ds-`-prefixed utilities.
 
 `typeface.css` holds the product's typeface, served from
 `src/design-system/fonts/` rather than fetched from a CDN. Read its header before
@@ -47,13 +43,10 @@ call site. Changing one of these changes the product, which is the point.
   dimming on top to stay readable. Nine sites were dimming to five different
   values before these existed.
 
-**A token nothing references is deleted, not kept.** Fifteen had outlived their
-consumers by 2026-09-05 — five palette steps, two duplicates of the brand
-colours under an older name, two spacing steps, three type roles, a duration and
-a z-index — and nothing noticed, because a token costs nothing to keep. That is
-the problem: a vocabulary nobody prunes stops being a vocabulary and becomes a
-list, and the next reader cannot tell which entry is live.
-`tests/tokens.consumers.test.js` is what stops the next fifteen. It compares
+**A token nothing references is deleted, not kept.** A token costs nothing to
+keep, so nothing notices one outliving its consumers — and a vocabulary nobody
+prunes stops being a vocabulary and becomes a list, where the next reader cannot
+tell which entry is live. `tests/tokens.consumers.test.js` enforces it. It compares
 whole names rather than substrings, and it does not count a **test** as a
 consumer: a token asserted on only by a test is still dead in the product.
 

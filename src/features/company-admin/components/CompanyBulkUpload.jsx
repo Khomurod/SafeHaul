@@ -18,19 +18,19 @@ import { Stack } from '@/design-system/layouts';
  * values, the team-member list, and the data-repair action. All visual and
  * interaction behaviour comes from the design system and `BulkUploadLayout`.
  *
- * Migrated 2026-07-27. Defects fixed, presentation only:
+ * Rules this screen keeps (presentation only):
  *
- *  1. The two assignment tiles were toggle `<button>`s whose selection was
- *     communicated by colour alone — now a real radio group.
- *  2. Each team member was a `<div onClick>` with a decorative check icon: no
- *     role, no accessible name, no checked state, and unreachable by keyboard.
- *     They are now real checkboxes.
- *  3. The distribution note used `text-[10px]`, below the 12 px floor.
- *  4. The repair action used a blocking `window.confirm`, which cannot be
- *     reached as page content and steals focus. It is now an accessible
- *     confirmation dialog with the same question, verbatim.
- *  5. Upload, import and repair failures used blocking `alert()`. They now
- *     render in place as `role="alert"` messages with the same text.
+ *  1. The two assignment tiles are a real radio group, so selection is not
+ *     communicated by colour alone.
+ *  2. Each team member is a real checkbox — a role, an accessible name, a
+ *     checked state, reachable by keyboard — not a `<div onClick>` with a
+ *     decorative check icon.
+ *  3. No interface text below the 12 px floor, the distribution note included.
+ *  4. The repair action asks through an accessible confirmation dialog with the
+ *     same question, verbatim — never a blocking `window.confirm`, which cannot
+ *     be reached as page content and steals focus.
+ *  5. Upload, import and repair failures render in place as `role="alert"`
+ *     messages with the same text — never a blocking `alert()`.
  *
  * Frozen: `uploadLeads(csvData, importMethod)`, the CSV template headers /
  * sample row / filename, the accepted formats, the instructions text, the
