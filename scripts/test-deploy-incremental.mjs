@@ -323,7 +323,8 @@ section('13. index.js: wiring, comments and the loader');
   const lines = indexSrc.split('\n');
   const exportLine = lines.findIndex((line) => /\bexports\.\w+\s*=/.test(line));
   const commentEdit = indexSrc.replace(/\/\/[^\n]*/, '// a reworded comment');
-  const added = [...lines.slice(0, exportLine + 1), lines[exportLine].replace(/exports\.(\w+)/, 'exports.$1Copy'), ...lines.slice(exportLine + 1)].join('\n');
+  const copyLine = lines[exportLine].replace(/exports\.(\w+)/, 'exports.$1Copy').replace(/wanted\('(\w+)'\)/, "wanted('$1Copy')");
+  const added = [...lines.slice(0, exportLine + 1), copyLine, ...lines.slice(exportLine + 1)].join('\n');
   const loaderEdit = `${indexSrc}\nconst startedAt = Date.now();\n`;
   const stringWithSlashes = `${indexSrc}\nconst url = 'https://example.test/a'; // a comment after a string\n`;
   const sameString = stringWithSlashes.replace('// a comment after a string', '// reworded');
@@ -341,8 +342,13 @@ section('13. index.js: wiring, comments and the loader');
     { changed: [], loaderChanged: false }
   );
   assertEqual(
-    '… but a line break between two tokens is a change',
-    diff(`${indexSrc}\nconst sum = 1 + 2;\n`, `${indexSrc}\nconst sum = 1 +\n  2;\n`)?.loaderChanged,
+    '… nor a line break that changes no meaning, nor the quotes of a string',
+    diff(`${indexSrc}\nconst sum = 1 + 2, label = 'a';\n`, `${indexSrc}\nconst sum = 1 +\n  2, label = "a";\n`),
+    { changed: [], loaderChanged: false }
+  );
+  assertEqual(
+    '… but a line break that changes the meaning is a change',
+    diff(`${indexSrc}\nfunction one() { return 1; }\n`, `${indexSrc}\nfunction one() { return\n1; }\n`)?.loaderChanged,
     true
   );
   const copyName = `${lines[exportLine].match(/exports\.(\w+)/)[1]}Copy`;
@@ -357,10 +363,12 @@ section('13. index.js: wiring, comments and the loader');
     { changed: [firstName], loaderChanged: false }
   );
   assertEqual(
-    'an export whose condition changes redeploys',
+    'an export whose condition no longer asks for its own name is loader code: every function runs the condition',
     diff(indexSrc, editLine((line) => line.replace(/wanted\('(\w+)'\)/, "wanted('$1Other')"))),
-    { changed: [firstName], loaderChanged: false }
+    { changed: [firstName], loaderChanged: true }
   );
+  const withCheck = (call) => editLine((line) => line.replace(/wanted\('(\w+)'\)/, `wanted('$1') || ${call}()`));
+  assertEqual('… and so is code added to the condition', diff(withCheck('setup'), withCheck('setUp')), { changed: [], loaderChanged: true });
   assertEqual(
     'spacing and a trailing comment on an export line do not',
     diff(indexSrc, editLine((line) => `${line.replace(/ = /, '  =  ')} // a note`)),
@@ -374,7 +382,7 @@ section('13. index.js: wiring, comments and the loader');
   assertEqual(
     'a space inside a string on an export line is a change',
     diff(indexSrc, editLine((line) => line.replace(/wanted\('(\w+)'\)/, "wanted('$1 ')"))),
-    { changed: [firstName], loaderChanged: false }
+    { changed: [firstName], loaderChanged: true }
   );
   assertEqual('a change to the code around the export lines is a loader change', diff(indexSrc, loaderEdit)?.loaderChanged, true);
   assertEqual('// inside a string is not a comment: a comment after it may change', diff(stringWithSlashes, sameString)?.loaderChanged, false);
@@ -394,6 +402,27 @@ section('13. index.js: wiring, comments and the loader');
     diff(`${indexSrc}\nconst label = \`a \${'//'} old\`;\n`, `${indexSrc}\nconst label = \`a \${'//'} new\`;\n`)?.loaderChanged,
     true
   );
+  const sharedLine = (call, before = false) => editLine((line) => (before ? `${call}(); ${line}` : `${line} ${call}();`));
+  assertEqual(
+    'loader code on an export line is loader code',
+    diff(sharedLine('setup'), sharedLine('setUp')),
+    { changed: [], loaderChanged: true }
+  );
+  assertEqual('… before the export too', diff(sharedLine('setup', true), sharedLine('setUp', true)), { changed: [], loaderChanged: true });
+  const twoOnALine = (member) => editLine((line) => `${line} if (wanted('Second')) exports.Second = require('./second').${member};`);
+  assertEqual(
+    'two exports on one line: rewiring the second redeploys the second only',
+    diff(twoOnALine('handler'), twoOnALine('other')),
+    { changed: ['Second'], loaderChanged: false }
+  );
+  const called = (argument) => `${indexSrc}\nexports.Built = require('./built').build('${argument}');\n`;
+  assertEqual('an export assigned anything but a module or its member is loader code', diff(called('a'), called('b')), { changed: [], loaderChanged: true });
+  const loadOne = (call) => [
+    `function load(wanted) { ${call}(); if (wanted('A')) exports.A = require('./a').A; }`,
+    "exports.B = require('./b').B;",
+    'load(() => true);',
+  ].join('\n');
+  assertEqual('a loader function wiring one export keeps its other code in the loader', diff(loadOne('setup'), loadOne('setUp')), { changed: [], loaderChanged: true });
   // The older form: a module variable that only export lines read is wiring;
   // one the loader itself reads is loader code.
   const olderForm = (helper, module, extra = '') => [

@@ -12,9 +12,10 @@
  *   deploys only the `systemIntegrity` exports; editing `bulkActions/helpers/sessionFactory.js` deploys
  *   the bulk exports and `executeReactivationBatch`, which loads it through `smsService.js`.
  *   A file the code reads from disk (an image) counts for the code that names it.
- * - functions/index.js: diffs export→module mappings vs base commit; only exports whose wiring or backing
- *   file path changed are redeployed (comment and whitespace edits deploy nothing). A change to the code
- *   around the export lines (the FUNCTION_TARGET loader every function starts on) redeploys every export.
+ * - functions/index.js is compared with the base commit as a syntax tree (deploy-functions-index.mjs):
+ *   only exports whose own statement or backing module changed are redeployed (comment and formatting
+ *   edits deploy nothing). A change to the code around the export statements (the FUNCTION_TARGET loader
+ *   every function starts on) redeploys every export.
  * - STRICT TARGETED policy: only files that ship with the functions count. Tests, dotfiles, docs and
  *   functions/package.json and its lockfile never trigger a deploy.
  * - If a changed runtime file does not appear in ANY entrypoint's closure, we log and skip it
@@ -28,7 +29,7 @@
  *   DEPLOY_FUNCTIONS_FORCE_FULL=1 — explicit full deploy (sequential script)
  *   DEPLOY_FUNCTIONS_DRY_RUN=1 — print the deploy plan and exit (no firebase invocation)
  *   DEPLOY_FUNCTIONS_ALWAYS_INCLUDE=parseCdlWithGroq,otherFn — always merge these
- *     exports into the deploy plan. If the git diff has no changed runtime .js files
+ *     exports into the deploy plan. If the git diff has no changed runtime files
  *     under functions/ (e.g. only workflow or docs changed) but this env is set, we still deploy these
  *     functions so CI-written secrets (functions/.env) reach runtime.
  *   --dry-run CLI flag — same as DEPLOY_FUNCTIONS_DRY_RUN=1
@@ -244,5 +245,4 @@ export {
     filterProductionFunctionPaths,
     planChangedFiles,
     diffIndexSources,
-    indexLoaderCode,
 } from './deploy-functions-resolve.mjs';

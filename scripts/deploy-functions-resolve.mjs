@@ -8,7 +8,7 @@
  * `root`/`repoRoot` resolve identically.
  */
 import { readFileSync, existsSync } from 'node:fs';
-import { parse } from '@babel/parser';
+import { indexParts } from './deploy-functions-index.mjs';
 import { fileURLToPath } from 'url';
 import { basename, dirname, join, normalize } from 'path';
 import { spawnSync } from 'child_process';
@@ -184,11 +184,10 @@ export function gitShow(commitColonPath) {
 
 /**
  * What a change to functions/index.js redeploys, between its base and head
- * sources: each export whose module or own line changed (another member of the
- * same module, another condition), and `loaderChanged` when the code around the
- * export lines changed. Every function starts on that code (it picks the module
- * FUNCTION_TARGET names), so a loader change concerns them all. Comments,
- * spacing and blank lines are neither. Returns null when either side cannot be
+ * sources: each export whose module or own wiring changed (another member of the
+ * same module, another condition), and `loaderChanged` when the loader around
+ * them changed, since every function starts on it (`deploy-functions-index.mjs`).
+ * Formatting and comments are neither. Returns null when either side cannot be
  * parsed.
  */
 export function diffIndexSources(oldSrc, newSrc) {
@@ -196,79 +195,19 @@ export function diffIndexSources(oldSrc, newSrc) {
   const newParsed = buildExportToFileFromSource(newSrc);
   if (!oldParsed.parseOk || !newParsed.parseOk) return null;
 
-  let oldCode;
-  let newCode;
+  let oldParts;
+  let newParts;
   try {
-    [oldCode, newCode] = [codeLines(oldSrc), codeLines(newSrc)];
+    [oldParts, newParts] = [indexParts(oldSrc), indexParts(newSrc)];
   } catch {
     return null;
   }
-  const oldLines = exportLines(oldCode);
-  const newLines = exportLines(newCode);
   const changed = new Set();
   for (const [name, file] of newParsed.exportToFile) {
-    if (oldParsed.exportToFile.get(name) !== file || oldLines.get(name) !== newLines.get(name)) changed.add(name);
+    if (oldParsed.exportToFile.get(name) !== file || oldParts.exports.get(name) !== newParts.exports.get(name)) changed.add(name);
   }
-  return { changed, loaderChanged: loaderCode(oldCode) !== loaderCode(newCode) };
+  return { changed, loaderChanged: oldParts.loader !== newParts.loader };
 }
-
-// Lines of tokens, one space apart (see `codeLines`).
-const EXPORT_LINE = /\bexports \. (\w+) =(?= |$)/;
-const MODULE_VARIABLE = /^(?:const|let|var) (\w+) = require \( (['"])\.\/[^'"]+\2 \)(?: ;)?$/;
-
-/**
- * The source as code alone, one entry per line of code: its tokens one space
- * apart, so the spacing between them never counts, and comments dropped with
- * any line break inside them. Strings, regular expressions and templates are
- * tokens, kept whole. A line break between two tokens counts. Throws when the
- * source does not parse.
- */
-function codeLines(src) {
-  const { tokens } = parse(src, { sourceType: 'script', tokens: true, allowReturnOutsideFunction: true });
-  const lines = [];
-  let gap = '';
-  let end = 0;
-  for (const token of tokens) {
-    gap += src.slice(end, token.start);
-    end = token.end;
-    if (token.type === 'CommentLine' || token.type === 'CommentBlock' || token.start === token.end) continue;
-    const text = src.slice(token.start, token.end);
-    if (lines.length === 0 || gap.includes('\n')) lines.push(text);
-    else lines[lines.length - 1] += ` ${text}`;
-    gap = '';
-  }
-  return lines;
-}
-
-/** Each export's line of index.js. */
-function exportLines(code) {
-  const lines = new Map();
-  for (const line of code) {
-    const name = line.match(EXPORT_LINE)?.[1];
-    if (name) lines.set(name, lines.has(name) ? `${lines.get(name)}\n${line}` : line);
-  }
-  return lines;
-}
-
-/**
- * index.js without comments, blank lines and its wiring: the lines that assign an
- * export and, in its older form, those that require a module into a variable
- * only export lines read. A variable the loader reads too stays loader code.
- */
-function loaderCode(code) {
-  const wiring = code.filter((line) => EXPORT_LINE.test(line));
-  const rest = code.filter((line) => !EXPORT_LINE.test(line));
-  const onlyWiring = (line) => {
-    const name = line.match(MODULE_VARIABLE)?.[1];
-    if (!name) return false;
-    const reads = (other) => new RegExp(`(^| )${name}( |$)`).test(other);
-    return wiring.some(reads) && !rest.some((other) => other !== line && reads(other));
-  };
-  return rest.filter((line) => !onlyWiring(line)).join('\n');
-}
-
-/** `loaderCode` of an index.js source; throws when it does not parse. */
-export const indexLoaderCode = (src) => loaderCode(codeLines(src));
 
 /** `diffIndexSources` for the base commit's index.js and the working tree's. */
 export function diffExportsFromIndexChange(baseSha) {
