@@ -56,8 +56,9 @@ export function SuperAdminDashboard() {
   const [deletingUser, setDeletingUser] = useState(null);
   const [viewingCompanyApps, setViewingCompanyApps] = useState(null);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  // The company whose SMS setup is open comes from the address; its name from the
-  // row that opened it or, after a reload, from the company map.
+  // The company whose SMS setup is open comes from the address. The row picked
+  // in the list goes with it; a company named only by the address (a reload, a
+  // shared link) is read before its setup opens (`IntegrationSetup`).
   const [pickedIntegrationCompany, setPickedIntegrationCompany] = useState(null);
 
   const [backfillingEmployers, setBackfillingEmployers] = useState(false);
@@ -88,9 +89,7 @@ export function SuperAdminDashboard() {
   const selectedIntegrationCompany = integrationCompanyId
     ? {
       id: integrationCompanyId,
-      companyName: pickedIntegrationCompany?.id === integrationCompanyId
-        ? pickedIntegrationCompany.companyName
-        : allCompaniesMap?.get?.(integrationCompanyId),
+      picked: pickedIntegrationCompany?.id === integrationCompanyId ? pickedIntegrationCompany : null,
     }
     : null;
 

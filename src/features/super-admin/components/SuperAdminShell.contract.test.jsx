@@ -50,7 +50,7 @@ vi.mock('./ViewRouter', () => ({
             data-active-view={activeView}
             data-searching={String(isSearching)}
             data-company-id={selectedIntegrationCompany?.id ?? ''}
-            data-company-name={selectedIntegrationCompany?.companyName ?? ''}
+            data-picked-name={selectedIntegrationCompany?.picked?.companyName ?? ''}
         >
             <button type="button" onClick={() => onSelectIntegrationCompany({ id: 'co-9', companyName: 'Artificial Carrier 9' })}>
                 Set up SMS for Artificial Carrier 9
@@ -340,13 +340,12 @@ describe('Super Admin shell — the screen in the address', () => {
         expect(view()).toHaveAttribute('data-active-view', 'companies');
     });
 
-    it("reopens a company's SMS setup from its address, with the company's name", () => {
-        superAdminData = makeData({ allCompaniesMap: new Map([['co-7', 'Artificial Carrier 7']]) });
+    it("reopens a company's SMS setup from its address, for the setup to read the company", () => {
         renderShell('/super-admin/integrations/co-7');
 
         expect(view()).toHaveAttribute('data-active-view', 'integration-setup');
         expect(view()).toHaveAttribute('data-company-id', 'co-7');
-        expect(view()).toHaveAttribute('data-company-name', 'Artificial Carrier 7');
+        expect(view()).toHaveAttribute('data-picked-name', '');
     });
 
     it('puts the SMS setup a row opens into the address, and leaves it for the list', () => {
@@ -354,7 +353,7 @@ describe('Super Admin shell — the screen in the address', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Set up SMS for Artificial Carrier 9' }));
         expect(screen.getByTestId('address')).toHaveTextContent('/super-admin/integrations/co-9');
-        expect(view()).toHaveAttribute('data-company-name', 'Artificial Carrier 9');
+        expect(view()).toHaveAttribute('data-picked-name', 'Artificial Carrier 9');
 
         fireEvent.click(screen.getByRole('button', { name: 'Back to SMS integrations' }));
         expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/integrations$/);

@@ -67,6 +67,20 @@ test.describe('Super Admin shell', () => {
     await expect(nav.getByRole('button', { name: 'Companies' })).toHaveAttribute('aria-current', 'page');
   });
 
+  // Offline (VITE_E2E_TEST_MODE=1) the company cannot be read, so the setup
+  // settles on the failed read; a missing company gets "Company not found".
+  // Either way the form, which would save under the address's id, stays shut.
+  test("opens a company's SMS setup from its address only after reading the company", async ({ page }) => {
+    await page.goto('/super-admin/integrations/e2e-unknown-company?e2eAuth=super_admin');
+    await expect(page.getByRole('heading', { name: /^(Could not load this company|Company not found)$/ }))
+      .toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('group', { name: 'Select provider' })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Back to List' }).click();
+    await expect(page).toHaveURL(/\/super-admin\/integrations\?e2eAuth=super_admin$/);
+    await expect(page.getByRole('heading', { name: 'SMS Integrations Hub' })).toBeVisible();
+  });
+
   test('reaches every Super Admin section from the rail', async ({ page }) => {
     await openShell(page);
     const nav = page.getByRole('navigation', { name: 'Super Admin sections' });
