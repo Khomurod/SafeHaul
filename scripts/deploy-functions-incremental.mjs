@@ -11,7 +11,8 @@
  *   Example: editing `functions/schemaConfig.js` (required only by `functions/systemIntegrity.js`)
  *   deploys only the `systemIntegrity` exports; editing `bulkActions/helpers/sessionFactory.js` deploys
  *   the bulk exports and `executeReactivationBatch`, which loads it through `smsService.js`.
- *   A file the code reads from disk (an image) counts for the code that names it.
+ *   A file the code reads from disk (an image, a JSON file it does not require) counts for the code
+ *   that names it in a string.
  * - functions/index.js is compared with the base commit as a syntax tree (deploy-functions-index.mjs):
  *   only exports whose own statement or backing module changed are redeployed (comment and formatting
  *   edits deploy nothing). A change to the code around the export statements (the FUNCTION_TARGET loader

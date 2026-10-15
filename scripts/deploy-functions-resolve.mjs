@@ -8,6 +8,7 @@
  * `root`/`repoRoot` resolve identically.
  */
 import { readFileSync, existsSync } from 'node:fs';
+import { parse } from '@babel/parser';
 import { indexParts } from './deploy-functions-index.mjs';
 import { fileURLToPath } from 'url';
 import { basename, dirname, join, normalize } from 'path';
@@ -95,8 +96,8 @@ export function buildExportToFile() {
  *
  * Returns null if:
  *   - the specifier escapes the `functions/` tree
- *   - the named `.js`/`.json` file, or else `<resolved>.js` or `<resolved>/index.js`,
- *     does not exist on disk
+ *   - none of the files Node would try exists: the named `.js`/`.json` file, or
+ *     else `<resolved>.js`, `.json`, `/index.js`, `/index.json`, in that order
  */
 export function resolveRelativeRequire(fromFile, rel) {
   const baseDir = dirname(fromFile);
@@ -111,11 +112,8 @@ export function resolveRelativeRequire(fromFile, rel) {
     return existsSync(join(repoRoot, targetNoExt)) ? targetNoExt : null;
   }
 
-  const asFile = `${targetNoExt}.js`;
-  if (existsSync(join(repoRoot, asFile))) return asFile;
-  const asIndex = `${targetNoExt}/index.js`;
-  if (existsSync(join(repoRoot, asIndex))) return asIndex;
-  return null;
+  const candidates = ['.js', '.json', '/index.js', '/index.json'].map((suffix) => `${targetNoExt}${suffix}`);
+  return candidates.find((candidate) => existsSync(join(repoRoot, candidate))) || null;
 }
 
 /** Tiny cache so the closure walker re-uses file sources across entrypoints. */
@@ -126,6 +124,30 @@ export function readFileCached(repoRelPath) {
   const src = existsSync(abs) ? readFileSync(abs, 'utf8') : '';
   fileSourceCache.set(repoRelPath, src);
   return src;
+}
+
+/** The strings a source file holds (string literals and template text), or its whole text when it does not parse. */
+const fileStringsCache = new Map();
+function stringsIn(repoRelPath) {
+  if (!fileStringsCache.has(repoRelPath)) {
+    const src = readFileCached(repoRelPath);
+    let strings = [];
+    const visit = (node) => {
+      if (node.type === 'StringLiteral') strings.push(node.value);
+      if (node.type === 'TemplateElement') strings.push(node.value.cooked ?? node.value.raw);
+      for (const [key, value] of Object.entries(node)) {
+        if (key === 'loc' || key === 'extra' || key.endsWith('Comments')) continue;
+        for (const child of Array.isArray(value) ? value : [value]) if (child && typeof child.type === 'string') visit(child);
+      }
+    };
+    try {
+      visit(parse(src, { sourceType: 'unambiguous', allowReturnOutsideFunction: true }).program);
+    } catch {
+      strings = [src];
+    }
+    fileStringsCache.set(repoRelPath, strings);
+  }
+  return fileStringsCache.get(repoRelPath);
 }
 
 /**
@@ -226,8 +248,9 @@ export function diffExportsFromIndexChange(baseSha) {
  * of them. A file counts for its own module's exports, for those of the directory
  * module it sits in (`bulkActions/…` → `bulkActions/index.js`), and for those of
  * every entrypoint whose require() closure reaches it (JSON included), all at
- * once. A file the code reads from disk instead (an image) counts for the
- * entrypoints of the code that names it. functions/index.js is left to
+ * once. A file the code reads from disk instead (an image, a JSON file it does
+ * not require) counts for the entrypoints of the code that names it in a string,
+ * not in a comment. functions/index.js is left to
  * `diffIndexSources`, and the always-include list to `main()`.
  */
 export function planChangedFiles(changedFiles, { exportToFile, fileToEntries }) {
@@ -259,10 +282,10 @@ function ownersOf(file, fileToExports, fileToEntries) {
     if (module === file) owners.add(module);
     if (module.endsWith('/index.js') && file.startsWith(module.slice(0, -'index.js'.length))) owners.add(module);
   }
-  if (!/\.(js|json)$/.test(file)) {
+  if (!file.endsWith('.js')) {
     const name = basename(file);
     for (const [source, entries] of fileToEntries) {
-      if (source.endsWith('.js') && readFileCached(source).includes(name)) entries.forEach((e) => owners.add(e));
+      if (source.endsWith('.js') && stringsIn(source).some((text) => text.includes(name))) entries.forEach((e) => owners.add(e));
     }
   }
   return owners;

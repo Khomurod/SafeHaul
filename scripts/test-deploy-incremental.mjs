@@ -177,6 +177,11 @@ assertEqual(
   resolveRelativeRequire('functions/companyAdmin.js', './doesNotExistAnywhere'),
   null
 );
+assertEqual(
+  'resolves an extensionless JSON require as Node does',
+  resolveRelativeRequire('functions/shared/someModule.js', './applicationSections'),
+  'functions/shared/applicationSections.json'
+);
 
 // ───────── 6. Simulate today's commit ─────────
 section('6. Simulating the commit that triggered the full deploy');
@@ -315,6 +320,14 @@ section('12. Required JSON and files read from disk');
   const specimen = planFor(['functions/ai/tasks/verification/cdl-specimen.jpg']);
   const readers = exportsOf(fileToEntries.get('functions/ai/tasks/modelVerification.js') || []);
   assert('the CDL specimen image redeploys the model checks that read it', readers.length > 0 && readers.every((name) => specimen.exports.includes(name)));
+  // A JSON file the code reads from disk rather than requires: the same catalog,
+  // taken out of the require graph, still reaches the code that names it.
+  const catalog = 'functions/shared/applicationRulesCatalog.json';
+  const byName = planChangedFiles([catalog], {
+    exportToFile: parsed.exportToFile,
+    fileToEntries: new Map([...fileToEntries].filter(([file]) => file !== catalog)),
+  });
+  assertEqual('a JSON file read from disk counts for the code that names it', [...byName.exports].sort(), planFor([catalog]).exports);
 }
 
 // ───────── 13. index.js ─────────
