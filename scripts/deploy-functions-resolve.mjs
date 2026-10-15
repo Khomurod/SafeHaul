@@ -206,7 +206,7 @@ export function diffIndexSources(oldSrc, newSrc) {
 
 const EXPORT_LINE = /\bexports\.(\w+)\s*=/;
 const MODULE_VARIABLE = /^(?:const|let|var)\s+\w+\s*=\s*require\(['"]\.\/[^'"]+['"]\);?$/;
-const codeLines = (src) => stripComments(src).split('\n').map((line) => line.trim().replace(/\s+/g, ' ')).filter(Boolean);
+const codeLines = (src) => normalizeCode(src).split('\n').map((line) => line.trim()).filter(Boolean);
 
 /** Each export's line of index.js, comments and spacing aside. */
 function exportLines(src) {
@@ -226,11 +226,17 @@ export function indexLoaderCode(src) {
   return codeLines(src).filter((line) => !EXPORT_LINE.test(line) && !MODULE_VARIABLE.test(line)).join('\n');
 }
 
-/** Drops // and /* *\/ comments, keeping strings (which may hold either) whole. */
-function stripComments(src) {
+/**
+ * The source as code alone: comments dropped, strings (which may hold `//`, `/*`
+ * or several spaces) kept whole, and the spacing between tokens dropped, except
+ * one space where two words, or two of `+` and `-`, would otherwise run
+ * together. Line breaks stay.
+ */
+function normalizeCode(src) {
   let out = '';
   let i = 0;
   while (i < src.length) {
+    const char = src[i];
     const two = src.slice(i, i + 2);
     if (two === '//') {
       while (i < src.length && src[i] !== '\n') i++;
@@ -239,17 +245,23 @@ function stripComments(src) {
       const stop = close === -1 ? src.length : close + 2;
       out += src.slice(i, stop).replace(/[^\n]/g, '');
       i = stop;
-    } else if (src[i] === "'" || src[i] === '"' || src[i] === '`') {
+    } else if (char === "'" || char === '"' || char === '`') {
       let j = i + 1;
-      while (j < src.length && src[j] !== src[i]) j += src[j] === '\\' ? 2 : 1;
+      while (j < src.length && src[j] !== char) j += src[j] === '\\' ? 2 : 1;
       out += src.slice(i, j + 1);
       i = j + 1;
+    } else if (SPACE.test(char)) {
+      while (i < src.length && SPACE.test(src[i])) i++;
+      const [before, after] = [out[out.length - 1] || '', src[i] || ''];
+      if (JOINS.some((join) => join.test(before) && join.test(after))) out += ' ';
     } else {
       out += src[i++];
     }
   }
   return out;
 }
+const SPACE = /[ \t\r]/;
+const JOINS = [/[\w$]/, /[+-]/];
 
 /** `diffIndexSources` for the base commit's index.js and the working tree's. */
 export function diffExportsFromIndexChange(baseSha) {

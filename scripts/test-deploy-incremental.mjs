@@ -356,9 +356,24 @@ section('13. index.js: wiring, comments and the loader');
     diff(indexSrc, editLine((line) => `${line.replace(/ = /, '  =  ')} // a note`)),
     { changed: [], loaderChanged: false }
   );
+  assertEqual(
+    '… nor spacing dropped between tokens',
+    diff(indexSrc, editLine((line) => line.replace(/ = /, '=').replace(/\) exports/, ')exports'))),
+    { changed: [], loaderChanged: false }
+  );
+  assertEqual(
+    'a space inside a string on an export line is a change',
+    diff(indexSrc, editLine((line) => line.replace(/wanted\('(\w+)'\)/, "wanted('$1 ')"))),
+    { changed: [firstName], loaderChanged: false }
+  );
   assertEqual('a change to the code around the export lines is a loader change', diff(indexSrc, loaderEdit)?.loaderChanged, true);
   assertEqual('// inside a string is not a comment: a comment after it may change', diff(stringWithSlashes, sameString)?.loaderChanged, false);
   assertEqual('… and the string itself is code', diff(stringWithSlashes, otherString)?.loaderChanged, true);
+  assertEqual(
+    'spaces inside a loader string are code too',
+    diff(`${indexSrc}\nconst label = 'a  b';\n`, `${indexSrc}\nconst label = 'a b';\n`)?.loaderChanged,
+    true
+  );
 }
 
 console.log('');
