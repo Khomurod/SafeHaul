@@ -1452,8 +1452,8 @@ emulated Pixel 7. Local runner safety:
 **The first download has a budget.** `npm run check:bundle-budget` sums the
 entry script, its module preloads and stylesheets from `dist/index.html`,
 fails the `frontend-build` job above **335 kB gzip**, and refuses a pdf.js
-preload, code that loads later (tracing, Replay, Storage, DOMPurify) in the
-entry, or an entry without the offline queue (every page runs it).
+preload, code that loads later (tracing, Replay, Storage, DOMPurify) in it,
+or a first download without the offline queue (all pages run it).
 `npm run test:bundle-budget` drives each refusal on throwaway builds in
 `callable-contract`; `check:ci-plan` K1c pins both steps. The ceiling only
 moves down, with a new measurement.

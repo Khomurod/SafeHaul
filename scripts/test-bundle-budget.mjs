@@ -7,7 +7,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ENTRY_MUST_CONTAIN, ENTRY_MUST_NOT_CONTAIN, FIRST_DOWNLOAD_GZIP_CEILING, firstDownloadAssets, measureFirstDownload } from './check-bundle-budget.mjs';
+import {
+    FIRST_DOWNLOAD_GZIP_CEILING, FIRST_DOWNLOAD_MUST_CONTAIN, FIRST_DOWNLOAD_MUST_NOT_CONTAIN, firstDownloadAssets, measureFirstDownload,
+} from './check-bundle-budget.mjs';
 import { removeTree } from './lib/throwaway.mjs';
 
 let failures = 0;
@@ -17,7 +19,7 @@ const assert = (label, condition, detail = '') => {
 };
 
 /** The entry of a clean build: it carries every piece the first screen must. */
-const CLEAN_ENTRY = `console.log(${JSON.stringify(ENTRY_MUST_CONTAIN.map(({ marker }) => marker))});`;
+const CLEAN_ENTRY = `console.log(${JSON.stringify(FIRST_DOWNLOAD_MUST_CONTAIN.map(({ marker }) => marker))});`;
 
 /** A dist with an entry, optional preloads and a stylesheet; contents are given so gzip sizes are controllable. */
 function fakeDist({ entry = CLEAN_ENTRY, preloads = {}, css = 'body{margin:0}' } = {}) {
@@ -71,16 +73,25 @@ console.log('\nB. Bundle budget');
     assert('B5. a Session Replay recorder inside the entry is refused', r.problems.some((p) => /contains "rrweb"/.test(p)), r.problems.join('; '));
     removeTree(dir);
 }
-for (const { marker } of ENTRY_MUST_NOT_CONTAIN) {
-    const dir = fakeDist({ entry: `${CLEAN_ENTRY} const piece = ${JSON.stringify(marker)}; console.log(piece);` });
-    const r = measureFirstDownload(dir);
-    assert(`B5b. an entry carrying "${marker}" is refused`, r.problems.some((p) => p.includes(`contains "${marker}"`)), r.problems.join('; '));
+for (const { marker } of FIRST_DOWNLOAD_MUST_NOT_CONTAIN) {
+    const piece = `const piece = ${JSON.stringify(marker)}; console.log(piece);`;
+    let dir = fakeDist({ entry: `${CLEAN_ENTRY} ${piece}` });
+    let r = measureFirstDownload(dir);
+    assert(`B5b. an entry carrying "${marker}" is refused`, r.problems.some((p) => p.includes(`main-abc.js (entry) contains "${marker}"`)), r.problems.join('; '));
+    removeTree(dir);
+    dir = fakeDist({ preloads: { 'vendor-V1.js': `export ${piece}` } });
+    r = measureFirstDownload(dir);
+    assert(`B5b. a module preload carrying "${marker}" is refused`, r.problems.some((p) => p.includes(`vendor-V1.js (modulepreload) contains "${marker}"`)), r.problems.join('; '));
     removeTree(dir);
 }
-for (const { marker } of ENTRY_MUST_CONTAIN) {
-    const dir = fakeDist({ entry: CLEAN_ENTRY.replaceAll(marker, 'something-else'), preloads: { 'chunk-Q1.js': `export const q = ${JSON.stringify(marker)};` } });
-    const r = measureFirstDownload(dir);
-    assert(`B5c. an entry without "${marker}" is refused, even when a preload carries it`, r.problems.some((p) => p.includes(`lacks "${marker}"`)), r.problems.join('; '));
+for (const { marker } of FIRST_DOWNLOAD_MUST_CONTAIN) {
+    let dir = fakeDist({ entry: CLEAN_ENTRY.replaceAll(marker, 'something-else') });
+    let r = measureFirstDownload(dir);
+    assert(`B5c. a first download without "${marker}" is refused`, r.problems.some((p) => p.includes(`no script of the first download contains "${marker}"`)), r.problems.join('; '));
+    removeTree(dir);
+    dir = fakeDist({ entry: CLEAN_ENTRY.replaceAll(marker, 'something-else'), preloads: { 'chunk-Q1.js': `export const q = ${JSON.stringify(marker)};` } });
+    r = measureFirstDownload(dir);
+    assert(`B5c. "${marker}" in a module preload counts: it loads with the first screen`, r.problems.length === 0, r.problems.join('; '));
     removeTree(dir);
 }
 {

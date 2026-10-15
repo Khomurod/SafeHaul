@@ -13,8 +13,8 @@
  * sums the gzip size of the entry script, every `modulepreload` and every
  * stylesheet — exactly what the browser must fetch before the first screen —
  * and refuses the build when the sum passes the ceiling, when a preload names
- * the pdf.js chunk, when the entry carries one of the pieces that load later,
- * or when it lacks one that must not.
+ * the pdf.js chunk, when a script of that set carries one of the pieces that
+ * load later, or when none carries one that must not.
  *
  * gzip, not brotli, because Hosting serves both and gzip is the larger of the
  * two, so a pass here is a pass over the wire. Node builtins only, so it runs
@@ -33,9 +33,13 @@ export const FIRST_DOWNLOAD_GZIP_CEILING = 335_000;
 /** A preload of any of these is the regression this check was written for. */
 export const MUST_NOT_PRELOAD = Object.freeze([{ pattern: /pdfjs/i, why: 'the pdf.js chunk belongs to the PDF features, not to every route' }]);
 
-/** Strings that only code loaded after the first screen contains, each found in the entry before it moved. */
-export const ENTRY_MUST_NOT_CONTAIN = Object.freeze([
-    { marker: 'rrweb', why: 'Session Replay is attached after load; its recorder must not ride in the entry' },
+/**
+ * Strings that only code loaded after the first screen contains, each found in
+ * the entry before it moved. Checked in every script of the first download: a
+ * module preload is fetched before the first screen as surely as the entry.
+ */
+export const FIRST_DOWNLOAD_MUST_NOT_CONTAIN = Object.freeze([
+    { marker: 'rrweb', why: 'Session Replay is attached after load; its recorder must not ride in the first download' },
     { marker: 'auto.pageload.browser', why: 'Sentry tracing is attached with Replay after load (src/lib/monitoring/sentry.js)' },
     { marker: 'Sentry Logger', why: "Sentry's debug logging is compiled out (__SENTRY_DEBUG__ in vite.config.js)" },
     { marker: 'firebasestorage.googleapis.com', why: 'Storage loads with the features that handle files (@lib/firebase/storage), not through @lib/firebase' },
@@ -43,8 +47,12 @@ export const ENTRY_MUST_NOT_CONTAIN = Object.freeze([
     { marker: 'DOMPurify', why: 'the sanitizer loads when custom questions are saved, not with the company chooser' },
 ]);
 
-/** Strings of code the first screen must carry: a chunk loaded later can fail on the connection that needs it. */
-export const ENTRY_MUST_CONTAIN = Object.freeze([
+/**
+ * Strings of code the first screen must carry, in the entry or a module it
+ * preloads: a chunk loaded later can fail on the connection that needs it, and
+ * nothing reloads the page for a network failure (`staleBuildReload.js`).
+ */
+export const FIRST_DOWNLOAD_MUST_CONTAIN = Object.freeze([
     { marker: 'safehaul-submission-queue', why: 'the offline queue sends queued applications from every page (QueueStatusIndicator in App.jsx), so it must not wait on a chunk that can fail to load' },
 ]);
 
@@ -83,6 +91,7 @@ export function measureFirstDownload(distDir, { ceiling = FIRST_DOWNLOAD_GZIP_CE
     if (!assets.some((a) => a.kind === 'entry')) problems.push('index.html has no module entry script; the measurement would be vacuous');
 
     let gzipTotal = 0;
+    const scripts = [];
     for (const asset of assets) {
         const path = join(distDir, asset.href.replace(/^\//, ''));
         if (!existsSync(path)) { problems.push(`${asset.href} is referenced but not in the build`); continue; }
@@ -93,11 +102,14 @@ export function measureFirstDownload(distDir, { ceiling = FIRST_DOWNLOAD_GZIP_CE
         if (asset.kind === 'modulepreload') {
             for (const { pattern, why } of MUST_NOT_PRELOAD) if (pattern.test(asset.href)) problems.push(`${asset.href} is preloaded on every route — ${why}`);
         }
-        if (asset.kind === 'entry') {
+        if (asset.kind !== 'stylesheet') {
             const text = bytes.toString('utf8');
-            for (const { marker, why } of ENTRY_MUST_NOT_CONTAIN) if (text.includes(marker)) problems.push(`the entry script contains "${marker}" — ${why}`);
-            for (const { marker, why } of ENTRY_MUST_CONTAIN) if (!text.includes(marker)) problems.push(`the entry script lacks "${marker}" — ${why}`);
+            scripts.push(text);
+            for (const { marker, why } of FIRST_DOWNLOAD_MUST_NOT_CONTAIN) if (text.includes(marker)) problems.push(`${asset.href} (${asset.kind}) contains "${marker}" — ${why}`);
         }
+    }
+    for (const { marker, why } of FIRST_DOWNLOAD_MUST_CONTAIN) {
+        if (scripts.length && !scripts.some((text) => text.includes(marker))) problems.push(`no script of the first download contains "${marker}" — ${why}`);
     }
     if (gzipTotal > ceiling) problems.push(`first download is ${gzipTotal} bytes gzip, over the ${ceiling} ceiling by ${gzipTotal - ceiling}`);
     return { assets, gzipTotal, problems };
