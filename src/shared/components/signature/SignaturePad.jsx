@@ -61,7 +61,7 @@ import { Button, FieldMessage } from '@/design-system/components';
  * pad itself is unchanged.
  *
  * NOTE: The public application flow uses `src/lib/signature.js` (DOM-id based)
- * and the signing room uses `react-signature-canvas` (SignatureSheet). Those
+ * and the signing room uses `signature_pad` (SignatureSheet). Those
  * have different visuals and validation semantics and are intentionally NOT
  * migrated to this component.
  */

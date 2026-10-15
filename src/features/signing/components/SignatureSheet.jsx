@@ -1,20 +1,21 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
-import SignatureCanvas from 'react-signature-canvas';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import SignaturePad from 'signature_pad';
 import { Icon, ChevronLeft, Eraser } from '@design-system/icons';
 import { Button } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
+import { trimmedSignaturePng } from './trimSignature';
 
 /**
  * Signature / initials capture surface shared by mobile and desktop.
  *
  * Fullscreen on phones (maximum drawing area for a finger), centered dialog on
- * md+ screens. Uses react-signature-canvas so strokes are smoothed and the
- * adopted PNG is trimmed to the ink bounding box.
+ * md+ screens. `signature_pad` smooths the strokes, and the adopted PNG is
+ * trimmed to the ink's bounding box (`trimSignature.js`).
  *
  * Presentation only. Frozen: the accessible dialog name ("Draw your signature" /
  * "Draw your initials"), the Cancel / Clear / "Adopt & continue" controls and
  * their handlers, the `data-testid="signature-sheet-canvas"` hook, every
- * `SignatureCanvas` drawing prop, the wrapper-measured canvas size, and both
+ * drawing option in `INK_OPTIONS`, the wrapper-measured canvas size, and both
  * safe-area insets.
  *
  * The dialog now delegates to the approved accessible `Modal`, which adds focus
@@ -35,7 +36,16 @@ import { Modal } from '@design-system/patterns';
  */
 const SIGNATURE_INK = '#0f172a';
 
+/** Frozen: how the ink is drawn (stroke width range and velocity smoothing). */
+const INK_OPTIONS = {
+    penColor: SIGNATURE_INK,
+    minWidth: 1.2,
+    maxWidth: 2.6,
+    velocityFilterWeight: 0.7,
+};
+
 export function SignatureSheet({ kind = 'signature', onCancel, onAdopt }) {
+    const canvasRef = useRef(null);
     const padRef = useRef(null);
     const wrapperRef = useRef(null);
     const [size, setSize] = useState({ width: 320, height: 200 });
@@ -47,11 +57,20 @@ export function SignatureSheet({ kind = 'signature', onCancel, onAdopt }) {
 
     const title = isInitial ? 'Draw your initials' : 'Draw your signature';
 
+    useEffect(() => {
+        const pad = new SignaturePad(canvasRef.current, INK_OPTIONS);
+        padRef.current = pad;
+        return () => {
+            pad.off();
+            padRef.current = null;
+        };
+    }, []);
+
     // The canvas element needs explicit pixel dimensions (width/height attrs).
     // Measure the flexible wrapper and re-measure on resize/rotation — an
-    // orientation change mid-signature re-sizes the pad (drawing is cleared by
-    // the library on resize, which is acceptable: a half-drawn signature at the
-    // old aspect would be distorted anyway).
+    // orientation change mid-signature re-sizes the pad and clears the drawing,
+    // which is acceptable: a half-drawn signature at the old aspect would be
+    // distorted anyway.
     useEffect(() => {
         const measure = () => {
             const el = wrapperRef.current;
@@ -71,6 +90,18 @@ export function SignatureSheet({ kind = 'signature', onCancel, onAdopt }) {
         };
     }, []);
 
+    // A new canvas size wipes the pixels, but not the pad's own record of the
+    // strokes, which would go on calling the blank pad signed and let Adopt
+    // stamp an image with no ink. So the pad forgets them too.
+    const sizeRef = useRef(null);
+    useLayoutEffect(() => {
+        const next = `${size.width}x${size.height}`;
+        const previous = sizeRef.current;
+        sizeRef.current = next;
+        const pad = padRef.current;
+        if (previous !== null && previous !== next && pad && !pad.isEmpty()) pad.clear();
+    }, [size.width, size.height]);
+
     const clear = () => {
         padRef.current?.clear();
         setShowEmptyHint(false);
@@ -89,10 +120,15 @@ export function SignatureSheet({ kind = 'signature', onCancel, onAdopt }) {
         let dataUrl;
         try {
             // Trim whitespace so the ink fills the field box when stamped.
-            dataUrl = pad.getTrimmedCanvas().toDataURL('image/png');
+            dataUrl = trimmedSignaturePng(canvasRef.current);
         } catch {
             // Trimming depends on a canvas API that may be unavailable (tests).
             dataUrl = pad.toDataURL('image/png');
+        }
+        if (!dataUrl) {
+            // The canvas holds no ink after all.
+            setShowEmptyHint(true);
+            return;
         }
         onAdopt(dataUrl);
     };
@@ -126,20 +162,14 @@ export function SignatureSheet({ kind = 'signature', onCancel, onAdopt }) {
                 ref={wrapperRef}
                 className="relative mx-ds-4 my-ds-4 flex-1 rounded-ds-xl border-2 border-dashed border-ds-border bg-ds-surface md:h-72 md:flex-none"
             >
-                <SignatureCanvas
-                    ref={padRef}
-                    canvasProps={{
-                        width: size.width,
-                        height: size.height,
-                        className: 'rounded-ds-xl',
-                        // touchAction none: strokes must never scroll the page.
-                        style: { touchAction: 'none', width: '100%', height: '100%' },
-                        'data-testid': 'signature-sheet-canvas',
-                    }}
-                    penColor={SIGNATURE_INK}
-                    minWidth={1.2}
-                    maxWidth={2.6}
-                    velocityFilterWeight={0.7}
+                <canvas
+                    ref={canvasRef}
+                    width={size.width}
+                    height={size.height}
+                    className="rounded-ds-xl"
+                    // touchAction none: strokes must never scroll the page.
+                    style={{ touchAction: 'none', width: '100%', height: '100%' }}
+                    data-testid="signature-sheet-canvas"
                 />
                 <p className="pointer-events-none absolute bottom-2 left-0 right-0 text-center text-ds-xs text-ds-content-muted">
                     {isInitial ? 'Draw your initials' : 'Sign'} with your finger or mouse

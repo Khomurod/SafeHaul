@@ -43,16 +43,16 @@ vi.mock('react-pdf', () => ({
     pdfjs: { GlobalWorkerOptions: { workerSrc: '' } },
 }));
 
-vi.mock('react-signature-canvas', () => ({
-    default: React.forwardRef(function MockSignatureCanvas(_props, ref) {
-        React.useImperativeHandle(ref, () => ({
-            clear: vi.fn(),
-            isEmpty: () => false,
-            toDataURL: () => 'data:image/png;base64,mock-ink',
-            getTrimmedCanvas: () => ({ toDataURL: () => 'data:image/png;base64,mock-ink' }),
-        }));
-        return <canvas />;
-    }),
+// The drawing pad needs a real 2D canvas context, which happy-dom lacks: a
+// pad that always holds ink. Trimming finds no context and the sheet adopts
+// the pad's own PNG.
+vi.mock('signature_pad', () => ({
+    default: class MockSignaturePad {
+        clear() {}
+        isEmpty() { return false; }
+        toDataURL() { return 'data:image/png;base64,mock-ink'; }
+        off() {}
+    },
 }));
 
 vi.mock('@lib/runtime/e2eMode', () => ({

@@ -68,8 +68,8 @@
     "react-draggable": "^4.7.2",
     "react-pdf": "^10.5.0",
     "react-router-dom": "^7.18.4",
-    "react-signature-canvas": "1.1.0-alpha.2",
     "react-virtuoso": "^4.18.15",
+    "signature_pad": "2.3.2",
     "tesseract.js": "^7.0.0",
     "uuid": "^14.0.2"
   },
