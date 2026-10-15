@@ -8,8 +8,10 @@
  * `root`/`repoRoot` resolve identically.
  */
 import { readFileSync, existsSync } from 'node:fs';
+import { parse } from '@babel/parser';
+import { indexParts } from './deploy-functions-index.mjs';
 import { fileURLToPath } from 'url';
-import { dirname, join, normalize } from 'path';
+import { basename, dirname, join, normalize } from 'path';
 import { spawnSync } from 'child_process';
 
 export const root = dirname(fileURLToPath(import.meta.url));
@@ -50,17 +52,6 @@ export function modulePathToFile(rel) {
   return normalize(join('functions', `${n}.js`)).replace(/\\/g, '/');
 }
 
-/** Map e.g. functions/bulkActions/workers/x.js → functions/bulkActions/index.js */
-export function resolveNestedUnderDirectoryModules(changedNormalized, knownTopLevelFiles) {
-  if (knownTopLevelFiles.has(changedNormalized)) return changedNormalized;
-  for (const kf of knownTopLevelFiles) {
-    if (!kf.endsWith('/index.js')) continue;
-    const dirPrefix = kf.slice(0, -'index.js'.length);
-    if (changedNormalized.startsWith(dirPrefix)) return kf;
-  }
-  return null;
-}
-
 /**
  * Parse index.js source: export name → functions/relative path of top-level module.
  */
@@ -98,31 +89,33 @@ export function buildExportToFile() {
   return buildExportToFileFromSource(src);
 }
 
+const onDisk = (repoRelPath) => existsSync(join(repoRoot, repoRelPath));
+
 /**
  * Resolve a relative `require()` specifier (./foo, ../foo/bar, ./foo.js) from
  * `fromFile` (a repo-relative path like 'functions/companyAdmin.js') to a
- * repo-relative path of the actual file on disk.
+ * repo-relative path of the actual file: on disk, or wherever `exists` says.
  *
  * Returns null if:
  *   - the specifier escapes the `functions/` tree
- *   - neither `<resolved>.js` nor `<resolved>/index.js` exists on disk
+ *   - none of the files Node would try exists: the named `.js`/`.json` file, or
+ *     else `<resolved>.js`, `.json`, `/index.js`, `/index.json`, in that order
  */
-export function resolveRelativeRequire(fromFile, rel) {
+export function resolveRelativeRequire(fromFile, rel, exists = onDisk) {
   const baseDir = dirname(fromFile);
   const targetNoExt = normalize(join(baseDir, rel)).replace(/\\/g, '/');
 
   // Hard guard: never let a relative path walk us out of functions/.
   if (!targetNoExt.startsWith('functions/')) return null;
 
-  if (targetNoExt.endsWith('.js')) {
-    return existsSync(join(repoRoot, targetNoExt)) ? targetNoExt : null;
+  // A required .json file is code too: `shared/applicationSections.json` is the
+  // application's definition on the server.
+  if (/\.(js|json)$/.test(targetNoExt)) {
+    return exists(targetNoExt) ? targetNoExt : null;
   }
 
-  const asFile = `${targetNoExt}.js`;
-  if (existsSync(join(repoRoot, asFile))) return asFile;
-  const asIndex = `${targetNoExt}/index.js`;
-  if (existsSync(join(repoRoot, asIndex))) return asIndex;
-  return null;
+  const candidates = ['.js', '.json', '/index.js', '/index.json'].map((suffix) => `${targetNoExt}${suffix}`);
+  return candidates.find((candidate) => exists(candidate)) || null;
 }
 
 /** Tiny cache so the closure walker re-uses file sources across entrypoints. */
@@ -133,6 +126,35 @@ export function readFileCached(repoRelPath) {
   const src = existsSync(abs) ? readFileSync(abs, 'utf8') : '';
   fileSourceCache.set(repoRelPath, src);
   return src;
+}
+
+/** The strings a source file holds (string literals and template text), or its whole text when it does not parse. */
+const fileStringsCache = new Map();
+function stringsIn(repoRelPath) {
+  if (!fileStringsCache.has(repoRelPath)) {
+    const src = readFileCached(repoRelPath);
+    let strings = [];
+    const visit = (node) => {
+      if (node.type === 'StringLiteral') strings.push(node.value);
+      if (node.type === 'TemplateElement') strings.push(node.value.cooked ?? node.value.raw);
+      for (const [key, value] of Object.entries(node)) {
+        if (key === 'loc' || key === 'extra' || key.endsWith('Comments')) continue;
+        for (const child of Array.isArray(value) ? value : [value]) if (child && typeof child.type === 'string') visit(child);
+      }
+    };
+    try {
+      visit(parse(src, { sourceType: 'unambiguous', allowReturnOutsideFunction: true }).program);
+    } catch {
+      strings = [src];
+    }
+    fileStringsCache.set(repoRelPath, strings);
+  }
+  return fileStringsCache.get(repoRelPath);
+}
+
+/** The relative specifiers a file passes to require(): ./foo or ../foo/bar (with optional whitespace inside parens). */
+export function requireSpecifiers(repoRelPath) {
+  return [...readFileCached(repoRelPath).matchAll(/require\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g)].map((match) => match[1]);
 }
 
 /**
@@ -151,14 +173,8 @@ export function collectClosure(entryFile, visited = new Set()) {
   if (visited.has(entryFile)) return visited;
   visited.add(entryFile);
 
-  const src = readFileCached(entryFile);
-  if (!src) return visited;
-
-  // Only relative requires: ./foo or ../foo/bar (with optional whitespace inside parens).
-  const reReq = /require\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g;
-  let m;
-  while ((m = reReq.exec(src))) {
-    const resolved = resolveRelativeRequire(entryFile, m[1]);
+  for (const specifier of requireSpecifiers(entryFile)) {
+    const resolved = resolveRelativeRequire(entryFile, specifier);
     if (resolved && !visited.has(resolved)) {
       collectClosure(resolved, visited);
     }
@@ -183,6 +199,13 @@ export function buildFileToEntrypoints(knownTopLevelFiles) {
   return fileToEntries;
 }
 
+/** The files under functions/ at a commit, as a set of repo-relative paths, or null when git cannot list them. */
+export function filesAt(commit, cwd = repoRoot) {
+  const r = spawnSync('git', ['ls-tree', '-r', '-z', '--name-only', commit, '--', 'functions/'], { cwd, encoding: 'utf8' });
+  if (r.status !== 0) return null;
+  return new Set(r.stdout.split('\0').filter(Boolean));
+}
+
 export function gitShow(commitColonPath) {
   const r = spawnSync('git', ['show', commitColonPath], { cwd: repoRoot, encoding: 'utf8' });
   if (r.status !== 0) return null;
@@ -190,39 +213,117 @@ export function gitShow(commitColonPath) {
 }
 
 /**
- * Export names whose mapping changed between base index.js and current working tree index.js.
- * Returns null if unsafe to diff (missing base file or parse incomplete).
+ * What a change to functions/index.js redeploys, between its base and head
+ * sources: each export whose module or own wiring changed (another member of the
+ * same module, another condition), and `loaderChanged` when the loader around
+ * them changed, since every function starts on it (`deploy-functions-index.mjs`).
+ * Formatting and comments are neither. Returns null when either side cannot be
+ * parsed.
  */
+export function diffIndexSources(oldSrc, newSrc) {
+  const oldParsed = buildExportToFileFromSource(oldSrc);
+  const newParsed = buildExportToFileFromSource(newSrc);
+  if (!oldParsed.parseOk || !newParsed.parseOk) return null;
+
+  let oldParts;
+  let newParts;
+  try {
+    [oldParts, newParts] = [indexParts(oldSrc), indexParts(newSrc)];
+  } catch {
+    return null;
+  }
+  const changed = new Set();
+  for (const [name, file] of newParsed.exportToFile) {
+    if (oldParsed.exportToFile.get(name) !== file || oldParts.exports.get(name) !== newParts.exports.get(name)) changed.add(name);
+  }
+  return { changed, loaderChanged: oldParts.loader !== newParts.loader };
+}
+
+/** `diffIndexSources` for the base commit's index.js and the working tree's. */
 export function diffExportsFromIndexChange(baseSha) {
   const oldSrc = gitShow(`${baseSha}:functions/index.js`);
   if (oldSrc === null) {
     console.warn('[incremental] Cannot read functions/index.js at base commit.');
     return null;
   }
-
-  const newSrc = readFileSync(indexPath, 'utf8');
-  const oldParsed = buildExportToFileFromSource(oldSrc);
-  const newParsed = buildExportToFileFromSource(newSrc);
-
-  if (!oldParsed.parseOk || !newParsed.parseOk) {
-    console.warn('[incremental] index.js export parse incomplete (base or head).');
-    return null;
-  }
-
-  const changed = new Set();
-  for (const name of newParsed.exportToFile.keys()) {
-    const oldPath = oldParsed.exportToFile.get(name);
-    const newPath = newParsed.exportToFile.get(name);
-    if (oldPath !== newPath) changed.add(name);
-  }
-  return changed;
+  const diff = diffIndexSources(oldSrc, readFileSync(indexPath, 'utf8'));
+  if (diff === null) console.warn('[incremental] index.js could not be parsed, or not every export mapped (base or head).');
+  return diff;
 }
 
-export function getChangedFunctionFiles(base, head) {
+/**
+ * The functions a set of changed files redeploys: every function that loads one
+ * of them. A file counts for its own module's exports, for those of the directory
+ * module it sits in (`bulkActions/…` → `bulkActions/index.js`), and for those of
+ * every entrypoint whose require() closure reaches it (JSON included), all at
+ * once. A file the code reads from disk instead (an image, a JSON file it does
+ * not require) counts for the entrypoints of the code that names it in a string,
+ * not in a comment. With `existedAtBase`, which says what the base commit held,
+ * a file also counts for the code whose require() found it there: a deleted file
+ * is in no closure of the tree being deployed, and that code now loads whatever
+ * its require() finds instead. functions/index.js is left to
+ * `diffIndexSources`, and the always-include list to `main()`.
+ */
+export function planChangedFiles(changedFiles, { exportToFile, fileToEntries, existedAtBase }) {
+  const fileToExports = new Map();
+  for (const [name, file] of exportToFile) {
+    if (!fileToExports.has(file)) fileToExports.set(file, []);
+    fileToExports.get(file).push(name);
+  }
+  const runtimeChanges = filterProductionFunctionPaths(changedFiles);
+  const loadersAtBase = new Map();
+  if (existedAtBase) {
+    const changed = new Set(runtimeChanges);
+    for (const [source, entries] of fileToEntries) {
+      for (const specifier of requireSpecifiers(source)) {
+        const target = resolveRelativeRequire(source, specifier, existedAtBase);
+        if (!changed.has(target)) continue;
+        if (!loadersAtBase.has(target)) loadersAtBase.set(target, new Set());
+        entries.forEach((entry) => loadersAtBase.get(target).add(entry));
+      }
+    }
+  }
+  const exports = new Set();
+  const notes = [];
+  const skippedOrphans = [];
+  for (const file of runtimeChanges) {
+    if (file === 'functions/index.js') continue;
+    const owners = [...ownersOf(file, fileToExports, fileToEntries, loadersAtBase)].sort();
+    if (owners.length === 0) {
+      skippedOrphans.push(file);
+      continue;
+    }
+    const names = new Set(owners.flatMap((owner) => fileToExports.get(owner) || []));
+    names.forEach((name) => exports.add(name));
+    notes.push(`${file} → ${owners.length} module(s) [${owners.join(', ')}] → ${names.size} export(s)`);
+  }
+  return { exports, skippedOrphans, notes };
+}
+
+function ownersOf(file, fileToExports, fileToEntries, loadersAtBase) {
+  const owners = new Set([...(fileToEntries.get(file) || []), ...(loadersAtBase.get(file) || [])]);
+  for (const module of fileToExports.keys()) {
+    if (module === file) owners.add(module);
+    if (module.endsWith('/index.js') && file.startsWith(module.slice(0, -'index.js'.length))) owners.add(module);
+  }
+  if (!file.endsWith('.js')) {
+    const name = basename(file);
+    for (const [source, entries] of fileToEntries) {
+      if (source.endsWith('.js') && stringsIn(source).some((text) => text.includes(name))) entries.forEach((e) => owners.add(e));
+    }
+  }
+  return owners;
+}
+
+/**
+ * The files under functions/ that differ between two commits. A renamed file is
+ * listed under both names (`--no-renames`): its old path is a deleted dependency.
+ */
+export function getChangedFunctionFiles(base, head, cwd = repoRoot) {
   const r = spawnSync(
     'git',
-    ['diff', '--name-only', `${base}..${head}`, '--', 'functions/'],
-    { cwd: repoRoot, encoding: 'utf8' }
+    ['diff', '--name-only', '--no-renames', `${base}..${head}`, '--', 'functions/'],
+    { cwd, encoding: 'utf8' }
   );
   if (r.status !== 0) {
     console.warn('[incremental] git diff failed:', r.stderr || r.stdout);
@@ -235,19 +336,23 @@ export function getChangedFunctionFiles(base, head) {
     .map((p) => normalize(p).replace(/\\/g, '/'));
 }
 
+/**
+ * A file that ships with the functions and can change what they do: code, the
+ * JSON it requires, a file it reads. Not the tests, dotfiles, docs, or the
+ * package manifest and lockfile: a dependency upgrade reaches a function at its
+ * next deploy.
+ */
 export function isRuntimeFunctionSource(pathLike) {
   const n = String(pathLike || '').replace(/\\/g, '/');
-  if (!n.startsWith('functions/')) return false;
-  if (!n.endsWith('.js')) return false;
-  if (n.startsWith('functions/test/')) return false;
-  return true;
+  if (!n.startsWith('functions/') || n.startsWith('functions/test/')) return false;
+  if (/^functions\/package(-lock)?\.json$/.test(n)) return false;
+  const name = basename(n);
+  return !name.startsWith('.') && !name.endsWith('.md');
 }
 
-/** Strict mode: only runtime JS sources participate in deploy targeting. */
+/** Strict mode: only runtime sources participate in deploy targeting. */
 export function filterProductionFunctionPaths(changedFiles) {
-  return changedFiles.filter((c) => {
-    return isRuntimeFunctionSource(c);
-  });
+  return changedFiles.filter((c) => isRuntimeFunctionSource(c));
 }
 
 export function resolveGitRange() {

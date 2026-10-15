@@ -5,15 +5,21 @@
  * Rules:
  * - Compares DEPLOY_GIT_BASE..DEPLOY_GIT_HEAD (or GITHUB_PUSH_BEFORE + GITHUB_SHA) under functions/.
  * - Parses functions/index.js to map each export name → primary module file (direct require from index).
- * - functions/index.js: diffs export→module mappings vs base commit; only exports whose wiring or backing
- *   file path changed are redeployed (whitespace-only edits deploy nothing).
- * - STRICT TARGETED policy: only deploy changed runtime JS under functions/**. Non-runtime files
- *   (examples, docs, tests, .env.example, etc.) never trigger full deploy.
- * - Ignores functions/test/** and non-JS files for deployment targeting.
- * - Directory entrypoints (require('./bulkActions') → bulkActions/index.js) and nested files map to deploy unit.
- * - Transitive `require()` graph: any other changed file is attributed to the union of entrypoints whose
- *   closure references it. Example: editing `functions/schemaConfig.js` (required only by
- *   `functions/systemIntegrity.js`) deploys only the `systemIntegrity` exports, not the whole codebase.
+ * - A changed file redeploys every function that loads it (`planChangedFiles`): its own module's
+ *   exports, those of the directory module it sits in (require('./bulkActions') → bulkActions/index.js),
+ *   and those of every entrypoint whose transitive `require()` closure reaches it, JSON included.
+ *   Example: editing `functions/schemaConfig.js` (required only by `functions/systemIntegrity.js`)
+ *   deploys only the `systemIntegrity` exports; editing `bulkActions/helpers/sessionFactory.js` deploys
+ *   the bulk exports and `executeReactivationBatch`, which loads it through `smsService.js`.
+ *   A file the code reads from disk (an image, a JSON file it does not require) counts for the code
+ *   that names it in a string. A file also counts for the code whose require() found it at the base
+ *   commit: a deleted or renamed file is in no closure of the tree being deployed.
+ * - functions/index.js is compared with the base commit as a syntax tree (deploy-functions-index.mjs):
+ *   only exports whose own statement or backing module changed are redeployed (comment and formatting
+ *   edits deploy nothing). A change to the code around the export statements (the FUNCTION_TARGET loader
+ *   every function starts on) redeploys every export.
+ * - STRICT TARGETED policy: only files that ship with the functions count. Tests, dotfiles, docs and
+ *   functions/package.json and its lockfile never trigger a deploy.
  * - If a changed runtime file does not appear in ANY entrypoint's closure, we log and skip it
  *   (never auto-full-deploy). Use DEPLOY_FUNCTIONS_FORCE_FULL=1 for manual full deploy.
  * - Otherwise: single `firebase deploy --only functions:a,functions:b,...`
@@ -25,7 +31,7 @@
  *   DEPLOY_FUNCTIONS_FORCE_FULL=1 — explicit full deploy (sequential script)
  *   DEPLOY_FUNCTIONS_DRY_RUN=1 — print the deploy plan and exit (no firebase invocation)
  *   DEPLOY_FUNCTIONS_ALWAYS_INCLUDE=parseCdlWithGroq,otherFn — always merge these
- *     exports into the deploy plan. If the git diff has no changed runtime .js files
+ *     exports into the deploy plan. If the git diff has no changed runtime files
  *     under functions/ (e.g. only workflow or docs changed) but this env is set, we still deploy these
  *     functions so CI-written secrets (functions/.env) reach runtime.
  *   --dry-run CLI flag — same as DEPLOY_FUNCTIONS_DRY_RUN=1
@@ -40,9 +46,10 @@ import {
     repoRoot,
     parseAlwaysInclude,
     buildExportToFile,
-    resolveNestedUnderDirectoryModules,
     buildFileToEntrypoints,
+    planChangedFiles,
     diffExportsFromIndexChange,
+    filesAt,
     getChangedFunctionFiles,
     filterProductionFunctionPaths,
     resolveGitRange,
@@ -71,12 +78,6 @@ function main() {
   }
 
   const knownTopLevelFiles = new Set(exportToFile.values());
-
-  const fileToExports = new Map();
-  for (const [exp, file] of exportToFile) {
-    if (!fileToExports.has(file)) fileToExports.set(file, []);
-    fileToExports.get(file).push(exp);
-  }
 
   // Transitive require() graph. Built once per run; cheap thanks to the source cache.
   const fileToEntries = buildFileToEntrypoints(knownTopLevelFiles);
@@ -111,11 +112,11 @@ function main() {
 
   if (productionChanges.length === 0) {
     if (alwaysInclude.length === 0) {
-      console.log('[incremental] No runtime JS changes under functions/** — skipping deploy.');
+      console.log('[incremental] No runtime changes under functions/** — skipping deploy.');
       return;
     }
     console.log(
-      '[incremental] No runtime JS changes under functions/**; deploying DEPLOY_FUNCTIONS_ALWAYS_INCLUDE only (pins env/config to listed exports).'
+      '[incremental] No runtime changes under functions/**; deploying DEPLOY_FUNCTIONS_ALWAYS_INCLUDE only (pins env/config to listed exports).'
     );
     const finalNames = [...alwaysInclude].sort((a, b) => a.localeCompare(b));
     console.log(`[incremental] Deploying ${finalNames.length} function(s): ${finalNames.join(', ')}`);
@@ -142,9 +143,7 @@ function main() {
 
   console.log('[incremental] Changed files:', changedFiles.join(', '));
 
-  const nonIndexProductionChanges = productionChanges.filter((c) => c.replace(/\\/g, '/') !== 'functions/index.js');
-
-  const indexChanged = productionChanges.some((c) => c.replace(/\\/g, '/') === 'functions/index.js');
+  const indexChanged = productionChanges.includes('functions/index.js');
 
   const toDeploy = new Set();
 
@@ -155,52 +154,31 @@ function main() {
       console.error('[incremental] Strict mode refuses automatic full deploy. Fix index.js parseability or set DEPLOY_FUNCTIONS_FORCE_FULL=1.');
       process.exit(1);
     }
-    fromIndex.forEach((e) => toDeploy.add(e));
-    if (fromIndex.size > 0) {
-      console.log(`[incremental] index.js export mapping changed → ${fromIndex.size} function(s): ${[...fromIndex].sort().join(', ')}`);
+    if (fromIndex.loaderChanged) {
+      exportToFile.forEach((_, name) => toDeploy.add(name));
+      console.log(`[incremental] index.js code around the export lines changed; every function starts on it → all ${exportToFile.size} function(s)`);
+    } else if (fromIndex.changed.size > 0) {
+      fromIndex.changed.forEach((e) => toDeploy.add(e));
+      console.log(`[incremental] index.js export mapping changed → ${fromIndex.changed.size} function(s): ${[...fromIndex.changed].sort().join(', ')}`);
     } else {
       console.log('[incremental] index.js changed (format/comments only or identical wiring) → no exports flagged from manifest diff');
     }
   }
 
-  const skippedOrphans = [];
-  for (const cf of nonIndexProductionChanges) {
-    const n = cf.replace(/\\/g, '/');
-
-    if (knownTopLevelFiles.has(n)) {
-      const exps = fileToExports.get(n) || [];
-      exps.forEach((e) => toDeploy.add(e));
-      continue;
-    }
-
-    const mappedTopLevel = resolveNestedUnderDirectoryModules(n, knownTopLevelFiles);
-    if (mappedTopLevel && knownTopLevelFiles.has(mappedTopLevel)) {
-      const exps = fileToExports.get(mappedTopLevel) || [];
-      exps.forEach((e) => toDeploy.add(e));
-      continue;
-    }
-
-    // Third branch: transitive `require()` closure.
-    // If this file is reachable from one or more entrypoint modules, deploy
-    // only the exports owned by those entrypoints — not the whole codebase.
-    const owners = fileToEntries.get(n);
-    if (owners && owners.size > 0) {
-      const ownersList = [...owners].sort();
-      const expanded = new Set();
-      for (const owner of owners) {
-        (fileToExports.get(owner) || []).forEach((e) => expanded.add(e));
-      }
-      expanded.forEach((e) => toDeploy.add(e));
-      console.log(
-        `[incremental] Shared dep ${n} → ${owners.size} entrypoint(s) [${ownersList.join(', ')}] → ${expanded.size} export(s)`
-      );
-      continue;
-    }
-
-    console.warn(`[incremental] Changed runtime file not reachable from any entrypoint (skipping): ${n}`);
-    skippedOrphans.push(n);
-    continue;
+  const baseFiles = filesAt(base);
+  if (baseFiles === null) {
+    console.error(`[incremental] Cannot list functions/ at ${base.slice(0, 7)}.`);
+    console.error('[incremental] Strict mode refuses automatic full deploy. Set DEPLOY_FUNCTIONS_FORCE_FULL=1 if needed.');
+    process.exit(1);
   }
+  const { exports: fromFiles, skippedOrphans, notes } = planChangedFiles(productionChanges, {
+    exportToFile,
+    fileToEntries,
+    existedAtBase: (file) => baseFiles.has(file),
+  });
+  fromFiles.forEach((e) => toDeploy.add(e));
+  notes.forEach((note) => console.log(`[incremental] ${note}`));
+  skippedOrphans.forEach((file) => console.warn(`[incremental] Changed runtime file not reachable from any entrypoint (skipping): ${file}`));
 
   for (const name of alwaysInclude) {
     toDeploy.add(name);
@@ -272,11 +250,14 @@ if (isDirectInvocation) {
 // is unchanged.
 export {
     modulePathToFile,
-    resolveNestedUnderDirectoryModules,
     buildExportToFileFromSource,
     resolveRelativeRequire,
     collectClosure,
     buildFileToEntrypoints,
     isRuntimeFunctionSource,
     filterProductionFunctionPaths,
+    planChangedFiles,
+    diffIndexSources,
+    filesAt,
+    getChangedFunctionFiles,
 } from './deploy-functions-resolve.mjs';
