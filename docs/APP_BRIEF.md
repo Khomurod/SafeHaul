@@ -1044,10 +1044,10 @@ A launch or retry sends at most **2,000** (`launchLimit.js`), refused before
 writing. A recursive worker sends **50 per batch**, re-checking the session: a
 cancel stops at once. One rule (`recentlyMessaged.js`) keeps the recently
 messaged out of count, preview and launch: **7 days** by default for uploads,
-none for CRM. A deleted record takes its `logs` and `targets`
-(`deleteBulkSessionData`). Company and global `blacklist`s hold SMS opt-outs,
-checked before **every** send (`isBlacklisted()`), failing closed on a bad
-number; no reply fills them (§12).
+none for CRM. Recipients: `meta/targets` (older: `targetIds`); a deleted
+record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
+and global `blacklist`s hold SMS opt-outs, checked before **every** send
+(`isBlacklisted()`), failing closed on a bad number; no reply fills them (§12).
 
 ---
 
@@ -1262,12 +1262,12 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   removed; no `isPlatformLead`, `distributedAt`, `visitedCompanyIds` or
   `dailyLeadQuota`.
 - **Public job board / driver saved jobs.** Rules for `job_posts` and
-  `drivers/{id}/saved_jobs` were deleted; those paths rely on default-deny.
-  Historical documents are left unreachable rather than deleted.
+  `drivers/{id}/saved_jobs` were deleted: default-deny keeps their old
+  documents, unreachable.
 - **`/join/:companyId` self-service team join.** Backing callable disabled,
   route removed. Use Super Admin → Create Portal User.
 - **GitHub Models** as an AI provider.
-- **Smart Segments** — triggers deleted at the next promotion; their data stays unread.
+- **Smart Segments** — triggers go at the next promotion; data stays unread.
 - **`Khomurod/SafeHaul-for-Gemini-Antigravity`** — archived; never develop or
   deploy from it. Deploy jobs are guarded by repository name.
 

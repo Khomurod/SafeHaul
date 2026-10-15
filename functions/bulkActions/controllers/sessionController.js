@@ -6,7 +6,7 @@ const { checkRateLimit } = require("../../shared/rateLimiter");
 const { verifyDirectSelection, gatherIdsFromQueries } = require("./session/gatherTargets");
 const { persistImportTargets } = require("./session/importTargets");
 const { assertWithinLaunchLimit } = require("../helpers/launchLimit");
-const { readSessionTargetIds } = require("../helpers/sessionTargets");
+const { readSessionTargetIds, writeNewSession } = require("../helpers/sessionTargets");
 
 /**
  * 1. Initialize Bulk Session
@@ -88,12 +88,13 @@ exports.initBulkSession = onCall({
 
 
     // At most 2,000 recipients a launch (`helpers/launchLimit.js`); an uploaded
-    // list was held to it before its rows were written. The IDs then fit the
-    // session document's `targetIds` array with room to spare.
+    // list was held to it before its rows were written. The IDs then fit one
+    // `meta/targets` document with room to spare.
     assertWithinLaunchLimit(finalTargetIds.length);
 
-    // Optimization: Store leadSourceType on session
-    await sessionRef.set({
+    // Optimization: Store leadSourceType on session. The recipients go beside
+    // it (`helpers/sessionTargets.js`), off the document every send rewrites.
+    await writeNewSession(sessionRef, {
         id: sessionId,
         name: sessionName || `Bulk Action ${new Date().toLocaleDateString()}`,
         status: 'pending', // pending -> active
@@ -103,19 +104,18 @@ exports.initBulkSession = onCall({
         config: config, // { method: 'sms'|'email', message: '...', ... }
         filters: filters,
         leadSourceType: leadSourceType,
-        targetIds: finalTargetIds, // Array of strings
         // AUDIT FIX #4: Worker generation counter for zombie prevention
         workerGeneration: 1,
         // BUG-4 FIX: Removed redundant 'stats' field — only 'progress' is updated by the worker.
         progress: {
-            currentPointer: 0, // Index in targetIds
+            currentPointer: 0, // Index in the recipient list
             totalCount: finalTargetIds.length,
             processedCount: 0,
             successCount: 0,
             failedCount: 0
         },
         lastUpdateAt: admin.firestore.FieldValue.serverTimestamp()
-    });
+    }, finalTargetIds);
 
     // C. Import Targets (Optional - if we need specific data snapshot)
     // If 'import' type, we assume targetIds came with data?
@@ -233,13 +233,12 @@ exports.retryFailedAttempts = onCall(
     delete sessionConfig.id;
     delete sessionConfig.progress;
 
-    await newSessionRef.set({
+    await writeNewSession(newSessionRef, {
         ...sessionConfig, // Copy config/filters without the heavy fields
         id: newSessionId,
         name: `${data.name} (Retry)`,
         status: 'active',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        targetIds: failedIds,
         progress: {
             currentPointer: 0,
             totalCount: failedIds.length,
@@ -254,7 +253,7 @@ exports.retryFailedAttempts = onCall(
         importSourceSessionId: data.importSourceSessionId || sessionId,
         // AUDIT FIX #4: Reset worker generation for new session
         workerGeneration: 1
-    });
+    }, failedIds);
 
     // A session deleted while this retry was being written may already have
     // had its uploaded rows deleted (`workers/sessionDeleted.js`), which keeps
