@@ -7,20 +7,16 @@ import { useCompactViewport } from './useCompactViewport';
 /**
  * Driver identity block plus the dossier's section navigation.
  *
- * Presentation migrated to the approved `Button` and `--ds-*` tokens
- * (2026-07-27). Frozen contracts: the six navigation ids
+ * Presentation uses the approved `Button` and `--ds-*` tokens.
+ * Frozen contracts: the six navigation ids
  * (`application`, `documents`, `dq`, `pev`, `activity`, `notes`) in that order,
  * their visible labels, the exact `setActiveTab(id)` values, the
  * `tel:` / `mailto:` href schemes, and the `dqStatus === 'incomplete'` rule.
  *
- * The strip is the design system's `TabList` (2026-08-25). It was a feature-owned
- * WAI-ARIA composition, recorded as an exception because "the design system has
- * no approved Tabs primitive" — true when it was written, and untrue from
- * 2026-08-21, when `TabList` shipped naming this file as one of its nine intended
- * consumers. This is the split-across-components case the primitive's `tabIds`
- * export exists for: the sidebar owns the strip and `DriverProfileModal` owns the
- * panel, and they now derive their ids from one `idBase` instead of passing two
- * id-builder functions between them.
+ * The strip is the design system's `TabList`. This is the split-across-components
+ * case the primitive's `tabIds` export exists for: the sidebar owns the strip and
+ * `DriverProfileModal` owns the panel, and both derive their ids from one
+ * `idBase` rather than passing id-builder functions between them.
  *
  * `orientation` still follows the viewport, because that is a property of this
  * dossier's layout rather than of tabs in general: the strip is a horizontal row
@@ -28,18 +24,17 @@ import { useCompactViewport } from './useCompactViewport';
  * describe the one the user is looking at, or the arrow keys announce the wrong
  * axis.
  *
- * DEFECTS FIXED (2026-07-27):
- * - The navigation was six plain `<button>`s. There was no `tablist`, no
- *   `aria-selected`, no `aria-controls` and no arrow-key model, so assistive
- *   technology could not tell it was a tab interface, could not say which
- *   section was current, and a keyboard user had to Tab through all six.
- * - Selection was signalled by background colour alone.
- * - The DQ-incomplete warning was a bare red dot with no text or label —
- *   invisible to a screen reader and to anyone who cannot distinguish it.
- * - The Call/Email labels used `text-[10px]`, below the 12 px interface floor.
- * - The disabled contact state used `pointer-events-none` on a live
- *   `<a href="tel:">`, so it stayed in the tab order and announced as a link
- *   pointing nowhere. Missing contact details now render as inert text.
+ * Rules this sidebar keeps:
+ * - The navigation is a real tab interface — `tablist`, `aria-selected`,
+ *   `aria-controls` and the arrow-key model — so assistive technology can say
+ *   which section is current and a keyboard user does not Tab through all six.
+ * - Selection is never signalled by background colour alone.
+ * - The DQ-incomplete warning carries text, not a bare red dot, so a screen
+ *   reader and anyone who cannot distinguish the colour both get it.
+ * - The Call/Email labels stay at or above the 12 px interface floor.
+ * - Missing contact details render as inert text, never as a live
+ *   `<a href="tel:">` with `pointer-events-none`, which stays in the tab order
+ *   and announces as a link pointing nowhere.
  */
 
 const NAV_ITEMS = [

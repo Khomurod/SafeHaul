@@ -6,12 +6,11 @@ import { Button, IconButton, Input } from '@/design-system/components';
  * Super Admin masthead: product identity, the global search box, the employer
  * backfill maintenance action, and logout.
  *
- * Migrated to the design system 2026-07-28. Presentation only — `setSearchQuery`
- * still receives the raw input value on every keystroke (the 600 ms debounce and
- * the >= 2 character rule live in `useSuperAdminData`), the clear control still
- * sets `''`, and `onBackfillEmployers` / `onLogout` are called with no arguments
- * exactly as before. The `logout-button-super` id is preserved because existing
- * selectors depend on it.
+ * Presentation only — `setSearchQuery` receives the raw input value on every
+ * keystroke (the 600 ms debounce and the >= 2 character rule live in
+ * `useSuperAdminData`), the clear control sets `''`, and `onBackfillEmployers` /
+ * `onLogout` are called with no arguments. The `logout-button-super` id is
+ * preserved because existing selectors depend on it.
  *
  * Fixed here:
  *  - The global search `<input>` had **no label at all** — only a placeholder,

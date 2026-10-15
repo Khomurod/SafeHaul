@@ -1,6 +1,6 @@
 # Icons
 
-The icon contract. Approved 2026-09-05.
+The icon contract. Approved.
 
 ```jsx
 import { Icon, Trash2 } from '@/design-system/icons';
@@ -66,22 +66,11 @@ file would have silently overridden them and made every icon in every button
 height **attributes**, which a stylesheet cannot override at a breakpoint — and
 the container rules depend on being able to.
 
-## The medallion was on that list before it was true
+## An off-scale size means a container is missing
 
-**`StatusMedallion` joined that list on 2026-09-06, and the day it did not
-belong on it is worth keeping.** Phase 4 wrote the sentence above as though it
-were already true of every container that holds a glyph. Measured against the
-CSS, only five carried a `> svg` rule; the medallion set its own diameter and
-left the glyph to the call site. So every call site chose: 24 in the catalog and
-in both patterns that render one, 28 in the signing room, 40 in the
-locked-feature modal, 48 after a bulk upload. `PageState` and `ConfirmDialog`
-each carried a comment admitting 24 was not a decision — it was what a bare
-lucide glyph rendered before this contract existed.
-
-Phase 7 found it, because a size that is not on the scale is exactly the signal
-that a container is missing: sixteen of the thirty-two off-scale glyph sizes in
-the whole application are one role — a large glyph announcing a page-level
-state — wearing four different numbers.
+`StatusMedallion` sizes its own glyph, like every container on that list, so no
+call site picks one. A glyph size that is not on the scale is the signal that a
+container is missing, not that the scale is short.
 
 `Badge`, `DataTable` and `SectionNavigation` still do not size their glyphs.
 Nothing off-scale lands in them today, so that is a note rather than a defect;
@@ -100,8 +89,8 @@ nothing about it.
 ## Adding a glyph
 
 Two lines in `glyphs.js`: import it aliased, export it wrapped. The registry
-holds every name measured in use on 2026-09-05 and nothing speculative, so a
-call site being migrated should never need one — but adding one is not an event.
+holds the names in use and nothing speculative, so a call site being migrated
+should never need one — but adding one is not an event.
 
 Keep that one shape, `export const X = /* #__PURE__ */ glyph(LucideX, 'X');`.
 The production build splits the registry into one module per glyph

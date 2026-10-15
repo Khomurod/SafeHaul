@@ -3,9 +3,9 @@
  *
  * ## Why this is a module and not inline in the table
  *
- * `Started (unfinished)` and `Start an application` became one workspace on
- * 2026-09-10, and the whole difficulty of merging them is that a row must NOT
- * behave the same everywhere. Four cases share one table:
+ * `Started (unfinished)` and `Start an application` are one workspace, and the
+ * whole difficulty is that a row must NOT behave the same everywhere. Four cases
+ * share one table:
  *
  * | Started by | Status                | A recruiter may…                        |
  * |------------|-----------------------|-----------------------------------------|
@@ -14,8 +14,8 @@
  * | Company    | `driver_in_progress`  | open (progress only — the server withholds the answers); mint a continuation link |
  * | Driver     | `in_progress`         | mint a continuation link. Nothing else.  |
  *
- * A **Company Admin** may do all of that, and since 2026-10-06 also open every
- * row the driver has written to, correct its answers, and delete any row with
+ * A **Company Admin** may do all of that, and also open every row the driver
+ * has written to, correct its answers, and delete any row with
  * everything in it. That is the owner's decision, and the server holds it:
  * `getApplicationDraft`, `saveApplicationDraftEdits` and `purgeApplicationDraft`
  * answer only the strict admin check.

@@ -22,8 +22,8 @@ const SIZES = new Set(['md', 'lg']);
  *
  *     <StatusMedallion tone="success"><Icon icon={Check} /></StatusMedallion>
  *
- * A `size` written here has no effect, which is the point. Until 2026-09-06 it
- * did, and the six call sites had picked 24, 28, 40 and 48 between them.
+ * A `size` written here has no effect, which is the point: call sites cannot
+ * drift apart on glyph size.
  */
 export function StatusMedallion({ children, tone = 'neutral', size = 'md', className = '' }) {
   if (!TONES.has(tone)) {

@@ -11,8 +11,7 @@ import { Modal } from '@design-system/patterns';
  * Interstitial notice shown when a company has features scheduled for
  * deactivation. Mounted by the company app shell.
  *
- * Migrated to the design system 2026-07-28; it was a hand-built overlay found by
- * the repository-wide dialog scan.
+ * Built on the approved accessible `Modal`.
  *
  * Presentation only. Frozen and unchanged: the 7:00–16:00 `America/Chicago`
  * business-hours gate, the future-dated `featureSchedules` selection, the

@@ -15,17 +15,14 @@ import { ConfirmDialog, Modal } from '@design-system/patterns';
  * gates it, and the same four counters are still reported.
  */
 /*
- * The approved `ConfirmDialog` since 2026-08-25. Hand-composed before that, and
- * the odd one out even among the ten hand-composed confirmations: it had no
- * medallion, putting the warning icon *inside* the heading instead, so the same
- * kind of question looked different here than anywhere else. It also lost what
- * the pattern adds — initial focus on Cancel rather than on a live-data rename,
- * and a synchronous guard against a double activation.
+ * The approved `ConfirmDialog`, so this question looks like every other
+ * confirmation (a medallion, not a warning icon inside the heading), initial focus
+ * is on Cancel rather than on a live-data rename, and a synchronous guard stops a
+ * double activation.
  *
- * The confirm label drops its `Wrench` icon: no other confirm in the product has
- * one, and the pattern's `confirmLabel` is words. Backdrop dismissal is off, which
- * this dialog did not set — a stray click beside a live-data rename should not
- * decide anything.
+ * The confirm label is words, with no icon: no other confirm in the product has
+ * one. Backdrop dismissal is off — a stray click beside a live-data rename should
+ * not decide anything.
  */
 export function BackfillEmployersConfirmDialog({ onConfirm, onCancel }) {
     return (

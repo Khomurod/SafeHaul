@@ -13,13 +13,12 @@ import { AddLineModal } from './AddLineModal';
  * Line Manager — Super Admin interface for the RingCentral "Digital Wallet":
  * lists provisioned phone lines and adds/removes lines with per-line JWTs.
  *
- * Migrated to the design system 2026-07-28. Presentation only — the real-time
+ * Presentation only. Frozen in `LineManager.contract.test.jsx`: the real-time
  * listener on `companies/{id}/integrations/sms_provider`, the
  * `inventory`/`hasCredentials`/`defaultPhoneNumber` mapping, the phone number as
  * the stable line identity used for removal, the `removePhoneLine({ companyId,
  * phoneNumber })` payload, the success / cleared-assignments / failure toast
- * wording, and the `hasCredentials` handed to `AddLineModal` are all unchanged
- * (frozen in `LineManager.contract.test.jsx`).
+ * wording, and the `hasCredentials` handed to `AddLineModal`.
  *
  * Presentation defects fixed: blocking `window.confirm` on the destructive
  * remove replaced with the shared accessible dialog (wording preserved); legacy
@@ -235,10 +234,9 @@ export function LineManager({ companyId, companyName }) {
  * Replaces the blocking `window.confirm` that guarded line removal. The warning
  * wording is preserved verbatim.
  *
- * The approved `ConfirmDialog` since 2026-08-25; hand-composed before that, and
- * without a medallion, so this destructive question looked different from the
- * ones that had one. The pattern also puts initial focus on Cancel rather than on
- * "Remove line" and guards `onConfirm` against a double activation.
+ * The approved `ConfirmDialog`, so this destructive question looks like every
+ * other one; the pattern puts initial focus on Cancel rather than on "Remove
+ * line" and guards `onConfirm` against a double activation.
  */
 function RemoveLineDialog({ line, onCancel, onConfirm }) {
     return (

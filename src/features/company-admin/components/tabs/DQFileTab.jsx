@@ -25,9 +25,7 @@ import { fetchAndSyncDqFiles } from './dqFileSync';
 /**
  * Driver Qualification file management for one application or lead.
  *
- * Migrated to the design system 2026-07-28. This was one of the four dossier tab
- * bodies deliberately left unmigrated by the 2026-07-27 dossier foundation slice
- * and recorded as residual debt since.
+ * Built on the design system's components and `--ds-*` tokens.
  *
  * Presentation only. Frozen and unchanged: the eleven `DQ_FILE_TYPES` and their
  * order (with `[0]` as the initial and post-upload reset value); the
@@ -319,10 +317,9 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
           </FormField>
 
           {/*
-            `FileInput`, added 2026-08-21, closing the gap this call site used to
-            record as an exception. The picker's keyboard path and accessible
-            name are the primitive's; which file is selected and what happens to
-            it stay here.
+            `FileInput`: the picker's keyboard path and accessible name are the
+            primitive's; which file is selected and what happens to it stay
+            here.
           */}
           <FileInput
             id={fileInputId}
@@ -479,10 +476,8 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
  * Replaces the blocking `window.confirm` that guarded DQ file deletion. The
  * question is preserved verbatim.
  *
- * The approved `ConfirmDialog` since 2026-08-25; hand-composed before that. The
- * pattern already wraps a long description in `[overflow-wrap:anywhere]`, which
- * is what the local `break-words` was for — a DQ file name can be one unbroken
- * string.
+ * The approved `ConfirmDialog`, which wraps a long description in
+ * `[overflow-wrap:anywhere]` — a DQ file name can be one unbroken string.
  */
 function DeleteFileDialog({ file, onCancel, onConfirm }) {
   const keeps = file.isSynced ? ' The application keeps its own copy.' : '';

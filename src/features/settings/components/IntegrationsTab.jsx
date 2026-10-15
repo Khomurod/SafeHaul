@@ -9,23 +9,20 @@ import { PageHeader, ResponsiveGrid, Stack } from '@/design-system/layouts';
 /**
  * Company Settings "Integrations" tab.
  *
- * Migrated to the design system 2026-07-27. This is a PRESENTATION-ONLY
- * migration: every SDK-load, login, Graph API, and callable contract recorded
- * in the 2026-07-23 Integrations deep-audit (NO-GO) is unchanged, and no
- * Cloud Function, rule, or data shape was touched.
+ * Presentation only: every SDK-load, login, Graph API and callable contract is
+ * frozen, and this component touches no Cloud Function, rule or data shape.
  *
- * The 2026-07-23 audit found a **tenant-binding defect** in
- * `connectFacebookPage`: it derived the tenant from `request.auth.uid` rather
- * than the company's Firestore document id, so connected leads ingested to
- * `companies/{uid}/leads` — a tree belonging to no company. **Fixed 2026-08-25**
- * in `functions/integrations/facebook.js`: this component now sends `companyId`
- * and the callable authorizes it against the caller's per-company role. Sending
- * it is not the same as being trusted with it — the server re-checks, and a
- * company admin naming a company they do not administer is rejected.
+ * It sends `companyId` to `connectFacebookPage`, and the callable
+ * (`functions/integrations/facebook.js`) authorizes it against the caller's
+ * per-company role: the tenant is the company's Firestore document id, never
+ * `request.auth.uid`, which would ingest leads to `companies/{uid}/leads` — a
+ * tree belonging to no company. Sending it is not the same as being trusted with
+ * it — the server re-checks, and a company admin naming a company they do not
+ * administer is rejected.
  *
- * The feature is still **switched off** and the "not production-ready" notice
- * below stays. The fault is corrected; the workflow has still never run
- * end-to-end against a real Facebook page in production.
+ * The feature is **switched off** and the "not production-ready" notice below
+ * stays: the workflow has never run end-to-end against a real Facebook page in
+ * production.
  *
  * No credential or secret ever reaches this component: only the public
  * `VITE_FACEBOOK_APP_ID` and a short-lived user access token are used
@@ -217,10 +214,8 @@ export function IntegrationsTab({ companyId }) {
                   carried by the dashed border and muted icon/text tokens
                   instead, at full opacity.
 
-                  Still true after `content-muted` moved to slate-600 on
-                  2026-08-21: the token now has more headroom, but `opacity` on an
-                  ancestor composites every descendant toward the background
-                  regardless of how much contrast the token started with.
+                  However much headroom the token has, `opacity` on an
+                  ancestor composites every descendant toward the background.
                 */}
                 <Card padding="md" className="flex flex-col items-center justify-center border-dashed text-center">
                     <div className="mb-ds-3 flex h-10 w-10 items-center justify-center rounded-ds-full bg-ds-surface-subtle text-ds-content-muted">

@@ -147,11 +147,9 @@
   --ds-metric-tone-border: var(--ds-color-status-accent-border);
 }
 
-/* Added 2026-07-28 for the Super Admin dashboard, whose metrics have a real
-   failure state ("Error") that every other tone misrepresents. The status-danger
-   tokens already existed and `Card`/`StatusMedallion`/`Badge` already expose a
-   danger tone; `MetricCard` was the only primitive missing it. The tone is never
-   the sole signal — the value text still reads "Error". */
+/* For a metric with a real failure state ("Error"), such as the Super Admin
+   dashboard's, which every other tone misrepresents. The tone is never the sole
+   signal — the value text still reads "Error". */
 .ds-metric-card[data-tone='danger'] {
   --ds-metric-tone-bg: var(--ds-color-status-danger-bg);
   --ds-metric-tone-fg: var(--ds-color-status-danger-fg);

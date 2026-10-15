@@ -15,12 +15,9 @@ import { INSPECTOR_TABS } from '@features/signing/utils/editorSaveState';
  * turns one into a placed field. Only the review panel's explicit apply actions
  * do that, and they are unchanged.
  *
- * The strip is `TabList` from the design system. It used to be a hand-built
- * WAI-ARIA tablist — roving tabindex, arrow/Home/End arithmetic, `aria-selected`,
- * `aria-controls` — recorded as a feature-owned exception "because the design
- * system has no approved Tabs primitive". It has had one since 2026-08-21; the
- * exception outlived its reason by four days and the whole keyboard model with
- * it. `fitted` is what reproduces the two half-width tabs.
+ * The strip is `TabList` from the design system, which owns the roving
+ * tabindex, the arrow/Home/End movement, `aria-selected` and `aria-controls`.
+ * `fitted` is what reproduces the two half-width tabs.
  *
  * The panels stay mounted and `hidden`, which is deliberate: the properties panel
  * holds an in-progress field edit, and unmounting it would discard what the user

@@ -87,12 +87,10 @@ export function AiScanOptionsDialog({ activePage, numPages, onClose, onStart }) 
                                 Page numbers
                             </label>
                             {/*
-                              The approved `Input`, since 2026-08-25. It was a
-                              hand-built field with its own border, radius, inline
-                              padding and 44px min-height — a second field contract
-                              that happened to resolve to the same numbers, and one
-                              the contract scanner could not see because its
-                              `className` came after an arrow function.
+                              The approved `Input`: a hand-built field with its
+                              own border, radius, inline padding and min-height
+                              is a second field contract, even when its numbers
+                              match.
                             */}
                             <Input
                                 id={rangeId}

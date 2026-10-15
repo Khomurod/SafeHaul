@@ -42,10 +42,10 @@
    * vertical strip — on every table in the application, at every width.
    *
    * `stable` buys freedom from a 15px reflow when a vertical scrollbar first
-   * appears. Measured across all 84 table renders in the catalog on 2026-08-08,
-   * not one scroll region scrolled vertically: these tables grow with their
-   * content rather than being height-constrained, so it was paying a permanent
-   * visible cost for a reflow that never happens. If a height-constrained table
+   * appears, and no scroll region in the catalog scrolls vertically: these
+   * tables grow with their content rather than being height-constrained, so it
+   * would pay a permanent visible cost for a reflow that never happens. If a
+   * height-constrained table
    * is introduced later, the space that appears at that edge will be an actual
    * scrollbar, which is the correct thing to show there.
    *

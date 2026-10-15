@@ -1,9 +1,9 @@
-// The envelope editor's undo/redo spine, split out of `EnvelopeCreator.jsx`
-// on 2026-09-01 for the source-size standard (SG-1b). This hook owns the
-// placed-field array, the history stack and the save state, and exposes the
-// single write path (`commitFields`) every mutation must go through. Bodies
-// verbatim from the component. Selection stays in the component; `stepHistory`
-// prunes it through the `setSelectedFieldIds` the component passes in.
+// The envelope editor's undo/redo spine, kept apart from `EnvelopeCreator.jsx`
+// for the source-size standard. This hook owns the placed-field array, the
+// history stack and the save state, and exposes the single write path
+// (`commitFields`) every mutation must go through. Selection stays in the
+// component; `stepHistory` prunes it through the `setSelectedFieldIds` the
+// component passes in.
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
     createHistory,

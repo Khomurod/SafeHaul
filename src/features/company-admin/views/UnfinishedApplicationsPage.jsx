@@ -74,7 +74,7 @@ const openingApplication = (
  * Company Admin may also open every application the driver has written to,
  * correct its answers (*Edit answers*), and delete any row with everything in it,
  * the same driver's other unfinished applications included — the owner's
- * decisions of 2026-10-06 and 2026-10-07, held by the server
+ * decisions, held by the server
  * (`getApplicationDraft`, `saveApplicationDraftEdits`, `purgeApplicationDraft`).
  * There is no Social Security Number to withhold — drafts never store one.
  *

@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Icon, Loader2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 // The Firebase persistence paths — the "Correct"/"Edit Template" hydration
-// and the save/send action — live in utils/envelopePersistence.js since the
-// 2026-09-01 source-size split. State stays here; the module gets setters.
+// and the save/send action — live in utils/envelopePersistence.js. State
+// stays here; the module gets setters.
 import {
     hydrateEnvelopeForEdit,
     saveEnvelope,
@@ -19,14 +19,14 @@ import {
     toggleSelection,
 } from '@features/signing/utils/fieldGeometry';
 import { useCompactEditor } from './hooks/useCompactEditor';
-// The editing spine split out on 2026-09-01 (SG-1b): history/save state and
-// the single write path, the field-mutation handlers, and the keyboard
-// clipboard — see each hook's header for what moved.
+// The editing spine lives in hooks: history/save state and the single write
+// path, the field-mutation handlers, and the keyboard clipboard — see each
+// hook's header for what it owns.
 import { useEditorHistoryState } from './hooks/useEditorHistoryState';
 import { useEnvelopeFieldEditing } from './hooks/useEnvelopeFieldEditing';
 import { useFieldClipboardShortcuts } from './hooks/useFieldClipboardShortcuts';
-// And the SG-1c split: the document/viewport controls, the AI-suggestion
-// review workflow, and the arrangement itself.
+// And the document/viewport controls, the AI-suggestion review workflow, and
+// the arrangement itself.
 import { useEnvelopeDocumentControls } from './hooks/useEnvelopeDocumentControls';
 import { useAiSuggestionWorkflow } from './hooks/useAiSuggestionWorkflow';
 import { EnvelopeCreatorLayout } from './components/envelope-creator/EnvelopeCreatorLayout';
@@ -77,8 +77,7 @@ export default function EnvelopeCreator({
     }, []);
 
     // The placed-field array, the undo/redo stack and the save state — with
-    // `commitFields`, the single write path — live in useEditorHistoryState
-    // since the 2026-09-01 source-size split (SG-1b).
+    // `commitFields`, the single write path — live in useEditorHistoryState.
     const {
         fields,
         history,
@@ -106,8 +105,7 @@ export default function EnvelopeCreator({
     // The PDF itself and how it is shown — file, page count, visible page,
     // page refs/dimensions, viewport width with wheel zoom and the fit
     // handlers, and the upload picker with its size ceiling — live in
-    // useEnvelopeDocumentControls since the 2026-09-01 source-size split
-    // (SG-1c).
+    // useEnvelopeDocumentControls.
     const {
         file,
         setFile,
@@ -142,8 +140,7 @@ export default function EnvelopeCreator({
 
     // The AI-suggestion review workflow — the scan dialog, the panel, the
     // selected suggestion, the one-level apply undo, and every handler around
-    // useAiFieldAssistant — lives in useAiSuggestionWorkflow since the
-    // 2026-09-01 source-size split (SG-1c).
+    // useAiFieldAssistant — lives in useAiSuggestionWorkflow.
     const {
         aiAssistant,
         aiSuggestions,
@@ -190,8 +187,8 @@ export default function EnvelopeCreator({
     }, [selectedFieldId, selectedFieldIds]);
 
     // Ctrl/Cmd undo/redo and field copy/paste live in
-    // useFieldClipboardShortcuts since the 2026-09-01 source-size split
-    // (SG-1b); the listener still registers once and reads through these refs.
+    // useFieldClipboardShortcuts; the listener registers once and reads
+    // through these refs.
     useFieldClipboardShortcuts({
         fieldsRef,
         selectedFieldIdRef,
@@ -243,8 +240,8 @@ export default function EnvelopeCreator({
 
     // Every field mutation — add/remove/move/resize/label/property plus the
     // align/match/duplicate/copy-to-pages bulk tools and the visual drag
-    // guides — lives in useEnvelopeFieldEditing since the 2026-09-01
-    // source-size split (SG-1b). All of it still routes through commitFields.
+    // guides — lives in useEnvelopeFieldEditing. All of it routes through
+    // commitFields.
     const {
         dragGuides,
         addField,
@@ -375,8 +372,7 @@ export default function EnvelopeCreator({
 
     // The arrangement — top bar, three-column desktop layout, compact bottom
     // bar and sheets, preview/scan dialogs, and the leave-without-saving
-    // confirmation — lives in EnvelopeCreatorLayout since the 2026-09-01
-    // source-size split (SG-1c).
+    // confirmation — lives in EnvelopeCreatorLayout.
     return (
         <EnvelopeCreatorLayout
             isCompact={isCompact}

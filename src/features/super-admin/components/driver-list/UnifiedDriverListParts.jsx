@@ -43,12 +43,10 @@ const FILTERS = [
  * Replaces the blocking `window.confirm` on the permanent record delete. The
  * SUPER ADMIN WARNING wording is preserved verbatim.
  *
- * The approved `ConfirmDialog` since 2026-08-25. Hand-composed before that, and
- * it carried the severity **in the heading's colour** — `text-ds-status-danger-fg`
- * on the title, with no medallion — which is status by colour alone on the most
- * destructive action in the product. The pattern's danger medallion carries it
- * instead, the wording is untouched, and initial focus lands on Cancel rather
- * than on "Permanently delete".
+ * The approved `ConfirmDialog`: the pattern's danger medallion carries the
+ * severity — never the heading's colour alone, on the most destructive action in
+ * the product — and initial focus lands on Cancel rather than on "Permanently
+ * delete".
  */
 function DeleteRecordDialog({ item, onCancel, onConfirm }) {
     const who = `${item.firstName || ''} ${item.lastName || ''}`.trim();

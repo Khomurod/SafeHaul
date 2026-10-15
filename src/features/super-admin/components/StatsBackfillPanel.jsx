@@ -9,11 +9,11 @@ import { ConfirmDialog } from '@design-system/patterns';
 /**
  * Performance-stats backfill maintenance panel.
  *
- * Migrated to the design system 2026-07-28. Presentation only — the
- * `backfillCompanyStats` and `backfillAllStats` callable names, their
- * `{ timeout: 540000 }` option, the `{ companyId, dryRun }` and `{ dryRun }`
- * payloads, the `companyId.trim()` transformation, the "Please enter a Company
- * ID" guard, the result field precedence and every frozen string are unchanged.
+ * Presentation only. Frozen contracts: the `backfillCompanyStats` and
+ * `backfillAllStats` callable names, their `{ timeout: 540000 }` option, the
+ * `{ companyId, dryRun }` and `{ dryRun }` payloads, the `companyId.trim()`
+ * transformation, the "Please enter a Company ID" guard, the result field
+ * precedence and every frozen string.
  *
  * Defects fixed here:
  *  1. **"Run All Companies" had no confirmation at all**, while the
@@ -286,10 +286,9 @@ export default function StatsBackfillPanel() {
  * guard of any kind on this action.
  */
 /**
- * The approved `ConfirmDialog` since 2026-08-25; this was a hand-composed `Modal`
- * body reproducing the structure that pattern owns. It gains initial focus on
- * Cancel rather than on a nine-minute irreversible write, and a synchronous guard
- * against a double activation of that write.
+ * The approved `ConfirmDialog`: initial focus on Cancel rather than on a
+ * nine-minute irreversible write, and a synchronous guard against a double
+ * activation of that write.
  */
 function RunAllConfirmDialog({ onCancel, onConfirm }) {
     return (

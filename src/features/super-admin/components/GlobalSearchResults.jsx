@@ -8,13 +8,13 @@ import { applicationStatusTone } from './applicationStatusTone';
 /**
  * Global search results across companies, users and driver applications.
  *
- * Migrated to the design system 2026-07-28. Presentation only — the three
- * result groups and their order, the per-group counts, the total count, the
+ * Presentation only. Frozen contracts: the three result groups and their order,
+ * the per-group counts, the total count, the
  * `allCompaniesMap.get(app.companyId) || 'Unknown Company'` fallback, the
  * `app.status || 'New Application'` default, the callback shapes
  * (`{ id, name }` to `onViewApps`, bare id to `onEditCompany`, `{ id }` to
- * `onEditUser`, the whole app object to `onAppClick`) and every frozen string
- * are unchanged. The search query itself is owned by `useSuperAdminData`.
+ * `onEditUser`, the whole app object to `onAppClick`) and every frozen string.
+ * The search query itself is owned by `useSuperAdminData`.
  *
  * Defects fixed here:
  *  - **Status was communicated by colour alone.** Each application rendered

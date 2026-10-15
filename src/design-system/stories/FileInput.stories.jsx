@@ -168,8 +168,8 @@ export const Dropzone = {
  * A drop the `accept` list refuses.
  *
  * The picker enforces `accept` on dropped files itself — the native dialog does
- * it for a picked one, and a drop inherits none of that — and since 2026-08-26 it
- * says so instead of returning in silence. The message is a `role="alert"`,
+ * it for a picked one, and a drop inherits none of that — and it says so
+ * instead of returning in silence. The message is a `role="alert"`,
  * matching this system's rule that errors are assertive and everything else is
  * polite, and while it stands the input is `aria-invalid` and the message joins
  * its description. Any later selection clears all three.

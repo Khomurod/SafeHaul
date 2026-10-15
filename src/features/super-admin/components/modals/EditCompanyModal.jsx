@@ -18,11 +18,11 @@ import { companyDetailsFields, companyDetailsOf } from '@features/companies/serv
 /**
  * Super Admin company editor.
  *
- * Migrated to the design system 2026-07-28. Presentation only — the
+ * Presentation only. Frozen contracts: the
  * `updateCompany(companyDoc.id, companyData, originalSlug)` call and the exact
  * shape of `companyData` (including `appSlug.toLowerCase().trim()` and
  * `state.toUpperCase()`), the `uploadCompanyLogo` sequence, the 1500 ms
- * close delay after a successful save, and every frozen string are unchanged.
+ * close delay after a successful save, and every frozen string.
  * The `edit-company-modal` id is preserved for existing selectors.
  *
  * Fixed here:
@@ -39,12 +39,11 @@ import { companyDetailsFields, companyDetailsOf } from '@features/companies/serv
  *    could still be dismissed mid-flight; Escape/backdrop are now suppressed
  *    while saving.
  *
- * The logo upload uses the approved `FileInput` (added 2026-08-21), which
- * closed the file-input gap this file used to record as an exception. The
- * picker's keyboard path and accessible name are the primitive's; the accepted
- * types and what happens to the file stay here.
+ * The logo upload uses the approved `FileInput`. The picker's keyboard path and
+ * accessible name are the primitive's; the accepted types and what happens to
+ * the file stay here.
  *
- * Application Rules (2026-09-02): a super admin configures a selected company's
+ * Application Rules: a super admin configures a selected company's
  * driver-application behaviour from here, with the same panel the company's own
  * admins see under Settings → Company Profile → Application Rules. The rules are
  * written only when this editor touched them, so saving a name change leaves a

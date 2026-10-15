@@ -10,13 +10,12 @@ import { Modal } from '@design-system/patterns';
  * Modal for Super Admins to add a new phone line to the Digital Wallet.
  * Supports both global (shared) credentials and per-line credentials.
  *
- * Migrated to the design system 2026-07-28. Presentation only — the
+ * Presentation only. Frozen in `AddLineModal.contract.test.jsx`: the
  * `usePerLineCredentials` / `needsCredentials` logic, the initial
  * `isSandbox: true`, the `testLineConnection` and `addPhoneLine` callable names
  * and payload shapes (including omitting credentials when not needed and the
  * `label || phoneNumber` fallback), every validation guard and its wording, and
- * the success/verify toasts are unchanged (frozen in
- * `AddLineModal.contract.test.jsx`).
+ * the success/verify toasts.
  *
  * Presentation defects fixed: the hand-built `fixed inset-0` overlay (no focus
  * trap, no Escape, no focus restore) is replaced with the shared accessible

@@ -183,9 +183,9 @@ export const Sizes = {
  * **It means two different things, and the variant decides which.** On a
  * `primary` it FILLS, and only `success` is allowed: a primary action already
  * carries the strongest emphasis on the page, so a second colour on top competes
- * with that rather than adding to it. Until 2026-09-05 a single rule applied the
- * fill to every variant, which is why the secondary button below used to be
- * solid green and is now a tint — the tint is the point.
+ * with that rather than adding to it. On `secondary` and `ghost` it is a tint,
+ * so the secondary button below is tinted, not solid green — the tint is the
+ * point.
  */
 export const SuccessTone = {
   render: (args) => (

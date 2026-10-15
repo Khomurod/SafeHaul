@@ -32,37 +32,25 @@ import './FileInput.css';
  * the upload itself stay with the feature — the public application's
  * `UploadField` composes exactly this and owns all of that around it.
  *
- * ## Two shapes, `loading` and `labelHidden` (2026-08-25)
- *
- * Four days after this component shipped it had two consumers, and nine raw
- * `<input type="file">` controls were still in the tree, every one of them
- * carrying a comment that said "the design system has no approved file-input
- * contract yet". Migrating them is what showed why: the contract existed but the
- * API covered one of the product's three real shapes.
+ * ## Two shapes, `loading` and `labelHidden`
  *
  * - `variant="dropzone"` is the full-width dashed panel that four uploads use.
  *   As a `<label>` the whole panel is the click target, and `onDrop` below makes
- *   it a real drop target. An earlier version of this line claimed the label gave
- *   the second one "without a single event handler" — it does not, a label
- *   forwards clicks and not drops, and the panels ignored dropped files until
- *   2026-08-25. See `handleDrop`.
- * - `loading` is what the avatar and company-logo pickers needed. Both used
- *   `Button loading` plus a hidden input, because an upload picker is exactly the
- *   control that has to say it is busy.
+ *   it a real drop target: a label forwards clicks and not drops. See
+ *   `handleDrop`.
+ * - `loading` is what the avatar and company-logo pickers need, because an
+ *   upload picker is exactly the control that has to say it is busy.
  * - `labelHidden` is for a picker whose field is already named on screen — a
  *   photo preview beside it — matching `Checkbox`'s prop of the same name. The
  *   name stays in the accessibility tree either way.
  *
- * ## `loading` says so out loud, too (2026-08-26)
+ * ## `loading` says so out loud, too
  *
- * Both pickers this replaced also carried a `<p role="status">` region reading
- * "Uploading company logo…", and the migration dropped it on the reasoning that
- * `aria-busy` plus the button text now carried the state. Neither is announced:
- * `aria-busy` is on an input that `loading` has just disabled and taken focus
- * from, and the button text is ordinary content, not a live region. The upload
- * went silent for a screen-reader user. Restored here rather than at each call
- * site — one region per picker, in the component whose prop `loading` is. See
- * `loadingStatus`.
+ * A `loading` picker renders its own `role="status"` region, here rather than at
+ * each call site — one region per picker, in the component whose prop `loading`
+ * is. `aria-busy` and the button text cannot carry the state: `aria-busy` is on
+ * an input that `loading` has just disabled and taken focus from, and the button
+ * text is ordinary content, not a live region. See `loadingStatus`.
  */
 const VARIANTS = new Set(['button', 'dropzone']);
 
@@ -198,16 +186,16 @@ export const FileInput = /* @__PURE__ */ forwardRef(function FileInput({
    *
    * ## Both handlers cancel the event FIRST, disabled or not
    *
-   * The first version of this returned early when `inert || loading`, before
-   * calling `preventDefault`. That handed the drop back to the browser, whose
-   * default action for a dropped file is to navigate to it — so dropping a second
-   * file onto a panel that was mid-upload could replace the page and discard a
-   * half-filled form. On the public driver application that is somebody's work
-   * gone, which makes it the most expensive thing a disabled control could do.
+   * Returning early when `inert || loading`, before `preventDefault`, would hand
+   * the drop back to the browser, whose default action for a dropped file is to
+   * navigate to it — so dropping a second file onto a panel that is mid-upload
+   * could replace the page and discard a half-filled form. On the public driver
+   * application that is somebody's work gone, which makes it the most expensive
+   * thing a disabled control could do.
    *
-   * Found in review on 2026-08-25. The rule is: cancelling the browser's default
-   * is what a drop target owes the page whether or not it can accept the file.
-   * Only the assignment and the `change` dispatch are conditional.
+   * The rule is: cancelling the browser's default is what a drop target owes the
+   * page whether or not it can accept the file. Only the assignment and the
+   * `change` dispatch are conditional.
    */
   const handleDragOver = useCallback((event) => {
     // Unconditional: see above. A panel that looks like a drop target must not
@@ -232,19 +220,17 @@ export const FileInput = /* @__PURE__ */ forwardRef(function FileInput({
      * company logo is exactly that: `BrandingSection` passes `image/*`, and
      * `CompanyProfileTab`'s handler uploads and persists whatever arrives with no
      * validation of its own — and Storage permits PDFs in `company_assets`. So
-     * before this filter, dropping a PDF on the logo control saved it as the
-     * logo and left a broken image on the company profile.
+     * without this filter, dropping a PDF on the logo control would save it as
+     * the logo and leave a broken image on the company profile.
      *
-     * Found in review on 2026-08-25, one round after the drop handling itself was
-     * added. Programmatic assignment inherits none of the picker's behaviour, and
-     * `accept` was the piece of it that mattered.
+     * Programmatic assignment inherits none of the picker's behaviour, and
+     * `accept` is the piece of it that matters.
      *
-     * ## And then it has to SAY so (2026-08-26)
+     * ## And then it has to SAY so
      *
-     * Filtering silently is its own defect, and it shipped for a day: the file
-     * went nowhere, no message appeared, and the panel looked exactly as it had.
-     * A drop is a direct manipulation, so "nothing visibly happened" reads as
-     * "this control is broken" rather than "that file is not allowed here".
+     * Filtering silently is its own defect. A drop is a direct manipulation, so
+     * "nothing visibly happened" reads as "this control is broken" rather than
+     * "that file is not allowed here".
      *
      * `resolveDroppedFiles` decides both halves together, because they are one
      * decision — what survives, and what the user has to be told. The accepted
@@ -275,9 +261,8 @@ export const FileInput = /* @__PURE__ */ forwardRef(function FileInput({
      * `EnvelopeSidebar` is `{!file ? <FileInput/> : …}`, `UploadField` renders it
      * only in its idle state — so a mixed drop hands them a file, they
      * re-render, and the alert below is unmounted in the very commit that
-     * created it. Found in review on 2026-08-26 and reproduced: the message
-     * never reached the screen, while the all-refused case (which calls no
-     * `onChange`, so nothing unmounts) worked.
+     * created it — while the all-refused case (which calls no `onChange`, so
+     * nothing unmounts) keeps it.
      *
      * It fires AFTER the change for the same reason `setRejection` does: a
      * consumer clearing stale state in its `onChange` would otherwise clear the

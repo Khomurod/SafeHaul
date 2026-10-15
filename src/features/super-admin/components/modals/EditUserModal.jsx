@@ -11,11 +11,11 @@ import { UserMembershipsManager } from '../users/UserMembershipsManager';
 /**
  * Super Admin user editor: name/email form plus the memberships manager.
  *
- * Migrated to the approved accessible `Modal` 2026-07-28. Presentation only — the
+ * Presentation only, in the approved accessible `Modal`. Frozen contracts: the
  * `users/{userId}` read, the `companyId || Object.keys(allCompaniesMap)[0] || null`
  * fallback passed to `EditUserNameForm`, and the `onSave` wiring into both
- * children are unchanged. The `edit-user-modal` and `edit-user-close-btn` ids are
- * preserved because existing selectors depend on them.
+ * children. The `edit-user-modal` and `edit-user-close-btn` ids are preserved
+ * because existing selectors depend on them.
  *
  * Fixed here:
  *  - Hand-built overlay replaced by the approved `Modal` (dialog semantics, focus

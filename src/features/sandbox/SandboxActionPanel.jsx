@@ -10,16 +10,15 @@ import { isSuperAdminClaims } from '@app/auth/roles';
 /**
  * Post-submit actions for sandbox applications. Delete / transfer require Super Admin (callable enforces).
  *
- * Presentation migrated to the approved `Card` / `Button` / `FormField` /
- * `Select` / `StatusMedallion` primitives and `--ds-*` tokens (2026-07-27).
- * The `listSandboxTenantCompanies`, `deleteSandboxApplication` and
- * `transferSandboxApplication` callables, their exact payloads, the Super Admin
- * claim check, the `/sandbox/transfer-success` navigation state, and the
- * `onDeletedRestart` / `onTransferComplete` callbacks are unchanged.
+ * Presentation uses the approved `Card` / `Button` / `FormField` /
+ * `Select` / `StatusMedallion` primitives and `--ds-*` tokens.
+ * Frozen contracts: the `listSandboxTenantCompanies`, `deleteSandboxApplication`
+ * and `transferSandboxApplication` callables, their exact payloads, the Super
+ * Admin claim check, the `/sandbox/transfer-success` navigation state, and the
+ * `onDeletedRestart` / `onTransferComplete` callbacks.
  *
- * DEFECTS FIXED (2026-07-27): the panel was not a `<main>` landmark and opened
- * at `<h2>` with no `<h1>`; the transfer `<label>` was not bound to the select;
- * and the error text was not announced.
+ * The panel is a `<main>` landmark that opens at `<h1>`; the transfer `<label>`
+ * is bound to the select; and the error text is announced.
  */
 export function SandboxActionPanel({
   applicationId,

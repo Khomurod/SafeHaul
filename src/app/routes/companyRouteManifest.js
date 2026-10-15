@@ -28,14 +28,13 @@ export const COMPANY_ROUTE_MANIFEST = Object.freeze([
     // application is not a submitted one: nothing is signed, no consent has been
     // given and no snapshot exists. Mixing them into the ATS funnel would mean
     // statuses, assignment and exports treating a half-typed form as a candidate
-    // record the applicant never agreed to file. That separation is a rule; the
-    // one below was not.
+    // record the applicant never agreed to file. That separation is a rule.
     //
-    // ONE destination for unfinished work, as of 2026-09-10. This used to sit
-    // beside a second item, `Start an application`, and a carrier-prepared draft
-    // appeared under both — so a recruiter had to know which page answered which
-    // question about the same application. Starting one is now the primary action
-    // inside this workspace. Not `adminOnly`: a recruiter with a driver's
+    // ONE destination for unfinished work: there is no second `Start an
+    // application` item, so a carrier-prepared draft appears in one place and a
+    // recruiter never has to know which page answers which question about the
+    // same application. Starting one is the primary action inside this
+    // workspace. Not `adminOnly`: a recruiter with a driver's
     // paperwork in hand is exactly who starts one, and nothing it produces is
     // filed — the driver still completes and signs it — so the bar is
     // company-workspace access, as it is for the dossier.

@@ -12,11 +12,11 @@ import { ConfirmDialog } from '@design-system/patterns';
  * `isIntegrationMode`, where the row action selects a company for integration
  * setup instead of opening the editor.
  *
- * Migrated to the design system 2026-07-28. Presentation only — the
+ * Presentation only. Frozen contracts: the
  * `companies/{id}/integrations/sms_provider` enrichment read, the
  * `updateDoc(companies/{id}, { isActive })` toggle, the name/slug/id search, the
  * client-side 20/50/100 pagination, the `loadMore('companies')` database
- * pagination, and every frozen string are unchanged.
+ * pagination, and every frozen string.
  *
  * `DataTable` is deliberately not used, matching the exception already recorded
  * for `CampaignResultsTable`, `AssignmentTable` and `ViewCompanyAppsModal`: this
@@ -253,9 +253,8 @@ export function CompaniesView({
                                                 </span>
                                                 {/*
                                                   A real button so keyboard users can open a
-                                                  company at all — and `Button variant="link"`
-                                                  since 2026-08-25, rather than a seventh
-                                                  hand-written "action that reads as text".
+                                                  company at all — `Button variant="link"`, not
+                                                  a hand-written "action that reads as text".
                                                 */}
                                                 <Button
                                                     variant="link"
@@ -427,12 +426,10 @@ export function CompaniesView({
  * wording is preserved verbatim, including the ALL-CAPS action verb, because it
  * is what Super Admins have been reading before a portal-access change.
  *
- * The approved `ConfirmDialog` since 2026-08-25; hand-composed before that, with
- * the warning icon *inside* the heading rather than a medallion. The two tones
- * reproduce the two confirm variants exactly — the tone map pairs `danger` with a
- * danger-styled confirm and `info` with a primary one — so deactivating is still
- * red and re-activating is still blue, and the icon now differs between them
- * (a warning versus a question) rather than being a warning for both.
+ * The approved `ConfirmDialog`. The two tones map to the two confirm variants —
+ * the tone map pairs `danger` with a danger-styled confirm and `info` with a
+ * primary one — so deactivating is red and re-activating is blue, and the icon
+ * differs between them (a warning versus a question).
  */
 function ToggleActiveDialog({ pending, onCancel, onConfirm }) {
     const { companyName, currentStatus } = pending;

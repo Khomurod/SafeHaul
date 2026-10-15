@@ -13,14 +13,6 @@ it moves.
 Getting this backwards produces either a control that announces a state it has
 not reached yet, or a form field that saves behind the user's back.
 
-## Where it came from
-
-Promoted from `features/settings/.../ToggleSwitch` on 2026-08-21. That
-implementation was already correct; it was feature-owned only because the design
-system had no switch — which meant the Super Admin feature matrix could not
-import it and used a `Checkbox` instead, announcing the wrong role for a control
-that saved immediately.
-
 ## Rules the tests pin
 
 - **`label` is required** and is the accessible name. In a matrix, name *both*

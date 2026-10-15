@@ -7,23 +7,17 @@ import { contractViolation } from '../../contract';
 /**
  * Business-neutral confirmation dialog, built on the approved accessible `Modal`.
  *
- * Added 2026-07-28 by the final-six-confirmations campaign. Before it, every
- * confirmation in the app was either a blocking `window.confirm` or one of eight
- * separately hand-written dialogs that each re-derived the same structure
- * (medallion, heading, description, Cancel/Confirm footer). This owns that
- * structure once.
+ * It owns the one confirmation structure (medallion, heading, description,
+ * Cancel/Confirm footer), so no confirmation is a blocking `window.confirm` or a
+ * hand-written dialog that re-derives it.
  *
  * It is deliberately domain-neutral: it does not know what a campaign, template,
  * envelope or application file is. Callers supply the words, the tone and the
  * action; it owns the dialog semantics, focus behaviour, the in-flight guard and
  * the announced failure state.
  *
- * Moved here from `shared/components/modals` on 2026-08-21, together with the
- * `Modal` it composes. It could not move alone: the design system must not
- * depend on `shared`, so a `ConfirmDialog` in `patterns/` importing a `Modal`
- * still in `shared` would have been the exact inversion the migration exists to
- * remove. `tests/architecture.test.js` now forbids that direction outright,
- * which was only possible once both had landed.
+ * It lives beside the `Modal` it composes: the design system must not depend on
+ * `shared`, and `tests/architecture.test.js` forbids that direction outright.
  *
  * ## Behaviour contract
  *

@@ -1,8 +1,6 @@
 # SelectableCard
 
-**Status: Approved.** Added 2026-09-05, retiring six recorded exceptions across
-four files and closing a gap this roadmap had recorded three times under three
-names — Listbox, Combobox, SelectableCard.
+**Status: Approved.**
 
 A block of record content that behaves as one option.
 
@@ -98,8 +96,7 @@ invisible on slate-900.
 - **not `Card`** — a plain surface with no interactivity and no state.
 - **not `MetricCard`** — a fixed label/value/icon dashboard tile.
 - **not `SegmentedControl`** — that takes a string `label`, so it can express
-  none of these rows. The roadmap claimed it covered the FMCSA rows until
-  2026-09-04; it never did.
+  none of these rows, the FMCSA rows included.
 - **not `SectionNavigation`** — a navigation rail, not an item in a list.
 
 ## The guard

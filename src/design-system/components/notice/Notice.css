@@ -1,8 +1,8 @@
 /*
- * The chrome every notice shares, which is the whole reason this exists: the
- * 2026-09-05 audit found 66 hand-built ones, and they had drifted apart in
- * radius, padding, gap and glyph size while every one of them used correct
- * `--ds-*` roles. Colour drift a rule can see. This kind it cannot.
+ * The chrome every notice shares, which is the whole reason this exists:
+ * hand-built notices drift apart in radius, padding, gap and glyph size while
+ * every one of them uses correct `--ds-*` roles. Colour drift a rule can see.
+ * This kind it cannot.
  */
 .ds-notice {
   display: flex;

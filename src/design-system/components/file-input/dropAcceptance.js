@@ -1,15 +1,14 @@
 /**
  * What happens to the files someone drops on a picker, decided in one place.
  *
- * This is pure, and separate from `FileInput.jsx`, for two reasons that arrived
- * together on 2026-08-26:
+ * This is pure, and separate from `FileInput.jsx`, for two reasons:
  *
  * - the rules are worth testing directly. `accept` has three syntaxes, case
  *   folding matters, and the message a rejection produces has more shapes than
  *   the component has states. Driving all of that through a rendered component
  *   and a synthetic `DataTransfer` tests the wiring, not the rules;
- * - the component was 411 lines and this is a whole responsibility — deciding
- *   *what a drop means* — that has nothing to do with rendering a picker.
+ * - this is a whole responsibility — deciding *what a drop means* — that has
+ *   nothing to do with rendering a picker.
  *
  * The native picker needs none of this: its own dialog will not offer a file
  * that `accept` refuses, and without `multiple` it will not offer two. A drop
@@ -130,9 +129,9 @@ export function resolveDroppedFiles({ files, accept, multiple = false }) {
    *
    * Deliberately not "the files `accept` refused": a single-file field discards
    * the second acceptable file too, and a caller told "only the first was added"
-   * and handed an empty list has been told two contradictory things. Review on
-   * 2026-08-26 caught exactly that. `rejected` means *what you dropped and did
-   * not get*, whichever of the two reasons applies.
+   * and handed an empty list has been told two contradictory things. `rejected`
+   * means *what you dropped and did not get*, whichever of the two reasons
+   * applies.
    */
   const rejected = dropped.filter((_, index) => !keptIndices.has(index));
   const surplus = rejected.length - refusedByType.length;

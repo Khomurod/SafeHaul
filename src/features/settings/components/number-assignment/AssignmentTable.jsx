@@ -10,15 +10,14 @@ import { AssignmentRow } from './AssignmentRow';
  * `AssignmentRow`, unchanged. This stays a real native table rather than the
  * approved `DataTable`: every cell here is an editable per-row form control
  * plus a verify action, which is outside `DataTable`'s proven display-table
- * contract (see the 2026-07-23 deep-audit referenced in
- * `NumberAssignmentManager.jsx`). It carries `ds-native-table` as of 2026-08-25,
+ * contract (see `NumberAssignmentManager.jsx`). It carries `ds-native-table`,
  * so its header, divider, density and cell padding come from the same
- * `--ds-table-*` roles `DataTable` reads instead of from three hand-picked
- * paddings. Column headers carry `scope="col"`, a `<caption>` names the table
+ * `--ds-table-*` roles `DataTable` reads, not from hand-picked paddings.
+ * Column headers carry `scope="col"`, a `<caption>` names the table
  * for assistive tech, and the table sits in a labelled, keyboard-focusable
  * scroll region.
  *
- * On a phone it is one card per team member (audit step K, 2026-09-06). This
+ * On a phone it is one card per team member. This
  * matrix is worked one member at a time — nothing in it is compared across
  * rows — so under 768px `data-mobile-presentation="cards"` stacks each row
  * with every value under the label of its column (`data-label`, written here in

@@ -203,19 +203,15 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                     stay reachable from the keyboard. */}
                 {isSelected && (
                     <>
-                        {/* The exception this replaced said retiring it "needs a compact
-                            icon-button size in the design system". It has one: `xs` is 24px,
-                            the WCAG 2.2 SC 2.5.8 minimum, and the badge was 14x14.
-
-                            That minimum was reachable two ways. Every placed field also has
-                            a conformant 36x36 Remove control in the field list, which is
-                            exactly the equivalent-control exception 2.5.8 allows — so the
-                            badge could have stayed small with that written down. The owner
-                            chose on 2026-09-05 to meet the minimum on the badge itself, and
-                            the cost is real and visible: on a 28x27 checkbox field a 24px
-                            badge is nearly as wide as the field it sits on. The offset moves
-                            from -8px to -12px so the larger disc still straddles the corner
-                            rather than covering the field's contents. */}
+                        {/* The badge is `IconButton` `xs`: 24px, the WCAG 2.2 SC 2.5.8
+                            minimum. Every placed field also has a conformant 36x36 Remove
+                            control in the field list, which is exactly the
+                            equivalent-control exception 2.5.8 allows, but the owner chose
+                            to meet the minimum on the badge itself, and the cost is real
+                            and visible: on a 28x27 checkbox field a 24px badge is nearly
+                            as wide as the field it sits on. The -12px offset keeps the
+                            larger disc straddling the corner rather than covering the
+                            field's contents. */}
                         {/* Removal is a click, so Enter and Space remove the field too.
                             The press is stopped before it reaches the field, so it never
                             starts a drag, and `.field-remove` is in the drag's `cancel`
@@ -239,11 +235,10 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                         {/*
                           The HANDLE is a 24x24 pointer target centred on the field's
                           corner (`-bottom-3 -right-3 h-6 w-6`) — the WCAG 2.2 SC 2.5.8
-                          minimum, met on 2026-09-06 the way the badge on the opposite
-                          corner meets it: half the box over the page, half over the
-                          field, so its footprint inside the field is the 12x12 it
-                          always was. The glyph sits in the box's top-left behind 2px of
-                          padding, which is where it has always drawn. 10px is the
+                          minimum, met the way the badge on the opposite corner meets
+                          it: half the box over the page, half over the field, so its
+                          footprint inside the field is 12x12. The glyph sits in the
+                          box's top-left behind 2px of padding. 10px is the
                           glyph's geometry rather than a size somebody picked: the
                           scale's smallest step is `xs` = 12 and would outgrow the
                           corner, so it goes on the container, where resizing the

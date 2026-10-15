@@ -14,12 +14,9 @@ const VARIANTS = new Set(['default', 'card']);
  * in the document outline. `Button`'s padding and inline layout express none of
  * those.
  *
- * An earlier version of this line also named `AiLogsPanel`. It does not use
- * this: the roadmap's 2026-08-17 decision put that panel on `DataTable` at
- * `density="compact"` with its per-run detail in a dialog, because its rows are
- * read comparatively and collapsing them destroys that. Corrected 2026-08-25 —
- * a primitive that lists a consumer it does not have is the same defect as a
- * roadmap that lists a component as missing when it exists.
+ * `AiLogsPanel` does not use this: it is a `DataTable` at `density="compact"`
+ * with its per-run detail in a dialog, because its rows are read comparatively
+ * and collapsing them destroys that.
  *
  * ## Why not `<details>`/`<summary>`
  *

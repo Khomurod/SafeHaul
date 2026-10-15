@@ -21,9 +21,9 @@ import {
  * PEV request dialog: choose how the verification reaches the employer, confirm
  * the recipient, and continue to the VOE preview.
  *
- * Presentation migrated to the approved accessible `Modal`, the approved
+ * Presentation uses the approved accessible `Modal`, the approved
  * `ChoiceGroup`/`Radio`, `FormField`/`Input`, `Button` and `IconButton`
- * primitives, and `--ds-*` tokens (2026-07-27).
+ * primitives, and `--ds-*` tokens.
  *
  * Frozen contracts: the `'email' | 'manual'` delivery-method values and
  * `'email'` initial selection; the `onProceed(deliveryMethod, contactInfo)`
@@ -40,19 +40,16 @@ import {
  * "Good Faith Documented" at 30 days. A recruiter who faxes prints the form
  * under Download / Print. The server still accepts `'fax'` from older screens.
  *
- * DEFECTS FIXED (2026-07-27):
- * - **The delivery-method choice was three plain `<button>`s with a hand-drawn
- *   radio dot and no `aria-checked`, `aria-pressed` or grouping.** Assistive
- *   technology was told nothing about which method was selected, or even that
- *   the three belonged together. They are now native radios inside a real
- *   `<fieldset>`/`<legend>`, so the browser owns arrow-key selection and the
+ * Rules this dialog keeps:
+ * - **The delivery-method choice is native radios inside a real
+ *   `<fieldset>`/`<legend>`**, so the browser owns arrow-key selection and the
  *   group is announced once.
- * - **The dialog was hand-rolled** — a fixed overlay with no `role="dialog"`, no
- *   `aria-modal`, no focus containment, no focus restoration and no Escape,
- *   opened on top of the driver dossier, which *is* a dialog.
- * - **The close control had no accessible name.**
- * - **10 px and 11 px interface text** in the "Missing Info" pill and the legal
- *   note, below the 12 px floor.
+ * - **It is the approved `Modal`** — `role="dialog"`, `aria-modal`, focus
+ *   containment, focus restoration and Escape — because it opens on top of the
+ *   driver dossier, which *is* a dialog.
+ * - **The close control has an accessible name.**
+ * - **No interface text below the 12 px floor**, the "Missing Info" pill and the
+ *   legal note included.
  */
 
 function employerDisplayName(employer) {

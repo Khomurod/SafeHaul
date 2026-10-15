@@ -14,16 +14,11 @@ import { AssignmentTable } from './number-assignment/AssignmentTable';
  * Company-admin screen that maps SMS lines to recruiters and picks the
  * company default line.
  *
- * Migrated to the design system 2026-07-27, closing the debt recorded by the
- * 2026-07-23 deep-audit ("Company Settings SMS / number-assignment deep-audit
- * log (NO-GO)"): unlabelled per-row and default-line selects, `text-[9px]`/
- * `text-[10px]` status text, and color-only status dots. Presentation only —
- * every Firestore/callable contract that audit froze is unchanged:
- * `saveSmsLineAssignments`/`verifyLineConnection` payloads, the stable
- * line-token model (never raw phone values as `<select>` option values), the
- * `sms_provider` doc shape, the roster resolution, and the one-time legacy
- * token backfill. `useLineAssignments.js` and `utils/linePhone.js` are
- * untouched.
+ * Presentation only. Frozen contracts: the `saveSmsLineAssignments`/
+ * `verifyLineConnection` payloads, the stable line-token model (never raw phone
+ * values as `<select>` option values), the `sms_provider` doc shape, the roster
+ * resolution, and the one-time legacy token backfill. Every select is labelled,
+ * no status text is below 12px, and no status dot is colour-only.
  *
  * `DataTable` is deliberately NOT used for the assignment matrix: every cell
  * is an editable per-row `<select>` plus a verify action, which is outside

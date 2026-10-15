@@ -40,9 +40,8 @@ import InviteLinkPanel from './InviteLinkPanel';
  *
  * ## Why it is a component and not the screen
  *
- * Split out of `StartApplicationPage` on 2026-09-10, when that screen and
- * `Started (unfinished)` became one workspace. This is the *task*; the worklist
- * around it is the *place*. `UnfinishedApplicationsPage` mounts one of these with
+ * This is the *task*; the worklist around it is the *place*.
+ * `UnfinishedApplicationsPage` mounts one of these with
  * a `key` per target, which is what makes "one driver never leaks into the next"
  * structural rather than a reset somebody has to remember: a different driver is a
  * different component instance, so the answers, the documents and the minted link

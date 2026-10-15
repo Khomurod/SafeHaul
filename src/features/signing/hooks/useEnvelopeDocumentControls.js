@@ -1,11 +1,10 @@
-// The envelope editor's document and viewport controls, split out of
-// `EnvelopeCreator.jsx` on 2026-09-01 for the source-size standard (SG-1c).
+// The envelope editor's document and viewport controls, kept apart from
+// `EnvelopeCreator.jsx` for the source-size standard.
 // This hook owns the PDF itself and how it is shown: the selected file, the
 // page count, which page is visible (IntersectionObserver), the page refs and
 // dimensions, the viewport width with its wheel-zoom and fit handlers, and
-// the upload picker with its size ceiling. Bodies verbatim from the
-// component; field placement and history stay outside and reach the document
-// only through the values returned here.
+// the upload picker with its size ceiling. Field placement and history stay
+// outside and reach the document only through the values returned here.
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
     PDF_VIEWPORT_WIDTH_DEFAULT,

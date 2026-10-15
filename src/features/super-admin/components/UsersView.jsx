@@ -7,12 +7,11 @@ import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 /**
  * Super Admin users table.
  *
- * Migrated to the design system 2026-07-28. Presentation only — the
- * name/email search, the client-side 20/50/100 pagination, the
- * Super Admin precedence over memberships (`isSuperAdmin`), the
- * `mem.role === 'company_admin' ? 'Admin' : 'User'` label rule, the
- * `allCompaniesMap.get(...) || "Unknown"` fallback, the `{ id }` /
- * `{ id, name }` callback shapes and every frozen string are unchanged.
+ * Presentation only. Frozen contracts: the name/email search, the client-side
+ * 20/50/100 pagination, the Super Admin precedence over memberships
+ * (`isSuperAdmin`), the `mem.role === 'company_admin' ? 'Admin' : 'User'` label
+ * rule, the `allCompaniesMap.get(...) || "Unknown"` fallback, the `{ id }` /
+ * `{ id, name }` callback shapes and every frozen string.
  *
  * `DataTable` is deliberately not used, for the same reason recorded on
  * `CompaniesView`: per-row interactive actions sit outside its proven

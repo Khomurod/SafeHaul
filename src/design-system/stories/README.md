@@ -18,12 +18,8 @@ npm run test:stories     # renders every story and runs axe over each one
 - `patterns/*.stories.jsx` — business-neutral page compositions.
 - `fixtures.js` — the shared, deterministic fixture data.
 
-Every story lives here. Four of them — `Modal`, `ConfirmDialog`, and the
-modal-form and typed-confirmation patterns built on them — used to sit outside
-this directory in `src/shared/components/modals`, colocated with primitives that
-could not yet live in the design system. They moved in on 2026-08-21 with
-`patterns/modal`, and `.storybook/main.js` lost the second glob it needed for
-them.
+Every story lives here — `Modal`, `ConfirmDialog`, and the modal-form and
+typed-confirmation patterns built on them included.
 
 ## Rules for stories in this directory
 
@@ -54,15 +50,13 @@ approved design decision — nothing in the product may consume those classes.
 ## Status
 
 **Baselines exist, and the lane blocks.** 172 pixel baselines are committed under
-`e2e/visual/__screenshots__/`, and `npm run test:visual` has failed the build
-since 2026-08-25 (`scripts/test-ci-plan.mjs` K1 asserts the step carries no
-`continue-on-error`, so it cannot quietly go back to advisory). This paragraph
-used to say the baselines did not exist, which would have sent the next
-contributor to record work that was already done.
+`e2e/visual/__screenshots__/`, and `npm run test:visual` fails the build
+(`scripts/test-ci-plan.mjs` K1 asserts the step carries no `continue-on-error`,
+so it cannot quietly go back to advisory).
 
-**The visible families are owner-approved.** On 2026-09-04 the owner approved the
-semantic brand and action colours and confirmed WCAG 2.2 AA as the accessibility
-target, which were the two open decisions the per-page statuses were waiting on.
+**The visible families are owner-approved.** The owner approved the semantic
+brand and action colours and confirmed WCAG 2.2 AA as the accessibility target,
+the two decisions the per-page statuses depend on.
 
 Two honest gaps remain, both verified against the tree:
 

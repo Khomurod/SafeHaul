@@ -13,9 +13,7 @@ import { Modal } from '@design-system/patterns';
 /**
  * Bulk lead assignment — manual pick or round-robin distribution.
  *
- * Launched from the company candidate list. Migrated to the design system
- * 2026-07-28; it was a hand-built overlay found by the repository-wide dialog
- * scan.
+ * Launched from the company candidate list, in the approved accessible `Modal`.
  *
  * Presentation only. Frozen and unchanged: the `memberships` query by
  * `companyId` and the per-member `users/{userId}` read; the deterministic

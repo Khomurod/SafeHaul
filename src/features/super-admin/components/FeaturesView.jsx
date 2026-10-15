@@ -12,12 +12,12 @@ import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
 /**
  * Global feature-override matrix: one row per company, one column per feature.
  *
- * Migrated to the design system 2026-07-28. Presentation only — the
- * `features.{key}` / `featureSchedules.{key}` update shapes, the "clear the
- * schedule when a feature is toggled manually" rule, the ISO-string schedule
- * value, the missing-field / invalid / past-date validation order, the
- * `feature_alerts` aggregation by `userEmail || userId || 'Unknown'`, the five
- * feature keys and their order, and every toast string are unchanged.
+ * Presentation only. Frozen contracts: the `features.{key}` /
+ * `featureSchedules.{key}` update shapes, the "clear the schedule when a feature
+ * is toggled manually" rule, the ISO-string schedule value, the missing-field /
+ * invalid / past-date validation order, the `feature_alerts` aggregation by
+ * `userEmail || userId || 'Unknown'`, the five feature keys and their order, and
+ * every toast string.
  *
  * Defects fixed here:
  *  1. **The feature toggles had no accessible name and no state.** Each was a
@@ -38,12 +38,8 @@ import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
  *     accessible name, repeated once per company × feature.
  *  6. Legacy palette throughout, including two saturated modal headers.
  *
- * These cells are `Switch`, not `Checkbox`, as of 2026-08-25. They were
- * checkboxes only because the design system had no switch when this view was
- * migrated, and a checkbox announces a value you set and then submit. Toggling
- * one here writes to Firestore immediately, so "checkbox" was the wrong role for
- * what the control actually does. `Switch` closed that gap and this is the call
- * site the roadmap recorded against it.
+ * These cells are `Switch`, not `Checkbox`: toggling one writes to Firestore
+ * immediately, and a checkbox announces a value you set and then submit.
  *
  * NOTE — `handleBulkAction` below is **unreachable**: nothing in the render calls
  * it, so the platform has no bulk enable/disable UI despite the handler existing.

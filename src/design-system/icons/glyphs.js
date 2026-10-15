@@ -3,11 +3,10 @@
  *
  * ## What is in here, and why exactly this much
  *
- * 171 names, measured rather than curated: every identifier imported from
- * `lucide-react` anywhere in the tracked tree on 2026-09-05. Nothing was added
- * speculatively and nothing in use was left out, so lint can hold the rule
- * "no file outside the design system imports the package" without a single
- * call site needing a glyph this file does not have.
+ * Measured rather than curated: the identifiers the tracked tree imports from
+ * `lucide-react`, nothing speculative and nothing in use left out, so lint can
+ * hold the rule "no file outside the design system imports the package"
+ * without a single call site needing a glyph this file does not have.
  *
  * Adding one is two lines and no ceremony: import it aliased, export it wrapped,
  * in exactly the shape below. The production build splits this module one glyph

@@ -219,7 +219,7 @@ function LicenseCard({ appData, fileUrls = {}, filesPending = false }) {
 
 /**
  * "yes" / "no" as the applicant answered it, or null for a record written before
- * the Yes/No questions existed (2026-09-02) — those are described by their lists.
+ * the Yes/No questions existed — those are described by their lists.
  */
 function yesNoAnswer(value) {
     const raw = String(value ?? '').trim().toLowerCase();

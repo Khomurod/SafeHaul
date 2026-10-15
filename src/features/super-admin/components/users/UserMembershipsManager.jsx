@@ -20,9 +20,8 @@ import { ConfirmDialog } from '@design-system/patterns';
 /**
  * Multi-tenant access editor inside the Super Admin Edit User dialog.
  *
- * Migrated to the design system 2026-07-28, alongside `EditUserNameForm`. Both
- * were missed by the Super Admin dialog pass, which migrated `EditUserModal`'s
- * shell but not the bodies it renders.
+ * Built on the design system's components and `--ds-*` tokens, like
+ * `EditUserNameForm`.
  *
  * Presentation only. Frozen and unchanged: `getMembershipsForUser(userId)` and
  * the `{ id, ...doc.data() }` mapping; `addMembership({ userId, companyId, role })`;
@@ -160,12 +159,10 @@ function MembershipItem({ membership, companyName, onUpdate, onRemove }) {
  * Replaces the blocking `window.confirm` on removing company access. The
  * question is preserved verbatim.
  *
- * 2026-08-25: this was a hand-composed confirmation inside the approved `Modal`
- * — the medallion, heading, description and Cancel/Confirm footer that
- * `ConfirmDialog` owns, rebuilt here. It is the approved pattern now, which also
- * puts initial focus on Cancel rather than on "Remove access" and guards
- * `onConfirm` against a double activation. `loading` is not passed: `confirmRemove`
- * closes the dialog before the delete starts, and the row shows the progress.
+ * The approved `ConfirmDialog`, which puts initial focus on Cancel rather than on
+ * "Remove access" and guards `onConfirm` against a double activation. `loading`
+ * is not passed: `confirmRemove` closes the dialog before the delete starts, and
+ * the row shows the progress.
  */
 function RemoveMembershipDialog({ companyName, onCancel, onConfirm }) {
   return (

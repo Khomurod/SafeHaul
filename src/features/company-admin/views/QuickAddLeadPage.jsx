@@ -21,27 +21,22 @@ import {
  * `companies/{companyId}/leads`, and every user-facing string. All layout and
  * controls come from the design system.
  *
- * Migrated 2026-07-27. Defects fixed:
+ * Rules this page keeps:
  *
- *  1. **No field had an accessible name.** Every `<label>` was a bare element
- *     with no `htmlFor`, and no input had an `id`, so nothing was associated —
- *     a screen reader announced nine unlabelled edit boxes. `FormField` now owns
- *     the association.
- *  2. **The application-level required message was unreachable.** The inputs
- *     carried the native `required` attribute, so the browser blocked submission
- *     with its own bubble and `handleSubmit` never ran. The frozen message
- *     "Please fill in required fields (First Name, Last Name, Phone)." was dead
- *     code in any real browser. The form is now `noValidate` so the app owns
- *     validation: the same message is shown, the offending fields are marked
- *     `aria-invalid` with an associated error, and focus moves to the first
- *     invalid field. `required` / `aria-required` are still exposed for
- *     semantics, and the rule itself is unchanged.
- *  3. **Duplicate submission was possible.** `isSaving` is React state, so two
- *     fast activations inside one render could both pass the guard. A ref guard
- *     now closes that window.
- *  4. **No autocomplete tokens**, so browser autofill could not help.
- *  5. Hard-coded palette classes and a 2-column grid that did not reflow to the
- *     narrowest supported width are replaced by tokens and `ResponsiveGrid`.
+ *  1. **Every field has an accessible name.** `FormField` owns the
+ *     label/field association.
+ *  2. **The application owns validation.** The form is `noValidate`, so the
+ *     browser's own bubble cannot block submission before `handleSubmit` runs:
+ *     the frozen message "Please fill in required fields (First Name, Last Name,
+ *     Phone)." is shown, the offending fields are marked `aria-invalid` with an
+ *     associated error, and focus moves to the first invalid field. `required` /
+ *     `aria-required` are still exposed for semantics, and the rule itself is
+ *     frozen.
+ *  3. **Duplicate submission is blocked by a ref guard.** `isSaving` is React
+ *     state, so two fast activations inside one render could both pass it.
+ *  4. **Fields carry autocomplete tokens**, so browser autofill can help.
+ *  5. Tokens and `ResponsiveGrid`, which reflows to the narrowest supported
+ *     width — no hard-coded palette classes or fixed 2-column grid.
  *
  * Frozen: the nine form keys and their initial values (`cdlClass: 'A'`), the
  * First Name / Last Name / Phone required rule, the CDL options, the exact

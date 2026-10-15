@@ -10,11 +10,11 @@ import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 /**
  * Platform-wide analytics for Super Admin.
  *
- * Migrated to the design system 2026-07-28. Presentation only — `useAnalytics`
- * is untouched, the `7d`/`30d`/`90d` range values, the CSV export column order,
- * header text, filename patterns (`recruiter_performance_{range}.csv` /
+ * Presentation only — `useAnalytics` owns the data. Frozen contracts: the
+ * `7d`/`30d`/`90d` range values, the CSV export column order, header text,
+ * filename patterns (`recruiter_performance_{range}.csv` /
  * `company_performance_{range}.csv`), the top-5 slices, the `callsMade > 20`
- * High/Low rule, and every frozen string are unchanged.
+ * High/Low rule, and every frozen string.
  *
  * Fixed here:
  *  - The export joined raw values with commas into a `data:` URL: "Last Active"

@@ -13,8 +13,7 @@ import { LineManager } from './LineManager';
  * save/verify and test-message controls, plus the RingCentral Digital Wallet
  * (`LineManager`).
  *
- * Migrated to the design system 2026-07-28. Presentation only — every contract
- * frozen in `IntegrationManager.contract.test.jsx` is unchanged: the
+ * Presentation only. Frozen in `IntegrationManager.contract.test.jsx`: the
  * `companies/{id}/integrations/sms_provider` read path, the initial
  * `ringcentral` / `isSandbox: true` defaults, the rule that encrypted
  * credentials are never loaded into (or rendered from) the form, the

@@ -1,6 +1,6 @@
 # Avatar
 
-**Status: Approved.** Added 2026-09-05, replacing eight hand-built discs.
+**Status: Approved.**
 
 A disc standing for a person or an organisation.
 

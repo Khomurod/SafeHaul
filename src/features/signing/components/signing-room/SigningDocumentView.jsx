@@ -1,5 +1,5 @@
-// The signing room's document viewport, split out of `SigningRoom.jsx` on
-// 2026-09-01 for the source-size standard. Everything about *showing* the PDF
+// The signing room's document viewport, kept apart from `SigningRoom.jsx` for
+// the source-size standard. Everything about *showing* the PDF
 // lives here: the pdf.js wiring and worker setup, per-page aspect tracking,
 // the painted-page gate that keeps overlays inert on slow connections, the
 // load-error/retry state, and the fit-width math. The room keeps the signer
@@ -258,8 +258,8 @@ export function SigningDocumentView({
 
     return docError ? (
         <div className="flex h-full items-center justify-center p-ds-6">
-            {/* The approved page-state pattern since 2026-08-25; this was
-                a hand-composed Card + medallion + heading + retry. */}
+            {/* The approved page-state pattern, not a hand-composed Card +
+                medallion + heading + retry. */}
             <div className="w-full max-w-sm">
                 <ErrorState
                     icon={AlertTriangle}

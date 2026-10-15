@@ -9,9 +9,8 @@ import { describeError } from './useApplicationPrepDraft';
  * `describeError` is shared with the prep-draft hook and answers
  * `resource-exhausted` with "Too many saves in a row", which is the wrong noun
  * here — nothing was being saved, and `mintApplicationInvite` has a rate limit of
- * its own. It only started mattering when `UnfinishedApplicationsPage` began
- * rendering this error at all (2026-09-09); before that the message went nowhere,
- * which was the defect. Everything else `describeError` says is right for both.
+ * its own, and `UnfinishedApplicationsPage` shows this message to the carrier.
+ * Everything else `describeError` says is right for both.
  */
 function describeMintError(error) {
     if (error?.code === 'functions/resource-exhausted') {
@@ -81,8 +80,7 @@ export function useInviteLink({ companyId, appSlug }) {
      * step earlier in the sequence: nothing failed, so nothing was said.
      *
      * `mint` returns the URL for this reason; the row action on
-     * `UnfinishedApplicationsPage` passes it straight here. Found by its own
-     * contract test on 2026-09-09.
+     * `UnfinishedApplicationsPage` passes it straight here.
      */
     const copyUrl = useCallback(async (url) => {
         // Not a clipboard refusal — there was nothing to copy — so no message.

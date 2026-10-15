@@ -11,10 +11,8 @@ import './Switch.css';
  * Getting this backwards produces a control that either announces a state it
  * has not reached yet, or a form field that saves behind the user's back.
  *
- * Promoted from `features/settings/.../ToggleSwitch` on 2026-08-21, which was
- * already correct — it was feature-owned only because the design system had no
- * switch, and so could not be imported by the Super Admin feature matrix, which
- * used a `Checkbox` instead and announced the wrong role.
+ * The Super Admin feature matrix is a grid of these: each cell applies at once,
+ * and a `Checkbox` there would announce the wrong role.
  *
  * State is exposed through `aria-checked` and through the thumb's position, so
  * it never depends on colour alone. `tone` only tints the *on* state, for the

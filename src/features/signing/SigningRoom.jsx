@@ -19,8 +19,8 @@ import { clampSignerZoom } from '@features/signing/utils/envelopePdfZoom';
 import { SignatureSheet } from '@features/signing/components/SignatureSheet';
 // The document viewport — pdf.js wiring, page stack, painted-page gating,
 // fit-width math and the load-error/retry state — lives in
-// SigningDocumentView.jsx since the 2026-09-01 source-size split. This room
-// keeps the signer interaction handlers and passes them down.
+// SigningDocumentView.jsx. This room keeps the signer interaction handlers
+// and passes them down.
 import { SigningDocumentView } from '@features/signing/components/signing-room/SigningDocumentView';
 import {
     SigningLoadingScreen,

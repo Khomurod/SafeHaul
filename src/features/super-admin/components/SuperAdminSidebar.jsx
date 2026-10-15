@@ -46,10 +46,10 @@ const GROUP_LABELS = {
 /**
  * Super Admin section navigation.
  *
- * Migrated to the approved `SectionNavigation` primitive 2026-07-28.
- * Presentation only — `setActiveView` still receives the exact
- * `SUPER_ADMIN_VIEWS` value for each item, item order and grouping are
- * unchanged, and selecting an item still clears the global search first.
+ * Built on the approved `SectionNavigation` primitive. Presentation only —
+ * `setActiveView` receives the exact `SUPER_ADMIN_VIEWS` value for each item,
+ * item order and grouping are frozen, and selecting an item clears the global
+ * search first.
  *
  * An earlier revision of this migration hand-rolled the rail and justified it by
  * claiming `SectionNavigation` was a "flat list" contract. That was simply
@@ -76,12 +76,10 @@ export function SuperAdminSidebar({
         group = { id: item.group, label: GROUP_LABELS[item.group] || item.group, items: [] };
         byGroup.push(group);
       }
-      // An unrecognised icon name used to resolve to `undefined` and render
+      // An unrecognised icon name would resolve to `undefined` and render
       // nothing, which does not fail — it collapses the row to zero width and
-      // breaks the label one character per line. Caught by the visual gate on
-      // 2026-08-29 after a new entry named an icon this map did not import.
-      // Failing loudly here costs nothing and is findable; the silent version
-      // was neither.
+      // breaks the label one character per line. Failing loudly here costs
+      // nothing and is findable.
       const Icon = NAV_ICONS[item.icon];
       if (!Icon) throw new Error(`SuperAdminSidebar: no icon named "${item.icon}" — add it to NAV_ICONS.`);
       group.items.push({ id: item.id, label: item.label, icon: Icon });

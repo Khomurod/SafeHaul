@@ -1,12 +1,11 @@
-// The envelope editor's AI-suggestion review workflow, split out of
-// `EnvelopeCreator.jsx` on 2026-09-01 for the source-size standard (SG-1c).
+// The envelope editor's AI-suggestion review workflow, kept apart from
+// `EnvelopeCreator.jsx` for the source-size standard.
 // Wraps `useAiFieldAssistant` and owns the review state around it — the scan
 // dialog, the panel, the selected suggestion, and the one-level apply undo.
 // Suggestions live entirely inside the assistant until the reviewer applies
 // them; nothing here can save a template or send a document, and the ONLY
-// path from suggestion to real field still appends through `commitFields`.
-// Bodies verbatim from the component; the inspector tab stays in the
-// component, which passes its setter in.
+// path from suggestion to real field appends through `commitFields`. The
+// inspector tab stays in the component, which passes its setter in.
 import { useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAiFieldAssistant } from './useAiFieldAssistant';

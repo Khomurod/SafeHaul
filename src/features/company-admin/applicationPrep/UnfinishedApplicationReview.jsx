@@ -18,9 +18,8 @@ import { changedSectionTitles } from './unfinishedEditorModel';
  *
  * ## Why this exists
  *
- * Until 2026-10-06 the carrier could see only that a driver had started and how
- * far they had got. The owner decided that a Company Admin sees what the driver
- * has filled in, so a follow-up call can start from it. This is that view:
+ * The owner decided that a Company Admin sees what the driver has filled in, so
+ * a follow-up call can start from it. This is that view:
  * `getApplicationDraft`'s record, through the presenter and the view a submitted
  * application uses (`presentSubmission`, `PreservedApplicationView`), so the
  * answers read the way they will once the driver submits.

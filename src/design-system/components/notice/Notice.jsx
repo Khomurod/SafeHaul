@@ -50,11 +50,10 @@ const TONES = {
 /**
  * A tinted, bordered block carrying a short message.
  *
- * The single most copy-pasted shape in this application: the 2026-09-05 audit
- * found **66 of them across 52 files**, every one hand-built, every one using
- * `--ds-*` roles — which is why no colour rule ever saw them. The full audit,
- * including how the count was reached and what it deliberately excludes, is in
- * this directory's README.
+ * The single most copy-pasted shape in this application, and one no colour
+ * rule can see, because a hand-built one uses `--ds-*` roles like everything
+ * else. The audit behind this component — its counts, how they were reached
+ * and what they deliberately exclude — is in this directory's README.
  *
  * ## What it is not
  *

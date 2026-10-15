@@ -54,12 +54,9 @@ function Kbd({ children }) {
 /**
  * One rail section.
  *
- * The design system's `Disclosure` since 2026-08-25. It was a raw `<button>`
- * inside an `<h3>`, recorded as a temporary exception because "the approved
- * Button's padding and inline layout cannot express" an edge-to-edge trigger with
- * a rotating affordance inside a heading — all true, and the reason `Disclosure`
- * was built on 2026-08-21 naming this component as its consumer. The exception
- * outlived its own fix by four days.
+ * The design system's `Disclosure`: an edge-to-edge trigger with a rotating
+ * affordance inside a heading, which the approved `Button`'s padding and inline
+ * layout cannot express.
  *
  * `Disclosure` unmounts a closed panel where this kept it with `hidden`. That is
  * the primitive's deliberate choice and it is safe here: the recipient fields are
@@ -131,8 +128,8 @@ export function EnvelopeSidebar({
      * The picker below renders only while `!file`, so a mixed drop — a PDF this
      * accepts plus something it does not — hands `handleFileChange` the PDF, the
      * branch flips, and `FileInput`'s own rejection alert is unmounted in the
-     * commit that created it. Found in review on 2026-08-26. `onReject` fires
-     * after `onChange`, so this lands last and survives the swap.
+     * commit that created it. `onReject` fires after `onChange`, so this lands
+     * last and survives the swap.
      */
     const [dropRejection, setDropRejection] = useState(null);
 

@@ -15,11 +15,9 @@ export function SandboxTransferSuccess() {
       <Card as="main" padding="lg" className="w-full max-w-md text-center">
         <Stack gap="md" className="items-center">
           {/*
-            A hand-built medallion until 2026-09-06: a 56px tinted square holding
-            a 28px glyph, `aria-hidden`, in a file that already imported from the
-            design system. The 28 is what flagged it — it is not a step on the
-            icon scale, and an off-scale size is the signal that a container is
-            missing rather than that the scale is short.
+            `StatusMedallion` sizes the glyph, so the icon takes no size here. An
+            off-scale icon size is the signal that a container is missing rather
+            than that the scale is short.
           */}
           <StatusMedallion tone="success">
             <Icon icon={Building2} />

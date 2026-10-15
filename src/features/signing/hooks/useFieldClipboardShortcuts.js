@@ -1,9 +1,8 @@
 // The envelope editor's keyboard shortcuts — undo/redo and field copy/paste —
-// split out of `EnvelopeCreator.jsx` on 2026-09-01 for the source-size
-// standard (SG-1b). The listener is registered once on mount and reads
-// everything through the refs the component (and its history hook) passes in,
-// exactly as it did in place; the clipboard ref lives here because nothing
-// else reads it. Bodies verbatim.
+// kept apart from `EnvelopeCreator.jsx` for the source-size standard. The
+// listener is registered once on mount and reads everything through the refs
+// the component (and its history hook) passes in; the clipboard ref lives here
+// because nothing else reads it.
 import { useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {

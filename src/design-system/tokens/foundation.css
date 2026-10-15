@@ -81,10 +81,10 @@
    *
    * iOS Safari zooms the viewport in when a focused input's font-size is under
    * 16px, and does not zoom back out. Every step of the control scale is 13–15px,
-   * so before 2026-08-25 every form in the product did this on an iPhone: the
-   * page jumped on first focus and stayed magnified for the rest of the session.
-   * The driver application felt it worst, being nine steps of fields filled
-   * almost entirely on phones.
+   * so without this role every form in the product would jump on first focus on
+   * an iPhone and stay magnified for the rest of the session — the driver
+   * application worst, being nine steps of fields filled almost entirely on
+   * phones.
    *
    * 16px is Safari's threshold, not a design decision, which is why this is its
    * own role rather than a reuse of `heading-sm`: the two are the same number
@@ -132,11 +132,10 @@
    * icon-only step: a labelled button cannot fit 12px text with any padding at
    * this height, so `Button` refuses it and only `IconButton` accepts it.
    *
-   * It exists because the corner affordances on a placed PDF field measured
-   * 14x14 — a 10px glyph in 2px of padding, well under the minimum. The owner
-   * chose on 2026-09-05 to meet the minimum on the badge itself rather than
-   * rely on 2.5.8's equivalent-control exception, which was available: every
-   * placed field also has a conformant 36x36 Remove control in the field list.
+   * It exists for the corner affordances on a placed PDF field. The owner chose
+   * to meet the minimum on the badge itself rather than rely on 2.5.8's
+   * equivalent-control exception, which is available: every placed field also
+   * has a conformant 36x36 Remove control in the field list.
    * That is a real cost, taken deliberately — on a 28x27 checkbox field a 24px
    * badge is nearly as wide as the field it sits on.
    */
