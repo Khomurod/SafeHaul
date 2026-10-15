@@ -315,6 +315,16 @@ describe('SigningRoom', () => {
       expect(storedDraft()).not.toHaveProperty('sig1');
     });
 
+    it('gives back no signature an older version stored, and drops it from the device', async () => {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ text1: 'Ann', sig1: 'data:image/png;base64,old-ink' }));
+
+      const { container } = await renderRoomPastConsent();
+
+      expect(container.querySelector('[data-signer-input="text1"]').value).toBe('Ann');
+      expect(screen.getByRole('button', { name: 'Tap to sign' })).toBeInTheDocument();
+      expect(storedDraft()).toEqual({ text1: 'Ann' });
+    });
+
     it('is written at once when the page is hidden', async () => {
       const { container } = await renderRoomPastConsent();
       fireEvent.change(container.querySelector('[data-signer-input="text1"]'), { target: { value: 'Ann' } });
