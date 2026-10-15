@@ -1450,13 +1450,13 @@ emulated Pixel 7. Local runner safety:
 [`.claude/rules/testing.md`](../.claude/rules/testing.md).
 
 **The first download has a budget.** `npm run check:bundle-budget` sums the
-entry script, its module preloads and its stylesheets from `dist/index.html`,
+entry script, its module preloads and stylesheets from `dist/index.html`,
 fails the `frontend-build` job above **335 kB gzip**, and refuses a pdf.js
-preload, or code that loads later (Sentry tracing, Replay, Storage, DOMPurify)
-in the entry. `npm run test:bundle-budget` drives each refusal on throwaway
-builds in `callable-contract`; `check:ci-plan` K1c pins both steps. The
-ceiling only moves down, with a new measurement. Figures are gzip; Hosting
-also serves brotli.
+preload, code that loads later (tracing, Replay, Storage, DOMPurify) in the
+entry, or an entry without the offline queue (every page runs it).
+`npm run test:bundle-budget` drives each refusal on throwaway builds in
+`callable-contract`; `check:ci-plan` K1c pins both steps. The ceiling only
+moves down, with a new measurement.
 
 **The public site has two CI gates** (§10): `npm run check:public-claims` in
 `callable-contract`, which refuses a run that finds no HTML in `web/`, and

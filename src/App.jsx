@@ -8,6 +8,7 @@ import {
   FeatureErrorBoundary,
   GlobalLoadingState,
 } from '@shared/components/feedback';
+import { QueueStatusIndicator } from '@shared/components/feedback/QueueStatusIndicator';
 import { featureScreens, companyChildRouteDefs } from '@app/routes/featureRegistry';
 import { CompanyAdminRoute } from '@app/routes/CompanyAdminRoute';
 import { AuthGuardedLogin, ProtectedRoute, RootRedirect } from '@app/routes/authRouteGuards';
@@ -18,16 +19,6 @@ import {
 } from '@app/routes/appRouteManifest';
 
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
-
-/**
- * The offline-queue indicator, loaded beside the first screen rather than in it:
- * it carries the queue's IndexedDB code (4.8 kB of the first download's gzip),
- * and it has nothing to show until a submission is queued. A chunk that fails to
- * load renders nothing instead of taking the app down; the stale-release reload
- * in `startupGuards` still applies.
- */
-const QueueStatusIndicator = lazy(() => import('@shared/components/feedback/QueueStatusIndicator')
-  .catch(() => ({ default: () => null })));
 
 /**
  * E2E-only mount point for `VOEPreviewModal`, whose Print pipeline can only be
@@ -170,10 +161,10 @@ export default function App() {
         <DataProvider>
           <Router>
             <AppRoutes />
-            {/* Bulletproof: Show queue/offline status indicator */}
-            <Suspense fallback={null}>
-              <QueueStatusIndicator />
-            </Suspense>
+            {/* Shows the offline queue and also sends it (useSubmissionQueue), so it
+                loads with the first screen, never from a chunk that can fail to
+                load; check:bundle-budget refuses an entry without it. */}
+            <QueueStatusIndicator />
           </Router>
         </DataProvider>
       </ToastProvider>

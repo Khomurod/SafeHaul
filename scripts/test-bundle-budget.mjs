@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ENTRY_MUST_NOT_CONTAIN, FIRST_DOWNLOAD_GZIP_CEILING, firstDownloadAssets, measureFirstDownload } from './check-bundle-budget.mjs';
+import { ENTRY_MUST_CONTAIN, ENTRY_MUST_NOT_CONTAIN, FIRST_DOWNLOAD_GZIP_CEILING, firstDownloadAssets, measureFirstDownload } from './check-bundle-budget.mjs';
 import { removeTree } from './lib/throwaway.mjs';
 
 let failures = 0;
@@ -16,8 +16,11 @@ const assert = (label, condition, detail = '') => {
     if (!condition) failures += 1;
 };
 
+/** The entry of a clean build: it carries every piece the first screen must. */
+const CLEAN_ENTRY = `console.log(${JSON.stringify(ENTRY_MUST_CONTAIN.map(({ marker }) => marker))});`;
+
 /** A dist with an entry, optional preloads and a stylesheet; contents are given so gzip sizes are controllable. */
-function fakeDist({ entry = 'console.log(1);', preloads = {}, css = 'body{margin:0}' } = {}) {
+function fakeDist({ entry = CLEAN_ENTRY, preloads = {}, css = 'body{margin:0}' } = {}) {
     const dir = mkdtempSync(join(tmpdir(), 'bundle-budget-'));
     mkdirSync(join(dir, 'assets'));
     writeFileSync(join(dir, 'assets', 'main-abc.js'), entry);
@@ -69,9 +72,15 @@ console.log('\nB. Bundle budget');
     removeTree(dir);
 }
 for (const { marker } of ENTRY_MUST_NOT_CONTAIN) {
-    const dir = fakeDist({ entry: `const piece = ${JSON.stringify(marker)}; console.log(piece);` });
+    const dir = fakeDist({ entry: `${CLEAN_ENTRY} const piece = ${JSON.stringify(marker)}; console.log(piece);` });
     const r = measureFirstDownload(dir);
     assert(`B5b. an entry carrying "${marker}" is refused`, r.problems.some((p) => p.includes(`contains "${marker}"`)), r.problems.join('; '));
+    removeTree(dir);
+}
+for (const { marker } of ENTRY_MUST_CONTAIN) {
+    const dir = fakeDist({ entry: CLEAN_ENTRY.replaceAll(marker, 'something-else'), preloads: { 'chunk-Q1.js': `export const q = ${JSON.stringify(marker)};` } });
+    const r = measureFirstDownload(dir);
+    assert(`B5c. an entry without "${marker}" is refused, even when a preload carries it`, r.problems.some((p) => p.includes(`lacks "${marker}"`)), r.problems.join('; '));
     removeTree(dir);
 }
 {
