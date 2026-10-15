@@ -440,7 +440,7 @@ section('13. index.js: wiring, comments and the loader');
     diff(twoOnALine('handler'), twoOnALine('other')),
     { changed: ['Second'], loaderChanged: false }
   );
-  const called = (argument) => `${indexSrc}\nexports.Built = require('./built').build('${argument}');\n`;
+  const called = (argument) => `${indexSrc}\nif (wanted('Built')) exports.Built = require('./built').build('${argument}');\n`;
   assertEqual('an export assigned anything but a module or its member is loader code', diff(called('a'), called('b')), { changed: [], loaderChanged: true });
   const loadOne = (call) => [
     `function load(wanted) { ${call}(); if (wanted('A')) exports.A = require('./a').A; }`,
@@ -448,8 +448,8 @@ section('13. index.js: wiring, comments and the loader');
     'load(() => true);',
   ].join('\n');
   assertEqual('a loader function wiring one export keeps its other code in the loader', diff(loadOne('setup'), loadOne('setUp')), { changed: [], loaderChanged: true });
-  // The older form: a module variable that only export lines read is wiring;
-  // one the loader itself reads is loader code.
+  // The older form: every function loaded every module at its cold start, so each
+  // require there, and each unconditional export, is code every function runs.
   const olderForm = (helper, module, extra = '') => [
     `const helper = require('${helper}');`,
     `const mod = require('${module}');`,
@@ -457,25 +457,23 @@ section('13. index.js: wiring, comments and the loader');
     'exports.A = mod.A;',
     extra,
   ].join('\n');
+  const older = olderForm('./a', './m');
+  const loaderChange = (to) => diff(older, to)?.loaderChanged;
+  assertEqual('older form: the loader requiring another module is a loader change', loaderChange(olderForm('./b', './m')), true);
+  assertEqual('… and so is another module behind an export', loaderChange(olderForm('./a', './n')), true);
   assertEqual(
-    'older form: the loader requiring another module is a loader change',
-    diff(olderForm('./a', './m'), olderForm('./b', './m')),
-    { changed: [], loaderChanged: true }
+    '… a module moved across loader code',
+    loaderChange(["const helper = require('./a');", 'helper.bootstrap();', "const mod = require('./m');", 'exports.A = mod.A;', ''].join('\n')),
+    true
   );
+  assertEqual('… a module added with its export', loaderChange(olderForm('./a', './m', "const extra = require('./x');\nexports.B = extra.B;")), true);
   assertEqual(
-    '… a module only export lines read redeploys those exports',
-    diff(olderForm('./a', './m'), olderForm('./a', './n')),
-    { changed: ['A'], loaderChanged: false }
-  );
-  assertEqual(
-    '… moving that module across loader code redeploys those exports',
-    diff(olderForm('./a', './m'), ["const helper = require('./a');", 'helper.bootstrap();', "const mod = require('./m');", 'exports.A = mod.A;', ''].join('\n')),
-    { changed: ['A'], loaderChanged: false }
-  );
-  assertEqual(
-    '… and a new module with its export redeploys that export only',
-    diff(olderForm('./a', './m'), olderForm('./a', './m', "const extra = require('./x');\nexports.B = extra.B;")),
-    { changed: ['B'], loaderChanged: false }
+    '… and two modules swapped: they load in the other order everywhere',
+    diff(
+      ["const a = require('./a');", "const b = require('./b');", 'exports.A = a.A;', 'exports.B = b.B;'].join('\n'),
+      ["const b = require('./b');", "const a = require('./a');", 'exports.A = a.A;', 'exports.B = b.B;'].join('\n')
+    )?.loaderChanged,
+    true
   );
 }
 

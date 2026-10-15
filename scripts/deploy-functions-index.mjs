@@ -6,15 +6,14 @@
  * The file is read as its syntax tree (@babel/parser, as scripts/ui-contract/
  * reads JSX), without positions, comments or how a literal was written, so
  * formatting never counts and the meaning always does:
- * - an export's wiring is a statement of exactly the form `exports.X = <module
- *   or its member>;`, alone or under `if (<check>('X'))`, with its place among
- *   the loader's statements;
- * - in the file's older form, `const x = require('./m')` that only wiring reads
- *   is wiring of the exports that read it, with its place too;
- * - everything else is the loader, which every function runs, and so is a
- *   statement of any other form, export or not.
+ * - an export's wiring is a statement of exactly the form
+ *   `if (<check>('X')) exports.X = <module or its member>;`, with its place among
+ *   the loader's statements: only the function named X runs it;
+ * - everything else is the loader, which every function runs: a statement of any
+ *   other form, export or not, and so every unconditional `require()` of the
+ *   file's older form, where each function loaded every module.
  * The order of wiring statements among themselves does not count: a deployed
- * function loads only its own module.
+ * function runs only its own.
  */
 import { parse } from '@babel/parser';
 
@@ -44,20 +43,16 @@ function isModuleReference(node) {
 
 /** The export a statement wires (see the header), or null. */
 function wiredExport(statement) {
-  let body = statement;
-  let check = null;
-  if (statement.type === 'IfStatement' && !statement.alternate) {
-    check = statement.test;
-    const { consequent } = statement;
-    body = consequent.type === 'BlockStatement' && consequent.body.length === 1 ? consequent.body[0] : consequent;
-  }
+  if (statement.type !== 'IfStatement' || statement.alternate) return null;
+  const { test: check, consequent } = statement;
+  const body = consequent.type === 'BlockStatement' && consequent.body.length === 1 ? consequent.body[0] : consequent;
   const assignment = body.type === 'ExpressionStatement' ? body.expression : null;
   const target = assignment?.type === 'AssignmentExpression' && assignment.operator === '=' ? assignment.left : null;
   if (target?.type !== 'MemberExpression' || target.computed || target.object.type !== 'Identifier'
       || target.object.name !== 'exports' || target.property.type !== 'Identifier') return null;
   const name = target.property.name;
-  const ownCheck = !check || (check.type === 'CallExpression' && check.callee.type === 'Identifier' && check.callee.name !== 'require'
-    && check.arguments.length === 1 && isString(check.arguments[0], (value) => value === name));
+  const ownCheck = check.type === 'CallExpression' && check.callee.type === 'Identifier' && check.callee.name !== 'require'
+    && check.arguments.length === 1 && isString(check.arguments[0], (value) => value === name);
   return ownCheck && isModuleReference(assignment.right) ? name : null;
 }
 
@@ -95,39 +90,13 @@ function listPaths(node, path = '', paths = new Map()) {
   return paths;
 }
 
-/** Whether `name` is read inside a node, outside the `skip` nodes: as an identifier, not a property name or key. */
-function reads(node, name, skip = new Set()) {
-  for (const [key, child] of children(node)) {
-    if (skip.has(child)) continue;
-    const isName = child.type === 'Identifier' && child.name === name
-      && !(key === 'property' && node.type === 'MemberExpression' && !node.computed)
-      && !(key === 'key' && /Property|Method/.test(node.type) && !node.computed);
-    if (isName || reads(child, name, skip)) return true;
-  }
-  return false;
-}
-
-/** `const x = require('./m')`: the name, or null. */
-function moduleVariable(statement) {
-  const [declaration, ...more] = statement.type === 'VariableDeclaration' ? statement.declarations : [];
-  return isRequire(declaration?.init) && !more.length && declaration.id.type === 'Identifier' ? declaration.id.name : null;
-}
-
 /**
  * An index.js source as `{ exports, loader }`: each export's wiring and the
  * loader, each as one comparable string. Throws when the source does not parse.
  */
 export function indexParts(src) {
   const { program } = parse(src, { sourceType: 'script', allowReturnOutsideFunction: true });
-  const found = collectWiring(program);
-  const wiring = new Map([...found].map(([statement, name]) => [statement, [name]]));
-  for (const statement of program.body) {
-    const variable = moduleVariable(statement);
-    const readers = variable ? [...found.keys()].filter((wire) => reads(wire, variable)) : [];
-    if (readers.length && !reads(program, variable, new Set([statement, ...found.keys()]))) {
-      wiring.set(statement, readers.map((wire) => found.get(wire)));
-    }
-  }
+  const wiring = new Map([...collectWiring(program)].map(([statement, name]) => [statement, [name]]));
   const taken = takeOut(program, wiring);
   const paths = listPaths(program);
   const exports = new Map();
