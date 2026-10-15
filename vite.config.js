@@ -8,10 +8,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * The libraries every screen starts with get a chunk of their own. Their bytes
- * change only when a dependency does, so after a release a returning browser
- * still holds the file under the same name and revalidates it (304) instead of
- * downloading it again with the application's code.
+ * The libraries every screen starts with get a chunk of their own. Its bytes
+ * change only when a dependency does, or when the application starts or stops
+ * using one of their exports (see `minifyInternalExports` below), so after a
+ * release a returning browser still holds the file under the same name and
+ * revalidates it (304) instead of downloading it again with the application's
+ * code.
  *
  * Only packages the first screen already loads in full: Rollup moves a manual
  * chunk's dependencies into it, so a package with a module that only a later
@@ -114,6 +116,13 @@ export default defineConfig({
       },
       output: {
         manualChunks: chunkFor,
+        // Chunks export under the names their code gives, not under short
+        // names Rollup mints in the order the other chunks happen to import
+        // them: a release that only moved the application's code renamed the
+        // vendor chunk's exports, and with them its bytes and its file name.
+        // 2.3 kB more gzip in the first download, against the 222 kB of
+        // `vendor` a returning browser no longer downloads again.
+        minifyInternalExports: false,
       }
     }
   }

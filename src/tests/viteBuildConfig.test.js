@@ -1,5 +1,9 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterAll, describe, expect, it } from 'vitest';
+import { build } from 'vite';
 import viteConfig from '../../vite.config.js';
 import firebaseConfigSource from '../lib/firebase/config.js?raw';
 
@@ -38,4 +42,59 @@ describe('the production build', () => {
         }]);
         expect(firebaseConfigSource).toContain("fetch('/__/firebase/init.json'");
     });
+});
+
+describe('the vendor chunk after a release', () => {
+    // One library and an application whose chunks import its exports in two
+    // orders, as any release that moves the application's code around does.
+    // Exports that share a first letter are the ones whose short names Rollup
+    // mints in the order the application's chunks import them.
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vendor-names-'));
+    fs.mkdirSync(path.join(root, 'node_modules/examplelib'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'node_modules/examplelib/package.json'),
+        JSON.stringify({ name: 'examplelib', type: 'module', main: 'index.js' }));
+    fs.writeFileSync(path.join(root, 'node_modules/examplelib/index.js'),
+        "export const getAlpha = () => 'alpha';\nexport const getBeta = () => 'beta';\nexport const getGamma = () => 'gamma';\n");
+    afterAll(() => fs.rmSync(root, { recursive: true, force: true }));
+
+    /** The vendor chunk of a build whose entry draws `first` and whose lazy screen draws `rest`. */
+    async function vendorChunk([first, ...rest], minifyInternalExports) {
+        const dir = fs.mkdtempSync(path.join(root, 'app-'));
+        fs.writeFileSync(path.join(dir, 'entry.js'),
+            `import { ${first} } from 'examplelib';\nconsole.log(${first}());\nimport('./screen.js');\n`);
+        fs.writeFileSync(path.join(dir, 'screen.js'),
+            `import { ${rest.join(', ')} } from 'examplelib';\nconsole.log(${rest.map((name) => `${name}()`).join(', ')});\n`);
+        const output = await build({
+            root, configFile: false, logLevel: 'silent',
+            build: {
+                write: false,
+                rollupOptions: {
+                    input: path.join(dir, 'entry.js'),
+                    output: {
+                        manualChunks: (id) => (id.includes('/node_modules/examplelib/') ? 'vendor' : undefined),
+                        minifyInternalExports,
+                    },
+                },
+            },
+        });
+        const chunks = (Array.isArray(output) ? output[0] : output).output;
+        return chunks.find((chunk) => chunk.type === 'chunk' && chunk.name === 'vendor');
+    }
+
+    const appBuild = viteConfig.build.rollupOptions.output.minifyInternalExports;
+
+    it('keeps its bytes and its name with the build’s export names', async () => {
+        const before = await vendorChunk(['getAlpha', 'getBeta', 'getGamma'], appBuild);
+        const after = await vendorChunk(['getGamma', 'getAlpha', 'getBeta'], appBuild);
+
+        expect(after.code).toBe(before.code);
+        expect(after.fileName).toBe(before.fileName);
+    }, 60_000);
+
+    it('would be renamed with the short names Rollup mints by default', async () => {
+        const before = await vendorChunk(['getAlpha', 'getBeta', 'getGamma'], true);
+        const after = await vendorChunk(['getGamma', 'getAlpha', 'getBeta'], true);
+
+        expect(after.fileName).not.toBe(before.fileName);
+    }, 60_000);
 });
