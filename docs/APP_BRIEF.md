@@ -315,7 +315,7 @@ multi-step drips.
 
 **Super admin operations.** Companies, users, unified driver DB, global feature
 flags, SMS integrations, Environment & Integrations vault, AI providers, blog,
-website-lead archive, form builder, system health, stats backfill, releases.
+website-lead archive, form builder (unused by the application), system health, stats backfill, releases.
 
 ---
 
@@ -932,10 +932,10 @@ projection, and `/apply/:slug` is not gated by any flag. See
 |---|---|---|
 | **Firebase** (Auth, Firestore, Storage, Functions, Hosting) | Everything | Project config |
 | **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
-| **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (admin-only); password in plain text by decision, **never returned to the browser**. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until migrated); it decrypts an `enc:v1:` password |
+| **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (its admins may read it directly); password in plain text by decision, shown in the UI only by the vault's audited reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until migrated); it decrypts an `enc:v1:` password |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
-| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat that pressed Start on a one-time link from Super Admin → System Health (the bot token is checked with Telegram before it is stored). The marketing-site bot is **retired** (`LD-R3`): `promote-production.yml` still runs the idempotent `scripts/retire-functions.mjs` (never touching `listLandingLeads`); a rollback past `LD-R3` would call deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
+| **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat connected in Super Admin → System Health. The marketing-site bot is **retired** (`LD-R3`): promotion's `scripts/retire-functions.mjs` keeps `listLandingLeads`; a rollback past it calls deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
 | **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
 | **Sentry** | Error monitoring for the browser app (`@sentry/react`); Cloud Functions log to Cloud Logging only | DSN |
@@ -946,12 +946,12 @@ projection, and `/apply/:slug` is not gated by any flag. See
 - **No feature may call an AI vendor directly.** Every request goes through
   `functions/ai/` (task interface → capability-aware router → provider adapter →
   schema-validated response); `npm run check:ai-boundary` fails CI otherwise.
-  Each request carries a transaction id and records a per-provider timeline in
+  Each request records a transaction id and a per-provider timeline in
   `ai_telemetry` (Super Admin → AI Integrations → **Logs**). The connection test
-  probes every capability a provider claims, reports a throttled probe as
-  untested; a full pass clears cooldowns. Health and cooldown are **per lane**
+  probes every claimed capability, calls a throttled probe untested; a full
+  pass clears cooldowns. Health and cooldown are **per lane**
   (text / vision), each up to three versions, kept by `refreshAiModelLists`
-  (**Model versions**, **Check versions now**, auto-select, built-in reset); a re-pin in code
+  (**Model versions**); a re-pin in code
   wins. One gone, off the plan or rate-limited rests; the next is tried while two
   slices remain. Document reads cap each attempt and skip a vendor's pause over
   5 s while another can serve. See [`docs/ai-platform.md`](./ai-platform.md).
@@ -997,7 +997,7 @@ released if the connect then fails.
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
 | `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, and runs with or without a chat |
-| `refreshAiModelLists` | hourly at :25, America/Chicago | Daily, and within the hour of a lane failure, re-tests each enabled provider's photo and text model versions on a made-up licence; keeps those that pass, adds catalogue models that pass, never empties a lane; tells Telegram what changed or needs fixing |
+| `refreshAiModelLists` | hourly at :25, America/Chicago | Daily, and within the hour of a lane failure, re-tests each enabled provider's photo versions on a made-up licence, text ones on a short question; keeps those that pass, adds catalogue models that pass, never empties a lane; tells Telegram what changed or needs fixing |
 | Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is actually live and opens/closes a GitHub issue |
 
 The blog publishes one article a day, and its scheduler runs hourly on purpose:
@@ -1012,10 +1012,10 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
 
 ### Firestore triggers
 
-- **Driver sync** — applications, company leads, logs and activities upsert a
-  master `drivers/{id}` profile. A driver with no Auth account gets a **shadow
-  profile** keyed by the document id; an Auth user is **never** created
-  automatically — they claim the profile when they sign up.
+- **Driver sync** — a new lead or signed application (an unsigned one is
+  marked `validation_error`), files its details (no SSN) under `drivers/{id}/pending_updates`,
+  read by nothing, and adds the company to an existing profile (`{id}`: the Auth uid of a known email;
+  for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created.
 - **Stats** — `activity_logs` writes roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
@@ -1136,8 +1136,8 @@ number; no reply fills them (§12).
   approved.
 - **Unfinished and carrier-started applications are drafts in their own
   collection, never early `applications` documents**, whose four `create`
-  triggers would notify a recruiter, email "application received", create a
-  `drivers/{id}` shadow profile and move the dashboard counters before anyone
+  triggers would notify a recruiter, email "application received", mark the
+  unsigned record `validation_error` and move the dashboard counters before anyone
   read, consented to or signed anything. The driver's own submission promotes a
   draft (§5).
 - **Discarding a draft is never a dismissal.** `ConfirmDialog` routes Escape to

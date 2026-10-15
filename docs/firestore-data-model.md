@@ -150,9 +150,9 @@ and the staff-facing `listApplicationDrafts`.
 It is a **separate collection from `applications` on purpose.** Four triggers fire
 on `create` under `companies/{id}/applications/{appId}`:
 `onNewApplicationNotification`, `onNewApplicationEmailConfirmation`,
-`onApplicationSubmitted` (driver sync / shadow profile) and the stats rollup.
+`onApplicationSubmitted` (driver sync: a `drivers/{id}/pending_updates` entry) and the stats rollup.
 Writing drafts there would email every half-finished applicant "we received your
-application" and create driver profiles for people who typed a name and left.
+application", and driver sync would mark each unsigned one `validation_error`.
 
 The document id is the **existing deterministic applicant key** —
 `sha256(companyId:email:phone)` truncated to 20 hex, from
