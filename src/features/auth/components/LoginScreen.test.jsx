@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
     loginUser: vi.fn(),
     resetPassword: vi.fn(),
-    getPortalUser: vi.fn(),
     getMembershipsForUser: vi.fn(),
 }));
 
@@ -25,7 +24,6 @@ vi.mock('../services/authService', () => ({
 }));
 
 vi.mock('../services/userService', () => ({
-    getPortalUser: mocks.getPortalUser,
     getMembershipsForUser: mocks.getMembershipsForUser,
 }));
 
@@ -64,11 +62,9 @@ describe('LoginScreen — design-system migration', () => {
         mocks.navigate.mockReset();
         mocks.loginUser.mockReset();
         mocks.resetPassword.mockReset();
-        mocks.getPortalUser.mockReset();
         mocks.getMembershipsForUser.mockReset();
         // Safe redirect defaults: authenticated, no elevated claims, no company.
         mocks.loginUser.mockResolvedValue(authenticatedUser());
-        mocks.getPortalUser.mockResolvedValue(null);
         mocks.getMembershipsForUser.mockResolvedValue({ empty: true });
         mocks.resetPassword.mockResolvedValue({ success: true });
     });
@@ -115,7 +111,6 @@ describe('LoginScreen — design-system migration', () => {
         await waitFor(() => {
             expect(mocks.navigate).toHaveBeenCalledWith('/company/candidates', { replace: true });
         });
-        expect(mocks.getPortalUser).not.toHaveBeenCalled();
         expect(mocks.getMembershipsForUser).not.toHaveBeenCalled();
     });
 
@@ -130,25 +125,21 @@ describe('LoginScreen — design-system migration', () => {
         expect(mocks.navigate).toHaveBeenCalledTimes(1);
     });
 
-    it('redirects a Super Admin (claims) to the super-admin console', async () => {
-        mocks.loginUser.mockResolvedValue(authenticatedUser({ super_admin: true }));
+    // The token's role decides, as the routes and the rules decide: the claims
+    // writer sets `roles.globalRole` and a root `globalRole`.
+    it.each([
+        ['roles.globalRole', { roles: { globalRole: 'super_admin' } }],
+        ['the root globalRole', { globalRole: 'super_admin' }],
+    ])('redirects a Super Admin (%s) to the super-admin console, also with a company membership', async (_where, claims) => {
+        mocks.loginUser.mockResolvedValue(authenticatedUser(claims));
+        mocks.getMembershipsForUser.mockResolvedValue({ empty: false });
         renderLogin();
         submitLogin();
 
         await waitFor(() => {
             expect(mocks.navigate).toHaveBeenCalledWith('/super-admin', { replace: true });
         });
-    });
-
-    it('redirects a Super Admin via the Firestore role fallback', async () => {
-        mocks.loginUser.mockResolvedValue(authenticatedUser({}));
-        mocks.getPortalUser.mockResolvedValue({ role: 'super_admin' });
-        renderLogin();
-        submitLogin();
-
-        await waitFor(() => {
-            expect(mocks.navigate).toHaveBeenCalledWith('/super-admin', { replace: true });
-        });
+        expect(mocks.navigate).toHaveBeenCalledTimes(1);
     });
 
     it('redirects a company member to the company dashboard', async () => {

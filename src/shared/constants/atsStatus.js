@@ -47,8 +47,8 @@ export const CONTACT_ATTEMPT_STATUSES = [
 /** First recruiter pipeline status (Quick Add lead page default). */
 export const ATS_STATUS_NEW = 'New';
 
-/** Status written when a lead is created (bulk import, quick-lead modal; the
- *  Facebook ingestion Cloud Function writes the same literal server-side). */
+/** Status written when a lead is created by the bulk import (the Facebook
+ *  ingestion Cloud Function writes the same literal server-side). */
 export const LEAD_DEFAULT_STATUS = 'New Lead';
 
 /** Status written when a driver application is created/submitted. */

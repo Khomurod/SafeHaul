@@ -5,26 +5,15 @@ import {
     NoPreservedPdfError,
     downloadPreservedApplicationPdf,
 } from '@features/applications/services/applicationPdfService';
-import { getFieldValue } from '@shared/utils/helpers.js';
-import { useData } from '@/context/DataContext';
 import { useApplicationDetails } from '@features/applications/hooks/useApplicationDetails';
 import { useToast } from '@shared/components/feedback';
 
-export function useApplicationView(companyId, applicationId, onStatusUpdate, onClosePanel, onPhoneClick) {
-    const { currentUserClaims } = useData();
+export function useApplicationView(companyId, applicationId, onStatusUpdate) {
     const { showError } = useToast();
     const details = useApplicationDetails(companyId, applicationId, onStatusUpdate);
 
-    // Deconstruct key items from details for easier access
-    const {
-        appData, companyProfile, collectionName, handleStatusUpdate
-    } = details;
+    const { appData, collectionName } = details;
 
-    // --- Local State ---
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [showMoveModal, setShowMoveModal] = useState(false);
-    const [showOfferModal, setShowOfferModal] = useState(false);
-    const [activeSection, setActiveSection] = useState('application'); // 'application' | 'dq' | 'files' | 'contact' | 'pev' | 'notes' | 'activity'
     // The DQ File tab's entries; `null` until they have loaded, or when they
     // cannot be read.
     const [dqFiles, setDqFiles] = useState(null);
@@ -87,13 +76,6 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate, onC
         return completeCount === requiredDocTypes.length ? 'complete' : 'incomplete';
     }, [dqFiles]);
 
-    // --- Helpers ---
-    const isSuperAdmin = currentUserClaims?.roles?.globalRole === 'super_admin';
-    const canEditAllFields = details.isCompanyAdmin || isSuperAdmin;
-    const currentAppName = getFieldValue(appData?.['firstName']) + ' ' + getFieldValue(appData?.['lastName']);
-    const driverId = appData?.driverId || appData?.userId;
-
-    // --- Handlers ---
     /**
      * Download the PRESERVED original application document.
      *
@@ -123,57 +105,9 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate, onC
         }
     };
 
-    const handleManagementComplete = () => {
-        if (onStatusUpdate) onStatusUpdate();
-        if (onClosePanel) onClosePanel();
-    };
-
-    // --- Device Detection Helper ---
-    const isMobile = () => {
-        return window.matchMedia('(pointer: coarse)').matches ||
-            /Mobi|Android/i.test(navigator.userAgent);
-    };
-
-    const handleWorkflowAction = (action) => {
-        switch (action) {
-            case 'call':
-                if (appData?.phone) {
-                    // M7 FIX: Mobile = tel: link only, Desktop = modal only, never both
-                    if (isMobile()) {
-                        window.location.href = `tel:${appData.phone}`;
-                        // Exit early - no modal on mobile
-                        return;
-                    }
-                    // Desktop: open call outcome modal via callback
-                    if (onPhoneClick) onPhoneClick(null, appData);
-                }
-                break;
-            case 'contact': setActiveSection('contact'); break;
-            case 'go-to-dq': setActiveSection('dq'); break;
-            case 'go-to-pev': setActiveSection('pev'); break;
-            case 'add-note': setActiveSection('notes'); break;
-            case 'send-offer': setShowOfferModal(true); break;
-            case 'background': handleStatusUpdate('Background Check'); break;
-            default: break;
-        }
-    };
-
     return {
         ...details,
-        // State
-        showDeleteConfirm, setShowDeleteConfirm,
-        showMoveModal, setShowMoveModal,
-        showOfferModal, setShowOfferModal,
-        activeSection, setActiveSection,
         dqStatus,
-        // Computed
-        isSuperAdmin,
-        canEditAllFields,
-        currentAppName,
-        driverId,
-        // Handlers
         handleDownloadPdf,
-        handleManagementComplete,
-        handleWorkflowAction
     };
 }

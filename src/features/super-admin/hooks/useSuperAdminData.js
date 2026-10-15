@@ -1,8 +1,7 @@
 // src/features/super-admin/hooks/useSuperAdminData.js
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { db, functions } from '@lib/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { db } from '@lib/firebase';
 import {
     collection,
     getDocs,
@@ -33,7 +32,6 @@ export function useSuperAdminData() {
     const [allCompaniesMap, setAllCompaniesMap] = useState(new Map());
 
     const [loading, setLoading] = useState(true);
-    const [isSearching, setIsSearching] = useState(false);
 
     // Pagination Cursors
     const [lastCompanyDoc, setLastCompanyDoc] = useState(null);
@@ -164,7 +162,7 @@ export function useSuperAdminData() {
                         const parentCollection = doc.ref.parent;
                         const parentDoc = parentCollection.parent;
                         if (parentDoc) companyId = parentDoc.id;
-                    } catch (e) { /* ignore ref errors */ }
+                    } catch { /* ignore ref errors */ }
 
                     return {
                         id: doc.id,
@@ -185,7 +183,7 @@ export function useSuperAdminData() {
                     try {
                         const parent = doc.ref.parent.parent;
                         if (parent) companyId = parent.id;
-                    } catch (e) { /* ignore */ }
+                    } catch { /* ignore */ }
 
                     return {
                         id: doc.id,
@@ -350,7 +348,6 @@ export function useSuperAdminData() {
 
     // --- 3. CLIENT-SIDE SEARCH (Direct Firestore) ---
     const performClientSearch = useCallback(async (term) => {
-        setIsSearching(true);
         setLoading(true);
 
         try {
@@ -406,7 +403,6 @@ export function useSuperAdminData() {
             showError("Search failed. Please try again.");
         } finally {
             setLoading(false);
-            setIsSearching(false);
         }
     }, [showError]);
 

@@ -6,7 +6,7 @@ import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
-import { Badge, Button, Card, FieldMessage, IconButton, Notice } from '@/design-system/components';
+import { Badge, Button, Card, IconButton, Notice } from '@/design-system/components';
 
 // Feature-owned domain → visual mapping (design system only knows generic tones).
 // Tones preserve the previous appearance: active=success, completed=info,

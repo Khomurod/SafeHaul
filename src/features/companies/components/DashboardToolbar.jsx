@@ -44,10 +44,6 @@ export const DashboardToolbar = memo(function DashboardToolbar({
     filters,
     setFilters,
     clearFilters,
-    onShowSafeHaulInfo,
-    latestBatchTime,
-    visibleColumns,
-    setVisibleColumns,
 
     selectedCount = 0,
     onAssignLeads,

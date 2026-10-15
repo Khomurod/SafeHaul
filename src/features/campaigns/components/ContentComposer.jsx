@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Icon, MessageSquare, Mail, Zap, Info, Plus } from '@design-system/icons';
+import { Icon, MessageSquare, Mail, Zap, Plus } from '@design-system/icons';
 import { DeviceMockup } from './DeviceMockup';
 import { Card, FormField, Input, Notice, Textarea, Button } from '@/design-system/components';
 
@@ -135,7 +135,7 @@ export function ContentComposer({ messageConfig, onChange }) {
                 <div className="flex flex-col gap-ds-8 lg:col-span-1">
                     {/* Device Preview */}
                     <div className="rounded-ds-xl border border-ds-border-subtle bg-ds-surface-subtle p-ds-6">
-                        <DeviceMockup type={messageConfig.method}>
+                        <DeviceMockup>
                             {/* A simulated inbound thread: the grey shapes stand in for a
                                 sender the preview does not know. They are placeholders, so
                                 they take the border roles — `border-subtle` and

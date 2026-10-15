@@ -28,7 +28,7 @@ describe("an employer's (b)(10)(iv) answers outside the preserved record", () =>
     });
 
     it("shows them in the dossier's current record", () => {
-        render(<SchemaSection sectionId="employmentHistory" data={{ employers: [ROW] }} mode="display" />);
+        render(<SchemaSection sectionId="employmentHistory" data={{ employers: [ROW] }} />);
 
         expect(screen.getByText(FMCSRS)).toBeInTheDocument();
         expect(screen.getByText(DOT_TESTING)).toBeInTheDocument();

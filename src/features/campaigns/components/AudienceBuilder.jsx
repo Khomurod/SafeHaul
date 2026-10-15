@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { useCampaignTargeting } from '../hooks/useCampaignTargeting';
 import { useCompanyTeam } from '@/shared/hooks/useCompanyTeam';
 import { useData } from '@/context/DataContext';
-import { APPLICATION_STATUSES, ERROR_MESSAGES, LAST_CALL_RESULTS, MAX_RECIPIENTS_PER_LAUNCH, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
-import { Icon, Filter, Users, RefreshCw, CheckCircle2, FileSpreadsheet } from '@design-system/icons';
+import { APPLICATION_STATUSES, ERROR_MESSAGES, MAX_RECIPIENTS_PER_LAUNCH, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
+import { Icon, Filter, RefreshCw, CheckCircle2, FileSpreadsheet } from '@design-system/icons';
 import { useBulkImport } from '@/shared/hooks/useBulkImport';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import VirtualLeadList from './VirtualLeadList';
@@ -108,7 +108,6 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
         handleSheetImport,
         sheetUrl,
         setSheetUrl,
-        reset: resetImport
         // `useBulkImport` used to fall back to a blocking `alert()` when no
         // `onError` was supplied, and this was the one consumer that supplied none —
         // so every CSV/Sheet import failure here froze the tab with a native prompt.

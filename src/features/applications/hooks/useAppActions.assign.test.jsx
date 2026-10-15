@@ -13,17 +13,14 @@ const fs = vi.hoisted(() => ({ updateDoc: vi.fn(), doc: vi.fn((_db, ...p) => ({ 
 const logActivity = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }));
 
-vi.mock('@lib/firebase', () => ({ db: {}, storage: {}, auth: { currentUser: { displayName: 'Rita Admin' } } }));
-vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, auth: { currentUser: { displayName: 'Rita Admin' } } }));
 vi.mock('firebase/firestore', () => ({
     doc: (...a) => fs.doc(...a),
     updateDoc: (...a) => fs.updateDoc(...a),
     serverTimestamp: () => '__ts__',
 }));
-vi.mock('firebase/storage', () => ({ ref: vi.fn(), deleteObject: vi.fn(), uploadBytes: vi.fn(), getDownloadURL: vi.fn() }));
 vi.mock('@shared/utils/activityLogger', () => ({ logActivity: (...a) => logActivity(...a) }));
 vi.mock('@shared/components/feedback', () => ({ useToast: () => toast }));
-vi.mock('@shared/utils/searchNormalization', () => ({ buildApplicationSearchFields: () => ({}) }));
 
 import { useAppActions } from './useAppActions';
 
@@ -42,12 +39,10 @@ function Harness({ record }) {
         collectionName: 'applications',
         appData,
         setAppData,
-        setFileUrls: vi.fn(),
         setCurrentStatus: vi.fn(),
         currentStatus: 'New',
         setAssignedTo: vi.fn(),
         teamMembers: TEAM,
-        canEdit: true,
         onStatusUpdate: vi.fn(),
     });
     return null;
