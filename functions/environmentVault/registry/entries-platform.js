@@ -77,6 +77,16 @@ const FIREBASE_ENTRIES = [
         consumers: ['functions/bulkActions/services/queueService.js'],
     },
     {
+        key: 'FUNCTION_TARGET',
+        displayName: 'Running function (runtime)',
+        description: 'Name of the function an instance runs, set by the Cloud Functions runtime; index.js loads only that function\'s module. Absent at deploy and in tests.',
+        source: SOURCES.FIREBASE_RUNTIME,
+        availability: AVAILABILITY.SERVER_RUNTIME,
+        sensitivity: SENSITIVITY.PUBLIC,
+        optional: true,
+        consumers: ['functions/index.js'],
+    },
+    {
         key: 'FIREBASE_PROJECT_ID',
         displayName: 'Deployment target project',
         description: 'Firebase project the deploy jobs and deployment scripts target.',

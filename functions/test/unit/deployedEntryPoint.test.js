@@ -7,10 +7,11 @@
 // `firebaseAdmin.test.js` holds the wrapper, and this load is where the real
 // SDK (and its ESM-only `jose`) runs.
 //
-// No function is below the memory a cold start needs. Every function loads the
-// whole of index.js on a cold start, and a 1st Gen function at 128MB gets about
-// 200 MHz of CPU to do it. On firebase-admin 14 that load no longer fits the
-// start-up limit, so 256MB is the floor.
+// No function is below the memory a cold start needs. A function loads its own
+// module on a cold start (`functionTarget.test.js`), but one whose name
+// index.js does not export loads all of it, and a 1st Gen function at 128MB
+// gets about 200 MHz of CPU to do that. On firebase-admin 14 that load no longer
+// fits the start-up limit, so 256MB stays the floor.
 //
 // No function has a failure policy the deploy would refuse. The CI deploy runs
 // `firebase deploy --non-interactive` without `--force`, and firebase-tools
