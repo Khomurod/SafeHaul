@@ -1093,10 +1093,10 @@ and global `blacklist`s hold SMS opt-outs, checked before **every** send
   (`DEPLOY_FUNCTIONS_ALWAYS_INCLUDE` in `main.yml`), so a dependency upgrade
   reaches any other function only when its own code, or a file it loads, next
   changes.
-- **Every function loads the whole of `functions/index.js` on a cold start**, so
-  a heavier dependency slows them all. 256 MB is the floor: a 1st Gen function at
-  128 MB gets about 200 MHz, too little to load it within the start-up limit, and
-  `functions/test/unit/deployedEntryPoint.test.js` refuses anything smaller.
+- **A function's cold start loads its own module only** (`functions/index.js`
+  by `FUNCTION_TARGET`; no name, or one it lacks, loads all), from its next
+  deploy on. 256 MB stays the floor (`deployedEntryPoint.test.js`): at 128 MB a
+  1st Gen function gets ~200 MHz, too little to load all in time.
 - **The blog owns its stylesheet.** `/news`, `/news/{slug}` and `/news/feed.xml`
   are rendered by `serveBlogPublic` and styled by five files in
   `web/assets/css/`, cut from the retired marketing site's single sheet at its

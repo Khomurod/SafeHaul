@@ -60,9 +60,11 @@ export async function runRetirementScenarios() {
         'a short sha can become ambiguous, which makes every ancestry check "cannot prove"');
 
     // A name the source still exports is a live function: deleting it after a
-    // promotion would take down something the release calls.
+    // promotion would take down something the release calls. Read the way the
+    // deploy reads it (`deploy-functions-resolve.mjs`): each export is a line
+    // inside `index.js`'s loader, not at the start of one.
     const index = readFileSync(resolvePath(here, '../../functions/index.js'), 'utf8');
-    const exported = new Set([...index.matchAll(/^exports\.([A-Za-z0-9_]+)\s*=/gm)].map((match) => match[1]));
+    const exported = new Set([...index.matchAll(/exports\.([A-Za-z0-9_]+)\s*=/g)].map((match) => match[1]));
     const stillLive = [...retired, ...kept].filter((name) => exported.has(name) !== kept.includes(name));
     assert('19f. no retired function is still exported, and every kept one is',
         exported.size > 100 && stillLive.length === 0,
