@@ -337,6 +337,25 @@ section('13. index.js: wiring, comments and the loader');
   assertEqual('a comment edit changes nothing', diff(indexSrc, commentEdit), { changed: [], loaderChanged: false });
   const copyName = `${lines[exportLine].match(/exports\.(\w+)/)[1]}Copy`;
   assertEqual('a new export line redeploys that export only', diff(indexSrc, added), { changed: [copyName], loaderChanged: false });
+  // The same module, another handler or another condition: the export's own line changed.
+  const firstName = lines[exportLine].match(/exports\.(\w+)/)[1];
+  const editLine = (edit) => [...lines.slice(0, exportLine), edit(lines[exportLine]), ...lines.slice(exportLine + 1)].join('\n');
+  assert('the first export line asks for its name (`wanted`)', lines[exportLine].includes(`wanted('${firstName}')`));
+  assertEqual(
+    'an export that takes another member of the same module redeploys',
+    diff(indexSrc, editLine((line) => line.replace(/\.(\w+);\s*$/, '.$1Other;'))),
+    { changed: [firstName], loaderChanged: false }
+  );
+  assertEqual(
+    'an export whose condition changes redeploys',
+    diff(indexSrc, editLine((line) => line.replace(/wanted\('(\w+)'\)/, "wanted('$1Other')"))),
+    { changed: [firstName], loaderChanged: false }
+  );
+  assertEqual(
+    'spacing and a trailing comment on an export line do not',
+    diff(indexSrc, editLine((line) => `${line.replace(/ = /, '  =  ')} // a note`)),
+    { changed: [], loaderChanged: false }
+  );
   assertEqual('a change to the code around the export lines is a loader change', diff(indexSrc, loaderEdit)?.loaderChanged, true);
   assertEqual('// inside a string is not a comment: a comment after it may change', diff(stringWithSlashes, sameString)?.loaderChanged, false);
   assertEqual('… and the string itself is code', diff(stringWithSlashes, otherString)?.loaderChanged, true);

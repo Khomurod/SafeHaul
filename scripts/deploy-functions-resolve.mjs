@@ -183,22 +183,39 @@ export function gitShow(commitColonPath) {
 
 /**
  * What a change to functions/index.js redeploys, between its base and head
- * sources: each export whose module changed, and `loaderChanged` when the code
- * around the export lines changed. Every function starts on that code (it picks
- * the module FUNCTION_TARGET names), so a loader change concerns them all.
- * Comments, blank lines and the export lines themselves are not loader code.
- * Returns null when either side cannot be parsed.
+ * sources: each export whose module or own line changed (another member of the
+ * same module, another condition), and `loaderChanged` when the code around the
+ * export lines changed. Every function starts on that code (it picks the module
+ * FUNCTION_TARGET names), so a loader change concerns them all. Comments,
+ * spacing and blank lines are neither. Returns null when either side cannot be
+ * parsed.
  */
 export function diffIndexSources(oldSrc, newSrc) {
   const oldParsed = buildExportToFileFromSource(oldSrc);
   const newParsed = buildExportToFileFromSource(newSrc);
   if (!oldParsed.parseOk || !newParsed.parseOk) return null;
 
+  const oldLines = exportLines(oldSrc);
+  const newLines = exportLines(newSrc);
   const changed = new Set();
   for (const [name, file] of newParsed.exportToFile) {
-    if (oldParsed.exportToFile.get(name) !== file) changed.add(name);
+    if (oldParsed.exportToFile.get(name) !== file || oldLines.get(name) !== newLines.get(name)) changed.add(name);
   }
   return { changed, loaderChanged: indexLoaderCode(oldSrc) !== indexLoaderCode(newSrc) };
+}
+
+const EXPORT_LINE = /\bexports\.(\w+)\s*=/;
+const MODULE_VARIABLE = /^(?:const|let|var)\s+\w+\s*=\s*require\(['"]\.\/[^'"]+['"]\);?$/;
+const codeLines = (src) => stripComments(src).split('\n').map((line) => line.trim().replace(/\s+/g, ' ')).filter(Boolean);
+
+/** Each export's line of index.js, comments and spacing aside. */
+function exportLines(src) {
+  const lines = new Map();
+  for (const line of codeLines(src)) {
+    const name = line.match(EXPORT_LINE)?.[1];
+    if (name) lines.set(name, [lines.get(name), line].filter(Boolean).join('\n'));
+  }
+  return lines;
 }
 
 /**
@@ -206,13 +223,8 @@ export function diffIndexSources(oldSrc, newSrc) {
  * export and, in its older form, those that require a module into a variable.
  */
 export function indexLoaderCode(src) {
-  return stripComments(src)
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line && !/\bexports\.\w+\s*=/.test(line) && !MODULE_VARIABLE.test(line))
-    .join('\n');
+  return codeLines(src).filter((line) => !EXPORT_LINE.test(line) && !MODULE_VARIABLE.test(line)).join('\n');
 }
-const MODULE_VARIABLE = /^(?:const|let|var)\s+\w+\s*=\s*require\(['"]\.\/[^'"]+['"]\);?$/;
 
 /** Drops // and /* *\/ comments, keeping strings (which may hold either) whole. */
 function stripComments(src) {
