@@ -11,13 +11,19 @@ jest.mock('firebase-functions/v1', () => {
   return { https, runWith: () => ({ https }) };
 });
 
-const mockState = { company: null, publicProfile: null, companyThrows: null, publicThrows: null, wording: {}, wordingThrows: null };
+const mockState = {
+  company: null, publicProfile: null, companyThrows: null, publicThrows: null, wording: {}, wordingThrows: null,
+  // Each read's name as it starts, and a gate every read waits on while set.
+  started: [], gate: null,
+};
 
 jest.mock('../../firebaseAdmin', () => ({
   db: {
     collection: (name) => ({
       doc: () => ({
         async get() {
+          mockState.started.push(name);
+          if (mockState.gate) await mockState.gate;
           if (name === 'companies') {
             if (mockState.companyThrows) throw mockState.companyThrows;
             return mockState.company
@@ -32,6 +38,8 @@ jest.mock('../../firebaseAdmin', () => ({
         // companies/{id}/legal_agreements — the company's own wording versions.
         collection: () => ({
           async get() {
+            mockState.started.push('legal_agreements');
+            if (mockState.gate) await mockState.gate;
             if (mockState.wordingThrows) throw mockState.wordingThrows;
             return { docs: Object.entries(mockState.wording).map(([id, data]) => ({ id, data: () => data })) };
           },
@@ -60,7 +68,20 @@ describe('getApplicationAgreements', () => {
     mockState.wordingThrows = null;
     mockState.companyThrows = null;
     mockState.publicThrows = null;
+    mockState.started = [];
+    mockState.gate = null;
     mockRateLimitAllowed = true;
+  });
+
+  it('reads the company, its public profile and its own wording side by side', async () => {
+    let release;
+    mockState.gate = new Promise((resolve) => { release = resolve; });
+    const served = getApplicationAgreements({ companyId: 'co1' }, ctx);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect([...mockState.started].sort()).toEqual(['companies', 'legal_agreements', 'public_profiles']);
+    release();
+    await expect(served).resolves.toMatchObject({ companyName: 'Blue Line Freight' });
   });
 
   it('serves all five required agreements, including the MVR authorization and the Clearinghouse consent', async () => {

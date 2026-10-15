@@ -145,6 +145,38 @@ describe('submitGuestApplication', () => {
     expect(mockSet).toHaveBeenCalled();
   });
 
+  it("reads the company's public profile while its intake check is still out", async () => {
+    let releaseCompany;
+    companyTenant.assertCompanyAcceptingIntake.mockReturnValueOnce(
+      new Promise((resolve) => { releaseCompany = resolve; }),
+    );
+    const profileGet = jest.fn().mockResolvedValue({ exists: false });
+    db.collection.mockImplementation((col) => (col === 'public_profiles'
+      ? { doc: jest.fn(() => ({ get: profileGet })) }
+      : mockCollection(col)));
+
+    const submitted = submitGuestApplication(validPayload, ctxBase);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(profileGet).toHaveBeenCalledTimes(1);
+
+    releaseCompany({
+      companyName: 'Tenant Co',
+      applicationConfig: {
+        cdlUpload: { hidden: false, required: false },
+        medCardUpload: { hidden: false, required: false },
+      },
+    });
+    await expect(submitted).resolves.toMatchObject({ success: true });
+  });
+
+  it('still refuses a company not accepting applications, before anything is written', async () => {
+    companyTenant.assertCompanyAcceptingIntake.mockRejectedValueOnce(
+      Object.assign(new Error('This company is not accepting applications.'), { code: 'failed-precondition' }),
+    );
+    await expect(submitGuestApplication(validPayload, ctxBase)).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(mockSet).not.toHaveBeenCalled();
+  });
+
   it('writes a deterministic 20-char applicationId using set+merge', async () => {
     mockGet.mockResolvedValueOnce({ exists: false, data: () => null });
     const res = await submitGuestApplication(validPayload, ctxBase);

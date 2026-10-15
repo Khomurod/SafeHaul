@@ -5,6 +5,7 @@ import { formatPhoneNumber, normalizePhone } from '@shared/utils/helpers';
 import { LEAD_IMPORT_PLACEHOLDERS } from '@/config/leadImportPlaceholders';
 import { PLACEHOLDER_DOMAIN } from '@/config/placeholderDomains';
 import { LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
+import { matchExistingLeads } from './leadImportMatches';
 
 const cleanText = (value) => (typeof value === 'string' ? value.trim() : '');
 
@@ -63,13 +64,11 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
             try {
                 const q = query(collection(db, "memberships"), where("companyId", "==", companyId));
                 const snap = await getDocs(q);
-                const members = [];
-                for (const m of snap.docs) {
-                    const userSnap = await getDoc(doc(db, "users", m.data().userId));
-                    if (userSnap.exists()) {
-                        members.push({ id: userSnap.id, name: memberName(userSnap.data() || {}) });
-                    }
-                }
+                // Every member's profile at once, kept in the memberships' order.
+                const profiles = await Promise.all(snap.docs.map((m) => getDoc(doc(db, "users", m.data().userId))));
+                const members = profiles
+                    .filter((userSnap) => userSnap.exists())
+                    .map((userSnap) => ({ id: userSnap.id, name: memberName(userSnap.data() || {}) }));
                 setTeamMembers(members);
                 setSelectedUserIds(members.map(m => m.id));
             } catch (e) { console.error("Error fetching team:", e); }
@@ -181,6 +180,14 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
             let currentBatch = writeBatch(db);
             let opCount = 0;
             let poolIndex = 0;
+            const leadsRef = collection(db, "companies", companyId, "leads");
+            // The leads the file already matches, looked up in batches before
+            // any row is written (`leadImportMatches.js`).
+            const existingLeads = await matchExistingLeads(companyId, csvData);
+            // Leads created by the batch not yet committed. A later row for the
+            // same person commits that batch first: one batch never creates and
+            // updates the same lead.
+            let createdInBatch = new Set();
 
             for (let i = 0; i < csvData.length; i++) {
                 const data = csvData[i];
@@ -198,20 +205,8 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                     poolIndex++;
                 }
 
-                const leadsRef = collection(db, "companies", companyId, "leads");
-                let existingDoc = null;
-
-                if (!data.isEmailPlaceholder && data.email) {
-                    const qEmail = query(leadsRef, where("email", "==", data.email));
-                    const snapEmail = await getDocs(qEmail);
-                    if (!snapEmail.empty) existingDoc = snapEmail.docs[0];
-                }
-
-                if (!existingDoc && data.normalizedPhone) {
-                    const qPhone = query(leadsRef, where("normalizedPhone", "==", data.normalizedPhone));
-                    const snapPhone = await getDocs(qPhone);
-                    if (!snapPhone.empty) existingDoc = snapPhone.docs[0];
-                }
+                // By its email, else its phone; an earlier row of this file counts.
+                const existingDoc = existingLeads.match(data);
 
                 const leadPayload = {
                     firstName: data.firstName || '',
@@ -235,6 +230,13 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                     timestamp: serverTimestamp()
                 };
 
+                if (existingDoc && createdInBatch.has(existingDoc.ref.path)) {
+                    await currentBatch.commit();
+                    currentBatch = writeBatch(db);
+                    opCount = 0;
+                    createdInBatch = new Set();
+                }
+
                 if (existingDoc) {
                     // A re-import adds what the file gives and keeps the rest:
                     // no blank, filled-in name or type, or placeholder email
@@ -257,6 +259,7 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                         action: "Lead Data Updated",
                         details: "Updated via Bulk Upload match."
                     });
+                    existingLeads.remember(data, existingDoc);
                     updatedCount++;
                 } else {
                     const newLeadRef = doc(leadsRef);
@@ -281,6 +284,8 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                         action: "Lead Created",
                         details: "Created via Bulk Upload."
                     });
+                    existingLeads.remember(data, { id: newLeadRef.id, ref: newLeadRef });
+                    createdInBatch.add(newLeadRef.path);
                     createdCount++;
                 }
 
@@ -289,6 +294,7 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                     await currentBatch.commit();
                     currentBatch = writeBatch(db);
                     opCount = 0;
+                    createdInBatch = new Set();
                 }
             }
 

@@ -30,7 +30,11 @@ afterEach(restoreHarness);
 
 const matchByPhone = () => primeQueries({
     dedupe: (target) => ((target.constraints || []).some((c) => c.field === 'normalizedPhone')
-        ? snapshot([{ id: 'existing-1', ref: { __kind: 'doc', path: `${LEADS_PATH}/existing-1` } }])
+        ? snapshot([{
+            id: 'existing-1',
+            data: () => ({ normalizedPhone: '5551234567' }),
+            ref: { __kind: 'doc', path: `${LEADS_PATH}/existing-1` },
+        }])
         : snapshot([])),
 });
 

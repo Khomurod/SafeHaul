@@ -181,7 +181,11 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
             dedupe: (target) => {
                 const isEmail = target.constraints?.some((c) => c.field === 'email');
                 return isEmail
-                    ? snapshot([{ id: 'existing-1', ref: { __kind: 'doc', path: `${LEADS_PATH}/existing-1` } }])
+                    ? snapshot([{
+                        id: 'existing-1',
+                        data: () => ({ email: 'artificial@example.test' }),
+                        ref: { __kind: 'doc', path: `${LEADS_PATH}/existing-1` },
+                    }])
                     : snapshot([]);
             },
         });
@@ -215,7 +219,11 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
                 const fields = (target.constraints || []).map((c) => c.field);
                 expect(fields).not.toContain('email');
                 return fields.includes('normalizedPhone')
-                    ? snapshot([{ id: 'existing-2', ref: { __kind: 'doc', path: `${LEADS_PATH}/existing-2` } }])
+                    ? snapshot([{
+                        id: 'existing-2',
+                        data: () => ({ normalizedPhone: '5551234567' }),
+                        ref: { __kind: 'doc', path: `${LEADS_PATH}/existing-2` },
+                    }])
                     : snapshot([]);
             },
         });

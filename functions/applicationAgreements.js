@@ -65,9 +65,15 @@ async function loadCompanyAgreementWording(companyId) {
  * `applicationAgreements.test.js` pins that precedence.
  */
 async function resolveAgreementCompanyName(companyId, companyData) {
-    let companyName = (companyData && companyData.companyName) || 'Unknown Company';
+    // The projection is read at once; `companyData` may still be in flight.
+    const publicRead = Promise.resolve()
+        .then(() => db.collection('public_profiles').doc(companyId).get())
+        .then((snapshot) => ({ snapshot }), (error) => ({ error }));
+    const company = await companyData;
+    let companyName = (company && company.companyName) || 'Unknown Company';
     try {
-        const publicSnap = await db.collection('public_profiles').doc(companyId).get();
+        const { snapshot: publicSnap, error } = await publicRead;
+        if (error) throw error;
         if (publicSnap.exists) {
             const publicData = publicSnap.data() || {};
             companyName = publicData.companyName || companyName;
@@ -103,13 +109,16 @@ exports.getApplicationAgreements = functions
             throw new functions.https.HttpsError('invalid-argument', 'companyId is required.');
         }
 
-        let companyData = null;
-        try {
-            const companySnap = await db.collection('companies').doc(companyId).get();
-            if (companySnap.exists) companyData = companySnap.data() || {};
-        } catch (err) {
-            console.error('[getApplicationAgreements] Company lookup error:', err);
-        }
+        // The company, its public projection and its own wording are independent
+        // reads, so all three start now; each keeps its own failure rule.
+        const companyData = Promise.resolve()
+            .then(() => db.collection('companies').doc(companyId).get())
+            .then((companySnap) => (companySnap.exists ? companySnap.data() || {} : null), (err) => {
+                console.error('[getApplicationAgreements] Company lookup error:', err);
+                return null;
+            });
+        const wordingRead = loadCompanyAgreementWording(companyId)
+            .then((wording) => ({ wording }), (error) => ({ error }));
 
         const companyName = await resolveAgreementCompanyName(companyId, companyData);
 
@@ -118,7 +127,8 @@ exports.getApplicationAgreements = functions
         // showing a partial agreement set would be worse than showing none.
         let agreements;
         try {
-            const wording = await loadCompanyAgreementWording(companyId);
+            const { wording, error } = await wordingRead;
+            if (error) throw error;
             agreements = applyCompanyWording(resolveAgreementSet({ companyName }), wording, { companyName });
         } catch (err) {
             // `unavailable` from the wording read stays `unavailable`: it tells
