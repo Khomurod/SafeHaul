@@ -22,7 +22,7 @@
  *     phone.
  */
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const callables = vi.hoisted(() => ({ httpsCallable: vi.fn(), calls: [], fail: null }));
@@ -45,6 +45,11 @@ const keyFor = (email) => `key-${email || 'none'}`;
 function clipboard(writeText) {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
 }
+
+// The page loads the application views when one is first opened. They are
+// loaded once here, so no test's wait also covers compiling the editor: under
+// a full parallel run that took longer than a find query waits.
+beforeAll(() => import('../applicationPrep/unfinishedApplicationViews'));
 
 beforeEach(() => {
     vi.resetAllMocks();

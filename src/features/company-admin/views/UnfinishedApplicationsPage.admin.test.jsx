@@ -8,7 +8,7 @@
  * recruiter's to show the two do not bleed into each other.
  */
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 
 const mocks = vi.hoisted(() => ({
@@ -120,6 +120,11 @@ const preparedSpy = vi.fn();
 const purgeAnswer = async ({ applicantKey, preview }) => (preview
     ? { data: { application: { ...ROWS.find((row) => row.applicantKey === applicantKey), fileCount: 0 }, related: [] } }
     : { data: { deleted: [applicantKey], skipped: [], files: { deleted: 0, kept: 0, failed: 0 } } });
+
+// The page loads the application views when one is first opened. They are
+// loaded once here, so no test's wait also covers compiling the editor: under
+// a full parallel run that took longer than a find query waits.
+beforeAll(() => import('../applicationPrep/unfinishedApplicationViews'));
 
 beforeEach(() => {
     vi.resetAllMocks();

@@ -23,7 +23,7 @@
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const callables = vi.hoisted(() => ({ httpsCallable: vi.fn(), calls: [] }));
 const uploads = vi.hoisted(() => ({ calls: [] }));
@@ -198,6 +198,11 @@ async function openFromList(applicantKey) {
 async function openTakenOver() {
     fireEvent.click(await screen.findByText('open key-taken'));
 }
+
+// The page loads the application views when one is first opened. They are
+// loaded once here, so no test's wait also covers compiling the editor: under
+// a full parallel run that took longer than a find query waits.
+beforeAll(() => import('../applicationPrep/unfinishedApplicationViews'));
 
 beforeEach(() => {
     callables.calls = [];
