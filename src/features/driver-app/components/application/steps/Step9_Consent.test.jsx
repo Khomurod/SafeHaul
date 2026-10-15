@@ -19,6 +19,7 @@ vi.mock('@/lib/signature', () => ({
 import { initializeSignatureCanvas } from '@/lib/signature';
 
 import Step9_Consent from './Step9_Consent';
+import { resetApplicationAgreementsCache } from '../../../hooks/useApplicationAgreements';
 
 const AGREEMENTS = [
     { id: 'electronicSignature', version: 'v1', title: 'AGREEMENT TO CONDUCT TRANSACTION ELECTRONICALLY', body: 'Electronic transaction terms for Blue Line Freight.', requiresSignature: true },
@@ -73,6 +74,8 @@ const missingLine = () => screen.getByText(/^To submit,/);
 describe('Step9_Consent', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // The agreements are read once per page; each case here is a page of its own.
+        resetApplicationAgreementsCache();
         mockCall.mockResolvedValue({ data: { agreementVersion: 'v1', companyName: 'Blue Line Freight', agreements: AGREEMENTS } });
         pad.options = null;
         pad.dataUrl = '';

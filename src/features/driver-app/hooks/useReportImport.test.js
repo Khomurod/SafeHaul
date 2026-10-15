@@ -16,6 +16,8 @@ vi.mock('@lib/firebase', () => ({ functions: {} }));
 vi.mock('@features/signing/utils/pdfPageRasterizer', () => ({
     loadPdfDocument: rasterMocks.loadPdfDocument,
     renderPageToDataUrl: rasterMocks.renderPageToDataUrl,
+}));
+vi.mock('@features/signing/utils/imageCompression', () => ({
     compressImageFile: (...args) => rasterMocks.compressImageFile(...args),
 }));
 

@@ -42,6 +42,38 @@ import { isE2ETestMode } from '@lib/runtime/e2eMode';
  * that means anything has to be uploaded again. `not-found` is the file; anything
  * else is this attempt, and can be retried.
  */
+
+/**
+ * How long a signed link is reused. It lives fifteen minutes (`GUEST_READ_TTL_MS`
+ * in `functions/getSignedGuestUploadUrl.js`); ten leaves every link shown at least
+ * five. Within them a revisited step, a second field showing the same file or a
+ * re-render does not sign again: the callable allows twenty a minute per IP, and
+ * a truck stop's Wi-Fi is one IP.
+ */
+export const PREVIEW_REUSE_MS = 10 * 60 * 1000;
+
+/** `companyId|storagePath` -> the signing in flight or done; a failed one is removed. */
+const signedLinks = new Map();
+
+function signedLink(companyId, storagePath) {
+    const key = `${companyId}|${storagePath}`;
+    const held = signedLinks.get(key);
+    if (held && Date.now() - held.at < PREVIEW_REUSE_MS) return held.link;
+    const link = httpsCallable(functions, 'getSignedGuestUploadUrl')({ companyId, storagePath })
+        .then(({ data }) => {
+            if (!data?.url) throw new Error('No preview link was returned.');
+            return data.url;
+        });
+    signedLinks.set(key, { link, at: Date.now() });
+    link.catch(() => { if (signedLinks.get(key)?.link === link) signedLinks.delete(key); });
+    return link;
+}
+
+/** For tests: forget every link. */
+export function resetSignedPreviewCache() {
+    signedLinks.clear();
+}
+
 export const PREVIEW_STATE = Object.freeze({
     /** Nothing attached. */
     NONE: 'none',
@@ -66,6 +98,8 @@ function describe(value) {
 
 export function useSignedUploadPreview(value, companyId) {
     const { storagePath, storedUrl } = describe(value);
+    // The file, not the object holding it: a new copy of the same value is the same document.
+    const hasValue = Boolean(value);
     const [signed, setSigned] = useState(null);
     const [state, setState] = useState(PREVIEW_STATE.NONE);
     const [attempt, setAttempt] = useState(0);
@@ -82,7 +116,7 @@ export function useSignedUploadPreview(value, companyId) {
         const mine = generation.current;
         setSigned(null);
 
-        if (!value) {
+        if (!hasValue) {
             setState(PREVIEW_STATE.NONE);
             return undefined;
         }
@@ -99,14 +133,10 @@ export function useSignedUploadPreview(value, companyId) {
         }
 
         setState(PREVIEW_STATE.LOADING);
-        httpsCallable(functions, 'getSignedGuestUploadUrl')({ companyId, storagePath })
-            .then(({ data }) => {
+        signedLink(companyId, storagePath)
+            .then((url) => {
                 if (generation.current !== mine) return;
-                if (!data?.url) {
-                    setState(PREVIEW_STATE.ERROR);
-                    return;
-                }
-                setSigned(data.url);
+                setSigned(url);
                 setState(PREVIEW_STATE.READY);
             })
             .catch((error) => {
@@ -118,7 +148,7 @@ export function useSignedUploadPreview(value, companyId) {
                     : PREVIEW_STATE.ERROR);
             });
         return () => { generation.current += 1; };
-    }, [value, storagePath, storedUrl, companyId, attempt]);
+    }, [hasValue, storagePath, storedUrl, companyId, attempt]);
 
     const retry = useCallback(() => setAttempt((previous) => previous + 1), []);
 

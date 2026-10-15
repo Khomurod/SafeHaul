@@ -223,8 +223,8 @@ the wizard and the carrier's form (`useGuestFileUpload`) are kept as
 still hold an expired one, and the dossier's own admin upload stores a Storage
 download URL; views re-sign from `storagePath`. `useSignedUploadPreview` mints a
 15-minute URL through `getSignedGuestUploadUrl` (which authorizes it) when
-someone looks. A `not-found` preview says the file is gone; any other error
-offers a retry, the row still reading as attached (gates key on presence).
+someone looks, reused for 10 minutes. `not-found` says the file is gone; any
+other error offers a retry, the row still attached (gates key on presence).
 
 **A custom "file upload" answer is the file:** `{ name, storagePath }` in
 `customAnswers`, recorded only once the upload lands (answers from before
@@ -998,7 +998,7 @@ released if the connect then fails.
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
 | `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, and runs with or without a chat |
 | `refreshAiModelLists` | hourly at :25, America/Chicago | Daily, and within the hour of a lane failure, re-tests each enabled provider's photo versions on a made-up licence, text ones on a short question; keeps those that pass, adds catalogue models that pass, never empties a lane; tells Telegram what changed or needs fixing |
-| Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is actually live and opens/closes a GitHub issue |
+| Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is live and opens/closes a GitHub issue |
 
 The blog publishes one article a day, and its scheduler runs hourly on purpose:
 that makes it idempotent, retry-safe, able to recover a day missed in an outage,
@@ -1232,8 +1232,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 | `npm run test:e2e -- --grep "@a11y"` | yes | Real-browser axe on the mobile-critical journeys, plus keyboard behaviour: roving `tabIndex`, arrow/Home/End, and that every control a Tab press reaches shows the product's focus ring |
 
 - **Inter is self-hosted** in `src/design-system/fonts/` (SIL OFL 1.1), never
-  fetched from a third party at runtime: CI renders the real typeface, nobody
-  sees a fallback font, and no user's IP is disclosed to render text.
+  from a third party (CI renders the real typeface, no user's IP is disclosed),
+  cut by script: a page loads only letters it shows (`fonts/README.md`).
 - `check:ui-contract` refuses any violation that
   `src/design-system/ui-contract.allowlist.json` does not record with a reason.
   A fixed violation lowers its entry; growth is a hand edit, judged in review.
