@@ -139,7 +139,7 @@ function LoadingRows({ columns, showSelection, loadingLabel, role }) {
  * column pinned. It takes no `selection`: a list worked one record at a time has
  * no bulk action, and a card has no header row to hold "select all".
  */
-export const DataTable = memo(function DataTable({
+export const DataTable = /* @__PURE__ */ memo(function DataTable({
   ariaLabel,
   data = [],
   columns = [],

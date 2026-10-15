@@ -107,7 +107,7 @@ function normalizeOption(value, options, fallback, name) {
  * WITHOUT changing the variant — which is the case the sort toggles could not
  * express, and the reason this prop exists.
  */
-export const Button = forwardRef(function Button({
+export const Button = /* @__PURE__ */ forwardRef(function Button({
   children,
   variant = 'secondary',
   size = 'md',
@@ -155,7 +155,7 @@ export const Button = forwardRef(function Button({
   );
 });
 
-export const IconButton = forwardRef(function IconButton({
+export const IconButton = /* @__PURE__ */ forwardRef(function IconButton({
   label,
   children,
   shape = 'square',

@@ -12,6 +12,7 @@ vi.mock('@shared/components/feedback/ToastProvider', async () => (await import('
 vi.mock('@/context/DataContext', async () => (await import('./PEVTab.contract.support')).dataContextMock());
 vi.mock('@shared/utils/activityLogger', async () => (await import('./PEVTab.contract.support')).activityLoggerMock());
 vi.mock('@lib/firebase', async () => (await import('./PEVTab.contract.support')).libFirebaseMock());
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('firebase/firestore', async () => (await import('./PEVTab.contract.support')).firebaseFirestoreMock());
 vi.mock('firebase/storage', async () => (await import('./PEVTab.contract.support')).firebaseStorageMock());
 vi.mock('firebase/functions', async () => (await import('./PEVTab.contract.support')).firebaseFunctionsMock());

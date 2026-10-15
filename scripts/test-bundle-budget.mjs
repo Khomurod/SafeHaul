@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FIRST_DOWNLOAD_GZIP_CEILING, firstDownloadAssets, measureFirstDownload } from './check-bundle-budget.mjs';
+import { ENTRY_MUST_NOT_CONTAIN, FIRST_DOWNLOAD_GZIP_CEILING, firstDownloadAssets, measureFirstDownload } from './check-bundle-budget.mjs';
 import { removeTree } from './lib/throwaway.mjs';
 
 let failures = 0;
@@ -68,6 +68,12 @@ console.log('\nB. Bundle budget');
     assert('B5. a Session Replay recorder inside the entry is refused', r.problems.some((p) => /contains "rrweb"/.test(p)), r.problems.join('; '));
     removeTree(dir);
 }
+for (const { marker } of ENTRY_MUST_NOT_CONTAIN) {
+    const dir = fakeDist({ entry: `const piece = ${JSON.stringify(marker)}; console.log(piece);` });
+    const r = measureFirstDownload(dir);
+    assert(`B5b. an entry carrying "${marker}" is refused`, r.problems.some((p) => p.includes(`contains "${marker}"`)), r.problems.join('; '));
+    removeTree(dir);
+}
 {
     const dir = fakeDist();
     rmSync(join(dir, 'assets', 'main-abc.css'));
@@ -88,7 +94,7 @@ console.log('\nB. Bundle budget');
     assert('B8. an index.html with no module entry is refused as vacuous', r.problems.some((p) => /no module entry script/.test(p)), r.problems.join('; '));
     removeTree(dir);
 }
-assert('B9. the ceiling is pinned: 380,000 bytes gzip, and may only move down with a new measurement', FIRST_DOWNLOAD_GZIP_CEILING === 380_000, String(FIRST_DOWNLOAD_GZIP_CEILING));
+assert('B9. the ceiling is pinned: 335,000 bytes gzip, and may only move down with a new measurement', FIRST_DOWNLOAD_GZIP_CEILING === 335_000, String(FIRST_DOWNLOAD_GZIP_CEILING));
 
 if (failures) { console.error(`\n${failures} bundle-budget check(s) failed.`); process.exit(1); }
 console.log('All bundle-budget checks passed.');

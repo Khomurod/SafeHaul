@@ -21,6 +21,7 @@ vi.mock('./guestUploadTransfer', async (importOriginal) => ({
     transferGuestUpload: mocks.transfer,
 }));
 vi.mock('@lib/firebase', () => ({ functions: {}, storage: {} }));
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showSuccess: mocks.showSuccess, showError: mocks.showError, showInfo: mocks.showInfo }),
 }));

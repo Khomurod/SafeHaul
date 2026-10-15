@@ -114,7 +114,7 @@ const TONES = {
  * exactly that. Moving the caret somewhere with no visible ring is worse than
  * not moving it, so the ring is the component's, not a caller's utility class.
  */
-export const Notice = React.forwardRef(function Notice({
+export const Notice = /* @__PURE__ */ React.forwardRef(function Notice({
   tone = 'info',
   title,
   titleAs = 'p',

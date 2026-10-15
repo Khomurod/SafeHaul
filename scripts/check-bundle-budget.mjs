@@ -7,11 +7,14 @@
  * a 1,184 kB entry script, a 399 kB pdf.js chunk preloaded on a page that
  * renders no PDF, and Sentry's Session Replay recorder inside the entry. Moving
  * the pdf.js worker wiring out of the entry and attaching Replay after load
- * took it to 363,025. This check keeps it there: it reads `dist/index.html`,
- * sums the gzip size of the entry script, every `modulepreload` and every
- * stylesheet — exactly what the browser must fetch before the first screen —
- * and refuses the build when the sum passes the ceiling, when a preload names
- * the pdf.js chunk, or when the entry carries the replay recorder.
+ * took it to 363,025. On 2026-10-15 (plan step 4.2) loading tracing, Storage,
+ * DOMPurify and the offline-queue indicator on demand, and Auth without its
+ * popup resolver, took it from 379,589 to 319,108. This check keeps it there: it
+ * reads `dist/index.html`, sums the gzip size of the entry script, every
+ * `modulepreload` and every stylesheet — exactly what the browser must fetch
+ * before the first screen — and refuses the build when the sum passes the
+ * ceiling, when a preload names the pdf.js chunk, or when the entry carries one
+ * of the pieces that load later.
  *
  * gzip, not brotli, because Hosting serves both and gzip is the larger of the
  * two, so a pass here is a pass over the wire. Node builtins only, so it runs
@@ -24,14 +27,22 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
-/** Bytes, gzip. 363,025 measured on 2026-09-06; the headroom is under 5%. Move it DOWN, never up, without a measurement. */
-export const FIRST_DOWNLOAD_GZIP_CEILING = 380_000;
+/** Bytes, gzip. 319,108 measured on 2026-10-15; the headroom is 5%. Move it DOWN, never up, without a measurement. */
+export const FIRST_DOWNLOAD_GZIP_CEILING = 335_000;
 
 /** A preload of any of these is the regression this check was written for. */
 export const MUST_NOT_PRELOAD = Object.freeze([{ pattern: /pdfjs/i, why: 'the pdf.js chunk belongs to the PDF features, not to every route' }]);
 
-/** Strings that only the deferred Session Replay recorder contains. */
-export const ENTRY_MUST_NOT_CONTAIN = Object.freeze([{ marker: 'rrweb', why: 'Session Replay is attached after load; its recorder must not ride in the entry' }]);
+/** Strings that only code loaded after the first screen contains, each found in the entry before it moved. */
+export const ENTRY_MUST_NOT_CONTAIN = Object.freeze([
+    { marker: 'rrweb', why: 'Session Replay is attached after load; its recorder must not ride in the entry' },
+    { marker: 'auto.pageload.browser', why: 'Sentry tracing is attached with Replay after load (src/lib/monitoring/sentry.js)' },
+    { marker: 'Sentry Logger', why: "Sentry's debug logging is compiled out (__SENTRY_DEBUG__ in vite.config.js)" },
+    { marker: 'firebasestorage.googleapis.com', why: 'Storage loads with the features that handle files (@lib/firebase/storage), not through @lib/firebase' },
+    { marker: '__/auth/handler', why: 'Auth starts without the popup/redirect resolver (initializeAuth in src/lib/firebase/config.js)' },
+    { marker: 'DOMPurify', why: 'the sanitizer loads when custom questions are saved, not with the company chooser' },
+    { marker: 'safehaul-submission-queue', why: 'the offline-queue indicator is lazy in App.jsx' },
+]);
 
 const ATTRIBUTE = (name) => new RegExp(`\\b${name}=["']([^"']+)["']`);
 

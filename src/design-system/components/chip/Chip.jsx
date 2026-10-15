@@ -35,7 +35,7 @@ const TONES = new Set(['default', 'neutral', 'info', 'success', 'warning', 'dang
  */
 const SIZES = new Set(['xs', 'sm']);
 
-export const Chip = forwardRef(function Chip({
+export const Chip = /* @__PURE__ */ forwardRef(function Chip({
   children,
   icon,
   tone = 'default',

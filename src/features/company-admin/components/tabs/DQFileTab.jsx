@@ -1,5 +1,6 @@
 import React, { useId, useRef, useState, useEffect, useMemo } from 'react';
-import { db, storage } from '@lib/firebase';
+import { db } from '@lib/firebase';
+import { storage } from '@lib/firebase/storage';
 import { collection, addDoc, getDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Icon, Upload, Trash2, FileText, Download } from '@design-system/icons';

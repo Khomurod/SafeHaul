@@ -4,19 +4,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // on. Firebase Storage is mocked; only path construction and the returned URL
 // are asserted. Artificial values only — no production bucket or credentials.
 const storageMocks = vi.hoisted(() => ({
+    getStorage: vi.fn(() => ({ __brand: 'test-storage' })),
     ref: vi.fn(),
     uploadBytes: vi.fn(),
     getDownloadURL: vi.fn(),
 }));
 
-vi.mock('./config.js', () => ({ storage: { __brand: 'test-storage' } }));
+vi.mock('./config.js', () => ({ app: { __brand: 'test-app' } }));
 vi.mock('firebase/storage', () => ({
+    getStorage: storageMocks.getStorage,
     ref: storageMocks.ref,
     uploadBytes: storageMocks.uploadBytes,
     getDownloadURL: storageMocks.getDownloadURL,
 }));
 
-import { uploadCompanyLogo } from './storage.js';
+import { storage, uploadCompanyLogo } from './storage.js';
+
+describe('the Storage instance', () => {
+    it('is made here, for the app config.js initialised, and nowhere else', () => {
+        expect(storageMocks.getStorage).toHaveBeenCalledWith({ __brand: 'test-app' });
+        expect(storage).toEqual({ __brand: 'test-storage' });
+    });
+});
 
 describe('uploadCompanyLogo Storage contract', () => {
     beforeEach(() => {

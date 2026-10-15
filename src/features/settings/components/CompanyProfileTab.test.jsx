@@ -18,7 +18,7 @@ const useDataMock = vi.hoisted(() => vi.fn());
 vi.mock('@features/companies', () => ({
     saveCompanySettings: serviceMocks.saveCompanySettings,
 }));
-vi.mock('@lib/firebase', () => ({
+vi.mock('@lib/firebase/storage', () => ({
     uploadCompanyLogo: serviceMocks.uploadCompanyLogo,
 }));
 vi.mock('@shared/components/feedback', () => ({

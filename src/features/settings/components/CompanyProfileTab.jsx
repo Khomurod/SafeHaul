@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { saveCompanySettings } from '@features/companies';
-import { uploadCompanyLogo } from '@lib/firebase';
+import { uploadCompanyLogo } from '@lib/firebase/storage';
 import { Icon, Save, Edit2, Info, ListChecks, SlidersHorizontal, Blocks, FileSignature } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { useData } from '@/context/DataContext';

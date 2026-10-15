@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { auth, storage, db } from '@lib/firebase';
+import { auth, db } from '@lib/firebase';
+import { storage } from '@lib/firebase/storage';
 import { updateProfile, updatePassword, updateEmail, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';

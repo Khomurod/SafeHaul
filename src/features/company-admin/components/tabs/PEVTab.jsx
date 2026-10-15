@@ -7,7 +7,8 @@ import { useData } from '@/context/DataContext';
 
 import { VOEPreviewModal } from '../modals/VOEPreviewModal';
 import { PEVRequestModal } from '../modals/PEVRequestModal';
-import { db, storage, functions } from '@lib/firebase';
+import { db, functions } from '@lib/firebase';
+import { storage } from '@lib/firebase/storage';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';

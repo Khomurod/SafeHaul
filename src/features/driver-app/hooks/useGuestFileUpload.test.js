@@ -25,6 +25,7 @@ vi.mock('firebase/storage', () => ({
     },
 }));
 vi.mock('@lib/firebase', () => ({ functions: {}, storage: {} }));
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false, getE2EQueryParam: () => null }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showSuccess: vi.fn(), showError: mocks.showError }),

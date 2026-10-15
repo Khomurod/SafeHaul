@@ -1,9 +1,18 @@
-import { storage } from './config.js';
-import { 
-    ref, 
+/**
+ * Firebase Storage, kept out of `config.js` and the `@lib/firebase` barrel so a
+ * page that never touches a file does not download the Storage SDK (11 kB of
+ * the first download's gzip). Only the features that upload or read files import
+ * this module, so the SDK arrives with them.
+ */
+import {
+    getStorage,
+    ref,
     getDownloadURL,
     uploadBytes
 } from "firebase/storage";
+import { app } from './config.js';
+
+export const storage = getStorage(app);
 
 export async function uploadCompanyLogo(companyId, file) {
     if (!companyId || !file) {

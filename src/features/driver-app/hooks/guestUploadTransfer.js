@@ -10,7 +10,7 @@
  * whose message a driver can act on.
  */
 import { ref, uploadBytesResumable } from 'firebase/storage';
-import { storage } from '@lib/firebase';
+import { storage } from '@lib/firebase/storage';
 
 /** What `storage.rules` accepts for a guest upload (`isValidFile`): under 20 MB. */
 export const GUEST_UPLOAD_MAX_BYTES = 20 * 1024 * 1024;

@@ -24,6 +24,7 @@ vi.mock('firebase/storage', () => ({
     },
 }));
 vi.mock('@lib/firebase', () => ({ storage: {} }));
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 
 import {
     GUEST_UPLOAD_STALL_MS,

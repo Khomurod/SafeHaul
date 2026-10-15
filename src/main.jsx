@@ -5,7 +5,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
-import { attachSessionReplay, initSentry, whenIdle } from '@lib/monitoring/sentry';
+import { attachDeferredIntegrations, initSentry, whenIdle } from '@lib/monitoring/sentry';
 import { capZoomOnIOS } from '@app/startup/viewportZoom';
 
 // The pdf.js worker wiring that used to sit here moved to `@lib/pdf/pdfWorker`,
@@ -13,11 +13,11 @@ import { capZoomOnIOS } from '@app/startup/viewportZoom';
 // ships to every route (2026-09-06, audit step I).
 
 // --- MONITORING ---
-// Sentry starts without Session Replay; the recorder is attached after the page
-// has loaded and the browser is idle, so it stays out of the first download
-// (`src/lib/monitoring/sentry.js` explains and tests both decisions).
+// Sentry starts with error capture only; tracing and Session Replay are attached
+// after the page has loaded and the browser is idle, so they stay out of the
+// first download (`src/lib/monitoring/sentry.js` explains and tests why).
 initSentry();
-whenIdle(() => { attachSessionReplay(); });
+whenIdle(() => { attachDeferredIntegrations(); });
 // -------------------------------
 
 capZoomOnIOS();

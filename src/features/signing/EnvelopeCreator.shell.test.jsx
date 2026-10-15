@@ -19,6 +19,7 @@ vi.mock('@lib/firebase', () => ({
     storage: {},
     auth: { currentUser: { uid: 'user-1', displayName: 'Artificial Sender' } },
 }));
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('firebase/firestore', () => ({
     collection: vi.fn(), addDoc: vi.fn(), serverTimestamp: vi.fn(),
     Timestamp: { fromMillis: vi.fn() }, writeBatch: vi.fn(), doc: vi.fn(),

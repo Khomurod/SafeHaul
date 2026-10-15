@@ -5,7 +5,7 @@ import './Card.css';
 const TONES = new Set(['neutral', 'info', 'success', 'warning', 'danger', 'accent']);
 const PADDINGS = new Set(['none', 'sm', 'md', 'lg']);
 
-export const Card = forwardRef(function Card({
+export const Card = /* @__PURE__ */ forwardRef(function Card({
   as: Element = 'section',
   children,
   padding = 'md',
@@ -28,7 +28,7 @@ export const Card = forwardRef(function Card({
   );
 });
 
-export const MetricCard = forwardRef(function MetricCard({
+export const MetricCard = /* @__PURE__ */ forwardRef(function MetricCard({
   id,
   label,
   value,

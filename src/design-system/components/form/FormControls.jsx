@@ -12,7 +12,7 @@ function joinIds(...ids) {
   return ids.filter(Boolean).join(' ') || undefined;
 }
 
-export const Label = forwardRef(function Label({
+export const Label = /* @__PURE__ */ forwardRef(function Label({
   children,
   required = false,
   className = '',
@@ -215,7 +215,7 @@ const INLINE_ALIGNS = new Set(['start', 'center', 'end']);
  */
 const INLINE_WIDTHS = new Set(['auto', 'compact']);
 
-export const Input = forwardRef(function Input({
+export const Input = /* @__PURE__ */ forwardRef(function Input({
   className = '',
   type = 'text',
   size = 'md',
@@ -259,7 +259,7 @@ export const Input = forwardRef(function Input({
   );
 });
 
-export const Textarea = forwardRef(function Textarea({
+export const Textarea = /* @__PURE__ */ forwardRef(function Textarea({
   className = '',
   size = 'md',
   ...props
@@ -274,7 +274,7 @@ export const Textarea = forwardRef(function Textarea({
   );
 });
 
-export const Select = forwardRef(function Select({
+export const Select = /* @__PURE__ */ forwardRef(function Select({
   className = '',
   children,
   size = 'md',

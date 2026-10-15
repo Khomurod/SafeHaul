@@ -12,7 +12,8 @@
 //
 // Neither function holds state; every state change flows back through the
 // setters and callbacks the component provides.
-import { db, storage, auth } from '@lib/firebase';
+import { db, auth } from '@lib/firebase';
+import { storage } from '@lib/firebase/storage';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp, Timestamp, writeBatch, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';

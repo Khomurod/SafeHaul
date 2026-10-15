@@ -21,6 +21,7 @@ vi.mock('@/context/DataContext', () => ({
     useData: () => ({ currentCompanyProfile: fx.profile, currentUserClaims: fx.claims }),
 }));
 vi.mock('@lib/firebase', () => ({ db: {}, storage: {}, functions: {} }));
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 // The company profile the dossier reads itself on opening.
 vi.mock('@features/companies', () => ({ getCompanyProfile: async () => fx.freshProfile || fx.profile }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => async () => ({ data: {} }) }));

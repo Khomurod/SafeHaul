@@ -30,6 +30,7 @@ const logActivity = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }));
 
 vi.mock('@lib/firebase', () => ({ db: {}, storage: {}, auth: { currentUser: null } }));
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('firebase/firestore', () => ({
     doc: (...a) => fs.doc(...a),
     updateDoc: (...a) => fs.updateDoc(...a),

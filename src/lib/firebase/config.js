@@ -1,12 +1,16 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  browserSessionPersistence,
+  indexedDBLocalPersistence,
+  initializeAuth,
+} from "firebase/auth";
 import {
   connectFirestoreEmulator,
   initializeFirestore,
   memoryLocalCache,
   getFirestore
 } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 import { announceStartupFailure } from "../runtime/startupFailure";
 
@@ -123,9 +127,15 @@ try {
 }
 
 // Initialize Firebase with HMR safety
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-export const auth = getAuth(app);
+// `getAuth` with no popup or redirect resolver: SafeHaul signs in with email and
+// password only, and the resolver was 6.6 kB of every page's first download.
+// The persistence list is `getAuth`'s own, so sessions stay where they were.
+// A second call with the same list (a hot reload) returns the same instance.
+export const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
+});
 
 // Use memory-only cache to prevent IndexedDB assertion failures.
 let firestore;
@@ -161,5 +171,4 @@ if (forcePlaceholderForE2E) {
 }
 
 export const db = firestore;
-export const storage = getStorage(app);
 export const functions = getFunctions(app);

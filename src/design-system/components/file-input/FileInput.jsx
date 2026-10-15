@@ -66,7 +66,7 @@ import './FileInput.css';
  */
 const VARIANTS = new Set(['button', 'dropzone']);
 
-export const FileInput = forwardRef(function FileInput({
+export const FileInput = /* @__PURE__ */ forwardRef(function FileInput({
   label,
   labelHidden = false,
   description,

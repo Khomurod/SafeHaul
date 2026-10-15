@@ -21,6 +21,7 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({ useToast: () => to
 vi.mock('@/context/DataContext', () => ({ useData: () => dataMock.value }));
 vi.mock('@shared/utils/activityLogger', () => ({ logActivity: vi.fn() }));
 vi.mock('@lib/firebase', () => ({ db: {}, storage: {}, functions: {} }));
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('firebase/firestore', () => ({ doc: vi.fn(), updateDoc: vi.fn() }));
 vi.mock('firebase/storage', () => ({ ref: vi.fn(), uploadBytes: vi.fn(), getDownloadURL: vi.fn() }));
 vi.mock('firebase/functions', () => ({ httpsCallable: () => vi.fn() }));

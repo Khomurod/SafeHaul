@@ -21,7 +21,12 @@ vi.mock('firebase/app', () => ({
   getApps: () => [],
   getApp: () => ({ __app: true }),
 }));
-vi.mock('firebase/auth', () => ({ getAuth: vi.fn(() => ({})) }));
+vi.mock('firebase/auth', () => ({
+  initializeAuth: vi.fn(() => ({})),
+  indexedDBLocalPersistence: {},
+  browserLocalPersistence: {},
+  browserSessionPersistence: {},
+}));
 const connectFirestoreEmulator = vi.fn();
 vi.mock('firebase/firestore', () => ({
   connectFirestoreEmulator: (...args) => connectFirestoreEmulator(...args),
@@ -29,7 +34,6 @@ vi.mock('firebase/firestore', () => ({
   memoryLocalCache: vi.fn(() => ({})),
   getFirestore: vi.fn(() => ({ __firestore: true })),
 }));
-vi.mock('firebase/storage', () => ({ getStorage: vi.fn(() => ({})) }));
 vi.mock('firebase/functions', () => ({ getFunctions: vi.fn(() => ({})) }));
 
 // Deliberately low-entropy, obviously-not-a-key strings. The assertions only

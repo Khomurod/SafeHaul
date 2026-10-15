@@ -53,7 +53,7 @@ function ExternalHint({ external }) {
  *     text to be confused with, and underlining an image is meaningless. It
  *     keeps the focus ring, which is the part that does matter.
  */
-export const Link = forwardRef(function Link({
+export const Link = /* @__PURE__ */ forwardRef(function Link({
   href,
   external = false,
   tone = 'default',
@@ -89,7 +89,7 @@ export const Link = forwardRef(function Link({
  * It has no `loading` or `disabled`: an anchor cannot be either. A navigation
  * that is unavailable should not be rendered as a link at all.
  */
-export const ButtonLink = forwardRef(function ButtonLink({
+export const ButtonLink = /* @__PURE__ */ forwardRef(function ButtonLink({
   href,
   external = false,
   variant = 'secondary',
@@ -128,7 +128,7 @@ export const ButtonLink = forwardRef(function ButtonLink({
  * An icon-only `ButtonLink`. `label` is required for the same reason it is on
  * `IconButton`: a glyph has no accessible name, and "link" is not one.
  */
-export const IconButtonLink = forwardRef(function IconButtonLink({
+export const IconButtonLink = /* @__PURE__ */ forwardRef(function IconButtonLink({
   label,
   className = '',
   children,

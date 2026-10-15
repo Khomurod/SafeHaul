@@ -31,7 +31,7 @@ function joinIds(...ids) {
  * unlabelled box is the single most common defect this primitive exists to
  * prevent.
  */
-const ChoiceControl = forwardRef(function ChoiceControl({
+const ChoiceControl = /* @__PURE__ */ forwardRef(function ChoiceControl({
   type,
   id,
   label,
@@ -97,11 +97,11 @@ const ChoiceControl = forwardRef(function ChoiceControl({
   );
 });
 
-export const Checkbox = forwardRef(function Checkbox(props, ref) {
+export const Checkbox = /* @__PURE__ */ forwardRef(function Checkbox(props, ref) {
   return <ChoiceControl {...props} ref={ref} type="checkbox" />;
 });
 
-export const Radio = forwardRef(function Radio(props, ref) {
+export const Radio = /* @__PURE__ */ forwardRef(function Radio(props, ref) {
   if (typeof props.name !== 'string' || props.name.trim() === '') {
     contractViolation('Radio requires a non-empty name so the browser can group it.');
   }

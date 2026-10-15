@@ -11,6 +11,7 @@ vi.mock('@/context/DataContext', async () => (await import('./UserProfilePage.su
 vi.mock('@shared/components/feedback/ToastProvider', async () => (await import('./UserProfilePage.support')).toastProviderMock());
 vi.mock('@features/auth/services/userService', async () => (await import('./UserProfilePage.support')).userServiceMock());
 vi.mock('@lib/firebase', async () => (await import('./UserProfilePage.support')).libFirebaseMock());
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('firebase/auth', async () => (await import('./UserProfilePage.support')).firebaseAuthMock());
 vi.mock('firebase/firestore', async () => (await import('./UserProfilePage.support')).firebaseFirestoreMock());
 vi.mock('firebase/storage', async () => (await import('./UserProfilePage.support')).firebaseStorageMock());
