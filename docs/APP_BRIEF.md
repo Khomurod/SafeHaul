@@ -276,9 +276,10 @@ spreadsheet import, or the Facebook Lead Ads webhook.
 
 **E-documents and signing.** Recruiters build envelopes with placed signer
 fields (optionally AI-suggested); recipients sign **with no account** at
-`/sign/:companyId/:requestId`. The server sends the link; a corrected email
-or phone gets a new one, voiding the old. Signed envelopes are sealed into
-tamper-evident PDFs. Signing is unlimited and not billed per envelope.
+`/sign/:companyId/:requestId`; typed values (no drawn signature) wait in a
+local draft. The server sends the link; a corrected email or phone gets a new
+one, voiding the old. Signed envelopes are sealed into tamper-evident PDFs.
+Signing is unlimited and not billed per envelope.
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
@@ -1266,8 +1267,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **`/join/:companyId` self-service team join.** Backing callable disabled,
   route removed. Use Super Admin → Create Portal User.
 - **GitHub Models** as an AI provider.
-- **Smart Segments** — triggers removed (Cloud deletes them at the next promotion); their
-  `segments` documents are left, read by nothing.
+- **Smart Segments** — triggers deleted at the next promotion; their data stays unread.
 - **`Khomurod/SafeHaul-for-Gemini-Antigravity`** — archived; never develop or
   deploy from it. Deploy jobs are guarded by repository name.
 

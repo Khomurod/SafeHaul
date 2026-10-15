@@ -29,7 +29,7 @@ import {
     SigningSuccessScreen,
     EsignConsentScreen,
 } from '@features/signing/components/signing-room/StatusScreens';
-import { writeDraft, clearDraft } from '@features/signing/utils/signingDraft';
+import { useSigningDraftWriter } from '@features/signing/hooks/useSigningDraftWriter';
 import { usePdfZoomGestures } from '@features/signing/hooks/usePdfZoomGestures';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useIsMobile } from '@shared/hooks';
@@ -67,6 +67,8 @@ export default function SigningRoom() {
     // seeding, E2E mock) live in useSigningEnvelope.
     const { request, fieldValues, setFieldValues, loading, error, refreshSignedDate } =
         useSigningEnvelope({ companyId, requestId, accessToken });
+    // The local draft: written once typing pauses, never with a drawn signature.
+    const { save: saveDraft, clear: clearSavedDraft } = useSigningDraftWriter(companyId, requestId);
     // ESIGN-8 FIX: Track electronic consent before allowing signing.
     // UETA (15 U.S.C. Sec. 96) and ESIGN Act (15 U.S.C. Sec. 7001) require affirmative consent
     // to use electronic records/signatures. Without this screen, e-signatures may not be
@@ -97,12 +99,10 @@ export default function SigningRoom() {
     const handleFieldChange = useCallback((id, value) => {
         setFieldValues(prev => {
             const next = { ...prev, [id]: value };
-            if (companyId && requestId) {
-                writeDraft(companyId, requestId, next);
-            }
+            saveDraft(next);
             return next;
         });
-    }, [companyId, requestId]);
+    }, [saveDraft]);
 
     // Reading-order list drives "next field" navigation, the progress chip,
     // and the keyboard Enter key — independent of authoring order in Firestore.
@@ -249,7 +249,7 @@ export default function SigningRoom() {
         setSubmitting(true);
         try {
             if (isE2ETestMode && getE2EQueryParam('e2eSign', '') === 'mock') {
-                clearDraft(companyId, requestId);
+                clearSavedDraft();
                 if (postApplyReturnPath) markRequestSigned(companyId, requestId);
                 setSuccess(true);
                 return;
@@ -271,7 +271,7 @@ export default function SigningRoom() {
                 auditData
             });
 
-            clearDraft(companyId, requestId);
+            clearSavedDraft();
             // Post-application flow: record completion so the Required Documents
             // checklist marks this template as completed when the driver returns.
             if (postApplyReturnPath) markRequestSigned(companyId, requestId);

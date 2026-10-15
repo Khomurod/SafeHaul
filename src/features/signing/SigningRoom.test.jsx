@@ -279,6 +279,80 @@ describe('SigningRoom', () => {
     expect(overlay.closest('.pointer-events-none')).toBeNull();
     expect(screen.queryByText(/Rendering page 1/i)).not.toBeInTheDocument();
   });
+
+  // The local draft keeps what the signer typed through a refresh. It is written
+  // once typing pauses, not on every keystroke, and never holds a drawn
+  // signature: an image is tens of kilobytes, written synchronously each time.
+  describe('the local draft', () => {
+    const DRAFT_KEY = 'signing_draft_v1:co1:req1';
+    const storedDraft = () => JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+    const draftWrites = (spy) => spy.mock.calls.filter(([key]) => key === DRAFT_KEY);
+
+    it('is written once typing pauses, with the last value', async () => {
+      const setItem = vi.spyOn(window.localStorage, 'setItem');
+      const { container } = await renderRoomPastConsent();
+      const textInput = container.querySelector('[data-signer-input="text1"]');
+
+      fireEvent.change(textInput, { target: { value: 'A' } });
+      fireEvent.change(textInput, { target: { value: 'An' } });
+      fireEvent.change(textInput, { target: { value: 'Ann' } });
+      expect(draftWrites(setItem)).toEqual([]);
+
+      await waitFor(() => expect(storedDraft()).toMatchObject({ text1: 'Ann' }));
+      expect(draftWrites(setItem)).toHaveLength(1);
+      setItem.mockRestore();
+    });
+
+    it('never holds a drawn signature', async () => {
+      const { container } = await renderRoomPastConsent();
+
+      fireEvent.click(screen.getByRole('button', { name: /Tap to sign/i }));
+      await screen.findByRole('dialog', { name: /Draw your signature/i });
+      fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
+      fireEvent.change(container.querySelector('[data-signer-input="text1"]'), { target: { value: 'Ann' } });
+
+      await waitFor(() => expect(storedDraft()).toMatchObject({ text1: 'Ann' }));
+      expect(storedDraft()).not.toHaveProperty('sig1');
+    });
+
+    it('gives back no signature an older version stored, and drops it from the device', async () => {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ text1: 'Ann', sig1: 'data:image/png;base64,old-ink' }));
+
+      const { container } = await renderRoomPastConsent();
+
+      expect(container.querySelector('[data-signer-input="text1"]').value).toBe('Ann');
+      expect(screen.getByRole('button', { name: 'Tap to sign' })).toBeInTheDocument();
+      expect(storedDraft()).toEqual({ text1: 'Ann' });
+    });
+
+    it('is written at once when the page is hidden', async () => {
+      const { container } = await renderRoomPastConsent();
+      fireEvent.change(container.querySelector('[data-signer-input="text1"]'), { target: { value: 'Ann' } });
+      expect(storedDraft()).toBeNull();
+
+      window.dispatchEvent(new Event('pagehide'));
+
+      expect(storedDraft()).toMatchObject({ text1: 'Ann' });
+    });
+
+    it('is gone after the document is submitted, even with a write pending', async () => {
+      const { container } = await renderRoomPastConsent();
+      fireEvent.click(screen.getByRole('button', { name: /Tap to sign/i }));
+      await screen.findByRole('dialog', { name: /Draw your signature/i });
+      fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
+      fireEvent.click(container.querySelector('[data-field-id="check1"] input'));
+      fireEvent.change(container.querySelector('[data-signer-input="date1"]'), { target: { value: '2026-10-15' } });
+      fireEvent.change(container.querySelector('[data-signer-input="text1"]'), { target: { value: 'Ann' } });
+
+      fireEvent.click(screen.getAllByRole('button', { name: /Finish & Submit/i })[0]);
+      await waitFor(() => expect(getEnvelopeFn).toHaveBeenCalledWith(expect.objectContaining({
+        fieldValues: expect.objectContaining({ text1: 'Ann' }),
+      })));
+
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      expect(storedDraft()).toBeNull();
+    });
+  });
 });
 
 describe('SigningRoom — migrated shell presentation', () => {
