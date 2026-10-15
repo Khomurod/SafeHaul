@@ -860,8 +860,8 @@ Authorization comes from **Firebase Auth custom claims**; the UI, routes,
 Firestore and Storage rules and the Cloud Functions
 (`functions/shared/superAdmin.js`) use the same signals:
 
-- `globalRole: 'super_admin'` (at the token root, or nested under `roles` for
-  legacy tokens).
+- `globalRole: 'super_admin'`, under `roles` (from a membership) or at the
+  token root.
 - `roles[companyId]` = `company_admin` \| `hr_user` \| `recruiter`.
 - `companyTeamIds`, a convenience claim. Storage rules accept **either** it or
   `roles[companyId]`: either can lag until the client refreshes its token.
