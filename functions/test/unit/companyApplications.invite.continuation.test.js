@@ -420,8 +420,6 @@ describe('an application the driver started themselves', () => {
         const stored = mockStore.get(PATH());
         expect(stored.origin).toBeUndefined();
         expect(stored.status).toBe('in_progress');
-        const list = await api().listCompanyPreparedApplications({ ...REQUEST, data: { companyId: COMPANY } });
-        expect(list.applications).toHaveLength(0);
     });
 });
 

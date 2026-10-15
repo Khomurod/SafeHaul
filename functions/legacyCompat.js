@@ -1,6 +1,5 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("./firebaseAdmin");
-const { assertCompanyAdminStrict } = require("./shared/companyAccess");
 
 async function assertSuperAdmin(request) {
     if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
@@ -10,27 +9,6 @@ async function assertSuperAdmin(request) {
         throw new HttpsError("permission-denied", "Super admin access required.");
     }
 }
-
-exports.updateBulkSessionStatus = onCall({ cors: true }, async (request) => {
-    if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
-    const { companyId, sessionId, status } = request.data || {};
-    if (!companyId || !sessionId || !["paused", "active", "cancelled"].includes(status)) {
-        throw new HttpsError("invalid-argument", "companyId, sessionId and valid status are required.");
-    }
-
-    await assertCompanyAdminStrict(request.auth.uid, companyId);
-    const sessionRef = db.collection("companies").doc(companyId).collection("bulk_sessions").doc(sessionId);
-    const payload = {
-        status,
-        updatedBy: request.auth.uid,
-        lastUpdateAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-    if (status === "active") {
-        payload.workerGeneration = admin.firestore.FieldValue.increment(1);
-    }
-    await sessionRef.update(payload);
-    return { success: true };
-});
 
 exports.backfillEmployerFields = onCall({ cors: true, timeoutSeconds: 540 }, async (request) => {
     await assertSuperAdmin(request);

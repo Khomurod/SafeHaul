@@ -19,7 +19,7 @@ const ROOT = path.resolve(__dirname, '../..');
 const SENDER_FILES = [
     'bulkActions/workers/batchWorker.js',     // processBulkBatch (bulk SMS + email campaigns)
     'atsContactSms.js',                        // automated contact-attempt SMS triggers
-    'integrations/services/smsService.js',     // sendTestSMS / sendSMS / executeReactivationBatch
+    'integrations/services/smsService.js',     // sendTestSMS / sendSMS
     // configController.js was split by concern; each function-defining file must
     // bind the secret on its own onCall options.
     'integrations/controllers/config/providerConfigController.js',  // save / verify provider config

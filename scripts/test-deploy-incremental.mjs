@@ -8,12 +8,12 @@
  * Scenarios covered:
  *   1. Static parser: every export in functions/index.js maps to a real file.
  *   2. Closure walker on a known nested chain.
- *   3. fileToEntrypoints includes the schemaConfig.js → systemIntegrity.js edge
- *      that was missing from the deploy plan in production.
+ *   3. fileToEntrypoints gives a helper one module loads to exactly that module
+ *      (shared/clientIp.js → publicSigning.js).
  *   4. Strict runtime filter only includes deployable JS sources.
  *   5. resolveRelativeRequire refuses to escape functions/.
  *   6. Simulating today's commit produces a small, correct deploy plan.
- *   7. Touching ONLY schemaConfig.js produces exactly the systemIntegrity exports.
+ *   7. Touching ONLY shared/clientIp.js produces exactly the publicSigning exports.
  *   8. Touching ONLY a deeply nested utils/* file deploys all entrypoints that
  *      actually consume it (no over-deploy, no under-deploy).
  *   9. Touching a file that no entrypoint references is skipped (no full fallback).
@@ -128,16 +128,16 @@ section('2. Closure walker');
   assert('companyAdmin closure contains itself', closure.has('functions/companyAdmin.js'));
 }
 
-// ───────── 3. The exact bug from production ─────────
-section('3. schemaConfig.js → systemIntegrity.js attribution (the original bug)');
+// ───────── 3. A helper one module loads ─────────
+section('3. shared/clientIp.js → publicSigning.js attribution');
 {
-  const owners = fileToEntries.get('functions/schemaConfig.js');
-  assert('schemaConfig is reachable from at least one entrypoint', !!(owners && owners.size > 0));
+  const owners = fileToEntries.get('functions/shared/clientIp.js');
+  assert('clientIp is reachable from at least one entrypoint', !!(owners && owners.size > 0));
   if (owners) {
     assertEqual(
-      'schemaConfig is owned by exactly systemIntegrity.js',
+      'clientIp is owned by exactly publicSigning.js',
       [...owners].sort(),
-      ['functions/systemIntegrity.js']
+      ['functions/publicSigning.js']
     );
   }
 }
@@ -198,7 +198,6 @@ section('6. Simulating the commit that triggered the full deploy');
     'functions/bulkActions/workers/batchWorker.js',
     'functions/companyAdmin.js',
     'functions/integrations/facebook.js',
-    'functions/schemaConfig.js',
     'functions/test/unit/guestApplication.test.js',
     'functions/index.js',
   ];
@@ -213,20 +212,20 @@ section('6. Simulating the commit that triggered the full deploy');
       exportsOf(filterProductionFunctionPaths(changed).filter((f) => f !== 'functions/index.js').flatMap(loadersOf))
     );
     assert(`… far fewer than all ${parsed.exportToFile.size}`, plan.exports.length < parsed.exportToFile.size / 2);
-    assert('plan includes a systemIntegrity export (from schemaConfig owner)', plan.exports.includes('syncSystemStructure') || plan.exports.includes('runSecurityAudit'));
     assert('plan includes a bulkActions export', plan.exports.some((e) => /Bulk|backfill|checkImport/i.test(e)));
   }
 }
 
-// ───────── 7. Only schemaConfig.js changed ─────────
-section('7. Touching ONLY schemaConfig.js');
+// ───────── 7. Only shared/clientIp.js changed ─────────
+section('7. Touching ONLY shared/clientIp.js');
 {
-  const plan = planFor(['functions/schemaConfig.js']);
+  const plan = planFor(['functions/shared/clientIp.js']);
   assert('plan is partial', plan.kind === 'partial');
   if (plan.kind === 'partial') {
-    const expected = (fileToExports.get('functions/systemIntegrity.js') || []).slice().sort();
+    const expected = (fileToExports.get('functions/publicSigning.js') || []).slice().sort();
     assertEqual('no orphan skips', plan.skippedOrphans, []);
-    assertEqual('plan equals exactly the systemIntegrity exports', plan.exports, expected);
+    assert('publicSigning has exports to compare', expected.length > 0);
+    assertEqual('plan equals exactly the publicSigning exports', plan.exports, expected);
   }
 }
 
@@ -277,8 +276,8 @@ section('11. A changed file redeploys every function that loads it');
 {
   // Every entrypoint whose closure reaches a file, plus its own module and its
   // directory module, at once. The dispatch once stopped at the first rule that
-  // matched, so a file inside `bulkActions/` skipped `executeReactivationBatch`
-  // (which loads it through `smsService.js`), and a module another module loads
+  // matched, so a file inside `integrations/` reached only the integrations
+  // functions and skipped the bulk sender, and a module another module loads
   // skipped that one.
   const walk = (dir) => readdirSync(join(repoRoot, dir)).flatMap((name) => {
     const rel = `${dir}/${name}`;
@@ -295,9 +294,9 @@ section('11. A changed file redeploys every function that loads it');
   assert(`checked every runtime file (${runtimeFiles.length})`, runtimeFiles.length > 200);
   assertEqual('no file leaves out a function that loads it', missed, []);
 
-  const sessionFactory = planFor(['functions/bulkActions/helpers/sessionFactory.js']);
-  assert('a bulk helper redeploys the bulk functions', sessionFactory.exports.includes('initBulkSession'));
-  assert('… and executeReactivationBatch, which loads it outside bulkActions/', sessionFactory.exports.includes('executeReactivationBatch'));
+  const encryption = planFor(['functions/integrations/encryption.js']);
+  assert('a file inside integrations/ redeploys the integrations functions', encryption.exports.includes('saveIntegrationConfig'));
+  assert('… and the bulk sender, which loads it outside integrations/', encryption.exports.includes('initBulkSession'));
   const notifySigner = planFor(['functions/notifySigner.js']);
   assert('a module redeploys the modules that load it (notifySigner → notifySignerSMS)', notifySigner.exports.includes('notifySignerSMS'));
 }

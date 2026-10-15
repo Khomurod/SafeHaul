@@ -24,8 +24,8 @@
  *      what that release calls.
  *   2. Probes each name of the entries it proved by URL. Cloud answers
  *      `404 Page not found` for a function that does not exist and anything else
- *      (400, 405, 403) for one that does — the same read-only probe the runbook
- *      uses.
+ *      (400, 405, 403, 401) for one that does — the same read-only probe the
+ *      runbook uses.
  *   3. Deletes only the ones that still answer, region-qualified, `--force
  *      --non-interactive`.
  *   4. Re-probes: each must now be 404, and each entry's `keep` (for LD-R3,
@@ -87,6 +87,33 @@ export const RETIREMENTS = Object.freeze([
         since: '5c9427e4949e068013ddcf6b70be840220abbc08',
         names: Object.freeze(['onApplicationCreatedSegments', 'onApplicationUpdateSegments']),
     }),
+    Object.freeze({
+        // Pause, resume and cancel of a bulk session are direct Firestore writes;
+        // the Mission Control report that called it went in `bf07bf6`.
+        id: 'bulk-session-status',
+        since: 'bf07bf6fdea4db0b5e12e47b207a309365ed80d3',
+        names: Object.freeze(['updateBulkSessionStatus']),
+    }),
+    Object.freeze({
+        // SMS reactivation batches; the Campaigns view that sent them went in `46989c1`.
+        id: 'reactivation-batch',
+        since: '46989c1863e5a572d06e73c7344229fa116f13e2',
+        names: Object.freeze(['executeReactivationBatch']),
+    }),
+    Object.freeze({
+        // "Sync Backend Structure" (refusing since 2026-10-11) and the security
+        // audit only the Deep Diagnostic ran, both removed from the owner panel.
+        id: 'system-integrity',
+        since: '7aaca385a3a86a173805b2bbbb4eac1bc234ffcb',
+        names: Object.freeze(['syncSystemStructure', 'runSecurityAudit']),
+    }),
+    Object.freeze({
+        // The carrier's own prepared list; the unfinished-applications workspace
+        // reads `listApplicationDrafts` alone.
+        id: 'prepared-list',
+        since: '0702dc91eda342a199cbb88109e05db7cc7fd689',
+        names: Object.freeze(['listCompanyPreparedApplications']),
+    }),
 ]);
 
 export const REGION = 'us-central1';
@@ -94,8 +121,8 @@ export const REGION = 'us-central1';
 /**
  * Which of `names` still exist, from their probe statuses. Cloud returns 404
  * only for a name it does not know; a callable answers a bare GET with 400, an
- * `onRequest` with 405 and a Firestore trigger with 403, so "not 404" is the
- * honest test for "deployed".
+ * `onRequest` with 405, a Firestore trigger with 403 (1st generation: 401), so
+ * "not 404" is the honest test for "deployed".
  */
 export function planRetirement(statuses, names) {
     const gone = [];

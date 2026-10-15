@@ -2,7 +2,6 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const SMSAdapterFactory = require('../factory');
 const { assertCompanyAdminStrict } = require('../../shared/companyAccess');
 const { checkRateLimit } = require('../../shared/rateLimiter');
-const { createAndStartBulkSession } = require('../../bulkActions/helpers/sessionFactory');
 
 // Shared options for functions that need encryption capabilities
 const encryptedCallOptions = {
@@ -93,66 +92,6 @@ exports.sendSMS = onCall(encryptedCallOptions, async (request) => {
         };
     } catch (error) {
         console.error("Send SMS Error:", error);
-        throw new HttpsError('internal', error.message);
-    }
-});
-
-/**
- * 3. Execute Campaign Batch (Company Admin)
- */
-exports.executeReactivationBatch = onCall(encryptedCallOptions, async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'User must be authenticated.');
-
-    const { companyId, leadIds, messageText } = request.data; // leadIds is array of [leadId]
-
-    if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
-        return { success: false, message: "No leads provided." };
-    }
-    if (leadIds.length > 50) {
-        throw new HttpsError('invalid-argument', 'Batch size limit exceeded (Max 50).');
-    }
-    if (!companyId) {
-        throw new HttpsError('invalid-argument', 'companyId is required.');
-    }
-
-    // BULK-4 FIX: Enforce RBAC — verify the caller is a member of the specified company.
-    // Without this, any authenticated user can send bulk SMS to leads belonging to any company.
-    await assertCompanyAdminStrict(request.auth.uid, companyId);
-
-    // A3 FIX: Frequency throttle. The per-call size cap (50) and RBAC above do not stop an
-    // admin (or a stolen admin session) from firing back-to-back batches. 'closed' so a
-    // rate-limiter system error denies rather than allows on this security/cost-sensitive path.
-    const reactivationOk = await checkRateLimit(`reactivation_batch_${companyId}_${request.auth.uid}`, 5, 300, 'closed');
-    if (!reactivationOk) {
-        throw new HttpsError('resource-exhausted', 'Too many campaigns. Please wait a few minutes.');
-    }
-
-    // A3 (durability/cost half): instead of holding this instance open with an
-    // in-process setTimeout(1000)-per-lead loop (up to ~50s of paid wall-clock,
-    // non-resumable on crash, fragile against the function timeout), enqueue a
-    // bulk session and let the existing recursive Cloud Tasks worker fan it out
-    // — gaining pacing, idempotency, blacklist checks, progress tracking, the
-    // per-session ceiling, and pause/resume for free. The reactivation leads are
-    // applications under companies/{companyId}/applications/{leadId}.
-    try {
-        const { sessionId, targetCount } = await createAndStartBulkSession({
-            companyId,
-            createdBy: request.auth.uid,
-            targetIds: leadIds,
-            leadSourceType: 'applications',
-            config: { method: 'sms', message: messageText },
-            sessionName: `Reactivation ${new Date().toLocaleDateString()}`,
-        });
-
-        return {
-            success: true,
-            sessionId,
-            queued: targetCount,
-            // Sends now happen asynchronously in the worker; poll the session for progress.
-            message: `Reactivation campaign queued for ${targetCount} lead(s).`,
-        };
-    } catch (error) {
-        console.error('Reactivation enqueue error:', error);
         throw new HttpsError('internal', error.message);
     }
 });

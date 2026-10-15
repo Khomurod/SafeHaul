@@ -11,8 +11,9 @@
  * ## The shape of the fix
  *
  * The carrier prepares the application as a *draft* (`saveCompanyPreparedApplication`),
- * reads it back to proofread it (`getCompanyPreparedDraft`), tracks what it has
- * started (`listCompanyPreparedApplications`), and sends the driver a link. The
+ * reads it back to proofread it (`getCompanyPreparedDraft`), and sends the driver
+ * a link; the unfinished-applications workspace lists it with every other draft
+ * (`listApplicationDrafts`). The
  * driver completes, reviews and signs it through the same public wizard and the
  * same `submitGuestApplication` as anyone else — nothing about consent, agreements,
  * the immutable snapshot or the preserved PDF changes.
@@ -26,13 +27,12 @@
 // is the deployment surface and nothing else — `index.js` reads these names off
 // it, so **the export names here are the contract** and a rename is a redeployment.
 const { saveCompanyPreparedApplication } = require('./companyApplications/prepare');
-const { getCompanyPreparedDraft, listCompanyPreparedApplications } = require('./companyApplications/read');
+const { getCompanyPreparedDraft } = require('./companyApplications/read');
 const { mintApplicationInvite, exchangeApplicationInvite } = require('./companyApplications/invite');
 const { extractCompanyApplicationDocuments } = require('./companyApplications/aiExtract');
 
 exports.saveCompanyPreparedApplication = saveCompanyPreparedApplication;
 exports.getCompanyPreparedDraft = getCompanyPreparedDraft;
-exports.listCompanyPreparedApplications = listCompanyPreparedApplications;
 exports.mintApplicationInvite = mintApplicationInvite;
 exports.exchangeApplicationInvite = exchangeApplicationInvite;
 exports.extractCompanyApplicationDocuments = extractCompanyApplicationDocuments;

@@ -8,9 +8,10 @@
  * - A changed file redeploys every function that loads it (`planChangedFiles`): its own module's
  *   exports, those of the directory module it sits in (require('./bulkActions') → bulkActions/index.js),
  *   and those of every entrypoint whose transitive `require()` closure reaches it, JSON included.
- *   Example: editing `functions/schemaConfig.js` (required only by `functions/systemIntegrity.js`)
- *   deploys only the `systemIntegrity` exports; editing `bulkActions/helpers/sessionFactory.js` deploys
- *   the bulk exports and `executeReactivationBatch`, which loads it through `smsService.js`.
+ *   Example: editing `functions/shared/clientIp.js` (required only by `functions/publicSigning.js`)
+ *   deploys only the `publicSigning` exports; editing `integrations/encryption.js` deploys the
+ *   integrations exports and every function outside `integrations/` that loads it (the bulk sender,
+ *   the signer SMS, the email senders).
  *   A file the code reads from disk (an image, a JSON file it does not require) counts for the code
  *   that names it in a string. A file also counts for the code whose require() found it at the base
  *   commit: a deleted or renamed file is in no closure of the tree being deployed.

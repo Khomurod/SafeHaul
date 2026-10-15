@@ -51,9 +51,6 @@ function exportFunctions(wanted) {
   // duplicate records explicitly instead of as unknown users.
   if (wanted('listCompanyTeam')) exports.listCompanyTeam = require('./hrAdmin').listCompanyTeam;
 
-  // 2b. User Onboarding (New)
-  if (wanted('onDriverProfileCreated')) exports.onDriverProfileCreated = require('./userOnboarding').onDriverProfileCreated;
-
   // 2c. SEC-002: one-time backfill of users/{uid}.companyIds from memberships.
   // Must be run (LIVE) before deploying the SEC-002 Firestore rules so existing
   // same-company teammate reads keep working. Super-admin only.
@@ -131,7 +128,6 @@ function exportFunctions(wanted) {
   // completed and signed by the driver through the ordinary public wizard.
   if (wanted('saveCompanyPreparedApplication')) exports.saveCompanyPreparedApplication = require('./companyApplications').saveCompanyPreparedApplication;
   if (wanted('getCompanyPreparedDraft')) exports.getCompanyPreparedDraft = require('./companyApplications').getCompanyPreparedDraft;
-  if (wanted('listCompanyPreparedApplications')) exports.listCompanyPreparedApplications = require('./companyApplications').listCompanyPreparedApplications;
   if (wanted('mintApplicationInvite')) exports.mintApplicationInvite = require('./companyApplications').mintApplicationInvite;
   if (wanted('exchangeApplicationInvite')) exports.exchangeApplicationInvite = require('./companyApplications').exchangeApplicationInvite;
   if (wanted('extractCompanyApplicationDocuments')) exports.extractCompanyApplicationDocuments = require('./companyApplications').extractCompanyApplicationDocuments;
@@ -156,9 +152,7 @@ function exportFunctions(wanted) {
 
   if (wanted('sendAutomatedEmail')) exports.sendAutomatedEmail = require('./companyAdmin').sendAutomatedEmail;
 
-  // 6. System Integrity
-  if (wanted('syncSystemStructure')) exports.syncSystemStructure = require('./systemIntegrity').syncSystemStructure;
-  if (wanted('runSecurityAudit')) exports.runSecurityAudit = require('./systemIntegrity').runSecurityAudit;
+  // 6. Signed upload links
   if (wanted('getSignedUploadUrl')) exports.getSignedUploadUrl = require('./storageSecure').getSignedUploadUrl;
   if (wanted('getSignedGuestUploadUrl')) exports.getSignedGuestUploadUrl = require('./getSignedGuestUploadUrl').getSignedGuestUploadUrl;
 
@@ -190,7 +184,6 @@ function exportFunctions(wanted) {
   if (wanted('verifySmsConfig')) exports.verifySmsConfig = require('./integrations/index').verifySmsConfig; // Added missing export
   if (wanted('sendTestSMS')) exports.sendTestSMS = require('./integrations/index').sendTestSMS;
   if (wanted('sendSMS')) exports.sendSMS = require('./integrations/index').sendSMS; // NEW: Real Outbound
-  if (wanted('executeReactivationBatch')) exports.executeReactivationBatch = require('./integrations/index').executeReactivationBatch;
 
   // Digital Wallet
   if (wanted('addPhoneLine')) exports.addPhoneLine = require('./integrations/index').addPhoneLine;
@@ -321,7 +314,6 @@ function exportFunctions(wanted) {
   if (wanted('runBlogPublicationNow')) exports.runBlogPublicationNow = require('./blog/callables').runBlogPublicationNow;
 
   // 19. Legacy Compatibility Callables (frontend contract preservation)
-  if (wanted('updateBulkSessionStatus')) exports.updateBulkSessionStatus = require('./legacyCompat').updateBulkSessionStatus;
   if (wanted('backfillEmployerFields')) exports.backfillEmployerFields = require('./legacyCompat').backfillEmployerFields;
 
   // 23. Super Admin Release Management

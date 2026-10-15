@@ -732,11 +732,9 @@ one (which reads as "nothing was saved").
 
 **Any live draft can get a continuation link**; whose words it holds decides
 what it hands over, never whether it opens. Driver-authored drafts are always in
-the identity tier, with `status` and `origin` untouched, so they never appear in
-`listCompanyPreparedApplications` (the `origin == 'company'` list, still
-deployed though the workspace no longer calls it). The exchange's fallback scan
-has no `origin == 'company'` filter, so that path needs no `origin`/`updatedAt`
-index; the index stays for that callable.
+the identity tier, with `status` and `origin` untouched. The exchange's fallback
+scan has no `origin == 'company'` filter, so it needs no `origin`/`updatedAt`
+index; no query uses that index any more.
 
 **The invite link is its own token and its own risk.** `mintApplicationInvite`:
 32 random bytes, only the SHA-256 stored, returned once; 14-day expiry, always

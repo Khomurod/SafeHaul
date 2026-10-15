@@ -295,22 +295,4 @@ describe('reading a prepared application back', () => {
         await saveFirstPage();
         await expect(read()).rejects.toMatchObject({ code: 'not-found' });
     });
-
-    it('lists only what this carrier prepared, without answers', async () => {
-        await prepare();
-        await require('../../companyApplications').saveCompanyPreparedApplication({
-            ...REQUEST,
-            data: { companyId: COMPANY, email: 'other@example.test', phone: '2145550188', formData: { firstName: 'Sam' } },
-        });
-
-        const result = await require('../../companyApplications').listCompanyPreparedApplications({
-            ...REQUEST, data: { companyId: COMPANY },
-        });
-
-        expect(result.applications).toHaveLength(2);
-        for (const row of result.applications) {
-            expect(row.origin).toBe('company');
-            expect(row).not.toHaveProperty('formData');
-        }
-    });
 });
