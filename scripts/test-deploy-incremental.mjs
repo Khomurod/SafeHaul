@@ -327,7 +327,8 @@ section('12. Required JSON and files read from disk');
     exportToFile: parsed.exportToFile,
     fileToEntries: new Map([...fileToEntries].filter(([file]) => file !== catalog)),
   });
-  assertEqual('a JSON file read from disk counts for the code that names it', [...byName.exports].sort(), planFor([catalog]).exports);
+  assert('a JSON file read from disk counts for the code that names it', byName.exports.size > 0 && byName.skippedOrphans.length === 0);
+  assertEqual('… the same functions that require it', [...byName.exports].sort(), planFor([catalog]).exports);
 }
 
 // ───────── 13. index.js ─────────
