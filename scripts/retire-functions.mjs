@@ -79,14 +79,23 @@ export const RETIREMENTS = Object.freeze([
         since: '9f266376438c613f57118048389f12de6f0a0f1e',
         names: Object.freeze(['trackVerificationOpen']),
     }),
+    Object.freeze({
+        // Smart Segments: triggers on every application write that kept
+        // `segments` lists nothing reads. No release calls a trigger, so any
+        // promotion carrying their removal may delete them.
+        id: 'segments',
+        since: '5c9427e4949e068013ddcf6b70be840220abbc08',
+        names: Object.freeze(['onApplicationCreatedSegments', 'onApplicationUpdateSegments']),
+    }),
 ]);
 
 export const REGION = 'us-central1';
 
 /**
  * Which of `names` still exist, from their probe statuses. Cloud returns 404
- * only for a name it does not know; a callable answers a bare GET with 400 and
- * an `onRequest` with 405, so "not 404" is the honest test for "deployed".
+ * only for a name it does not know; a callable answers a bare GET with 400, an
+ * `onRequest` with 405 and a Firestore trigger with 403, so "not 404" is the
+ * honest test for "deployed".
  */
 export function planRetirement(statuses, names) {
     const gone = [];
