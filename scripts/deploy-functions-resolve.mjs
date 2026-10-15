@@ -217,20 +217,27 @@ const EXPORT_LINE = /\bexports \. (\w+) =(?= |$)/;
 const MODULE_VARIABLE = /^(?:const|let|var) \w+ = require \( (['"])\.\/[^'"]+\1 \)(?: ;)?$/;
 
 /**
- * The source as code alone, one entry per line: its tokens one space apart, so
- * the spacing between them never counts, and comments dropped. Strings, regular
- * expressions and templates are tokens, kept whole. Line breaks count. Throws
- * when the source does not parse.
+ * The source as code alone, one entry per line of code: its tokens one space
+ * apart, so the spacing between them never counts, and comments dropped with
+ * any line break inside them. Strings, regular expressions and templates are
+ * tokens, kept whole. A line break between two tokens counts. Throws when the
+ * source does not parse.
  */
 function codeLines(src) {
   const { tokens } = parse(src, { sourceType: 'script', tokens: true, allowReturnOutsideFunction: true });
-  const lines = new Map();
+  const lines = [];
+  let gap = '';
+  let end = 0;
   for (const token of tokens) {
+    gap += src.slice(end, token.start);
+    end = token.end;
     if (token.type === 'CommentLine' || token.type === 'CommentBlock' || token.start === token.end) continue;
-    const line = token.loc.start.line;
-    lines.set(line, lines.has(line) ? `${lines.get(line)} ${src.slice(token.start, token.end)}` : src.slice(token.start, token.end));
+    const text = src.slice(token.start, token.end);
+    if (lines.length === 0 || gap.includes('\n')) lines.push(text);
+    else lines[lines.length - 1] += ` ${text}`;
+    gap = '';
   }
-  return [...lines.values()];
+  return lines;
 }
 
 /** Each export's line of index.js. */

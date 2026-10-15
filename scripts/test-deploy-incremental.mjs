@@ -335,6 +335,16 @@ section('13. index.js: wiring, comments and the loader');
   };
   assertEqual('the same file changes nothing', diff(indexSrc, indexSrc), { changed: [], loaderChanged: false });
   assertEqual('a comment edit changes nothing', diff(indexSrc, commentEdit), { changed: [], loaderChanged: false });
+  assertEqual(
+    '… nor a comment between tokens spread over lines',
+    diff(`${indexSrc}\nconst sum = 1 /* a */ + 2;\n`, `${indexSrc}\nconst sum = 1 /* a\n   b */ + 2;\n`),
+    { changed: [], loaderChanged: false }
+  );
+  assertEqual(
+    '… but a line break between two tokens is a change',
+    diff(`${indexSrc}\nconst sum = 1 + 2;\n`, `${indexSrc}\nconst sum = 1 +\n  2;\n`)?.loaderChanged,
+    true
+  );
   const copyName = `${lines[exportLine].match(/exports\.(\w+)/)[1]}Copy`;
   assertEqual('a new export line redeploys that export only', diff(indexSrc, added), { changed: [copyName], loaderChanged: false });
   // The same module, another handler or another condition: the export's own line changed.
