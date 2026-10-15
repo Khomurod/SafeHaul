@@ -1,12 +1,14 @@
 // functions/bulkActions/helpers/sessionTargets.js
 //
-// A bulk session's recipients, in send order. A session has kept them as
-// `targetIds` on its own document, up to 2,000 ids (`launchLimit.js`). That
-// document is rewritten after every send (`workers/sendLoop.js`), and each
-// rewrite carries the whole list to the worker's transaction and to every open
-// campaign screen. The list belongs in `bulk_sessions/{id}/meta/targets`
-// (`{ ids }`), written once. Every reader takes the session's own list first,
-// then that document, so sessions of either shape keep sending.
+// A bulk session's recipients, in send order: up to 2,000 ids
+// (`launchLimit.js`) in `bulk_sessions/{id}/meta/targets` (`{ ids }`), written
+// once, with the session. The session document itself is rewritten after
+// every send (`workers/sendLoop.js`), and each rewrite reaches the worker's
+// transaction and every open campaign screen, so the list stays off it.
+// Sessions written before kept it as `targetIds` on their own document; every
+// reader takes that first, then `meta/targets`.
+
+const { db } = require('../../firebaseAdmin');
 
 function sessionTargetsRef(sessionRef) {
     return sessionRef.collection('meta').doc('targets');
@@ -24,4 +26,15 @@ async function readSessionTargetIds(sessionRef, sessionData, transaction) {
     return Array.isArray(ids) ? ids : [];
 }
 
-module.exports = { sessionTargetsRef, readSessionTargetIds };
+/**
+ * Write a new session and its recipients in one batch: no reader sees the
+ * session without its list.
+ */
+async function writeNewSession(sessionRef, sessionData, targetIds) {
+    const batch = db.batch();
+    batch.set(sessionRef, sessionData);
+    batch.set(sessionTargetsRef(sessionRef), { ids: targetIds });
+    await batch.commit();
+}
+
+module.exports = { sessionTargetsRef, readSessionTargetIds, writeNewSession };

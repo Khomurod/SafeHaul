@@ -16,10 +16,13 @@ const mockChain = {
   doc: jest.fn(),
   collection: jest.fn(),
 };
+// The session's recipients, written beside it (`helpers/sessionTargets.js`).
+const mockTargetsRef = { id: 'targets' };
+const mockTargetWrites = [];
 
 jest.mock('../../firebaseAdmin', () => ({
   admin: { firestore: { FieldValue: { serverTimestamp: () => 'TS' } } },
-  db: { collection: jest.fn() },
+  db: { collection: jest.fn(), batch: jest.fn() },
 }));
 
 const mockEnqueue = jest.fn();
@@ -42,10 +45,15 @@ describe('createAndStartBulkSession (A3)', () => {
     jest.resetAllMocks();
     mockSet.mockResolvedValue();
     mockUpdate.mockResolvedValue();
-    mockSessionRef.collection.mockImplementation(() => mockChain);
+    mockSessionRef.collection.mockImplementation((name) => (name === 'meta' ? { doc: () => mockTargetsRef } : mockChain));
     mockChain.doc.mockImplementation(() => mockSessionRef);
     mockChain.collection.mockImplementation(() => mockChain);
     db.collection.mockImplementation(() => mockChain);
+    mockTargetWrites.length = 0;
+    db.batch.mockImplementation(() => ({
+      set: (ref, data) => (ref === mockSessionRef ? mockSet(data) : mockTargetWrites.push({ ref, data })),
+      commit: async () => {},
+    }));
     mockEnqueue.mockResolvedValue();
   });
 
@@ -60,11 +68,12 @@ describe('createAndStartBulkSession (A3)', () => {
       createdBy: 'admin1',
       updatedBy: 'admin1',
       leadSourceType: 'applications',
-      targetIds: ['l1', 'l2', 'l3'],
       workerGeneration: 1,
       config: { method: 'sms', message: 'Hi [Driver Name]' },
       progress: { currentPointer: 0, totalCount: 3, processedCount: 0, successCount: 0, failedCount: 0 },
     });
+    expect(doc).not.toHaveProperty('targetIds');
+    expect(mockTargetWrites).toEqual([{ ref: mockTargetsRef, data: { ids: ['l1', 'l2', 'l3'] } }]);
   });
 
   it('activates the session then enqueues the first batch (gen 1, 1s delay)', async () => {

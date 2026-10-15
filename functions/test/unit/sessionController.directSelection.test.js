@@ -60,13 +60,23 @@ function makeVerificationQuery(collectionName) {
     return chain;
 }
 
+// Every batch write, with the batch it went into.
+const mockBatchWrites = [];
+let mockBatchCount = 0;
 const mockDb = {
     getAll: jest.fn().mockResolvedValue([]),
-    batch: jest.fn(() => ({
-        set: jest.fn(),
-        delete: jest.fn(),
-        commit: jest.fn().mockResolvedValue(true),
-    })),
+    batch: jest.fn(() => {
+        const batch = (mockBatchCount += 1);
+        return {
+            // The session document goes to `mockSessionSet`, written in a batch or not.
+            set: jest.fn((ref, data) => {
+                mockBatchWrites.push({ id: ref.id, data, batch });
+                if (ref === mockSessionRef) mockSessionSet(data);
+            }),
+            delete: jest.fn(),
+            commit: jest.fn().mockResolvedValue(true),
+        };
+    }),
     collection: jest.fn(() => ({
         doc: jest.fn(() => ({
             collection: jest.fn((name) => {
@@ -148,6 +158,7 @@ describe('initBulkSession direct selection (BULK-2 ownership verification)', () 
         ownedIds.applications = new Set();
         ownedIds.leads = new Set();
         whereCalls.length = 0;
+        mockBatchWrites.length = 0;
     });
 
     it('keeps only the IDs that belong to the company, from either collection', async () => {
@@ -160,9 +171,22 @@ describe('initBulkSession direct selection (BULK-2 ownership verification)', () 
 
         expect(result.success).toBe(true);
         expect(result.targetCount).toBe(2);
-        const sessionDoc = mockSessionSet.mock.calls[0][0];
-        expect(sessionDoc.targetIds.sort()).toEqual(['app-1', 'lead-1']);
-        expect(sessionDoc.targetIds).not.toContain('foreign-1');
+        const targets = mockBatchWrites.find((write) => write.id === 'targets');
+        expect([...targets.data.ids].sort()).toEqual(['app-1', 'lead-1']);
+        expect(targets.data.ids).not.toContain('foreign-1');
+    });
+
+    it('writes the session and its recipients in one batch, with no list on the session', async () => {
+        ownedIds.leads = new Set(['lead-1']);
+
+        await sessionController.initBulkSession(makeRequest(['lead-1']));
+
+        const session = mockBatchWrites.find((write) => write.id === 'session-1');
+        const targets = mockBatchWrites.find((write) => write.id === 'targets');
+        expect(session.batch).toBe(targets.batch);
+        expect(session.data).not.toHaveProperty('targetIds');
+        expect(session.data.progress).toMatchObject({ totalCount: 1, currentPointer: 0 });
+        expect(targets.data).toEqual({ ids: ['lead-1'] });
     });
 
     it('verifies ownership by querying document IDs, not by trusting the caller', async () => {

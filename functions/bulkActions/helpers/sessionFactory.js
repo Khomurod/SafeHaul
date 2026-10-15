@@ -9,6 +9,7 @@
 
 const { admin, db } = require('../../firebaseAdmin');
 const { enqueueWorker } = require('../services/queueService');
+const { writeNewSession } = require('./sessionTargets');
 
 /**
  * Create an active bulk session for a known set of target ids and enqueue the
@@ -39,8 +40,9 @@ async function createAndStartBulkSession({
     const sessionId = sessionRef.id;
 
     // Mirror the session shape the worker reads (status/workerGeneration/progress
-    // /config/targetIds). Keep in lockstep with sessionController.initBulkSession.
-    await sessionRef.set({
+    // /config, the recipients in `meta/targets`). Keep in lockstep with
+    // sessionController.initBulkSession.
+    await writeNewSession(sessionRef, {
         id: sessionId,
         name: sessionName || `Bulk Action ${new Date().toLocaleDateString()}`,
         status: 'pending',
@@ -50,7 +52,6 @@ async function createAndStartBulkSession({
         config,
         filters,
         leadSourceType,
-        targetIds,
         workerGeneration: 1,
         progress: {
             currentPointer: 0,
@@ -60,7 +61,7 @@ async function createAndStartBulkSession({
             failedCount: 0,
         },
         lastUpdateAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    }, targetIds);
 
     await sessionRef.update({ status: 'active' });
 

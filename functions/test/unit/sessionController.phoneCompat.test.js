@@ -21,11 +21,16 @@ const mockSessionRef = {
 };
 
 const mockBatchWrites = [];
+// The ids a new session keeps in `meta/targets` (`helpers/sessionTargets.js`).
+const writtenTargets = () => mockBatchWrites.find((write) => write.id === 'targets')?.data.ids;
 
 const mockDb = {
     getAll: mockGetAll,
     batch: jest.fn(() => ({
-        set: jest.fn((ref, data) => mockBatchWrites.push({ id: ref.id, data })),
+        // The session document goes to `mockSessionSet`, written in a batch or not.
+        set: jest.fn((ref, data) => (ref === mockSessionRef
+            ? mockSessionSet(data)
+            : mockBatchWrites.push({ id: ref.id, data }))),
         delete: jest.fn(),
         commit: jest.fn().mockResolvedValue(true),
     })),
@@ -119,7 +124,8 @@ describe('sessionController phone compatibility', () => {
             },
         });
 
-        expect(mockSessionSet).toHaveBeenCalledWith(expect.objectContaining({ targetIds: ['quiet'] }));
+        expect(writtenTargets()).toEqual(['quiet']);
+        expect(mockSessionSet.mock.calls[0][0]).not.toHaveProperty('targetIds');
     });
 
     it('initBulkSession import path excludes repeated same canonical number with legacy ledger key', async () => {
@@ -156,9 +162,7 @@ describe('sessionController phone compatibility', () => {
         // Two rows share same canonical phone and should both be filtered
         expect(result.filteredCount).toBe(2);
         expect(result.targetCount).toBe(1);
-        expect(mockSessionSet).toHaveBeenCalledWith(expect.objectContaining({
-            targetIds: expect.arrayContaining([expect.stringMatching(/^imp_2_/)])
-        }));
+        expect(writtenTargets()).toEqual(expect.arrayContaining([expect.stringMatching(/^imp_2_/)]));
         expect(mockEnqueueWorker).toHaveBeenCalled();
     });
 
@@ -261,9 +265,9 @@ describe('sessionController phone compatibility', () => {
 
         expect(result.targetCount).toBe(2);
         expect(result.filteredCount).toBe(0);
-        const { targetIds } = mockSessionSet.mock.calls[0][0];
-        expect(targetIds).toEqual([expect.stringMatching(/^imp_0_/), expect.stringMatching(/^imp_3_/)]);
-        expect(mockBatchWrites.map((write) => write.data.firstName)).toEqual(['A', 'D']);
+        expect(writtenTargets()).toEqual([expect.stringMatching(/^imp_0_/), expect.stringMatching(/^imp_3_/)]);
+        const uploadedRows = mockBatchWrites.filter((write) => write.id !== 'targets');
+        expect(uploadedRows.map((write) => write.data.firstName)).toEqual(['A', 'D']);
     });
 });
 
@@ -318,9 +322,7 @@ describe('initBulkSession launch limit', () => {
         const result = await launch({ leadType: 'leads', campaignLimit: '2000' });
 
         expect(result.targetCount).toBe(2000);
-        expect(mockSessionSet).toHaveBeenCalledWith(expect.objectContaining({
-            targetIds: expect.arrayContaining(['lead0', 'lead1499', 'lead1500']),
-        }));
+        expect(writtenTargets()).toEqual(expect.arrayContaining(['lead0', 'lead1499', 'lead1500']));
     });
 
     it('takes an un-ticked lead off the limited audience rather than letting another take its place', async () => {
@@ -330,7 +332,7 @@ describe('initBulkSession launch limit', () => {
         const result = await launch({ leadType: 'leads', campaignLimit: '2000', excludedLeadIds: ['lead5'] });
 
         expect(result.targetCount).toBe(1999);
-        const { targetIds } = mockSessionSet.mock.calls[0][0];
+        const targetIds = writtenTargets();
         expect(targetIds).not.toContain('lead5');
         expect(targetIds).not.toContain('lead2000');
     });
@@ -391,7 +393,8 @@ describe('retryFailedAttempts launch limit', () => {
         const result = await retry();
 
         expect(result).toMatchObject({ success: true, targetCount: 2000 });
-        expect(mockSessionSet.mock.calls[0][0].targetIds).toHaveLength(2000);
+        expect(writtenTargets()).toHaveLength(2000);
+        expect(mockSessionSet.mock.calls[0][0]).not.toHaveProperty('targetIds');
         expect(mockEnqueueWorker).toHaveBeenCalled();
     });
 
