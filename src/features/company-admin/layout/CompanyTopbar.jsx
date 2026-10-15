@@ -4,11 +4,12 @@ import { Icon, LogOut, ArrowLeftRight, Menu } from '@design-system/icons';
 import { Avatar, IconButton } from '@/design-system/components';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { getPortalUser } from '@features/auth';
+import { isSuperAdminClaims } from '@app/auth/roles';
 
 // Helper to get user role label
 const getUserRoleLabel = (claims, companyId) => {
     if (!claims) return 'User';
-    if (claims.roles?.globalRole === 'super_admin') return 'Super Admin';
+    if (isSuperAdminClaims(claims)) return 'Super Admin';
     if (claims.roles?.[companyId] === 'company_admin') return 'Company Admin';
     if (claims.roles?.[companyId]) return 'Recruiter';
     return 'Team Member';

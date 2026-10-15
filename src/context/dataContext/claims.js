@@ -1,7 +1,9 @@
+import { isSuperAdminClaims } from '@app/auth/roles';
+
 export function extractRoleContext(claims = {}) {
   const roles = claims.roles || {};
   const companyRoleKeys = Object.keys(roles).filter((key) => key !== 'globalRole');
-  const isSuperAdmin = claims.globalRole === 'super_admin' || roles.globalRole === 'super_admin';
+  const isSuperAdmin = isSuperAdminClaims(claims);
   const hasCompanyRoles = companyRoleKeys.length > 0;
 
   return {

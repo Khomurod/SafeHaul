@@ -8,6 +8,7 @@ import { PageState } from '@design-system/patterns';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 
 import { FeatureLockedModal } from '@shared/components/modals/FeatureLockedModal';
+import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 /**
  * Company "Import Leads" page.
@@ -38,8 +39,7 @@ export const ImportLeadsPage = () => {
     const navigate = useNavigate();
     const companyId = currentCompanyProfile?.id;
 
-    const isCompanyAdmin = currentUserClaims?.roles?.[companyId] === 'company_admin'
-        || currentUserClaims?.roles?.globalRole === 'super_admin';
+    const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
 
     const handleUploadComplete = () => {
         navigate('/company/drivers/leads/company');

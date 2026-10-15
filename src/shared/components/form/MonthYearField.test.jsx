@@ -67,6 +67,23 @@ describe('MonthYearField element contract', () => {
     expect(options).toHaveLength(currentMonth);
   });
 
+  it('pulls a later month back to the current one when the year becomes the current year', () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date(2026, 9, 15, 12));
+    try {
+      const { onChange } = renderField({ maxToday: true });
+      fireEvent.change(yearSelect(), { target: { value: '2025' } });
+      fireEvent.change(monthSelect(), { target: { value: '12' } });
+      expect(onChange).toHaveBeenLastCalledWith('startDate', '2025-12');
+
+      fireEvent.change(yearSelect(), { target: { value: '2026' } });
+      expect(onChange).toHaveBeenLastCalledWith('startDate', '2026-10');
+      expect(monthSelect()).toHaveValue('10');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('offers years from the computed max down to minYear', () => {
     renderField({ minYear: 2020, maxYear: 2022 });
     const options = [...yearSelect().querySelectorAll('option')].filter((o) => o.value !== '');
