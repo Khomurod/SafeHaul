@@ -9,7 +9,7 @@
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'url';
-import { dirname, join, normalize } from 'path';
+import { basename, dirname, join, normalize } from 'path';
 import { spawnSync } from 'child_process';
 
 export const root = dirname(fileURLToPath(import.meta.url));
@@ -48,17 +48,6 @@ export function modulePathToFile(rel) {
   }
 
   return normalize(join('functions', `${n}.js`)).replace(/\\/g, '/');
-}
-
-/** Map e.g. functions/bulkActions/workers/x.js → functions/bulkActions/index.js */
-export function resolveNestedUnderDirectoryModules(changedNormalized, knownTopLevelFiles) {
-  if (knownTopLevelFiles.has(changedNormalized)) return changedNormalized;
-  for (const kf of knownTopLevelFiles) {
-    if (!kf.endsWith('/index.js')) continue;
-    const dirPrefix = kf.slice(0, -'index.js'.length);
-    if (changedNormalized.startsWith(dirPrefix)) return kf;
-  }
-  return null;
 }
 
 /**
@@ -105,7 +94,8 @@ export function buildExportToFile() {
  *
  * Returns null if:
  *   - the specifier escapes the `functions/` tree
- *   - neither `<resolved>.js` nor `<resolved>/index.js` exists on disk
+ *   - the named `.js`/`.json` file, or else `<resolved>.js` or `<resolved>/index.js`,
+ *     does not exist on disk
  */
 export function resolveRelativeRequire(fromFile, rel) {
   const baseDir = dirname(fromFile);
@@ -114,7 +104,9 @@ export function resolveRelativeRequire(fromFile, rel) {
   // Hard guard: never let a relative path walk us out of functions/.
   if (!targetNoExt.startsWith('functions/')) return null;
 
-  if (targetNoExt.endsWith('.js')) {
+  // A required .json file is code too: `shared/applicationSections.json` is the
+  // application's definition on the server.
+  if (/\.(js|json)$/.test(targetNoExt)) {
     return existsSync(join(repoRoot, targetNoExt)) ? targetNoExt : null;
   }
 
@@ -190,32 +182,120 @@ export function gitShow(commitColonPath) {
 }
 
 /**
- * Export names whose mapping changed between base index.js and current working tree index.js.
- * Returns null if unsafe to diff (missing base file or parse incomplete).
+ * What a change to functions/index.js redeploys, between its base and head
+ * sources: each export whose module changed, and `loaderChanged` when the code
+ * around the export lines changed. Every function starts on that code (it picks
+ * the module FUNCTION_TARGET names), so a loader change concerns them all.
+ * Comments, blank lines and the export lines themselves are not loader code.
+ * Returns null when either side cannot be parsed.
  */
+export function diffIndexSources(oldSrc, newSrc) {
+  const oldParsed = buildExportToFileFromSource(oldSrc);
+  const newParsed = buildExportToFileFromSource(newSrc);
+  if (!oldParsed.parseOk || !newParsed.parseOk) return null;
+
+  const changed = new Set();
+  for (const [name, file] of newParsed.exportToFile) {
+    if (oldParsed.exportToFile.get(name) !== file) changed.add(name);
+  }
+  return { changed, loaderChanged: indexLoaderCode(oldSrc) !== indexLoaderCode(newSrc) };
+}
+
+/**
+ * index.js without comments, blank lines and its wiring: the lines that assign an
+ * export and, in its older form, those that require a module into a variable.
+ */
+export function indexLoaderCode(src) {
+  return stripComments(src)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !/\bexports\.\w+\s*=/.test(line) && !MODULE_VARIABLE.test(line))
+    .join('\n');
+}
+const MODULE_VARIABLE = /^(?:const|let|var)\s+\w+\s*=\s*require\(['"]\.\/[^'"]+['"]\);?$/;
+
+/** Drops // and /* *\/ comments, keeping strings (which may hold either) whole. */
+function stripComments(src) {
+  let out = '';
+  let i = 0;
+  while (i < src.length) {
+    const two = src.slice(i, i + 2);
+    if (two === '//') {
+      while (i < src.length && src[i] !== '\n') i++;
+    } else if (two === '/*') {
+      const close = src.indexOf('*/', i + 2);
+      const stop = close === -1 ? src.length : close + 2;
+      out += src.slice(i, stop).replace(/[^\n]/g, '');
+      i = stop;
+    } else if (src[i] === "'" || src[i] === '"' || src[i] === '`') {
+      let j = i + 1;
+      while (j < src.length && src[j] !== src[i]) j += src[j] === '\\' ? 2 : 1;
+      out += src.slice(i, j + 1);
+      i = j + 1;
+    } else {
+      out += src[i++];
+    }
+  }
+  return out;
+}
+
+/** `diffIndexSources` for the base commit's index.js and the working tree's. */
 export function diffExportsFromIndexChange(baseSha) {
   const oldSrc = gitShow(`${baseSha}:functions/index.js`);
   if (oldSrc === null) {
     console.warn('[incremental] Cannot read functions/index.js at base commit.');
     return null;
   }
+  const diff = diffIndexSources(oldSrc, readFileSync(indexPath, 'utf8'));
+  if (diff === null) console.warn('[incremental] index.js export parse incomplete (base or head).');
+  return diff;
+}
 
-  const newSrc = readFileSync(indexPath, 'utf8');
-  const oldParsed = buildExportToFileFromSource(oldSrc);
-  const newParsed = buildExportToFileFromSource(newSrc);
-
-  if (!oldParsed.parseOk || !newParsed.parseOk) {
-    console.warn('[incremental] index.js export parse incomplete (base or head).');
-    return null;
+/**
+ * The functions a set of changed files redeploys: every function that loads one
+ * of them. A file counts for its own module's exports, for those of the directory
+ * module it sits in (`bulkActions/…` → `bulkActions/index.js`), and for those of
+ * every entrypoint whose require() closure reaches it (JSON included), all at
+ * once. A file the code reads from disk instead (an image) counts for the
+ * entrypoints of the code that names it. functions/index.js is left to
+ * `diffIndexSources`, and the always-include list to `main()`.
+ */
+export function planChangedFiles(changedFiles, { exportToFile, fileToEntries }) {
+  const fileToExports = new Map();
+  for (const [name, file] of exportToFile) {
+    if (!fileToExports.has(file)) fileToExports.set(file, []);
+    fileToExports.get(file).push(name);
   }
-
-  const changed = new Set();
-  for (const name of newParsed.exportToFile.keys()) {
-    const oldPath = oldParsed.exportToFile.get(name);
-    const newPath = newParsed.exportToFile.get(name);
-    if (oldPath !== newPath) changed.add(name);
+  const exports = new Set();
+  const notes = [];
+  const skippedOrphans = [];
+  for (const file of filterProductionFunctionPaths(changedFiles)) {
+    if (file === 'functions/index.js') continue;
+    const owners = [...ownersOf(file, fileToExports, fileToEntries)].sort();
+    if (owners.length === 0) {
+      skippedOrphans.push(file);
+      continue;
+    }
+    const names = new Set(owners.flatMap((owner) => fileToExports.get(owner) || []));
+    names.forEach((name) => exports.add(name));
+    notes.push(`${file} → ${owners.length} module(s) [${owners.join(', ')}] → ${names.size} export(s)`);
   }
-  return changed;
+  return { exports, skippedOrphans, notes };
+}
+
+function ownersOf(file, fileToExports, fileToEntries) {
+  const owners = new Set(fileToEntries.get(file) || []);
+  for (const module of fileToExports.keys()) {
+    if (module === file) owners.add(module);
+    if (module.endsWith('/index.js') && file.startsWith(module.slice(0, -'index.js'.length))) owners.add(module);
+  }
+  if (!/\.(js|json)$/.test(file)) {
+    const name = basename(file);
+    for (const [source, entries] of fileToEntries) {
+      if (source.endsWith('.js') && readFileCached(source).includes(name)) entries.forEach((e) => owners.add(e));
+    }
+  }
+  return owners;
 }
 
 export function getChangedFunctionFiles(base, head) {
@@ -235,19 +315,23 @@ export function getChangedFunctionFiles(base, head) {
     .map((p) => normalize(p).replace(/\\/g, '/'));
 }
 
+/**
+ * A file that ships with the functions and can change what they do: code, the
+ * JSON it requires, a file it reads. Not the tests, dotfiles, docs, or the
+ * package manifest and lockfile: a dependency upgrade reaches a function at its
+ * next deploy.
+ */
 export function isRuntimeFunctionSource(pathLike) {
   const n = String(pathLike || '').replace(/\\/g, '/');
-  if (!n.startsWith('functions/')) return false;
-  if (!n.endsWith('.js')) return false;
-  if (n.startsWith('functions/test/')) return false;
-  return true;
+  if (!n.startsWith('functions/') || n.startsWith('functions/test/')) return false;
+  if (/^functions\/package(-lock)?\.json$/.test(n)) return false;
+  const name = basename(n);
+  return !name.startsWith('.') && !name.endsWith('.md');
 }
 
-/** Strict mode: only runtime JS sources participate in deploy targeting. */
+/** Strict mode: only runtime sources participate in deploy targeting. */
 export function filterProductionFunctionPaths(changedFiles) {
-  return changedFiles.filter((c) => {
-    return isRuntimeFunctionSource(c);
-  });
+  return changedFiles.filter((c) => isRuntimeFunctionSource(c));
 }
 
 export function resolveGitRange() {
