@@ -374,6 +374,16 @@ section('13. index.js: wiring, comments and the loader');
     diff(`${indexSrc}\nconst label = 'a  b';\n`, `${indexSrc}\nconst label = 'a b';\n`)?.loaderChanged,
     true
   );
+  assertEqual(
+    '// inside a regular expression is code too',
+    diff(`${indexSrc}\nconst pattern = /a[//]old/;\n`, `${indexSrc}\nconst pattern = /a[//]new/;\n`)?.loaderChanged,
+    true
+  );
+  assertEqual(
+    '… and inside a template',
+    diff(`${indexSrc}\nconst label = \`a \${'//'} old\`;\n`, `${indexSrc}\nconst label = \`a \${'//'} new\`;\n`)?.loaderChanged,
+    true
+  );
 }
 
 console.log('');

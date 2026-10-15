@@ -8,6 +8,7 @@
  * `root`/`repoRoot` resolve identically.
  */
 import { readFileSync, existsSync } from 'node:fs';
+import { parse } from '@babel/parser';
 import { fileURLToPath } from 'url';
 import { basename, dirname, join, normalize } from 'path';
 import { spawnSync } from 'child_process';
@@ -195,25 +196,49 @@ export function diffIndexSources(oldSrc, newSrc) {
   const newParsed = buildExportToFileFromSource(newSrc);
   if (!oldParsed.parseOk || !newParsed.parseOk) return null;
 
-  const oldLines = exportLines(oldSrc);
-  const newLines = exportLines(newSrc);
+  let oldCode;
+  let newCode;
+  try {
+    [oldCode, newCode] = [codeLines(oldSrc), codeLines(newSrc)];
+  } catch {
+    return null;
+  }
+  const oldLines = exportLines(oldCode);
+  const newLines = exportLines(newCode);
   const changed = new Set();
   for (const [name, file] of newParsed.exportToFile) {
     if (oldParsed.exportToFile.get(name) !== file || oldLines.get(name) !== newLines.get(name)) changed.add(name);
   }
-  return { changed, loaderChanged: indexLoaderCode(oldSrc) !== indexLoaderCode(newSrc) };
+  return { changed, loaderChanged: loaderCode(oldCode) !== loaderCode(newCode) };
 }
 
-const EXPORT_LINE = /\bexports\.(\w+)\s*=/;
-const MODULE_VARIABLE = /^(?:const|let|var)\s+\w+\s*=\s*require\(['"]\.\/[^'"]+['"]\);?$/;
-const codeLines = (src) => normalizeCode(src).split('\n').map((line) => line.trim()).filter(Boolean);
+// Lines of tokens, one space apart (see `codeLines`).
+const EXPORT_LINE = /\bexports \. (\w+) =(?= |$)/;
+const MODULE_VARIABLE = /^(?:const|let|var) \w+ = require \( (['"])\.\/[^'"]+\1 \)(?: ;)?$/;
 
-/** Each export's line of index.js, comments and spacing aside. */
-function exportLines(src) {
+/**
+ * The source as code alone, one entry per line: its tokens one space apart, so
+ * the spacing between them never counts, and comments dropped. Strings, regular
+ * expressions and templates are tokens, kept whole. Line breaks count. Throws
+ * when the source does not parse.
+ */
+function codeLines(src) {
+  const { tokens } = parse(src, { sourceType: 'script', tokens: true, allowReturnOutsideFunction: true });
   const lines = new Map();
-  for (const line of codeLines(src)) {
+  for (const token of tokens) {
+    if (token.type === 'CommentLine' || token.type === 'CommentBlock' || token.start === token.end) continue;
+    const line = token.loc.start.line;
+    lines.set(line, lines.has(line) ? `${lines.get(line)} ${src.slice(token.start, token.end)}` : src.slice(token.start, token.end));
+  }
+  return [...lines.values()];
+}
+
+/** Each export's line of index.js. */
+function exportLines(code) {
+  const lines = new Map();
+  for (const line of code) {
     const name = line.match(EXPORT_LINE)?.[1];
-    if (name) lines.set(name, [lines.get(name), line].filter(Boolean).join('\n'));
+    if (name) lines.set(name, lines.has(name) ? `${lines.get(name)}\n${line}` : line);
   }
   return lines;
 }
@@ -222,46 +247,10 @@ function exportLines(src) {
  * index.js without comments, blank lines and its wiring: the lines that assign an
  * export and, in its older form, those that require a module into a variable.
  */
-export function indexLoaderCode(src) {
-  return codeLines(src).filter((line) => !EXPORT_LINE.test(line) && !MODULE_VARIABLE.test(line)).join('\n');
-}
+const loaderCode = (code) => code.filter((line) => !EXPORT_LINE.test(line) && !MODULE_VARIABLE.test(line)).join('\n');
 
-/**
- * The source as code alone: comments dropped, strings (which may hold `//`, `/*`
- * or several spaces) kept whole, and the spacing between tokens dropped, except
- * one space where two words, or two of `+` and `-`, would otherwise run
- * together. Line breaks stay.
- */
-function normalizeCode(src) {
-  let out = '';
-  let i = 0;
-  while (i < src.length) {
-    const char = src[i];
-    const two = src.slice(i, i + 2);
-    if (two === '//') {
-      while (i < src.length && src[i] !== '\n') i++;
-    } else if (two === '/*') {
-      const close = src.indexOf('*/', i + 2);
-      const stop = close === -1 ? src.length : close + 2;
-      out += src.slice(i, stop).replace(/[^\n]/g, '');
-      i = stop;
-    } else if (char === "'" || char === '"' || char === '`') {
-      let j = i + 1;
-      while (j < src.length && src[j] !== char) j += src[j] === '\\' ? 2 : 1;
-      out += src.slice(i, j + 1);
-      i = j + 1;
-    } else if (SPACE.test(char)) {
-      while (i < src.length && SPACE.test(src[i])) i++;
-      const [before, after] = [out[out.length - 1] || '', src[i] || ''];
-      if (JOINS.some((join) => join.test(before) && join.test(after))) out += ' ';
-    } else {
-      out += src[i++];
-    }
-  }
-  return out;
-}
-const SPACE = /[ \t\r]/;
-const JOINS = [/[\w$]/, /[+-]/];
+/** `loaderCode` of an index.js source; throws when it does not parse. */
+export const indexLoaderCode = (src) => loaderCode(codeLines(src));
 
 /** `diffIndexSources` for the base commit's index.js and the working tree's. */
 export function diffExportsFromIndexChange(baseSha) {
@@ -271,7 +260,7 @@ export function diffExportsFromIndexChange(baseSha) {
     return null;
   }
   const diff = diffIndexSources(oldSrc, readFileSync(indexPath, 'utf8'));
-  if (diff === null) console.warn('[incremental] index.js export parse incomplete (base or head).');
+  if (diff === null) console.warn('[incremental] index.js could not be parsed, or not every export mapped (base or head).');
   return diff;
 }
 
