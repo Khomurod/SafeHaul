@@ -39,7 +39,6 @@ const mockLedger = [];
 // AI tasks are mocked at the task boundary. Routing has its own suite.
 const mockGenerateArticle = jest.fn();
 const mockVerifyArticleClaims = jest.fn();
-const mockSelectTopic = jest.fn();
 
 function httpsMock() {
     class HttpsError extends Error {
@@ -141,7 +140,6 @@ function articleGenerationMock() {
         ...actual,
         generateArticle: (...args) => mockGenerateArticle(...args),
         verifyArticleClaims: (...args) => mockVerifyArticleClaims(...args),
-        selectTopic: (...args) => mockSelectTopic(...args),
     };
 }
 
@@ -238,7 +236,6 @@ function resetBlogState() {
         verification: { supported: true, unsupportedClaims: [], notes: '' },
         transactionId: 'txn-verify-1',
     });
-    mockSelectTopic.mockResolvedValue({ selectedIndex: 0, angle: 'Explain the recordkeeping change.' });
 }
 
 module.exports = {
@@ -246,7 +243,6 @@ module.exports = {
     mockLedger,
     mockGenerateArticle,
     mockVerifyArticleClaims,
-    mockSelectTopic,
     httpsMock,
     schedulerMock,
     firebaseAdminMock,

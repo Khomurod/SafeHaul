@@ -38,7 +38,6 @@ const { versionVerdict } = require('../router/versionPolicy');
 
 /** Kept exported: the text probe's prompt, unchanged from the original test. */
 const HEALTH_PROMPT = 'Reply with the single word: ready';
-const HEALTH_TIMEOUT_MS = PROBE_TIMEOUT_MS;
 
 /**
  * Ceiling on the whole test, across every probe.
@@ -466,7 +465,6 @@ module.exports = {
     testProviderConnection,
     PROBE_STATUS,
     HEALTH_PROMPT,
-    HEALTH_TIMEOUT_MS,
     HEALTH_TOTAL_BUDGET_MS,
     PROBE_RETRY_CEILING_MS,
     __test: { runProbe, probeStatusFor },

@@ -183,9 +183,8 @@ recorded refusal out:
    is already the judgement the model used to be asked for. It was also the third
    sequential AI call in a run and it overran Groq's 8,000-tokens-per-minute
    budget, causing generation to be rejected *after* selection had succeeded.
-   `selectTopic` still exists in `functions/ai/tasks/articleGeneration.js` and is
-   no longer called by the pipeline. Claim verification was **not** dropped: that
-   one is a safety control, not a convenience.
+   The old `selectTopic` task is gone. Claim verification was **not** dropped:
+   that one is a safety control, not a convenience.
 4. Compare against the last 60 days.
 5. Build a fact package from the lead item plus topically-related corroboration.
 6. Generate a structured draft through the shared router.

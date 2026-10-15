@@ -344,8 +344,6 @@ const PROHIBITED_CLAIMS = Object.freeze([
     { claim: 'Any named carrier endorses SafeHaul', reason: 'No attributed testimonial has been collected.' },
 ]);
 
-const BY_ID = new Map(FEATURES.map((feature) => [feature.id, feature]));
-
 function availableFeatures() {
     return FEATURES.filter((feature) => feature.status === STATUS.AVAILABLE || feature.status === STATUS.PARTIAL);
 }
@@ -447,5 +445,4 @@ module.exports = {
     approvedClaims,
     buildKnowledgeBriefing,
     checkClaims,
-    getFeature: (id) => BY_ID.get(id) || null,
 };

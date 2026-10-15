@@ -156,21 +156,6 @@ function checkForDuplicate(candidate, recentPosts = []) {
 }
 
 /**
- * Picks the first candidate that is not a repeat.
- *
- * Returning null is a legitimate outcome: if every candidate repeats something
- * recent, the correct action is to publish nothing for that slot rather than
- * invent a topic to fill it.
- */
-function selectFreshCandidate(candidates, recentPosts) {
-    for (const candidate of candidates) {
-        const verdict = checkForDuplicate(candidate, recentPosts);
-        if (!verdict.duplicate) return { candidate, verdict };
-    }
-    return { candidate: null, verdict: null };
-}
-
-/**
  * Whether the day's articles cover three genuinely different subjects.
  *
  * **Not wired into the pipeline.** It is exported and covered by tests, and
@@ -209,6 +194,5 @@ module.exports = {
     sourceFingerprint,
     tokenSimilarity,
     checkForDuplicate,
-    selectFreshCandidate,
     themesAreDistinct,
 };

@@ -173,16 +173,6 @@ function getSource(id) {
     return BY_ID.get(id) || null;
 }
 
-function primarySources() {
-    return SOURCES.filter((source) => source.tier === TIER.PRIMARY);
-}
-
-/** Sources whose declared topics overlap the ones a theme cares about. */
-function sourcesForTopics(topics) {
-    const wanted = new Set(topics);
-    return SOURCES.filter((source) => source.topics.some((topic) => wanted.has(topic)));
-}
-
 function isPrimary(sourceId) {
     return getSource(sourceId)?.tier === TIER.PRIMARY;
 }
@@ -193,8 +183,5 @@ module.exports = {
     SOURCES,
     USER_AGENT,
     getSource,
-    getSourceIds: () => SOURCES.map((source) => source.id),
-    primarySources,
-    sourcesForTopics,
     isPrimary,
 };

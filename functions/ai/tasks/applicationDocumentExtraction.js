@@ -174,10 +174,6 @@ function shareDocumentText(documents) {
     };
 }
 
-function buildDocumentText(documents) {
-    return shareDocumentText(documents).text;
-}
-
 /** Which documents the model said it could not read, mapped back to their keys. */
 function normalizeUnreadable(raw) {
     const reported = (Array.isArray(raw) ? raw : []).map((entry) => text(entry, 60).toUpperCase());
@@ -276,7 +272,6 @@ module.exports = {
     DOCUMENT_PER_ATTEMPT_MS,
     DOCUMENT_TOTAL_DEADLINE_MS,
     MAX_TOTAL_CHARS,
-    buildDocumentText,
     shareDocumentText,
     extractApplicationDocuments,
     normalizeDocumentOutput,
