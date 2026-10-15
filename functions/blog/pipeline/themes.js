@@ -4,8 +4,8 @@
  * One article publishes every calendar day. The day's theme rotates through the
  * three, so each comes round every third day; when the day's theme has nothing
  * it may publish (no current sources, only repeats, a refused draft), the next
- * run offers the day to the next theme. It was three a day, one per theme, until
- * the owner chose fewer articles in October 2026.
+ * run offers the day to the next theme. One a day, not one per theme, is the
+ * owner's choice.
  *
  * The unique key for a publication is `${publicationDate}_${themeId}`, which is
  * what makes the whole pipeline idempotent: a scheduler retry, a duplicate

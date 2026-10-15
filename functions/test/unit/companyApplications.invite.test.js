@@ -192,10 +192,10 @@ describe('opening a link', () => {
 
         const { resumeToken } = await exchange(inviteToken);
 
-        // Opening alone is deliberately NOT the fact (moved 2026-09-08). The
-        // carrier holds this link too, and stamping the claim on the exchange let
-        // it arm locked-employer enforcement for a driver who had never been shown
-        // the rows — the exact refusal the field exists to prevent.
+        // Opening alone is deliberately NOT the fact. The carrier holds this link
+        // too, and stamping the claim on the exchange would let it arm
+        // locked-employer enforcement for a driver who had never been shown the
+        // rows — the exact refusal the field exists to prevent.
         expect(mockStore.get(PATH()).inviteClaimedAt).toBeUndefined();
 
         await saveFirstPage({ resumeToken });

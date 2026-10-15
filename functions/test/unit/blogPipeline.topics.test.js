@@ -4,9 +4,9 @@
  * Only publishable leads may be offered, and a feed item's own topic is not the
  * topic of the article written from it.
  *
- * Split from a 1496-line `blogPipeline.test.js` on 2026-08-29. The mocks and
- * fixtures live in `./blogPipeline.support`; the `jest.mock` calls stay here
- * because Jest hoists them per file and they cannot register from a helper.
+ * The mocks and fixtures live in `./blogPipeline.support`; the `jest.mock`
+ * calls stay here because Jest hoists them per file and they cannot register
+ * from a helper.
  *
  * No test here contacts a real feed, a real AI provider or a real image
  * provider: research fetches use an injected `fetchImpl`, and the AI tasks are
@@ -188,10 +188,9 @@ describe('lead document enrichment', () => {
 
 describe('item relevance — feed topics are not item topics', () => {
     /**
-     * Titles taken verbatim from the live `federal-register-dot` feed on
-     * 2026-08-03. Every one arrived tagged `regulation, compliance,
-     * freight-market` — the *source's* topics — and every one passed the theme
-     * filter. They were the top candidates for the industry-news slot.
+     * Titles taken verbatim from the live `federal-register-dot` feed. Every one
+     * arrives tagged `regulation, compliance, freight-market` — the *source's*
+     * topics — and every one passes the theme filter on those tags alone.
      */
     const REAL_OFF_TOPIC = [
         'High-Speed Train Noise Emission Standards',

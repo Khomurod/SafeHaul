@@ -42,38 +42,27 @@
  *
  * ## Why the images are 256x256 and not 8x8
  *
- * They were 8x8, on the reasoning that a probe should cost a rounding error.
- * That was measured against the live vendors on 2026-08-18 and it made the
- * probes lie — in the *pessimistic* direction, which is the harder kind to
- * notice, because a false failure looks like diligence:
- *
- *   Mistral  multi-image, 8x8   -> {"answer":"unknown"}   FAILED
- *   Mistral  multi-image, 256px -> {"answer":"blue"}      passed
- *   Gemini   multi-image, 8x8   -> HTTP 504 Deadline expired before operation
- *   Gemini   multi-image, 256px -> {"answer":"blue"}      passed
- *
  * Vision models tokenise an image into patches. An 8x8 image is under a single
  * patch, so it carries almost no signal and vendors handle the degenerate case
- * inconsistently — Mistral spent 15 prompt tokens on one and declined to answer.
- * Reporting "this provider cannot read images" on that basis was wrong, and it
- * is what put two working vision providers on the console as broken while CDL
- * auto-fill had nothing to fall back to.
+ * inconsistently — Mistral declines to answer and Gemini times out. A probe
+ * that small lies in the *pessimistic* direction, which is the harder kind to
+ * notice, because a false failure looks like diligence: it reports working
+ * vision providers as unable to read images.
  *
  * 256x256 is still flat colour, still generated, still ~570 bytes, and still
  * costs a rounding error — it is simply large enough for the question to be a
- * fair one. **If these are ever shrunk again, the probes stop testing the
- * vendors and start testing their tolerance of degenerate input.**
+ * fair one. **If these are ever shrunk, the probes stop testing the vendors
+ * and start testing their tolerance of degenerate input.**
  *
  * ## Why they are generated, not pasted as base64
  *
- * They used to be hand-rolled minimal PNGs pasted in as base64. Mistral's newer
- * models (`mistral-small`, `mistral-medium`) reject those outright with `400
- * invalid_request_file` while reading a standard, properly zlib-compressed PNG
- * of the exact same pixels perfectly (measured 2026-09-03 on a free key). A
- * false "vision failed" is the pessimistic lie this file already exists to
- * prevent, so the images are now emitted by `solidColorPng` below: a conformant
- * encoding is the most compatible one, and generating it means the bytes can
- * never rot into a form a strict decoder refuses.
+ * Mistral's newer models (`mistral-small`, `mistral-medium`) reject hand-rolled
+ * minimal PNGs outright with `400 invalid_request_file` while reading a
+ * standard, properly zlib-compressed PNG of the exact same pixels perfectly. A
+ * false "vision failed" is the pessimistic lie this file exists to prevent, so
+ * the images are emitted by `solidColorPng` below: a conformant encoding is the
+ * most compatible one, and generating it means the bytes can never rot into a
+ * form a strict decoder refuses.
  */
 
 const zlib = require('zlib');

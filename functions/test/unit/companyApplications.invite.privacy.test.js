@@ -2,25 +2,20 @@
  * The carrier's read of a prepared application ends when the driver starts, and
  * the link does not get it back.
  *
- * ## The defect this file exists for
+ * ## The boundary this file pins
  *
- * Found 2026-09-08. `shared/companyPreparedDraft.js` states the boundary: a
- * carrier may read the answers of its own prepared draft until the driver's first
- * save, and from then on sees contact and progress only. It was enforced at one of
- * the two doors that read those answers. `companyApplications/read.js` consulted
- * `companyMayReadAnswers`, which tests `status`; `companyApplications/invite.js`
- * consulted `isCompanyPrepared`, which tests `origin` — the field that records who
- * *created* the draft and deliberately never changes.
+ * `shared/companyPreparedDraft.js` states the boundary: a carrier may read the
+ * answers of its own prepared draft until the driver's first save, and from then
+ * on sees contact and progress only. Both doors that read those answers,
+ * `companyApplications/read.js` and `companyApplications/invite.js`, ask
+ * `companyMayReadAnswers`, which tests `status` — never `isCompanyPrepared`, which
+ * tests `origin`, the field that records who *created* the draft and deliberately
+ * never changes.
  *
- * So a carrier could mint a link, exchange it itself from anything (the exchange is
- * unauthenticated by necessity — the driver has no account), and recover exactly the
- * answers the cutoff had just withheld, plus a resume token that could rewrite them.
- * `StartApplicationPage` rendered the mint button on the very screen that tells the
- * recruiter the answers are the driver's now.
- *
- * **Gating the mint would not have closed it.** The driver's first save leaves
- * `inviteTokenHash` untouched, so the link the carrier had already copied kept
- * working. The fix is at the exchange, which is what these cases pin.
+ * The exchange is unauthenticated by necessity — the driver has no account — and
+ * the driver's first save leaves `inviteTokenHash` untouched, so a link the carrier
+ * already copied keeps working. The boundary therefore holds at the exchange,
+ * which is what these cases pin.
  *
  * ## What replaces it
  *

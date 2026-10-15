@@ -73,15 +73,11 @@ describe('registry and adapter coverage', () => {
 describe('model pins that vendors have retired', () => {
     /**
      * A registry pin is a claim about the world, and the world moves. Every
-     * entry below was live in the registry and dead at the vendor — silently,
-     * because the connection test sent plain text and never touched the model
-     * a real task would have resolved.
+     * entry below is dead at the vendor, and a pin naming one fails silently.
      *
      * These assertions are cheap insurance against the same drift returning by
      * copy-paste. They cannot detect *new* drift; `diagnoseAiModelPins`
      * reconciles the pins against the vendors' live catalogues for that.
-     *
-     * All verified against vendor documentation and live catalogues 2026-08-17.
      */
     const deadModels = [
         // Retired 2025-12-31 and 2026-05-31 respectively. These were Mistral's
@@ -140,11 +136,10 @@ describe('Mistral runs on the tier a free key actually has', () => {
      * Distinct from a retired pin: `mistral-large-latest` is a live, working
      * model — it is simply *paid-tier only*. A free key gets `403
      * tier_not_allowed` and Large is not even in its catalogue, so pinning it
-     * meant every Mistral lane 403'd and the connection test reported six
-     * failures on a key that authenticates and does inference. On 2026-10-07
-     * the free plan also gave Medium and Small a limit of zero requests a
+     * fails every Mistral lane on a key that authenticates and does inference.
+     * The free plan also gives Medium and Small a limit of zero requests a
      * minute, and the Ministral models serve every lane — text, structured JSON
-     * and vision — on the free entitlement (verified against the live API).
+     * and vision — on the free entitlement.
      *
      * These guard the regression back to a paid-tier default, which no vendor
      * catalogue reconciliation would catch (the model is real, just entitled).

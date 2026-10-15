@@ -123,9 +123,9 @@ describe('normalizePspOutput', () => {
     });
 
     it.each([
-        // Seven digits is the ordinary length now. The value used to be cut to twelve
-        // characters BEFORE the digits were taken, so these became 123456 and 3 —
-        // and the wrong number became the identity a carrier locked (2026-10-01).
+        // Seven digits is the ordinary length now. Cutting the value to twelve
+        // characters BEFORE taking the digits would turn these into 123456 and 3,
+        // and a wrong number becomes the identity a carrier locks.
         ['USDOT 1234567', '1234567'],
         ['US DOT No. 3456789', '3456789'],
         ['USDOT# 1234567', '1234567'],

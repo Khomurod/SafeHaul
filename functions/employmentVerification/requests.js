@@ -120,8 +120,7 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
          * and the first request is left recording an `employerId` that is no longer
          * on the document — which `recordVerificationResponse` then cannot resolve,
          * so the answer that comes back has nowhere to go. Exactly the orphaning the
-         * identity was introduced to prevent, arriving by a different door. Review
-         * found it on 2026-09-09.
+         * identity was introduced to prevent, arriving by a different door.
          *
          * Reading and stamping inside one transaction makes the loser retry against
          * the winner's array, find the ids already there, and stamp nothing.

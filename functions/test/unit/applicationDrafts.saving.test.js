@@ -26,20 +26,17 @@ beforeEach(resetDraftState);
 /**
  * The identity HMAC survives a save that cannot compute one.
  *
- * ## The defect, measured in production on 2026-09-09
+ * ## Why a save must never erase it
  *
- * `identityKey` was written as `identityKey || null` on **every** save. The HMAC
- * needs a Social Security Number, and a draft deliberately never stores one — so
- * the SSN lives only in the page's own state, and the first autosave issued after
- * a reload (or after a restore from the server copy, which has none either)
- * recomputed the key as null and erased it.
+ * The HMAC needs a Social Security Number, and a draft deliberately never stores
+ * one — so the SSN lives only in the page's own state, and an autosave issued
+ * after a reload (or after a restore from the server copy, which has none either)
+ * cannot compute the key.
  *
- * `findResumableApplication` queries `identityKey ==`, so what the applicant
- * silently lost was cross-device resume — and, for a carrier-prepared
- * application, the only thing that could ever prove the driver owns it. Three of
- * six live drafts held `identityKey: null`, one of them at the consent step, its
- * `resumeApplicationDraft` restore followed 46 seconds later by the save that
- * erased it.
+ * `findResumableApplication` queries `identityKey ==`, so a save that wrote that
+ * null would silently cost the applicant cross-device resume — and, for a
+ * carrier-prepared application, the only thing that could ever prove the driver
+ * owns it.
  */
 describe('the identity a draft is matched on', () => {
     const identityOf = () => mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`).identityKey;

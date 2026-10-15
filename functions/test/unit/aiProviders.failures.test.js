@@ -103,10 +103,9 @@ describe('HTTP failure classification', () => {
     });
 
     /**
-     * Measured live on 2026-08-18: the Gemini free tier allows 20 requests per
-     * minute and states the wait in the error BODY, not a header —
-     * "Please retry in 44.26781542s". Nothing read that sentence, so a
-     * 45-second cap earned the flat 30-minute quota cooldown and removed the
+     * The Gemini free tier allows 20 requests per minute and states the wait in
+     * the error BODY, not a header — "Please retry in 44.26781542s". Unread, a
+     * 45-second cap would earn the flat 30-minute quota cooldown and remove the
      * highest-priority provider from every lane.
      */
     it('reads a stated wait out of the error body, not only the headers', async () => {
@@ -166,7 +165,7 @@ describe('HTTP failure classification', () => {
 
 /**
  * A version this account cannot use at all is not a spent allowance and not a
- * bad key. Both shapes measured on the live vendors, 2026-10-07.
+ * bad key. Both shapes are the live vendors' own.
  */
 describe('a version this account cannot use', () => {
     async function failWith(providerId, { status, body = '', headers = {} }) {

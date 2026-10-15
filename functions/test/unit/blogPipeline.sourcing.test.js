@@ -4,9 +4,9 @@
  * What an article must cite, and what it may not assert. Claims are checked
  * against the verified capability package, not against the model's confidence.
  *
- * Split from a 1496-line `blogPipeline.test.js` on 2026-08-29. The mocks and
- * fixtures live in `./blogPipeline.support`; the `jest.mock` calls stay here
- * because Jest hoists them per file and they cannot register from a helper.
+ * The mocks and fixtures live in `./blogPipeline.support`; the `jest.mock`
+ * calls stay here because Jest hoists them per file and they cannot register
+ * from a helper.
  *
  * No test here contacts a real feed, a real AI provider or a real image
  * provider: research fetches use an injected `fetchImpl`, and the AI tasks are

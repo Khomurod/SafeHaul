@@ -74,15 +74,14 @@ function contextFor(providerId, overrides = {}) {
 const OPENAI_BODY = { choices: [{ message: { content: '{"answer":"42"}', role: 'assistant' } }] };
 
 /**
- * Gemini fixtures **captured verbatim from the live API** on 2026-08-03 against
+ * Gemini fixtures **captured verbatim from the live API** against
  * `gemini-3.6-flash`, trimmed of ids and timings.
  *
- * This matters more than it looks. The original version of this group invented
- * its fixtures from the adapter's own assumptions — it asserted an `output_text`
- * field and a `parts`/`inline_data` request shape. The API returns neither. So
- * the tests passed, the adapter shipped, and *every* Gemini call failed in
- * production: text, structured JSON and vision alike. A test that asserts the
- * code's beliefs back to it cannot catch the code being wrong about the world.
+ * This matters more than it looks. A test that asserts the code's beliefs back
+ * to it cannot catch the code being wrong about the world: fixtures invented
+ * from the adapter's own assumptions (an `output_text` field, a
+ * `parts`/`inline_data` request shape — the API returns neither) pass while
+ * every real call fails.
  *
  * Anything added here must come from a recorded real response, not from reading
  * the adapter.

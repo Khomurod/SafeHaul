@@ -39,11 +39,9 @@ const STRUCTURED_MODE = Object.freeze({
      * Groq Responses API `text.format = { type: 'json_object' }` plus a
      * prompt-carried schema.
      *
-     * Needed because Groq's schema support is per *model*, not per vendor. Only
-     * `openai/gpt-oss-20b`, `openai/gpt-oss-120b` and
-     * `openai/gpt-oss-safeguard-20b` accept `json_schema`; every other model,
-     * including the only vision-capable one, answers a schema request with a
-     * 400. Verified against Groq's structured-outputs documentation 2026-08-17.
+     * Needed because Groq's schema support is per *model*, not per vendor: a
+     * model that does not accept `json_schema` answers a schema request with a
+     * 400.
      */
     GROQ_RESPONSES_JSON_OBJECT: 'groq_responses_json_object',
     /** Gemini Interactions API `response_format` with a `schema`. */
@@ -89,12 +87,11 @@ const PROVIDER_LIST = [
     {
         id: 'groq',
         displayName: 'Groq',
-        // Position 2, not 1. The brief specified Groq first, and the owner
-        // reversed it on 2026-08-03 after measurement: on the free tiers
-        // `openai/gpt-oss-20b` writes 175-213 word articles while Gemini writes
-        // 311-417 from the same or thinner sources. Groq stays as the fallback
-        // because it is the more *available* of the two — Gemini's free tier caps
-        // at 20 requests — so a short article beats no article.
+        // Position 2, not 1, by owner decision: on the free tiers
+        // `openai/gpt-oss-20b` writes far shorter articles than Gemini from the
+        // same or thinner sources. Groq stays as the fallback because it is the
+        // more *available* of the two — Gemini's free tier caps at 20 requests —
+        // so a short article beats no article.
         priority: 2,
         docsUrl: 'https://console.groq.com/docs',
         apiBaseUrl: 'https://api.groq.com/openai/v1',
@@ -102,21 +99,19 @@ const PROVIDER_LIST = [
         /**
          * Vision, on Groq's multimodal Qwen.
          *
-         * Groq withdrew both llama-4 vision models in 2026 (Maverick 03-09,
-         * Scout 07-17), and on 2026-10-07 the Qwen pinned in their place,
-         * `qwen/qwen3.6-27b`, answered 404 `model_not_found`: every photo
-         * request to Groq failed. `qwen/qwen3.8-27b` replaced it, verified that
-         * day on the live API: it read a CDL photo, and two photos at once.
+         * Groq has withdrawn both llama-4 vision models and `qwen/qwen3.6-27b`
+         * (404 `model_not_found`); `qwen/qwen3.8-27b` reads a CDL photo, and
+         * two photos at once.
          *
-         * Groq's schema support is per *model*. `qwen/qwen3.6-27b` answered
-         * `json_schema` with a 400 and was asked in JSON object mode through
-         * `structuredModeByCapability`; `qwen/qwen3.8-27b` accepts it with
-         * images (CDL, medical card, PSP, MVR and E-Doc schemas, 2026-10-07),
-         * so every Groq lane now asks in schema mode and Groq enforces the shape.
+         * Groq's schema support is per *model*. `qwen/qwen3.8-27b` accepts
+         * `json_schema` with images (CDL, medical card, PSP, MVR and E-Doc
+         * schemas), so every Groq lane asks in schema mode and Groq enforces
+         * the shape; a lane whose model refused it would be set to JSON object
+         * mode through `structuredModeByCapability`.
          *
          * `maxImages` is the model's per-request cap, and the router enforces
          * it. `qwen/qwen3.8-27b` takes three (`400 "This model supports up to 3
-         * images"`, 2026-10-07), so a four- or five-page E-Doc goes to the next
+         * images"`), so a four- or five-page E-Doc goes to the next
          * provider instead of spending a request that cannot succeed.
          */
         capabilities: [...TEXT_SUITE, STRUCTURED_JSON, LONG_CONTEXT, VISION, MULTI_IMAGE],
@@ -232,7 +227,7 @@ const PROVIDER_LIST = [
         // request: a paid-only model on a free plan (403), a Labs model nobody
         // enabled (403), and a model id Mistral no longer knows, which it
         // answers with a 400 rather than a 404. Read by `providers/http.js`, so
-        // they cost a version, not the provider. Verified live 2026-10-07.
+        // they cost a version, not the provider.
         versionRefusalCodes: Object.freeze([
             '1910', 'tier_not_allowed', '1913', 'labs_not_enabled', 'invalid_model',
         ]),

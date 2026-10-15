@@ -37,32 +37,18 @@ const {
 
 const MODEL_VERSIONS = {
     /**
-     * Every text entry verified against the live Groq API on 2026-08-03 for
-     * both plain text *and* `json_schema` structured output.
-     *
-     * The previous values were wrong, behind a comment claiming they were
-     * "pinned to the models the production CDL and E-Doc paths already use".
-     * That was true only of the two vision models, and both had since been
-     * withdrawn. The text models were never used in production by anything.
-     *
-     * `llama-3.3-70b-versatile` and `llama-3.1-8b-instant` are rejected
-     * outright for structured output:
+     * Every text entry must answer both plain text *and* `json_schema`
+     * structured output. `llama-3.3-70b-versatile`, `llama-3.1-8b-instant` and
+     * `qwen/qwen3.6-27b` are rejected outright for structured output:
      *
      *   400 "This model does not support response format `json_schema`."
      *
-     * Groq's health check sends plain text with no schema, so it passed while
-     * every schema-using task — article generation, topic selection, CDL
-     * extraction, E-Doc placement — failed. That is what produced
-     * `failed_generation (all_providers_failed)` in production.
+     * Groq's health check sends plain text with no schema, so it passes on a
+     * model that fails every schema-using task — article generation, topic
+     * selection, CDL extraction, E-Doc placement.
      *
-     * `qwen/qwen3.6-27b` was rejected the same way. `openai/gpt-oss-20b`
-     * answered both shapes correctly and leads every text lane.
-     *
-     * `openai/gpt-oss-120b` is its spare. In August it burned so much
-     * reasoning budget that a small plain text request came back
-     * `status: incomplete`; on 2026-10-07 it answered the 16-token text
-     * probe, the JSON probe and the claim check, and wrote a 390-word
-     * article in 5s on the same request `openai/gpt-oss-20b` failed with
+     * `openai/gpt-oss-20b` leads every text lane. `openai/gpt-oss-120b` is its
+     * spare, and can answer a request 20b fails with
      * `400 json_validate_failed`. It has its own per-minute allowance, so a
      * rate-limited 20b does not take it down too.
      */
@@ -75,20 +61,18 @@ const MODEL_VERSIONS = {
         // Groq's only multimodal model, one lane among several rather than
         // anything SafeHaul depends on: 131k context, three images per
         // request, and about 1,800 input tokens a photo against the free
-        // tier's 7,000 input tokens a minute. Verified 2026-10-07. No spare:
+        // tier's 7,000 input tokens a minute. No spare:
         // Groq offers no other model that reads images.
         [VISION]: ['qwen/qwen3.8-27b'],
         [MULTI_IMAGE]: ['qwen/qwen3.8-27b'],
     },
     /**
-     * `gemini-3.5-flash-lite` is the spare for photos and structured text: on
-     * 2026-10-07, while the Flash versions answered 503 "high demand", it read
-     * the fake licence in full on one and two photos and answered the claim
-     * check, in about 2s — though 13-16s an hour earlier, which is why an
-     * overloaded vendor's spares are left to work that has the time. It is not an article spare — it rejects the article
-     * request with `400 invalid_request` — so articles keep one version.
-     * `gemini-3.5-flash` answered 503 to every check that day, so it is not
-     * listed until it can be verified.
+     * `gemini-3.5-flash-lite` is the spare for photos and structured text. It
+     * can be slow while the vendor is overloaded, which is why an overloaded
+     * vendor's spares are left to work that has the time. It is not an article
+     * spare — it rejects the article request with `400 invalid_request` — so
+     * articles keep one version. `gemini-3.5-flash` is not listed until a check
+     * verifies it.
      */
     gemini: {
         [TEXT]: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
@@ -103,10 +87,9 @@ const MODEL_VERSIONS = {
         [TEXT]: ['@cf/meta/llama-3.3-70b-instruct-fp8-fast'],
         [ARTICLE_WRITING]: ['@cf/meta/llama-3.3-70b-instruct-fp8-fast'],
         [SUMMARIZATION]: ['@cf/meta/llama-3.3-70b-instruct-fp8-fast'],
-        // Was `@cf/meta/llama-3.1-8b-instruct`, which the Workers AI
-        // catalogue now marks deprecated. Folded into the same model as the
-        // other lanes rather than pinning a second one to keep current.
-        // Verified 2026-08-17.
+        // The same model as the other lanes rather than a second pin to keep
+        // current; the Workers AI catalogue marks
+        // `@cf/meta/llama-3.1-8b-instruct` deprecated.
         [CLASSIFICATION]: ['@cf/meta/llama-3.3-70b-instruct-fp8-fast'],
         [STRUCTURED_JSON]: ['@cf/meta/llama-3.3-70b-instruct-fp8-fast'],
     },
@@ -121,23 +104,20 @@ const MODEL_VERSIONS = {
     /**
      * The Ministral models, the ones a *free* key can call.
      *
-     * Mistral's free plan moved under us twice. `mistral-large-*` is paid
-     * only (`403 tier_not_allowed`, 2026-09-03), and on 2026-10-07 the free
-     * plan gave `mistral-medium-*` and `mistral-small-*` a limit of zero
-     * requests a minute (`429`, `x-ratelimit-limit-req-minute: 0`), so every
-     * Mistral lane failed on a key that authenticates.
+     * On the free plan `mistral-large-*` is paid only
+     * (`403 tier_not_allowed`), and `mistral-medium-*` and `mistral-small-*`
+     * have a limit of zero requests a minute (`429`,
+     * `x-ratelimit-limit-req-minute: 0`).
      *
-     * `ministral-14b-2512` read a CDL photo, two and five photos at once, and
-     * answered the claim check, verified that day on a free key. It took
-     * 33-48s to write an article against the row's 45s timeout, so articles
-     * go to `ministral-8b-2512`, which wrote one in 9-11s.
+     * `ministral-14b-2512` reads a CDL photo, two and five photos at once, and
+     * answers the claim check on a free key, but it is too slow to write an
+     * article inside the row's 45s timeout, so articles go to
+     * `ministral-8b-2512`.
      *
-     * `ministral-8b-2512` is the spare everywhere else: it read the licence
-     * in full on one and two photos and answered the claim check, the same
-     * day. `mistral-medium-latest` comes last, for a paid plan: it was this
-     * row's pin until 2026-10-07, and on a free key it answers with a limit
-     * of zero, which the router reads as "not on this plan" and rests for a
-     * day.
+     * `ministral-8b-2512` is the spare everywhere else.
+     * `mistral-medium-latest` comes last, for a paid plan: on a free key it
+     * answers with a limit of zero, which the router reads as "not on this
+     * plan" and rests for a day.
      */
     mistral: {
         [TEXT]: ['ministral-14b-2512', 'ministral-8b-2512', 'mistral-medium-latest'],
@@ -149,11 +129,9 @@ const MODEL_VERSIONS = {
         [MULTI_IMAGE]: ['ministral-14b-2512', 'ministral-8b-2512', 'mistral-medium-latest'],
     },
     /**
-     * Every previous pin was gone. `llama-3.3-70b` and `llama3.1-8b` are
-     * both absent from Cerebras' public catalogue, which now offers
-     * `gpt-oss-120b` (production), `gemma-4-31b` and `zai-glm-4.7`
-     * (preview) — so Cerebras was contributing nothing to the fallback
-     * order but a wasted round trip. Verified 2026-08-17.
+     * Cerebras' public catalogue offers `gpt-oss-120b` (production),
+     * `gemma-4-31b` and `zai-glm-4.7` (preview); `llama-3.3-70b` and
+     * `llama3.1-8b` are absent from it.
      *
      * `gpt-oss-120b` is the only production model of the three, so it takes
      * every lane rather than pinning a preview model alongside it.
@@ -169,8 +147,8 @@ const MODEL_VERSIONS = {
         [TEXT]: ['Meta-Llama-3.3-70B-Instruct'],
         [ARTICLE_WRITING]: ['Meta-Llama-3.3-70B-Instruct'],
         [SUMMARIZATION]: ['Meta-Llama-3.3-70B-Instruct'],
-        // Was `Meta-Llama-3.1-8B-Instruct`, which no longer appears among
-        // SambaNova Cloud's supported models. Verified 2026-08-17.
+        // `Meta-Llama-3.1-8B-Instruct` is not among SambaNova Cloud's
+        // supported models.
         [CLASSIFICATION]: ['Meta-Llama-3.3-70B-Instruct'],
         [STRUCTURED_JSON]: ['Meta-Llama-3.3-70B-Instruct'],
     },
@@ -180,11 +158,9 @@ const MODEL_VERSIONS = {
         [SUMMARIZATION]: ['meta-llama/llama-3.3-70b-instruct'],
         [CLASSIFICATION]: ['meta-llama/llama-3.3-70b-instruct'],
         [STRUCTURED_JSON]: ['meta-llama/llama-3.3-70b-instruct'],
-        // The slug was `meta-llama/llama-4-scout-17b-16e-instruct` — Groq's
-        // naming for the same weights, not OpenRouter's. OpenRouter does
-        // not list it, so every OpenRouter image request 404'd on a model
-        // that was in fact available under a different name. Confirmed
-        // against OpenRouter's live catalogue (414 models) 2026-08-17.
+        // OpenRouter's own slug. `meta-llama/llama-4-scout-17b-16e-instruct`
+        // is Groq's naming for the same weights; OpenRouter does not list it,
+        // so a request for it 404s.
         [VISION]: ['meta-llama/llama-4-scout'],
         [MULTI_IMAGE]: ['meta-llama/llama-4-scout'],
     },

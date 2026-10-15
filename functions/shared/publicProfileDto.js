@@ -36,7 +36,7 @@ const PUBLIC_APPLICATION_CONFIG_KEYS = [
 ];
 
 /**
- * The shape version of this projection. Version 3 (2026-09-02) added
+ * The shape version of this projection. Version 3 is the first to carry
  * `applicationRules` and `applicationIntegrations`.
  *
  * Stamped onto every profile this module writes, and compared by the reconciler

@@ -5,17 +5,16 @@
  * The draft's id is `sha256(company:email:phone)`, so those two fields are not
  * contact details — they are the address. A driver who fixes a typo on page one
  * is therefore writing to a DIFFERENT document than the one the carrier prepared,
- * and before this was fixed that document was an ordinary `in_progress` draft
- * with no `origin`, no `inviteClaimedAt` and no `lockedEmployers`.
+ * and the carrier's `origin`, `inviteClaimedAt` and `lockedEmployers` have to move
+ * with it.
  *
- * That is not a lost record, it is a lost rule. `submitGuestApplication` reads the
- * locks from the key it computes off the *submitted* contact details, so the
- * employers the carrier locked from a PSP report could be renamed or deleted by
- * anyone who corrected a typo — the one thing the lock exists to prevent, undone
- * without touching a locked field.
+ * Otherwise it is not a lost record, it is a lost rule. `submitGuestApplication`
+ * reads the locks from the key it computes off the *submitted* contact details,
+ * so a typo correction would undo the employers the carrier locked from a PSP
+ * report without touching a locked field.
  *
- * Found in review on 2026-09-03. These tests pin both halves: the carrier's facts
- * travel with the applicant, and nothing about a driver-authored draft changes.
+ * These tests pin both halves: the carrier's facts travel with the applicant, and
+ * nothing about a driver-authored draft changes.
  */
 
 process.env.SMS_ENCRYPTION_KEY = 'x'.repeat(32);
@@ -152,7 +151,7 @@ describe('a prepared application whose driver corrects their contact details', (
         // exactly the "two live drafts answering one link" the non-travel of those
         // hashes exists to avoid. `supersedeOtherDrafts` cannot do it: it sweeps
         // by `identityKey`, and a prepared draft has none, because the carrier
-        // does not know the SSN the HMAC is built from. Found 2026-09-08.
+        // does not know the SSN the HMAC is built from.
         expect(stored(keyFor())).toBeUndefined();
     });
 

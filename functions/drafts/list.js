@@ -43,23 +43,18 @@ const LIST_LIMIT = 200;
  * A second generation callable, unlike the guest-facing ones, because it is an
  * authenticated staff read with no rate-limit-by-IP consideration.
  *
- * ## Why this is the ONLY list, as of 2026-09-10
+ * ## Why this is the ONLY list
  *
- * There used to be two. This one reads the whole collection; the narrower
- * `listCompanyPreparedApplications` reads `origin == 'company'` — so a draft the
- * carrier prepared was returned by BOTH, and the product showed it on two
- * different screens with two different sets of columns and actions. That was never
- * a security boundary: both callables return contact-and-progress and neither has
- * ever returned an answer. The read rule lives in `getCompanyPreparedDraft`
- * (`companyMayReadAnswers`, plus an outright refusal of any draft the carrier did
- * not author), which is unchanged and unaffected by who lists what.
- *
- * So the unified workspace reads this one, and every row it shows is one document
+ * The unified workspace reads this one, and every row it shows is one document
  * from one query. **Deduplication is structural rather than a merge step somebody
  * has to keep correct** — there is no union of two result sets to reconcile, and no
- * key to match them on wrongly. `toCompanySummary` supplies the shape, because it
- * was already the answer-free summary and already resolved `origin` for
- * driver-authored drafts.
+ * key to match them on wrongly. `toCompanySummary` supplies the shape: the
+ * answer-free summary, which also resolves `origin` for driver-authored drafts.
+ *
+ * A list is not a security boundary: it returns contact-and-progress, never an
+ * answer. The read rule lives in `getCompanyPreparedDraft` (`companyMayReadAnswers`,
+ * plus an outright refusal of any draft the carrier did not author), unaffected by
+ * who lists what.
  *
  * It holds the `LIST_LIMIT` most recently active and reads one more, so that
  * `truncated` says when older ones exist: the page then says it shows the most

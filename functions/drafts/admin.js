@@ -7,13 +7,13 @@
  *
  * ## Why an admin may read a driver's unfinished answers
  *
- * Nobody at the carrier could, before 2026-10-06. `getCompanyPreparedDraft`
+ * The owner decided that a Company Admin sees every unfinished application: the
+ * driver typed those answers into this carrier's own form, to apply to this
+ * carrier, and a recruiter following up should start from what is there.
+ * Recruiters and HR users read only through `getCompanyPreparedDraft`, which
  * answers only for the carrier's own prepared work, and only until the driver
- * writes (`companyMayReadAnswers`). The owner decided that a Company Admin sees
- * every unfinished application: the driver typed those answers into this
- * carrier's own form, to apply to this carrier, and a recruiter following up
- * should start from what is there. Recruiters and HR users keep the old rule.
- * Only the strict admin check `deleteApplication` uses opens these two doors.
+ * writes (`companyMayReadAnswers`). Only the strict admin check
+ * `deleteApplication` uses opens these two doors.
  *
  * A draft never holds a Social Security Number or a signature
  * (`shared/applicationDraft.js`), so neither can reach anybody through here, and

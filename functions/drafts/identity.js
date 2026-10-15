@@ -70,18 +70,13 @@ function identityKeyOrNull(parts, where) {
 /**
  * The identity HMAC a save should leave on the document.
  *
- * **A save must never be able to erase one.** `identityKey` used to be written as
- * `identityKey || null` on every save, and the HMAC needs the Social Security
- * Number — which a draft deliberately never stores. So the SSN lives only in the
+ * **A save must never be able to erase one.** The HMAC needs the Social Security
+ * Number, which a draft deliberately never stores, so the SSN lives only in the
  * browser's form state, and any save issued after a reload (or after a restore
- * from the server copy, which has no SSN either) recomputed the key as null and
- * wiped it. `findResumableApplication` queries `identityKey ==`, so the applicant
- * silently lost cross-device resume, and a carrier-prepared application lost the
- * only thing that could ever prove the driver owns it.
- *
- * Measured in production on 2026-09-09: three of six live drafts held
- * `identityKey: null`, including one at the consent step whose `resumeApplicationDraft`
- * restore was followed 46 seconds later by the save that erased it.
+ * from the server copy, which has no SSN either) computes no key. Writing that
+ * null would cost the applicant cross-device resume (`findResumableApplication`
+ * queries `identityKey ==`), and cost a carrier-prepared application the only
+ * thing that could ever prove the driver owns it.
  *
  * So a computed key wins — an applicant may correct their own last name or date of
  * birth, and the key must follow them — and otherwise the stored one stands. When
@@ -359,12 +354,12 @@ async function supersedeOtherDrafts(companyId, identityKey, keepApplicantKey, pr
  * this function — it is a consequence of what it queries. It sweeps by
  * `identityKey`, and a carrier-prepared draft has none: the HMAC is built from the
  * driver's own last name, date of birth and SSN digits, and the carrier does not
- * know the SSN, so `prepare.js` writes `identityKey: null` and says so. A driver
- * who corrects their email before their first save has landed therefore left the
- * prepared document alive — with its invite token hash intact — which contradicts
+ * know the SSN, so `prepare.js` writes `identityKey: null` and says so. Without
+ * this, a driver who corrects their email before their first save lands would
+ * leave the prepared document alive — with its invite token hash intact — against
  * what `shared/companyPreparedDraft.js` says the non-travel of those hashes is
  * for: "two live drafts answering one link is a worse problem than a claimed link
- * that has to be sent again". Found 2026-09-08.
+ * that has to be sent again".
  *
  * Same bar as every other deletion here, and for the same reason: the caller must
  * hold **that document's own** current token. That is exactly what

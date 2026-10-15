@@ -1,7 +1,7 @@
 /**
  * Deleting an unfinished application with everything in it, for a Company Admin.
  *
- * The owner asked for this on 2026-10-07: deleting an unfinished application
+ * At the owner's request, deleting an unfinished application
  * deletes its answers, its uploaded photos and documents, every link sent for it,
  * and the same driver's other unfinished application at this company. Submitted
  * applications and hired drivers are never touched.

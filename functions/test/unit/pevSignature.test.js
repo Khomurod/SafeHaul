@@ -1,10 +1,9 @@
 /**
  * PEV — the signature normaliser (functions/employmentVerification/signature.js).
  *
- * Until 2026-09-06 the server accepted any string that started with
- * `data:image`, decoded whatever followed and wrote it to Cloud Storage as a
- * PNG. Every refusal below is a shape that would have reached Storage, the
- * response record or the DQ-file PDF under that rule.
+ * Every refusal below is a shape that a looser rule — any string that starts
+ * with `data:image`, decoded and written to Cloud Storage as a PNG — would let
+ * reach Storage, the response record or the DQ-file PDF.
  */
 jest.mock('firebase-functions/v2/https', () => ({
   HttpsError: class HttpsError extends Error {

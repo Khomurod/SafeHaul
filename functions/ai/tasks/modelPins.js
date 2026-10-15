@@ -3,17 +3,14 @@
  *
  * ## Why this exists
  *
- * A registry pin is a claim about the world, and the world moves. On 2026-08-17
- * an audit found six pins naming models their vendors had retired — two of them
- * the entire Mistral vision lane, retired 2025-12-31 and 2026-05-31, and one an
- * OpenRouter slug that had never been OpenRouter's naming at all. Every CDL and
- * E-Doc image request routed to those providers had been failing for months.
+ * A registry pin is a claim about the world, and the world moves: a vendor
+ * retires a model, or a pin spells a name the vendor never used, and every
+ * request routed to that pin fails.
  *
- * Nothing in the repository could have noticed. Unit tests use fixtures by
- * design, the connection test never resolved the vision model, and a pin is
- * just a string until a request is made with it. So the only thing that can
- * catch this class of drift is asking the vendor — which means real
- * credentials, and therefore not CI.
+ * Nothing else in the repository can notice. Unit tests use fixtures by
+ * design, and a pin is just a string until a request is made with it. So the
+ * only thing that can catch this class of drift is asking the vendor — which
+ * means real credentials, and therefore not CI.
  *
  * This runs on demand from Super Admin, server-side, using the managed
  * credential the provider is already configured with. It is deliberately not

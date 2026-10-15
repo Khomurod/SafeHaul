@@ -155,7 +155,7 @@ describe('employmentVerification callables', () => {
     });
 
     /**
-     * The identity's own lost-update race, found in review on 2026-09-09.
+     * The identity's own lost-update race.
      *
      * Stamping ids means writing the WHOLE employers array, so two recruiters
      * sending requests for two different employers on the same never-yet-stamped

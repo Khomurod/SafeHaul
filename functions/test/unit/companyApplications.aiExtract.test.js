@@ -159,8 +159,8 @@ describe('the vision fallback', () => {
 
     it('returns a licence photo\'s dates as dates, not as printed', async () => {
         // The licence reader keeps dates "exactly as printed". Passed through, the
-        // carrier's date of birth held "03/11/1988" — a value no date control can
-        // show — and the expiration was dropped by the fill plan (2026-10-01).
+        // carrier's date of birth would hold "03/11/1988" — a value no date
+        // control can show — and the fill plan would drop the expiration.
         const result = await call({ cdl: { pages: [PAGE] } });
 
         expect(result.methods).toEqual({ cdl: 'vision' });

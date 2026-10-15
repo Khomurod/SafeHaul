@@ -123,7 +123,7 @@ function readStatedRetryMs(response, raw) {
  *
  * Mistral's free plan answers its Medium and Small models with
  * `x-ratelimit-limit-req-minute: 0`; Gemini's free tier answers its Pro models
- * with a quota error stating `limit: 0`. Both measured 2026-10-07. The header
+ * with a quota error stating `limit: 0`. The header
  * must be the literal `0`: a missing header is not a zero, though `Number(null)`
  * is. The body is read for that one token and nothing leaves this function but
  * the boolean.
@@ -142,7 +142,7 @@ function readLimitZero(response, raw) {
  * `quotaDetection` decides a quota: Mistral answers a paid-only model with
  * `403 code: "1910", type: "tier_not_allowed"`, a Labs model with
  * `403 code: "1913", type: "labs_not_enabled"`, and a model id it no longer
- * knows with `400 type: "invalid_model"` (2026-10-07). Every other 403 is still
+ * knows with `400 type: "invalid_model"`. Every other 403 is still
  * a rejected credential and every other 400 a rejected request. Both fields are
  * checked, because `extractVendorCode` keeps only the first.
  */

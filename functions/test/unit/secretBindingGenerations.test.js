@@ -4,23 +4,20 @@
  *
  * ## The failure this exists to prevent
  *
- * On 2026-08-19 a green pull request merged and `main` shipped nothing. Four new
- * **1st-generation** callables declared `secrets: ['SMS_ENCRYPTION_KEY']`, and
- * every previous consumer of that secret was **2nd generation**. The two
- * generations default to different runtime service accounts — App Engine for v1,
- * Compute Engine for v2 — so the Firebase CLI tried to add a binding the secret's
- * IAM policy did not have:
+ * The two generations default to different runtime service accounts — App
+ * Engine for v1, Compute Engine for v2 — so when a secret gains a generation,
+ * the Firebase CLI tries to add a binding the secret's IAM policy does not have:
  *
  *     i functions: ensuring truckerapp-system@appspot.gserviceaccount.com
  *                  access to secret SMS_ENCRYPTION_KEY.
  *     Error: ... Permission 'secretmanager.secrets.setIamPolicy' denied
  *
  * The CI deploy account can deploy functions but cannot rewrite secret IAM. So
- * `deploy-functions` aborted — for **every** function, not only the new ones —
- * and the shared backend that Production also runs on stayed on the previous
- * revision. `verify-shipped` caught it, which is the only reason anybody knew.
+ * `deploy-functions` aborts — for **every** function, not only the new ones —
+ * and the shared backend that Production also runs on stays on the previous
+ * revision; a green pull request merges and `main` ships nothing.
  *
- * Nothing in the test suite could have caught it: the functions load fine, the
+ * Nothing else in the test suite can catch it: the functions load fine, the
  * unit tests pass, and a pull request never deploys. This test is the guard.
  *
  * ## What to do when it fails

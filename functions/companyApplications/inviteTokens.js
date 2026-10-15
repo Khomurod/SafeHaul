@@ -1,27 +1,21 @@
 /**
  * The algebra of an invite token: which hashes open a draft, and until when.
  *
- * Split out of `invite.js` on 2026-09-09 for the source-size standard, and it is
- * the right seam: everything here is a pure function of a stored document and a
- * presented token, with no Firestore, no callable and no policy. `invite.js` is
- * the two callables and the decisions they make.
+ * Kept apart from `invite.js` because it is the right seam: everything here is a
+ * pure function of a stored document and a presented token, with no Firestore,
+ * no callable and no policy. `invite.js` is the two callables and the decisions
+ * they make.
  *
  * ## Validity belongs to a TOKEN, not to the document
  *
- * This is the shape of a defect found on 2026-09-08, and the reason the code below
- * looks the way it does. Matching accepted the current hash *or* any prior hash,
- * while validity read a single document-level `inviteTokenExpiresAt` that every
- * mint rewrote unconditionally — two independent questions composed into one
- * answer. So regenerating did not retire the old link, it **revived** it: a link
- * that had been dead for a week opened again, with a fresh resume token, for
- * another fourteen days. The panel meanwhile told the recruiter that "creating a
- * new one retires this one".
- *
- * So each accepted hash now carries its own expiry, and `liveInviteFor` asks both
- * questions of one entry — which is what makes the old composition impossible to
- * write again. The prior hash is kept for the reason it always claimed: a driver
- * who opened the old link a moment ago should not find it dead mid-page. That is a
- * minutes-scale concern, so it is a minutes-scale grace.
+ * Each accepted hash carries its own expiry, and `liveInviteFor` asks both
+ * questions — does this hash match, and is it still valid — of one entry.
+ * Matching the current *or* any prior hash while reading validity from one
+ * document-level expiry that every mint rewrites would make regenerating
+ * **revive** an old link instead of retiring it, against what the panel tells
+ * the recruiter: "creating a new one retires this one". The prior hash is kept so
+ * a driver who opened the old link a moment ago does not find it dead mid-page.
+ * That is a minutes-scale concern, so it is a minutes-scale grace.
  */
 
 const crypto = require('crypto');
