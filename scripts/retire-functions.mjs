@@ -114,6 +114,15 @@ export const RETIREMENTS = Object.freeze([
         since: '0702dc91eda342a199cbb88109e05db7cc7fd689',
         names: Object.freeze(['listCompanyPreparedApplications']),
     }),
+    Object.freeze({
+        // A trigger on new driver documents that merged and deleted duplicates by
+        // phone. No code writes the field it waits for, but a signed-in user's own
+        // `drivers/{uid}` write could reach it. No release calls a trigger, so any
+        // promotion carrying its removal may delete it.
+        id: 'driver-profile-merge',
+        since: 'a2f5b5bd98c87c9c40b3e721c09ef668c54bb27e',
+        names: Object.freeze(['onDriverProfileCreated']),
+    }),
 ]);
 
 export const REGION = 'us-central1';

@@ -424,8 +424,9 @@ unfinished-applications page moved to `purgeApplicationDraft`); and
 whose path the app host had always answered with the app page); the two Smart
 Segments triggers (since `5c9427e`, their own removal); `updateBulkSessionStatus`
 (since `bf07bf6`); `executeReactivationBatch` (since `46989c1`);
-`syncSystemStructure` and `runSecurityAudit` (since `7aaca38`); and
-`listCompanyPreparedApplications` (since `0702dc9`). To retire
+`syncSystemStructure` and `runSecurityAudit` (since `7aaca38`);
+`listCompanyPreparedApplications` (since `0702dc9`); and the
+`onDriverProfileCreated` trigger (since `a2f5b5b`, its own removal). To retire
 another callable, remove it from `functions/index.js` and add an entry.
 `scripts/test-release-promotion.mjs` scenarios 19–22 pin the planning rules, that
 no retired name is still exported (19f), and that the workflow runs the step
