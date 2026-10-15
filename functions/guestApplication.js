@@ -208,7 +208,13 @@ exports.submitGuestApplication = functions
             throw new functions.https.HttpsError('invalid-argument', 'Signature is required.');
         }
 
-        const companyData = await assertCompanyAcceptingIntake(db, companyId);
+        // The intake check and the public projection are independent reads: both
+        // start now, and the check still decides first.
+        const companyCheck = assertCompanyAcceptingIntake(db, companyId);
+        const publicProfileRead = Promise.resolve()
+            .then(() => db.collection('public_profiles').doc(companyId).get())
+            .then((snapshot) => ({ snapshot }), (error) => ({ error }));
+        const companyData = await companyCheck;
         let companyName = companyData.companyName || 'Unknown Company';
         let applicationConfig = companyData.applicationConfig || null;
         let applicationRules = companyData.applicationRules || null;
@@ -219,7 +225,8 @@ exports.submitGuestApplication = functions
         let customQuestions = Array.isArray(companyData.customQuestions) ? companyData.customQuestions : [];
 
         try {
-            const publicSnap = await db.collection('public_profiles').doc(companyId).get();
+            const { snapshot: publicSnap, error } = await publicProfileRead;
+            if (error) throw error;
             if (publicSnap.exists) {
                 const publicData = publicSnap.data() || {};
                 companyName = publicData.companyName || companyName;
