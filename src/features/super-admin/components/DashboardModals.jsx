@@ -1,4 +1,5 @@
 import React from 'react';
+import { DriverDossier } from '@features/company-admin';
 import {
     EditCompanyModal,
     EditUserModal,
@@ -6,7 +7,6 @@ import {
     DeleteCompanyModal,
     DeleteUserModal
 } from './modals';
-import { DriverProfileModal } from '@features/company-admin';
 
 export function DashboardModals({
     // Modal States
@@ -69,7 +69,7 @@ export function DashboardModals({
             )}
 
             {selectedApplication && (
-                <DriverProfileModal
+                <DriverDossier
                     companyId={selectedApplication.companyId}
                     driverId={selectedApplication.appId}
                     isOpen={true}

@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { WorkspaceFrame } from '@/design-system/layouts';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
@@ -8,14 +8,9 @@ import { FeatureDeactivationWarning } from '../components/FeatureDeactivationWar
 import { useCompanyDeactivated } from '../hooks/useCompanyDeactivated';
 import { CompanyDeactivatedScreen } from './CompanyDeactivatedScreen';
 import { useData } from '@/context/DataContext';
+import { DriverDossier } from '../components/modals/driver-dossier/DriverDossier';
 
 const SIDEBAR_STORAGE_KEY = 'companySidebarMode';
-
-// The record a notification names opens here, over the page and outside the top
-// bar's stacking layer, which a dialog must not render inside. It loads when a
-// notification is first opened.
-const DriverProfileModal = lazy(() => import('../components/modals/driver-dossier/DriverProfileModal')
-    .then((module) => ({ default: module.DriverProfileModal })));
 
 export const CompanyAppShell = () => {
     const isMobile = useIsMobile();
@@ -71,17 +66,20 @@ export const CompanyAppShell = () => {
                 <FeatureDeactivationWarning />
                 <Outlet />
             </WorkspaceFrame>
+            {/*
+              The record a notification names opens here, over the page and
+              outside the top bar's stacking layer, which a dialog must not
+              render inside.
+            */}
             {openRecordId && currentCompanyProfile?.id && (
-                <Suspense fallback={null}>
-                    <DriverProfileModal
-                        key={openRecordId}
-                        companyId={currentCompanyProfile.id}
-                        driverId={openRecordId}
-                        isOpen
-                        onClose={() => setOpenRecordId(null)}
-                        onDeleted={() => setOpenRecordId(null)}
-                    />
-                </Suspense>
+                <DriverDossier
+                    key={openRecordId}
+                    companyId={currentCompanyProfile.id}
+                    driverId={openRecordId}
+                    isOpen
+                    onClose={() => setOpenRecordId(null)}
+                    onDeleted={() => setOpenRecordId(null)}
+                />
             )}
         </>
     );

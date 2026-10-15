@@ -4,10 +4,11 @@ import { ApplicationTab } from './tabs/ApplicationTab';
 import { DocumentsTab } from './tabs/DocumentsTab';
 import { DQFileTab } from '@features/company-admin/components/tabs/DQFileTab';
 
-// Lazy Load Legacy Tabs to keep bundle size optimized
-const ActivityHistoryTab = React.lazy(() => import('@features/company-admin/components/tabs').then(m => ({ default: m.ActivityHistoryTab })));
-const NotesTab = React.lazy(() => import('@features/company-admin/components/tabs').then(m => ({ default: m.NotesTab })));
-const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/PEVTab').then(m => ({ default: m.PEVTab }))); // Legacy PEV Tab
+// The tabs that load when opened, each from its own file: through a shared
+// index, Activity and Notes also downloaded the Previous Employment tab.
+const ActivityHistoryTab = React.lazy(() => import('@features/company-admin/components/tabs/ActivityHistoryTab').then(m => ({ default: m.ActivityHistoryTab })));
+const NotesTab = React.lazy(() => import('@features/company-admin/components/tabs/NotesTab').then(m => ({ default: m.NotesTab })));
+const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/PEVTab').then(m => ({ default: m.PEVTab })));
 
 /**
  * Routes the active dossier tab to its content component.
@@ -31,6 +32,7 @@ export function DossierContent({
     handleSaveEdit,
     isSaving,
     fileUrls,
+    filesPending = false,
     canEdit
 }) {
     // Shared Loading Fallback
@@ -46,6 +48,7 @@ export function DossierContent({
                 return <ApplicationTab
                     appData={appData}
                     fileUrls={fileUrls}
+                    filesPending={filesPending}
                     isEditing={isEditing}
                     setIsEditing={setIsEditing}
                     canEdit={canEdit}
@@ -58,6 +61,7 @@ export function DossierContent({
                 return <DocumentsTab
                     appData={appData}
                     fileUrls={fileUrls}
+                    filesPending={filesPending}
                 />;
 
             case 'dq':

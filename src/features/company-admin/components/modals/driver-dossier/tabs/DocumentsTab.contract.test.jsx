@@ -200,3 +200,22 @@ describe('DocumentsTab preview', () => {
     expect(screen.queryByRole('dialog', { name: 'MVR Report' })).toBeNull();
   });
 });
+
+describe('DocumentsTab while the files are signed', () => {
+  const upload = { name: 'cdl-front.jpg', url: 'https://x/expired', storagePath: 'companies/co-1/applications/guest_uploads/a/cdl-front.jpg' };
+
+  it('says so, rather than offer the dead stored link or no documents', () => {
+    render(<DocumentsTab fileUrls={{}} filesPending appData={{ 'cdl-front': upload }} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Loading documents…');
+    expect(screen.queryByRole('listitem')).toBeNull();
+    expect(screen.queryByText('No documents found for this applicant.')).toBeNull();
+  });
+
+  it('lists the documents once their links have arrived', () => {
+    render(<DocumentsTab fileUrls={{ 'cdl-front': 'https://x/signed' }} filesPending={false} appData={{ 'cdl-front': upload }} />);
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.queryByText('Loading documents…')).toBeNull();
+  });
+});

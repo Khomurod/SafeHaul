@@ -4,10 +4,12 @@ import { DashboardToolbar, useCompanyDashboard } from '@features/companies';
 import { Chip, ChipGroup, DataTable } from '@/design-system/components';
 import { useData } from '@/context/DataContext';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { whenIdle } from '@lib/monitoring/sentry';
 
 import { CallOutcomeModal } from '@shared/components/modals/CallOutcomeModal';
 import { LeadAssignmentModal } from '../components/LeadAssignmentModal';
-import { DriverProfileModal } from '../components/modals/driver-dossier/DriverProfileModal';
+import { DriverDossier } from '../components/modals/driver-dossier/DriverDossier';
+import { loadDriverDossier } from '../components/modals/driver-dossier/loadDriverDossier';
 
 import { buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_PIPELINE_TABS, LEAD_PIPELINE_TABS } from './candidateListColumns';
 import { UndatedRecordsNotice } from './UndatedRecordsNotice';
@@ -29,6 +31,12 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         initialSegment: pipelineTabs.some((tab) => tab.id === openedSegment) ? openedSegment : 'all',
     });
     const { showError, showSuccess } = useToast();
+
+    // The dossier's code loads behind the list once the page is idle, so a row
+    // usually opens without waiting for it.
+    useEffect(() => {
+        whenIdle(() => { loadDriverDossier().catch(() => {}); });
+    }, []);
 
     // Local State
     const [selectedApp, setSelectedApp] = useState(null);
@@ -113,7 +121,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         if (!selectedApp) return null;
 
         return (
-            <DriverProfileModal
+            <DriverDossier
                 key={selectedApp.id}
                 companyId={companyId}
                 driverId={selectedApp.id}
