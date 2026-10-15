@@ -110,6 +110,18 @@ describe('step 1 — recipient', () => {
         renderWizard();
         expect(screen.getByText('No leads found.')).toBeInTheDocument();
     });
+
+    it('says the leads are loading while they are', () => {
+        renderWizard({ leadsStatus: 'loading' });
+        expect(screen.getByText('Loading leads…')).toHaveAttribute('role', 'status');
+        expect(screen.queryByText('No leads found.')).not.toBeInTheDocument();
+    });
+
+    it('says when the leads could not be loaded, rather than that none match', () => {
+        renderWizard({ leadsStatus: 'failed' });
+        expect(screen.getByRole('alert')).toHaveTextContent('Leads could not be loaded.');
+        expect(screen.queryByText('No leads found.')).not.toBeInTheDocument();
+    });
 });
 
 describe('step 2 — document details', () => {

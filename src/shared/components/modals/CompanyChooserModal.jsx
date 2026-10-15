@@ -15,8 +15,9 @@ import { Modal } from '@design-system/patterns';
  * Presentation only. Frozen and unchanged: the `currentUserClaims.roles` read
  * with `globalRole` deleted before deriving company ids, the three guard messages
  * (`"Could not find user roles."`, `"User has no company memberships."`,
- * `"Could not load your companies."`), the sequential `getCompanyProfile` fetch
- * that silently skips companies it cannot load, the
+ * `"Could not load your companies."`), the `getCompanyProfile` reads (side by
+ * side, listed in the memberships' order) that silently skip companies they
+ * cannot load, the
  * `loginToCompany(company.id, company.role)` call and its argument order, the
  * `handleLogout` call, the `role.replace('_', ' ')` display rule, and every
  * user-facing string. The `choose-company-modal` and `company-choice-list` ids are
@@ -71,17 +72,17 @@ export function CompanyChooserModal() {
       setLoading(true);
       setError('');
       try {
+        const profiles = await Promise.all(companyIds.map((companyId) => getCompanyProfile(companyId)));
         const fetchedData = [];
-        for (const companyId of companyIds) {
-          const companyData = await getCompanyProfile(companyId);
-          if (companyData) {
+        companyIds.forEach((companyId, index) => {
+          if (profiles[index]) {
             fetchedData.push({
               id: companyId,
-              data: companyData,
+              data: profiles[index],
               role: companyRoles[companyId]
             });
           }
-        }
+        });
         setCompanyDataList(fetchedData);
       } catch (err) {
         console.error("Error populating company chooser:", err);

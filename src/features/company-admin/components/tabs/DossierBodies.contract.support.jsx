@@ -71,6 +71,8 @@ export const firebaseFirestoreMock = () => ({
         : { kind: 'doc', path: rest.join('/') }),
     query: (ref, ...clauses) => ({ ref, clauses }),
     orderBy: (field, dir) => ({ field, dir }),
+    limit: (count) => ({ limit: count }),
+    startAfter: (cursor) => ({ startAfter: cursor }),
     getDocs: (...a) => fs.getDocs(...a),
     getDoc: (...a) => fs.getDoc(...a),
     addDoc: (...a) => fs.addDoc(...a),

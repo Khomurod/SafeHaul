@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { db, auth } from '@lib/firebase';
-import { collection, query, doc, getDocs, Timestamp, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, Timestamp, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import {
     buildPrefillContext,
@@ -22,6 +22,23 @@ import {
 } from '@features/signing/utils/prefillEngine';
 import { resolveSignedDateValue } from '@features/signing/utils/signedDate';
 import { copySigningLink, LINK_NOT_COPIED } from '@features/signing/utils/copySigningLink';
+
+// The picker's leads load when it opens (`pickerLeads.js`), never the whole list.
+const loadPickerLeads = () => import('./pickerLeads');
+
+/** A search waits for a pause in typing; the newest leads load at once. */
+const SEARCH_PAUSE_MS = 300;
+
+/** The browser tests' lead: they run without a backend. */
+const E2E_PICKER_LEADS = [
+    {
+        id: 'lead_e2e_1',
+        firstName: 'E2E',
+        lastName: 'Driver',
+        email: 'driver@safehaul.local',
+        phone: '5551112222',
+    },
+];
 
 export function useTemplateSendFlow({
     currentCompanyProfile,
@@ -35,6 +52,8 @@ export function useTemplateSendFlow({
     const [showDriverPicker, setShowDriverPicker] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState(null);
     const [drivers, setDrivers] = useState([]);
+    // What the picker shows in place of rows: 'loading', 'ready' or 'failed'.
+    const [driversStatus, setDriversStatus] = useState('loading');
     const [searchQuery, setSearchQuery] = useState('');
     const [sending, setSending] = useState(false);
 
@@ -48,29 +67,35 @@ export function useTemplateSendFlow({
     const [prefillValues, setPrefillValues] = useState({});
     const [prefillValuesByGroupKey, setPrefillValuesByGroupKey] = useState({});
 
-    // Fetch Drivers for Picker
+    // The picker's leads: the newest 20, or the matches for what is typed,
+    // found on the server the way the leads list finds them.
     useEffect(() => {
-        if (showDriverPicker && currentCompanyProfile?.id) {
-            if (isE2EEdocMock) {
-                setDrivers([
-                    {
-                        id: 'lead_e2e_1',
-                        firstName: 'E2E',
-                        lastName: 'Driver',
-                        email: 'driver@safehaul.local',
-                        phone: '5551112222',
-                    },
-                ]);
-                return;
+        if (!showDriverPicker || !currentCompanyProfile?.id) return undefined;
+        const companyId = currentCompanyProfile.id;
+        const term = searchQuery;
+        let current = true;
+        setDriversStatus('loading');
+        const timer = setTimeout(async () => {
+            try {
+                const { findPickerLeads, matchPickerLeads } = await loadPickerLeads();
+                const found = isE2EEdocMock
+                    ? matchPickerLeads(E2E_PICKER_LEADS, term)
+                    : await findPickerLeads(companyId, term);
+                if (!current) return;
+                setDrivers(found);
+                setDriversStatus('ready');
+            } catch (error) {
+                console.error('Error loading leads for the template picker:', error);
+                if (!current) return;
+                setDrivers([]);
+                setDriversStatus('failed');
             }
-            const fetchDrivers = async () => {
-                const q = query(collection(db, 'companies', currentCompanyProfile.id, 'leads'));
-                const snap = await getDocs(q);
-                setDrivers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-            };
-            fetchDrivers();
-        }
-    }, [showDriverPicker, currentCompanyProfile?.id, isE2EEdocMock]);
+        }, term.trim() ? SEARCH_PAUSE_MS : 0);
+        return () => {
+            current = false;
+            clearTimeout(timer);
+        };
+    }, [showDriverPicker, currentCompanyProfile?.id, isE2EEdocMock, searchQuery]);
 
     const handleUseTemplate = (template) => {
         setSelectedTemplate(template);
@@ -222,6 +247,7 @@ export function useTemplateSendFlow({
         selectedTemplate,
         setSelectedTemplate,
         drivers,
+        driversStatus,
         searchQuery,
         setSearchQuery,
         sending,

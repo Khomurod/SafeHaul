@@ -1,8 +1,8 @@
-import React, { useEffect, useId, useState, useMemo } from 'react';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import React, { useEffect, useId, useRef, useState, useMemo } from 'react';
+import { collection, query, orderBy, getDocs, limit, startAfter } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { Icon, CircleDot, User, FileText, RefreshCcw, MessageSquare, Mail, Phone, ShieldCheck, Filter, Calendar, Zap, Settings, CheckCircle2, XCircle } from '@design-system/icons';
-import { Avatar, Badge, Card, FormField, Select } from '@/design-system/components';
+import { Avatar, Badge, Button, Card, FormField, Select } from '@/design-system/components';
 
 /**
  * Audit trail for one application or lead.
@@ -20,6 +20,10 @@ import { Avatar, Badge, Card, FormField, Select } from '@/design-system/componen
  * 'numeric' }` date format and the 2-digit time format, the domain→icon decision
  * table and its precedence order, the `'System Auto'` and `'Pending'` fallbacks,
  * the call-duration rule, and every user-facing string.
+ *
+ * The trail is read 50 entries at a time, newest first, and "Show older
+ * activity" reads the 50 before them; the filter and the grouping work on what
+ * has been read.
  *
  * Defects fixed:
  *  1. **Sub-12px functional text in five places** — `text-[10px]` on the date
@@ -57,6 +61,9 @@ const TONE = {
     neutral: 'text-ds-content-secondary',
 };
 
+/** Entries read at a time: the newest first, then the ones before them on request. */
+const PAGE_SIZE = 50;
+
 const FILTERS = [
     { value: 'all', label: 'All Activities' },
     { value: 'calls', label: 'Calls' },
@@ -68,28 +75,65 @@ const FILTERS = [
 export function ActivityHistoryTab({ companyId, applicationId, collectionName }) {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
+    // The last entry read, where older activity continues; null at the end of the trail.
+    const [olderFrom, setOlderFrom] = useState(null);
+    const [loadingOlder, setLoadingOlder] = useState(false);
+    const [olderFailed, setOlderFailed] = useState(false);
     const [filterType, setFilterType] = useState('all');
     const filterFieldId = useId();
     const timelineLabelId = useId();
+    // Each read of a trail from its start; a page for an earlier one is dropped.
+    const readsRef = useRef(0);
+    const olderInFlightRef = useRef(false);
 
     useEffect(() => {
         if (companyId && applicationId) fetchLogs();
     }, [companyId, applicationId, collectionName]);
 
-    const fetchLogs = async () => {
-        setLoading(true);
-        try {
-            const validCollection = (collectionName === 'leads') ? 'leads' : 'applications';
-            const logsRef = collection(db, "companies", companyId, validCollection, applicationId, "activity_logs");
-            const q = query(logsRef, orderBy("timestamp", "desc"));
+    const readPage = async (...after) => {
+        const validCollection = (collectionName === 'leads') ? 'leads' : 'applications';
+        const logsRef = collection(db, "companies", companyId, validCollection, applicationId, "activity_logs");
+        const { docs } = await getDocs(query(logsRef, orderBy("timestamp", "desc"), ...after, limit(PAGE_SIZE)));
+        return {
+            entries: docs.map(doc => ({ id: doc.id, ...doc.data() })),
+            next: docs.length === PAGE_SIZE ? docs[docs.length - 1] : null,
+        };
+    };
 
-            const snapshot = await getDocs(q);
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setLogs(data);
+    const fetchLogs = async () => {
+        const read = ++readsRef.current;
+        setLoading(true);
+        setOlderFrom(null);
+        setOlderFailed(false);
+        try {
+            const page = await readPage();
+            if (read !== readsRef.current) return;
+            setLogs(page.entries);
+            setOlderFrom(page.next);
         } catch (error) {
             console.error("Error loading history:", error);
         } finally {
-            setLoading(false);
+            if (read === readsRef.current) setLoading(false);
+        }
+    };
+
+    const loadOlder = async () => {
+        if (!olderFrom || olderInFlightRef.current) return;
+        olderInFlightRef.current = true;
+        const read = readsRef.current;
+        setLoadingOlder(true);
+        setOlderFailed(false);
+        try {
+            const page = await readPage(startAfter(olderFrom));
+            if (read !== readsRef.current) return;
+            setLogs((shown) => [...shown, ...page.entries]);
+            setOlderFrom(page.next);
+        } catch (error) {
+            console.error("Error loading older history:", error);
+            if (read === readsRef.current) setOlderFailed(true);
+        } finally {
+            olderInFlightRef.current = false;
+            setLoadingOlder(false);
         }
     };
 
@@ -255,6 +299,19 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
                                 ))}
                             </section>
                         ))}
+                    </div>
+                )}
+
+                {olderFrom && (
+                    <div className="mt-ds-6 flex flex-col items-center gap-ds-2">
+                        {olderFailed && (
+                            <p role="alert" className="text-ds-sm text-ds-status-danger-fg">
+                                Older activity could not be loaded.
+                            </p>
+                        )}
+                        <Button variant="secondary" size="sm" loading={loadingOlder} onClick={loadOlder}>
+                            Show older activity
+                        </Button>
                     </div>
                 )}
             </div>

@@ -74,11 +74,20 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
     useEffect(() => {
         async function init() {
             setLoading(true);
+            // The notes, the shared history and the writer's name are read side
+            // by side. The name settles on its own, so failing to read it leaves
+            // the notes on screen, as when it was read after them.
+            const writerRead = auth.currentUser
+                ? getPortalUser(auth.currentUser.uid).then((profile) => ({ profile }), (error) => ({ error }))
+                : null;
             try {
                 // 1. Fetch Local Internal Notes (Your company's private notes)
                 const notesRef = collection(db, "companies", companyId, collectionName, applicationId, "internal_notes");
                 const q = query(notesRef, orderBy("createdAt", "desc"));
-                const snapshot = await getDocs(q);
+                // 2. Fetch Shared History (Anonymized notes from previous companies)
+                // These live on the parent document in the 'sharedHistory' array
+                const parentDocRef = doc(db, "companies", companyId, collectionName, applicationId);
+                const [snapshot, parentSnap] = await Promise.all([getDocs(q), getDoc(parentDocRef)]);
 
                 const localNotes = snapshot.docs.map(doc => ({
                     id: doc.id,
@@ -86,11 +95,6 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                     text: sanitizeUserContent(doc.data().text || ''),
                     isLocal: true
                 }));
-
-                // 2. Fetch Shared History (Anonymized notes from previous companies)
-                // These live on the parent document in the 'sharedHistory' array
-                const parentDocRef = doc(db, "companies", companyId, collectionName, applicationId);
-                const parentSnap = await getDoc(parentDocRef);
 
                 let sharedNotes = [];
                 if (parentSnap.exists() && parentSnap.data().sharedHistory) {
@@ -120,9 +124,10 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                 setNotes(allNotes);
 
                 // 4. Get Current User Name for the input form
-                if (auth.currentUser) {
-                    const userProfile = await getPortalUser(auth.currentUser.uid);
-                    setCurrentUser(userProfile ? userProfile.name : 'Admin');
+                if (writerRead) {
+                    const writer = await writerRead;
+                    if (writer.error) throw writer.error;
+                    setCurrentUser(writer.profile ? writer.profile.name : 'Admin');
                 }
             } catch (e) {
                 console.error("Error loading notes:", e);
