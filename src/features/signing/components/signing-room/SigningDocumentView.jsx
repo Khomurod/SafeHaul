@@ -5,24 +5,18 @@
 // load-error/retry state, and the fit-width math. The room keeps the signer
 // interaction handlers (change/focus/advance/signature) and passes them down,
 // along with `pageRefs`, which its scroll-to-field navigation reads.
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { E2E_MOCK_PDF_URL } from '@features/signing/hooks/useSigningEnvelope';
 import { SignerField } from '@features/signing/components/signing-room/SignerField';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button } from '@/design-system/components';
 import { ErrorState } from '@design-system/patterns';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { Document, Page } from 'react-pdf';
 import '@lib/pdf/pdfWorker';
 import { Icon, Loader2, AlertTriangle, RefreshCw } from '@design-system/icons';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-
-// Fix: Use local worker to avoid CORS and 404s
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url,
-).toString();
 
 // US Letter portrait ratio — used for page placeholders until the real page
 // geometry arrives from pdf.js, so layout never jumps more than once.
@@ -31,6 +25,12 @@ const DEFAULT_PAGE_ASPECT = 1.294;
 // Cap the fit-width on large screens for readability; zoom can exceed it.
 const MAX_FIT_WIDTH = 800;
 const MIN_FIT_WIDTH = 260;
+
+// A page canvas on a phone takes megabytes. The first pages paint at once; the
+// others paint as they come within this margin of the view, and give their
+// canvas up when they leave it. Every page keeps its size and its fields.
+const EAGER_PAGES = 2;
+const PAGE_PAINT_MARGIN = '150% 0px';
 
 export function SigningDocumentView({
     request,
@@ -54,6 +54,11 @@ export function SigningDocumentView({
     // canvas has actually painted, so signers on throttled connections can't
     // fill boxes floating over a blank page.
     const [renderedPages, setRenderedPages] = useState(() => new Set());
+    // Pages within `PAGE_PAINT_MARGIN` of the view; the first `EAGER_PAGES` paint regardless.
+    const [nearPages, setNearPages] = useState(() => new Set());
+    // The document whose page shapes are being read, so a late reading of one
+    // document cannot land on the next.
+    const measuredDoc = useRef(null);
     const [docError, setDocError] = useState(null);
     const [docReloadKey, setDocReloadKey] = useState(0);
     const [scrollerWidth, setScrollerWidth] = useState(() => window.innerWidth);
@@ -87,6 +92,8 @@ export function SigningDocumentView({
     // stale pages/aspects bleeding into a different document.
     useEffect(() => {
         setPageAspects({});
+        setNearPages(new Set());
+        measuredDoc.current = null;
         if (request?.pdfUrl === E2E_MOCK_PDF_URL) {
             setNumPages(1);
             setRenderedPages(new Set([1])); // mock shell has no real canvas to wait for
@@ -97,6 +104,70 @@ export function SigningDocumentView({
         setDocError(null);
     }, [request?.pdfUrl]);
 
+    // Watch every page against the scroller, a margin beyond what is visible.
+    // Without IntersectionObserver, every page paints, as before.
+    useEffect(() => {
+        if (!numPages || isE2EMockShell) return undefined;
+        if (typeof IntersectionObserver !== 'function') {
+            setNearPages(new Set(Array.from({ length: numPages }, (_, i) => i + 1)));
+            return undefined;
+        }
+        const observer = new IntersectionObserver((entries) => {
+            const entered = [];
+            const left = [];
+            for (const entry of entries) {
+                const pageNumber = Number(entry.target?.dataset?.signingPage);
+                if (pageNumber) (entry.isIntersecting ? entered : left).push(pageNumber);
+            }
+            setNearPages((prev) => {
+                const next = new Set(prev);
+                entered.forEach((n) => next.add(n));
+                left.forEach((n) => next.delete(n));
+                return next;
+            });
+            // A page that gave its canvas up paints again before its fields wake.
+            const unpainted = left.filter((n) => n > EAGER_PAGES);
+            if (unpainted.length > 0) {
+                setRenderedPages((prev) => {
+                    if (!unpainted.some((n) => prev.has(n))) return prev;
+                    const next = new Set(prev);
+                    unpainted.forEach((n) => next.delete(n));
+                    return next;
+                });
+            }
+        }, { root: scrollerEl || null, rootMargin: PAGE_PAINT_MARGIN });
+        for (let n = 1; n <= numPages; n += 1) {
+            const node = pageRefs.current[n];
+            if (node) observer.observe(node);
+        }
+        return () => observer.disconnect();
+    }, [numPages, scrollerEl, pageRefs, isE2EMockShell]);
+
+    // Every page's shape, read from the document once it loads (no canvas), so
+    // a page not yet painted keeps its real size and its fields their place.
+    const handleDocumentLoad = async (pdf) => {
+        setNumPages(pdf.numPages);
+        if (typeof pdf?.getPage !== 'function') return;
+        measuredDoc.current = pdf;
+        const shapes = await Promise.all(Array.from({ length: pdf.numPages }, async (_, index) => {
+            try {
+                const viewport = (await pdf.getPage(index + 1)).getViewport({ scale: 1 });
+                return [index + 1, viewport.height / viewport.width];
+            } catch {
+                return null; // keep the default Letter aspect
+            }
+        }));
+        if (measuredDoc.current !== pdf) return;
+        setPageAspects((prev) => ({ ...prev, ...Object.fromEntries(shapes.filter(Boolean)) }));
+    };
+
+    const paintsPage = (pageNumber) => pageNumber <= EAGER_PAGES || nearPages.has(pageNumber);
+    // A field that takes the keyboard focus paints its page at once, whatever
+    // the observer has seen yet.
+    const paintOnFocus = (pageNumber) => () => {
+        setNearPages((prev) => (prev.has(pageNumber) ? prev : new Set(prev).add(pageNumber)));
+    };
+
     const gutterX = isMobile ? 16 : 40; // matches px-2 / md:px-5 on the gutter wrapper
     const fitWidth = Math.max(MIN_FIT_WIDTH, Math.min(scrollerWidth - gutterX, MAX_FIT_WIDTH));
     const renderedWidth = Math.round(fitWidth * zoom);
@@ -104,9 +175,10 @@ export function SigningDocumentView({
     // Position in the signing order is passed down so every control gets a
     // uniquely distinguishing accessible name even when several fields share the
     // same author label (P1 from review on PR #112).
-    const renderField = (field) => (
+    const renderField = (field, ready) => (
         <SignerField
             field={field}
+            ready={ready}
             fieldPosition={orderedFields.findIndex((f) => f.id === field.id) + 1}
             fieldTotal={orderedFields.length}
             signed={request.status === 'signed'}
@@ -129,13 +201,14 @@ export function SigningDocumentView({
                     key={pageNumber}
                     ref={(node) => { pageRefs.current[pageNumber] = node; }}
                     data-signing-page={pageNumber}
+                    onFocus={paintOnFocus(pageNumber)}
                     className="relative border border-ds-border bg-ds-surface shadow-ds-lg"
                     // Explicit dimensions from the known aspect ratio keep layout
                     // (and overlay anchors) stable while canvases re-render after
                     // a zoom commit or rotation.
                     style={{ width: renderedWidth, height: Math.round(renderedWidth * aspect) }}
                 >
-                    {!isE2EMockShell && (
+                    {!isE2EMockShell && paintsPage(pageNumber) && (
                         <Page
                             pageNumber={pageNumber}
                             width={renderedWidth}
@@ -170,12 +243,13 @@ export function SigningDocumentView({
                         </div>
                     )}
 
-                    {/* NET-SLOW FIX: keep overlays inert until the page has painted */}
+                    {/* NET-SLOW FIX: keep overlays inert until the page has painted;
+                        the fields still take focus, but no input (`ready`) */}
                     <div className={isPageReady ? undefined : 'pointer-events-none opacity-60'}>
                         {orderedFields
                             .filter((f) => Number(f?.pageNumber) === pageNumber)
                             .map((field) => (
-                                <React.Fragment key={field.id}>{renderField(field)}</React.Fragment>
+                                <React.Fragment key={field.id}>{renderField(field, isPageReady)}</React.Fragment>
                             ))}
                     </div>
                 </div>
@@ -220,7 +294,7 @@ export function SigningDocumentView({
                     <Document
                         key={docReloadKey}
                         file={request.pdfUrl}
-                        onLoadSuccess={({ numPages: pages }) => setNumPages(pages)}
+                        onLoadSuccess={handleDocumentLoad}
                         onLoadError={(err) => {
                             console.error('PDF load error:', err);
                             setDocError(err?.message || 'load_failed');
