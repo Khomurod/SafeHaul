@@ -7,6 +7,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, auth } = require("./../firebaseAdmin");
 const { assertCompanyActive } = require("../shared/companyAccess");
+const { assertSuperAdminAuth, isSuperAdminClaims } = require("../shared/superAdmin");
 
 // Remove a user's dedicated SMS line assignment when they leave a company. Without
 // this, deleting a recruiter who had a line assigned leaves an orphaned entry in
@@ -40,16 +41,15 @@ exports.deletePortalUser = onCall({ maxInstances: 2 }, async (request) => {
     if (!userId) throw new HttpsError("invalid-argument", "Missing User ID.");
 
     const roles = request.auth.token.roles || {};
-    const isSuperAdmin = roles.globalRole === "super_admin";
+    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
     const isCompanyAdmin = companyId && roles[companyId] === "company_admin";
 
     if (!isSuperAdmin && !isCompanyAdmin) {
         throw new HttpsError("permission-denied", "Permission denied.");
     }
 
-    // A deactivated company's admins are refused; a super admin never is, the
-    // role at the token root (an older token) included.
-    if (!isSuperAdmin && request.auth.token.globalRole !== "super_admin") await assertCompanyActive(companyId);
+    // A deactivated company's admins are refused; a super admin never is.
+    if (!isSuperAdmin) await assertCompanyActive(companyId);
 
     try {
         if (isSuperAdmin && !companyId) {
@@ -119,10 +119,7 @@ exports.updatePortalUser = onCall({ maxInstances: 2 }, async (request) => {
     // caller's company proves nothing: a company admin can attach any existing
     // account to their company, and a new login email plus a password reset is
     // the whole account. People change their own email from their profile.
-    const roles = request.auth.token.roles || {};
-    if ((request.auth.token.globalRole || roles.globalRole) !== "super_admin") {
-        throw new HttpsError("permission-denied", "Only the Super Admin can change another person's login.");
-    }
+    assertSuperAdminAuth(request.auth, "Only the Super Admin can change another person's login.");
 
     try {
         const updateData = {};

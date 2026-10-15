@@ -8,6 +8,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { db, auth } = require("./../firebaseAdmin");
 const { resolveUserIdentity, profileRepairPayload, cleanString } = require("../shared/userIdentity");
 const { assertCompanyActive } = require("../shared/companyAccess");
+const { isSuperAdminClaims } = require("../shared/superAdmin");
 
 // --- 5. JOIN TEAM (REMOVED) ---
 // The `joinCompanyTeam` callable was permanently disabled because it had no
@@ -73,15 +74,14 @@ exports.listCompanyTeam = onCall({ maxInstances: 3 }, async (request) => {
     if (!companyId) throw new HttpsError('invalid-argument', 'companyId is required.');
 
     const roles = request.auth.token.roles || {};
-    const isSuperAdmin = roles.globalRole === 'super_admin';
+    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
     const isCompanyAdmin = roles[companyId] === 'company_admin';
     if (!isSuperAdmin && !isCompanyAdmin) {
         throw new HttpsError('permission-denied', 'Permission denied.');
     }
 
-    // A deactivated company's admins are refused; a super admin never is, the
-    // role at the token root (an older token) included.
-    if (!isSuperAdmin && request.auth.token.globalRole !== 'super_admin') await assertCompanyActive(companyId);
+    // A deactivated company's admins are refused; a super admin never is.
+    if (!isSuperAdmin) await assertCompanyActive(companyId);
 
     const memSnap = await db.collection('memberships').where('companyId', '==', companyId).get();
 

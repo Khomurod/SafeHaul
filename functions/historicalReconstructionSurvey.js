@@ -38,11 +38,12 @@
  * read at all.
  */
 
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
 const { db, storage } = require('./firebaseAdmin');
 const { hasSubmissionEvidence } = require('./shared/reconstructSubmission');
 const { originalPdfPath } = require('./shared/preserveApplicationPdf');
+const { assertSuperAdminAuth } = require('./shared/superAdmin');
 
 /** Documents per `getAll` batch. Firestore's own limit is higher; this is polite. */
 const READ_BATCH = 200;
@@ -52,16 +53,6 @@ const READ_BATCH = 200;
  * cannot run the call past its timeout. Reported rather than hidden.
  */
 const MAX_APPLICATIONS_PER_COMPANY = 2000;
-
-/** Only a super admin may see platform-wide record counts. */
-function assertSuperAdmin(request) {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-    const roles = request.auth.token.roles || {};
-    const globalRole = request.auth.token.globalRole || roles.globalRole;
-    if (globalRole !== 'super_admin') {
-        throw new HttpsError('permission-denied', 'Only Super Admins can survey historical records.');
-    }
-}
 
 /** Chunk an array into runs of at most `size`. */
 function chunk(items, size) {
@@ -186,7 +177,8 @@ exports.surveyHistoricalReconstruction = onCall({
     timeoutSeconds: 540,
     memory: '1GiB',
 }, async (request) => {
-    assertSuperAdmin(request);
+    // Only a super admin may see platform-wide record counts.
+    assertSuperAdminAuth(request.auth, 'Only Super Admins can survey historical records.');
 
     const { includePdfCheck: requestedPdfCheck = true } = request.data || {};
     const includePdfCheck = Boolean(requestedPdfCheck);

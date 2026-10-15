@@ -6,6 +6,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
 const { assertCompanyActive } = require('../../../shared/companyAccess');
+const { isSuperAdminClaims } = require('../../../shared/superAdmin');
 const SMSAdapterFactory = require('../../factory');
 const { encrypt, decrypt } = require('../../encryption');
 const RingCentralAdapter = require('../../adapters/ringcentral');
@@ -40,11 +41,7 @@ exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => 
 
     const membershipSnap = await membershipRef.get();
 
-    // Robust Super Admin Check
-    const token = request.auth.token;
-    const roles = token.roles || {};
-    const globalRole = token.globalRole || roles.globalRole;
-    const isSuperAdmin = globalRole === 'super_admin';
+    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
 
     const isCompanyAdmin = !membershipSnap.empty && membershipSnap.docs[0].data().role === 'company_admin';
 
@@ -240,11 +237,7 @@ exports.verifySmsConfig = onCall(encryptedCallOptions, async (request) => {
 
     const membershipSnap = await membershipRef.get();
 
-    // Robust Super Admin Check
-    const token = request.auth.token;
-    const roles = token.roles || {};
-    const globalRole = token.globalRole || roles.globalRole;
-    const isSuperAdmin = globalRole === 'super_admin';
+    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
 
     const isCompanyAdmin = !membershipSnap.empty && membershipSnap.docs[0].data().role === 'company_admin';
 

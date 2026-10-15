@@ -11,6 +11,7 @@ const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db, auth } = require("./../firebaseAdmin");
 const { isCompanyDeactivated } = require("../shared/companyTenant");
+const { isSuperAdminClaims } = require("../shared/superAdmin");
 const { syncClaimsAndSessions, OWED_USERS, TEAM_ROLES, timing } = require("./claims");
 
 /**
@@ -63,12 +64,9 @@ exports.onCompanyActivationChange = onDocumentUpdated({
     console.log(`[onCompanyActivationChange] ${companyId} ${deactivated ? 'deactivated' : 're-activated'}: ${userIds.length} member(s).`);
 });
 
-/** Is there a super admin claim, at the token root or under `roles`? */
-const superAdminClaim = (customClaims) => (customClaims?.globalRole || customClaims?.roles?.globalRole) === 'super_admin';
-
 /** Does the user's token still grant this company, for anyone but a super admin? */
 function stillGranted(customClaims, companyId) {
-    if (superAdminClaim(customClaims)) return false;
+    if (isSuperAdminClaims(customClaims)) return false;
     return companyId in (customClaims?.roles || {}) || (customClaims?.companyTeamIds || []).includes(companyId);
 }
 
@@ -120,7 +118,7 @@ async function reconcileCompany(companyId, deactivated, afterUserId, stopAt, cou
             if (timing.now() >= stopAt) return { finished: false, afterUserId: last };
             const claims = users?.get(userId)?.customClaims;
             const role = roles.get(userId);
-            const keepsEveryRole = role === 'super_admin' || superAdminClaim(claims);
+            const keepsEveryRole = role === 'super_admin' || isSuperAdminClaims(claims);
             const wrong = users?.has(userId) && (deactivated && !keepsEveryRole
                 ? stillGranted(claims, companyId)
                 : !holdsRole(claims, companyId, role));

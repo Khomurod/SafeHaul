@@ -1,6 +1,7 @@
 const { HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("../firebaseAdmin");
 const { isCompanyDeactivated } = require("./companyTenant");
+const { isSuperAdminClaims } = require("./superAdmin");
 
 const COMPANY_TEAM_ROLES = new Set(['company_admin', 'hr_user', 'recruiter', 'admin', 'owner']);
 
@@ -60,10 +61,7 @@ async function assertCompanyAccess(userId, companyId) {
         console.warn(`[assertCompanyAccess] Unable to load custom claims for ${userId}: ${err?.message || err}`);
     }
     const roles = claims.roles || {};
-    const globalRole = claims.globalRole || roles.globalRole;
-    const isSuperAdmin = globalRole === 'super_admin';
-
-    if (isSuperAdmin) return;
+    if (isSuperAdminClaims(claims)) return;
     if (isCompanyTeamRole(roles[companyId])) {
         await assertCompanyActive(companyId);
         return;
@@ -120,8 +118,7 @@ async function assertCompanyAdminStrict(userId, companyId) {
         console.warn(`[assertCompanyAdminStrict] Unable to load custom claims for ${userId}: ${err?.message || err}`);
     }
     const roles = claims.roles || {};
-    const globalRole = claims.globalRole || roles.globalRole;
-    if (globalRole === 'super_admin') return;
+    if (isSuperAdminClaims(claims)) return;
     if (isAdminRole(roles[companyId])) {
         await assertCompanyActive(companyId);
         return;

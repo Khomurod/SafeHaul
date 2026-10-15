@@ -115,6 +115,12 @@ describe('listCompanyTeam authorization mirrors the existing UI gate', () => {
     const res = await listCompanyTeam(req({ globalRole: 'super_admin' }, { companyId: 'co-a' }));
     expect(res.members).toEqual([]);
   });
+
+  it('allows a super admin whose role sits at the token root, as the rules do', async () => {
+    const token = { globalRole: 'super_admin' };
+    const res = await listCompanyTeam({ auth: { uid: 'caller', token }, data: { companyId: 'co-a' } });
+    expect(res.members).toEqual([]);
+  });
 });
 
 describe('listCompanyTeam resolves real identities', () => {

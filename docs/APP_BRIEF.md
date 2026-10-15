@@ -857,7 +857,8 @@ server staff check, drops out of its staff's tokens (§8) and closes their works
 ## 6. Permissions and access rules
 
 Authorization comes from **Firebase Auth custom claims**; the UI, routes,
-Firestore rules and Storage rules use the same signals:
+Firestore and Storage rules and the Cloud Functions
+(`functions/shared/superAdmin.js`) use the same signals:
 
 - `globalRole: 'super_admin'` (at the token root, or nested under `roles` for
   legacy tokens).

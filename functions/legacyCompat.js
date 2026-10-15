@@ -1,17 +1,9 @@
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall } = require("firebase-functions/v2/https");
 const { admin, db } = require("./firebaseAdmin");
-
-async function assertSuperAdmin(request) {
-    if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
-    const roles = request.auth.token?.roles || {};
-    const globalRole = request.auth.token?.globalRole || roles.globalRole;
-    if (globalRole !== "super_admin") {
-        throw new HttpsError("permission-denied", "Super admin access required.");
-    }
-}
+const { assertSuperAdminAuth } = require("./shared/superAdmin");
 
 exports.backfillEmployerFields = onCall({ cors: true, timeoutSeconds: 540 }, async (request) => {
-    await assertSuperAdmin(request);
+    assertSuperAdminAuth(request.auth, "Super admin access required.");
     const dryRun = request.data?.dryRun !== false;
     const snapshot = await db.collectionGroup("applications").get();
     let totalDocs = 0;

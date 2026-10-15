@@ -20,6 +20,7 @@
 const functions = require('firebase-functions/v1');
 const { db } = require('./firebaseAdmin');
 const { assertCompanyAdminStrict } = require('./shared/companyAccess');
+const { isSuperAdminClaims } = require('./shared/superAdmin');
 const { AGREEMENTS, resolveAgreementSet } = require('./shared/legalAgreements');
 const {
     normalizeWordingDocs,
@@ -34,13 +35,9 @@ function requireAuth(context) {
     return context.auth;
 }
 
-function isSuperAdminToken(token) {
-    return token?.globalRole === 'super_admin' || token?.roles?.globalRole === 'super_admin';
-}
-
 function requireSuperAdmin(context) {
     const auth = requireAuth(context);
-    if (!isSuperAdminToken(auth.token)) {
+    if (!isSuperAdminClaims(auth.token)) {
         throw new functions.https.HttpsError('permission-denied', 'Only a super admin may change legal wording.');
     }
     return auth;
@@ -109,7 +106,7 @@ exports.listCompanyAgreementWording = functions
     .https.onCall(async (data, context) => {
         const auth = requireAuth(context);
         const companyId = requireCompanyId(data);
-        if (!isSuperAdminToken(auth.token)) {
+        if (!isSuperAdminClaims(auth.token)) {
             await assertCompanyAdminStrict(auth.uid, companyId);
         }
         return { companyId, agreements: await describeCompanyAgreements(companyId) };

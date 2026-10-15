@@ -16,6 +16,7 @@
 
 const { HttpsError } = require('firebase-functions/v2/https');
 const { checkRateLimit } = require('../shared/rateLimiter');
+const { isSuperAdminClaims } = require('../shared/superAdmin');
 const { ACTIONS, RESULTS, recordAuditEvent } = require('./audit');
 
 /** How recently the caller must have authenticated for a privileged operation. */
@@ -63,11 +64,7 @@ async function assertSuperAdmin(request, action, metadata = {}) {
         throw new HttpsError('unauthenticated', 'Sign in to continue.');
     }
 
-    const token = request.auth.token || {};
-    const roles = token.roles || {};
-    const globalRole = token.globalRole || roles.globalRole;
-
-    if (globalRole !== 'super_admin') {
+    if (!isSuperAdminClaims(request.auth.token)) {
         await recordAuditEvent({
             auth: request.auth,
             action,

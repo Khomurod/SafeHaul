@@ -6,6 +6,7 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db } = require("./firebaseAdmin");
 const { deleteCompanySchema, sendEmailSchema } = require("./shared/schema");
 const { assertCompanyAccess, assertCompanyAdminStrict } = require('./shared/companyAccess');
+const { assertSuperAdminAuth } = require('./shared/superAdmin');
 const { escapeHtml, plainGuestText } = require('./shared/plainText');
 const { checkRateLimit } = require('./shared/rateLimiter');
 const { buildPublicProfileDto } = require('./shared/publicProfileDto');
@@ -41,12 +42,7 @@ exports.deleteCompany = onCall({
     if (error) throw new HttpsError('invalid-argument', error.message);
     const { companyId } = value;
 
-    // STRICTER AUTH: Use the custom claim we set in rules/auth logic
-    const roles = request.auth.token.roles || {};
-    const globalRole = request.auth.token.globalRole || roles.globalRole;
-    const isSuperAdmin = globalRole === "super_admin";
-
-    if (!isSuperAdmin) throw new HttpsError('permission-denied', 'Only Super Admins can delete companies.');
+    assertSuperAdminAuth(request.auth, 'Only Super Admins can delete companies.');
 
     // const { db, admin } = getServices(); // REMOVED
     const storage = admin.storage();
@@ -219,14 +215,7 @@ exports.backfillPublicProfiles = onCall({
     cors: true, region: "us-central1", maxInstances: 1,
     timeoutSeconds: 300, memory: '512MiB'
 }, async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-
-    // Super Admin check
-    const roles = request.auth.token.roles || {};
-    const globalRole = request.auth.token.globalRole || roles.globalRole;
-    if (globalRole !== "super_admin") {
-        throw new HttpsError('permission-denied', 'Only Super Admins can run backfills.');
-    }
+    assertSuperAdminAuth(request.auth, 'Only Super Admins can run backfills.');
 
     try {
         // Always from the beginning, and through to the end: a manual repair

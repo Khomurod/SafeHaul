@@ -14,9 +14,8 @@
  */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { storage } = require("./firebaseAdmin");
-const { logger } = require("firebase-functions");
 const { assertCompanyAccessForRequest } = require("./shared/companyAccess");
+const { signReadUrl } = require("./shared/signReadUrl");
 
 exports.getSignedPevUrl = onCall({ cors: true }, async (request) => {
     // 1. Auth check
@@ -48,29 +47,7 @@ exports.getSignedPevUrl = onCall({ cors: true }, async (request) => {
     // 3. Security: Verify caller belongs to the company.
     await assertCompanyAccessForRequest(request, companyId, 'getSignedPevUrl');
 
-    // 4. Generate signed URL (1 hour expiry — enough time to view/download)
-    try {
-        const bucket = storage.bucket();
-        const file = bucket.file(storagePath);
-
-        // Verify file exists
-        const [exists] = await file.exists();
-        if (!exists) {
-            throw new HttpsError('not-found', 'The requested file does not exist in storage.');
-        }
-
-        const [signedUrl] = await file.getSignedUrl({
-            version: 'v4',
-            action: 'read',
-            expires: Date.now() + 60 * 60 * 1000, // 1 hour
-        });
-
-        logger.info(`[getSignedPevUrl] Generated signed URL for: ${storagePath}`);
-        return { success: true, url: signedUrl };
-
-    } catch (error) {
-        if (error instanceof HttpsError) throw error;
-        logger.error('[getSignedPevUrl] Error generating signed URL:', error);
-        throw new HttpsError('internal', 'Failed to generate download URL.');
-    }
+    // 4. A link valid for one hour, enough to view or download
+    const url = await signReadUrl(storagePath, { label: 'getSignedPevUrl' });
+    return { success: true, url };
 });

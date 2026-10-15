@@ -6,6 +6,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
 const { assertCompanyActive } = require('../../../shared/companyAccess');
+const { isSuperAdminClaims } = require('../../../shared/superAdmin');
 const SMSAdapterFactory = require('../../factory');
 const { decrypt } = require('../../encryption');
 const RC = require('@ringcentral/sdk').SDK;
@@ -38,7 +39,7 @@ exports.testLineConnection = onCall(encryptedCallOptions, async (request) => {
     // The test logs in with the company's stored app credentials: the same
     // people who may add a line to the company (addPhoneLine) may test one.
     const roles = request.auth.token.roles || {};
-    const isSuperAdmin = (request.auth.token.globalRole || roles.globalRole) === 'super_admin';
+    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
     if (!isSuperAdmin && roles[companyId] !== 'company_admin') {
         throw new HttpsError('permission-denied', 'Only Company Admins can test this company\'s lines.');
     }
@@ -144,11 +145,7 @@ exports.verifyLineConnection = onCall(encryptedCallOptions, async (request) => {
 
     const membershipSnap = await membershipRef.get();
 
-    // Robust Super Admin Check
-    const token = request.auth.token;
-    const roles = token.roles || {};
-    const globalRole = token.globalRole || roles.globalRole;
-    const isSuperAdmin = globalRole === 'super_admin';
+    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
 
     const isCompanyAdmin = !membershipSnap.empty && membershipSnap.docs[0].data().role === 'company_admin';
 
