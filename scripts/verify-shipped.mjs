@@ -4,18 +4,18 @@
  *
  * ## Why this job exists
  *
- * On 2026-08-08, merge a60c6dc validated in 37 seconds — every test lane skipped
- * because provenance had proved them — and then deployed nothing at all. Both
- * deploy jobs and `release-ready` were skipped, Testing stayed on the previous
- * release, and **the run reported success**. The cause was GitHub's skip
- * propagation: a skipped job's skip travels down the entire dependency chain, and
- * `always()` only un-skips the job that declares it.
+ * A merge whose every test lane is skipped, because provenance proved them, can
+ * validate in seconds and then deploy nothing at all: both deploy jobs and
+ * `release-ready` skipped, Testing still on the previous release, and **the run
+ * reporting success**. The cause is GitHub's skip propagation: a skipped job's
+ * skip travels down the entire dependency chain, and `always()` only un-skips the
+ * job that declares it.
  *
  * That is the shape of the problem this file addresses, and the shape is more
- * general than that one bug: **a green pipeline was never evidence that anything
- * reached users.** Every failure that day was found by a human opening a screen.
+ * general than that one bug: **a green pipeline is not evidence that anything
+ * reached users.**
  *
- * So the pipeline now has to prove it. Two questions, both answered before a
+ * So the pipeline has to prove it. Two questions, both answered before a
  * release may be called ready:
  *
  *   1. Did the deploy jobs actually RUN and succeed? (this file)

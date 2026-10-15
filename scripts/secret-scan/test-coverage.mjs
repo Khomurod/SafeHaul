@@ -2,19 +2,17 @@
 /**
  * Is the source those pinning assertions read the source the scanner runs?
  *
- * Split out of `scripts/secret-scan/test-pinning.mjs` on 2026-08-28, when that
- * file crossed the 500-line maximum carrying both halves. The two are genuinely
- * different subjects, and the distinction is the one this whole PR kept
- * relearning: `test-pinning.mjs` asserts PROPERTIES of the scanner's source — the
- * version is pinned, `--all` never appears, `.gitleaks.toml` is unchanged — while
- * this file asserts that "the scanner's source" is the right set of bytes in the
- * first place. Every property above is worthless if this is wrong, because a
- * regex over the wrong file passes for the wrong reason.
+ * A different subject from `scripts/secret-scan/test-pinning.mjs`, which asserts
+ * PROPERTIES of the scanner's source — the version is pinned, `--all` never
+ * appears, `.gitleaks.toml` is unchanged — while this file asserts that "the
+ * scanner's source" is the right set of bytes in the first place. Every property
+ * above is worthless if this is wrong, because a regex over the wrong file passes
+ * for the wrong reason.
  *
  * Both directions are checked. A closure that had silently collapsed to the entry
  * would make "`--all` never appears" true by reading almost nothing; an orphan
  * left in the directory would keep a pinned flag green after the entry stopped
- * executing it. L27-L34 are the seven review rounds that found each way in.
+ * executing it. L27-L34 close each way in.
  */
 
 import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
@@ -43,10 +41,10 @@ const here = dirname(fileURLToPath(import.meta.url));
     const files = implementationFiles().map((file) => file.replace(/^.*\/scripts\//, ''));
     /*
      * Asserted against the DIRECTORY, not against a written list of five names.
-     * Review on 2026-08-27 made the difference matter: a hard-coded list keeps
-     * passing when a sixth module joins the scanner, so the one file a pinned flag
-     * had just moved into could be the one nothing reads. Reading the directory
-     * means a new module is covered the moment it exists.
+     * A hard-coded list keeps passing when a sixth module joins the scanner, so
+     * the one file a pinned flag has just moved into could be the one nothing
+     * reads. Reading the directory means a new module is covered the moment it
+     * exists.
      */
     const onDisk = readdirSync(resolvePath(here, '.'))
         .filter((name) => name.endsWith('.mjs') && !name.startsWith('test-'))
@@ -109,11 +107,11 @@ const here = dirname(fileURLToPath(import.meta.url));
         ['import(`./${name}.mjs`)', 'await import(`./${name}.mjs`);', false],
         ["require('./a' + b)", "require('./a' + b);", false],
         ["import('../else' + 'where.mjs')", "await import('../else' + 'where.mjs');", false],
-        // Both reported on 2026-08-28, both reproduced loading the outside module.
+        // Both reproduced loading the outside module.
         ['import /* c */ (computed)', "await import /* c */ ('../else' + 'where.mjs');", false],
-        // ECMA-262 defines exactly four line terminators; `[^\n]` covered two of
-        // them, and a comment ended by the other two consumed through the call.
-        // Reported 2026-08-28 with U+2028; all four are rows so the class stays shut.
+        // ECMA-262 defines exactly four line terminators; `[^\n]` covers two of
+        // them, and a comment ended by the other two consumes through the call.
+        // All four are rows so the class stays shut.
         ['import //<U+2028>(computed)', "await import //\u2028('../else' + 'where.mjs');", false],
         ['import //<U+2029>(computed)', "await import //\u2029('../else' + 'where.mjs');", false],
         ['import //<CR>(computed)', "await import //\r('../else' + 'where.mjs');", false],
@@ -121,22 +119,22 @@ const here = dirname(fileURLToPath(import.meta.url));
         // And the deferred case the probe structurally cannot see: a function body
         // does not resolve until it runs, so the scan is the only thing covering it.
         ['deferred computed in a function', "export async function load() {\n  return await import('../else' + 'where.mjs');\n}", false],
-        // Reported 2026-08-28: an aliased loader's call site is not spelled import
-        // or require, so it is the gateway that has to be refused, not the call.
+        // An aliased loader's call site is not spelled import or require, so it
+        // is the gateway that has to be refused, not the call.
         ['createRequire alias',
             "import { createRequire } from 'node:module';\nconst load = createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
         // A builtin is importable bare or `node:`-prefixed, and matching only the
-        // prefixed form let this through. Reported 2026-08-28; both are rows now
-        // because two spellings is the entire set the resolver accepts.
+        // prefixed form lets this through. Both are rows because two spellings is
+        // the entire set the resolver accepts.
         ['createRequire alias via bare "module"',
             "import { createRequire } from 'module';\nconst load = createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
-        // Importing is not the only way to hold a builtin. Reported 2026-08-28 and
-        // reproduced: `getBuiltinModule` returns `module` with no specifier for the
-        // checks above to read, so the alias came out of it and the outside module
-        // really loaded. The receiver is incidental, so the alias spelling is a row
-        // of its own — matching `process.` would have missed it.
+        // Importing is not the only way to hold a builtin. `getBuiltinModule`
+        // returns `module` with no specifier for the checks above to read, so the
+        // alias comes out of it and the outside module really loads (reproduced).
+        // The receiver is incidental, so the alias spelling is a row of its own —
+        // matching `process.` would miss it.
         ['process.getBuiltinModule reaching a loader',
             "const load = process.getBuiltinModule('module').createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
@@ -144,10 +142,10 @@ const here = dirname(fileURLToPath(import.meta.url));
             "const p = globalThis.process;\n"
             + "const load = p.getBuiltinModule('module').createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
-        // Reported 2026-08-28: destructuring spells the same route with no dot for
-        // a matcher to anchor on. The renamed form came out of the same probe and
-        // is a row of its own, because a rename is what a name-based match has to
-        // survive — the property name is still on the left of the colon.
+        // Destructuring spells the same route with no dot for a matcher to anchor
+        // on. The renamed form is a row of its own, because a rename is what a
+        // name-based match has to survive — the property name is still on the
+        // left of the colon.
         ['destructured getBuiltinModule',
             "const { getBuiltinModule } = process;\n"
             + "const load = getBuiltinModule('module').createRequire(import.meta.url);\n"
@@ -178,11 +176,11 @@ const here = dirname(fileURLToPath(import.meta.url));
         ["from '../elsewhere.mjs#frag'", "import { a } from '../elsewhere.mjs#frag';", false],
         // And the suffix must not break a legitimate inside-the-set import.
         ["import('./ok.mjs?scanner')", "await import('./ok.mjs?scanner');", true],
-        // Reported 2026-08-28: being ONE LITERAL was the whole test, and a literal
-        // need not be relative. Each of these three is a single literal, so each
-        // passed; the containment scan reads only `./` and `../`, so none was
-        // resolved; and a deferred call in a function body never reaches the
-        // probe. Reproduced against all three — the outside module really loads.
+        // Being ONE LITERAL is not enough: a literal need not be relative. Each of
+        // these three is a single literal; the containment scan reads only `./`
+        // and `../`, so none is resolved by it; and a deferred call in a function
+        // body never reaches the probe. Reproduced against all three — the
+        // outside module really loads.
         ["deferred import('file:///...')",
             "export function later() { return import('file:///tmp/elsewhere.mjs'); }", false],
         ["deferred import('/abs/path')",
@@ -253,15 +251,12 @@ const here = dirname(fileURLToPath(import.meta.url));
         `${uncoveredLoads().join(', ')} is executed but not read`);
 
     /*
-     * And the other direction, which review on 2026-08-28 found missing. L32 asks
-     * "is everything loaded also read"; this asks "is everything read also
-     * loaded". A refactor that stops importing a module but leaves the file in
-     * place produces an orphan whose stale source keeps being concatenated, so a
-     * pinned flag or scan mode the entry no longer executes would still satisfy
-     * L9, L10, L19 and L25. Reproduced with exactly such a module: every check
-     * stayed green. A module named by a literal specifier counts as reachable
-     * even when it is imported lazily, because a function body never reaches the
-     * graph.
+     * And the other direction. L32 asks "is everything loaded also read"; this
+     * asks "is everything read also loaded". A refactor that stops importing a
+     * module but leaves the file in place produces an orphan whose stale source
+     * keeps being concatenated, so a pinned flag or scan mode the entry no longer
+     * executes would still satisfy L9, L10, L19 and L25. Reproduced with exactly
+     * such a module: every check stays green.
      */
     /*
      * Nothing excuses an unloaded module, and that is the fix rather than a

@@ -11,12 +11,10 @@
  *     rollback, a release record left half-written;
  *   - something a successful run never noticed in the first place.
  *
- * The second one is not hypothetical. `surveyHistoricalReconstruction` was added
- * on 2026-08-07 and never deployed, because the merge that introduced it failed
- * mid-deploy and the next merge measured its changes from *after* that commit. It
- * stayed missing across several green runs, and was found only when a human opened
- * the Super Admin screen and saw "Something went wrong / internal". Twelve hours,
- * with nothing red anywhere.
+ * The second one: a callable added by a merge that fails mid-deploy is never
+ * deployed if the next merge measures its changes from *after* that commit. It
+ * stays missing across green runs, and shows only as "Something went wrong /
+ * internal" on the screen that calls it, with nothing red anywhere.
  *
  * Checking what is actually live, on a schedule, is the only thing that finds that
  * class of problem. It asks four questions:

@@ -4,8 +4,7 @@
  *
  * Run with `npm run test:ui-contract`. Exit 0 = all pass.
  *
- * A different subject from its siblings, and the one a 2026-09-04 audit found
- * nothing covering at all:
+ * A different subject from its siblings:
  *
  * | file                             | asks                                      |
  * |----------------------------------|-------------------------------------------|
@@ -17,16 +16,14 @@
  * ## The way a guard fails is silently
  *
  * Not by reporting the wrong thing — by reporting less. Narrow the extension
- * regex by one format and the scan drops from 554 files to 528, which still
- * clears the only floor there was; twenty-six stylesheets stop being read, and
- * the output still says "intact". That is not hypothetical: this guard read only
- * JSX until 2026-08-25, and `src/shared/styles/designTokens.css` sat there for
- * the whole campaign with a second colour, type, radius and shadow scale in
- * forty-odd raw hexes, invisible to a check the README called zero-tolerance.
+ * regex by one format and every stylesheet stops being read while the scan
+ * still clears a total floor, and the output still says "intact": a stylesheet
+ * carrying a second colour, type, radius and shadow scale in raw hexes is then
+ * invisible to a check the README calls zero-tolerance.
  *
  * A shorter report reads exactly like progress. So the floors below are **per
  * format**, not just on the total — a total floor cannot see a category go to
- * zero underneath it. `scripts/source-size.mjs` learned the same thing and calls
+ * zero underneath it. `scripts/source-size.mjs` holds the same rule and calls
  * it `REQUIRED_ROOTS`.
  *
  * Every assertion names the mutation that turns it red.
@@ -375,22 +372,21 @@ console.log('\nS10. Throwaway directories are removed without racing git');
 /*
  * Broader than this guard, and here because this is the suite that runs.
  *
- * `callable-contract` went red on 2026-09-05 with
+ * Deleting a throwaway repository can fail with
  *
  *     Error: ENOTEMPTY: directory not empty, rmdir '/tmp/safehaul-ui-…/.git'
  *
- * in the CLEANUP of a harness whose every assertion had just passed. A gate
- * failing because a temp directory would not delete teaches people that a red
+ * in the CLEANUP of a harness whose every assertion has just passed. A gate
+ * failing because a temp directory will not delete teaches people that a red
  * gate might mean nothing, which is the most expensive thing a gate can teach.
  *
- * The cause was `git gc --auto` writing into `.git` after the command that
- * triggered it returned, and the reason it was fatal is that `force: true`
- * suppresses `ENOENT` and nothing else. `scripts/lib/throwaway.mjs` fixes both;
- * this stops the next harness copying the old shape from an older one.
+ * The cause is `git gc --auto` writing into `.git` after the command that
+ * triggered it returned, and it is fatal because `force: true` suppresses
+ * `ENOENT` and nothing else. `scripts/lib/throwaway.mjs` fixes both; this stops
+ * the next harness copying the old shape from an older one.
  *
- * Five files had it, only one failed — which is why this is written over the
- * set rather than over the instance — the "fix the family" rule in
- * `.claude/rules/release-pipeline.md`, written after one CI root cause was patched three times.
+ * Written over every file with that shape rather than over the instance — the
+ * "fix the family" rule in `.claude/rules/release-pipeline.md`.
  */
 {
     const offenders = [];

@@ -5,12 +5,8 @@
  *
  * ## Why a checker rather than a review habit
  *
- * An audit on 2026-08-26 counted physical lines across the whole tree for the
- * first time and found **68 files over 500 lines** — a 2203-line test, a
- * 1476-line React component that owns the public application, a 1188-line
- * registry, four tooling scripts over 1000. None of that was decided; it
- * accumulated, one reasonable-looking addition at a time, because nothing ever
- * said no.
+ * File length is not decided; it accumulates, one reasonable-looking addition
+ * at a time, wherever nothing says no.
  *
  * ## The standard
  *
@@ -73,13 +69,12 @@ export function listSourceFiles({ cwd = repoRoot, run = defaultGit } = {}) {
 /**
  * Every tracked path, as the NUL-delimited list git actually produced.
  *
- * The `-z` is the whole point, and it used to be thrown away: the separators were
- * turned into newlines and the result split on newlines again. Review on
- * 2026-08-27 found what that costs. A tracked path may contain a newline, and one
- * called `src/ignored<LF>src/small.js` then parses as two paths — a discarded
- * fragment plus a second copy of a small file — so a 600-line file is never read
- * and the run passes. Nothing splits on newlines here now, and no path is
- * trimmed either, since a leading or trailing space is a legal part of a name.
+ * The `-z` is the whole point, so nothing here turns the separators into
+ * newlines. A tracked path may contain a newline, and one called
+ * `src/ignored<LF>src/small.js` split on newlines parses as two paths — a
+ * discarded fragment plus a second copy of a small file — so a 600-line file is
+ * never read and the run passes. No path is trimmed either, since a leading or
+ * trailing space is a legal part of a name.
  */
 function defaultGit(cwd) {
   return execFileSync('git', ['ls-files', '-z'], { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })

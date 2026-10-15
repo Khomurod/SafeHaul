@@ -58,11 +58,11 @@ assert('A1. every executable extension this repository uses is measured',
 /*
  * Pinned by NAME, not by count.
  *
- * A length assertion was the first version and review on 2026-08-27 showed it does
- * not hold: coverage can be EXCHANGED rather than narrowed. Removing `.scss` and
- * adding anything else keeps the length at 14, and A1, F5 and F6 stay green while
- * a whole language quietly stops being scanned. Adding an extension is still free;
- * removing one now has to be a deliberate edit here.
+ * A length assertion does not hold: coverage can be EXCHANGED rather than
+ * narrowed. Removing `.scss` and adding anything else keeps the length at 14, and
+ * A1, F5 and F6 stay green while a whole language quietly stops being scanned.
+ * Adding an extension is still free; removing one has to be a deliberate edit
+ * here.
  */
 const PINNED_EXTENSIONS = [
   '.cjs', '.cts', '.js', '.jsx', '.mjs', '.mts', '.ts', '.tsx',
@@ -94,9 +94,8 @@ assert('A5. every exclusion carries a reason',
  * Every other assertion about them derives from the list itself — D10 counts
  * `REQUIRED_ROOTS.length - 1`, E2 loops over it — so deleting `landing` from it
  * would remove that directory's blindness guard and leave the whole suite green.
- * It is the same shape as the backlog hole review found on 2026-08-27: a guard
- * whose scope comes from the branch under test is not a guard. Adding a root is
- * free; removing one has to be a deliberate edit here.
+ * A guard whose scope comes from the branch under test is not a guard. Adding a
+ * root is free; removing one has to be a deliberate edit here.
  */
 assert('A6b. the directories that must never go unscanned are pinned by name',
   ['src', 'functions', 'scripts', 'e2e', 'web', '.storybook']
@@ -113,21 +112,19 @@ assert('A6. isExcluded matches the whole path, not a suffix',
    * Every tracked format has an answer — measured, deliberately unmeasured, or
    * not source at all.
    *
-   * Found in review on 2026-08-27: `.mdx` was in NO list. A Storybook page could
-   * have grown to any length while every assertion above stayed satisfied by
-   * unrelated files, because "is this format covered" was never asked — only
-   * "are these extensions still listed". That is the same shape as A6b, which
-   * exists because deleting a required root would have gone unnoticed too.
+   * A format in NO list — `.mdx` without its entry — lets a Storybook page grow
+   * to any length while every assertion above stays satisfied by unrelated
+   * files, unless "is this format covered" is asked, not only "are these
+   * extensions still listed". That is the same shape as A6b, which exists
+   * because deleting a required root would go unnoticed too.
    *
-   * The FIRST version of this test scoped the inventory to `REQUIRED_ROOTS`, and
-   * review caught that too. Those roots answer "has the scan stopped covering a
-   * directory", which is a different question; the checker itself reads
-   * `git ls-files` over everything and measures `eslint.config.js`,
-   * `index.html` and the rest, so its coverage claim is about the whole tree.
-   * Borrowing the roots left `.gitleaks.toml` unclassified and let a 900-line
-   * `build.py` at the repository root pass both this and the size scan.
-   * Reproduced before fixing, and it is the same mistake in miniature that this
-   * whole PR is about: a check must not take its scope from something narrower
+   * The inventory is the whole tree, not `REQUIRED_ROOTS`. Those roots answer
+   * "has the scan stopped covering a directory", which is a different question;
+   * the checker itself reads `git ls-files` over everything and measures
+   * `eslint.config.js`, `index.html` and the rest, so its coverage claim is about
+   * the whole tree. Borrowing the roots leaves `.gitleaks.toml` unclassified and
+   * lets a 900-line `build.py` at the repository root pass both this and the size
+   * scan (reproduced): a check must not take its scope from something narrower
    * than the claim it is making.
    *
    * Asserted against the real tracked tree rather than a fixture, because the
@@ -324,11 +321,10 @@ assert('F1. the warning line is 500 and the hard limit 700 (owner ruling, 2026-1
     JSON.stringify(listed));
 
   /*
-   * The list arrives NUL-delimited from git and stays an array. It used to be
-   * re-encoded through newline-delimited text, and review on 2026-08-27 found
-   * what that costs: a tracked path may contain a newline, and one of those
-   * parses as two paths — a fragment that gets filtered out, plus a second name
-   * that can alias a small file — so the large file is never read and the run
+   * The list arrives NUL-delimited from git and stays an array. Re-encoded
+   * through newline-delimited text, a tracked path containing a newline parses
+   * as two paths — a fragment that gets filtered out, plus a second name that
+   * can alias a small file — so the large file is never read and the run
    * passes. The name below is one path.
    */
   const withNewline = listSourceFiles({ run: () => ['src/ignored\nsrc/small.js', 'src/small.js'] });

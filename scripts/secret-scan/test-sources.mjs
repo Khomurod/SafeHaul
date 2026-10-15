@@ -6,26 +6,25 @@
  * The assertions that pin this gate's security properties are regexes over its
  * source: the version is an exact release and not `latest`, `--redact` and
  * `--ignore-gitleaks-allow` are passed, `--all` never is, a push never anchors at
- * its own `before`. Until 2026-08-27 the whole scanner was one file, so those
- * regexes read that file and the coverage was exact by accident.
+ * its own `before`.
  *
- * Splitting it into modules breaks that quietly and in the worst direction: a
- * regex over the entry point alone would keep passing while the flag it looks for
- * had been moved into a module — or deleted from one.
+ * The scanner is several modules, so a regex over the entry point alone would
+ * keep passing while the flag it looks for had been moved into a module — or
+ * deleted from one: quietly, and in the worst direction.
  *
  * ## Why a directory listing rather than a parsed import graph
  *
- * The first version followed the entry's imports and matched them with a regex.
- * Review on 2026-08-27 showed why that is the wrong mechanism for this job: the
- * matcher recognised only single-quoted `from '...'` and `import('...')`, so a
- * double-quoted specifier, a side-effect `import './flags.mjs'`, or a
- * double-quoted dynamic import would be executed by Node and omitted from the
- * closure. Reproduced — an entry using all four forms yielded a closure of two
- * files out of five. A pinned flag could then move into the omitted module and
- * every §L assertion would keep passing over source that no longer contains it.
+ * Following the entry's imports with a regex is the wrong mechanism for this
+ * job: a matcher that recognises only single-quoted `from '...'` and
+ * `import('...')` omits a double-quoted specifier, a side-effect
+ * `import './flags.mjs'` or a double-quoted dynamic import from the closure while
+ * Node executes them. Reproduced — an entry using all four forms yields a closure
+ * of two files out of five. A pinned flag could then move into the omitted module
+ * and every §L assertion would keep passing over source that no longer contains
+ * it.
  *
  * Widening the regex only moves the line: the next form nobody thought of fails
- * the same silent way. So the collection mechanism is no longer a parse at all.
+ * the same silent way. So the collection mechanism is not a parse at all.
  * **The scanner's source is the entry plus every non-test module in this
  * directory**, which is a directory listing — there is no syntax to miss, and a
  * module added without being wired up is covered rather than invisible.
@@ -37,11 +36,10 @@
  *
  * A specifier that resolves to nothing is skipped rather than refused, because
  * the scan is deliberately permissive and a path named in a comment resolves to
- * nothing. Review on 2026-08-27 showed what that costs on its own: an entry
- * containing a CONCATENATED specifier executes the real module while the scan
- * captures only the first fragment, which resolves to nothing and is skipped —
- * so the module escapes containment entirely. Reproduced, and Node really does
- * load it.
+ * nothing. Skipping alone is not safe: an entry containing a CONCATENATED
+ * specifier executes the real module while the scan captures only the first
+ * fragment, which resolves to nothing and is skipped — so the module escapes
+ * containment entirely. Reproduced, and Node really does load it.
  *
  * The fragment is not the thing to catch; the concatenation is. A static import
  * specifier is a string literal by the language's own grammar, so the only way to
@@ -57,11 +55,11 @@
  *
  * **This file is one of them**, which is why it is named `test-`. It is imported
  * only by `test-pinning.mjs`; the gate never runs it, so it is not part of what
- * the gate is made of. Discovering that was not free: putting it in the covered
- * set made L19 fail on this very docblock, because a paragraph explaining that
- * the scanner never passes the full-history flag necessarily names the flag. The
- * assertions read text, so test infrastructure has to stay out of the text they
- * read — the convention that keeps `test-failsafe.mjs` out keeps this out too.
+ * the gate is made of. In the covered set it would fail L19 on this very
+ * docblock, because a paragraph explaining that the scanner never passes the
+ * full-history flag necessarily names the flag. The assertions read text, so
+ * test infrastructure has to stay out of the text they read — the convention
+ * that keeps `test-failsafe.mjs` out keeps this out too.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -103,11 +101,11 @@ const RELATIVE_SPECIFIER = /['"`](\.\.?\/[^'"`\n]*)['"`]/g;
  * Whitespace or a comment, between the keyword and its parenthesis.
  *
  * The line-comment branch ends at a LINE TERMINATOR, and ECMA-262 defines
- * exactly four: LF, CR, LS (U+2028) and PS (U+2029). Writing it as `[^\n]` was
- * wrong for the last two, and review on 2026-08-28 reproduced the consequence —
- * `import //\u2028('../else' + 'where.mjs')` let the branch consume through the
- * call, so a deferred computed import escaped the scan while a probe could not
- * see it either, because the function is never called.
+ * exactly four: LF, CR, LS (U+2028) and PS (U+2029). Writing it as `[^\n]` is
+ * wrong for the last two, and the consequence is reproduced —
+ * `import //\u2028('../else' + 'where.mjs')` lets the branch consume through the
+ * call, so a deferred computed import escapes the scan while a probe cannot see
+ * it either, because the function is never called.
  *
  * The set is closed by the specification, so this is the whole class rather than
  * one more spelling; the trailing terminator is optional because a comment may
@@ -119,25 +117,24 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
 /**
  * Gateways to a module loader that is not spelled `import` or `require`.
  *
- * Reported 2026-08-28 and reproduced: `const load = createRequire(import.meta.url)`
- * followed by `load('../else' + 'where.cjs')` escapes both halves. The call site
- * is `load(...)`, so `MODULE_CALL` never sees it, and a deferred call never
- * reaches the probe. Following the alias would need data-flow analysis, which a
- * parser alone does not give.
+ * Reproduced: `const load = createRequire(import.meta.url)` followed by
+ * `load('../else' + 'where.cjs')` escapes both halves. The call site is
+ * `load(...)`, so `MODULE_CALL` never sees it, and a deferred call never reaches
+ * the probe. Following the alias would need data-flow analysis, which a parser
+ * alone does not give.
  *
  * Refusing the GATEWAY needs none of that: an indirect loader cannot be obtained
  * without naming where it comes from. `module` is where `createRequire` lives,
  * and it can be named three ways — imported, required, or fetched with
- * `process.getBuiltinModule`, which review found on 2026-08-28 because importing
- * is not the only way to hold a builtin. `eval` and `Function` are the routes
- * from a string to code. The covered files use none of them, so this costs
- * nothing and the scanner keeps loading modules the one way the checks above can
- * read.
+ * `process.getBuiltinModule`, because importing is not the only way to hold a
+ * builtin. `eval` and `Function` are the routes from a string to code. The
+ * covered files use none of them, so this costs nothing and the scanner keeps
+ * loading modules the one way the checks above can read.
  *
  * Each entry matches the thing being named rather than the expression naming it,
  * which is why `getBuiltinModule` is matched as a method and not as
  * `process.getBuiltinModule`: `const p = globalThis.process` in front of it is
- * the same route, and was reproduced alongside the reported one.
+ * the same route (reproduced).
  *
  * It is not a proof, and `.claude/rules/release-pipeline.md` says so rather than implying otherwise: a
  * determined author with commit access can still reach a loader, and no static
@@ -146,9 +143,9 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
  */
 const LOADER_GATEWAY = new RegExp([
     // Both spellings. A Node builtin is importable bare or `node:`-prefixed, and
-    // matching only the prefixed form let `from 'module'` through — reported and
-    // reproduced on 2026-08-28, loading an outside CJS module through the alias.
-    // Two spellings is the whole set the resolver accepts, so this closes it.
+    // matching only the prefixed form lets `from 'module'` through — reproduced,
+    // loading an outside CJS module through the alias. Two spellings is the
+    // whole set the resolver accepts, so this closes it.
     // `module` hands out `createRequire`; `vm` evaluates a string in this realm,
     // and a string is where `process.getBuiltinModule('module')` can be written.
     // Measured: `vm.runInThisContext` cannot import on its own — it wants a
@@ -159,18 +156,18 @@ const LOADER_GATEWAY = new RegExp([
     String.raw`(?:import|require)\s*\(\s*['"\x60](?:node:)?(?:module|vm)['"\x60]`,
     // Importing it is not the only way to hold it. `process.getBuiltinModule`
     // returns a builtin without any specifier the checks above can read, so
-    // `process.getBuiltinModule('module').createRequire(import.meta.url)` reached
-    // the same alias while the scan accepted the file and the graph showed only
-    // the entry. Reported and reproduced on 2026-08-28.
+    // `process.getBuiltinModule('module').createRequire(import.meta.url)` reaches
+    // the same alias while the scan accepts the file and the graph shows only
+    // the entry (reproduced).
     //
-    // Matched as a bare IDENTIFIER, which took three rounds to get right. Anchoring
-    // on `process.` missed `const p = globalThis.process; p.getBuiltinModule(…)`;
-    // anchoring on the dot missed `const { getBuiltinModule } = process`, reported
-    // and reproduced, and `const { getBuiltinModule: g } = process`, which came out
-    // of the same probe. The property name survives every one of those, including
-    // the rename — it is what the destructure has to spell — so the name is what
-    // this matches. The bracketed form is the one spelling with no identifier in
-    // it, so it keeps its own pattern.
+    // Matched as a bare IDENTIFIER. Anchoring on `process.` misses
+    // `const p = globalThis.process; p.getBuiltinModule(…)`; anchoring on the dot
+    // misses `const { getBuiltinModule } = process` and
+    // `const { getBuiltinModule: g } = process` (both reproduced). The property
+    // name survives every one of those, including the rename — it is what the
+    // destructure has to spell — so the name is what this matches. The bracketed
+    // form is the one spelling with no identifier in it, so it keeps its own
+    // pattern.
     String.raw`\bgetBuiltinModule\b`,
     String.raw`\[\s*['"\x60]getBuiltinModule['"\x60]\s*\]`,
     // The legacy internals door. It does not currently hand out `module` — asked
@@ -200,13 +197,13 @@ const INTERPOLATED = /\$\{/;
 /**
  * A literal specifier this can actually account for.
  *
- * Being one string literal was the whole test until review on 2026-08-28 pointed
- * out that a literal need not be RELATIVE. `import('file:///tmp/x.mjs')`,
- * `import('/tmp/x.mjs')` and `import('some-package')` are each a single literal,
- * so each passed; `RELATIVE_SPECIFIER` then never looked at them, because it only
- * matches `./` and `../`; and a deferred call inside a function body never
- * reaches the probe. Reproduced against all three — the outside module really
- * loads, carrying whatever pinned behaviour was moved into it.
+ * Being one string literal is not enough: a literal need not be RELATIVE.
+ * `import('file:///tmp/x.mjs')`, `import('/tmp/x.mjs')` and
+ * `import('some-package')` are each a single literal; `RELATIVE_SPECIFIER` never
+ * looks at them, because it only matches `./` and `../`; and a deferred call
+ * inside a function body never reaches the probe. Reproduced against all three —
+ * the outside module really loads, carrying whatever pinned behaviour was moved
+ * into it.
  *
  * The answer is not another form to refuse but the shape of the question. Two
  * kinds of specifier can be accounted for: a Node builtin, which is not a file in
@@ -380,12 +377,12 @@ export function implementationSource(entry = ENTRY, directory = here) {
 /**
  * Covered modules the scanner does not actually use.
  *
- * The other direction, and review on 2026-08-28 was right that it was missing.
- * `uncoveredLoads` asks "is everything loaded also read"; this asks "is
- * everything read also loaded". A refactor that stops importing a module but
- * leaves the file in place produces an orphan whose stale source keeps being
- * concatenated into `implementationSource()` — so L9, L10, L19 and L25 could stay
- * green on a pinned flag or scan mode that the entry no longer executes.
+ * The other direction. `uncoveredLoads` asks "is everything loaded also read";
+ * this asks "is everything read also loaded". A refactor that stops importing a
+ * module but leaves the file in place produces an orphan whose stale source
+ * keeps being concatenated into `implementationSource()` — so L9, L10, L19 and
+ * L25 could stay green on a pinned flag or scan mode that the entry no longer
+ * executes.
  *
  * ## Why this is a subtraction and nothing more
  *

@@ -72,13 +72,12 @@ export function evaluateAudit(baseline, observed) {
     /*
      * Identities, not a total.
      *
-     * Comparing counts alone was wrong, and review on 2026-08-26 said why: a
-     * legacy finding that disappears — a stale branch deleted, say — leaves room
-     * for a NEW secret to take its place at the same total, and the audit would
-     * call that `unchanged`. It matters most exactly where this audit is the only
-     * scanner looking: the blocking gate runs for `main` and for pull requests
-     * targeting it, so a secret parked on an unmerged branch is this workflow's
-     * to catch.
+     * Comparing counts alone is not enough: a legacy finding that disappears — a
+     * stale branch deleted, say — leaves room for a NEW secret to take its place
+     * at the same total, and a count comparison calls that `unchanged`. It
+     * matters most exactly where this audit is the only scanner looking: the
+     * blocking gate runs for `main` and for pull requests targeting it, so a
+     * secret parked on an unmerged branch is this workflow's to catch.
      *
      * A gitleaks fingerprint is `commit:file:rule:startline` — a location, with
      * no part of the value in it — so recording the set is safe and makes the

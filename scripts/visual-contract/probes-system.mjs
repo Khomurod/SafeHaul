@@ -1,11 +1,10 @@
 /**
  * What gets measured ABOVE and BELOW the components.
  *
- * Split out of `probes.mjs` on 2026-09-05, when the two step-rail probes took
- * that file past the 500-line maximum. The boundary is by responsibility and
- * not by line count: `probes.mjs` asks whether ONE PRIMITIVE'S OWN CHROME still
- * holds — its widths, its heights, the properties a caller may no longer choose.
- * These ask about the two things a primitive sits between.
+ * Kept apart from `probes.mjs` by responsibility, not by line count:
+ * `probes.mjs` asks whether ONE PRIMITIVE'S OWN CHROME still holds — its widths,
+ * its heights, the properties a caller may no longer choose. These ask about the
+ * two things a primitive sits between.
  *
  * - **Foundations** are the shared scales themselves — the control heights, the
  *   icon steps, the type ramp. A component probe catches a component that
@@ -124,13 +123,13 @@ export const SYSTEM_PROBES = [
          * The gap between a glyph and its label — the other half of the rule.
          *
          * The design system owns this as well as the icon size: `.ds-button` sets
-         * `gap: var(--ds-space-2)` and `.ds-button__content` inherits it. Only
-         * the icon size was measured until 2026-08-25, so a re-tuned gap would
-         * have surfaced as a pixel diff on `button-with-icons` — which says a
-         * screenshot changed — rather than as `columnGap: 8px -> 12px`, which
-         * says what moved. Its own probe rather than extra properties on the one
-         * above, because asking an `svg` for its `columnGap` records `normal`
-         * three times and calls it a measurement.
+         * `gap: var(--ds-space-2)` and `.ds-button__content` inherits it. With
+         * only the icon size measured, a re-tuned gap would surface as a pixel
+         * diff on `button-with-icons` — which says a screenshot changed — rather
+         * than as `columnGap: 8px -> 12px`, which says what moved. Its own probe
+         * rather than extra properties on the one above, because asking an `svg`
+         * for its `columnGap` records `normal` three times and calls it a
+         * measurement.
          */
         story: 'foundations-control-scale--icon-normalisation',
         label: 'the gap between a glyph and its label is the system\'s too',
@@ -145,10 +144,10 @@ export const SYSTEM_PROBES = [
         /*
          * The native-table contract, measured because the roadmap approves a
          * native `<table>` for editable matrices and per-row interactive rows —
-         * and because on 2026-08-25 seven of the eleven that use that permission
-         * turned out to reference no `--ds-table-*` role at all, with three
-         * different inline cell paddings between them. These are the numbers that
-         * make the two kinds of table one table.
+         * and because, measured, seven of the eleven that use that permission
+         * referenced no `--ds-table-*` role at all, with three different inline
+         * cell paddings between them. These are the numbers that make the two
+         * kinds of table one table.
          */
         story: 'patterns-native-table--editable-matrix',
         label: 'a native table is the same table as DataTable',
@@ -166,15 +165,13 @@ export const SYSTEM_PROBES = [
          * The frozen first column, measured because it is the one cell in a native
          * table that must NOT be transparent. The surface is painted on the row,
          * so a `position: sticky` cell with no background of its own lets the
-         * scrolled columns paint straight through it — which is what happened to
-         * the Super Admin feature matrix when its hand-picked `bg-ds-surface` was
-         * removed in favour of the contract, and what a review on 2026-08-25
-         * caught. An `rgba(0, 0, 0, 0)` here is the regression.
+         * scrolled columns paint straight through it. An `rgba(0, 0, 0, 0)` here
+         * is the regression.
          *
-         * Since 2026-09-06 (audit step K) the frozen column is the contract's own
-         * `data-pin-first-column` rather than a hand-written `sticky` class, so
-         * the selectors read the attribute, and `zIndex` joins the reading: the
-         * pin is only a pin while the cell outranks the cells scrolling under it.
+         * The frozen column is the contract's own `data-pin-first-column` rather
+         * than a hand-written `sticky` class, so the selectors read the
+         * attribute, and `zIndex` joins the reading: the pin is only a pin while
+         * the cell outranks the cells scrolling under it.
          */
         story: 'patterns-native-table--sticky-first-column',
         label: 'a frozen column is opaque, pinned, and above what scrolls under it',

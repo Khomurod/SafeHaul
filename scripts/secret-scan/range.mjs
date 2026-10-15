@@ -13,16 +13,15 @@
  * | `workflow_dispatch`| *nothing* — so gitleaks scans ALL history  |
  * | `schedule`         | *nothing* — same                            |
  *
- * Three separate defects, each measured on 2026-08-26 rather than reasoned
- * about:
+ * Three separate defects, each measured rather than reasoned about:
  *
- * 1. **The dispatch case scans everything.** Run #159 on `8c3315d` scanned 256
- *    commits and reported 67 findings — eight distinct values, all from
- *    2025-12 to 2026-03, none of them from the commit under test. It failed
- *    `secret-scan`, which failed `release-validation`, which skipped both
- *    deploys. A manual verification of an already-merged commit cannot mean
- *    "scan every commit SafeHaul ever had"; that turns a fixed, known,
- *    separately-tracked history problem into a permanent release blocker.
+ * 1. **The dispatch case scans everything.** With no range passed, a manual run
+ *    scans every commit and reports the known legacy values, none of them from
+ *    the commit under test; that fails `secret-scan`, which fails
+ *    `release-validation`, which skips both deploys. A manual verification of
+ *    an already-merged commit cannot mean "scan every commit SafeHaul ever
+ *    had"; that turns a fixed, known, separately-tracked history problem into
+ *    a permanent release blocker.
  * 2. **`--first-parent` misses whole branches.** Measured in a synthetic repo: a
  *    secret committed on a side branch and merged into main is found by
  *    `base..head` and **not found** by `--no-merges --first-parent base^..head`.
@@ -30,8 +29,8 @@
  * 3. **`--no-merges` misses conflict resolutions.** A merge commit can add
  *    content that is in neither parent. Measured: `base..head` finds 0 there
  *    (git shows no patch for a merge by default), `-m base..head` finds it.
- *    `--cc` was tried first and finds 0 — gitleaks does not parse combined-diff
- *    format, which is exactly why this was tested instead of assumed.
+ *    `--cc` finds 0 as well — gitleaks does not parse combined-diff format,
+ *    which is exactly why this was tested instead of assumed.
  *
  * ## Failing safe
  *
@@ -102,12 +101,12 @@ export function resolveScanPlan({
     /*
      * An explicit base wins, and clears exactly the same bar as an inferred one.
      *
-     * Found in review on 2026-08-26 (P1): it used to clear only the structural
-     * bar — a real SHA, an ancestor, not the head — and the refusal message
-     * above *tells an operator to set it*. So the natural repair for "nothing is
-     * validated" was to paste in the tip that had just failed, which is the one
-     * commit whose broken scanner reported success while its own tests did not.
-     * The increment behind it would be skipped again, and a dispatch deploys.
+     * The structural bar alone — a real SHA, an ancestor, not the head — is not
+     * enough, because the refusal message above *tells an operator to set it*.
+     * The natural repair for "nothing is validated" is to paste in the tip that
+     * has just failed, which is the one commit whose broken scanner reported
+     * success while its own tests did not. The increment behind it would be
+     * skipped again, and a dispatch deploys.
      *
      * The override is therefore a pointer to a release known to be good, not a
      * free choice of baseline. Where that leaves it useful: the automatic walk
@@ -170,20 +169,20 @@ export function resolveScanPlan({
          * against the push's own `before`.
          *
          * `before` is the obvious answer and it is wrong in one specific,
-         * reachable way, found in review on 2026-08-26 and reproduced: when the
-         * PREVIOUS push failed its scan, `before` is that failed tip. The next
-         * ordinary push then compares against it, so the increment that failed
-         * is behind the range; if the credential it added was also deleted in
-         * that increment, the tree is clean too, and the later push passes and
-         * DEPLOYS. Measured on a throwaway repository: push A (adds and deletes
-         * a synthetic key) fails with 1 finding, push B passes with 0 — and the
-         * same push B anchored at the last validated commit fails with 1.
+         * reachable way, reproduced: when the PREVIOUS push failed its scan,
+         * `before` is that failed tip. The next ordinary push then compares
+         * against it, so the increment that failed is behind the range; if the
+         * credential it added was also deleted in that increment, the tree is
+         * clean too, and the later push passes and DEPLOYS. Measured on a
+         * throwaway repository: push A (adds and deletes a synthetic key) fails
+         * with 1 finding, push B passes with 0 — and the same push B anchored at
+         * the last validated commit fails with 1.
          *
          * `before` is also unusable for a branch just created (all zeros) or
-         * force-pushed (not an ancestor of the new head), and the old fallback
-         * for those — the merge base with the default branch — collapsed to the
-         * head itself after a force-push TO the default branch, scanning
-         * nothing. Both cases now take the same answer as the first.
+         * force-pushed (not an ancestor of the new head), and the merge base
+         * with the default branch is no fallback for those: after a force-push
+         * TO the default branch it collapses to the head itself, scanning
+         * nothing. Both cases take the same answer as the first.
          *
          * In the healthy case this changes nothing: the previous tip passed its
          * own scan, so it IS the last validated commit and the range is
@@ -216,13 +215,12 @@ export function resolveScanPlan({
          * A manual or scheduled run re-verifies a commit that is already on the
          * branch, so its baseline is "the last thing CI actually validated".
          *
-         * This used to be `head^1`, on the reasoning that every earlier commit
-         * was scanned by the event that introduced it. Review on 2026-08-26
-         * found the hole in that: it assumes the earlier scan *passed*. A push
-         * whose scan FAILED, followed by a manual re-run, would scan only the
-         * last commit — so a credential added in an earlier commit of that push
-         * and deleted before its tip is in neither the range nor the tree, and
-         * the manual run is green. `workflow_dispatch` deploys, so that is a
+         * `head^1` — on the reasoning that every earlier commit was scanned by
+         * the event that introduced it — assumes the earlier scan *passed*. A
+         * push whose scan FAILED, followed by a manual re-run, would scan only
+         * the last commit — so a credential added in an earlier commit of that
+         * push and deleted before its tip is in neither the range nor the tree,
+         * and the manual run is green. `workflow_dispatch` deploys, so that is a
          * bypass of the gate rather than a gap in a report.
          *
          * The baseline is therefore the newest ancestor carrying a fully validated
@@ -261,12 +259,12 @@ function requireUsableBase(git, candidate, headSha, label) {
      * Resolve to the full SHA before anything COMPARES it.
      *
      * An abbreviated SHA of the head is a different string and the same commit,
-     * and every check below except this one is a string comparison. Found in
-     * review on 2026-08-26 and reproduced: `SECRET_SCAN_BASE=<head[0..8]>` was
-     * accepted, `git merge-base --is-ancestor` said yes (a commit is its own
-     * ancestor), and the resulting `short..full` range held 0 commits — so a
-     * credential added and deleted inside the change was compared against
-     * nothing and the job passed. Against the same repository with the correct
+     * and every check below except this one is a string comparison. Left
+     * unresolved, `SECRET_SCAN_BASE=<head[0..8]>` is accepted,
+     * `git merge-base --is-ancestor` says yes (a commit is its own ancestor),
+     * and the resulting `short..full` range holds 0 commits — so a credential
+     * added and deleted inside the change is compared against nothing and the
+     * job passes (reproduced). Against the same repository with the correct
      * base it fails with 1 finding.
      */
     const resolved = git.resolve(candidate);

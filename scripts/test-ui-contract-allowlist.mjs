@@ -54,8 +54,8 @@ console.log('\nB. A malformed allowlist is refused before anything is judged');
     assert('B4. the checker refuses a malformed allowlist before any verdict',
         checker.indexOf('allowlistShapeProblems(allowlist.files)') !== -1
             && checker.indexOf('allowlistShapeProblems(allowlist.files)') < checker.indexOf('evaluate(measured, allowlist)'));
-    // The allowlist is compared with no base commit (owner ruling, 2026-10-11),
-    // so the check needs no flag, token or history.
+    // The allowlist is compared with no base commit (an owner ruling), so the
+    // check needs no flag, token or history.
     assert('B5. and compares the allowlist with no base commit',
         !/require-baseline|resolveValidatedBaseline|checkAllowlistDirection|execFileSync/.test(checker));
 }

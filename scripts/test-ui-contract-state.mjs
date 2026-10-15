@@ -4,10 +4,9 @@
  * `hand-rolled-toggle`, `hand-rolled-current`, `hand-rolled-avatar` and
  * `hand-rolled-disclosure`.
  *
- * Split out of `test-ui-contract.mjs` on 2026-09-05, when the avatar rule took
- * that file to 528 lines and past the 500-line maximum. The split is by
- * responsibility and not by line count: these share one difficulty that none of
- * the other fifteen rules has, which is that **the correct shape and the wrong
+ * Kept apart from `test-ui-contract.mjs` by responsibility, not by line count:
+ * these share one difficulty that none of the other fifteen rules has, which is
+ * that **the correct shape and the wrong
  * one are nearly the same markup**. A `<Button aria-pressed>` and a
  * `<button aria-pressed>` differ by a capital letter; a person's avatar and an
  * empty-state medallion are both a centred round box with a fixed size; a

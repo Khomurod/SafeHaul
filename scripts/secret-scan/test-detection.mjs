@@ -152,7 +152,7 @@ if (binary) {
     }
 
     /*
-     * 3b. The same shape one push later — found in review on 2026-08-26 (P1).
+     * 3b. The same shape one push later.
      *
      * Push A adds the credential and deletes it again, so its scan fails and the
      * release is blocked. Push B is an ordinary unrelated change. Anchored at
@@ -198,9 +198,9 @@ if (binary) {
     }
 
     /*
-     * 3c. The abbreviated-SHA collapse, measured — found in review on 2026-08-26
-     * (P1). `SECRET_SCAN_BASE=<head[0..8]>` used to be accepted: a 0-commit range
-     * that reports nothing, over a change that added and deleted a credential.
+     * 3c. The abbreviated-SHA collapse, measured. `SECRET_SCAN_BASE=<head[0..8]>`
+     * left unresolved is a 0-commit range that reports nothing, over a change
+     * that added and deleted a credential.
      */
     {
         const repo = makeRepo().useRepoConfig();

@@ -1,44 +1,38 @@
 /**
  * What gets measured, and at which story.
  *
- * Split out of `scripts/check-visual-contract.mjs` on 2026-09-05, when the two
- * chip probes took that file past the 500-line maximum. The split is by
- * responsibility rather than by line count, and the two halves are genuinely
- * different subjects: this file is a **table of decisions** — which story, which
- * selector, which properties are part of the contract and why — and grows every
- * time the design system decides something. The checker is a browser driver and
- * a snapshot comparison, and does not.
+ * Kept apart from `scripts/check-visual-contract.mjs` by responsibility rather
+ * than by line count, and the two halves are genuinely different subjects: this
+ * file is a **table of decisions** — which story, which selector, which
+ * properties are part of the contract and why — and grows every time the design
+ * system decides something. The checker is a browser driver and a snapshot
+ * comparison, and does not.
  *
  * Each probe names a story, a selector, and the properties that are part of the
  * contract. Nothing here is incidental: every property is one the campaign
  * decided deliberately and that a careless change would silently undo.
  *
  * This file holds the probes for a COMPONENT'S OWN CHROME. The foundation and
- * pattern probes moved to `./probes-system.mjs` on 2026-09-05 — they ask about
- * the shared scales beneath the components and the compositions above them,
- * which is a different question. Both are merged into `PROBES` below, so
- * nothing downstream knows about the split.
+ * pattern probes live in `./probes-system.mjs` — they ask about the shared
+ * scales beneath the components and the compositions above them, which is a
+ * different question. Both are merged into `PROBES` below, so nothing
+ * downstream knows about the split.
  */
 import { SYSTEM_PROBES } from './probes-system.mjs';
 
 const COMPONENT_PROBES = [
     {
         /*
-         * The medallion, and the glyph it now sizes.
+         * The medallion, and the glyph it sizes.
          *
-         * Added 2026-09-06 with the `> svg` rule itself. Until that day the
-         * medallion set only its own diameter and every caller picked the glyph:
-         * 24 in this catalog and in both patterns that render one, 28 in the
-         * signing room, 40 in the locked-feature modal, 48 after a bulk upload.
-         * None of those was a decision — `PageState` and `ConfirmDialog` each
-         * carried a comment saying 24 was simply what a bare lucide glyph
-         * rendered before the icon contract.
+         * The medallion's `> svg` rule sizes the glyph. Without it the medallion
+         * sets only its own diameter and every caller picks the glyph, and none
+         * of those picks is a decision.
          *
          * Both halves are read together on purpose. A disc measured without its
          * glyph cannot see the ratio, and the ratio is the thing that was
          * decided: 24 in 64 at `md`, 32 in 80 at `lg` — 37.5% and 40%, against a
-         * published band that starts around 40%. The `lg` step USED to be 30%,
-         * which is why three callers reached past it.
+         * published band that starts around 40%.
          *
          * The mutation this probe is here for is the RULE BEING LOST, not the rule
          * being written differently. Deleting the two `> svg` blocks reports
@@ -228,19 +222,18 @@ const COMPONENT_PROBES = [
         /*
          * The two meanings of `tone`, as numbers.
          *
-         * On a `primary` it FILLS; on a `secondary` it TINTS. Until 2026-09-05 a
-         * single variant-agnostic rule filled both, so this pair is the whole
-         * point of the slice and the thing most likely to be undone by a later
-         * edit that "simplifies" the two blocks back into one. A screenshot
-         * would say a picture changed; this says `backgroundColor:
+         * On a `primary` it FILLS; on a `secondary` it TINTS. This pair is the
+         * thing most likely to be undone by a later edit that "simplifies" the
+         * two blocks back into one variant-agnostic rule that fills both. A
+         * screenshot would say a picture changed; this says `backgroundColor:
          * rgb(22, 163, 74) -> rgb(220, 252, 231)`, which says what changed.
          *
-         * It matters more than usual here because the two consumers this slice
-         * retired — the envelope editor's field palette and the sandbox Magic
-         * Fill — have NO app-screen baseline between them: the editor is not one
-         * of the 15 photographed screens and `/sandbox/*` is deliberately
-         * excluded as a harness route. Without this probe the migration would
-         * rest on unit tests and reading alone.
+         * It matters more than usual here because the envelope editor's field
+         * palette and the sandbox Magic Fill, which use these tones, have NO
+         * app-screen baseline between them: the editor is not one of the 15
+         * photographed screens and `/sandbox/*` is deliberately excluded as a
+         * harness route. Without this probe they would rest on unit tests and
+         * reading alone.
          */
         story: 'components-button--success-tone',
         label: 'a tone fills a primary and tints a secondary',
@@ -254,10 +247,10 @@ const COMPONENT_PROBES = [
         /*
          * The `xs` step, as a number, because it is a CONFORMANCE claim rather
          * than a taste one: 24px is the WCAG 2.2 SC 2.5.8 (AA) target-size
-         * minimum, and the owner chose on 2026-09-05 to meet it on the PDF
-         * corner badges themselves rather than lean on the equivalent-control
-         * exception. A step that silently drifted to 20px would still look
-         * fine and would no longer conform.
+         * minimum, and the owner chose to meet it on the PDF corner badges
+         * themselves rather than lean on the equivalent-control exception. A
+         * step that silently drifted to 20px would still look fine and would no
+         * longer conform.
          *
          * `height` as well as `width`: `.ds-button` carries
          * `min-height: var(--ds-control-height-md)`, so an `xs` rule that set
@@ -432,7 +425,7 @@ const COMPONENT_PROBES = [
         properties: ['width', 'height', 'borderRadius'],
     },
     /*
-     * The pinned first column (audit step K, 2026-09-06) of a DataTable; the
+     * The pinned first column of a DataTable; the
      * native contract's is measured beside its other numbers in
      * probes-system.mjs. `position` and `left` are the pin; `z-index` is the local
      * stacking order that keeps the frozen cell above the cells scrolling under

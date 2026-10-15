@@ -2,15 +2,11 @@
 /**
  * The first download a driver's phone makes, held to a budget.
  *
- * Measured on 2026-09-06 against the production build (audit step I): the
- * public application downloaded 517,442 bytes gzip before a line of it ran —
- * a 1,184 kB entry script, a 399 kB pdf.js chunk preloaded on a page that
- * renders no PDF, and Sentry's Session Replay recorder inside the entry. Moving
- * the pdf.js worker wiring out of the entry and attaching Replay after load
- * took it to 363,025. On 2026-10-15 (plan step 4.2) loading tracing, Storage
- * and DOMPurify on demand, Auth without its popup resolver, and each glyph with
- * the screens that draw it took it from 379,589 to 309,382; the libraries ride
- * in a chunk of their own. This check keeps it there: it reads `dist/index.html`,
+ * What keeps it small: the pdf.js worker wiring lives outside the entry and no
+ * preload names the pdf.js chunk; Session Replay and tracing attach after load;
+ * Storage and DOMPurify load on demand; Auth starts without its popup resolver;
+ * each glyph loads with the screens that draw it; and the libraries ride in a
+ * chunk of their own. This check keeps it there: it reads `dist/index.html`,
  * sums the gzip size of the entry script, every `modulepreload` and every
  * stylesheet — exactly what the browser must fetch before the first screen —
  * and refuses the build when the sum passes the ceiling, when a preload names
@@ -32,7 +28,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
-/** Bytes, gzip. 309,382 measured on 2026-10-15; the headroom is 3%. Move it DOWN, never up, without a measurement. */
+/** Bytes, gzip. 309,382 measured; the headroom is 3%. Move it DOWN, never up, without a measurement. */
 export const FIRST_DOWNLOAD_GZIP_CEILING = 319_000;
 
 /** A preload of any of these is the regression this check was written for. */
@@ -64,8 +60,7 @@ export const FIRST_DOWNLOAD_MUST_CONTAIN = Object.freeze([
 /**
  * Bytes over the wire for `/apply/:slug` before its first screen: scripts and
  * stylesheets gzip, the font as served (WOFF2 is compressed already). 520,577
- * measured on 2026-10-15; the headroom is 3%. Move it DOWN, never up, without a
- * measurement.
+ * measured; the headroom is 3%. Move it DOWN, never up, without a measurement.
  */
 export const APPLY_PAGE_CEILING = 536_000;
 

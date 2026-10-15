@@ -88,13 +88,11 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
         `${overridden.source}: ${String(overridden.base).slice(0, 8)}`);
 
     /*
-     * Found in review on 2026-08-26 (P1).
-     *
      * An abbreviated SHA of the head is a different STRING and the same COMMIT.
      * Every check but one is a string comparison, and `merge-base --is-ancestor`
      * says yes because a commit is its own ancestor — so `SECRET_SCAN_BASE` set
-     * to the head's short form produced a 0-commit range that passed. The base is
-     * resolved to its full SHA before anything compares it now.
+     * to the head's short form would give a 0-commit range that passes. The base
+     * is resolved to its full SHA before anything compares it.
      */
     throws('C11 (req 10). an ABBREVIATED SHA of the head refuses, like the full one',
         () => resolveScanPlan({
@@ -184,12 +182,10 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
     }
 
     /*
-     * Found in review on 2026-08-26 (P1).
-     *
-     * The override used to clear only the structural bar — a real SHA, an
-     * ancestor, not the head — while the refusal above *tells an operator to set
-     * it*. So the natural repair for "nothing is validated" was to paste in the
-     * tip that had just failed: the one commit whose broken scanner reported
+     * The structural bar alone — a real SHA, an ancestor, not the head — is not
+     * enough for the override, because the refusal above *tells an operator to
+     * set it*. The natural repair for "nothing is validated" is to paste in the
+     * tip that has just failed: the one commit whose broken scanner reported
      * success while its own tests did not. It has to clear the same bar as an
      * inferred base.
      */
@@ -213,14 +209,14 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
         'and the predicate is asked about the RESOLVED commit, not the string typed');
 
     /*
-     * The same guarantee one step further, found in review on 2026-08-26 (P1).
+     * The same guarantee one step further.
      *
      * A readable report is not proof that the scan finished: a nonzero exit that
-     * still wrote a parseable EMPTY report used to set `errored` false with no
-     * findings, so `performScans` recorded no problem and the gate passed over a
-     * scanner that had failed. Driven here with a stub scanner, because gitleaks
-     * 8.30.1 does not do it — which is exactly why the branch must not depend on
-     * that staying true.
+     * still writes a parseable EMPTY report must not read as `errored` false with
+     * no findings, or `performScans` records no problem and the gate passes over
+     * a scanner that has failed. Driven here with a stub scanner, because
+     * gitleaks 8.30.1 does not do it — which is exactly why the branch must not
+     * depend on that staying true.
      */
     {
         const stubDir = mkdtempSync(join(tmpdir(), 'safehaul-stub-scanner-'));

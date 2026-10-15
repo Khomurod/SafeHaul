@@ -34,13 +34,9 @@
  * declaration order, but a module that uses top-level `await` — which the
  * validated-baseline section does, since the lookup is async — SUSPENDS there and
  * lets the next module run, so its output lands after a later section's. Measured
- * when this was split: the pinning section printed before it. Sequential dynamic
+ * with static imports: the pinning section prints before it. Sequential dynamic
  * imports make each section finish before the next starts, so the output reads in
  * the order written here.
- *
- * Split out of a single 1246-line file on 2026-08-27. Nothing was rewritten in
- * the move: the section bodies are the same lines, so the assertion count before
- * and after is identical and a diff can be read as the move it is.
  */
 
 import { cleanup, failureCount } from './secret-scan/test-support.mjs';

@@ -2,9 +2,8 @@
  * The harness the secret-scan test sections share: assertions, synthetic
  * secrets, throwaway repositories, and the pinned scanner.
  *
- * Split out on 2026-08-27 when the single test file reached 1246 lines. The
- * sections it served are independent subjects — which range each event picks,
- * what those ranges actually catch, how a base that cannot be trusted is
+ * The sections it serves are independent subjects — which range each event
+ * picks, what those ranges actually catch, how a base that cannot be trusted is
  * refused, how the last validated commit is found, and what the pinning buys —
  * but they all need the same three things, and duplicating any of them would let
  * two sections drift into testing different fixtures while reading identically.

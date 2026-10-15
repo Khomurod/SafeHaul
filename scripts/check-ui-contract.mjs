@@ -8,12 +8,10 @@
  *
  * ## Why this exists
  *
- * The design system was substantial and largely adopted, and the application was
- * still visibly inconsistent, because *nothing checked*. A 2026-08 audit of the
- * tree found 364 raw Tailwind palette classes across 49 files, 142 raw type
- * classes competing with the `--ds-*` scale, and 26 pieces of text below the
- * 12px floor the roadmap had forbidden in writing since the beginning. Every one
- * of those passed review, lint, 234 test files and CI.
+ * A design system that nothing checks leaves the application visibly
+ * inconsistent: raw Tailwind palette classes, raw type classes competing with
+ * the `--ds-*` scale, and text below the roadmap's 12px floor all pass review,
+ * lint, the unit tests and CI.
  *
  * A rule that lives only in a document is a rule that is followed until someone
  * is in a hurry.
@@ -29,10 +27,8 @@
  *   - fewer                     -> the entry is lowered (in CI, a warning)
  *   - an allowlist entry with no reason                    -> fail
  *
- * It began (2026-08-21) as a shrink-only ratchet over an inventory of 660
- * tolerated violations, most tagged with the migration slice that owed the
- * work. The last of that debt cleared on 2026-08-25, so the `debt` escape hatch
- * is gone: an entry without a reason is now an error rather than a promise.
+ * There is no `debt` escape hatch: an entry without a reason is an error, not a
+ * promise.
  *
  * A *decrease* costs nothing. Run locally, the check lowers the entry to what the
  * tree still holds and drops it, reason and all, at zero; the change commits the
@@ -50,16 +46,16 @@
  *
  * The check never adds an entry or raises a count: an exception that grows is
  * an edit to the allowlist, with a reason, in the pull request's diff. It does
- * not compare the allowlist with a base commit (owner ruling, 2026-10-11), so
- * that diff is where such an edit is judged.
+ * not compare the allowlist with a base commit (an owner ruling), so that diff
+ * is where such an edit is judged.
  *
  * ## This file is the CLI; the decisions live beside it
  *
- * Split on 2026-09-04. `./ui-contract/` holds the parts that can be tested
- * without a filesystem — `verdict.mjs` (what the tree and the allowlist say
- * about each other), `tether.mjs` (the native-table AST check), `update.mjs`
- * (lowering a fixed entry) and `report.mjs` (the wording) — so the guard's own failure
- * modes are drivable on fixtures. **Nothing under `src/` may import this
+ * `./ui-contract/` holds the parts that can be tested without a filesystem —
+ * `verdict.mjs` (what the tree and the allowlist say about each other),
+ * `tether.mjs` (the native-table AST check), `update.mjs` (lowering a fixed
+ * entry) and `report.mjs` (the wording) — so the guard's own failure modes are
+ * drivable on fixtures. **Nothing under `src/` may import this
  * module**: `src/tests/uiContract.ratchet.test.js` imports the library modules
  * directly, because Vitest rewrites `import.meta.url` and anything evaluated at
  * this file's module scope would run inside that rewrite. `test-ui-contract.mjs`
@@ -84,7 +80,7 @@ import {
  *
  * A guard that cannot fail on a broken input is not a guard. If the walker
  * finds nothing at all, something is wrong with the walker.
- * Raised from 200 when stylesheets joined the walk on 2026-08-25.
+ * Stylesheets are part of the walk, so they count toward this floor.
  */
 export const MINIMUM_SCANNED_FILES = 400;
 

@@ -70,12 +70,10 @@ console.log('\nK. Guards that stay guards');
      * K1b — the rest of the design-system family, pinned for the same reason.
      *
      * K1 above holds the visual lane because that lane spent its whole existence
-     * advisory and red. It is the same argument for its four siblings, and until
-     * 2026-09-04 nothing made it: they were blocking only because nobody had
-     * added `continue-on-error` to them, which is not the same as being unable
-     * to. That gap was found while correcting section 6 of the roadmap, which
-     * had claimed the whole family was "permanently blocking" — the claim is
-     * true now because of this assertion, and was aspirational before it.
+     * advisory and red. It is the same argument for its four siblings: a step
+     * nobody has yet made advisory with `continue-on-error` is not the same as
+     * one that cannot be. Section 6 of the roadmap says the whole family is
+     * "permanently blocking", and this assertion is what makes it so.
      *
      * Each entry names the step AND asserts it exists, because renaming a step
      * makes an assertion about it vacuously true — the failure mode K1's own
@@ -145,10 +143,10 @@ console.log('\nK. Guards that stay guards');
     }
 
     /*
-     * K1c — the first-download budget (audit step I, 2026-09-06). A size ceiling
-     * that is not enforced after every build is a number in a document. The
-     * check runs in the job that builds, after the build, and is blocking; its
-     * own tests run in the job no plan can skip.
+     * K1c — the first-download budget. A size ceiling that is not enforced after
+     * every build is a number in a document. The check runs in the job that
+     * builds, after the build, and is blocking; its own tests run in the job no
+     * plan can skip.
      */
     {
         const jobStart = workflowText.indexOf('\n  frontend-build:');
@@ -217,24 +215,19 @@ console.log('\nK. Guards that stay guards');
     /*
      * K4 — the public site's claims gate runs on every run, in an always-required job.
      *
-     * `npm run check:public-claims` was wired into the root `npm run lint`, and the
-     * brief said CI enforced it. CI ran `lint:frontend`. So no job executed the
-     * check at all: a `web/` change selected `frontend_unit` (A5), that lane ran
-     * the hosting-config tests and the ratchet, and the one check written for the
-     * public site's words never ran — a gate that was documented, not wired.
-     * Found 2026-09-01 while closing the source-size campaign.
-     *
-     * The first fix put the step in `frontend-quality`, the lane `web/` selects.
-     * Review found the hole that leaves: the check has TWO inputs — the pages and
-     * the capability package they are held to — and a change to
+     * The step runs the checker itself: CI never runs the root `npm run lint`,
+     * so a check reachable only through it is documented, not wired. The check
+     * has TWO inputs — the pages and the capability package they are held to.
+     * A `web/` change selects `frontend_unit` (A5) and a change to
      * `functions/ai/knowledge/safehaulCapabilities.js` selects only the functions
-     * lane, so a registry edit could make the live page newly invalid while CI
-     * stayed green. A gate with two inputs cannot live in a lane either one can
-     * skip. It runs in an always-required job instead, which no lane selection
-     * can skip and which deliberately runs with no `npm ci` — so these also pin
-     * that the checker and the package it loads need nothing installed. The last
-     * check is the coverage claim itself: the checker reads only top-level
-     * `web/*.html`, so a page in a subdirectory would be validated by nothing.
+     * lane, so a step in either lane misses an edit to the other input that makes
+     * the live page newly invalid while CI stays green. A gate with two inputs
+     * cannot live in a lane either one can skip. It runs in an always-required
+     * job instead, which no lane selection can skip and which deliberately runs
+     * with no `npm ci` — so these also pin that the checker and the package it
+     * loads need nothing installed. The last check is the coverage claim itself:
+     * the checker reads only top-level `web/*.html`, so a page in a subdirectory
+     * would be validated by nothing.
      */
     const CLAIMS_STEP = 'Public-claims check';
     const CLAIMS_SCRIPT = 'npm run check:public-claims';
@@ -576,16 +569,14 @@ console.log('\nK. Guards that stay guards');
 console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
 {
     /*
-     * Recorded 2026-08-26, after run #159.
+     * `gitleaks/gitleaks-action@v2` chooses the scan range from the event and,
+     * on `workflow_dispatch`, passes no range at all — so a manual verification
+     * of an already-merged commit scans all history, reports the known legacy
+     * values, fails `secret-scan`, fails `release-validation` and skips both
+     * deploys.
      *
-     * `gitleaks/gitleaks-action@v2` chose the scan range from the event and, on
-     * `workflow_dispatch`, passed no range at all — so a manual verification of
-     * an already-merged commit scanned all 256 commits, reported eight known
-     * legacy values from 2025-12..2026-03, failed `secret-scan`, failed
-     * `release-validation` and skipped both deploys.
-     *
-     * These assertions exist because that was invisible from inside this
-     * repository: the range lived in someone else's JavaScript. They pin the
+     * These assertions exist because that is invisible from inside this
+     * repository: the range lives in someone else's JavaScript. They pin the
      * three properties that must not quietly come back — the range is ours, the
      * scanner is pinned, and the full sweep cannot gate a release.
      */
@@ -624,16 +615,15 @@ console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
         'the deploy jobs sit behind this verdict, so a missing scan is a refusal');
 
     /*
-     * L8-L10 and L15-L26 moved to `scripts/secret-scan/test-pinning.mjs` on
-     * 2026-08-27, when the scanner outgrew one file.
+     * L8-L10 and L15-L26 live in `scripts/secret-scan/test-pinning.mjs`.
      *
      * They read the scanner's own SOURCE — the pinned version and digest, both
-     * scan modes, the flags, and `.gitleaks.toml` line for line — and this file
-     * read it as a path, `./secret-scan.mjs`. Splitting the scanner would have
-     * left those regexes passing over a 212-line entry that no longer contains
-     * what they check, which is the worst way for a security assertion to fail.
-     * `test-pinning.mjs` reads the transitive closure of the entry's imports
-     * instead, so it cannot go stale the next time a module moves.
+     * scan modes, the flags, and `.gitleaks.toml` line for line. Read here as one
+     * path, `./secret-scan.mjs`, those regexes would pass over an entry that no
+     * longer contains what they check, which is the worst way for a security
+     * assertion to fail. `test-pinning.mjs` reads the entry plus every non-test
+     * module beside it instead, so it cannot go stale the next time a module
+     * moves.
      *
      * What stays here is the WIRING: that the job exists, runs this repository's
      * scanner, checks out full history, cannot be conditioned away, is still
@@ -643,7 +633,8 @@ console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
     /*
      * The full-history sweep still exists — it just cannot block a deploy. If it
      * ever gains a push or pull_request trigger, or turns up in
-     * release-validation's `needs`, the 2026-08-26 failure is back.
+     * release-validation's `needs`, every release is gated on legacy findings it
+     * did not introduce.
      */
     const auditPath = resolvePath(here, '../.github/workflows/secret-history-audit.yml');
     assert('L11. the deliberate full-history audit exists',

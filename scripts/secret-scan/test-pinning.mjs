@@ -57,7 +57,7 @@ assert('D6 (req 10). a NEW finding fails the audit',
     'something entered history that the inventory does not know about');
 
 /*
- * The case counting missed, found in review on 2026-08-26 (P2).
+ * The case counting misses.
  *
  * One legacy finding disappears — a stale branch deleted — and a new secret
  * appears on another unmerged branch. The total is identical, and a count
@@ -112,21 +112,15 @@ console.log('\nL. The scanner is ours, pinned by content, and cannot be exempted
 /* ========================================================================== */
 
 /*
- * Moved here from `scripts/test-ci-plan.mjs` §L on 2026-08-27, when the scanner
- * stopped being one file.
- *
- * These are regexes over the scanner's own source, and they lived in the CI-plan
- * suite only because that is where the run #159 post-mortem was written. Reading
- * a directory's worth of implementation from there would have meant either a
- * stale path or a second copy of the closure logic, and the assertions belong
- * beside the thing they describe regardless.
+ * These are regexes over the scanner's own source, so they live beside it:
+ * reading a directory's worth of implementation from the CI-plan suite would
+ * mean either a stale path or a second copy of the closure logic.
  *
  * The L numbers are kept deliberately. `.claude/rules/release-pipeline.md` cites L24a, L25 and L26 by
  * name, and the commit that measured each of these refers to them; renaming them
- * to fit this file's D-series would break that trail for nothing. What each one
- * asserts is unchanged — only the source it reads is wider, because
- * `implementationSource()` follows the entry's imports rather than trusting one
- * path.
+ * to fit this file's D-series would break that trail for nothing. Each one reads
+ * `implementationSource()` — the entry plus every non-test module beside it —
+ * rather than trusting one path.
  *
  * The wiring half of §L stays in `test-ci-plan.mjs`: that the job exists, runs
  * this repository's scanner, cannot be conditioned away, is in
@@ -173,8 +167,8 @@ console.log('\nL. The scanner is ours, pinned by content, and cannot be exempted
     /*
      * A push's own `before` is the tip of the PREVIOUS push, whose scan may have
      * failed — trusting it puts that failed increment behind the range, and a
-     * credential added and deleted inside it then passes and deploys (reproduced,
-     * 2026-08-26). Every event but a pull request anchors at a validated commit.
+     * credential added and deleted inside it then passes and deploys
+     * (reproduced). Every event but a pull request anchors at a validated commit.
      */
     assert('L20. a push never anchors at its own `before`',
         !/'push-before'/.test(scanner),

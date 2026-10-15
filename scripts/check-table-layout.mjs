@@ -7,23 +7,20 @@
  *
  * ## Why this exists
  *
- * On 2026-08-08 the Super Admin AI Integrations table showed a pale vertical
- * strip down its right edge and a Delete button rendered as "Dele". Two
- * separate design-system defects, both invisible to every check the repository
- * had:
+ * A pale vertical strip down a table's right edge, or a Delete button rendered
+ * as "Dele", comes from design-system defects that every other check in the
+ * repository is blind to:
  *
- *  - `scrollbar-gutter: stable` reserved 15px at the inline-end edge of every
+ *  - `scrollbar-gutter: stable` reserves space at the inline-end edge of a
  *    table scroll region. A `<table>` cannot paint into a gutter, so the header
- *    background, row backgrounds and dividers all stopped 15px short of the
- *    card edge. Present on all 84 table renders in the catalog; not one of them
- *    scrolled vertically, so the gutter was reserved for a scrollbar that never
- *    appeared.
- *  - `--ds-table-actions-width` was 64px. Mobile cell padding is 2x
- *    `--ds-space-4`, leaving 32px of content box for the header word "ACTIONS",
- *    which needs 41px. Every table with a visible actions header overflowed its
- *    last column by exactly 9px.
+ *    background, row backgrounds and dividers all stop short of the card edge,
+ *    and a region that never scrolls vertically reserves it for a scrollbar
+ *    that never appears.
+ *  - A `--ds-table-actions-width` narrower than the mobile cell padding (2x
+ *    `--ds-space-4`) plus the header word "ACTIONS" makes every table with a
+ *    visible actions header overflow its last column.
  *
- * Neither could be caught by a unit test. jsdom has no layout engine, so
+ * Neither can be caught by a unit test. jsdom has no layout engine, so
  * `scrollWidth` and `offsetWidth` are always `0` there — the contract tests and
  * `npm run test:stories` are structurally incapable of seeing this class of
  * bug, however many of them are written. And the E2E overflow assertion checks
@@ -121,15 +118,14 @@ function measureTables() {
      * Both approved table contracts are measured.
      *
      * `DataTable` owns its own scroll region, so the dead-gutter invariant is
-     * about that element. `ds-native-table` — the contract the eleven approved
-     * native tables adopted on 2026-08-25 — deliberately has no scroll container:
+     * about that element. `ds-native-table` — the contract every approved
+     * native table applies — deliberately has no scroll container:
      * a native table is chosen when the feature owns the row's interaction, and
      * the feature owns its overflow too. So its own element is the subject, and
      * only the cell-containment invariant applies to it.
      *
-     * Until this was added, no native table was measured ANYWHERE. The guard that
-     * exists because a Delete button rendered as "Dele" on a real phone was
-     * looking only at the four tables in the catalog that are `DataTable`.
+     * Without the second selector no native table is measured ANYWHERE: only
+     * the catalog's `DataTable` stories would be.
      */
     const subjects = [
         ...Array.from(document.querySelectorAll('.ds-data-table'), (root) => ({

@@ -166,15 +166,14 @@ export function runGitleaksScan({ binary, mode, target, logOpts, config, reportP
     /*
      * A readable report is not by itself proof that the scan finished.
      *
-     * Review on 2026-08-26 (P1): a nonzero exit that still left a parseable
-     * EMPTY report set `ok` false and `errored` false, and `performScans` only
-     * looked at `errored` and the finding count — so it recorded no problem and
-     * the release gate reported success over a scan that had failed. Nonzero
-     * with nothing to show for it is an incomplete scan, and it is reported as
-     * one. (I could not make gitleaks 8.30.1 do this: every failure mode probed
-     * either exits 0 or writes no report at all. That is not a reason to leave
-     * the branch open — the guarantee is "a scanner failure never reads as
-     * success", and it should not rest on one version's exit-code habits.)
+     * A nonzero exit that still leaves a parseable EMPTY report must not read as
+     * `errored` false with no findings — that is a failed scan recorded as no
+     * problem, and a release gate reporting success over it. Nonzero with
+     * nothing to show for it is an incomplete scan, and it is reported as one.
+     * (No failure mode probed makes gitleaks 8.30.1 do this: each either exits
+     * 0 or writes no report at all. That is not a reason to leave the branch
+     * open — the guarantee is "a scanner failure never reads as success", and
+     * it should not rest on one version's exit-code habits.)
      */
     if (result.status !== 0 && findings.length === 0) {
         return {
@@ -295,7 +294,7 @@ export function performScans({ binary, cwd, plan: scanPlan, config, workDir }) {
     for (const [label, scan] of [['commit range', range], ['source tree', tree]]) {
         if (scan.errored) problems.push(`the ${label} scan did not complete: ${scan.detail}`);
         else if (scan.findings.length > 0) problems.push(`${scan.findings.length} finding(s) in the ${label}`);
-        // Belt and braces for the same P1: whatever produced `ok === false`,
+        // Belt and braces for an incomplete scan: whatever produced `ok === false`,
         // this refuses. Nothing may reach the deploy on a scan that did not
         // say, unambiguously, that it found nothing.
         else if (!scan.ok) problems.push(`the ${label} scan did not report success: ${scan.detail}`);

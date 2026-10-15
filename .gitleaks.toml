@@ -9,18 +9,10 @@ useDefault = true
 
 # ## There are no path exemptions, deliberately
 #
-# This section used to allowlist `\.env\.example$` and `functions/\.env\.example$`
-# on the theory that their placeholder values tripped rules. Measured against the
-# pinned gitleaks 8.30.1 on 2026-08-26, that is not true:
-#
-#   - the tracked tree scanned with the path list removed: identical result;
-#   - all three commits in the repository's history that ever touched either
-#     template, scanned individually with the path list removed: 0 findings.
-#
-# So the exemption bought nothing and cost the only thing that matters — a real
-# credential pasted into a file called `.env.example` would have been ignored.
-# Deleted rather than kept "just in case". A path exemption is the widest kind
-# there is, and this file now has none.
+# A path exemption is the widest kind there is: a real credential pasted into a
+# file called `.env.example` would be ignored. The `.env.example` templates need
+# none — measured against the pinned gitleaks 8.30.1, their placeholder values
+# trip no rule, in the tracked tree or in any commit that touched either one.
 [allowlist]
 description = "Two value exemptions. No path is exempt, and no rule is switched off."
 # `npm run check:ci-plan` pins every non-comment line of this file (L24a), not

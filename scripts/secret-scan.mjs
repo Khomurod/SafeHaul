@@ -190,9 +190,8 @@ async function main() {
      * than three shared lines, so the three lines are repeated.
      *
      * `force: true` alone is not enough — it suppresses `ENOENT` and nothing
-     * else, and an `ENOTEMPTY` from a concurrent writer still throws. That
-     * failed `callable-contract` on 2026-09-05 in a sibling harness, after
-     * every assertion in it had passed.
+     * else, and an `ENOTEMPTY` from a concurrent writer still throws — failing
+     * a run after every assertion in it has passed.
      */
     rmSync(work, {
         recursive: true, force: true, maxRetries: 10, retryDelay: 50,

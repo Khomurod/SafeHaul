@@ -11,8 +11,7 @@
  *
  * ## Why a file and not stdout
  *
- * The first version wrote to `process.stdout`. Review on 2026-08-28 pointed out
- * that a hook runs on the loader-hooks thread, where `process.stdout.write` is
+ * A hook runs on the loader-hooks thread, where `process.stdout.write` is
  * proxied to the main thread and is asynchronous for a pipe — so a short-lived
  * probe can exit with records still buffered. That would make a REQUIRED test
  * intermittently classify a live module as an orphan, and could let the outside-

@@ -6,14 +6,13 @@
  *
  * ## Why this file exists
  *
- * A 2026-09-04 audit found that **nothing tested the guard's own coverage**. The
- * only test in the tree (`src/tests/uiContract.ratchet.test.js`) imported two
- * pure functions and proved each rule can fire on a fixture. Nothing asserted
- * what the walker reaches, which rules exist, which files are exempt by path, or
- * that the native-table parser still refuses the four bypasses it was hardened
- * against. Measured consequence: dropping `css` from the extension regex takes
- * the scan from 554 files to 528 — still above the only floor there was — and
- * silently stops reading 26 stylesheets. A guard can go blind and read as clean.
+ * Proving that each rule can fire on a fixture
+ * (`src/tests/uiContract.ratchet.test.js`) does **not test the guard's own
+ * coverage**: what the walker reaches, which rules exist, which files are exempt
+ * by path, and that the native-table parser still refuses the four bypasses it
+ * was hardened against. Measured: dropping `css` from the extension regex
+ * silently stops reading every stylesheet while a total floor still passes. A
+ * guard can go blind and read as clean.
  *
  * That is the same failure mode `scripts/test-source-size.mjs` was written for,
  * and this file is deliberately its sibling: same plain-assertion shape, same
@@ -35,9 +34,8 @@
  * Whether CI runs it, and whether that can be skipped, is asked by
  * `ci-plan/test-guards.mjs` K5.
  *
- * The scope half was split out on 2026-09-04 when the coverage pins landed;
- * "which files does it read" and "what does it conclude" are different subjects
- * with different mutations, and one file doing both was heading past 400 lines.
+ * The scope half lives apart because "which files does it read" and "what does
+ * it conclude" are different subjects with different mutations.
  */
 
 import { HOISTED_CLASS_NAME } from './ui-contract/bindings.mjs';
