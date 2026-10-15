@@ -7,11 +7,14 @@
  * reads JSX), without positions, comments or how a literal was written, so
  * formatting never counts and the meaning always does:
  * - an export's wiring is a statement of exactly the form `exports.X = <module
- *   or its member>;`, alone or under `if (<check>('X'))`, wherever it sits;
- * - in the file's older form, `const x = require('./m')` is wiring when only
- *   wiring reads `x`;
+ *   or its member>;`, alone or under `if (<check>('X'))`, with its place among
+ *   the loader's statements;
+ * - in the file's older form, `const x = require('./m')` that only wiring reads
+ *   is wiring of the exports that read it, with its place too;
  * - everything else is the loader, which every function runs, and so is a
  *   statement of any other form, export or not.
+ * The order of wiring statements among themselves does not count: a deployed
+ * function loads only its own module.
  */
 import { parse } from '@babel/parser';
 
@@ -19,12 +22,13 @@ const SKIPPED = new Set(['start', 'end', 'loc', 'range', 'extra', 'comments', 'l
 const shape = (node) => JSON.stringify(node, (key, value) => (SKIPPED.has(key) ? undefined : value));
 const STATEMENT_LISTS = { Program: 'body', BlockStatement: 'body', StaticBlock: 'body', SwitchCase: 'consequent' };
 
+/** A node's child nodes, each with its key and its step in a path. */
 function* children(node) {
   for (const [key, value] of Object.entries(node)) {
     if (SKIPPED.has(key)) continue;
-    for (const child of Array.isArray(value) ? value : [value]) {
-      if (child && typeof child.type === 'string') yield [key, child];
-    }
+    if (Array.isArray(value)) {
+      for (const [index, child] of value.entries()) if (child && typeof child.type === 'string') yield [key, child, `${key}[${index}]`];
+    } else if (value && typeof value.type === 'string') yield [key, value, key];
   }
 }
 
@@ -57,24 +61,44 @@ function wiredExport(statement) {
   return ownCheck && isModuleReference(assignment.right) ? name : null;
 }
 
-/** Takes every wiring statement in the tree out of it, into `wiring` by export name. */
-function takeWiring(node, wiring) {
-  const key = STATEMENT_LISTS[node.type];
-  if (key) {
-    node[key] = node[key].filter((statement) => {
-      const name = wiredExport(statement);
-      if (name) wiring.set(name, [...(wiring.get(name) || []), statement]);
-      return !name;
-    });
+/** The wiring statements in the tree, each with its export's name. */
+function collectWiring(node, found = new Map()) {
+  const listKey = STATEMENT_LISTS[node.type];
+  for (const [key, child] of children(node)) {
+    const name = key === listKey ? wiredExport(child) : null;
+    if (name) found.set(child, name);
+    else collectWiring(child, found);
   }
-  for (const [, child] of children(node)) takeWiring(child, wiring);
+  return found;
 }
 
-/** Whether `name` is read inside a node: as an identifier, not a property name or key. */
-function reads(node, name, skip) {
-  if (node === skip) return false;
+/** Takes the given statements out of the tree, each with its list and its slot: how many loader statements precede it there. */
+function takeOut(node, wiring, taken = []) {
+  const listKey = STATEMENT_LISTS[node.type];
+  if (listKey) {
+    const kept = [];
+    for (const statement of node[listKey]) {
+      const names = wiring.get(statement);
+      if (names) taken.push({ list: node, slot: kept.length, statement, names });
+      else kept.push(statement);
+    }
+    node[listKey] = kept;
+  }
+  for (const [, child] of children(node)) takeOut(child, wiring, taken);
+  return taken;
+}
+
+/** The path of every statement list in the tree. */
+function listPaths(node, path = '', paths = new Map()) {
+  if (STATEMENT_LISTS[node.type]) paths.set(node, path);
+  for (const [, child, step] of children(node)) listPaths(child, `${path}/${step}`, paths);
+  return paths;
+}
+
+/** Whether `name` is read inside a node, outside the `skip` nodes: as an identifier, not a property name or key. */
+function reads(node, name, skip = new Set()) {
   for (const [key, child] of children(node)) {
-    if (child === skip) continue;
+    if (skip.has(child)) continue;
     const isName = child.type === 'Identifier' && child.name === name
       && !(key === 'property' && node.type === 'MemberExpression' && !node.computed)
       && !(key === 'key' && /Property|Method/.test(node.type) && !node.computed);
@@ -95,15 +119,24 @@ function moduleVariable(statement) {
  */
 export function indexParts(src) {
   const { program } = parse(src, { sourceType: 'script', allowReturnOutsideFunction: true });
-  const wiring = new Map();
-  takeWiring(program, wiring);
-  const wired = [...wiring.values()].flat();
-  program.body = program.body.filter((statement) => {
-    const name = moduleVariable(statement);
-    return !name || !wired.some((wire) => reads(wire, name)) || reads(program, name, statement);
-  });
+  const found = collectWiring(program);
+  const wiring = new Map([...found].map(([statement, name]) => [statement, [name]]));
+  for (const statement of program.body) {
+    const variable = moduleVariable(statement);
+    const readers = variable ? [...found.keys()].filter((wire) => reads(wire, variable)) : [];
+    if (readers.length && !reads(program, variable, new Set([statement, ...found.keys()]))) {
+      wiring.set(statement, readers.map((wire) => found.get(wire)));
+    }
+  }
+  const taken = takeOut(program, wiring);
+  const paths = listPaths(program);
+  const exports = new Map();
+  for (const { list, slot, statement, names } of taken) {
+    const piece = `${paths.get(list)}@${slot} ${shape(statement)}`;
+    for (const name of new Set(names)) exports.set(name, [...(exports.get(name) || []), piece]);
+  }
   return {
-    exports: new Map([...wiring].map(([name, statements]) => [name, statements.map(shape).join('\n')])),
+    exports: new Map([...exports].map(([name, pieces]) => [name, pieces.join('\n')])),
     loader: shape(program),
   };
 }

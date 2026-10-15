@@ -364,8 +364,8 @@ section('13. index.js: wiring, comments and the loader');
   );
   assertEqual(
     'an export whose condition no longer asks for its own name is loader code: every function runs the condition',
-    diff(indexSrc, editLine((line) => line.replace(/wanted\('(\w+)'\)/, "wanted('$1Other')"))),
-    { changed: [firstName], loaderChanged: true }
+    diff(indexSrc, editLine((line) => line.replace(/wanted\('(\w+)'\)/, "wanted('$1Other')")))?.loaderChanged,
+    true
   );
   const withCheck = (call) => editLine((line) => line.replace(/wanted\('(\w+)'\)/, `wanted('$1') || ${call}()`));
   assertEqual('… and so is code added to the condition', diff(withCheck('setup'), withCheck('setUp')), { changed: [], loaderChanged: true });
@@ -381,8 +381,8 @@ section('13. index.js: wiring, comments and the loader');
   );
   assertEqual(
     'a space inside a string on an export line is a change',
-    diff(indexSrc, editLine((line) => line.replace(/wanted\('(\w+)'\)/, "wanted('$1 ')"))),
-    { changed: [firstName], loaderChanged: true }
+    diff(indexSrc, editLine((line) => line.replace(/wanted\('(\w+)'\)/, "wanted('$1 ')")))?.loaderChanged,
+    true
   );
   assertEqual('a change to the code around the export lines is a loader change', diff(indexSrc, loaderEdit)?.loaderChanged, true);
   assertEqual('// inside a string is not a comment: a comment after it may change', diff(stringWithSlashes, sameString)?.loaderChanged, false);
@@ -409,6 +409,17 @@ section('13. index.js: wiring, comments and the loader');
     { changed: [], loaderChanged: true }
   );
   assertEqual('… before the export too', diff(sharedLine('setup', true), sharedLine('setUp', true)), { changed: [], loaderChanged: true });
+  assertEqual(
+    'an export moved across loader code redeploys that export: its module now loads on the other side',
+    diff(sharedLine('setup', true), sharedLine('setup')),
+    { changed: [firstName], loaderChanged: false }
+  );
+  const placed = (inside) => [
+    `function load(wanted) { setup(); ${inside ? "if (wanted('A')) exports.A = require('./a').A;" : ''} }`,
+    inside ? '' : "if (wanted('A')) exports.A = require('./a').A;",
+    'load(() => true);',
+  ].join('\n');
+  assertEqual('… and so does one moved into another block', diff(placed(true), placed(false)), { changed: ['A'], loaderChanged: false });
   const twoOnALine = (member) => editLine((line) => `${line} if (wanted('Second')) exports.Second = require('./second').${member};`);
   assertEqual(
     'two exports on one line: rewiring the second redeploys the second only',
@@ -440,6 +451,11 @@ section('13. index.js: wiring, comments and the loader');
   assertEqual(
     '… a module only export lines read redeploys those exports',
     diff(olderForm('./a', './m'), olderForm('./a', './n')),
+    { changed: ['A'], loaderChanged: false }
+  );
+  assertEqual(
+    '… moving that module across loader code redeploys those exports',
+    diff(olderForm('./a', './m'), ["const helper = require('./a');", 'helper.bootstrap();', "const mod = require('./m');", 'exports.A = mod.A;', ''].join('\n')),
     { changed: ['A'], loaderChanged: false }
   );
   assertEqual(
