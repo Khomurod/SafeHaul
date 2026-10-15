@@ -1,5 +1,6 @@
 import React from 'react';
 import { ConfirmDialog } from '@design-system/patterns';
+import { shortSha } from './shortSha';
 
 /**
  * Confirmation for the two actions that change what end users are served.
@@ -28,7 +29,8 @@ function DialogLine({ label, children }) {
 
 /** A version as its short hash, or "Not recorded" when the release state has none. */
 function Version({ sha }) {
-    if (typeof sha === 'string' && sha.trim() !== '') return <code className="font-mono">{sha.slice(0, 7)}</code>;
+    const short = shortSha(sha);
+    if (short) return <code className="font-mono">{short}</code>;
     return <span className="text-ds-content-secondary">Not recorded</span>;
 }
 

@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { callableErrorText, serverReason } from './callableErrorText';
 
 /**
  * Client for the Super Admin Release Management callables.
@@ -35,26 +36,12 @@ export { isReauthCancelled, isReauthRequired, reauthenticateWithPassword, Reauth
 
 /** User-facing text for a callable failure. */
 export function describeReleaseError(error, fallback = 'That release action could not be completed.') {
-    if (!error) return fallback;
-    switch (error.code) {
-        case 'functions/unauthenticated':
-            return 'Your session has ended. Sign in again to continue.';
-        case 'functions/permission-denied':
-            return 'Super Admin access is required to manage releases.';
-        case 'functions/resource-exhausted':
-            return 'Too many release requests. Wait a moment and try again.';
-        case 'functions/aborted':
-            return error.message?.replace(/^.*?:\s*/, '') || 'A release is already running.';
-        case 'functions/unavailable':
-            return 'The deployment pipeline could not be reached. Try again in a moment.';
-        case 'functions/invalid-argument':
-        case 'functions/failed-precondition':
-            // These carry the gate's own explanation of why a release is not
-            // allowed, which is the most useful thing an operator can be told.
-            return error.message?.replace(/^.*?:\s*/, '') || fallback;
-        default:
-            return fallback;
-    }
+    return callableErrorText(error, fallback, {
+        'permission-denied': 'Super Admin access is required to manage releases.',
+        'resource-exhausted': 'Too many release requests. Wait a moment and try again.',
+        aborted: (failure) => serverReason(failure, 'A release is already running.'),
+        unavailable: 'The deployment pipeline could not be reached. Try again in a moment.',
+    });
 }
 
 export async function getReleaseStatus() {

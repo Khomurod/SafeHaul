@@ -1,7 +1,7 @@
 import React, { useId, useState } from 'react';
 import { Icon, BarChart3, Download, Users, Phone, TrendingUp, ArrowUpRight, User } from '@design-system/icons';
 import { useAnalytics } from '@features/analytics';
-import { downloadCsv, toCsvText } from '../services/csvExport';
+import { downloadCsv, toCsvText } from '@shared/utils/csvExport';
 import {
     Badge, Button, Card, MetricCard, TabList, TabPanel,
 } from '@/design-system/components';

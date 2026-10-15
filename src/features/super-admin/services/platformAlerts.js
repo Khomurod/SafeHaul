@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { callableErrorText, serverMessage } from './callableErrorText';
 
 /**
  * Client for the Telegram alert callables (Super Admin → System Health).
@@ -14,20 +15,12 @@ export { isReauthCancelled, isReauthRequired, ReauthCancelledError } from './env
 
 /** The server's own sentence where it wrote one for the operator, else the caller's. */
 export function describeAlertsError(error, fallback = 'That operation could not be completed.') {
-    if (!error) return fallback;
-    switch (error.code) {
-        case 'functions/unauthenticated':
-            return 'Your session has ended. Sign in again to continue.';
-        case 'functions/permission-denied':
-            return 'Super Admin access is required for this action.';
-        case 'functions/invalid-argument':
-        case 'functions/failed-precondition':
-        case 'functions/resource-exhausted':
-        case 'functions/unavailable':
-            return error.message || fallback;
-        default:
-            return fallback;
-    }
+    return callableErrorText(error, fallback, {
+        'invalid-argument': serverMessage,
+        'failed-precondition': serverMessage,
+        'resource-exhausted': serverMessage,
+        unavailable: serverMessage,
+    });
 }
 
 // Each name written out in full: `check-callable-contract.mjs` and the release

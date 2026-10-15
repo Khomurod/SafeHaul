@@ -3,6 +3,7 @@ import { getFieldValue } from '@shared/utils/helpers.js';
 import { Icon, Building, Users, FileText, Edit2 } from '@design-system/icons';
 import { Badge, Button, Card } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
+import { applicationStatusTone } from './applicationStatusTone';
 
 /**
  * Global search results across companies, users and driver applications.
@@ -30,16 +31,6 @@ import { Stack } from '@/design-system/layouts';
  * The page-level `<h1>` lives in the Super Admin masthead, so the results title
  * is an `<h2>` and each group heading an `<h3>`.
  */
-
-/** Domain status → semantic `Badge` tone. Keys are the exact frozen statuses. */
-const STATUS_TONES = {
-  'Approved': 'success',
-  'Rejected': 'danger',
-  'Background Check': 'accent',
-  'Awaiting Documents': 'warning',
-  'Pending Review': 'info',
-  'New Application': 'neutral',
-};
 
 export function GlobalSearchResults({
   results,
@@ -140,7 +131,7 @@ export function GlobalSearchResults({
                     </span>
                   </span>
                   <span className="shrink-0">
-                    <Badge tone={STATUS_TONES[status] || 'neutral'}>{status}</Badge>
+                    <Badge tone={applicationStatusTone(status)}>{status}</Badge>
                   </span>
                 </Card>
               );

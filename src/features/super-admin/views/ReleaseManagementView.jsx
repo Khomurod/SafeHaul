@@ -3,17 +3,16 @@ import { Icon, AlertTriangle, CheckCircle2, Clock, History, Loader2, RefreshCw, 
 import { Badge, Button, Card } from '@/design-system/components';
 import { Inline, ResponsiveGrid, Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
+import { useReauthGuard } from '../hooks/useReauthGuard';
 import { RELEASE_PHASES, useReleaseStatus } from '../hooks/useReleaseStatus';
 import {
-    ReauthCancelledError,
     describeReleaseError,
     isReauthCancelled,
-    isReauthRequired,
     promoteTestingToProduction,
     rollbackProductionRelease,
 } from '../services/releaseManagement';
 import { ReleaseConfirmDialog } from '../components/release/ReleaseConfirmDialog';
-import { ReauthenticateModal } from '../components/environment/ReauthenticateModal';
+import { shortSha } from '../components/release/shortSha';
 
 /**
  * Super Admin "Releases" — the single, deliberate step by which a tested version
@@ -46,10 +45,6 @@ import { ReauthenticateModal } from '../components/environment/ReauthenticateMod
  * Super Admin view shares. This view uses the same `<h2>` + description
  * composition the other views use.
  */
-
-const SHORT_SHA_LENGTH = 7;
-
-const shortSha = (sha) => (typeof sha === 'string' ? sha.slice(0, SHORT_SHA_LENGTH) : '—');
 
 function formatTimestamp(value) {
     if (!value) return '—';
@@ -106,7 +101,7 @@ export function ReleaseManagementView() {
     const [dialog, setDialog] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [dialogError, setDialogError] = useState(null);
-    const [reauth, setReauth] = useState(null);
+    const { runGuarded, reauthPrompt } = useReauthGuard();
 
     const testing = status?.testing || null;
     const production = status?.production || null;
@@ -117,17 +112,6 @@ export function ReleaseManagementView() {
     const canRelease = Boolean(status?.configured && testing?.eligible && !alreadyLive && !busy);
     const canRollBack = Boolean(status?.configured && previousProduction?.sha && !busy);
 
-    /**
-     * Opens the re-authentication prompt and resolves once the operator has
-     * proved who they are — or rejects with `ReauthCancelledError` if they back
-     * out. Returning a promise rather than a boolean is the point: nothing
-     * downstream may continue until this settles, or a cancelled prompt would be
-     * reported as a started release.
-     */
-    const requestReauth = useCallback(() => new Promise((resolve, reject) => {
-        setReauth({ resolve, reject });
-    }), []);
-
     const runAction = useCallback(async (kind) => {
         setSubmitting(true);
         setDialogError(null);
@@ -136,20 +120,9 @@ export function ReleaseManagementView() {
             const expectedSha = kind === 'rollback' ? previousProduction?.sha : testing?.sha;
 
             // Releasing requires a recent sign-in, which a long-open admin
-            // session will not have. Without this the operator saw "re-enter
-            // your password to continue" and had no way to do so from here —
-            // observed in the first real release, where the first click was
-            // refused as `stale-authentication` and the only recovery was to
-            // sign out and back in.
-            let result;
-            try {
-                result = await call({ expectedSha });
-            } catch (error) {
-                if (!isReauthRequired(error)) throw error;
-                await requestReauth();
-                // One retry. A second stale-session failure is a real failure.
-                result = await call({ expectedSha });
-            }
+            // session will not have: the guard asks for the password here and
+            // runs the call once more.
+            const result = await runGuarded(() => call({ expectedSha }));
 
             setDialog(null);
 
@@ -169,7 +142,7 @@ export function ReleaseManagementView() {
         } finally {
             setSubmitting(false);
         }
-    }, [previousProduction, testing, reload, showSuccess, requestReauth]);
+    }, [previousProduction, testing, reload, showSuccess, runGuarded]);
 
     const openDialog = (kind) => { setDialogError(null); setDialog(kind); };
 
@@ -238,7 +211,7 @@ export function ReleaseManagementView() {
                         </span>
                         {status?.latestPromotion?.sha && (
                             <Badge tone={phasePresentation.tone}>
-                                {shortSha(status.latestPromotion.sha)}
+                                {shortSha(status.latestPromotion.sha) ?? '—'}
                             </Badge>
                         )}
                     </Inline>
@@ -270,7 +243,7 @@ export function ReleaseManagementView() {
                             <>
                                 <dl className="grid grid-cols-2 gap-ds-3">
                                     <ReleaseFact label="Version">
-                                        <code className="font-mono">{shortSha(testing.sha)}</code>
+                                        <code className="font-mono">{shortSha(testing.sha) ?? '—'}</code>
                                     </ReleaseFact>
                                     <ReleaseFact label="Released to Testing">
                                         {formatTimestamp(testing.createdAt)}
@@ -323,7 +296,7 @@ export function ReleaseManagementView() {
                         {production ? (
                             <dl className="grid grid-cols-2 gap-ds-3">
                                 <ReleaseFact label="Version">
-                                    <code className="font-mono">{shortSha(production.sha)}</code>
+                                    <code className="font-mono">{shortSha(production.sha) ?? '—'}</code>
                                 </ReleaseFact>
                                 <ReleaseFact label="Released to Production">
                                     {formatTimestamp(production.createdAt)}
@@ -343,7 +316,7 @@ export function ReleaseManagementView() {
                                     <Icon icon={History} className="text-ds-content-secondary" />
                                     <span className="text-ds-sm text-ds-content-secondary">
                                         Previous release{' '}
-                                        <code className="font-mono">{shortSha(previousProduction.sha)}</code>
+                                        <code className="font-mono">{shortSha(previousProduction.sha) ?? '—'}</code>
                                         {' · '}{formatTimestamp(previousProduction.createdAt)}
                                     </span>
                                 </Inline>
@@ -395,20 +368,7 @@ export function ReleaseManagementView() {
                 />
             )}
 
-            {reauth && (
-                <ReauthenticateModal
-                    onSuccess={() => {
-                        const { resolve } = reauth;
-                        setReauth(null);
-                        resolve();
-                    }}
-                    onCancel={() => {
-                        const { reject } = reauth;
-                        setReauth(null);
-                        reject(new ReauthCancelledError());
-                    }}
-                />
-            )}
+            {reauthPrompt}
         </Stack>
     );
 }

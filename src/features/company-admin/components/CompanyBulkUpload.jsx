@@ -3,6 +3,7 @@ import { Icon, Wrench } from '@design-system/icons';
 import { useBulkImport } from '@shared/hooks';
 import { useCompanyLeadUpload } from '../hooks/useCompanyLeadUpload';
 import { BulkUploadLayout } from '@shared/components/admin/BulkUploadLayout';
+import { downloadCsv, toCsvText } from '@shared/utils/csvExport';
 import { Modal } from '@design-system/patterns';
 import {
     Button, Card, Checkbox, ChoiceGroup, Radio,
@@ -229,14 +230,7 @@ export function CompanyBulkUpload({ companyId, onClose, onUploadComplete, isEmbe
     const handleDownloadTemplate = () => {
         const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'City', 'State', 'Experience', 'Job Type'];
         const sampleRow = ['John', 'Doe', 'john@example.com', '(555) 123-4567', 'Dallas', 'TX', '5', 'OTR'];
-        const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + sampleRow.join(",");
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "leads_template.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        downloadCsv('leads_template.csv', toCsvText([headers, sampleRow]));
     };
 
     const uploadInstructions = `

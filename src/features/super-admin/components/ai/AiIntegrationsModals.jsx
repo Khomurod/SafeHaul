@@ -1,16 +1,12 @@
 /**
- * The three dialogs of the AI Integrations screen: credential add/replace,
- * the typed-back credential deletion, and re-authentication. Extracted
- * verbatim from `AiIntegrationsView.jsx`, which owns all of their state; a
- * cancelled re-authentication still rejects with the typed error, so a
- * cancelled mutation is never reported as done.
+ * The dialogs of the AI Integrations screen: credential add/replace, the
+ * typed-back credential deletion, and the re-authentication prompt that
+ * `useReauthGuard` builds. `AiIntegrationsView.jsx` owns all of their state.
  */
 
 import React from 'react';
-import { ReauthCancelledError } from '../../services/aiIntegrations';
 import { AiCredentialModal } from './AiCredentialModal';
 import { AiCredentialDeleteDialog } from './AiCredentialDeleteDialog';
-import { ReauthenticateModal } from '../environment/ReauthenticateModal';
 
 export function AiIntegrationsModals({
     credentialModal,
@@ -22,8 +18,7 @@ export function AiIntegrationsModals({
     deleteError,
     setDeleteError,
     handleDelete,
-    reauth,
-    setReauth,
+    reauthPrompt,
 }) {
     return (
         <>
@@ -48,23 +43,7 @@ export function AiIntegrationsModals({
                 />
             )}
 
-            {reauth && (
-                <ReauthenticateModal
-                    onSuccess={() => {
-                        const { resolve } = reauth;
-                        setReauth(null);
-                        resolve();
-                    }}
-                    onCancel={() => {
-                        const { reject } = reauth;
-                        setReauth(null);
-                        // The typed error is what lets every caller distinguish
-                        // "the operator backed out" from "the server refused",
-                        // so a cancelled mutation is never reported as done.
-                        reject(new ReauthCancelledError());
-                    }}
-                />
-            )}
+            {reauthPrompt}
         </>
     );
 }
