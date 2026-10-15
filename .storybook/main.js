@@ -9,10 +9,12 @@ const projectRoot = path.resolve(currentDir, '..');
 
 /**
  * The application build's own plugins: they shape the app's files (one module
- * per glyph, the Firebase config fetched early), and the catalog has no
- * Firebase config to fetch.
+ * per glyph, the Firebase config fetched early, dependencies' default exports
+ * under fixed names), and the catalog has no Firebase config to fetch.
  */
-const APP_BUILD_ONLY_PLUGINS = ['safehaul:split-glyph-registry', 'safehaul:preload-firebase-config'];
+const APP_BUILD_ONLY_PLUGINS = [
+  'safehaul:split-glyph-registry', 'safehaul:preload-firebase-config', 'safehaul:name-commonjs-default-exports',
+];
 
 /**
  * SafeHaul component catalog.

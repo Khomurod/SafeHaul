@@ -97,4 +97,56 @@ describe('the vendor chunk after a release', () => {
 
         expect(after.fileName).not.toBe(before.fileName);
     }, 60_000);
+
+    // A CommonJS library, as React is, whose default export the application's
+    // modules import under different local names, as React's is (`E` in
+    // react-virtuoso, `React` in the application).
+    fs.mkdirSync(path.join(root, 'node_modules/examplecjs'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'node_modules/examplecjs/package.json'),
+        JSON.stringify({ name: 'examplecjs', main: 'index.js' }));
+    fs.writeFileSync(path.join(root, 'node_modules/examplecjs/index.js'),
+        "module.exports = { greet: function () { return 'hello'; } };\n");
+
+    /** The vendor chunk of a build whose entry imports the library as `first` and whose lazy screen imports it as `second`. */
+    async function commonjsVendorChunk([first, second], buildPlugins) {
+        const dir = fs.mkdtempSync(path.join(root, 'cjs-app-'));
+        fs.writeFileSync(path.join(dir, 'entry.js'),
+            `import ${first} from 'examplecjs';\nconsole.log(${first}.greet());\nimport('./screen.js');\n`);
+        fs.writeFileSync(path.join(dir, 'screen.js'),
+            `import ${second} from 'examplecjs';\nconsole.log(${second}.greet());\n`);
+        const output = await build({
+            root, configFile: false, logLevel: 'silent', plugins: buildPlugins,
+            build: {
+                write: false,
+                rollupOptions: {
+                    input: path.join(dir, 'entry.js'),
+                    output: {
+                        manualChunks: (id) => (id.includes('/node_modules/examplecjs/') || id === '\0commonjsHelpers.js'
+                            ? 'vendor' : undefined),
+                        minifyInternalExports: appBuild,
+                    },
+                },
+            },
+        });
+        const chunks = (Array.isArray(output) ? output[0] : output).output;
+        return chunks.find((chunk) => chunk.type === 'chunk' && chunk.name === 'vendor');
+    }
+
+    const namedDefaults = plugins.filter((p) => p?.name === 'safehaul:name-commonjs-default-exports');
+
+    it('keeps a CommonJS library’s default export under one name, whichever module imports it last', async () => {
+        expect(namedDefaults).toHaveLength(1);
+        const before = await commonjsVendorChunk(['Library', 'lib'], namedDefaults);
+        const after = await commonjsVendorChunk(['lib', 'Library'], namedDefaults);
+
+        expect(after.code).toBe(before.code);
+        expect(after.fileName).toBe(before.fileName);
+    }, 60_000);
+
+    it('would export it under the name its last importer gives it without the build’s plugin', async () => {
+        const before = await commonjsVendorChunk(['Library', 'lib'], []);
+        const after = await commonjsVendorChunk(['lib', 'Library'], []);
+
+        expect(after.fileName).not.toBe(before.fileName);
+    }, 60_000);
 });

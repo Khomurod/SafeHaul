@@ -10,10 +10,10 @@ const __dirname = dirname(__filename);
 /**
  * The libraries every screen starts with get a chunk of their own. Its bytes
  * change only when a dependency does, or when the application starts or stops
- * using one of their exports (see `minifyInternalExports` below), so after a
- * release a returning browser still holds the file under the same name and
- * revalidates it (304) instead of downloading it again with the application's
- * code.
+ * using one of their exports (see `minifyInternalExports` below and
+ * `nameCommonjsDefaultExports`), so after a release a returning browser still
+ * holds the file under the same name and revalidates it (304) instead of
+ * downloading it again with the application's code.
  *
  * Only packages the first screen already loads in full: Rollup moves a manual
  * chunk's dependencies into it, so a package with a module that only a later
@@ -62,11 +62,36 @@ function preloadFirebaseConfig() {
   };
 }
 
+/**
+ * A CommonJS dependency reaches the application through an ES wrapper whose
+ * default export is an expression, and Rollup exports such a value under the
+ * local name of the last module that imports it: `react-virtuoso` calls React
+ * `E`, the application `React`. A release that only moved the application's
+ * code could rename that export, and with it the vendor chunk. Declared first,
+ * the value is exported under its declaration's name. Build only.
+ */
+function nameCommonjsDefaultExports() {
+  return {
+    name: 'safehaul:name-commonjs-default-exports',
+    apply: 'build',
+    transform(code, id) {
+      if (!id.endsWith('?commonjs-es-import')) return null;
+      const named = code.replace(
+        /^export default (\/\*@__PURE__\*\/)?getDefaultExportFromCjs\((\w+)\);$/m,
+        (_, pure = '', exportsName) => `var ${exportsName}Default = ${pure}getDefaultExportFromCjs(${exportsName});\n`
+          + `export { ${exportsName}Default as default };`,
+      );
+      return named === code ? null : { code: named, map: null };
+    },
+  };
+}
+
 export default defineConfig({
   // In the build only: the glyph registry split one module per glyph, so each
-  // screen carries only the glyphs it draws (the plugin's file says why), and
-  // the Firebase config requested with the page.
-  plugins: [react(), splitGlyphRegistry(), preloadFirebaseConfig()],
+  // screen carries only the glyphs it draws (the plugin's file says why), the
+  // Firebase config requested with the page, and dependencies' default exports
+  // under fixed names.
+  plugins: [react(), splitGlyphRegistry(), preloadFirebaseConfig(), nameCommonjsDefaultExports()],
   // Sentry's own tree-shaking flag: its debug logging leaves the bundle (3 kB of
   // the first download's gzip). Only `debug: true` in `Sentry.init` used it, and
   // no build sets that.
