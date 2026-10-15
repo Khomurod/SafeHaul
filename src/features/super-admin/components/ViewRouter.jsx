@@ -23,8 +23,6 @@ import { BlogPostsView } from '../views/BlogPostsView.jsx';
 import { WebsiteLeadsView } from '../views/WebsiteLeadsView.jsx';
 import { ReleaseManagementView } from '../views/ReleaseManagementView.jsx';
 
-// --- Form Builder (Super Admin) ---
-import { GlobalQuestionsManager } from './GlobalQuestionsManager';
 import { SUPER_ADMIN_VIEWS } from '../config/views';
 
 export function ViewRouter({
@@ -184,8 +182,6 @@ export function ViewRouter({
             return <ReleaseManagementView />;
         case SUPER_ADMIN_VIEWS.STATS_BACKFILL:
             return <StatsBackfillPanel />;
-        case SUPER_ADMIN_VIEWS.QUESTIONS:
-            return <GlobalQuestionsManager />;
         default:
             return null;
     }

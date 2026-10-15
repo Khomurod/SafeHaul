@@ -11,7 +11,6 @@ export const SUPER_ADMIN_VIEWS = Object.freeze({
   AI_INTEGRATIONS: 'ai-integrations',
   BLOG_POSTS: 'blog-posts',
   WEBSITE_LEADS: 'website-leads',
-  QUESTIONS: 'questions',
   SYSTEM_HEALTH: 'system-health',
   STATS_BACKFILL: 'stats-backfill',
   RELEASES: 'releases',
@@ -41,7 +40,6 @@ export const SUPER_ADMIN_NAV_ITEMS = Object.freeze([
   // navigation entry on purpose: it is the only path to that data, and a screen
   // nobody can find reads like data that was deleted.
   { id: SUPER_ADMIN_VIEWS.WEBSITE_LEADS, label: 'Website Leads', icon: 'Inbox', group: 'ops' },
-  { id: SUPER_ADMIN_VIEWS.QUESTIONS, label: 'Form Builder', icon: 'FileText', group: 'ops' },
   { id: SUPER_ADMIN_VIEWS.SYSTEM_HEALTH, label: 'System Health', icon: 'Activity', group: 'ops' },
   // The one deliberate step between "merged and running on Testing" and "what
   // every end user is served". A merge to main never reaches Production on its

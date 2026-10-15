@@ -80,18 +80,6 @@ describe('the driver link', () => {
         expect(result.current.linkFor(null)).toBeNull();
     });
 
-    it('lets the screen drop it when it moves to another application', async () => {
-        const { result } = renderHook(() => useInviteLink({ companyId: 'co-1', appSlug: 'blue-line' }));
-        await act(async () => { await result.current.mint('key-1'); });
-        await act(async () => { await result.current.copy(); });
-
-        act(() => { result.current.reset(); });
-
-        expect(result.current.link).toBeNull();
-        expect(result.current.copied).toBe(false);
-        expect(result.current.error).toBeNull();
-    });
-
     it('reports a failure instead of a half-made link', async () => {
         const denied = new Error('nope');
         denied.code = 'functions/permission-denied';

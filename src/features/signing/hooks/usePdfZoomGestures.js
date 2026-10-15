@@ -98,10 +98,6 @@ export function usePdfZoomGestures({ minZoom = SIGNER_ZOOM_MIN, maxZoom = SIGNER
 
     const zoomIn = useCallback(() => zoomBy(SIGNER_ZOOM_STEP), [zoomBy]);
     const zoomOut = useCallback(() => zoomBy(-SIGNER_ZOOM_STEP), [zoomBy]);
-    const resetZoom = useCallback(() => {
-        if (!scrollerEl) return;
-        commitZoom(minZoom, scrollerEl.clientWidth / 2, scrollerEl.clientHeight / 2);
-    }, [scrollerEl, commitZoom, minZoom]);
 
     /**
      * Programmatic zoom centered on a specific element (used when focusing a
@@ -230,7 +226,6 @@ export function usePdfZoomGestures({ minZoom = SIGNER_ZOOM_MIN, maxZoom = SIGNER
         zoom,
         zoomIn,
         zoomOut,
-        resetZoom,
         zoomToElement,
         setScrollerEl, // attach to the overflow:auto scroll container
         scrollerEl,

@@ -245,7 +245,6 @@ export function useTemplateSendFlow({
         showDriverPicker,
         setShowDriverPicker,
         selectedTemplate,
-        setSelectedTemplate,
         drivers,
         driversStatus,
         searchQuery,

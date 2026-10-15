@@ -317,7 +317,7 @@ multi-step drips.
 
 **Super admin operations.** Companies, users, unified driver DB, global feature
 flags, SMS integrations, Environment & Integrations vault, AI providers, blog,
-website-lead archive, form builder (unused by the application), system health, stats backfill, releases.
+website-lead archive, system health, stats backfill, releases.
 
 ---
 

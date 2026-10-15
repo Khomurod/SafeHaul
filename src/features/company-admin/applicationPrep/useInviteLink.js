@@ -105,13 +105,6 @@ export function useInviteLink({ companyId, appSlug }) {
     /** The button beside a link that is already on screen. */
     const copy = useCallback(() => copyUrl(link?.url), [copyUrl, link]);
 
-    const reset = useCallback(() => {
-        setLink(null);
-        setError(null);
-        setCopied(false);
-        setCopyFailed(false);
-    }, []);
-
     /**
      * The link, but only if it opens this applicant's application.
      *
@@ -126,7 +119,7 @@ export function useInviteLink({ companyId, appSlug }) {
         [link],
     );
 
-    return { link, linkFor, busy, error, copied, copyFailed, mint, copy, copyUrl, reset };
+    return { link, linkFor, busy, error, copied, copyFailed, mint, copy, copyUrl };
 }
 
 export default useInviteLink;

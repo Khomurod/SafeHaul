@@ -31,12 +31,12 @@ vi.mock('@features/driver-app/hooks/useApplicationRules', () => ({
 }));
 
 const MVR = { key: 'mvrAuthorization', presentedOn: 'drivingRecord', title: 'MVR Authorization', body: 'I authorize…', version: 'v2' };
-const LOADING = { agreements: [], agreementVersion: null, loading: true, error: null, retry: vi.fn() };
+const LOADING = { agreements: [], loading: true, error: null, retry: vi.fn() };
 const FAILED = {
-    agreements: [], agreementVersion: null, loading: false, retry: vi.fn(),
+    agreements: [], loading: false, retry: vi.fn(),
     error: 'The required agreements could not be loaded. Check your internet connection, then press Try again.',
 };
-const LOADED = { agreements: [MVR], agreementVersion: 'v2', loading: false, error: null, retry: vi.fn() };
+const LOADED = { agreements: [MVR], loading: false, error: null, retry: vi.fn() };
 
 // The step's other questions, answered, so only the authorization is in play.
 const ANSWERED = { 'revoked-licenses': 'no', 'driving-convictions': 'no', 'drug-alcohol-convictions': 'no', 'has-violations': 'no' };

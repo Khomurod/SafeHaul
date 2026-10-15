@@ -39,12 +39,6 @@ const VIEWS = [
   { nav: 'Stats Backfill', expect: (page) => page.getByRole('heading', { name: 'Performance Stats Backfill' }) },
   // Added 2026-07-28 with the final three views of the Super Admin row.
   { nav: 'System Health', expect: (page) => page.getByRole('heading', { name: 'System Health', level: 2 }) },
-  // Form Builder's schema lives in Firestore, so offline its *settled* state is
-  // the announced load failure — which is precisely the state the migration had
-  // to make accessible (it was a bare amber block before). The loaded editor is
-  // covered by `GlobalQuestionsManager.contract.test.jsx`, which can supply a
-  // schema deterministically.
-  { nav: 'Form Builder', expect: (page) => page.getByRole('heading', { name: 'Failed to load schema' }) },
   { nav: 'Create New', expect: (page) => page.getByRole('heading', { name: 'Create New Entity' }) },
 ];
 
