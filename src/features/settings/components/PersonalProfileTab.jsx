@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import { db } from '@lib/firebase';
+import { forgetPortalUser } from '@features/auth/services/userService';
 import { Icon, Save, Loader2, Link as LinkIcon, Copy, CheckCircle } from '@design-system/icons';
 import {
     Button,
@@ -67,6 +68,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
             await updateDoc(doc(db, "users", uid), {
                 recruitingCode: code
             });
+            forgetPortalUser(uid);
 
             setRecruitingCode(code);
         } catch (err) {
@@ -82,6 +84,8 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
         try {
             const userRef = doc(db, "users", currentUser.uid);
             await updateDoc(userRef, { name: personalData.name });
+            // The next screen to show the name reads it again.
+            forgetPortalUser(currentUser.uid);
             showSuccess('Personal profile updated successfully.');
         } catch (error) {
             console.error("User save failed", error);

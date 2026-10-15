@@ -28,6 +28,7 @@ import {
     firebaseMock,
     fsMocks,
     storageMocks,
+    userServiceMocks,
     CURRENT_EMAIL,
     CURRENT_PASSWORD,
     NEW_PASSWORD,
@@ -84,6 +85,7 @@ describe('UserProfilePage — email change', () => {
         expect(fsMocks.updateDoc).toHaveBeenCalledWith('users/user-1', { email: 'new@example.test' });
         expect(authFns.reauthenticateWithCredential.mock.invocationCallOrder[0])
             .toBeLessThan(authFns.updateEmail.mock.invocationCallOrder[0]);
+        expect(userServiceMocks.forgetPortalUser).toHaveBeenCalledWith('user-1');
     });
 
     it.each([

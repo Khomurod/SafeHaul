@@ -9,12 +9,11 @@ import {
   query,
   where
 } from "firebase/firestore";
-import { db, functions } from '@lib/firebase';
+import { httpsCallable } from "firebase/functions";
+import { auth, db, functions } from '@lib/firebase';
 
-export async function getPortalUser(userId) {
-  if (!userId) return null;
-  const userDocRef = doc(db, "users", userId);
-  const userDocSnap = await getDoc(userDocRef);
+async function readPortalUser(userId) {
+  const userDocSnap = await getDoc(doc(db, "users", userId));
   if (userDocSnap.exists()) {
     return userDocSnap.data();
   } else {
@@ -23,7 +22,35 @@ export async function getPortalUser(userId) {
   }
 }
 
-import { httpsCallable } from "firebase/functions";
+// The signed-in user's profile, read once per sign-in: the top bar, the
+// dashboard greeting and the notes tab all show its name. `auth.currentUser` is
+// a new object at each sign-in, so a copy never outlives the session that read
+// it. A failed or missing read is not kept.
+let cached = null;
+
+/**
+ * A user's profile document, or null when there is none. Readers that only
+ * show it share the session's copy; a form that edits it passes
+ * `{ fresh: true }`, which reads the server and keeps that copy instead.
+ */
+export function getPortalUser(userId, { fresh = false } = {}) {
+  if (!userId) return Promise.resolve(null);
+  if (!fresh && cached?.userId === userId && cached.session === auth.currentUser) {
+    return cached.promise;
+  }
+  const entry = { userId, session: auth.currentUser, promise: readPortalUser(userId) };
+  cached = entry;
+  const drop = () => {
+    if (cached === entry) cached = null;
+  };
+  entry.promise.then((data) => { if (!data) drop(); }, drop);
+  return entry.promise;
+}
+
+/** After a write to a profile, so its next reader reads it again; with no id, forgets whatever is kept. */
+export function forgetPortalUser(userId) {
+  if (!userId || cached?.userId === userId) cached = null;
+}
 
 export async function updateUser(userId, data, companyId = null) {
   if (!userId) return;
@@ -37,6 +64,7 @@ export async function updateUser(userId, data, companyId = null) {
     name: data.name,
     email: data.email
   });
+  forgetPortalUser(userId);
 
   return result.data;
 }

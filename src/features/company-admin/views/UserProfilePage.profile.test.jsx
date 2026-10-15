@@ -51,6 +51,9 @@ describe('UserProfilePage — initial load', () => {
         expect(screen.getByRole('img', { name: 'Profile photo' })).toHaveAttribute('src', FS_PHOTO);
         expect(screen.getByText(CURRENT_EMAIL)).toBeInTheDocument();
         expect(screen.getByText('Acme Freight')).toBeInTheDocument();
+        // The form edits the profile, so it reads it fresh rather than take the
+        // copy the top bar keeps for the session.
+        expect(userServiceMocks.getPortalUser).toHaveBeenCalledWith('user-1', { fresh: true });
     });
 
     it('falls back to Auth values when the Firestore document is missing', async () => {
@@ -133,6 +136,10 @@ describe('UserProfilePage — avatar upload', () => {
         expect(storageMocks.getDownloadURL).toHaveBeenCalledWith('avatars/user-1/me.png');
         expect(authFns.updateProfile).toHaveBeenCalledWith(firebaseMock.auth.currentUser, { photoURL: DOWNLOAD_URL });
         expect(fsMocks.updateDoc).toHaveBeenCalledWith('users/user-1', { photoURL: DOWNLOAD_URL });
+        // The session's copy of the profile is forgotten once the write lands.
+        expect(userServiceMocks.forgetPortalUser).toHaveBeenCalledWith('user-1');
+        expect(fsMocks.updateDoc.mock.invocationCallOrder[0])
+            .toBeLessThan(userServiceMocks.forgetPortalUser.mock.invocationCallOrder[0]);
 
         // Sequence: upload -> download URL -> Auth -> Firestore.
         expect(storageMocks.uploadBytes.mock.invocationCallOrder[0])
@@ -187,6 +194,7 @@ describe('UserProfilePage — profile save', () => {
             displayName: 'Firestore Name',
         });
         expect(toastMocks.showSuccess).toHaveBeenCalledWith('Profile updated successfully!');
+        expect(userServiceMocks.forgetPortalUser).toHaveBeenCalledWith('user-1');
     });
 
     it('rejects a username already used by another account', async () => {

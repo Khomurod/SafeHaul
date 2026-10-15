@@ -76,6 +76,20 @@ describe('CompanySidebar', () => {
         expect(onExpandedChange).toHaveBeenCalledWith(false);
     });
 
+    it('keeps keyboard focus on the link it follows', () => {
+        renderSidebar();
+        const settings = screen.getByRole('link', { name: 'Settings' });
+        settings.focus();
+
+        fireEvent.click(settings);
+
+        // The menu re-rendered for the new page and kept each link in place:
+        // the same link is now the current page, and still has focus.
+        expect(screen.getByRole('link', { name: 'Settings' })).toBe(settings);
+        expect(settings).toHaveAttribute('aria-current', 'page');
+        expect(settings).toHaveFocus();
+    });
+
     it('has no structural accessibility violations', async () => {
         const { container } = renderSidebar();
         expect((await axe(container)).violations).toEqual([]);

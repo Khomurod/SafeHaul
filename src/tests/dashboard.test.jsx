@@ -12,11 +12,11 @@ const dashboardState = vi.hoisted(() => ({
         hired: 2,
     },
     statsFetchError: '',
-    refreshData: vi.fn(),
+    refresh: vi.fn(),
 }));
 
 vi.mock('@features/companies', () => ({
-    useCompanyDashboard: () => dashboardState,
+    useDashboardCounts: () => dashboardState,
 }));
 
 vi.mock('@features/company-admin/components/InlineLeaderboard', () => ({

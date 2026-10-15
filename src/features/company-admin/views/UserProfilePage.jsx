@@ -7,7 +7,7 @@ import { updateProfile, updatePassword, updateEmail, EmailAuthProvider, reauthen
 import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Icon, User, Mail, Lock, Save } from '@design-system/icons';
-import { getPortalUser } from '@features/auth/services/userService';
+import { forgetPortalUser, getPortalUser } from '@features/auth/services/userService';
 import {
     Button,
     FieldDisplay,
@@ -54,9 +54,10 @@ export const UserProfilePage = () => {
                     username: ''
                 };
 
-                // Fetch extended data from Firestore
+                // Fetch extended data from Firestore, fresh: this form saves it
+                // back, so it must not start from the copy the top bar keeps.
                 try {
-                    const userDoc = await getPortalUser(currentUser.uid);
+                    const userDoc = await getPortalUser(currentUser.uid, { fresh: true });
                     if (userDoc) {
                         // Prefer Firestore name over Auth displayName
                         data.displayName = userDoc.name || userDoc.displayName || data.displayName;
@@ -112,6 +113,7 @@ export const UserProfilePage = () => {
             // Update Auth & Firestore immediately for Avatar
             await updateProfile(auth.currentUser, { photoURL: downloadURL });
             await updateDoc(doc(db, "users", currentUser.uid), { photoURL: downloadURL });
+            forgetPortalUser(currentUser.uid);
 
             showSuccess("Avatar updated successfully!");
         } catch (err) {
@@ -167,6 +169,7 @@ export const UserProfilePage = () => {
                 name: profileData.displayName.trim(),
                 username: trimmedUsername
             });
+            forgetPortalUser(currentUser.uid);
 
             showSuccess('Profile updated successfully!');
         } catch (err) {
@@ -199,6 +202,7 @@ export const UserProfilePage = () => {
 
             // 3. Update Firestore
             await updateDoc(doc(db, "users", currentUser.uid), { email: newEmail });
+            forgetPortalUser(currentUser.uid);
 
             showSuccess("Email updated! You may need to sign in again.");
             setIsEditingEmail(false);

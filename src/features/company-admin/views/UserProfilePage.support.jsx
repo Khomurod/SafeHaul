@@ -25,7 +25,7 @@ export const DOWNLOAD_URL = 'https://cdn.example.test/user-1/uploaded.png';
 
 export const dataMock = { value: {} };
 export const toastMocks = { showSuccess: vi.fn(), showError: vi.fn() };
-export const userServiceMocks = { getPortalUser: vi.fn() };
+export const userServiceMocks = { getPortalUser: vi.fn(), forgetPortalUser: vi.fn() };
 export const authFns = {
     updateProfile: vi.fn(),
     updatePassword: vi.fn(),
@@ -47,6 +47,7 @@ export const dataContextMock = () => ({ useData: () => dataMock.value });
 export const toastProviderMock = () => ({ useToast: () => toastMocks });
 export const userServiceMock = () => ({
     getPortalUser: userServiceMocks.getPortalUser,
+    forgetPortalUser: userServiceMocks.forgetPortalUser,
 });
 export const libFirebaseMock = () => firebaseMock;
 export const firebaseAuthMock = () => ({
@@ -129,6 +130,7 @@ export function resetHarness() {
         username: 'fsuser',
         photoURL: FS_PHOTO,
     });
+    userServiceMocks.forgetPortalUser.mockReset();
     fsMocks.updateDoc.mockReset().mockResolvedValue();
     fsMocks.getDocs.mockReset().mockResolvedValue(snapshot(['user-1']));
     storageMocks.uploadBytes.mockReset().mockResolvedValue();

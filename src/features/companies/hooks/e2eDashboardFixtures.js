@@ -1,8 +1,8 @@
 /**
- * In-memory dashboard dataset served by useCompanyDashboard when
- * VITE_E2E_TEST_MODE=1. The real Firestore project is unreachable in E2E runs
- * (placeholder credentials), so search/filter/pipeline UI behavior is
- * exercised against this fixture through the SAME pure helpers
+ * In-memory dashboard dataset served by useCompanyDashboard and
+ * useDashboardCounts when VITE_E2E_TEST_MODE=1. The real Firestore project is
+ * unreachable in E2E runs (placeholder credentials), so search/filter/pipeline
+ * UI behavior is exercised against this fixture through the SAME pure helpers
  * (dashboardSearch.js) the production query path uses.
  */
 
