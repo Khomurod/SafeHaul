@@ -11,19 +11,15 @@ import { UploadProgress } from './UploadProgress';
  * UploadField
  * A reliable file upload component with progress tracking, retry logic, and previews.
  *
- * Presentation is migrated to the approved `Button` / `IconButton` /
- * `ProgressBar` primitives and `--ds-*` tokens. The design system has no
- * approved file-input contract yet (Phase 4 records it as open), so the
- * hidden-input + visible-trigger composition stays feature-owned. The dashed
- * drop-zone look is produced by giving the approved secondary `Button` a dashed
- * 2 px border — the variant keeps owning the border *colour*, so no token is
- * bypassed and no local button is created.
+ * Presentation is the approved `FileInput` (its `dropzone` variant is the empty
+ * state), `Button` / `IconButton` and `ProgressBar` (through `UploadProgress`),
+ * on `--ds-*` tokens.
  *
  * Frozen behaviour: the `onUpload(name, file, { onProgress, signal })` call, the
  * `onChange(name, result)` / `onChange(name, null)` payloads, the "Upload
  * completed but no file metadata was returned." guard, the 1 s success→idle
  * reset, the fact that removing a file is confirmed before it happens, the
- * `required && !hasValue` attribute on the hidden input, the `accept` default, and
+ * `required && !hasValue` attribute on the file input, the `accept` default, and
  * the exact "Uploaded Successfully" / "Upload failed. Please try again." strings
  * (asserted by `e2e/public-application.spec.cjs`).
  *
