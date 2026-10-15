@@ -289,8 +289,8 @@ describe('Super Admin shell — navigation (defects)', () => {
         fireEvent.click(within(nav).getByRole('button', { name: 'SMS Integrations' }));
         expect(screen.getByTestId('view-router')).toHaveAttribute('data-active-view', 'integrations');
 
-        fireEvent.click(within(nav).getByRole('button', { name: 'Form Builder' }));
-        expect(screen.getByTestId('view-router')).toHaveAttribute('data-active-view', 'questions');
+        fireEvent.click(within(nav).getByRole('button', { name: 'System Health' }));
+        expect(screen.getByTestId('view-router')).toHaveAttribute('data-active-view', 'system-health');
     });
 
     it('clears the search query when a section is chosen', () => {

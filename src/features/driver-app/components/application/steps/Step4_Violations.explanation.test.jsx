@@ -26,7 +26,7 @@ vi.mock('@/context/DataContext', () => ({
 
 vi.mock('@features/driver-app/hooks/useApplicationAgreements', () => ({
     useApplicationAgreements: () => ({
-        agreements: [], agreementVersion: null, loading: false, error: null, retry: vi.fn(),
+        agreements: [], loading: false, error: null, retry: vi.fn(),
     }),
 }));
 

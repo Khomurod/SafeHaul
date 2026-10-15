@@ -308,7 +308,6 @@ export function useDraftLifecycle({
   };
 
   return {
-    persistLocalDraft,
     handleFileUpload,
     keepNextAnswers,
     handleNavigate,

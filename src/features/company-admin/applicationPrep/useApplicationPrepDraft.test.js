@@ -43,14 +43,6 @@ describe('preparing an application', () => {
         expect(result.current.applicantKey).toBe('key-1');
     });
 
-    it('gates the save until there is an email or phone to key the draft', () => {
-        const { result } = renderHook(() => useApplicationPrepDraft('co-1'));
-
-        expect(result.current.identityComplete).toBe(false);
-        act(() => result.current.updateField('email', 'dana@example.test'));
-        expect(result.current.identityComplete).toBe(true);
-    });
-
     it('locks an employer by identity, and does not lock the same one twice', async () => {
         const { result } = renderHook(() => useApplicationPrepDraft('co-1'));
 
@@ -126,33 +118,6 @@ describe('opening one back up', () => {
             firstName: 'Dana', lastName: 'Alvarez', email: 'dana@example.test', phone: '2145550147',
         });
         expect(result.current.formData.cdlNumber).toBeUndefined();
-    });
-});
-
-describe('moving on to another driver', () => {
-    it('holds nothing from the last application', async () => {
-        callables.call.mockResolvedValue({
-            data: {
-                applicantKey: 'key-1', status: 'sent', readable: true,
-                firstName: 'Dana', lastName: 'Alvarez', email: 'dana@example.test', phone: '2145550147',
-                formData: { cdlNumber: 'TX1234567', 'psp-report-upload': { name: 'psp.pdf' } },
-                lockedEmployers: [{ signature: 'dot:123456', companyName: 'Acme Trucking', dotNumber: '123456' }],
-            },
-        });
-        const { result } = renderHook(() => useApplicationPrepDraft('co-1'));
-        await act(async () => { await result.current.load('key-1'); });
-
-        act(() => { result.current.reset(); });
-
-        // Every one of these is keyed to an applicant, and the email/phone in
-        // formData is what keys the draft — so a leftover here files one driver's
-        // answers and documents under the next driver's key.
-        expect(result.current.formData).toEqual({});
-        expect(result.current.identityComplete).toBe(false);
-        expect(result.current.lockedEmployers).toEqual([]);
-        expect(result.current.applicantKey).toBeNull();
-        expect(result.current.status).toBe('draft');
-        expect(result.current.error).toBeNull();
     });
 });
 

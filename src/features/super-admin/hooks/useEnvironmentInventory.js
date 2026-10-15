@@ -135,7 +135,6 @@ export function useEnvironmentInventory() {
         .some((name) => filters[name] !== EMPTY_FILTERS[name]);
 
     return {
-        entries,
         visibleEntries,
         recentActivity,
         companyError,

@@ -72,8 +72,6 @@ export function useApplicationPrepDraft(companyId) {
     /** The email and phone that key the draft, read straight off the answers. */
     const contactEmail = typeof formData.email === 'string' ? formData.email.trim() : '';
     const contactPhone = typeof formData.phone === 'string' ? formData.phone.trim() : '';
-    /** True once there is enough to key the draft — the Save gate. */
-    const identityComplete = Boolean(contactEmail || contactPhone);
 
     /**
      * The lock list as it will be SAVED, with anything no longer answered by a row
@@ -230,30 +228,11 @@ export function useApplicationPrepDraft(companyId) {
         setLockedEmployers((previous) => previous.filter((entry) => entry.signature !== signature));
     }, []);
 
-    /**
-     * Back to holding nothing, for starting a different driver's application.
-     *
-     * Every piece of this hook's state belongs to one applicant, and the key that
-     * addresses it is derived from the email and phone in `formData`. Keeping any
-     * of it across a switch would file one driver's answers, documents and locks
-     * under another driver's key — a save, not a display glitch. So the screen
-     * resets before it starts the next one.
-     */
-    const reset = useCallback(() => {
-        setFormData({});
-        setLockedEmployers([]);
-        setApplicantKey(null);
-        setStatus('draft');
-        setError(null);
-        setDirty(false);
-    }, []);
-
     return {
-        formData, setFormData, updateField, applyExtraction,
-        contactEmail, contactPhone, identityComplete,
+        formData, updateField, applyExtraction,
         lockedEmployers, lockEmployers, unlockEmployer,
         applicantKey, status, busy, error, dirty,
-        save, load, reset,
+        save, load,
     };
 }
 

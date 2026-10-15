@@ -33,10 +33,10 @@ vi.mock('@shared/components/feedback', () => ({
 // The agreement set the live registry serves, MVR authorization included, so the
 // Motor Vehicle Record page asks its question as it does on the sandbox.
 vi.mock('@features/driver-app/hooks/useApplicationAgreements', async () => {
-    const { E2E_AGREEMENTS, E2E_AGREEMENT_VERSION } = await import('@features/driver-app/hooks/e2eAgreementFixtures');
+    const { E2E_AGREEMENTS } = await import('@features/driver-app/hooks/e2eAgreementFixtures');
     return {
         useApplicationAgreements: () => ({
-            agreements: E2E_AGREEMENTS, agreementVersion: E2E_AGREEMENT_VERSION, loading: false, error: null, retry: () => {},
+            agreements: E2E_AGREEMENTS, loading: false, error: null, retry: () => {},
         }),
     };
 });

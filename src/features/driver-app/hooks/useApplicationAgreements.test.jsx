@@ -33,7 +33,6 @@ describe('useApplicationAgreements', () => {
         const stepNine = renderHook(() => useApplicationAgreements('c1'));
         await waitFor(() => expect(stepNine.result.current.agreements).toEqual(AGREEMENTS));
 
-        expect(stepNine.result.current.agreementVersion).toBe('v7');
         expect(mocks.call).toHaveBeenCalledTimes(1);
         expect(mocks.call).toHaveBeenCalledWith({ companyId: 'c1' });
     });

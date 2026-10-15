@@ -29,7 +29,6 @@ vi.mock('./integrations/IntegrationManager.jsx', () => ({
     IntegrationManager: ({ companyId }) => <p>{`SMS setup form for ${companyId}`}</p>,
 }));
 vi.mock('./StatsBackfillPanel.jsx', () => ({ default: () => null }));
-vi.mock('./GlobalQuestionsManager', () => ({ GlobalQuestionsManager: () => null }));
 vi.mock('../views/AnalyticsView.jsx', () => ({ AnalyticsView: () => null }));
 vi.mock('../views/UnifiedDriverList.jsx', () => ({
     UnifiedDriverList: (props) => { unifiedProps.current = props; return null; },

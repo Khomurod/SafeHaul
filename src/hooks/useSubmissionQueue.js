@@ -34,7 +34,6 @@ export function useSubmissionQueue() {
     const [pendingCount, setPendingCount] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
-    const [lastProcessed, setLastProcessed] = useState(null);
     const [error, setError] = useState(null);
 
     const isInitialized = useRef(false);
@@ -228,7 +227,6 @@ export function useSubmissionQueue() {
             // Update pending count
             const newCount = await getQueueCount();
             setPendingCount(newCount);
-            setLastProcessed(new Date());
 
             if (results.succeeded > 0) {
                 Sentry.captureMessage(`Queue processed: ${results.succeeded}/${results.processed} succeeded`, 'info');
@@ -295,9 +293,7 @@ export function useSubmissionQueue() {
         pendingCount,
         isProcessing,
         isOnline,
-        lastProcessed,
         error,
-        isSupported: isSupported(),
 
         // Actions
         processQueueNow,

@@ -25,7 +25,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
-import { E2E_AGREEMENTS, E2E_AGREEMENT_VERSION } from './e2eAgreementFixtures';
+import { E2E_AGREEMENTS } from './e2eAgreementFixtures';
 
 /** companyId -> the read in flight or done; a failed read is removed. */
 const agreementReads = new Map();
@@ -42,7 +42,7 @@ function readAgreements(companyId) {
                 // driver sign a certification with no disclosures attached.
                 throw new Error('No agreements were returned.');
             }
-            return { agreements: list, agreementVersion: data?.agreementVersion || null };
+            return list;
         })();
         agreementReads.set(companyId, read);
         read.catch(() => { if (agreementReads.get(companyId) === read) agreementReads.delete(companyId); });
@@ -57,7 +57,6 @@ export function resetApplicationAgreementsCache() {
 
 export function useApplicationAgreements(companyId) {
     const [agreements, setAgreements] = useState([]);
-    const [agreementVersion, setAgreementVersion] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     // Bumped to retry after a failure without remounting the step.
@@ -68,7 +67,6 @@ export function useApplicationAgreements(companyId) {
     useEffect(() => {
         if (!companyId) {
             setAgreements([]);
-            setAgreementVersion(null);
             setLoading(false);
             setError(null);
             return undefined;
@@ -80,7 +78,6 @@ export function useApplicationAgreements(companyId) {
         // submit gate, the failure branch — under test.
         if (isE2ETestMode) {
             setAgreements(E2E_AGREEMENTS);
-            setAgreementVersion(E2E_AGREEMENT_VERSION);
             setLoading(false);
             setError(null);
             return undefined;
@@ -92,14 +89,12 @@ export function useApplicationAgreements(companyId) {
 
         (async () => {
             try {
-                const { agreements: list, agreementVersion: version } = await readAgreements(companyId);
+                const list = await readAgreements(companyId);
                 if (!active) return;
                 setAgreements(list);
-                setAgreementVersion(version);
             } catch (err) {
                 if (!active) return;
                 setAgreements([]);
-                setAgreementVersion(null);
                 // In words a driver can act on. The reason ("internal", "Failed
                 // to fetch") told them nothing and stays in the console.
                 console.error('Application agreements failed to load:', err);
@@ -112,7 +107,7 @@ export function useApplicationAgreements(companyId) {
         return () => { active = false; };
     }, [companyId, attempt]);
 
-    return { agreements, agreementVersion, loading, error, retry };
+    return { agreements, loading, error, retry };
 }
 
 export default useApplicationAgreements;

@@ -13,13 +13,11 @@ describe('useFieldValidation (C5)', () => {
         const { result } = renderHook(() => useFieldValidation(validators));
         act(() => result.current.revalidate('email', 'bad', { email: 'bad' }));
         expect(result.current.errors.email).toBeUndefined();
-        expect(result.current.touched.email).toBeUndefined();
     });
 
-    it('validates and marks touched on blur', () => {
+    it('validates on blur', () => {
         const { result } = renderHook(() => useFieldValidation(validators));
         act(() => result.current.handleBlur('email', 'bad', { email: 'bad' }));
-        expect(result.current.touched.email).toBe(true);
         expect(result.current.errors.email).toMatch(/valid email/i);
     });
 
@@ -39,9 +37,12 @@ describe('useFieldValidation (C5)', () => {
         });
         expect(outcome.isValid).toBe(false);
         expect(outcome.firstErrorField).toBe('firstName');
-        expect(result.current.touched.firstName).toBe(true);
-        expect(result.current.touched.email).toBe(true);
         expect(result.current.errors.firstName).toMatch(/required/i);
+        // Every field counts as touched now: a change re-validates it.
+        act(() => result.current.revalidate('email', 'a@b.co', { firstName: '', email: 'a@b.co' }));
+        expect(result.current.errors.email).toBeUndefined();
+        act(() => result.current.revalidate('firstName', 'Ann', { firstName: 'Ann', email: 'a@b.co' }));
+        expect(result.current.errors.firstName).toBeUndefined();
     });
 
     it('validateAll returns valid when all pass', () => {

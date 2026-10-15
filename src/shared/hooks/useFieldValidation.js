@@ -14,18 +14,14 @@ import { useCallback, useRef, useState } from 'react';
  *   callbacks stay stable across renders.
  * @returns {{
  *   errors: Record<string,string>,
- *   touched: Record<string,boolean>,
  *   handleBlur: (name: string, value: any, allValues?: object) => void,
  *   revalidate: (name: string, value: any, allValues?: object) => void,
- *   validateField: (name: string, value: any, allValues?: object) => (string|null),
  *   validateAll: (values: object) => { isValid: boolean, errors: Record<string,string>, firstErrorField: string|null },
- *   markTouched: (name: string) => void,
  * }}
  */
 export function useFieldValidation(validators = {}) {
     const [errors, setErrors] = useState({});
-    const [touched, setTouched] = useState({});
-    // Mirror touched in a ref for synchronous reads inside change handlers.
+    // The fields the user has left, read synchronously inside change handlers.
     const touchedRef = useRef({});
 
     const validateField = useCallback((name, value, allValues = {}) => {
@@ -46,7 +42,6 @@ export function useFieldValidation(validators = {}) {
     const markTouched = useCallback((name) => {
         if (touchedRef.current[name]) return;
         touchedRef.current = { ...touchedRef.current, [name]: true };
-        setTouched(touchedRef.current);
     }, []);
 
     const handleBlur = useCallback((name, value, allValues = {}) => {
@@ -70,13 +65,12 @@ export function useFieldValidation(validators = {}) {
             if (err) nextErrors[name] = err;
         }
         touchedRef.current = nextTouched;
-        setTouched(nextTouched);
         setErrors(nextErrors);
         const firstErrorField = names.find((n) => nextErrors[n]) || null;
         return { isValid: Object.keys(nextErrors).length === 0, errors: nextErrors, firstErrorField };
     }, [validators]);
 
-    return { errors, touched, handleBlur, revalidate, validateField, validateAll, markTouched };
+    return { errors, handleBlur, revalidate, validateAll };
 }
 
 export default useFieldValidation;
