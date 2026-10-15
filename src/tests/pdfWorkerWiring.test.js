@@ -42,4 +42,19 @@ describe('pdf.js worker wiring', () => {
         expect(src).toMatch(/PDF_WORKER_SRC = '\/pdf\.worker\.min\.mjs'/);
         expect(src).not.toMatch(/https?:\/\//);
     });
+
+    // A module pointing pdf.js elsewhere wins whenever it loads last, and the
+    // build ships that second copy of the worker beside the first.
+    it('no other module points pdf.js at a worker', () => {
+        const pointers = sourceFiles.filter((p) => p !== 'src/lib/pdf/pdfWorker.js'
+            && /GlobalWorkerOptions\.workerSrc\s*=/.test(read(p)));
+        expect(pointers).toEqual([]);
+    });
+
+    // `prebuild` copies the installed worker; a stale copy in the tree would be
+    // served by the dev server and refused by pdf.js as a version mismatch.
+    it('the vendored worker is the installed pdf.js version', () => {
+        const { version } = JSON.parse(read('node_modules/pdfjs-dist/package.json'));
+        expect(read('public/pdf.worker.min.mjs')).toContain(`"${version}"`);
+    });
 });

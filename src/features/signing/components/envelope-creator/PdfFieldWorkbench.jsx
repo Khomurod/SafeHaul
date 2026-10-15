@@ -1,16 +1,11 @@
 import React from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { Document, Page } from 'react-pdf';
 import '@lib/pdf/pdfWorker';
 import { ResizableDraggableField } from './ResizableDraggableField';
 import { AiSuggestionOverlay } from './AiSuggestionOverlay';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.min.mjs',
-    import.meta.url,
-).toString();
 
 /**
  * Center column of the envelope creator: the PDF viewer and the draggable field
