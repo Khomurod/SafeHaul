@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { DashboardToolbar, useCompanyDashboard } from '@features/companies';
 import { Chip, ChipGroup, DataTable } from '@/design-system/components';
@@ -8,14 +8,11 @@ import { whenIdle } from '@lib/monitoring/sentry';
 
 import { CallOutcomeModal } from '@shared/components/modals/CallOutcomeModal';
 import { LeadAssignmentModal } from '../components/LeadAssignmentModal';
+import { DriverDossier } from '../components/modals/driver-dossier/DriverDossier';
+import { loadDriverDossier } from '../components/modals/driver-dossier/loadDriverDossier';
 
 import { buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_PIPELINE_TABS, LEAD_PIPELINE_TABS } from './candidateListColumns';
 import { UndatedRecordsNotice } from './UndatedRecordsNotice';
-
-// The driver dossier is most of this page's code and is needed only once a row
-// is opened: it loads behind the list, once the page is idle, or on that open.
-const loadDriverProfileModal = () => import('../components/modals/driver-dossier/DriverProfileModal');
-const DriverProfileModal = lazy(() => loadDriverProfileModal().then((m) => ({ default: m.DriverProfileModal })));
 
 export const CompanyCandidatesListPage = ({ scope }) => {
     const { currentCompanyProfile, currentUserClaims } = useData();
@@ -35,8 +32,10 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     });
     const { showError, showSuccess } = useToast();
 
+    // The dossier's code loads behind the list once the page is idle, so a row
+    // usually opens without waiting for it.
     useEffect(() => {
-        whenIdle(() => { loadDriverProfileModal().catch(() => {}); });
+        whenIdle(() => { loadDriverDossier().catch(() => {}); });
     }, []);
 
     // Local State
@@ -122,16 +121,14 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         if (!selectedApp) return null;
 
         return (
-            <Suspense fallback={null}>
-                <DriverProfileModal
-                    key={selectedApp.id}
-                    companyId={companyId}
-                    driverId={selectedApp.id}
-                    isOpen={true}
-                    onClose={() => setSelectedApp(null)}
-                    onDeleted={() => dashboard.refreshData()}
-                />
-            </Suspense>
+            <DriverDossier
+                key={selectedApp.id}
+                companyId={companyId}
+                driverId={selectedApp.id}
+                isOpen={true}
+                onClose={() => setSelectedApp(null)}
+                onDeleted={() => dashboard.refreshData()}
+            />
         );
     };
 

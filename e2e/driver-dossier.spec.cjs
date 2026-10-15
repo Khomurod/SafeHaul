@@ -22,6 +22,9 @@ const AxeBuilder = require('@axe-core/playwright').default;
 const AUTH = '?e2eAuth=company_admin';
 const ROW_NAME = 'Open driver dossier for Maria Garcia';
 const DIALOG = { name: 'Driver dossier' };
+// The dialog opens in a loading frame while the dossier's code arrives; the
+// dossier itself is there once its section navigation is.
+const SECTION_NAV = { name: 'Driver dossier sections' };
 
 const SECTIONS = [
   ['Application', 'Application Review'],
@@ -48,6 +51,7 @@ async function openDossier(page) {
   const row = page.getByRole('row', { name: ROW_NAME });
   await row.click();
   await expect(page.getByRole('dialog', DIALOG)).toBeVisible();
+  await expect(page.getByRole('tablist', SECTION_NAV)).toBeVisible();
   return row;
 }
 
@@ -139,7 +143,7 @@ test.describe('Driver Dossier shell', () => {
     const row = page.getByRole('row', { name: ROW_NAME });
     await row.focus();
     await row.press('Enter');
-    await expect(page.getByRole('dialog', DIALOG)).toBeVisible();
+    await expect(page.getByRole('tablist', SECTION_NAV)).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', DIALOG)).toHaveCount(0);

@@ -62,11 +62,16 @@ describe('the dossier record', () => {
     it('is read at the same time as the company profile', async () => {
         let releaseCompany;
         fx.company = new Promise((resolve) => { releaseCompany = resolve; });
-        renderHook(() => useAppFetch('co-1', 'app-1'));
+        const { result } = renderHook(() => useAppFetch('co-1', 'app-1'));
 
         await waitFor(() => expect(fx.reads).toContain('doc companies/co-1/applications/app-1'));
         expect(fx.reads).toContain('company co-1');
+
+        // The load runs to its end, so nothing it started outlives the test.
         await act(async () => releaseCompany({ id: 'co-1', teamMembers: [] }));
+        await waitFor(() => expect(fx.signs).toHaveLength(1));
+        await act(async () => fx.signs[0].resolve({ data: { url: signedUrl('app-1') } }));
+        expect(result.current.filesPending).toBe(false);
     });
 
     it('shows before its files are signed, and its files follow', async () => {

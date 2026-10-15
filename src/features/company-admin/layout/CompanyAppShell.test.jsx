@@ -58,7 +58,8 @@ describe('the record a notification names', () => {
 
         await userEvent.click(screen.getByRole('button', { name: 'Open a notification' }));
 
-        const dossier = await screen.findByRole('dialog', { name: 'Driver dossier' });
+        await screen.findByRole('button', { name: 'Close dossier' });
+        const dossier = screen.getByRole('dialog', { name: 'Driver dossier' });
         expect(dossier).toHaveAttribute('data-record', 'app-7');
         expect(dossier).toHaveAttribute('data-company', 'co-1');
     });
@@ -66,7 +67,7 @@ describe('the record a notification names', () => {
     it("closes with the dossier's own Close", async () => {
         renderShell();
         await userEvent.click(screen.getByRole('button', { name: 'Open a notification' }));
-        await screen.findByRole('dialog', { name: 'Driver dossier' });
+        await screen.findByRole('button', { name: 'Close dossier' });
 
         await userEvent.click(screen.getByRole('button', { name: 'Close dossier' }));
 
@@ -76,7 +77,7 @@ describe('the record a notification names', () => {
     it('closes when the page changes', async () => {
         renderShell();
         await userEvent.click(screen.getByRole('button', { name: 'Open a notification' }));
-        await screen.findByRole('dialog', { name: 'Driver dossier' });
+        await screen.findByRole('button', { name: 'Close dossier' });
 
         await userEvent.click(screen.getByRole('button', { name: 'Go elsewhere' }));
 

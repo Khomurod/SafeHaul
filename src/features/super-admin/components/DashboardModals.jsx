@@ -1,4 +1,5 @@
-import React, { Suspense, lazy } from 'react';
+import React from 'react';
+import { DriverDossier } from '@features/company-admin';
 import {
     EditCompanyModal,
     EditUserModal,
@@ -6,12 +7,6 @@ import {
     DeleteCompanyModal,
     DeleteUserModal
 } from './modals';
-
-// The driver dossier loads when an application is opened, as on the company's
-// pages. Imported here with the panel, it made the build place modules the
-// dossier's later tabs need into the panel's chunk, which a company page then
-// downloaded whole.
-const DriverProfileModal = lazy(() => import('@features/company-admin').then((m) => ({ default: m.DriverProfileModal })));
 
 export function DashboardModals({
     // Modal States
@@ -74,14 +69,12 @@ export function DashboardModals({
             )}
 
             {selectedApplication && (
-                <Suspense fallback={null}>
-                    <DriverProfileModal
-                        companyId={selectedApplication.companyId}
-                        driverId={selectedApplication.appId}
-                        isOpen={true}
-                        onClose={onClose}
-                    />
-                </Suspense>
+                <DriverDossier
+                    companyId={selectedApplication.companyId}
+                    driverId={selectedApplication.appId}
+                    isOpen={true}
+                    onClose={onClose}
+                />
             )}
         </>
     );

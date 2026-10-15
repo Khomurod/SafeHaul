@@ -1,1 +1,1 @@
-export { DriverProfileModal } from './components/modals/driver-dossier/DriverProfileModal';
+export { DriverDossier } from './components/modals/driver-dossier/DriverDossier';
