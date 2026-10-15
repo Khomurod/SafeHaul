@@ -59,6 +59,8 @@ export function SendTemplateWizard({
     sending,
     executeTemplateSend,
     filteredDrivers,
+    // Whether the leads for the picker are 'loading', 'ready' or 'failed'.
+    leadsStatus = 'ready',
     searchQuery,
     setSearchQuery,
     handleQuickSelect,
@@ -187,7 +189,15 @@ export function SendTemplateWizard({
                                 tabIndex={0}
                                 className="flex max-h-[180px] flex-col gap-ds-1 overflow-y-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
                             >
-                                {filteredDrivers.length === 0 ? (
+                                {leadsStatus === 'loading' ? (
+                                    <p role="status" className="py-ds-6 text-center text-ds-xs italic text-ds-content-muted">
+                                        Loading leads…
+                                    </p>
+                                ) : leadsStatus === 'failed' ? (
+                                    <p role="alert" className="py-ds-6 text-center text-ds-xs text-ds-status-danger-fg">
+                                        Leads could not be loaded. Enter the recipient above.
+                                    </p>
+                                ) : filteredDrivers.length === 0 ? (
                                     <p className="py-ds-6 text-center text-ds-xs italic text-ds-content-muted">
                                         No leads found.
                                     </p>

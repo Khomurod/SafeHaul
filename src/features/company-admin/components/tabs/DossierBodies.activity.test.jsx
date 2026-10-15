@@ -105,3 +105,58 @@ describe('ActivityHistoryTab — filtering', () => {
     });
 });
 
+describe('ActivityHistoryTab — older activity', () => {
+    /** `count` entries a minute apart, newest first, numbered from `first`. */
+    const entries = (first, count) => Array.from({ length: count }, (_, index) => [
+        `log-${first + index}`,
+        { action: `Logged step ${first + index}`, timestamp: { seconds: 1_900_000_000 - (first + index) * 60 } },
+    ]);
+
+    it('reads the newest 50 entries, and the 50 before them on Show older activity', async () => {
+        const newest = snap(entries(0, 50));
+        const pages = [newest, snap(entries(50, 3))];
+        fs.getDocs.mockImplementation(async () => pages.shift());
+        renderActivity();
+
+        expect(await screen.findByText('Logged step 49')).toBeInTheDocument();
+        expect(fs.getDocs.mock.calls[0][0].clauses).toEqual([{ field: 'timestamp', dir: 'desc' }, { limit: 50 }]);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Show older activity' }));
+        expect(await screen.findByText('Logged step 52')).toBeInTheDocument();
+        expect(fs.getDocs.mock.calls[1][0].clauses).toEqual([
+            { field: 'timestamp', dir: 'desc' },
+            { startAfter: newest.docs[49] },
+            { limit: 50 },
+        ]);
+        expect(screen.getByText('Logged step 0')).toBeInTheDocument();
+        // Three entries is the end of the history.
+        expect(screen.queryByRole('button', { name: 'Show older activity' })).not.toBeInTheDocument();
+    });
+
+    it('offers no older activity after a short history', async () => {
+        fs.getDocs.mockResolvedValue(snap(LOGS));
+        renderActivity();
+        expect(await screen.findByText('Call logged')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Show older activity' })).not.toBeInTheDocument();
+    });
+
+    it('keeps what it shows and offers the button again when older activity cannot be read', async () => {
+        const pages = [
+            Promise.resolve(snap(entries(0, 50))),
+            Promise.reject(new Error('offline')),
+            Promise.resolve(snap(entries(50, 1))),
+        ];
+        pages[1].catch(() => {});
+        fs.getDocs.mockImplementation(() => pages.shift());
+        renderActivity();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Show older activity' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent('Older activity could not be loaded.');
+        expect(screen.getByText('Logged step 0')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Show older activity' }));
+        expect(await screen.findByText('Logged step 50')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+});
+

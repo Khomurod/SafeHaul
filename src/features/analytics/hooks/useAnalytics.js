@@ -78,17 +78,20 @@ export function useAnalytics() {
                     loopDate.setDate(loopDate.getDate() + 1);
                 }
 
-                for (const companyDoc of companiesSnap.docs) {
+                // Every company's stats_daily within the date range, read side
+                // by side; they are added up below in the companies' order.
+                const statsSnaps = await Promise.all(companiesSnap.docs.map((companyDoc) => getDocs(query(
+                    collection(db, "companies", companyDoc.id, "stats_daily"),
+                    where('__name__', '>=', startKey),
+                    where('__name__', '<=', endKey)
+                ))));
+
+                if (!isMounted) return;
+
+                companiesSnap.docs.forEach((companyDoc, index) => {
                     const companyId = companyDoc.id;
                     const companyName = companyDoc.data().companyName || "Unknown Company";
-
-                    // Query stats_daily for this company within date range
-                    const statsQuery = query(
-                        collection(db, "companies", companyId, "stats_daily"),
-                        where('__name__', '>=', startKey),
-                        where('__name__', '<=', endKey)
-                    );
-                    const statsSnap = await getDocs(statsQuery);
+                    const statsSnap = statsSnaps[index];
 
                     if (!compStats[companyId]) {
                         compStats[companyId] = {
@@ -129,9 +132,7 @@ export function useAnalytics() {
                             userStats[userId].callsMade += (userData.dials || 0);
                         });
                     });
-                }
-
-                if (!isMounted) return;
+                });
 
                 // 4. Format output
                 const companyPerformance = Object.values(compStats)

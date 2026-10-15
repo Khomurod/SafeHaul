@@ -27,6 +27,9 @@ vi.mock('firebase/functions', () => ({
 vi.mock('firebase/firestore', () => ({
     collection: (...segments) => ({ path: segments.slice(1).join('/') }),
     query: (ref) => ref,
+    // The picker's newest leads, read when the wizard opens.
+    orderBy: () => ({}),
+    limit: () => ({}),
     getDocs: async () => ({ docs: [] }),
     doc: (parent, ...segments) => ({ id: segments.length ? segments[segments.length - 1] : 'request-1', parent }),
     serverTimestamp: () => 'SERVER_TIMESTAMP',

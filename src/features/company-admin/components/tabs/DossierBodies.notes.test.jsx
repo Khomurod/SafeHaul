@@ -87,6 +87,31 @@ describe('NotesTab — read contract', () => {
     });
 });
 
+describe('NotesTab — reads', () => {
+    const NOTE = ['n1', { text: 'Called back about the start date', author: 'Test Recruiter', createdAt: { seconds: 1_800_000_000 } }];
+
+    it('reads the notes, the shared history and the writer’s name side by side', async () => {
+        let releaseNotes;
+        fs.getDocs.mockImplementation(() => new Promise((resolve) => { releaseNotes = resolve; }));
+        renderNotes();
+
+        await waitFor(() => expect(fs.getDocs).toHaveBeenCalledTimes(1));
+        expect(fs.getDoc).toHaveBeenCalledTimes(1);
+        expect(getPortalUser).toHaveBeenCalledWith('user-1');
+
+        releaseNotes(snap([NOTE]));
+        expect(await screen.findByText('Called back about the start date')).toBeInTheDocument();
+    });
+
+    it('shows the notes when the writer’s name cannot be read', async () => {
+        fs.getDocs.mockResolvedValue(snap([NOTE]));
+        getPortalUser.mockRejectedValue(new Error('offline'));
+        renderNotes();
+
+        expect(await screen.findByText('Called back about the start date')).toBeInTheDocument();
+    });
+});
+
 describe('NotesTab — write contract', () => {
     async function addNote(text = 'Spoke with the driver') {
         renderNotes();

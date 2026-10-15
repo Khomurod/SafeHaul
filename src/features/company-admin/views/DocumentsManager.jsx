@@ -119,6 +119,7 @@ export default function DocumentsManager() {
         setShowDriverPicker,
         selectedTemplate,
         drivers,
+        driversStatus,
         searchQuery,
         setSearchQuery,
         sending,
@@ -305,10 +306,6 @@ export default function DocumentsManager() {
         );
     }
 
-    const filteredDrivers = drivers.filter(d =>
-        `${d.firstName} ${d.lastName} ${d.email}`.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
     return (
         <div className="min-h-screen bg-ds-canvas">
             <PageContainer width="standard">
@@ -461,7 +458,8 @@ export default function DocumentsManager() {
                     setPrefillValuesByGroupKey={setPrefillValuesByGroupKey}
                     sending={sending}
                     executeTemplateSend={executeTemplateSend}
-                    filteredDrivers={filteredDrivers}
+                    filteredDrivers={drivers}
+                    leadsStatus={driversStatus}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                     handleQuickSelect={handleQuickSelect}

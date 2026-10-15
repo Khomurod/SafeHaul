@@ -17,7 +17,7 @@
  * per-state rules directly.
  */
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 const callableSpy = vi.fn();
@@ -117,6 +117,11 @@ const ALL_FOUR = [DRIVER_STARTED, DRIVER_NAMELESS, COMPANY_PREPARED, COMPANY_TAK
 
 const mintSpy = vi.fn();
 const writeTextSpy = vi.fn();
+
+// The page loads the application views when one is first opened. They are
+// loaded once here, so no test's wait also covers compiling the editor: under
+// a full parallel run that took longer than a find query waits.
+beforeAll(() => import('../applicationPrep/unfinishedApplicationViews'));
 
 beforeEach(() => {
     vi.clearAllMocks();
