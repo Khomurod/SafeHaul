@@ -37,8 +37,14 @@ function fieldLabel(field, position, total) {
     return `${base}, field ${position} of ${total} on page ${page}`;
 }
 
+/**
+ * `ready` is false while the field's page has not painted: the field still
+ * takes focus and is announced, so the keyboard flow and a screen reader reach
+ * it, but it takes no input until the signer can see the document under it.
+ */
 export function SignerField({
     field,
+    ready = true,
     signed,
     fieldValues,
     handleFieldChange,
@@ -68,6 +74,7 @@ export function SignerField({
                         placeholder="Type here..."
                         aria-label={fieldLabel(field, fieldPosition, fieldTotal)}
                         value={fieldValues[field.id] || ''}
+                        readOnly={!ready}
                         data-signer-input={field.id}
                         enterKeyHint="next"
                         onFocus={handleFieldFocus}
@@ -94,6 +101,7 @@ export function SignerField({
                         className={`${fillClass} rounded-ds-sm border-2 border-ds-status-success-border bg-ds-status-success-bg px-2 text-base md:text-ds-sm`}
                         aria-label={fieldLabel(field, fieldPosition, fieldTotal)}
                         value={fieldValues[field.id] || ''}
+                        readOnly={!ready}
                         data-signer-input={field.id}
                         onFocus={handleFieldFocus}
                         onKeyDown={handleEnterAdvance(field)}
@@ -110,8 +118,9 @@ export function SignerField({
                             type="checkbox"
                             className="m-0 h-full max-h-full w-full min-w-0 min-h-0 max-w-full cursor-pointer accent-ds-status-accent-fg"
                             aria-label={fieldLabel(field, fieldPosition, fieldTotal)}
+                            aria-disabled={!ready || undefined}
                             checked={!!fieldValues[field.id]}
-                            onChange={(e) => handleFieldChange(field.id, e.target.checked)}
+                            onChange={(e) => { if (ready) handleFieldChange(field.id, e.target.checked); }}
                         />
                     </label>
                 </SignerFieldOverlay>
@@ -140,7 +149,8 @@ export function SignerField({
                      */}
                     <button
                         type="button"
-                        onClick={() => handleSignatureTap(field)}
+                        onClick={() => { if (ready) handleSignatureTap(field); }}
+                        aria-disabled={!ready || undefined}
                         aria-label={
                             value
                                 ? (isInitial ? 'Initials added — tap to redraw' : 'Signature added — tap to redraw')

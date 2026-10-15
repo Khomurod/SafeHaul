@@ -2,7 +2,8 @@
 // takes megabytes, and a long document painted every page at once: the room
 // now paints the first pages, then a page as it comes near the view, and gives
 // a page's canvas up once it is far away again. Every page keeps its size and
-// its fields, so "next field" still scrolls to any of them.
+// its fields, so "next field" still scrolls to any of them; a field takes no
+// input until its page has painted, whether by pointer or by keyboard.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
@@ -10,7 +11,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '@shared/components/feedback';
 
 const getEnvelopeFn = vi.fn();
-const pdfMockState = vi.hoisted(() => ({ numPages: 1, painted: new Set() }));
+const pdfMockState = vi.hoisted(() => ({ numPages: 1, painted: new Set(), slowPages: new Set() }));
 
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => getEnvelopeFn) }));
 vi.mock('@lib/firebase', () => ({ functions: {} }));
@@ -21,17 +22,29 @@ vi.mock('react-pdf', () => ({
     }, [onLoadSuccess]);
     return <div data-testid="pdf-document">{children}</div>;
   },
-  // A mounted Page is a painted canvas.
+  // A mounted Page is a canvas; a slow page never finishes painting.
   Page: ({ onLoadSuccess, onRenderSuccess, pageNumber }) => {
     React.useEffect(() => {
       pdfMockState.painted.add(pageNumber);
       onLoadSuccess?.({ getViewport: () => ({ width: 850, height: 1100 }) });
-      onRenderSuccess?.();
+      if (!pdfMockState.slowPages.has(pageNumber)) onRenderSuccess?.();
       return () => { pdfMockState.painted.delete(pageNumber); };
     }, [onLoadSuccess, onRenderSuccess, pageNumber]);
     return <div data-testid="pdf-page" />;
   },
   pdfjs: { GlobalWorkerOptions: { workerSrc: '' } },
+}));
+// The drawing pad needs a real 2D canvas context, which happy-dom lacks.
+vi.mock('react-signature-canvas', () => ({
+  default: React.forwardRef(function MockSignatureCanvas(props, ref) {
+    React.useImperativeHandle(ref, () => ({
+      clear: vi.fn(),
+      isEmpty: () => false,
+      toDataURL: () => 'data:image/png;base64,mock-ink',
+      getTrimmedCanvas: () => ({ toDataURL: () => 'data:image/png;base64,mock-ink' }),
+    }));
+    return <canvas data-testid="signature-sheet-canvas" />;
+  }),
 }));
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false, getE2EQueryParam: vi.fn(() => '') }));
 vi.mock('@shared/hooks', () => ({ useIsMobile: () => true }));
@@ -94,11 +107,16 @@ beforeEach(() => {
       recipientName: 'Artificial Signer',
       status: 'sent',
       pdfUrl: 'https://example.test/six-pages.pdf',
-      fields: Array.from({ length: PAGES }, (_, i) => field(i + 1)),
+      fields: [
+        ...Array.from({ length: PAGES }, (_, i) => field(i + 1)),
+        { id: 'check-5', type: 'checkbox', pageNumber: 5, required: false, xPosition: 10, yPosition: 30, width: 4, height: 3 },
+        { id: 'sig-5', type: 'signature', pageNumber: 5, required: false, xPosition: 10, yPosition: 50, width: 20, height: 8 },
+      ],
     },
   });
   pdfMockState.numPages = PAGES;
   pdfMockState.painted = new Set();
+  pdfMockState.slowPages = new Set();
   FakeIntersectionObserver.current = null;
 });
 
@@ -147,6 +165,33 @@ describe('the pages the signing room paints', () => {
 
     expect(FakeIntersectionObserver.current.targets.size).toBe(PAGES);
     expect(FakeIntersectionObserver.current.options.rootMargin).toMatch(/%/);
+  });
+
+  it('paints a page as soon as one of its fields takes the keyboard focus', async () => {
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
+    const { container } = await openRoom();
+
+    act(() => { container.querySelector('[data-signer-input="field-5"]').focus(); });
+
+    await waitFor(() => expect(painted()).toContain(5));
+  });
+
+  it('lets no field on a page still painting take input, by keyboard or pointer', async () => {
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
+    pdfMockState.slowPages = new Set([5]);
+    const { container } = await openRoom();
+    const text = container.querySelector('[data-signer-input="field-5"]');
+    act(() => { text.focus(); });
+    await waitFor(() => expect(painted()).toContain(5));
+
+    expect(text.readOnly).toBe(true);
+    const checkbox = container.querySelector('[data-field-id="check-5"] input');
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(false);
+    fireEvent.click(container.querySelector('[data-field-id="sig-5"] button'));
+    expect(screen.queryByRole('dialog', { name: /Draw your signature/i })).toBeNull();
+    // A painted page's fields work as before.
+    expect(container.querySelector('[data-signer-input="field-1"]').readOnly).toBe(false);
   });
 
   it('paints every page where the browser cannot say what is in view', async () => {

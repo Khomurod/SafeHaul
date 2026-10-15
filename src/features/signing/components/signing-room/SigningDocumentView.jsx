@@ -140,6 +140,11 @@ export function SigningDocumentView({
     }, [numPages, scrollerEl, pageRefs, isE2EMockShell]);
 
     const paintsPage = (pageNumber) => pageNumber <= EAGER_PAGES || nearPages.has(pageNumber);
+    // A field that takes the keyboard focus paints its page at once, whatever
+    // the observer has seen yet.
+    const paintOnFocus = (pageNumber) => () => {
+        setNearPages((prev) => (prev.has(pageNumber) ? prev : new Set(prev).add(pageNumber)));
+    };
 
     const gutterX = isMobile ? 16 : 40; // matches px-2 / md:px-5 on the gutter wrapper
     const fitWidth = Math.max(MIN_FIT_WIDTH, Math.min(scrollerWidth - gutterX, MAX_FIT_WIDTH));
@@ -148,9 +153,10 @@ export function SigningDocumentView({
     // Position in the signing order is passed down so every control gets a
     // uniquely distinguishing accessible name even when several fields share the
     // same author label (P1 from review on PR #112).
-    const renderField = (field) => (
+    const renderField = (field, ready) => (
         <SignerField
             field={field}
+            ready={ready}
             fieldPosition={orderedFields.findIndex((f) => f.id === field.id) + 1}
             fieldTotal={orderedFields.length}
             signed={request.status === 'signed'}
@@ -173,6 +179,7 @@ export function SigningDocumentView({
                     key={pageNumber}
                     ref={(node) => { pageRefs.current[pageNumber] = node; }}
                     data-signing-page={pageNumber}
+                    onFocus={paintOnFocus(pageNumber)}
                     className="relative border border-ds-border bg-ds-surface shadow-ds-lg"
                     // Explicit dimensions from the known aspect ratio keep layout
                     // (and overlay anchors) stable while canvases re-render after
@@ -214,12 +221,13 @@ export function SigningDocumentView({
                         </div>
                     )}
 
-                    {/* NET-SLOW FIX: keep overlays inert until the page has painted */}
+                    {/* NET-SLOW FIX: keep overlays inert until the page has painted;
+                        the fields still take focus, but no input (`ready`) */}
                     <div className={isPageReady ? undefined : 'pointer-events-none opacity-60'}>
                         {orderedFields
                             .filter((f) => Number(f?.pageNumber) === pageNumber)
                             .map((field) => (
-                                <React.Fragment key={field.id}>{renderField(field)}</React.Fragment>
+                                <React.Fragment key={field.id}>{renderField(field, isPageReady)}</React.Fragment>
                             ))}
                     </div>
                 </div>
