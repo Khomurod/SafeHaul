@@ -214,7 +214,7 @@ export function diffIndexSources(oldSrc, newSrc) {
 
 // Lines of tokens, one space apart (see `codeLines`).
 const EXPORT_LINE = /\bexports \. (\w+) =(?= |$)/;
-const MODULE_VARIABLE = /^(?:const|let|var) \w+ = require \( (['"])\.\/[^'"]+\1 \)(?: ;)?$/;
+const MODULE_VARIABLE = /^(?:const|let|var) (\w+) = require \( (['"])\.\/[^'"]+\2 \)(?: ;)?$/;
 
 /**
  * The source as code alone, one entry per line of code: its tokens one space
@@ -252,9 +252,20 @@ function exportLines(code) {
 
 /**
  * index.js without comments, blank lines and its wiring: the lines that assign an
- * export and, in its older form, those that require a module into a variable.
+ * export and, in its older form, those that require a module into a variable
+ * only export lines read. A variable the loader reads too stays loader code.
  */
-const loaderCode = (code) => code.filter((line) => !EXPORT_LINE.test(line) && !MODULE_VARIABLE.test(line)).join('\n');
+function loaderCode(code) {
+  const wiring = code.filter((line) => EXPORT_LINE.test(line));
+  const rest = code.filter((line) => !EXPORT_LINE.test(line));
+  const onlyWiring = (line) => {
+    const name = line.match(MODULE_VARIABLE)?.[1];
+    if (!name) return false;
+    const reads = (other) => new RegExp(`(^| )${name}( |$)`).test(other);
+    return wiring.some(reads) && !rest.some((other) => other !== line && reads(other));
+  };
+  return rest.filter((line) => !onlyWiring(line)).join('\n');
+}
 
 /** `loaderCode` of an index.js source; throws when it does not parse. */
 export const indexLoaderCode = (src) => loaderCode(codeLines(src));

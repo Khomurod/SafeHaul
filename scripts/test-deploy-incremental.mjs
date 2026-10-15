@@ -394,6 +394,30 @@ section('13. index.js: wiring, comments and the loader');
     diff(`${indexSrc}\nconst label = \`a \${'//'} old\`;\n`, `${indexSrc}\nconst label = \`a \${'//'} new\`;\n`)?.loaderChanged,
     true
   );
+  // The older form: a module variable that only export lines read is wiring;
+  // one the loader itself reads is loader code.
+  const olderForm = (helper, module, extra = '') => [
+    `const helper = require('${helper}');`,
+    `const mod = require('${module}');`,
+    'helper.bootstrap();',
+    'exports.A = mod.A;',
+    extra,
+  ].join('\n');
+  assertEqual(
+    'older form: the loader requiring another module is a loader change',
+    diff(olderForm('./a', './m'), olderForm('./b', './m')),
+    { changed: [], loaderChanged: true }
+  );
+  assertEqual(
+    '… a module only export lines read redeploys those exports',
+    diff(olderForm('./a', './m'), olderForm('./a', './n')),
+    { changed: ['A'], loaderChanged: false }
+  );
+  assertEqual(
+    '… and a new module with its export redeploys that export only',
+    diff(olderForm('./a', './m'), olderForm('./a', './m', "const extra = require('./x');\nexports.B = extra.B;")),
+    { changed: ['B'], loaderChanged: false }
+  );
 }
 
 console.log('');
