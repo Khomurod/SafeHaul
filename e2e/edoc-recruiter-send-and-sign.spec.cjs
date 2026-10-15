@@ -202,3 +202,83 @@ test.describe('Document-first mobile signing', () => {
     expect(Math.abs(ratios.x - 0.10)).toBeLessThan(0.015);
   });
 });
+
+/** Opens the drawing sheet from the mock's signature field, which is signed already. */
+async function openSignaturePad(page) {
+  await openMockSigningRoom(page);
+  const sheet = page.getByRole('dialog', { name: /Draw your signature/i });
+  await expect(async () => {
+    await page.getByRole('button', { name: 'Signature added — tap to redraw' }).click();
+    await expect(sheet).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 10_000 });
+  return sheet;
+}
+
+/** Draws one zigzag stroke near the top left of the pad with the mouse. */
+async function drawStroke(page, canvas) {
+  const box = await canvas.boundingBox();
+  await page.mouse.move(box.x + 40, box.y + 60);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i += 1) {
+    await page.mouse.move(box.x + 40 + i * 12, box.y + 60 + (i % 2) * 24, { steps: 2 });
+  }
+  await page.mouse.up();
+}
+
+/** The size of a PNG data URL, and whether ink touches each of its four edges. */
+async function inkImage(page, dataUrl) {
+  return page.evaluate(async (src) => {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const { data } = ctx.getImageData(0, 0, c.width, c.height);
+    const inked = (x, y) => data[(y * c.width + x) * 4 + 3] !== 0;
+    const row = (y) => Array.from({ length: c.width }, (_, x) => inked(x, y)).some(Boolean);
+    const col = (x) => Array.from({ length: c.height }, (_, y) => inked(x, y)).some(Boolean);
+    return { width: c.width, height: c.height, edges: [row(0), row(c.height - 1), col(0), col(c.width - 1)] };
+  }, dataUrl);
+}
+
+test.describe('Signature pad', () => {
+  test.describe.configure({ timeout: 60_000 });
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test('the adopted signature is cropped to its ink', async ({ page }) => {
+    const sheet = await openSignaturePad(page);
+    const canvas = sheet.getByTestId('signature-sheet-canvas');
+    await drawStroke(page, canvas);
+    const pad = await canvas.evaluate((c) => ({ width: c.width, height: c.height }));
+    await sheet.getByRole('button', { name: /Adopt & continue/i }).click();
+    await expect(sheet).toBeHidden();
+
+    const src = await page.locator('[data-field-id="sig1"] img').getAttribute('src');
+    const adopted = await inkImage(page, src);
+    // The ink fills the field box when stamped: no blank margin on any side.
+    expect(adopted.edges).toEqual([true, true, true, true]);
+    expect(adopted.width).toBeLessThan(pad.width / 2);
+    expect(adopted.height).toBeLessThan(pad.height / 2);
+  });
+
+  test('a rotation that wipes the pad leaves nothing to adopt', async ({ page }) => {
+    const sheet = await openSignaturePad(page);
+    const canvas = sheet.getByTestId('signature-sheet-canvas');
+    const before = await page.locator('[data-field-id="sig1"] img').getAttribute('src');
+    await drawStroke(page, canvas);
+    const width = await canvas.evaluate((c) => c.width);
+
+    // The phone turns on its side: the pad is measured again, and a canvas
+    // given new dimensions loses its pixels.
+    await page.setViewportSize({ width: 812, height: 375 });
+    await expect.poll(() => canvas.evaluate((c) => c.width)).not.toBe(width);
+
+    await sheet.getByRole('button', { name: /Adopt & continue/i }).click();
+    await expect(sheet.getByRole('status')).toHaveText('Draw your signature before adopting it.');
+    await expect(sheet).toBeVisible();
+    expect(await page.locator('[data-field-id="sig1"] img').getAttribute('src')).toBe(before);
+  });
+});

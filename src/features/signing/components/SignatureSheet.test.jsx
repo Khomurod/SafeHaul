@@ -6,28 +6,49 @@
 import React from 'react';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The drawing pad needs a real 2D canvas context, which happy-dom lacks. The
-// mock exposes the same imperative surface the component uses, with `isEmpty`
-// switchable so both the drawn and the blank path can be exercised.
-const padState = { empty: false };
+// fake has the surface the sheet uses and starts empty, like the real pad;
+// `drawOnPad()` marks the open pad as drawn.
+const mockPads = [];
+const mockClear = vi.fn();
 
-vi.mock('react-signature-canvas', () => ({
-    default: React.forwardRef(function MockSignatureCanvas(props, ref) {
-        React.useImperativeHandle(ref, () => ({
-            clear: mockClear,
-            isEmpty: () => padState.empty,
-            toDataURL: () => 'data:image/png;base64,artificial-ink',
-            getTrimmedCanvas: () => ({ toDataURL: () => 'data:image/png;base64,artificial-ink' }),
-        }));
-        return <canvas data-testid="signature-sheet-canvas" data-pen={props.penColor} />;
-    }),
+vi.mock('signature_pad', () => ({
+    default: class FakeSignaturePad {
+        constructor(canvas, options) {
+            this.canvas = canvas;
+            this.options = options;
+            this.drawn = false;
+            this.released = false;
+            mockPads.push(this);
+        }
+
+        clear() {
+            mockClear();
+            this.drawn = false;
+        }
+
+        isEmpty() {
+            return !this.drawn;
+        }
+
+        toDataURL() {
+            return 'data:image/png;base64,untrimmed-ink';
+        }
+
+        off() {
+            this.released = true;
+        }
+    },
 }));
 
-const mockClear = vi.fn();
+const mockTrim = vi.fn();
+vi.mock('./trimSignature', () => ({
+    trimmedSignaturePng: (...args) => mockTrim(...args),
+}));
 
 import { SignatureSheet } from './SignatureSheet';
 
@@ -38,9 +59,14 @@ function renderSheet(props = {}) {
     return render(<SignatureSheet onCancel={onCancel} onAdopt={onAdopt} {...props} />);
 }
 
+function drawOnPad() {
+    mockPads.at(-1).drawn = true;
+}
+
 beforeEach(() => {
-    padState.empty = false;
-    mockClear.mockClear();
+    mockPads.length = 0;
+    vi.resetAllMocks();
+    mockTrim.mockImplementation(() => 'data:image/png;base64,artificial-ink');
     onCancel = vi.fn();
     onAdopt = vi.fn();
 });
@@ -56,10 +82,22 @@ describe('SignatureSheet — frozen contracts', () => {
         expect(screen.getByRole('dialog', { name: /Draw your initials/i })).toBeInTheDocument();
     });
 
-    it('adopts the trimmed PNG through onAdopt', () => {
+    it('adopts the trimmed PNG of the drawing canvas through onAdopt', () => {
         renderSheet();
+        drawOnPad();
         fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
+        expect(mockTrim).toHaveBeenCalledWith(screen.getByTestId('signature-sheet-canvas'));
         expect(onAdopt).toHaveBeenCalledWith('data:image/png;base64,artificial-ink');
+    });
+
+    it('adopts the whole canvas when the browser cannot trim it', () => {
+        mockTrim.mockImplementation(() => {
+            throw new TypeError('no 2D context');
+        });
+        renderSheet();
+        drawOnPad();
+        fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
+        expect(onAdopt).toHaveBeenCalledWith('data:image/png;base64,untrimmed-ink');
     });
 
     it('cancels without adopting', () => {
@@ -77,12 +115,27 @@ describe('SignatureSheet — frozen contracts', () => {
         expect(onCancel).not.toHaveBeenCalled();
     });
 
-    it('keeps the canvas test hook and the ink colour that lands in the sealed PDF', () => {
+    it('keeps the canvas test hook and how the ink is drawn', () => {
         renderSheet();
         const canvas = screen.getByTestId('signature-sheet-canvas');
-        expect(canvas).toBeInTheDocument();
-        // Document content, not theme: an already-signed PDF must never retint.
-        expect(canvas).toHaveAttribute('data-pen', '#0f172a');
+        expect(mockPads).toHaveLength(1);
+        expect(mockPads[0].canvas).toBe(canvas);
+        // The ink colour is document content, not theme: an already-signed PDF
+        // must never retint.
+        expect(mockPads[0].options).toEqual({
+            penColor: '#0f172a',
+            minWidth: 1.2,
+            maxWidth: 2.6,
+            velocityFilterWeight: 0.7,
+        });
+        // Strokes must never scroll the page.
+        expect(canvas.style.touchAction).toBe('none');
+    });
+
+    it('releases the pad when the sheet closes', () => {
+        const view = renderSheet();
+        view.unmount();
+        expect(mockPads[0].released).toBe(true);
     });
 
     /*
@@ -104,7 +157,6 @@ describe('SignatureSheet — frozen contracts', () => {
 
 describe('SignatureSheet — empty pad', () => {
     it('does not adopt an empty pad and says why', () => {
-        padState.empty = true;
         renderSheet();
         fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
 
@@ -113,20 +165,50 @@ describe('SignatureSheet — empty pad', () => {
     });
 
     it('uses the initials wording for the initials variant', () => {
-        padState.empty = true;
         renderSheet({ kind: 'initial' });
         fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
         expect(screen.getByRole('status')).toHaveTextContent('Draw your initials before adopting them.');
     });
 
     it('retires the hint once the pad is cleared', () => {
-        padState.empty = true;
         renderSheet();
         fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
         expect(screen.getByRole('status')).toHaveTextContent(/before adopting/);
 
         fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
         expect(screen.getByRole('status')).toHaveTextContent('');
+    });
+
+    it('does not adopt a canvas that holds no ink', () => {
+        mockTrim.mockImplementation(() => null);
+        renderSheet();
+        drawOnPad();
+        fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
+
+        expect(onAdopt).not.toHaveBeenCalled();
+        expect(screen.getByRole('status')).toHaveTextContent('Draw your signature before adopting it.');
+    });
+
+    it('forgets the drawing when a new size wipes the canvas', () => {
+        renderSheet();
+        const canvas = screen.getByTestId('signature-sheet-canvas');
+        drawOnPad();
+        expect(mockClear).not.toHaveBeenCalled();
+
+        // A phone turned on its side: the wrapper measures larger, the canvas
+        // gets new pixel dimensions, and its pixels are gone.
+        vi.spyOn(canvas.parentElement, 'getBoundingClientRect').mockReturnValue({
+            width: 600, height: 300, top: 0, left: 0, right: 600, bottom: 300, x: 0, y: 0,
+        });
+        act(() => {
+            window.dispatchEvent(new Event('resize'));
+        });
+
+        expect(canvas).toHaveAttribute('width', '600');
+        expect(mockClear).toHaveBeenCalledTimes(1);
+        fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
+        expect(onAdopt).not.toHaveBeenCalled();
+        expect(screen.getByRole('status')).toHaveTextContent('Draw your signature before adopting it.');
     });
 
     it('mounts the live region before there is anything to announce', () => {
