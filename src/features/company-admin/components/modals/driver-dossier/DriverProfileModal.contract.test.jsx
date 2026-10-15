@@ -59,16 +59,10 @@ const baseView = () => ({
   loading: false,
   error: '',
   appData: { id: 'app-123', firstName: 'Maria', lastName: 'Garcia' },
-  companyProfile: { companyName: 'Acme' },
   currentStatus: 'New',
-  isEditing: false,
-  setIsEditing: vi.fn(),
-  isSaving: false,
   canEdit: true,
   handleStatusUpdate: vi.fn(),
   handleAssignChange: vi.fn(),
-  handleSaveEdit: vi.fn(),
-  handleManagementComplete: vi.fn(),
   fileUrls: {},
   dqStatus: 'complete',
   collectionName: 'applications',
@@ -146,11 +140,9 @@ describe('DriverProfileModal data-hook contract', () => {
     deleting = false;
   });
 
-  it('calls useApplicationView with the exact frozen argument list', () => {
-    const onClose = vi.fn();
-    renderModal({ onClose });
-    // (companyId, applicationId, onStatusUpdate=null, onClosePanel=onClose, onPhoneClick=null)
-    expect(useApplicationViewSpy).toHaveBeenCalledWith('co-1', 'app-123', null, onClose, null);
+  it('calls useApplicationView with the company and the record', () => {
+    renderModal();
+    expect(useApplicationViewSpy).toHaveBeenCalledWith('co-1', 'app-123');
   });
 
   // DEFECT-FIX assertion (not a frozen contract): before the design-system

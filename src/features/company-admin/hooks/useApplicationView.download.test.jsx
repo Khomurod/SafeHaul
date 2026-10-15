@@ -26,11 +26,9 @@ vi.mock('@features/applications/services/applicationPdfService', () => ({
     NoPreservedPdfError: pdf.NoPreservedPdfError,
     downloadPreservedApplicationPdf: (...args) => pdf.download(...args),
 }));
-vi.mock('@/context/DataContext', () => ({ useData: () => ({ currentUserClaims: {} }) }));
 vi.mock('@features/applications/hooks/useApplicationDetails', () => ({
     useApplicationDetails: () => ({
         appData: { firstName: 'Ann', lastName: 'Baker' },
-        companyProfile: {},
         collectionName: 'applications',
         handleStatusUpdate: vi.fn(),
         isCompanyAdmin: true,
@@ -43,7 +41,7 @@ import { useApplicationView } from './useApplicationView';
 afterEach(() => vi.clearAllMocks());
 
 describe("useApplicationView's download", () => {
-    const mount = () => renderHook(() => useApplicationView('co-1', 'app-12345678', null, vi.fn(), null));
+    const mount = () => renderHook(() => useApplicationView('co-1', 'app-12345678'));
 
     it('asks for the preserved original of the record the dossier opened', async () => {
         pdf.download.mockResolvedValue({ url: 'https://signed.test/x.pdf' });

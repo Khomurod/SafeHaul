@@ -338,7 +338,6 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
                                     <SchemaSection
                                         sectionId={section.id}
                                         data={editing ? editedData : appData}
-                                        mode="display"
                                         isEditing={editing}
                                         onChange={handleFieldChange}
                                         fileUrls={fileUrls}

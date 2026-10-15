@@ -37,7 +37,7 @@ const DEVICE = {
     indicatorFill: 'bg-gray-400',
 };
 
-export function DeviceMockup({ children, type = 'sms' }) {
+export function DeviceMockup({ children }) {
     return (
         <div className={`relative mx-auto h-[600px] w-[300px] rounded-[2.5rem] border-[14px] shadow-ds-lg ${DEVICE.bodyBorder} ${DEVICE.body}`}>
             {/* Side buttons: volume up, volume down, mute, power. */}

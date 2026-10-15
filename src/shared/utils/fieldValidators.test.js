@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { required, email, phone, ssn, fromFieldDefinition } from './fieldValidators';
+import { required, email, phone, ssn } from './fieldValidators';
 
 describe('fieldValidators (C5)', () => {
     it('required flags empty / whitespace and passes non-empty', () => {
@@ -38,17 +38,5 @@ describe('fieldValidators (C5)', () => {
         const v = ssn('SSN');
         expect(v('123-45-678')).toMatch(/9 digits/i);
         expect(v('123-45-6789')).toBeNull();
-    });
-
-    it('fromFieldDefinition derives a validator from schema type/required', () => {
-        expect(fromFieldDefinition({ label: 'Email', type: 'email', required: true })('bad'))
-            .toMatch(/valid email/i);
-        expect(fromFieldDefinition({ label: 'Phone', type: 'tel', required: true })('123'))
-            .toBe('Enter a 10-digit US phone number.');
-        expect(fromFieldDefinition({ label: 'Name', type: 'text', required: true })(''))
-            .toMatch(/required/i);
-        // Non-required text field never errors.
-        expect(fromFieldDefinition({ label: 'Suffix', type: 'text', required: false })(''))
-            .toBeNull();
     });
 });

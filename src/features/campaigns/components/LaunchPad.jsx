@@ -2,7 +2,6 @@ import React, { useState, useRef, useId } from 'react';
 import { Icon, Rocket, Clock } from '@design-system/icons';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { useNavigate } from 'react-router-dom';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Badge, Button, Card, Notice } from '@/design-system/components';
@@ -10,7 +9,6 @@ import { Modal } from '@design-system/patterns';
 import { MAX_RECIPIENTS_PER_LAUNCH } from '../constants/campaignConstants';
 
 export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
-    const navigate = useNavigate();
     const { showSuccess, showError } = useToast();
     const [isLaunching, setIsLaunching] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);

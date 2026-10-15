@@ -55,20 +55,3 @@ export function ssn(label = 'SSN', { isRequired = true } = {}) {
         return null;
     };
 }
-
-/**
- * Derive a validator from a schema-ish field descriptor `{ label, type, required }`,
- * so the schema's own type/required metadata drives validation (SchemaRenderer path).
- */
-export function fromFieldDefinition(def, isRequired = def?.required) {
-    const label = def?.label || def?.key || 'This field';
-    switch (def?.type) {
-        case 'email':
-            return email(label, { isRequired });
-        case 'tel':
-        case 'phone':
-            return phone(label, { isRequired });
-        default:
-            return isRequired ? required(label) : () => null;
-    }
-}

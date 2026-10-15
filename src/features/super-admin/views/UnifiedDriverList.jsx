@@ -42,7 +42,7 @@
  * one — "Export" first, and "Archive" only once an archived state is defined.
  * `UnifiedDriverList.bulkSafety.test.jsx` pins the absence.
  */
-import React, { useId, useState, useMemo, useCallback } from 'react';
+import React, { useId, useState, useMemo } from 'react';
 import { Icon, Search, Filter } from '@design-system/icons';
 import { ModernDriverTable } from '@shared/components/table';
 import { useApplicationDelete } from '@features/applications/hooks/useApplicationDelete';
@@ -92,9 +92,6 @@ export function UnifiedDriverList({
         driverType: 'All',
         docsStatus: 'All'
     });
-
-    // --- Sorting ---
-    const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
 
     // --- Delete ---
     const [deletingId, setDeletingId] = useState(null);
@@ -174,29 +171,11 @@ export function UnifiedDriverList({
             });
         }
 
-        // 3. Sort
-        data.sort((a, b) => {
-            const dir = sortConfig.direction === 'asc' ? 1 : -1;
-
-            if (sortConfig.key === 'date') {
-                return ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)) * dir;
-            }
-            if (sortConfig.key === 'name') {
-                const aName = `${a.firstName} ${a.lastName}`;
-                const bName = `${b.firstName} ${b.lastName}`;
-                return aName.localeCompare(bName) * dir;
-            }
-            if (sortConfig.key === 'status') {
-                return (a.status || 'New').localeCompare(b.status || 'New') * dir;
-            }
-            if (sortConfig.key === 'experience') {
-                return ((a.yearsExperience || 0) - (b.yearsExperience || 0)) * dir;
-            }
-            return 0;
-        });
+        // 3. Newest first
+        data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
         return data;
-    }, [allApplications, search, filters, sortConfig, allCompaniesMap]);
+    }, [allApplications, search, filters, allCompaniesMap]);
 
     // --- Pagination ---
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -204,14 +183,6 @@ export function UnifiedDriverList({
         const start = (currentPage - 1) * itemsPerPage;
         return filteredData.slice(start, start + itemsPerPage);
     }, [filteredData, currentPage, itemsPerPage]);
-
-    // --- Sort Handler ---
-    const handleSort = useCallback((key) => {
-        setSortConfig(prev => ({
-            key,
-            direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
-        }));
-    }, []);
 
     // --- Delete Handler ---
     // The blocking `window.confirm` guard moved to `<DeleteRecordDialog>`. The

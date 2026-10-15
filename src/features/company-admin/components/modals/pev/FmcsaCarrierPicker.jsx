@@ -31,7 +31,7 @@
 //   assistive technology what the group of rows was for.
 
 import React from 'react';
-import { Icon, Building2, Loader2, CheckCircle2, AlertCircle } from '@design-system/icons';
+import { Icon, Building2, Loader2, CheckCircle2 } from '@design-system/icons';
 import { Notice, SelectableCard } from '@/design-system/components';
 import { mapFmcsaRowToPevContact } from '@shared/services/fmcsaEmployerSocrata';
 

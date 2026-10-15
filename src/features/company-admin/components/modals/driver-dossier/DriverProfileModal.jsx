@@ -21,7 +21,7 @@ import { DossierContent } from './DossierContent';
  * Frozen contracts: the dialog's accessible name **"Driver dossier"** and the
  * fact that Escape closes it (both asserted by
  * `e2e/company-candidate-table.spec.cjs`); the
- * `useApplicationView(companyId, driverId, null, onClose, null)` argument list;
+ * `useApplicationView(companyId, driverId)` argument list;
  * the `'application'` initial tab and every tab state value; the
  * `deleteApplication({ companyId, applicationId, collectionName })` payload and
  * the `onDeleted()` → `onClose()` ordering after a successful delete; the
@@ -73,21 +73,14 @@ export function DriverProfileModal({
         || currentUserClaims?.roles?.globalRole === 'super_admin';
     const { deleting, deleteApplication } = useApplicationDelete();
 
-    // Use the existing hook for data fetching
-    // We pass onClose as onClosePanel to the hook
     const {
         loading,
         error,
         appData,
         currentStatus,
-        isEditing,
-        setIsEditing,
-        isSaving,
         canEdit,
         handleStatusUpdate,
         handleAssignChange,
-        handleSaveEdit,
-        handleManagementComplete,
         handleDownloadPdf,
         fileUrls,
         filesPending,
@@ -95,7 +88,7 @@ export function DriverProfileModal({
         collectionName,
         teamMembers,
         assignedTo,
-    } = useApplicationView(companyId, driverId, null, onClose, null);
+    } = useApplicationView(companyId, driverId);
 
     const handleConfirmDelete = async () => {
         const ok = await deleteApplication({ companyId, applicationId: driverId, collectionName });
@@ -149,7 +142,6 @@ export function DriverProfileModal({
                             currentStatus={currentStatus}
                             activeTab={activeTab}
                             setActiveTab={setActiveTab}
-                            loading={loading}
                             dqStatus={dqStatus}
                             idBase={tabsIdBase}
                         />
@@ -226,10 +218,6 @@ export function DriverProfileModal({
                                     driverId={driverId}
                                     companyId={companyId}
                                     collectionName={collectionName}
-                                    isEditing={isEditing}
-                                    setIsEditing={setIsEditing}
-                                    handleSaveEdit={handleSaveEdit}
-                                    isSaving={isSaving}
                                     fileUrls={fileUrls}
                                     filesPending={filesPending}
                                     canEdit={canEdit}

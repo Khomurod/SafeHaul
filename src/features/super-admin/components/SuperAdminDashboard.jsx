@@ -119,15 +119,6 @@ export function SuperAdminDashboard() {
     });
   };
 
-  const handlePhoneClick = (e, item) => {
-    if (e) e.stopPropagation();
-    if (item && item.phone) {
-      window.location.href = `tel:${item.phone}`;
-    } else {
-      showError("No phone number available for this driver.");
-    }
-  };
-
   // The blocking `window.confirm` guard is now an accessible confirmation dialog;
   // the callable payload, timeout, toasts and refresh below are unchanged.
   const runBackfillEmployers = async () => {
@@ -241,7 +232,6 @@ export function SuperAdminDashboard() {
         allCompaniesMap={allCompaniesMap}
         onClose={onModalClose}
         onRefreshData={refreshData}
-        onPhoneClick={handlePhoneClick}
       />
     </>
   );

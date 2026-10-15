@@ -1,4 +1,4 @@
-import { addDoc, collection, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "@lib/firebase";
 
 export async function logActivity(companyId, collectionName, docId, action, details, type = 'user') {

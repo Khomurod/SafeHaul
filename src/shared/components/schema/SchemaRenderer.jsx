@@ -2,18 +2,14 @@
 /**
  * SchemaRenderer - Renders fields based on schema definition
  *
- * This component reads field definitions from applicationSchema.js and renders
- * the appropriate UI for both INPUT mode (driver wizard) and DISPLAY mode (admin dashboard).
- *
- * This is the key component that ensures Mirror Law compliance:
- * - One schema definition drives both input and output
- * - No more manual duplication between Step components and Section components
+ * This component reads field definitions from applicationSchema.js and shows
+ * them on the company side: read-only, or edited in place where a screen allows
+ * it (the dossier's Application tab, the carrier's preparation editor).
  */
 
 import React from 'react';
 import { APPLICATION_SCHEMA, getFieldByKey, isFieldConditionallyVisible } from '@/config/applicationSchema';
 import {
-    Checkbox,
     ChoiceGroup,
     FieldDisplay,
     FormField,
@@ -22,7 +18,6 @@ import {
     Radio,
     Textarea,
 } from '@design-system/components';
-import InputField from '@shared/components/form/InputField';
 import { domIdSegment } from '@shared/utils/domId';
 import { isEditableInPlace, normalizeOption } from './schemaOptions';
 import { SchemaEditCheckbox, SchemaEditSelect } from './SchemaEditControls';
@@ -44,28 +39,21 @@ const FIELD_TYPES = {
 
 
 /**
- * Render a single field based on schema and mode
+ * Render a single field based on schema
  *
  * @param {string} fieldKey - The key from the schema
  * @param {object} data - Current form/application data
- * @param {function} onChange - Handler for input changes (name, value)
- * @param {'input' | 'display'} mode - Render mode
- * @param {boolean} isEditing - For display mode editing
+ * @param {function} onChange - Handler for edits (name, value)
+ * @param {boolean} isEditing - Whether the field is edited in place
  * @param {object} config - Optional company-specific config overrides
  */
 export function SchemaField({
     fieldKey,
     data,
     onChange,
-    mode = 'display',
     isEditing = false,
     config = {},
-    // C5: optional on-blur validation wiring. `errors` is a map keyed by field key;
-    // `onBlur` is the (name, value) passthrough. Both default to no-ops so existing
-    // call sites are unaffected.
-    errors = {},
-    onBlur,
-    // Re-signed file URLs keyed by field key (display mode), so file links use a
+    // Re-signed file URLs keyed by field key, so file links use a
     // fresh signed URL instead of the expired persisted one.
     fileUrls = {},
     // True while those URLs are still being signed.
@@ -88,112 +76,14 @@ export function SchemaField({
         return null;
     }
 
-    const value = data[fieldKey];
-    const isRequired = config[fieldKey]?.required ?? definition.required;
-
-    // --- INPUT MODE ---
-    if (mode === 'input') {
-        return renderInputMode(definition, value, onChange, isRequired, errors[fieldKey], onBlur);
-    }
-
-    // --- DISPLAY MODE ---
-    return renderDisplayMode(definition, value, onChange, isEditing, fileUrls, filesPending);
-}
-
-/**
- * Render field in input mode (driver wizard forms)
- */
-function renderInputMode(definition, value, onChange, isRequired, error, onBlur) {
-    const { key, label, type, placeholder, options } = definition;
-
-    switch (type) {
-        case FIELD_TYPES.TEXT:
-        case FIELD_TYPES.EMAIL:
-        case FIELD_TYPES.PHONE:
-        case FIELD_TYPES.DATE:
-            return (
-                <InputField
-                    label={label}
-                    id={key}
-                    name={key}
-                    type={mapFieldType(type)}
-                    required={isRequired}
-                    value={value || ''}
-                    onChange={onChange}
-                    onBlur={onBlur}
-                    error={error}
-                    placeholder={placeholder}
-                />
-            );
-
-        case FIELD_TYPES.RADIO:
-            return (
-                /*
-                 * A real fieldset/legend through `ChoiceGroup`, so the question is
-                 * announced once rather than repeated inside every option label.
-                 * The previous markup was a bare `<label>` above loose radios: the
-                 * group had no accessible name at all, so a screen-reader user
-                 * heard "yes radio, no radio" with no idea what was being asked.
-                 */
-                <ChoiceGroup legend={label} orientation="horizontal" error={error}>
-                    {(options || ['yes', 'no']).map(normalizeOption).map(opt => (
-                        <Radio
-                            key={opt.value}
-                            name={key}
-                            id={`${key}-${domIdSegment(opt.value)}`}
-                            label={opt.label}
-                            value={opt.value}
-                            checked={value === opt.value}
-                            onChange={(e) => onChange(key, e.target.value)}
-                            requiredMark={false}
-                        />
-                    ))}
-                </ChoiceGroup>
-            );
-
-        case FIELD_TYPES.TEXTAREA:
-            return (
-                <FormField id={key} label={label} required={isRequired} error={error}>
-                    <Textarea
-                        name={key}
-                        rows={3}
-                        required={isRequired}
-                        value={value || ''}
-                        onChange={(e) => onChange(key, e.target.value)}
-                        onBlur={onBlur ? (e) => onBlur(key, e.target.value) : undefined}
-                        placeholder={placeholder}
-                    />
-                </FormField>
-            );
-
-        case FIELD_TYPES.CHECKBOX:
-            return (
-                <Checkbox
-                    id={key}
-                    name={key}
-                    label={label}
-                    checked={value === true || value === 'yes'}
-                    onChange={(e) => onChange(key, e.target.checked)}
-                />
-            );
-
-        default:
-            return (
-                <InputField
-                    label={label}
-                    name={key}
-                    value={value || ''}
-                    onChange={onChange}
-                />
-            );
-    }
+    return renderDisplayMode(definition, data[fieldKey], onChange, isEditing, fileUrls, filesPending);
 }
 
 /**
  * Render field in display mode (admin dashboard sections)
  */
 function renderDisplayMode(definition, value, onChange, isEditing, fileUrls = {}, filesPending = false) {
-    const { key, label, type, sensitive, mask, options } = definition;
+    const { key, label, type, options } = definition;
 
     const displayValue = formatDisplayValue(value, definition, fileUrls, filesPending);
 
@@ -401,7 +291,6 @@ export function SchemaSection({
             fieldKey={field.key}
             data={data}
             onChange={onChange}
-            mode="display"
             // A locked key renders read-only even while the rest of the section
             // edits — `SchemaField` already shows a value read-only when not
             // editing, so this needs no new field mode.

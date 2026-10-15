@@ -29,11 +29,9 @@ vi.mock('@features/applications/services/applicationPdfService', () => ({
     NoPreservedPdfError: class NoPreservedPdfError extends Error {},
     downloadPreservedApplicationPdf: vi.fn(),
 }));
-vi.mock('@/context/DataContext', () => ({ useData: () => ({ currentUserClaims: {} }) }));
 vi.mock('@features/applications/hooks/useApplicationDetails', () => ({
     useApplicationDetails: () => ({
         ...fs.record,
-        companyProfile: {},
         handleStatusUpdate: vi.fn(),
         isCompanyAdmin: true,
     }),
@@ -57,7 +55,7 @@ const snapshotOf = (entries) => ({
     docs: entries.map(({ id, ...data }) => ({ id, data: () => data })),
 });
 
-const mount = () => renderHook(() => useApplicationView('co-1', 'app-1', null, vi.fn(), null));
+const mount = () => renderHook(() => useApplicationView('co-1', 'app-1'));
 
 const deliver = (entries, listener = fs.listeners.at(-1)) => act(() => listener.next(snapshotOf(entries)));
 

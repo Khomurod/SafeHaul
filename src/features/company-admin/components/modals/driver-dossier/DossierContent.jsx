@@ -27,10 +27,6 @@ export function DossierContent({
     driverId,
     companyId,
     collectionName,
-    isEditing,
-    setIsEditing,
-    handleSaveEdit,
-    isSaving,
     fileUrls,
     filesPending = false,
     canEdit
@@ -49,8 +45,6 @@ export function DossierContent({
                     appData={appData}
                     fileUrls={fileUrls}
                     filesPending={filesPending}
-                    isEditing={isEditing}
-                    setIsEditing={setIsEditing}
                     canEdit={canEdit}
                     companyId={companyId}
                     applicationId={driverId}

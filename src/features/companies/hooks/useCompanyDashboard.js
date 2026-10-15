@@ -31,6 +31,9 @@ import {
 import { E2E_DASHBOARD_APPLICATIONS, E2E_DASHBOARD_LEADS } from './e2eDashboardFixtures';
 import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
 
+/** Records on one page of the list. */
+const ITEMS_PER_PAGE = 20;
+
 /** applications: all | new | hired | terminated | declined — leads: all | attempting | in_process | interested */
 export function useCompanyDashboard(companyId, { initialTab = 'applications', initialSegment = 'all' } = {}) {
     const [data, setData] = useState([]);
@@ -40,9 +43,6 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
     // The Assigned to filter's team, each member keyed by the uid it matches.
     const { team: teamMembers } = useCompanyTeam(companyId);
 
-    const [latestBatchTime, setLatestBatchTime] = useState(null);
-
-    const [itemsPerPage, setItemsPerPage] = useState(20);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [listTotalCount, setListTotalCount] = useState(0);
@@ -228,7 +228,7 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
                     }
                 }
 
-                constraints.push(limit(itemsPerPage));
+                constraints.push(limit(ITEMS_PER_PAGE));
                 const snapshot = await getDocs(query(baseRef, ...constraints));
                 newData = snapshot.docs.map(docSnap => {
                     const d = docSnap.data();
@@ -273,22 +273,15 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
                 setLoading(false);
             }
         }
-    }, [companyId, activeTab, currentPage, itemsPerPage, debouncedSearch, dateOrder, buildConstraints, runSearchQuery, clientFilterContext, e2eRecordsForTab]);
+    }, [companyId, activeTab, currentPage, debouncedSearch, dateOrder, buildConstraints, runSearchQuery, clientFilterContext, e2eRecordsForTab]);
 
     useEffect(() => {
         if (debouncedSearch) {
             setTotalPages(1);
         } else {
-            setTotalPages(Math.max(1, Math.ceil((listTotalCount || 0) / itemsPerPage)));
+            setTotalPages(Math.max(1, Math.ceil((listTotalCount || 0) / ITEMS_PER_PAGE)));
         }
-    }, [listTotalCount, itemsPerPage, debouncedSearch]);
-
-    // NOTE: latestBatchTime previously tracked the most recent Lead Distribution Engine
-    // batch (platform-leads "Dealer" feature). The engine has been removed; keep the
-    // state as `null` so downstream consumers gracefully render no batch label.
-    useEffect(() => {
-        setLatestBatchTime(null);
-    }, [companyId, activeTab]);
+    }, [listTotalCount, debouncedSearch]);
 
     // Any change to scope, search, filters, or pipeline resets pagination and
     // clears page cursors so stale cursors can never leak across queries.
@@ -300,13 +293,7 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
 
     useEffect(() => {
         fetchData();
-    }, [companyId, activeTab, currentPage, itemsPerPage, debouncedSearch, filters, pipelineSegment, dateOrder, fetchData]);
-
-    const handleSetItemsPerPage = (num) => {
-        setItemsPerPage(num);
-        setCurrentPage(1);
-        lastVisibleDocsRef.current = {};
-    };
+    }, [companyId, activeTab, currentPage, debouncedSearch, filters, pipelineSegment, dateOrder, fetchData]);
 
     const handleSetFilters = (keyOrObjOrFn, value) => {
         if (typeof keyOrObjOrFn === 'function') {
@@ -324,7 +311,6 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
 
     return {
         paginatedData: data,
-        latestBatchTime,
         teamMembers,
         loading,
         error,
@@ -338,12 +324,10 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
         listCountError,
 
         currentPage,
-        itemsPerPage,
         totalPages,
         totalCount: headerTotalCount,
         undatedCount: debouncedSearch ? 0 : undatedCount,
 
-        setItemsPerPage: handleSetItemsPerPage,
         nextPage: () => setCurrentPage(p => p + 1),
         prevPage: () => setCurrentPage(p => Math.max(1, p - 1)),
 

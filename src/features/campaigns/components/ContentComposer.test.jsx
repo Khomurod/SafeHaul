@@ -4,12 +4,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { ContentComposer } from './ContentComposer';
 
-// Capture DeviceMockup props/children so the exact type + preview content can be
-// asserted without depending on the phone-frame markup (out of scope here).
+// Capture DeviceMockup's children so the preview content can be asserted without
+// depending on the phone-frame markup (out of scope here).
 vi.mock('./DeviceMockup', () => ({
-    DeviceMockup: ({ type, children }) => (
-        <div data-testid="device" data-type={type === undefined ? 'undefined' : type}>{children}</div>
-    ),
+    DeviceMockup: ({ children }) => <div data-testid="device">{children}</div>,
 }));
 
 function renderComposer(messageConfig = {}) {
@@ -155,14 +153,11 @@ describe('ContentComposer — variable insertion', () => {
 });
 
 describe('ContentComposer — preview, count, and copy', () => {
-    it('passes the method as the DeviceMockup type and shows the message preview', () => {
+    it('shows the message preview in the phone frame', () => {
         const { rerender, onChange } = renderComposer({ method: 'email', message: 'Preview text' });
-        const device = screen.getByTestId('device');
-        expect(device).toHaveAttribute('data-type', 'email');
-        expect(device).toHaveTextContent('Preview text');
+        expect(screen.getByTestId('device')).toHaveTextContent('Preview text');
 
         rerender(<ContentComposer messageConfig={{ method: 'sms' }} onChange={onChange} />);
-        expect(screen.getByTestId('device')).toHaveAttribute('data-type', 'sms');
         expect(screen.getByText('Type something to see a preview...')).toBeInTheDocument();
     });
 

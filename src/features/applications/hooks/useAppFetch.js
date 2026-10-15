@@ -32,7 +32,6 @@ export function useAppFetch(companyId, applicationId) {
   // The Assign To picker's team, each member keyed by the uid it saves.
   const { team: teamMembers } = useCompanyTeam(companyId, companyProfile);
 
-  const isGlobal = false;
   // A load for a record the dossier no longer shows changes nothing.
   const loadVersionRef = useRef(0);
 
@@ -151,7 +150,7 @@ export function useAppFetch(companyId, applicationId) {
     } finally {
       if (current()) setLoading(false);
     }
-  }, [companyId, applicationId, isGlobal]);
+  }, [companyId, applicationId]);
 
   useEffect(() => {
     loadApplication();
@@ -162,18 +161,13 @@ export function useAppFetch(companyId, applicationId) {
     error,
     appData,
     setAppData,
-    companyProfile,
     collectionName,
     fileUrls,
-    setFileUrls,
     filesPending,
     teamMembers,
     currentStatus,
     setCurrentStatus,
     assignedTo,
     setAssignedTo,
-    isGlobal,
-    loadApplication,
-    simpleRetry
   };
 }

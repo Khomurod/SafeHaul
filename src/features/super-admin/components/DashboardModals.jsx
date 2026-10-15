@@ -21,7 +21,6 @@ export function DashboardModals({
     // Handlers
     onClose,
     onRefreshData,
-    onPhoneClick
 }) {
     return (
         <>

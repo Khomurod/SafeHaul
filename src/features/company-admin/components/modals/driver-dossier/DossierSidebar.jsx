@@ -56,7 +56,6 @@ export function DossierSidebar({
     currentStatus,
     activeTab,
     setActiveTab,
-    loading,
     dqStatus,
     idBase = 'dossier',
 }) {

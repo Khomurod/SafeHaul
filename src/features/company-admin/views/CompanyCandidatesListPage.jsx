@@ -200,9 +200,6 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                             });
                             dashboard.setSearchQuery('');
                         }}
-                        latestBatchTime={dashboard.latestBatchTime}
-                        visibleColumns={[]}
-                        setVisibleColumns={() => { }}
                         selectedCount={selectedRowIds.length}
                         canAssign={canAssign}
                         onAssignLeads={() => handleOpenAssignment(selectedRowIds)}

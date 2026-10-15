@@ -9,36 +9,9 @@ import { SESSION_KEYS } from './dataContext/sessionKeys';
 import { extractRoleContext, getPrimaryCompanyRole } from './dataContext/claims';
 import { DEMO_COMPANY_NAME, getE2EQueryParam, isE2ETestMode, isMarketingDemo } from '@lib/runtime/e2eMode';
 
-// D2: split the former mega-context by change-cadence into three memoized
-// contexts so consumers re-render only when their slice changes. A single
-// provider still owns the (tightly-coupled) auth flow; it publishes three
-// independently-memoized values. `DataContext` + `useData()` remain as a
-// backwards-compatible shim so the ~47 existing consumers need no changes —
-// migrate them to the granular hooks (useAuth/useCompany/useUI) over time.
-export const AuthContext = createContext(null);
-export const CompanyContext = createContext(null);
-export const UIContext = createContext(null);
 export const DataContext = createContext();
 
-function useRequiredContext(ctx, name) {
-  const value = useContext(ctx);
-  if (!value) {
-    throw new Error(`${name} must be used within a DataProvider`);
-  }
-  return value;
-}
-
-/** Auth identity / role / portal slice. */
-export const useAuth = () => useRequiredContext(AuthContext, 'useAuth');
-/** Selected-company slice. */
-export const useCompany = () => useRequiredContext(CompanyContext, 'useCompany');
-/** UI (modal visibility) slice. */
-export const useUI = () => useRequiredContext(UIContext, 'useUI');
-
-/**
- * Backwards-compatible shim exposing the full former surface. Prefer the
- * granular hooks (useAuth/useCompany/useUI) in new code.
- */
+/** The signed-in user, their claims and role, and the selected company. */
 export const useData = () => {
   const context = useContext(DataContext);
   if (!context) {
@@ -245,32 +218,6 @@ export function DataProvider({ children }) {
     setShowCompanyChooser(true);
   }, []);
 
-  // --- Memoized context slices (split by change-cadence) ---
-  const authValue = useMemo(() => ({
-    currentUser,
-    currentUserClaims,
-    userRole,
-    loading,
-    handleLogout,
-    logout: handleLogout,
-  }), [
-    currentUser, currentUserClaims, userRole, loading, handleLogout,
-  ]);
-
-  const companyValue = useMemo(() => ({
-    currentCompanyProfile,
-    setCurrentCompanyProfile,
-    loginToCompany,
-    returnToCompanyChooser,
-  }), [currentCompanyProfile, loginToCompany, returnToCompanyChooser]);
-
-  const uiValue = useMemo(() => ({
-    showCompanyChooser,
-    setShowCompanyChooser,
-  }), [showCompanyChooser]);
-
-  // Backwards-compatible shim: exactly the former public surface, now memoized
-  // (the old object was rebuilt every render). Prefer the granular hooks above.
   const dataValue = useMemo(() => ({
     currentUser,
     currentUserClaims,
@@ -279,7 +226,6 @@ export function DataProvider({ children }) {
     setCurrentCompanyProfile,
     loginToCompany,
     handleLogout,
-    logout: handleLogout,
     returnToCompanyChooser,
     setShowCompanyChooser,
     loading,
@@ -302,18 +248,12 @@ export function DataProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={authValue}>
-      <CompanyContext.Provider value={companyValue}>
-        <UIContext.Provider value={uiValue}>
-          <DataContext.Provider value={dataValue}>
-            {children}
+    <DataContext.Provider value={dataValue}>
+      {children}
 
-            {currentUser && showCompanyChooser && !loading && (
-              <CompanyChooserModal />
-            )}
-          </DataContext.Provider>
-        </UIContext.Provider>
-      </CompanyContext.Provider>
-    </AuthContext.Provider>
+      {currentUser && showCompanyChooser && !loading && (
+        <CompanyChooserModal />
+      )}
+    </DataContext.Provider>
   );
 }

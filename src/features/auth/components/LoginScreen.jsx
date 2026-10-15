@@ -2,7 +2,8 @@
 import React, { useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { loginUser, resetPassword } from '../services/authService';
-import { getPortalUser, getMembershipsForUser } from '../services/userService';
+import { getMembershipsForUser } from '../services/userService';
+import { extractRoleContext } from '@/context/dataContext/claims';
 import { returnPathFrom } from '../returnPath';
 import {
   Icon,
@@ -13,7 +14,6 @@ import {
   ArrowLeft,
   Eye,
   EyeOff,
-  AlertCircle,
 } from '@design-system/icons';
 
 import { Logo } from '@shared/components/Logo';
@@ -99,17 +99,14 @@ export function LoginScreen() {
       }
 
       // --- SMART REDIRECT LOGIC ---
-      // Fetch user profile and memberships to decide where to go
-      const [userDoc, membershipsSnap] = await Promise.all([
-        getPortalUser(user.uid),
-        getMembershipsForUser(user.uid)
+      // A Super Admin is one by the token's role, as the routes and the rules
+      // decide; anyone else goes to the company workspace when they belong to one.
+      const [token, membershipsSnap] = await Promise.all([
+        user.getIdTokenResult(),
+        getMembershipsForUser(user.uid),
       ]);
 
-      // P2-3 FIX: Check Super Admin via claims (primary) with Firestore fallback
-      const token = await user.getIdTokenResult();
-      const isSuperAdmin = token.claims.super_admin === true || userDoc?.role === 'super_admin';
-
-      if (isSuperAdmin) {
+      if (extractRoleContext(token.claims).isSuperAdmin) {
         navigate('/super-admin', { replace: true });
         return;
       }
