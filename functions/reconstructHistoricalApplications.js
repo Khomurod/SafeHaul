@@ -34,6 +34,7 @@ const { writeSubmissionSnapshot } = require('./shared/writeSubmissionSnapshot');
 const { preserveApplicationPdf } = require('./shared/preserveApplicationPdf');
 const { RECORD_STATUS, stampSubmissionRecordStatus } = require('./shared/submissionRecordStatus');
 const { decodeStoredSnapshot } = require('./shared/submissionSnapshotStorage');
+const { assertSuperAdminAuth } = require('./shared/superAdmin');
 
 /** Applications examined per company page. */
 const PAGE_SIZE = 50;
@@ -318,13 +319,7 @@ exports.reconstructHistoricalApplications = onCall({
     timeoutSeconds: 540,
     memory: '1GiB',
 }, async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-
-    const roles = request.auth.token.roles || {};
-    const globalRole = request.auth.token.globalRole || roles.globalRole;
-    if (globalRole !== 'super_admin') {
-        throw new HttpsError('permission-denied', 'Only Super Admins can run the historical reconstruction.');
-    }
+    assertSuperAdminAuth(request.auth, 'Only Super Admins can run the historical reconstruction.');
 
     const {
         companyId,

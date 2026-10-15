@@ -19,6 +19,7 @@
  */
 
 const { requireProvider } = require('../registry/providers');
+const secretStore = require('../../shared/secretStore');
 
 /** Every SafeHaul-owned AI secret starts with this. Nothing else is readable. */
 const SECRET_PREFIX = 'SAFEHAUL_AI_';
@@ -33,34 +34,6 @@ const SECRET_ID_PATTERN = /^SAFEHAUL_AI_[A-Z0-9_]{1,80}$/;
  */
 const CACHE_TTL_MS = 60 * 1000;
 const cache = new Map();
-
-let clientPromise = null;
-
-/** Lazy so unit tests can inject a client without the library loading at all. */
-function getClient(injected) {
-    if (injected) return Promise.resolve(injected);
-    if (!clientPromise) {
-        clientPromise = Promise.resolve().then(() => {
-            // Required lazily: the module is only needed when a real credential
-            // read happens, and every test injects a fake instead.
-            const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
-            return new SecretManagerServiceClient();
-        });
-    }
-    return clientPromise;
-}
-
-function projectId() {
-    // Only variables already carried in the environment registry are read
-    // here; `environmentRegistry.inventory.test.js` fails on any new one.
-    // GCLOUD_PROJECT and GCP_PROJECT are both injected by the Functions
-    // runtime; FIREBASE_PROJECT_ID is the CI/local fallback.
-    const id = process.env.GCLOUD_PROJECT
-        || process.env.GCP_PROJECT
-        || process.env.FIREBASE_PROJECT_ID;
-    if (!id) throw new Error('Google Cloud project id is not available in this runtime.');
-    return id;
-}
 
 /** `github-models` + `token` → `SAFEHAUL_AI_GITHUB_MODELS_TOKEN`. */
 function buildSecretId(providerId, fieldName) {
@@ -86,30 +59,21 @@ function assertSafehaulAiSecret(secretId) {
     return secretId;
 }
 
-function secretPath(secretId) {
-    return `projects/${projectId()}/secrets/${assertSafehaulAiSecret(secretId)}`;
-}
-
-function cacheKey(secretId) {
-    return secretId;
-}
+/** The checked secret id for a provider's credential field. */
+const secretIdFor = (providerId, fieldName) => assertSafehaulAiSecret(buildSecretId(providerId, fieldName));
 
 function readCache(secretId) {
-    const entry = cache.get(cacheKey(secretId));
+    const entry = cache.get(secretId);
     if (!entry) return undefined;
     if (Date.now() > entry.expiresAt) {
-        cache.delete(cacheKey(secretId));
+        cache.delete(secretId);
         return undefined;
     }
     return entry.value;
 }
 
-function writeCache(secretId, value) {
-    cache.set(cacheKey(secretId), { value, expiresAt: Date.now() + CACHE_TTL_MS });
-}
-
 function clearCache(secretId) {
-    if (secretId) cache.delete(cacheKey(secretId));
+    if (secretId) cache.delete(secretId);
     else cache.clear();
 }
 
@@ -120,32 +84,14 @@ function clearCache(secretId) {
  *   latest version does not exist. A missing secret is an ordinary
  *   "not configured yet" state, not an error.
  */
-async function readSecret(providerId, fieldName, { client: injected } = {}) {
-    const secretId = buildSecretId(providerId, fieldName);
+async function readSecret(providerId, fieldName, { client } = {}) {
+    const secretId = secretIdFor(providerId, fieldName);
     const cached = readCache(secretId);
     if (cached !== undefined) return cached;
 
-    const client = await getClient(injected);
-    try {
-        const [version] = await client.accessSecretVersion({
-            name: `${secretPath(secretId)}/versions/latest`,
-        });
-        const payload = version?.payload?.data;
-        const value = payload ? Buffer.from(payload).toString('utf8') : null;
-        writeCache(secretId, value);
-        return value;
-    } catch (error) {
-        if (isNotFound(error)) {
-            writeCache(secretId, null);
-            return null;
-        }
-        throw error;
-    }
-}
-
-/** gRPC NOT_FOUND, plus the FAILED_PRECONDITION a fully-destroyed secret gives. */
-function isNotFound(error) {
-    return error?.code === 5 || error?.code === 9 || /NOT_FOUND/i.test(error?.message || '');
+    const value = await secretStore.readLatestSecret(secretId, { client });
+    cache.set(secretId, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+    return value;
 }
 
 /**
@@ -155,33 +101,15 @@ function isNotFound(error) {
  * migration reversible: the previous version stays available for rollback
  * until an operator explicitly destroys it.
  */
-async function writeSecret(providerId, fieldName, value, { client: injected } = {}) {
+async function writeSecret(providerId, fieldName, value, { client } = {}) {
     if (typeof value !== 'string' || !value.trim()) {
         throw new Error('A credential value is required.');
     }
-    const secretId = buildSecretId(providerId, fieldName);
-    const client = await getClient(injected);
-    const parent = `projects/${projectId()}`;
-
-    try {
-        await client.createSecret({
-            parent,
-            secretId,
-            secret: {
-                replication: { automatic: {} },
-                labels: { managed_by: 'safehaul', surface: 'ai_integrations' },
-            },
-        });
-    } catch (error) {
-        // ALREADY_EXISTS is the normal path for a replacement.
-        if (error?.code !== 6 && !/ALREADY_EXISTS/i.test(error?.message || '')) throw error;
-    }
-
-    await client.addSecretVersion({
-        parent: secretPath(secretId),
-        payload: { data: Buffer.from(value, 'utf8') },
+    const secretId = secretIdFor(providerId, fieldName);
+    await secretStore.addSecretVersion(secretId, value, {
+        client,
+        labels: { managed_by: 'safehaul', surface: 'ai_integrations' },
     });
-
     clearCache(secretId);
     return { secretId, valueLength: value.length };
 }
@@ -193,22 +121,9 @@ async function writeSecret(providerId, fieldName, value, { client: injected } = 
  * audit history in Cloud Audit Logs intact, which is the point of a value-free
  * audit trail.
  */
-async function destroySecretVersions(providerId, fieldName, { client: injected } = {}) {
-    const secretId = buildSecretId(providerId, fieldName);
-    const client = await getClient(injected);
-    let destroyed = 0;
-
-    try {
-        const [versions] = await client.listSecretVersions({ parent: secretPath(secretId) });
-        for (const version of versions || []) {
-            if (version.state === 'DESTROYED' || version.state === 4) continue;
-            await client.destroySecretVersion({ name: version.name });
-            destroyed += 1;
-        }
-    } catch (error) {
-        if (!isNotFound(error)) throw error;
-    }
-
+async function destroySecretVersions(providerId, fieldName, { client } = {}) {
+    const secretId = secretIdFor(providerId, fieldName);
+    const destroyed = await secretStore.destroyAllVersions(secretId, { client });
     clearCache(secretId);
     return { secretId, destroyed };
 }
@@ -222,5 +137,5 @@ module.exports = {
     writeSecret,
     destroySecretVersions,
     clearCache,
-    __test: { isNotFound, CACHE_TTL_MS },
+    __test: { isNotFound: secretStore.isNotFound, CACHE_TTL_MS },
 };

@@ -20,9 +20,8 @@
  */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { storage } = require("./firebaseAdmin");
-const { logger } = require("firebase-functions");
 const { assertCompanyAccessForRequest } = require("./shared/companyAccess");
+const { signReadUrl } = require("./shared/signReadUrl");
 
 exports.getSignedApplicationFileUrl = onCall({ cors: true }, async (request) => {
     // 1. Auth check
@@ -56,28 +55,7 @@ exports.getSignedApplicationFileUrl = onCall({ cors: true }, async (request) => 
     // 3. Security: verify caller belongs to the company (or is a super admin)
     await assertCompanyAccessForRequest(request, companyId, 'getSignedApplicationFileUrl');
 
-    // 4. Generate signed URL (1 hour expiry)
-    try {
-        const bucket = storage.bucket();
-        const file = bucket.file(storagePath);
-
-        const [exists] = await file.exists();
-        if (!exists) {
-            throw new HttpsError('not-found', 'The requested file does not exist. It may have been deleted or moved.');
-        }
-
-        const [signedUrl] = await file.getSignedUrl({
-            version: 'v4',
-            action: 'read',
-            expires: Date.now() + 60 * 60 * 1000, // 1 hour
-        });
-
-        logger.info(`[getSignedApplicationFileUrl] Generated signed URL for: ${storagePath}`);
-        return { success: true, url: signedUrl };
-
-    } catch (error) {
-        if (error instanceof HttpsError) throw error;
-        logger.error('[getSignedApplicationFileUrl] Error generating signed URL:', error);
-        throw new HttpsError('internal', 'Failed to generate download URL.');
-    }
+    // 4. A link valid for one hour
+    const url = await signReadUrl(storagePath, { label: 'getSignedApplicationFileUrl' });
+    return { success: true, url };
 });

@@ -9,6 +9,7 @@
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin, db } = require('./firebaseAdmin');
+const { assertSuperAdminAuth } = require('./shared/superAdmin');
 
 const INTERNAL_STATS = 'internal_stats';
 const DASHBOARD_DOC_ID = 'dashboard';
@@ -119,21 +120,13 @@ exports.onLeadWrittenDashboardRollup = onDocumentWritten(
   },
 );
 
-function hasSuperAdminRole(claims = {}) {
-  const globalRole = claims.globalRole || claims.roles?.globalRole;
-  return globalRole === 'super_admin';
-}
-
 /**
  * Super-admin: recompute exact counts from Firestore and set internal_stats/dashboard.
  */
 exports.reconcileCompanyDashboardStats = onCall(
   { cors: true, region: 'us-central1', timeoutSeconds: 300, memory: '512MiB' },
   async (request) => {
-    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
-    if (!hasSuperAdminRole(request.auth.token)) {
-      throw new HttpsError('permission-denied', 'Super admin only.');
-    }
+    assertSuperAdminAuth(request.auth, 'Super admin only.');
 
     const companyId = request.data?.companyId;
     if (!companyId || typeof companyId !== 'string') {

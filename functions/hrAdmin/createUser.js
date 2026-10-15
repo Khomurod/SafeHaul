@@ -8,6 +8,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, auth } = require("./../firebaseAdmin");
 const { resolveUserIdentity, profileRepairPayload, cleanString } = require("../shared/userIdentity");
 const { assertCompanyActive } = require("../shared/companyAccess");
+const { isSuperAdminClaims } = require("../shared/superAdmin");
 
 // --- 1. CREATE USER ---
 // Roles a company admin may grant within their own company. `super_admin` is
@@ -55,8 +56,7 @@ async function ensureUserProfile(userId, { preferredName, authUser } = {}) {
  * `super_admin` membership is asked about directly too.
  */
 async function isSuperAdminAccount(userRecord) {
-    const claims = userRecord.customClaims || {};
-    if ((claims.globalRole || (claims.roles && claims.roles.globalRole)) === "super_admin") return true;
+    if (isSuperAdminClaims(userRecord.customClaims)) return true;
     const snap = await db.collection("memberships")
         .where("userId", "==", userRecord.uid)
         .where("role", "==", "super_admin")
@@ -74,7 +74,7 @@ exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
     }
 
     const roles = request.auth.token.roles || {};
-    const isGlobalSuperAdmin = roles.globalRole === "super_admin";
+    const isGlobalSuperAdmin = isSuperAdminClaims(request.auth.token);
 
     // DEFAULT-DENY authorization. Previously only `super_admin` and
     // `company_admin`/`hr_user` were gated, so any OTHER role string (e.g.
@@ -94,9 +94,8 @@ exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
         throw new HttpsError("invalid-argument", `Unsupported role: ${role}`);
     }
 
-    // A deactivated company's admins are refused; a super admin never is, the
-    // role at the token root (an older token) included.
-    if (!isGlobalSuperAdmin && request.auth.token.globalRole !== "super_admin") await assertCompanyActive(companyId);
+    // A deactivated company's admins are refused; a super admin never is.
+    if (!isGlobalSuperAdmin) await assertCompanyActive(companyId);
 
     let userId;
     let isNewUser = false;

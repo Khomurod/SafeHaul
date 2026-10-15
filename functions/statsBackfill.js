@@ -9,14 +9,10 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("./firebaseAdmin");
 const { checkRateLimit } = require("./shared/rateLimiter");
+const { isSuperAdminClaims } = require("./shared/superAdmin");
 
 const CONTACT_OUTCOMES = new Set(['interested', 'callback', 'not_qualified', 'not_interested', 'hired_elsewhere']);
 const COLLECTION_GROUP_PAGE_SIZE = 1000;
-
-function hasSuperAdminRole(claims = {}) {
-    const globalRole = claims.globalRole || claims.roles?.globalRole;
-    return globalRole === 'super_admin';
-}
 
 /**
  * Build stats for a single day's activities.
@@ -208,7 +204,7 @@ exports.backfillCompanyStats = onCall(
         // Only super admins can run backfills
         const userRecord = await admin.auth().getUser(request.auth.uid);
         const claims = userRecord.customClaims || {};
-        if (!hasSuperAdminRole(claims)) {
+        if (!isSuperAdminClaims(claims)) {
             throw new HttpsError('permission-denied', 'Super admin access required.');
         }
 
@@ -237,7 +233,7 @@ exports.backfillAllStats = onCall(
         // Only super admins can run bulk backfills
         const userRecord = await admin.auth().getUser(request.auth.uid);
         const claims = userRecord.customClaims || {};
-        if (!hasSuperAdminRole(claims)) {
+        if (!isSuperAdminClaims(claims)) {
             throw new HttpsError('permission-denied', 'Super admin access required.');
         }
 

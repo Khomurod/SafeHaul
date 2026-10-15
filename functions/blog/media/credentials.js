@@ -9,31 +9,13 @@
  */
 
 const { PROVIDERS, PROVIDERS_BY_ID } = require('./imageProviders');
+const secretStore = require('../../shared/secretStore');
 
 const PREFIX = 'SAFEHAUL_AI_MEDIA_';
 const SECRET_ID_PATTERN = /^SAFEHAUL_AI_MEDIA_[A-Z0-9_]{1,60}$/;
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map();
-
-let clientPromise = null;
-
-function getClient(injected) {
-    if (injected) return Promise.resolve(injected);
-    if (!clientPromise) {
-        clientPromise = Promise.resolve().then(() => {
-            const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
-            return new SecretManagerServiceClient();
-        });
-    }
-    return clientPromise;
-}
-
-function projectId() {
-    const id = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || process.env.FIREBASE_PROJECT_ID;
-    if (!id) throw new Error('Google Cloud project id is not available in this runtime.');
-    return id;
-}
 
 /** `unsplash` + `accessKey` → `SAFEHAUL_AI_MEDIA_UNSPLASH_ACCESSKEY`. */
 function buildMediaSecretId(providerId, fieldName) {
@@ -50,74 +32,30 @@ function buildMediaSecretId(providerId, fieldName) {
     return id;
 }
 
-async function readMediaSecret(providerId, fieldName, { client: injected } = {}) {
+async function readMediaSecret(providerId, fieldName, { client } = {}) {
     const secretId = buildMediaSecretId(providerId, fieldName);
     const cached = cache.get(secretId);
     if (cached && Date.now() < cached.expiresAt) return cached.value;
 
-    const client = await getClient(injected);
-    try {
-        const [version] = await client.accessSecretVersion({
-            name: `projects/${projectId()}/secrets/${secretId}/versions/latest`,
-        });
-        const data = version?.payload?.data;
-        const value = data ? Buffer.from(data).toString('utf8') : null;
-        cache.set(secretId, { value, expiresAt: Date.now() + CACHE_TTL_MS });
-        return value;
-    } catch (error) {
-        if (error?.code === 5 || error?.code === 9 || /NOT_FOUND/i.test(error?.message || '')) {
-            cache.set(secretId, { value: null, expiresAt: Date.now() + CACHE_TTL_MS });
-            return null;
-        }
-        throw error;
-    }
+    const value = await secretStore.readLatestSecret(secretId, { client });
+    cache.set(secretId, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+    return value;
 }
 
-async function writeMediaSecret(providerId, fieldName, value, { client: injected } = {}) {
+async function writeMediaSecret(providerId, fieldName, value, { client } = {}) {
     if (typeof value !== 'string' || !value.trim()) throw new Error('A credential value is required.');
     const secretId = buildMediaSecretId(providerId, fieldName);
-    const client = await getClient(injected);
-
-    try {
-        await client.createSecret({
-            parent: `projects/${projectId()}`,
-            secretId,
-            secret: {
-                replication: { automatic: {} },
-                labels: { managed_by: 'safehaul', surface: 'ai_integrations_media' },
-            },
-        });
-    } catch (error) {
-        if (error?.code !== 6 && !/ALREADY_EXISTS/i.test(error?.message || '')) throw error;
-    }
-
-    await client.addSecretVersion({
-        parent: `projects/${projectId()}/secrets/${secretId}`,
-        payload: { data: Buffer.from(value, 'utf8') },
+    await secretStore.addSecretVersion(secretId, value, {
+        client,
+        labels: { managed_by: 'safehaul', surface: 'ai_integrations_media' },
     });
-
     cache.delete(secretId);
     return { secretId, valueLength: value.length };
 }
 
-async function destroyMediaSecret(providerId, fieldName, { client: injected } = {}) {
+async function destroyMediaSecret(providerId, fieldName, { client } = {}) {
     const secretId = buildMediaSecretId(providerId, fieldName);
-    const client = await getClient(injected);
-    let destroyed = 0;
-
-    try {
-        const [versions] = await client.listSecretVersions({
-            parent: `projects/${projectId()}/secrets/${secretId}`,
-        });
-        for (const version of versions || []) {
-            if (version.state === 'DESTROYED' || version.state === 4) continue;
-            await client.destroySecretVersion({ name: version.name });
-            destroyed += 1;
-        }
-    } catch (error) {
-        if (error?.code !== 5 && !/NOT_FOUND/i.test(error?.message || '')) throw error;
-    }
-
+    const destroyed = await secretStore.destroyAllVersions(secretId, { client });
     cache.delete(secretId);
     return { secretId, destroyed };
 }

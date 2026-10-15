@@ -6,6 +6,7 @@ const functions = require('firebase-functions/v1');
 const { db, storage } = require('./firebaseAdmin');
 const { FieldValue } = require('firebase-admin/firestore');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
+const { assertSuperAdminAuth } = require('./shared/superAdmin');
 const { collectStoragePaths, deleteApplicationFiles } = require('./shared/applicationStorage');
 const { ORIGINAL_PDF_PREFIX } = require('./shared/preserveApplicationPdf');
 
@@ -23,17 +24,6 @@ const COPY_BATCH = 400;
 const CARRIED_SUBCOLLECTIONS = Object.freeze(['submission', 'submission_attempts', 'dq_files']);
 const INACTIVE_STATUSES = ['inactive', 'suspended', 'disabled'];
 
-function assertSuperAdmin(context) {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
-  }
-  const token = context.auth.token || {};
-  const gr = token.globalRole || (token.roles && token.roles.globalRole);
-  if (gr !== 'super_admin') {
-    throw new functions.https.HttpsError('permission-denied', 'Super Admin only.');
-  }
-}
-
 function isTenantEligible(docId, data) {
   if (!data || docId === SANDBOX_ID) return false;
   if (data.isActive === false) return false;
@@ -45,7 +35,7 @@ function isTenantEligible(docId, data) {
 exports.listSandboxTenantCompanies = functions
   .runWith({ memory: '256MB' })
   .https.onCall(async (_data, context) => {
-    assertSuperAdmin(context);
+    assertSuperAdminAuth(context.auth, 'Super Admin only.');
     const snap = await db.collection('companies').limit(500).get();
     const companies = [];
     snap.forEach((doc) => {
@@ -64,7 +54,7 @@ exports.listSandboxTenantCompanies = functions
 exports.deleteSandboxApplication = functions
   .runWith({ memory: '256MB' })
   .https.onCall(async (data, context) => {
-    assertSuperAdmin(context);
+    assertSuperAdminAuth(context.auth, 'Super Admin only.');
     const applicationId = data?.applicationId;
     if (!applicationId || typeof applicationId !== 'string') {
       throw new functions.https.HttpsError('invalid-argument', 'applicationId required.');
@@ -154,7 +144,7 @@ async function copySubcollections(sourceRef, destRef, applicationId, targetCompa
 exports.transferSandboxApplication = functions
   .runWith({ memory: '512MB', timeoutSeconds: 60 })
   .https.onCall(async (data, context) => {
-    assertSuperAdmin(context);
+    assertSuperAdminAuth(context.auth, 'Super Admin only.');
     const applicationId = data?.applicationId;
     const targetCompanyId = data?.targetCompanyId;
     if (!applicationId || typeof applicationId !== 'string' || !targetCompanyId || typeof targetCompanyId !== 'string') {

@@ -6,9 +6,10 @@
  */
 
 const functions = require('firebase-functions/v1');
-const { db, storage } = require('./firebaseAdmin');
+const { db } = require('./firebaseAdmin');
 const { checkRateLimit } = require('./shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
+const { signReadUrl } = require('./shared/signReadUrl');
 
 const GUEST_READ_TTL_MS = 15 * 60 * 1000;
 const ALLOWED_FOLDERS = ['applications', 'autofill'];
@@ -60,24 +61,6 @@ exports.getSignedGuestUploadUrl = functions.https.onCall(async (data, context) =
 
     await assertCompanyAcceptingIntake(db, companyId);
 
-    try {
-        const bucket = storage.bucket();
-        const file = bucket.file(storagePath);
-        const [exists] = await file.exists();
-        if (!exists) {
-            throw new functions.https.HttpsError('not-found', 'The requested file does not exist in storage.');
-        }
-
-        const [signedUrl] = await file.getSignedUrl({
-            version: 'v4',
-            action: 'read',
-            expires: Date.now() + GUEST_READ_TTL_MS,
-        });
-
-        return { success: true, url: signedUrl };
-    } catch (error) {
-        if (error instanceof functions.https.HttpsError) throw error;
-        console.error('[getSignedGuestUploadUrl] Error generating signed URL:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to generate download URL.');
-    }
+    const url = await signReadUrl(storagePath, { label: 'getSignedGuestUploadUrl', ttlMs: GUEST_READ_TTL_MS });
+    return { success: true, url };
 });

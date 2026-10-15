@@ -6,6 +6,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../../../firebaseAdmin');
 const { assertCompanyActive } = require('../../../shared/companyAccess');
+const { isSuperAdminClaims } = require('../../../shared/superAdmin');
 const { encrypt, decrypt } = require('../../encryption');
 const RingCentralAdapter = require('../../adapters/ringcentral');
 const { normalizePhoneForKeychain } = require('../../../utils/phoneUtils');
@@ -31,15 +32,12 @@ exports.addPhoneLine = onCall(encryptedCallOptions, async (request) => {
     }
 
     // Permission Check: Allow Super Admin OR Company Admin (Self-Service)
-    const token = request.auth.token;
-    const roles = token.roles || {};
-    const globalRole = token.globalRole || roles.globalRole;
-
-    const isSuperAdmin = globalRole === 'super_admin';
+    const roles = request.auth.token.roles || {};
+    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
     const isCompanyAdmin = roles[companyId] === 'company_admin';
 
     if (!isSuperAdmin && !isCompanyAdmin) {
-        console.warn(`[PermissionDenied] User: ${request.auth.uid}, GlobalRole: ${globalRole}, Target: ${companyId}`);
+        console.warn(`[PermissionDenied] User: ${request.auth.uid}, Target: ${companyId}`);
         throw new HttpsError('permission-denied', 'You do not have permission to add phone lines to this company.');
     }
 
@@ -208,15 +206,12 @@ exports.removePhoneLine = onCall(encryptedCallOptions, async (request) => {
     }
 
     // Permission Check: Allow Super Admin OR Company Admin (Self-Service)
-    const token = request.auth.token;
-    const roles = token.roles || {};
-    const globalRole = token.globalRole || roles.globalRole;
-
-    const isSuperAdmin = globalRole === 'super_admin';
+    const roles = request.auth.token.roles || {};
+    const isSuperAdmin = isSuperAdminClaims(request.auth.token);
     const isCompanyAdmin = roles[companyId] === 'company_admin';
 
     if (!isSuperAdmin && !isCompanyAdmin) {
-        console.warn(`[PermissionDenied] User: ${request.auth.uid}, GlobalRole: ${globalRole}, Target: ${companyId}`);
+        console.warn(`[PermissionDenied] User: ${request.auth.uid}, Target: ${companyId}`);
         throw new HttpsError('permission-denied', 'You do not have permission to remove phone lines from this company.');
     }
 
