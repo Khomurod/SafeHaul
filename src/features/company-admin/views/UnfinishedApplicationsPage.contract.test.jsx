@@ -6,12 +6,12 @@
  * signed, consented to or submitted — so what this screen may show is a narrower
  * question than what it *could* show.
  *
- * ## And, since 2026-09-10, that a merged screen did not merge the rules
+ * ## And that a merged screen does not merge the rules
  *
- * `Started (unfinished)` and `Start an application` became one place. Both
- * origins now share one table, so the cases below pin the three things that could
- * go wrong in exactly that move: a draft appearing twice, a driver-started row
- * offering a read it must not offer, and a link landing on the wrong applicant.
+ * `Started (unfinished)` and `Start an application` are one place. Both origins
+ * share one table, so the cases below pin the three things that could go wrong
+ * there: a draft appearing twice, a driver-started row offering a read it must
+ * not offer, and a link landing on the wrong applicant.
  * The prep wizard reached from here has its own two suites
  * (`UnfinishedApplicationsPage.prep*`); `unfinishedRowActions.test.js` drives the
  * per-state rules directly.
@@ -387,11 +387,10 @@ describe('one workspace for both origins', () => {
 /**
  * Sending an unfinished applicant back to their own work.
  *
- * Until 2026-09-09 this screen had one control — Refresh — because
- * `mintApplicationInvite` refused any draft the carrier had not itself prepared.
- * So a recruiter watching somebody stop at the licence page could only ask them
- * to start again, which throws away every answer the draft feature exists to
- * keep. The cases below are the workflow and the restraint that goes with it.
+ * A recruiter watching somebody stop at the licence page sends them a link back
+ * to their own draft, rather than asking them to start again, which throws away
+ * every answer the draft feature exists to keep. The cases below are the
+ * workflow and the restraint that goes with it.
  */
 describe('the continuation link', () => {
     it('mints one for the row it was pressed on, and copies it', async () => {
@@ -455,14 +454,13 @@ describe('the continuation link', () => {
     });
 
     /**
-     * The one failure that used to produce nothing at all, found in review on
-     * 2026-09-09.
+     * A refused mint is said, never silent.
      *
-     * `useInviteLink` records a refused mint in its `error`, and this screen never
-     * read it — so an ended session or a spent rate limit stopped the button
-     * spinning and left the recruiter with no link and no explanation. Exactly the
-     * silence the clipboard case above already fixed, one step earlier: a lost link
-     * this time, not a lost convenience.
+     * `useInviteLink` records a refused mint in its `error`, and this screen must
+     * read it — otherwise an ended session or a spent rate limit stops the button
+     * spinning and leaves the recruiter with no link and no explanation: the
+     * silence the clipboard case above guards against, one step earlier, and a
+     * lost link rather than a lost convenience.
      */
     it('says so when the mint itself is refused, and says it on the right row', async () => {
         mintSpy.mockRejectedValue({ code: 'functions/resource-exhausted' });

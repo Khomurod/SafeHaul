@@ -8,20 +8,20 @@
  * executable form of that decision: if someone later "finishes the migration" by
  * tokenising the document, these tests fail and explain why.
  *
- * ## The reason, corrected 2026-09-04
+ * ## The reason
  *
- * This header used to say the two export paths carry no SafeHaul stylesheet, so
- * a `--ds-*` colour would resolve to nothing. **That is false on both paths, and
- * saying so was worse than saying nothing** — it invited someone to check it,
- * find it wrong, and conclude the whole exception was unfounded:
+ * Not that the two export paths carry no SafeHaul stylesheet, so a `--ds-*`
+ * colour would resolve to nothing. **That is false on both paths**, and a false
+ * reason invites someone to check it, find it wrong, and conclude the whole
+ * exception is unfounded:
  *
  *   1. `handleDownloadPDF` rasterises with html2canvas, which reads **computed**
  *      style. `var()` is already resolved before the rasteriser sees it.
- *   2. `handlePrint` does not write `innerHTML` into a CDN-Tailwind window. The
- *      pipeline was rebuilt on 2026-07-27: it clones the node as a DOM tree and
- *      inlines the application's own stylesheets through `collectPrintStyles`,
- *      which copies every readable sheet — `tokens/foundation.css` and
- *      `semantic.css` included. Those properties *are* there.
+ *   2. `handlePrint` does not write `innerHTML` into a CDN-Tailwind window: it
+ *      clones the node as a DOM tree and inlines the application's own
+ *      stylesheets through `collectPrintStyles`, which copies every readable
+ *      sheet — `tokens/foundation.css` and `semantic.css` included. Those
+ *      properties *are* there.
  *
  * The surviving ground is the stronger one. A `--ds-*` role is themeable **by
  * design**; this artefact must render the same next year as it does today,

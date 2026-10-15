@@ -255,10 +255,9 @@ describe('ReviewChangePortal', () => {
 /**
  * The employment history, as the driver is asked to approve it.
  *
- * Before 2026-09-09 employers could not be edited at all, so this change never
- * appeared here. It does now, and the generic array preview renders "N item(s)" —
- * which asked a driver to approve **"2 item(s) → 1 item(s)"** with no way to tell
- * which employer had gone.
+ * Employers are editable, so this change appears here, and the generic array
+ * preview renders "N item(s)" — which would ask a driver to approve
+ * **"2 item(s) → 1 item(s)"** with no way to tell which employer had gone.
  */
 describe('an employers change', () => {
     const ABC = { employerId: 'aaaaaaaaaaaa', companyName: 'ABC Trucking', startDate: '2020-01', endDate: '2022-06' };

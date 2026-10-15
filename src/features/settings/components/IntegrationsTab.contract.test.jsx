@@ -1,8 +1,6 @@
 /**
- * Contract freeze for `IntegrationsTab`, written before its design-system
- * migration. This file had zero test coverage before this campaign. It pins
- * the exact contracts recorded in the 2026-07-23 Integrations deep-audit
- * (NO-GO) so a presentation-only migration cannot silently change them:
+ * Contract freeze for `IntegrationsTab`. It pins the exact contracts below, so
+ * a presentation-only change cannot silently alter them:
  *
  *  - SDK-load: skip script injection if `window.FB` exists; otherwise assign
  *    `window.fbAsyncInit`, call `window.FB.init` with the exact config, and
@@ -15,12 +13,6 @@
  *    and its success/failure messages.
  *  - The connected-state limitation: local React state only, no persistence,
  *    no disconnect flow — this migration must not imply otherwise.
- *
- * This freeze does NOT change, endorse, or attempt to fix the tenant-binding
- * defect recorded in that audit (the backend derives the tenant from
- * `request.auth.uid` rather than the real company id) — that remains a
- * separate, security-reviewed backend project. No backend file is touched
- * here or by the presentation migration that follows.
  *
  * All tokens, ids and names below are artificial.
  */
@@ -175,10 +167,10 @@ describe('IntegrationsTab — preserved contracts', () => {
         fireEvent.click(screen.getByRole('button', { name: /Connect Facebook/i }));
         loginCallback({ authResponse: { accessToken: 'artificial-short-lived-token' } });
 
-        // `companyId` joined this payload on 2026-08-25. Before it, the callable
-        // derived the tenant from `request.auth.uid`, which is not a company id
-        // in this application, so every connected page wrote its leads to a tree
-        // no screen reads. It is part of the frozen contract now.
+        // `companyId` is part of the frozen contract: without it the callable
+        // would derive the tenant from `request.auth.uid`, which is not a company
+        // id in this application, so every connected page would write its leads
+        // to a tree no screen reads.
         await waitFor(() => expect(connectFacebookPage).toHaveBeenCalledWith({
             shortLivedUserToken: 'artificial-short-lived-token',
             pageId: 'artificial-page-1',

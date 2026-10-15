@@ -5,15 +5,14 @@
  *
  * `SUPER_ADMIN_NAV_ITEMS` carries icon names as strings and `SuperAdminSidebar`
  * resolves them through an explicit `ICONS` map. A name the map does not have
- * used to resolve to `undefined`, and `undefined` does not throw — it renders
- * nothing, the row collapses to zero width, and the label wraps **one character
- * per line**, adding a hundred-odd pixels of broken navigation.
+ * must never resolve to `undefined`, because `undefined` does not throw — it
+ * renders nothing, the row collapses to zero width, and the label wraps **one
+ * character per line**, adding a hundred-odd pixels of broken navigation.
  *
- * That happened on 2026-08-29: a new entry named `Inbox`, which was not
- * imported. Nothing failed. The unit suites passed, lint passed, the build
- * passed; only the visual-regression gate caught it, and only because a full-page
- * screenshot got taller. **A defect that is invisible to every check but a pixel
- * diff is one worth a cheap direct test**, which is this file.
+ * The unit suites, lint and the build all pass on such an entry; only a
+ * full-page screenshot getting taller shows it. **A defect that is invisible to
+ * every check but a pixel diff is one worth a cheap direct test**, which is
+ * this file.
  */
 import { describe, expect, it } from 'vitest';
 

@@ -112,9 +112,9 @@ describe('useSubmissionQueue frontend-backend alignment', () => {
   });
 
   it('sends the day the applicant pressed Submit with a replay', async () => {
-    // Left out, a replay was judged on the server's UTC day: after 8 p.m. Eastern
+    // Left out, a replay is judged on the server's UTC day: after 8 p.m. Eastern
     // that is tomorrow, and an Hours of Service statement the page accepted is the
-    // wrong week (found in review, 2026-10-01).
+    // wrong week.
     queueMocks.processQueue.mockImplementationOnce(async (submitFn) => {
       await submitFn(
         { email: 'guest@example.com', lifecycle: { isGuest: true }, firstName: 'Guest' },

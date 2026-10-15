@@ -61,15 +61,14 @@ describe('DossierSidebar navigation contract', () => {
 
 describe('DossierSidebar tab semantics', () => {
   /*
-   * The strip is the design system's `TabList` since 2026-08-25, so the ids come
+   * The strip is the design system's `TabList`, so the ids come
    * from one `idBase` shared with `DriverProfileModal` (which renders the panel)
    * rather than from two id-builder functions passed across the prop boundary.
    *
    * `aria-controls` is on the SELECTED tab only. The panel for an unselected tab
    * is not in the DOM — the modal renders one — and the ARIA tab pattern makes
    * the attribute optional in exactly that case. Pointing every tab at a panel
-   * id that does not exist, which is what this used to assert, is a dangling
-   * IDREF.
+   * id that does not exist is a dangling IDREF.
    */
   it('exposes a named tablist whose ids derive from the shared id base', () => {
     renderSidebar({ idBase: 'dossier-x', activeTab: 'application' });

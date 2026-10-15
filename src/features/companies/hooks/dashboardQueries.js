@@ -1,7 +1,7 @@
 // src/features/companies/hooks/dashboardQueries.js
 //
-// The dashboard's Firestore side, split out of `useCompanyDashboard.js` on
-// 2026-09-01 for the source-size standard. Everything here is React-free:
+// The dashboard's Firestore side, kept apart from `useCompanyDashboard.js` for
+// the source-size standard. Everything here is React-free:
 // constraint planning for the list queries, the parallel search execution,
 // and the stats counts (rollup-first, with the count-query fallback). The
 // hook keeps the state, the effects, the pagination bookkeeping and the E2E

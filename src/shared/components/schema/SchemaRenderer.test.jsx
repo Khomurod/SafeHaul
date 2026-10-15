@@ -106,9 +106,9 @@ describe('SchemaSection lockedKeys', () => {
 
 /*
  * Edit mode is used by exactly two screens — the carrier's prep editor and the
- * dossier's Edit Application — and until 2026-10-01 every type fell through to a
- * text box. These pin what each type is now, in the format the driver's wizard
- * reads, because a value the wizard cannot show is a value the driver never saw.
+ * dossier's Edit Application — and no type may fall through to a text box. These
+ * pin what each type is, in the format the driver's wizard reads, because a value
+ * the wizard cannot show is a value the driver never saw.
  */
 describe('SchemaField edit mode speaks the wizard\'s vocabulary', () => {
     const edit = (fieldKey, data, onChange = () => {}) => render(

@@ -1,9 +1,9 @@
 /**
  * The old "Start an application" URL must not become a dead end.
  *
- * That screen became the primary action inside the unified unfinished-applications
- * workspace on 2026-09-10, so the path has no component of its own. A recruiter
- * may still have it bookmarked, and internal links may still point at it.
+ * That screen is the primary action inside the unified unfinished-applications
+ * workspace, so the path has no component of its own. A recruiter may still have
+ * it bookmarked, and internal links may still point at it.
  */
 import React from 'react';
 import { describe, expect, it } from 'vitest';

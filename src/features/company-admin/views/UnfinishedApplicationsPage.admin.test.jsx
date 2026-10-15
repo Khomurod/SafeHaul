@@ -1,9 +1,9 @@
 /**
  * What a Company Admin may do in the unfinished-applications workspace.
  *
- * The owner decided on 2026-10-06 that a Company Admin opens every unfinished
- * application — read-only where the driver has written — and may delete any of
- * them. Recruiters keep what `UnfinishedApplicationsPage.contract.test.jsx`
+ * The owner's decision: a Company Admin opens every unfinished application —
+ * read-only where the driver has written — and may delete any of them.
+ * Recruiters keep what `UnfinishedApplicationsPage.contract.test.jsx`
  * pins; these drive the same screen with an admin's claims, and once with a
  * recruiter's to show the two do not bleed into each other.
  */

@@ -54,9 +54,8 @@ describe('design tokens', () => {
     ['content', 'surface'],
     ['content-secondary', 'surface'],
     ['content-muted', 'surface'],
-    // `content-muted` moved from slate-500 to slate-600 on 2026-08-21 so it is
-    // safe wherever it lands, replacing a rule that said "approved on `surface`
-    // only" — a rule three real axe violations proved was too easy to forget.
+    // `content-muted` is slate-600 so it is safe wherever it lands, rather than
+    // "approved on `surface` only" — a rule too easy to forget.
     ['content-muted', 'surface-subtle'],
     ['content-muted', 'canvas'],
     ['content-muted', 'status-info-bg'],
@@ -415,10 +414,9 @@ describe('design tokens', () => {
   });
 
   /**
-   * Every gap the 2026-08 audit found. Feature code reached for a raw palette
-   * class in each of these places because the role had no utility to reach for,
-   * so an unbridged role is a cause of the inconsistency, not a cosmetic
-   * omission.
+   * Each of these roles needs a utility: without one, feature code reaches for a
+   * raw palette class instead, so an unbridged role is a cause of the
+   * inconsistency, not a cosmetic omission.
    */
   it.each([
     ['ds-content-danger', '--ds-color-content-danger'],

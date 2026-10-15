@@ -3,8 +3,8 @@
  * does it on the page: what the dialog says will go, the same driver's other
  * applications ticked and untickable, and what the list says afterwards.
  *
- * The owner decided on 2026-10-07 that deleting one deletes the same driver's
- * other unfinished application too, shown first. The server's side of it is
+ * The owner's decision: deleting one deletes the same driver's other unfinished
+ * application too, shown first. The server's side of it is
  * `functions/test/unit/applicationDrafts.purge.test.js`.
  */
 import React from 'react';

@@ -560,11 +560,10 @@ describe('AudienceBuilder — migrated presentation', () => {
     });
 
     /*
-     * The picker is the design system's `FileInput variant="dropzone"` since
-     * 2026-08-25. The accept list is byte-for-byte the same; what changed is that
-     * the visible affordance is the `<label>` wrapping the input rather than a
-     * sibling `Button` calling `.click()` on it, and `FileInput`'s `onDrop`
-     * makes the whole panel a real drop target.
+     * The picker is the design system's `FileInput variant="dropzone"`, with the
+     * exact accept list. The visible affordance is the `<label>` wrapping the
+     * input rather than a sibling `Button` calling `.click()` on it, and
+     * `FileInput`'s `onDrop` makes the whole panel a real drop target.
      */
     it('uses one labelled file input with the exact accept list', () => {
         renderBuilder({ filters: { leadType: 'import', excludedLeadIds: [] } });
@@ -641,9 +640,9 @@ describe('AudienceBuilder — migrated presentation', () => {
     });
 
     /**
-     * This was the one `useBulkImport` consumer that passed no `onError`, so the
-     * hook fell back to a blocking `alert()` and every CSV/Sheet import failure
-     * froze the tab with a native prompt. Fixed 2026-07-28.
+     * `useBulkImport` reports import failures through `onError`, so this
+     * consumer passes one: every CSV/Sheet import failure reaches the user as a
+     * non-blocking toast, never a native prompt that freezes the tab.
      */
     it('gives useBulkImport a non-blocking error sink', () => {
         renderBuilder();

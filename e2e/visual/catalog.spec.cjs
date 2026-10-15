@@ -10,24 +10,16 @@
  * edge, or an icon that now points the other way. That is what a screenshot is
  * for.
  *
- * ## Why this lane is blocking, as of 2026-08-25
+ * ## Why this lane is blocking
  *
- * It was `continue-on-error` before, on the stated grounds that the catalog did
- * not load Inter so text rasterised with whatever the runner's `sans-serif`
- * resolved to. The CI record contradicted that diagnosis in both directions: all
- * 130 catalog baselines passed on GitHub's runners, and all 20 *application*
- * baselines failed — because the application fetched Inter from rsms.me and the
- * runner never got it. The lane had never been green, and nobody could see that,
- * because the step swallowed its own failure.
- *
- * The font is served from `design-system/fonts/` now, by the application and by
+ * The font is served from `design-system/fonts/`, by the application and by
  * this catalog, so there is no machine-dependent input left and the lane is
- * enforced. The first test below is still the tripwire and matters more than
- * ever: it asserts Inter actually loaded, so a font problem is one legible
- * failure instead of 150 pixel diffs.
+ * enforced: a step that swallows its own failure can hide a lane that is never
+ * green. The first test below is the tripwire: it asserts Inter actually
+ * loaded, so a font problem is one legible failure instead of 150 pixel diffs.
  *
  * `scripts/test-ci-plan.mjs` (K1) asserts the workflow step carries no
- * `continue-on-error`, so this cannot quietly become advisory again.
+ * `continue-on-error`, so this cannot quietly become advisory.
  *
  * Update baselines with:  npm run test:visual:update
  */
@@ -129,8 +121,8 @@ const SUBJECTS = [
     // Dialogs.
     ['components-modal--default', 'modal'],
     ['components-modal--with-form', 'modal-with-form'],
-    // The chrome contract, added 2026-09-05. Five shots rather than one because
-    // the axes are independent and a single composite would hide which moved.
+    // The chrome contract. Five shots rather than one because the axes are
+    // independent and a single composite would hide which moved.
     ['patterns-modal-chrome--sizes', 'modal-chrome-sizes'],
     ['patterns-modal-chrome--scroll-body', 'modal-chrome-scroll-body'],
     ['patterns-modal-chrome--danger-tone', 'modal-chrome-danger-tone'],
@@ -150,9 +142,8 @@ const SUBJECTS = [
     ['patterns-native-table--editable-matrix', 'pattern-native-table'],
     ['patterns-native-table--density-comparison', 'pattern-native-table-density'],
     /*
-     * Added 2026-08-25 to close an asymmetry: `DataTable`'s empty state has had a
-     * baseline since the lane was written, and the native-table contract — which
-     * eleven feature files now read — had none for either state worth seeing.
+     * The native-table contract, which the feature files read, has a baseline
+     * for each state worth seeing, as `DataTable`'s empty state has.
      *
      * One honest limit on the frozen column. At 1440px the table fits, so nothing
      * scrolls under the sticky cell and the desktop shot shows only its surfaces,
@@ -166,8 +157,8 @@ const SUBJECTS = [
      */
     ['patterns-native-table--empty-row', 'pattern-native-table-empty'],
     ['patterns-native-table--sticky-first-column', 'pattern-native-table-sticky'],
-    // Audit step K, 2026-09-06: the same matrix as a table at 1440px and as one
-    // card per row at 412px, so both halves of the phone rule have a picture.
+    // The same matrix as a table at 1440px and as one card per row at 412px, so
+    // both halves of the phone rule have a picture.
     ['patterns-native-table--cards-on-mobile', 'pattern-native-table-cards'],
     ['patterns-filter-panel--default', 'pattern-filter-panel'],
     ['patterns-filter-panel--no-matching-results', 'pattern-filter-no-results'],
@@ -187,21 +178,15 @@ test.describe('@visual design-system catalog', () => {
     /*
      * NOT `mode: 'serial'`, and that is the point.
      *
-     * It was serial until 2026-08-25, and serial mode has one consequence that
-     * matters more than anything it was buying: **when a test in a serial group
-     * fails, Playwright skips every remaining test in the group.** With 142 of
-     * this lane's 174 tests in this one group, a change touching several
-     * components reported exactly one failure and silently skipped the rest — so
-     * a re-record looked like "one baseline moved", and a genuinely broken
-     * catalog produced a diff artifact holding a single image. Measured: a
-     * one-line CSS change moved several subjects, and the run reported
-     * `1 failed / 81 did not run` at every worker count, including `--workers=1`
-     * and `--max-failures=0`.
+     * **When a test in a serial group fails, Playwright skips every remaining
+     * test in the group**, at every worker count, including `--workers=1` and
+     * `--max-failures=0`. With most of this lane's tests in this one group, a
+     * change touching several components would report exactly one failure and
+     * silently skip the rest — a re-record would look like "one baseline moved",
+     * and a genuinely broken catalog would produce a diff artifact holding a
+     * single image.
      *
-     * That is also why the twenty `app.spec.cjs` font failures were all visible
-     * in CI while this file's were not: that describe was never serial.
-     *
-     * Nothing here needed serial. `beforeAll` runs once per worker, so each
+     * Nothing here needs serial. `beforeAll` runs once per worker, so each
      * worker gets its own catalog server on its own random port (`listen(0)`),
      * and the subjects are independent screenshots with no shared state and no
      * ordering between them.

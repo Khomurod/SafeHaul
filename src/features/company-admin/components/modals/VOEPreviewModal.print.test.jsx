@@ -29,19 +29,17 @@ beforeEach(resetHarness);
 afterEach(cleanup);
 
 /**
- * The print pipeline was **rebuilt** on 2026-07-27. The previous version of this
- * block froze the broken behaviour: five `document.write` payloads, a
- * `sanitizeUserContent` step and a 1 s timer. That pipeline emitted an unsigned,
- * unstyled text dump, because `sanitizeUserContent` is the *user-content* policy
- * — no `div`, no `class`, no `img` — and the document is trusted structure. See
- * `@shared/utils/printDocument`.
+ * The print pipeline never passes the document through `sanitizeUserContent`:
+ * that is the *user-content* policy — no `div`, no `class`, no `img` — and the
+ * document is trusted structure, so it would print an unsigned, unstyled text
+ * dump. See `@shared/utils/printDocument`.
  *
- * What is frozen now: the pop-up feature string, the `Print VOE` title, the
- * 20 px body padding, and that the on-screen document node is never mutated.
- * What changed on purpose: the document is cloned as a DOM tree instead of
- * serialised and re-parsed; the application's own CSS is inlined instead of
- * fetched from the Tailwind CDN; and print waits on the new document's
- * resources instead of a flat timer.
+ * What is frozen: the pop-up feature string, the `Print VOE` title, the 20 px
+ * body padding, and that the on-screen document node is never mutated. What is
+ * deliberate: the document is cloned as a DOM tree, not serialised and
+ * re-parsed; the application's own CSS is inlined, not fetched from the
+ * Tailwind CDN; and print waits on the new document's resources, not on a flat
+ * timer.
  *
  * These run in happy-dom against a real detached `Document`, so `createElement`,
  * `importNode` and the resulting tree are real. The browser-level proof — that

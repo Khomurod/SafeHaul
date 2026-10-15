@@ -85,7 +85,7 @@ describe('the brand mark is one mark', () => {
 
   /*
    * A FIFTH literal copy of a brand value lives in the same file, three lines
-   * above the favicon, and nothing compared it until 2026-09-06:
+   * above the favicon:
    *
    *     <meta name="theme-color" content="#004C68">
    *
@@ -93,9 +93,9 @@ describe('the brand mark is one mark', () => {
    * SafeHaul colour a phone user sees, before a single pixel of the app. The
    * UI-contract scan reaches `index.html` but runs only the CLASS-LIST rules
    * there (`rulesFor('index.html') === HTML_RULE_NAMES`), so a raw hex in an
-   * attribute is outside what that guard claims to check, by design. It was
-   * therefore guarded by nothing at all, which is the exact condition this file
-   * opens by describing: a copy nothing compares is a copy that diverges.
+   * attribute is outside what that guard claims to check, by design. Nothing
+   * else guards it — the exact condition this file opens by describing: a copy
+   * nothing compares is a copy that diverges.
    */
   it('paints the browser chrome with the brand colour, not a copy of it', () => {
     const themeColour = html.match(/<meta name="theme-color" content="(#[0-9A-Fa-f]{6})"/)[1];
@@ -143,16 +143,15 @@ describe('the brand mark is one mark', () => {
 
   /*
    * ...and the colours have to survive the render, which is a different claim
-   * from "the source names a token" and turned out to be the one that mattered.
+   * from "the source names a token".
    *
-   * When the raw hexes were replaced with `style={{ fill: 'var(--ds-…)' }}` on
-   * 2026-09-05, three of `SafeHaulLoader`'s paths ended up with TWO `style`
-   * attributes — the new fill, and the animation delay that was already there.
-   * JSX keeps the last one, so the fill was dropped and three quarters of the
-   * loading mark rendered unfilled. Every existing check passed: the source
-   * contains the token, contains no hex, and draws the right paths.
+   * A path given `style={{ fill: 'var(--ds-…)' }}` beside its own animation-delay
+   * `style` (as on `SafeHaulLoader`'s paths) has TWO `style` attributes, and JSX
+   * keeps only the last one — so the fill can drop and the loading mark render
+   * unfilled while the source still contains the token, contains no hex, and
+   * draws the right paths.
    *
-   * Vite printed a warning about it, and a warning in a build log is not a
+   * Vite prints a warning about it, and a warning in a build log is not a
    * guard. This renders both marks and reads what actually reached the DOM.
    */
   it('renders every solid shape with a brand fill that survived to the DOM', () => {

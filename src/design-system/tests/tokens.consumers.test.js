@@ -8,16 +8,13 @@ import { describe, expect, it } from 'vitest';
  *
  * ## Why this exists
  *
- * A 2026-09-04 audit found **fourteen** tokens that nothing used: five palette
- * steps, two duplicates of the brand colours under an older name, two spacing
- * steps, three type roles and a duration. None of them was wrong; they had
- * simply outlived their consumer, and nothing noticed because a token costs
- * nothing to keep.
+ * A token can outlive its consumer without being wrong, and nothing notices,
+ * because a token costs nothing to keep.
  *
  * That is the problem. A vocabulary nobody prunes stops being a vocabulary and
  * becomes a list — the next person reads `--ds-color-teal-500` beside
- * `--ds-color-brand-mint`, cannot tell which is live, and picks one. Thirteen
- * were deleted on 2026-09-05; this is what stops the next thirteen.
+ * `--ds-color-brand-mint`, cannot tell which is live, and picks one. This is
+ * what stops unused tokens piling up.
  *
  * ## What counts as a consumer
  *

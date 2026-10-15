@@ -163,8 +163,8 @@ describe('PreservedApplicationView', () => {
 });
 
 /*
- * A custom file question's answer, since 2026-10-02. It used to be a filename
- * nothing referenced; it is the upload itself now, and the company can open it.
+ * A custom file question's answer is the upload itself, not a filename nothing
+ * references, and the company can open it.
  */
 describe('a custom file answer', () => {
     const STORAGE_PATH = 'companies/c1/applications/guest_uploads/u1_resume.pdf';

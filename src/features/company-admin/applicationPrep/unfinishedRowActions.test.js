@@ -1,11 +1,10 @@
 /**
  * The four cases one merged table has to keep apart.
  *
- * `Started (unfinished)` and `Start an application` became one workspace on
- * 2026-09-10, and the risk in that move is uniformity: a driver-started row
- * offered the same actions as a carrier-prepared one would hand a recruiter a
- * read they must not have. These drive the decision directly, so it is pinned
- * whatever any table later renders.
+ * `Started (unfinished)` and `Start an application` are one workspace, and the
+ * risk in that is uniformity: a driver-started row offered the same actions as a
+ * carrier-prepared one would hand a recruiter a read they must not have. These
+ * drive the decision directly, so it is pinned whatever any table later renders.
  */
 import { describe, expect, it } from 'vitest';
 import { describeApplicant, describeProgress, describeUnfinishedRow, startedBy } from './unfinishedRowActions';
@@ -114,8 +113,8 @@ describe('an application the carrier prepared', () => {
 });
 
 /**
- * The owner's decision of 2026-10-06: a Company Admin opens every row and may
- * delete any of them. Recruiters keep everything above.
+ * The owner's decision: a Company Admin opens every row and may delete any of
+ * them. Recruiters keep everything above.
  */
 describe('for a Company Admin', () => {
     const ADMIN = { isCompanyAdmin: true };

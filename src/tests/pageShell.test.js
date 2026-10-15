@@ -11,12 +11,11 @@ import { describe, expect, it } from 'vitest';
  * component paints the document. Whatever class sits there is the colour a user
  * sees wherever a screen does not paint over it.
  *
- * It carried Tailwind's raw `bg-gray-50` for the entire design-system campaign
- * and was fixed to `bg-ds-canvas` on 2026-09-06. **Neither guard that looks at
- * this file can see it go wrong again**, and both limits were measured rather
- * than assumed:
+ * It is `bg-ds-canvas`, not Tailwind's raw `bg-gray-50`. **Neither guard that
+ * looks at this file can see it go wrong**, and both limits were measured
+ * rather than assumed:
  *
- * - `check:ui-contract` reaches `index.html` (since 2026-09-05) but its
+ * - `check:ui-contract` reaches `index.html`, but its
  *   `raw-palette-class` rule refuses *raw palette* names. Deleting the class
  *   outright, or swapping it for a different `--ds-*` role such as
  *   `bg-ds-surface`, is on-contract and passes.
@@ -28,7 +27,7 @@ import { describe, expect, it } from 'vitest';
  *   `threshold: 0` the same comparison reports all 40,000, so the tolerance is
  *   what absorbs it, not the arithmetic.
  *
- * So the swap was invisible to every automated check the repository has, in
+ * So the swap is invisible to every automated check the repository has, in
  * both directions. That is precisely the shape of thing that needs a test
  * naming the intended value.
  */

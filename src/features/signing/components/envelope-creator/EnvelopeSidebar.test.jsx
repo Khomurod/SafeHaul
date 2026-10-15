@@ -62,12 +62,12 @@ describe('EnvelopeSidebar — rail sections', () => {
     });
 
     /*
-     * The rail sections are the design system's `Disclosure` since 2026-08-25,
-     * which UNMOUNTS a closed panel where this component used `hidden`. Both take
-     * it out of the accessibility tree; unmounting also takes it out of
-     * find-in-page and screen-reader browse mode, which is the primitive's stated
-     * reason. Safe here because the recipient fields are lifted state, so
-     * collapsing a section loses no typed value.
+     * The rail sections are the design system's `Disclosure`, which UNMOUNTS a
+     * closed panel rather than hiding it with `hidden`. Both take it out of the
+     * accessibility tree; unmounting also takes it out of find-in-page and
+     * screen-reader browse mode, which is the primitive's stated reason. Safe
+     * here because the recipient fields are lifted state, so collapsing a section
+     * loses no typed value.
      */
     it('collapses and reopens a section, removing its panel in between', () => {
         renderSidebar(withFile);
@@ -206,11 +206,11 @@ describe('EnvelopeSidebar — delivery method', () => {
 
 describe('EnvelopeSidebar — upload state', () => {
     /*
-     * The picker is the design system's `FileInput variant="dropzone"` since
-     * 2026-08-25 — a real focusable input behind a real `<label>`, instead of a
-     * hidden `tabIndex={-1}` input clicked by a `Button`. The frozen copy and the
-     * accept list are unchanged; what changed is that the panel itself is the
-     * control, and `FileInput`'s `onDrop` accepts a PDF dropped onto it.
+     * The picker is the design system's `FileInput variant="dropzone"` — a real
+     * focusable input behind a real `<label>`, not a hidden `tabIndex={-1}` input
+     * clicked by a `Button`. The copy and the accept list are frozen; the panel
+     * itself is the control, and `FileInput`'s `onDrop` accepts a PDF dropped
+     * onto it.
      */
     it('prompts for a PDF and exposes a reachable file input before upload', () => {
         const { container } = renderSidebar({ file: null });
@@ -383,11 +383,10 @@ describe('EnvelopeSidebar — placed fields', () => {
 
 describe('EnvelopeSidebar — presentation and accessibility', () => {
     /*
-     * The delivery toggle is the design system's `SegmentedControl` since
-     * 2026-08-25 — one of the four call sites the primitive was built for. It was
-     * a `role="group"` of `Button variant={selected ? 'primary' : 'secondary'}`,
-     * which meant the selected state was a *button variant*: the same tokens as a
-     * primary action, on a control that is not an action.
+     * The delivery toggle is the design system's `SegmentedControl`, not a
+     * `role="group"` of `Button variant={selected ? 'primary' : 'secondary'}`,
+     * which would make the selected state a *button variant*: the same tokens as
+     * a primary action, on a control that is not an action.
      *
      * `ariaLabelledBy` keeps the group named by the visible "Delivery" label
      * rather than by a duplicate `aria-label`.

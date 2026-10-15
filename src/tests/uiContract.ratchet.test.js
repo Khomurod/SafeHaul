@@ -26,10 +26,9 @@ describe('the guard fires on the defects it exists for', () => {
     it.each([
         ['raw-palette-class', '<div className="bg-blue-600 text-gray-500" />'],
         ['raw-hex-colour', '<div className="bg-[#ff0000]" />'],
-        // The two shapes the rule could not see until 2026-09-05. Every raw
-        // colour still in this tree is spelled one of these ways: the brand
-        // marks used SVG attributes, and the signature pads assign to a canvas
-        // context. Widening the rule to cover them found four unrecorded sites.
+        // Two shapes the rule must also see, because raw colours hide in them:
+        // SVG attributes, as on the brand marks, and canvas-context assignments,
+        // as in the signature pads.
         ['raw-hex-colour in an SVG attribute', '<path fill="#004C68" />'],
         ['raw-hex-colour on a gradient stop', '<stop stopColor="#0CE1A5" />'],
         ['raw-hex-colour assigned to a canvas context', "ctx.strokeStyle = '#333';"],
@@ -175,13 +174,9 @@ describe('the guard stays silent on correct code', () => {
 
     it('flags an overlayClassName, now that the prop no longer exists', () => {
         /*
-         * This asserted 0 until 2026-09-05, and the exemption was correct at the
-         * time: `overlayClassName` was the approved way to position a dialog, its
-         * values legitimately contain `fixed inset-0`, and counting them would
-         * have fired on 20 correct call sites. `Modal` removed the prop once
-         * every call site moved to the chrome contract, so the exemption's whole
-         * premise is gone — and the rule now means what the roadmap always
-         * claimed it did.
+         * `Modal` has no `overlayClassName` prop — every call site is on the
+         * chrome contract — so no exemption covers a `fixed inset-0` in one, and
+         * the rule means what the roadmap claims it does.
          */
         const source = '<Modal overlayClassName="fixed inset-0 z-50 flex bg-ds-overlay p-4">{body}</Modal>';
         expect(count(source, 'hand-built-overlay')).toBe(1);

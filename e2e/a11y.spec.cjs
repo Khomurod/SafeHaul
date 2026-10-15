@@ -40,15 +40,10 @@ async function seriousViolations(page) {
 }
 
 // Tagged @a11y for grouping only. These specs run inside the BLOCKING
-// `frontend-e2e` lane as of 2026-08-25.
-//
-// They used to be excluded from it with `--grep-invert "@a11y"` and run in a
-// separate `continue-on-error` job, because when they were written the browser
-// could not be downloaded in the sandbox and they had never been proven. They
-// have been green in CI ever since — 11/11 on every run of the campaign that
-// wrote the "flip to blocking once green" note. An accessibility gate nobody has
-// to pass is a report, not a gate. `scripts/test-ci-plan.mjs` (K2) asserts no
-// workflow step excludes them again.
+// `frontend-e2e` lane, not behind `--grep-invert "@a11y"` or in a
+// `continue-on-error` job: an accessibility gate nobody has to pass is a report,
+// not a gate. `scripts/test-ci-plan.mjs` (K2) asserts no workflow step excludes
+// them.
 test.describe('@a11y mobile-critical journeys (no serious/critical violations)', () => {
     // The public-application journey walks nine steps and runs a dozen axe scans,
     // so the default 30 s per-test budget is not enough.
@@ -72,9 +67,7 @@ test.describe('@a11y mobile-critical journeys (no serious/critical violations)',
      *
      * A public, mobile-first, single-task form asking for four things, one of
      * them a Social Security Number — so its labelling, its error announcement
-     * and its focus order are exactly what this lane is for. It did not exist
-     * before 2026-09-09; the outcome behind it fell through to the intake
-     * chooser.
+     * and its focus order are exactly what this lane is for.
      */
     test('confirm-your-identity, and its refusal', async ({ page }) => {
         await page.goto('/apply/e2e-company?invite=e2e-invite-token-taken-over&k=e2e-applicant-key');
@@ -199,14 +192,12 @@ test.describe('@a11y mobile-critical journeys (no serious/critical violations)',
 });
 
 /**
- * The surfaces that changed hands on 2026-08-25, and the keyboard behaviour axe
- * cannot see.
+ * The tab strips, toggle groups and file pickers built on design-system
+ * primitives, and the keyboard behaviour axe cannot see.
  *
  * axe is a static check on a rendered tree: it can tell you a tab has no
- * accessible name, and it cannot tell you the arrow keys do nothing. Eleven tab
- * strips, four toggle groups and nine file pickers moved onto design-system
- * primitives in that campaign; these assert the parts of that move a screenshot
- * and an axe scan both miss.
+ * accessible name, and it cannot tell you the arrow keys do nothing. These
+ * assert the parts of those surfaces a screenshot and an axe scan both miss.
  */
 test.describe('@a11y migrated design-system surfaces', () => {
     test.describe.configure({ timeout: 120_000 });
@@ -318,10 +309,10 @@ test.describe('@a11y migrated design-system surfaces', () => {
     });
 
     /**
-     * The carrier's prep editor. Its select and checkbox fields were text boxes
-     * until 2026-10-01, and the controls that replaced them are the design
-     * system's own. What this checks is that the editor gives them names and that
-     * a keyboard reaches them, not the browser's own handling of a select.
+     * The carrier's prep editor. Its select and checkbox fields are the design
+     * system's own controls, not text boxes. What this checks is that the editor
+     * gives them names and that a keyboard reaches them, not the browser's own
+     * handling of a select.
      */
     test("the carrier's prep editor names the pickers and checkboxes it offers", async ({ page }) => {
         await page.goto('/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock');
@@ -347,11 +338,11 @@ test.describe('@a11y migrated design-system surfaces', () => {
         expect(await seriousViolations(page)).toEqual([]);
 
         /*
-         * The 2026-08-25 walkthrough found seven call sites rendering the
-         * browser's black UA outline instead of the product's blue ring, because
          * `focus-visible:shadow-ds-focus` draws a box-shadow and does not replace
-         * `outline`. `utilities.css` fixes that globally; this proves it on a real
-         * screen, by tabbing and asserting SOMETHING visible marks focus.
+         * `outline`, so a call site can render the browser's black UA outline
+         * instead of the product's blue ring. `utilities.css` fixes that
+         * globally; this proves it on a real screen, by tabbing and asserting
+         * SOMETHING visible marks focus.
          */
         const unmarked = [];
         for (let i = 0; i < 20; i += 1) {
@@ -363,10 +354,9 @@ test.describe('@a11y migrated design-system surfaces', () => {
                  * A focusable DataTable row draws its ring on its CELLS — a
                  * `<tr>` cannot carry a box-shadow reliably, so DataTable.css
                  * puts the inset ring on `tr:focus-visible > *` and resets the
-                 * row's own outline. Read the ring where the row paints it. On a
+                 * row's own outline. Read the ring where the row paints it: on a
                  * 412px screen the collapsed navigation lets Tab reach the rows
-                 * within twenty presses, which is how the mobile lane found
-                 * this heuristic reading the wrong element (2026-09-07).
+                 * within twenty presses.
                  */
                 const ringHost = el.tagName === 'TR' && el.firstElementChild ? el.firstElementChild : el;
                 const s = getComputedStyle(ringHost);

@@ -20,7 +20,7 @@ import {
     sortByAddedDate,
 } from './dashboardSearch';
 // The Firestore side — constraint planning and the parallel search execution —
-// lives in `dashboardQueries.js` since the 2026-09-01 source-size split. This
+// lives in `dashboardQueries.js`, for the source-size standard. This
 // hook owns state, effects and pagination, and passes its current state in as
 // plain arguments. The dashboard's four counts are `useDashboardCounts`: a list
 // never shows them, so it does not read them.

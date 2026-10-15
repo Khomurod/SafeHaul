@@ -10,9 +10,8 @@
  * application has to account for three years, and the row a recruiter deleted may
  * be the reason it does.
  *
- * Employers became editable on 2026-09-09, which is what turned a cosmetic gap
- * into a real one: before that, `employers` could not appear in a pending change
- * at all.
+ * Employers are editable, so `employers` appears in pending changes and the gap
+ * is a real one, not a cosmetic one.
  *
  * ## How rows are matched
  *

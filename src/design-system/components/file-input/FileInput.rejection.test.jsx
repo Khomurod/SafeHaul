@@ -172,12 +172,10 @@ describe('FileInput rejected-drop feedback', () => {
 
   describe('when the consumer replaces the picker', () => {
     /*
-     * Found in review on 2026-08-26 and reproduced before it was fixed.
-     *
      * `EnvelopeSidebar` renders `{!file ? <FileInput/> : …}` and `UploadField`
      * renders the picker only in its idle state, so a MIXED drop hands them a
      * file, they re-render, and the component's own alert is unmounted in the
-     * commit that created it. The all-refused case was never affected: no file
+     * commit that created it. The all-refused case is not affected: no file
      * arrives, so nothing unmounts.
      */
     const Swapping = ({ onReject }) => {

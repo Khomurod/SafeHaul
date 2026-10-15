@@ -155,8 +155,8 @@ describe('UploadField upload lifecycle', () => {
   });
 
   // jsdom does not implement window.confirm, so it is stubbed by assignment
-  // rather than spied on. It is asserted *unused*: the removal prompt was a bare
-  // `confirm(...)` until 2026-07-28 and must not come back.
+  // rather than spied on. It is asserted *unused*: the removal prompt must never
+  // be a bare `confirm(...)`.
   const stubConfirm = (answer) => {
     const previous = window.confirm;
     const spy = vi.fn(() => answer);
@@ -217,8 +217,8 @@ describe('UploadField upload lifecycle', () => {
  *
  * `FileInput` renders its own rejection alert, but this field renders the picker
  * only while there is nothing to show — so the accepted file unmounts the alert
- * in the commit that created it, and the applicant never learns that a second
- * file was turned away. Found in review on 2026-08-26.
+ * in the commit that created it, and without this the applicant would never
+ * learn that a second file was turned away.
  */
 describe('UploadField unmounting mid-upload', () => {
   /*
@@ -446,16 +446,14 @@ describe('UploadField rejected-drop feedback', () => {
 
 describe('UploadField accessibility and required rules', () => {
   /*
-   * The picker is the design system's `FileInput variant="dropzone"` since
-   * 2026-08-25. It was a `Button` driving a `tabIndex={-1}` hidden input; it is
-   * now a real focusable input behind a real `<label>`, which is the primitive's
-   * one structural rule; `FileInput`'s `onDrop` is what makes the panel a real
-   * drop target.
+   * The picker is the design system's `FileInput variant="dropzone"`: a real
+   * focusable input behind a real `<label>`, which is the primitive's one
+   * structural rule, not a `Button` driving a `tabIndex={-1}` hidden input;
+   * `FileInput`'s `onDrop` is what makes the panel a real drop target.
    *
-   * So the trigger is not a `<button>` any more, the input IS in the tab order,
-   * and the visible copy is unchanged. The accessible name moved from "the frozen
-   * visible copy plus a hidden disambiguating suffix" to the field's own label,
-   * which is what every other control in the system announces as.
+   * So the trigger is not a `<button>`, the input IS in the tab order, and the
+   * visible copy is frozen. The accessible name is the field's own label, which
+   * is what every other control in the system announces as.
    */
   it('offers a keyboard-reachable upload control named by its field', () => {
     renderField();

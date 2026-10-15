@@ -240,8 +240,8 @@ describe('FeaturesView — accessibility', () => {
         const empty = screen.getByText('No companies found.');
         expect(empty).toBeInTheDocument();
         /*
-         * Filtering the matrix down to nothing replaced the whole table body and
-         * announced nothing (2026-08-25). The role goes in a wrapper inside the
+         * Filtering the matrix down to nothing replaces the whole table body, so
+         * the empty state announces itself. The role goes in a wrapper inside the
          * cell, never on the `<td>` — on the cell it replaces the cell role.
          */
         expect(empty).toHaveAttribute('role', 'status');

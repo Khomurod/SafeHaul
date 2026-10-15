@@ -2,8 +2,8 @@
  * Contract + a11y proof for `SystemHealthView`.
  *
  * The Deep Diagnostic, "Sync Backend Structure" and the one-off SMS history
- * backfill were removed (2026-10-11): the first wrote test users and records into
- * the live database, the second wrote schema defaults into every live record. What
+ * backfill are not offered: the first would write test users and records into
+ * the live database, the second schema defaults into every live record. What
  * stays is frozen here: the Public Profiles action and its labels, its announced
  * outcome, the output log, and the heading structure.
  */

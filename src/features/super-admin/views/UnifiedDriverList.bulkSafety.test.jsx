@@ -1,22 +1,16 @@
 /**
  * Operator-safety regression guard for the Unified Driver Database's bulk
- * actions — third and final shape (2026-09-06).
+ * actions.
  *
- * The history this file guards against, in order:
+ * The decision: controls that do nothing are not shown. There is no bulk bar,
+ * and no row-selection checkboxes that would exist only to feed it; a real bulk
+ * action returns together with its selection when a recruiter asks for one. A
+ * placeholder that fires a **success** toast and does nothing — worse, one that
+ * first asks `window.confirm("Are you sure you want to archive N records?")` —
+ * lets an operator confirm a destructive-sounding action on real driver records
+ * and be told it succeeded.
  *
- *  1. Message / Assign / Move Status / Archive were placeholders that fired a
- *     **success** toast and did nothing. Archive also asked
- *     `window.confirm("Are you sure you want to archive N records?")`, so an
- *     operator could confirm a destructive-sounding action on real driver records
- *     and be told it had succeeded.
- *  2. From 2026-07-28 the four controls stayed visible but disabled and labelled
- *     unavailable, so the owner decision stayed visible too.
- *  3. The decision (2026-09-06): controls that do nothing are not shown. The bar
- *     and the row-selection checkboxes that existed only to feed it are removed.
- *     A real bulk action returns together with its selection when a recruiter
- *     asks for one.
- *
- * This file fails if any earlier shape comes back: no selection checkboxes, no
+ * This file fails if any such shape comes back: no selection checkboxes, no
  * bulk group, no success toast from anything but a real action, no
  * `window.confirm`. The per-record delete path — which *is* real — must be
  * unaffected.

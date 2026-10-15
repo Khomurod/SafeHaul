@@ -2,11 +2,11 @@
  * A carrier link that would not open: what the driver is told, what they can do
  * about it, and where it sits relative to everything else.
  *
- * The precedence is the point. Before 2026-09-08 an unopenable, expired,
- * rate-limited or temporarily unavailable link resolved to `null`, was
- * indistinguishable from having followed no link at all, and dropped the driver
- * into the ordinary application — possibly pre-filled from a different
- * applicant's saved draft — with nothing said. Two positions in the chain are
+ * The precedence is the point. An unopenable, expired, rate-limited or
+ * temporarily unavailable link must not resolve to `null`, indistinguishable
+ * from having followed no link at all, and drop the driver into the ordinary
+ * application — possibly pre-filled from a different applicant's saved draft —
+ * with nothing said. Two positions in the chain are
  * therefore load-bearing, and both are asserted here: below a submitted
  * application (a dead link must not take away a confirmation number, which is
  * the one thing an applicant cannot get back) and above the intake chooser

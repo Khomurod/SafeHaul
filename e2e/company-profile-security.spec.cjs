@@ -6,12 +6,10 @@
 // need Firebase Storage/Auth); their exact contracts are covered by the vitest
 // suite. Only artificial, non-production values are ever entered.
 //
-// The avatar assertions were rewritten on 2026-08-25 for the approved
-// `FileInput`. The control used to be a `Button` driving a hidden input, so they
-// looked for a *button* and asserted the input was NOT inside a label. The
-// picker contract is the opposite by design: a real focusable input inside a
-// `<label>` styled as the visible control, with the accessible name on the field.
-// Same intent, the contract's shape. See `design-system/components/file-input`.
+// The avatar assertions follow the approved `FileInput` picker contract: a real
+// focusable input inside a `<label>` styled as the visible control, with the
+// accessible name on the field, not a `Button` driving a hidden input. See
+// `design-system/components/file-input`.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 

@@ -123,12 +123,10 @@ test.describe('E-Doc envelope creator shell slice', () => {
     /*
      * Scoped by a test hook, not by a styling class.
      *
-     * This read `.include('.z-30')` until 2026-09-05, when the raw stacking
-     * numbers were replaced by named layers and the selector silently matched
-     * nothing — axe then threw rather than passing vacuously, which is the only
-     * reason it was noticed. A test that targets a utility class is coupled to
-     * how the thing looks, and the whole point of the design-system work is
-     * that how a thing looks is free to change.
+     * A selector on a styling class (a stacking utility such as `.z-30`)
+     * silently matches nothing once the styling changes. A test that targets a
+     * utility class is coupled to how the thing looks, and the whole point of
+     * the design-system work is that how a thing looks is free to change.
      */
     const { violations } = await new AxeBuilder({ page })
         .include('[data-testid="envelope-editor-top-bar"]')

@@ -1,10 +1,9 @@
 /**
  * Closeout coverage for the public verification portal.
  *
- * `VerificationPortal.test.jsx` (2026-07-23) froze the token load, the
- * conditional reveals, the submit payload and the status screens, and it mocks
- * `SignaturePad` away. This file covers what that slice left open and what this
- * campaign changed:
+ * `VerificationPortal.test.jsx` freezes the token load, the conditional
+ * reveals, the submit payload and the status screens, and it mocks
+ * `SignaturePad` away. This file covers the rest:
  *
  *  - the validation summary's wording,
  *  - duplicate-submit prevention through *implicit* form submission,

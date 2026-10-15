@@ -211,8 +211,8 @@ describe('runSubmissionPreflight', () => {
         expect(setCurrentStep).toHaveBeenCalledWith(99);
     });
 
-    // Both used to be refused with a toast and no routing, which left the applicant
-    // on the signature page with no idea which page held the field (2026-10-01).
+    // A toast with no routing would leave the applicant on the signature page with
+    // no idea which page holds the field.
     it('refuses an invalid email or phone and goes to the page that holds them', () => {
         const bad = run({ formData: completeForm({ email: 'nope' }) });
         expect(bad.result.ok).toBe(false);

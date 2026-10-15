@@ -74,14 +74,12 @@ test.describe('an application a carrier prepared', () => {
         await page.goto('/apply/e2e-company?invite=not-a-real-token');
 
         /*
-         * This used to fall through in silence, and that behaviour was pinned here
-         * as correct on the grounds that a driver following a stale link should
-         * land on the ordinary application rather than a diagnostic. Two things
-         * were wrong with it. The driver could not tell a dead link from a working
-         * one — and worse, the fall-through never claims the invitation, so the
-         * carrier's locked employers go unenforced and it receives a second,
-         * unprepared application, losing the 49 CFR 391.21 employment history it
-         * had prepared. Changed 2026-09-08.
+         * A dead link must not fall through in silence to the ordinary
+         * application: the driver could not tell it from a working one, and the
+         * fall-through never claims the invitation, so the carrier's locked
+         * employers would go unenforced and it would receive a second, unprepared
+         * application, losing the 49 CFR 391.21 employment history it had
+         * prepared.
          */
         await expect(
             page.getByRole('heading', { level: 1, name: 'This link could not be opened' }),
@@ -102,19 +100,18 @@ test.describe('an application a carrier prepared', () => {
 /**
  * The replacement link, in a real browser.
  *
- * ## The reported failure, and why only a browser could show it
+ * ## The failure this guards against, and why only a browser can show it
  *
- * A carrier-prepared application for a driver who had reached the consent step.
- * The recruiter pressed "Create a replacement link"; the driver opened it and the
- * page rendered the fresh-application chooser — "How would you like to start your
- * driver application?" — with their own half-finished application sitting behind
- * the link. Measured in production on 2026-09-09.
+ * A carrier-prepared application for a driver who has reached the consent step.
+ * The recruiter presses "Create a replacement link"; the driver opens it, and the
+ * page must not render the fresh-application chooser — "How would you like to
+ * start your driver application?" — with their own half-finished application
+ * sitting behind the link.
  *
- * `exchangeApplicationInvite` answered correctly the whole time: `requiresIdentity`,
- * with no answers and no token. The defect was that the outcome matched no branch
- * in `resolveApplyStatusScreen`, and the chooser sits at the bottom of it. Nothing
- * short of rendering the page could see that, which is why it is here rather than
- * only in the contract suite.
+ * `exchangeApplicationInvite` answers `requiresIdentity`, with no answers and no
+ * token, and that outcome must match a branch in `resolveApplyStatusScreen`: the
+ * chooser sits at the bottom of it. Nothing short of rendering the page can see
+ * that, which is why it is here rather than only in the contract suite.
  *
  * Served by the `e2e-invite-token-taken-over` fixture in
  * `applicationDraftService.js`: a second token rather than a mode on the first,
@@ -241,8 +238,8 @@ test.describe('a replacement link for a driver who already started', () => {
  * saving and link-minting are covered by their unit suites, which mock the
  * callables an E2E run cannot reach.
  *
- * Reached from the unified unfinished-applications workspace since 2026-09-10,
- * where starting an application is the primary action. `e2eUnfinished=mock` puts
+ * Reached from the unified unfinished-applications workspace, where starting an
+ * application is the primary action. `e2eUnfinished=mock` puts
  * the worklist behind it in a known state, so what these cases prove is the
  * wizard and not how a credential-less list call happens to fail.
  */
@@ -269,10 +266,10 @@ test.describe('a carrier starting an application', () => {
     });
 
     test('offers each field in the vocabulary the driver\'s wizard reads', async ({ page }) => {
-        // Measured 2026-10-01: every one of these was a free-text box, so a carrier's
-        // "TX" reached the driver's state picker — which lists names — as "Alabama",
-        // the medical card read "[object Object]", and a Social Security Number box
-        // took input the server then silently discarded.
+        // None of these may be a free-text box: a carrier's "TX" would reach the
+        // driver's state picker — which lists names — as "Alabama", the medical card
+        // would read "[object Object]", and a Social Security Number box would take
+        // input the server then silently discards.
         await page.goto(START_URL);
         await page.getByRole('button', { name: /Start an application/i }).click();
         await page.getByTestId('mode-manual').click();
@@ -304,9 +301,9 @@ test.describe('a carrier starting an application', () => {
         await expect(page.getByText('Dana Whitfield')).toBeVisible();
         await expect(page.getByText('Marcus Iyer')).toBeVisible();
         await expect(page.getByRole('button', { name: /Open the application for Marcus Iyer/i })).toBeVisible();
-        // The owner's decision of 2026-10-06: an admin reads what the driver wrote
-        // too. A recruiter still cannot, which the unit suites pin; this harness
-        // signs in only as an admin.
+        // The owner's decision: an admin reads what the driver wrote too. A
+        // recruiter cannot, which the unit suites pin; this harness signs in only
+        // as an admin.
         await expect(page.getByRole('button', { name: /Open the application for Dana Whitfield/i })).toBeVisible();
         await expect(page.getByRole('button', { name: /^Delete everything for/ })).toHaveCount(6);
     });

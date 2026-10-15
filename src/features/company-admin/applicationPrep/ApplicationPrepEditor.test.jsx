@@ -1,12 +1,12 @@
 /**
  * What the carrier's editor offers, field by field, in the driver's vocabulary.
  *
- * Measured in a real browser on 2026-10-01 against the real callables: the editor
- * rendered "Upload Medical Card" as a text box reading "[object Object]", offered
- * a Social Security Number box whose contents the server silently discarded, and
- * took the state, licence state, endorsements and "known by other name" as free
- * text — so a carrier's "TX" reached the driver's state picker, which lists
- * names, and showed as "Alabama" while the application went on holding "TX".
+ * Never a text box where the driver's wizard reads something else: "Upload
+ * Medical Card" as text reads "[object Object]", a Social Security Number box's
+ * contents are silently discarded by the server, and a free-text state, licence
+ * state, endorsements or "known by other name" lets a carrier's "TX" reach the
+ * driver's state picker, which lists names, as "Alabama" while the application
+ * goes on holding "TX".
  */
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';

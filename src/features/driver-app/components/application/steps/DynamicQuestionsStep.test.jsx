@@ -227,9 +227,9 @@ describe('DynamicQuestionsStep answer contract', () => {
   });
 
   /*
-   * Until 2026-10-02 this recorded `file.name` the moment a file was chosen and
-   * threw away the storage path the upload returned, so the company saw a filename
-   * nothing referenced — and a failed upload still read as answered.
+   * The answer is the storage path the upload returns, not `file.name` at the
+   * moment a file is chosen, which would show the company a filename nothing
+   * references — and let a failed upload read as answered.
    */
   it('records the uploaded file as the answer once the upload has landed', async () => {
     let land;

@@ -5,10 +5,9 @@ import { reconcileServerDraftOnLoad } from './publicApplyDraftSync';
  * Where the late server-draft reconciliation leaves the applicant.
  *
  * It runs on load and again after a continuation link's identity check, and it is
- * a round trip — a cold-startable callable, on a phone. Until 2026-10-01 it applied
- * `Math.max(current, saved)` when it landed, so a driver who went back a page in
- * that window was put straight back where they had been: reproduced in a real
- * browser against the real callables by delaying `resumeApplicationDraft` 1.5s.
+ * a round trip — a cold-startable callable, on a phone. It must not apply
+ * `Math.max(current, saved)` when it lands: a driver who went back a page in that
+ * window would be put straight back where they had been.
  */
 
 function deferred() {

@@ -71,10 +71,10 @@ describe('company route manifest contract', () => {
   /**
    * One destination for unfinished work, and the old URL still resolves.
    *
-   * `Started (unfinished)` and `Start an application` were two sidebar items over
-   * one collection of drafts — `listApplicationDrafts` filters by nothing, so a
-   * carrier-prepared draft appeared under both. They became one workspace on
-   * 2026-09-10, and this is what stops the second item drifting back in.
+   * `Started (unfinished)` and `Start an application` cover one collection of
+   * drafts — `listApplicationDrafts` filters by nothing, so as two sidebar items
+   * a carrier-prepared draft would appear under both. They are one workspace,
+   * and this is what stops the second item drifting back in.
    */
   describe('the unfinished-applications workspace', () => {
     const routeById = (id) => COMPANY_ROUTE_MANIFEST.find((route) => route.id === id);

@@ -1,14 +1,13 @@
 /**
  * Previous employers, added, edited and removed through Edit Application.
  *
- * ## What could not be done before 2026-09-09
+ * ## Why employment history has its own editor
  *
  * `SchemaSection` renders an `array` section as read-only `FieldDisplay` rows
- * whatever `isEditing` says. So a company admin could edit every scalar field on
- * a submitted application and **none** of the employment history — the section a
- * recruiter most often has to correct, since 49 CFR 391.21(b)(10) wants three
- * years accounted for and a driver who left an employer out or mistyped a date is
- * the ordinary case.
+ * whatever `isEditing` says, and employment history is the section a recruiter
+ * most often has to correct, since 49 CFR 391.21(b)(10) wants three years
+ * accounted for and a driver who left an employer out or mistyped a date is the
+ * ordinary case.
  *
  * This suite drives the real editor through the real tab. `SchemaSection` is
  * stubbed exactly as the sibling suite stubs it, so what is under test is the

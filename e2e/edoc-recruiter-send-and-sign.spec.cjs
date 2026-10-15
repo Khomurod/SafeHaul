@@ -182,13 +182,12 @@ test.describe('Document-first mobile signing', () => {
 
     const before = await page.locator('[data-signing-page="1"]').boundingBox();
 
-    // Until 2026-09-06 this asked CDP for `Input.synthesizePinchGesture`, which
-    // headless CI Chromium refuses, so the test skipped on every run. The hook
-    // (`usePdfZoomGestures`) listens for touchstart/touchmove/touchend on the
-    // scroller and reads `e.touches`, so the gesture is driven with exactly
-    // those events: two fingers 80px apart, spread to 160px over six moves, then
-    // lifted — the same ×2 the CDP call asked for. `hasTouch: true` on this
-    // describe gives the page the Touch and TouchEvent constructors.
+    // Not CDP's `Input.synthesizePinchGesture`, which headless CI Chromium
+    // refuses. The hook (`usePdfZoomGestures`) listens for touchstart/touchmove/
+    // touchend on the scroller and reads `e.touches`, so the gesture is driven
+    // with exactly those events: two fingers 80px apart, spread to 160px over six
+    // moves, then lifted — a ×2 pinch. `hasTouch: true` on this describe gives
+    // the page the Touch and TouchEvent constructors.
     await pinchOut(page, 2);
 
     // The pinch commits on release: the page re-renders wider and overlays

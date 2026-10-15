@@ -3,12 +3,12 @@
  * side of the wizard: the link-error screen when the company cannot be loaded,
  * and the Required Documents flow after a submission.
  *
- * Added 2026-09-02 by the `PA-0` coverage audit, which found these two paths
- * characterised nowhere in the browser. The error strings were asserted only as
- * a prop handed to `ApplyLinkErrorScreen`, never as the container's routing;
- * and the production open-document path (`createPostApplicationSigningRequest`)
- * was pinned on the server and driven in the E2E journey's mock branch, while
- * the browser's payload, return path, session snapshot and navigation were not.
+ * These two paths are characterised here and nowhere else in the browser: the
+ * error strings as the container's routing, not only as a prop handed to
+ * `ApplyLinkErrorScreen`; and, for the production open-document path
+ * (`createPostApplicationSigningRequest`), the browser's payload, return path,
+ * session snapshot and navigation — the server pins the rest, and the E2E
+ * journey drives only its mock branch.
  * Same harness as the other suites; the registrations delegate to the support
  * module (see its header for the `CA-3` deadlock rule that shapes them).
  */
@@ -210,9 +210,8 @@ describe('the Required Documents that follow a submission', () => {
      * only the first of those has happened when the toast spy is called — the
      * re-render lands a tick later. Waiting on the spy and then reading the DOM
      * synchronously is two different moments, and on a loaded CI runner the gap
-     * opens: this failed there on 2026-09-05 while passing locally every time,
-     * alone and in a full run, which is exactly the signature the repository's
-     * own notes record for the `EditUserBodies` leak.
+     * opens even though it never does locally — `.claude/rules/testing.md`: wait
+     * for the rendered consequence, not for a mock.
      *
      * The disabled button and the progress line are rendered from one and the
      * same `docStates` entry, so waiting on either one waits for both.

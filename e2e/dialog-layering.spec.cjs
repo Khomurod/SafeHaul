@@ -1,19 +1,16 @@
 // The stacking scale, checked in a real browser against the real stylesheet.
 //
-// `WorkspaceFrame`'s mobile navigation drawer read `--ds-z-modal` (60) until
-// 2026-09-05, which is the dialog layer — so in the CSS the drawer outranked
-// every `<Modal>`, and nine hand-written `z-[60]`, `z-[70]` and `z-[9999]`
-// overlays across the tree existed because each new thing that had to sit on
-// top picked a number bigger than whatever it had lost to.
+// `WorkspaceFrame`'s mobile navigation drawer reads `--ds-z-drawer`, below the
+// dialog layer `--ds-z-modal` (60). A drawer on the dialog layer outranks every
+// `<Modal>` in the CSS, and then each new thing that has to sit on top picks a
+// number bigger than whatever it lost to — hand-written `z-[60]`, `z-[70]` and
+// `z-[9999]` overlays.
 //
 // **What this does NOT claim.** The drawer-over-dialog conflict is not
-// reachable through the company workspace UI today: while the drawer is open
-// its backdrop covers every page control, and nothing rendered inside the
-// drawer opens a dialog — both verified while writing this. So the ordering was
-// wrong rather than visibly broken, and what is fixed is a trap: any future
-// "open a dialog from the navigation" would have fallen into it, and the
-// escalation war above shows what that costs. Saying so is better than claiming
-// a user-visible bug that cannot be demonstrated.
+// reachable through the company workspace UI: while the drawer is open its
+// backdrop covers every page control, and nothing rendered inside the drawer
+// opens a dialog. The order guards against a trap rather than a visible bug:
+// any future "open a dialog from the navigation" would fall into it.
 //
 // It runs in the `chromium` project, with the viewport set here: the drawer's
 // rules apply below 768px, and the mobile projects run only `@mobile` tests.

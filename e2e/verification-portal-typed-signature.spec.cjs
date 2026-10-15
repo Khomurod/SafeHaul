@@ -12,15 +12,14 @@ const {
 } = require('./helpers/verificationPortalHelpers.cjs');
 
 /**
- * The Draw | Type signature choice on the public verification portal
- * (audit step J, 2026-09-06).
+ * The Draw | Type signature choice on the public verification portal.
  *
- * A canvas has no keyboard path, so until this change a respondent who could
- * not use a mouse or a finger had no way to produce the legally operative mark
- * on a 49 CFR §391.23 response — and axe could not see it, because axe cannot
- * detect a missing input modality. `SignatureInput` now offers "Type": the name
- * is stored as `TEXT_SIGNATURE:<name>` with the method recorded, never drawn
- * into a PNG, so the record says which kind of mark it was.
+ * A canvas has no keyboard path, so without "Type" a respondent who cannot use
+ * a mouse or a finger has no way to produce the legally operative mark on a
+ * 49 CFR §391.23 response — and axe cannot see that, because axe cannot detect
+ * a missing input modality. `SignatureInput` offers "Type": the name is stored
+ * as `TEXT_SIGNATURE:<name>` with the method recorded, never drawn into a PNG,
+ * so the record says which kind of mark it was.
  *
  * What only a real browser proves here:
  *  - the whole path works from the keyboard alone, toggle to submit;

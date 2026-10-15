@@ -1,5 +1,5 @@
-// Real-browser verification for the shared `ConfirmDialog` that replaced the last
-// blocking `window.confirm` / `confirm()` guards (2026-07-28).
+// Real-browser verification for the shared `ConfirmDialog`, which stands in for
+// every blocking `window.confirm` / `confirm()` guard.
 //
 // The driver application's "remove an uploaded document" confirmation is the one
 // of those flows that is reachable end-to-end without a backend, so it is the one

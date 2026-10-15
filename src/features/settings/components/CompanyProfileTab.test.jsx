@@ -368,7 +368,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
             expect(serviceMocks.saveCompanySettings).not.toHaveBeenCalled();
             expect(screen.getByRole('img', { name: 'Company logo' }))
                 .toHaveAttribute('src', company.companyLogoUrl);
-            // The picker is `FileInput` since 2026-08-25: a label, not a button.
+            // The picker is `FileInput`: a label, not a button.
             expect(input).toBeEnabled();
             expect(document.querySelector('.ds-file-input__button-label'))
                 .toHaveTextContent('Change logo');

@@ -37,7 +37,6 @@ const VIEWS = [
   // states are covered by `ReleaseManagementView.contract.test.jsx`.
   { nav: 'Releases', expect: (page) => page.getByRole('heading', { name: 'Releases', level: 2 }) },
   { nav: 'Stats Backfill', expect: (page) => page.getByRole('heading', { name: 'Performance Stats Backfill' }) },
-  // Added 2026-07-28 with the final three views of the Super Admin row.
   { nav: 'System Health', expect: (page) => page.getByRole('heading', { name: 'System Health', level: 2 }) },
   { nav: 'Create New', expect: (page) => page.getByRole('heading', { name: 'Create New Entity' }) },
 ];
@@ -120,9 +119,8 @@ test.describe('Super Admin views', () => {
     const tablist = page.getByRole('tablist', { name: 'Analytics views' });
     // Offline, Firestore points at a closed port (see the header), so the hook's
     // fetch fails, `loading` clears and the strip renders over empty data — the
-    // same settled state every other view here is asserted in. Wait for it.
-    // Until 2026-09-06 this sampled `isVisible()` once, during "Loading
-    // analytics...", and skipped on every CI run (audit step H).
+    // same settled state every other view here is asserted in. Wait for it: a
+    // single `isVisible()` sample lands during "Loading analytics..." and skips.
     await expect(tablist).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole('tab', { name: 'Activity Overview' }).focus();
@@ -130,7 +128,7 @@ test.describe('Super Admin views', () => {
     await expect(page.getByRole('tab', { name: 'Company Performance' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  // ---- The final three views of the Super Admin row (2026-07-28) ----
+  // ---- The final three views of the Super Admin row ----
 
   test('System Health offers only the safe maintenance action, named and described', async ({ page }) => {
     let nativeDialogs = 0;
@@ -143,7 +141,7 @@ test.describe('Super Admin views', () => {
     // The one action left. Its explanation is visible help text, not a tooltip.
     await expect(page.getByRole('button', { name: 'Sync Public Profiles' }))
       .toHaveAccessibleDescription(/public_profiles/);
-    // Removed on 2026-10-11: they wrote test accounts and schema defaults into
+    // Never offered: they would write test accounts and schema defaults into
     // the live database.
     for (const name of [/Deep Diagnostic/, /Resume Test/, /Sync Backend Structure/, /Backfill SMS/, /^Reset/]) {
       await expect(page.getByRole('button', { name })).toHaveCount(0);

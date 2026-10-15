@@ -3,8 +3,8 @@
  * that render or read a PDF — not in the entry. Two things must stay true:
  *
  *  1. Nothing in the entry graph's hand-written root (`src/main.jsx`, `src/App.jsx`)
- *     imports `react-pdf`, or the 399 kB pdfjs chunk ships to every route again
- *     (audit step I, 2026-09-06: it was preloaded on `/apply` and `/login`).
+ *     imports `react-pdf`, or the 399 kB pdfjs chunk ships to every route,
+ *     preloaded even on `/apply` and `/login`.
  *  2. Every non-test module that imports `react-pdf` also imports the wiring, or
  *     pdf.js falls back to a fake worker on the main thread — slow, and a
  *     console error nobody reads.

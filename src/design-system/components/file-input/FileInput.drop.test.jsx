@@ -7,10 +7,9 @@ import { FileInput } from './FileInput';
  * How a dropped file reaches the input at all.
  *
  * A `<label>` forwards a click to the control it names and never a drop, so the
- * panel ignored what was dropped on it until 2026-08-25. What replaced that is
- * an explicit handler that assigns the files and dispatches a real `change`, and
- * these are the mechanics of it: what gets through, what `accept` refuses, and
- * what a disabled panel still owes the page.
+ * panel needs an explicit handler that assigns the files and dispatches a real
+ * `change`. These are the mechanics of it: what gets through, what `accept`
+ * refuses, and what a disabled panel still owes the page.
  *
  * What the user is TOLD about a refusal lives in `FileInput.rejection.test.jsx`.
  */
@@ -79,12 +78,12 @@ describe('FileInput drag and drop', () => {
 
   /*
    * The native picker filters by `accept` in its own dialog, so a call site that
-   * passes `accept="image/*"` has never had to check what it received. Assigning
-   * `files` programmatically inherits none of that — so before 2026-08-25 a PDF
-   * dropped on the company-logo control was uploaded and persisted as the logo,
+   * passes `accept="image/*"` does not check what it received. Assigning `files`
+   * programmatically inherits none of that — so without this a PDF dropped on
+   * the company-logo control would be uploaded and persisted as the logo,
    * leaving a broken image. `BrandingSection` passes `image/*`,
    * `CompanyProfileTab` uploads whatever arrives, and Storage permits PDFs in
-   * `company_assets`; nothing else in that chain would have stopped it.
+   * `company_assets`; nothing else in that chain would stop it.
    */
   it('refuses a dropped file the accept list does not allow', () => {
     const onChange = vi.fn();

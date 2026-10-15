@@ -17,12 +17,11 @@ describe('Badge', () => {
 /**
  * A badge is as wide as its label.
  *
- * Found by the desktop and mobile visual review on 2026-08-21: a "Removed"
- * badge inside a `Stack` rendered as a full-width pill, because a column flex
- * container stretches its items across the cross axis — which for a column is
- * the width. jsdom has no layout engine, so this asserts the declaration rather
- * than the measured box; `check:table-layout` and the catalog screenshots cover
- * the rendered result.
+ * A "Removed" badge inside a `Stack` must not render as a full-width pill, which
+ * it does by default because a column flex container stretches its items across
+ * the cross axis — which for a column is the width. jsdom has no layout engine,
+ * so this asserts the declaration rather than the measured box;
+ * `check:table-layout` and the catalog screenshots cover the rendered result.
  */
 describe('Badge width', () => {
   const BADGE_CSS = readFileSync(path.join(__dirname, 'Badge.css'), 'utf8')

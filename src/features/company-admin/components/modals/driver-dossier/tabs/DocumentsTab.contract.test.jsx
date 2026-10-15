@@ -101,7 +101,7 @@ describe('DocumentsTab empty state', () => {
   });
 
   /*
-   * It is the approved `EmptyState` as of 2026-08-25, not a hand-composed
+   * It is the approved `EmptyState`, not a hand-composed
    * icon-and-copy block. The frozen copy is the state's heading, which is what
    * makes it reachable by heading navigation as well as announced.
    */

@@ -2,10 +2,8 @@
  * Permanent ratchet: no reachable production `window.confirm` / `confirm()` /
  * `window.alert` / `alert()`.
  *
- * Added 2026-07-28 when the last of them was replaced. Blocking browser dialogs
- * came back three separate times during the design-system migration, each time
- * because a *bare* `confirm(...)` slipped past a scan that only looked for
- * `window.confirm`. This test looks for both forms so that cannot happen again.
+ * A scan that only looks for `window.confirm` lets a *bare* `confirm(...)` slip
+ * past, so this test looks for both forms.
  *
  * A blocking dialog freezes the tab, cannot be styled, cannot be announced
  * consistently, is unreliable on mobile browsers, and on a DOT-compliance surface

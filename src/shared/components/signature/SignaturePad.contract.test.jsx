@@ -4,10 +4,7 @@
  * WHY THIS FILE EXISTS
  *
  * `SignaturePad` collects the legally operative mark on an FMCSA 49 CFR §391.23
- * employer verification. The 2026-07-23 portal migration deliberately left it
- * untouched, so it went into this campaign as the last unmigrated surface — with
- * raw palette classes, no accessible name, an unassociated error, and a bare
- * `<button>` clear action.
+ * employer verification.
  *
  * Everything asserted here is asserted **by value and before** the presentation
  * work, so the migration is provably behaviour-preserving. The two contracts the

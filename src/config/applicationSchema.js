@@ -125,9 +125,9 @@ export const DRUG_ALCOHOL_SECTION = {
     id: 'drugAlcohol',
     title: 'Drug & Alcohol History',
     stepNumber: 2,
-    // The 49 CFR 40.25(j) question, and the broader one it replaced on
-    // 2026-10-06, which the Production frontend asks until it is promoted. Each
-    // shows only on an application that answered it.
+    // The 49 CFR 40.25(j) question, and the broader one it replaced, which the
+    // Production frontend asks until it is promoted. Each shows only on an
+    // application that answered it.
     fields: [
         { key: 'pre-employment-test-positive', label: 'Positive pre-employment test or refusal in the past two years?', type: 'radio', options: YES_NO_OPTIONS, required: true, presentWhenAnswered: true },
         { key: 'pre-employment-test-explanation', label: 'Please explain', type: 'textarea', dependsOn: 'pre-employment-test-positive', showWhen: 'yes' },
@@ -268,8 +268,8 @@ export const ACCIDENTS_SECTION = {
         { key: 'details', label: 'Accident Details', type: 'textarea', required: true },
         { key: 'commercial', label: 'Commercial Vehicle?', type: 'radio', options: YES_NO_OPTIONS },
         { key: 'preventable', label: 'Preventable?', type: 'radio', options: YES_NO_OPTIONS },
-        // 49 CFR 391.21(b)(7): appended after the original keys (2026-09-02) so
-        // stored rows keep their order; absent on records written before then.
+        // 49 CFR 391.21(b)(7): appended after the original keys so stored rows
+        // keep their order; absent on older records.
         { key: 'fatalities', label: 'Fatalities', type: 'number' },
         { key: 'injuries', label: 'Injuries', type: 'number' },
         { key: 'hazmatSpill', label: 'Hazardous Material Spill?', type: 'radio', options: YES_NO_OPTIONS },
@@ -294,8 +294,8 @@ export const EMPLOYMENT_SECTION = {
         { key: 'reasonForLeaving', label: 'Reason for Leaving', type: 'text' },
         { key: 'supervisorName', label: 'Supervisor Name', type: 'text' },
         { key: 'mayContact', label: 'May we contact?', type: 'radio', options: YES_NO_OPTIONS },
-        // 49 CFR 391.21(b)(10)(iv), asked of a job of the past three years since
-        // 2026-10-06; absent on older rows and older jobs.
+        // 49 CFR 391.21(b)(10)(iv), asked of a job of the past three years;
+        // absent on older rows and older jobs.
         { key: 'subjectToFmcsrs', label: 'Subject to FMCSRs?', type: 'radio', options: YES_NO_OPTIONS },
         { key: 'subjectToDotTesting', label: 'Safety-Sensitive (DOT Drug & Alcohol Testing)?', type: 'radio', options: YES_NO_OPTIONS },
     ]

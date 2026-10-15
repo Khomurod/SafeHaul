@@ -1,14 +1,12 @@
 /**
  * Composing the reader's two passes.
  *
- * The bug this pins was a shallow spread. The second call answers only for the
- * documents the model reported as unreadable, so it returns a complete shape that
- * is mostly empty — and spread over the first pass, `carriers: []` and an empty
- * `license` erased everything a readable PSP report and a readable licence had
- * already produced. One unreadable medical card cost the recruiter every other
- * field, silently, with a success message on screen.
- *
- * Found in review on 2026-09-03.
+ * Never a shallow spread. The second call answers only for the documents the
+ * model reported as unreadable, so it returns a complete shape that is mostly
+ * empty — and spread over the first pass, `carriers: []` and an empty `license`
+ * would erase everything a readable PSP report and a readable licence had
+ * already produced: one unreadable medical card would cost the recruiter every
+ * other field, silently, with a success message on screen.
  */
 import { describe, expect, it } from 'vitest';
 

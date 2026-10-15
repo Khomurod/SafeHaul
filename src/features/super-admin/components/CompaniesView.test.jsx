@@ -127,17 +127,14 @@ describe('CompaniesView — frozen callback contracts', () => {
     });
 
     /*
-     * Two defects in one row, found 2026-08-25.
+     * A live-region role on the `<td>` REPLACES the cell role: a row whose only
+     * child is not a cell is a row assistive technology may drop from the table
+     * altogether. And the empty row needs a role too, or filtering the list down
+     * to nothing replaces the whole table and announces nothing.
      *
-     * The loading and error rows put their live-region role on the `<td>`, which
-     * REPLACES the cell role: a row whose only child is not a cell is a row
-     * assistive technology may drop from the table altogether. And the empty row
-     * carried no role at all, so filtering the list down to nothing replaced the
-     * whole table and announced nothing.
-     *
-     * `ModernDriverTable` and `DataTable` both already put the role in a wrapper
-     * inside the cell. This asserts the same shape here, in both directions —
-     * the role is on the wrapper, and it is not on the cell.
+     * `ModernDriverTable` and `DataTable` both put the role in a wrapper inside
+     * the cell. This asserts the same shape here, in both directions — the role
+     * is on the wrapper, and it is not on the cell.
      */
     it('announces each state from inside the cell, never on the cell itself', () => {
         const { rerender } = renderView({ listLoading: true });

@@ -34,7 +34,7 @@ beforeEach(() => {
 /**
  * The picker here renders only while `!file`, so a mixed drop hands
  * `handleFileChange` the PDF, the branch flips, and anything the picker rendered
- * about the file it refused goes with it. Found in review on 2026-08-26.
+ * about the file it refused goes with it — so the sidebar keeps that message.
  */
 describe('EnvelopeSidebar — a refused drop', () => {
 

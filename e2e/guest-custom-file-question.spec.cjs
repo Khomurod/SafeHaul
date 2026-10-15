@@ -1,11 +1,9 @@
 /**
  * A company's custom "file upload" question, in a real browser.
  *
- * Until 2026-10-02 the question recorded the chosen file's NAME the moment a file
- * was picked — before the upload had finished, and whether or not it ever did —
- * and threw away the storage path the upload returned. So the company saw a
- * filename that nothing referenced, and a failed upload still read as answered.
- * The answer is the uploaded file now, recorded only once it has landed.
+ * The answer is the uploaded file, recorded only once it has landed — not the
+ * chosen file's NAME at the moment it is picked, which would give the company a
+ * filename that nothing references and let a failed upload read as answered.
  *
  * The fixture company carries no custom questions unless `?e2eCustomQuestions=file`
  * gives it one (`buildE2EPublicProfile`), because a custom step renumbers every

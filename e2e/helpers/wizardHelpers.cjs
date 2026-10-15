@@ -3,12 +3,12 @@ const { expect } = require('@playwright/test');
 /**
  * Shared driver-application wizard helpers.
  *
- * DETERMINISM CONTRACT (2026-07-27) — read before editing.
+ * DETERMINISM CONTRACT — read before editing.
  *
  * Every step transition and every asynchronous side effect is waited for by
  * *state*, never by a sleep and never by leaning on Playwright's per-action
- * auto-wait to paper over a missing barrier. Two concrete flakes were traced to
- * violations of that rule:
+ * auto-wait to paper over a missing barrier. Breaking that rule fails in two
+ * known ways:
  *
  * 1. `setInputFiles` × 3 followed immediately by clicking Continue. The three
  *    guest uploads are independent async writes, and `isUploading` briefly drops
@@ -17,19 +17,18 @@ const { expect } = require('@playwright/test');
  *    yet reached `formData`. It sets "Please upload required documents: Medical
  *    Card." and refuses to advance. The arriving upload then *clears* that
  *    message, leaving a page that looks completely valid but is still on step 3.
- *    The run then times out on `label[for="consent-mvr-yes"]` — the reported
- *    symptom, three steps away from the cause. Fixed by
- *    `waitForUploads()`, which waits for each field's own committed
- *    `data-upload-state="uploaded"`.
+ *    The run then times out on `label[for="consent-mvr-yes"]`, three steps away
+ *    from the cause. `waitForUploads()` prevents it by waiting for each field's
+ *    own committed `data-upload-state="uploaded"`.
  *
  * 2. Chained `Continue` clicks with no assertion between them. React commits the
  *    step change asynchronously, so the *same* still-mounted button can be
- *    clicked twice and one step is silently skipped. Fixed by `continueToStep()`,
- *    which asserts the new `#step-title` after every advance.
+ *    clicked twice and one step is silently skipped. `continueToStep()` prevents
+ *    it by asserting the new `#step-title` after every advance.
  *
- * Neither fix hides an application defect: the missing-upload message is now a
- * focused `role="alert"`, and the wizard now moves focus to each new step's
- * heading instead of running two competing scroll animations.
+ * Neither helper hides an application defect: the missing-upload message is a
+ * focused `role="alert"`, and the wizard moves focus to each new step's heading
+ * instead of running two competing scroll animations.
  */
 
 const pdfFile = (name) => ({

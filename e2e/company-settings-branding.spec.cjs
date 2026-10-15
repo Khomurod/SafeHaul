@@ -4,15 +4,13 @@
 // pass. The real upload is not triggered here (it needs Firebase Storage); the
 // exact Storage/Firestore contracts are covered by the vitest suite.
 //
-// Rewritten 2026-08-25 for the approved `FileInput`. The control used to be a
-// `Button` driving a hidden input, so these tests looked for a *button* and
-// asserted the input was NOT inside a label. The design system's picker contract
-// is the opposite by design: a real `<input type="file">`, visually hidden but
-// focusable, inside a `<label>` styled as the visible control — which is what
-// makes the whole label a click and drag-and-drop target with no handler, and
-// puts the accessible name on the field rather than on the trigger. The tests
-// keep their intent (named, keyboard-reachable, visibly focused, no *button*
-// nesting, accepted types announced) and follow that shape.
+// The control is the approved `FileInput`, not a `Button` driving a hidden
+// input. The design system's picker contract is a real `<input type="file">`,
+// visually hidden but focusable, inside a `<label>` styled as the visible
+// control — which is what makes the whole label a click and drag-and-drop
+// target with no handler, and puts the accessible name on the field rather than
+// on the trigger. The tests check that shape: named, keyboard-reachable, visibly
+// focused, no *button* nesting, accepted types announced.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 

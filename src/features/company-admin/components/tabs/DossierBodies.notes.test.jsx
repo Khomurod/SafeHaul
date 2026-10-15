@@ -43,11 +43,10 @@ describe('NotesTab — read contract', () => {
     });
 
     /*
-     * The loading line and the empty block used to be two different shapes in
-     * the same slot — small centred text, then a dashed bordered panel — and the
-     * empty one announced nothing when the notes resolved. Both are the approved
-     * page-state pattern as of 2026-08-25, which is where "the three states of
-     * one slot look alike" is a rule rather than a habit.
+     * The loading line and the empty block share one slot, so both are the
+     * approved page-state pattern, which is where "the three states of one slot
+     * look alike" is a rule rather than a habit — and the empty one is announced
+     * when the notes resolve.
      */
     it('uses the approved page-state pattern for both loading and empty', async () => {
         renderNotes();

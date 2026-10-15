@@ -1,5 +1,5 @@
-// Half of the original `applicationDraftStorage.test.js`, split on 2026-09-01
-// for the source-size standard. This file keeps the storage-and-sync suites —
+// One of the two `applicationDraftStorage` suites, split for the source-size
+// standard. This file keeps the storage-and-sync suites —
 // reading, writing, navigation-only writes, the synced option, markDraftSynced
 // and the clear; the identity-and-lifecycle suites live in
 // `applicationDraftStorage.identity.test.js`. The outer describe title is

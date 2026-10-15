@@ -6,13 +6,13 @@
 // proves the reachable page renders, is accessible, never exposes a secret,
 // and does not overflow at any supported width.
 //
-// The real Facebook SDK is not reachable from this environment. Until
-// 2026-09-06 that left the "Connect Facebook" control in whichever state the
-// network produced, and the keyboard test skipped on every CI run. The SDK is
-// now stubbed at the network edge (`page.route` on connect.facebook.net), the
-// same way the product code loads it — `window.fbAsyncInit` fires, `FB.init`
-// runs, the button enables — so the enabled state is deterministic here and
-// the "SDK Loading..." state stays covered by IntegrationsTab.contract.test.jsx.
+// The real Facebook SDK is not reachable from this environment, so without a
+// stub the "Connect Facebook" control sits in whichever state the network
+// produces and the keyboard test cannot run. The SDK is stubbed at the network
+// edge (`page.route` on connect.facebook.net), the same way the product code
+// loads it — `window.fbAsyncInit` fires, `FB.init` runs, the button enables —
+// so the enabled state is deterministic here and the "SDK Loading..." state
+// stays covered by IntegrationsTab.contract.test.jsx.
 // The stub's `FB.login` answers "popup closed" and counts its calls, so a
 // keyboard activation can be asserted without a Facebook account.
 const { test, expect } = require('@playwright/test');

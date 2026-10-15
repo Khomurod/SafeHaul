@@ -101,8 +101,8 @@ async function undersizedText(page) {
       if (!el.textContent || !el.textContent.trim()) continue;
       if (el.children.length > 0) continue;
       // Both hidden utilities: they emit the same clip rule, and a hidden control
-      // clips to 1x1 rather than 0x0, so naming only one flagged a control nobody
-      // can see. Made consistent with `lead-intake.spec.cjs` on 2026-08-25.
+      // clips to 1x1 rather than 0x0, so naming only one flags a control nobody
+      // can see. Consistent with `lead-intake.spec.cjs`.
       if (el.classList.contains('ds-visually-hidden') || el.classList.contains('sr-only')) continue;
       const size = Number.parseFloat(getComputedStyle(el).fontSize);
       if (size && size < 12) out.push(`${el.tagName} ${size}px "${el.textContent.trim().slice(0, 30)}"`);

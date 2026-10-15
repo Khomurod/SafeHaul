@@ -1,11 +1,9 @@
 /**
  * `.claude/rules/testing.md`, "Writing reliable Vitest tests": `vi.clearAllMocks()`
  * resets call records and leaves queued `*Once` values in place, so a test that
- * queues one its component never consumes leaks it into the next test. That
- * cost a real CI failure on 2026-08-26, and the 2026-09-06 audit found the same
- * pairing in 23 more files. All were converted to `vi.resetAllMocks()` in one
- * change; this test keeps the family closed by refusing any test file under
- * `src/` that pairs the two again.
+ * queues one its component never consumes leaks it into the next test. This
+ * test keeps the family closed by refusing any test file under `src/` that
+ * pairs the two.
  *
  * Scope comes from `git ls-files`, not a directory walk, for the reason the
  * source-size checker gives: a file cannot escape by being moved. The needle is

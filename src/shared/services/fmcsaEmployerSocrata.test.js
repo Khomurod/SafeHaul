@@ -147,7 +147,7 @@ describe('fmcsaEmployerSocrata', () => {
     });
   });
 
-  // DC joined the shared state list on 2026-10-02, so a DC carrier's state fills in.
+  // DC is on the shared state list, so a DC carrier's state fills in.
   it('maps a District of Columbia carrier to the name the pickers list', async () => {
     const { US_STATE_NAMES } = await import('@shared/utils/usStates');
     const m = mapFmcsaRowToEmployerFields(

@@ -1,6 +1,5 @@
 /**
- * Contract freeze + a11y proof for `CreateView`, written with its design-system
- * migration (2026-07-28).
+ * Contract freeze + a11y proof for `CreateView`.
  *
  * `CreateView` writes companies and portal users, so its payloads are the most
  * consequential thing in the Super Admin area. Frozen here:
