@@ -34,6 +34,17 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await expect(company).not.toHaveAttribute('aria-current');
   });
 
+  test('keeps the open section in the address, through a reload', async ({ page }) => {
+    await openSettings(page);
+    const email = page.getByRole('button', { name: 'Email Settings' });
+
+    await email.click();
+    await expect(page).toHaveURL(/\/company\/settings\?e2eAuth=company_admin&section=email$/);
+
+    await page.reload();
+    await expect(email).toHaveAttribute('aria-current', 'page');
+  });
+
   test('keeps tablet navigation and content aligned without nested overflow', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Tablet geometry check.');
     await page.setViewportSize({ width: 1024, height: 768 });

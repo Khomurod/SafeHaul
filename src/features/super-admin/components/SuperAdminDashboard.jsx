@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { db, functions } from '@lib/firebase';
 import { httpsCallable } from "firebase/functions";
@@ -13,12 +14,20 @@ import {
   BackfillEmployersConfirmDialog,
   BackfillEmployersResultDialog,
 } from './BackfillEmployersDialogs';
-import { SUPER_ADMIN_VIEWS } from '../config/views';
+import { SUPER_ADMIN_VIEWS, superAdminPathFor, superAdminViewFromPath } from '../config/views';
 
 export function SuperAdminDashboard() {
   const { handleLogout } = useData();
   const { showSuccess, showError, showInfo } = useToast();
-  const [activeView, setActiveView] = useState(SUPER_ADMIN_VIEWS.DASHBOARD);
+  const navigate = useNavigate();
+  const { search } = useLocation();
+  // The screen is in the address (`config/views.js`): a reload, Back and a
+  // shared link keep it. Choosing one adds a history entry, and keeps the query
+  // string, which is how the browser tests sign in.
+  const { view: activeView, companyId: integrationCompanyId } = superAdminViewFromPath(useParams()['*']);
+  const setActiveView = useCallback((view, companyId = null) => {
+    navigate({ pathname: superAdminPathFor(view, companyId), search });
+  }, [navigate, search]);
 
   const {
     searchResults,
@@ -47,7 +56,9 @@ export function SuperAdminDashboard() {
   const [deletingUser, setDeletingUser] = useState(null);
   const [viewingCompanyApps, setViewingCompanyApps] = useState(null);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  const [selectedIntegrationCompany, setSelectedIntegrationCompany] = useState(null);
+  // The company whose SMS setup is open comes from the address; its name from the
+  // row that opened it or, after a reload, from the company map.
+  const [pickedIntegrationCompany, setPickedIntegrationCompany] = useState(null);
 
   const [backfillingEmployers, setBackfillingEmployers] = useState(false);
   const [confirmingBackfill, setConfirmingBackfill] = useState(false);
@@ -74,6 +85,14 @@ export function SuperAdminDashboard() {
   }, [backfillReport]);
 
   const isSearching = searchQuery.length > 0;
+  const selectedIntegrationCompany = integrationCompanyId
+    ? {
+      id: integrationCompanyId,
+      companyName: pickedIntegrationCompany?.id === integrationCompanyId
+        ? pickedIntegrationCompany.companyName
+        : allCompaniesMap?.get?.(integrationCompanyId),
+    }
+    : null;
 
   const onModalClose = () => {
     setEditingCompanyDoc(null);
@@ -167,13 +186,10 @@ export function SuperAdminDashboard() {
               allCompaniesMap={allCompaniesMap}
               selectedIntegrationCompany={selectedIntegrationCompany}
               onSelectIntegrationCompany={(company) => {
-                setSelectedIntegrationCompany(company);
-                setActiveView(SUPER_ADMIN_VIEWS.INTEGRATION_SETUP);
+                setPickedIntegrationCompany(company);
+                setActiveView(SUPER_ADMIN_VIEWS.INTEGRATION_SETUP, company.id);
               }}
-              onBackToIntegrations={() => {
-                setSelectedIntegrationCompany(null);
-                setActiveView(SUPER_ADMIN_VIEWS.INTEGRATIONS);
-              }}
+              onBackToIntegrations={() => setActiveView(SUPER_ADMIN_VIEWS.INTEGRATIONS)}
               stats={stats}
               statsError={statsError}
               listLoading={listLoading}

@@ -51,6 +51,22 @@ test.describe('Super Admin shell', () => {
     await expect(nav.getByRole('button', { name: 'Dashboard' })).not.toHaveAttribute('aria-current', 'page');
   });
 
+  test('keeps the open section in the address, through a reload and Back', async ({ page }) => {
+    await openShell(page);
+    const nav = page.getByRole('navigation', { name: 'Super Admin sections' });
+
+    await nav.getByRole('button', { name: 'Companies' }).click();
+    await expect(page).toHaveURL(/\/super-admin\/companies\?e2eAuth=super_admin$/);
+    await nav.getByRole('button', { name: 'Releases' }).click();
+    await expect(page).toHaveURL(/\/super-admin\/releases\?e2eAuth=super_admin$/);
+
+    await page.reload();
+    await expect(nav.getByRole('button', { name: 'Releases' })).toHaveAttribute('aria-current', 'page');
+
+    await page.goBack();
+    await expect(nav.getByRole('button', { name: 'Companies' })).toHaveAttribute('aria-current', 'page');
+  });
+
   test('reaches every Super Admin section from the rail', async ({ page }) => {
     await openShell(page);
     const nav = page.getByRole('navigation', { name: 'Super Admin sections' });
