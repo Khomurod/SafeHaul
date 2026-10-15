@@ -27,11 +27,10 @@ import { UploadProgress } from './UploadProgress';
  * the exact "Uploaded Successfully" / "Upload failed. Please try again." strings
  * (asserted by `e2e/public-application.spec.cjs`).
  *
- * 2026-10-09 — REAL PROGRESS, AND A WAY OUT. The bar was a made-up ramp that
- * stopped at 90% and waited there for as long as the upload took, with Continue
- * locked and nothing to press. It now shows what `onProgress` reports, **Cancel
- * upload** aborts through `signal` and returns the field to its picker, and a
- * failure shows the upload's own plain sentence (`GuestUploadError`).
+ * REAL PROGRESS, AND A WAY OUT. The bar shows what `onProgress` reports, never a
+ * made-up ramp; **Cancel upload** aborts through `signal` and returns the field to
+ * its picker; and a failure shows the upload's own plain sentence
+ * (`GuestUploadError`).
  *
  * Removing a file is always confirmed, through the approved accessible
  * `ConfirmDialog`, never the browser's blocking `confirm(...)`.
@@ -73,10 +72,9 @@ const UploadField = ({
      *
      * `FileInput` renders its own rejection alert, but this field removes the
      * picker the moment a file arrives — so on a mixed drop (one file accepted,
-     * another refused) that alert is unmounted in the commit that created it and
-     * the applicant never learns a file was turned away. Found in review on
-     * 2026-08-26. `onReject` fires after `onChange`, so the clear below runs
-     * first and this wins.
+     * another refused) that alert would be unmounted in the commit that created
+     * it and the applicant would never learn a file was turned away. `onReject`
+     * fires after `onChange`, so the clear below runs first and this wins.
      */
     const [dropRejection, setDropRejection] = useState(null);
     // Replaces the bare `confirm("Are you sure you want to remove this file?")`.
@@ -325,13 +323,9 @@ const UploadField = ({
             )}
 
             {/*
-              IDLE / EMPTY STATE — `FileInput variant="dropzone"`.
-              This was a `Button` styled as a dashed panel driving a hidden input
-              with `tabIndex={-1}`, under the roadmap's "no approved file-input
-              contract" exception, which closed on 2026-08-21. The primitive is a
-              real focusable input behind a real `<label>`, and `FileInput`'s
-              `onDrop` makes the whole panel a real drop target — which this field
-              never had.
+              IDLE / EMPTY STATE — `FileInput variant="dropzone"`: a real
+              focusable input behind a real `<label>`, and `FileInput`'s `onDrop`
+              makes the whole panel a real drop target.
 
               `labelHidden`, because the field's visible `ds-label` above carries
               the required mark and stays put across the error, uploading and

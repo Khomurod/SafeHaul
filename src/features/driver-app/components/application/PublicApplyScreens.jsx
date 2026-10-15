@@ -28,14 +28,11 @@ import { DOC_STATUS } from './postApplyDocsStorage';
  * announced, and "Go to home" / "Start a new application" are `Button`s, not
  * text links with no affordance beyond hover.
  *
- * **2026-08-25: all five screens are the approved page-state pattern.** They were
- * hand-composed `Card` + `StatusMedallion` + heading + body + actions, which is
- * what `PageState` is — it was built later and never applied back here. Measured
- * across these five and the four in the signing room, one kind of screen had two
- * title sizes, two medallion sizes, icons at 28/32/40/48px and three different
- * gaps under the medallion. The pattern owns the shape now; this feature keeps
- * the words, the tone, the icon, the actions and the domain logic (the
- * confirmation-number fallback, the checklist gate, the pending-required switch).
+ * **All five screens are the approved page-state pattern**, never a hand-composed
+ * `Card` + `StatusMedallion` + heading + body + actions. The pattern owns the
+ * shape; this feature keeps the words, the tone, the icon, the actions and the
+ * domain logic (the confirmation-number fallback, the checklist gate, the
+ * pending-required switch).
  *
  * Two capabilities were added to the pattern rather than kept here, because both
  * are general: `children`, for the confirmation panel and the outstanding-document
@@ -284,10 +281,9 @@ export function SubmissionQueuedScreen({ onGoHome }) {
 /**
  * Which full-page status screen, if any, precedes the wizard.
  *
- * Moved out of `PublicApplyHandler` on 2026-09-08. This module already owns every
- * screen below, and the ORDER is load-bearing rather than incidental, so it
- * belongs with them: each position is protecting something, and three of the four
- * reasons were learned from a real defect.
+ * It lives here, not in `PublicApplyHandler`: this module owns every screen below,
+ * and the ORDER is load-bearing rather than incidental, so it belongs with them —
+ * each position is protecting something.
  *
  *  1. **Loading and link error first**, because neither has a company to render
  *     against.

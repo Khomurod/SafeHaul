@@ -14,30 +14,23 @@ import { Modal } from '@design-system/patterns';
  * preview rows, the confirm/reset/close callbacks, stats and every string it
  * passes in. Nothing here talks to Firestore or knows what a lead is.
  *
- * Migrated to the design system on 2026-07-27. Defects fixed in that pass, each
- * of which changed presentation only:
+ * Presentation rules:
  *
- *  1. The overlay was a bare `fixed inset-0` div: no `role="dialog"`, no
- *     `aria-modal`, no focus move, no focus trap, no focus restore and no
- *     Escape. It is now the approved accessible `Modal`.
- *  2. `ImportLeadsPage` has always passed `isEmbedded`, but nothing consumed it,
- *     so a full-screen modal rendered on top of the page's own header. The prop
- *     is now honoured: embedded renders in place, and only the dashboard's
- *     overlay usage gets a dialog.
- *  3. The close control was an icon-only `<button>` with no accessible name.
- *  4. The file input was `display: none`, which removes it from the tab order
- *     entirely — the upload control was unreachable by keyboard. It is now
- *     visually hidden but focusable, and the drop zone shows a focus ring.
- *     Its `id` was also a hard-coded global; it is per-instance now.
- *  5. The two import-method tiles were toggle buttons whose selected state was
- *     communicated by colour alone. They are now a real radio group.
- *  6. The Google Sheet URL field had a placeholder but no label.
- *  7. The preview table had no accessible name, no `scope`, and its scroll
- *     region was neither focusable nor labelled. It is now the approved
- *     `DataTable`.
- *  8. Upload progress was silent: the string was the disabled button's label,
- *     never announced, and there was no `progressbar`. It is now a live region
- *     plus a determinate `ProgressBar` when a countable total is supplied.
+ *  1. The overlay is the approved accessible `Modal`: dialog role, focus move,
+ *     trap and restore, and Escape.
+ *  2. `isEmbedded` is honoured (`ImportLeadsPage` passes it): embedded renders in
+ *     place, and only the dashboard's overlay usage gets a dialog.
+ *  3. The close control has an accessible name.
+ *  4. The file input is never `display: none`, so the upload control stays
+ *     reachable by keyboard, and the drop zone shows a focus ring. Its `id` is
+ *     per-instance, never a hard-coded global.
+ *  5. The two import methods are a real radio group, never toggle tiles whose
+ *     selection is shown by colour alone.
+ *  6. The Google Sheet URL field has a label, not only a placeholder.
+ *  7. The preview table is the approved `DataTable`: an accessible name, `scope`,
+ *     and a focusable, labelled scroll region.
+ *  8. Upload progress is announced in a live region, with a determinate
+ *     `ProgressBar` when a countable total is supplied.
  *
  * Frozen and unchanged: the step ids/labels, the accepted file formats, the
  * `'file'` / `'gsheet'` values, the internal-field filter, the 8-column and
@@ -191,12 +184,9 @@ export function BulkUploadLayout({
 
             {importMethod === 'file' && (
                 /*
-                  `FileInput variant="dropzone"`. This was the same structure by
-                  hand — a real input plus a `<label>` — under a comment saying
-                  "there is no approved file-input contract in the design system
-                  yet", which stopped being true on 2026-08-21. The label is
-                  hidden because the radio above it already says "Upload a file";
-                  the accessible name stays.
+                  `FileInput variant="dropzone"`, never the same structure by
+                  hand. The label is hidden because the radio above it already
+                  says "Upload a file"; the accessible name stays.
                 */
                 <FileInput
                     label="Upload a file"

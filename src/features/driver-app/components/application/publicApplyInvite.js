@@ -5,9 +5,8 @@ import { isRemovedRefusal } from './draftRemoval';
 /**
  * Opening the link a carrier sent, and deciding whose leftovers this browser holds.
  *
- * Split out of `publicApplyBootstrap.js` on 2026-09-08 — for the source-size
- * standard, and because it is one job with one question at the end of it: whose
- * application is this browser holding?
+ * Apart from `publicApplyBootstrap.js` because it is one job with one question at
+ * the end of it: whose application is this browser holding?
  *
  * ## The contamination this exists to stop
  *

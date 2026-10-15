@@ -6,9 +6,8 @@ import { Checkbox, IconButton } from '@/design-system/components';
 /**
  * ModernDriverTable — selectable, paginated, row-activatable table.
  *
- * Migrated to the design system 2026-07-28, closing the roadmap's oldest table
- * row. **`DataTable` is deliberately not adopted here** — see the recorded
- * exception below.
+ * **`DataTable` is deliberately not adopted here** — see the recorded exception
+ * below.
  *
  * ## Approved compatibility exception: why not `DataTable`
  *
@@ -31,32 +30,24 @@ import { Checkbox, IconButton } from '@/design-system/components';
  *     no equivalent in `DataTable`'s `getRowTone` enum.
  *
  * **No accessibility or visual debt hides behind this exception.** Everything
- * `DataTable` would have given it is provided here explicitly, and the defects the
- * roadmap recorded against this file are fixed:
+ * `DataTable` would have given it is provided here explicitly:
  *
- *  1. **Selection was two icon-only `<button aria-pressed>` controls** with a
- *     `CheckSquare`/`Square` icon standing in for a checkbox. They are now real
- *     `Checkbox` controls, so the browser owns the semantics, the keyboard model
- *     and the indeterminate-free checked state. Per-row names can now identify the
- *     record via the new optional `getRowLabel`, instead of eight identical
- *     "Select row" controls.
- *  2. **Row activation was mouse-only.** The `<tr>` had an `onClick` with no
- *     `tabIndex` and no key handling, so the primary action of the table — opening
- *     a driver — was unreachable by keyboard. Rows are now focusable and respond
- *     to Enter/Space, using the same `event.target !== event.currentTarget` guard
- *     `DataTable` uses so activating a control *inside* a row does not also
- *     activate the row.
- *  3. **The table had no accessible name and no caption.** It now requires one via
- *     `ariaLabel` (defaulted, and also used to name the pager).
- *  4. **The scroll region was unnamed and unfocusable**, so a keyboard user could
- *     not scroll a wide table horizontally.
- *  5. **The loading skeleton announced nothing** during a multi-second load.
- *  6. **Selection state was not exposed on the row** — only a background tint.
- *     Rows now carry `aria-selected` when selection is enabled.
- *  7. **25 legacy palette values** (`bg-white`, `border-slate-200`,
- *     `bg-slate-50/50`, `text-slate-500`, `text-slate-300`, `bg-blue-50/40`,
- *     `text-blue-600`) plus hard-coded `rounded-xl` / `shadow-sm` / `text-xs`
- *     replaced with `--ds-*` tokens.
+ *  1. **Selection uses real `Checkbox` controls**, so the browser owns the
+ *     semantics, the keyboard model and the checked state; the optional
+ *     `getRowLabel` names each one after its record, not "Select row".
+ *  2. **Rows are focusable and respond to Enter/Space**, so opening a driver — the
+ *     table's primary action — works by keyboard, with the same
+ *     `event.target !== event.currentTarget` guard `DataTable` uses so activating
+ *     a control *inside* a row does not also activate the row.
+ *  3. **The table has an accessible name and a caption** via `ariaLabel`
+ *     (defaulted, and also used to name the pager).
+ *  4. **The scroll region is named and focusable**, so a keyboard user can scroll
+ *     a wide table horizontally.
+ *  5. **The loading skeleton is announced** during a multi-second load.
+ *  6. **Selection state is exposed on the row**: rows carry `aria-selected` when
+ *     selection is enabled, not only a background tint.
+ *  7. **`--ds-*` tokens only**, never legacy palette values or hard-coded radius,
+ *     shadow and type.
  *
  * Props (unchanged unless noted):
  *  - data:              Array of row objects

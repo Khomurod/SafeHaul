@@ -28,7 +28,7 @@ import { integrationEnabled } from '../reportSuggestions';
  * TWIC conditional block, and the `isUploading` disabled/"Uploading..." Continue
  * state.
  *
- * 2026-09-02 — company rules. An expiration date in the past is judged the
+ * Company rules. An expiration date in the past is judged the
  * moment the date changes (`expiredCdl` / `expiredMedicalCard`: allow, warn or
  * block), the other-state licence list can be required to hold one complete
  * record (`requirePreviousLicenseDetails`), and the signed-form upload is

@@ -1,13 +1,10 @@
 // The two draft-sync effects the guest apply page installs once its company is
 // known: reconciling the server copy on load, and flushing a dirty local copy
-// when the connection returns. Split out of `publicApplyBootstrap.js` on
-// 2026-09-08 for the source-size standard — the company load and the draft sync
-// are different subjects, and the reconciliation grew when it learned to ask
-// whose application this browser is holding.
+// when the connection returns. Apart from `publicApplyBootstrap.js`, because the
+// company load and the draft sync are different subjects.
 //
 // Both return their effect's own cleanup, and both take this tab's refs as the
-// ref OBJECTS, so capture/re-read semantics are unchanged from when the bodies
-// were inline in the component.
+// ref OBJECTS, so capture/re-read semantics are the component's.
 import {
   readApplicationDraft,
   saveApplicationDraft,
@@ -68,12 +65,10 @@ export function reconcileServerDraftOnLoad({
       // because `restoreFromStoredToken` now returns it — it used to be dropped,
       // which meant no caller COULD ask this question.
       //
-      // Asked of any outcome that NAMED an applicant, which since 2026-09-09 means
-      // `requires_identity` too. It used to read `=== OPENED`, and that was only
-      // safe while the other outcome carried no answers to contaminate: a
-      // confirmation screen renders over the wizard, and the previous applicant's
-      // leftovers would have been merged and written back underneath it while the
-      // driver was still typing their date of birth.
+      // Asked of any outcome that NAMED an applicant — `requires_identity` too, not
+      // only `OPENED`: a confirmation screen renders over the wizard, and the
+      // previous applicant's leftovers would otherwise be merged and written back
+      // underneath it while the driver is still typing their date of birth.
       if (invite?.applicantKey
         && restored.applicantKey && restored.applicantKey !== invite.applicantKey) return;
 

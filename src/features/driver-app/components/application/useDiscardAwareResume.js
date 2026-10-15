@@ -1,13 +1,12 @@
 // The guest application's cross-tab discard machinery and the server resume
-// flow, split out of `PublicApplyHandler.jsx` on 2026-09-01 for the
-// source-size standard (PA-1c). This hook owns the four refs that give a tab
-// its identity (the discard mark it loaded with, whether the screen came out
+// flow, for `PublicApplyHandler.jsx`. This hook owns the four refs that give a
+// tab its identity (the discard mark it loaded with, whether the screen came out
 // of a stored draft, the reset generation, and the draft's own name), the two
 // discard callbacks with the guards ref the long-lived writers read through,
 // the storage-event subscription — and the `useApplicationResume` call, which
 // lives HERE because the pair is circular: the resume hook needs
 // `discardedElsewhere`, and reacting to a discard needs the resume hook's
-// `forgetDraftOwnership`. Bodies verbatim.
+// `forgetDraftOwnership`.
 import { useRef, useCallback, useEffect } from 'react';
 import { useApplicationResume } from '../../hooks/useApplicationResume';
 import {

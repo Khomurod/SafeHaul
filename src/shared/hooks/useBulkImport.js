@@ -5,17 +5,13 @@ import { useState } from 'react';
  *
  * @param {object} [options]
  * @param {(message: string) => void} [options.onError] Where import failures are
- *   reported. Defaults to a blocking `window.alert`, which is what every caller
- *   used before the lead-intake design-system migration.
+ *   reported. Both callers pass one: `CompanyBulkUpload` shows the message in the
+ *   page, and `AudienceBuilder` as a toast. Without it the message is logged with
+ *   `console.error`, never shown in a blocking dialog, which steals focus, cannot
+ *   be reached by assistive technology as page content, and halts the JS event
+ *   loop.
  *
- *   The default is kept deliberately: `AudienceBuilder` (campaigns) also consumes
- *   this hook and was not part of that migration, so omitting the option must
- *   behave exactly as before. `CompanyBulkUpload` passes a sink that renders the
- *   same message as a non-blocking in-page alert instead — a blocking modal
- *   dialog steals focus, cannot be reached by assistive technology as page
- *   content, and halts the JS event loop.
- *
- *   Messages are unchanged in both paths.
+ *   Messages are the same in every path.
  */
 export function useBulkImport(options = {}) {
     /**

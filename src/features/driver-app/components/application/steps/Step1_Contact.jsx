@@ -61,18 +61,18 @@ const FIELD_ID_BY_NAME = {
  * authoritative step title as the page `<h1>`, and this copy also said "of 9"
  * even when custom questions made it ten steps.
  *
- * 2026-09-02: the date-of-birth age check is also shown inline the moment the
- * date changes (it used to surface only as a toast on Continue), and the
- * company's `requirePreviousAddressUnderThreeYears` rule asks for a previous
- * address as soon as the applicant answers No to the three-year question. The
- * previous-address editor moved to `PreviousAddressesSection` unchanged.
+ * The date-of-birth age check is also shown inline the moment the date changes,
+ * not only as a toast on Continue, and the company's
+ * `requirePreviousAddressUnderThreeYears` rule asks for a previous address as
+ * soon as the applicant answers No to the three-year question. The
+ * previous-address editor is `PreviousAddressesSection`.
  *
- * 2026-10-06: the applicant's own name, contact, date-of-birth and current-address
- * fields carry autofill tokens, so a phone can fill them from the saved contact
- * card, and SSN and ZIP open the number pad. The SSN stays a masked field with
+ * The applicant's own name, contact, date-of-birth and current-address fields
+ * carry autofill tokens, so a phone can fill them from the saved contact card,
+ * and SSN and ZIP open the number pad. The SSN stays a masked field with
  * autofill off. `applicationAutofill.test.jsx` pins which fields may be filled.
- * The date of birth is typed on the number pad (`TypedDateField`) instead of
- * picked from three lists; it is stored as the same `YYYY-MM-DD`.
+ * The date of birth is typed on the number pad (`TypedDateField`), not picked
+ * from lists, and stored as `YYYY-MM-DD`.
  */
 const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const ty = new Date().getFullYear();
@@ -173,10 +173,8 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
         }
 
         // 3. Phone — the rule the final pre-flight applies (`isValidPhone`), and the
-        // one the inline check below the field already used. This gate accepted any
-        // ten digits or more, so "+52 55 1234 5678" moved on from this page and was
-        // refused only at Submit, nine pages later, by a toast that did not say
-        // where the field was (found 2026-10-01).
+        // one the inline check below the field uses, so a number such as
+        // "+52 55 1234 5678" is refused on this page, not nine pages later at Submit.
         if (!isValidPhone(formData.phone)) {
             showError(PHONE_RULE_MESSAGE);
             return false;

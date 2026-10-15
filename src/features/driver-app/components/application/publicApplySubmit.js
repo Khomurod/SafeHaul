@@ -1,14 +1,12 @@
-// The guest application's submission path, split out of
-// `PublicApplyHandler.jsx` on 2026-09-01 for the source-size standard
-// (PA-1a). One React-free function, body verbatim from the component: the
-// pre-flight (now `publicApplyPreflight.js` — unpersisted fields, the company's
-// Application Rules, required uploads, signature, email/phone), the E2E queue
-// path, the queue-first guaranteed delivery, the
-// three-attempt Cloud Function submission with backoff, and every discard
-// re-check in between. This tab's refs are passed as the ref OBJECTS so the
-// mutation semantics — capture before an await, re-read after it — are
-// exactly the component's. `submittedDraftIdentity` moved with it because
-// nothing else reads it.
+// The guest application's submission path, for `PublicApplyHandler.jsx`: one
+// React-free function covering the pre-flight (`publicApplyPreflight.js` —
+// unpersisted fields, the company's Application Rules, required uploads,
+// signature, email/phone), the E2E queue path, the queue-first guaranteed
+// delivery, the three-attempt Cloud Function submission with backoff, and every
+// discard re-check in between. This tab's refs are passed as the ref OBJECTS so
+// the mutation semantics — capture before an await, re-read after it — are
+// exactly the component's. `submittedDraftIdentity` lives here because nothing
+// else reads it.
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import * as Sentry from '@sentry/react';

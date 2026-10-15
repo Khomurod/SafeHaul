@@ -4,21 +4,18 @@
  * A floating notice showing when submissions are queued, when the app is
  * offline, and when the queue is being processed.
  *
- * Migrated to `--ds-*` status roles and `Button` on 2026-08-21. The four states,
- * their order of precedence, every string, the `processQueueNow` wiring and the
+ * Presentation uses `--ds-*` status roles and `Button`; the four states, their
+ * order of precedence, every string, the `processQueueNow` wiring and the
  * `useSubmissionQueue` contract are unchanged.
  *
- * Two real defects fixed along the way, both of which mattered most on the
- * surface this appears on — the public driver application, which is mobile-first
- * and is where a queued submission is a driver's completed application:
+ * It matters most on the public driver application, which is mobile-first and
+ * is where a queued submission is a driver's completed application:
  *
- *  1. **It announced nothing.** Four states appeared and disappeared in silence.
- *     Going offline mid-application, or a queue error, is exactly the kind of
- *     thing a screen-reader user needs told. The region is now a live region:
- *     polite for the informational states, `alert` for the error.
- *  2. **The two actions were hand-built buttons** at `px-2 py-1 text-xs` — about
- *     22px tall, well under any touch-target guidance, on the most mobile-heavy
- *     screen in the product. They are `Button size="sm"` now, which is 36px.
+ *  1. **The region is a live region**: polite for the informational states,
+ *     `alert` for the error. Going offline mid-application, or a queue error, is
+ *     exactly the kind of thing a screen-reader user needs told.
+ *  2. **The two actions are `Button size="sm"`** (36px), never hand-built buttons
+ *     smaller than touch-target guidance allows.
  */
 
 import React from 'react';

@@ -6,28 +6,19 @@ import { Modal } from '@design-system/patterns';
  * "Feature not enabled" interstitial for feature-flagged areas (Import Leads,
  * E-Docs, driver search).
  *
- * Migrated to the design system 2026-07-28. Presentation only — `onClose`, the
- * `featureName` default of `"Search For Drivers"`, the Telegram sales URL and its
- * `_blank` target, and every user-facing string are unchanged.
+ * Presentation only — `onClose`, the `featureName` default of
+ * `"Search For Drivers"`, the Telegram sales URL and its `_blank` target, and
+ * every user-facing string are unchanged.
  *
- * Defects fixed:
- *  1. **The close control's `aria-label` was the bare word "Close"** on a dialog
- *     that also has a "Close" button in the action row, so a screen-reader user
- *     heard two identically-named controls. It now names what it closes.
- *  2. **Legacy palette and unapproved type throughout** — a `bg-gray-900/70`
- *     backdrop, `bg-white rounded-2xl shadow-2xl border-white/20` chrome,
- *     `text-3xl font-extrabold`, a `from-blue-600 to-indigo-600` gradient pill,
- *     `text-gray-600 text-lg` body copy and two `bg-blue-600` / `bg-white`
- *     hand-built buttons.
- *  3. **Four purely decorative animated blur orbs and a `ring-4` lock badge** ran
- *     `animate-pulse` and `animate-bounce` indefinitely with no reduced-motion
- *     guard, on a dialog whose whole purpose is to deliver one sentence. The
- *     decoration is removed rather than tokenised: it carried no meaning, and
- *     keeping it would have meant inventing approved values for it.
- *  4. **A dead `<style>` block** defined a `shimmer` keyframe animation that
- *     nothing referenced.
- *  5. The unused `onGoToLeads` prop and `ArrowRight` import are removed — no
- *     caller ever passed the prop and nothing rendered the icon.
+ * Rules it keeps:
+ *  1. **The close control names what it closes**: the action row also has a
+ *     "Close" button, and two identically named controls cannot be told apart by
+ *     a screen-reader user.
+ *  2. **`--ds-*` tokens, approved type and approved buttons only**, never legacy
+ *     palette, gradients or hand-built buttons.
+ *  3. **No decorative animation**: a dialog whose whole purpose is to deliver one
+ *     sentence carries no blur orbs or endless pulse and bounce, which would need
+ *     a reduced-motion guard and approved values of their own.
  */
 export function FeatureLockedModal({ onClose, featureName = "Search For Drivers" }) {
     const titleId = useId();

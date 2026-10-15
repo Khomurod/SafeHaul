@@ -1,6 +1,6 @@
 /**
- * Sentry wiring, extracted from `main.jsx` on 2026-09-06 (audit step I) so the
- * two decisions in it can be tested rather than trusted.
+ * Sentry wiring, apart from `main.jsx` so the decisions in it can be tested
+ * rather than trusted.
  *
  * 1. Session Replay is NOT part of `init`. It is the largest optional piece of
  *    the entry bundle (~125 kB before compression) and nothing about the first

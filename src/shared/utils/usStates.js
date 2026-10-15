@@ -13,11 +13,10 @@
  * So writers normalise through `toUsStateName`, and the pickers render a value
  * they do not list as itself (see `StateSelectField`), never as a neighbour.
  *
- * The District of Columbia is listed too, since 2026-10-02, in its alphabetical
- * place: it issues its own licences and is a real address. Until then the list had
- * the fifty states only, so a DC address or licence could not be selected at all
- * and `toUsStateName('DC')` was `''`. The five inhabited territories followed on
- * 2026-10-09, in theirs: each issues its own licences, and FMCSA's census holds
+ * The District of Columbia is listed too, in its alphabetical place: it issues its
+ * own licences and is a real address, so a DC address or licence must be
+ * selectable and `toUsStateName('DC')` must not be `''`. So are the five inhabited
+ * territories, in theirs: each issues its own licences, and FMCSA's census holds
  * carriers in all five under the same codes (about 7,200 in Puerto Rico).
  */
 

@@ -4,10 +4,10 @@
  *
  * Two callers with their own queries: the driver's employer lookup
  * (`fetchFmcsaEmployerSuggestions`) and the company's verification request
- * (`fetchFmcsaCarrierCandidatesForPev`, whose query is unchanged since before
- * 2026-10-07 but for a Canadian or Mexican region, now asked for with its
- * country). Both map a row through this file, so a value FMCSA holds but no
- * form should, such as "NONE" in the email column, is dropped in one place.
+ * (`fetchFmcsaCarrierCandidatesForPev`, which asks for a Canadian or Mexican
+ * region with its country). Both map a row through this file, so a value FMCSA
+ * holds but no form should, such as "NONE" in the email column, is dropped in
+ * one place.
  */
 
 import { isWellFormedEmail } from '@shared/utils/validation';

@@ -37,25 +37,22 @@ const E2E_SIGNATURE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAH
  * test-signature control; and the legacy `agree-*` keys, which the recruiter
  * dossier still reads to display authorization status.
  *
- * 2026-10-06 — ONE DOCUMENT PER PAGE. The agreements used to share one page with
- * each other and with the certification's release paragraph. The FCRA disclosure
- * must be a document consisting solely of itself, and the PSP form's own notice
- * says its language must stand alone and "may NOT be included with other consent
- * forms or any other language". So each agreement now has its own page (see
- * `AgreementDocumentPage`), and the certification and signature come last. An
- * acceptance counts only at the version on screen, so a draft that accepted
- * wording since replaced is asked again. The certification ends with the exact
- * 49 CFR 391.21(b)(12) sentence, which the rule requires "at the end of the
- * application form".
+ * ONE DOCUMENT PER PAGE. The FCRA disclosure must be a document consisting solely
+ * of itself, and the PSP form's own notice says its language must stand alone and
+ * "may NOT be included with other consent forms or any other language". So each
+ * agreement has its own page (see `AgreementDocumentPage`), and the certification
+ * and signature come last. An acceptance counts only at the version on screen, so
+ * a draft that accepted wording since replaced is asked again. The certification
+ * ends with the exact 49 CFR 391.21(b)(12) sentence, which the rule requires "at
+ * the end of the application form".
  *
- * 2026-10-09 — THE SIGNATURE SAVES ITSELF. It was kept only when the driver
- * pressed Save Signature, and Submit stayed grey with no reason given to a driver
- * who drew and went on. Each stroke now saves as it ends, the pad stays open for
- * the next stroke, Clear is always there, and a signature already given is drawn
- * back when the page is shown again (it said "Saved" over an empty pad). Under
- * Submit, a line names whatever is still missing: an agreement, the signature, the
- * certification, or an upload still on its way. A resumed draft never holds the
- * signature, so it is asked again there.
+ * THE SIGNATURE SAVES ITSELF. Each stroke saves as it ends, so nothing waits on a
+ * Save press; the pad stays open for the next stroke, Clear is always there, and a
+ * signature already given is drawn back when the page is shown again, so
+ * "Signature saved" never shows over an empty pad. Under Submit, a line names
+ * whatever is still missing: an agreement, the signature, the certification, or an
+ * upload still on its way. A resumed draft never holds the signature, so it is
+ * asked again there.
  */
 
 /** "a", "a and b", "a, b and c". */

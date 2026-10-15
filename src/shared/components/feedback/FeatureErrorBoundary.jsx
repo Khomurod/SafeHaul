@@ -10,8 +10,8 @@ import { PageState } from '@design-system/patterns';
  * Keeps the rest of the app usable when one feature crashes by containing
  * failures to the current route or view only.
  *
- * Migrated to `PageState` on 2026-08-21. The Sentry tags, the retry that clears
- * the boundary's own state, and the go-home navigation are unchanged.
+ * Presentation is `PageState`; the Sentry tags, the retry that clears the
+ * boundary's own state, and the go-home navigation are unchanged.
  *
  * It uses `PageState` with `tone="warning"` rather than `ErrorState`, and the
  * distinction is the point: the *page* has not failed. One section has, the rest

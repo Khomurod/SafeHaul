@@ -42,26 +42,26 @@ import { useStepIssues } from '@features/driver-app/hooks/useApplicationRules';
  * stays the bare field name: shared ids would make clicking row 2's option toggle
  * row 1's input through the duplicated `label[for]`.
  *
- * 2026-09-02 — the company decides what incomplete coverage means
+ * The company decides what incomplete coverage means
  * (`employmentHistoryEnforcement`: allow / warn / block) and how many years must
- * be accounted for (`employmentHistoryMinimumYears`). `warn` is the behaviour
- * this step always had: one interruption, then "Continue anyway". `block` shows
- * the same panel without that escape until the months are accounted for, and the
- * server refuses the same submission. `allow` never interrupts. The schooling,
- * gap and military row renderers moved to `EmploymentHistoryRows.jsx` unchanged.
+ * be accounted for (`employmentHistoryMinimumYears`). `warn` is one interruption,
+ * then "Continue anyway". `block` shows the same panel without that escape until
+ * the months are accounted for, and the server refuses the same submission.
+ * `allow` never interrupts. The schooling, gap and military row renderers live
+ * in `EmploymentHistoryRows.jsx`.
  *
- * 2026-10-06 — the page asks what 49 CFR 391.21(b)(10)-(11) asks: every
- * employer of the past three years and, for a CDL job, the employers of the
- * seven years before that the applicant drove a CMV for. It asked for every
- * employer of ten. Each employer of the three years answers the two
- * (b)(10)(iv) questions (`EmployerDotQuestions`), and the reason for leaving is
- * required with the rest of the row. Employment dates are a month and a year
- * (`YYYY-MM`), as on FMCSA's own application form; rows saved with a full
- * `YYYY-MM-DD` keep it until changed, and every reader accepts both.
+ * The page asks what 49 CFR 391.21(b)(10)-(11) asks: every employer of the past
+ * three years and, for a CDL job, the employers of the seven years before that
+ * the applicant drove a CMV for — not every employer of ten years. Each employer
+ * of the three years answers the two (b)(10)(iv) questions
+ * (`EmployerDotQuestions`), and the reason for leaving is required with the rest
+ * of the row. Employment dates are a month and a year (`YYYY-MM`), as on FMCSA's
+ * own application form; rows saved with a full `YYYY-MM-DD` keep it until
+ * changed, and every reader accepts both.
  *
- * 2026-10-07 — Continue lists what the page still needs, row by row, each line
- * taking the applicant to the field, and marks the fields (`employmentStepIssues.js`),
- * in place of the browser's bubble on one field and the email and contact toasts.
+ * Continue lists what the page still needs, row by row, each line taking the
+ * applicant to the field, and marks the fields (`employmentStepIssues.js`) —
+ * not the browser's bubble on one field, nor toasts for the email and contact.
  */
 const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const ty = new Date().getFullYear();

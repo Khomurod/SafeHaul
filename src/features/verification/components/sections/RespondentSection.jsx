@@ -3,9 +3,9 @@ import { SignatureInput } from '@shared/components/signature/SignatureInput';
 import { Button, FormField, FormSection, Input } from '@/design-system/components';
 
 /** Section 4: Respondent Verification & Signature. Field names, placeholders
- *  and the E2E test-signature affordance are unchanged. Since 2026-09-06 the
- *  signature is collected by `SignatureInput` — drawn on the pad or typed as a
- *  name — and `updateSignature` stores the mark together with its method. */
+ *  and the E2E test-signature affordance are unchanged. The signature is
+ *  collected by `SignatureInput` — drawn on the pad or typed as a name — and
+ *  `updateSignature` stores the mark together with its method. */
 export function RespondentSection({ formData, formErrors, updateField, updateSignature, isE2EVerifyMock }) {
     const signatureLabelId = `signature-label-${useId().replace(/:/g, '')}`;
     return (

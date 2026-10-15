@@ -15,11 +15,10 @@ import { serverMessageOf } from '@shared/utils/callableErrors';
  * E2E-only load scenarios, reachable as `?e2eVerify=<mode>` under
  * `VITE_E2E_TEST_MODE=1`.
  *
- * `mock` is the pre-existing fixture path and is **bit-for-bit unchanged**. The
- * others were added on 2026-07-27 so the expired, invalid, already-completed and
- * generic-failure screens can be reached — and axe-scanned — in a real browser.
- * They are additive: nothing about `mock`, and nothing about the real callable
- * path, changes.
+ * `mock` is the fixture path and stays **bit-for-bit** as it is. The others let
+ * the expired, invalid, already-completed and generic-failure screens be reached
+ * — and axe-scanned — in a real browser. They are additive: nothing about `mock`,
+ * and nothing about the real callable path, changes for them.
  *
  * The failure modes deliberately *throw the same coded errors the callable
  * throws* rather than setting page state directly, so they run through the real
@@ -106,7 +105,7 @@ export function useVerificationPortal(token) {
         respondentEmail: '',
         signatureData: null,
         // 'drawn' | 'typed' | null — recorded with the response so the PDF and the
-        // audit trail say how the mark was made (audit step J, 2026-09-06).
+        // audit trail say how the mark was made.
         signatureMethod: null,
     });
 

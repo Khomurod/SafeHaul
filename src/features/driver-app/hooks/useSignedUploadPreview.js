@@ -8,13 +8,10 @@ import { isE2ETestMode } from '@lib/runtime/e2eMode';
  *
  * ## Why this exists
  *
- * An upload left `{name, url, storagePath}` in the form data, and that `url` is a
- * signed read URL with a **fifteen-minute** life (`GUEST_READ_TTL_MS` in
- * `functions/getSignedGuestUploadUrl.js`). It was persisted into the draft
- * verbatim and handed to the driver by the invite exchange — so a document a
- * recruiter attached on Tuesday was a broken image and a Storage error page by
- * the time the driver opened the link, and the same for a recruiter reopening
- * their own draft an hour later. Found 2026-09-08.
+ * A signed read URL lives **fifteen minutes** (`GUEST_READ_TTL_MS` in
+ * `functions/getSignedGuestUploadUrl.js`), so one kept in the form data would be
+ * a broken image and a Storage error page by the time a driver opened an invite
+ * link, or a recruiter reopened their own draft an hour later.
  *
  * The durable identifier was sitting right beside it, unused: `storagePath`.
  * Nothing anywhere re-signed from it for the driver, though the company's own
