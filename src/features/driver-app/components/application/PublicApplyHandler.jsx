@@ -14,11 +14,9 @@ import { resolveApplyStatusScreen } from './PublicApplyScreens';
 import { ApplyingCompanyScope } from './ApplyingCompanyScope';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { ResumeApplicationDialog } from './ResumeApplicationDialog';
-// The submission path lives in publicApplySubmit.js since the 2026-09-01
-// source-size split (PA-1a); the bootstrap — session restore and the company
-// load — in publicApplyBootstrap.js since PA-1b. The two draft-sync effects
-// moved on to publicApplyDraftSync.js on 2026-09-08, when the reconciliation
-// grew the question of whose application this browser is holding.
+// The submission path lives in publicApplySubmit.js; the bootstrap — session
+// restore and the company load — in publicApplyBootstrap.js; and the two
+// draft-sync effects in publicApplyDraftSync.js.
 import { submitPublicApplication } from './publicApplySubmit';
 import {
   restorePostApplySessionFor,
@@ -29,7 +27,7 @@ import {
   listenForReconnectFlush,
 } from './publicApplyDraftSync';
 import { INVITE_OUTCOMES } from './publicApplyInvite';
-// And the PA-1c split: the circular discard/resume pair, the draft
+// And in hooks of their own: the circular discard/resume pair, the draft
 // lifecycle, and the post-submission documents flow.
 import { useDiscardAwareResume } from './useDiscardAwareResume';
 import { useDraftLifecycle } from './useDraftLifecycle';
@@ -113,9 +111,8 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const consentStepIndex = customQuestions.length > 0 ? 9 : 8;
   // The cross-tab discard machinery — this tab's identity refs, the two
   // discard callbacks, the guards ref, the storage-event subscription — and
-  // the server resume flow live together in useDiscardAwareResume since the
-  // 2026-09-01 source-size split (PA-1c); the pair is circular, which is why
-  // one hook owns both. See its header.
+  // the server resume flow live together in useDiscardAwareResume; the pair is
+  // circular, which is why one hook owns both. See its header.
   const {
     discardMarkRef,
     restoredFromDraftRef,
@@ -293,7 +290,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
 
   // The draft lifecycle — the per-step local write, Continue's restore-and-mark-synced
   // path, the post-submission close, Start Over and Save-as-Draft — lives in
-  // useDraftLifecycle since the 2026-09-01 source-size split (PA-1c).
+  // useDraftLifecycle.
   const {
     handleFileUpload,
     keepNextAnswers,
@@ -336,10 +333,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
 
   // The submission path — pre-flight validation, the queue-first guaranteed
   // delivery, the three-attempt Cloud Function call and every discard
-  // re-check — lives in publicApplySubmit.js since the 2026-09-01
-  // source-size split (PA-1a). One expression, so the caller awaits the
-  // module's own promise; this tab's refs are passed as the objects
-  // themselves so their capture-then-re-read semantics are unchanged.
+  // re-check — lives in publicApplySubmit.js. One expression, so the caller
+  // awaits the module's own promise; this tab's refs are passed as the objects
+  // themselves so the module keeps their capture-then-re-read semantics.
   const handleFinalSubmit = () => submitPublicApplication({
     formData,
     company,
@@ -372,7 +368,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   });
 
   // The post-submission Required Documents flow lives in
-  // usePostSubmitDocuments since the 2026-09-01 source-size split (PA-1c).
+  // usePostSubmitDocuments.
   const {
     handleStartNewApplication,
     handleOpenPostApplicationTemplate,
@@ -401,11 +397,11 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   /**
    * Which full-page status screen, if any, precedes the wizard.
    *
-   * The chain moved into `PublicApplyScreens.jsx` on 2026-09-08: that module
-   * already owns all six screens, so which one a given state calls for is the
-   * same subject — and the ORDER is load-bearing rather than incidental, which
-   * makes it worth having in one place with the screens it orders. See the
-   * function's own comment for what each position is protecting.
+   * The chain lives in `PublicApplyScreens.jsx`: that module owns all six
+   * screens, so which one a given state calls for is the same subject — and the
+   * ORDER is load-bearing rather than incidental, which makes it worth having in
+   * one place with the screens it orders. See the function's own comment for what
+   * each position is protecting.
    */
   const statusScreen = resolveApplyStatusScreen({
     loading,

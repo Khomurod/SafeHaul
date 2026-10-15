@@ -20,14 +20,14 @@ import { StepIssues } from './components/StepIssues';
  * `commercial: 'no'` / `preventable: 'no'`, the per-row scoped radio ids
  * (`accident-…-<index>`), and the VAL-1 `form.checkValidity()` gate.
  *
- * 2026-09-02 — a proper accident module. A clear Yes/No question
- * (`has-accidents`) precedes the list, and each row carries the details
- * 49 CFR 391.21(b)(7) actually asks for: fatalities, injuries and whether
- * hazardous materials were spilled (`fatalities` / `injuries` / `hazmatSpill`,
- * appended after the original keys so stored rows keep their order). They are
- * optional unless the company's `requireAccidentDetails` rule is on, in which
- * case every row must be complete before the applicant continues — and the
- * server refuses the same submission with the same wording.
+ * A clear Yes/No question (`has-accidents`) precedes the list, and each row
+ * carries the details 49 CFR 391.21(b)(7) actually asks for: fatalities,
+ * injuries and whether hazardous materials were spilled (`fatalities` /
+ * `injuries` / `hazmatSpill`, appended after the original keys so stored rows
+ * keep their order). They are optional unless the company's
+ * `requireAccidentDetails` rule is on, in which case every row must be complete
+ * before the applicant continues — and the server refuses the same submission
+ * with the same wording.
  *
  * A record written before the question existed, with rows but no answer, reads
  * as Yes; an explicit No hides the list and drops leftover rows at submission.

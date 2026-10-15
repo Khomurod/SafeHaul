@@ -2,9 +2,8 @@
 // before it spends a submission attempt, and where it sends the applicant when
 // something is missing.
 //
-// Split out of `publicApplySubmit.js` on 2026-09-02 when the company's
-// Application Rules joined the checks. The server refuses every one of these
-// independently (`assertRequiredUnpersistedFields`, `assertRequiredUploads`,
+// The server refuses every one of these independently
+// (`assertRequiredUnpersistedFields`, `assertRequiredUploads`,
 // `assertApplicationRules`); this half exists to tell the applicant which
 // answer and take them to it, not to be the enforcement.
 //
@@ -133,9 +132,8 @@ export function runSubmissionPreflight({
     refuse('consent', "Please complete the electronic signature.");
   }
 
-  // Validate email and phone — and go to the page that holds them. Both used to be
-  // refused here with a toast and no routing, which left the applicant on the
-  // signature page with no idea where the field was (found 2026-10-01).
+  // Validate email and phone — and go to the page that holds them, so the
+  // applicant is never left on the signature page with no idea where the field is.
   if (!isValidEmail(formData.email)) refuse('contact', "Invalid Email Address.");
   if (!isValidPhone(formData.phone)) refuse('contact', PHONE_RULE_MESSAGE);
 

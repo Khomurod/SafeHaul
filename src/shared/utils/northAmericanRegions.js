@@ -12,9 +12,8 @@
  * Every name is unique across the three lists, so a stored name says which
  * country it is in. FMCSA records a region as a two-letter code that is only
  * unique within a country: "NL" is Newfoundland and Labrador in Canada and
- * Nuevo León in Mexico. Mexico's codes are FMCSA's own, not ISO 3166-2:MX;
- * all 32 were checked against the census (2026-10-07), and the cities each one
- * holds.
+ * Nuevo León in Mexico. Mexico's codes are FMCSA's own, not ISO 3166-2:MX; each
+ * of the 32 matches the census by the cities it holds.
  */
 
 import { US_STATE_NAMES, toUsStateName } from './usStates';

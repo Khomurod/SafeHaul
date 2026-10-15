@@ -5,9 +5,8 @@ import { isRemovedRefusal } from './draftRemoval';
 /**
  * Opening the link a carrier sent, and deciding whose leftovers this browser holds.
  *
- * Split out of `publicApplyBootstrap.js` on 2026-09-08 — for the source-size
- * standard, and because it is one job with one question at the end of it: whose
- * application is this browser holding?
+ * Apart from `publicApplyBootstrap.js` because it is one job with one question at
+ * the end of it: whose application is this browser holding?
  *
  * ## The contamination this exists to stop
  *
@@ -37,11 +36,10 @@ import { isRemovedRefusal } from './draftRemoval';
  * longer `pending`, which fixes the ORDERING. `foreignSlot` below fixes the
  * IDENTITY. Gating alone would not be enough, because after a successful exchange
  * the reconcile still has to run: the driver's own newer unsynced local work must
- * still be able to win. (Until 2026-09-09 it was also the ONLY thing that restored
- * an invited driver's page, because the exchange returned no `lastStep`. It does
- * now — a driver who confirms their identity to continue must land on the page they
- * were on, not back at the start — so the reconcile's `Math.max` is what keeps the
- * two from arguing.)
+ * still be able to win. (The exchange also returns `lastStep` — a driver who
+ * confirms their identity to continue must land on the page they were on, not
+ * back at the start — so the reconcile's `Math.max` is what keeps the two from
+ * arguing.)
  *
  * ## What identifies the applicant a slot belongs to
  *

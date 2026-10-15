@@ -11,9 +11,6 @@ import { Modal } from '@design-system/patterns';
 /**
  * Call-outcome logging dialog for the recruiter dialer.
  *
- * Migrated to the design system 2026-07-28; it was a hand-built overlay found by
- * the repository-wide dialog scan.
- *
  * Presentation only — this component is purely controlled: every value and setter
  * comes from `CallOutcomeModal`. Frozen and unchanged: the eight outcome ids and
  * their exact labels and order; the twelve `DRIVER_TYPES` and eight `POSITIONS`
@@ -27,34 +24,25 @@ import { Modal } from '@design-system/patterns';
  * rule; the `tel:` link and `formatPhoneNumber` display; and every placeholder and
  * string.
  *
- * Defects fixed:
- *  1. **No focus management.** The overlay declared `role="dialog"` and
- *     `aria-modal` but was a bare div: focus never moved into it, Tab escaped to
- *     the page behind, Escape did nothing, and focus was not restored on close.
- *     `role="dialog"` was also on the *backdrop*, so the whole page was nominally
- *     inside the dialog. It now uses the approved accessible `Modal`.
- *  2. **Six controls had no accessible name.** Position, Experience, Freight
- *     Type, the callback Date and Time, and Recruiter Notes all had `<label>`
- *     elements with no `htmlFor` and controls with no `id`. `FormField` owns the
- *     association now.
- *  3. **`text-[10px]` in five places** — every detail-field label and the network
- *     hint — plus `text-gray-400` on them, which is 2.56:1 on white.
- *  4. **The outcome grid communicated its selection by colour and a focus ring
- *     only** — no `aria-pressed`, no grouping, so a screen-reader user could not
- *     tell which of the eight outcomes was chosen.
- *  5. **Eight locally-invented palette trios** (`border-green-200 bg-green-50
- *     text-green-800` and friends, including a `text-red-400` icon) replaced by the
- *     semantic status tokens. The feature keeps the domain→tone decision.
- *  6. A `<label>` carried both `block` and `flex` display classes, so its icon
- *     alignment depended on class order.
+ * Rules it keeps:
+ *  1. **Focus management comes from the approved accessible `Modal`**: focus moves
+ *     in, Tab stays inside, Escape closes, focus is restored on close, and
+ *     `role="dialog"` is on the dialog, never the backdrop.
+ *  2. **Every control has an accessible name**: `FormField` owns the label
+ *     association for Position, Experience, Freight Type, the callback Date and
+ *     Time, and Recruiter Notes.
+ *  3. **The detail-field labels and the network hint use the type and colour
+ *     tokens**, never `text-[10px]` or `text-gray-400` (2.56:1 on white).
+ *  4. **The outcome grid's selection is exposed to assistive technology**, not
+ *     carried by colour and a focus ring only (see `SegmentedControl` below).
+ *  5. **Semantic status tokens**, never locally invented palette trios; the
+ *     feature keeps the domain→tone decision.
+ *  6. One display class per `<label>`, so icon alignment never depends on class
+ *     order.
  *
- * The outcome grid is the design system's `SegmentedControl` (2026-08-25). It was
- * a `role="group"` of raw `<button aria-pressed>` cards with a local six-tone
- * class map, recorded as an exception "because the design system has no approved
- * Segmented/ToggleGroup primitive" — one shipped on 2026-08-21 naming this exact
- * call site. The semantics are identical by design: the primitive is
- * deliberately `role="group"` + `aria-pressed` rather than a radiogroup, for the
- * reason its own README gives, so nothing about how this dialog announces changed.
+ * The outcome grid is the design system's `SegmentedControl`, deliberately
+ * `role="group"` + `aria-pressed` rather than a radiogroup, for the reason its own
+ * README gives.
  *
  * The `tel:` chip above it stays local. It is a status-tinted pill that is also a
  * link; `Link` is underlined text and `ButtonLink` is button-shaped, and neither

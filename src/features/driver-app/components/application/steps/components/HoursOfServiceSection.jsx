@@ -21,14 +21,12 @@ import TimeSelectField from './TimeSelectField';
  * as 49 CFR 395.8(j)(2) requires, a week off duty or not: its date goes back fifty
  * years, not one, so a driver returning after a long break can give the true one.
  *
- * 2026-10-09 — nothing here opens a phone's own picker. The time was an
- * `<input type="time">`, which on a phone can be set only through the phone's
- * dialog; a driver whose dialog showed Clear and Cancel without Set could not
- * finish. It is three lists now (`TimeSelectField`), storing the same `HH:MM`.
- * The hours were a number box stepping by half hours, so a log's 7.25 was
- * refused and a decimal comma read as nothing; they are typed text now, a comma
- * read as a point and ".5" as 0.5, held to the rule's own "0 to 24, two
- * decimals" by `HOURS_PATTERN`.
+ * Nothing here opens a phone's own picker: an `<input type="time">` can be set on
+ * a phone only through the phone's dialog, which may show Clear and Cancel without
+ * Set. The time is three lists (`TimeSelectField`), storing `HH:MM`. The hours are
+ * typed text, not a number box, so a log's 7.25 is accepted, a decimal comma reads
+ * as a point and ".5" as 0.5, held to the rule's own "0 to 24, two decimals" by
+ * `HOURS_PATTERN`.
  */
 
 /** The rule's hours (`isCompleteHoursOfService`): 0 to 24, at most two decimals. */

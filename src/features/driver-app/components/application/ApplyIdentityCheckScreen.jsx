@@ -6,23 +6,19 @@ import TypedDateField from './steps/components/TypedDateField';
 /**
  * "Confirm it's you" — the screen that was missing, and the whole reported bug.
  *
- * ## What happened without it
+ * ## Why it exists
  *
  * `exchangeApplicationInvite` answers `requiresIdentity` once the answers behind a
- * link are the driver's own rather than the carrier's. That reply reached
- * `resolveApplyStatusScreen`, matched no branch, and fell through to the intake
- * chooser — so a driver who opened the replacement link their recruiter had just
- * sent was shown **"How would you like to start your driver application?"**, with
- * their own half-finished application sitting behind the link and nothing on
- * screen saying so. Measured in production on 2026-09-09: the exchange returned
- * 200 twice, and the page offered a fresh application both times.
+ * link are the driver's own rather than the carrier's. Without this screen that
+ * reply would match no branch in `resolveApplyStatusScreen` and fall through to the
+ * intake chooser — so a driver who opened the replacement link their recruiter had
+ * just sent would be shown **"How would you like to start your driver application?"**,
+ * with their own half-finished application sitting behind the link and nothing on
+ * screen saying so.
  *
- * The code comment that stood in for this screen said the driver "is asked for
- * their details by the ordinary resume flow underneath". They were not. That flow
- * only triggers on the first Next of page one, so reaching it meant choosing an
- * intake mode, retyping four fields into what looks like a brand-new application,
- * and trusting that something would recognise them — and the lookup it runs
- * queries a field autosave had been erasing.
+ * The ordinary resume flow underneath cannot stand in for it: it only triggers on
+ * the first Next of page one, so reaching it would mean choosing an intake mode and
+ * retyping four fields into what looks like a brand-new application.
  *
  * ## Why it asks for these four things
  *

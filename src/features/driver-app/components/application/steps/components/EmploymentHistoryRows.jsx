@@ -8,15 +8,14 @@ import { FormField, Textarea } from '@/design-system/components';
 /**
  * Row renderers for the employment step's schooling, gap and military lists.
  *
- * Moved out of `Step6_Employment.jsx` verbatim on 2026-09-02 so the step could
- * take on the company's coverage rules without passing the source-size limit.
- * Every element id (`school-name-<n>`, `unemp-start-<n>`, `mil-branch-<n>`, …),
- * every saved key and every required flag is exactly what the step rendered.
- * The per-row radio groups scope their ids and grouping name by index while
- * `name` (the saved key) stays bare.
+ * Apart from `Step6_Employment.jsx` to keep the step within the source-size
+ * limit. Every element id (`school-name-<n>`, `unemp-start-<n>`, `mil-branch-<n>`,
+ * …), every saved key and every required flag is frozen. The per-row radio
+ * groups scope their ids and grouping name by index while `name` (the saved key)
+ * stays bare.
  *
- * 2026-10-06: school dates are a month and a year (`YYYY-MM`), like the gap and
- * military dates beside them.
+ * School dates are a month and a year (`YYYY-MM`), like the gap and military
+ * dates beside them.
  *
  * `errorFor(listKey, index, key)` says why a field still needs filling, once the
  * applicant has pressed Continue (`./employmentStepIssues.js`); before that it

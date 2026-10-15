@@ -10,9 +10,8 @@ import { getStatusIcon } from './statusIcon';
  * design system must not. All it does is map a status string onto a `Badge`
  * tone and an icon; the appearance is entirely `Badge`'s.
  *
- * Before 2026-08-21 it was a second badge implementation — its own pill, its own
- * size scale, and forty raw palette classes across a ten-status colour table.
- * Beside a real `Badge` on the same screen it was a visibly different shape.
+ * It never grows a pill, size scale or palette of its own: beside a real `Badge`
+ * on the same screen, a second badge implementation is a visibly different shape.
  *
  * ## Tones collide, and that is fine
  *

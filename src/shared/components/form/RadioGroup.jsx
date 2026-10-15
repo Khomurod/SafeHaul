@@ -18,13 +18,11 @@ import { domIdSegment } from '@shared/utils/domId';
  * - `horizontal` defaults to `true`.
  * - `disabled` switches off every option; an option's own `disabled`, that one.
  *
- * DEFECT FIXED (2026-07-27): inside `DynamicRow` the same `name` was reused for
- * every row, so every row emitted the *same* element ids and the same radio
- * grouping name. `label[for="commercial-yes"]` then resolved to row 1's input,
- * which meant clicking row 2's "Yes" toggled row 1 — and the browser treated all
- * rows as one radio group. Callers inside a repeating row now pass a
- * row-unique `idPrefix` / `groupName`; both default to `name`, so every
- * single-instance call site keeps its existing ids byte-for-byte.
+ * Callers inside a repeating row (`DynamicRow`) pass a row-unique `idPrefix` /
+ * `groupName`: with one `name` for every row, every row would emit the same
+ * element ids and one browser radio group, and clicking row 2's "Yes" would
+ * toggle row 1. Both default to `name`, so every single-instance call site keeps
+ * its existing ids byte-for-byte.
  */
 const RadioGroup = ({
     label,

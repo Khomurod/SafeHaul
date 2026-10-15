@@ -4,10 +4,9 @@
  * The HTML spec forbids ASCII whitespace in an `id`, and anything that builds a
  * CSS selector from one — axe-core when it names the element in a finding, a
  * test's `querySelector('#…')` — reads `#a b` as two selectors. `EXPERIENCE_OPTIONS`
- * carries values such as "0-6 months", and three components interpolated them
- * straight into ids. happy-dom 20.4+ refuses the selector axe builds from such an
- * id and axe never returns, which is how the defect surfaced on 2026-09-06 when
- * the dependency update landed; the ids were invalid HTML all along.
+ * carries values such as "0-6 months", so an option value never goes straight into
+ * an id: happy-dom 20.4+ refuses the selector axe builds from such an id, and axe
+ * never returns.
  *
  * Keeps `[A-Za-z0-9_-]` and collapses every other run of characters into one
  * `-`, so "0-6 months" becomes "0-6-months" while "yes" stays "yes" — the E2E

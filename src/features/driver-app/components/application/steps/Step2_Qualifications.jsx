@@ -7,8 +7,8 @@ import { StepIssues } from './components/StepIssues';
 import { useApplicationRules, useStepGate } from '@features/driver-app/hooks/useApplicationRules';
 
 /**
- * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
- * primitives and the shared `RadioGroup` adapter (2026-07-27). Field keys,
+ * Presentation uses the approved `FormSection` / `FormField` / `Textarea`
+ * primitives and the shared `RadioGroup` adapter. Field keys,
  * `YES_NO_OPTIONS` / `EXPERIENCE_OPTIONS`, the conditional drug-test
  * explanation, the DOT question wording (except as noted below), and the VAL-1
  * `form.checkValidity()` gate are unchanged.
@@ -24,14 +24,13 @@ import { useApplicationRules, useStepGate } from '@features/driver-app/hooks/use
  * is not rendered, so the applicant must choose again; the rule engine refuses it
  * at submission for the same reason, on the same page.
  *
- * 2026-10-06: the drug and alcohol question is now the one 49 CFR 40.25(j)
- * requires, in its own terms: pre-employment tests in the past two years. It
- * asked "ever", and about any DOT test, which is wider than the rule. The answer
- * has its own key, `pre-employment-test-positive`: the backend is shared with
- * the Production frontend, which asks the broader question (`drug-test-positive`)
- * until it is promoted, and each is recorded under its own label. Answering the
- * new question clears a draft's earlier answer to the broader one, which no page
- * shows any more.
+ * The drug and alcohol question is the one 49 CFR 40.25(j) requires, in its own
+ * terms: pre-employment tests in the past two years — not "ever", and not about
+ * any DOT test, which is wider than the rule. The answer has its own key,
+ * `pre-employment-test-positive`: the backend is shared with the Production
+ * frontend, which asks the broader question (`drug-test-positive`) until it is
+ * promoted, and each is recorded under its own label. Answering this question
+ * clears a draft's earlier answer to the broader one, which no page shows.
  */
 const RETIRED_DRUG_TEST_KEYS = ['drug-test-positive', 'drug-test-explanation'];
 

@@ -9,9 +9,6 @@ import { Modal } from '@design-system/patterns';
  * Forced company choice for a user with more than one membership. Rendered by
  * `DataContext` and blocks the whole application until a company is picked.
  *
- * Migrated to the design system 2026-07-28; it was a hand-built overlay found by
- * the repository-wide dialog scan.
- *
  * Presentation only. Frozen and unchanged: the `currentUserClaims.roles` read
  * with `globalRole` deleted before deriving company ids, the three guard messages
  * (`"Could not find user roles."`, `"User has no company memberships."`,
@@ -23,24 +20,16 @@ import { Modal } from '@design-system/patterns';
  * user-facing string. The `choose-company-modal` and `company-choice-list` ids are
  * retained.
  *
- * Defects fixed:
- *  1. **The overlay was a hand-built `fixed inset-0` div** with no
- *     `role="dialog"`, no `aria-modal`, no focus move on open and no focus trap.
- *     This is a blocking auth gate over the whole application, so a keyboard user
- *     landed on the page body with the dialog visually covering everything. It now
- *     uses the approved accessible `Modal`, deliberately **non-dismissable** (no
- *     `onClose`): there is no valid way past this gate except choosing a company
- *     or logging out, which is the behaviour it always had.
- *  2. **The company list was an unnamed scroll region** (`max-h-60
- *     overflow-y-auto`); it is now named by the dialog heading.
- *  3. **Loading and error states were not announced** — a user with a slow
- *     connection or a permissions problem got silent grey or red text.
- *  4. Legacy palette throughout — `bg-gray-900 bg-opacity-75` backdrop,
- *     `bg-gray-50`/`hover:border-blue-500`/`focus:ring-blue-500` rows,
- *     `bg-blue-100 text-blue-600` avatar, `text-red-600` error and `text-2xl` /
- *     `text-lg` arbitrary type — replaced with `--ds-*` tokens and approved
- *     primitives. The per-company row stays a `<button>` because it is a real
- *     activation, and it now uses the shared focus ring.
+ * Rules it keeps:
+ *  1. **It is the approved accessible `Modal`**, deliberately **non-dismissable**
+ *     (no `onClose`): this is a blocking auth gate over the whole application,
+ *     and there is no valid way past it except choosing a company or logging out.
+ *  2. **The company list is a scroll region named by the dialog heading.**
+ *  3. **Loading and error states are announced**, never silent grey or red text
+ *     for a slow connection or a permissions problem.
+ *  4. `--ds-*` tokens and approved primitives only, never legacy palette or
+ *     arbitrary type. The per-company row stays a `<button>` because it is a real
+ *     activation, with the shared focus ring.
  */
 export function CompanyChooserModal() {
   const [loading, setLoading] = useState(true);

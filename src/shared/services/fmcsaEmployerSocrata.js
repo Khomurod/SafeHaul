@@ -4,10 +4,10 @@
  *
  * Two callers with their own queries: the driver's employer lookup
  * (`fetchFmcsaEmployerSuggestions`) and the company's verification request
- * (`fetchFmcsaCarrierCandidatesForPev`, whose query is unchanged since before
- * 2026-10-07 but for a Canadian or Mexican region, now asked for with its
- * country). Both map a row through this file, so a value FMCSA holds but no
- * form should, such as "NONE" in the email column, is dropped in one place.
+ * (`fetchFmcsaCarrierCandidatesForPev`, which asks for a Canadian or Mexican
+ * region with its country). Both map a row through this file, so a value FMCSA
+ * holds but no form should, such as "NONE" in the email column, is dropped in
+ * one place.
  */
 
 import { isWellFormedEmail } from '@shared/utils/validation';
@@ -232,7 +232,7 @@ const USDOT_INPUT = /^(?:US\s*)?(?:DOT\s*)?#?\s*(\d{1,9})$/i;
  * former employer may have closed.
  *
  * Separate queries rather than `$order` on the status, which would have Socrata
- * sort every match; each of these answered in about 0.3 s (2026-10-07).
+ * sort every match.
  *
  * @param {string} input what the driver typed
  * @returns {string[]} none when it is too short to search

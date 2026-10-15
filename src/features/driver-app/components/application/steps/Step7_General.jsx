@@ -15,8 +15,8 @@ import { visibleVehicleCategories } from '@/config/applicationRules';
 import { useStepGate } from '@features/driver-app/hooks/useApplicationRules';
 
 /**
- * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
- * primitives (2026-07-27).
+ * Presentation uses the approved `FormSection` / `FormField` / `Textarea`
+ * primitives.
  *
  * Unchanged: the `positionType` owner/lease-operator gate on the business
  * section, the `has-felony` key and its conditional explanation, and the
@@ -26,7 +26,7 @@ import { useStepGate } from '@features/driver-app/hooks/useApplicationRules';
  * to supply only visibility, and the section hard-coded Contact #1 as required —
  * so "visible but optional" was unreachable and blocked the applicant.
  *
- * Company rules applied here (2026-09-02): the vehicle categories and their
+ * Company rules applied here: the vehicle categories and their
  * wording (`vehicleExperienceHidden` / `vehicleExperienceLabels`), whether a
  * felony explanation is mandatory (`requireFelonyExplanation`), and the optional
  * Hours of Service statement (`hoursOfServiceStatement: 'application'`), which

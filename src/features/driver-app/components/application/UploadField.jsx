@@ -11,42 +11,32 @@ import { UploadProgress } from './UploadProgress';
  * UploadField
  * A reliable file upload component with progress tracking, retry logic, and previews.
  *
- * Presentation is migrated to the approved `Button` / `IconButton` /
- * `ProgressBar` primitives and `--ds-*` tokens. The design system has no
- * approved file-input contract yet (Phase 4 records it as open), so the
- * hidden-input + visible-trigger composition stays feature-owned. The dashed
- * drop-zone look is produced by giving the approved secondary `Button` a dashed
- * 2 px border — the variant keeps owning the border *colour*, so no token is
- * bypassed and no local button is created.
+ * Presentation is the approved `FileInput` (its `dropzone` variant is the empty
+ * state), `Button` / `IconButton` and `ProgressBar` (through `UploadProgress`),
+ * on `--ds-*` tokens.
  *
  * Frozen behaviour: the `onUpload(name, file, { onProgress, signal })` call, the
  * `onChange(name, result)` / `onChange(name, null)` payloads, the "Upload
  * completed but no file metadata was returned." guard, the 1 s success→idle
  * reset, the fact that removing a file is confirmed before it happens, the
- * `required && !hasValue` attribute on the hidden input, the `accept` default, and
+ * `required && !hasValue` attribute on the file input, the `accept` default, and
  * the exact "Uploaded Successfully" / "Upload failed. Please try again." strings
  * (asserted by `e2e/public-application.spec.cjs`).
  *
- * 2026-10-09 — REAL PROGRESS, AND A WAY OUT. The bar was a made-up ramp that
- * stopped at 90% and waited there for as long as the upload took, with Continue
- * locked and nothing to press. It now shows what `onProgress` reports, **Cancel
- * upload** aborts through `signal` and returns the field to its picker, and a
- * failure shows the upload's own plain sentence (`GuestUploadError`).
+ * REAL PROGRESS, AND A WAY OUT. The bar shows what `onProgress` reports, never a
+ * made-up ramp; **Cancel upload** aborts through `signal` and returns the field to
+ * its picker; and a failure shows the upload's own plain sentence
+ * (`GuestUploadError`).
  *
- * DEFECT FIXED (2026-07-28): the removal prompt was a bare `confirm(...)`. The
- * *rule* (removal is always confirmed) is preserved; the blocking browser dialog
- * is replaced by the approved accessible `ConfirmDialog`.
+ * Removing a file is always confirmed, through the approved accessible
+ * `ConfirmDialog`, never the browser's blocking `confirm(...)`.
  *
- * DEFECTS FIXED (2026-07-27):
- * - The empty state was a `<div onClick>`: unreachable by keyboard, no role, no
- *   accessible name. It is now an approved `Button` that names the field.
- * - Progress, success and failure were silent. They are now announced through
- *   `role="status"` / `role="alert"` live regions.
- * - The hidden input used `display:none`, so a `required` empty input made
- *   `form.reportValidity()` fail with no focusable control and therefore no
- *   visible message. It is now visually hidden but focusable, and kept out of
- *   the tab order with `tabIndex={-1}` so the visible trigger stays the only
- *   tab stop.
+ * Accessibility:
+ * - The empty state is a keyboard-reachable control named after the field.
+ * - Progress, success and failure are announced through `role="status"` /
+ *   `role="alert"` live regions.
+ * - The file input is never `display:none`: a `required` empty input must stay
+ *   focusable, or `form.reportValidity()` fails with no visible message.
  *
  * `data-upload-field` / `data-upload-state` are a deliberate test contract: the
  * E2E specs must be able to wait for *this* field's committed state instead of
@@ -78,10 +68,9 @@ const UploadField = ({
      *
      * `FileInput` renders its own rejection alert, but this field removes the
      * picker the moment a file arrives — so on a mixed drop (one file accepted,
-     * another refused) that alert is unmounted in the commit that created it and
-     * the applicant never learns a file was turned away. Found in review on
-     * 2026-08-26. `onReject` fires after `onChange`, so the clear below runs
-     * first and this wins.
+     * another refused) that alert would be unmounted in the commit that created
+     * it and the applicant would never learn a file was turned away. `onReject`
+     * fires after `onChange`, so the clear below runs first and this wins.
      */
     const [dropRejection, setDropRejection] = useState(null);
     // Replaces the bare `confirm("Are you sure you want to remove this file?")`.
@@ -206,12 +195,12 @@ const UploadField = ({
         setStatus('idle');
         setProgress(0);
         /*
-          Belt and braces since the picker became `FileInput` (2026-08-25): it is
-          only rendered in the idle/error state, so in the state this runs from
-          the ref is usually null — and clearing `value` is not needed there
-          anyway, because dropping `value` to null remounts a fresh input. The
-          guard stays for the case where it IS live, so re-selecting the same
-          filename still fires `change`.
+          Belt and braces: the `FileInput` picker is only rendered in the
+          idle/error state, so in the state this runs from the ref is usually
+          null — and clearing `value` is not needed there anyway, because
+          dropping `value` to null remounts a fresh input. The guard stays for
+          the case where it IS live, so re-selecting the same filename still
+          fires `change`.
         */
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -330,13 +319,9 @@ const UploadField = ({
             )}
 
             {/*
-              IDLE / EMPTY STATE — `FileInput variant="dropzone"`.
-              This was a `Button` styled as a dashed panel driving a hidden input
-              with `tabIndex={-1}`, under the roadmap's "no approved file-input
-              contract" exception, which closed on 2026-08-21. The primitive is a
-              real focusable input behind a real `<label>`, and `FileInput`'s
-              `onDrop` makes the whole panel a real drop target — which this field
-              never had.
+              IDLE / EMPTY STATE — `FileInput variant="dropzone"`: a real
+              focusable input behind a real `<label>`, and `FileInput`'s `onDrop`
+              makes the whole panel a real drop target.
 
               `labelHidden`, because the field's visible `ds-label` above carries
               the required mark and stays put across the error, uploading and

@@ -1,9 +1,8 @@
-// The guest application's draft lifecycle, split out of
-// `PublicApplyHandler.jsx` on 2026-09-01 for the source-size standard
-// (PA-1c): the synchronous per-step local write, the restore-and-mark-synced
-// path behind Continue, the post-submission close, Start Over with its
-// quota-ordering rules, and the explicit Save-as-Draft. Bodies verbatim; the
-// refs arrive as the ref objects, so ownership semantics are unchanged.
+// The guest application's draft lifecycle, for `PublicApplyHandler.jsx`: the
+// synchronous per-step local write, the restore-and-mark-synced path behind
+// Continue, the post-submission close, Start Over with its quota-ordering rules,
+// and the explicit Save-as-Draft. The refs arrive as the ref objects, so
+// ownership semantics are the component's.
 import { useCallback, useEffect, useRef } from 'react';
 import {
   readApplicationDraft,

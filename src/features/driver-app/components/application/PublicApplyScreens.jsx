@@ -23,20 +23,16 @@ import { DOC_STATUS } from './postApplyDocsStorage';
  * `postApplicationTemplates.length > 0 && submittedApplicationId` checklist
  * gate, and the pending-required-document message switch.
  *
- * DEFECTS FIXED (2026-07-27): none of these screens was a `<main>` landmark,
- * none had an `<h1>` (they opened at `<h2>`, so an applicant landing on one
- * heard an unlabelled page), the loading and queued states were not announced,
- * and the "Go to home" / "Start a new application" controls were bare
- * `<button>`s styled as text links with no affordance beyond hover.
+ * Every screen is a `<main>` landmark labelled by its `<h1>`, so an applicant
+ * landing on one hears which page it is; the loading and queued states are
+ * announced, and "Go to home" / "Start a new application" are `Button`s, not
+ * text links with no affordance beyond hover.
  *
- * **2026-08-25: all five screens are the approved page-state pattern.** They were
- * hand-composed `Card` + `StatusMedallion` + heading + body + actions, which is
- * what `PageState` is — it was built later and never applied back here. Measured
- * across these five and the four in the signing room, one kind of screen had two
- * title sizes, two medallion sizes, icons at 28/32/40/48px and three different
- * gaps under the medallion. The pattern owns the shape now; this feature keeps
- * the words, the tone, the icon, the actions and the domain logic (the
- * confirmation-number fallback, the checklist gate, the pending-required switch).
+ * **All five screens are the approved page-state pattern**, never a hand-composed
+ * `Card` + `StatusMedallion` + heading + body + actions. The pattern owns the
+ * shape; this feature keeps the words, the tone, the icon, the actions and the
+ * domain logic (the confirmation-number fallback, the checklist gate, the
+ * pending-required switch).
  *
  * Two capabilities were added to the pattern rather than kept here, because both
  * are general: `children`, for the confirmation panel and the outstanding-document
@@ -285,10 +281,9 @@ export function SubmissionQueuedScreen({ onGoHome }) {
 /**
  * Which full-page status screen, if any, precedes the wizard.
  *
- * Moved out of `PublicApplyHandler` on 2026-09-08. This module already owns every
- * screen below, and the ORDER is load-bearing rather than incidental, so it
- * belongs with them: each position is protecting something, and three of the four
- * reasons were learned from a real defect.
+ * It lives here, not in `PublicApplyHandler`: this module owns every screen below,
+ * and the ORDER is load-bearing rather than incidental, so it belongs with them —
+ * each position is protecting something.
  *
  *  1. **Loading and link error first**, because neither has a company to render
  *     against.
@@ -305,12 +300,12 @@ export function SubmissionQueuedScreen({ onGoHome }) {
  *     silent fallback is what this position replaces.
  *  5. **The identity check in the same position, for the same reason.** A link
  *     whose application the driver has already started resolves to
- *     `requires_identity`, and until 2026-09-09 that outcome matched no branch at
- *     all — so the chooser rendered, and a driver sent a replacement link was
- *     offered a brand-new application with no mention of the one they had spent
- *     an hour on. It sits below the success screen because a confirmed
- *     submission outranks a request to confirm anything, and above the chooser
- *     because that fall-through IS the defect.
+ *     `requires_identity`, and that outcome needs its own branch: without one the
+ *     chooser renders, and a driver sent a replacement link is offered a
+ *     brand-new application with no mention of the one they started. It sits
+ *     below the success screen because a confirmed submission outranks a request
+ *     to confirm anything, and above the chooser because falling through to the
+ *     chooser is exactly what it prevents.
  *
  * Returns `null` when the wizard itself should render.
  */

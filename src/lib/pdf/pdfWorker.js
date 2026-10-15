@@ -1,13 +1,10 @@
 /**
  * pdf.js worker wiring, imported by every module that renders or reads a PDF.
  *
- * Until 2026-09-06 this lived in `main.jsx`, which made `react-pdf` — and with
- * it the 399 kB `pdfjs` chunk (117 kB over the wire) — part of the entry bundle
- * for EVERY route, including the public application a driver opens on a phone
- * at a truck stop, where no PDF is ever rendered. Measured against the
- * production build: the entry preloaded that chunk on `/apply` and `/login`
- * alike. Moving the wiring here lets it travel with the PDF features (signing
- * room, envelope creator, application prep), which are already lazy chunks.
+ * It lives here, not in `main.jsx`, so it travels with the PDF features (signing
+ * room, envelope creator, application prep), which are lazy chunks. Wired in the
+ * entry, `react-pdf` and the `pdfjs` chunk would load on EVERY route, including
+ * the public application a driver opens on a phone, where no PDF is ever rendered.
  *
  * The worker file is served from `public/pdf.worker.min.mjs` on purpose — no
  * CDN, so a production outage of someone else's host cannot break signing.

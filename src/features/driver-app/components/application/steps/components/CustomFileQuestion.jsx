@@ -7,12 +7,10 @@ import { UploadProgress } from '../../UploadProgress';
  * a failed upload's reason with Try again. `DynamicQuestionsStep` owns the
  * answers and the uploads in flight; this owns how one question shows them.
  *
- * `FileInput variant="dropzone"`. This was a hand-built version of the same thing
- * under a comment saying the design system had no file-input contract, which
- * stopped being true on 2026-08-21 — and it had a real defect the primitive
- * cannot have: TWO `<label for>` elements pointed at the one input, so its
- * accessible name was the question text AND the drop-zone copy concatenated.
- * `FileInput` renders one label.
+ * `FileInput variant="dropzone"`, never a hand-built picker: `FileInput` renders
+ * one label, so the input's accessible name is the question text alone — two
+ * `<label for>` elements on one input concatenate the question and the drop-zone
+ * copy.
  *
  * While the file is on its way the picker is busy, and the bytes sent so far
  * show with Cancel, as on the License page: a stalled upload is not a minute of

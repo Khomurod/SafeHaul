@@ -49,8 +49,8 @@ export function buildIsoDate(y, m, d) {
 
 /**
  * @param {string} value — YYYY-MM, legacy mm/yyyy or MM/YYYY, or a full
- *   YYYY-MM-DD (its month and year: employment and school dates were stored
- *   with a day until 2026-10-06, and a row saved then still shows its month)
+ *   YYYY-MM-DD (its month and year: older employment and school rows store a
+ *   day, and still show their month)
  */
 export function parseMonthYear(value) {
     if (!value || typeof value !== 'string') return { year: '', month: '' };

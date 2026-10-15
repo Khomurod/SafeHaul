@@ -2,8 +2,8 @@
 //
 // Pure helpers the schema renderer and its edit controls share: how an option is
 // read, how a multi-choice value is read, and which field types may be edited in
-// place. Split out of `SchemaRenderer.jsx` on 2026-10-01, when the edit controls
-// grew past what one file should hold.
+// place. Apart from `SchemaRenderer.jsx` so that file stays what one file should
+// hold.
 
 /**
  * Normalize a radio/select option to a { value, label } pair.
@@ -29,15 +29,14 @@ export function listValues(value) {
 /**
  * Types the company editors must not offer as a retypeable value.
  *
- * Every type used to fall through to `<Input type="text">` in edit mode. A file is
- * a document reference, so its box read "[object Object]" — and typing into it
- * replaced the reference with a string, which a carrier's prepared application
- * then handed to the driver as their medical card. A signature is an image of
- * somebody's mark and showed as a base64 string. Both stay read-only while the
- * rest of the section edits; documents are attached through their own control.
- * (Found 2026-10-01, in the carrier's prep editor and the dossier's Edit
- * Application — the only two callers of edit mode.) The names are the schema's
- * own `type` strings.
+ * A file is a document reference: as `<Input type="text">` its box would read
+ * "[object Object]", and typing into it would replace the reference with a string
+ * that a carrier's prepared application then hands to the driver as their
+ * medical card. A signature is an image of somebody's mark and would show as a
+ * base64 string. Both stay read-only while the rest of the section edits;
+ * documents are attached through their own control. Edit mode has two callers:
+ * the carrier's prep editor and the dossier's Edit Application. The names are the
+ * schema's own `type` strings.
  */
 const NOT_EDITABLE_IN_PLACE = new Set(['file', 'signature', 'array']);
 

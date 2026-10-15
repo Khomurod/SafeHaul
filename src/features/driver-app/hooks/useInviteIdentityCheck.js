@@ -159,9 +159,8 @@ export function useInviteIdentityCheck({
          *
          * Dismissed by the same flag as the link-problem screen, because it offers
          * the same explicit way out: starting a fresh application is a choice the
-         * driver makes and never a fallback that happens to them. Until 2026-09-09
-         * this outcome had no screen at all, and that fall-through to the intake
-         * chooser is the reported bug.
+         * driver makes and never a fallback that happens to them, so this outcome
+         * never falls through to the intake chooser.
          */
         identityCheck: inviteOutcome.status === INVITE_OUTCOMES.REQUIRES_IDENTITY && !dismissed
             ? { busy, error }

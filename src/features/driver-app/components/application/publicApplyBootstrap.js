@@ -1,12 +1,10 @@
-// How the guest application page boots and stays reconciled, split out of
-// `PublicApplyHandler.jsx` on 2026-09-01 for the source-size standard
-// (PA-1b). Four React-free functions, bodies verbatim from the component:
-// the post-apply session restore, the company load (sandbox / E2E /
-// production, with the local-draft restore and its discard guards), the
-// server-draft reconciliation (returning the effect's own cleanup), and the
-// reconnect flush listener (likewise returning its cleanup). The component's
-// effects keep their exact dependency arrays and pass this tab's refs as the
-// ref OBJECTS, so capture/re-read semantics are unchanged.
+// How the guest application page boots, for `PublicApplyHandler.jsx`: two
+// React-free functions, the post-apply session restore and the company load
+// (sandbox / E2E / production, with the local-draft restore and its discard
+// guards). The server-draft reconciliation and the reconnect flush live in
+// `publicApplyDraftSync.js`. The component's effects keep their exact dependency
+// arrays and pass this tab's refs as the ref OBJECTS, so capture/re-read
+// semantics are the component's.
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';

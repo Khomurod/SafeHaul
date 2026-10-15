@@ -1,9 +1,9 @@
 // src/shared/components/schema/SchemaEditControls.jsx
 //
 // How a schema `select` and `checkbox` are edited in place, by the company's two
-// editors (the carrier's prep editor and the dossier's Edit Application). Both used
-// to be a text box, which wrote values the driver's wizard could not show. Split out
-// of `SchemaRenderer.jsx` on 2026-10-01; see that file for the rest of edit mode.
+// editors (the carrier's prep editor and the dossier's Edit Application): never
+// as a text box, which writes values the driver's wizard cannot show. See
+// `SchemaRenderer.jsx` for the rest of edit mode.
 import React from 'react';
 import { Checkbox, ChoiceGroup, FormField, Select } from '@design-system/components';
 import { domIdSegment } from '@shared/utils/domId';

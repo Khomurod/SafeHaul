@@ -8,9 +8,9 @@ import {
 /**
  * Which application this tab holds a credential for.
  *
- * Split out of `useApplicationResume.js` on 2026-09-08, both for the source-size
- * standard and because it is one subject: three questions that were previously
- * answered by reading shared storage at the moment each answer was needed.
+ * Apart from `useApplicationResume.js` because it is one subject: three questions
+ * answered from what this tab holds, never by reading shared storage at the
+ * moment each answer is needed.
  *
  * ## Why the token is held in a ref and not re-read at send time
  *

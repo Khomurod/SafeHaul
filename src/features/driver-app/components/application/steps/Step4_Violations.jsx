@@ -47,13 +47,10 @@ const ConditionalExplanation = ({ id, name, value, onChange }) => (
  * `driving-convictions-no` and `drug-alcohol-convictions-no` are element ids the
  * guest E2E specs click via `label[for=…]`.
  *
- * 2026-09-02 — ONE MVR authorization. The step used to ask "I Consent to MVR
- * Check" under two sentences of prose that recorded nothing, while a separate
- * "MVR Consent Form" upload lived on the licence step and the FCRA disclosure
- * mentioned driving records again. The Yes/No question now sits under the
- * versioned `mvrAuthorization` agreement from the server registry, and a Yes is
- * recorded exactly like the consent-step agreements (`agreementAcceptances`,
- * with the version shown). Whether a No stops the application is the company's
+ * ONE MVR authorization: the Yes/No question sits under the versioned
+ * `mvrAuthorization` agreement from the server registry, and a Yes is recorded
+ * exactly like the consent-step agreements (`agreementAcceptances`, with the
+ * version shown). Whether a No stops the application is the company's
  * `mvrAuthorization` rule; the explanation is the rule engine's own wording, the
  * same the server gives.
  *

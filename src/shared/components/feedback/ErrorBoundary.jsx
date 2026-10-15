@@ -7,19 +7,14 @@ import { ErrorState } from '@design-system/patterns';
 /**
  * The top-level crash handler.
  *
- * Migrated to `ErrorState` on 2026-08-21. Presentation only — the Sentry
- * capture, the `console.error`, the reload and go-home behaviour, the
- * development-only error text and the `UI_CRASH_HANDLER` code are unchanged.
+ * Presentation is the `ErrorState` pattern; the Sentry capture, the
+ * `console.error`, the reload and go-home behaviour, the development-only error
+ * text and the `UI_CRASH_HANDLER` code are unchanged.
  *
- * What changed, beyond the tokens: the old markup announced nothing. A crash
- * replaced the page with a `<div>` containing an `<h2>`, so a screen-reader user
- * whose action had just failed got silence. `ErrorState` is `role="alert"`, so
- * the failure is announced the moment it appears — which for the screen that
- * appears *because something broke* is the whole point.
- *
- * The medallion, heading, body and action row are the pattern's, so this crash
- * screen is now the same shape as every other error state in the product rather
- * than a bespoke card with its own shadow, radius and red header band.
+ * `ErrorState` is `role="alert"`, so the failure is announced the moment it
+ * appears — which for the screen that appears *because something broke* is the
+ * whole point — and the crash screen is the same shape as every other error
+ * state in the product, not a bespoke card.
  */
 class ErrorBoundary extends React.Component {
   constructor(props) {

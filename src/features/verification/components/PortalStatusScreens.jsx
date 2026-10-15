@@ -18,18 +18,11 @@ function StatusShell({ children, role, className = '' }) {
 }
 
 /*
- * `StatusIcon` lived here until 2026-09-06 — a 64px tinted square holding a 36px
- * glyph, with its own three-tone class map, in a file that already imported from
- * the design system. It is `StatusMedallion`, hand-built.
- *
- * Two things brought it out. The 36px is not a step on the icon scale, and an
- * off-scale size is the signal that a container is missing. And `StatusIcon`
- * rendered its `icon` prop DIRECTLY — `<Icon className="h-9 w-9" />` — which
- * throws the moment a glyph name becomes a token, on this public portal, in a
- * branch no unit test reaches.
- *
- * The four screens below are also consistent for the first time: the loading one
- * had a bare spinner where the other three had a disc.
+ * The four screens below each show their glyph in a `StatusMedallion`, the
+ * loading one included; do not hand-build the disc. An off-scale icon size is the
+ * signal that a container is missing, and a glyph must go through `Icon`:
+ * rendering an `icon` prop DIRECTLY throws the moment a glyph name becomes a
+ * token, on this public portal, in a branch no unit test reaches.
  */
 const MEDALLION = 'mx-auto mb-4';
 

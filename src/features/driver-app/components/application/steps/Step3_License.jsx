@@ -18,8 +18,8 @@ import { ReportImportPanel } from './components/ReportImportPanel';
 import { integrationEnabled } from '../reportSuggestions';
 
 /**
- * Presentation migrated to the approved `FormSection` / `FormField` / `Select` /
- * `Checkbox` / `ChoiceGroup` primitives (2026-07-27).
+ * Presentation uses the approved `FormSection` / `FormField` / `Select` /
+ * `Checkbox` / `ChoiceGroup` primitives.
  *
  * Unchanged: every field key, the `applicationConfig` upload hidden/required
  * resolution, the local `hasUploadedFile` rule, the exact "Please upload required
@@ -28,18 +28,16 @@ import { integrationEnabled } from '../reportSuggestions';
  * TWIC conditional block, and the `isUploading` disabled/"Uploading..." Continue
  * state.
  *
- * 2026-09-02 — company rules. An expiration date in the past is judged the
+ * Company rules. An expiration date in the past is judged the
  * moment the date changes (`expiredCdl` / `expiredMedicalCard`: allow, warn or
  * block), the other-state licence list can be required to hold one complete
  * record (`requirePreviousLicenseDetails`), and the signed-form upload is
  * labelled as what it is — a paper form — so it is not mistaken for the MVR
  * authorization question on the next step.
  *
- * DEFECT FIXED (2026-07-27): the missing-upload message was a plain `<div>` — not
- * announced, and not focused. An applicant who pressed Continue with a document
- * missing got no feedback at all from a screen reader, and on a long step the
- * message could be off-screen. It is now a `role="alert"` region that receives
- * focus, so the reason Continue did nothing is always reachable.
+ * The missing-upload message is a `role="alert"` region that receives focus, so
+ * an applicant who presses Continue with a document missing is always told why —
+ * by a screen reader too, and on a long step where the message would be off-screen.
  */
 const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate, isUploading, onPartialSubmit }) => {
     const ty = new Date().getFullYear();

@@ -1,8 +1,7 @@
-// The post-submission Required Documents flow, split out of
-// `PublicApplyHandler.jsx` on 2026-09-01 for the source-size standard
-// (PA-1c): per-template checklist state persisted to the session snapshot,
-// the start-new-application reset, and opening a post-application template
-// through the signing room (E2E and production paths). Bodies verbatim.
+// The post-submission Required Documents flow, for `PublicApplyHandler.jsx`:
+// per-template checklist state persisted to the session snapshot, the
+// start-new-application reset, and opening a post-application template through
+// the signing room (E2E and production paths).
 import { useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
