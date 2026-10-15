@@ -51,3 +51,35 @@ export const SUPER_ADMIN_NAV_ITEMS = Object.freeze([
 
   { id: SUPER_ADMIN_VIEWS.CREATE, label: 'Create New', icon: 'Plus', group: 'create' },
 ]);
+
+const PANEL_PATH = '/super-admin';
+// Every screen but one company's SMS setup, which is addressed under its list.
+const ADDRESSABLE_VIEWS = new Set(Object.values(SUPER_ADMIN_VIEWS)
+  .filter((view) => view !== SUPER_ADMIN_VIEWS.INTEGRATION_SETUP));
+
+/**
+ * The panel's screen is in the address, so a reload, Back and a shared link
+ * keep it: `/super-admin` is the dashboard, `/super-admin/<view>` any other
+ * screen, and `/super-admin/integrations/<companyId>` one company's SMS setup.
+ * Any other address is the dashboard.
+ *
+ * @param {string} [subPath] what follows `/super-admin/`
+ * @returns {{ view: string, companyId: string|null }}
+ */
+export function superAdminViewFromPath(subPath = '') {
+  const [first = '', second = '', ...rest] = String(subPath).split('/').filter(Boolean);
+  if (first === SUPER_ADMIN_VIEWS.INTEGRATIONS && second && rest.length === 0) {
+    return { view: SUPER_ADMIN_VIEWS.INTEGRATION_SETUP, companyId: second };
+  }
+  if (ADDRESSABLE_VIEWS.has(first) && !second) return { view: first, companyId: null };
+  return { view: SUPER_ADMIN_VIEWS.DASHBOARD, companyId: null };
+}
+
+/** The address of a screen; an SMS setup needs the id of its company. */
+export function superAdminPathFor(view, companyId = null) {
+  if (view === SUPER_ADMIN_VIEWS.INTEGRATION_SETUP) {
+    return `${PANEL_PATH}/${SUPER_ADMIN_VIEWS.INTEGRATIONS}${companyId ? `/${companyId}` : ''}`;
+  }
+  if (view === SUPER_ADMIN_VIEWS.DASHBOARD || !ADDRESSABLE_VIEWS.has(view)) return PANEL_PATH;
+  return `${PANEL_PATH}/${view}`;
+}

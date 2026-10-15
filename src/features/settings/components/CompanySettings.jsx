@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound } from '@design-system/icons';
 
@@ -19,7 +19,7 @@ import { PageHeader } from '@/design-system/layouts';
 
 export function CompanySettings() {
     const { currentCompanyProfile, currentUser, currentUserClaims } = useData();
-    const [activeTab, setActiveTab] = useState('company');
+    const [searchParams, setSearchParams] = useSearchParams();
     const [showManageTeam, setShowManageTeam] = useState(false);
     const navigate = useNavigate();
 
@@ -64,6 +64,19 @@ export function CompanySettings() {
             ],
         },
     ];
+
+    // The section is in the address (`?section=team`), so a reload, Back and a
+    // shared link keep it; Company Profile, the first, needs none. A section this
+    // company does not show opens Company Profile.
+    const sectionIds = navigationGroups.flatMap((group) => group.items.map((item) => item.id));
+    const requestedSection = searchParams.get('section');
+    const activeTab = sectionIds.includes(requestedSection) ? requestedSection : 'company';
+    const setActiveTab = (section) => setSearchParams((params) => {
+        const next = new URLSearchParams(params);
+        if (section === 'company') next.delete('section');
+        else next.set('section', section);
+        return next;
+    });
 
     // Redirect non-admins back to dashboard
     if (!isCompanyAdmin && currentCompanyProfile) {

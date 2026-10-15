@@ -10,7 +10,7 @@ import { UsersView } from './UsersView.jsx';
 import { CreateView } from './CreateView.jsx';
 import { FeaturesView } from './FeaturesView.jsx';
 import { SystemHealthView } from './SystemHealthView.jsx';
-import { IntegrationManager } from './integrations/IntegrationManager.jsx';
+import { IntegrationSetup } from './integrations/IntegrationSetup.jsx';
 import StatsBackfillPanel from './StatsBackfillPanel.jsx';
 
 
@@ -166,9 +166,9 @@ export function ViewRouter({
             );
         case SUPER_ADMIN_VIEWS.INTEGRATION_SETUP:
             return (
-                <IntegrationManager
+                <IntegrationSetup
                     companyId={selectedIntegrationCompany?.id}
-                    companyName={selectedIntegrationCompany?.companyName}
+                    pickedCompany={selectedIntegrationCompany?.picked}
                     onBack={onBackToIntegrations}
                 />
             );

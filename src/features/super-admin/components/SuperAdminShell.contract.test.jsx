@@ -17,6 +17,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 const httpsCallable = vi.fn();
 const showSuccess = vi.fn();
@@ -43,13 +44,48 @@ vi.mock('../hooks/useSuperAdminData', () => ({
 // The view layer is exercised by its own suites; the shell only needs to prove
 // it routes and composes.
 vi.mock('./ViewRouter', () => ({
-    ViewRouter: ({ activeView, isSearching }) => (
-        <div data-testid="view-router" data-active-view={activeView} data-searching={String(isSearching)} />
+    ViewRouter: ({ activeView, isSearching, selectedIntegrationCompany, onSelectIntegrationCompany, onBackToIntegrations }) => (
+        <div
+            data-testid="view-router"
+            data-active-view={activeView}
+            data-searching={String(isSearching)}
+            data-company-id={selectedIntegrationCompany?.id ?? ''}
+            data-picked-name={selectedIntegrationCompany?.picked?.companyName ?? ''}
+        >
+            <button type="button" onClick={() => onSelectIntegrationCompany({ id: 'co-9', companyName: 'Artificial Carrier 9' })}>
+                Set up SMS for Artificial Carrier 9
+            </button>
+            <button type="button" onClick={onBackToIntegrations}>Back to SMS integrations</button>
+        </div>
     ),
 }));
 vi.mock('./DashboardModals', () => ({ DashboardModals: () => null }));
 
 import { SuperAdminDashboard } from './SuperAdminDashboard';
+
+/** The address the panel is at, and the browser's Back. */
+function AddressProbe() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    return (
+        <>
+            <output data-testid="address">{`${location.pathname}${location.search}`}</output>
+            <button type="button" onClick={() => navigate(-1)}>Browser back</button>
+        </>
+    );
+}
+
+/** The panel at `path`, under the route the application gives it. */
+function renderShell(path = '/super-admin') {
+    return render(
+        <MemoryRouter initialEntries={[path]}>
+            <Routes>
+                <Route path="/super-admin/*" element={<SuperAdminDashboard />} />
+            </Routes>
+            <AddressProbe />
+        </MemoryRouter>,
+    );
+}
 
 function makeData(overrides = {}) {
     return {
@@ -83,7 +119,7 @@ describe('Super Admin shell — frozen maintenance contract', () => {
         const backfillFn = vi.fn().mockResolvedValue({ data: { message: 'done', stats: {} } });
         httpsCallable.mockReturnValue(backfillFn);
 
-        render(<SuperAdminDashboard />);
+        renderShell();
         fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
 
@@ -100,7 +136,7 @@ describe('Super Admin shell — frozen maintenance contract', () => {
         const backfillFn = vi.fn().mockResolvedValue({ data: { message: 'done', stats: {} } });
         httpsCallable.mockReturnValue(backfillFn);
 
-        render(<SuperAdminDashboard />);
+        renderShell();
         fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
 
@@ -114,7 +150,7 @@ describe('Super Admin shell — frozen maintenance contract', () => {
         });
         httpsCallable.mockReturnValue(backfillFn);
 
-        render(<SuperAdminDashboard />);
+        renderShell();
         fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
 
@@ -126,7 +162,7 @@ describe('Super Admin shell — frozen maintenance contract', () => {
     it('reports failures through the error toast rather than throwing', async () => {
         httpsCallable.mockReturnValue(vi.fn().mockRejectedValue(new Error('nope')));
 
-        render(<SuperAdminDashboard />);
+        renderShell();
         fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
 
@@ -146,7 +182,7 @@ describe('Super Admin shell — blocking dialogs replaced (defect)', () => {
             vi.fn().mockResolvedValue({ data: { message: 'ok', stats: { totalDocs: 1 } } }),
         );
 
-        render(<SuperAdminDashboard />);
+        renderShell();
         fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
 
@@ -161,7 +197,7 @@ describe('Super Admin shell — blocking dialogs replaced (defect)', () => {
             data: { message: 'ok', stats: { totalDocs: 3 } },
         }));
 
-        render(<SuperAdminDashboard />);
+        renderShell();
         const trigger = screen.getByRole('button', { name: /Backfill Employers/i });
         trigger.focus();
         fireEvent.click(trigger);
@@ -182,7 +218,7 @@ describe('Super Admin shell — blocking dialogs replaced (defect)', () => {
     });
 
     it('presents the confirmation as a real dialog with an accessible name', async () => {
-        render(<SuperAdminDashboard />);
+        renderShell();
         fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
 
         const dialog = await screen.findByRole('dialog');
@@ -195,7 +231,7 @@ describe('Super Admin shell — blocking dialogs replaced (defect)', () => {
             data: { message: 'ok', stats: { totalDocs: 12, updatedDocs: 7, skippedDocs: 4, errorDocs: 1 } },
         }));
 
-        render(<SuperAdminDashboard />);
+        renderShell();
         fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
         fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
 
@@ -209,7 +245,7 @@ describe('Super Admin shell — blocking dialogs replaced (defect)', () => {
 
 describe('Super Admin shell — header accessibility (defects)', () => {
     it('gives the global search box an accessible name', () => {
-        render(<SuperAdminDashboard />);
+        renderShell();
         expect(
             screen.getByRole('searchbox', { name: /Search companies, users and driver applications/i }),
         ).toBeInTheDocument();
@@ -217,12 +253,12 @@ describe('Super Admin shell — header accessibility (defects)', () => {
 
     it('names the clear-search control', () => {
         superAdminData = makeData({ searchQuery: 'acme' });
-        render(<SuperAdminDashboard />);
+        renderShell();
         expect(screen.getByRole('button', { name: 'Clear search' })).toBeInTheDocument();
     });
 
     it('keeps the logout hook and its stable id', () => {
-        render(<SuperAdminDashboard />);
+        renderShell();
         const logout = screen.getByRole('button', { name: /Logout|Log out/i });
         expect(logout).toHaveAttribute('id', 'logout-button-super');
         fireEvent.click(logout);
@@ -232,19 +268,19 @@ describe('Super Admin shell — header accessibility (defects)', () => {
 
 describe('Super Admin shell — navigation (defects)', () => {
     it('names the section navigation landmark', () => {
-        render(<SuperAdminDashboard />);
+        renderShell();
         expect(screen.getByRole('navigation', { name: 'Super Admin sections' })).toBeInTheDocument();
     });
 
     it('marks the active view with aria-current, not colour alone', () => {
-        render(<SuperAdminDashboard />);
+        renderShell();
         const nav = screen.getByRole('navigation', { name: 'Super Admin sections' });
         expect(within(nav).getByRole('button', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
         expect(within(nav).getByRole('button', { name: 'Companies' })).not.toHaveAttribute('aria-current');
     });
 
     it('routes to the exact SUPER_ADMIN_VIEWS value for each nav item', () => {
-        render(<SuperAdminDashboard />);
+        renderShell();
         const nav = screen.getByRole('navigation', { name: 'Super Admin sections' });
 
         fireEvent.click(within(nav).getByRole('button', { name: 'Unified Driver DB' }));
@@ -260,7 +296,7 @@ describe('Super Admin shell — navigation (defects)', () => {
     it('clears the search query when a section is chosen', () => {
         const setSearchQuery = vi.fn();
         superAdminData = makeData({ searchQuery: 'acme', setSearchQuery });
-        render(<SuperAdminDashboard />);
+        renderShell();
 
         fireEvent.click(screen.getByRole('button', { name: 'Companies' }));
         expect(setSearchQuery).toHaveBeenCalledWith('');
@@ -268,7 +304,64 @@ describe('Super Admin shell — navigation (defects)', () => {
 
     it('exposes the search state to the router so results replace the active view', () => {
         superAdminData = makeData({ searchQuery: 'acme' });
-        render(<SuperAdminDashboard />);
+        renderShell();
         expect(screen.getByTestId('view-router')).toHaveAttribute('data-searching', 'true');
+    });
+});
+
+describe('Super Admin shell — the screen in the address', () => {
+    const view = () => screen.getByTestId('view-router');
+    const nav = () => screen.getByRole('navigation', { name: 'Super Admin sections' });
+
+    it('opens the screen the address names', () => {
+        renderShell('/super-admin/users');
+
+        expect(view()).toHaveAttribute('data-active-view', 'users');
+        expect(within(nav()).getByRole('button', { name: 'Users' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('writes the chosen screen into the address, keeping its query', () => {
+        renderShell('/super-admin?e2eAuth=super_admin');
+
+        fireEvent.click(within(nav()).getByRole('button', { name: 'Companies' }));
+        expect(screen.getByTestId('address')).toHaveTextContent('/super-admin/companies?e2eAuth=super_admin');
+
+        fireEvent.click(within(nav()).getByRole('button', { name: 'Dashboard' }));
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\?e2eAuth=super_admin$/);
+    });
+
+    it('goes back to the previous screen with the browser', () => {
+        renderShell();
+        fireEvent.click(within(nav()).getByRole('button', { name: 'Companies' }));
+        fireEvent.click(within(nav()).getByRole('button', { name: 'Releases' }));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
+
+        expect(view()).toHaveAttribute('data-active-view', 'companies');
+    });
+
+    it("reopens a company's SMS setup from its address, for the setup to read the company", () => {
+        renderShell('/super-admin/integrations/co-7');
+
+        expect(view()).toHaveAttribute('data-active-view', 'integration-setup');
+        expect(view()).toHaveAttribute('data-company-id', 'co-7');
+        expect(view()).toHaveAttribute('data-picked-name', '');
+    });
+
+    it('puts the SMS setup a row opens into the address, and leaves it for the list', () => {
+        renderShell('/super-admin/integrations');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Set up SMS for Artificial Carrier 9' }));
+        expect(screen.getByTestId('address')).toHaveTextContent('/super-admin/integrations/co-9');
+        expect(view()).toHaveAttribute('data-picked-name', 'Artificial Carrier 9');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back to SMS integrations' }));
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/integrations$/);
+        expect(view()).toHaveAttribute('data-active-view', 'integrations');
+    });
+
+    it('opens the dashboard for an address it does not know', () => {
+        renderShell('/super-admin/nowhere');
+        expect(view()).toHaveAttribute('data-active-view', 'dashboard');
     });
 });
