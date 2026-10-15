@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { doc, getDoc } from "firebase/firestore";
 import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
@@ -25,33 +25,43 @@ export function useAppFetch(companyId, applicationId) {
   const [companyProfile, setCompanyProfile] = useState(null);
   const [collectionName, setCollectionName] = useState('applications');
   const [fileUrls, setFileUrls] = useState({});
+  // True while the record shows and its files are still being signed.
+  const [filesPending, setFilesPending] = useState(false);
   const [currentStatus, setCurrentStatus] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
   // The Assign To picker's team, each member keyed by the uid it saves.
   const { team: teamMembers } = useCompanyTeam(companyId, companyProfile);
 
   const isGlobal = false;
+  // A load for a record the dossier no longer shows changes nothing.
+  const loadVersionRef = useRef(0);
 
   const loadApplication = useCallback(async () => {
     if (!companyId || !applicationId) return;
+    const version = ++loadVersionRef.current;
+    const current = () => version === loadVersionRef.current;
     setLoading(true);
     setError('');
+    setFilesPending(false);
 
     try {
-      const companyProf = await getCompanyProfile(companyId);
+      // The company profile and the record at the same time: neither needs
+      // the other. getCompanyProfile answers null rather than throw.
+      let coll = 'applications';
+      let docRef = doc(db, "companies", companyId, coll, applicationId);
+      const [companyProf, firstSnap] = await Promise.all([
+        getCompanyProfile(companyId),
+        simpleRetry(() => getDoc(docRef)),
+      ]);
+      if (!current()) return;
       setCompanyProfile(companyProf);
 
-      let coll = 'applications';
-      let docRef;
-      let docSnap;
-
-      docRef = doc(db, "companies", companyId, coll, applicationId);
-      docSnap = await simpleRetry(() => getDoc(docRef));
-
+      let docSnap = firstSnap;
       if (!docSnap.exists()) {
         coll = 'leads';
         docRef = doc(db, "companies", companyId, coll, applicationId);
         docSnap = await simpleRetry(() => getDoc(docRef));
+        if (!current()) return;
       }
 
       if (docSnap.exists()) {
@@ -105,12 +115,19 @@ export function useAppFetch(companyId, applicationId) {
           }
         };
 
+        // The record shows now; its files are signed behind it (one callable
+        // each), and the tabs that draw them wait on `filesPending`.
+        setFileUrls({});
+        setFilesPending(true);
+        setLoading(false);
+
         const [cdl, cdlBack, ssc, medical, twic, mvrConsent, drugTestConsent, mvr] = await Promise.all([
           getUrl(data['cdl-front']), getUrl(data['cdl-back']), getUrl(data['ssc-upload']),
           getUrl(data['medical-card-upload']), getUrl(data['twic-card-upload']),
           getUrl(data['mvr-consent-upload']), getUrl(data['drug-test-consent-upload']),
           getUrl(data['mvr-upload'])
         ]);
+        if (!current()) return;
 
         setFileUrls({
           'cdl-front': cdl,
@@ -122,15 +139,17 @@ export function useAppFetch(companyId, applicationId) {
           'drug-test-consent-upload': drugTestConsent,
           'mvr-upload': mvr
         });
+        setFilesPending(false);
 
       } else {
         setError(`Could not find record (ID: ${applicationId}).`);
       }
     } catch (err) {
+      if (!current()) return;
       console.error("Error fetching document:", err);
       setError("Error: Could not load details.");
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
   }, [companyId, applicationId, isGlobal]);
 
@@ -147,6 +166,7 @@ export function useAppFetch(companyId, applicationId) {
     collectionName,
     fileUrls,
     setFileUrls,
+    filesPending,
     teamMembers,
     currentStatus,
     setCurrentStatus,

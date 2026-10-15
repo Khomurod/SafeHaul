@@ -67,7 +67,9 @@ export function SchemaField({
     onBlur,
     // Re-signed file URLs keyed by field key (display mode), so file links use a
     // fresh signed URL instead of the expired persisted one.
-    fileUrls = {}
+    fileUrls = {},
+    // True while those URLs are still being signed.
+    filesPending = false
 }) {
     const definition = getFieldByKey(fieldKey);
 
@@ -95,7 +97,7 @@ export function SchemaField({
     }
 
     // --- DISPLAY MODE ---
-    return renderDisplayMode(definition, value, onChange, isEditing, fileUrls);
+    return renderDisplayMode(definition, value, onChange, isEditing, fileUrls, filesPending);
 }
 
 /**
@@ -190,10 +192,10 @@ function renderInputMode(definition, value, onChange, isRequired, error, onBlur)
 /**
  * Render field in display mode (admin dashboard sections)
  */
-function renderDisplayMode(definition, value, onChange, isEditing, fileUrls = {}) {
+function renderDisplayMode(definition, value, onChange, isEditing, fileUrls = {}, filesPending = false) {
     const { key, label, type, sensitive, mask, options } = definition;
 
-    const displayValue = formatDisplayValue(value, definition, fileUrls);
+    const displayValue = formatDisplayValue(value, definition, fileUrls, filesPending);
 
     // Editing mode in admin panel
     if (isEditing && !definition.readOnly && isEditableInPlace(type)) {
@@ -278,7 +280,7 @@ function mapFieldType(schemaType) {
 /**
  * Format a value for display, handling sensitive data and empty values
  */
-function formatDisplayValue(value, definition, fileUrls = {}) {
+function formatDisplayValue(value, definition, fileUrls = {}, filesPending = false) {
     if (value === undefined || value === null || value === '') {
         return <span className="italic text-ds-content-muted">-</span>;
     }
@@ -297,7 +299,17 @@ function formatDisplayValue(value, definition, fileUrls = {}) {
         // Prefer the freshly re-signed URL (useAppFetch -> fileUrls keyed by field)
         // over the persisted value.url, which is a short-lived signed URL that has
         // expired by dossier-view time (CDL "ExpiredToken" bug).
-        const resolvedHref = (definition?.key && fileUrls[definition.key]) || value.url;
+        const freshHref = definition?.key && fileUrls[definition.key];
+        // While the dossier signs its files, an upload's stored link has already
+        // expired: its name stands in until the fresh one arrives.
+        if (!freshHref && filesPending && value.storagePath) {
+            return (
+                <span>
+                    📎 {value.name || 'File'} <span className="text-ds-content-muted">(preparing link…)</span>
+                </span>
+            );
+        }
+        const resolvedHref = freshHref || value.url;
         if (resolvedHref) {
             return (
                 /*
@@ -370,7 +382,9 @@ export function SchemaSection({
     lockedKeys = [],
     // Re-signed file URLs keyed by field key, so file links (CDL etc.) use a
     // fresh signed URL instead of the expired persisted one.
-    fileUrls = {}
+    fileUrls = {},
+    // True while those URLs are still being signed.
+    filesPending = false
 }) {
     // Find section directly from APPLICATION_SCHEMA
     const section = APPLICATION_SCHEMA.sections.find(s => s.id === sectionId);
@@ -394,6 +408,7 @@ export function SchemaSection({
             isEditing={isEditing && !lockedKeys.includes(field.key)}
             config={config}
             fileUrls={fileUrls}
+            filesPending={filesPending}
         />
     ));
 
@@ -418,7 +433,7 @@ export function SchemaSection({
                                         const legacyMap = { companyName: 'name', address: 'street', reasonForLeaving: 'reason' };
                                         if (legacyMap[field.key]) val = item[legacyMap[field.key]];
                                     }
-                                    const displayVal = formatDisplayValue(val, field, fileUrls);
+                                    const displayVal = formatDisplayValue(val, field, fileUrls, filesPending);
                                     return (
                                         <div key={field.key} className="col-span-1">
                                             <FieldDisplay label={field.label}>{displayVal}</FieldDisplay>

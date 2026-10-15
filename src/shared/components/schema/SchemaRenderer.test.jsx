@@ -23,6 +23,21 @@ describe('SchemaRenderer file display (CDL re-signed URL)', () => {
         expect(link).toHaveAttribute('href', 'https://signed.example/fresh?token=good');
     });
 
+    it('while the dossier signs its files, shows an upload by name, without its dead stored link', () => {
+        const { getByText, queryByRole } = render(
+            <SchemaField
+                fieldKey="cdl-front"
+                mode="display"
+                data={{ 'cdl-front': fileValue }}
+                fileUrls={{}}
+                filesPending
+            />,
+        );
+        expect(queryByRole('link')).toBeNull();
+        expect(getByText(/image\.jpg/)).toBeInTheDocument();
+        expect(getByText(/preparing link/i)).toBeInTheDocument();
+    });
+
     it('falls back to the persisted url when no re-signed url is available', () => {
         const { getByRole } = render(
             <SchemaField

@@ -46,7 +46,7 @@ const STANDARD_DOCUMENTS = [
     ['drug-test-consent-upload', 'Drug Test Consent'],
 ];
 
-export function DocumentsTab({ fileUrls = {}, appData }) {
+export function DocumentsTab({ fileUrls = {}, filesPending = false, appData }) {
     const [previewDoc, setPreviewDoc] = useState(null);
     const closePreviewRef = useRef(null);
 
@@ -69,6 +69,16 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
         }
         return docs;
     }, []);
+
+    // While the dossier signs its files, a stored link has expired: the gallery
+    // waits for the fresh ones rather than list dead links, or nothing.
+    if (filesPending) {
+        return (
+            <p role="status" className="py-ds-12 text-center text-ds-body text-ds-content-secondary">
+                Loading documents…
+            </p>
+        );
+    }
 
     if (allDocs.length === 0) {
         return (

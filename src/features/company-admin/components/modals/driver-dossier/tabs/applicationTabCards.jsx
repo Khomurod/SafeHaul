@@ -110,7 +110,7 @@ function DossierSummaryCard({ icon: Glyph, title, tone = 'info', children }) {
     );
 }
 
-function LicenseCard({ appData, fileUrls = {} }) {
+function LicenseCard({ appData, fileUrls = {}, filesPending = false }) {
     const rawExp = appData.cdlExpiration || appData.cdlExpirationDate;
     const expDate = toDateOrNull(rawExp);
     const today = new Date();
@@ -128,8 +128,12 @@ function LicenseCard({ appData, fileUrls = {} }) {
         }
     }
 
-    const cdlFrontUrl = fileUrls['cdl-front'] || appData?.['cdl-front']?.url;
-    const cdlBackUrl = fileUrls['cdl-back'] || appData?.['cdl-back']?.url;
+    // While the dossier signs its files, the stored links have expired, and an
+    // image that fails to load hides itself for good: the photos wait for theirs.
+    const hasPhotos = Boolean(appData?.['cdl-front'] || appData?.['cdl-back']);
+    const photosPending = filesPending && hasPhotos;
+    const cdlFrontUrl = photosPending ? null : (fileUrls['cdl-front'] || appData?.['cdl-front']?.url);
+    const cdlBackUrl = photosPending ? null : (fileUrls['cdl-back'] || appData?.['cdl-back']?.url);
 
     return (
         <DossierSummaryCard icon={CreditCard} title="License Information" tone="accent">
@@ -156,6 +160,11 @@ function LicenseCard({ appData, fileUrls = {} }) {
             </div>
 
             {/* CDL Photo Thumbnails */}
+            {photosPending && (
+                <p role="status" className="border-t border-ds-border-subtle pt-ds-3 text-ds-xs text-ds-content-secondary">
+                    Loading photos…
+                </p>
+            )}
             {(cdlFrontUrl || cdlBackUrl) && (
                 <div className="border-t border-ds-border-subtle pt-ds-3">
                     <span className="mb-ds-2 block text-ds-xs font-semibold uppercase text-ds-content-secondary">CDL Photos</span>

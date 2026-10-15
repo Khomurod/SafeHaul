@@ -86,7 +86,7 @@ const VIEW_MODES = [
     { id: 'full', label: 'Full Application', Icon: FileText },
 ];
 
-export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, companyId, applicationId, collectionName = 'applications' }) {
+export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, canEdit = false, companyId, applicationId, collectionName = 'applications' }) {
     /**
      * Which record this tab is showing.
      *
@@ -297,7 +297,7 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
 
                     {/* 2. License Card (Col Span 6) */}
                     <div className="md:col-span-6">
-                        <LicenseCard appData={appData} fileUrls={fileUrls} />
+                        <LicenseCard appData={appData} fileUrls={fileUrls} filesPending={filesPending} />
                     </div>
 
                     {/* 3. Stats / Summary (Col Span 12) */}
@@ -342,6 +342,7 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
                                         isEditing={editing}
                                         onChange={handleFieldChange}
                                         fileUrls={fileUrls}
+                                        filesPending={filesPending}
                                     />
                                 )}
                             </div>

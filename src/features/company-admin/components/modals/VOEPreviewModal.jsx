@@ -2,8 +2,6 @@ import React, { useRef, useState, useMemo, useId } from 'react';
 import { Icon, X, Mail, Printer, ShieldCheck, Download, AlertCircle } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
 import { useData } from '@/context/DataContext';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import {
     PRINT_DOCUMENT_STYLES,
     collectPrintStyles,
@@ -232,6 +230,9 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
         setIsDownloading(true);
         setExportError('');
         try {
+            // Loaded here, by the press: the two are most of the Previous
+            // Employment tab's download, and only this button uses them.
+            const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
             const canvas = await html2canvas(documentRef.current, { scale: 2, useCORS: true });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({

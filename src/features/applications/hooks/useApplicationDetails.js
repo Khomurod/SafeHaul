@@ -40,6 +40,7 @@ export function useApplicationDetails(companyId, applicationId, onStatusUpdate) 
     companyProfile: fetch.companyProfile,
     collectionName: fetch.collectionName,
     fileUrls: fetch.fileUrls,
+    filesPending: fetch.filesPending,
     currentStatus: fetch.currentStatus,
     teamMembers: fetch.teamMembers,
     assignedTo: fetch.assignedTo,

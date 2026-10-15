@@ -90,6 +90,7 @@ export function DriverProfileModal({
         handleManagementComplete,
         handleDownloadPdf,
         fileUrls,
+        filesPending,
         dqStatus,
         collectionName,
         teamMembers,
@@ -230,6 +231,7 @@ export function DriverProfileModal({
                                     handleSaveEdit={handleSaveEdit}
                                     isSaving={isSaving}
                                     fileUrls={fileUrls}
+                                    filesPending={filesPending}
                                     canEdit={canEdit}
                                 />
                             )}
