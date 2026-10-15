@@ -5,7 +5,7 @@
 // load-error/retry state, and the fit-width math. The room keeps the signer
 // interaction handlers (change/focus/advance/signature) and passes them down,
 // along with `pageRefs`, which its scroll-to-field navigation reads.
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { E2E_MOCK_PDF_URL } from '@features/signing/hooks/useSigningEnvelope';
 import { SignerField } from '@features/signing/components/signing-room/SignerField';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
@@ -56,6 +56,9 @@ export function SigningDocumentView({
     const [renderedPages, setRenderedPages] = useState(() => new Set());
     // Pages within `PAGE_PAINT_MARGIN` of the view; the first `EAGER_PAGES` paint regardless.
     const [nearPages, setNearPages] = useState(() => new Set());
+    // The document whose page shapes are being read, so a late reading of one
+    // document cannot land on the next.
+    const measuredDoc = useRef(null);
     const [docError, setDocError] = useState(null);
     const [docReloadKey, setDocReloadKey] = useState(0);
     const [scrollerWidth, setScrollerWidth] = useState(() => window.innerWidth);
@@ -90,6 +93,7 @@ export function SigningDocumentView({
     useEffect(() => {
         setPageAspects({});
         setNearPages(new Set());
+        measuredDoc.current = null;
         if (request?.pdfUrl === E2E_MOCK_PDF_URL) {
             setNumPages(1);
             setRenderedPages(new Set([1])); // mock shell has no real canvas to wait for
@@ -138,6 +142,24 @@ export function SigningDocumentView({
         }
         return () => observer.disconnect();
     }, [numPages, scrollerEl, pageRefs, isE2EMockShell]);
+
+    // Every page's shape, read from the document once it loads (no canvas), so
+    // a page not yet painted keeps its real size and its fields their place.
+    const handleDocumentLoad = async (pdf) => {
+        setNumPages(pdf.numPages);
+        if (typeof pdf?.getPage !== 'function') return;
+        measuredDoc.current = pdf;
+        const shapes = await Promise.all(Array.from({ length: pdf.numPages }, async (_, index) => {
+            try {
+                const viewport = (await pdf.getPage(index + 1)).getViewport({ scale: 1 });
+                return [index + 1, viewport.height / viewport.width];
+            } catch {
+                return null; // keep the default Letter aspect
+            }
+        }));
+        if (measuredDoc.current !== pdf) return;
+        setPageAspects((prev) => ({ ...prev, ...Object.fromEntries(shapes.filter(Boolean)) }));
+    };
 
     const paintsPage = (pageNumber) => pageNumber <= EAGER_PAGES || nearPages.has(pageNumber);
     // A field that takes the keyboard focus paints its page at once, whatever
@@ -272,7 +294,7 @@ export function SigningDocumentView({
                     <Document
                         key={docReloadKey}
                         file={request.pdfUrl}
-                        onLoadSuccess={({ numPages: pages }) => setNumPages(pages)}
+                        onLoadSuccess={handleDocumentLoad}
                         onLoadError={(err) => {
                             console.error('PDF load error:', err);
                             setDocError(err?.message || 'load_failed');

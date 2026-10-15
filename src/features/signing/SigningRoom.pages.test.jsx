@@ -11,22 +11,36 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ToastProvider } from '@shared/components/feedback';
 
 const getEnvelopeFn = vi.fn();
-const pdfMockState = vi.hoisted(() => ({ numPages: 1, painted: new Set(), slowPages: new Set() }));
+const pdfMockState = vi.hoisted(() => ({ numPages: 1, painted: new Set(), slowPages: new Set(), landscape: new Set() }));
+const pageSize = (pageNumber) => (pdfMockState.landscape.has(pageNumber)
+  ? { width: 1100, height: 850 }
+  : { width: 850, height: 1100 });
 
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => getEnvelopeFn) }));
 vi.mock('@lib/firebase', () => ({ functions: {} }));
 vi.mock('react-pdf', () => ({
-  Document: ({ children, onLoadSuccess }) => {
+  // Like react-pdf: one load per file, reported once it has finished.
+  Document: ({ children, file, onLoadSuccess }) => {
+    const latest = React.useRef(onLoadSuccess);
+    latest.current = onLoadSuccess;
     React.useEffect(() => {
-      onLoadSuccess?.({ numPages: pdfMockState.numPages });
-    }, [onLoadSuccess]);
+      let live = true;
+      Promise.resolve().then(() => {
+        if (!live) return;
+        latest.current?.({
+          numPages: pdfMockState.numPages,
+          getPage: async (pageNumber) => ({ getViewport: () => pageSize(pageNumber) }),
+        });
+      });
+      return () => { live = false; };
+    }, [file]);
     return <div data-testid="pdf-document">{children}</div>;
   },
   // A mounted Page is a canvas; a slow page never finishes painting.
   Page: ({ onLoadSuccess, onRenderSuccess, pageNumber }) => {
     React.useEffect(() => {
       pdfMockState.painted.add(pageNumber);
-      onLoadSuccess?.({ getViewport: () => ({ width: 850, height: 1100 }) });
+      onLoadSuccess?.({ getViewport: () => pageSize(pageNumber) });
       if (!pdfMockState.slowPages.has(pageNumber)) onRenderSuccess?.();
       return () => { pdfMockState.painted.delete(pageNumber); };
     }, [onLoadSuccess, onRenderSuccess, pageNumber]);
@@ -92,7 +106,16 @@ async function openRoom() {
   );
   await screen.findByText('Six Page Agreement');
   fireEvent.click(screen.getByRole('button', { name: /I Agree - Proceed to Sign/i }));
-  await waitFor(() => expect(utils.container.querySelectorAll('[data-signing-page]')).toHaveLength(PAGES));
+  // The document loads after the room mounts, as with react-pdf: wait until
+  // every page is there, watched (where the browser can watch), and the first
+  // pages have painted.
+  await waitFor(() => {
+    expect(utils.container.querySelectorAll('[data-signing-page]')).toHaveLength(PAGES);
+    if (typeof globalThis.IntersectionObserver === 'function') {
+      expect(FakeIntersectionObserver.current?.targets.size).toBe(PAGES);
+    }
+    expect(painted()).toEqual(expect.arrayContaining([1, 2]));
+  });
   return utils;
 }
 
@@ -117,6 +140,7 @@ beforeEach(() => {
   pdfMockState.numPages = PAGES;
   pdfMockState.painted = new Set();
   pdfMockState.slowPages = new Set();
+  pdfMockState.landscape = new Set();
   FakeIntersectionObserver.current = null;
 });
 
@@ -157,6 +181,20 @@ describe('the pages the signing room paints', () => {
       expect(node.style.height).not.toBe('');
       expect(node.querySelector(`[data-field-id="field-${page}"]`)).toBeTruthy();
     }
+  });
+
+  it('gives a page not yet painted its own shape, so nothing jumps when it paints', async () => {
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
+    pdfMockState.landscape = new Set([5]);
+    const { container } = await openRoom();
+    const shape = (page) => {
+      const { width, height } = container.querySelector(`[data-signing-page="${page}"]`).style;
+      return parseFloat(height) / parseFloat(width);
+    };
+
+    await waitFor(() => expect(shape(5)).toBeCloseTo(850 / 1100, 2));
+    expect(painted()).not.toContain(5);
+    expect(shape(4)).toBeCloseTo(1100 / 850, 2);
   });
 
   it('watches the pages a little beyond the visible area', async () => {
