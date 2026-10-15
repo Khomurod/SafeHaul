@@ -4,17 +4,15 @@ import { Badge, Button, ButtonLink, Card, FieldMessage, Notice } from '@/design-
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { ReauthenticateModal } from '../environment/ReauthenticateModal';
+import { useReauthGuard } from '../../hooks/useReauthGuard';
 import { TelegramTokenModal } from './TelegramTokenModal';
 import { useStartLinkWatch } from './useStartLinkWatch';
 import {
-    ReauthCancelledError,
     connectPlatformAlertChat,
     deletePlatformAlerts,
     describeAlertsError,
     getPlatformAlerts,
     isReauthCancelled,
-    isReauthRequired,
     savePlatformAlertToken,
     sendPlatformAlertTest,
 } from '../../services/platformAlerts';
@@ -65,7 +63,7 @@ export function TelegramAlertsCard() {
     const [tokenMode, setTokenMode] = useState(null);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [deleteError, setDeleteError] = useState(null);
-    const [reauth, setReauth] = useState(null);
+    const { runGuarded, reauthPrompt } = useReauthGuard();
     // Each press of Connect chat starts the page's own asking again.
     const [presses, setPresses] = useState(0);
 
@@ -79,21 +77,6 @@ export function TelegramAlertsCard() {
     }, []);
 
     useEffect(() => { load(); }, [load]);
-
-    const requestReauth = useCallback(() => new Promise((resolve, reject) => {
-        setReauth({ resolve, reject });
-    }), []);
-
-    /** Runs one change, re-authenticating once if the session has gone stale. */
-    const runGuarded = useCallback(async (operation) => {
-        try {
-            return await operation();
-        } catch (error) {
-            if (!isReauthRequired(error)) throw error;
-            await requestReauth();
-            return operation();
-        }
-    }, [requestReauth]);
 
     const act = async (name, operation, announce) => {
         setBusy(name);
@@ -319,20 +302,7 @@ export function TelegramAlertsCard() {
                 />
             )}
 
-            {reauth && (
-                <ReauthenticateModal
-                    onSuccess={() => {
-                        const { resolve } = reauth;
-                        setReauth(null);
-                        resolve();
-                    }}
-                    onCancel={() => {
-                        const { reject } = reauth;
-                        setReauth(null);
-                        reject(new ReauthCancelledError());
-                    }}
-                />
-            )}
+            {reauthPrompt}
         </Card>
     );
 }

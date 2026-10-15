@@ -6,7 +6,7 @@ import { Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
 
 import { describeLeadsError, listWebsiteLeads } from '../services/websiteLeads';
-import { downloadCsv, toCsvText } from '../services/csvExport';
+import { downloadCsv, toCsvText } from '@shared/utils/csvExport';
 
 /**
  * Super Admin → Website Leads.

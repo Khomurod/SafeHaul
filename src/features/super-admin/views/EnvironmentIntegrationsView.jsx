@@ -13,21 +13,19 @@ import {
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
 import { useEnvironmentInventory } from '../hooks/useEnvironmentInventory';
+import { useReauthGuard } from '../hooks/useReauthGuard';
 import { useRevealedValue } from '../hooks/useRevealedValue';
 import {
-    ReauthCancelledError,
     addEnvironmentValue,
     deleteEnvironmentValue,
     describeVaultError,
     isReauthCancelled,
-    isReauthRequired,
     revealEnvironmentValue,
     testManagedIntegration,
     updateEnvironmentValue,
 } from '../services/environmentVault';
 import { EnvironmentDeleteDialog } from '../components/environment/EnvironmentDeleteDialog';
 import { EnvironmentValueModal } from '../components/environment/EnvironmentValueModal';
-import { ReauthenticateModal } from '../components/environment/ReauthenticateModal';
 import { buildEnvironmentColumns } from '../components/environment/environmentColumns';
 import {
     SOURCE_LABELS,
@@ -66,45 +64,11 @@ export function EnvironmentIntegrationsView() {
     const { showSuccess, showError, showInfo } = useToast();
     const inventory = useEnvironmentInventory();
 
-    const [reauth, setReauth] = useState(null);
+    const { runGuarded, reauthPrompt } = useReauthGuard();
     const [valueModal, setValueModal] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState(null);
-
-    /**
-     * Opens the re-authentication prompt and resolves once the operator has
-     * proved who they are — or rejects with `ReauthCancelledError` if they back
-     * out.
-     *
-     * Returning a promise rather than a boolean is the point. An earlier version
-     * swallowed the stale-session failure and *resolved*, so a caller went on to
-     * close its dialog and report success for a mutation that had not run, and
-     * would never run if the operator cancelled. Nothing downstream may continue
-     * until this settles.
-     */
-    const requestReauth = useCallback(() => new Promise((resolve, reject) => {
-        setReauth({ resolve, reject });
-    }), []);
-
-    /**
-     * Runs one vault operation, transparently re-authenticating once if the
-     * session has gone stale. The returned promise settles only when the
-     * operation itself has actually run — or rejects, so no caller can mistake a
-     * pending re-authentication for a completed action.
-     */
-    const runGuarded = useCallback(async (operation) => {
-        try {
-            return await operation();
-        } catch (error) {
-            if (!isReauthRequired(error)) throw error;
-            // Rejects with ReauthCancelledError when the operator dismisses it.
-            await requestReauth();
-            // One retry. A second stale-session failure is a real failure and is
-            // reported as one rather than looping the prompt.
-            return operation();
-        }
-    }, [requestReauth]);
 
     const revealed = useRevealedValue({
         request: useCallback(
@@ -391,20 +355,7 @@ export function EnvironmentIntegrationsView() {
                 />
             )}
 
-            {reauth && (
-                <ReauthenticateModal
-                    onSuccess={() => {
-                        const { resolve } = reauth;
-                        setReauth(null);
-                        resolve();
-                    }}
-                    onCancel={() => {
-                        const { reject } = reauth;
-                        setReauth(null);
-                        reject(new ReauthCancelledError());
-                    }}
-                />
-            )}
+            {reauthPrompt}
         </Stack>
     );
 }

@@ -1,6 +1,7 @@
 /**
- * The owner panel's CSV exports: one way to write a cell and one way to save the
- * file, so every export opens the same in a spreadsheet.
+ * The site's CSV files (the owner panel's exports, the lead import template):
+ * one way to write a cell and one way to save the file, so every file opens the
+ * same in a spreadsheet.
  */
 
 /**

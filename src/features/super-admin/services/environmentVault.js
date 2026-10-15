@@ -1,6 +1,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { auth, functions } from '@lib/firebase';
+import { callableErrorText } from './callableErrorText';
 
 /**
  * Client for the Environment & Integrations vault callables.
@@ -54,24 +55,10 @@ export function isReauthRequired(error) {
  * restriction wording) are passed through.
  */
 export function describeVaultError(error, fallback = 'That operation could not be completed.') {
-    if (!error) return fallback;
-    switch (error.code) {
-        case 'functions/unauthenticated':
-            return 'Your session has ended. Sign in again to continue.';
-        case 'functions/permission-denied':
-            return 'Super Admin access is required for this action.';
-        case 'functions/resource-exhausted':
-            return 'Too many requests. Wait a moment and try again.';
-        case 'functions/not-found':
-            return 'That configuration entry no longer exists. Refresh the inventory.';
-        case 'functions/already-exists':
-            return 'That key already has a stored value.';
-        case 'functions/invalid-argument':
-        case 'functions/failed-precondition':
-            return error.message?.replace(/^.*?:\s*/, '') || fallback;
-        default:
-            return fallback;
-    }
+    return callableErrorText(error, fallback, {
+        'not-found': 'That configuration entry no longer exists. Refresh the inventory.',
+        'already-exists': 'That key already has a stored value.',
+    });
 }
 
 export async function listEnvironmentAndIntegrations(payload = {}) {

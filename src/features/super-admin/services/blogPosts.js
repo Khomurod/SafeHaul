@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { callableErrorText } from './callableErrorText';
 
 /**
  * Client for the Super Admin Blog Posts callables.
@@ -17,22 +18,9 @@ export {
 } from './environmentVault';
 
 export function describeBlogError(error, fallback = 'That operation could not be completed.') {
-    if (!error) return fallback;
-    switch (error.code) {
-        case 'functions/unauthenticated':
-            return 'Your session has ended. Sign in again to continue.';
-        case 'functions/permission-denied':
-            return 'Super Admin access is required for this action.';
-        case 'functions/resource-exhausted':
-            return 'Too many requests. Wait a moment and try again.';
-        case 'functions/not-found':
-            return 'That article no longer exists. Refresh the list.';
-        case 'functions/invalid-argument':
-        case 'functions/failed-precondition':
-            return error.message?.replace(/^.*?:\s*/, '') || fallback;
-        default:
-            return fallback;
-    }
+    return callableErrorText(error, fallback, {
+        'not-found': 'That article no longer exists. Refresh the list.',
+    });
 }
 
 export async function listBlogPosts() {

@@ -284,32 +284,37 @@ describe('CompanyBulkUpload — preserved contracts', () => {
         )).toBeInTheDocument();
     });
 
-    it('downloads the frozen CSV template', () => {
+    it('downloads the frozen CSV template through the shared CSV writer', async () => {
         setup();
 
         const anchor = document.createElement('a');
-        const setAttribute = vi.spyOn(anchor, 'setAttribute');
         const click = vi.spyOn(anchor, 'click').mockImplementation(() => {});
         const realCreateElement = document.createElement.bind(document);
         const createElement = vi.spyOn(document, 'createElement')
             .mockImplementation((tag, ...rest) => (
                 tag === 'a' ? anchor : realCreateElement(tag, ...rest)
             ));
+        let blob = null;
+        const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockImplementation((value) => {
+            blob = value;
+            return 'blob:template';
+        });
+        const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
         fireEvent.click(control('Download CSV Template'));
 
-        const href = setAttribute.mock.calls.find(([name]) => name === 'href')?.[1];
-        const download = setAttribute.mock.calls.find(([name]) => name === 'download')?.[1];
-
-        expect(download).toBe('leads_template.csv');
-        expect(decodeURI(href)).toBe(
-            'data:text/csv;charset=utf-8,'
-            + 'First Name,Last Name,Email,Phone,City,State,Experience,Job Type\n'
-            + 'John,Doe,john@example.com,(555) 123-4567,Dallas,TX,5,OTR',
-        );
+        expect(anchor.download).toBe('leads_template.csv');
         expect(click).toHaveBeenCalledTimes(1);
+        // The same cells as before, now quoted, CRLF-separated and with a BOM.
+        expect(await blob.text()).toBe(
+            '\uFEFF'
+            + '"First Name","Last Name","Email","Phone","City","State","Experience","Job Type"\r\n'
+            + '"John","Doe","john@example.com","(555) 123-4567","Dallas","TX","5","OTR"',
+        );
 
         createElement.mockRestore();
+        createObjectURL.mockRestore();
+        revokeObjectURL.mockRestore();
     });
 
     it('renders the frozen upload instructions', () => {

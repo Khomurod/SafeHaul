@@ -4,6 +4,7 @@ import { Icon, X, Search, FileText, Calendar, User } from '@design-system/icons'
 import { Badge, Button, IconButton, Input } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { EmptyState, ErrorState, Modal } from '@design-system/patterns';
+import { applicationStatusTone } from '../applicationStatusTone';
 
 /**
  * Read-only list of a company's driver applications, opened from the Super Admin
@@ -40,24 +41,6 @@ import { EmptyState, ErrorState, Modal } from '@design-system/patterns';
  * approved `DataTable` contract has not yet been proven inside a dialog. Recorded
  * in the roadmap's raw-table inventory rather than forcing the reuse.
  */
-/**
- * Domain status → semantic `Badge` tone.
- *
- * This mapping is feature-owned on purpose: the design system must not know what
- * "Background Check" means, and the feature must not invent colours. It replaces
- * `getStatusColor`, which returned legacy palette classes (`bg-ds-status-success-bg`,
- * `text-ds-status-danger-fg`, ...) — arbitrary colours that have no business inside a
- * surface declared migrated. The keys are the exact frozen status strings.
- */
-const STATUS_TONES = {
-  'Approved': 'success',
-  'Rejected': 'danger',
-  'Background Check': 'accent',
-  'Awaiting Documents': 'warning',
-  'Pending Review': 'info',
-  'New Application': 'neutral',
-};
-
 export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
   const [loading, setLoading] = useState(true);
   const [applications, setApplications] = useState([]);
@@ -227,7 +210,7 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
                                 <div className="text-ds-xs text-ds-content-muted">{getDriverPhone(app)}</div>
                             </td>
                             <td className="text-center">
-                                <Badge tone={STATUS_TONES[app.status] || 'neutral'}>
+                                <Badge tone={applicationStatusTone(app.status)}>
                                     {app.status || 'New Application'}
                                 </Badge>
                             </td>

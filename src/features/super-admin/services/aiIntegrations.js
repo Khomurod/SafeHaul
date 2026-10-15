@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { callableErrorText } from './callableErrorText';
 
 /**
  * Client for the Super Admin AI Integrations callables.
@@ -31,22 +32,9 @@ export {
  * non-secret setting is missing or that a provider has been retired.
  */
 export function describeAiError(error, fallback = 'That operation could not be completed.') {
-    if (!error) return fallback;
-    switch (error.code) {
-        case 'functions/unauthenticated':
-            return 'Your session has ended. Sign in again to continue.';
-        case 'functions/permission-denied':
-            return 'Super Admin access is required for this action.';
-        case 'functions/resource-exhausted':
-            return 'Too many requests. Wait a moment and try again.';
-        case 'functions/not-found':
-            return 'That provider or credential field is not recognised.';
-        case 'functions/invalid-argument':
-        case 'functions/failed-precondition':
-            return error.message?.replace(/^.*?:\s*/, '') || fallback;
-        default:
-            return fallback;
-    }
+    return callableErrorText(error, fallback, {
+        'not-found': 'That provider or credential field is not recognised.',
+    });
 }
 
 export async function listAiProviders() {

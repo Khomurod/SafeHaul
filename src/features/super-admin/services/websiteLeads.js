@@ -12,6 +12,7 @@
 
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { callableErrorText, serverMessage } from './callableErrorText';
 
 /**
  * Turns a callable error into something a screen can show.
@@ -21,11 +22,13 @@ import { functions } from '@lib/firebase';
  * message shown to an operator cannot leak a lead's contact details.
  */
 export function describeLeadsError(error, fallback = 'That operation could not be completed.') {
-    const code = error?.code || '';
-    if (code.includes('unauthenticated')) return 'Sign in again to continue.';
-    if (code.includes('permission-denied')) return 'Only a super admin can view captured leads.';
-    if (code.includes('resource-exhausted')) return 'Too many requests. Wait a moment and try again.';
-    return error?.message || fallback;
+    return callableErrorText(error, fallback, {
+        unauthenticated: 'Sign in again to continue.',
+        'permission-denied': 'Only a super admin can view captured leads.',
+        'invalid-argument': serverMessage,
+        'failed-precondition': serverMessage,
+        default: serverMessage,
+    });
 }
 
 /**

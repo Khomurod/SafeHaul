@@ -10,13 +10,11 @@ import {
     deleteBlogPost,
     describeBlogError,
     isReauthCancelled,
-    isReauthRequired,
     listBlogPosts,
     listBlogRuns,
-    ReauthCancelledError,
     runBlogPublicationNow,
 } from '../services/blogPosts';
-import { ReauthenticateModal } from '../components/environment/ReauthenticateModal';
+import { useReauthGuard } from '../hooks/useReauthGuard';
 import { BlogRunLedger } from '../components/blog/BlogRunLedger';
 
 /**
@@ -47,7 +45,7 @@ export function BlogPostsView() {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState(null);
-    const [reauth, setReauth] = useState(null);
+    const { runGuarded, reauthPrompt } = useReauthGuard();
     const [publishing, setPublishing] = useState(false);
     /**
      * The publication run ledger.
@@ -96,20 +94,6 @@ export function BlogPostsView() {
     }, []);
 
     useEffect(() => { load(); loadRuns(); }, [load, loadRuns]);
-
-    const requestReauth = useCallback(() => new Promise((resolve, reject) => {
-        setReauth({ resolve, reject });
-    }), []);
-
-    const runGuarded = useCallback(async (operation) => {
-        try {
-            return await operation();
-        } catch (error) {
-            if (!isReauthRequired(error)) throw error;
-            await requestReauth();
-            return operation();
-        }
-    }, [requestReauth]);
 
     const handleDelete = useCallback(async () => {
         setDeleting(true);
@@ -311,20 +295,7 @@ export function BlogPostsView() {
                 />
             )}
 
-            {reauth && (
-                <ReauthenticateModal
-                    onSuccess={() => {
-                        const { resolve } = reauth;
-                        setReauth(null);
-                        resolve();
-                    }}
-                    onCancel={() => {
-                        const { reject } = reauth;
-                        setReauth(null);
-                        reject(new ReauthCancelledError());
-                    }}
-                />
-            )}
+            {reauthPrompt}
         </Stack>
     );
 }

@@ -18,7 +18,6 @@ import {
     deleteMediaCredential,
     describeAiError,
     isReauthCancelled,
-    isReauthRequired,
     diagnoseAiCredentialAccess,
     diagnoseAiModelPins,
     listAiProviders,
@@ -32,6 +31,7 @@ import {
     testAiProvider,
     updateAiProviderConfig,
 } from '../services/aiIntegrations';
+import { useReauthGuard } from '../hooks/useReauthGuard';
 import { useRevealedCredential } from '../hooks/useRevealedCredential';
 import { AiRoutingEligibility } from '../components/ai/AiRoutingEligibility';
 import { AiRoutingOrderCard } from '../components/ai/AiRoutingOrderCard';
@@ -53,8 +53,8 @@ import { AiIntegrationsModals } from '../components/ai/AiIntegrationsModals';
  * Security posture is inherited rather than re-invented: the same callables that
  * back this page enforce exact super-admin role, recent authentication for every
  * reveal and mutation, fail-closed rate limits and value-free audit records, and
- * this view reuses the vault's `ReauthenticateModal` and its
- * `requestReauth`/`runGuarded` orchestration verbatim. A credential is revealed
+ * this view re-authenticates through the vault's `ReauthenticateModal`, as every
+ * guarded console does (`useReauthGuard`). A credential is revealed
  * one at a time, for thirty seconds, and lives only in React state.
  *
  * This view does not render a `PageHeader`: the Super Admin masthead owns the
@@ -91,7 +91,7 @@ export function AiIntegrationsView() {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
 
-    const [reauth, setReauth] = useState(null);
+    const { runGuarded, reauthPrompt } = useReauthGuard();
     const [credentialModal, setCredentialModal] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
@@ -130,28 +130,6 @@ export function AiIntegrationsView() {
     }, []);
 
     useEffect(() => { load(); }, [load]);
-
-    /**
-     * Returns a promise that settles only once the operator has re-authenticated
-     * or dismissed the prompt. Returning a promise rather than a boolean is the
-     * point: nothing downstream may treat a pending prompt as a completed action.
-     */
-    const requestReauth = useCallback(() => new Promise((resolve, reject) => {
-        setReauth({ resolve, reject });
-    }), []);
-
-    /** Runs one operation, re-authenticating once if the session has gone stale. */
-    const runGuarded = useCallback(async (operation) => {
-        try {
-            return await operation();
-        } catch (error) {
-            if (!isReauthRequired(error)) throw error;
-            // Rejects with ReauthCancelledError when the operator dismisses it.
-            await requestReauth();
-            // One retry. A second stale-session failure is a real failure.
-            return operation();
-        }
-    }, [requestReauth]);
 
     const revealed = useRevealedCredential({
         request: useCallback(
@@ -488,8 +466,7 @@ export function AiIntegrationsView() {
                 deleteError={deleteError}
                 setDeleteError={setDeleteError}
                 handleDelete={handleDelete}
-                reauth={reauth}
-                setReauth={setReauth}
+                reauthPrompt={reauthPrompt}
             />
         </Stack>
     );
