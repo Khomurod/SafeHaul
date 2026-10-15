@@ -1026,7 +1026,6 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
   `Contact Attempt 1/2/3` sends the matching template from
   `companies/{id}/settings/automated_sms`. Transition-only, so idempotent; no
   template, no message.
-- **Segments** — application create/update maintains segment membership.
 - **Retention** — TTL overrides in `firestore.indexes.json` delete
   `blog_runs`, `application_drafts`, `application_draft_audit` and
   `rate_limits` at `expiresAt`; activity logs carry it for a future policy. An
@@ -1035,9 +1034,8 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
 
 ### Idempotency
 
-Long-running triggers guard themselves through a `processing_status` ledger
-(check `completed` → set `started` → process → set `completed`), with a 30-day
-`expiresAt` so a TTL policy can age entries out.
+The submit trigger records each event once in `processing_status` (30-day
+`expiresAt`) and writes to the application only what it changes.
 
 ### Bulk campaigns
 
@@ -1268,6 +1266,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **`/join/:companyId` self-service team join.** Backing callable disabled,
   route removed. Use Super Admin → Create Portal User.
 - **GitHub Models** as an AI provider.
+- **Smart Segments** — triggers removed (Cloud deletes them at the next promotion); their
+  `segments` documents are left, read by nothing.
 - **`Khomurod/SafeHaul-for-Gemini-Antigravity`** — archived; never develop or
   deploy from it. Deploy jobs are guarded by repository name.
 

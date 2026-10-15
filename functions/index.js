@@ -249,12 +249,9 @@ const statsBackfill = require('./statsBackfill');
 exports.backfillCompanyStats = statsBackfill.backfillCompanyStats;
 exports.backfillAllStats = statsBackfill.backfillAllStats;
 
-// 14. Engagement Engine (Smart Segments & Compliance)
-const segments = require('./segments');
+// 14. Compliance (SMS opt-out)
 const blacklist = require('./blacklist');
 
-exports.onApplicationUpdateSegments = segments.onApplicationUpdateSegments;
-exports.onApplicationCreatedSegments = segments.onApplicationCreatedSegments;
 exports.handleOptOut = blacklist.handleOptOut;
 
 // 15. In-App Notifications

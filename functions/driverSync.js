@@ -155,6 +155,9 @@ exports.onApplicationSubmitted = onDocumentCreated({
   // BUG-6 FIX: Use create() instead of set({merge}). If create() fails with ALREADY_EXISTS,
   // another invocation already claimed this work — skip processing entirely.
   // This eliminates the completed:false/true state machine and its associated race condition.
+  // The guard is the only record of the run: every write to the application runs
+  // each of its update triggers, so this trigger writes to it only what changes
+  // it (an assignment, a rejection), never progress marks.
   const statusRef = db.collection("processing_status").doc(`app_${companyId}_${appId}`);
   const appRef = db.collection("companies").doc(companyId).collection("applications").doc(appId);
 
@@ -176,13 +179,6 @@ exports.onApplicationSubmitted = onDocumentCreated({
         ),
         companyId,
         applicationId: appId,
-      });
-
-      // Update lifecycle to processing
-      transaction.update(appRef, {
-        'lifecycle.status': LIFECYCLE_STATUSES.PROCESSING,
-        'lifecycle.processingStartedAt': admin.firestore.FieldValue.serverTimestamp(),
-        'lifecycle.triggerVersion': '2.0-bulletproof',
       });
     });
   } catch (txError) {
@@ -281,19 +277,7 @@ exports.onApplicationSubmitted = onDocumentCreated({
     }
   }
 
-  // Mark processing as complete
-  try {
-    // BUG-6 FIX: No need to update processing_status — its existence already
-    // serves as the idempotency guard. Just update the application lifecycle.
-    await appRef.update({
-      'lifecycle.status': LIFECYCLE_STATUSES.COMPLETE,
-      'lifecycle.processingCompletedAt': admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    console.log(`[onApplicationSubmitted] Successfully processed ${appId}`);
-  } catch (completeError) {
-    console.error(`[onApplicationSubmitted] Failed to mark complete for ${appId}:`, completeError);
-  }
+  console.log(`[onApplicationSubmitted] Successfully processed ${appId}`);
 });
 
 /**
