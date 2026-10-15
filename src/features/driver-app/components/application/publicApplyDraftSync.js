@@ -189,9 +189,9 @@ export function reconcileServerDraftOnLoad({
       // `Math.max`: never move an applicant *backwards* from where they already
       // are in this session — and never *forwards* past a Back they pressed while
       // this was in flight. That press is their answer to "where am I", and the
-      // fetch is a cold-startable round trip: until 2026-10-01 a driver who
-      // confirmed their identity on a continuation link, or reloaded, and went back
-      // a page inside that window was put straight back where they had been.
+      // fetch is a cold-startable round trip: a driver who confirms their identity
+      // on a continuation link, or reloads, may go back a page inside that window,
+      // and must not be put straight back where they were.
       setCurrentStep((prev) => (prev < stepAtStart ? prev : Math.max(prev, restored.stepIndex)));
       setIntakeMode('manual');
     }).catch(() => {

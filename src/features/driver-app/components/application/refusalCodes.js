@@ -8,12 +8,9 @@
  * page, and that file, which names the wizard page a refusal points to, brings
  * every page of the wizard with it.
  *
- * Until 2026-10-01 every error was retried three times. Because a queue entry
- * existed, the applicant was then shown "Application Saved … will be automatically
- * submitted. No data will be lost." For a refusal that was false twice over. The
- * replay sends the identical payload into the identical refusal, and after ten
- * attempts it marks the entry failed without telling anyone. The driver believed
- * they had applied, and the carrier never received the application.
+ * A refusal is neither retried nor left in the queue: the replay would send the
+ * identical payload into the identical refusal, while a queue entry tells the
+ * applicant their application will be sent — and the carrier never receives it.
  */
 const PERMANENT_REFUSALS = new Set([
   'functions/invalid-argument',

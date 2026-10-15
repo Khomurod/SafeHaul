@@ -7,8 +7,8 @@ import { StepIssues } from './components/StepIssues';
 import { useApplicationRules, useStepGate } from '@features/driver-app/hooks/useApplicationRules';
 
 /**
- * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
- * primitives and the shared `RadioGroup` adapter (2026-07-27). Field keys,
+ * Presentation uses the approved `FormSection` / `FormField` / `Textarea`
+ * primitives and the shared `RadioGroup` adapter. Field keys,
  * `YES_NO_OPTIONS` / `EXPERIENCE_OPTIONS`, the conditional drug-test
  * explanation, the DOT question wording (except as noted below), and the VAL-1
  * `form.checkValidity()` gate are unchanged.

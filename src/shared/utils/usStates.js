@@ -6,10 +6,9 @@
  * motor vehicle records and the readers that parse them print a postal code
  * ("TX"), and a carrier typing into a free-text box writes whatever it likes. A
  * picker given a value that is none of its options does not show "nothing":
- * the browser shows the first option it can, so until 2026-10-01 a driver whose
- * CDL auto-fill read an Austin address saw "Alabama" on both state pickers while
- * the form still held "TX" — and the step's validation passed, because the field
- * was not empty. What a driver saw was not what was submitted.
+ * the browser shows the first option it can, so a "TX" would show as "Alabama"
+ * while the form holds "TX" — and the step's validation would pass, because
+ * the field is not empty. What a driver sees must be what is submitted.
  *
  * So writers normalise through `toUsStateName`, and the pickers render a value
  * they do not list as itself (see `StateSelectField`), never as a neighbour.

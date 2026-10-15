@@ -30,18 +30,17 @@ import { employmentCoverageOptions } from '@/config/applicationRules';
 import { useStepIssues } from '@features/driver-app/hooks/useApplicationRules';
 
 /**
- * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
- * primitives (2026-07-27).
+ * Presentation uses the approved `FormSection` / `FormField` / `Textarea`
+ * primitives.
  *
  * Unchanged: the `employers` / `unemployment` / `schools` / `military` row
  * shapes, the `employmentHistory` config resolution, the per-employer email
  * format checks and the `employerRowHasVerifierContact` requirement.
  *
- * DEFECT FIXED (2026-07-27): the per-row radio groups (`mayContact`, `branch`,
- * `heavyEq`, `honorable`) used the bare field name, so every row emitted the same
- * element ids and shared one browser radio group — clicking row 2's option
- * toggled row 1's input through the duplicated `label[for]`. Each row now scopes
- * its ids and grouping name by index while `name` (the saved key) is unchanged.
+ * The per-row radio groups (`mayContact`, `branch`, `heavyEq`, `honorable`) scope
+ * their element ids and grouping name by row index, while `name` (the saved key)
+ * stays the bare field name: shared ids would make clicking row 2's option toggle
+ * row 1's input through the duplicated `label[for]`.
  *
  * 2026-09-02 — the company decides what incomplete coverage means
  * (`employmentHistoryEnforcement`: allow / warn / block) and how many years must

@@ -12,11 +12,10 @@ import { FormField, FormSection, Select } from '@/design-system/components';
  * never change, whatever the wording — a company renaming "Tractor + Semi
  * Trailer" cannot corrupt an answer stored under the old name.
  *
- * DEFECT FIXED (2026-09-02): the selects fell back to `'0'` and `'<6 months'`,
- * neither of which is in its option list, so the control silently displayed the
- * FIRST option ("Student / Recent Grad") while nothing was saved. An unanswered
- * select now shows a placeholder, and a stored value the current options do not
- * contain is rendered as its own option so it stays visible and unchanged.
+ * An unanswered select shows a placeholder, never a fallback value outside its
+ * option list, which the control would silently display as its FIRST option
+ * while nothing was saved. A stored value the current options do not contain is
+ * rendered as its own option so it stays visible and unchanged.
  */
 const kebab = (fieldName) => fieldName.replace(/([A-Z])/g, '-$1').toLowerCase();
 

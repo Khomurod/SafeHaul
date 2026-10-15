@@ -48,13 +48,9 @@ import { Modal } from '@design-system/patterns';
  *  6. A `<label>` carried both `block` and `flex` display classes, so its icon
  *     alignment depended on class order.
  *
- * The outcome grid is the design system's `SegmentedControl` (2026-08-25). It was
- * a `role="group"` of raw `<button aria-pressed>` cards with a local six-tone
- * class map, recorded as an exception "because the design system has no approved
- * Segmented/ToggleGroup primitive" — one shipped on 2026-08-21 naming this exact
- * call site. The semantics are identical by design: the primitive is
- * deliberately `role="group"` + `aria-pressed` rather than a radiogroup, for the
- * reason its own README gives, so nothing about how this dialog announces changed.
+ * The outcome grid is the design system's `SegmentedControl`, deliberately
+ * `role="group"` + `aria-pressed` rather than a radiogroup, for the reason its own
+ * README gives.
  *
  * The `tel:` chip above it stays local. It is a status-tinted pill that is also a
  * link; `Link` is underlined text and `ButtonLink` is button-shaped, and neither

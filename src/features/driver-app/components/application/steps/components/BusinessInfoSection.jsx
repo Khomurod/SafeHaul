@@ -4,8 +4,8 @@ import { FormSection } from '@/design-system/components';
 import { StateSelectField } from './StateSelectField';
 
 /**
- * Owner-operator business details. Presentation migrated to the approved
- * `FormSection` primitive and the shared field adapters (2026-07-27); every
+ * Owner-operator business details. Presentation uses the approved
+ * `FormSection` primitive and the shared field adapters; every
  * field key (`ein`, `driverInitials`, `businessName`, `businessStreet`,
  * `businessCity`, `businessState`, `businessZip`), element id and required flag
  * is unchanged — `business-state` stays optional.

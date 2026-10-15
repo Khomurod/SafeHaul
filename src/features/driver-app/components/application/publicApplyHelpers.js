@@ -94,12 +94,9 @@ export const buildPostApplyDocErrorMessage = (error) => {
  * again is worth their time.
  *
  * Built on the same vocabulary as `buildPostApplyDocErrorMessage` above, because
- * it is the same job on a neighbouring surface — the machinery existed and the
- * invite path simply was not using it. Until 2026-09-08 every failure resolved to
- * `null` and the driver was dropped into the ordinary application with nothing
- * said, so a rate-limited exchange, a Firestore hiccup (the limiter fails closed)
- * and a temporary outage were indistinguishable from having followed no link at
- * all.
+ * it is the same job on a neighbouring surface. Every failure gets a message, so
+ * a rate-limited exchange, a Firestore hiccup (the limiter fails closed) and a
+ * temporary outage never look like having followed no link at all.
  *
  * `unopenable` is deliberately one message for wrong, expired, already-submitted,
  * superseded and discarded. The server answers all of them identically on purpose

@@ -56,22 +56,16 @@ const basePageConfig = [
  * sandbox Magic Fill control. The signature canvas is the consent step's own: it
  * exists only on that step's last page, which sets it up each time it is shown.
  *
- * DEFECTS FIXED (2026-07-27):
- * - The step title was an `<h2>` on a page with no `<h1>`, and every step then
- *   rendered its own `<h3>` repeating the same "Step N of 9" text — which was
- *   also *wrong* whenever custom questions made it 10 steps. The title is now
- *   the page's single `<h1>` and the duplicated per-step headings are gone.
- * - Progress was communicated by a bare `<div>`'s width, invisible to assistive
- *   technology. It is now an approved `ProgressBar` labelled by the step title.
- * - On every step change focus was silently dropped to `<body>` (the Continue
- *   button that triggered the change unmounts), so keyboard and screen-reader
- *   users were never told the step had changed and had to tab from the top of
- *   the document. Focus now moves to the step heading.
- * - Two competing scrolls ran per transition (`PublicApplyHandler` did an
- *   instant `window.scrollTo(0, 0)` and this component a smooth one). The
- *   smooth animation raced Playwright's scroll-into-view + hit-test on the next
- *   step's controls. Focusing the heading now performs the scroll once, without
- *   an animation to race.
+ * Accessibility and scrolling:
+ * - The step title is the page's single `<h1>`; no step repeats it in a heading
+ *   of its own.
+ * - Progress is an approved `ProgressBar` labelled by the step title.
+ * - On every step change focus moves to the step heading: the Continue button
+ *   that triggered the change unmounts, and focus would otherwise drop to
+ *   `<body>` without telling anyone the step has changed.
+ * - Focusing the heading is the transition's only scroll, and it is not
+ *   animated: a second or smooth scroll races Playwright's scroll-into-view +
+ *   hit-test on the next step's controls.
  */
 const Stepper = ({
     step, formData, updateFormData, onNavigate,

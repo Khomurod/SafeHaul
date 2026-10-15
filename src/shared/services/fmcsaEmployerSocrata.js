@@ -232,7 +232,7 @@ const USDOT_INPUT = /^(?:US\s*)?(?:DOT\s*)?#?\s*(\d{1,9})$/i;
  * former employer may have closed.
  *
  * Separate queries rather than `$order` on the status, which would have Socrata
- * sort every match; each of these answered in about 0.3 s (2026-10-07).
+ * sort every match.
  *
  * @param {string} input what the driver typed
  * @returns {string[]} none when it is too short to search

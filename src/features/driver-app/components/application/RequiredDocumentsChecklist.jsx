@@ -17,15 +17,14 @@ import { DOC_STATUS } from './postApplyDocsStorage';
  * duplicate signing requests, and every frozen string asserted by
  * `e2e/guest-post-application-edoc.spec.cjs`.
  *
- * DEFECTS FIXED (2026-07-27):
- * - Status pills used `text-[10px]` and the progress line `text-[11px]`, both
- *   below the 12 px interface-text floor the design standard sets.
- * - Progress changes were silent; `role="status"` now announces "1 of 2
- *   completed" as documents are signed.
- * - The row action was a full-width `<button>` wrapping the status pill, so its
- *   accessible name was "<title> Not started" and the retry control sat *inside*
- *   another control's hit area. The action is now a named `Button` beside the
- *   status, never nested.
+ * Accessibility:
+ * - Status pills and the progress line stay at or above the 12 px
+ *   interface-text floor the design standard sets.
+ * - The progress line is `role="status"`, so "1 of 2 completed" is announced as
+ *   documents are signed.
+ * - The row action is a named `Button` beside the status pill, never wrapping
+ *   it, so the status is not part of its accessible name and the retry control
+ *   never sits inside another control's hit area.
  */
 
 const STATUS_META = {

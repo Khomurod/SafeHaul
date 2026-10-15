@@ -7,9 +7,9 @@
  * Supports all 9 configured field types: shortAnswer, paragraph, multipleChoice,
  * checkboxes, dropdown, date, time, fileUpload, linearScale.
  *
- * Presentation migrated to the approved `Card` / `FormField` / `Input` /
+ * Presentation uses the approved `Card` / `FormField` / `Input` /
  * `Textarea` / `Select` / `Checkbox` / `Radio` / `ChoiceGroup` / `Badge`
- * primitives (2026-07-27).
+ * primitives.
  *
  * Unchanged: the `questionKey(field, index)` resolution order
  * (`field.id || field.key || custom-question-<i>`), the
@@ -19,28 +19,24 @@
  * "Please answer required question: …" toast, the `linearScale` numeric coercion,
  * the `handleFileUpload(key, file)` call, and the `dotRequired` DOT marker.
  *
- * DEFECTS FIXED (2026-10-09): a time question needed the phone's own dialog, which
- * can lack Set; it is three lists (`TimeSelectField`, the same `HH:MM`), checked
- * with the page before it moves on. A number box stored "1,000" as nothing; it is
- * text on the number pad now, kept as typed.
+ * A time question is three lists (`TimeSelectField`, the same `HH:MM`), never the
+ * phone's own dialog, which can lack Set; it is checked with the page before it
+ * moves on. A number question is text on the number pad, kept as typed, so
+ * "1,000" is never stored as nothing.
  *
- * DEFECT FIXED (2026-10-02): a file question recorded `file?.name` as its answer
- * the moment a file was chosen, without waiting for the upload and discarding the
- * storage path it returned. So the company saw a filename that nothing referenced,
- * and a failed upload still read as answered. The answer is now the uploaded file
- * itself, recorded only once the upload has landed — see `uploadAnswer`.
+ * A file question's answer is the uploaded file itself (`{ name, storagePath }`),
+ * recorded only once the upload has landed — see `uploadAnswer` — so the company
+ * never sees a filename nothing references, and a failed upload never reads as
+ * answered.
  *
- * DEFECTS FIXED (2026-07-27):
- * - Every control was unlabelled. The question text sat in a `<label>` that
- *   closed *before* the control was rendered, so no input, textarea, select,
- *   radio group or scale had an accessible name at all — the whole step was
- *   unusable with a screen reader. Each control now gets its question as a real
- *   label (or a `ChoiceGroup` legend for multi-option types).
- * - "Back" had no `type`, so inside `#driver-form` it defaulted to `submit` and
- *   triggered native validation instead of navigating back.
- * - The linear scale's endpoint captions and value numbers were the only cue for
- *   what each radio meant; each option now carries a real label naming its value
- *   and, at the ends, the endpoint wording.
+ * Labelling and navigation:
+ * - Each control gets its question as a real label (or a `ChoiceGroup` legend for
+ *   multi-option types), so every input, textarea, select, radio group and scale
+ *   has an accessible name.
+ * - "Back" is `type="button"`: inside `#driver-form` an untyped button submits,
+ *   which triggers native validation instead of navigating back.
+ * - Each linear-scale option carries a real label naming its value and, at the
+ *   ends, the endpoint wording.
  */
 
 import React, { useRef, useState } from 'react';

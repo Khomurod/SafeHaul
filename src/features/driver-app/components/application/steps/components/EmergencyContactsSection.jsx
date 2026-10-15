@@ -3,8 +3,8 @@ import InputField from '@shared/components/form/InputField';
 import { FormSection } from '@/design-system/components';
 
 /**
- * Two emergency contacts. Presentation migrated to the approved `FormSection`
- * primitive and the shared field adapter (2026-07-27); the `ec1*` / `ec2*` field
+ * Two emergency contacts. Presentation uses the approved `FormSection`
+ * primitive and the shared field adapter; the `ec1*` / `ec2*` field
  * keys and element ids are unchanged.
  *
  * Contact #1's requiredness now comes from the company's `emergencyContacts`

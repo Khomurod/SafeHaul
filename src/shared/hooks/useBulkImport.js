@@ -22,12 +22,11 @@ export function useBulkImport(options = {}) {
      * Consumers are expected to pass `onError` and surface the message themselves
      * (a toast, an inline `FieldMessage`, whatever fits the surface).
      *
-     * The default used to be `alert(message)`, which froze the tab. Both real
-     * consumers now pass a handler — `CompanyBulkUpload` always did, and
-     * `AudienceBuilder` was fixed on 2026-07-28 — so this fallback is no longer
-     * reachable in the app. It logs instead of blocking, because a hook must not
-     * own presentation, and a native prompt is the one sink it cannot style,
-     * announce or dismiss consistently.
+     * Both real consumers (`CompanyBulkUpload`, `AudienceBuilder`) pass a
+     * handler, so this fallback is not reachable in the app. It logs instead of
+     * blocking, because a hook must not own presentation, and a native prompt
+     * such as `alert(message)` freezes the tab and is the one sink it cannot
+     * style, announce or dismiss consistently.
      */
     const notifyError = options.onError || ((message) => console.error('[useBulkImport]', message));
     const [csvData, setCsvData] = useState([]);

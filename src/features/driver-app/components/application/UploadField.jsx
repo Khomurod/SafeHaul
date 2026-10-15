@@ -33,20 +33,15 @@ import { UploadProgress } from './UploadProgress';
  * upload** aborts through `signal` and returns the field to its picker, and a
  * failure shows the upload's own plain sentence (`GuestUploadError`).
  *
- * DEFECT FIXED (2026-07-28): the removal prompt was a bare `confirm(...)`. The
- * *rule* (removal is always confirmed) is preserved; the blocking browser dialog
- * is replaced by the approved accessible `ConfirmDialog`.
+ * Removing a file is always confirmed, through the approved accessible
+ * `ConfirmDialog`, never the browser's blocking `confirm(...)`.
  *
- * DEFECTS FIXED (2026-07-27):
- * - The empty state was a `<div onClick>`: unreachable by keyboard, no role, no
- *   accessible name. It is now an approved `Button` that names the field.
- * - Progress, success and failure were silent. They are now announced through
- *   `role="status"` / `role="alert"` live regions.
- * - The hidden input used `display:none`, so a `required` empty input made
- *   `form.reportValidity()` fail with no focusable control and therefore no
- *   visible message. It is now visually hidden but focusable, and kept out of
- *   the tab order with `tabIndex={-1}` so the visible trigger stays the only
- *   tab stop.
+ * Accessibility:
+ * - The empty state is a keyboard-reachable control named after the field.
+ * - Progress, success and failure are announced through `role="status"` /
+ *   `role="alert"` live regions.
+ * - The file input is never `display:none`: a `required` empty input must stay
+ *   focusable, or `form.reportValidity()` fails with no visible message.
  *
  * `data-upload-field` / `data-upload-state` are a deliberate test contract: the
  * E2E specs must be able to wait for *this* field's committed state instead of
@@ -206,12 +201,12 @@ const UploadField = ({
         setStatus('idle');
         setProgress(0);
         /*
-          Belt and braces since the picker became `FileInput` (2026-08-25): it is
-          only rendered in the idle/error state, so in the state this runs from
-          the ref is usually null — and clearing `value` is not needed there
-          anyway, because dropping `value` to null remounts a fresh input. The
-          guard stays for the case where it IS live, so re-selecting the same
-          filename still fires `change`.
+          Belt and braces: the `FileInput` picker is only rendered in the
+          idle/error state, so in the state this runs from the ref is usually
+          null — and clearing `value` is not needed there anyway, because
+          dropping `value` to null remounts a fresh input. The guard stays for
+          the case where it IS live, so re-selecting the same filename still
+          fires `change`.
         */
         if (fileInputRef.current) fileInputRef.current.value = '';
     };

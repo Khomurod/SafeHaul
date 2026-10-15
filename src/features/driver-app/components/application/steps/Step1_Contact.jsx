@@ -48,8 +48,8 @@ const FIELD_ID_BY_NAME = {
 };
 
 /**
- * Presentation migrated to the approved `FormSection` / `FormField` / `Select` /
- * `Checkbox` primitives and the shared field adapters (2026-07-27).
+ * Presentation uses the approved `FormSection` / `FormField` / `Select` /
+ * `Checkbox` primitives and the shared field adapters.
  *
  * Unchanged: every field key, the `applicationConfig` hidden/required resolution,
  * the `known-by-other-name` default-to-'no' effect, the on-blur/revalidate

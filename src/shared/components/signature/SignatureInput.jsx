@@ -6,10 +6,9 @@ import { SIGNATURE_METHODS, TYPED_SIGNATURE_MAX_LENGTH, typedSignatureValue } fr
 /**
  * SignatureInput — the employer's electronic signature, drawn OR typed.
  *
- * Until 2026-09-06 the verification portal offered only `SignaturePad`, a
- * canvas — which has no keyboard or assistive-technology path at all, and which
- * the roadmap carried as an open decision because a typed mark rendered into
- * the same PNG as a drawn one would be indistinguishable in the record.
+ * `SignaturePad` alone is a canvas, which has no keyboard or assistive-technology
+ * path at all; and a typed mark rendered into the same PNG as a drawn one would
+ * be indistinguishable in the record.
  *
  * The standard settles both halves. The ESIGN Act (15 U.S.C. §7006(5)) and
  * UETA define an electronic signature as any "electronic sound, symbol, or

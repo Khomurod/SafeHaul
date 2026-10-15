@@ -149,17 +149,9 @@ export function ToastProvider({ children }) {
               </p>
 
               {/*
-                DEFECT FIXED (2026-07-27): this dismiss control had no accessible
-                name at all — an icon-only button whose only child was a decorative
-                `<X>`. The real-browser axe scan of the public driver application
-                reported it as `button-name [critical]`, once per visible toast (the
-                guest wizard shows one per upload plus one per submission message).
-                It also had no explicit `type`, so inside a form it would submit.
-                The hit area was 16×16 px, failing WCAG 2.2 AA SC 2.5.8.
-
-                It is now the approved `IconButton`, which owns the name
-                requirement, the type, the hit area and the focus ring — so the
-                locally hand-rolled 28 px box is gone too.
+                The dismiss control is the approved `IconButton`, which owns the
+                accessible name, the `type` (so it never submits a surrounding
+                form), the WCAG 2.2 AA SC 2.5.8 hit area and the focus ring.
               */}
               <IconButton
                 label={`Dismiss notification: ${toast.message}`}
