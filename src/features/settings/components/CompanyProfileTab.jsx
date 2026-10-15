@@ -11,6 +11,7 @@ import { ApplicationIntegrationsPanel } from './rules/ApplicationIntegrationsPan
 import { AgreementsPanel } from './rules/AgreementsPanel';
 import { companyDetailsFields, companyDetailsOf } from '@features/companies/services/companyDetails';
 import { withoutBlankOptions } from '@/config/customQuestionOptions';
+import { isCompanyAdminForRoute, isSuperAdminClaims } from '@app/auth/roles';
 
 // The Company Information fields, which "Edit Profile" opens and Cancel puts back.
 const INFO_FIELDS = ['companyName', ...Object.keys(companyDetailsOf({}))];
@@ -29,9 +30,8 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
     // The information as it was when editing began.
     const editStartRef = useRef({});
 
-    const isSuperAdmin = currentUserClaims?.roles?.globalRole === 'super_admin'
-        || currentUserClaims?.globalRole === 'super_admin';
-    const isCompanyAdmin = currentUserClaims?.roles?.[currentCompanyProfile.id] === 'company_admin' || isSuperAdmin;
+    const isSuperAdmin = isSuperAdminClaims(currentUserClaims);
+    const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
 
     useEffect(() => {
         if (currentCompanyProfile) {

@@ -5,6 +5,7 @@ import { functions } from '@lib/firebase';
 import { useData } from '@/context/DataContext';
 import { Icon, Loader2, Trash2, ArrowRightCircle, ShieldAlert } from '@design-system/icons';
 import { Button, Card, FormField, Notice, Select, StatusMedallion } from '@/design-system/components';
+import { isSuperAdminClaims } from '@app/auth/roles';
 
 /**
  * Post-submit actions for sandbox applications. Delete / transfer require Super Admin (callable enforces).
@@ -29,9 +30,7 @@ export function SandboxActionPanel({
   const navigate = useNavigate();
   const headingId = `sandbox-actions-${useId().replace(/:/g, '')}`;
   const { currentUserClaims } = useData();
-  const isSuperAdmin =
-    currentUserClaims?.roles?.globalRole === 'super_admin' ||
-    currentUserClaims?.globalRole === 'super_admin';
+  const isSuperAdmin = isSuperAdminClaims(currentUserClaims);
 
   const [companies, setCompanies] = useState([]);
   const [loadingList, setLoadingList] = useState(false);

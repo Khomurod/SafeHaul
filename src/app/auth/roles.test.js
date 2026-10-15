@@ -1,5 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { isCompanyAdminForRoute, isCompanyWorkspaceRole } from './roles';
+import { isCompanyAdminForRoute, isCompanyWorkspaceRole, isSuperAdminClaims } from './roles';
+
+describe('isSuperAdminClaims', () => {
+  it('reads the role at the token root and under `roles`', () => {
+    expect(isSuperAdminClaims({ globalRole: 'super_admin' })).toBe(true);
+    expect(isSuperAdminClaims({ roles: { globalRole: 'super_admin' } })).toBe(true);
+  });
+
+  it('refuses every other shape', () => {
+    expect(isSuperAdminClaims({ roles: { co1: 'company_admin' } })).toBe(false);
+    expect(isSuperAdminClaims({ globalRole: 'company_admin' })).toBe(false);
+    expect(isSuperAdminClaims({ super_admin: true })).toBe(false);
+    expect(isSuperAdminClaims(null)).toBe(false);
+    expect(isSuperAdminClaims(undefined)).toBe(false);
+  });
+});
 
 describe('isCompanyAdminForRoute (UI-006)', () => {
   it('allows a company admin of the selected company', () => {

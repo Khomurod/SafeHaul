@@ -76,6 +76,15 @@ describe('ImportLeadsPage — preserved contracts', () => {
         expect(screen.getByTestId('bulk-upload')).toBeInTheDocument();
     });
 
+    it('grants access to a super admin whose role sits at the token root, as the menu and the route do', () => {
+        dataMock.value = {
+            currentCompanyProfile: { id: COMPANY_ID },
+            currentUserClaims: { globalRole: 'super_admin', roles: {} },
+        };
+        render(<ImportLeadsPage />);
+        expect(screen.getByTestId('bulk-upload')).toBeInTheDocument();
+    });
+
     it('denies access to a non-admin with the frozen copy and dashboard route', () => {
         setContext({ roles: { [COMPANY_ID]: 'recruiter' } });
         render(<ImportLeadsPage />);

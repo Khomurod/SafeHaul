@@ -8,6 +8,7 @@ import { Button, TabPanel } from '@/design-system/components';
 import { DossierSidebar } from './DossierSidebar';
 import { DossierHeader } from './DossierHeader';
 import { DossierContent } from './DossierContent';
+import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 /**
  * DriverProfileModal
@@ -69,8 +70,7 @@ export function DriverProfileModal({
     const tabsIdBase = `dossier-${useId().replace(/:/g, '')}`;
 
     const { currentUserClaims } = useData();
-    const isCompanyAdmin = currentUserClaims?.roles?.[companyId] === 'company_admin'
-        || currentUserClaims?.roles?.globalRole === 'super_admin';
+    const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
     const { deleting, deleteApplication } = useApplicationDelete();
 
     const {

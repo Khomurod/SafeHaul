@@ -11,6 +11,18 @@ export function isCompanyWorkspaceRole(role) {
 }
 
 /**
+ * Whether Firebase custom claims make a super admin: `globalRole` at the root
+ * (older tokens) or under `roles`, as the Firestore and Storage rules and the
+ * server's checks read it.
+ *
+ * @param {object|null|undefined} claims - Firebase custom claims (currentUserClaims)
+ * @returns {boolean}
+ */
+export function isSuperAdminClaims(claims) {
+  return claims?.globalRole === 'super_admin' || claims?.roles?.globalRole === 'super_admin';
+}
+
+/**
  * UI-006: single source of truth for "is this caller an admin of this company".
  * Used by BOTH the sidebar (to hide adminOnly nav) and the route guard (to block
  * direct-URL access), so menu visibility and route access can never drift apart.
@@ -21,9 +33,5 @@ export function isCompanyWorkspaceRole(role) {
  * @returns {boolean}
  */
 export function isCompanyAdminForRoute(claims, companyId) {
-  const roles = claims?.roles || {};
-  // Both places a super admin's claim can sit, as `extractRoleContext`, the
-  // Firestore rules and the server's own checks read it.
-  const superAdmin = claims?.globalRole === 'super_admin' || roles.globalRole === 'super_admin';
-  return superAdmin || (!!companyId && roles[companyId] === 'company_admin');
+  return isSuperAdminClaims(claims) || (!!companyId && claims?.roles?.[companyId] === 'company_admin');
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMediaQuery } from '@shared/hooks/useMediaQuery';
 
 /**
  * True while the viewport is too narrow for the editor's three-column desktop
@@ -9,33 +9,11 @@ import { useEffect, useState } from 'react';
  * switch on. Keeping the JS and the CSS in agreement matters because the JS
  * decides which components mount at all — a mismatch would render two copies of
  * the rail, or none.
- *
- * Guarded for environments without `matchMedia` (jsdom in some configurations),
- * where it reports the desktop layout.
  */
 export const COMPACT_EDITOR_QUERY = '(max-width: 1023px)';
 
 export function useCompactEditor() {
-    const [isCompact, setIsCompact] = useState(() => {
-        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-        return window.matchMedia(COMPACT_EDITOR_QUERY).matches;
-    });
-
-    useEffect(() => {
-        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
-        const mql = window.matchMedia(COMPACT_EDITOR_QUERY);
-        const onChange = (event) => setIsCompact(event.matches);
-        // `addEventListener` is the modern API; `addListener` is kept for older
-        // WebKit which still ships in some mobile browsers.
-        if (typeof mql.addEventListener === 'function') {
-            mql.addEventListener('change', onChange);
-            return () => mql.removeEventListener('change', onChange);
-        }
-        mql.addListener(onChange);
-        return () => mql.removeListener(onChange);
-    }, []);
-
-    return isCompact;
+    return useMediaQuery(COMPACT_EDITOR_QUERY);
 }
 
 export default useCompactEditor;

@@ -16,6 +16,7 @@ import { ApiKeysTab } from './api-keys/ApiKeysTab';
 import { ManageTeamModal } from '@shared/components/modals';
 import { Button, SectionNavigation } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
+import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 export function CompanySettings() {
     const { currentCompanyProfile, currentUser, currentUserClaims } = useData();
@@ -23,8 +24,7 @@ export function CompanySettings() {
     const [showManageTeam, setShowManageTeam] = useState(false);
     const navigate = useNavigate();
 
-    const isCompanyAdmin = currentUserClaims?.roles?.[currentCompanyProfile?.id] === 'company_admin'
-        || currentUserClaims?.roles?.globalRole === 'super_admin';
+    const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
     const navigationGroups = [
         {
             id: 'organization',

@@ -13,13 +13,13 @@ import { loadDriverDossier } from '../components/modals/driver-dossier/loadDrive
 
 import { buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_PIPELINE_TABS, LEAD_PIPELINE_TABS } from './candidateListColumns';
 import { UndatedRecordsNotice } from './UndatedRecordsNotice';
+import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 export const CompanyCandidatesListPage = ({ scope }) => {
     const { currentCompanyProfile, currentUserClaims } = useData();
     const companyId = currentCompanyProfile?.id;
 
-    const isCompanyAdmin = currentUserClaims?.roles?.[companyId] === 'company_admin'
-        || currentUserClaims?.roles?.globalRole === 'super_admin';
+    const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
 
     const pipelineTabs =
         scope === 'applications' ? APPLICATION_PIPELINE_TABS : LEAD_PIPELINE_TABS;
