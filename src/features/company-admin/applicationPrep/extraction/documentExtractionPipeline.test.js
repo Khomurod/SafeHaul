@@ -11,7 +11,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('react-pdf', () => ({ pdfjs: { getDocument: vi.fn() } }));
 vi.mock('@features/signing/utils/pdfPageRasterizer', () => ({ renderPageToDataUrl: vi.fn(), compressImageFile: vi.fn() }));
 
-import { DOCUMENT_FIELD_KINDS, extractDocuments, extractOneDocument } from './documentExtractionPipeline';
+import { extractDocuments, extractOneDocument } from './documentExtractionPipeline';
+import { DOCUMENT_FIELD_KINDS } from './documentFieldKinds';
 
 const PDF = new File(['%PDF'], 'psp.pdf', { type: 'application/pdf' });
 const PHOTO = new File(['x'], 'cdl.jpg', { type: 'image/jpeg' });

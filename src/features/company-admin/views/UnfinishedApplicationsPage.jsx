@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Icon, Plus, RefreshCw } from '@design-system/icons';
 
@@ -8,16 +8,29 @@ import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useData } from '@/context/DataContext';
 import { Button, Card, FieldMessage, Notice } from '@/design-system/components';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
+import { LoadingState } from '@/design-system/patterns';
 import { useInviteLink } from '../applicationPrep/useInviteLink';
 import { useUnfinishedDraftDelete } from '../applicationPrep/useUnfinishedDraftDelete';
 import { describeApplicant } from '../applicationPrep/unfinishedRowActions';
 import UnfinishedDeleteDialog from '../applicationPrep/UnfinishedDeleteDialog';
-import ApplicationPrepWorkspace from '../applicationPrep/ApplicationPrepWorkspace';
-import UnfinishedApplicationReview from '../applicationPrep/UnfinishedApplicationReview';
 import UnfinishedWorklistTable from '../applicationPrep/UnfinishedWorklistTable';
 import UnfinishedWorklistToolbar from '../applicationPrep/UnfinishedWorklistToolbar';
 import { countByFilter, visibleRows } from '../applicationPrep/unfinishedWorklist';
 import { mockDrafts } from './unfinishedApplicationsMock';
+
+// Reading or preparing an application replaces the worklist, and both views bring
+// the application's editor: they load together when either is first opened, not
+// with the list. One entry rather than two keeps the code they share with the
+// driver's application in fewer, larger files.
+const loadViews = () => import('../applicationPrep/unfinishedApplicationViews');
+const ApplicationPrepWorkspace = lazy(() => loadViews().then((m) => ({ default: m.ApplicationPrepWorkspace })));
+const UnfinishedApplicationReview = lazy(() => loadViews().then((m) => ({ default: m.UnfinishedApplicationReview })));
+
+const openingApplication = (
+    <PageContainer>
+        <LoadingState title="Loading the application" />
+    </PageContainer>
+);
 
 /**
  * One workspace for every application that has been started and not submitted.
@@ -274,25 +287,29 @@ export function UnfinishedApplicationsPage() {
 
     if (reviewTarget) {
         return (
-            <UnfinishedApplicationReview
-                key={reviewTarget.entry.applicantKey}
-                companyId={companyId}
-                entry={reviewTarget.entry}
-                startEditing={reviewTarget.editing}
-                onExit={exitReview}
-            />
+            <Suspense fallback={openingApplication}>
+                <UnfinishedApplicationReview
+                    key={reviewTarget.entry.applicantKey}
+                    companyId={companyId}
+                    entry={reviewTarget.entry}
+                    startEditing={reviewTarget.editing}
+                    onExit={exitReview}
+                />
+            </Suspense>
         );
     }
 
     if (prepTarget) {
         return (
-            <ApplicationPrepWorkspace
-                key={prepTarget.key}
-                companyId={companyId}
-                appSlug={appSlug}
-                openKey={prepTarget.applicantKey}
-                onExit={exitPrep}
-            />
+            <Suspense fallback={openingApplication}>
+                <ApplicationPrepWorkspace
+                    key={prepTarget.key}
+                    companyId={companyId}
+                    appSlug={appSlug}
+                    openKey={prepTarget.applicantKey}
+                    onExit={exitPrep}
+                />
+            </Suspense>
         );
     }
 

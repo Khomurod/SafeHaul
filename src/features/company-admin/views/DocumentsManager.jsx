@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useId } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '@lib/firebase';
 import { collection, query, onSnapshot, orderBy, deleteDoc, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useData } from '@/context/DataContext';
-import EnvelopeCreator from '@features/signing/EnvelopeCreator';
 import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { GlobalLoadingState } from '@shared/components/feedback';
 import { Icon, LayoutDashboard, Send, FileText, ClipboardList, ArrowLeft, Plus } from '@design-system/icons';
@@ -23,6 +22,10 @@ import { ConfirmDialog } from '@design-system/patterns';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button, TabList, TabPanel } from '@/design-system/components';
 import { Inline, PageContainer, PageHeader, Stack } from '@/design-system/layouts';
+
+// The editor (the PDF workbench with pdf.js, and the AI field assistant) loads
+// when a document is created or edited, not with the workspace's lists.
+const EnvelopeCreator = lazy(() => import('@features/signing/EnvelopeCreator'));
 
 /**
  * The four Documents workspace views, in tab order.
@@ -285,18 +288,20 @@ export default function DocumentsManager() {
 
     if (viewMode === 'create') {
         return (
-            <EnvelopeCreator
-                companyId={currentCompanyProfile.id}
-                companyName={currentCompanyProfile.companyName || currentCompanyProfile.name || ''}
-                initialMode={creatorInitialMode}
-                editRequestId={editRequestId}
-                editTemplateId={editTemplateId}
-                onClose={() => {
-                    setViewMode('view');
-                    setEditRequestId(null);
-                    setEditTemplateId(null);
-                }}
-            />
+            <Suspense fallback={<GlobalLoadingState />}>
+                <EnvelopeCreator
+                    companyId={currentCompanyProfile.id}
+                    companyName={currentCompanyProfile.companyName || currentCompanyProfile.name || ''}
+                    initialMode={creatorInitialMode}
+                    editRequestId={editRequestId}
+                    editTemplateId={editTemplateId}
+                    onClose={() => {
+                        setViewMode('view');
+                        setEditRequestId(null);
+                        setEditTemplateId(null);
+                    }}
+                />
+            </Suspense>
         );
     }
 
