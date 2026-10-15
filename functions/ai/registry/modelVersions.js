@@ -38,8 +38,8 @@ const {
 const MODEL_VERSIONS = {
     /**
      * Every text entry must answer both plain text *and* `json_schema`
-     * structured output. `llama-3.3-70b-versatile`, `llama-3.1-8b-instant` and
-     * `qwen/qwen3.6-27b` are rejected outright for structured output:
+     * structured output. `llama-3.3-70b-versatile` and `llama-3.1-8b-instant`
+     * are rejected outright for structured output:
      *
      *   400 "This model does not support response format `json_schema`."
      *

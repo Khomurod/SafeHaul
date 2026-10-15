@@ -9,9 +9,8 @@
  *
  * - a vision model retired by the vendor eight months ago;
  * - a model that rejects `json_schema` with a 400 while answering plain text
- *   perfectly — which is exactly the incident recorded in
- *   `../registry/providers.js`, where Groq's health check stayed green while
- *   every schema-using task in production failed;
+ *   perfectly, so a plain-text health check stays green while every
+ *   schema-using task fails;
  * - a multi-image request a provider accepts one image at a time but not two.
  *
  * So the probes below exercise the capability *combinations SafeHaul actually

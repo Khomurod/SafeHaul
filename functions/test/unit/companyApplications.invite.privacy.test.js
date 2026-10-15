@@ -20,10 +20,11 @@
  * ## What replaces it
  *
  * After takeover the link is a pointer, not a credential: `requiresIdentity`, and
- * the driver proves who they are through `findResumableApplication` — last name,
- * date of birth and SSN digits, plus a contact detail already on the record. The
- * carrier cannot pass that (a prepared draft never holds an SSN, by design) and the
- * driver can, on any device.
+ * the driver proves who they are against the draft the link names
+ * (`companyApplications/inviteIdentity.js`) — last name, date of birth and SSN
+ * digits, plus a contact detail already on the record. The carrier cannot pass
+ * that: it never learns the SSN, and a draft that cannot be checked is refused as
+ * `unverifiable`.
  */
 
 process.env.SMS_ENCRYPTION_KEY = 'x'.repeat(32);
