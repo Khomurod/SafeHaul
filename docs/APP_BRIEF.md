@@ -1424,8 +1424,8 @@ re-scanned, never stepped over.
   owner rotation.
 
 **Source size.** Runtime code and tooling warn past 500 physical lines and are
-refused past 700; tests have no limit. `npm run check:source-size` enforces it;
-the details are in `.claude/rules/source-size.md`.
+refused past 700; tests have no limit. `npm run check:source-size` enforces it
+(`.claude/rules/source-size.md`).
 
 **Instructions for AI agents stay small.** `AGENTS.md` is one page every agent
 reads; `.claude/rules/` holds topic rules loaded per area; history lives in
@@ -1445,18 +1445,18 @@ Check and phone-number tokens, neither used — §10) maps to an empty stand-in;
 Jest on Node 22 cannot `require()` it.
 
 **Playwright** runs in CI as 4 shards, `workers: 1` and `retries: 2` each
-(§10): desktop Chromium and the `@mobile` tests on an
-emulated Pixel 7. Local runner safety:
+(§10): desktop Chromium and `@mobile` tests on an
+emulated Pixel 7. Runner safety:
 [`.claude/rules/testing.md`](../.claude/rules/testing.md).
 
 **The first download has a budget.** `npm run check:bundle-budget` sums the
-entry script, its module preloads and stylesheets from `dist/index.html`,
-fails the `frontend-build` job above **335 kB gzip**, and refuses a pdf.js
-preload, code that loads later (tracing, Replay, Storage, DOMPurify) in it,
-or a first download without the offline queue (all pages run it).
-`npm run test:bundle-budget` drives each refusal on throwaway builds in
-`callable-contract`; `check:ci-plan` K1c pins both steps. The ceiling only
-moves down, with a new measurement.
+entry, its module preloads (libraries: `vendor`) and stylesheets from
+`dist/index.html`; above **319 kB gzip** it fails `frontend-build`. It
+refuses a pdf.js preload, code that loads later (tracing, Replay, Storage,
+DOMPurify) in it, and a first download without the offline queue (all pages
+run it), and holds `/apply/:slug` (its chunks, the English font) to
+**536 kB**. `npm run test:bundle-budget` drives each refusal in
+`callable-contract`; `check:ci-plan` K1c pins both. Ceilings only move down.
 
 **The public site has two CI gates** (§10): `npm run check:public-claims` in
 `callable-contract`, which refuses a run that finds no HTML in `web/`, and

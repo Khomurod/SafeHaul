@@ -2,12 +2,69 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
+import { splitGlyphRegistry } from './src/design-system/icons/splitGlyphRegistry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+/**
+ * The libraries every screen starts with get a chunk of their own. Their bytes
+ * change only when a dependency does, so after a release a returning browser
+ * still holds the file under the same name and revalidates it (304) instead of
+ * downloading it again with the application's code.
+ *
+ * Only packages the first screen already loads in full: Rollup moves a manual
+ * chunk's dependencies into it, so a package with a module that only a later
+ * screen needs would put that module into every page's first download. That is
+ * why Sentry stays out — its tracing and Replay load later from the same
+ * packages — and the icons, which load with the screens that draw them.
+ * `check:bundle-budget` refuses the chunk if it imports the entry, whose name
+ * changes with every release.
+ */
+const STARTUP_LIBRARIES = [
+  'react', 'react-dom', 'scheduler', 'react-router', 'react-router-dom',
+  '@firebase/app', '@firebase/auth', '@firebase/firestore', '@firebase/functions',
+];
+
+function packageOf(id) {
+  const at = id.lastIndexOf('/node_modules/');
+  if (at < 0) return null;
+  const [scope, name] = id.slice(at + '/node_modules/'.length).split('/');
+  return scope.startsWith('@') ? `${scope}/${name}` : scope;
+}
+
+function chunkFor(id) {
+  const pkg = packageOf(id);
+  if (pkg === 'pdfjs-dist') return 'pdfjs';
+  // Rollup's CommonJS helpers: React's modules need them, so they go with React.
+  if (id === '\0commonjsHelpers.js' || STARTUP_LIBRARIES.includes(pkg)) return 'vendor';
+  return undefined;
+}
+
+/**
+ * Starts the Firebase config request with the page instead of after the entry
+ * script has downloaded and run: `src/lib/firebase/config.js` waits for it
+ * before anything renders. Chromium hands the preloaded response to that fetch,
+ * `no-store` and all; a browser that does not just fetches it again, as before.
+ * Build only: the dev server has no `/__/firebase/init.json`.
+ */
+function preloadFirebaseConfig() {
+  return {
+    name: 'safehaul:preload-firebase-config',
+    apply: 'build',
+    transformIndexHtml: () => [{
+      tag: 'link',
+      attrs: { rel: 'preload', href: '/__/firebase/init.json', as: 'fetch', crossorigin: 'anonymous' },
+      injectTo: 'head',
+    }],
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  // In the build only: the glyph registry split one module per glyph, so each
+  // screen carries only the glyphs it draws (the plugin's file says why), and
+  // the Firebase config requested with the page.
+  plugins: [react(), splitGlyphRegistry(), preloadFirebaseConfig()],
   // Sentry's own tree-shaking flag: its debug logging leaves the bundle (3 kB of
   // the first download's gzip). Only `debug: true` in `Sentry.init` used it, and
   // no build sets that.
@@ -56,9 +113,7 @@ export default defineConfig({
         main: path.resolve(__dirname, 'index.html'),
       },
       output: {
-        manualChunks: {
-          pdfjs: ['pdfjs-dist']
-        }
+        manualChunks: chunkFor,
       }
     }
   }

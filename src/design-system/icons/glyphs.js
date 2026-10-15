@@ -9,7 +9,9 @@
  * "no file outside the design system imports the package" without a single
  * call site needing a glyph this file does not have.
  *
- * Adding one is two lines and no ceremony: import it aliased, export it wrapped.
+ * Adding one is two lines and no ceremony: import it aliased, export it wrapped,
+ * in exactly the shape below. The production build splits this module one glyph
+ * per module (`splitGlyphRegistry.js`) and refuses any other shape.
  *
  * ## Two things the measurement found
  *

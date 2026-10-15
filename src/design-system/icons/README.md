@@ -103,6 +103,12 @@ Two lines in `glyphs.js`: import it aliased, export it wrapped. The registry
 holds every name measured in use on 2026-09-05 and nothing speculative, so a
 call site being migrated should never need one — but adding one is not an event.
 
+Keep that one shape, `export const X = /* #__PURE__ */ glyph(LucideX, 'X');`.
+The production build splits the registry into one module per glyph
+(`splitGlyphRegistry.js`), so a glyph downloads with the screens that draw it
+rather than with every page, and it refuses a glyph written any other way.
+Development and the tests use the registry as one module.
+
 ## How it is enforced
 
 No file under `src/` outside this directory may name `lucide-react`. Lint refuses
