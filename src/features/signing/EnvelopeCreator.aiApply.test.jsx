@@ -8,6 +8,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@lib/firebase', async () => (await import('./EnvelopeCreator.aiAssistant.support')).libFirebaseMock());
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('firebase/firestore', async () => (await import('./EnvelopeCreator.aiAssistant.support')).firebaseFirestoreMock());
 vi.mock('firebase/storage', async () => (await import('./EnvelopeCreator.aiAssistant.support')).firebaseStorageMock());
 vi.mock('firebase/functions', async () => (await import('./EnvelopeCreator.aiAssistant.support')).firebaseFunctionsMock());

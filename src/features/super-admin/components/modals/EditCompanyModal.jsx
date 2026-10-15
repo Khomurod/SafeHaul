@@ -1,6 +1,6 @@
 import React, { useId, useState, useEffect } from 'react';
 import { updateCompany } from '@features/companies';
-import { uploadCompanyLogo } from '@lib/firebase';
+import { uploadCompanyLogo } from '@lib/firebase/storage';
 import { Icon, X, CreditCard, SlidersHorizontal } from '@design-system/icons';
 import {
   Button,

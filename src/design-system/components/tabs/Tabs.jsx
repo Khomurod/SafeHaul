@@ -210,7 +210,7 @@ export function TabList({
  * opening the dialog lands the user in the content rather than on its close
  * button.
  */
-export const TabPanel = forwardRef(function TabPanel(
+export const TabPanel = /* @__PURE__ */ forwardRef(function TabPanel(
   { idBase, tabId, className = '', children, ...props }, ref,
 ) {
   const ids = tabIds(idBase, tabId);

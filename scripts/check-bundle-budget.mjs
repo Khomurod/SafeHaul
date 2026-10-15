@@ -7,11 +7,14 @@
  * a 1,184 kB entry script, a 399 kB pdf.js chunk preloaded on a page that
  * renders no PDF, and Sentry's Session Replay recorder inside the entry. Moving
  * the pdf.js worker wiring out of the entry and attaching Replay after load
- * took it to 363,025. This check keeps it there: it reads `dist/index.html`,
+ * took it to 363,025. On 2026-10-15 (plan step 4.2) loading tracing, Storage
+ * and DOMPurify on demand, and Auth without its popup resolver, took it from
+ * 379,589 to 325,008. This check keeps it there: it reads `dist/index.html`,
  * sums the gzip size of the entry script, every `modulepreload` and every
  * stylesheet — exactly what the browser must fetch before the first screen —
  * and refuses the build when the sum passes the ceiling, when a preload names
- * the pdf.js chunk, or when the entry carries the replay recorder.
+ * the pdf.js chunk, when a script of that set carries one of the pieces that
+ * load later, or when none carries one that must not.
  *
  * gzip, not brotli, because Hosting serves both and gzip is the larger of the
  * two, so a pass here is a pass over the wire. Node builtins only, so it runs
@@ -24,14 +27,34 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
-/** Bytes, gzip. 363,025 measured on 2026-09-06; the headroom is under 5%. Move it DOWN, never up, without a measurement. */
-export const FIRST_DOWNLOAD_GZIP_CEILING = 380_000;
+/** Bytes, gzip. 325,008 measured on 2026-10-15; the headroom is 3%. Move it DOWN, never up, without a measurement. */
+export const FIRST_DOWNLOAD_GZIP_CEILING = 335_000;
 
 /** A preload of any of these is the regression this check was written for. */
 export const MUST_NOT_PRELOAD = Object.freeze([{ pattern: /pdfjs/i, why: 'the pdf.js chunk belongs to the PDF features, not to every route' }]);
 
-/** Strings that only the deferred Session Replay recorder contains. */
-export const ENTRY_MUST_NOT_CONTAIN = Object.freeze([{ marker: 'rrweb', why: 'Session Replay is attached after load; its recorder must not ride in the entry' }]);
+/**
+ * Strings that only code loaded after the first screen contains, each found in
+ * the entry before it moved. Checked in every script of the first download: a
+ * module preload is fetched before the first screen as surely as the entry.
+ */
+export const FIRST_DOWNLOAD_MUST_NOT_CONTAIN = Object.freeze([
+    { marker: 'rrweb', why: 'Session Replay is attached after load; its recorder must not ride in the first download' },
+    { marker: 'auto.pageload.browser', why: 'Sentry tracing is attached with Replay after load (src/lib/monitoring/sentry.js)' },
+    { marker: 'Sentry Logger', why: "Sentry's debug logging is compiled out (__SENTRY_DEBUG__ in vite.config.js)" },
+    { marker: 'firebasestorage.googleapis.com', why: 'Storage loads with the features that handle files (@lib/firebase/storage), not through @lib/firebase' },
+    { marker: '__/auth/handler', why: 'Auth starts without the popup/redirect resolver (initializeAuth in src/lib/firebase/config.js)' },
+    { marker: 'DOMPurify', why: 'the sanitizer loads when custom questions are saved, not with the company chooser' },
+]);
+
+/**
+ * Strings of code the first screen must carry, in the entry or a module it
+ * preloads: a chunk loaded later can fail on the connection that needs it, and
+ * nothing reloads the page for a network failure (`staleBuildReload.js`).
+ */
+export const FIRST_DOWNLOAD_MUST_CONTAIN = Object.freeze([
+    { marker: 'safehaul-submission-queue', why: 'the offline queue sends queued applications from every page (QueueStatusIndicator in App.jsx), so it must not wait on a chunk that can fail to load' },
+]);
 
 const ATTRIBUTE = (name) => new RegExp(`\\b${name}=["']([^"']+)["']`);
 
@@ -68,6 +91,7 @@ export function measureFirstDownload(distDir, { ceiling = FIRST_DOWNLOAD_GZIP_CE
     if (!assets.some((a) => a.kind === 'entry')) problems.push('index.html has no module entry script; the measurement would be vacuous');
 
     let gzipTotal = 0;
+    const scripts = [];
     for (const asset of assets) {
         const path = join(distDir, asset.href.replace(/^\//, ''));
         if (!existsSync(path)) { problems.push(`${asset.href} is referenced but not in the build`); continue; }
@@ -78,10 +102,14 @@ export function measureFirstDownload(distDir, { ceiling = FIRST_DOWNLOAD_GZIP_CE
         if (asset.kind === 'modulepreload') {
             for (const { pattern, why } of MUST_NOT_PRELOAD) if (pattern.test(asset.href)) problems.push(`${asset.href} is preloaded on every route — ${why}`);
         }
-        if (asset.kind === 'entry') {
+        if (asset.kind !== 'stylesheet') {
             const text = bytes.toString('utf8');
-            for (const { marker, why } of ENTRY_MUST_NOT_CONTAIN) if (text.includes(marker)) problems.push(`the entry script contains "${marker}" — ${why}`);
+            scripts.push(text);
+            for (const { marker, why } of FIRST_DOWNLOAD_MUST_NOT_CONTAIN) if (text.includes(marker)) problems.push(`${asset.href} (${asset.kind}) contains "${marker}" — ${why}`);
         }
+    }
+    for (const { marker, why } of FIRST_DOWNLOAD_MUST_CONTAIN) {
+        if (scripts.length && !scripts.some((text) => text.includes(marker))) problems.push(`no script of the first download contains "${marker}" — ${why}`);
     }
     if (gzipTotal > ceiling) problems.push(`first download is ${gzipTotal} bytes gzip, over the ${ceiling} ceiling by ${gzipTotal - ceiling}`);
     return { assets, gzipTotal, problems };

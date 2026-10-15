@@ -9,7 +9,6 @@ import {
   where
 } from "firebase/firestore";
 import { db } from '@lib/firebase';
-import { sanitizeQuestionPayload } from '@shared/utils/sanitizeUserContent';
 import { FLAT_DETAIL_KEYS } from './companyDetailKeys';
 
 export async function loadCompanies() {
@@ -77,6 +76,10 @@ export async function saveCompanySettings(companyId, settingsData) {
   if (settingsData.hiringPreferences) payload.hiringPreferences = settingsData.hiringPreferences;
   if (settingsData.structuredOffers) payload.structuredOffers = settingsData.structuredOffers;
   if (settingsData.customQuestions) {
+    // DOMPurify (12 kB gzip) loads when questions are saved. Imported at the top,
+    // it rode in every page's first download with the company chooser, which
+    // imports this module for `getCompanyProfile`.
+    const { sanitizeQuestionPayload } = await import('@shared/utils/sanitizeUserContent');
     payload.customQuestions = Array.isArray(settingsData.customQuestions)
       ? settingsData.customQuestions.map((q) => sanitizeQuestionPayload(q))
       : settingsData.customQuestions;

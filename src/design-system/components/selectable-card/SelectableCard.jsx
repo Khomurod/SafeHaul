@@ -44,7 +44,7 @@ const SURFACES = new Set(['default', 'inverse']);
  */
 const TONES = new Set(['default', 'info', 'success', 'warning', 'danger']);
 
-export const SelectableCard = forwardRef(function SelectableCard({
+export const SelectableCard = /* @__PURE__ */ forwardRef(function SelectableCard({
   as = 'button',
   children,
   selected,

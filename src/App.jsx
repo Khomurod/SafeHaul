@@ -161,7 +161,9 @@ export default function App() {
         <DataProvider>
           <Router>
             <AppRoutes />
-            {/* Bulletproof: Show queue/offline status indicator */}
+            {/* Shows the offline queue and also sends it (useSubmissionQueue), so it
+                loads with the first screen, never from a chunk that can fail to
+                load; check:bundle-budget refuses a first download without it. */}
             <QueueStatusIndicator />
           </Router>
         </DataProvider>

@@ -13,14 +13,18 @@ vi.mock('firebase/app', () => ({
   getApps: () => [],
   getApp: () => ({ __app: true }),
 }));
-vi.mock('firebase/auth', () => ({ getAuth: vi.fn(() => ({})) }));
+vi.mock('firebase/auth', () => ({
+  initializeAuth: vi.fn(() => ({})),
+  indexedDBLocalPersistence: {},
+  browserLocalPersistence: {},
+  browserSessionPersistence: {},
+}));
 vi.mock('firebase/firestore', () => ({
   connectFirestoreEmulator: vi.fn(),
   initializeFirestore: vi.fn(() => ({ __firestore: true })),
   memoryLocalCache: vi.fn(() => ({})),
   getFirestore: vi.fn(() => ({ __firestore: true })),
 }));
-vi.mock('firebase/storage', () => ({ getStorage: vi.fn(() => ({})) }));
 vi.mock('firebase/functions', () => ({ getFunctions: vi.fn(() => ({})) }));
 
 // Low-entropy stand-ins: only their round trip matters.

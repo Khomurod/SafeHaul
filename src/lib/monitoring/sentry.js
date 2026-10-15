@@ -16,6 +16,14 @@
  *    how often it records. An error in the first couple of seconds has no replay
  *    buffer behind it; that is the accepted cost, and the event itself still
  *    arrives with its breadcrumbs.
+ *
+ * 3. Tracing (`browserTracingIntegration`) is attached with Replay, from the same
+ *    chunk: it was 19 kB of the first download's gzip. Errors are still captured
+ *    from `init` on. The page-load span still starts at the navigation's time
+ *    origin, which the SDK takes from the Performance API when the integration
+ *    is set up, and web vitals are read from buffered entries; requests made
+ *    before the attach carry no trace headers, and the first interactions are
+ *    not measured.
  */
 import * as Sentry from '@sentry/react';
 import { scrub } from '@shared/utils/scrub';
@@ -29,7 +37,9 @@ export function initSentry(env = import.meta.env) {
         // Tag events with the build SHA so they resolve against the sourcemaps CI
         // uploads for that release. Undefined in local/PR builds — harmless.
         release: env.VITE_RELEASE_SHA || undefined,
-        integrations: [Sentry.browserTracingIntegration()],
+        // Nothing optional at start-up: tracing and Replay arrive together once
+        // the page is idle (`attachDeferredIntegrations`).
+        integrations: [],
         tracesSampleRate: Number.isFinite(configured) ? configured : DEFAULT_TRACES_SAMPLE_RATE,
         replaysSessionSampleRate: 0.1,
         replaysOnErrorSampleRate: 1.0,
@@ -54,13 +64,15 @@ export function whenIdle(task, { win = globalThis } = {}) {
 }
 
 /**
- * Attaches Session Replay to the running client. Resolves `true` when attached
- * and `false` when the chunk could not be loaded — a monitoring add-on must
- * never take the application down with it.
+ * Attaches tracing and Session Replay to the running client, from one lazily
+ * loaded chunk. Resolves `true` when attached and `false` when the chunk could
+ * not be loaded — a monitoring add-on must never take the application down with
+ * it.
  */
-export function attachSessionReplay({ load = () => import('@sentry/react') } = {}) {
+export function attachDeferredIntegrations({ load = () => import('@sentry/react') } = {}) {
     return load()
         .then((lazy) => {
+            Sentry.addIntegration(lazy.browserTracingIntegration());
             Sentry.addIntegration(lazy.replayIntegration());
             return true;
         })

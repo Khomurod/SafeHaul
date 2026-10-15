@@ -9,18 +9,19 @@ const sentryMock = vi.hoisted(() => ({
 vi.mock('@sentry/react', () => sentryMock);
 vi.mock('@shared/utils/scrub', () => ({ scrub: (value) => ({ scrubbed: value }) }));
 
-import { attachSessionReplay, initSentry, whenIdle } from './sentry';
+import { attachDeferredIntegrations, initSentry, whenIdle } from './sentry';
 
 beforeEach(() => {
     vi.resetAllMocks();
 });
 
 describe('initSentry', () => {
-    it('starts WITHOUT Session Replay and keeps the replay sample rates on the client', () => {
+    it('starts with error capture only, and keeps the trace and replay sample rates on the client', () => {
         initSentry({ PROD: true, VITE_SENTRY_DSN: 'dsn', VITE_RELEASE_SHA: 'abc', VITE_SENTRY_TRACES_SAMPLE_RATE: '0.05' });
         expect(sentryMock.init).toHaveBeenCalledTimes(1);
         const options = sentryMock.init.mock.calls[0][0];
-        expect(options.integrations.map((i) => i.name)).toEqual(['BrowserTracing']);
+        expect(options.integrations).toEqual([]);
+        expect(sentryMock.browserTracingIntegration).not.toHaveBeenCalled();
         expect(sentryMock.replayIntegration).not.toHaveBeenCalled();
         expect(options).toMatchObject({ dsn: 'dsn', release: 'abc', tracesSampleRate: 0.05, replaysSessionSampleRate: 0.1, replaysOnErrorSampleRate: 1.0 });
         expect(options.beforeSend({ a: 1 })).toEqual({ scrubbed: { a: 1 } });
@@ -36,16 +37,21 @@ describe('initSentry', () => {
     });
 });
 
-describe('attachSessionReplay', () => {
-    it('adds the replay integration from the lazily loaded module', async () => {
-        const load = vi.fn(async () => ({ replayIntegration: sentryMock.replayIntegration }));
-        await expect(attachSessionReplay({ load })).resolves.toBe(true);
+describe('attachDeferredIntegrations', () => {
+    it('adds tracing and Session Replay from one lazily loaded module', async () => {
+        sentryMock.browserTracingIntegration.mockImplementation(() => ({ name: 'BrowserTracing' }));
+        sentryMock.replayIntegration.mockImplementation(() => ({ name: 'Replay' }));
+        const load = vi.fn(async () => ({
+            browserTracingIntegration: sentryMock.browserTracingIntegration,
+            replayIntegration: sentryMock.replayIntegration,
+        }));
+        await expect(attachDeferredIntegrations({ load })).resolves.toBe(true);
         expect(load).toHaveBeenCalledTimes(1);
-        expect(sentryMock.addIntegration).toHaveBeenCalledWith({ name: 'Replay' });
+        expect(sentryMock.addIntegration.mock.calls.map(([integration]) => integration.name)).toEqual(['BrowserTracing', 'Replay']);
     });
 
     it('swallows a failed chunk load instead of taking the app down', async () => {
-        await expect(attachSessionReplay({ load: async () => { throw new Error('offline'); } })).resolves.toBe(false);
+        await expect(attachDeferredIntegrations({ load: async () => { throw new Error('offline'); } })).resolves.toBe(false);
         expect(sentryMock.addIntegration).not.toHaveBeenCalled();
     });
 });

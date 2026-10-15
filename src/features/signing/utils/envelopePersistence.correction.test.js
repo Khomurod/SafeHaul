@@ -19,6 +19,7 @@ vi.mock('@lib/firebase', () => ({
     storage: {},
     auth: { currentUser: { uid: 'user-1', displayName: 'Rita Recruiter', email: 'rita@example.test' } },
 }));
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('firebase/storage', () => ({
     ref: () => ({}),
     uploadBytes: async () => {},

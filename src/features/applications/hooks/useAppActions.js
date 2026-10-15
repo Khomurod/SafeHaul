@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { db, storage, auth } from '@lib/firebase';
+import { db, auth } from '@lib/firebase';
+import { storage } from '@lib/firebase/storage';
 import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback';
 import { buildApplicationSearchFields } from '@shared/utils/searchNormalization';

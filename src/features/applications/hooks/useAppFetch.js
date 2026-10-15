@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { doc, getDoc } from "firebase/firestore";
 import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
-import { db, storage, functions } from '@lib/firebase';
+import { db, functions } from '@lib/firebase';
+import { storage } from '@lib/firebase/storage';
 import { getCompanyProfile } from '@features/companies';
 import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
 

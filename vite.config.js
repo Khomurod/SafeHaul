@@ -8,6 +8,10 @@ const __dirname = dirname(__filename);
 
 export default defineConfig({
   plugins: [react()],
+  // Sentry's own tree-shaking flag: its debug logging leaves the bundle (3 kB of
+  // the first download's gzip). Only `debug: true` in `Sentry.init` used it, and
+  // no build sets that.
+  define: { __SENTRY_DEBUG__: false },
   server: {
     host: '0.0.0.0',
     port: 5000,

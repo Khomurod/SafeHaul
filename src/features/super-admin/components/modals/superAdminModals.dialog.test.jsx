@@ -24,6 +24,8 @@ vi.mock('firebase/functions', () => ({ httpsCallable: (...a) => httpsCallable(..
 vi.mock('@lib/firebase', () => ({
   db: {},
   functions: { __functions: true },
+}));
+vi.mock('@lib/firebase/storage', () => ({
   uploadCompanyLogo: (...a) => mockUploadCompanyLogo(...a),
 }));
 vi.mock('firebase/firestore', () => ({

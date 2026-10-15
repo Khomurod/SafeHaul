@@ -21,6 +21,7 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showSuccess: vi.fn(), showError: vi.fn(), showInfo: vi.fn() }),
 }));
 vi.mock('@lib/firebase', () => ({ db: {}, functions: {}, storage: {} }));
+vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('firebase/firestore', () => ({
     doc: vi.fn(), getDoc: vi.fn(), collection: vi.fn(), query: vi.fn(), where: vi.fn(), getDocs: vi.fn(),
 }));
