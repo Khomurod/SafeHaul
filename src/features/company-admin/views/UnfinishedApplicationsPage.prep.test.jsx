@@ -210,7 +210,7 @@ describe('choosing how to start a new application', () => {
         render(<UnfinishedApplicationsPage />);
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
 
-        expect(screen.getByTestId('mode-ai')).toBeInTheDocument();
+        expect(await screen.findByTestId('mode-ai')).toBeInTheDocument();
         expect(screen.getByTestId('mode-manual')).toBeInTheDocument();
         // Not the editor yet — the choice comes first.
         expect(screen.queryByTestId('prep-editor')).toBeNull();
@@ -219,7 +219,7 @@ describe('choosing how to start a new application', () => {
     it('manual goes straight to the editor, with no reader', async () => {
         render(<UnfinishedApplicationsPage />);
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
-        fireEvent.click(screen.getByTestId('mode-manual'));
+        fireEvent.click(await screen.findByTestId('mode-manual'));
 
         expect(screen.getByTestId('prep-editor')).toBeInTheDocument();
         expect(screen.queryByTestId('ai-panel')).toBeNull();
@@ -228,7 +228,7 @@ describe('choosing how to start a new application', () => {
     it('AI goes to the upload step, then on to the editor with the reader', async () => {
         render(<UnfinishedApplicationsPage />);
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
-        fireEvent.click(screen.getByTestId('mode-ai'));
+        fireEvent.click(await screen.findByTestId('mode-ai'));
 
         // The upload step: documents + the reader, no editor yet.
         expect(screen.getByTestId('documents-panel')).toBeInTheDocument();
@@ -396,7 +396,7 @@ describe('one driver never leaks into the next', () => {
 
         fireEvent.click(screen.getByText(/Back to unfinished applications/));
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
-        fireEvent.click(screen.getByTestId('mode-manual'));
+        fireEvent.click(await screen.findByTestId('mode-manual'));
 
         // The editor is empty; type the new driver's email (which keys the draft).
         expect(editorFormData().cdlNumber).toBeUndefined();
@@ -420,7 +420,7 @@ describe('one driver never leaks into the next', () => {
         // through the real editor and the real fields.
         render(<UnfinishedApplicationsPage />);
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
-        fireEvent.click(screen.getByTestId('mode-manual'));
+        fireEvent.click(await screen.findByTestId('mode-manual'));
 
         const save = screen.getByRole('button', { name: /^Save$/i });
         expect(save).toBeEnabled();

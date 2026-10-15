@@ -27,15 +27,6 @@ export const MAX_PAGES_PER_DOCUMENT = 5;
 const PDF_TYPES = /^application\/pdf$/;
 const IMAGE_TYPES = /^image\/(png|jpe?g|webp)$/;
 
-/** The application's upload fields, mapped to what the reader calls each document. */
-export const DOCUMENT_FIELD_KINDS = Object.freeze({
-    'cdl-front': 'cdl',
-    'cdl-back': 'cdl',
-    'medical-card-upload': 'medical',
-    'psp-report-upload': 'psp',
-    'mvr-upload': 'mvr',
-});
-
 function isPdf(file) {
     return PDF_TYPES.test(file?.type || '') || /\.pdf$/i.test(file?.name || '');
 }

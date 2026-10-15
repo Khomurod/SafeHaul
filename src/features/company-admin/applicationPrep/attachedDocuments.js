@@ -1,4 +1,4 @@
-import { DOCUMENT_FIELD_KINDS } from './extraction/documentExtractionPipeline';
+import { DOCUMENT_FIELD_KINDS } from './extraction/documentFieldKinds';
 
 /**
  * The files the recruiter attached, as the extraction pipeline wants them.

@@ -61,12 +61,12 @@ describe('DocumentsManager view contracts', () => {
         expect(typeof sentProps.current.onCorrect).toBe('function');
     });
 
-    it('opens the creator in request mode when Sent Documents requests a correction', () => {
+    it('opens the creator in request mode when Sent Documents requests a correction', async () => {
         renderManager();
         fireEvent.click(tabs().sent);
         React.act(() => { sentProps.current.onCorrect({ id: 'req-1', title: 'Artificial Form' }); });
 
-        expect(screen.getByTestId('envelope-creator')).toBeInTheDocument();
+        expect(await screen.findByTestId('envelope-creator')).toBeInTheDocument();
         expect(creatorProps.current).toMatchObject({
             initialMode: 'request',
             editRequestId: 'req-1',
@@ -99,11 +99,12 @@ describe('DocumentsManager view contracts', () => {
         expect(screen.getByTestId('send-template-wizard')).toBeInTheDocument();
     });
 
-    it('opens the creator for template editing from the library Edit action', () => {
+    it('opens the creator for template editing from the library Edit action', async () => {
         renderManager();
         fireEvent.click(tabs().templates);
         React.act(() => { libraryProps.current.onEdit({ id: 'tpl-1', title: 'Artificial Template' }); });
 
+        await screen.findByTestId('envelope-creator');
         expect(creatorProps.current).toMatchObject({
             initialMode: 'template',
             editTemplateId: 'tpl-1',

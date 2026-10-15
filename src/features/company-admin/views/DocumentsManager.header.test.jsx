@@ -117,12 +117,12 @@ describe('DocumentsManager New Document', () => {
         expect(screen.getByRole('button', { name: /Create reusable template/ })).toBeInTheDocument();
     });
 
-    it('opens the creator in a FIXED request mode for Upload and send PDF', () => {
+    it('opens the creator in a FIXED request mode for Upload and send PDF', async () => {
         renderManager();
         openNewDocument();
         fireEvent.click(screen.getByRole('button', { name: /Upload and send PDF/ }));
 
-        expect(screen.getByTestId('envelope-creator')).toBeInTheDocument();
+        expect(await screen.findByTestId('envelope-creator')).toBeInTheDocument();
         expect(creatorProps.current).toMatchObject({
             companyId: 'company-1',
             companyName: 'Artificial Freight Co',
@@ -132,11 +132,12 @@ describe('DocumentsManager New Document', () => {
         });
     });
 
-    it('opens the creator in a FIXED template mode for Create reusable template', () => {
+    it('opens the creator in a FIXED template mode for Create reusable template', async () => {
         renderManager();
         openNewDocument();
         fireEvent.click(screen.getByRole('button', { name: /Create reusable template/ }));
 
+        await screen.findByTestId('envelope-creator');
         expect(creatorProps.current).toMatchObject({
             initialMode: 'template',
             editRequestId: null,
@@ -153,21 +154,23 @@ describe('DocumentsManager New Document', () => {
         expect(tabs().templates).toHaveAttribute('aria-selected', 'true');
     });
 
-    it('writes nothing and sends nothing when a choice is made', () => {
+    it('writes nothing and sends nothing when a choice is made', async () => {
         renderManager();
         openNewDocument();
         fireEvent.click(screen.getByRole('button', { name: /Create reusable template/ }));
 
+        await screen.findByTestId('envelope-creator');
         expect(firestoreMocks.addDoc).not.toHaveBeenCalled();
         expect(firestoreMocks.updateDoc).not.toHaveBeenCalled();
         expect(firestoreMocks.writeBatch).not.toHaveBeenCalled();
         expect(functionsMocks.httpsCallable).not.toHaveBeenCalled();
     });
 
-    it('returns to the workspace when the creator closes', () => {
+    it('returns to the workspace when the creator closes', async () => {
         renderManager();
         openNewDocument();
         fireEvent.click(screen.getByRole('button', { name: /Upload and send PDF/ }));
+        await screen.findByTestId('envelope-creator');
 
         // The creator owns its own close control; invoke the handler it was given.
         React.act(() => { creatorProps.current.onClose(); });

@@ -6,9 +6,12 @@ import { functions } from '@lib/firebase';
 import { Badge, Button, Card, FieldMessage } from '@/design-system/components';
 import { aiReadErrorMessage } from '@shared/utils/aiReadErrors';
 import { describeError } from './useApplicationPrepDraft';
-import { extractDocuments } from './extraction/documentExtractionPipeline';
 import { attachedDocuments } from './attachedDocuments';
 import { mergeExtractionResults } from './mergeExtractionResults';
+
+// The reader (pdf.js, the page rasterizer, OCR) loads when a read starts: most
+// visits to the page read nothing.
+const loadReader = () => import('./extraction/documentExtractionPipeline');
 
 /**
  * "Read what I attached, and fill in what you can."
@@ -148,6 +151,7 @@ export function ApplicationAiPrepPanel({
         setSummary(null);
         onBusyChange?.(true);
         try {
+            const { extractDocuments } = await loadReader();
             const extraction = await extractDocuments(readable);
             if (Object.keys(extraction.documents).length === 0) {
                 if (!mounted.current) return;
