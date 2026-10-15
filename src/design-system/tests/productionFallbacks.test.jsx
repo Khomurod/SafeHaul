@@ -79,15 +79,15 @@ describe('a production build draws the default after a misused prop', () => {
             null,
             { key: 'notes', header: 'Notes' },
             { header: 'No key', render: cell },
-            { key: 'name', header: 'Name', render: cell, align: 'middle', width: 'huge', priority: 'top', mobileLabel: 5 },
+            { key: 'name', header: 'Name', render: cell, align: 'middle', width: 'huge', mobileLabel: 5 },
             { key: 'name', header: 'Name again', render: cell },
         ]);
         expect(columns).toHaveLength(1);
-        expect(columns[0]).toMatchObject({ key: 'name', header: 'Name', align: 'start', width: 'auto', priority: 'secondary', mobileLabel: undefined });
+        expect(columns[0]).toMatchObject({ key: 'name', header: 'Name', align: 'start', width: 'auto', mobileLabel: undefined });
 
         render(<DataTable ariaLabel="Drivers" columns={columns} data={[{ id: 'd1', name: 'Ada Lovelace' }]} />);
         expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
-        expect(reported()).toHaveLength(9);
+        expect(reported()).toHaveLength(8);
     });
 
     it('Disclosure: a heading level that is not one is an h3', () => {

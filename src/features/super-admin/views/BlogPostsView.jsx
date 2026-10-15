@@ -156,7 +156,6 @@ export function BlogPostsView() {
             key: 'title',
             header: 'Article title',
             rowHeader: true,
-            priority: 'primary',
             width: 'xl',
             render: (post) => (
                 <div className="flex flex-col gap-ds-1">
@@ -168,7 +167,6 @@ export function BlogPostsView() {
         {
             key: 'publicationDate',
             header: 'Published',
-            priority: 'secondary',
             width: 'sm',
             render: (post) => (
                 <span className="text-ds-sm text-ds-content-secondary">{post.publicationDate}</span>
@@ -177,7 +175,6 @@ export function BlogPostsView() {
         {
             key: 'actions',
             header: 'Actions',
-            priority: 'actions',
             width: 'actions',
             align: 'end',
             render: (post) => (

@@ -20,7 +20,7 @@ import { Checkbox, IconButton } from '@/design-system/components';
  *     headerClassName, cellClassName, stopPropagation }`. `render` returns
  *     arbitrary interactive JSX (action buttons, links, badges) and
  *     `stopPropagation` lets a column opt out of row activation per cell.
- *     `DataTable`'s column schema owns alignment/width/priority instead and has no
+ *     `DataTable`'s column schema owns alignment and width instead and has no
  *     per-cell propagation control.
  *  2. **Row-level activation *plus* per-row selection *plus* a footer pager**, all
  *     at once. `DataTable` supports each, but the combination with (1) is

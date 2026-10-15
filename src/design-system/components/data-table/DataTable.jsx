@@ -263,7 +263,6 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
                   role={role('columnheader')}
                   data-align={column.align}
                   data-width={column.width}
-                  data-priority={column.priority}
                   data-truncate={column.truncate || undefined}
                 >
                   {column.headerLabel && !column.header ? (
@@ -327,7 +326,6 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
                           data-label={cards && !column.rowHeader ? mobileLabelOf(column) : undefined}
                           data-align={column.align}
                           data-width={column.width}
-                          data-priority={column.priority}
                           data-truncate={column.truncate || undefined}
                           onClick={column.stopPropagation
                             ? (event) => event.stopPropagation()

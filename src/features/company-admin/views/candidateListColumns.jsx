@@ -95,7 +95,6 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                 header: 'Driver / Contact',
                 rowHeader: true,
                 width: 'xl',
-                priority: 'primary',
                 render: (item) => {
                     const name = getCandidateName(item);
                     const stale = staleContactMeta(item);
@@ -144,7 +143,6 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             header: 'Status',
             align: 'center',
             width: 'sm',
-            priority: 'primary',
             /*
              * `StatusBadge`, not a fourth hand-built pill. The local one was
              * tokenised — which is why the colour rules never flagged it — but it
@@ -165,7 +163,6 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             key: 'qualifications',
             header: 'Position / Type',
             width: 'lg',
-            priority: 'secondary',
             render: (item) => {
                 const position = item.positionApplyingTo || 'Driver';
                 const types = Array.isArray(item.driverType) && item.driverType.length > 0
@@ -238,7 +235,6 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             ),
             align: 'center',
             width: 'md',
-            priority: 'secondary',
             render: (item) => {
                 const dateStr = formatAddedDate(item);
                 if (!dateStr) {
@@ -259,7 +255,6 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             header: 'Last Call',
             align: 'center',
             width: 'xs',
-            priority: 'tertiary',
             render: (item) => {
                 if (!item.lastCallOutcome) {
                     return <span className="text-ds-xs text-ds-content-muted italic">—</span>;
@@ -277,7 +272,6 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             key: 'assignee',
             header: 'Recruiter',
             width: 'md',
-            priority: 'secondary',
             render: (item) => {
                 // A name without an assignee is a leftover: unassigning once
                 // stored "Unassigned" as the name.
@@ -306,7 +300,6 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             headerLabel: 'Actions',
             align: 'center',
             width: 'actions',
-            priority: 'actions',
             stopPropagation: true,
             render: (item) => {
                 const name = getCandidateName(item);

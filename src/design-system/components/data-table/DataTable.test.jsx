@@ -39,8 +39,6 @@ describe('DataTable', () => {
     expect(statusCell).toHaveAttribute('data-align', 'center');
     expect(statusHeader).toHaveAttribute('data-width', 'sm');
     expect(statusCell).toHaveAttribute('data-width', 'sm');
-    expect(statusHeader).toHaveAttribute('data-priority', 'secondary');
-    expect(statusCell).toHaveAttribute('data-priority', 'secondary');
     expect(nameCell).toHaveAttribute('data-width', 'lg');
   });
 

@@ -357,7 +357,6 @@ export default function EnvelopeHistory({
             // 'lg', not 'actions': one labelled quick action needs a real column,
             // and the old 64px 'actions' width is what stacked buttons vertically.
             width: 'lg',
-            priority: 'actions',
             // A quick action must never also activate the row.
             stopPropagation: true,
             render: renderQuickAction,

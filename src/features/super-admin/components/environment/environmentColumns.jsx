@@ -26,7 +26,6 @@ export function buildEnvironmentColumns({ handleAction, revealed }) {
             key: 'key',
             header: 'Key',
             rowHeader: true,
-            priority: 'primary',
             width: 'lg',
             render: (row) => (
                 <div className="min-w-0">
@@ -46,7 +45,6 @@ export function buildEnvironmentColumns({ handleAction, revealed }) {
             key: 'scope',
             header: 'Scope',
             width: 'sm',
-            priority: 'tertiary',
             render: (row) => (
                 <span className="flex items-center gap-ds-1 text-ds-sm">
                     {row.scope === 'company'
@@ -60,7 +58,6 @@ export function buildEnvironmentColumns({ handleAction, revealed }) {
             key: 'source',
             header: 'Source',
             width: 'md',
-            priority: 'tertiary',
             render: (row) => label(SOURCE_LABELS, row.source),
         },
         {
@@ -100,14 +97,12 @@ export function buildEnvironmentColumns({ handleAction, revealed }) {
             key: 'permissions',
             header: 'Permissions',
             width: 'md',
-            priority: 'tertiary',
             render: (row) => <EnvironmentPermissionSummary entry={row} />,
         },
         {
             key: 'lastUpdated',
             header: 'Last updated',
             width: 'md',
-            priority: 'tertiary',
             render: (row) => (
                 <span className="text-ds-sm text-ds-content-secondary">
                     {formatTimestamp(row.lastUpdated)}
@@ -121,7 +116,6 @@ export function buildEnvironmentColumns({ handleAction, revealed }) {
             headerLabel: 'Actions',
             align: 'end',
             width: 'actions',
-            priority: 'actions',
             stopPropagation: true,
             render: (row) => <EnvironmentActions entry={row} onAction={handleAction} />,
         },

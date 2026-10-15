@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   defineTableColumns,
   TABLE_COLUMN_ALIGNMENTS,
-  TABLE_COLUMN_PRIORITIES,
   TABLE_COLUMN_WIDTHS,
 } from './tableColumnContract';
 
@@ -16,7 +15,6 @@ describe('DataTable column contract', () => {
     expect(columns[0]).toMatchObject({
       align: 'start',
       width: 'auto',
-      priority: 'primary',
       rowHeader: true,
       stopPropagation: false,
       truncate: false,
@@ -29,13 +27,11 @@ describe('DataTable column contract', () => {
   it('publishes a finite visual vocabulary', () => {
     expect(TABLE_COLUMN_ALIGNMENTS).toEqual(['start', 'center', 'end']);
     expect(TABLE_COLUMN_WIDTHS).toEqual(['auto', 'xs', 'sm', 'md', 'lg', 'xl', 'actions']);
-    expect(TABLE_COLUMN_PRIORITIES).toEqual(['primary', 'secondary', 'tertiary', 'actions']);
   });
 
   it.each([
     [[{ key: 'status', render: () => null, align: 'middle' }], 'Unsupported DataTable alignment'],
     [[{ key: 'status', render: () => null, width: 'one-off-width' }], 'Unsupported DataTable width'],
-    [[{ key: 'status', render: () => null, priority: 'hide-it' }], 'Unsupported DataTable priority'],
     [[{ key: 'status' }], 'requires a render function'],
     [[{ key: 'status', render: () => null, mobileLabel: 42 }], 'needs a string mobileLabel'],
     [[{ key: 'status', render: () => null }, { key: 'status', render: () => null }], 'Duplicate DataTable column key'],

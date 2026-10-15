@@ -50,7 +50,6 @@ const resultColumns = [
     key: 'updated',
     header: 'Updated',
     width: 'sm',
-    priority: 'tertiary',
     render: (row) => row.updated,
   },
 ];

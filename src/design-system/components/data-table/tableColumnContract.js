@@ -1,11 +1,9 @@
 import { contractViolation } from '../../contract';
 const ALIGNMENTS = new Set(['start', 'center', 'end']);
 const WIDTHS = new Set(['auto', 'xs', 'sm', 'md', 'lg', 'xl', 'actions']);
-const PRIORITIES = new Set(['primary', 'secondary', 'tertiary', 'actions']);
 
 export const TABLE_COLUMN_ALIGNMENTS = Object.freeze([...ALIGNMENTS]);
 export const TABLE_COLUMN_WIDTHS = Object.freeze([...WIDTHS]);
-export const TABLE_COLUMN_PRIORITIES = Object.freeze([...PRIORITIES]);
 
 /**
  * Defines the business-neutral column contract shared by every approved table.
@@ -48,10 +46,8 @@ export function defineTableColumns(columns) {
       return [];
     }
 
-    const defaultPriority = column.rowHeader ? 'primary' : 'secondary';
     let align = column.align ?? 'start';
     let width = column.width ?? 'auto';
-    let priority = column.priority ?? defaultPriority;
     let { mobileLabel } = column;
 
     if (!ALIGNMENTS.has(align)) {
@@ -62,11 +58,6 @@ export function defineTableColumns(columns) {
     if (!WIDTHS.has(width)) {
       contractViolation(`Unsupported DataTable width "${width}" for "${column.key}".`);
       width = 'auto';
-    }
-
-    if (!PRIORITIES.has(priority)) {
-      contractViolation(`Unsupported DataTable priority "${priority}" for "${column.key}".`);
-      priority = defaultPriority;
     }
 
     // The label a cell shows beside its value when the table is cards on a phone;
@@ -80,7 +71,6 @@ export function defineTableColumns(columns) {
       ...column,
       align,
       width,
-      priority,
       mobileLabel,
       rowHeader: Boolean(column.rowHeader),
       stopPropagation: Boolean(column.stopPropagation),
