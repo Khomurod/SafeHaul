@@ -6,6 +6,7 @@ const { checkRateLimit } = require("../../shared/rateLimiter");
 const { verifyDirectSelection, gatherIdsFromQueries } = require("./session/gatherTargets");
 const { persistImportTargets } = require("./session/importTargets");
 const { assertWithinLaunchLimit } = require("../helpers/launchLimit");
+const { readSessionTargetIds } = require("../helpers/sessionTargets");
 
 /**
  * 1. Initialize Bulk Session
@@ -168,7 +169,7 @@ const updateSessionStatus = async (request, status) => {
         }
         const sessionData = snap.data() || {};
         const pointer = sessionData.progress?.currentPointer ?? 0;
-        const total = Array.isArray(sessionData.targetIds) ? sessionData.targetIds.length : 0;
+        const total = (await readSessionTargetIds(sessionRef, sessionData)).length;
         if (total === 0) {
             // Already-empty target list — mark as completed instead of busy-looping a worker.
             await sessionRef.update({

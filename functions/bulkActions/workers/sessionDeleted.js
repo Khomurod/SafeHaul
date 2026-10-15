@@ -29,6 +29,8 @@ async function deleteSessionData(companyId, sessionId, importSourceSessionId) {
     const sessions = db.collection("companies").doc(companyId).collection("bulk_sessions");
 
     await db.recursiveDelete(sessions.doc(sessionId).collection("logs"));
+    // The recipient list a session may keep beside it (`helpers/sessionTargets.js`).
+    await db.recursiveDelete(sessions.doc(sessionId).collection("meta"));
 
     const sourceId = importSourceSessionId || sessionId;
     const [source, readers] = await Promise.all([

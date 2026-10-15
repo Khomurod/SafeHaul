@@ -4,6 +4,7 @@ const { admin, db } = require("../../firebaseAdmin");
 const { enqueueWorker } = require("../services/queueService");
 const { setupSender } = require("./senderSetup");
 const { runSendLoop } = require("./sendLoop");
+const { readSessionTargetIds } = require("../helpers/sessionTargets");
 const { nameFromProfile, cleanString } = require("../../shared/userIdentity");
 
 // B4: hard per-session lifetime ceiling — a runaway-cost circuit breaker so a single
@@ -103,6 +104,8 @@ exports.processBulkBatch = onRequest({
         let claimedStartPointer = 0;
         let claimedEndPointer = 0;
         let pointerAdvanceCount = 0;
+        // The session's recipient count; its list never changes once launched.
+        let totalTargets = 0;
 
         try {
             const claimResult = await db.runTransaction(async (t) => {
@@ -114,7 +117,9 @@ exports.processBulkBatch = onRequest({
                 if (data.status !== 'active') return null;
 
                 const current = data.progress?.currentPointer || 0;
-                const total = data.targetIds?.length || 0;
+                // On the session, or in `meta/targets` (`helpers/sessionTargets.js`).
+                const allIds = await readSessionTargetIds(sessionRef, data, t);
+                const total = allIds.length;
 
                 // B4: circuit breaker — halt before claiming another batch if this session
                 // has already processed an unreasonable number of items.
@@ -128,7 +133,7 @@ exports.processBulkBatch = onRequest({
                 return {
                     start: current,
                     end: next,
-                    allIds: data.targetIds,
+                    allIds,
                     sessionData: data // pass data out to avoid re-reading
                 };
             });
@@ -152,6 +157,7 @@ exports.processBulkBatch = onRequest({
             }
 
             batchIds = claimResult.allIds.slice(claimResult.start, claimResult.end);
+            totalTargets = claimResult.allIds.length;
             claimedStartPointer = claimResult.start;
             claimedEndPointer = claimResult.end;
 
@@ -225,7 +231,6 @@ exports.processBulkBatch = onRequest({
         const postBatch = postBatchSnap.data();
         const persistedPointer = postBatch.progress?.currentPointer || 0;
         const currentPointer = Math.max(persistedPointer, claimedStartPointer + pointerAdvanceCount);
-        const totalTargets = postBatch.targetIds?.length || 0;
         const isKnownLast = (currentPointer >= totalTargets);
 
         if (isKnownLast && postBatch.status === 'active') {

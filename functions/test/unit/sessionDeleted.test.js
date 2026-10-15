@@ -1,6 +1,7 @@
 /**
- * A deleted campaign record takes its report with it: the session's logs, and
- * the uploaded rows once no session reads them any more.
+ * A deleted campaign record takes its report with it: the session's logs, the
+ * recipient list kept beside it, and the uploaded rows once no session reads
+ * them any more.
  */
 jest.mock('firebase-functions/v2/firestore', () => ({
     onDocumentDeleted: (opts, handler) => handler,
@@ -55,10 +56,10 @@ beforeEach(() => {
 });
 
 describe('deleteBulkSessionData', () => {
-    it("deletes a deleted campaign's logs and uploaded rows", async () => {
+    it("deletes a deleted campaign's logs, recipient list and uploaded rows", async () => {
         await deleted('s1');
 
-        expect(deletedPaths()).toEqual([`${SESSIONS}/s1/logs`, `${SESSIONS}/s1/targets`]);
+        expect(deletedPaths()).toEqual([`${SESSIONS}/s1/logs`, `${SESSIONS}/s1/meta`, `${SESSIONS}/s1/targets`]);
     });
 
     it('keeps the uploaded rows while a retry still reads them', async () => {
@@ -66,7 +67,7 @@ describe('deleteBulkSessionData', () => {
 
         await deleted('s1');
 
-        expect(deletedPaths()).toEqual([`${SESSIONS}/s1/logs`]);
+        expect(deletedPaths()).toEqual([`${SESSIONS}/s1/logs`, `${SESSIONS}/s1/meta`]);
     });
 
     it("leaves a retry's campaign its rows while the campaign is kept", async () => {
@@ -74,13 +75,13 @@ describe('deleteBulkSessionData', () => {
 
         await deleted('r1', { importSourceSessionId: 's1' });
 
-        expect(deletedPaths()).toEqual([`${SESSIONS}/r1/logs`]);
+        expect(deletedPaths()).toEqual([`${SESSIONS}/r1/logs`, `${SESSIONS}/r1/meta`]);
     });
 
     it('takes the rows of a campaign deleted earlier with the last retry that read them', async () => {
         await deleted('r1', { importSourceSessionId: 's1' });
 
-        expect(deletedPaths()).toEqual([`${SESSIONS}/r1/logs`, `${SESSIONS}/s1/targets`]);
+        expect(deletedPaths()).toEqual([`${SESSIONS}/r1/logs`, `${SESSIONS}/r1/meta`, `${SESSIONS}/s1/targets`]);
     });
 });
 
@@ -97,7 +98,7 @@ describe('deleteBulkSessionData when a step fails', () => {
         await deleted('s1');
 
         expect(waits).toEqual([RETRY_WAITS_MS[0]]);
-        expect(deletedPaths()).toEqual([`${SESSIONS}/s1/logs`, `${SESSIONS}/s1/logs`, `${SESSIONS}/s1/targets`]);
+        expect(deletedPaths()).toEqual([`${SESSIONS}/s1/logs`, `${SESSIONS}/s1/logs`, `${SESSIONS}/s1/meta`, `${SESSIONS}/s1/targets`]);
     });
 
     it('gives up after three tries and reports it', async () => {
