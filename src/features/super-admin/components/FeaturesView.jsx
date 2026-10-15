@@ -24,7 +24,7 @@ import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
  *     bare `<button>` containing only a styled `<span>` — no text, no
  *     `aria-label`, no `aria-checked`, no `role`. A screen-reader user heard
  *     "button" and could not tell which feature it was, which company it
- *     belonged to, or whether it was on. They are now approved `Checkbox`
+ *     belonged to, or whether it was on. They are now approved `Switch`
  *     controls whose label names both the feature and the company.
  *  2. Two hand-built `fixed inset-0` overlays (schedule, alert stats) with no
  *     dialog role, focus trap, Escape or focus restoration — both now use the
