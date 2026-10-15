@@ -12,7 +12,7 @@ import { TelegramAlertsCard } from './alerts/TelegramAlertsCard';
  * The Deep Diagnostic (it created test users and records in the live database
  * with a fixed password), "Sync Backend Structure" (it wrote schema defaults into
  * every live record missing a field) and the one-off SMS history backfill were
- * removed on 2026-10-11; `syncSystemStructure` refuses on the server.
+ * removed on 2026-10-11, and the server callables behind them on 2026-10-15.
  *
  * The action's explanation is visible help text, not a `title` tooltip, and its
  * outcome is an announced `Badge`. The output log is the approved inverse

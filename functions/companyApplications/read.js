@@ -1,5 +1,5 @@
 /**
- * Reading back what the carrier prepared, and listing what it has in flight.
+ * Reading back what the carrier prepared.
  *
  * Part of the company-prepared application surface; `companyApplications.js` is
  * the deployment surface. The read rule — full answers while the carrier is still
@@ -12,9 +12,6 @@ const { assertCompanyAccessForRequest } = require('../shared/companyAccess');
 const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
 const { applicantKeyOf, docId } = require('../drafts/identity');
-
-/** One page of a carrier's prepared applications. More than anyone reads at once. */
-const LIST_LIMIT = 100;
 
 /**
  * One prepared application, as much of it as the carrier may still see.
@@ -44,45 +41,3 @@ exports.getCompanyPreparedDraft = onCall({ cors: true }, async (request) => {
         // business; its contents are the driver's.
         : { ...prepared.toCompanySummary(doc), formData: null, lockedEmployers: [], readable: false };
 });
-
-/**
- * Every application this carrier has prepared, newest first.
- *
- * Contact and progress only, for every row — and a row that opens is read through
- * `getCompanyPreparedDraft`, which applies the rule.
- *
- * **No longer what the unfinished-applications workspace lists.** Until 2026-09-10
- * this was the list behind "Start an application" while `listApplicationDrafts`
- * was the list behind "Started (unfinished)", and a carrier-prepared draft
- * therefore appeared on both screens. The two are now one workspace reading
- * `listApplicationDrafts` alone, so a draft is one row because it is one document.
- * This callable keeps its narrower, company-scoped contract for any caller that
- * wants exactly the carrier's own prepared work; it is deliberately not deleted,
- * because nothing about it was wrong and removing a deployed callable is a larger
- * change than the consolidation needed.
- */
-exports.listCompanyPreparedApplications = onCall({ cors: true }, async (request) => {
-    const companyId = docId(request.data?.companyId, 100);
-    if (!companyId) throw new HttpsError('invalid-argument', 'companyId is required.');
-
-    await assertCompanyAccessForRequest(request, companyId, 'listCompanyPreparedApplications');
-
-    try {
-        const snapshot = await draft.draftsCollection(companyId)
-            .where('origin', '==', prepared.ORIGIN_COMPANY)
-            .orderBy('updatedAt', 'desc')
-            .limit(LIST_LIMIT)
-            .get();
-
-        return {
-            applications: snapshot.docs.map((doc) => prepared.toCompanySummary(doc)),
-            retentionDays: draft.RETENTION_DAYS,
-            generatedAt: new Date().toISOString(),
-        };
-    } catch (error) {
-        console.error(`[listCompanyPreparedApplications] ${error?.message || 'unknown error'}`);
-        throw new HttpsError('internal', 'The list could not be loaded.');
-    }
-});
-
-exports.__private = { LIST_LIMIT };

@@ -106,10 +106,6 @@ function stageFor(outcome, explicit) {
     return STAGE_BY_OUTCOME[outcome] || STAGE.GENERATION;
 }
 
-function stageForOutcome(outcome) {
-    return STAGE_BY_OUTCOME[outcome] || STAGE.GENERATION;
-}
-
 function shortText(value, limit = MAX_DETAIL_CHARS) {
     if (typeof value !== 'string') return null;
     const trimmed = value.trim();
@@ -233,7 +229,6 @@ module.exports = {
     MAX_PAGE,
     STAGE,
     STAGE_BY_OUTCOME,
-    stageForOutcome,
     stageFor,
     recordSlotRun,
     readRecentSlotRuns,

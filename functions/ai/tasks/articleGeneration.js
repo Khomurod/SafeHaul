@@ -1,11 +1,10 @@
 /**
  * Article generation and verification tasks.
  *
- * Three narrow tasks, not one general "write me a blog post":
+ * Two narrow tasks, not one general "write me a blog post":
  *  - `generateArticle` produces a structured draft from a fact package;
  *  - `verifyArticleClaims` re-reads the draft against the same facts and flags
- *    anything unsupported;
- *  - `selectTopic` picks one story from a candidate list.
+ *    anything unsupported.
  *
  * The draft is returned as *structured blocks*, never as HTML or Markdown. The
  * renderer in `blog/pipeline/sanitize.js` builds the markup itself, so nothing
@@ -91,17 +90,6 @@ const VERIFICATION_SCHEMA = Object.freeze({
         notes: { type: 'string', maxLength: 1000 },
     },
     required: ['supported', 'unsupportedClaims'],
-    additionalProperties: false,
-});
-
-const TOPIC_SCHEMA = Object.freeze({
-    type: 'object',
-    properties: {
-        selectedIndex: { type: 'integer', minimum: 0 },
-        angle: { type: 'string', minLength: 10, maxLength: 300 },
-        reason: { type: 'string', maxLength: 400 },
-    },
-    required: ['selectedIndex', 'angle'],
     additionalProperties: false,
 });
 
@@ -330,54 +318,11 @@ async function verifyArticleClaims({ articleText, sources, knowledge }, deps = {
     return { verification: result.output, transactionId: result.transactionId };
 }
 
-/**
- * Chooses which candidate story to write about.
- *
- * @param {object} params
- * @param {object} params.theme
- * @param {Array<{ title: string, publisher: string, summary: string }>} params.candidates
- */
-async function selectTopic({ theme, candidates, recentTitles = [] }, deps = {}) {
-    const prompt = [
-        `You are choosing today's article for the "${theme.name}" section of a trucking-industry publication.`,
-        theme.editorialAngle,
-        '',
-        'CANDIDATES:',
-        candidates.map((candidate, index) => (
-            `[${index}] ${candidate.title} — ${candidate.publisher}\n     ${candidate.summary || ''}`
-        )).join('\n'),
-        '',
-        recentTitles.length
-            ? `Already covered recently, so do not choose a candidate about the same subject:\n${recentTitles.map((t) => `- ${t}`).join('\n')}`
-            : '',
-        '',
-        'Choose the candidate most useful to trucking-company owners, recruiters, safety teams',
-        'and fleet managers. Prefer a concrete development over a general commentary piece.',
-        'Return its index and the angle the article should take.',
-    ].filter(Boolean).join('\n');
-
-    const task = defineTask({
-        taskType: TASK_TYPES.TOPIC_SELECTION,
-        capabilities: [CAPABILITIES.TEXT, CAPABILITIES.STRUCTURED_JSON, CAPABILITIES.CLASSIFICATION],
-        inputText: prompt,
-        outputSchema: TOPIC_SCHEMA,
-        schemaName: 'safehaul_topic_selection',
-        temperature: 0.2,
-        maxOutputTokens: 500,
-        privacy: PRIVACY.PUBLIC,
-    });
-
-    const result = await runAiTask(task, deps);
-    return result.output;
-}
-
 module.exports = {
     ARTICLE_SCHEMA,
     VERIFICATION_SCHEMA,
-    TOPIC_SCHEMA,
     HOUSE_STYLE,
     generateArticle,
     verifyArticleClaims,
-    selectTopic,
     renderSources,
 };

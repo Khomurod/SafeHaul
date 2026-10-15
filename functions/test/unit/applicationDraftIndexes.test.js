@@ -30,11 +30,11 @@ const config = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'firestore.indexe
 // test caught the module split rather than passing over an empty string.
 const callableSource = fs.readFileSync(path.join(REPO_ROOT, 'functions/drafts/resume.js'), 'utf8');
 /**
- * The carrier-prepared surface queries the same collection, and got the same
- * treatment for the same reason: on 2026-09-03 review found `origin == 'company'`
- * ordered by `updatedAt` in both of these with no index declared for it, so the
- * recruiter's list and the keyless invite lookup would both have failed with
- * `FAILED_PRECONDITION` in a deployed project while every test here passed.
+ * The carrier-prepared surface reads the same collection, so an equality query
+ * there needs its index declared too: on 2026-09-03 review found `origin ==
+ * 'company'` ordered by `updatedAt` with no index declared, which would have failed
+ * with `FAILED_PRECONDITION` in a deployed project while every test here passed.
+ * None of these files queries by equality now; a new query must bring its index.
  *
  * Read as a SET of files rather than one path, so splitting the module again does
  * not quietly move a query out from under this test.
@@ -94,38 +94,10 @@ describe('application_drafts composite index', () => {
     });
 });
 
-describe('the carrier-prepared queries on the same collection', () => {
-    it('declares the origin + updatedAt index', () => {
-        expect(hasIndex('application_drafts', [
-            { fieldPath: 'origin', order: 'ASCENDING' },
-            { fieldPath: 'updatedAt', order: 'DESCENDING' },
-        ])).toBe(true);
-    });
-
-    /**
-     * Asked of the SET, not of each file.
-     *
-     * It used to require every listed file to contain at least one equality filter,
-     * on the grounds that a file which stopped containing the query was a file the
-     * query had moved out of. That reasoning holds for a *move* and fails for a
-     * *deletion*: on 2026-09-09 `exchangeApplicationInvite`'s fallback scan dropped
-     * its `origin == 'company'` filter outright — a continuation link has to be
-     * able to resolve a draft the driver authored — and this test failed for a
-     * change that removed an index dependency rather than adding one.
-     *
-     * The hazard it was built for is still caught, one level up: the union over the
-     * whole surface must be non-empty, so a query cannot vanish from every listed
-     * file unnoticed, and `read.js` is still asserted to hold the `origin` one by
-     * the case above.
-     */
+describe('the carrier-prepared surface', () => {
     const equalityFiltersIn = (file) => [...fs
         .readFileSync(path.join(REPO_ROOT, file), 'utf8')
         .matchAll(/\.where\('([a-zA-Z]+)',\s*'=='/g)].map((match) => match[1]);
-
-    it('still queries this collection by equality somewhere on the prepared surface', () => {
-        const union = PREPARED_SOURCE_FILES.flatMap(equalityFiltersIn);
-        expect(union.length).toBeGreaterThan(0);
-    });
 
     it.each(PREPARED_SOURCE_FILES)('declares an index for every equality filter in %s', (file) => {
         for (const field of equalityFiltersIn(file)) {

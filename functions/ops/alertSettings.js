@@ -138,10 +138,6 @@ async function replaceSettingsIf(stillCurrent, buildPatch) {
     });
 }
 
-function clearTokenCache() {
-    cached = null;
-}
-
 module.exports = {
     TOKEN_SECRET_ID,
     SETTINGS_PATH,
@@ -151,5 +147,4 @@ module.exports = {
     readSettings,
     replaceSettings,
     replaceSettingsIf,
-    clearTokenCache,
 };

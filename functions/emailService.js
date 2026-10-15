@@ -83,46 +83,6 @@ async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
 }
 
 /**
- * Test email connection without sending a message
- * @param {string} companyId - Firestore company document ID
- * @returns {Promise<object>} - Connection test result
- */
-async function testEmailConnection(companyId) {
-    try {
-        const { settings: emailSettings } = await readSmtpSettings(companyId);
-
-        if (!emailSettings || !emailSettings.user) {
-            return {
-                success: false,
-                error: 'Missing SMTP configuration. Please provide host, port, user, and password.',
-            };
-        }
-
-        // Create transporter
-        const transporter = nodemailer.createTransport(smtpTransportOptions(emailSettings));
-
-        // Verify connection
-        await transporter.verify();
-
-        console.log(`[testEmailConnection] SMTP connection successful for company ${companyId}`);
-        return {
-            success: true,
-            message: 'SMTP connection verified successfully!',
-            host: emailSettings.host,
-            user: emailSettings.user,
-        };
-
-    } catch (error) {
-        console.error(`[testEmailConnection] Connection test failed:`, error);
-        return {
-            success: false,
-            error: error.message || 'Connection test failed',
-            details: error.code,
-        };
-    }
-}
-
-/**
  * Test email connection with provided credentials (before saving)
  * @param {object} smtpConfig - SMTP configuration object
  * @returns {Promise<object>} - Test result
@@ -217,6 +177,5 @@ async function testEmailCredentials(smtpConfig) {
 
 module.exports = {
     sendDynamicEmail,
-    testEmailConnection,
     testEmailCredentials,
 };

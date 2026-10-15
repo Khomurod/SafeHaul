@@ -69,11 +69,6 @@ const LANES = Object.freeze({ TEXT: 'text', VISION: 'vision' });
 
 const ALL_LANES = Object.freeze(Object.values(LANES));
 
-const LANE_LABELS = Object.freeze({
-    [LANES.TEXT]: 'Text and structured output',
-    [LANES.VISION]: 'Document images',
-});
-
 /**
  * Which lane a capability belongs to.
  *
@@ -123,7 +118,6 @@ module.exports = {
     CAPABILITY_LABELS,
     LANES,
     ALL_LANES,
-    LANE_LABELS,
     laneForCapability,
     isLane,
     isCapability,

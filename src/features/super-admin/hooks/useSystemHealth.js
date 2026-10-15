@@ -8,7 +8,7 @@ import { functions } from '@lib/firebase';
  * The Deep Diagnostic (it created test users and records in the live database
  * with a fixed password), "Sync Backend Structure" (it wrote schema defaults into
  * every live record missing a field) and the one-off SMS history backfill were
- * removed. `syncSystemStructure` now refuses on the server.
+ * removed, and so were the server callables behind them.
  */
 export function useSystemHealth() {
     const [logs, setLogs] = useState([]);

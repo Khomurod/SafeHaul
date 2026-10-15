@@ -107,8 +107,8 @@ describe('the run ledger records what happened', () => {
     it('distinguishes a prohibited SafeHaul claim from an unsupported factual one', () => {
         // Both are "the draft said something it should not have", and the
         // operator's next step differs completely.
-        expect(runLedger.stageForOutcome('skipped_prohibited_claim')).toBe('claim_check');
-        expect(runLedger.stageForOutcome('skipped_unsupported_claims')).toBe('verification');
+        expect(runLedger.stageFor('skipped_prohibited_claim')).toBe('claim_check');
+        expect(runLedger.stageFor('skipped_unsupported_claims')).toBe('verification');
     });
 
     it('maps every outcome the pipeline can produce to a stage', () => {

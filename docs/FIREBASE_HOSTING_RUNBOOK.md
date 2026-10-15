@@ -421,7 +421,12 @@ The list: `LD-R3`'s six; `runMigration` (since `7aaca38`, which removed the
 Deep Diagnostic); `deleteApplicationDraft` (since `2d76227`, when the
 unfinished-applications page moved to `purgeApplicationDraft`); and
 `trackVerificationOpen` (since `9f26637`, which removed the PEV email's pixel,
-whose path the app host had always answered with the app page). To retire
+whose path the app host had always answered with the app page); the two Smart
+Segments triggers (since `5c9427e`, their own removal); `updateBulkSessionStatus`
+(since `bf07bf6`); `executeReactivationBatch` (since `46989c1`);
+`syncSystemStructure` and `runSecurityAudit` (since `7aaca38`);
+`listCompanyPreparedApplications` (since `0702dc9`); and the
+`onDriverProfileCreated` trigger (since `a2f5b5b`, its own removal). To retire
 another callable, remove it from `functions/index.js` and add an entry.
 `scripts/test-release-promotion.mjs` scenarios 19–22 pin the planning rules, that
 no retired name is still exported (19f), and that the workflow runs the step

@@ -94,13 +94,8 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 | `backfillAllSmsSentPhones` | All-company SMS history backfill. Its one-off System Health button was removed on 2026-10-11; no screen has shown it since the 2026-10-12 release |
 | `backfillSmsSentPhones` | Per-company SMS phone backfill; no UI |
 | `sendSMS` | Admin-only outbound SMS. Signing links are texted by the `notifySignerSMS` trigger alone; Production's e-document screens also call it until their next release |
-| `runSecurityAudit` | Called only by the Deep Diagnostic, removed on 2026-10-11; no caller since the 2026-10-12 release. It goes with `syncSystemStructure`: `scripts/test-deploy-incremental.mjs` uses their module as its real-graph fixture |
-| `syncSystemStructure` | **Retired 2026-10-11: refuses and changes nothing** (it wrote schema defaults into every live record). No caller since the 2026-10-12 release |
-| `listCompanyPreparedApplications` | Was the list behind "Start an application" until 2026-09-10, when that screen and "Started (unfinished)" became one workspace reading `listApplicationDrafts` alone. Kept, not deleted: its narrower `origin == 'company'` contract is correct and still tested, and removing a deployed callable is a larger change than the consolidation needed |
-| `executeReactivationBatch` | SMS reactivation batch; referenced in bulk session comments, no `src/` caller |
 | `migrateEmailSettings` | One-time migration; invoke callable manually (ops) |
 | `reconcileCompanyDashboardStats` | KPI reconciliation callable ([`dashboardStatsRollup.js`](../functions/dashboardStatsRollup.js)) |
-| `updateBulkSessionStatus` | Legacy compat; pause/resume/cancel now also use direct Firestore writes per [`functions/index.js`](../functions/index.js) comment |
 
 ---
 

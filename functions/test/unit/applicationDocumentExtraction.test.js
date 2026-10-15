@@ -14,7 +14,6 @@ const {
     DOCUMENT_KINDS,
     DOCUMENT_PROMPT,
     MAX_TOTAL_CHARS,
-    buildDocumentText,
     shareDocumentText,
     extractApplicationDocuments,
     normalizeDocumentOutput,
@@ -46,7 +45,7 @@ beforeEach(() => {
 
 describe('the document it builds', () => {
     it('labels each document it was given, and only those', () => {
-        const built = buildDocumentText({ psp: 'PSP body', mvr: 'MVR body' });
+        const built = shareDocumentText({ psp: 'PSP body', mvr: 'MVR body' }).text;
 
         expect(built).toContain('=== FMCSA PSP REPORT ===');
         expect(built).toContain('=== MOTOR VEHICLE RECORD ===');
@@ -54,8 +53,8 @@ describe('the document it builds', () => {
     });
 
     it('accepts a single document as readily as four', () => {
-        expect(buildDocumentText({ cdl: 'Licence text' })).toContain("=== DRIVER'S LICENSE ===");
-        expect(buildDocumentText({})).toBe('');
+        expect(shareDocumentText({ cdl: 'Licence text' }).text).toContain("=== DRIVER'S LICENSE ===");
+        expect(shareDocumentText({}).text).toBe('');
     });
 
     // Each section's own body, measured between its heading and the next.
@@ -91,7 +90,6 @@ describe('the document it builds', () => {
         const { text, truncated } = shareDocumentText({ mvr: 'MVR body', cdl: 'Licence text' });
         expect(truncated).toEqual([]);
         expect(text.indexOf("DRIVER'S LICENSE")).toBeLessThan(text.indexOf('MOTOR VEHICLE RECORD'));
-        expect(buildDocumentText({ mvr: 'MVR body', cdl: 'Licence text' })).toBe(text);
     });
 });
 

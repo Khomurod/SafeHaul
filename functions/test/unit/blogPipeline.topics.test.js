@@ -25,7 +25,7 @@ const generate = require('../../blog/pipeline/generate');
 const store = require('../../blog/store');
 const knowledge = require('../../ai/knowledge/safehaulCapabilities');
 const {
-    mockGenerateArticle, mockSelectTopic, researchFetch, resetBlogState,
+    mockGenerateArticle, researchFetch, resetBlogState,
 } = require('./blogPipeline.support');
 
 beforeEach(resetBlogState);
@@ -77,8 +77,6 @@ describe('topic selection only offers publishable leads', () => {
         // trade-press story the whole slot was refused with
         // `skipped_no_sources (no primary or official source)` — four
         // consecutive production runs did exactly that.
-        mockSelectTopic.mockResolvedValue({ selectedIndex: 0, angle: 'Explain it.' });
-
         const result = await generate.runSlot(
             { themeId: 'industry-news', publicationDate: '2026-08-02', key: '2026-08-02_industry-news', slotIndex: 0 },
             {
