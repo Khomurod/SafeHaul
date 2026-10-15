@@ -192,7 +192,9 @@ describe('VirtualLeadList — listed leads', () => {
         mockCallable.mockResolvedValue(page([lead('l1'), lead('l2')], null));
         const { rerender } = render(<VirtualLeadList companyId="co-1" filters={{ status: ['new'] }} onLeadsChange={onLeadsChange} />);
         await screen.findByText('Artificial L2');
-        expect(onLeadsChange).toHaveBeenLastCalledWith([lead('l1'), lead('l2')]);
+        // The list reports in an effect after the rows render, so wait for the
+        // report rather than assume it ran in the same tick as the text.
+        await waitFor(() => expect(onLeadsChange).toHaveBeenLastCalledWith([lead('l1'), lead('l2')]));
 
         // An un-tick hands the list new filters, and it reloads the same page.
         // The audience count must not see the leads vanish in between.
@@ -201,7 +203,9 @@ describe('VirtualLeadList — listed leads', () => {
         expect(screen.queryByText('Artificial L2')).not.toBeInTheDocument();
         await screen.findByText('Artificial L2');
         expect(mockCallable).toHaveBeenCalledTimes(2);
-        expect(onLeadsChange.mock.calls.map(([leads]) => leads.length)).toEqual([2]);
+        // Exactly one report, of both leads: a report of the reload's empty list
+        // would make this [0, 2] and never pass.
+        await waitFor(() => expect(onLeadsChange.mock.calls.map(([leads]) => leads.length)).toEqual([2]));
     });
 
     it('reports local rows as they are', () => {
