@@ -38,5 +38,7 @@ function load(target) {
 
 const first = load(process.env.FUNCTION_TARGET || '');
 const alone = Object.fromEntries(JSON.parse(process.argv[2] || '[]').map((name) => [name, load(name)]));
-process.stdout.write(`\n${JSON.stringify({ first, alone })}`);
-process.exit(0);
+// The loaded modules keep timers open, so the helper exits itself, but only once
+// the pipe has taken every byte: an exit right after the write loses whatever a
+// slow reader has not yet read.
+process.stdout.write(`\n${JSON.stringify({ first, alone })}`, () => process.exit(0));
