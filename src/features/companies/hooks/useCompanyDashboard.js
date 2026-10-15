@@ -19,13 +19,13 @@ import {
     dateFilterRange,
     sortByAddedDate,
 } from './dashboardSearch';
-// The Firestore side — constraint planning, the parallel search execution and
-// the stats counts — lives in `dashboardQueries.js` since the 2026-09-01
-// source-size split. This hook owns state, effects and pagination, and passes
-// its current state in as plain arguments.
+// The Firestore side — constraint planning and the parallel search execution —
+// lives in `dashboardQueries.js` since the 2026-09-01 source-size split. This
+// hook owns state, effects and pagination, and passes its current state in as
+// plain arguments. The dashboard's four counts are `useDashboardCounts`: a list
+// never shows them, so it does not read them.
 import {
     buildDashboardConstraints,
-    loadDashboardStats,
     runDashboardSearch,
 } from './dashboardQueries';
 import { E2E_DASHBOARD_APPLICATIONS, E2E_DASHBOARD_LEADS } from './e2eDashboardFixtures';
@@ -36,18 +36,11 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [statsFetchError, setStatsFetchError] = useState('');
     const [listCountError, setListCountError] = useState('');
     // The Assigned to filter's team, each member keyed by the uid it matches.
     const { team: teamMembers } = useCompanyTeam(companyId);
 
     const [latestBatchTime, setLatestBatchTime] = useState(null);
-    const [stats, setStats] = useState({
-        applications: 0,
-        companyLeads: 0,
-        myLeads: 0,
-        hired: 0
-    });
 
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const [currentPage, setCurrentPage] = useState(1);
@@ -103,31 +96,6 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
         const source = tab === 'applications' ? E2E_DASHBOARD_APPLICATIONS : E2E_DASHBOARD_LEADS;
         return source.map((record) => ({ ...record, companyId }));
     }, [companyId]);
-
-    const fetchStats = useCallback(async () => {
-        if (!companyId) return;
-        setStatsFetchError('');
-
-        if (isE2ETestMode) {
-            const apps = e2eRecordsForTab('applications');
-            const leads = e2eRecordsForTab('company_leads');
-            const uid = auth.currentUser?.uid || 'e2e-company_admin';
-            setStats({
-                applications: apps.length,
-                companyLeads: leads.length,
-                myLeads: leads.filter((l) => l.assignedTo === uid).length,
-                hired: applyClientSideFilters(apps, { activeTab: 'applications', pipelineSegment: 'hired' }).length,
-            });
-            return;
-        }
-
-        try {
-            setStats(await loadDashboardStats({ companyId }));
-        } catch (e) {
-            console.error("Error fetching stats:", e);
-            setStatsFetchError(e?.message || 'Could not load dashboard counts.');
-        }
-    }, [companyId, e2eRecordsForTab]);
 
     // Same recreation set as before the split: the old useCallback depended on
     // [activeTab, filters] plus builders that recreated on pipelineSegment.
@@ -322,10 +290,6 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
         setLatestBatchTime(null);
     }, [companyId, activeTab]);
 
-    useEffect(() => {
-        fetchStats();
-    }, [companyId, fetchStats]);
-
     // Any change to scope, search, filters, or pipeline resets pagination and
     // clears page cursors so stale cursors can never leak across queries.
     useEffect(() => {
@@ -360,21 +324,17 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
 
     return {
         paginatedData: data,
-        counts: stats,
         latestBatchTime,
         teamMembers,
         loading,
         error,
 
         refreshData: () => {
-            setStatsFetchError('');
             setListCountError('');
-            fetchStats();
             fetchListTotalCount();
             fetchData();
         },
 
-        statsFetchError,
         listCountError,
 
         currentPage,

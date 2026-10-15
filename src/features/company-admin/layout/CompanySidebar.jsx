@@ -38,6 +38,72 @@ function stripEdgeDividers(entries) {
   return cleaned;
 }
 
+/**
+ * One menu link. Declared here, not inside the sidebar: a component declared
+ * in its parent's render is a new type at every render, so React replaced each
+ * link whenever the menu re-rendered (every navigation, group toggle and
+ * collapse), and the link a keyboard user had just followed lost focus.
+ */
+function NavItem({ item, isChild = false, isExpanded, onNavigate }) {
+  return (
+    <NavLink
+      to={item.path}
+      onClick={onNavigate}
+      /*
+        `focus-visible:outline-none focus-visible:shadow-ds-focus` — the
+        product's focus ring.
+
+        Without it these twelve links rendered the browser's own
+        `auto 1px rgb(16, 16, 16)`: a black ring, in a product whose focus
+        colour is blue, on the most-tabbed element there is. The 2026-08-25
+        walkthrough fixed seven call sites with this defect and missed the whole
+        primary navigation of the company workspace; a keyboard walk in
+        `e2e/a11y.spec.cjs` is what found it, because axe cannot see the
+        difference between one focus ring and another.
+      */
+      className={({ isActive }) => `
+        min-h-10 flex items-center gap-3 px-3 py-2 rounded-ds-md transition-colors duration-200 group relative
+        focus-visible:outline-none focus-visible:shadow-ds-focus
+        ${isActive
+          ? 'bg-ds-status-info-bg text-ds-status-info-fg border-l-2 border-ds-action-primary'
+          : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle border-l-2 border-transparent'}
+        ${isChild ? 'pl-9 text-ds-body' : ''}
+        ${!isExpanded && !isChild ? 'justify-center' : ''}
+      `}
+    >
+      {({ isActive }) => (
+        <>
+          {/*
+            `item.icon` is a glyph TOKEN off `ICON_MAP`, and a MEMBER EXPRESSION
+            rather than a bare name — which is why the codemod could neither
+            rewrite it nor flag it: it scans for `<Name`, and `<item.icon` has no
+            name to match. Rendering a token throws, so it goes through `Icon`.
+          */}
+          <Icon
+            icon={item.icon}
+            size="xl"
+            className={isActive
+              ? 'text-ds-action-primary'
+              : 'text-ds-content-muted group-hover:text-ds-content'}
+          />
+
+          {isExpanded && (
+            <span className="whitespace-nowrap overflow-hidden text-ellipsis">
+              {item.label}
+            </span>
+          )}
+
+          {!isExpanded && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-ds-surface text-ds-content text-ds-xs rounded-ds-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none z-ds-dropdown whitespace-nowrap border border-ds-border-subtle shadow-ds-lg">
+              {item.label}
+            </div>
+          )}
+        </>
+      )}
+    </NavLink>
+  );
+}
+
 export const CompanySidebar = ({
   isExpanded,
   onExpandedChange,
@@ -129,66 +195,6 @@ export const CompanySidebar = ({
     return stripEdgeDividers(entries);
   }, [isRouteVisible, routeLookup, toMenuItem]);
 
-  const NavItem = ({ item, isChild = false }) => {
-    return (
-      <NavLink
-        to={item.path}
-        onClick={onNavigate}
-        /*
-          `focus-visible:outline-none focus-visible:shadow-ds-focus` — the
-          product's focus ring.
-
-          Without it these twelve links rendered the browser's own
-          `auto 1px rgb(16, 16, 16)`: a black ring, in a product whose focus
-          colour is blue, on the most-tabbed element there is. The 2026-08-25
-          walkthrough fixed seven call sites with this defect and missed the whole
-          primary navigation of the company workspace; a keyboard walk in
-          `e2e/a11y.spec.cjs` is what found it, because axe cannot see the
-          difference between one focus ring and another.
-        */
-        className={({ isActive }) => `
-          min-h-10 flex items-center gap-3 px-3 py-2 rounded-ds-md transition-colors duration-200 group relative
-          focus-visible:outline-none focus-visible:shadow-ds-focus
-          ${isActive
-            ? 'bg-ds-status-info-bg text-ds-status-info-fg border-l-2 border-ds-action-primary'
-            : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle border-l-2 border-transparent'}
-          ${isChild ? 'pl-9 text-ds-body' : ''}
-          ${!isExpanded && !isChild ? 'justify-center' : ''}
-        `}
-      >
-        {({ isActive }) => (
-          <>
-            {/*
-              `item.icon` is a glyph TOKEN off `ICON_MAP`, and a MEMBER EXPRESSION
-              rather than a bare name — which is why the codemod could neither
-              rewrite it nor flag it: it scans for `<Name`, and `<item.icon` has no
-              name to match. Rendering a token throws, so it goes through `Icon`.
-            */}
-            <Icon
-              icon={item.icon}
-              size="xl"
-              className={isActive
-                ? 'text-ds-action-primary'
-                : 'text-ds-content-muted group-hover:text-ds-content'}
-            />
-
-            {isExpanded && (
-              <span className="whitespace-nowrap overflow-hidden text-ellipsis">
-                {item.label}
-              </span>
-            )}
-
-            {!isExpanded && (
-              <div className="absolute left-full ml-2 px-2 py-1 bg-ds-surface text-ds-content text-ds-xs rounded-ds-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none z-ds-dropdown whitespace-nowrap border border-ds-border-subtle shadow-ds-lg">
-                {item.label}
-              </div>
-            )}
-          </>
-        )}
-      </NavLink>
-    );
-  };
-
   return (
     <div className="h-full bg-ds-surface flex flex-col" data-testid="company-sidebar">
       {/* Top Header */}
@@ -270,7 +276,7 @@ export const CompanySidebar = ({
                 {isExpanded && isGroupActive && (
                   <div className="mt-1 space-y-0.5">
                     {entry.children.map((child) => (
-                      <NavItem key={child.id} item={child} isChild={true} />
+                      <NavItem key={child.id} item={child} isChild={true} isExpanded={isExpanded} onNavigate={onNavigate} />
                     ))}
                   </div>
                 )}
@@ -278,7 +284,7 @@ export const CompanySidebar = ({
             )
           }
 
-          return <NavItem key={entry.item.id} item={entry.item} />;
+          return <NavItem key={entry.item.id} item={entry.item} isExpanded={isExpanded} onNavigate={onNavigate} />;
         })}
       </nav>
 

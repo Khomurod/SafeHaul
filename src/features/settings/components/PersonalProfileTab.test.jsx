@@ -14,6 +14,8 @@ const toastMocks = vi.hoisted(() => ({
     showSuccess: vi.fn(),
 }));
 
+const forgetPortalUser = vi.hoisted(() => vi.fn());
+
 vi.mock('firebase/firestore', () => ({
     doc: vi.fn((_db, ...segments) => segments.join('/')),
     getDoc: firestoreMocks.getDoc,
@@ -22,6 +24,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 vi.mock('@lib/firebase', () => ({ db: {} }));
+vi.mock('@features/auth/services/userService', () => ({ forgetPortalUser }));
 vi.mock('@shared/components/feedback', () => ({
     useToast: () => toastMocks,
 }));
@@ -54,6 +57,7 @@ describe('PersonalProfileTab compatibility slice', () => {
         firestoreMocks.getDoc.mockReset();
         firestoreMocks.setDoc.mockReset();
         firestoreMocks.updateDoc.mockReset();
+        forgetPortalUser.mockReset();
         toastMocks.showError.mockReset();
         toastMocks.showSuccess.mockReset();
         firestoreMocks.getDoc.mockResolvedValue(existingUser());
@@ -109,6 +113,8 @@ describe('PersonalProfileTab compatibility slice', () => {
         });
         expect(toastMocks.showSuccess)
             .toHaveBeenCalledWith('Personal profile updated successfully.');
+        // The top bar's copy of the profile is forgotten, so the new name shows.
+        expect(forgetPortalUser).toHaveBeenCalledWith('user-1');
     });
 
     it('preserves recruiting-link generation and clipboard behavior', async () => {

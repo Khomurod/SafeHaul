@@ -246,9 +246,9 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                             title: 'No records found.',
                             description: 'Try adjusting your search or filters.',
                         }}
-                        error={(dashboard.error || dashboard.statsFetchError || dashboard.listCountError)
+                        error={(dashboard.error || dashboard.listCountError)
                             ? {
-                                message: dashboard.error || dashboard.statsFetchError || dashboard.listCountError,
+                                message: dashboard.error || dashboard.listCountError,
                                 onRetry: dashboard.refreshData,
                             }
                             : undefined}
