@@ -64,12 +64,22 @@ export function whenIdle(task, { win = globalThis } = {}) {
 }
 
 /**
+ * The two integrations, named where the module is imported. Rollup keeps only
+ * the exports a dynamic import's `then` destructures; when the whole module
+ * was passed on, the chunk carried all of `@sentry/react` — the Feedback widget
+ * and Replay's canvas recording among it — 120 kB gzip instead of 58 kB, which
+ * every page downloads once idle.
+ */
+const loadDeferredIntegrations = () => import('@sentry/react')
+    .then(({ browserTracingIntegration, replayIntegration }) => ({ browserTracingIntegration, replayIntegration }));
+
+/**
  * Attaches tracing and Session Replay to the running client, from one lazily
  * loaded chunk. Resolves `true` when attached and `false` when the chunk could
  * not be loaded — a monitoring add-on must never take the application down with
  * it.
  */
-export function attachDeferredIntegrations({ load = () => import('@sentry/react') } = {}) {
+export function attachDeferredIntegrations({ load = loadDeferredIntegrations } = {}) {
     return load()
         .then((lazy) => {
             Sentry.addIntegration(lazy.browserTracingIntegration());

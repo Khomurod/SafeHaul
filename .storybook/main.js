@@ -8,6 +8,13 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(currentDir, '..');
 
 /**
+ * The application build's own plugins: they shape the app's files (one module
+ * per glyph, the Firebase config fetched early), and the catalog has no
+ * Firebase config to fetch.
+ */
+const APP_BUILD_ONLY_PLUGINS = ['safehaul:split-glyph-registry', 'safehaul:preload-firebase-config'];
+
+/**
  * SafeHaul component catalog.
  *
  * The catalog documents the *design system* and business-neutral page patterns.
@@ -59,6 +66,13 @@ const config = {
     if (viteConfig.build) {
       viteConfig.build.sourcemap = false;
     }
+    // The application's chunking (the vendor chunk) and its build-only plugins
+    // are dropped too: the catalog keeps Rollup's defaults.
+    if (viteConfig.build?.rollupOptions?.output) {
+      delete viteConfig.build.rollupOptions.output.manualChunks;
+    }
+    viteConfig.plugins = (viteConfig.plugins || []).flat(Infinity)
+      .filter((plugin) => !APP_BUILD_ONLY_PLUGINS.includes(plugin?.name));
 
     // `vite.config.js` pins the app dev server to port 5000 with
     // `strictPort: true`. Inheriting that would make `npm run storybook` fight

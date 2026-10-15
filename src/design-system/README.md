@@ -27,7 +27,9 @@ Before changing UI code, read:
   accessible-name rule and a registry of **glyph tokens** that render only
   through `Icon`, so a call site cannot pass its own pixel number.
   Lint refuses a `lucide-react` import anywhere under `src/` outside this
-  directory, with nothing exempt.
+  directory, with nothing exempt. The production build splits the registry one
+  module per glyph, so a screen downloads only the glyphs it draws
+  (`icons/splitGlyphRegistry.js`).
   `Icon` still accepts a bare component, which is how a design-system container
   resolves an `icon` prop. One file opens a glyph by hand — `VOEDocument.jsx`,
   through `glyphComponent`, because the exported §391.23 document must carry no
