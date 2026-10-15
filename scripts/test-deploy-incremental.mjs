@@ -324,7 +324,7 @@ section('13. index.js: wiring, comments and the loader');
   const exportLine = lines.findIndex((line) => /\bexports\.\w+\s*=/.test(line));
   const commentEdit = indexSrc.replace(/\/\/[^\n]*/, '// a reworded comment');
   const added = [...lines.slice(0, exportLine + 1), lines[exportLine].replace(/exports\.(\w+)/, 'exports.$1Copy'), ...lines.slice(exportLine + 1)].join('\n');
-  const loaderEdit = `${indexSrc}\nprocess.env.SOMETHING_EVERY_FUNCTION_NOW_DOES = '1';\n`;
+  const loaderEdit = `${indexSrc}\nconst startedAt = Date.now();\n`;
   const stringWithSlashes = `${indexSrc}\nconst url = 'https://example.test/a'; // a comment after a string\n`;
   const sameString = stringWithSlashes.replace('// a comment after a string', '// reworded');
   const otherString = stringWithSlashes.replace('https://example.test/a', 'https://example.test/b');
