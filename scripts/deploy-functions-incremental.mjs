@@ -12,7 +12,8 @@
  *   deploys only the `systemIntegrity` exports; editing `bulkActions/helpers/sessionFactory.js` deploys
  *   the bulk exports and `executeReactivationBatch`, which loads it through `smsService.js`.
  *   A file the code reads from disk (an image, a JSON file it does not require) counts for the code
- *   that names it in a string.
+ *   that names it in a string. A file also counts for the code whose require() found it at the base
+ *   commit: a deleted or renamed file is in no closure of the tree being deployed.
  * - functions/index.js is compared with the base commit as a syntax tree (deploy-functions-index.mjs):
  *   only exports whose own statement or backing module changed are redeployed (comment and formatting
  *   edits deploy nothing). A change to the code around the export statements (the FUNCTION_TARGET loader
@@ -48,6 +49,7 @@ import {
     buildFileToEntrypoints,
     planChangedFiles,
     diffExportsFromIndexChange,
+    filesAt,
     getChangedFunctionFiles,
     filterProductionFunctionPaths,
     resolveGitRange,
@@ -163,7 +165,17 @@ function main() {
     }
   }
 
-  const { exports: fromFiles, skippedOrphans, notes } = planChangedFiles(productionChanges, { exportToFile, fileToEntries });
+  const baseFiles = filesAt(base);
+  if (baseFiles === null) {
+    console.error(`[incremental] Cannot list functions/ at ${base.slice(0, 7)}.`);
+    console.error('[incremental] Strict mode refuses automatic full deploy. Set DEPLOY_FUNCTIONS_FORCE_FULL=1 if needed.');
+    process.exit(1);
+  }
+  const { exports: fromFiles, skippedOrphans, notes } = planChangedFiles(productionChanges, {
+    exportToFile,
+    fileToEntries,
+    existedAtBase: (file) => baseFiles.has(file),
+  });
   fromFiles.forEach((e) => toDeploy.add(e));
   notes.forEach((note) => console.log(`[incremental] ${note}`));
   skippedOrphans.forEach((file) => console.warn(`[incremental] Changed runtime file not reachable from any entrypoint (skipping): ${file}`));
@@ -246,4 +258,6 @@ export {
     filterProductionFunctionPaths,
     planChangedFiles,
     diffIndexSources,
+    filesAt,
+    getChangedFunctionFiles,
 } from './deploy-functions-resolve.mjs';

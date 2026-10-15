@@ -23,11 +23,14 @@
  *  12. JSON the code requires, and a file it reads from disk, redeploy their users.
  *  13. index.js: wiring changes redeploy their exports, comment edits nothing, and a
  *      change to the loader around the export lines every function.
+ *  14. A deleted or renamed file redeploys the code that required it at the base commit.
  */
 
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { initThrowawayRepo, removeTree } from './lib/throwaway.mjs';
 
 import {
   buildExportToFileFromSource,
@@ -38,6 +41,8 @@ import {
   isRuntimeFunctionSource,
   planChangedFiles,
   diffIndexSources,
+  filesAt,
+  getChangedFunctionFiles,
 } from './deploy-functions-incremental.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -391,6 +396,11 @@ section('13. index.js: wiring, comments and the loader');
     diff(indexSrc, editLine((line) => line.replace(/wanted\('(\w+)'\)/, "wanted('$1Other')")))?.loaderChanged,
     true
   );
+  assertEqual(
+    '… and so is a condition that calls anything but the selector the loader passes in',
+    diff(indexSrc, editLine((line) => line.replace(/wanted\('(\w+)'\)/, "enabled('$1')")))?.loaderChanged,
+    true
+  );
   const withCheck = (call) => editLine((line) => line.replace(/wanted\('(\w+)'\)/, `wanted('$1') || ${call}()`));
   assertEqual('… and so is code added to the condition', diff(withCheck('setup'), withCheck('setUp')), { changed: [], loaderChanged: true });
   assertEqual(
@@ -439,8 +449,10 @@ section('13. index.js: wiring, comments and the loader');
     { changed: [firstName], loaderChanged: false }
   );
   const placed = (inside) => [
-    `function load(wanted) { setup(); ${inside ? "if (wanted('A')) exports.A = require('./a').A;" : ''} }`,
-    inside ? '' : "if (wanted('A')) exports.A = require('./a').A;",
+    'function load(wanted) {',
+    `  if (flag) { setup(); ${inside ? "if (wanted('A')) exports.A = require('./a').A;" : ''} }`,
+    `  ${inside ? '' : "if (wanted('A')) exports.A = require('./a').A;"}`,
+    '}',
     'load(() => true);',
   ].join('\n');
   assertEqual('… and so does one moved into another block', diff(placed(true), placed(false)), { changed: ['A'], loaderChanged: false });
@@ -450,7 +462,7 @@ section('13. index.js: wiring, comments and the loader');
     diff(twoOnALine('handler'), twoOnALine('other')),
     { changed: ['Second'], loaderChanged: false }
   );
-  const called = (argument) => `${indexSrc}\nif (wanted('Built')) exports.Built = require('./built').build('${argument}');\n`;
+  const called = (argument) => editLine((line) => `${line} if (wanted('Built')) exports.Built = require('./built').build('${argument}');`);
   assertEqual('an export assigned anything but a module or its member is loader code', diff(called('a'), called('b')), { changed: [], loaderChanged: true });
   const loadOne = (call) => [
     `function load(wanted) { ${call}(); if (wanted('A')) exports.A = require('./a').A; }`,
@@ -485,6 +497,39 @@ section('13. index.js: wiring, comments and the loader');
     )?.loaderChanged,
     true
   );
+}
+
+// ───────── 14. Deleted and renamed files ─────────
+section('14. A deleted or renamed file');
+{
+  // The base commit had ai/providers.json, which `require('../providers')` found
+  // before ai/providers/index.js. Deleting it is in no closure of the tree being
+  // deployed, yet the code that required it now loads something else.
+  const deleted = 'functions/ai/providers.json';
+  const existedAtBase = (file) => file === deleted || existsSync(join(repoRoot, file));
+  const requirers = [...fileToEntries.keys()].filter((file) =>
+    [...readFileSync(join(repoRoot, file), 'utf8').matchAll(/require\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g)]
+      .some(([, specifier]) => resolveRelativeRequire(file, specifier, existedAtBase) === deleted));
+  const withBase = planChangedFiles([deleted], { exportToFile: parsed.exportToFile, fileToEntries, existedAtBase });
+  assert('some code required the deleted JSON without its extension', requirers.length > 0, requirers);
+  assertEqual('a deleted file redeploys every function that loaded it at the base commit', [...withBase.exports].sort(), exportsOf(requirers.flatMap(loadersOf)));
+  assertEqual('… which the tree being deployed alone does not show', planFor([deleted]).skippedOrphans, [deleted]);
+
+  // A renamed file is a deleted dependency at its old path, so git must list both.
+  const repo = mkdtempSync(join(tmpdir(), 'deploy-plan-'));
+  try {
+    const git = initThrowawayRepo(repo);
+    mkdirSync(join(repo, 'functions'));
+    writeFileSync(join(repo, 'functions', 'catalog.js'), 'module.exports = { name: "catalog" };\n'.repeat(10));
+    git('add', '.');
+    git('commit', '-qm', 'base');
+    git('mv', 'functions/catalog.js', 'functions/catalogOld.js');
+    git('commit', '-qm', 'head');
+    assertEqual('a renamed file is listed under both names', getChangedFunctionFiles('HEAD~1', 'HEAD', repo)?.sort(), ['functions/catalog.js', 'functions/catalogOld.js']);
+    assertEqual('… and the base commit\'s tree holds the old one', [...(filesAt('HEAD~1', repo) || [])], ['functions/catalog.js']);
+  } finally {
+    removeTree(repo);
+  }
 }
 
 console.log('');

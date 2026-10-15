@@ -89,17 +89,19 @@ export function buildExportToFile() {
   return buildExportToFileFromSource(src);
 }
 
+const onDisk = (repoRelPath) => existsSync(join(repoRoot, repoRelPath));
+
 /**
  * Resolve a relative `require()` specifier (./foo, ../foo/bar, ./foo.js) from
  * `fromFile` (a repo-relative path like 'functions/companyAdmin.js') to a
- * repo-relative path of the actual file on disk.
+ * repo-relative path of the actual file: on disk, or wherever `exists` says.
  *
  * Returns null if:
  *   - the specifier escapes the `functions/` tree
  *   - none of the files Node would try exists: the named `.js`/`.json` file, or
  *     else `<resolved>.js`, `.json`, `/index.js`, `/index.json`, in that order
  */
-export function resolveRelativeRequire(fromFile, rel) {
+export function resolveRelativeRequire(fromFile, rel, exists = onDisk) {
   const baseDir = dirname(fromFile);
   const targetNoExt = normalize(join(baseDir, rel)).replace(/\\/g, '/');
 
@@ -109,11 +111,11 @@ export function resolveRelativeRequire(fromFile, rel) {
   // A required .json file is code too: `shared/applicationSections.json` is the
   // application's definition on the server.
   if (/\.(js|json)$/.test(targetNoExt)) {
-    return existsSync(join(repoRoot, targetNoExt)) ? targetNoExt : null;
+    return exists(targetNoExt) ? targetNoExt : null;
   }
 
   const candidates = ['.js', '.json', '/index.js', '/index.json'].map((suffix) => `${targetNoExt}${suffix}`);
-  return candidates.find((candidate) => existsSync(join(repoRoot, candidate))) || null;
+  return candidates.find((candidate) => exists(candidate)) || null;
 }
 
 /** Tiny cache so the closure walker re-uses file sources across entrypoints. */
@@ -150,6 +152,11 @@ function stringsIn(repoRelPath) {
   return fileStringsCache.get(repoRelPath);
 }
 
+/** The relative specifiers a file passes to require(): ./foo or ../foo/bar (with optional whitespace inside parens). */
+export function requireSpecifiers(repoRelPath) {
+  return [...readFileCached(repoRelPath).matchAll(/require\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g)].map((match) => match[1]);
+}
+
 /**
  * Recursively collect every relative dependency reachable from `entryFile`.
  * Bare specifiers (e.g. `firebase-admin`, `nodemailer`) are intentionally skipped:
@@ -166,14 +173,8 @@ export function collectClosure(entryFile, visited = new Set()) {
   if (visited.has(entryFile)) return visited;
   visited.add(entryFile);
 
-  const src = readFileCached(entryFile);
-  if (!src) return visited;
-
-  // Only relative requires: ./foo or ../foo/bar (with optional whitespace inside parens).
-  const reReq = /require\(\s*['"](\.\.?\/[^'"]+)['"]\s*\)/g;
-  let m;
-  while ((m = reReq.exec(src))) {
-    const resolved = resolveRelativeRequire(entryFile, m[1]);
+  for (const specifier of requireSpecifiers(entryFile)) {
+    const resolved = resolveRelativeRequire(entryFile, specifier);
     if (resolved && !visited.has(resolved)) {
       collectClosure(resolved, visited);
     }
@@ -196,6 +197,13 @@ export function buildFileToEntrypoints(knownTopLevelFiles) {
     }
   }
   return fileToEntries;
+}
+
+/** The files under functions/ at a commit, as a set of repo-relative paths, or null when git cannot list them. */
+export function filesAt(commit, cwd = repoRoot) {
+  const r = spawnSync('git', ['ls-tree', '-r', '-z', '--name-only', commit, '--', 'functions/'], { cwd, encoding: 'utf8' });
+  if (r.status !== 0) return null;
+  return new Set(r.stdout.split('\0').filter(Boolean));
 }
 
 export function gitShow(commitColonPath) {
@@ -250,21 +258,37 @@ export function diffExportsFromIndexChange(baseSha) {
  * every entrypoint whose require() closure reaches it (JSON included), all at
  * once. A file the code reads from disk instead (an image, a JSON file it does
  * not require) counts for the entrypoints of the code that names it in a string,
- * not in a comment. functions/index.js is left to
+ * not in a comment. With `existedAtBase`, which says what the base commit held,
+ * a file also counts for the code whose require() found it there: a deleted file
+ * is in no closure of the tree being deployed, and that code now loads whatever
+ * its require() finds instead. functions/index.js is left to
  * `diffIndexSources`, and the always-include list to `main()`.
  */
-export function planChangedFiles(changedFiles, { exportToFile, fileToEntries }) {
+export function planChangedFiles(changedFiles, { exportToFile, fileToEntries, existedAtBase }) {
   const fileToExports = new Map();
   for (const [name, file] of exportToFile) {
     if (!fileToExports.has(file)) fileToExports.set(file, []);
     fileToExports.get(file).push(name);
   }
+  const runtimeChanges = filterProductionFunctionPaths(changedFiles);
+  const loadersAtBase = new Map();
+  if (existedAtBase) {
+    const changed = new Set(runtimeChanges);
+    for (const [source, entries] of fileToEntries) {
+      for (const specifier of requireSpecifiers(source)) {
+        const target = resolveRelativeRequire(source, specifier, existedAtBase);
+        if (!changed.has(target)) continue;
+        if (!loadersAtBase.has(target)) loadersAtBase.set(target, new Set());
+        entries.forEach((entry) => loadersAtBase.get(target).add(entry));
+      }
+    }
+  }
   const exports = new Set();
   const notes = [];
   const skippedOrphans = [];
-  for (const file of filterProductionFunctionPaths(changedFiles)) {
+  for (const file of runtimeChanges) {
     if (file === 'functions/index.js') continue;
-    const owners = [...ownersOf(file, fileToExports, fileToEntries)].sort();
+    const owners = [...ownersOf(file, fileToExports, fileToEntries, loadersAtBase)].sort();
     if (owners.length === 0) {
       skippedOrphans.push(file);
       continue;
@@ -276,8 +300,8 @@ export function planChangedFiles(changedFiles, { exportToFile, fileToEntries }) 
   return { exports, skippedOrphans, notes };
 }
 
-function ownersOf(file, fileToExports, fileToEntries) {
-  const owners = new Set(fileToEntries.get(file) || []);
+function ownersOf(file, fileToExports, fileToEntries, loadersAtBase) {
+  const owners = new Set([...(fileToEntries.get(file) || []), ...(loadersAtBase.get(file) || [])]);
   for (const module of fileToExports.keys()) {
     if (module === file) owners.add(module);
     if (module.endsWith('/index.js') && file.startsWith(module.slice(0, -'index.js'.length))) owners.add(module);
@@ -291,11 +315,15 @@ function ownersOf(file, fileToExports, fileToEntries) {
   return owners;
 }
 
-export function getChangedFunctionFiles(base, head) {
+/**
+ * The files under functions/ that differ between two commits. A renamed file is
+ * listed under both names (`--no-renames`): its old path is a deleted dependency.
+ */
+export function getChangedFunctionFiles(base, head, cwd = repoRoot) {
   const r = spawnSync(
     'git',
-    ['diff', '--name-only', `${base}..${head}`, '--', 'functions/'],
-    { cwd: repoRoot, encoding: 'utf8' }
+    ['diff', '--name-only', '--no-renames', `${base}..${head}`, '--', 'functions/'],
+    { cwd, encoding: 'utf8' }
   );
   if (r.status !== 0) {
     console.warn('[incremental] git diff failed:', r.stderr || r.stdout);
