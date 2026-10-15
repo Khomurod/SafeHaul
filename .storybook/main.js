@@ -66,10 +66,11 @@ const config = {
     if (viteConfig.build) {
       viteConfig.build.sourcemap = false;
     }
-    // The application's chunking (the vendor chunk) and its build-only plugins
-    // are dropped too: the catalog keeps Rollup's defaults.
+    // The application's chunking (the vendor chunk and its export names) and
+    // its build-only plugins are dropped too: the catalog keeps Rollup's defaults.
     if (viteConfig.build?.rollupOptions?.output) {
       delete viteConfig.build.rollupOptions.output.manualChunks;
+      delete viteConfig.build.rollupOptions.output.minifyInternalExports;
     }
     viteConfig.plugins = (viteConfig.plugins || []).flat(Infinity)
       .filter((plugin) => !APP_BUILD_ONLY_PLUGINS.includes(plugin?.name));
