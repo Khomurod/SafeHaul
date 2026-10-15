@@ -67,12 +67,17 @@ function collectWiring(node, found = new Map()) {
   return found;
 }
 
-/** Takes the given statements out of the tree, each with its list and its slot: how many loader statements precede it there. */
+/**
+ * Takes the given statements out of the tree, each with its list and its slot:
+ * how many loader statements precede it there. An empty statement in a list
+ * (`;;`) does nothing, and leaves too.
+ */
 function takeOut(node, wiring, taken = []) {
   const listKey = STATEMENT_LISTS[node.type];
   if (listKey) {
     const kept = [];
     for (const statement of node[listKey]) {
+      if (statement.type === 'EmptyStatement') continue;
       const names = wiring.get(statement);
       if (names) taken.push({ list: node, slot: kept.length, statement, names });
       else kept.push(statement);

@@ -361,6 +361,16 @@ section('13. index.js: wiring, comments and the loader');
     { changed: [], loaderChanged: false }
   );
   assertEqual(
+    '… nor an empty statement, in the loader or among the exports',
+    diff(indexSrc, indexSrc.replace("require('./firebaseAdmin');", "require('./firebaseAdmin');;").replace(/(exports\.\w+ = [^;\n]+;)/, '$1;')),
+    { changed: [], loaderChanged: false }
+  );
+  assertEqual(
+    '… while an empty statement that is a body is code: `if (x);` runs nothing',
+    diff(`${indexSrc}\nif (flag) setup();\n`, `${indexSrc}\nif (flag);\nsetup();\n`)?.loaderChanged,
+    true
+  );
+  assertEqual(
     '… but a line break that changes the meaning is a change',
     diff(`${indexSrc}\nfunction one() { return 1; }\n`, `${indexSrc}\nfunction one() { return\n1; }\n`)?.loaderChanged,
     true
