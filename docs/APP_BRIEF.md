@@ -1046,8 +1046,8 @@ cancel stops at once. One rule (`recentlyMessaged.js`) keeps the recently
 messaged out of count, preview and launch: **7 days** by default for uploads,
 none for CRM. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
-and global `blacklist`s hold SMS opt-outs, checked before **every** send
-(`isBlacklisted()`), failing closed on a bad number; no reply fills them (§12).
+and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
+closed on a bad number) and every email with a usable one; no reply fills them (§12).
 
 ---
 
