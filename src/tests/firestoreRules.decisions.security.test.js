@@ -336,7 +336,8 @@ const ROWS = [
   { op: 'update', path: 'drivers/{doc}', seed: { firstName: 'Old' }, data: { firstName: 'New' }, note: 'someone else\'s' },
   { op: 'delete', path: 'drivers/{uid}', seed: { firstName: 'Old' }, note: 'the caller\'s own' },
   { op: 'delete', path: 'drivers/{doc}', seed: { firstName: 'Old' }, note: 'someone else\'s' },
-  ...['drafts', 'documents'].flatMap((name) => [
+  // saved_jobs has no rule: the retired saved-jobs feature's documents stay unreachable.
+  ...['drafts', 'documents', 'saved_jobs'].flatMap((name) => [
     ...documentRows(`drivers/{uid}/${name}`).map((row) => ({ ...row, note: 'the caller\'s own' })),
     ...documentRows(`drivers/${SOMEONE}/${name}`),
   ]),
