@@ -168,6 +168,9 @@ describe('validation summary', () => {
         await waitFor(() => expect(
             screen.getByText('Please fix the following errors:').closest('[role="alert"]').textContent,
         ).not.toContain('Your Full Name'));
+        // Only that entry goes: the summary still names what is left to fix.
+        expect(screen.getByText('Please fix the following errors:').closest('[role="alert"]'))
+            .toHaveTextContent('Electronic Signature');
     });
 });
 
@@ -221,6 +224,8 @@ describe('duplicate submission', () => {
         await waitFor(() => expect(screen.getByRole('button', { name: /Submitting/i })).toBeDisabled());
         release();
         await screen.findByText('Verification Submitted Successfully');
+        // And the control does not survive into the success screen.
+        expect(screen.queryByRole('button', { name: /Submit Verification Response/i })).not.toBeInTheDocument();
     });
 });
 
@@ -240,7 +245,8 @@ describe('signature integration', () => {
         fireEvent.click(screen.getByRole('button', { name: /Submit Verification Response/i }));
         await screen.findByText('Please fix the following errors:');
 
-        const canvas = container.querySelector('canvas');
+        // Found the way assistive technology finds it: an image named as a signature.
+        const canvas = screen.getByRole('img', { name: /signature/i });
         expect(canvas).toHaveAttribute('aria-invalid', 'true');
 
         const described = (canvas.getAttribute('aria-describedby') || '')

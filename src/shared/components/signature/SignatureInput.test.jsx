@@ -62,6 +62,10 @@ describe('SignatureInput', () => {
         expect(onSignatureChange).toHaveBeenLastCalledWith(null);
         const input = screen.getByRole('textbox', { name: /Type your full name to sign/ });
         expect(input).toHaveAccessibleDescription(expect.stringContaining('legally binding'));
+        // It tells the respondent, through `aria-describedby`, that the typed name is their legal signature.
+        expect(input).toHaveAttribute('aria-describedby', expect.stringMatching(/\S/));
+        expect(input).toHaveAccessibleDescription(expect.stringMatching(/electronic signature/i));
+        expect(input).toHaveAccessibleDescription(expect.stringMatching(/ESIGN/));
 
         fireEvent.change(input, { target: { value: 'A' } });
         expect(onSignatureChange).toHaveBeenLastCalledWith(null);

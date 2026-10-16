@@ -11,7 +11,9 @@
 // envelope void) need seeded Firestore data that is not reachable under
 // `VITE_E2E_TEST_MODE=1`; those are covered by their focused unit suites, which can
 // supply data deterministically. What is verified here is the *dialog contract*
-// itself, which all six share through one component.
+// itself, which all six share through one component. Dismissal by Keep file and
+// by Escape, and the focus going back to the trigger, are asserted in
+// `UploadField.test.jsx`, `ConfirmDialog.test.jsx` and `Modal.test.jsx`.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 const {
@@ -19,6 +21,7 @@ const {
   fillStep2,
   fillStep3RequiredFields,
   uploadStandardDocuments,
+  uploadedFields,
 } = require('./helpers/wizardHelpers.cjs');
 
 /** Drives the wizard to the document step with three files uploaded. */
@@ -29,7 +32,7 @@ async function reachUploadedDocuments(page) {
   await fillStep2(page);
   await fillStep3RequiredFields(page);
   await uploadStandardDocuments(page);
-  await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
+  await expect(uploadedFields(page)).toHaveCount(3);
 }
 
 const removeButton = (page) => page.getByRole('button', { name: /^Remove .* file$/ }).first();
@@ -57,7 +60,7 @@ test.describe('ConfirmDialog — real browser', () => {
     await expect(dialog).toHaveAttribute('aria-modal', 'true');
 
     // Still three uploads: opening the dialog removed nothing.
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
+    await expect(uploadedFields(page)).toHaveCount(3);
     expect(nativeDialogs, 'a blocking browser dialog was used').toBe(0);
   });
 
@@ -76,31 +79,6 @@ test.describe('ConfirmDialog — real browser', () => {
     }
   });
 
-  test('Escape dismisses without removing and restores focus to the trigger', async ({ page }) => {
-    await reachUploadedDocuments(page);
-    const trigger = removeButton(page);
-    await trigger.focus();
-    await trigger.click();
-
-    await expect(page.getByRole('dialog', { name: 'Remove this file?' })).toBeVisible();
-    await page.keyboard.press('Escape');
-
-    await expect(page.getByRole('dialog', { name: 'Remove this file?' })).toHaveCount(0);
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
-    await expect(trigger).toBeFocused();
-  });
-
-  test('Cancel dismisses without removing', async ({ page }) => {
-    await reachUploadedDocuments(page);
-    await removeButton(page).click();
-
-    const dialog = page.getByRole('dialog', { name: 'Remove this file?' });
-    await dialog.getByRole('button', { name: 'Keep file' }).click();
-
-    await expect(page.getByRole('dialog', { name: 'Remove this file?' })).toHaveCount(0);
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
-  });
-
   test('a backdrop click does not confirm a destructive action', async ({ page }) => {
     await reachUploadedDocuments(page);
     await removeButton(page).click();
@@ -111,7 +89,7 @@ test.describe('ConfirmDialog — real browser', () => {
     // Click the overlay well away from the panel.
     await page.mouse.click(4, 4);
 
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
+    await expect(uploadedFields(page)).toHaveCount(3);
   });
 
   test('confirming removes exactly the chosen file', async ({ page }) => {
@@ -123,7 +101,7 @@ test.describe('ConfirmDialog — real browser', () => {
 
     await expect(page.getByRole('dialog', { name: 'Remove this file?' })).toHaveCount(0);
     // Exactly one of the three uploads is gone.
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(2);
+    await expect(uploadedFields(page)).toHaveCount(2);
   });
 
   test('has no serious or critical accessibility violations', async ({ page }) => {

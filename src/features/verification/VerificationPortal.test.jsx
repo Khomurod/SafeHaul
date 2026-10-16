@@ -153,6 +153,7 @@ describe('VerificationPortal', () => {
             }),
         });
         expect(await screen.findByText('Verification Submitted Successfully')).toBeInTheDocument();
+        expect(screen.getByText(/A PDF record has been generated/i)).toBeInTheDocument();
     });
 
     it('shows the invalid-link error screen for a not-found token', async () => {
@@ -165,6 +166,19 @@ describe('VerificationPortal', () => {
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent('This verification link is invalid or has been removed.');
         expect(screen.getByRole('heading', { level: 1, name: 'Verification Error' })).toBeInTheDocument();
+        consoleError.mockRestore();
+    });
+
+    it('shows the expired screen with its frozen message for an expired token', async () => {
+        const err = new Error('exp');
+        err.code = 'functions/deadline-exceeded';
+        callables.getVerificationRequest.mockRejectedValue(err);
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        renderPortal();
+
+        expect(await screen.findByText(
+            'This verification request has expired. Please contact the requesting company for a new link.',
+        )).toBeInTheDocument();
         consoleError.mockRestore();
     });
 

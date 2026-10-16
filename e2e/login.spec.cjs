@@ -1,8 +1,9 @@
 // E2E coverage for the Login/Auth design-system slice. Verifies keyboard order,
-// focus visibility, autofill attributes, the accessible reset dialog, responsive
-// layout/overflow at 1440/1024/412, and a scoped axe pass. Authentication and
-// redirects are covered by the vitest suite (they need a mocked Firebase
-// backend); this spec asserts presentation, accessibility, and responsiveness.
+// focus visibility, responsive layout/overflow at 1440/1024/412, and a scoped
+// axe pass with and without the reset dialog. Authentication and redirects (they
+// need a mocked Firebase backend), the autofill attributes, the password toggle
+// and the reset dialog's focus and Escape are asserted in `LoginScreen.test.jsx`;
+// this spec asserts what only a browser can: Tab order, focus rings, layout, axe.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 
@@ -13,18 +14,6 @@ async function gotoLogin(page) {
 
 test.describe('Login/Auth compatibility slice', () => {
   test.describe.configure({ timeout: 90_000 });
-
-  test('exposes labelled fields with preserved autofill attributes', async ({ page }) => {
-    await gotoLogin(page);
-
-    const email = page.getByRole('textbox', { name: /email address/i });
-    const password = page.getByPlaceholder('Enter your password');
-
-    await expect(email).toHaveAttribute('type', 'email');
-    await expect(email).toHaveAttribute('autocomplete', 'email');
-    await expect(password).toHaveAttribute('type', 'password');
-    await expect(password).toHaveAttribute('autocomplete', 'current-password');
-  });
 
   test('keeps a logical keyboard order and visible focus on desktop', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop keyboard behavior.');
@@ -65,35 +54,6 @@ test.describe('Login/Auth compatibility slice', () => {
     expect(labelBox).not.toBeNull();
     expect(controlBox).not.toBeNull();
     expect(Math.abs(labelBox.x - controlBox.x)).toBeLessThan(1);
-  });
-
-  test('reveals and hides the password from a labelled control', async ({ page }) => {
-    await gotoLogin(page);
-    const password = page.getByPlaceholder('Enter your password');
-
-    await expect(password).toHaveAttribute('type', 'password');
-    await page.getByRole('button', { name: /show password/i }).click();
-    await expect(password).toHaveAttribute('type', 'text');
-    await page.getByRole('button', { name: /hide password/i }).click();
-    await expect(password).toHaveAttribute('type', 'password');
-  });
-
-  test('opens the reset dialog with initial focus and closes on Escape', async ({ page }) => {
-    await gotoLogin(page);
-    await page.getByRole('textbox', { name: /email address/i }).fill('recruiter@example.com');
-    await page.getByRole('button', { name: /forgot password/i }).click();
-
-    const dialog = page.getByRole('dialog', { name: 'Reset your password' });
-    await expect(dialog).toBeVisible();
-
-    const resetEmail = dialog.getByRole('textbox', { name: /email address/i });
-    await expect(resetEmail).toBeFocused();
-    await expect(resetEmail).toHaveValue('recruiter@example.com');
-
-    await page.keyboard.press('Escape');
-    await expect(dialog).toBeHidden();
-    // Focus returns to the trigger (shared Modal focus restoration).
-    await expect(page.getByRole('button', { name: /forgot password/i })).toBeFocused();
   });
 
   test('shows the marketing panel and no overflow on desktop', async ({ page }, testInfo) => {

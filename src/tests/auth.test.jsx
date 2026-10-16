@@ -28,18 +28,6 @@ describe('Authentication Flow', () => {
         vi.clearAllMocks();
     });
 
-    it('should render login form with email and password fields', () => {
-        render(
-            <BrowserRouter>
-                <LoginScreen />
-            </BrowserRouter>
-        );
-
-        expect(screen.getByPlaceholderText(/you@example.com/i)).toBeInTheDocument();
-        expect(screen.getByPlaceholderText(/Enter your password/i)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
-    });
-
     it('should handle successful login', async () => {
         const { signInWithEmailAndPassword } = await import('firebase/auth');
 
@@ -123,51 +111,6 @@ describe('Authentication Flow', () => {
 
         await waitFor(() => {
             expect(screen.getByText('An unexpected error occurred. Please try again.')).toBeInTheDocument();
-        });
-    });
-
-    /**
-     * The pending sign-in is settled INSIDE the test.
-     *
-     * A sign-in mocked to resolve on a timer the test does not wait for fires
-     * while the file's environment is tearing down: `loginUser` throws on
-     * `undefined.user`, `LoginScreen`'s catch calls `console.error`, and Vitest
-     * fails the whole run with `EnvironmentTeardownError: Closing rpc while
-     * "onUserConsoleLog" was pending` — every test passed, exit code 1.
-     *
-     * So the promise is a deferred the test rejects, and the test waits for the
-     * rendered consequence before it ends (.claude/rules/testing.md).
-     */
-    it('disables Sign in while authentication is pending, and re-enables it after', async () => {
-        const { signInWithEmailAndPassword } = await import('firebase/auth');
-
-        let settle;
-        signInWithEmailAndPassword.mockImplementation(
-            () => new Promise((_resolve, reject) => { settle = reject; })
-        );
-
-        render(
-            <BrowserRouter>
-                <LoginScreen />
-            </BrowserRouter>
-        );
-
-        const emailInput = screen.getByPlaceholderText(/you@example.com/i);
-        const passwordInput = screen.getByPlaceholderText(/Enter your password/i);
-        const submitButton = screen.getByRole('button', { name: /sign in/i });
-
-        fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
-        fireEvent.change(passwordInput, { target: { value: 'password123' } });
-        fireEvent.click(submitButton);
-
-        // Button should be disabled during loading
-        expect(submitButton).toBeDisabled();
-
-        settle(new Error('Network error'));
-
-        await waitFor(() => {
-            expect(screen.getByText('An unexpected error occurred. Please try again.')).toBeInTheDocument();
-            expect(submitButton).not.toBeDisabled();
         });
     });
 });

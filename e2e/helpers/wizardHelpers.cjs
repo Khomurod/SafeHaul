@@ -94,6 +94,13 @@ async function uploadStandardDocuments(page) {
   await waitForUploads(page, ['cdl-front', 'cdl-back', 'medical-card-upload']);
 }
 
+/**
+ * The fields holding a file, by their "Uploaded Successfully" line. The match is
+ * exact because a loose one also counts the "File uploaded successfully." toasts,
+ * which stay up for 4 s after each upload.
+ */
+const uploadedFields = (page) => page.getByText('Uploaded Successfully', { exact: true });
+
 async function fillDateTriplet(page, prefix, { month, day, year }) {
   await page.locator(`#${prefix}-year`).waitFor({ state: 'visible', timeout: 15_000 });
   await page.selectOption(`#${prefix}-year`, String(year));
@@ -236,6 +243,7 @@ module.exports = {
   chooseRadio,
   waitForUploads,
   uploadStandardDocuments,
+  uploadedFields,
   fillDateTriplet,
   fillTypedDate,
   fillMonthYear,
