@@ -84,20 +84,124 @@ export function isColour(text, { words = true } = {}) {
 export const numericLayer = (value) => /\d/.test(ownText(value));
 
 const VARIABLE_ONLY = /^var\(--[\w-]+\)$/;
-const CSS_WIDE = /^(?:inherit|initial|unset|revert|revert-layer)$/;
-const PX_PER = { px: 1, pt: 4 / 3, pc: 16, in: 96, cm: 96 / 2.54, mm: 96 / 25.4, q: 96 / 101.6, rem: 16, em: 16 };
+const CSS_WIDE = /^(?:inherit|initial|unset|revert|revert-layer)$/i;
+
+/*
+ * A font size's range in px, as CSS computes it: `calc(10px + 10px)` is 20px,
+ * `min(10px, 20px)` 10px, `clamp(10px, 2vw, 14px)` anywhere from 10px to 14px.
+ * `rem` is the 16px root, a size keyword its CSS size. `em`, `%`, `larger` and
+ * `smaller` scale the parent's size, which the floor keeps at 12px or more;
+ * what the page decides alone — a viewport unit, a variable — may be any size.
+ * Null when the value is not a size CSS can compute.
+ */
+const ABSOLUTE = { px: 1, pt: 4 / 3, pc: 16, in: 96, cm: 96 / 2.54, mm: 96 / 25.4, q: 96 / 101.6, rem: 16 };
+const KEYWORD_SIZES = { 'xx-small': 9, 'x-small': 10, small: 13, medium: 16, large: 18, 'x-large': 24, 'xx-large': 32, 'xxx-large': 48 };
+const PARENT = { lo: 12, hi: Infinity, length: true };
+const ANY_SIZE = { lo: 0, hi: Infinity, length: true };
+const exact = (n, length) => ({ lo: n, hi: n, length });
+const times = (a, b) => (a === 0 || b === 0 ? 0 : a * b);
+const scaled = (range, by) => {
+    const ends = [times(range.lo, by.lo), times(range.lo, by.hi), times(range.hi, by.lo), times(range.hi, by.hi)];
+    return { lo: Math.min(...ends), hi: Math.max(...ends), length: range.length || by.length };
+};
+const lowest = (list) => ({ lo: Math.min(...list.map((r) => r.lo)), hi: Math.min(...list.map((r) => r.hi)), length: list.some((r) => r.length) });
+const highest = (list) => ({ lo: Math.max(...list.map((r) => r.lo)), hi: Math.max(...list.map((r) => r.hi)), length: list.some((r) => r.length) });
+
+function sizeRange(value) {
+    const tokens = [];
+    let end = 0;
+    for (const match of value.toLowerCase().matchAll(/\s*(?:(\d*\.?\d+(?:e[+-]?\d+)?)([a-z%]*)|(calc|min|max|clamp|var)\(|([(),*/+-])|([a-z][a-z-]*))\s*/gy)) {
+        tokens.push(match);
+        end = match.index + match[0].length;
+    }
+    if (end !== value.length) return null;
+    let at = 0;
+    const is = (symbol) => tokens[at]?.[4] === symbol;
+    const closes = () => is(')') && Boolean(tokens[at++]);
+    function list() {
+        const items = [expression()];
+        while (is(',') && tokens[at++]) items.push(expression());
+        return closes() && !items.includes(null) ? items : null;
+    }
+    function factor() {
+        const token = tokens[at++];
+        if (!token) return null;
+        const [, number, unit, fn, symbol, word] = token;
+        if (number !== undefined) {
+            if (unit === '') return exact(Number(number), false);
+            if (ABSOLUTE[unit]) return exact(Number(number) * ABSOLUTE[unit], true);
+            if (unit === 'em') return scaled(PARENT, exact(Number(number), false));
+            if (unit === '%') return scaled(PARENT, exact(Number(number) / 100, false));
+            return ANY_SIZE;
+        }
+        if (fn === 'var') {
+            for (let depth = 1; depth > 0;) {
+                const next = tokens[at++];
+                if (!next) return null;
+                if (next[3] || next[4] === '(') depth += 1;
+                if (next[4] === ')') depth -= 1;
+            }
+            return ANY_SIZE;
+        }
+        if (fn) {
+            const items = list();
+            if (items === null) return null;
+            if (fn === 'calc') return items.length === 1 ? items[0] : null;
+            if (fn === 'min') return lowest(items);
+            if (fn === 'max') return highest(items);
+            return items.length === 3 ? highest([items[0], lowest([items[1], items[2]])]) : null;
+        }
+        if (symbol === '(') {
+            const inner = expression();
+            return closes() ? inner : null;
+        }
+        if (symbol === '-') {
+            const inner = factor();
+            return inner && { lo: -inner.hi, hi: -inner.lo, length: inner.length };
+        }
+        if (KEYWORD_SIZES[word]) return exact(KEYWORD_SIZES[word], true);
+        if (word === 'larger') return scaled(PARENT, exact(1.2, false));
+        if (word === 'smaller') return scaled(PARENT, exact(1 / 1.2, false));
+        return null;
+    }
+    function term() {
+        let left = factor();
+        while (left && (is('*') || is('/'))) {
+            const divide = tokens[at++][4] === '/';
+            const right = factor();
+            if (!right) return null;
+            if (!divide) left = scaled(left, right);
+            else if (right.lo <= 0 && right.hi >= 0) left = { lo: -Infinity, hi: Infinity, length: left.length };
+            else left = scaled(left, { lo: 1 / right.hi, hi: 1 / right.lo, length: false });
+        }
+        return left;
+    }
+    function expression() {
+        let left = term();
+        while (left && (is('+') || is('-'))) {
+            const minus = tokens[at++][4] === '-';
+            const right = term();
+            if (!right) return null;
+            left = minus
+                ? { lo: left.lo - right.hi, hi: left.hi - right.lo, length: left.length || right.length }
+                : { lo: left.lo + right.lo, hi: left.hi + right.hi, length: left.length || right.length };
+        }
+        return left;
+    }
+    const result = expression();
+    return result && at === tokens.length && result.length ? result : null;
+}
 
 /**
- * A font size that is not a `--ds-*` role: below the floor when every absolute
- * size it names is under 12px (`10px`, `calc(10px)`, `0.5rem` at the 16px
- * root), off the scale otherwise. A variable alone, or a CSS-wide keyword, is
- * not a size of its own.
+ * A font size that is not a `--ds-*` role: below the floor when it can compute
+ * to under 12px (`10px`, `calc(10px)`, `min(10px, 20px)`, `0.5rem`), off the
+ * scale otherwise (`calc(10px + 10px)`). A variable alone, or a CSS-wide
+ * keyword, is not a size of its own.
  */
 export function typeSizeCheck(value) {
     if (VARIABLE_ONLY.test(value) || CSS_WIDE.test(value)) return null;
-    const sizes = [...ownText(value).matchAll(/(?<![\w.])(\d*\.?\d+)(px|pt|pc|in|cm|mm|q|rem|em)(?![\w-])/gi)]
-        .map(([, number, unit]) => Number(number) * PX_PER[unit.toLowerCase()]);
-    return sizes.length > 0 && Math.max(...sizes) < 12 ? 'sub-12px-type' : 'arbitrary-type-size';
+    const range = sizeRange(value);
+    return range && range.lo < 12 ? 'sub-12px-type' : 'arbitrary-type-size';
 }
 
 /*
@@ -138,7 +242,7 @@ function arbitraryCheck(utility, property, raw) {
  * `-z-[1]`) or arbitrary property (`[color:red]`, `md:[z-index:9]`); never an
  * arbitrary variant, which a `:` follows (`data-[state=open]:`, `[&:hover]:`).
  */
-const ARBITRARY = /(?<![\w[\]-])(?:-?([a-z][a-z\d]*(?:-[a-z\d]+)*?)-\[([^\]\s]+)\]|\[(--[\w-]+|[a-z][a-z\d-]*):([^\]\s]+)\])(?!:)/g;
+const ARBITRARY = /(?<![\w[\]-])(?:-?([a-z][a-z\d]*(?:-[a-z\d]+)*?)-\[([^\]\s]+)\]|\[(--[\w-]+|[a-zA-Z][\w-]*):([^\]\s]+)\])(?!:)/g;
 
 /*
  * Markup and style text: a declaration, where one starts (`background:
@@ -148,8 +252,8 @@ const ARBITRARY = /(?<![\w[\]-])(?:-?([a-z][a-z\d]*(?:-[a-z\d]+)*?)-\[([^\]\s]+)
  * (`url(#id)`), an id selector or a link (`https://…#add`) stays silent, and
  * "Pick a color: red" in prose is not a declaration.
  */
-const DECLARATION = /(?:^|[{;"'`])\s*(-{0,2}[a-z][\w-]*)\s*:(?!\/\/)\s*['"]?([^;{}"'`\n]+)/g;
-const PRESENTATION = /(?<![\w-])(?:fill|stroke|stopColor|stop-color|floodColor|flood-color|lightingColor|lighting-color|color)\s*=\s*(["'])(.*?)\1/g;
+const DECLARATION = /(?:^|[{;"'`])\s*(-{0,2}[a-zA-Z][\w-]*)\s*:(?!\/\/)\s*['"]?([^;{}"'`\n]+)/g;
+const PRESENTATION = /(?<![\w-])(?:fill|stroke|stopColor|stop-color|floodColor|flood-color|lightingColor|lighting-color|color)\s*=\s*(["'])(.*?)\1/gi;
 
 /**
  * Every declaration in `text` whose value holds a raw colour: a hex or a colour
@@ -159,7 +263,7 @@ const PRESENTATION = /(?<![\w-])(?:fill|stroke|stopColor|stop-color|floodColor|f
 export function colourDeclarationsIn(text) {
     return [...text.matchAll(DECLARATION)].flatMap((match) => {
         const [whole, property, value] = match;
-        if (!holdsRawColour(value, { words: COLOUR_PROPERTY.test(property) })) return [];
+        if (!holdsRawColour(value, { words: COLOUR_PROPERTY.test(property.toLowerCase()) })) return [];
         const index = match.index + whole.indexOf(property);
         return [{ check: 'raw-hex-colour', match: text.slice(index, match.index + whole.length).trim(), index }];
     });
@@ -175,15 +279,16 @@ export function rawValuesIn(text) {
     const found = [];
     for (const match of text.matchAll(ARBITRARY)) {
         const [whole, utility = null, value, property = null, propertyValue] = match;
-        const check = arbitraryCheck(utility, property, utility === null ? propertyValue : value);
+        const check = arbitraryCheck(utility, property?.toLowerCase() ?? null, utility === null ? propertyValue : value);
         if (check) found.push({ check, match: whole, index: match.index });
     }
     found.push(...colourDeclarationsIn(text));
     // A style string is held to what a stylesheet is: no numeric layer, no type below the floor.
     for (const match of text.matchAll(DECLARATION)) {
         const [whole, property, value] = match;
-        const check = (property === 'z-index' && numericLayer(value) && 'raw-z-index')
-            || (property === 'font-size' && typeSizeCheck(value.trim()) === 'sub-12px-type' && 'sub-12px-type');
+        const name = property.toLowerCase();
+        const check = (name === 'z-index' && numericLayer(value) && 'raw-z-index')
+            || (name === 'font-size' && typeSizeCheck(value.trim()) === 'sub-12px-type' && 'sub-12px-type');
         if (check) {
             const index = match.index + whole.indexOf(property);
             found.push({ check, match: text.slice(index, match.index + whole.length).trim(), index });

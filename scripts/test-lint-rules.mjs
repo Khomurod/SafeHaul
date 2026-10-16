@@ -262,6 +262,14 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['sub-12px-type', 'a small inline font size', view('<span style={{ fontSize: 10 }}>x</span>')],
         ['arbitrary-type-size', 'an inline font size off the scale', view("<span style={{ fontSize: on ? '17px' : 'inherit' }}>x</span>")],
         ['raw-hex-colour', 'a colour under a computed key', view("<div style={{ ['color']: '#fff' }} />")],
+        ['raw-hex-colour', 'a colour under a capitalised property', "export const CSS = '.x { COLOR: #fff; }';\n"],
+        ['raw-z-index', 'a layer under a capitalised property', "export const CSS = '.x { Z-INDEX: 999; }';\n"],
+        ['sub-12px-type', 'a small size under a capitalised property', "export const CSS = '.x { FONT-SIZE: 10px; }';\n"],
+        ['sub-12px-type', 'an inline font size in a spread', view('<span style={{ ...{ fontSize: 10 } }}>x</span>')],
+        ['sub-12px-type', 'an inline font size in a conditional spread', view('<span style={{ ...(on ? { fontSize: 10 } : {}) }}>x</span>')],
+        ['sub-12px-type', 'the smaller of two sizes', view('<span className="text-[min(10px,20px)]">x</span>')],
+        ['sub-12px-type', 'a clamp that can fall below the floor', view('<span className="text-[clamp(10px,2vw,14px)]">x</span>')],
+        ['arbitrary-type-size', 'a sum that clears the floor', view('<span className="text-[calc(10px+10px)]">x</span>')],
         ['raw-hex-colour', 'a mix of two roles', view('<div className="bg-[color-mix(in_srgb,var(--ds-color-surface)_50%,var(--ds-color-content))]" />')],
         ['raw-hex-colour', 'a light-dark pair', view('<div className="text-[light-dark(var(--ds-color-content),var(--ds-color-surface))]" />')],
         ['raw-hex-colour', 'a hex in a custom property', "export const CSS = ':root { --accent: #fff; }';\n"],
@@ -285,6 +293,7 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['hand-built-overlay', 'the classes as keys of a class map', view("<div className={clsx({ fixed: open, 'inset-0': open })} />")],
         ['hand-built-overlay', 'a class map beside a string', view("<div className={clsx('fixed', { 'inset-0': open })} />")],
         ['hand-built-overlay', 'a class map behind a condition', view("<div className={clsx(open && { fixed: true, 'inset-0': true })} />")],
+        ['hand-built-overlay', 'two classes behind the same condition', view("<div className={clsx(open && 'fixed', open && 'inset-0')} />")],
         ['raw-table', 'a table outside the approved list', view('<table><tbody /></table>')],
         ['hand-styled-button', 'a styled button', view('<button className="px-4 py-2 bg-ds-surface rounded">Go</button>')],
         ['hand-styled-field', 'a styled input', view('<input className="border rounded px-3" />')],
@@ -342,6 +351,7 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
     const compiles = async (name) => (await postcss([tailwindcss({ ...appTheme, content: [{ raw: name, extension: 'html' }] })])
         .process('@tailwind utilities;', { from: undefined })).css.trim() !== '';
     const forms = ['bg-[red]', 'bg-[oklch(50%_0.2_20)]', 'text-[rebeccapurple]', 'border-[color:red]', 'shadow-[0_0_0_1px_red]',
+        'text-[min(10px,20px)]', 'text-[clamp(10px,2vw,14px)]', 'text-[calc(10px+10px)]',
         'bg-[color-mix(in_srgb,var(--ds-color-surface)_50%,var(--ds-color-content))]',
         'text-[light-dark(var(--ds-color-content),var(--ds-color-surface))]',
         'bg-[var(--brand,#fff)]', 'md:[color:red]', 'text-[length:10px]', 'text-[calc(10px)]', 'text-[0.5rem]', '[font-size:10px]',
@@ -406,6 +416,9 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         'a role or a keyword on every branch': view("<div style={{ color: on ? 'var(--ds-color-content)' : 'inherit', zIndex: on ? 'var(--ds-z-modal)' : 'auto' }} />"),
         'a plain object whose keys only look like classes': "export const LABELS = { fixed: 'Fixed', 'inset-0': 'Inset' };\n"
             + "export const joined = [{ fixed: true }, 'inset-0'].join(' ');\n",
+        'classes behind opposite conditions': view("<div className={clsx({ fixed: open, 'inset-0': !open })} />"
+            + "<div className={clsx(open && 'fixed', !open && 'inset-0')} />"
+            + "<div className={cn(open ? 'fixed' : '', open ? '' : 'inset-0')} />"),
         'class maps on exclusive branches': view("<div className={clsx(open ? { fixed: true } : { 'inset-0': true })} />"),
         'a custom property holding a role, and a link': "export const CSS = ':root { --accent: var(--ds-color-brand); }';\n"
             + "export const DOCS = 'https://example.com/guide#add';\n",

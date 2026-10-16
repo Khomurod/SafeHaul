@@ -48,10 +48,22 @@ const keyName = (property) => {
     return typeof property.key.value === 'string' ? property.key.value : null;
 };
 
-/** Is this property in a JSX `style` object? Elsewhere `fontSize` is as often a document field's data. */
-const inStyleAttribute = (property) => property.parent?.type === 'ObjectExpression'
-    && property.parent.parent?.type === 'JSXExpressionContainer'
-    && property.parent.parent.parent?.type === 'JSXAttribute' && property.parent.parent.parent.name?.name === 'style';
+/**
+ * Is this property in a JSX `style` object, directly or through a spread, a
+ * branch or a logical operand (`style={{ ...(on ? { fontSize: 10 } : {}) }}`)?
+ * Elsewhere `fontSize` is as often a document field's data.
+ */
+function inStyleAttribute(property) {
+    let child = property.parent;
+    let parent = child?.parent;
+    while (parent?.type === 'SpreadElement' || parent?.type === 'ObjectExpression' || parent?.type === 'LogicalExpression'
+        || (parent?.type === 'ConditionalExpression' && child !== parent.test)) {
+        child = parent;
+        parent = parent.parent;
+    }
+    return parent?.type === 'JSXExpressionContainer' && parent.parent?.type === 'JSXAttribute'
+        && parent.parent.name?.name === 'style';
+}
 
 /** The name an assignment writes: `INK`, `ctx.fillStyle`'s `fillStyle`; null for a pattern. */
 const targetName = (node) => {

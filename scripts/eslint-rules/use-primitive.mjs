@@ -116,17 +116,47 @@ const bareClass = (token) => token.split(':').pop().replace(/^!/, '');
 
 /*
  * A hand-built overlay is `fixed` and `inset-0` in one class list, on some
- * path. Each path's share of the two is a pair of bits, and an expression
- * yields the set of pairs its paths can: a few at most, so every combination
- * is cheap to follow.
+ * path. A path is the pair of bits its strings add and the conditions it
+ * assumes: a string under `open &&` and one under `!open &&` are never on the
+ * same path, as two keys of `clsx({ fixed: open, 'inset-0': !open })` are
+ * not. An expression yields the few paths it can, so every combination is
+ * cheap to follow; past `MAX_PATHS` the conditions are dropped, which can only
+ * add paths.
  */
 const FIXED = 1;
 const INSET = 2;
-const NOTHING = new Set([0]);
+const MAX_PATHS = 64;
+const path = (bits, assumes = {}) => ({ bits, assumes });
+const NOTHING = [path(0)];
 const overlayBits = (text) => text.split(/\s+/).map(bareClass)
     .reduce((bits, name) => bits | (name === 'fixed' ? FIXED : 0) | (name === 'inset-0' ? INSET : 0), 0);
-const joined = (left, right) => new Set([...left].flatMap((a) => [...right].map((b) => a | b)));
-const either = (left, right) => new Set([...left, ...right]);
+function distinct(paths) {
+    const unique = [...new Map(paths.map((one) => [`${one.bits}|${Object.entries(one.assumes).sort().join()}`, one])).values()];
+    return unique.length > MAX_PATHS ? [...new Set(unique.map((one) => one.bits))].map((bits) => path(bits)) : unique;
+}
+const agree = (a, b) => Object.entries(a.assumes).every(([atom, value]) => !(atom in b.assumes) || b.assumes[atom] === value);
+const joined = (left, right) => distinct(left.flatMap((a) => right.filter((b) => agree(a, b))
+    .map((b) => path(a.bits | b.bits, { ...a.assumes, ...b.assumes }))));
+const either = (left, right) => distinct([...left, ...right]);
+
+/** A condition as an atom of source text and the atom's value that makes it true: `!open` is `open` false. */
+function conditionOf(node, text) {
+    let value = true;
+    let inner = node;
+    while (inner?.type === 'UnaryExpression' && inner.operator === '!') {
+        value = !value;
+        inner = inner.argument;
+    }
+    return inner ? { atom: text(inner).replace(/\s+/g, ''), value } : null;
+}
+
+/** The paths on which `condition` is `truthy`, each assuming so. */
+function assuming(paths, condition, truthy) {
+    if (condition === null) return paths;
+    const value = truthy === condition.value;
+    return distinct(paths.filter((one) => !(condition.atom in one.assumes) || one.assumes[condition.atom] === value)
+        .map((one) => path(one.bits, { ...one.assumes, [condition.atom]: value })));
+}
 
 /*
  * Only what certainly forms one class list is joined: a string, a
@@ -175,53 +205,67 @@ function classListContext(node) {
 }
 
 /** A class map's key as the class names it holds: `fixed`, `'inset-0'`, `` [`inset-0`] ``. */
-const keyPaths = (property) => {
-    if (!property.computed && property.key.type === 'Identifier') return new Set([overlayBits(property.key.name)]);
-    return overlayPaths(property.key);
-};
+const keyPaths = (property, text) => (!property.computed && property.key.type === 'Identifier'
+    ? [path(overlayBits(property.key.name))]
+    : overlayPaths(property.key, null, text));
+
+/** A class map's entry: its key's classes where its value is truthy. */
+function entryPaths(property, text) {
+    const keys = keyPaths(property, text);
+    if (property.value.type === 'Literal') return property.value.value ? keys : NOTHING;
+    const condition = conditionOf(property.value, text);
+    return either(assuming(NOTHING, condition, false), assuming(keys, condition, true));
+}
 
 /**
  * What each path through a class expression yields of the two. The parts of a
- * class list are joined; a conditional's branches are alternatives, `&&` may
- * add nothing, and each key of a class map may be added or not. `list` is how
- * the expression is read (`classListContext`): an array joins only inside a
- * class list, and an object's keys only as a class helper's argument. A name
- * is not followed: its string is judged where it is written.
+ * class list are joined; a conditional's branches are alternatives, each
+ * assuming its test, `&&` adds nothing when its left side is falsy, and each
+ * key of a class map is added where its value is truthy. `list` is how the
+ * expression is read (`classListContext`): an array joins only inside a class
+ * list, and an object's keys only as a class helper's argument. `text` gives a
+ * condition's source, so the same condition is one condition. A name is not
+ * followed: its string is judged where it is written.
  */
-function overlayPaths(node, list = null) {
+function overlayPaths(node, list, text) {
+    const paths = (child, childList = list) => overlayPaths(child, childList, text);
     switch (node?.type) {
         case 'Literal':
-            return new Set([typeof node.value === 'string' ? overlayBits(node.value) : 0]);
+            return [path(typeof node.value === 'string' ? overlayBits(node.value) : 0)];
         case 'TemplateLiteral':
-            return node.expressions.reduce((paths, expression) => joined(paths, overlayPaths(expression)),
-                new Set([overlayBits(node.quasis.map((quasi) => quasi.value.cooked ?? quasi.value.raw).join(' '))]));
+            return node.expressions.reduce((all, expression) => joined(all, paths(expression, null)),
+                [path(overlayBits(node.quasis.map((quasi) => quasi.value.cooked ?? quasi.value.raw).join(' ')))]);
         case 'BinaryExpression':
-            return node.operator === '+' ? joined(overlayPaths(node.left), overlayPaths(node.right)) : NOTHING;
+            return node.operator === '+' ? joined(paths(node.left, null), paths(node.right, null)) : NOTHING;
         case 'ArrayExpression':
-            return list ? node.elements.reduce((paths, element) => joined(paths, overlayPaths(element, list)), NOTHING) : NOTHING;
+            return list ? node.elements.reduce((all, element) => joined(all, paths(element)), NOTHING) : NOTHING;
         case 'ObjectExpression':
             return list === 'helper'
-                ? node.properties.reduce((paths, property) => (property.type === 'Property'
-                    ? joined(paths, either(NOTHING, keyPaths(property))) : paths), NOTHING)
+                ? node.properties.reduce((all, property) => (property.type === 'Property'
+                    ? joined(all, entryPaths(property, text)) : all), NOTHING)
                 : NOTHING;
         case 'SpreadElement':
-            return overlayPaths(node.argument, list);
+            return paths(node.argument);
         case 'JSXExpressionContainer':
-            return overlayPaths(node.expression, list);
-        case 'ConditionalExpression':
-            return either(overlayPaths(node.consequent, list), overlayPaths(node.alternate, list));
-        case 'LogicalExpression':
-            return either(node.operator === '&&' ? NOTHING : overlayPaths(node.left, list), overlayPaths(node.right, list));
+            return paths(node.expression);
+        case 'ConditionalExpression': {
+            const test = conditionOf(node.test, text);
+            return either(assuming(paths(node.consequent), test, true), assuming(paths(node.alternate), test, false));
+        }
+        case 'LogicalExpression': {
+            if (node.operator !== '&&') return either(paths(node.left), paths(node.right));
+            const left = conditionOf(node.left, text);
+            return either(assuming(NOTHING, left, false), assuming(paths(node.right), left, true));
+        }
         case 'CallExpression': {
             if (isClassHelperCall(node)) {
-                return node.arguments.reduce((paths, argument) => joined(paths, overlayPaths(argument, 'helper')), NOTHING);
+                return node.arguments.reduce((all, argument) => joined(all, paths(argument, 'helper')), NOTHING);
             }
             const method = listMethod(node);
-            if (method === 'join') return overlayPaths(node.callee.object, 'join');
-            if (method === 'filter') return overlayPaths(node.callee.object, list);
+            if (method === 'join') return paths(node.callee.object, 'join');
+            if (method === 'filter') return paths(node.callee.object);
             if (method === 'concat') {
-                return node.arguments.reduce((paths, argument) => joined(paths, overlayPaths(argument, list)),
-                    overlayPaths(node.callee.object, list));
+                return node.arguments.reduce((all, argument) => joined(all, paths(argument)), paths(node.callee.object));
             }
             return NOTHING;
         }
@@ -311,7 +355,8 @@ export default {
             const root = classExpression(node);
             if (judged.has(root)) return;
             judged.add(root);
-            if (overlayPaths(root).has(FIXED | INSET)) report(root, 'hand-built-overlay');
+            const text = (node) => sourceCode.getText(node);
+            if (overlayPaths(root, null, text).some((one) => one.bits === (FIXED | INSET))) report(root, 'hand-built-overlay');
         };
 
         return {
