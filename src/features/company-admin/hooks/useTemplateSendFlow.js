@@ -2,16 +2,13 @@
  * The Documents workspace's template-send flow: everything between "Use
  * template" and the signing request existing — the wizard's recipient and
  * delivery state, the driver picker's data, the prefill state and partition,
- * and `executeTemplateSend` itself, which builds the signing request, writes
- * it with its access token in one batch, and delivers by email, SMS or
- * copied link. Extracted verbatim from `views/DocumentsManager.jsx`; the
- * view wires the returned state into `SendTemplateWizard` and the panels.
+ * and `executeTemplateSend` itself, which builds the signing request from the
+ * template and sends it by email, SMS or copied link (`signingRequestWrite.js`
+ * writes it). `views/DocumentsManager.jsx` wires the returned state into
+ * `SendTemplateWizard` and the panels.
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { db, auth } from '@lib/firebase';
-import { collection, doc, Timestamp, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { v4 as uuidv4 } from 'uuid';
 import {
     buildPrefillContext,
     buildEditablePrefillGroups,
@@ -21,7 +18,7 @@ import {
     resolveFieldsForSend,
 } from '@features/signing/utils/prefillEngine';
 import { resolveSignedDateValue } from '@features/signing/utils/signedDate';
-import { copySigningLink, LINK_NOT_COPIED } from '@features/signing/utils/copySigningLink';
+import { createSigningRequest, announceSigningRequest } from '@features/signing/utils/signingRequestWrite';
 
 // The picker's leads load when it opens (`pickerLeads.js`), never the whole list.
 const loadPickerLeads = () => import('./pickerLeads');
@@ -148,8 +145,6 @@ export function useTemplateSendFlow({
                 return;
             }
 
-            const accessToken = uuidv4();
-
             const resolvedRecipientName = manualName.trim();
             const resolvedRecipientEmail = manualEmail.trim();
             const resolvedRecipientPhone = manualPhone.trim();
@@ -177,59 +172,27 @@ export function useTemplateSendFlow({
                 return;
             }
 
-            const expiresAt = Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000);
-            const senderName = auth.currentUser?.displayName || auth.currentUser?.email || 'Your Employer';
-
-            // FEAT-3/4: Set delivery flags based on method
-            const sendEmail = deliveryMethod === 'email' || deliveryMethod === 'both';
-            const sendSms = deliveryMethod === 'sms' || deliveryMethod === 'both';
-
-            const docData = {
+            const link = await createSigningRequest({
                 companyId: currentCompanyProfile.id,
-                recipientEmail: resolvedRecipientEmail || null,
                 recipientName: resolvedRecipientName,
-                recipientPhone: resolvedRecipientPhone || null,
-                title: selectedTemplate.title,
-                status: 'sent',
-                createdAt: serverTimestamp(),
-                expiresAt,
-                storagePath: selectedTemplate.storagePath,
-                senderId: auth.currentUser.uid,
-                senderName,
-                sendEmail,
-                sendSms, // The server texts the link (`notifySignerSMS`), whoever sends it.
-                deliveryMethod, // Record what user chose for audit trail
-                appBaseUrl: window.location.origin, // DOMAIN FIX: Store sender's domain for backend link generation
-                fields: autoFilledFields,
-                templateId: selectedTemplate.id,
-                // A Date Signed field has no value yet — it is stamped when the
-                // signer submits — so it is deliberately absent here rather than
-                // seeded with its own unresolved placeholder.
-                fieldValues: autoFilledFields.reduce((acc, f) => {
-                    if (f.defaultValue && resolveSignedDateValue(f) === null) acc[f.id] = f.defaultValue;
-                    return acc;
-                }, {})
-            };
-
-            // BUG-2 FIX: Use batch write to store accessToken in secrets subcollection
-            const signingRef = doc(collection(db, 'companies', currentCompanyProfile.id, 'signing_requests'));
-            const batch = writeBatch(db);
-            batch.set(signingRef, docData);
-            batch.set(doc(signingRef, 'secrets', 'token'), { accessToken });
-            await batch.commit();
-
-            // FEAT-4: Copy Link mode - copy URL to clipboard instead of sending.
-            // The request is saved by now: a refused clipboard must not read as
-            // a failed send, or sending again would create a second request.
-            if (deliveryMethod === 'copy') {
-                const baseUrl = window.location.origin;
-                const link = `${baseUrl}/sign/${currentCompanyProfile.id}/${signingRef.id}?token=${accessToken}`;
-                if (await copySigningLink(link)) showSuccess('Signing link copied to clipboard!');
-                else showWarning(LINK_NOT_COPIED);
-            } else {
-                const methodLabel = { sms: 'SMS', both: 'Email + SMS' }[deliveryMethod] || 'Email';
-                showSuccess(`Document created! ${methodLabel} delivery in progress...`);
-            }
+                recipientEmail: resolvedRecipientEmail,
+                recipientPhone: resolvedRecipientPhone,
+                deliveryMethod,
+                content: {
+                    title: selectedTemplate.title,
+                    storagePath: selectedTemplate.storagePath,
+                    fields: autoFilledFields,
+                    templateId: selectedTemplate.id,
+                    // A Date Signed field has no value yet — it is stamped when the
+                    // signer submits — so it is deliberately absent here rather than
+                    // seeded with its own unresolved placeholder.
+                    fieldValues: autoFilledFields.reduce((acc, f) => {
+                        if (f.defaultValue && resolveSignedDateValue(f) === null) acc[f.id] = f.defaultValue;
+                        return acc;
+                    }, {}),
+                },
+            });
+            await announceSigningRequest({ link, deliveryMethod, showSuccess, showWarning });
 
             setShowDriverPicker(false);
             setActiveTab('sent');
