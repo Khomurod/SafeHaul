@@ -11,7 +11,8 @@
  * (`<path fill="#004C68">`, `<SignaturePad penColor="black">`), a style
  * property (`{ borderTop: '1px solid red' }`), an assignment
  * (`ctx.strokeStyle = '#333'`, `const INK = '#0f172a'`), and a number in a
- * style object's layer (`{ zIndex: 20 }`, `{ zIndex: 'calc(100)' }`).
+ * style object's layer (`{ zIndex: 20 }`, `{ zIndex: 'calc(100)' }`) — each on
+ * every branch of a conditional (`color: dark ? '#fff' : '#000'`).
  *
  * A colour is a hex, a colour function or a colour keyword. A keyword counts
  * only where a colour is expected — a presentation attribute or colour prop, a
@@ -23,7 +24,7 @@
 import {
     CHECKS, exceptedChecks, locate, optionsSchema,
 } from './context.mjs';
-import { staticString } from './jsx.mjs';
+import { staticString, valuesYielded } from './jsx.mjs';
 import {
     REMEDIES, holdsRawColour, isColour, numericLayer, rawValuesIn,
 } from './raw-values.mjs';
@@ -52,15 +53,13 @@ const targetName = (node) => {
     return null;
 };
 
-/** A layer written as a number: `20`, `-1`, `'20'`, `'calc(100)'`. */
-const stackingNumber = (node) => {
-    if (node?.type === 'Literal' && typeof node.value === 'number') return String(node.value);
-    if (node?.type === 'UnaryExpression' && node.operator === '-' && typeof node.argument.value === 'number') {
-        return `-${node.argument.value}`;
-    }
-    const text = staticString(node);
-    return text !== null && numericLayer(text) ? text.trim() : null;
-};
+/** The strings a value can be, on any branch: `dark ? '#fff' : '#000'` is both. */
+const stringsYielded = (node) => valuesYielded(node).filter((value) => typeof value === 'string');
+
+/** A layer written as a number, on some branch: `20`, `-1`, `'20'`, `'calc(100)'`, `open ? 50 : undefined`. */
+const stackingNumber = (node) => valuesYielded(node)
+    .map((value) => (typeof value === 'number' ? String(value) : value))
+    .find((value) => typeof value === 'string' && numericLayer(value))?.trim() ?? null;
 
 export default {
     meta: {
@@ -83,10 +82,11 @@ export default {
                 report(node, check, match, place.loc);
             }
         };
-        /** A whole string that is one colour, written to `name`; a keyword only when the name holds a colour. */
+        /** A string that is one colour on some branch, written to `name`; a keyword only when the name holds a colour. */
         const colourValue = (node, value, name) => {
-            const text = staticString(value);
-            if (text !== null && isColour(text, { words: COLOUR_NAME.test(name ?? '') })) report(node, 'raw-hex-colour', text);
+            const words = COLOUR_NAME.test(name ?? '');
+            const text = stringsYielded(value).find((one) => isColour(one, { words }));
+            if (text !== undefined) report(node, 'raw-hex-colour', text);
         };
         return {
             Literal(node) {
@@ -97,17 +97,17 @@ export default {
             },
             JSXAttribute(node) {
                 const name = node.name?.name;
-                const text = PRESENTATION.has(name) || COLOUR_PROP.test(name) ? staticString(node.value) : null;
-                if (text !== null && holdsRawColour(text)) report(node, 'raw-hex-colour', text);
+                if (!PRESENTATION.has(name) && !COLOUR_PROP.test(name)) return;
+                const text = stringsYielded(node.value).find((one) => holdsRawColour(one));
+                if (text !== undefined) report(node, 'raw-hex-colour', text);
             },
             Property(node) {
                 const key = keyName(node);
                 if (key === null) return;
                 // A colour-taking key holds one anywhere in its value; any other key, as its whole value.
-                const text = staticString(node.value);
-                if (text !== null && (COLOUR_KEY.test(key) ? holdsRawColour(text) : isColour(text, { words: false }))) {
-                    report(node, 'raw-hex-colour', `${key}: ${text}`);
-                }
+                const raw = COLOUR_KEY.test(key) ? (one) => holdsRawColour(one) : (one) => isColour(one, { words: false });
+                const text = stringsYielded(node.value).find(raw);
+                if (text !== undefined) report(node, 'raw-hex-colour', `${key}: ${text}`);
                 if (Z_INDEX_KEY.has(key)) {
                     const value = stackingNumber(node.value);
                     if (value !== null) report(node, 'raw-z-index', `${key}: ${value}`);

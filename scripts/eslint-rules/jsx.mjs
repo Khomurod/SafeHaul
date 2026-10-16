@@ -34,6 +34,30 @@ export function staticString(node) {
 }
 
 /**
+ * Every literal value an expression can evaluate to, through a conditional's
+ * branches and a logical's operands: `dark ? '#fff' : '#000'` yields both. A
+ * template yields its fixed text; anything computed yields nothing.
+ */
+export function valuesYielded(node) {
+    switch (node?.type) {
+        case 'Literal':
+            return [node.value];
+        case 'UnaryExpression':
+            return node.operator === '-' && typeof node.argument.value === 'number' ? [-node.argument.value] : [];
+        case 'TemplateLiteral':
+            return [node.quasis.map((quasi) => quasi.value.cooked ?? quasi.value.raw).join(' ')];
+        case 'JSXExpressionContainer':
+            return valuesYielded(node.expression);
+        case 'ConditionalExpression':
+            return [...valuesYielded(node.consequent), ...valuesYielded(node.alternate)];
+        case 'LogicalExpression':
+            return [...valuesYielded(node.left), ...valuesYielded(node.right)];
+        default:
+            return [];
+    }
+}
+
+/**
  * The attribute that decides the class list: JSX applies attributes in order,
  * so a later `className` or a later spread wins. Attributes are exactly
  * `JSXAttribute | JSXSpreadAttribute`, so this is complete over the grammar.

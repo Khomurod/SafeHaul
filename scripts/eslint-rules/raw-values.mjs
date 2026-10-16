@@ -93,7 +93,7 @@ const PX_PER = { px: 1, pt: 4 / 3, pc: 16, in: 96, cm: 96 / 2.54, mm: 96 / 25.4,
  * root), off the scale otherwise. A variable alone, or a CSS-wide keyword, is
  * not a size of its own.
  */
-function typeSizeCheck(value) {
+export function typeSizeCheck(value) {
     if (VARIABLE_ONLY.test(value) || CSS_WIDE.test(value)) return null;
     const sizes = [...ownText(value).matchAll(/(?<![\w.])(\d*\.?\d+)(px|pt|pc|in|cm|mm|q|rem|em)(?![\w-])/gi)]
         .map(([, number, unit]) => Number(number) * PX_PER[unit.toLowerCase()]);

@@ -6,7 +6,7 @@ import tailwindcss from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
 import tailwindConfig from '../../tailwind.config.js';
 import {
-  colourDeclarationsIn, colourLiteralsIn, holdsRawColour, rawValuesIn,
+  colourDeclarationsIn, colourLiteralsIn, holdsRawColour, numericLayer, rawValuesIn, typeSizeCheck,
 } from '../../scripts/eslint-rules/raw-values.mjs';
 
 /**
@@ -52,8 +52,11 @@ const rawColours = (css) => [
 
 const RULES = {
   'a raw colour': rawColours,
-  'a bare z-index': (css) => css.match(/z-index:\s*-?\d+/g) ?? [],
-  'a font size below 12px': (css) => css.match(/font-size:\s*(?:[0-9]|1[01])(?:\.\d+)?px\b/g) ?? [],
+  // Each declaration's whole value, read as the class rules read one: `calc(100)` is a number, `calc(10px)` 10px.
+  'a bare z-index': (css) => [...css.matchAll(/z-index\s*:\s*([^;}]+)/g)]
+    .filter(([, value]) => numericLayer(value)).map(([declaration]) => declaration),
+  'a font size below 12px': (css) => [...css.matchAll(/font-size\s*:\s*([^;}]+)/g)]
+    .filter(([, value]) => typeSizeCheck(value.trim()) === 'sub-12px-type').map(([declaration]) => declaration),
   'an @apply list off the class contract': (css) => [...css.matchAll(/@apply\s+([^;{}]+);/g)]
     .flatMap((apply) => offContractApply(apply[1])),
 };
@@ -105,9 +108,15 @@ describe('the stylesheet contract', () => {
     ['a bare z-index', '.x { z-index: 60; }', 1],
     ['a bare z-index', '.x { z-index: -1; }', 1],
     ['a bare z-index', '.x { z-index: var(--ds-z-modal); }', 0],
+    ['a bare z-index', '.x { z-index: calc(100); }', 1],
+    ['a bare z-index', '.x { z-index: calc(var(--ds-z-modal) + 1); }', 1],
+    ['a bare z-index', '.x { z-index: auto; }', 0],
     ['a font size below 12px', '.x { font-size: 11px; }', 1],
     ['a font size below 12px', '.x { font-size: 12px; }', 0],
     ['a font size below 12px', '.x { font-size: var(--ds-font-size-xs); }', 0],
+    ['a font size below 12px', '.x { font-size: calc(10px); }', 1],
+    ['a font size below 12px', '.x { font-size: 0.6875rem; }', 1],
+    ['a font size below 12px', '.x { font-size: clamp(12px, 2vw, 14px); }', 0],
     ['an @apply list off the class contract', `.x { @apply ${arbitrary('bg', '#ff0000')} ${arbitrary('text', '10px')}; }`, 2],
     ['an @apply list off the class contract', `.x { @apply ${arbitrary('z', '55')}; }`, 1],
     ['an @apply list off the class contract', '.x { @apply fixed inset-0; }', 1],

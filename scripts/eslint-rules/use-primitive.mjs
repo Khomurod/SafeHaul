@@ -128,21 +128,50 @@ const overlayBits = (text) => text.split(/\s+/).map(bareClass)
 const joined = (left, right) => new Set([...left].flatMap((a) => [...right].map((b) => a | b)));
 const either = (left, right) => new Set([...left, ...right]);
 
-/**
- * An object a class helper reads as a map of class names to conditions: a
- * call's argument, directly or through an array, a conditional's branch or a
- * logical operand (`clsx({ fixed: open })`, `clsx([on && { 'inset-0': on }])`).
+/*
+ * Only what certainly forms one class list is joined: a string, a
+ * concatenation or a template; a class helper's arguments (`clsx`, `cn`…),
+ * where an array's entries and a class map's keys join too; an array that
+ * `.join()` flattens. A call that may choose between its arguments
+ * (`selectClass('fixed', 'inset-0')`) or an array nothing joins is not a class
+ * list, so its strings are judged one by one.
  */
-function isClassMap(node) {
-    if (node?.type !== 'ObjectExpression') return false;
+const CLASS_HELPERS = new Set(['clsx', 'cn', 'cx', 'classNames', 'classnames', 'twMerge', 'twJoin']);
+const isClassHelperCall = (node) => node?.type === 'CallExpression' && node.callee.type === 'Identifier'
+    && CLASS_HELPERS.has(node.callee.name);
+/** The array method a call makes — `join`, `filter` or `concat`, the ones a class list passes through — or null. */
+const listMethod = (call) => {
+    const callee = call?.type === 'CallExpression' ? call.callee : null;
+    const name = callee?.type === 'MemberExpression' && !callee.computed ? callee.property.name : null;
+    return ['join', 'filter', 'concat'].includes(name) ? name : null;
+};
+
+/**
+ * How `node` is read as a list of class names: `'helper'` as a class helper's
+ * argument, `'join'` as an array `.join()` flattens — directly or through an
+ * array, a spread, a branch, `.filter()` or `.concat()` — or null when it is
+ * not a class list at all.
+ */
+function classListContext(node) {
     let child = node;
     let parent = node.parent;
-    while (parent?.type === 'ArrayExpression' || parent?.type === 'LogicalExpression'
-        || (parent?.type === 'ConditionalExpression' && child !== parent.test)) {
-        child = parent;
-        parent = parent.parent;
+    for (;;) {
+        if (parent?.type === 'ArrayExpression' || parent?.type === 'SpreadElement' || parent?.type === 'LogicalExpression'
+            || (parent?.type === 'ConditionalExpression' && child !== parent.test)) {
+            child = parent;
+            parent = parent.parent;
+        } else if (parent?.type === 'MemberExpression' && parent.object === child && parent.parent?.callee === parent
+            && listMethod(parent.parent)) {
+            if (listMethod(parent.parent) === 'join') return 'join';
+            child = parent.parent;
+            parent = child.parent;
+        } else if (listMethod(parent) === 'concat' && parent.arguments.includes(child)) {
+            child = parent;
+            parent = parent.parent;
+        } else {
+            return isClassHelperCall(parent) && parent.arguments.includes(child) ? 'helper' : null;
+        }
     }
-    return parent?.type === 'CallExpression' && parent.arguments.includes(child);
 }
 
 /** A class map's key as the class names it holds: `fixed`, `'inset-0'`, `` [`inset-0`] ``. */
@@ -152,13 +181,14 @@ const keyPaths = (property) => {
 };
 
 /**
- * What each path through a class expression yields of the two. The strings
- * of a concatenation, a template, an array and a call's arguments (`clsx`,
- * `[…].join(' ')`) are joined; a conditional's branches are alternatives,
- * `&&` may add nothing, and each key of a class map may be added or not. A
- * name is not followed: its string is judged where it is written.
+ * What each path through a class expression yields of the two. The parts of a
+ * class list are joined; a conditional's branches are alternatives, `&&` may
+ * add nothing, and each key of a class map may be added or not. `list` is how
+ * the expression is read (`classListContext`): an array joins only inside a
+ * class list, and an object's keys only as a class helper's argument. A name
+ * is not followed: its string is judged where it is written.
  */
-function overlayPaths(node) {
+function overlayPaths(node, list = null) {
     switch (node?.type) {
         case 'Literal':
             return new Set([typeof node.value === 'string' ? overlayBits(node.value) : 0]);
@@ -168,22 +198,33 @@ function overlayPaths(node) {
         case 'BinaryExpression':
             return node.operator === '+' ? joined(overlayPaths(node.left), overlayPaths(node.right)) : NOTHING;
         case 'ArrayExpression':
-            return node.elements.reduce((paths, element) => joined(paths, overlayPaths(element)), NOTHING);
-        case 'SpreadElement':
-        case 'JSXExpressionContainer':
-            return overlayPaths(node.argument ?? node.expression);
-        case 'CallExpression':
-            return node.arguments.reduce((paths, argument) => joined(paths, overlayPaths(argument)),
-                node.callee.type === 'MemberExpression' ? overlayPaths(node.callee.object) : NOTHING);
-        case 'ConditionalExpression':
-            return either(overlayPaths(node.consequent), overlayPaths(node.alternate));
-        case 'LogicalExpression':
-            return either(node.operator === '&&' ? NOTHING : overlayPaths(node.left), overlayPaths(node.right));
+            return list ? node.elements.reduce((paths, element) => joined(paths, overlayPaths(element, list)), NOTHING) : NOTHING;
         case 'ObjectExpression':
-            return isClassMap(node)
+            return list === 'helper'
                 ? node.properties.reduce((paths, property) => (property.type === 'Property'
                     ? joined(paths, either(NOTHING, keyPaths(property))) : paths), NOTHING)
                 : NOTHING;
+        case 'SpreadElement':
+            return overlayPaths(node.argument, list);
+        case 'JSXExpressionContainer':
+            return overlayPaths(node.expression, list);
+        case 'ConditionalExpression':
+            return either(overlayPaths(node.consequent, list), overlayPaths(node.alternate, list));
+        case 'LogicalExpression':
+            return either(node.operator === '&&' ? NOTHING : overlayPaths(node.left, list), overlayPaths(node.right, list));
+        case 'CallExpression': {
+            if (isClassHelperCall(node)) {
+                return node.arguments.reduce((paths, argument) => joined(paths, overlayPaths(argument, 'helper')), NOTHING);
+            }
+            const method = listMethod(node);
+            if (method === 'join') return overlayPaths(node.callee.object, 'join');
+            if (method === 'filter') return overlayPaths(node.callee.object, list);
+            if (method === 'concat') {
+                return node.arguments.reduce((paths, argument) => joined(paths, overlayPaths(argument, list)),
+                    overlayPaths(node.callee.object, list));
+            }
+            return NOTHING;
+        }
         default:
             return NOTHING;
     }
@@ -195,20 +236,23 @@ function joinsInto(parent, child) {
         case 'BinaryExpression':
             return parent.operator === '+';
         case 'TemplateLiteral':
-        case 'ArrayExpression':
-        case 'SpreadElement':
         case 'LogicalExpression':
             return true;
         case 'ConditionalExpression':
             return child !== parent.test;
-        case 'CallExpression':
-            return parent.arguments.includes(child) || (parent.callee === child && child.type === 'MemberExpression');
-        case 'MemberExpression':
-            return parent.object === child && parent.parent?.type === 'CallExpression' && parent.parent.callee === parent;
+        case 'ArrayExpression':
+        case 'SpreadElement':
+            return classListContext(parent) !== null;
         case 'Property':
-            return parent.key === child && isClassMap(parent.parent);
+            return parent.key === child && parent.parent?.type === 'ObjectExpression'
+                && classListContext(parent.parent) === 'helper';
         case 'ObjectExpression':
-            return isClassMap(parent);
+            return classListContext(parent) === 'helper';
+        case 'CallExpression':
+            return (parent.arguments.includes(child) && (isClassHelperCall(parent) || listMethod(parent) === 'concat'))
+                || (parent.callee === child && listMethod(parent) !== null);
+        case 'MemberExpression':
+            return parent.object === child && parent.parent?.callee === parent && listMethod(parent.parent) !== null;
         default:
             return false;
     }

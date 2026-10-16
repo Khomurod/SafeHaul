@@ -253,6 +253,10 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['raw-hex-colour', 'a colour function in a declaration', "export const INK = 'rgb(15 23 42)';\n"],
         ['raw-hex-colour', 'a named colour in a style string', 'export const CSS = `body { color: red; }`;\n'],
         ['raw-hex-colour', 'a hex in an object', "export const palette = { primary: '#004C68' };\n"],
+        ['raw-hex-colour', 'a colour on either branch of a style property', view("<div style={{ color: dark ? '#fff' : '#000' }} />")],
+        ['raw-hex-colour', 'a colour on one branch of an SVG attribute', view("<path fill={on ? 'red' : 'none'} />")],
+        ['raw-hex-colour', 'a colour on a branch of an assignment', "export function ink(ctx, on) {\n  ctx.fillStyle = on ? '#000' : 'currentColor';\n}\n"],
+        ['raw-z-index', 'a layer on a branch of a style object', 'export const s = (open) => ({ zIndex: open ? 50 : undefined });\n'],
         ['raw-hex-colour', 'a mix of two roles', view('<div className="bg-[color-mix(in_srgb,var(--ds-color-surface)_50%,var(--ds-color-content))]" />')],
         ['raw-hex-colour', 'a light-dark pair', view('<div className="text-[light-dark(var(--ds-color-content),var(--ds-color-surface))]" />')],
         ['raw-hex-colour', 'a hex in a custom property', "export const CSS = ':root { --accent: #fff; }';\n"],
@@ -388,6 +392,9 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
             + 'group-[.red]:flex supports-[color:red]:flex [&_svg]:fill-current" />'),
         'a system colour, for forced colours': view('<div className="forced-colors:border-[Highlight]" />'),
         'an overlay\'s classes on exclusive branches': view("<div className={open ? 'fixed' : 'inset-0'} />"),
+        'a call that chooses between classes, and an array never joined': "export const pick = selectClass('fixed', 'inset-0');\n"
+            + "export const OPTIONS = ['fixed', 'inset-0', 'absolute'];\nexport const wrapped = describe(['fixed', 'inset-0']);\n",
+        'a role or a keyword on every branch': view("<div style={{ color: on ? 'var(--ds-color-content)' : 'inherit', zIndex: on ? 'var(--ds-z-modal)' : 'auto' }} />"),
         'a plain object whose keys only look like classes': "export const LABELS = { fixed: 'Fixed', 'inset-0': 'Inset' };\n"
             + "export const joined = [{ fixed: true }, 'inset-0'].join(' ');\n",
         'class maps on exclusive branches': view("<div className={clsx(open ? { fixed: true } : { 'inset-0': true })} />"),
