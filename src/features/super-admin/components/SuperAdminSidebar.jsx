@@ -30,7 +30,8 @@ export const NAV_ICONS = {
  * Visible names for the group keys in `SUPER_ADMIN_NAV_ITEMS`.
  *
  * The config carries internal keys (`core`, `data`, ...) because it is the
- * routing contract; naming them is a presentation decision and belongs here. `SectionNavigation` renders each group's label as a real heading, which
+ * routing contract; naming them is a presentation decision and belongs here.
+ * `SectionNavigation` renders each group's label as a real heading, which
  * replaces the previous purely decorative divider — the grouping is now
  * announced rather than implied by a horizontal line.
  */
