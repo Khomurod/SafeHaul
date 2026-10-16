@@ -105,6 +105,27 @@ const companyPath = `companies/${CO}`;
 const applicationPath = `${companyPath}/applications/app-1`;
 const leadPath = `${companyPath}/leads/lead-1`;
 
+// Every field on the rules' list of what a driver may change on their application,
+// besides status and offerDetails, which change together.
+const DRIVER_SELF_UPDATE_FIELDS = [
+  'firstName', 'lastName', 'middleName', 'email', 'phone', 'dob', 'address', 'city', 'state', 'zip',
+  'licenseNumber', 'cdlState', 'cdlClass', 'cdlExpiration', 'experience', 'experience-years',
+  'employers', 'violations', 'accidents', 'schools', 'military', 'previousAddresses',
+  'cdl-front', 'cdl-back', 'medical-card-upload', 'twic-card-upload', 'mvr-upload',
+  'mvr-consent-upload', 'drug-test-consent-upload', 'ssc-upload', 'signature', 'signatureType',
+  'offerResponseDate', 'sourceType', 'sourceSlug', 'firstNameNormalized', 'lastNameNormalized',
+  'fullNameNormalized', 'emailNormalized', 'phoneNormalized', 'applicationIdNormalized',
+  'submittedAt', 'updatedAt', 'lifecycle',
+];
+
+// Every status the rules let the company team set on an application or a lead.
+const PIPELINE_STATUSES = [
+  'New', 'New Lead', 'Contact Attempt 1', 'Contact Attempt 2', 'Contact Attempt 3', 'Contacted',
+  'Attempted', 'Disqualified', 'In Process', 'Interested', 'Hired', 'Terminated', 'Declined',
+  'New Application', 'Approved', 'Rejected', 'Background Check', 'In Review', 'Qualified', 'Hold',
+  'Stale', 'Offer Accepted', 'Offer Declined',
+];
+
 const ownedApplication = tenant({
   applicantId: DRIVER, driverId: DRIVER, email: DRIVER_EMAIL, status: 'New Application', phone: '5550000000',
 });
@@ -183,6 +204,7 @@ const ROWS = [
   ...[
     [{ note: 'changed' }, 'a field outside the signer\'s list'],
     [{ status: 'viewed', viewedAt: 'now' }, 'viewed'],
+    [{ status: 'declined', declinedReason: 'not mine', clientMetadata: { userAgent: 'test' } }, 'declined'],
     [{ status: 'signed' }, 'signed without signatureData'],
     [{ status: 'signed', signatureData: 'signature', signedAt: 'now' }, 'signed with signatureData'],
   ].map(([data, note]) => ({
@@ -211,17 +233,30 @@ const ROWS = [
     [tenant({ applicantId: 'another-id', driverId: '{uid}' }), 'the caller\'s own, id is not applicantId'],
     [{ companyId: OTHER_CO, applicantId: '{doc}', driverId: '{uid}' }, `the caller's own, companyId ${OTHER_CO}`],
     [tenant({ applicantId: SOMEONE, driverId: SOMEONE }), 'manual entry, no status'],
-    [tenant({ applicantId: SOMEONE, status: 'New Application' }), 'manual entry, status New Application'],
+    ...PIPELINE_STATUSES.map((status) => [tenant({ applicantId: SOMEONE, status }), `manual entry, status ${status}`]),
     [tenant({ applicantId: SOMEONE, status: 'Totally Custom' }), 'manual entry, status outside the list'],
     [tenant({ applicantId: SOMEONE, status: 7 }), 'manual entry, status not text'],
     [{ companyId: OTHER_CO, applicantId: SOMEONE }, `manual entry, companyId ${OTHER_CO}`],
     [{ applicantId: SOMEONE }, 'manual entry, no companyId'],
   ].map(([data, note]) => ({ op: 'create', path: `${companyPath}/applications/{doc}`, data, note })),
+  {
+    op: 'create', path: `${companyPath}/applications/{uid}`, data: tenant({ applicantId: '{uid}' }),
+    note: 'the caller\'s own by applicantId alone, id = applicantId',
+  },
   ...[
     [ownedApplication, { note: 'changed' }, 'a field outside the driver\'s list'],
     [ownedApplication, { phone: '5551112222' }, 'phone'],
+    [
+      ownedApplication,
+      {
+        ...Object.fromEntries(DRIVER_SELF_UPDATE_FIELDS.map((field) => [field, `changed ${field}`])),
+        status: 'Offer Accepted', offerDetails: { response: 'Offer Accepted' },
+      },
+      'every field on the driver\'s list',
+    ],
     [ownedApplication, { status: 'Hired' }, 'status Hired'],
     [ownedApplication, { status: 'Offer Accepted', offerDetails: { response: 'Offer Accepted' } }, 'offer accepted'],
+    [ownedApplication, { status: 'Offer Declined', offerDetails: { response: 'Offer Declined' } }, 'offer declined'],
     [
       ownedApplication, { status: 'Offer Accepted', offerDetails: { response: 'Offer Declined' } },
       'offer accepted, response says declined',
@@ -546,16 +581,16 @@ describeFirestore('firestore.rules decision table', () => {
       }), 24);
     });
 
+    const failed = tasks
+      .filter((task) => !['allow', 'deny'].includes(results.get(task)))
+      .map((task) => `${labelOf(task.row)} as ${task.persona.key}: ${results.get(task)}`);
+    expect(failed, 'requests that were neither allowed nor refused').toEqual([]);
+
     const decisions = {};
     ROWS.forEach((row, index) => {
       const cells = tasks
-        .filter((task) => task.row === row)
-        .map((task) => {
-          const result = results.get(task);
-          if (result === 'allow') return task.persona.key;
-          return result === 'deny' ? null : `${task.persona.key}!${result}`;
-        })
-        .filter(Boolean);
+        .filter((task) => task.row === row && results.get(task) === 'allow')
+        .map((task) => task.persona.key);
       decisions[labels[index]] = cells.length > 0 ? cells.join(' ') : 'nobody';
     });
     const table = {
