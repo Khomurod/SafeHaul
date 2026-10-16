@@ -11,8 +11,9 @@ import React from 'react';
  * SafeHaul interface; a moulded plastic case is not one. Mapping the bezel onto
  * `--ds-color-surface-inverse-subtle` would look identical today and would mean
  * that re-tuning the console surface silently restyles a picture of a phone.
- * The illustration's palette is therefore declared once, here, rather than
- * scattered through the markup as eight anonymous classes.
+ * The illustration's palette is therefore declared once, here, as literal
+ * hex values rather than scattered through the markup as eight anonymous
+ * classes, and the side-button and battery radii are literal lengths.
  *
  * **The status time stays `text-[10px]`.** A real phone status bar is that
  * small, and promoting it to the supported `--ds-*` xs size would make the
@@ -31,20 +32,20 @@ import React from 'react';
 
 /** The illustration's own palette. See the note above on why it is not tokenised. */
 const DEVICE = {
-    body: 'bg-gray-800',
-    bodyBorder: 'border-gray-800',
-    indicator: 'border-gray-400',
-    indicatorFill: 'bg-gray-400',
+    body: 'bg-[#1f2937]',
+    bodyBorder: 'border-[#1f2937]',
+    indicator: 'border-[#9ca3af]',
+    indicatorFill: 'bg-[#9ca3af]',
 };
 
 export function DeviceMockup({ children }) {
     return (
         <div className={`relative mx-auto h-[600px] w-[300px] rounded-[2.5rem] border-[14px] shadow-ds-lg ${DEVICE.bodyBorder} ${DEVICE.body}`}>
             {/* Side buttons: volume up, volume down, mute, power. */}
-            <div className={`absolute -left-[17px] top-[72px] h-[32px] w-[3px] rounded-l-lg ${DEVICE.body}`}></div>
-            <div className={`absolute -left-[17px] top-[124px] h-[46px] w-[3px] rounded-l-lg ${DEVICE.body}`}></div>
-            <div className={`absolute -left-[17px] top-[178px] h-[46px] w-[3px] rounded-l-lg ${DEVICE.body}`}></div>
-            <div className={`absolute -right-[17px] top-[142px] h-[64px] w-[3px] rounded-r-lg ${DEVICE.body}`}></div>
+            <div className={`absolute -left-[17px] top-[72px] h-[32px] w-[3px] rounded-l-[0.5rem] ${DEVICE.body}`}></div>
+            <div className={`absolute -left-[17px] top-[124px] h-[46px] w-[3px] rounded-l-[0.5rem] ${DEVICE.body}`}></div>
+            <div className={`absolute -left-[17px] top-[178px] h-[46px] w-[3px] rounded-l-[0.5rem] ${DEVICE.body}`}></div>
+            <div className={`absolute -right-[17px] top-[142px] h-[64px] w-[3px] rounded-r-[0.5rem] ${DEVICE.body}`}></div>
 
             {/* Screen. This one *is* a SafeHaul surface — the preview draws on it. */}
             <div className="h-full w-full overflow-hidden rounded-[2rem] bg-ds-surface">
@@ -54,7 +55,7 @@ export function DeviceMockup({ children }) {
                 <div aria-hidden="true" className="flex h-6 items-center justify-between px-6 pt-2">
                     <span className="text-[10px] font-bold">9:41</span>
                     <div className="flex items-center gap-1">
-                        <div className={`h-2 w-3 rounded-sm border ${DEVICE.indicator}`}></div>
+                        <div className={`h-2 w-3 rounded-[0.125rem] border ${DEVICE.indicator}`}></div>
                         <div className={`h-2 w-2 rounded-ds-full ${DEVICE.indicatorFill}`}></div>
                     </div>
                 </div>

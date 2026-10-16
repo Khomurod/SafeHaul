@@ -38,6 +38,9 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
+import tailwindColors from 'tailwindcss/colors';
+import tailwindDefaults from 'tailwindcss/defaultTheme';
+import tailwindConfig from '../../../../../tailwind.config.js';
 
 vi.mock('@/context/DataContext', () => ({
   useData: () => ({ currentCompanyProfile: { name: 'Northwind Carriers' } }),
@@ -127,13 +130,39 @@ describe('VOE document export parity', () => {
     renderModal();
     // Any change here changes the rasterised page geometry and background.
     expect(documentNode().getAttribute('class')).toBe(
-      'bg-white border border-gray-300 shadow-xl p-12 max-w-3xl mx-auto min-h-[1000px] font-serif text-slate-900 leading-relaxed',
+      'bg-voe-white border border-voe-gray-300 shadow-voe-xl p-12 max-w-3xl mx-auto min-h-[1000px] font-serif text-voe-slate-900 leading-relaxed',
     );
+  });
+
+  /*
+   * The document's classes name the frozen `voe-*` values in tailwind.config.js
+   * (`VOE_PRINT`): Tailwind 3.4's own palette, type sizes, radii, shadow and
+   * layer, copied as literals so the strict theme keeps the document as it
+   * renders. An edit to one of them restyles every exported and printed page.
+   */
+  it('keeps its frozen print values equal to the Tailwind values they copy', () => {
+    const { colors, fontSize, borderRadius, boxShadow, zIndex } = tailwindConfig.theme;
+    const { white, ...families } = colors.voe;
+    expect(white).toBe(tailwindColors.white);
+    for (const [family, shades] of Object.entries(families)) {
+      for (const [shade, value] of Object.entries(shades)) {
+        expect(value, `voe-${family}-${shade}`).toBe(tailwindColors[family][shade]);
+      }
+    }
+    for (const step of ['xs', 'sm', 'lg', 'xl', '2xl', '4xl']) {
+      expect(fontSize[`voe-${step}`], `text-voe-${step}`).toEqual(tailwindDefaults.fontSize[step]);
+    }
+    expect(borderRadius.voe).toBe(tailwindDefaults.borderRadius.DEFAULT);
+    for (const step of ['sm', 'lg', 'xl']) {
+      expect(borderRadius[`voe-${step}`], `rounded-voe-${step}`).toBe(tailwindDefaults.borderRadius[step]);
+    }
+    expect(boxShadow['voe-xl']).toBe(tailwindDefaults.boxShadow.xl);
+    expect(zIndex['voe-watermark']).toBe(`-${tailwindDefaults.zIndex[10]}`);
   });
 
   it('keeps the document opaque, so a captured PNG is never transparent', () => {
     renderModal();
-    expect(documentNode().getAttribute('class')).toMatch(/(^|\s)bg-white(\s|$)/);
+    expect(documentNode().getAttribute('class')).toMatch(/(^|\s)bg-voe-white(\s|$)/);
   });
 
   it('keeps the signature image inside the exported node', () => {

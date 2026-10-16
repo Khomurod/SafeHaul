@@ -255,7 +255,7 @@ export function LoginScreen() {
         <div aria-hidden="true" className="absolute inset-0">
           <div className="absolute top-0 right-0 w-96 h-96 bg-[#0BE2A4]/10 rounded-ds-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#004C68]/20 rounded-ds-full blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
-          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-white/5 rounded-ds-full blur-2xl transform -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-[#fff]/5 rounded-ds-full blur-2xl transform -translate-x-1/2 -translate-y-1/2"></div>
         </div>
 
         <div className="relative z-ds-raised flex w-full flex-col items-center justify-center px-ds-12 text-center lg:px-16 xl:px-20">

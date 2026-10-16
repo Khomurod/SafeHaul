@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import postcss from 'postcss';
+import tailwindcss from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
 import tailwindConfig from '../../../tailwind.config.js';
 
@@ -17,6 +19,16 @@ function customProperties(source) {
 }
 
 const tokens = customProperties(tokenSource);
+
+/** The CSS the application's own Tailwind configuration writes for `classes`. */
+async function compileWithAppTheme(input, classes) {
+  const result = await postcss([
+    tailwindcss({ ...tailwindConfig, content: [{ raw: classes.join(' '), extension: 'html' }] }),
+  ]).process(input, { from: undefined });
+  return result.css;
+}
+
+const selectorsOf = (css) => [...css.matchAll(/^\.([^\s{,]+)\s*\{/gm)].map((match) => match[1].replace(/\\/g, ''));
 
 function resolveToken(name, seen = new Set()) {
   if (seen.has(name)) throw new Error(`Circular token reference: ${name}`);
@@ -351,7 +363,7 @@ describe('design tokens', () => {
     const roles = ['raised', 'sticky', 'dropdown', 'drawer-backdrop', 'drawer', 'modal', 'toast',
       'layer-1', 'layer-2', 'layer-3', 'layer-4'];
     for (const role of roles) {
-      expect(tailwindConfig.theme.extend.zIndex[`ds-${role}`]).toBe(`var(--ds-z-${role})`);
+      expect(tailwindConfig.theme.zIndex[`ds-${role}`]).toBe(`var(--ds-z-${role})`);
     }
   });
 
@@ -405,12 +417,47 @@ describe('design tokens', () => {
   });
 
   it('exposes the semantic contract through namespaced Tailwind utilities', () => {
-    const colors = tailwindConfig.theme.extend.colors;
+    const colors = tailwindConfig.theme.colors;
     expect(colors['ds-canvas']).toBe('var(--ds-color-canvas)');
     expect(colors['ds-content']).toBe('var(--ds-color-content)');
     expect(colors['ds-action-primary']).toBe('var(--ds-color-action-primary)');
     expect(tailwindConfig.theme.extend.spacing['ds-4']).toBe('var(--ds-space-4)');
-    expect(tailwindConfig.theme.extend.fontSize['ds-body'][0]).toBe('var(--ds-font-size-body)');
+    expect(tailwindConfig.theme.fontSize['ds-body'][0]).toBe('var(--ds-font-size-body)');
+  });
+
+  /*
+   * The theme is strict: colours, type sizes, radii, shadows and stacking layers
+   * are declared at the top level of `theme`, so Tailwind's own scales are not
+   * in it and a default class compiles to nothing. A scale moved back under
+   * `extend` would bring every default with it, so this compiles real classes
+   * with the real configuration rather than reading the object.
+   */
+  it('compiles no Tailwind default colour, type size, radius, shadow or layer', async () => {
+    const defaults = [
+      'bg-white', 'bg-black/20', 'text-gray-500', 'border-slate-200', 'ring-blue-500', 'from-red-600',
+      'text-xs', 'text-sm', 'text-base', 'text-lg', 'rounded', 'rounded-lg', 'rounded-full',
+      'shadow', 'shadow-sm', 'shadow-xl', 'z-10', 'z-50', '-z-10',
+    ];
+    const css = await compileWithAppTheme('@tailwind utilities;', [...defaults, 'bg-ds-surface']);
+    expect(selectorsOf(css)).toEqual(['bg-ds-surface']);
+  });
+
+  it('keeps the values that are not a palette beside the roles', async () => {
+    // Built, not written: Tailwind's content scan reads test files too, and a
+    // literal class the application does not use would compile into its stylesheet.
+    const values = [['bg', 'transparent'], ['text', 'current'], ['text', 'inherit'],
+      ['rounded', 'none'], ['shadow', 'none'], ['z', 'auto']];
+    const kept = [
+      ...values.map(([utility, value]) => `${utility}-${value}`),
+      'bg-ds-surface', 'text-ds-sm', 'text-ds-control-mobile', 'rounded-ds-md', 'shadow-ds-sm', 'z-ds-modal',
+    ];
+    const css = await compileWithAppTheme('@tailwind utilities;', kept);
+    expect(selectorsOf(css).sort()).toEqual([...kept].sort());
+  });
+
+  it("keeps preflight's border colour, which Tailwind derives from a grey the theme no longer has", async () => {
+    const css = await compileWithAppTheme('@tailwind base;', []);
+    expect(css).toMatch(/\*,\s*::before,\s*::after\s*\{[^}]*border-color:\s*#e5e7eb/);
   });
 
   /**
@@ -429,11 +476,12 @@ describe('design tokens', () => {
     ['ds-table-row-hover-bg', '--ds-table-row-hover-bg'],
     ['ds-table-divider', '--ds-table-divider'],
   ])('bridges %s to %s', (utility, property) => {
-    expect(tailwindConfig.theme.extend.colors[utility]).toBe(`var(${property})`);
+    expect(tailwindConfig.theme.colors[utility]).toBe(`var(${property})`);
   });
 
   it('bridges the control scale and the surface geometry roles', () => {
-    const { height, minHeight, spacing, borderRadius } = tailwindConfig.theme.extend;
+    const { height, minHeight, spacing } = tailwindConfig.theme.extend;
+    const { borderRadius } = tailwindConfig.theme;
     expect(height['ds-control']).toBe('var(--ds-control-height-md)');
     expect(minHeight['ds-control']).toBe('var(--ds-control-height-md)');
     expect(spacing['ds-card']).toBe('var(--ds-card-padding)');
@@ -445,7 +493,8 @@ describe('design tokens', () => {
   it('resolves every bridged colour utility to a token that exists', () => {
     // A utility pointing at a typo'd custom property renders nothing at all and
     // looks like a styling bug at the call site. Catch it here instead.
-    const unresolved = Object.entries(tailwindConfig.theme.extend.colors)
+    const unresolved = Object.entries(tailwindConfig.theme.colors)
+      .filter(([utility]) => utility.startsWith('ds-'))
       .map(([utility, value]) => [utility, value.match(/^var\(--([\w-]+)\)$/)?.[1]])
       .filter(([, property]) => property && resolveToken(property) === undefined)
       .map(([utility]) => utility);
@@ -453,7 +502,7 @@ describe('design tokens', () => {
   });
 
   it('exposes the inverse console surface role through Tailwind utilities', () => {
-    const colors = tailwindConfig.theme.extend.colors;
+    const colors = tailwindConfig.theme.colors;
     expect(colors['ds-surface-inverse']).toBe('var(--ds-color-surface-inverse)');
     expect(colors['ds-surface-inverse-subtle']).toBe('var(--ds-color-surface-inverse-subtle)');
     expect(colors['ds-content-on-inverse']).toBe('var(--ds-color-content-on-inverse)');
@@ -472,7 +521,7 @@ describe('design tokens', () => {
     expect(resolveToken('ds-color-brand-primary')).toBe('#004C68');
     expect(resolveToken('ds-color-brand-accent')).toBe('#0BE2A4');
 
-    const colors = tailwindConfig.theme.extend.colors;
+    const colors = tailwindConfig.theme.colors;
     expect(colors['ds-brand-primary']).toBe('var(--ds-color-brand-primary)');
     expect(colors['ds-brand-accent']).toBe('var(--ds-color-brand-accent)');
     expect(colors['ds-brand-accent-soft']).toBe('var(--ds-color-brand-accent-soft)');

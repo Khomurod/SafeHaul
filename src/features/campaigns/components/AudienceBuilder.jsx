@@ -455,7 +455,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                         </div>
 
                         {/* VIRTUAL LIST AREA */}
-                        <div className="relative min-h-0 flex-1 bg-black/20" data-testid="audience-preview-list">
+                        <div className="relative min-h-0 flex-1 bg-[#000]/20" data-testid="audience-preview-list">
                             {/* Smart Infinite List (Handles both CRM and Import) */}
                             <VirtualLeadList
                                 companyId={companyId}
