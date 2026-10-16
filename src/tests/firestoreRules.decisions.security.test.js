@@ -1,6 +1,6 @@
 // firestore.rules as one decision table: who may do what.
 //
-// Every rule block is tried by thirteen kinds of caller with get, list, create,
+// Every rule block is tried by fourteen kinds of caller with get, list, create,
 // update and delete, and so is every path the server uses that no rule names, or
 // that only a collection-group rule matches. So are the requests whose answer
 // depends on the document (owner fields, each held by driver-1 and then by the
@@ -79,6 +79,12 @@ const PERSONAS = [
     about: `recruiter of ${CO} and ${OTHER_CO}, ${OTHER_CO} second in companyTeamIds`,
   },
   {
+    key: 'otherRoleA',
+    uid: 'u-other-role-a',
+    claims: { roles: { [CO]: 'viewer' } },
+    about: `a member of ${CO} whose role is not a team role, so no companyTeamIds`,
+  },
+  {
     key: 'superRoot',
     uid: 'u-super-root',
     claims: { globalRole: 'super_admin' },
@@ -106,6 +112,14 @@ const documentRows = (collectionPath, { seed = tenant(), create = tenant({ name:
   { op: 'create', path: `${collectionPath}/{doc}`, data: create },
   { op: 'update', path: `${collectionPath}/{doc}`, seed, data: { note: 'changed' } },
   { op: 'delete', path: `${collectionPath}/{doc}`, seed },
+];
+
+/** get, create, update and delete on one document the code names by its id. */
+const namedDocRows = (path, seed = tenant()) => [
+  { op: 'get', path, seed },
+  { op: 'create', path, data: seed },
+  { op: 'update', path, seed, data: { note: 'changed' } },
+  { op: 'delete', path, seed },
 ];
 
 const companyPath = `companies/${CO}`;
@@ -471,6 +485,17 @@ const ROWS = [
     ].map((name) => `${companyPath}/${name}`),
     `${applicationPath}/submission_attempts`,
   ].flatMap((path) => documentRows(path)),
+
+  // --- Documents the code names by their id, so that a rule for one of them shows ---
+  ...[
+    'system_jobs/platformAlerts', 'system_jobs/publicProfileReconcile', 'system_jobs/companyClaims',
+    'ai_routing_config/modelCheck', 'ai_routing_config/order', 'release_promotion_locks/current',
+    `${companyPath}/integrations/email_settings`, `${companyPath}/integrations/sms_provider`,
+    `${companyPath}/internal_stats/dashboard`, `${companyPath}/settings/automated_sms`,
+    `${companyPath}/bulk_sessions/bs-1/meta/targets`, `${companyPath}/signing_requests/sr-1/secrets/token`,
+    `${applicationPath}/submission/v1`, 'verification_requests/vr-1/responses/submission',
+  ].flatMap((path) => namedDocRows(path)),
+  ...namedDocRows('companies/SANDBOX', { name: 'Sandbox', isActive: true }),
 
   // --- Collection-group queries, and the documents only a group rule matches ---
   ...[
