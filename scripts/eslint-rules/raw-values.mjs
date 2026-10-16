@@ -306,6 +306,12 @@ const ARBITRARY = /(?<![\w[\]-])(?:-?([a-z][a-z\d]*(?:-[a-z\d]+)*?)-\[([^\]\s]+)
  */
 const DECLARATION = /(?:^|[{;"'`])\s*(-{0,2}[a-zA-Z][\w-]*)\s*:(?!\/\/)\s*['"]?([^;{}"'`]+)/g;
 const PRESENTATION = /(?<![\w-])(?:fill|stroke|stopColor|stop-color|floodColor|flood-color|lightingColor|lighting-color|color)\s*=\s*(["'])(.*?)\1/gi;
+/**
+ * `text` with every `url(…)` blanked to the same length: an image is no
+ * colour, and its quotes or `;` must not end the declaration it sits in
+ * (`background: url("photo.png") #fff`).
+ */
+const withoutUrls = (text) => text.replace(/url\([^)]*\)/gi, (url) => `url(${' '.repeat(url.length - 5)})`);
 /** An SVG `font-size` attribute in markup: a number there is user units, which are px. */
 const FONT_SIZE_ATTRIBUTE = /(?<![\w-])(?:font-size|fontSize)\s*=\s*(["'])(.*?)\1/gi;
 
@@ -315,7 +321,7 @@ const FONT_SIZE_ATTRIBUTE = /(?<![\w-])(?:font-size|fontSize)\s*=\s*(["'])(.*?)\
  * under a property that takes a colour.
  */
 export function colourDeclarationsIn(text) {
-    return [...text.matchAll(DECLARATION)].flatMap((match) => {
+    return [...withoutUrls(text).matchAll(DECLARATION)].flatMap((match) => {
         const [whole, property, value] = match;
         if (!holdsRawColour(value, { words: COLOUR_PROPERTY.test(property.toLowerCase()) })) return [];
         const index = match.index + whole.indexOf(property);
@@ -338,7 +344,7 @@ export function rawValuesIn(text) {
     }
     found.push(...colourDeclarationsIn(text));
     // A style string is held to what a stylesheet is: no numeric layer, no type below the floor.
-    for (const match of text.matchAll(DECLARATION)) {
+    for (const match of withoutUrls(text).matchAll(DECLARATION)) {
         const [whole, property, value] = match;
         const check = layerOrSizeCheck(property.toLowerCase(), value);
         if (check === 'raw-z-index' || check === 'sub-12px-type') {

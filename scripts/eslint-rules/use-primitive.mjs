@@ -41,7 +41,7 @@ import {
     CHECKS, exceptedChecks, locate, optionsSchema,
 } from './context.mjs';
 import {
-    attributeValues, certainlyText, elementName, lastClassSetter, stringsIn, uniqueInitialiser, valuesYielded,
+    attributeValues, certainlyText, elementName, lastClassSetter, memberValue, stringsIn, uniqueInitialiser, valuesYielded,
 } from './jsx.mjs';
 
 /** Classes that decide a control's geometry or colour rather than its layout. */
@@ -99,7 +99,7 @@ const MESSAGES = {
         + 'crashes the moment it renders. Pass the words as a string; put an icon beside the control.',
 };
 
-/** May this attribute value yield JSX on some path, through a name the file binds once? */
+/** May this attribute value yield JSX on some path, through a name or a constant object's property? */
 function mayBeJsx(node, sourceCode, depth = 0) {
     if (!node || depth > 8) return false;
     const next = (child) => mayBeJsx(child, sourceCode, depth + 1);
@@ -115,6 +115,8 @@ function mayBeJsx(node, sourceCode, depth = 0) {
             return next(node.left) || next(node.right);
         case 'Identifier':
             return next(uniqueInitialiser(sourceCode, node.name));
+        case 'MemberExpression':
+            return next(memberValue(node, sourceCode));
         default:
             return false;
     }

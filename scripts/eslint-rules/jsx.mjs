@@ -50,6 +50,20 @@ function folded(operator, a, b) {
     return { '-': x - y, '*': x * y, '/': x / y, '%': x % y }[operator];
 }
 
+/**
+ * The value node a member chain names in constant objects the file binds
+ * once: `SIZES.note`, `THEME.sizes.note`, `LABELS['name']`. Null when any
+ * link is computed, unbound or not an object literal.
+ */
+export function memberValue(node, sourceCode, depth = 0) {
+    if (node?.type !== 'MemberExpression' || depth > 8) return null;
+    const key = node.computed ? staticString(node.property) : node.property.name;
+    const object = node.object.type === 'Identifier' ? uniqueInitialiser(sourceCode, node.object.name)
+        : memberValue(node.object, sourceCode, depth + 1);
+    if (key === null || object?.type !== 'ObjectExpression') return null;
+    return object.properties.find((one) => one.type === 'Property' && propertyKey(one) === key)?.value ?? null;
+}
+
 /** A property's key as text: `fontSize`, `'aria-pressed'`, `['role']`; null when computed. */
 export function propertyKey(property) {
     if (property.computed) return staticString(property.key);
@@ -64,8 +78,8 @@ export function propertyKey(property) {
  * `'#' + 'fff'`, `` `${10}px` ``); a template with an unknown hole yields its
  * fixed text. With `through` — `{ sourceCode, follows(name, value) }` — a
  * name the file binds once is followed to its value, and a constant object's
- * property too (`SIZES.note`), where `follows` allows that binding; anything
- * else computed yields nothing.
+ * property too (`SIZES.note`, `THEME.sizes.note`), where `follows` allows
+ * that binding; anything else computed yields nothing.
  */
 export function valuesYielded(node, through = null, depth = 0) {
     if (depth > 8) return [];
@@ -102,10 +116,8 @@ export function valuesYielded(node, through = null, depth = 0) {
         }
         case 'MemberExpression': {
             const key = node.computed ? staticString(node.property) : node.property.name;
-            const object = node.object.type === 'Identifier' && key !== null ? bound(node.object.name) : null;
-            const property = object?.type === 'ObjectExpression'
-                ? object.properties.find((one) => one.type === 'Property' && propertyKey(one) === key) : null;
-            return property && through.follows(key, property.value) ? next(property.value) : [];
+            const value = through ? memberValue(node, through.sourceCode) : null;
+            return value && through.follows(key, value) ? next(value) : [];
         }
         default:
             return [];
