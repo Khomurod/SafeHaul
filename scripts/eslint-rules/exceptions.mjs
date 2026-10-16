@@ -24,17 +24,12 @@ const NATIVE_TABLE = 'roadmap §5 — approved native-table pattern for an edita
     + 'roles.';
 
 const VOE_DOCUMENT = 'roadmap §5 — the generated 49 CFR §391.23 document is immutable legal content, not '
-    + 'themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no '
-    + '--ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was '
-    + 'corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves '
-    + 'var() before the rasteriser sees it; and handlePrint inlines the application\'s own stylesheets via '
-    + 'collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including '
-    + 'tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is '
-    + 'themeable BY DESIGN, and this artefact must render the same next year as today — a palette change '
-    + 'must not reach a signed regulatory document that has already been exported. Its class list is the '
-    + 'capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs '
-    + 'a re-proof of export parity — a real captured PDF and a real printed page — not a passing unit '
-    + 'test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.';
+    + 'themeable app chrome. Both export paths resolve tokens (html2canvas rasterises computed style, and '
+    + 'handlePrint inlines the application\'s stylesheets through collectPrintStyles), so the ground is not '
+    + 'that a token would fail: a --ds-* role is themeable by design, and this artefact must render the same '
+    + 'next year as today. Its class list is the capture surface, so any edit changes every exported PDF '
+    + 'and every printed page; tokenising it needs a re-proof of export parity, a real captured PDF and a '
+    + 'real printed page. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.';
 
 export const DS_EXCEPTIONS = {
     'src/design-system/components/data-table/DataTable.jsx': {
@@ -130,32 +125,24 @@ export const DS_EXCEPTIONS = {
             + 'envelope creator\'s AI assistant surface in component tests, and its page rail is a '
             + 'deliberately minimal copy of the real one — the point of a double is that it is NOT the '
             + 'production component, so pulling `SelectableCard` into it would couple the test to the '
-            + 'thing under test. Recorded rather than migrated, and recorded rather than left unlisted, so '
-            + 'the count can only fall if the double is ever deleted.',
+            + 'thing under test.',
     },
     'src/features/signing/EnvelopeCreator.editor.support.jsx': {
         'raw-file-input': 'a prop-recording sidebar double inside the vitest harness for the editor-shell '
             + 'suites — it stands in for the real sidebar\'s upload control so the suites can drive the '
             + 'same handleFileChange the shell hands down. It renders only under vitest, never in the '
-            + 'product. Moved verbatim from EnvelopeCreator.editor.test.jsx (source-size split), which the '
-            + 'scanner excluded as a test file; the support module is scanned, so the double is recorded '
-            + 'here instead.',
+            + 'product. Lint reads support modules, so the double carries this exception.',
         'hand-rolled-current': 'A TEST DOUBLE. `EnvelopeCreator.editor.support.jsx` stands in for the '
             + 'envelope creator\'s editor surface in component tests, and its page rail is a deliberately '
             + 'minimal copy of the real one — the point of a double is that it is NOT the production '
             + 'component, so pulling `SelectableCard` into it would couple the test to the thing under '
-            + 'test. Recorded rather than migrated, and recorded rather than left unlisted, so the count '
-            + 'can only fall if the double is ever deleted.',
+            + 'test.',
     },
     'src/features/signing/components/SignatureSheet.jsx': {
         'raw-hex-colour': 'roadmap §5 — signature ink, rasterised into a legal record. The canvas this '
             + 'colour strokes is converted to a PNG (adopted by the signing room and stamped into a sealed '
             + 'PDF) and stored as part of a signed document, so it must not follow a theme: re-theming the '
-            + 'application can never be allowed to retint a signature somebody has already given. Same '
-            + 'argument as SignatureSheet.jsx, which has documented it in its own source since it was '
-            + 'written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments — it had '
-            + 'been invisible because the rule matched only arbitrary-value classes and CSS-style '
-            + 'declarations.',
+            + 'application can never be allowed to retint a signature somebody has already given.',
     },
     'src/features/signing/components/envelope-creator/EditorMobileBar.jsx': {
         'hand-styled-button': 'roadmap §5 — a mobile bottom app bar. Its items are equal-width stacked '
@@ -224,10 +211,7 @@ export const DS_EXCEPTIONS = {
             + 'colour strokes is converted to a PNG (read back by getSignatureDataUrl() and submitted with '
             + 'the driver\'s application from Step9_Consent) and stored as part of a signed document, so it '
             + 'must not follow a theme: re-theming the application can never be allowed to retint a '
-            + 'signature somebody has already given. Same argument as SignatureSheet.jsx, which has '
-            + 'documented it in its own source since it was written. Found on 2026-09-05 when '
-            + 'raw-hex-colour was widened to JS assignments — it had been invisible because the rule '
-            + 'matched only arbitrary-value classes and CSS-style declarations. Two sites: the initial '
+            + 'signature somebody has already given. Same ground as SignatureSheet.jsx. Two sites: the initial '
             + 'stroke style and the one clearCanvas restores, which must agree or a cleared pad would sign '
             + 'in a different colour.',
     },
@@ -236,10 +220,7 @@ export const DS_EXCEPTIONS = {
             + 'colour strokes is converted to a PNG (handed to the parent as a data URL by '
             + 'onSignatureChange) and stored as part of a signed document, so it must not follow a theme: '
             + 're-theming the application can never be allowed to retint a signature somebody has already '
-            + 'given. Same argument as SignatureSheet.jsx, which has documented it in its own source since '
-            + 'it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments — it '
-            + 'had been invisible because the rule matched only arbitrary-value classes and CSS-style '
-            + 'declarations.',
+            + 'given. Same ground as SignatureSheet.jsx.',
     },
     'src/shared/components/table/ModernDriverTable.jsx': {
         'raw-table': NATIVE_TABLE,
@@ -247,10 +228,9 @@ export const DS_EXCEPTIONS = {
     'src/shared/utils/printDocument.js': {
         'raw-hex-colour': 'roadmap §5 — `background: #ffffff` on html/body in PRINT_DOCUMENT_STYLES. Paper '
             + 'is white; that is a physical fact about the medium, not a surface role that a palette '
-            + 'change may re-tune. The reason recorded here until 2026-09-04 said the print window has no '
-            + '--ds-* properties — false, since collectPrintStyles inlines the application\'s own '
-            + 'stylesheets, tokens included. The real ground is that these rules are injected as a STRING '
-            + 'and are the safety net for the case collectPrintStyles reports: a sheet it could not read. '
-            + 'A net that depends on the thing it is catching for is not a net.',
+            + 'change may re-tune. collectPrintStyles inlines the application\'s own stylesheets, tokens '
+            + 'included; these rules are injected as a STRING and are the safety net for the case it '
+            + 'reports, a sheet it could not read. A net that depends on the thing it is catching for is '
+            + 'not a net.',
     },
 };
