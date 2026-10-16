@@ -3,6 +3,12 @@ import globals from 'globals'
 import react from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import ds from './scripts/eslint-rules/index.mjs'
+import { DS_EXCEPTIONS } from './scripts/eslint-rules/exceptions.mjs'
+
+const SOURCE = 'src/**/*.{js,jsx,cjs,mjs}'
+const TESTS = 'src/**/*.{test,spec}.{js,jsx,cjs,mjs}'
+const STORIES = 'src/**/*.stories.{js,jsx,cjs,mjs}'
 
 export default [
   // .claude/ holds local agent worktrees (full repo copies) — linting them
@@ -116,5 +122,48 @@ export default [
     files: ['src/**/*.{js,jsx,cjs,mjs}'],
     ignores: ['src/**/*.{test,spec}.{js,jsx,cjs,mjs}'],
     rules: { 'no-alert': 'error' },
+  },
+  // The design-system contract a strict Tailwind theme cannot hold
+  // (`scripts/eslint-rules/`): raw values, native tables, hand-built
+  // primitives. Errors under src/ outside tests, which assert on the very
+  // markup these refuse. Exceptions are per file and per check, with the
+  // roadmap §5 reason (`exceptions.mjs`). `scripts/test-lint-rules.mjs` §O
+  // drives each rule, proves the scopes below, and that no disable comment or
+  // stale exception hides a violation.
+  {
+    files: [SOURCE],
+    ignores: [TESTS],
+    plugins: { ds },
+    rules: {
+      'ds/no-raw-values': ['error', { exceptions: DS_EXCEPTIONS }],
+      'ds/native-table': ['error', { exceptions: DS_EXCEPTIONS }],
+      'ds/use-primitive': ['error', { exceptions: DS_EXCEPTIONS }],
+    },
+  },
+  // `Button`, `Chip` and `SegmentedControl` ARE the `<button aria-pressed>`, and
+  // `SectionNavigation` the `<button aria-current>`, those two checks point at,
+  // so the design system is exempt from them and nothing else. Its catalog is
+  // not: a story is held to them below.
+  {
+    files: ['src/design-system/**/*.{js,jsx,cjs,mjs}'],
+    ignores: [TESTS, STORIES],
+    rules: {
+      'ds/use-primitive': ['error', { exceptions: DS_EXCEPTIONS, skip: ['hand-rolled-toggle', 'hand-rolled-current'] }],
+    },
+  },
+  // A story is what people copy, so it keeps the class-list and control checks.
+  // The markup-shaped ones are off: a story demonstrates the approved native
+  // table, and its prose discusses the patterns the rules forbid.
+  {
+    files: [STORIES],
+    ignores: [TESTS],
+    rules: {
+      'ds/native-table': 'off',
+      'ds/use-primitive': ['error', {
+        exceptions: DS_EXCEPTIONS,
+        skip: ['raw-file-input', 'hand-rolled-tablist', 'hand-written-target-blank', 'hand-built-overlay',
+          'jsx-label-on-throwing-primitive'],
+      }],
+    },
   },
 ]
