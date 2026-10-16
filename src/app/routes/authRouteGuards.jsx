@@ -1,7 +1,6 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
-import { GlobalLoadingState } from '@shared/components/feedback';
 import { isCompanyWorkspaceRole } from '@app/auth/roles';
 
 // Keep Auth screens eager-loaded as they are the entry point
@@ -9,8 +8,7 @@ import { LoginScreen, NoAccessScreen, returnPathFrom } from '@features/auth';
 
 // --- ROUTE GUARDS ---
 export function RootRedirect() {
-  const { currentUser, userRole, loading } = useData();
-  if (loading) return <GlobalLoadingState />;
+  const { currentUser, userRole } = useData();
   if (!currentUser) return <Navigate to="/login" />;
 
   if (userRole === 'super_admin') return <Navigate to="/super-admin" />;
@@ -24,17 +22,15 @@ export function RootRedirect() {
 // P3-12 FIX: Redirect authenticated users away from login page, to the page
 // that sent them here if there was one.
 export function AuthGuardedLogin() {
-  const { currentUser, loading } = useData();
+  const { currentUser } = useData();
   const location = useLocation();
-  if (loading) return <GlobalLoadingState />;
   if (currentUser) return <Navigate to={returnPathFrom(location.state) || '/'} replace />;
   return <LoginScreen />;
 }
 
 export function ProtectedRoute({ children, allowedRoles }) {
-  const { currentUser, userRole, loading } = useData();
+  const { currentUser, userRole } = useData();
   const location = useLocation();
-  if (loading) return <GlobalLoadingState />;
   if (!currentUser) {
     // Signing in returns to this page. Replacing it keeps Back from landing on
     // a page that only sends the visitor to sign in again.

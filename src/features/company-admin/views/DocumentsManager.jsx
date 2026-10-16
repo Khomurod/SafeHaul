@@ -44,7 +44,7 @@ const DOCUMENT_TABS = [
 ];
 
 export default function DocumentsManager() {
-    const { currentCompanyProfile, loading } = useData();
+    const { currentCompanyProfile } = useData();
     const navigate = useNavigate();
     const { showSuccess, showError, showWarning } = useToast();
 
@@ -268,7 +268,6 @@ export default function DocumentsManager() {
         setViewMode('create');
     };
 
-    if (loading) return <GlobalLoadingState />;
     if (!currentCompanyProfile) { navigate('/company/dashboard'); return null; }
 
     // PHASE 4: Handle "Correct" action from EnvelopeHistory

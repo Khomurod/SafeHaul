@@ -198,8 +198,8 @@ export function DataProvider({ children }) {
     };
   }, [loginToCompany]);
 
-  // Handlers wrapped in useCallback so their identity is stable — required for
-  // the memoized context slices below to actually prevent re-renders.
+  // Handlers wrapped in useCallback so their identity is stable, and with it the
+  // memoized context value below.
   const handleLogout = useCallback(async () => {
     try {
       companyProfileCacheRef.current = { companyId: null, data: null, fetchedAt: 0 };
@@ -223,15 +223,12 @@ export function DataProvider({ children }) {
     currentUserClaims,
     userRole,
     currentCompanyProfile,
-    setCurrentCompanyProfile,
     loginToCompany,
     handleLogout,
     returnToCompanyChooser,
-    setShowCompanyChooser,
-    loading,
   }), [
     currentUser, currentUserClaims, userRole, currentCompanyProfile, loginToCompany,
-    handleLogout, returnToCompanyChooser, loading,
+    handleLogout, returnToCompanyChooser,
   ]);
 
   // All hooks are declared above this point — the loading early-return must come
