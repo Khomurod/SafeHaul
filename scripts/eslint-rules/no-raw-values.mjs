@@ -10,9 +10,10 @@
  * show is one: a presentation attribute or a colour prop
  * (`<path fill="#004C68">`, `<SignaturePad penColor="black">`), a style
  * property (`{ borderTop: '1px solid red' }`), an assignment
- * (`ctx.strokeStyle = '#333'`, `const INK = '#0f172a'`), and a number in a
- * style object's layer (`{ zIndex: 20 }`, `{ zIndex: 'calc(100)' }`) — each on
- * every branch of a conditional (`color: dark ? '#fff' : '#000'`).
+ * (`ctx.strokeStyle = '#333'`, `const INK = '#0f172a'`), a number in a
+ * style object's layer (`{ zIndex: 20 }`, `{ zIndex: 'calc(100)' }`) and an
+ * inline font size off the scale (`style={{ fontSize: 10 }}`) — each on every
+ * branch of a conditional (`color: dark ? '#fff' : '#000'`).
  *
  * A colour is a hex, a colour function or a colour keyword. A keyword counts
  * only where a colour is expected — a presentation attribute or colour prop, a
@@ -26,7 +27,7 @@ import {
 } from './context.mjs';
 import { staticString, valuesYielded } from './jsx.mjs';
 import {
-    REMEDIES, holdsRawColour, isColour, numericLayer, rawValuesIn,
+    REMEDIES, holdsRawColour, isColour, numericLayer, rawValuesIn, typeSizeCheck,
 } from './raw-values.mjs';
 
 /** The SVG presentation attributes that take a colour; any prop named for one (`penColor`) does too. */
@@ -39,12 +40,18 @@ const COLOUR_KEY = /^(?:color|background|border|outline|fill|stroke|text-?decora
 /** A name that holds a colour: `fillStyle`, `shadowColor`, `INK`, `penColor`. */
 const COLOUR_NAME = /(?:colou?r|style|fill|stroke|ink|background)$/i;
 const Z_INDEX_KEY = new Set(['zIndex', 'z-index']);
+const FONT_SIZE_KEY = new Set(['fontSize', 'font-size']);
 
 const keyName = (property) => {
-    if (property.computed) return null;
+    if (property.computed) return staticString(property.key);
     if (property.key.type === 'Identifier') return property.key.name;
     return typeof property.key.value === 'string' ? property.key.value : null;
 };
+
+/** Is this property in a JSX `style` object? Elsewhere `fontSize` is as often a document field's data. */
+const inStyleAttribute = (property) => property.parent?.type === 'ObjectExpression'
+    && property.parent.parent?.type === 'JSXExpressionContainer'
+    && property.parent.parent.parent?.type === 'JSXAttribute' && property.parent.parent.parent.name?.name === 'style';
 
 /** The name an assignment writes: `INK`, `ctx.fillStyle`'s `fillStyle`; null for a pattern. */
 const targetName = (node) => {
@@ -111,6 +118,12 @@ export default {
                 if (Z_INDEX_KEY.has(key)) {
                     const value = stackingNumber(node.value);
                     if (value !== null) report(node, 'raw-z-index', `${key}: ${value}`);
+                }
+                if (FONT_SIZE_KEY.has(key) && inStyleAttribute(node)) {
+                    // A unitless number is pixels, as React writes it.
+                    const sizes = valuesYielded(node.value).map((value) => (typeof value === 'number' ? `${value}px` : value));
+                    const size = sizes.find((value) => typeof value === 'string' && typeSizeCheck(value.trim()));
+                    if (size !== undefined) report(node, typeSizeCheck(size.trim()), `${key}: ${size}`);
                 }
             },
             VariableDeclarator(node) { colourValue(node, node.init, targetName(node.id)); },

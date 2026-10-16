@@ -179,6 +179,16 @@ export function rawValuesIn(text) {
         if (check) found.push({ check, match: whole, index: match.index });
     }
     found.push(...colourDeclarationsIn(text));
+    // A style string is held to what a stylesheet is: no numeric layer, no type below the floor.
+    for (const match of text.matchAll(DECLARATION)) {
+        const [whole, property, value] = match;
+        const check = (property === 'z-index' && numericLayer(value) && 'raw-z-index')
+            || (property === 'font-size' && typeSizeCheck(value.trim()) === 'sub-12px-type' && 'sub-12px-type');
+        if (check) {
+            const index = match.index + whole.indexOf(property);
+            found.push({ check, match: text.slice(index, match.index + whole.length).trim(), index });
+        }
+    }
     for (const match of text.matchAll(PRESENTATION)) {
         if (holdsRawColour(match[2])) found.push({ check: 'raw-hex-colour', match: match[0], index: match.index });
     }
