@@ -1,11 +1,12 @@
 // firestore.rules as one decision table: who may do what.
 //
 // Every rule block is tried by thirteen kinds of caller with get, list, create,
-// update and delete, and so is a path that no rule, or only a collection-group
-// rule, matches. So are the requests whose answer depends on the document
-// (owner fields, each held by driver-1 and then by the caller, a status outside
-// the pipeline list, a changed companyId) and the collection-group queries. The
-// answers must equal `firestoreRules.decisions.table.json` byte for byte.
+// update and delete, and so is every path the server uses that no rule names, or
+// that only a collection-group rule matches. So are the requests whose answer
+// depends on the document (owner fields, each held by driver-1 and then by the
+// caller, a status outside the pipeline list, a changed companyId) and the
+// collection-group queries. The answers must equal
+// `firestoreRules.decisions.table.json` byte for byte.
 //
 // A change to the rules that should leave everyone's access as it was (a shorter
 // helper, a redundant check removed) is proven by an unchanged table. A change
@@ -371,8 +372,9 @@ const ROWS = [
   { op: 'update', path: 'drivers/{doc}', seed: { firstName: 'Old' }, data: { firstName: 'New' }, note: 'someone else\'s' },
   { op: 'delete', path: 'drivers/{uid}', seed: { firstName: 'Old' }, note: 'the caller\'s own' },
   { op: 'delete', path: 'drivers/{doc}', seed: { firstName: 'Old' }, note: 'someone else\'s' },
-  // saved_jobs has no rule: the retired saved-jobs feature's documents stay unreachable.
-  ...['drafts', 'documents', 'saved_jobs'].flatMap((name) => [
+  // saved_jobs (retired) and pending_updates (the server's) have no rule, so no client
+  // reaches them.
+  ...['drafts', 'documents', 'saved_jobs', 'pending_updates'].flatMap((name) => [
     ...documentRows(`drivers/{uid}/${name}`).map((row) => ({ ...row, note: 'the caller\'s own' })),
     ...documentRows(`drivers/${SOMEONE}/${name}`),
   ]),
@@ -458,6 +460,17 @@ const ROWS = [
   // --- Removed and unknown collections ---
   ...documentRows('job_posts'),
   ...documentRows('not_in_the_rules'),
+
+  // --- Paths only the server reads and writes, which no rule names ---
+  ...[
+    'blacklist', 'company_api_keys', 'api_audit', 'orphaned_signature_cleanup', 'system_jobs',
+    'system_jobs/companyClaims/owedUsers', 'release_promotions', 'release_promotion_locks',
+    ...[
+      'blacklist', 'inbound_messages', 'legal_agreements', 'email_sent_addresses', 'sms_sent_phones',
+      'integrations/sms_provider/keychain', 'stats_daily/d-1/processed_signals', 'bulk_sessions/bs-1/targets',
+    ].map((name) => `${companyPath}/${name}`),
+    `${applicationPath}/submission_attempts`,
+  ].flatMap((path) => documentRows(path)),
 
   // --- Collection-group queries, and the documents only a group rule matches ---
   ...[
