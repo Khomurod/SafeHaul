@@ -213,10 +213,28 @@ export function typeSizeCheck(value) {
     return range && range.lo < 12 ? 'sub-12px-type' : 'arbitrary-type-size';
 }
 
-/** The size in a `font` shorthand, before any `/line-height`: `italic 10px/1.5 serif` holds `10px`; null for none. */
+/** `text` cut wherever `isCut(char)` holds outside parentheses, empty pieces dropped. */
+function cutOutsideParentheses(text, isCut) {
+    const pieces = [''];
+    let depth = 0;
+    for (const char of text) {
+        if (char === '(') depth += 1;
+        else if (char === ')') depth = Math.max(0, depth - 1);
+        if (depth === 0 && isCut(char)) pieces.push('');
+        else pieces[pieces.length - 1] += char;
+    }
+    return pieces.filter((piece) => piece !== '');
+}
+
+/**
+ * The size in a `font` shorthand, before any `/line-height`: `italic 10px/1.5
+ * serif` holds `10px`, `clamp(10px, calc(11px), 14px) serif` the clamp; null
+ * for none. Spaces and slashes inside a math function do not cut it.
+ */
 function fontShorthandSize(value) {
-    const words = value.match(/(?:[^\s(]|\([^)]*\))+/g) ?? [];
-    return words.map((word) => word.split('/')[0]).find((word) => word !== '' && sizeRange(word) !== null) ?? null;
+    return cutOutsideParentheses(value, (char) => /\s/.test(char))
+        .map((word) => cutOutsideParentheses(word, (char) => char === '/')[0] ?? '')
+        .find((word) => word !== '' && sizeRange(word) !== null) ?? null;
 }
 
 /** A style key as CSS names it: `fontSize` is `font-size`, `Z-INDEX` is `z-index`. */

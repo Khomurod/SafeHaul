@@ -99,19 +99,22 @@ const MESSAGES = {
         + 'crashes the moment it renders. Pass the words as a string; put an icon beside the control.',
 };
 
-/** May this attribute value yield JSX on some path? */
-function mayBeJsx(node) {
-    if (!node) return false;
+/** May this attribute value yield JSX on some path, through a name the file binds once? */
+function mayBeJsx(node, sourceCode, depth = 0) {
+    if (!node || depth > 8) return false;
+    const next = (child) => mayBeJsx(child, sourceCode, depth + 1);
     switch (node.type) {
         case 'JSXElement':
         case 'JSXFragment':
             return true;
         case 'JSXExpressionContainer':
-            return mayBeJsx(node.expression);
+            return next(node.expression);
         case 'ConditionalExpression':
-            return mayBeJsx(node.consequent) || mayBeJsx(node.alternate);
+            return next(node.consequent) || next(node.alternate);
         case 'LogicalExpression':
-            return mayBeJsx(node.left) || mayBeJsx(node.right);
+            return next(node.left) || next(node.right);
+        case 'Identifier':
+            return next(uniqueInitialiser(sourceCode, node.name));
         default:
             return false;
     }
@@ -400,7 +403,7 @@ export default {
                 if (element === 'button' && has('aria-expanded') && insideHeading(node)) {
                     report(node, 'hand-rolled-disclosure');
                 }
-                if (THROWS_ON_NON_STRING_LABEL.has(element) && values('label').some(mayBeJsx)) {
+                if (THROWS_ON_NON_STRING_LABEL.has(element) && values('label').some((value) => mayBeJsx(value, sourceCode))) {
                     report(node, 'jsx-label-on-throwing-primitive', { element });
                 }
             },

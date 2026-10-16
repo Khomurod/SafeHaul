@@ -145,6 +145,8 @@ describe('the stylesheet contract', () => {
     ['a raw colour', ".x::before { content: '#fff'; }", 0],
     ['a raw colour', '.x { box-shadow: 0 0 0 1px var(--ds-color-border),\n  0 0 0 2px #000; }', 1],
     ['a font size below 12px', '.x { font-size: 0; }', 1],
+    ['a font size below 12px', '.x { font: clamp(10px, calc(11px), 14px) sans-serif; }', 1],
+    ['a font size below 12px', '.x { font: calc(20px / 2) serif; }', 1],
     ['a raw colour', '.x {\n  background: linear-gradient(\n    var(--ds-color-surface),\n    red\n  );\n}', 1],
   ])('%s: %s → %i', (rule, css, expected) => {
     expect(findings(css, rule)).toHaveLength(expected);

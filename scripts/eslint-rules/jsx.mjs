@@ -62,15 +62,15 @@ export function propertyKey(property) {
  * branches and a logical's operands: `dark ? '#fff' : '#000'` yields both.
  * Arithmetic and concatenation of known values are worked out (`6 + 4`,
  * `'#' + 'fff'`, `` `${10}px` ``); a template with an unknown hole yields its
- * fixed text. With `through` — `{ sourceCode, follows(name) }` — a name the
- * file binds once is followed to its value, and a constant object's property
- * too (`SIZES.note`), where `follows` allows that name; anything else
- * computed yields nothing.
+ * fixed text. With `through` — `{ sourceCode, follows(name, value) }` — a
+ * name the file binds once is followed to its value, and a constant object's
+ * property too (`SIZES.note`), where `follows` allows that binding; anything
+ * else computed yields nothing.
  */
 export function valuesYielded(node, through = null, depth = 0) {
     if (depth > 8) return [];
     const next = (child) => valuesYielded(child, through, depth + 1);
-    const bound = (name) => (through && through.follows(name) ? uniqueInitialiser(through.sourceCode, name) : null);
+    const bound = (name) => (through ? uniqueInitialiser(through.sourceCode, name) : null);
     switch (node?.type) {
         case 'Literal':
             return [node.value];
@@ -98,14 +98,14 @@ export function valuesYielded(node, through = null, depth = 0) {
             return [...next(node.left), ...next(node.right)];
         case 'Identifier': {
             const value = bound(node.name);
-            return value ? next(value) : [];
+            return value && through.follows(node.name, value) ? next(value) : [];
         }
         case 'MemberExpression': {
             const key = node.computed ? staticString(node.property) : node.property.name;
-            const object = node.object.type === 'Identifier' && key !== null && through?.follows(key) ? bound(node.object.name) : null;
+            const object = node.object.type === 'Identifier' && key !== null ? bound(node.object.name) : null;
             const property = object?.type === 'ObjectExpression'
                 ? object.properties.find((one) => one.type === 'Property' && propertyKey(one) === key) : null;
-            return property ? next(property.value) : [];
+            return property && through.follows(key, property.value) ? next(property.value) : [];
         }
         default:
             return [];

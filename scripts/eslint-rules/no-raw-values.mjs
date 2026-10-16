@@ -55,8 +55,19 @@ const targetName = (node) => {
     return null;
 };
 
-/** The strings a value can be, on any branch: `dark ? '#fff' : '#000'` is both. A colour is judged where it is written. */
-const stringsYielded = (node) => valuesYielded(node).filter((value) => typeof value === 'string');
+/** The strings a value can be, on any branch: `dark ? '#fff' : '#000'` is both. */
+const stringsYielded = (node, through = null) => valuesYielded(node, through).filter((value) => typeof value === 'string');
+
+/**
+ * The colour a value written under `name` holds, on some branch: anywhere in
+ * it when the name is a colour-taking style (`border: '1px solid red'`), else
+ * as the whole value — a keyword only when the name holds a colour.
+ */
+function colourIn(name, value, through = null) {
+    const raw = COLOUR_KEY.test(name ?? '') ? (one) => holdsRawColour(one)
+        : (one) => isColour(one, { words: COLOUR_NAME.test(name ?? '') });
+    return stringsYielded(value, through).find(raw);
+}
 
 /**
  * The check a layer or a type size breaks on some value of `node`, and that
@@ -100,15 +111,12 @@ export default {
             const found = LAYER_OR_SIZE.has(css) ? layerOrSize(css, value, sourceCode) : null;
             if (found) report(node, found.check, `${name}: ${found.value}`);
         };
-        /**
-         * A colour written to `name` on some branch: anywhere in the value when
-         * the name is a colour-taking style (`node.style.border = '1px solid red'`),
-         * else as the whole value — a keyword only when the name holds a colour.
-         */
+        // A name bound once is followed to its colour (`color: ALERT`), unless
+        // its own binding already holds one, which is judged where it is written.
+        const colours = { sourceCode, follows: (name, value) => colourIn(name, value) === undefined };
+        /** A colour written to `name` on some branch (`colourIn`), reported at `node`. */
         const colourValue = (node, value, name) => {
-            const words = COLOUR_NAME.test(name ?? '');
-            const raw = COLOUR_KEY.test(name ?? '') ? (one) => holdsRawColour(one) : (one) => isColour(one, { words });
-            const text = stringsYielded(value).find(raw);
+            const text = colourIn(name, value, colours);
             if (text !== undefined) report(node, 'raw-hex-colour', text);
         };
         return {
@@ -123,15 +131,13 @@ export default {
                 if (typeof name !== 'string') return;
                 styleValue(node, name, node.value);
                 if (!PRESENTATION.has(name) && !COLOUR_PROP.test(name)) return;
-                const text = stringsYielded(node.value).find((one) => holdsRawColour(one));
+                const text = stringsYielded(node.value, colours).find((one) => holdsRawColour(one));
                 if (text !== undefined) report(node, 'raw-hex-colour', text);
             },
             Property(node) {
                 const key = propertyKey(node);
                 if (key === null) return;
-                // A colour-taking key holds one anywhere in its value; any other key, as its whole value.
-                const raw = COLOUR_KEY.test(key) ? (one) => holdsRawColour(one) : (one) => isColour(one, { words: false });
-                const text = stringsYielded(node.value).find(raw);
+                const text = colourIn(key, node.value, colours);
                 if (text !== undefined) report(node, 'raw-hex-colour', `${key}: ${text}`);
                 styleValue(node, key, node.value);
             },
@@ -143,7 +149,8 @@ export default {
                 if (!name) return;
                 const found = LAYER_OR_SIZE.has(name) ? layerOrSize(name, node.arguments[1], sourceCode) : null;
                 if (found) report(node, found.check, `${name}: ${found.value}`);
-                const colour = stringsYielded(node.arguments[1]).find((one) => colourDeclarationsIn(`${name}: ${one}`).length > 0);
+                const colour = stringsYielded(node.arguments[1], colours)
+                    .find((one) => colourDeclarationsIn(`${name}: ${one}`).length > 0);
                 if (colour !== undefined) report(node, 'raw-hex-colour', `${name}: ${colour}`);
             },
             VariableDeclarator(node) {
