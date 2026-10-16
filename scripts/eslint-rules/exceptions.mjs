@@ -36,6 +36,11 @@ export const DS_EXCEPTIONS = {
         'raw-table': 'DataTable is the approved display-table contract. The rule exists to send feature '
             + 'code here; this is here.',
     },
+    'src/design-system/components/chip/Chip.jsx': {
+        'hand-written-target-blank': 'Chip IS a primitive: a chip that links takes `external`, and this is '
+            + 'where that prop writes `target="_blank"` beside its `rel`. The rule exists to send feature code '
+            + 'to a primitive\'s `external`; this is one.',
+    },
     'src/design-system/components/file-input/FileInput.jsx': {
         'raw-file-input': 'FileInput IS the approved picker contract, and its whole point is that the real '
             + '`<input type="file">` is here rather than hand-built at a call site. Same shape of entry as '

@@ -204,6 +204,31 @@ export function typeSizeCheck(value) {
     return range && range.lo < 12 ? 'sub-12px-type' : 'arbitrary-type-size';
 }
 
+/** The size in a `font` shorthand, before any `/line-height`: `italic 10px/1.5 serif` holds `10px`; null for none. */
+function fontShorthandSize(value) {
+    const words = value.match(/(?:[^\s(]|\([^)]*\))+/g) ?? [];
+    return words.map((word) => word.split('/')[0]).find((word) => word !== '' && sizeRange(word) !== null) ?? null;
+}
+
+/** A style key as CSS names it: `fontSize` is `font-size`, `Z-INDEX` is `z-index`. */
+export const cssName = (key) => (/^[a-z][a-zA-Z]*$/.test(key) ? key.replace(/[A-Z]/g, (letter) => `-${letter}`) : key)
+    .toLowerCase();
+
+/**
+ * The check a layer or a type size breaks, however it is written: a
+ * `z-index` that holds a number, a `font-size` — or a `font` shorthand's size
+ * — off the scale or below the floor. A number is a layer, or px, as React
+ * writes one. A value that is not a size CSS computes (`'Auto'`, `'inherit'`)
+ * sets none; any other name is not judged here.
+ */
+export function layerOrSizeCheck(name, value) {
+    if (name === 'z-index') return numericLayer(String(value)) ? 'raw-z-index' : null;
+    const text = typeof value === 'number' ? `${value}px` : value;
+    if (typeof text !== 'string' || (name !== 'font-size' && name !== 'font')) return null;
+    const size = name === 'font' ? fontShorthandSize(text) : text.trim();
+    return size !== null && sizeRange(size) !== null ? typeSizeCheck(size) : null;
+}
+
 /*
  * How Tailwind reads `text-[…]`: a `length:`, `percentage:` or size hint, or a
  * value that is a length, a percentage, a math function or a size keyword, is
@@ -254,6 +279,8 @@ const ARBITRARY = /(?<![\w[\]-])(?:-?([a-z][a-z\d]*(?:-[a-z\d]+)*?)-\[([^\]\s]+)
  */
 const DECLARATION = /(?:^|[{;"'`])\s*(-{0,2}[a-zA-Z][\w-]*)\s*:(?!\/\/)\s*['"]?([^;{}"'`\n]+)/g;
 const PRESENTATION = /(?<![\w-])(?:fill|stroke|stopColor|stop-color|floodColor|flood-color|lightingColor|lighting-color|color)\s*=\s*(["'])(.*?)\1/gi;
+/** An SVG `font-size` attribute in markup: a number there is user units, which are px. */
+const FONT_SIZE_ATTRIBUTE = /(?<![\w-])(?:font-size|fontSize)\s*=\s*(["'])(.*?)\1/gi;
 
 /**
  * Every declaration in `text` whose value holds a raw colour: a hex or a colour
@@ -286,16 +313,19 @@ export function rawValuesIn(text) {
     // A style string is held to what a stylesheet is: no numeric layer, no type below the floor.
     for (const match of text.matchAll(DECLARATION)) {
         const [whole, property, value] = match;
-        const name = property.toLowerCase();
-        const check = (name === 'z-index' && numericLayer(value) && 'raw-z-index')
-            || (name === 'font-size' && typeSizeCheck(value.trim()) === 'sub-12px-type' && 'sub-12px-type');
-        if (check) {
+        const check = layerOrSizeCheck(property.toLowerCase(), value);
+        if (check === 'raw-z-index' || check === 'sub-12px-type') {
             const index = match.index + whole.indexOf(property);
             found.push({ check, match: text.slice(index, match.index + whole.length).trim(), index });
         }
     }
     for (const match of text.matchAll(PRESENTATION)) {
         if (holdsRawColour(match[2])) found.push({ check: 'raw-hex-colour', match: match[0], index: match.index });
+    }
+    for (const match of text.matchAll(FONT_SIZE_ATTRIBUTE)) {
+        const value = match[2].trim();
+        const check = layerOrSizeCheck('font-size', /^[\d.]+$/.test(value) ? Number(value) : value);
+        if (check === 'sub-12px-type') found.push({ check, match: match[0], index: match.index });
     }
     return found.sort((a, b) => a.index - b.index);
 }

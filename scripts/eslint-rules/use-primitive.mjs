@@ -17,7 +17,9 @@
  *   INSIDE a lowercase heading — menu, combobox and drawer triggers wear
  *   `aria-expanded` too and are not this;
  * - a tab strip is `role="tablist"`, a file picker `<input type="file">`, a new
- *   tab `target="_blank"`, an overlay a class list holding `fixed` and
+ *   tab `target="_blank"` — each in any case and on any branch
+ *   (`type={uploading ? 'file' : 'text'}`), and as markup in a string — an
+ *   overlay a class list holding `fixed` and
  *   `inset-0` on some path, wherever its strings are split
  *   (`clsx('fixed', 'inset-0')`, `'fixed ' + 'inset-0'`, an array joined, the
  *   keys of `clsx({ fixed: open, 'inset-0': open })`);
@@ -34,7 +36,7 @@ import {
     CHECKS, exceptedChecks, locate, optionsSchema,
 } from './context.mjs';
 import {
-    attribute, certainlyText, elementName, lastClassSetter, staticString, stringsIn, uniqueInitialiser,
+    attribute, certainlyText, elementName, lastClassSetter, stringsIn, uniqueInitialiser, valuesYielded,
 } from './jsx.mjs';
 
 /** Classes that decide a control's geometry or colour rather than its layout. */
@@ -55,10 +57,15 @@ export const THROWS_ON_NON_STRING_LABEL = new Set([
 ]);
 
 const HEADING = /^h[1-6]$/;
+/* HTML reads attribute names and these values in any case, quoted or not. */
 const MARKUP_IN_TEXT = [
-    ['hand-written-target-blank', /target=["']_blank["']/g],
-    ['hand-rolled-tablist', /role=["']tablist["']/g],
+    ['hand-written-target-blank', /(?<![\w-])target\s*=\s*(["']?)_blank\1(?![\w-])/gi],
+    ['hand-rolled-tablist', /(?<![\w-])role\s*=\s*["']?(?:[\w-]+\s+)*tablist(?![\w-])/gi],
+    ['raw-file-input', /<input\b[^>]*?(?<![\w-])type\s*=\s*["']?file(?![\w-])/gi],
 ];
+
+/** Can this attribute's value be one that passes `test`, on some branch and in any case? */
+const mayBe = (value, test) => valuesYielded(value).some((one) => typeof one === 'string' && test(one.toLowerCase()));
 
 const MESSAGES = {
     'hand-styled-button': 'A hand-styled `<button>`. Use `Button` or `IconButton`; a `<button>` with no '
@@ -253,9 +260,11 @@ function overlayPaths(node, list, text) {
             return either(assuming(paths(node.consequent), test, true), assuming(paths(node.alternate), test, false));
         }
         case 'LogicalExpression': {
-            if (node.operator !== '&&') return either(paths(node.left), paths(node.right));
+            // `a && b` is `b` where `a` is truthy; `a || b` is `a` there and `b` where it is falsy. `a ?? b`
+            // is read as `a || b`: `b` where `a` is falsy is a few more paths than where it is nullish.
             const left = conditionOf(node.left, text);
-            return either(assuming(NOTHING, left, false), assuming(paths(node.right), left, true));
+            if (node.operator === '&&') return either(assuming(NOTHING, left, false), assuming(paths(node.right), left, true));
+            return either(assuming(paths(node.left), left, true), assuming(paths(node.right), left, false));
         }
         case 'CallExpression': {
             if (isClassHelperCall(node)) {
@@ -337,7 +346,7 @@ export default {
             return certainlyText(uniqueInitialiser(sourceCode, name), (text) => STYLING_SIGNAL.test(text));
         };
 
-        // `target="_blank"` or `role="tablist"` in markup held as text.
+        // `target="_blank"`, `role="tablist"` or `<input type="file">` in markup held as text.
         const readText = (node, text) => {
             for (const [check, pattern] of MARKUP_IN_TEXT) {
                 let from = 0;
@@ -365,7 +374,7 @@ export default {
                 if (element === null) return;
                 const has = (name) => attribute(node, name) !== undefined;
                 if (STYLED_CONTROL[element] && styled(node)) report(node, STYLED_CONTROL[element], { element });
-                if (element === 'input' && staticString(attribute(node, 'type')?.value) === 'file') {
+                if (element === 'input' && mayBe(attribute(node, 'type')?.value, (type) => type === 'file')) {
                     report(node, 'raw-file-input');
                 }
                 if ((element === 'button' || element === 'a') && has('aria-pressed')) {
@@ -381,8 +390,10 @@ export default {
             },
             JSXAttribute(node) {
                 const name = node.name?.name;
-                if (name === 'role' && staticString(node.value) === 'tablist') report(node, 'hand-rolled-tablist');
-                if (name === 'target' && staticString(node.value) === '_blank') report(node, 'hand-written-target-blank');
+                if (name === 'role' && mayBe(node.value, (role) => role.split(/\s+/).includes('tablist'))) {
+                    report(node, 'hand-rolled-tablist');
+                }
+                if (name === 'target' && mayBe(node.value, (target) => target === '_blank')) report(node, 'hand-written-target-blank');
             },
             Literal(node) {
                 if (typeof node.value !== 'string') return;

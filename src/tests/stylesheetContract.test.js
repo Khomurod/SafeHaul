@@ -6,7 +6,7 @@ import tailwindcss from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
 import tailwindConfig from '../../tailwind.config.js';
 import {
-  colourDeclarationsIn, colourLiteralsIn, holdsRawColour, numericLayer, rawValuesIn, typeSizeCheck,
+  colourDeclarationsIn, colourLiteralsIn, holdsRawColour, layerOrSizeCheck, rawValuesIn,
 } from '../../scripts/eslint-rules/raw-values.mjs';
 
 /**
@@ -50,13 +50,18 @@ const rawColours = (css) => [
   ...colourDeclarationsIn(css).map((found) => found.match).filter((match) => !holdsRawColour(match, { words: false })),
 ];
 
+/*
+ * Each declaration's whole value, read as the class rules read one: `calc(100)`
+ * is a number, `calc(10px)` 10px, and a `font` shorthand's size is its font
+ * size. A property name is read in any case, as CSS reads it.
+ */
+const declarations = (css, names, check) => [...css.matchAll(new RegExp(String.raw`(?<![\w-])(${names})\s*:\s*([^;}]+)`, 'gi'))]
+  .filter(([, name, value]) => layerOrSizeCheck(name.toLowerCase(), value) === check).map(([declaration]) => declaration);
+
 const RULES = {
   'a raw colour': rawColours,
-  // Each declaration's whole value, read as the class rules read one: `calc(100)` is a number, `calc(10px)` 10px.
-  'a bare z-index': (css) => [...css.matchAll(/z-index\s*:\s*([^;}]+)/g)]
-    .filter(([, value]) => numericLayer(value)).map(([declaration]) => declaration),
-  'a font size below 12px': (css) => [...css.matchAll(/font-size\s*:\s*([^;}]+)/g)]
-    .filter(([, value]) => typeSizeCheck(value.trim()) === 'sub-12px-type').map(([declaration]) => declaration),
+  'a bare z-index': (css) => declarations(css, 'z-index', 'raw-z-index'),
+  'a font size below 12px': (css) => declarations(css, 'font-size|font', 'sub-12px-type'),
   'an @apply list off the class contract': (css) => [...css.matchAll(/@apply\s+([^;{}]+);/g)]
     .flatMap((apply) => offContractApply(apply[1])),
 };
@@ -121,6 +126,13 @@ describe('the stylesheet contract', () => {
     ['a font size below 12px', '.x { font-size: min(10px, 20px); }', 1],
     ['a font size below 12px', '.x { font-size: clamp(10px, 2vw, 14px); }', 1],
     ['a font size below 12px', '.x { font-size: x-small; }', 1],
+    ['a bare z-index', '.x { Z-INDEX: 999; }', 1],
+    ['a bare z-index', '.x { --stack-z-index: 5; }', 0],
+    ['a font size below 12px', '.x { FONT-SIZE: 10px; }', 1],
+    ['a font size below 12px', '.x { font: 10px/1.5 sans-serif; }', 1],
+    ['a font size below 12px', '.x { FONT: italic bold 9px serif; }', 1],
+    ['a font size below 12px', '.x { font: inherit; font-family: serif; }', 0],
+    ['a font size below 12px', '.x { font: 600 var(--ds-font-size-xs) / 1.5 var(--ds-font-family); }', 0],
     ['an @apply list off the class contract', `.x { @apply ${arbitrary('bg', '#ff0000')} ${arbitrary('text', '10px')}; }`, 2],
     ['an @apply list off the class contract', `.x { @apply ${arbitrary('z', '55')}; }`, 1],
     ['an @apply list off the class contract', '.x { @apply fixed inset-0; }', 1],

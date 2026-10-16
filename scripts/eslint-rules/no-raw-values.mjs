@@ -10,9 +10,13 @@
  * show is one: a presentation attribute or a colour prop
  * (`<path fill="#004C68">`, `<SignaturePad penColor="black">`), a style
  * property (`{ borderTop: '1px solid red' }`), an assignment
- * (`ctx.strokeStyle = '#333'`, `const INK = '#0f172a'`), a number in a
- * style object's layer (`{ zIndex: 20 }`, `{ zIndex: 'calc(100)' }`) and an
- * inline font size off the scale (`style={{ fontSize: 10 }}`) — each on every
+ * (`ctx.strokeStyle = '#333'`, `const INK = '#0f172a'`) and `setProperty`.
+ * A layer written as a number, or a type size off the scale, is read wherever
+ * a style names it — a key, an attribute, an assignment, a default or
+ * `setProperty` (`{ zIndex: 20 }`, `<text fontSize={10}>`,
+ * `node.style.zIndex = '9999'`) — since a style object may be named, nested
+ * or returned before it reaches `style`; a value that is not a CSS size
+ * (`fontSize: 'Auto'`, a field's own setting) sets none. Each is read on every
  * branch of a conditional (`color: dark ? '#fff' : '#000'`).
  *
  * A colour is a hex, a colour function or a colour keyword. A keyword counts
@@ -27,7 +31,7 @@ import {
 } from './context.mjs';
 import { staticString, valuesYielded } from './jsx.mjs';
 import {
-    REMEDIES, holdsRawColour, isColour, numericLayer, rawValuesIn, typeSizeCheck,
+    REMEDIES, colourDeclarationsIn, cssName, holdsRawColour, isColour, layerOrSizeCheck, rawValuesIn,
 } from './raw-values.mjs';
 
 /** The SVG presentation attributes that take a colour; any prop named for one (`penColor`) does too. */
@@ -39,31 +43,14 @@ const COLOUR_PROP = /colou?r$/i;
 const COLOUR_KEY = /^(?:color|background|border|outline|fill|stroke|text-?decoration|column-?rule)|(?:color|shadow)$/i;
 /** A name that holds a colour: `fillStyle`, `shadowColor`, `INK`, `penColor`. */
 const COLOUR_NAME = /(?:colou?r|style|fill|stroke|ink|background)$/i;
-const Z_INDEX_KEY = new Set(['zIndex', 'z-index']);
-const FONT_SIZE_KEY = new Set(['fontSize', 'font-size']);
+/** The style names read as a layer or a type size, as CSS names them. */
+const LAYER_OR_SIZE = new Set(['z-index', 'font-size', 'font']);
 
 const keyName = (property) => {
     if (property.computed) return staticString(property.key);
     if (property.key.type === 'Identifier') return property.key.name;
     return typeof property.key.value === 'string' ? property.key.value : null;
 };
-
-/**
- * Is this property in a JSX `style` object, directly or through a spread, a
- * branch or a logical operand (`style={{ ...(on ? { fontSize: 10 } : {}) }}`)?
- * Elsewhere `fontSize` is as often a document field's data.
- */
-function inStyleAttribute(property) {
-    let child = property.parent;
-    let parent = child?.parent;
-    while (parent?.type === 'SpreadElement' || parent?.type === 'ObjectExpression' || parent?.type === 'LogicalExpression'
-        || (parent?.type === 'ConditionalExpression' && child !== parent.test)) {
-        child = parent;
-        parent = parent.parent;
-    }
-    return parent?.type === 'JSXExpressionContainer' && parent.parent?.type === 'JSXAttribute'
-        && parent.parent.name?.name === 'style';
-}
 
 /** The name an assignment writes: `INK`, `ctx.fillStyle`'s `fillStyle`; null for a pattern. */
 const targetName = (node) => {
@@ -75,10 +62,14 @@ const targetName = (node) => {
 /** The strings a value can be, on any branch: `dark ? '#fff' : '#000'` is both. */
 const stringsYielded = (node) => valuesYielded(node).filter((value) => typeof value === 'string');
 
-/** A layer written as a number, on some branch: `20`, `-1`, `'20'`, `'calc(100)'`, `open ? 50 : undefined`. */
-const stackingNumber = (node) => valuesYielded(node)
-    .map((value) => (typeof value === 'number' ? String(value) : value))
-    .find((value) => typeof value === 'string' && numericLayer(value))?.trim() ?? null;
+/** The check a layer or a type size breaks on some branch, and that branch's value: `open ? 50 : undefined` is 50. */
+function layerOrSize(name, node) {
+    for (const value of valuesYielded(node)) {
+        const check = layerOrSizeCheck(name, value);
+        if (check) return { check, value: String(value).trim() };
+    }
+    return null;
+}
 
 export default {
     meta: {
@@ -101,6 +92,12 @@ export default {
                 report(node, check, match, place.loc);
             }
         };
+        /** A layer or a type size written under `name` (`zIndex`, `font-size`) on some branch of `value`. */
+        const styleValue = (node, name, value) => {
+            const css = cssName(name ?? '');
+            const found = LAYER_OR_SIZE.has(css) ? layerOrSize(css, value) : null;
+            if (found) report(node, found.check, `${name}: ${found.value}`);
+        };
         /** A string that is one colour on some branch, written to `name`; a keyword only when the name holds a colour. */
         const colourValue = (node, value, name) => {
             const words = COLOUR_NAME.test(name ?? '');
@@ -116,6 +113,8 @@ export default {
             },
             JSXAttribute(node) {
                 const name = node.name?.name;
+                if (typeof name !== 'string') return;
+                styleValue(node, name, node.value);
                 if (!PRESENTATION.has(name) && !COLOUR_PROP.test(name)) return;
                 const text = stringsYielded(node.value).find((one) => holdsRawColour(one));
                 if (text !== undefined) report(node, 'raw-hex-colour', text);
@@ -127,21 +126,35 @@ export default {
                 const raw = COLOUR_KEY.test(key) ? (one) => holdsRawColour(one) : (one) => isColour(one, { words: false });
                 const text = stringsYielded(node.value).find(raw);
                 if (text !== undefined) report(node, 'raw-hex-colour', `${key}: ${text}`);
-                if (Z_INDEX_KEY.has(key)) {
-                    const value = stackingNumber(node.value);
-                    if (value !== null) report(node, 'raw-z-index', `${key}: ${value}`);
-                }
-                if (FONT_SIZE_KEY.has(key) && inStyleAttribute(node)) {
-                    // A unitless number is pixels, as React writes it.
-                    const sizes = valuesYielded(node.value).map((value) => (typeof value === 'number' ? `${value}px` : value));
-                    const size = sizes.find((value) => typeof value === 'string' && typeSizeCheck(value.trim()));
-                    if (size !== undefined) report(node, typeSizeCheck(size.trim()), `${key}: ${size}`);
-                }
+                styleValue(node, key, node.value);
             },
-            VariableDeclarator(node) { colourValue(node, node.init, targetName(node.id)); },
-            AssignmentExpression(node) { colourValue(node, node.right, targetName(node.left)); },
-            AssignmentPattern(node) { colourValue(node, node.right, targetName(node.left)); },
-            PropertyDefinition(node) { colourValue(node, node.value, keyName(node)); },
+            // `node.style.setProperty('z-index', '9999')` is a declaration, read as one.
+            CallExpression(node) {
+                const { callee } = node;
+                if (callee.type !== 'MemberExpression' || callee.computed || callee.property.name !== 'setProperty') return;
+                const name = staticString(node.arguments[0])?.trim().toLowerCase();
+                if (!name) return;
+                const found = LAYER_OR_SIZE.has(name) ? layerOrSize(name, node.arguments[1]) : null;
+                if (found) report(node, found.check, `${name}: ${found.value}`);
+                const colour = stringsYielded(node.arguments[1]).find((one) => colourDeclarationsIn(`${name}: ${one}`).length > 0);
+                if (colour !== undefined) report(node, 'raw-hex-colour', `${name}: ${colour}`);
+            },
+            VariableDeclarator(node) {
+                colourValue(node, node.init, targetName(node.id));
+                styleValue(node, targetName(node.id), node.init);
+            },
+            AssignmentExpression(node) {
+                colourValue(node, node.right, targetName(node.left));
+                styleValue(node, targetName(node.left), node.right);
+            },
+            AssignmentPattern(node) {
+                colourValue(node, node.right, targetName(node.left));
+                styleValue(node, targetName(node.left), node.right);
+            },
+            PropertyDefinition(node) {
+                colourValue(node, node.value, keyName(node));
+                styleValue(node, keyName(node), node.value);
+            },
         };
     },
 };
