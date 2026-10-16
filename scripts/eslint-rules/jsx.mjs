@@ -33,28 +33,119 @@ export function staticString(node) {
     return null;
 }
 
+/** How many values one expression may yield before the rest are dropped; a guard, not a limit any code reaches. */
+const MAX_VALUES = 16;
+const isText = (value) => typeof value === 'string' || typeof value === 'number';
+const asNumber = (value) => (typeof value === 'number' ? value
+    : typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN);
+
+/** `a <operator> b` as JavaScript computes it, for the operators a style is worked out with; undefined for any other. */
+function folded(operator, a, b) {
+    if (operator === '+') {
+        if (typeof a === 'number' && typeof b === 'number') return a + b;
+        return isText(a) && isText(b) ? `${a}${b}` : undefined;
+    }
+    const [x, y] = [asNumber(a), asNumber(b)];
+    if (Number.isNaN(x) || Number.isNaN(y)) return undefined;
+    return { '-': x - y, '*': x * y, '/': x / y, '%': x % y }[operator];
+}
+
+/** A property's key as text: `fontSize`, `'aria-pressed'`, `['role']`; null when computed. */
+export function propertyKey(property) {
+    if (property.computed) return staticString(property.key);
+    if (property.key.type === 'Identifier') return property.key.name;
+    return typeof property.key.value === 'string' ? property.key.value : null;
+}
+
 /**
- * Every literal value an expression can evaluate to, through a conditional's
- * branches and a logical's operands: `dark ? '#fff' : '#000'` yields both. A
- * template yields its fixed text; anything computed yields nothing.
+ * Every value an expression can evaluate to, through a conditional's
+ * branches and a logical's operands: `dark ? '#fff' : '#000'` yields both.
+ * Arithmetic and concatenation of known values are worked out (`6 + 4`,
+ * `'#' + 'fff'`, `` `${10}px` ``); a template with an unknown hole yields its
+ * fixed text. With `through` — `{ sourceCode, follows(name) }` — a name the
+ * file binds once is followed to its value, and a constant object's property
+ * too (`SIZES.note`), where `follows` allows that name; anything else
+ * computed yields nothing.
  */
-export function valuesYielded(node) {
+export function valuesYielded(node, through = null, depth = 0) {
+    if (depth > 8) return [];
+    const next = (child) => valuesYielded(child, through, depth + 1);
+    const bound = (name) => (through && through.follows(name) ? uniqueInitialiser(through.sourceCode, name) : null);
     switch (node?.type) {
         case 'Literal':
             return [node.value];
         case 'UnaryExpression':
-            return node.operator === '-' && typeof node.argument.value === 'number' ? [-node.argument.value] : [];
-        case 'TemplateLiteral':
-            return [node.quasis.map((quasi) => quasi.value.cooked ?? quasi.value.raw).join(' ')];
+            return node.operator === '-' || node.operator === '+'
+                ? next(node.argument).map((value) => (node.operator === '-' ? -asNumber(value) : asNumber(value)))
+                    .filter((value) => !Number.isNaN(value))
+                : [];
+        case 'BinaryExpression': {
+            const values = next(node.left).flatMap((a) => next(node.right).map((b) => folded(node.operator, a, b)));
+            return values.filter((value) => value !== undefined).slice(0, MAX_VALUES);
+        }
+        case 'TemplateLiteral': {
+            const quasi = (index) => node.quasis[index].value.cooked ?? node.quasis[index].value.raw;
+            const holes = node.expressions.map((expression) => next(expression).filter(isText));
+            if (holes.some((values) => values.length === 0)) return [node.quasis.map((_, index) => quasi(index)).join(' ')];
+            return holes.reduce((texts, values, index) => texts.flatMap((text) => values
+                .map((value) => `${text}${value}${quasi(index + 1)}`)).slice(0, MAX_VALUES), [quasi(0)]);
+        }
         case 'JSXExpressionContainer':
-            return valuesYielded(node.expression);
+            return next(node.expression);
         case 'ConditionalExpression':
-            return [...valuesYielded(node.consequent), ...valuesYielded(node.alternate)];
+            return [...next(node.consequent), ...next(node.alternate)];
         case 'LogicalExpression':
-            return [...valuesYielded(node.left), ...valuesYielded(node.right)];
+            return [...next(node.left), ...next(node.right)];
+        case 'Identifier': {
+            const value = bound(node.name);
+            return value ? next(value) : [];
+        }
+        case 'MemberExpression': {
+            const key = node.computed ? staticString(node.property) : node.property.name;
+            const object = node.object.type === 'Identifier' && key !== null && through?.follows(key) ? bound(node.object.name) : null;
+            const property = object?.type === 'ObjectExpression'
+                ? object.properties.find((one) => one.type === 'Property' && propertyKey(one) === key) : null;
+            return property ? next(property.value) : [];
+        }
         default:
             return [];
     }
+}
+
+/**
+ * The values an object spread gives `name`: a literal object's property
+ * (`{...{ type: 'file' }}`), on either branch (`{...(on ? { role: 'tablist' } : {})}`),
+ * in a spread inside it, or in an object the file binds once to a name
+ * (`{...picker}`). Each is the property's value node.
+ */
+export function spreadValues(node, name, sourceCode, depth = 0) {
+    if (!node || depth > 8) return [];
+    const next = (child) => spreadValues(child, name, sourceCode, depth + 1);
+    switch (node.type) {
+        case 'ObjectExpression':
+            return node.properties.flatMap((property) => (property.type === 'SpreadElement' ? next(property.argument)
+                : propertyKey(property) === name ? [property.value] : []));
+        case 'ConditionalExpression':
+            return [...next(node.consequent), ...next(node.alternate)];
+        case 'LogicalExpression':
+            return [...next(node.left), ...next(node.right)];
+        case 'Identifier': {
+            const value = uniqueInitialiser(sourceCode, node.name);
+            return value ? next(value) : [];
+        }
+        default:
+            return [];
+    }
+}
+
+/**
+ * Every value an opening element gives the attribute `name`: written on it
+ * (`null` for a bare attribute) or in an object it spreads (`spreadValues`).
+ */
+export function attributeValues(openingElement, name, sourceCode) {
+    return openingElement.attributes.flatMap((one) => (one.type === 'JSXSpreadAttribute'
+        ? spreadValues(one.argument, name, sourceCode)
+        : one.name?.name === name ? [one.value] : []));
 }
 
 /**

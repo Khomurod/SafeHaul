@@ -17,14 +17,17 @@
  *   INSIDE a lowercase heading — menu, combobox and drawer triggers wear
  *   `aria-expanded` too and are not this;
  * - a tab strip is `role="tablist"`, a file picker `<input type="file">`, a new
- *   tab `target="_blank"` — each in any case and on any branch
- *   (`type={uploading ? 'file' : 'text'}`), and as markup in a string — an
- *   overlay a class list holding `fixed` and
+ *   tab `target="_blank"` — each in any case, on any branch and through a
+ *   name bound once (`type={uploading ? 'file' : 'text'}`), and as markup in a
+ *   string — an overlay a class list holding `fixed` and
  *   `inset-0` on some path, wherever its strings are split
  *   (`clsx('fixed', 'inset-0')`, `'fixed ' + 'inset-0'`, an array joined, the
  *   keys of `clsx({ fixed: open, 'inset-0': open })`);
  * - and nine primitives throw on a label that is not a string, so a JSX
  *   `label` on one is a crash the moment that branch renders.
+ *
+ * An attribute counts whether it is written on the element or in an object
+ * the element spreads (`<input {...{ type: 'file' }} />`, `{...picker}`).
  *
  * A component (`<Button aria-pressed>`) is never judged: what it does with a
  * prop is its own contract. `skip` turns checks off for a scope (the design
@@ -36,7 +39,7 @@ import {
     CHECKS, exceptedChecks, locate, optionsSchema,
 } from './context.mjs';
 import {
-    attribute, certainlyText, elementName, lastClassSetter, stringsIn, uniqueInitialiser, valuesYielded,
+    attributeValues, certainlyText, elementName, lastClassSetter, spreadValues, stringsIn, uniqueInitialiser, valuesYielded,
 } from './jsx.mjs';
 
 /** Classes that decide a control's geometry or colour rather than its layout. */
@@ -64,8 +67,12 @@ const MARKUP_IN_TEXT = [
     ['raw-file-input', /<input\b[^>]*?(?<![\w-])type\s*=\s*["']?file(?![\w-])/gi],
 ];
 
-/** Can this attribute's value be one that passes `test`, on some branch and in any case? */
-const mayBe = (value, test) => valuesYielded(value).some((one) => typeof one === 'string' && test(one.toLowerCase()));
+/** Can this attribute's value be one that passes `test`, on some branch, through a name bound once, in any case? */
+const mayBe = (value, test, through) => valuesYielded(value, through)
+    .some((one) => typeof one === 'string' && test(one.toLowerCase()));
+const isFile = (type) => type === 'file';
+const isTablist = (role) => role.split(/\s+/).includes('tablist');
+const isBlank = (target) => target === '_blank';
 
 const MESSAGES = {
     'hand-styled-button': 'A hand-styled `<button>`. Use `Button` or `IconButton`; a `<button>` with no '
@@ -333,11 +340,12 @@ export default {
             if (!off.has(check)) context.report({ node, loc, messageId: check, data });
         };
 
+        // A name the file binds once is followed: `type={TYPE}`, `{...picker}`.
+        const through = { sourceCode, follows: () => true };
         const styled = (node) => {
-            const classAttributes = node.attributes.filter((one) => one.type === 'JSXAttribute'
-                && (one.name?.name === 'className' || one.name?.name === 'class'));
-            if (classAttributes.length === 0) return false;
-            if (classAttributes.some((one) => stringsIn(one.value, sourceCode.visitorKeys)
+            const classValues = [...attributeValues(node, 'className', sourceCode), ...attributeValues(node, 'class', sourceCode)];
+            if (classValues.length === 0) return false;
+            if (classValues.some((value) => stringsIn(value, sourceCode.visitorKeys)
                 .some((text) => STYLING_SIGNAL.test(text)))) return true;
             const setter = lastClassSetter(node);
             const name = setter?.value?.type === 'JSXExpressionContainer' && setter.value.expression.type === 'Identifier'
@@ -372,9 +380,11 @@ export default {
             JSXOpeningElement(node) {
                 const element = elementName(node);
                 if (element === null) return;
-                const has = (name) => attribute(node, name) !== undefined;
+                // Written on the element or in an object it spreads (`{...{ type: 'file' }}`).
+                const values = (name) => attributeValues(node, name, sourceCode);
+                const has = (name) => values(name).length > 0;
                 if (STYLED_CONTROL[element] && styled(node)) report(node, STYLED_CONTROL[element], { element });
-                if (element === 'input' && mayBe(attribute(node, 'type')?.value, (type) => type === 'file')) {
+                if (element === 'input' && values('type').some((value) => mayBe(value, isFile, through))) {
                     report(node, 'raw-file-input');
                 }
                 if ((element === 'button' || element === 'a') && has('aria-pressed')) {
@@ -384,16 +394,19 @@ export default {
                 if (element === 'button' && has('aria-expanded') && insideHeading(node)) {
                     report(node, 'hand-rolled-disclosure');
                 }
-                if (THROWS_ON_NON_STRING_LABEL.has(element) && mayBeJsx(attribute(node, 'label')?.value)) {
+                if (THROWS_ON_NON_STRING_LABEL.has(element) && values('label').some(mayBeJsx)) {
                     report(node, 'jsx-label-on-throwing-primitive', { element });
                 }
             },
             JSXAttribute(node) {
                 const name = node.name?.name;
-                if (name === 'role' && mayBe(node.value, (role) => role.split(/\s+/).includes('tablist'))) {
-                    report(node, 'hand-rolled-tablist');
-                }
-                if (name === 'target' && mayBe(node.value, (target) => target === '_blank')) report(node, 'hand-written-target-blank');
+                if (name === 'role' && mayBe(node.value, isTablist, through)) report(node, 'hand-rolled-tablist');
+                if (name === 'target' && mayBe(node.value, isBlank, through)) report(node, 'hand-written-target-blank');
+            },
+            JSXSpreadAttribute(node) {
+                const values = (name) => spreadValues(node.argument, name, sourceCode);
+                if (values('role').some((value) => mayBe(value, isTablist, through))) report(node, 'hand-rolled-tablist');
+                if (values('target').some((value) => mayBe(value, isBlank, through))) report(node, 'hand-written-target-blank');
             },
             Literal(node) {
                 if (typeof node.value !== 'string') return;

@@ -56,6 +56,13 @@ const ownText = (value) => value
     .replace(/url\([^)]*\)/gi, ' ')
     .replace(/var\(\s*--[\w-]*/g, 'var(');
 
+/**
+ * A stylesheet with only what its declarations' values can paint: no
+ * selector (`#add { … }`), string (`content: '#fff'`) or `url(#abc)` holds a
+ * colour, whatever it spells.
+ */
+export const stylesheetValues = (css) => ownText(css).replace(/(^|[{};])[^{};]*(?=\{)/g, '$1');
+
 /** Every hex and colour function in `text`, as written: what a stylesheet may not hold. */
 export const colourLiteralsIn = (text) => text.match(new RegExp(`${HEX.source}|${COLOUR_FUNCTION.source}`, 'gi')) ?? [];
 
@@ -108,6 +115,8 @@ const lowest = (list) => ({ lo: Math.min(...list.map((r) => r.lo)), hi: Math.min
 const highest = (list) => ({ lo: Math.max(...list.map((r) => r.lo)), hi: Math.max(...list.map((r) => r.hi)), length: list.some((r) => r.length) });
 
 function sizeRange(value) {
+    // CSS takes a bare zero as a length; any other unitless number is none.
+    if (/^\s*[+-]?(?:0+\.?0*|\.0+)(?:e[+-]?\d+)?\s*$/i.test(value)) return exact(0, true);
     const tokens = [];
     let end = 0;
     for (const match of value.toLowerCase().matchAll(/\s*(?:(\d*\.?\d+(?:e[+-]?\d+)?)([a-z%]*)|(calc|min|max|clamp|var)\(|([(),*/+-])|([a-z][a-z-]*))\s*/gy)) {

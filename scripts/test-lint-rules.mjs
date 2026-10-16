@@ -299,6 +299,15 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['raw-hex-colour', 'a colour set through setProperty', "export function paint(node) {\n  node.style.setProperty('color', 'red');\n}\n"],
         ['sub-12px-type', 'a font size held in a variable', "export const NOTE_SIZE = 10;\nexport const fontSize = 10;\n"],
         ['raw-z-index', 'a layer as a default', "export function Panel({ zIndex = 60 }) {\n  return zIndex;\n}\n"],
+        ['sub-12px-type', 'a bare zero font size in a style string', "export const CSS = '.x { font-size: 0; }';\n"],
+        ['sub-12px-type', 'a zero font size as text', view("<span style={{ fontSize: '0' }}>x</span>")],
+        ['sub-12px-type', 'a font size added up', view('<span style={{ fontSize: 6 + 4 }}>x</span>')],
+        ['sub-12px-type', 'a font size from a template', view('<span style={{ fontSize: `${10}px` }}>x</span>')],
+        ['raw-z-index', 'a layer added up', view('<div style={{ zIndex: 50 + 10 }} />')],
+        ['raw-z-index', 'a negated sum as a layer', "export const s = { zIndex: -(5 + 5) };\n"],
+        ['raw-hex-colour', 'a colour assembled from parts', view("<div style={{ color: '#' + 'fff' }} />")],
+        ['sub-12px-type', 'a font size held in a constant', view('<span style={{ fontSize: NOTE }}>x</span>', 'const NOTE = 10;')],
+        ['sub-12px-type', 'a font size from a constants object', view('<span style={{ fontSize: SIZES.note }}>x</span>', 'const SIZES = { note: 10 };')],
         ['hand-built-overlay', 'a fixed inset-0 class list', view('<div className="fixed inset-0 bg-ds-overlay" />')],
         ['hand-built-overlay', 'an overlayClassName', view('<Modal overlayClassName="fixed inset-0 z-50 flex bg-ds-overlay p-4">{body}</Modal>')],
         ['hand-built-overlay', 'the classes as two arguments', view("<div className={clsx('fixed', 'inset-0')} />")],
@@ -325,6 +334,15 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['hand-written-target-blank', 'a new tab on one branch', view("<a href={url} target={external ? '_blank' : undefined}>Docs</a>")],
         ['hand-written-target-blank', 'a new tab in capitals', view('<a href={url} target="_BLANK">Docs</a>')],
         ['hand-written-target-blank', 'a new tab in markup text, unquoted', "export const HTML = '<a href=\"/x\" target=_blank>x</a>';\n"],
+        ['raw-file-input', 'a file input type in a spread', view("<input {...{ type: 'file' }} />")],
+        ['raw-file-input', 'a file input type in a named spread', view('<input {...picker} />', "const picker = { type: 'file' };")],
+        ['raw-file-input', 'a file input type in a conditional spread', view("<input {...(upload ? { type: 'file' } : {})} />")],
+        ['hand-rolled-tablist', 'a tab strip role in a spread', view("<div {...{ role: 'tablist' }} />")],
+        ['hand-written-target-blank', 'a new tab in a spread', view("<a href={url} {...{ target: '_blank' }}>Docs</a>")],
+        ['hand-rolled-toggle', 'a pressed state in a spread', view("<button {...{ 'aria-pressed': on }}>x</button>")],
+        ['hand-rolled-current', 'a current item in a spread', view("<button {...{ 'aria-current': 'page' }}>3</button>")],
+        ['hand-styled-button', 'a styled class list in a spread', view("<button {...{ className: 'px-4 py-2 rounded' }}>Go</button>")],
+        ['jsx-label-on-throwing-primitive', 'a JSX label in a spread', view('<FormField id="x" {...{ label: <span>Date</span> }}>{c}</FormField>')],
         ['hand-written-target-blank', 'a hand-written new tab', view('<a href="https://x.example" target="_blank" rel="noreferrer">Docs</a>')],
         ['jsx-label-on-throwing-primitive', 'a JSX label', view('<FormField id="x" label={(<span>Date</span>)}>{c}</FormField>')],
         ['hand-rolled-toggle', 'a raw pressed button', view('<button type="button" aria-pressed={on}>Hired</button>')],
@@ -347,6 +365,7 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['raw-hex-colour', 2, view('<div className="bg-[#1877F2]/10 text-[#1877F2]" />')],
         ['raw-hex-colour', 2, view('<div className="bg-[red] hover:text-[oklch(0.5_0.2_20)]" />')],
         ['sub-12px-type', 2, view('<div className="text-[length:10px] md:text-[calc(9px)]" />')],
+        ['sub-12px-type', 1, view('<span style={{ fontSize }}>x</span>', 'const fontSize = 10;')],
         ['hand-built-overlay', 1, view("<div className={['fixed inset-0', on && 'fixed', 'inset-0'].join(' ')} />")],
         ['hand-built-overlay', 2, view('<div className="fixed inset-0 bg-ds-overlay" /><div className="inset-0 fixed flex" />')],
         ['hand-rolled-disclosure', 1, view('<h3 className="x" /><h3><button aria-expanded={o} /></h3>')],
@@ -450,6 +469,8 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         'a font size that is a role or no size at all, anywhere': "export const NOTE = { fontSize: 'var(--ds-font-size-xs)' };\n"
             + "export const SETTING = { fontSize: '12' };\nexport const FONT = { font: 'inherit' };\n"
             + view('<span style={note}>x</span>', "const note = { fontSize: 'inherit' };"),
+        'values folded into roles, and spreads that hold no file input': view("<div style={{ zIndex: 'var(--ds-z-' + 'modal)', fontSize: `var(--ds-font-size-${'xs'})` }} />"
+            + "<input {...{ type: 'text' }} /><input {...rest} /><a href={url} {...{ target: '_self' }}>x</a>"),
         'a role, a type and a target chosen on every branch': view("<div role={open ? 'dialog' : undefined} />"
             + "<input type={secret ? 'password' : 'text'} /><input type={kind} /><a href={url} target={inPlace ? '_self' : '_top'}>x</a>"),
         'a custom property holding a role, and a link': "export const CSS = ':root { --accent: var(--ds-color-brand); }';\n"

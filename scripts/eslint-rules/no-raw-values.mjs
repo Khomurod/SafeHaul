@@ -17,7 +17,9 @@
  * `node.style.zIndex = '9999'`) — since a style object may be named, nested
  * or returned before it reaches `style`; a value that is not a CSS size
  * (`fontSize: 'Auto'`, a field's own setting) sets none. Each is read on every
- * branch of a conditional (`color: dark ? '#fff' : '#000'`).
+ * branch of a conditional (`color: dark ? '#fff' : '#000'`) and through
+ * arithmetic (`6 + 4`, `'#' + 'fff'`); a layer or a size also through a name
+ * the file binds once (`const NOTE = 10`), since a number alone is no style.
  *
  * A colour is a hex, a colour function or a colour keyword. A keyword counts
  * only where a colour is expected — a presentation attribute or colour prop, a
@@ -29,7 +31,7 @@
 import {
     CHECKS, exceptedChecks, locate, optionsSchema,
 } from './context.mjs';
-import { staticString, valuesYielded } from './jsx.mjs';
+import { propertyKey, staticString, valuesYielded } from './jsx.mjs';
 import {
     REMEDIES, colourDeclarationsIn, cssName, holdsRawColour, isColour, layerOrSizeCheck, rawValuesIn,
 } from './raw-values.mjs';
@@ -46,12 +48,6 @@ const COLOUR_NAME = /(?:colou?r|style|fill|stroke|ink|background)$/i;
 /** The style names read as a layer or a type size, as CSS names them. */
 const LAYER_OR_SIZE = new Set(['z-index', 'font-size', 'font']);
 
-const keyName = (property) => {
-    if (property.computed) return staticString(property.key);
-    if (property.key.type === 'Identifier') return property.key.name;
-    return typeof property.key.value === 'string' ? property.key.value : null;
-};
-
 /** The name an assignment writes: `INK`, `ctx.fillStyle`'s `fillStyle`; null for a pattern. */
 const targetName = (node) => {
     if (node?.type === 'Identifier') return node.name;
@@ -59,12 +55,18 @@ const targetName = (node) => {
     return null;
 };
 
-/** The strings a value can be, on any branch: `dark ? '#fff' : '#000'` is both. */
+/** The strings a value can be, on any branch: `dark ? '#fff' : '#000'` is both. A colour is judged where it is written. */
 const stringsYielded = (node) => valuesYielded(node).filter((value) => typeof value === 'string');
 
-/** The check a layer or a type size breaks on some branch, and that branch's value: `open ? 50 : undefined` is 50. */
-function layerOrSize(name, node) {
-    for (const value of valuesYielded(node)) {
+/**
+ * The check a layer or a type size breaks on some value of `node`, and that
+ * value: `open ? 50 : undefined` is 50, `6 + 4` is 10, and a name bound once
+ * is followed (`const NOTE = 10`), unless it is a style name itself, which is
+ * judged where it is written.
+ */
+function layerOrSize(name, node, sourceCode) {
+    const through = { sourceCode, follows: (one) => !LAYER_OR_SIZE.has(cssName(one)) };
+    for (const value of valuesYielded(node, through)) {
         const check = layerOrSizeCheck(name, value);
         if (check) return { check, value: String(value).trim() };
     }
@@ -95,7 +97,7 @@ export default {
         /** A layer or a type size written under `name` (`zIndex`, `font-size`) on some branch of `value`. */
         const styleValue = (node, name, value) => {
             const css = cssName(name ?? '');
-            const found = LAYER_OR_SIZE.has(css) ? layerOrSize(css, value) : null;
+            const found = LAYER_OR_SIZE.has(css) ? layerOrSize(css, value, sourceCode) : null;
             if (found) report(node, found.check, `${name}: ${found.value}`);
         };
         /** A string that is one colour on some branch, written to `name`; a keyword only when the name holds a colour. */
@@ -120,7 +122,7 @@ export default {
                 if (text !== undefined) report(node, 'raw-hex-colour', text);
             },
             Property(node) {
-                const key = keyName(node);
+                const key = propertyKey(node);
                 if (key === null) return;
                 // A colour-taking key holds one anywhere in its value; any other key, as its whole value.
                 const raw = COLOUR_KEY.test(key) ? (one) => holdsRawColour(one) : (one) => isColour(one, { words: false });
@@ -134,7 +136,7 @@ export default {
                 if (callee.type !== 'MemberExpression' || callee.computed || callee.property.name !== 'setProperty') return;
                 const name = staticString(node.arguments[0])?.trim().toLowerCase();
                 if (!name) return;
-                const found = LAYER_OR_SIZE.has(name) ? layerOrSize(name, node.arguments[1]) : null;
+                const found = LAYER_OR_SIZE.has(name) ? layerOrSize(name, node.arguments[1], sourceCode) : null;
                 if (found) report(node, found.check, `${name}: ${found.value}`);
                 const colour = stringsYielded(node.arguments[1]).find((one) => colourDeclarationsIn(`${name}: ${one}`).length > 0);
                 if (colour !== undefined) report(node, 'raw-hex-colour', `${name}: ${colour}`);
@@ -152,8 +154,8 @@ export default {
                 styleValue(node, targetName(node.left), node.right);
             },
             PropertyDefinition(node) {
-                colourValue(node, node.value, keyName(node));
-                styleValue(node, keyName(node), node.value);
+                colourValue(node, node.value, propertyKey(node));
+                styleValue(node, propertyKey(node), node.value);
             },
         };
     },

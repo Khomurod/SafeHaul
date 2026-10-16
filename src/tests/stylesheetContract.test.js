@@ -6,7 +6,7 @@ import tailwindcss from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
 import tailwindConfig from '../../tailwind.config.js';
 import {
-  colourDeclarationsIn, colourLiteralsIn, holdsRawColour, layerOrSizeCheck, rawValuesIn,
+  colourDeclarationsIn, colourLiteralsIn, holdsRawColour, layerOrSizeCheck, rawValuesIn, stylesheetValues,
 } from '../../scripts/eslint-rules/raw-values.mjs';
 
 /**
@@ -41,13 +41,15 @@ const offContractApply = (list) => {
 };
 
 /*
- * A hex or a colour function anywhere, and a colour keyword where a declaration
- * expects a colour (`color: red`, `border: 1px solid tan`). The system colours a
- * `forced-colors` block must use (`Canvas`, `Highlight`) are not raw.
+ * A hex or a colour function anywhere in a declaration's value, and a colour
+ * keyword where a declaration expects a colour (`color: red`, `border: 1px
+ * solid tan`). A selector, a string or a `url(#…)` paints nothing. The system
+ * colours a `forced-colors` block must use (`Canvas`, `Highlight`) are not raw.
  */
 const rawColours = (css) => [
-  ...colourLiteralsIn(css),
-  ...colourDeclarationsIn(css).map((found) => found.match).filter((match) => !holdsRawColour(match, { words: false })),
+  ...colourLiteralsIn(stylesheetValues(css)),
+  ...colourDeclarationsIn(stylesheetValues(css)).map((found) => found.match)
+    .filter((match) => !holdsRawColour(match, { words: false })),
 ];
 
 /*
@@ -138,6 +140,11 @@ describe('the stylesheet contract', () => {
     ['an @apply list off the class contract', '.x { @apply fixed inset-0; }', 1],
     ['an @apply list off the class contract', '.x { @apply bg-ds-surface rounded-ds-md text-ds-body; }', 0],
     ['a raw colour', '/* was #ffffff */ .x { color: var(--ds-color-content); }', 0],
+    ['a raw colour', '.x { fill: url(#abc); }', 0],
+    ['a raw colour', '#add { color: var(--ds-color-content); }', 0],
+    ['a raw colour', ".x::before { content: '#fff'; }", 0],
+    ['a raw colour', '.x { box-shadow: 0 0 0 1px var(--ds-color-border),\n  0 0 0 2px #000; }', 1],
+    ['a font size below 12px', '.x { font-size: 0; }', 1],
   ])('%s: %s → %i', (rule, css, expected) => {
     expect(findings(css, rule)).toHaveLength(expected);
   });
