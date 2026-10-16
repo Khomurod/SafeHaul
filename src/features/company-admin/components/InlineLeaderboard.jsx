@@ -150,7 +150,6 @@ export function InlineLeaderboard({ companyId }) {
             header: 'Rank',
             align: 'center',
             width: 'sm',
-            priority: 'primary',
             render: (agent) => <Rank index={agent.rank} />,
         },
         {
@@ -158,7 +157,6 @@ export function InlineLeaderboard({ companyId }) {
             header: 'Recruiter',
             rowHeader: true,
             width: 'lg',
-            priority: 'primary',
             render: (agent) => (
                 <div className="flex items-center gap-3">
                     <span
@@ -186,7 +184,6 @@ export function InlineLeaderboard({ companyId }) {
             header,
             align: 'end',
             width: 'xs',
-            priority: key === 'dials' ? 'primary' : 'secondary',
             render: (agent) => (
                 <span className="font-semibold text-ds-content-secondary">
                     {agent[key].toLocaleString()}

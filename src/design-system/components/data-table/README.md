@@ -17,7 +17,6 @@ Create columns with `defineTableColumns`. A column supports:
 | `render(row)` | Feature-owned content and value formatting |
 | `align` | `start`, `center`, or `end`; applied to both header and cells |
 | `width` | `auto`, `xs`, `sm`, `md`, `lg`, `xl`, or `actions` |
-| `priority` | `primary`, `secondary`, `tertiary`, or `actions` |
 | `rowHeader` | Uses `<th scope="row">` for the primary identifying cell |
 | `truncate` | Applies the approved single-line truncation behavior |
 | `stopPropagation` | Keeps a nested cell action from also activating its row |

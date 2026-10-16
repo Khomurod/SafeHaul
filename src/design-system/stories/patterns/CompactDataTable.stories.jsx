@@ -20,8 +20,8 @@ function Missing() {
  * - Secondary text lives *under* the title rather than in its own column, which
  *   keeps the row count of columns low enough to survive tablet width.
  * - `items` is `align: 'end'` so digits line up down the column.
- * - `actions` is pinned: `width: 'actions'`, `align: 'end'`, `priority: 'actions'`
- *   and `stopPropagation`, so it can never be stretched by its content and its
+ * - `actions` is pinned: `width: 'actions'`, `align: 'end'` and
+ *   `stopPropagation`, so it can never be stretched by its content and its
  *   clicks never activate the row.
  */
 const compactColumns = [
@@ -29,7 +29,6 @@ const compactColumns = [
     key: 'title',
     header: 'Record',
     rowHeader: true,
-    priority: 'primary',
     width: 'lg',
     truncate: true,
     render: (row) => (
@@ -52,7 +51,6 @@ const compactColumns = [
     key: 'region',
     header: 'Region',
     width: 'sm',
-    priority: 'tertiary',
     render: (row) => row.region ?? <Missing />,
   },
   {
@@ -75,7 +73,6 @@ const compactColumns = [
     headerLabel: 'Actions',
     align: 'end',
     width: 'actions',
-    priority: 'actions',
     stopPropagation: true,
     render: (row) => (
       <IconButton size="sm" variant="ghost" label={`View ${row.reference}`} onClick={fn()}>
@@ -161,7 +158,6 @@ const meta = {
           '  headerLabel: \'Actions\',   // named for screen readers, invisible on screen',
           '  align: \'end\',            // pinned to the right edge',
           '  width: \'actions\',        // fixed — never `auto`',
-          '  priority: \'actions\',',
           '  stopPropagation: true,   // its clicks must not activate the row',
           '  render: (row) => …,',
           '}',

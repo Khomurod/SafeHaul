@@ -84,7 +84,6 @@ const COLUMNS = Object.freeze([
         key: 'service',
         header: 'Service',
         rowHeader: true,
-        priority: 'primary',
         width: 'lg',
         render: (row) => {
             const state = describeServiceState(row);
@@ -110,7 +109,6 @@ const COLUMNS = Object.freeze([
     {
         key: 'checkedAt',
         header: 'Last checked',
-        priority: 'secondary',
         width: 'lg',
         render: (row) => (
             <Stack gap="sm">

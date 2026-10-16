@@ -29,7 +29,6 @@ function columns() {
             key: 'title',
             header: 'Title',
             rowHeader: true,
-            priority: 'primary',
             width: 'xl',
             render: (item) => (
                 <div className="flex flex-col gap-ds-1">
@@ -41,14 +40,12 @@ function columns() {
         {
             key: 'date',
             header: 'Published',
-            priority: 'secondary',
             width: 'sm',
             render: (item) => <span className="text-ds-sm text-ds-content-secondary">{item.date}</span>,
         },
         {
             key: 'actions',
             header: 'Actions',
-            priority: 'actions',
             // `sm` (120px), not `actions` (88px). The `actions` bucket is sized to
             // fit the *word* "ACTIONS" in the header, which is a single icon
             // button's worth of room — this cell holds two buttons with text

@@ -93,7 +93,6 @@ export function WebsiteLeadsView() {
             key: 'contact',
             header: 'Lead',
             rowHeader: true,
-            priority: 'primary',
             width: 'lg',
             render: (lead) => (
                 <div className="flex flex-col gap-ds-1">
@@ -105,7 +104,6 @@ export function WebsiteLeadsView() {
         {
             key: 'company',
             header: 'Company',
-            priority: 'secondary',
             width: 'md',
             render: (lead) => (
                 <div className="flex flex-col gap-ds-1">
@@ -119,7 +117,6 @@ export function WebsiteLeadsView() {
         {
             key: 'stage',
             header: 'Stage',
-            priority: 'secondary',
             width: 'sm',
             render: (lead) => (lead.stage === 'qualified'
                 ? <Badge tone="success">Qualified</Badge>
@@ -130,7 +127,6 @@ export function WebsiteLeadsView() {
         {
             key: 'delivery',
             header: 'Delivery',
-            priority: 'secondary',
             width: 'sm',
             render: (lead) => {
                 // Historical facts about deliveries that already happened.
@@ -145,7 +141,6 @@ export function WebsiteLeadsView() {
         {
             key: 'createdAt',
             header: 'Received',
-            priority: 'tertiary',
             width: 'sm',
             render: (lead) => (
                 <span className="text-ds-sm text-ds-content-secondary">

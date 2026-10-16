@@ -53,7 +53,6 @@ export function UnfinishedWorklistTable({
             key: 'driver',
             header: 'Driver',
             rowHeader: true,
-            priority: 'primary',
             /*
              * A width of its own, not `auto`: every other column has one, and an
              * `auto` column gets what is left, which on a tablet, where the table
@@ -89,7 +88,6 @@ export function UnfinishedWorklistTable({
             headerLabel: 'Actions',
             // No label on a card: its buttons are the card's last line, full width.
             mobileLabel: '',
-            priority: 'actions',
             width: 'xl',
             render: (entry) => (
                 <RowActions

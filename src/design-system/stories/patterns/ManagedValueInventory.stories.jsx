@@ -202,7 +202,6 @@ function inventoryColumns({ revealedId, revealState, onToggle }) {
             key: 'name',
             header: 'Entry',
             rowHeader: true,
-            priority: 'primary',
             width: 'lg',
             render: (row) => (
                 <div style={{ minWidth: 0 }}>
@@ -212,8 +211,8 @@ function inventoryColumns({ revealedId, revealState, onToggle }) {
             ),
         },
         { key: 'owner', header: 'Owner', width: 'md', truncate: true, render: (row) => row.owner },
-        { key: 'scope', header: 'Scope', width: 'sm', priority: 'tertiary', render: (row) => row.scope },
-        { key: 'source', header: 'Source', width: 'md', priority: 'tertiary', render: (row) => row.source },
+        { key: 'scope', header: 'Scope', width: 'sm', render: (row) => row.scope },
+        { key: 'source', header: 'Source', width: 'md', render: (row) => row.source },
         {
             key: 'status',
             header: 'Status',
@@ -248,7 +247,6 @@ function inventoryColumns({ revealedId, revealState, onToggle }) {
             headerLabel: 'Actions',
             align: 'end',
             width: 'actions',
-            priority: 'actions',
             stopPropagation: true,
             render: (row) => <ActionCell entry={row} />,
         },

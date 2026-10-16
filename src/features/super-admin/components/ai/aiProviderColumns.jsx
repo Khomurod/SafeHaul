@@ -43,7 +43,6 @@ export function buildProviderColumns({
             key: 'provider',
             header: 'Provider',
             rowHeader: true,
-            priority: 'primary',
             width: 'md',
             render: (provider) => (
                 <div className="flex flex-col gap-ds-1">
@@ -71,7 +70,6 @@ export function buildProviderColumns({
         {
             key: 'capabilities',
             header: 'Capabilities',
-            priority: 'tertiary',
             // `xl`, not `md`. Badges are `white-space: nowrap`, so a column
             // holding them must be at least as wide as the widest one —
             // "Structured JSON output" needs 171px, and at 144px it spilled over
@@ -113,7 +111,6 @@ export function buildProviderColumns({
         {
             key: 'models',
             header: 'Model defaults',
-            priority: 'tertiary',
             width: 'md',
             render: (provider) => (
                 <Stack gap="sm">
@@ -156,7 +153,6 @@ export function buildProviderColumns({
         {
             key: 'lastTest',
             header: 'Last test',
-            priority: 'tertiary',
             width: 'sm',
             render: (provider) => {
                 // In-session results first, then the stored ones. Both matter:
@@ -214,7 +210,6 @@ export function buildProviderColumns({
         {
             key: 'actions',
             header: 'Actions',
-            priority: 'actions',
             width: 'actions',
             align: 'end',
             render: (provider) => {

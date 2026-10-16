@@ -10,7 +10,6 @@ const columns = [
     key: 'title',
     header: 'Record',
     rowHeader: true,
-    priority: 'primary',
     width: 'lg',
     truncate: true,
     render: (row) => (
@@ -46,7 +45,6 @@ const columns = [
     key: 'updated',
     header: 'Updated',
     width: 'sm',
-    priority: 'tertiary',
     render: (row) => row.updated,
   },
   {
@@ -55,7 +53,6 @@ const columns = [
     headerLabel: 'Actions',
     align: 'end',
     width: 'actions',
-    priority: 'actions',
     stopPropagation: true,
     render: (row) => (
       <IconButton size="sm" variant="ghost" label={`View ${row.reference}`} onClick={fn()}>
@@ -112,21 +109,20 @@ const meta = {
           '',
           'Alignment and width live on the column, not split between header and cell, so the',
           'two cannot drift apart. `defineTableColumns` **throws** on a duplicate key, a',
-          'missing `render`, or an unsupported alignment/width/priority — a broken column',
+          'missing `render`, or an unsupported alignment or width — a broken column',
           'fails immediately instead of rendering a subtly misaligned table.',
           '',
           '| Field | Values |',
           '| --- | --- |',
           '| `align` | `start` (default), `center`, `end` |',
           '| `width` | `auto`, `xs`, `sm`, `md`, `lg`, `xl`, `actions` |',
-          '| `priority` | `primary`, `secondary`, `tertiary`, `actions` |',
           '| `rowHeader` | renders `<th scope="row">` — set it on the identifying column |',
           '| `truncate` | allows the cell to ellipsise instead of wrapping |',
           '| `stopPropagation` | stops a cell\'s clicks from activating the row |',
           '| `mobileLabel` | the label beside the value when the table is cards on a phone; `\'\'` shows none |',
           '',
           'Numeric columns should be `align: "end"`. An action column must be',
-          '`width: "actions"`, `align: "end"`, `priority: "actions"` and',
+          '`width: "actions"`, `align: "end"` and',
           '`stopPropagation: true`.',
           '',
           '### Accessibility expectations',
@@ -306,7 +302,6 @@ const workColumns = [
     // The buttons say what they do; a label beside them would say it twice.
     mobileLabel: '',
     width: 'xl',
-    priority: 'actions',
     stopPropagation: true,
     render: (row) => (
       <div className="flex flex-wrap gap-ds-2">

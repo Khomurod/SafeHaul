@@ -28,7 +28,6 @@ export function ApiKeysTable({ keys, loading, error, onRevoke }) {
             key: 'name',
             header: 'Key',
             rowHeader: true,
-            priority: 'primary',
             // `xl`: the id, in a fixed-width face, fits on one line.
             width: 'xl',
             render: (key) => (

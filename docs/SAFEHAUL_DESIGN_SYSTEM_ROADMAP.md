@@ -261,6 +261,9 @@ The reverse directions are prohibited — including any `@shared` import inside
   specialized grid. Source: `components/data-table/README.md` ("Tables on
   phones"), `pinnedColumn.css`, the `Patterns/Native table` and
   `DataTable/Cards on mobile` stories.
+- **The column contract holds only options the table acts on**
+  (`components/data-table/README.md`): an option that changes no rendering or
+  behaviour is removed, not kept for later.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
   record-specific accessible name. Prefer deciding which actions a row offers in
   a pure, tested module (as `unfinishedRowActions.js` does) over a `render`

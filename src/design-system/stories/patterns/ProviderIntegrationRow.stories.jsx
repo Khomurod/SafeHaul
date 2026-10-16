@@ -134,7 +134,6 @@ function columnsFor({ revealedId, secondsRemaining }) {
             key: 'service',
             header: 'Service',
             rowHeader: true,
-            priority: 'primary',
             width: 'md',
             render: (row) => (
                 <div className="flex flex-col gap-ds-1">
@@ -157,7 +156,6 @@ function columnsFor({ revealedId, secondsRemaining }) {
         {
             key: 'capabilities',
             header: 'Capabilities',
-            priority: 'tertiary',
             width: 'md',
             render: (row) => (
                 <div className="flex flex-wrap gap-ds-1">
@@ -178,7 +176,6 @@ function columnsFor({ revealedId, secondsRemaining }) {
         {
             key: 'lastTest',
             header: 'Last check',
-            priority: 'tertiary',
             width: 'sm',
             render: (row) => (row.lastTest ? (
                 <div className="flex flex-col gap-ds-1">
@@ -192,7 +189,6 @@ function columnsFor({ revealedId, secondsRemaining }) {
         {
             key: 'actions',
             header: 'Actions',
-            priority: 'actions',
             width: 'actions',
             align: 'end',
             render: (row) => {
