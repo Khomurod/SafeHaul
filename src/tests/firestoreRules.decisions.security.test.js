@@ -1,9 +1,10 @@
 // firestore.rules as one decision table: who may do what.
 //
 // Every rule block is tried by twelve kinds of caller with get, list, create,
-// update and delete, together with the requests whose answer depends on the
-// document (owner fields, a status outside the pipeline list, a changed
-// companyId) and the collection-group queries. The answers must equal
+// update and delete, and so is a path that no rule, or only a collection-group
+// rule, matches. So are the requests whose answer depends on the document
+// (owner fields, a status outside the pipeline list, a changed companyId) and
+// the collection-group queries. The answers must equal
 // `firestoreRules.decisions.table.json` byte for byte.
 //
 // A change to the rules that should leave everyone's access as it was (a shorter
@@ -100,13 +101,6 @@ const documentRows = (collectionPath, { seed = tenant(), create = tenant({ name:
   { op: 'delete', path: `${collectionPath}/{doc}`, seed },
 ];
 
-/** Paths outside every rule block: get, list and create only. */
-const unmatchedRows = (collectionPath) => [
-  { op: 'get', path: `${collectionPath}/{doc}`, seed: tenant() },
-  { op: 'list', path: collectionPath },
-  { op: 'create', path: `${collectionPath}/{doc}`, data: tenant() },
-];
-
 const companyPath = `companies/${CO}`;
 const applicationPath = `${companyPath}/applications/app-1`;
 const leadPath = `${companyPath}/leads/lead-1`;
@@ -140,7 +134,7 @@ const ROWS = [
   ...documentRows(`${companyPath}/message_templates`),
   ...documentRows(`${companyPath}/bulk_sessions`),
   ...documentRows(`${companyPath}/bulk_sessions/bs-1/logs`),
-  ...unmatchedRows(`${companyPath}/bulk_sessions/bs-1/meta`),
+  ...documentRows(`${companyPath}/bulk_sessions/bs-1/meta`),
   ...documentRows(`${companyPath}/campaign_drafts`),
   ...documentRows(`${companyPath}/segments`),
   ...documentRows(`${companyPath}/segments/seg-1/members`),
@@ -161,7 +155,12 @@ const ROWS = [
   { op: 'delete', path: `${companyPath}/system_settings/email_config`, seed: { host: 'smtp.example.com' } },
   { op: 'get', path: `${companyPath}/system_settings/{doc}`, seed: tenant(), note: 'any other document' },
   { op: 'create', path: `${companyPath}/system_settings/{doc}`, data: tenant(), note: 'any other document' },
-  ...unmatchedRows(`${companyPath}/not_in_the_rules`),
+  {
+    op: 'update', path: `${companyPath}/system_settings/{doc}`, seed: tenant(), data: { note: 'changed' },
+    note: 'any other document',
+  },
+  { op: 'delete', path: `${companyPath}/system_settings/{doc}`, seed: tenant(), note: 'any other document' },
+  ...documentRows(`${companyPath}/not_in_the_rules`),
 
   // --- Signing requests ---
   {
@@ -383,10 +382,10 @@ const ROWS = [
   { op: 'delete', path: 'recruiter_links/{doc}', seed: tenant() },
 
   // --- Removed and unknown collections ---
-  ...unmatchedRows('job_posts'),
-  ...unmatchedRows('not_in_the_rules'),
+  ...documentRows('job_posts'),
+  ...documentRows('not_in_the_rules'),
 
-  // --- Collection-group queries, and the one document only a group rule matches ---
+  // --- Collection-group queries, and the documents only a group rule matches ---
   ...[
     ['applications', null],
     ['applications', ['companyId', '==', CO]],
@@ -402,7 +401,9 @@ const ROWS = [
     ['signing_requests', ['companyId', '==', CO]],
     ['signing_requests', ['recipientId', '==', '{uid}']],
   ].map(([group, constraint]) => ({ op: 'list', group, ...(constraint ? { where: constraint } : {}) })),
-  { op: 'get', path: 'activity_logs/{doc}', seed: tenant(), note: 'top level, only the group rule matches' },
+  ...['applications', 'leads', 'activity_logs', 'signing_requests']
+    .flatMap((group) => documentRows(group))
+    .map((row) => ({ ...row, note: 'top level, only the group rule matches' })),
 ];
 
 /** What a row is called in the table. */
