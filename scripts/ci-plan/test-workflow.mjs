@@ -109,16 +109,14 @@ console.log('\nI. Workflow wiring');
 /*
  * J. Playwright project selection: the scripts and the workflow are one contract.
  *
- * Learned on 2026-08-25, in CI, twice in one afternoon.
- *
  * `--project` ACCUMULATES on the Playwright command line. `main.yml` runs
  * `npm run test:e2e -- --project=chromium --project=mobile-chrome`, so any
  * `--project` baked into the script UNIONS with those rather than narrowing
  * them. Naming the five functional projects in `test:e2e` — a
  * reasonable-looking way to keep the visual lane out of a bare run — therefore
- * put firefox, webkit and both mobile lanes into every chromium shard. The
- * runner installs only Chromium, so 113 tests failed with `browserType.launch:
- * Executable doesn't exist`, on all four shards, through all three retries.
+ * puts firefox, webkit and both mobile lanes into every chromium shard. The
+ * runner installs only Chromium, so their tests fail with `browserType.launch:
+ * Executable doesn't exist`, on every shard, through every retry.
  *
  * The visual lane is kept out by living in its own config instead, which no
  * caller can accidentally widen. These checks pin both halves of that.

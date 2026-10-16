@@ -68,10 +68,10 @@ console.log('A. Range selection — what each event compares against');
         `${push.source}: ${String(push.base).slice(0, 8)}`);
 
     /*
-     * ...and it is NOT the previous tip when that tip's own scan failed. Review
-     * on 2026-08-26: `before` is the failed tip, so the increment that failed is
-     * behind the range, and if its credential was also deleted there the tree is
-     * clean too — the later push passes and deploys. B16/B17 below measure it.
+     * ...and it is NOT the previous tip when that tip's own scan failed: `before`
+     * is the failed tip, so the increment that failed is behind the range, and if
+     * its credential was also deleted there the tree is clean too — the later
+     * push passes and deploys. B16/B17 below measure it.
      */
     // `before` here is B: a real ancestor of the head, exactly what an ordinary
     // push carries — but B's own scan failed, so A is the last validated commit.
@@ -141,15 +141,13 @@ console.log('A. Range selection — what each event compares against');
         'without -m, git prints no patch for a merge and a conflict resolution is invisible');
 
     /*
-     * Found in review on 2026-08-26 (P1).
-     *
-     * A manual re-run used to compare against `head^1`, on the reasoning that
-     * every earlier commit was scanned by the event that introduced it. That
+     * A manual re-run must not compare against `head^1` on the reasoning that
+     * every earlier commit was scanned by the event that introduced it: that
      * assumes the earlier scan PASSED. After a push whose scan FAILED, a manual
      * re-run would scan only the newest commit — so a credential added earlier in
      * that push and deleted before its tip is in neither the range nor the tree,
-     * and `workflow_dispatch` deploys. The baseline is the last VALIDATED commit
-     * now, and no validated commit means refusal.
+     * and `workflow_dispatch` deploys. The baseline is the last VALIDATED commit,
+     * and no validated commit means refusal.
      */
     throws('A12 (req 10). a manual run with no validated ancestor REFUSES',
         () => resolveScanPlan({
@@ -158,12 +156,10 @@ console.log('A. Range selection — what each event compares against');
         'this is the re-run-after-a-failed-push case; scanning one commit would step over it');
 
     /*
-     * Also found in review on 2026-08-26 (P1).
-     *
      * A force-push to the default branch leaves `before` non-ancestral, and the
-     * old fallback took the merge base with the default branch — which IS the
-     * head after a force-push, giving the empty range `head..head`. A credential
-     * added and removed inside the rewritten commits passed both scans.
+     * merge base with the default branch is no fallback: it IS the head after a
+     * force-push, giving the empty range `head..head`, and a credential added and
+     * removed inside the rewritten commits would pass both scans.
      */
     throws('A13 (req 10). a force-push whose baseline collapses to the head REFUSES',
         () => resolveScanPlan({

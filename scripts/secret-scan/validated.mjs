@@ -25,12 +25,11 @@ export const SECRET_SCAN_CHECK_NAME = 'secret-scan';
 /**
  * The other check a baseline has to carry, and the reason is the scanner itself.
  *
- * "Its `secret-scan` passed" is not enough, found in review on 2026-08-26 (P1):
- * a commit could BREAK this scanner so that `secret-scan` passes wrongly, while
- * `callable-contract` — which runs `npm run test:secret-scan` — fails and blocks
- * that release. The broken commit would still look validated, and the next push,
- * with the scanner fixed, would anchor there and never look at the increment the
- * broken scanner waved through.
+ * "Its `secret-scan` passed" is not enough: a commit could BREAK this scanner so
+ * that `secret-scan` passes wrongly, while `callable-contract` — which runs
+ * `npm run test:secret-scan` — fails and blocks that release. The broken commit
+ * would still look validated, and the next push, with the scanner fixed, would
+ * anchor there and never look at the increment the broken scanner waved through.
  *
  * `Verify the release is fully validated` is the answer already in the
  * repository: it refuses unless every `ALWAYS_REQUIRED_JOBS` entry concluded

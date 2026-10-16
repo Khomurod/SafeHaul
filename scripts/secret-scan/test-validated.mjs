@@ -26,11 +26,11 @@ console.log('\nE. Finding the last validated commit');
      * fully validated` succeeded. Git cannot answer that, so GitHub is asked —
      * and the answers that are NOT "yes" all have to fail closed, distinguishably.
      *
-     * The second check is there because of a review finding on 2026-08-26: a
-     * commit could break this scanner so `secret-scan` passes wrongly while
-     * `callable-contract` (which runs these very tests) fails. `release-validation`
-     * refuses unless both of those succeeded, so requiring it means a baseline was
-     * scanned by a scanner that had passed its own tests.
+     * The second check is there because a commit could break this scanner so
+     * `secret-scan` passes wrongly while `callable-contract` (which runs these
+     * very tests) fails. `release-validation` refuses unless both of those
+     * succeeded, so requiring it means a baseline was scanned by a scanner that
+     * had passed its own tests.
      */
     const repo = makeRepo();
     repo.write('f.txt', '1');
@@ -89,10 +89,9 @@ console.log('\nE. Finding the last validated commit');
         'this is the whole point: a failed push must not become the thing we compare against');
 
     /*
-     * Found in review on 2026-08-26 (P1). `secret-scan` green is not enough: the
-     * commit that broke the scanner is exactly the commit whose scan passes while
-     * `callable-contract` — the scanner's own tests — fails, and
-     * `release-validation` is what records that.
+     * `secret-scan` green is not enough: the commit that broke the scanner is
+     * exactly the commit whose scan passes while `callable-contract` — the
+     * scanner's own tests — fails, and `release-validation` is what records that.
      */
     const selfTestsFailed = await findLastValidatedAncestor({
         ...opts,

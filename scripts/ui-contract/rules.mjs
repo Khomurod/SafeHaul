@@ -10,8 +10,8 @@
  * Deliberately no imports from the counting layer: entries whose `count` needs
  * the tag scanner declare `pattern: null` and are dispatched by name there, which
  * is what keeps this table free of a cycle. Those six live in
- * `./structural-rules.mjs` since 2026-09-05 and are appended to `RULES` below —
- * one table to every consumer, two files because they are read differently.
+ * `./structural-rules.mjs` and are appended to `RULES` below — one table to
+ * every consumer, two files because they are read differently.
  */
 
 import { STRUCTURAL_RULES } from './structural-rules.mjs';
@@ -35,19 +35,17 @@ const TEXT_RULES = [
     {
         name: 'raw-hex-colour',
         /*
-         * Four shapes, because a colour is written four ways here and the rule
-         * saw two of them until 2026-09-05.
+         * Four shapes, because a colour is written four ways here.
          *
          *   1. an arbitrary-value class      `bg-[#ff0000]`
          *   2. a CSS-ish declaration          `color: #ff0000`
-         *   3. an SVG presentation ATTRIBUTE  `fill="#004C68"`      <- was invisible
-         *   4. a JS assignment                `ctx.strokeStyle = '#333'`  <- was invisible
+         *   3. an SVG presentation ATTRIBUTE  `fill="#004C68"`
+         *   4. a JS assignment                `ctx.strokeStyle = '#333'`
          *
          * Shapes 3 and 4 are how every remaining raw colour in this tree is
-         * spelled, which is why the guard reported none of them: the logo, the
-         * loader and the favicon carried the brand hexes as attributes, and the
-         * signature pads assign theirs to a canvas context. Widening the rule to
-         * cover them found four live sites the inventory had never recorded.
+         * spelled, so a rule that saw only the first two would report none of
+         * them: the logo, the loader and the favicon carry the brand hexes as
+         * attributes, and the signature pads assign theirs to a canvas context.
          *
          * `#` is not always a colour, so the shapes are deliberately narrow:
          * attribute matching is limited to the presentation attributes that take
@@ -164,15 +162,11 @@ const TEXT_RULES = [
         name: 'hand-built-overlay',
         pattern: /fixed inset-0/g,
         /*
-         * No `prepare` any more, and its removal is the point.
+         * No `prepare`, and that is the point.
          *
-         * This rule used to strip `overlayClassName="…"` before matching, because
-         * passing one to `Modal` was the approved way to position a dialog and
-         * those values legitimately contain `fixed inset-0` — counting them would
-         * have fired on 20 correct call sites, and a check that flags correct
-         * code gets switched off. That prop was removed on 2026-09-05 once every
-         * call site moved to the chrome contract, so there is nothing left to
-         * strip, and the rule now means exactly what the roadmap always claimed:
+         * `Modal` refuses an `overlayClassName` — every call site positions a
+         * dialog through the chrome contract — so there is nothing to strip
+         * before matching, and the rule means exactly what the roadmap claims:
          * a scan for `fixed inset-0` returns `Modal.css` and nothing else.
          */
         remedy: 'Every overlay goes through `Modal` from `@design-system/patterns`, which owns '
@@ -212,11 +206,10 @@ const TEXT_RULES = [
         /*
          * A hand-rolled tab strip.
          *
-         * `TabList` / `TabPanel` shipped on 2026-08-21 precisely because nine
-         * screens had written this by hand and seven had each written the same
-         * `handleTabKeyDown`. Nothing checked, so four days later the primitive
-         * still had zero consumers and all eleven strips were still there — in
-         * three different visual treatments, several sizing their own icons.
+         * `TabList` / `TabPanel` exist so that no screen writes this, or its own
+         * `handleTabKeyDown`, by hand. A primitive nothing checks gets no
+         * consumers, and the hand-written strips stay — in different visual
+         * treatments, several sizing their own icons.
          *
          * A rule, not a roadmap line, is the difference.
          */
@@ -255,10 +248,9 @@ export const RULES = [...TEXT_RULES, ...STRUCTURAL_RULES];
 /**
  * The rules that mean something in a stylesheet.
  *
- * CSS went unscanned until 2026-08-25, and `src/shared/styles/designTokens.css`
- * spent the whole campaign there — a second colour, type, radius, shadow and
- * spacing scale in forty-odd raw hexes — completely invisible to a guard the
- * README described as zero-tolerance.
+ * Unscanned CSS can hold a second colour, type, radius, shadow and spacing scale
+ * in raw hexes, completely invisible to a guard the README describes as
+ * zero-tolerance.
  */
 export const CSS_RULES = [
     {
@@ -349,19 +341,19 @@ export const STYLING_SIGNAL = /\b(?:p|px|py|pt|pb|pl|pr)-(?:\d|ds-)|\bbg-|\bbord
  *
  * ## Why this is not a regex
  *
- * It was, and the regex was `<(button)\b([^>]*)>`. `[^>]*` stops at the first
+ * In the regex `<(button)\b([^>]*)>`, `[^>]*` stops at the first
  * `>` — **including the one in `=>`** — so a control written the ordinary React
  * way,
  *
  *     <button onClick={() => go()} className="bg-ds-surface border px-3">
  *
- * had its attribute text truncated at `onClick={() =` and therefore contained no
- * `className`, and the rule silently passed. Only controls whose `className`
- * happened to come *before* any arrow function were ever checked.
+ * has its attribute text truncated at `onClick={() =` and therefore contains no
+ * `className`, and the rule silently passes. Only controls whose `className`
+ * happens to come *before* any arrow function are checked.
  *
- * Measured on 2026-08-25: the regex saw 12 hand-styled controls in 8 files. This
- * scanner sees 49 in 32. The guard the README called zero-tolerance had been
- * inspecting a quarter of the tree.
+ * Measured: the regex sees 12 hand-styled controls in 8 files where this
+ * scanner sees 49 in 32 — a zero-tolerance guard inspecting a quarter of the
+ * tree.
  *
  * So the tag end has to be found by actually tracking expression containers and
  * quotes, which is what this does. It is not a JSX parser and does not need to

@@ -6,8 +6,6 @@
  * `console.error`. Every one of these messages ends by naming the action that
  * clears it — a refusal that does not tell you what to do next gets worked
  * around rather than fixed.
- *
- * Extracted from `check-ui-contract.mjs` on 2026-09-04, wording unchanged.
  */
 
 import { REMEDIES } from './counting.mjs';

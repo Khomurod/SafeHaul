@@ -83,7 +83,7 @@ export function countHandRolledToggles(code) {
  * A raw `<button>` carrying `aria-current`.
  *
  * Scoped to `<button>` deliberately, and NOT to every element with the
- * attribute. Measured on 2026-09-05: seven raw elements carry `aria-current`
+ * attribute. Measured: seven raw elements carry `aria-current`
  * across `src/`, and three are non-interactive progress displays — a `<li>` in
  * `BulkUploadLayout`'s step indicator, a `<span>` in `SendTemplateWizard`'s, and
  * the design system's own `SectionNavigation`. `aria-current="step"` on
@@ -154,17 +154,16 @@ export const THROWS_ON_NON_STRING_LABEL = [
 /**
  * A JSX `label={...}` on a primitive that throws unless the label is a string.
  *
- * A counter rather than a regex for the same reason `countFileInputs` is one, and
- * the reason bit twice here: this rule used
- * `<(?:FormField|...)\b[^>]*?\blabel=\{` until a review on 2026-08-25, and
- * `[^>]*?` stops at the first `>` — including the one in `=>`. So
+ * A counter rather than a regex for the same reason `countFileInputs` is one: in
+ * `<(?:FormField|...)\b[^>]*?\blabel=\{`, `[^>]*?` stops at the first `>` —
+ * including the one in `=>`. So
  *
  *     <FormField label={<span>Date</span>} onClick={() => go()}>   -> caught
  *     <FormField onClick={() => go()} label={<span>Date</span>}>   -> INVISIBLE
  *
- * and prop ordering alone decided whether a rule guarding a **runtime crash**
- * could see it. Measured before the fix: 1 violation against 0 for the same
- * element written the ordinary React way.
+ * and prop ordering alone would decide whether a rule guarding a **runtime
+ * crash** can see it. Measured with that regex: 1 violation against 0 for the
+ * same element written the ordinary React way.
  */
 export function countJsxLabelsOnThrowingPrimitives(code) {
     let total = 0;

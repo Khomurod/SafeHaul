@@ -1,11 +1,10 @@
 /**
  * G, H — proof that a release actually shipped, and stays healthy.
  *
- * A green run is not evidence that anything shipped: every failure in the
- * 2026-08-08 round was found by a human opening a screen. G replays a release
- * where every lane was proven and the deploys still had to run; H replays the
- * `surveyHistoricalReconstruction` incident, where a callable the app calls was
- * not deployed at all.
+ * A green run is not evidence that anything shipped: what no job checks is
+ * found only by a human opening a screen. G replays a release where every lane
+ * was proven and the deploys still had to run; H replays a callable the app
+ * calls (`surveyHistoricalReconstruction`) that is not deployed at all.
  */
 
 import { REQUIRED_DEPLOY_JOBS, evaluateDeployResults } from '../verify-shipped.mjs';

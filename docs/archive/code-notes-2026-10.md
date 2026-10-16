@@ -6863,3 +6863,1279 @@ every call site moved to the chrome contract, so the exemption's whole
 premise is gone — and the rule now means what the roadmap always
 claimed it did.
 ```
+
+## `.gitleaks.toml`
+
+```text
+This section used to allowlist `\.env\.example$` and `functions/\.env\.example$`
+on the theory that their placeholder values tripped rules. Measured against the
+pinned gitleaks 8.30.1 on 2026-08-26, that is not true:
+
+  - the tracked tree scanned with the path list removed: identical result;
+  - all three commits in the repository's history that ever touched either
+    template, scanned individually with the path list removed: 0 findings.
+
+So the exemption bought nothing and cost the only thing that matters — a real
+credential pasted into a file called `.env.example` would have been ignored.
+Deleted rather than kept "just in case". A path exemption is the widest kind
+there is, and this file now has none.
+```
+
+## `scripts/audit-facebook-lead-tenancy.mjs`
+
+```text
+Until 2026-08-25 `connectFacebookPage` set the tenant from the caller's uid:
+
+    const companyId = request.auth.uid; // Assumes 1:1 user-company mapping
+
+SafeHaul does not work that way — companies carry generated ids and users join
+them through `memberships`. So a connected page stored a USER id where a
+COMPANY id belongs, and every lead the webhook ingested afterwards was written
+to `companies/{uid}/leads`: a document tree belonging to no company, which no
+screen in the product reads. Those leads were not delivered to the wrong
+tenant. They went nowhere, and nobody saw them arrive or fail to arrive.
+
+The callable is fixed. This tells you whether anything was lost on the way,
+so the decision about what to do with it is made against numbers rather than
+a guess. Nothing is moved or deleted here — that is a separate, deliberate
+migration if you decide you want one.
+```
+
+## `scripts/check-bundle-budget.mjs`
+
+```text
+Measured on 2026-09-06 against the production build (audit step I): the
+public application downloaded 517,442 bytes gzip before a line of it ran —
+a 1,184 kB entry script, a 399 kB pdf.js chunk preloaded on a page that
+renders no PDF, and Sentry's Session Replay recorder inside the entry. Moving
+the pdf.js worker wiring out of the entry and attaching Replay after load
+took it to 363,025. On 2026-10-15 (plan step 4.2) loading tracing, Storage
+and DOMPurify on demand, Auth without its popup resolver, and each glyph with
+the screens that draw it took it from 379,589 to 309,382; the libraries ride
+in a chunk of their own. This check keeps it there: it reads `dist/index.html`,
+sums the gzip size of the entry script, every `modulepreload` and every
+stylesheet — exactly what the browser must fetch before the first screen —
+and refuses the build when the sum passes the ceiling, when a preload names
+the pdf.js chunk, when a script of that set carries one of the pieces that
+load later, or when none carries one that must not.
+```
+
+```text
+Bytes, gzip. 309,382 measured on 2026-10-15; the headroom is 3%. Move it DOWN, never up, without a measurement.
+```
+
+```text
+Bytes over the wire for `/apply/:slug` before its first screen: scripts and
+stylesheets gzip, the font as served (WOFF2 is compressed already). 520,577
+measured on 2026-10-15; the headroom is 3%. Move it DOWN, never up, without a
+measurement.
+```
+
+## `scripts/check-release-health.mjs`
+
+```text
+The second one is not hypothetical. `surveyHistoricalReconstruction` was added
+on 2026-08-07 and never deployed, because the merge that introduced it failed
+mid-deploy and the next merge measured its changes from *after* that commit. It
+stayed missing across several green runs, and was found only when a human opened
+the Super Admin screen and saw "Something went wrong / internal". Twelve hours,
+with nothing red anywhere.
+```
+
+## `scripts/check-table-layout.mjs`
+
+```text
+On 2026-08-08 the Super Admin AI Integrations table showed a pale vertical
+strip down its right edge and a Delete button rendered as "Dele". Two
+separate design-system defects, both invisible to every check the repository
+had:
+
+ - `scrollbar-gutter: stable` reserved 15px at the inline-end edge of every
+   table scroll region. A `<table>` cannot paint into a gutter, so the header
+   background, row backgrounds and dividers all stopped 15px short of the
+   card edge. Present on all 84 table renders in the catalog; not one of them
+   scrolled vertically, so the gutter was reserved for a scrollbar that never
+   appeared.
+ - `--ds-table-actions-width` was 64px. Mobile cell padding is 2x
+   `--ds-space-4`, leaving 32px of content box for the header word "ACTIONS",
+   which needs 41px. Every table with a visible actions header overflowed its
+   last column by exactly 9px.
+
+Neither could be caught by a unit test. jsdom has no layout engine, so
+`scrollWidth` and `offsetWidth` are always `0` there — the contract tests and
+`npm run test:stories` are structurally incapable of seeing this class of
+bug, however many of them are written. And the E2E overflow assertion checks
+`document.documentElement`, so a gap *inside* a card never reaches it.
+```
+
+```text
+`DataTable` owns its own scroll region, so the dead-gutter invariant is
+about that element. `ds-native-table` — the contract the eleven approved
+native tables adopted on 2026-08-25 — deliberately has no scroll container:
+a native table is chosen when the feature owns the row's interaction, and
+the feature owns its overflow too. So its own element is the subject, and
+only the cell-containment invariant applies to it.
+
+Until this was added, no native table was measured ANYWHERE. The guard that
+exists because a Delete button rendered as "Dele" on a real phone was
+looking only at the four tables in the catalog that are `DataTable`.
+```
+
+## `scripts/check-ui-contract.mjs`
+
+```text
+The design system was substantial and largely adopted, and the application was
+still visibly inconsistent, because *nothing checked*. A 2026-08 audit of the
+tree found 364 raw Tailwind palette classes across 49 files, 142 raw type
+classes competing with the `--ds-*` scale, and 26 pieces of text below the
+12px floor the roadmap had forbidden in writing since the beginning. Every one
+of those passed review, lint, 234 test files and CI.
+```
+
+```text
+It began (2026-08-21) as a shrink-only ratchet over an inventory of 660
+tolerated violations, most tagged with the migration slice that owed the
+work. The last of that debt cleared on 2026-08-25, so the `debt` escape hatch
+is gone: an entry without a reason is now an error rather than a promise.
+```
+
+```text
+The check never adds an entry or raises a count: an exception that grows is
+an edit to the allowlist, with a reason, in the pull request's diff. It does
+not compare the allowlist with a base commit (owner ruling, 2026-10-11), so
+that diff is where such an edit is judged.
+```
+
+```text
+Split on 2026-09-04. `./ui-contract/` holds the parts that can be tested
+without a filesystem — `verdict.mjs` (what the tree and the allowlist say
+about each other), `tether.mjs` (the native-table AST check), `update.mjs`
+(lowering a fixed entry) and `report.mjs` (the wording) — so the guard's own failure
+modes are drivable on fixtures. **Nothing under `src/` may import this
+```
+
+```text
+Raised from 200 when stylesheets joined the walk on 2026-08-25.
+```
+
+## `scripts/ci-plan-rules.mjs`
+
+```text
+`e2e-a11y` used to be listed here too. It is gone: its axe specs run inside the
+blocking `frontend_e2e` lane as of 2026-08-25, so they are attested with it and
+need no lane of their own. The job's own comment had said to fold them in "once
+confirmed green in CI" — they were green on every run for weeks.
+```
+
+## `scripts/ci-plan/test-guards.mjs`
+
+```text
+K1 above holds the visual lane because that lane spent its whole existence
+advisory and red. It is the same argument for its four siblings, and until
+2026-09-04 nothing made it: they were blocking only because nobody had
+added `continue-on-error` to them, which is not the same as being unable
+to. That gap was found while correcting section 6 of the roadmap, which
+had claimed the whole family was "permanently blocking" — the claim is
+true now because of this assertion, and was aspirational before it.
+```
+
+```text
+K1c — the first-download budget (audit step I, 2026-09-06). A size ceiling
+that is not enforced after every build is a number in a document. The
+check runs in the job that builds, after the build, and is blocking; its
+own tests run in the job no plan can skip.
+```
+
+```text
+`npm run check:public-claims` was wired into the root `npm run lint`, and the
+brief said CI enforced it. CI ran `lint:frontend`. So no job executed the
+check at all: a `web/` change selected `frontend_unit` (A5), that lane ran
+the hosting-config tests and the ratchet, and the one check written for the
+public site's words never ran — a gate that was documented, not wired.
+Found 2026-09-01 while closing the source-size campaign.
+
+The first fix put the step in `frontend-quality`, the lane `web/` selects.
+Review found the hole that leaves: the check has TWO inputs — the pages and
+the capability package they are held to — and a change to
+`functions/ai/knowledge/safehaulCapabilities.js` selects only the functions
+lane, so a registry edit could make the live page newly invalid while CI
+stayed green. A gate with two inputs cannot live in a lane either one can
+skip. It runs in an always-required job instead, which no lane selection
+can skip and which deliberately runs with no `npm ci` — so these also pin
+that the checker and the package it loads need nothing installed. The last
+check is the coverage claim itself: the checker reads only top-level
+`web/*.html`, so a page in a subdirectory would be validated by nothing.
+```
+
+```text
+Recorded 2026-08-26, after run #159.
+
+`gitleaks/gitleaks-action@v2` chose the scan range from the event and, on
+`workflow_dispatch`, passed no range at all — so a manual verification of
+an already-merged commit scanned all 256 commits, reported eight known
+legacy values from 2025-12..2026-03, failed `secret-scan`, failed
+`release-validation` and skipped both deploys.
+
+These assertions exist because that was invisible from inside this
+repository: the range lived in someone else's JavaScript. They pin the
+three properties that must not quietly come back — the range is ours, the
+scanner is pinned, and the full sweep cannot gate a release.
+```
+
+```text
+L8-L10 and L15-L26 moved to `scripts/secret-scan/test-pinning.mjs` on
+2026-08-27, when the scanner outgrew one file.
+
+They read the scanner's own SOURCE — the pinned version and digest, both
+scan modes, the flags, and `.gitleaks.toml` line for line — and this file
+read it as a path, `./secret-scan.mjs`. Splitting the scanner would have
+left those regexes passing over a 212-line entry that no longer contains
+what they check, which is the worst way for a security assertion to fail.
+`test-pinning.mjs` reads the transitive closure of the entry's imports
+instead, so it cannot go stale the next time a module moves.
+```
+
+```text
+The full-history sweep still exists — it just cannot block a deploy. If it
+ever gains a push or pull_request trigger, or turns up in
+release-validation's `needs`, the 2026-08-26 failure is back.
+```
+
+## `scripts/ci-plan/test-shipped.mjs`
+
+```text
+A green run is not evidence that anything shipped: every failure in the
+2026-08-08 round was found by a human opening a screen. G replays a release
+where every lane was proven and the deploys still had to run; H replays the
+`surveyHistoricalReconstruction` incident, where a callable the app calls was
+not deployed at all.
+```
+
+## `scripts/ci-plan/test-workflow.mjs`
+
+```text
+Learned on 2026-08-25, in CI, twice in one afternoon.
+
+`--project` ACCUMULATES on the Playwright command line. `main.yml` runs
+`npm run test:e2e -- --project=chromium --project=mobile-chrome`, so any
+`--project` baked into the script UNIONS with those rather than narrowing
+them. Naming the five functional projects in `test:e2e` — a
+reasonable-looking way to keep the visual lane out of a bare run — therefore
+put firefox, webkit and both mobile lanes into every chromium shard. The
+runner installs only Chromium, so 113 tests failed with `browserType.launch:
+Executable doesn't exist`, on all four shards, through all three retries.
+```
+
+## `scripts/lib/throwaway.mjs`
+
+```text
+`callable-contract` failed on 2026-09-05 with
+
+    Error: ENOTEMPTY: directory not empty, rmdir '/tmp/safehaul-ui-invent-…/.git'
+
+in the cleanup of a guard's own test harness — after every assertion in that
+harness had passed. Nothing was wrong with the code under test; the gate went
+red because a temp directory would not delete.
+```
+
+```text
+Four test harnesses and the secret scanner itself build throwaway git
+repositories and delete them. One of them failed; all five had the same
+shape. This repository's own rule for a CI bug is to list every job with that
+shape *before* fixing one, because patching the instance in front of you is
+how one root cause becomes three separate rounds — the "fix the family" rule
+in `.claude/rules/release-pipeline.md`, written after it happened three times in one day.
+```
+
+## `scripts/resolve-deploy-base.mjs`
+
+```text
+`scripts/deploy-functions-incremental.mjs` deploys the functions whose source
+changed between a base commit and HEAD. CI used to hand it
+`github.event.before` — the PREVIOUS PUSH.
+```
+
+```text
+That is not hypothetical. `surveyHistoricalReconstruction` shipped in
+dc0dd23 on 2026-08-07; that merge's deploy jobs died in a runner outage; the
+next successful deploy measured from dc0dd23 and therefore saw no functions
+changes at all. The Super Admin panel calling it returned "internal" — a 404
+from Cloud Functions, whose non-JSON body the Firebase SDK reports as
+`internal` — and the function was still missing from production two merges
+later.
+```
+
+## `scripts/retire-functions.mjs`
+
+```text
+Six were retired with the marketing-site form on 2026-08-29 (LD-R3) and were
+still answering on 2026-09-06, because Production was serving a release from
+2026-08-10 whose landing page posted to `submitLandingLead` and whose Super
+Admin screen called the other five. Deleting them earlier would have broken a
+live form for visitors. Deleting them AFTER a promotion that no longer calls
+them is safe, which is why `promote-production.yml` runs this right after the
+new release is verified live and recorded.
+```
+
+```text
+"Sync Backend Structure" (refusing since 2026-10-11) and the security
+audit only the Deep Diagnostic ran, both removed from the owner panel.
+```
+
+## `scripts/secret-history-audit.mjs`
+
+```text
+Comparing counts alone was wrong, and review on 2026-08-26 said why: a
+legacy finding that disappears — a stale branch deleted, say — leaves room
+for a NEW secret to take its place at the same total, and the audit would
+call that `unchanged`. It matters most exactly where this audit is the only
+scanner looking: the blocking gate runs for `main` and for pull requests
+targeting it, so a secret parked on an unmerged branch is this workflow's
+to catch.
+```
+
+## `scripts/secret-scan.mjs`
+
+```text
+`force: true` alone is not enough — it suppresses `ENOENT` and nothing
+else, and an `ENOTEMPTY` from a concurrent writer still throws. That
+failed `callable-contract` on 2026-09-05 in a sibling harness, after
+every assertion in it had passed.
+```
+
+## `scripts/secret-scan/gitleaks.mjs`
+
+```text
+Review on 2026-08-26 (P1): a nonzero exit that still left a parseable
+EMPTY report set `ok` false and `errored` false, and `performScans` only
+looked at `errored` and the finding count — so it recorded no problem and
+the release gate reported success over a scan that had failed. Nonzero
+with nothing to show for it is an incomplete scan, and it is reported as
+one. (I could not make gitleaks 8.30.1 do this: every failure mode probed
+either exits 0 or writes no report at all. That is not a reason to leave
+the branch open — the guarantee is "a scanner failure never reads as
+success", and it should not rest on one version's exit-code habits.)
+```
+
+```text
+Belt and braces for the same P1: whatever produced `ok === false`,
+this refuses. Nothing may reach the deploy on a scan that did not
+say, unambiguously, that it found nothing.
+```
+
+## `scripts/secret-scan/range.mjs`
+
+```text
+Three separate defects, each measured on 2026-08-26 rather than reasoned
+about:
+
+1. **The dispatch case scans everything.** Run #159 on `8c3315d` scanned 256
+   commits and reported 67 findings — eight distinct values, all from
+   2025-12 to 2026-03, none of them from the commit under test. It failed
+   `secret-scan`, which failed `release-validation`, which skipped both
+   deploys. A manual verification of an already-merged commit cannot mean
+   "scan every commit SafeHaul ever had"; that turns a fixed, known,
+   separately-tracked history problem into a permanent release blocker.
+2. **`--first-parent` misses whole branches.** Measured in a synthetic repo: a
+   secret committed on a side branch and merged into main is found by
+   `base..head` and **not found** by `--no-merges --first-parent base^..head`.
+   The mainline walk never visits the second parent's commits.
+3. **`--no-merges` misses conflict resolutions.** A merge commit can add
+   content that is in neither parent. Measured: `base..head` finds 0 there
+   (git shows no patch for a merge by default), `-m base..head` finds it.
+   `--cc` was tried first and finds 0 — gitleaks does not parse combined-diff
+   format, which is exactly why this was tested instead of assumed.
+```
+
+```text
+Found in review on 2026-08-26 (P1): it used to clear only the structural
+bar — a real SHA, an ancestor, not the head — and the refusal message
+above *tells an operator to set it*. So the natural repair for "nothing is
+validated" was to paste in the tip that had just failed, which is the one
+commit whose broken scanner reported success while its own tests did not.
+The increment behind it would be skipped again, and a dispatch deploys.
+```
+
+```text
+`before` is the obvious answer and it is wrong in one specific,
+reachable way, found in review on 2026-08-26 and reproduced: when the
+PREVIOUS push failed its scan, `before` is that failed tip. The next
+ordinary push then compares against it, so the increment that failed
+is behind the range; if the credential it added was also deleted in
+that increment, the tree is clean too, and the later push passes and
+DEPLOYS. Measured on a throwaway repository: push A (adds and deletes
+a synthetic key) fails with 1 finding, push B passes with 0 — and the
+same push B anchored at the last validated commit fails with 1.
+
+`before` is also unusable for a branch just created (all zeros) or
+force-pushed (not an ancestor of the new head), and the old fallback
+for those — the merge base with the default branch — collapsed to the
+head itself after a force-push TO the default branch, scanning
+nothing. Both cases now take the same answer as the first.
+```
+
+```text
+This used to be `head^1`, on the reasoning that every earlier commit
+was scanned by the event that introduced it. Review on 2026-08-26
+found the hole in that: it assumes the earlier scan *passed*. A push
+whose scan FAILED, followed by a manual re-run, would scan only the
+last commit — so a credential added in an earlier commit of that push
+and deleted before its tip is in neither the range nor the tree, and
+the manual run is green. `workflow_dispatch` deploys, so that is a
+bypass of the gate rather than a gap in a report.
+```
+
+```text
+An abbreviated SHA of the head is a different string and the same commit,
+and every check below except this one is a string comparison. Found in
+review on 2026-08-26 and reproduced: `SECRET_SCAN_BASE=<head[0..8]>` was
+accepted, `git merge-base --is-ancestor` said yes (a commit is its own
+ancestor), and the resulting `short..full` range held 0 commits — so a
+credential added and deleted inside the change was compared against
+nothing and the job passed. Against the same repository with the correct
+base it fails with 1 finding.
+```
+
+## `scripts/secret-scan/test-coverage.mjs`
+
+```text
+Split out of `scripts/secret-scan/test-pinning.mjs` on 2026-08-28, when that
+file crossed the 500-line maximum carrying both halves. The two are genuinely
+different subjects, and the distinction is the one this whole PR kept
+relearning: `test-pinning.mjs` asserts PROPERTIES of the scanner's source — the
+version is pinned, `--all` never appears, `.gitleaks.toml` is unchanged — while
+this file asserts that "the scanner's source" is the right set of bytes in the
+first place. Every property above is worthless if this is wrong, because a
+regex over the wrong file passes for the wrong reason.
+```
+
+```text
+Both directions are checked. A closure that had silently collapsed to the entry
+would make "`--all` never appears" true by reading almost nothing; an orphan
+left in the directory would keep a pinned flag green after the entry stopped
+executing it. L27-L34 are the seven review rounds that found each way in.
+```
+
+```text
+Review on 2026-08-27 made the difference matter: a hard-coded list keeps
+passing when a sixth module joins the scanner, so the one file a pinned flag
+had just moved into could be the one nothing reads. Reading the directory
+means a new module is covered the moment it exists.
+```
+
+```text
+Both reported on 2026-08-28, both reproduced loading the outside module.
+```
+
+```text
+ECMA-262 defines exactly four line terminators; `[^\n]` covered two of
+them, and a comment ended by the other two consumed through the call.
+Reported 2026-08-28 with U+2028; all four are rows so the class stays shut.
+```
+
+```text
+Reported 2026-08-28: an aliased loader's call site is not spelled import
+or require, so it is the gateway that has to be refused, not the call.
+```
+
+```text
+A builtin is importable bare or `node:`-prefixed, and matching only the
+prefixed form let this through. Reported 2026-08-28; both are rows now
+because two spellings is the entire set the resolver accepts.
+```
+
+```text
+Importing is not the only way to hold a builtin. Reported 2026-08-28 and
+reproduced: `getBuiltinModule` returns `module` with no specifier for the
+checks above to read, so the alias came out of it and the outside module
+really loaded. The receiver is incidental, so the alias spelling is a row
+of its own — matching `process.` would have missed it.
+```
+
+```text
+Reported 2026-08-28: destructuring spells the same route with no dot for
+a matcher to anchor on. The renamed form came out of the same probe and
+is a row of its own, because a rename is what a name-based match has to
+survive — the property name is still on the left of the colon.
+```
+
+```text
+Reported 2026-08-28: being ONE LITERAL was the whole test, and a literal
+need not be relative. Each of these three is a single literal, so each
+passed; the containment scan reads only `./` and `../`, so none was
+resolved; and a deferred call in a function body never reaches the
+probe. Reproduced against all three — the outside module really loads.
+```
+
+```text
+And the other direction, which review on 2026-08-28 found missing. L32 asks
+"is everything loaded also read"; this asks "is everything read also
+loaded". A refactor that stops importing a module but leaves the file in
+place produces an orphan whose stale source keeps being concatenated, so a
+pinned flag or scan mode the entry no longer executes would still satisfy
+L9, L10, L19 and L25. Reproduced with exactly such a module: every check
+stayed green. A module named by a literal specifier counts as reachable
+even when it is imported lazily, because a function body never reaches the
+graph.
+```
+
+## `scripts/secret-scan/test-detection.mjs`
+
+```text
+3b. The same shape one push later — found in review on 2026-08-26 (P1).
+```
+
+```text
+3c. The abbreviated-SHA collapse, measured — found in review on 2026-08-26
+(P1). `SECRET_SCAN_BASE=<head[0..8]>` used to be accepted: a 0-commit range
+that reports nothing, over a change that added and deleted a credential.
+```
+
+## `scripts/secret-scan/test-failsafe.mjs`
+
+```text
+Found in review on 2026-08-26 (P1).
+
+An abbreviated SHA of the head is a different STRING and the same COMMIT.
+Every check but one is a string comparison, and `merge-base --is-ancestor`
+says yes because a commit is its own ancestor — so `SECRET_SCAN_BASE` set
+to the head's short form produced a 0-commit range that passed. The base is
+resolved to its full SHA before anything compares it now.
+```
+
+```text
+Found in review on 2026-08-26 (P1).
+
+The override used to clear only the structural bar — a real SHA, an
+ancestor, not the head — while the refusal above *tells an operator to set
+it*. So the natural repair for "nothing is validated" was to paste in the
+tip that had just failed: the one commit whose broken scanner reported
+success while its own tests did not. It has to clear the same bar as an
+inferred base.
+```
+
+```text
+The same guarantee one step further, found in review on 2026-08-26 (P1).
+
+A readable report is not proof that the scan finished: a nonzero exit that
+still wrote a parseable EMPTY report used to set `errored` false with no
+findings, so `performScans` recorded no problem and the gate passed over a
+scanner that had failed. Driven here with a stub scanner, because gitleaks
+8.30.1 does not do it — which is exactly why the branch must not depend on
+that staying true.
+```
+
+## `scripts/secret-scan/test-pinning.mjs`
+
+```text
+The case counting missed, found in review on 2026-08-26 (P2).
+```
+
+```text
+Moved here from `scripts/test-ci-plan.mjs` §L on 2026-08-27, when the scanner
+stopped being one file.
+
+These are regexes over the scanner's own source, and they lived in the CI-plan
+suite only because that is where the run #159 post-mortem was written. Reading
+a directory's worth of implementation from there would have meant either a
+stale path or a second copy of the closure logic, and the assertions belong
+beside the thing they describe regardless.
+
+The L numbers are kept deliberately. `.claude/rules/release-pipeline.md` cites L24a, L25 and L26 by
+name, and the commit that measured each of these refers to them; renaming them
+to fit this file's D-series would break that trail for nothing. What each one
+asserts is unchanged — only the source it reads is wider, because
+`implementationSource()` follows the entry's imports rather than trusting one
+path.
+```
+
+```text
+A push's own `before` is the tip of the PREVIOUS push, whose scan may have
+failed — trusting it puts that failed increment behind the range, and a
+credential added and deleted inside it then passes and deploys (reproduced,
+2026-08-26). Every event but a pull request anchors at a validated commit.
+```
+
+## `scripts/secret-scan/test-probe-hooks.mjs`
+
+```text
+The first version wrote to `process.stdout`. Review on 2026-08-28 pointed out
+that a hook runs on the loader-hooks thread, where `process.stdout.write` is
+proxied to the main thread and is asynchronous for a pipe — so a short-lived
+probe can exit with records still buffered. That would make a REQUIRED test
+intermittently classify a live module as an orphan, and could let the outside-
+load check miss a real escape, which is the fail-open direction.
+```
+
+## `scripts/secret-scan/test-range.mjs`
+
+```text
+...and it is NOT the previous tip when that tip's own scan failed. Review
+on 2026-08-26: `before` is the failed tip, so the increment that failed is
+behind the range, and if its credential was also deleted there the tree is
+clean too — the later push passes and deploys. B16/B17 below measure it.
+```
+
+```text
+Found in review on 2026-08-26 (P1).
+
+A manual re-run used to compare against `head^1`, on the reasoning that
+every earlier commit was scanned by the event that introduced it. That
+assumes the earlier scan PASSED. After a push whose scan FAILED, a manual
+re-run would scan only the newest commit — so a credential added earlier in
+that push and deleted before its tip is in neither the range nor the tree,
+and `workflow_dispatch` deploys. The baseline is the last VALIDATED commit
+now, and no validated commit means refusal.
+```
+
+```text
+Also found in review on 2026-08-26 (P1).
+
+A force-push to the default branch leaves `before` non-ancestral, and the
+old fallback took the merge base with the default branch — which IS the
+head after a force-push, giving the empty range `head..head`. A credential
+added and removed inside the rewritten commits passed both scans.
+```
+
+## `scripts/secret-scan/test-sources.mjs`
+
+```text
+The assertions that pin this gate's security properties are regexes over its
+source: the version is an exact release and not `latest`, `--redact` and
+`--ignore-gitleaks-allow` are passed, `--all` never is, a push never anchors at
+its own `before`. Until 2026-08-27 the whole scanner was one file, so those
+regexes read that file and the coverage was exact by accident.
+
+Splitting it into modules breaks that quietly and in the worst direction: a
+regex over the entry point alone would keep passing while the flag it looks for
+had been moved into a module — or deleted from one.
+```
+
+```text
+The first version followed the entry's imports and matched them with a regex.
+Review on 2026-08-27 showed why that is the wrong mechanism for this job: the
+matcher recognised only single-quoted `from '...'` and `import('...')`, so a
+double-quoted specifier, a side-effect `import './flags.mjs'`, or a
+double-quoted dynamic import would be executed by Node and omitted from the
+closure. Reproduced — an entry using all four forms yielded a closure of two
+files out of five. A pinned flag could then move into the omitted module and
+every §L assertion would keep passing over source that no longer contains it.
+
+Widening the regex only moves the line: the next form nobody thought of fails
+the same silent way. So the collection mechanism is no longer a parse at all.
+```
+
+```text
+A specifier that resolves to nothing is skipped rather than refused, because
+the scan is deliberately permissive and a path named in a comment resolves to
+nothing. Review on 2026-08-27 showed what that costs on its own: an entry
+containing a CONCATENATED specifier executes the real module while the scan
+captures only the first fragment, which resolves to nothing and is skipped —
+so the module escapes containment entirely. Reproduced, and Node really does
+load it.
+```
+
+```text
+**This file is one of them**, which is why it is named `test-`. It is imported
+only by `test-pinning.mjs`; the gate never runs it, so it is not part of what
+the gate is made of. Discovering that was not free: putting it in the covered
+set made L19 fail on this very docblock, because a paragraph explaining that
+the scanner never passes the full-history flag necessarily names the flag. The
+assertions read text, so test infrastructure has to stay out of the text they
+read — the convention that keeps `test-failsafe.mjs` out keeps this out too.
+```
+
+```text
+The line-comment branch ends at a LINE TERMINATOR, and ECMA-262 defines
+exactly four: LF, CR, LS (U+2028) and PS (U+2029). Writing it as `[^\n]` was
+wrong for the last two, and review on 2026-08-28 reproduced the consequence —
+`import //\u2028('../else' + 'where.mjs')` let the branch consume through the
+call, so a deferred computed import escaped the scan while a probe could not
+see it either, because the function is never called.
+```
+
+```text
+Reported 2026-08-28 and reproduced: `const load = createRequire(import.meta.url)`
+followed by `load('../else' + 'where.cjs')` escapes both halves. The call site
+is `load(...)`, so `MODULE_CALL` never sees it, and a deferred call never
+reaches the probe. Following the alias would need data-flow analysis, which a
+parser alone does not give.
+
+Refusing the GATEWAY needs none of that: an indirect loader cannot be obtained
+without naming where it comes from. `module` is where `createRequire` lives,
+and it can be named three ways — imported, required, or fetched with
+`process.getBuiltinModule`, which review found on 2026-08-28 because importing
+is not the only way to hold a builtin. `eval` and `Function` are the routes
+from a string to code. The covered files use none of them, so this costs
+nothing and the scanner keeps loading modules the one way the checks above can
+read.
+
+Each entry matches the thing being named rather than the expression naming it,
+which is why `getBuiltinModule` is matched as a method and not as
+`process.getBuiltinModule`: `const p = globalThis.process` in front of it is
+the same route, and was reproduced alongside the reported one.
+```
+
+```text
+Both spellings. A Node builtin is importable bare or `node:`-prefixed, and
+matching only the prefixed form let `from 'module'` through — reported and
+reproduced on 2026-08-28, loading an outside CJS module through the alias.
+Two spellings is the whole set the resolver accepts, so this closes it.
+```
+
+```text
+Importing it is not the only way to hold it. `process.getBuiltinModule`
+returns a builtin without any specifier the checks above can read, so
+`process.getBuiltinModule('module').createRequire(import.meta.url)` reached
+the same alias while the scan accepted the file and the graph showed only
+the entry. Reported and reproduced on 2026-08-28.
+
+Matched as a bare IDENTIFIER, which took three rounds to get right. Anchoring
+on `process.` missed `const p = globalThis.process; p.getBuiltinModule(…)`;
+anchoring on the dot missed `const { getBuiltinModule } = process`, reported
+and reproduced, and `const { getBuiltinModule: g } = process`, which came out
+of the same probe. The property name survives every one of those, including
+the rename — it is what the destructure has to spell — so the name is what
+this matches. The bracketed form is the one spelling with no identifier in
+it, so it keeps its own pattern.
+```
+
+```text
+Being one string literal was the whole test until review on 2026-08-28 pointed
+out that a literal need not be RELATIVE. `import('file:///tmp/x.mjs')`,
+`import('/tmp/x.mjs')` and `import('some-package')` are each a single literal,
+so each passed; `RELATIVE_SPECIFIER` then never looked at them, because it only
+matches `./` and `../`; and a deferred call inside a function body never
+reaches the probe. Reproduced against all three — the outside module really
+loads, carrying whatever pinned behaviour was moved into it.
+```
+
+```text
+The other direction, and review on 2026-08-28 was right that it was missing.
+`uncoveredLoads` asks "is everything loaded also read"; this asks "is
+everything read also loaded". A refactor that stops importing a module but
+leaves the file in place produces an orphan whose stale source keeps being
+concatenated into `implementationSource()` — so L9, L10, L19 and L25 could stay
+green on a pinned flag or scan mode that the entry no longer executes.
+```
+
+## `scripts/secret-scan/test-support.mjs`
+
+```text
+Split out on 2026-08-27 when the single test file reached 1246 lines. The
+sections it served are independent subjects — which range each event picks,
+what those ranges actually catch, how a base that cannot be trusted is
+refused, how the last validated commit is found, and what the pinning buys —
+but they all need the same three things, and duplicating any of them would let
+two sections drift into testing different fixtures while reading identically.
+```
+
+## `scripts/secret-scan/test-validated.mjs`
+
+```text
+The second check is there because of a review finding on 2026-08-26: a
+commit could break this scanner so `secret-scan` passes wrongly while
+`callable-contract` (which runs these very tests) fails. `release-validation`
+refuses unless both of those succeeded, so requiring it means a baseline was
+scanned by a scanner that had passed its own tests.
+```
+
+```text
+Found in review on 2026-08-26 (P1). `secret-scan` green is not enough: the
+commit that broke the scanner is exactly the commit whose scan passes while
+`callable-contract` — the scanner's own tests — fails, and
+`release-validation` is what records that.
+```
+
+## `scripts/secret-scan/validated.mjs`
+
+```text
+"Its `secret-scan` passed" is not enough, found in review on 2026-08-26 (P1):
+a commit could BREAK this scanner so that `secret-scan` passes wrongly, while
+`callable-contract` — which runs `npm run test:secret-scan` — fails and blocks
+that release. The broken commit would still look validated, and the next push,
+with the scanner fixed, would anchor there and never look at the increment the
+broken scanner waved through.
+```
+
+## `scripts/source-size-scope.mjs`
+
+```text
+Split out of `scripts/source-size.mjs` on 2026-08-27, when that file crossed
+400 lines under its own standard and was plainly doing two jobs: declaring the
+scope, and running the check. This is the declaration — the limits, the formats
+measured, the formats deliberately unmeasured, the formats that are not source
+at all, the single excluded artifact, the roots that may never go unscanned,
+and how a path is classified. No scanning, no counting, no git.
+
+It is worth keeping separate for the reason review kept finding: the half of a
+coverage claim that goes stale silently is the half about what it does NOT look
+at. Restricting the measured set to six JS/TS extensions once left a 3447-line
+stylesheet, a 1682-line page and 693 lines of Firestore rules invisible while
+every assertion passed; `.mdx` was later found in no list at all. Both were
+gaps in this file's subject, not in the checker's logic, and they are easier to
+audit when they are the whole content of one file.
+```
+
+```text
+Physical lines, hard maximum, for every handwritten source file except a test
+(owner ruling, 2026-10-11: warn past 500, refuse past 700, tests unlimited).
+```
+
+```text
+Not only JavaScript, and that gap was real: review on 2026-08-27 pointed out
+that six JS/TS extensions left `landing/assets/css/styles.css` at 3447 lines,
+`landing/index.html` at 1682 and `src/firestore.rules` at 693 unmeasured while
+every required-root assertion still passed. A stylesheet and a security-rules
+file are handwritten source that people have to read; measuring only the
+scripts made the claim "every handwritten source file" untrue.
+```
+
+```text
+This list exists because of what review found on 2026-08-27: `.mdx` was in
+neither `SOURCE_EXTENSIONS` nor `UNMEASURED_FORMATS`, so a Storybook page could
+have grown to any length while every coverage assertion stayed satisfied by
+unrelated files. The gap was not that the reason was wrong — there was no
+reason, because there was no entry.
+
+So the three lists are now exhaustive over the WHOLE tracked tree, and a test
+(`A7`) asserts it: every tracked file's format must be measured, deliberately
+unmeasured, or named here. A new format cannot arrive unclassified.
+
+"Whole tree", not "the required roots", is the second correction — review made
+it on 2026-08-27 after the first version scoped the inventory to
+`REQUIRED_ROOTS`. Those roots exist to prove the scan has not silently stopped
+covering a directory, which is a different question, and borrowing them here
+left `.gitleaks.toml` unclassified and would have let a 900-line `build.py` at
+the repository root pass both the inventory and the size scan. Reproduced. The
+checker reads `git ls-files` over everything, so its coverage claim is about
+everything, and this list has to be too.
+```
+
+## `scripts/source-size.mjs`
+
+```text
+An audit on 2026-08-26 counted physical lines across the whole tree for the
+first time and found **68 files over 500 lines** — a 2203-line test, a
+1476-line React component that owns the public application, a 1188-line
+registry, four tooling scripts over 1000. None of that was decided; it
+accumulated, one reasonable-looking addition at a time, because nothing ever
+said no.
+```
+
+```text
+The `-z` is the whole point, and it used to be thrown away: the separators were
+turned into newlines and the result split on newlines again. Review on
+2026-08-27 found what that costs. A tracked path may contain a newline, and one
+called `src/ignored<LF>src/small.js` then parses as two paths — a discarded
+fragment plus a second copy of a small file — so a 600-line file is never read
+and the run passes. Nothing splits on newlines here now, and no path is
+trimmed either, since a leading or trailing space is a legal part of a name.
+```
+
+## `scripts/test-secret-scan.mjs`
+
+```text
+Imported one `await` at a time, deliberately. Static imports are evaluated in
+declaration order, but a module that uses top-level `await` — which the
+validated-baseline section does, since the lookup is async — SUSPENDS there and
+lets the next module run, so its output lands after a later section's. Measured
+when this was split: the pinning section printed before it. Sequential dynamic
+imports make each section finish before the next starts, so the output reads in
+the order written here.
+```
+
+```text
+Split out of a single 1246-line file on 2026-08-27. Nothing was rewritten in
+the move: the section bodies are the same lines, so the assertion count before
+and after is identical and a diff can be read as the move it is.
+```
+
+## `scripts/test-source-size.mjs`
+
+```text
+A length assertion was the first version and review on 2026-08-27 showed it does
+not hold: coverage can be EXCHANGED rather than narrowed. Removing `.scss` and
+adding anything else keeps the length at 14, and A1, F5 and F6 stay green while
+a whole language quietly stops being scanned. Adding an extension is still free;
+removing one now has to be a deliberate edit here.
+```
+
+```text
+It is the same shape as the backlog hole review found on 2026-08-27: a guard
+whose scope comes from the branch under test is not a guard. Adding a root is
+free; removing one has to be a deliberate edit here.
+```
+
+```text
+Found in review on 2026-08-27: `.mdx` was in NO list. A Storybook page could
+have grown to any length while every assertion above stayed satisfied by
+unrelated files, because "is this format covered" was never asked — only
+"are these extensions still listed". That is the same shape as A6b, which
+exists because deleting a required root would have gone unnoticed too.
+
+The FIRST version of this test scoped the inventory to `REQUIRED_ROOTS`, and
+review caught that too. Those roots answer "has the scan stopped covering a
+directory", which is a different question; the checker itself reads
+`git ls-files` over everything and measures `eslint.config.js`,
+`index.html` and the rest, so its coverage claim is about the whole tree.
+Borrowing the roots left `.gitleaks.toml` unclassified and let a 900-line
+`build.py` at the repository root pass both this and the size scan.
+Reproduced before fixing, and it is the same mistake in miniature that this
+whole PR is about: a check must not take its scope from something narrower
+than the claim it is making.
+```
+
+```text
+The list arrives NUL-delimited from git and stays an array. It used to be
+re-encoded through newline-delimited text, and review on 2026-08-27 found
+what that costs: a tracked path may contain a newline, and one of those
+parses as two paths — a fragment that gets filtered out, plus a second name
+that can alias a small file — so the large file is never read and the run
+passes. The name below is one path.
+```
+
+## `scripts/test-ui-contract-allowlist.mjs`
+
+```text
+The allowlist is compared with no base commit (owner ruling, 2026-10-11),
+so the check needs no flag, token or history.
+```
+
+## `scripts/test-ui-contract-scope.mjs`
+
+```text
+A different subject from its siblings, and the one a 2026-09-04 audit found
+nothing covering at all:
+```
+
+```text
+Not by reporting the wrong thing — by reporting less. Narrow the extension
+regex by one format and the scan drops from 554 files to 528, which still
+clears the only floor there was; twenty-six stylesheets stop being read, and
+the output still says "intact". That is not hypothetical: this guard read only
+JSX until 2026-08-25, and `src/shared/styles/designTokens.css` sat there for
+the whole campaign with a second colour, type, radius and shadow scale in
+forty-odd raw hexes, invisible to a check the README called zero-tolerance.
+
+A shorter report reads exactly like progress. So the floors below are **per
+format**, not just on the total — a total floor cannot see a category go to
+zero underneath it. `scripts/source-size.mjs` learned the same thing and calls
+it `REQUIRED_ROOTS`.
+```
+
+```text
+`callable-contract` went red on 2026-09-05 with
+
+    Error: ENOTEMPTY: directory not empty, rmdir '/tmp/safehaul-ui-…/.git'
+
+in the CLEANUP of a harness whose every assertion had just passed. A gate
+failing because a temp directory would not delete teaches people that a red
+gate might mean nothing, which is the most expensive thing a gate can teach.
+
+The cause was `git gc --auto` writing into `.git` after the command that
+triggered it returned, and the reason it was fatal is that `force: true`
+suppresses `ENOENT` and nothing else. `scripts/lib/throwaway.mjs` fixes both;
+this stops the next harness copying the old shape from an older one.
+
+Five files had it, only one failed — which is why this is written over the
+set rather than over the instance — the "fix the family" rule in
+`.claude/rules/release-pipeline.md`, written after one CI root cause was patched three times.
+```
+
+## `scripts/test-ui-contract-state.mjs`
+
+```text
+Split out of `test-ui-contract.mjs` on 2026-09-05, when the avatar rule took
+that file to 528 lines and past the 500-line maximum. The split is by
+responsibility and not by line count: these share one difficulty that none of
+the other fifteen rules has, which is that **the correct shape and the wrong
+```
+
+## `scripts/test-ui-contract.mjs`
+
+```text
+A 2026-09-04 audit found that **nothing tested the guard's own coverage**. The
+only test in the tree (`src/tests/uiContract.ratchet.test.js`) imported two
+pure functions and proved each rule can fire on a fixture. Nothing asserted
+what the walker reaches, which rules exist, which files are exempt by path, or
+that the native-table parser still refuses the four bypasses it was hardened
+against. Measured consequence: dropping `css` from the extension regex takes
+the scan from 554 files to 528 — still above the only floor there was — and
+silently stops reading 26 stylesheets. A guard can go blind and read as clean.
+```
+
+```text
+The scope half was split out on 2026-09-04 when the coverage pins landed;
+"which files does it read" and "what does it conclude" are different subjects
+with different mutations, and one file doing both was heading past 400 lines.
+```
+
+## `scripts/verify-shipped.mjs`
+
+```text
+On 2026-08-08, merge a60c6dc validated in 37 seconds — every test lane skipped
+because provenance had proved them — and then deployed nothing at all. Both
+deploy jobs and `release-ready` were skipped, Testing stayed on the previous
+release, and **the run reported success**. The cause was GitHub's skip
+propagation: a skipped job's skip travels down the entire dependency chain, and
+`always()` only un-skips the job that declares it.
+
+That is the shape of the problem this file addresses, and the shape is more
+general than that one bug: **a green pipeline was never evidence that anything
+reached users.** Every failure that day was found by a human opening a screen.
+
+So the pipeline now has to prove it. Two questions, both answered before a
+```
+
+## `scripts/ui-contract/counting.mjs`
+
+```text
+Scoped to `<button>` deliberately, and NOT to every element with the
+attribute. Measured on 2026-09-05: seven raw elements carry `aria-current`
+```
+
+```text
+A counter rather than a regex for the same reason `countFileInputs` is one, and
+the reason bit twice here: this rule used
+`<(?:FormField|...)\b[^>]*?\blabel=\{` until a review on 2026-08-25, and
+`[^>]*?` stops at the first `>` — including the one in `=>`. So
+
+    <FormField label={<span>Date</span>} onClick={() => go()}>   -> caught
+    <FormField onClick={() => go()} label={<span>Date</span>}>   -> INVISIBLE
+
+and prop ordering alone decided whether a rule guarding a **runtime crash**
+could see it. Measured before the fix: 1 violation against 0 for the same
+element written the ordinary React way.
+```
+
+## `scripts/ui-contract/report.mjs`
+
+```text
+Extracted from `check-ui-contract.mjs` on 2026-09-04, wording unchanged.
+```
+
+## `scripts/ui-contract/verdict.mjs`
+
+```text
+Extracted from `check-ui-contract.mjs` on 2026-09-04, unchanged, so the CLI
+could take the git-baseline comparison without going over the 500-line cap.
+```
+
+## `scripts/ui-contract/rules.mjs`
+
+```text
+Deliberately no imports from the counting layer: entries whose `count` needs
+the tag scanner declare `pattern: null` and are dispatched by name there, which
+is what keeps this table free of a cycle. Those six live in
+`./structural-rules.mjs` since 2026-09-05 and are appended to `RULES` below —
+one table to every consumer, two files because they are read differently.
+```
+
+```text
+Four shapes, because a colour is written four ways here and the rule
+saw two of them until 2026-09-05.
+
+  1. an arbitrary-value class      `bg-[#ff0000]`
+  2. a CSS-ish declaration          `color: #ff0000`
+  3. an SVG presentation ATTRIBUTE  `fill="#004C68"`      <- was invisible
+  4. a JS assignment                `ctx.strokeStyle = '#333'`  <- was invisible
+
+Shapes 3 and 4 are how every remaining raw colour in this tree is
+spelled, which is why the guard reported none of them: the logo, the
+loader and the favicon carried the brand hexes as attributes, and the
+signature pads assign theirs to a canvas context. Widening the rule to
+cover them found four live sites the inventory had never recorded.
+```
+
+```text
+No `prepare` any more, and its removal is the point.
+
+This rule used to strip `overlayClassName="…"` before matching, because
+passing one to `Modal` was the approved way to position a dialog and
+those values legitimately contain `fixed inset-0` — counting them would
+have fired on 20 correct call sites, and a check that flags correct
+code gets switched off. That prop was removed on 2026-09-05 once every
+call site moved to the chrome contract, so there is nothing left to
+strip, and the rule now means exactly what the roadmap always claimed:
+a scan for `fixed inset-0` returns `Modal.css` and nothing else.
+```
+
+```text
+`TabList` / `TabPanel` shipped on 2026-08-21 precisely because nine
+screens had written this by hand and seven had each written the same
+`handleTabKeyDown`. Nothing checked, so four days later the primitive
+still had zero consumers and all eleven strips were still there — in
+three different visual treatments, several sizing their own icons.
+```
+
+```text
+CSS went unscanned until 2026-08-25, and `src/shared/styles/designTokens.css`
+spent the whole campaign there — a second colour, type, radius, shadow and
+spacing scale in forty-odd raw hexes — completely invisible to a guard the
+README described as zero-tolerance.
+```
+
+```text
+It was, and the regex was `<(button)\b([^>]*)>`. `[^>]*` stops at the first
+`>` — **including the one in `=>`** — so a control written the ordinary React
+way,
+
+    <button onClick={() => go()} className="bg-ds-surface border px-3">
+
+had its attribute text truncated at `onClick={() =` and therefore contained no
+`className`, and the rule silently passed. Only controls whose `className`
+happened to come *before* any arrow function were ever checked.
+
+Measured on 2026-08-25: the regex saw 12 hand-styled controls in 8 files. This
+scanner sees 49 in 32. The guard the README called zero-tolerance had been
+inspecting a quarter of the tree.
+```
+
+## `scripts/ui-contract/source-text.mjs`
+
+```text
+Stylesheets get the two rules that mean anything in CSS — a raw colour and
+sub-12px type — because until 2026-08-25 this guard read only JSX, and
+`src/shared/styles/designTokens.css` sat there for the whole campaign with a
+second colour, type, radius and shadow scale in forty-odd raw hexes, entirely
+invisible to a check the README called zero-tolerance.
+```
+
+## `scripts/ui-contract/structural-rules.mjs`
+
+```text
+Split out of `rules.mjs` on 2026-09-05, when `hand-rolled-disclosure` took
+that file past the 500-line maximum. The boundary is one `rules.mjs` already
+drew in its own header and is the reason the two halves are genuinely
+different subjects: everything there is a global regex over source text, and
+everything here declares `pattern: null` because a regex cannot express it.
+```
+
+## `scripts/ui-contract/tether.mjs`
+
+```text
+The roadmap has always said both halves of this: a native `<table>` is
+approved for an editable matrix or per-row interactive rows, AND "a native
+table is not a licence to style a table by hand". Only the first half was
+checked. Measured on 2026-08-25: seven of the eleven approved native tables
+referenced no `--ds-table-*` role at all, and their inline cell padding had
+drifted to three different values (24px, 20px, 16px) against a contract of
+20px. They looked right because `bg-ds-surface-subtle` happens to be what
+the header role resolves to — a coincidence a re-tuned role would break in
+silence.
+```
+
+## `scripts/visual-contract/probes-system.mjs`
+
+```text
+Split out of `probes.mjs` on 2026-09-05, when the two step-rail probes took
+that file past the 500-line maximum. The boundary is by responsibility and
+not by line count: `probes.mjs` asks whether ONE PRIMITIVE'S OWN CHROME still
+holds — its widths, its heights, the properties a caller may no longer choose.
+These ask about the two things a primitive sits between.
+```
+
+```text
+The design system owns this as well as the icon size: `.ds-button` sets
+`gap: var(--ds-space-2)` and `.ds-button__content` inherits it. Only
+the icon size was measured until 2026-08-25, so a re-tuned gap would
+have surfaced as a pixel diff on `button-with-icons` — which says a
+screenshot changed — rather than as `columnGap: 8px -> 12px`, which
+says what moved. Its own probe rather than extra properties on the one
+above, because asking an `svg` for its `columnGap` records `normal`
+three times and calls it a measurement.
+```
+
+```text
+The native-table contract, measured because the roadmap approves a
+native `<table>` for editable matrices and per-row interactive rows —
+and because on 2026-08-25 seven of the eleven that use that permission
+turned out to reference no `--ds-table-*` role at all, with three
+different inline cell paddings between them. These are the numbers that
+make the two kinds of table one table.
+```
+
+```text
+The frozen first column, measured because it is the one cell in a native
+table that must NOT be transparent. The surface is painted on the row,
+so a `position: sticky` cell with no background of its own lets the
+scrolled columns paint straight through it — which is what happened to
+the Super Admin feature matrix when its hand-picked `bg-ds-surface` was
+removed in favour of the contract, and what a review on 2026-08-25
+caught. An `rgba(0, 0, 0, 0)` here is the regression.
+
+Since 2026-09-06 (audit step K) the frozen column is the contract's own
+`data-pin-first-column` rather than a hand-written `sticky` class, so
+the selectors read the attribute, and `zIndex` joins the reading: the
+pin is only a pin while the cell outranks the cells scrolling under it.
+```
+
+## `scripts/visual-contract/probes.mjs`
+
+```text
+Split out of `scripts/check-visual-contract.mjs` on 2026-09-05, when the two
+chip probes took that file past the 500-line maximum. The split is by
+responsibility rather than by line count, and the two halves are genuinely
+different subjects: this file is a **table of decisions** — which story, which
+selector, which properties are part of the contract and why — and grows every
+time the design system decides something. The checker is a browser driver and
+a snapshot comparison, and does not.
+```
+
+```text
+This file holds the probes for a COMPONENT'S OWN CHROME. The foundation and
+pattern probes moved to `./probes-system.mjs` on 2026-09-05 — they ask about
+the shared scales beneath the components and the compositions above them,
+which is a different question. Both are merged into `PROBES` below, so
+nothing downstream knows about the split.
+```
+
+```text
+The medallion, and the glyph it now sizes.
+
+Added 2026-09-06 with the `> svg` rule itself. Until that day the
+medallion set only its own diameter and every caller picked the glyph:
+24 in this catalog and in both patterns that render one, 28 in the
+signing room, 40 in the locked-feature modal, 48 after a bulk upload.
+None of those was a decision — `PageState` and `ConfirmDialog` each
+carried a comment saying 24 was simply what a bare lucide glyph
+rendered before the icon contract.
+
+Both halves are read together on purpose. A disc measured without its
+glyph cannot see the ratio, and the ratio is the thing that was
+decided: 24 in 64 at `md`, 32 in 80 at `lg` — 37.5% and 40%, against a
+published band that starts around 40%. The `lg` step USED to be 30%,
+which is why three callers reached past it.
+```
+
+```text
+On a `primary` it FILLS; on a `secondary` it TINTS. Until 2026-09-05 a
+single variant-agnostic rule filled both, so this pair is the whole
+point of the slice and the thing most likely to be undone by a later
+edit that "simplifies" the two blocks back into one. A screenshot
+would say a picture changed; this says `backgroundColor:
+rgb(22, 163, 74) -> rgb(220, 252, 231)`, which says what changed.
+
+It matters more than usual here because the two consumers this slice
+retired — the envelope editor's field palette and the sandbox Magic
+Fill — have NO app-screen baseline between them: the editor is not one
+of the 15 photographed screens and `/sandbox/*` is deliberately
+excluded as a harness route. Without this probe the migration would
+rest on unit tests and reading alone.
+```
+
+```text
+The `xs` step, as a number, because it is a CONFORMANCE claim rather
+than a taste one: 24px is the WCAG 2.2 SC 2.5.8 (AA) target-size
+minimum, and the owner chose on 2026-09-05 to meet it on the PDF
+corner badges themselves rather than lean on the equivalent-control
+exception. A step that silently drifted to 20px would still look
+fine and would no longer conform.
+```
+
+```text
+The pinned first column (audit step K, 2026-09-06) of a DataTable; the
+native contract's is measured beside its other numbers in
+probes-system.mjs. `position` and `left` are the pin; `z-index` is the local
+```

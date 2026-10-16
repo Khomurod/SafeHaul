@@ -1,15 +1,14 @@
 /**
  * An approved native table must apply the native-table contract.
  *
- * The roadmap has always said both halves of this: a native `<table>` is
- * approved for an editable matrix or per-row interactive rows, AND "a native
- * table is not a licence to style a table by hand". Only the first half was
- * checked. Measured on 2026-08-25: seven of the eleven approved native tables
- * referenced no `--ds-table-*` role at all, and their inline cell padding had
- * drifted to three different values (24px, 20px, 16px) against a contract of
- * 20px. They looked right because `bg-ds-surface-subtle` happens to be what
- * the header role resolves to — a coincidence a re-tuned role would break in
- * silence.
+ * The roadmap says both halves of this: a native `<table>` is approved for an
+ * editable matrix or per-row interactive rows, AND "a native table is not a
+ * licence to style a table by hand". Checking only the first half is not enough.
+ * Measured: seven of the eleven approved native tables referenced no
+ * `--ds-table-*` role at all, and their inline cell padding had drifted to three
+ * different values (24px, 20px, 16px) against a contract of 20px. They looked
+ * right because `bg-ds-surface-subtle` happens to be what the header role
+ * resolves to — a coincidence a re-tuned role would break in silence.
  *
  * `ds-native-table` is that contract, so requiring the class is how the
  * second half of the permission becomes enforceable.

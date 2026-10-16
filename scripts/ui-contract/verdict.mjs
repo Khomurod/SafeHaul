@@ -4,9 +4,6 @@
  * Pure: it reads two plain objects and returns findings. No filesystem, no git,
  * no process exit — which is what lets `scripts/test-ui-contract.mjs` drive
  * every branch on fixtures rather than on the repository it is guarding.
- *
- * Extracted from `check-ui-contract.mjs` on 2026-09-04, unchanged, so the CLI
- * could take the git-baseline comparison without going over the 500-line cap.
  */
 
 /**

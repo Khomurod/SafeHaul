@@ -8,13 +8,12 @@
  * plan and nothing else. The deploy scripts only ever run
  * `--only functions:<name>` for functions that still exist, so a retired one
  * stays exactly as deployed, publicly reachable, until something deletes it.
- * Six were retired with the marketing-site form on 2026-08-29 (LD-R3) and were
- * still answering on 2026-09-06, because Production was serving a release from
- * 2026-08-10 whose landing page posted to `submitLandingLead` and whose Super
- * Admin screen called the other five. Deleting them earlier would have broken a
- * live form for visitors. Deleting them AFTER a promotion that no longer calls
- * them is safe, which is why `promote-production.yml` runs this right after the
- * new release is verified live and recorded.
+ * Production can still be serving a release that calls a retired function — a
+ * landing page posting to `submitLandingLead`, a Super Admin screen calling the
+ * rest of LD-R3 — and deleting it then breaks a live form for visitors.
+ * Deleting it AFTER a promotion that no longer calls it is safe, which is why
+ * `promote-production.yml` runs this right after the new release is verified
+ * live and recorded.
  *
  * Each entry of `RETIREMENTS` names its functions and `since`, the commit that
  * removed their last caller from the frontend. What it does, in order:
@@ -101,7 +100,7 @@ export const RETIREMENTS = Object.freeze([
         names: Object.freeze(['executeReactivationBatch']),
     }),
     Object.freeze({
-        // "Sync Backend Structure" (refusing since 2026-10-11) and the security
+        // "Sync Backend Structure" (deployed only as a refusal) and the security
         // audit only the Deep Diagnostic ran, both removed from the owner panel.
         id: 'system-integrity',
         since: '7aaca385a3a86a173805b2bbbb4eac1bc234ffcb',

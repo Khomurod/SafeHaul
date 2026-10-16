@@ -6,21 +6,23 @@
 //
 // WHY IT EXISTS
 //
-// Until 2026-08-25 `connectFacebookPage` set the tenant from the caller's uid:
+// A page bound to the caller's uid rather than to a company:
 //
 //     const companyId = request.auth.uid; // Assumes 1:1 user-company mapping
 //
 // SafeHaul does not work that way — companies carry generated ids and users join
-// them through `memberships`. So a connected page stored a USER id where a
-// COMPANY id belongs, and every lead the webhook ingested afterwards was written
-// to `companies/{uid}/leads`: a document tree belonging to no company, which no
-// screen in the product reads. Those leads were not delivered to the wrong
-// tenant. They went nowhere, and nobody saw them arrive or fail to arrive.
+// them through `memberships`. So such a page holds a USER id where a COMPANY id
+// belongs, and every lead the webhook ingests for it is written to
+// `companies/{uid}/leads`: a document tree belonging to no company, which no
+// screen in the product reads. Those leads are not delivered to the wrong
+// tenant. They go nowhere, and nobody sees them arrive or fail to arrive.
 //
-// The callable is fixed. This tells you whether anything was lost on the way,
-// so the decision about what to do with it is made against numbers rather than
-// a guess. Nothing is moved or deleted here — that is a separate, deliberate
-// migration if you decide you want one.
+// `connectFacebookPage` binds a page to the company the caller names, and only
+// once the caller is verified as its admin. This tells you whether any page is
+// still bound to an id that is not a company and how many leads are stranded
+// there, so the decision about what to do with them is made against numbers
+// rather than a guess. Nothing is moved or deleted here — that is a separate,
+// deliberate migration if you decide you want one.
 //
 // Usage:
 //   GOOGLE_APPLICATION_CREDENTIALS=/path/sa.json \

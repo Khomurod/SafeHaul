@@ -27,10 +27,9 @@
  *
  * The typecheck is no lane either: it is a step of `frontend-quality`.
  *
- * `e2e-a11y` used to be listed here too. It is gone: its axe specs run inside the
- * blocking `frontend_e2e` lane as of 2026-08-25, so they are attested with it and
- * need no lane of their own. The job's own comment had said to fold them in "once
- * confirmed green in CI" — they were green on every run for weeks.
+ * Nor are the axe specs (`e2e-a11y`): they run inside the blocking
+ * `frontend_e2e` lane, so they are attested with it and need no lane of their
+ * own.
  */
 export const LANES = Object.freeze({
     frontend_build: Object.freeze({ jobs: Object.freeze(['frontend-build']) }),

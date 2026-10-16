@@ -104,10 +104,9 @@ export const CONTRACT_EXEMPT_RULES = ['hand-rolled-toggle', 'hand-rolled-current
  * Which rules apply to a file.
  *
  * Stylesheets get the two rules that mean anything in CSS — a raw colour and
- * sub-12px type — because until 2026-08-25 this guard read only JSX, and
- * `src/shared/styles/designTokens.css` sat there for the whole campaign with a
- * second colour, type, radius and shadow scale in forty-odd raw hexes, entirely
- * invisible to a check the README called zero-tolerance.
+ * sub-12px type — because a guard that reads only JSX leaves a stylesheet
+ * carrying a second colour, type, radius and shadow scale in raw hexes entirely
+ * invisible to a check the README calls zero-tolerance.
  */
 export function rulesFor(relativePath) {
     if (relativePath.endsWith('.html')) return HTML_RULE_NAMES;

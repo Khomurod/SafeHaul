@@ -1,11 +1,10 @@
 /**
  * The rules that read STRUCTURE rather than text.
  *
- * Split out of `rules.mjs` on 2026-09-05, when `hand-rolled-disclosure` took
- * that file past the 500-line maximum. The boundary is one `rules.mjs` already
- * drew in its own header and is the reason the two halves are genuinely
- * different subjects: everything there is a global regex over source text, and
- * everything here declares `pattern: null` because a regex cannot express it.
+ * Kept apart from `rules.mjs` along the boundary that file draws in its own
+ * header, which is the reason the two halves are genuinely different subjects:
+ * everything there is a global regex over source text, and everything here
+ * declares `pattern: null` because a regex cannot express it.
  *
  * What they need instead is the tag scanner in `./counting.mjs` — the open tag
  * read with its braces balanced, the element's own name, sometimes what it

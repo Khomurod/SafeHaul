@@ -3,13 +3,13 @@
  *
  * ## The failure this exists for
  *
- * `callable-contract` failed on 2026-09-05 with
+ * Deleting a throwaway repository can fail with
  *
  *     Error: ENOTEMPTY: directory not empty, rmdir '/tmp/safehaul-ui-invent-…/.git'
  *
  * in the cleanup of a guard's own test harness — after every assertion in that
- * harness had passed. Nothing was wrong with the code under test; the gate went
- * red because a temp directory would not delete.
+ * harness has passed. Nothing is wrong with the code under test; the gate goes
+ * red because a temp directory will not delete.
  *
  * Two causes, and both are fixed here rather than in the caller:
  *
@@ -25,11 +25,11 @@
  * ## Why it is shared rather than patched where it broke
  *
  * Four test harnesses and the secret scanner itself build throwaway git
- * repositories and delete them. One of them failed; all five had the same
- * shape. This repository's own rule for a CI bug is to list every job with that
- * shape *before* fixing one, because patching the instance in front of you is
- * how one root cause becomes three separate rounds — the "fix the family" rule
- * in `.claude/rules/release-pipeline.md`, written after it happened three times in one day.
+ * repositories and delete them, all five in the same shape. This repository's
+ * own rule for a CI bug is to list every job with that shape *before* fixing
+ * one, because patching the instance in front of you is how one root cause
+ * becomes three separate rounds — the "fix the family" rule in
+ * `.claude/rules/release-pipeline.md`.
  *
  * `scripts/test-ui-contract-scope.mjs` §S10 asserts no recursive `rmSync` in
  * `scripts/` is written without retries, so the next harness cannot reintroduce

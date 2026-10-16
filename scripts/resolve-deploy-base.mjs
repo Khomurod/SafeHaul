@@ -6,7 +6,7 @@
  * ## The bug this exists to close
  *
  * `scripts/deploy-functions-incremental.mjs` deploys the functions whose source
- * changed between a base commit and HEAD. CI used to hand it
+ * changed between a base commit and HEAD. By default CI hands it
  * `github.event.before` — the PREVIOUS PUSH.
  *
  * That is only correct while every push deploys successfully. When one does not,
@@ -14,13 +14,9 @@
  * that failed, so the functions it changed are silently never deployed. CI is
  * green, the frontend ships, and the callable simply does not exist.
  *
- * That is not hypothetical. `surveyHistoricalReconstruction` shipped in
- * dc0dd23 on 2026-08-07; that merge's deploy jobs died in a runner outage; the
- * next successful deploy measured from dc0dd23 and therefore saw no functions
- * changes at all. The Super Admin panel calling it returned "internal" — a 404
- * from Cloud Functions, whose non-JSON body the Firebase SDK reports as
- * `internal` — and the function was still missing from production two merges
- * later.
+ * A screen calling such a function gets "internal" — a 404 from Cloud
+ * Functions, whose non-JSON body the Firebase SDK reports as `internal` — and
+ * later pushes do not deploy it either.
  *
  * ## The fix
  *
