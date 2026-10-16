@@ -16,6 +16,7 @@ jest.mock('../../ai/providers', () => require('./aiRouter.support').providersMoc
 const { runAiTask } = require('../../ai/router/router');
 const { AiError } = require('../../ai/router/errors');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
+const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
 const { TASK_TYPES, PRIVACY, defineTask } = require('../../ai/tasks/contract');
 const {
     mockRecordTelemetry, mockStore, mockExecute, allConfigured, textTask, resetAiRouterState,
@@ -25,7 +26,8 @@ beforeEach(resetAiRouterState);
 
 /** Mistral reads photos on three versions, so it is first in these walks. */
 const MISTRAL_FIRST = { providerOrder: ['mistral', 'groq'] };
-const [FIRST, SECOND, THIRD] = ['ministral-14b-2512', 'ministral-8b-2512', 'mistral-medium-latest'];
+const [FIRST, SECOND, THIRD] = MODEL_VERSIONS.mistral[CAPABILITIES.VISION];
+const [GROQ_VISION] = MODEL_VERSIONS.groq[CAPABILITIES.VISION];
 
 /** A licence read as the driver-facing tasks run it: 45s in all, 20s an attempt. */
 function readTask() {
@@ -97,7 +99,7 @@ describe('a failure about one version moves to the next version', () => {
 
         const result = await runAiTask(readTask(), MISTRAL_FIRST);
 
-        expect(asked()).toEqual([`mistral/${FIRST}`, `mistral/${SECOND}`, `mistral/${THIRD}`, 'groq/qwen/qwen3.8-27b']);
+        expect(asked()).toEqual([`mistral/${FIRST}`, `mistral/${SECOND}`, `mistral/${THIRD}`, `groq/${GROQ_VISION}`]);
         expect(result).toMatchObject({ providerId: 'groq', fallbackCount: 1 });
     });
 });
@@ -110,17 +112,18 @@ describe('a failure about the vendor or the account moves to the next provider',
 
         const result = await runAiTask(readTask(), MISTRAL_FIRST);
 
-        expect(asked()).toEqual([`mistral/${FIRST}`, 'groq/qwen/qwen3.8-27b']);
+        expect(asked()).toEqual([`mistral/${FIRST}`, `groq/${GROQ_VISION}`]);
         expect(result.providerId).toBe('groq');
     });
 
     it('tries an overloaded vendor\'s other versions when the work has the time', async () => {
-        vendors({ 'gemini/gemini-3.6-flash': fail('provider_unavailable', { status: 503 }) });
+        const [first, spare] = MODEL_VERSIONS.gemini[CAPABILITIES.TEXT];
+        vendors({ [`gemini/${first}`]: fail('provider_unavailable', { status: 503 }) });
 
         const result = await runAiTask(textTask());
 
-        expect(asked()).toEqual(['gemini/gemini-3.6-flash', 'gemini/gemini-3.5-flash-lite']);
-        expect(result).toMatchObject({ providerId: 'gemini', model: 'gemini-3.5-flash-lite' });
+        expect(asked()).toEqual([`gemini/${first}`, `gemini/${spare}`]);
+        expect(result).toMatchObject({ providerId: 'gemini', model: spare });
     });
 
     it.each([
@@ -136,7 +139,7 @@ describe('a failure about the vendor or the account moves to the next provider',
 
         const result = await runAiTask(readTask(), MISTRAL_FIRST);
 
-        expect(asked()).toEqual([`mistral/${FIRST}`, 'groq/qwen/qwen3.8-27b']);
+        expect(asked()).toEqual([`mistral/${FIRST}`, `groq/${GROQ_VISION}`]);
         expect(result.providerId).toBe('groq');
     });
 
@@ -175,7 +178,7 @@ describe('a switch has to fit the task\'s budget', () => {
     it('moves to the next provider when a switch would eat the fallback\'s time', async () => {
         // 39s left cannot hold both, so the next provider gets its full slice.
         const result = await failFirstVersionAfter(6000);
-        expect(asked()).toEqual([`mistral/${FIRST}`, 'groq/qwen/qwen3.8-27b']);
+        expect(asked()).toEqual([`mistral/${FIRST}`, `groq/${GROQ_VISION}`]);
         expect(result.providerId).toBe('groq');
     });
 

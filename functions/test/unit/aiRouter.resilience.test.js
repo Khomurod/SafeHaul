@@ -16,6 +16,7 @@ jest.mock('../../ai/providers', () => require('./aiRouter.support').providersMoc
 const { runAiTask, describeRouting, SKIP_REASONS } = require('../../ai/router/router');
 const { AiError } = require('../../ai/router/errors');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
+const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
 const { TASK_TYPES, PRIVACY, defineTask } = require('../../ai/tasks/contract');
 const {
     mockRecordTelemetry, mockStore, mockExecute, allConfigured, textTask,
@@ -400,10 +401,10 @@ describe('describeRouting', () => {
         const rows = await describeRouting([CAPABILITIES.VISION]);
         const byId = Object.fromEntries(rows.map((row) => [row.providerId, row]));
 
-        // Groq is eligible for vision, on `qwen/qwen3.8-27b`. The console
-        // must show the model it would actually use, so an operator deciding
-        // the order can see what each lane resolves to.
-        expect(byId.groq).toMatchObject({ eligible: true, model: 'qwen/qwen3.8-27b' });
+        // Groq is eligible for vision, on the first version its vision lane
+        // lists. The console must show the model it would actually use, so an
+        // operator deciding the order can see what each lane resolves to.
+        expect(byId.groq).toMatchObject({ eligible: true, model: MODEL_VERSIONS.groq[CAPABILITIES.VISION][0] });
         expect(byId.gemini).toMatchObject({ eligible: false, reason: SKIP_REASONS.DISABLED });
         expect(byId.cerebras).toMatchObject({ eligible: false, reason: SKIP_REASONS.INCAPABLE });
         expect(byId['github-models']).toMatchObject({ eligible: false, reason: SKIP_REASONS.RETIRED });

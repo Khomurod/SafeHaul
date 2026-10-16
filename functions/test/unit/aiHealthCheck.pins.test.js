@@ -14,6 +14,8 @@ jest.mock('../../ai/providers', () => require('./aiHealthCheck.support').provide
 
 const { testProviderConnection, PROBE_STATUS } = require('../../ai/tasks/healthCheck');
 const { AiError } = require('../../ai/router/errors');
+const { CAPABILITIES } = require('../../ai/registry/capabilities');
+const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
 const {
     mockStore, mockExecute, healthyProvider, resetHealthCheckState,
 } = require('./aiHealthCheck.support');
@@ -50,7 +52,7 @@ describe('model pin reconciliation', () => {
         const groq = result.providers.find((entry) => entry.providerId === 'groq');
 
         expect(groq.status).toBe('stale');
-        const visionPin = groq.pins.find((pin) => pin.model === 'qwen/qwen3.8-27b');
+        const visionPin = groq.pins.find((pin) => pin.model === MODEL_VERSIONS.groq[CAPABILITIES.VISION][0]);
         expect(visionPin.present).toBe(false);
         expect(visionPin.capabilities).toEqual(expect.arrayContaining(['vision']));
         expect(result.stalePins).toBeGreaterThan(0);
@@ -59,7 +61,7 @@ describe('model pin reconciliation', () => {
     it('reports every pin present as ok', async () => {
         // Every version, spares included: a spare its vendor withdrew is stale.
         const result = await diagnoseModelPins({
-            fetchImpl: catalogueReturning({ groq: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b'] }),
+            fetchImpl: catalogueReturning({ groq: Object.values(MODEL_VERSIONS.groq).flat() }),
         });
 
         expect(result.providers.find((entry) => entry.providerId === 'groq').status).toBe('ok');
@@ -157,7 +159,6 @@ describe('model pin reconciliation', () => {
         // A version kept in reserve is no reserve if its vendor withdrew it.
         const { __test } = require('../../ai/tasks/modelPins');
         const { getProvider } = require('../../ai/registry/providers');
-        const { CAPABILITIES } = require('../../ai/registry/capabilities');
         const gemini = getProvider('gemini');
         const withSpare = {
             ...gemini,
@@ -292,7 +293,7 @@ describe('a throttled diagnostic is not a failed capability', () => {
 
         await testProviderConnection('gemini');
 
-        expect(visionModels).toEqual(['gemini-3.6-flash', 'gemini-3.5-flash-lite']);
+        expect(visionModels).toEqual(MODEL_VERSIONS.gemini[CAPABILITIES.VISION]);
     });
 
     it('does not honour an absurd stated wait', async () => {
@@ -311,6 +312,6 @@ describe('a throttled diagnostic is not a failed capability', () => {
 
         await testProviderConnection('gemini');
 
-        expect(visionModels).toEqual(['gemini-3.6-flash', 'gemini-3.5-flash-lite']);
+        expect(visionModels).toEqual(MODEL_VERSIONS.gemini[CAPABILITIES.VISION]);
     });
 });

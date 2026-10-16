@@ -7,6 +7,7 @@ const { decideLane, checkProvider, MAX_TESTS_PER_PROVIDER } = require('../../ai/
 const { RESULT } = require('../../ai/tasks/modelVerification');
 const { requireProvider, builtInModels } = require('../../ai/registry/providers');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
+const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
 
 const results = (entries) => new Map(Object.entries(entries).map(([model, result]) => [model, { model, result }]));
 
@@ -60,6 +61,7 @@ describe('decideLane', () => {
 
 describe('checkProvider', () => {
     const gemini = requireProvider('gemini');
+    const [FIRST, SECOND] = MODEL_VERSIONS.gemini[CAPABILITIES.VISION];
     const catalogue = (ids) => jest.fn(async () => ({
         ok: true,
         status: 200,
@@ -75,12 +77,12 @@ describe('checkProvider', () => {
         const verify = script({});
         const out = await run({
             verify,
-            fetchImpl: catalogue(['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.7-flash', 'gemini-3.6-pro', 'gemini-2.5-flash-preview']),
+            fetchImpl: catalogue([FIRST, SECOND, 'gemini-3.7-flash', 'gemini-3.6-pro', 'gemini-2.5-flash-preview']),
         });
 
         expect(out.catalogue).toBe('ok');
         expect(out.lanes.vision).toMatchObject({
-            models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.7-flash'], added: ['gemini-3.7-flash'], status: 'ok', changed: true,
+            models: [FIRST, SECOND, 'gemini-3.7-flash'], added: ['gemini-3.7-flash'], status: 'ok', changed: true,
         });
         // Pro and previews are never candidates.
         expect(verify.mock.calls.map(([call]) => call.model)).not.toContain('gemini-3.6-pro');
@@ -89,15 +91,15 @@ describe('checkProvider', () => {
 
     it('drops a version the catalogue no longer lists without spending a test on it', async () => {
         const verify = script({});
-        const out = await run({ verify, fetchImpl: catalogue(['gemini-3.6-flash']) });
+        const out = await run({ verify, fetchImpl: catalogue([FIRST]) });
 
-        expect(out.lanes.vision).toMatchObject({ models: ['gemini-3.6-flash'], dropped: [{ model: 'gemini-3.5-flash-lite', result: RESULT.GONE }] });
-        expect(verify.mock.calls.map(([call]) => `${call.lane}/${call.model}`)).not.toContain('vision/gemini-3.5-flash-lite');
+        expect(out.lanes.vision).toMatchObject({ models: [FIRST], dropped: [{ model: SECOND, result: RESULT.GONE }] });
+        expect(verify.mock.calls.map(([call]) => `${call.lane}/${call.model}`)).not.toContain(`vision/${SECOND}`);
     });
 
     it('stops at a refused key, and reports it for the account', async () => {
-        const verify = script({ 'gemini-3.6-flash': RESULT.KEY });
-        const out = await run({ verify, fetchImpl: catalogue(['gemini-3.6-flash', 'gemini-3.5-flash-lite']) });
+        const verify = script({ [FIRST]: RESULT.KEY });
+        const out = await run({ verify, fetchImpl: catalogue([FIRST, SECOND]) });
 
         expect(out.account).toBe(RESULT.KEY);
         expect(verify).toHaveBeenCalledTimes(1);
@@ -117,13 +119,13 @@ describe('checkProvider', () => {
         const out = await run({ verify, fetchImpl: jest.fn(async () => { throw new Error('offline'); }) });
 
         expect(out.catalogue).toBe('unreachable');
-        expect(out.lanes.vision).toMatchObject({ models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'], changed: false, status: 'ok' });
+        expect(out.lanes.vision).toMatchObject({ models: [FIRST, SECOND], changed: false, status: 'ok' });
     });
 
     it('spends at most its budget of tests', async () => {
-        const verify = script({ 'gemini-3.6-flash': RESULT.GONE, 'gemini-3.5-flash-lite': RESULT.GONE });
+        const verify = script({ [FIRST]: RESULT.GONE, [SECOND]: RESULT.GONE });
         const many = Array.from({ length: 20 }, (_, index) => `gemini-4.${index}-flash`);
-        await run({ verify, fetchImpl: catalogue(['gemini-3.6-flash', 'gemini-3.5-flash-lite', ...many]) });
+        await run({ verify, fetchImpl: catalogue([FIRST, SECOND, ...many]) });
 
         expect(verify.mock.calls.length).toBeLessThanOrEqual(MAX_TESTS_PER_PROVIDER);
     });
@@ -132,7 +134,7 @@ describe('checkProvider', () => {
         const verify = script({});
         await checkProvider({
             provider: gemini, config: {}, credentials: { values: { apiKey: 'k' } }, deadlineAt: Date.now() - 1,
-            deps: { verify, sleep: async () => {}, fetchImpl: catalogue(['gemini-3.6-flash']) },
+            deps: { verify, sleep: async () => {}, fetchImpl: catalogue([FIRST]) },
         });
         expect(verify).not.toHaveBeenCalled();
     });
@@ -151,7 +153,7 @@ describe('checkProvider', () => {
         const verify = script({});
         // Saved against versions this release no longer ships: the check starts from the release's own.
         const config = { modelLists: { vision: { models: ['gemini-3.7-flash'], seed: ['gemini-3.5-flash'] } } };
-        const out = await run({ verify, fetchImpl: catalogue(['gemini-3.6-flash', 'gemini-3.5-flash-lite']) }, config);
+        const out = await run({ verify, fetchImpl: catalogue([FIRST, SECOND]) }, config);
 
         expect(out.lanes.vision.previous).toEqual(builtInModels(gemini, CAPABILITIES.VISION));
         expect(out.lanes.vision.seed).toEqual(builtInModels(gemini, CAPABILITIES.VISION));
