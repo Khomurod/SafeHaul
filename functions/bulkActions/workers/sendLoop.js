@@ -110,8 +110,13 @@ async function runSendLoop({
                         recipientName = `${leadData.firstName || 'Driver'} ${leadData.lastName || ''}`.trim();
                         const phone = leadData.phone || leadData.phoneNumber;
 
-                        // 2. Blacklist Check
-                        const blacklisted = await isBlacklisted(companyId, phone);
+                        // 2. Blacklist Check. An opt-out is kept under a phone
+                        // number. For SMS the number is the address, so a missing
+                        // or unusable one is refused here; an email to someone
+                        // without a usable number has no opt-out to look up.
+                        const blacklisted = (config.method === 'sms' || normalizePhone(phone))
+                            ? await isBlacklisted(companyId, phone)
+                            : false;
 
                         if (blacklisted) {
                             errorMsg = "Number is blacklisted (Opt-out)";
