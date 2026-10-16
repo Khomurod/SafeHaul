@@ -210,7 +210,10 @@ describe('LoginScreen — design-system migration', () => {
                     target: { value: loginEmail },
                 });
             }
-            fireEvent.click(screen.getByRole('button', { name: /forgot password/i }));
+            // A browser focuses a button it clicks; `fireEvent.click` does not.
+            const trigger = screen.getByRole('button', { name: /forgot password/i });
+            trigger.focus();
+            fireEvent.click(trigger);
             return screen.getByRole('dialog');
         }
 
@@ -221,6 +224,11 @@ describe('LoginScreen — design-system migration', () => {
             const resetEmail = within(dialog).getByRole('textbox', { name: /email address/i });
             expect(resetEmail).toHaveValue('recruiter@example.com');
             await waitFor(() => expect(resetEmail).toHaveFocus());
+
+            // Escape, pressed in that field, closes the dialog and gives focus back to its trigger.
+            fireEvent.keyDown(resetEmail, { key: 'Escape' });
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /forgot password/i })).toHaveFocus();
         });
 
         it('validates an empty email without calling the reset service', async () => {
