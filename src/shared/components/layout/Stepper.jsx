@@ -12,35 +12,21 @@ import { DynamicQuestionsStep } from '../../../features/driver-app/components/ap
 import { CompanyEditsNotice } from '../../../features/driver-app/components/application/CompanyEditsNotice';
 import { COMPANY_NOTICE_KEY } from '../../../features/driver-app/components/application/companyEditsSync';
 import { Button, ProgressBar } from '@/design-system/components';
+import { wizardStepsFor } from './wizardSteps';
 
-export function buildSemanticStepOrder(hasCustomQuestions) {
-    const order = ['contact', 'qualifications', 'license', 'violations', 'accidents', 'employment', 'general'];
-    if (hasCustomQuestions) order.push('custom_questions');
-    order.push('review', 'consent');
-    return order;
-}
-
-export function resolveWizardStepIndex(semanticStep, hasCustomQuestions) {
-    const order = buildSemanticStepOrder(hasCustomQuestions);
-    if (typeof semanticStep === 'number' && semanticStep >= 0 && semanticStep < order.length) {
-        return semanticStep;
-    }
-    const idx = order.indexOf(semanticStep);
-    return idx >= 0 ? idx : 0;
-}
-
-// Base page config (without custom questions)
-const basePageConfig = [
-    { title: "Step 1: Personal Information", component: Step1_Contact, semanticId: 'contact' },
-    { title: "Step 2: Qualification Information", component: Step2_Qualifications, semanticId: 'qualifications' },
-    { title: "Step 3: License Information", component: Step3_License, semanticId: 'license' },
-    { title: "Step 4: Motor Vehicle Record", component: Step4_Violations, semanticId: 'violations' },
-    { title: "Step 5: Accident History", component: Step5_Accidents, semanticId: 'accidents' },
-    { title: "Step 6: Employment History", component: Step6_Employment, semanticId: 'employment' },
-    { title: "Step 7: General Questions", component: Step7_General, semanticId: 'general' },
-    { title: "Step 8: Review Information", component: Step8_Review, semanticId: 'review' },
-    { title: "Step 9: Agreements & Signature", component: Step9_Consent, semanticId: 'consent' },
-];
+/** Each page's screen, by the page's name in `wizardSteps.js`. */
+const STEP_COMPONENTS = {
+    contact: Step1_Contact,
+    qualifications: Step2_Qualifications,
+    license: Step3_License,
+    violations: Step4_Violations,
+    accidents: Step5_Accidents,
+    employment: Step6_Employment,
+    general: Step7_General,
+    custom_questions: DynamicQuestionsStep,
+    review: Step8_Review,
+    consent: Step9_Consent,
+};
 
 /**
  * Public driver-application wizard frame.
@@ -50,8 +36,8 @@ const basePageConfig = [
  * `Step N of M: <Title>` text (asserted with `toHaveText` by
  * `e2e/public-application.spec.cjs`, `e2e/guest-application-intake.spec.cjs` and
  * `e2e/guest-offline-queue.spec.cjs`), the `#driver-form` id every step reads
- * with `document.getElementById` for native validation, the custom-questions
- * insertion position and titles, the `submissionStatus` → bar tone mapping, the
+ * with `document.getElementById` for native validation, the pages' order and
+ * titles (`wizardSteps.js`), the `submissionStatus` → bar tone mapping, the
  * "only 100% on success" rule, the `Error: Step N not found.` fallback, and the
  * sandbox Magic Fill control. The signature canvas is the consent step's own: it
  * exists only on that step's last page, which sets it up each time it is shown.
@@ -71,58 +57,19 @@ const Stepper = ({
     step, formData, updateFormData, onNavigate,
     onPartialSubmit, onFinalSubmit, submissionStatus,
     handleFileUpload, isUploading,
-    customQuestions = [], // NEW: Custom questions from schema
+    customQuestions = [], // the company's own questions: a page of their own when there are any
     isSandboxMode = false,
     onMagicFillStep,
 }) => {
     const headingRef = useRef(null);
 
-    // Build dynamic page config with custom questions inserted
     const pageConfig = useMemo(() => {
-        if (!customQuestions || customQuestions.length === 0) {
-            return basePageConfig.map((config, idx) => ({
-                ...config,
-                title: `Step ${idx + 1} of ${basePageConfig.length}: ${config.title.split(': ')[1]}`
-            }));
-        }
-
-        // Insert custom questions step after Step 7 (General) but before Review
-        const totalSteps = basePageConfig.length + 1;
-        const config = [];
-
-        for (let i = 0; i < basePageConfig.length; i++) {
-            const baseTitle = basePageConfig[i].title.split(': ')[1];
-
-            if (i < 7) {
-                // Steps 1-7 unchanged
-                config.push({
-                    ...basePageConfig[i],
-                    title: `Step ${i + 1} of ${totalSteps}: ${baseTitle}`
-                });
-            } else if (i === 7) {
-                // Insert Custom Questions step (Step 8)
-                config.push({
-                    title: `Step 8 of ${totalSteps}: Additional Questions`,
-                    component: DynamicQuestionsStep,
-                    isCustomStep: true,
-                    semanticId: 'custom_questions',
-                    customQuestions: customQuestions
-                });
-                // Then Review becomes Step 9
-                config.push({
-                    ...basePageConfig[i],
-                    title: `Step 9 of ${totalSteps}: ${baseTitle}`
-                });
-            } else if (i === 8) {
-                // Consent becomes Step 10
-                config.push({
-                    ...basePageConfig[i],
-                    title: `Step 10 of ${totalSteps}: ${baseTitle}`
-                });
-            }
-        }
-
-        return config;
+        const pages = wizardStepsFor(customQuestions?.length > 0);
+        return pages.map((page, idx) => ({
+            title: `Step ${idx + 1} of ${pages.length}: ${page.title}`,
+            component: STEP_COMPONENTS[page.id],
+            isCustomStep: page.id === 'custom_questions',
+        }));
     }, [customQuestions]);
 
     const currentConfig = pageConfig[step];
@@ -198,7 +145,7 @@ const Stepper = ({
                 <form id="driver-form" onSubmit={(e) => e.preventDefault()}>
                     {currentConfig?.isCustomStep ? (
                         <CurrentStepComponent
-                            questions={currentConfig.customQuestions}
+                            questions={customQuestions}
                             formData={formData}
                             updateFormData={updateFormData}
                             onNavigate={onNavigate}

@@ -12,7 +12,7 @@
 // applicant missing a licence upload and an employer's reason for leaving goes
 // to page three, not to page six and then back to page three. On one page, the
 // order of the checks below decides.
-import { buildSemanticStepOrder, resolveWizardStepIndex } from '@shared/components/layout/Stepper';
+import { buildSemanticStepOrder, resolveWizardStepIndex } from '@shared/components/layout/wizardSteps';
 import { isValidEmail, isValidPhone } from '@shared/utils/validation';
 import { PHONE_RULE_MESSAGE } from '@shared/utils/fieldValidators';
 import { evaluateApplicationRules, normalizeApplicationAnswers } from '@/config/applicationRules';
@@ -31,7 +31,6 @@ export function runSubmissionPreflight({
   formData,
   company,
   customQuestions,
-  consentStepIndex,
   cdlUploadConfig,
   medCardConfig,
   mvrConsentConfig,
@@ -145,9 +144,7 @@ export function runSubmissionPreflight({
   if (!first) return { ok: true, formData: normalized };
 
   showError(first.message);
-  setCurrentStep(first.semanticStep === 'consent'
-    ? consentStepIndex
-    : resolveWizardStepIndex(first.semanticStep, hasCustomQuestions));
+  setCurrentStep(resolveWizardStepIndex(first.semanticStep, hasCustomQuestions));
   return { ok: false, formData };
 }
 

@@ -229,20 +229,6 @@ export const stepperMock = () => ({
       <button type="button" onClick={() => updateFormData('phone', '5559999')}>probe-edit</button>
     </div>
   ),
-  // The real order, so a resumed step index resolves the way it does in the app.
-  buildSemanticStepOrder: (hasCustomQuestions) => {
-    const order = ['contact', 'qualifications', 'license', 'violations', 'accidents', 'employment', 'general'];
-    if (hasCustomQuestions) order.push('custom_questions');
-    order.push('review', 'consent');
-    return order;
-  },
-  resolveWizardStepIndex: (semantic, hasCustomQuestions) => {
-    const order = ['contact', 'qualifications', 'license', 'violations', 'accidents', 'employment', 'general'];
-    if (hasCustomQuestions) order.push('custom_questions');
-    order.push('review', 'consent');
-    const index = order.indexOf(semantic);
-    return index >= 0 ? index : 0;
-  },
 });
 
 // --- fixtures and helpers, verbatim ----------------------------------------

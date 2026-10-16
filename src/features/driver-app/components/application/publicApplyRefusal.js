@@ -6,7 +6,7 @@
  * arrived is queued and replayed; a refused one would get the same refusal on
  * every replay, so it is said, with the page to fix, instead.
  */
-import { resolveWizardStepIndex } from '@shared/components/layout/Stepper';
+import { resolveWizardStepIndex } from '@shared/components/layout/wizardSteps';
 import { fetchPublicProfileBySlug } from '../../services/publicProfileService';
 
 export { isPermanentRefusal } from './refusalCodes';

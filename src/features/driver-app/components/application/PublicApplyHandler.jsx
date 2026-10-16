@@ -107,8 +107,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   // resume flow.
   const customQuestions = useMemo(() => company?.customQuestions || [], [company]);
   const postApplicationTemplates = normalizePostApplicationTemplates(company?.postApplicationTemplates);
-  // #8 FIX: Dynamic consent step index based on whether custom questions exist
-  const consentStepIndex = customQuestions.length > 0 ? 9 : 8;
   // The cross-tab discard machinery — this tab's identity refs, the two
   // discard callbacks, the guards ref, the storage-event subscription — and
   // the server resume flow live together in useDiscardAwareResume; the pair is
@@ -342,7 +340,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     slug,
     sandbox,
     customQuestions,
-    consentStepIndex,
     submissionStatus,
     cdlUploadConfig,
     medCardConfig,

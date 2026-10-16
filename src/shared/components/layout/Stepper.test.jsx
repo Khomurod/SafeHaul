@@ -24,10 +24,10 @@ vi.mock('../../../features/driver-app/components/application/steps/Step7_General
 vi.mock('../../../features/driver-app/components/application/steps/Step8_Review', () => ({ __esModule: true, default: () => <p>review body</p> }));
 vi.mock('../../../features/driver-app/components/application/steps/Step9_Consent', () => ({ __esModule: true, default: () => <p>consent body</p> }));
 vi.mock('../../../features/driver-app/components/application/steps/DynamicQuestionsStep', () => ({
-  DynamicQuestionsStep: () => <p>custom questions body</p>,
+  DynamicQuestionsStep: ({ questions }) => <p data-questions={JSON.stringify(questions)}>custom questions body</p>,
 }));
 
-import Stepper, { buildSemanticStepOrder, resolveWizardStepIndex } from './Stepper';
+import Stepper from './Stepper';
 
 const baseProps = {
   formData: {},
@@ -42,24 +42,6 @@ const baseProps = {
 
 const renderStepper = (overrides = {}) =>
   render(<Stepper {...baseProps} step={0} {...overrides} />);
-
-describe('Stepper semantic step order', () => {
-  it('keeps the nine-step order and inserts custom questions before review', () => {
-    expect(buildSemanticStepOrder(false)).toEqual([
-      'contact', 'qualifications', 'license', 'violations', 'accidents',
-      'employment', 'general', 'review', 'consent',
-    ]);
-    expect(buildSemanticStepOrder(true)[7]).toBe('custom_questions');
-    expect(buildSemanticStepOrder(true)).toHaveLength(10);
-  });
-
-  it('resolves semantic ids and numeric indexes, falling back to the first step', () => {
-    expect(resolveWizardStepIndex('consent', false)).toBe(8);
-    expect(resolveWizardStepIndex('consent', true)).toBe(9);
-    expect(resolveWizardStepIndex(3, false)).toBe(3);
-    expect(resolveWizardStepIndex('nope', false)).toBe(0);
-  });
-});
 
 describe('Stepper frame', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -79,18 +61,43 @@ describe('Stepper frame', () => {
   });
 
   it.each([
-    [0, 'Step 1 of 9: Personal Information'],
-    [1, 'Step 2 of 9: Qualification Information'],
-    [2, 'Step 3 of 9: License Information'],
-    [3, 'Step 4 of 9: Motor Vehicle Record'],
-    [4, 'Step 5 of 9: Accident History'],
-    [5, 'Step 6 of 9: Employment History'],
-    [6, 'Step 7 of 9: General Questions'],
-    [7, 'Step 8 of 9: Review Information'],
-    [8, 'Step 9 of 9: Agreements & Signature'],
-  ])('step %i keeps its frozen title', (step, expected) => {
+    [0, 'Step 1 of 9: Personal Information', 'contact body'],
+    [1, 'Step 2 of 9: Qualification Information', 'qualifications body'],
+    [2, 'Step 3 of 9: License Information', 'license body'],
+    [3, 'Step 4 of 9: Motor Vehicle Record', 'violations body'],
+    [4, 'Step 5 of 9: Accident History', 'accidents body'],
+    [5, 'Step 6 of 9: Employment History', 'employment body'],
+    [6, 'Step 7 of 9: General Questions', 'general body'],
+    [7, 'Step 8 of 9: Review Information', 'review body'],
+    [8, 'Step 9 of 9: Agreements & Signature', 'consent body'],
+  ])('step %i keeps its frozen title and shows its own page', (step, expected, body) => {
     renderStepper({ step });
     expect(document.getElementById('step-title').textContent).toBe(expected);
+    expect(screen.getByText(body)).toBeInTheDocument();
+  });
+
+  it.each([
+    [0, 'Step 1 of 10: Personal Information', 'contact body'],
+    [1, 'Step 2 of 10: Qualification Information', 'qualifications body'],
+    [2, 'Step 3 of 10: License Information', 'license body'],
+    [3, 'Step 4 of 10: Motor Vehicle Record', 'violations body'],
+    [4, 'Step 5 of 10: Accident History', 'accidents body'],
+    [5, 'Step 6 of 10: Employment History', 'employment body'],
+    [6, 'Step 7 of 10: General Questions', 'general body'],
+    [7, 'Step 8 of 10: Additional Questions', 'custom questions body'],
+    [8, 'Step 9 of 10: Review Information', 'review body'],
+    [9, 'Step 10 of 10: Agreements & Signature', 'consent body'],
+  ])('with the company\'s questions, step %i keeps its frozen title and shows its own page', (step, expected, body) => {
+    const customQuestions = [{ id: 'q1', label: 'Why us?', type: 'shortAnswer' }];
+    renderStepper({ step, customQuestions });
+    expect(document.getElementById('step-title').textContent).toBe(expected);
+    expect(screen.getByText(body)).toBeInTheDocument();
+  });
+
+  it('hands the company\'s questions to their page', () => {
+    const customQuestions = [{ id: 'q1', label: 'Why us?', type: 'shortAnswer' }];
+    renderStepper({ step: 7, customQuestions });
+    expect(screen.getByText('custom questions body')).toHaveAttribute('data-questions', JSON.stringify(customQuestions));
   });
 
   it('renumbers to ten steps and inserts Additional Questions when custom questions exist', () => {
