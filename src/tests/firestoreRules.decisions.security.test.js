@@ -230,6 +230,8 @@ const ROWS = [
     [ownedApplication, { companyId: OTHER_CO }, `companyId to ${OTHER_CO}`],
     [tenant({ applicantId: SOMEONE, driverId: SOMEONE, email: DRIVER_EMAIL }), { phone: '5551112222' },
       `phone, ${DRIVER}'s by email only`],
+    [tenant({ applicantId: DRIVER, driverId: SOMEONE }), { phone: '5551112222' }, `phone, applicantId ${DRIVER} only`],
+    [tenant({ applicantId: SOMEONE, driverId: DRIVER }), { phone: '5551112222' }, `phone, driverId ${DRIVER} only`],
     [{ applicantId: DRIVER, driverId: DRIVER }, { note: 'changed' }, 'no companyId'],
   ].map(([seed, data, note]) => ({
     op: 'update', path: `${companyPath}/applications/{doc}`, seed, data,
