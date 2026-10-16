@@ -89,6 +89,7 @@ export function resolveSignedDateValue(field = {}, now = new Date()) {
 
 /** Stamp every signing-date field in a list; every other field is returned untouched. */
 export function stampSignedDateFields(fields = [], now = new Date()) {
+    if (!Array.isArray(fields)) return [];
     return fields.map((field) => {
         if (!field || typeof field !== 'object') return field;
         const value = resolveSignedDateValue(field, now);

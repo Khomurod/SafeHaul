@@ -53,7 +53,7 @@ const FIELDS = [
     { bindingKey: ' current_date\n' },
     { bindingKey: 'currentDate' },
     { bindingKey: null, defaultValue: null },
-    // A date baked in by a send from before the fix, and a binding over other text.
+    // A date an older send baked in, and a binding over other text.
     { bindingKey: 'current_date', defaultValue: 'May 7, 2026' },
     { bindingKey: 'current_date', defaultValue: '{{full_name}}' },
     { bindingKey: 'dob', defaultValue: 'January 2, 1980' },
@@ -120,9 +120,7 @@ describe('parity with functions/shared/signedDate.js', () => {
         }
     });
 
-    // DISAGREEMENT — reported, deliberately not fixed in this change. Given
-    // anything but an array or nothing, the server answers [] and the site throws
-    // a TypeError (it calls `.map` on it). This case fails until one copy changes.
+    // Anything but a list is no fields at all, on both sides.
     it('answers the same when the list is missing or not an array', () => {
         const notArrays = [undefined, null, 'text', {}];
         expect(notArrays.map((fields) => outcome(site.stampSignedDateFields, fields, DATES[0])))
