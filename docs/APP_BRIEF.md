@@ -57,7 +57,7 @@ to product copy.
 
 | User | Auth | How they use it |
 |---|---|---|
-| **Super admin** (platform operator) | `globalRole: super_admin` claim | Mission control at `/super-admin`: platform totals and calls activity, provision companies and portal users, global feature flags, AI/SMS/environment credentials, blog, releases, system health alerts, maintenance |
+| **Super admin** (platform operator) | `globalRole: super_admin` claim | Mission control at `/super-admin`: provision companies and portal users, global feature flags, AI/SMS/environment credentials, blog, releases, system health |
 | **Company admin** | `roles[companyId] = company_admin` | Full company workspace at `/company`: settings, team, integrations, imports, plus everything a recruiter can do |
 | **Recruiter / HR user** | `roles[companyId] = recruiter` \| `hr_user` | Daily driver: applications and leads pipeline, campaigns, e-docs, PEV |
 | **Driver applicant** | **Usually unauthenticated** (guest) | Fills the 9-step application at `/apply/:slug` on a phone; signs documents; reviews company edits via token link |
@@ -315,20 +315,10 @@ session-based worker (§8). Partial by design: the carrier connects its own
 messaging provider and is billed by it. No two-way threads, no automated
 multi-step drips.
 
-**Super admin operations.** The Dashboard (platform totals, and below them
-the calls logged in a 7/30/90-day period by company and recruiter, exportable as
-CSV), companies, users, unified driver DB, global feature flags, SMS
-integrations, Environment & Integrations vault, AI providers (recent AI activity
-is read on its Logs tab only), blog, website-lead archive, system health (the
-watcher's Telegram alerts), releases, and Maintenance: the employer, stats and
-public-profile backfills and historical records, each action that writes behind
-a confirmation (dry-runs and checks run at once). AI model versions, the blog's
-publication check and releases keep their own buttons on their own screens.
-`stats_daily` counts logged calls only, so every activity figure is calls: there
-is no "actions" total, a recruiter's Last Active is the last day in the period
-they logged a call, and a failed read shows an error, never zeros. Old
-`/super-admin/analytics` and `/super-admin/stats-backfill` links open the
-Dashboard and Maintenance.
+**Super admin operations.** Dashboard (totals and calls per period), companies,
+users, unified driver DB, global feature flags, SMS integrations, Environment &
+Integrations vault, AI providers, blog, website-lead archive, system health,
+releases, Maintenance (writes ask first).
 
 ---
 
@@ -1028,7 +1018,7 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
   marked `validation_error`), files its details (no SSN) under `drivers/{id}/pending_updates`,
   read by nothing, and adds the company to an existing profile (`{id}`: the Auth uid of a known email;
   for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created.
-- **Stats** — `activity_logs` writes roll up into `stats_daily`; application and
+- **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
 - **Notifications** — status changes, lead assignment, new applications,
@@ -1360,8 +1350,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Historical reconstruction is an ongoing migration.** Applications submitted
   before snapshot preservation get a record and PDF rebuilt only from surviving
   evidence and **marked as reconstructed** (`reconstructHistoricalApplications`);
-  `surveyHistoricalReconstruction` counts what is left when the owner presses
-  "Check what is left" on Super Admin → Maintenance, and says when nothing is. See
+  `surveyHistoricalReconstruction` counts what is left when asked on
+  Maintenance, and says when nothing is. See
   [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md).
 - **A deleted blog article does not free its slot.** Deletion leaves a tombstone
   and `slotIsFilled` checks only that the slot's document exists, so the day
