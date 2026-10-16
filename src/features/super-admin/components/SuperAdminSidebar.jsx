@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { LayoutDashboard, Building, Users, FileText, Layers, Plus, BarChart3, Activity, MessageSquare, RefreshCw, KeyRound, Sparkles, Globe, Inbox, Newspaper, Rocket } from '@design-system/icons';
+import { LayoutDashboard, Building, Users, FileText, Layers, Plus, BarChart3, Activity, MessageSquare, Wrench, KeyRound, Sparkles, Globe, Inbox, Newspaper, Rocket } from '@design-system/icons';
 import { SectionNavigation } from '@/design-system/components';
 import { SUPER_ADMIN_NAV_ITEMS } from '../config/views';
 
@@ -18,7 +18,7 @@ export const NAV_ICONS = {
   BarChart3,
   Activity,
   MessageSquare,
-  RefreshCw,
+  Wrench,
   KeyRound,
   Sparkles,
   Newspaper,
@@ -31,8 +31,7 @@ export const NAV_ICONS = {
  * Visible names for the group keys in `SUPER_ADMIN_NAV_ITEMS`.
  *
  * The config carries internal keys (`core`, `data`, ...) because it is the
- * frozen routing contract; naming them is a presentation decision and belongs
- * here. `SectionNavigation` renders each group's label as a real heading, which
+ * routing contract; naming them is a presentation decision and belongs here. `SectionNavigation` renders each group's label as a real heading, which
  * replaces the previous purely decorative divider — the grouping is now
  * announced rather than implied by a horizontal line.
  */
@@ -48,8 +47,8 @@ const GROUP_LABELS = {
  *
  * Built on the approved `SectionNavigation` primitive. Presentation only —
  * `setActiveView` receives the exact `SUPER_ADMIN_VIEWS` value for each item,
- * item order and grouping are frozen, and selecting an item clears the global
- * search first.
+ * the items, their order and their groups are `SUPER_ADMIN_NAV_ITEMS` as the
+ * config lists them, and selecting an item clears the global search.
  *
  * An earlier revision of this migration hand-rolled the rail and justified it by
  * claiming `SectionNavigation` was a "flat list" contract. That was simply

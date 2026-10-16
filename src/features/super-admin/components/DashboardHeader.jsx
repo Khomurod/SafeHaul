@@ -1,16 +1,16 @@
 import React, { useId } from 'react';
-import { Icon, Building2, Search, X, LogOut, Wrench } from '@design-system/icons';
+import { Icon, Building2, Search, X, LogOut } from '@design-system/icons';
 import { Button, IconButton, Input } from '@/design-system/components';
 
 /**
- * Super Admin masthead: product identity, the global search box, the employer
- * backfill maintenance action, and logout.
+ * Super Admin masthead: product identity, the global search box, and logout.
+ * Maintenance actions live on the Maintenance page.
  *
  * Presentation only — `setSearchQuery` receives the raw input value on every
  * keystroke (the 600 ms debounce and the >= 2 character rule live in
- * `useSuperAdminData`), the clear control sets `''`, and `onBackfillEmployers` /
- * `onLogout` are called with no arguments. The `logout-button-super` id is
- * preserved because existing selectors depend on it.
+ * `useSuperAdminData`), the clear control sets `''`, and `onLogout` is called
+ * with no arguments. The `logout-button-super` id is preserved because existing
+ * selectors depend on it.
  *
  * Fixed here:
  *  - The global search `<input>` had **no label at all** — only a placeholder,
@@ -21,15 +21,12 @@ import { Button, IconButton, Input } from '@/design-system/components';
  *  - Legacy palette (`bg-blue-600`, `bg-orange-600`, `bg-red-500`, `text-gray-*`)
  *    replaced with design-system Buttons and `--ds-*` tokens.
  *  - The header row could not wrap, so at narrow widths the search box and the
- *    two actions overflowed horizontally; it now wraps and the search box is
+ *    actions overflowed horizontally; it now wraps and the search box is
  *    allowed to shrink.
  */
 export function DashboardHeader({
     searchQuery,
     setSearchQuery,
-    onBackfillEmployers,
-    backfillTriggerRef,
-    backfillingEmployers,
     onLogout
 }) {
     const searchId = useId();
@@ -76,17 +73,6 @@ export function DashboardHeader({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-ds-2">
-                    <Button
-                        ref={backfillTriggerRef}
-                        variant="secondary"
-                        onClick={onBackfillEmployers}
-                        loading={backfillingEmployers}
-                        title="Backfill employer field names in all existing applications"
-                    >
-                        {!backfillingEmployers && <Icon icon={Wrench} />}
-                        {backfillingEmployers ? "Backfilling..." : "Backfill Employers"}
-                    </Button>
-
                     <Button
                         id="logout-button-super"
                         variant="danger"

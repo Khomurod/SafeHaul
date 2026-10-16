@@ -7,18 +7,26 @@
 // unreachable under `VITE_E2E_TEST_MODE=1` (the app forces the placeholder
 // Firebase project so E2E can never touch real data), so what is reachable and
 // asserted here is the shell itself: the landmarks, the named navigation and its
-// `aria-current` state, view switching, the labelled global search, the
-// accessible maintenance confirmation that replaced `window.confirm`, keyboard
-// operation, axe, and overflow at three widths.
+// `aria-current` state, view switching and the screen in the address (merged
+// screens' old addresses included), the labelled global search, keyboard
+// operation, axe, and overflow at three widths. The employer backfill's
+// confirmation, which replaced `window.confirm`, is exercised where its button
+// lives now, on the Maintenance page.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 
 const SUPER_ADMIN_URL = '/super-admin?e2eAuth=super_admin';
+const MAINTENANCE_URL = '/super-admin/maintenance?e2eAuth=super_admin';
 
 async function openShell(page) {
   await page.goto(SUPER_ADMIN_URL);
   await expect(page.getByRole('heading', { name: 'Super Admin', level: 1 })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('navigation', { name: 'Super Admin sections' })).toBeVisible();
+}
+
+async function openMaintenance(page) {
+  await page.goto(MAINTENANCE_URL);
+  await expect(page.getByRole('heading', { name: 'Maintenance', level: 2 })).toBeVisible({ timeout: 20_000 });
 }
 
 async function expectNoHorizontalOverflow(page, label) {
@@ -67,6 +75,21 @@ test.describe('Super Admin shell', () => {
     await expect(nav.getByRole('button', { name: 'Companies' })).toHaveAttribute('aria-current', 'page');
   });
 
+  test('opens Maintenance from the old Stats Backfill address, replacing it', async ({ page }) => {
+    await openShell(page);
+    await page.goto('/super-admin/stats-backfill?e2eAuth=super_admin');
+
+    await expect(page).toHaveURL(/\/super-admin\/maintenance\?e2eAuth=super_admin$/);
+    await expect(page.getByRole('heading', { name: 'Maintenance', level: 2 })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('navigation', { name: 'Super Admin sections' })
+      .getByRole('button', { name: 'Maintenance' })).toHaveAttribute('aria-current', 'page');
+
+    // Replaced, not pushed: Back leaves for the page before rather than
+    // landing on the old address and being sent forward again.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/super-admin\?e2eAuth=super_admin$/);
+  });
+
   // Offline (VITE_E2E_TEST_MODE=1) the company cannot be read, so the setup
   // settles on the failed read; a missing company gets "Company not found".
   // Either way the form, which would save under the address's id, stays shut.
@@ -88,7 +111,7 @@ test.describe('Super Admin shell', () => {
     for (const label of [
       'Dashboard', 'Analytics', 'Companies', 'Users', 'Unified Driver DB',
       'Global Features', 'SMS Integrations', 'Environment & Integrations',
-      'System Health', 'Releases', 'Stats Backfill', 'Create New',
+      'System Health', 'Releases', 'Maintenance', 'Create New',
     ]) {
       await nav.getByRole('button', { name: label }).click();
       await expect(nav.getByRole('button', { name: label })).toHaveAttribute('aria-current', 'page');
@@ -108,12 +131,17 @@ test.describe('Super Admin shell', () => {
     await expect(search).toHaveValue('');
   });
 
+  test('keeps no maintenance action in the masthead', async ({ page }) => {
+    await openShell(page);
+    await expect(page.getByRole('banner').getByRole('button', { name: /Backfill Employers/i })).toHaveCount(0);
+  });
+
   test('guards the employer backfill with a real dialog instead of window.confirm', async ({ page }) => {
     // If the blocking dialog ever comes back this fails loudly rather than hanging.
     let nativeDialogs = 0;
     page.on('dialog', async (d) => { nativeDialogs += 1; await d.dismiss(); });
 
-    await openShell(page);
+    await openMaintenance(page);
     await page.getByRole('button', { name: /Backfill Employers/i }).click();
 
     const dialog = page.getByRole('dialog');
@@ -130,7 +158,7 @@ test.describe('Super Admin shell', () => {
   });
 
   test('restores focus to the trigger when the maintenance dialog closes', async ({ page }) => {
-    await openShell(page);
+    await openMaintenance(page);
     const trigger = page.getByRole('button', { name: /Backfill Employers/i });
     await trigger.focus();
     await trigger.press('Enter');

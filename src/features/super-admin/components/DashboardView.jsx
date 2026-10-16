@@ -2,7 +2,6 @@ import React from 'react';
 import { Icon, Building, Users, FileText, UserPlus } from '@design-system/icons';
 import { MetricCard } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
-import { HistoricalMigrationPanel } from './HistoricalMigrationPanel';
 
 /**
  * Super Admin landing view: the platform-wide counts — companies, users,
@@ -66,13 +65,6 @@ export function DashboardView({ stats, statsLoading, statsError }) {
           );
         })}
       </ResponsiveGrid>
-
-      {/*
-        TEMPORARY. Renders nothing once the historical reconstruction is verified
-        complete, so it retires itself without anyone editing this file. The
-        underlying callables stay deployed either way.
-      */}
-      <HistoricalMigrationPanel />
     </Stack>
   );
 }

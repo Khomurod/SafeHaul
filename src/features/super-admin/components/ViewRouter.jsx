@@ -11,7 +11,7 @@ import { CreateView } from './CreateView.jsx';
 import { FeaturesView } from './FeaturesView.jsx';
 import { SystemHealthView } from './SystemHealthView.jsx';
 import { IntegrationSetup } from './integrations/IntegrationSetup.jsx';
-import StatsBackfillPanel from './StatsBackfillPanel.jsx';
+import { MaintenanceView } from './MaintenanceView.jsx';
 
 
 // --- Views from Parent Directory ---
@@ -138,6 +138,8 @@ export function ViewRouter({
             return (
                 <SystemHealthView />
             );
+        case SUPER_ADMIN_VIEWS.MAINTENANCE:
+            return <MaintenanceView onDataUpdate={onDataUpdate} />;
 
         case SUPER_ADMIN_VIEWS.CREATE:
             return (
@@ -180,8 +182,6 @@ export function ViewRouter({
             return <WebsiteLeadsView />;
         case SUPER_ADMIN_VIEWS.RELEASES:
             return <ReleaseManagementView />;
-        case SUPER_ADMIN_VIEWS.STATS_BACKFILL:
-            return <StatsBackfillPanel />;
         default:
             return null;
     }

@@ -22,8 +22,8 @@ const STATUS_TONE = {
  * supports directly — `--ds-color-surface-inverse` and its on-inverse content
  * and status roles. It used to be literal slate values under a comment saying
  * the design system had no dark-surface tokens; it has had them since the
- * inverse roles were added, and `SystemHealthView`'s log console already uses
- * the same three.
+ * inverse roles were added, and the Maintenance page's log console
+ * (`PublicProfileSyncCard`) uses the same three.
  *
  * The failure state reuses this exact class so the panel does not resize when a
  * fetch fails — it previously shrank from 500px to 400px, moving everything
