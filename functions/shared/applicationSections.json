@@ -402,6 +402,14 @@
             {
                 "id": "expTwoTrailersExp",
                 "label": "Tractor + Two Trailers — Experience"
+            },
+            {
+                "id": "expOtherMiles",
+                "label": "Other — Miles Driven"
+            },
+            {
+                "id": "expOtherExp",
+                "label": "Other — Experience"
             }
         ]
     },

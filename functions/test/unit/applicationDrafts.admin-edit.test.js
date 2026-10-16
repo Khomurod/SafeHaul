@@ -159,6 +159,15 @@ describe('what an edit may carry', () => {
         expect(result.changed).toEqual(['employers', 'endorsements', 'medical-card-upload', 'customAnswers']);
         expect(stored().formData['medical-card-upload']).toEqual({ name: 'card.jpg', storagePath: UPLOAD_PATH });
     });
+
+    it('takes the "Other" vehicle experience a company may ask for', async () => {
+        await driverDraft();
+
+        const result = await edit({ expOtherMiles: '25k-50k', expOtherExp: '2' });
+
+        expect(result.changed).toEqual(['expOtherMiles', 'expOtherExp']);
+        expect(stored().formData).toMatchObject({ expOtherMiles: '25k-50k', expOtherExp: '2' });
+    });
 });
 
 describe('an edit', () => {

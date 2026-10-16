@@ -141,6 +141,15 @@ describe('standard answers carry real labels', () => {
     expect(wasPresented({}, {})).toBe(true);
   });
 
+  it('records the "Other" vehicle experience of a company that asks for it', () => {
+    const def = buildApplicationDefinition({
+      company: company({ applicationRules: { vehicleExperienceHidden: [] } }),
+    });
+    const snap = snapshot({ definition: def, formData: { expOtherMiles: '25k-50k', expOtherExp: '2' } });
+    expect(answerFor(snap, 'expOtherMiles')).toMatchObject({ label: 'Other — Miles Driven', value: '25k-50k', presented: true });
+    expect(answerFor(snap, 'expOtherExp')).toMatchObject({ label: 'Other — Experience', value: '2', presented: true });
+  });
+
   it('keeps the sensitive flag so renderers can apply the SSN policy', () => {
     const answer = answerFor(snapshot({ formData: { ssn: '123-45-6789' } }), 'ssn');
     expect(answer.sensitive).toBe(true);
