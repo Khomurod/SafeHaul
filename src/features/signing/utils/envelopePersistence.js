@@ -7,16 +7,15 @@
 //    and re-downloads the PDF from Storage. The component's effect passes its
 //    own setters in, so state ownership does not move.
 //  - `saveEnvelope` — the save/send action: validation, prefill resolution,
-//    Storage upload, template/request writes, the signing-request batch with
-//    its token secret, and the copy-link/SMS/email delivery tail.
+//    Storage upload and the template/request writes. A new request is written
+//    and announced by `signingRequestWrite.js`, as the template wizard's is.
 //
 // Neither function holds state; every state change flows back through the
 // setters and callbacks the component provides.
 import { db, auth } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, serverTimestamp, Timestamp, writeBatch, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { v4 as uuidv4 } from 'uuid';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import {
     buildPrefillContext,
     normalizePrefillPolicy,
@@ -24,7 +23,7 @@ import {
 } from '@features/signing/utils/prefillEngine';
 import { serializeTemplateFields } from '@features/signing/utils/templateFieldSerializer';
 import { SAVE_STATES } from '@features/signing/utils/editorSaveState';
-import { copySigningLink, LINK_NOT_COPIED } from '@features/signing/utils/copySigningLink';
+import { deliveryFields, createSigningRequest, announceSigningRequest } from '@features/signing/utils/signingRequestWrite';
 import { normalizePhone } from '@shared/utils/helpers';
 
 /** PHASE 4: Hydrate from existing document for "Correct" / "Edit Template" flows */
@@ -103,18 +102,6 @@ export async function hydrateEnvelopeForEdit({
     } finally {
         setHydrating(false);
     }
-}
-
-/** How a sent request's delivery is named in its confirmation. */
-const DELIVERY_LABELS = { email: 'Email', sms: 'SMS', both: 'Email + SMS' };
-
-/** The delivery a request records, which the server's senders follow. */
-function deliveryFields(deliveryMethod) {
-    return {
-        sendEmail: deliveryMethod === 'email' || deliveryMethod === 'both',
-        sendSms: deliveryMethod === 'sms' || deliveryMethod === 'both',
-        deliveryMethod,
-    };
 }
 
 /**
@@ -295,41 +282,15 @@ export async function saveEnvelope({
             });
             showSuccess('Template saved successfully!');
         } else {
-            const accessToken = uuidv4();
-            const expiresAt = Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000);
-            const senderName = auth.currentUser?.displayName || auth.currentUser?.email || 'Your Employer';
-
-            const signingRef = doc(collection(db, 'companies', companyId, 'signing_requests'));
-            const batch = writeBatch(db);
-            batch.set(signingRef, {
-                ...commonData,
-                recipientEmail: recipientEmail || null,
+            const link = await createSigningRequest({
+                companyId,
                 recipientName,
-                recipientPhone: recipientPhone || null,
-                status: 'sent',
-                createdAt: serverTimestamp(),
-                expiresAt,
-                senderId: auth.currentUser.uid,
-                senderName,
-                ...deliveryFields(deliveryMethod),
-                appBaseUrl: window.location.origin
+                recipientEmail,
+                recipientPhone,
+                deliveryMethod,
+                content: commonData,
             });
-            batch.set(doc(signingRef, 'secrets', 'token'), { accessToken });
-            await batch.commit();
-
-            if (deliveryMethod === 'copy') {
-                const baseUrl = window.location.origin;
-                const link = `${baseUrl}/sign/${companyId}/${signingRef.id}?token=${accessToken}`;
-                // The request is saved by now: a refused clipboard must not read
-                // as a failed save, or a second Send would create a second request.
-                if (await copySigningLink(link)) showSuccess('Signing link copied to clipboard!');
-                else showWarning(LINK_NOT_COPIED);
-            } else {
-                // The server texts and emails the link (`notifySignerSMS`,
-                // `notifySigner`), as this request's `sendSms` and `sendEmail` say.
-                const methodLabel = DELIVERY_LABELS[deliveryMethod] || 'Email';
-                showSuccess(`Document created! ${methodLabel} delivery in progress...`);
-            }
+            await announceSigningRequest({ link, deliveryMethod, showSuccess, showWarning });
         }
 
         markSaved();
