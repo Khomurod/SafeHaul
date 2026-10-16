@@ -13,10 +13,10 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `addPhoneLine` | [`AddLineModal.jsx`](../src/features/super-admin/components/integrations/AddLineModal.jsx) | Add SMS line to company inventory |
 | `addEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: store a value for one supported entry that has none |
 | `analyzeEdocFieldPlacement` | [`useAiFieldAssistant.js`](../src/features/signing/hooks/useAiFieldAssistant.js) | AI Field Assistant: suggest signer-field placement from rendered E-Doc pages (authenticated, company-scoped) |
-| `backfillAllStats` | [`StatsBackfillPanel.jsx`](../src/features/super-admin/components/StatsBackfillPanel.jsx) | Admin: stats backfill all tenants |
-| `backfillCompanyStats` | [`StatsBackfillPanel.jsx`](../src/features/super-admin/components/StatsBackfillPanel.jsx) | Admin: stats backfill one company |
-| `backfillEmployerFields` | [`SuperAdminDashboard.jsx`](../src/features/super-admin/components/SuperAdminDashboard.jsx) (triggered from [`DashboardHeader.jsx`](../src/features/super-admin/components/DashboardHeader.jsx), confirmed through [`BackfillEmployersDialogs.jsx`](../src/features/super-admin/components/BackfillEmployersDialogs.jsx)) | Migrate employer fields on applications |
-| `backfillPublicProfiles` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Sync all companies → `public_profiles` |
+| `backfillAllStats` | [`StatsBackfillPanel.jsx`](../src/features/super-admin/components/StatsBackfillPanel.jsx) (Super Admin → Maintenance) | Admin: stats backfill all tenants |
+| `backfillCompanyStats` | [`StatsBackfillPanel.jsx`](../src/features/super-admin/components/StatsBackfillPanel.jsx) (Super Admin → Maintenance) | Admin: stats backfill one company |
+| `backfillEmployerFields` | [`EmployerBackfillCard.jsx`](../src/features/super-admin/components/EmployerBackfillCard.jsx) (Super Admin → Maintenance, confirmed through [`BackfillEmployersDialogs.jsx`](../src/features/super-admin/components/BackfillEmployersDialogs.jsx)) | Migrate employer fields on applications |
+| `backfillPublicProfiles` | [`usePublicProfileSync.js`](../src/features/super-admin/hooks/usePublicProfileSync.js) (Super Admin → Maintenance, confirmed in [`PublicProfileSyncCard.jsx`](../src/features/super-admin/components/PublicProfileSyncCard.jsx)) | Sync all companies → `public_profiles` |
 | `cancelBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Stop bulk campaign |
 | `checkImportPhones` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | CSV import phone dedup check |
 | `connectFacebookPage` | [`IntegrationsTab.jsx`](../src/features/settings/components/IntegrationsTab.jsx) | Facebook Lead Ads OAuth |

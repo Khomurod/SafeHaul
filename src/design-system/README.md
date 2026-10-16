@@ -142,8 +142,9 @@ user-facing string. Boundaries worth knowing:
 - `PaywallMessage` takes a `headingLevel` so it does not collide with its host's
   section heading.
 - The campaigns audience preview is an inverse console surface in the
-  `--ds-color-surface-inverse` roles — the same ones `SystemHealthView`'s log
-  panel uses — and uses `PageState surface="inverse"` for its states.
+  `--ds-color-surface-inverse` roles — the same ones the Super Admin
+  Maintenance page's log panel (`PublicProfileSyncCard`) uses — and uses
+  `PageState surface="inverse"` for its states.
 - Toasts go through the single `ToastProvider`, which still lives in
   `src/shared` (roadmap §5, "Toast promotion").
 
