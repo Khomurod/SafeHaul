@@ -35,7 +35,7 @@ service cloud.firestore {
       );
     }
 
-    // COMPANY ADMIN: Can manage settings & team
+    // COMPANY ADMIN: Can manage settings & team. A super admin passes too.
     function isCompanyAdmin(companyId) {
       return isSignedIn() && (
         isSuperAdmin() || 
@@ -47,7 +47,7 @@ service cloud.firestore {
       );
     }
 
-    // COMPANY TEAM: HR/Recruiters (Read access + Operational Write)
+    // COMPANY TEAM: HR/Recruiters (Read access + Operational Write). A super admin passes too.
     function isCompanyTeam(companyId) {
       return isSignedIn() && (
         isSuperAdmin() ||
@@ -258,12 +258,12 @@ service cloud.firestore {
     // --- COMPANIES (Locked down — sensitive data) ---
     match /companies/{companyId} {
       // LOCKED: Only team members and super admins can read company data
-      allow get: if isCompanyTeam(companyId) || isSuperAdmin();
+      allow get: if isCompanyTeam(companyId);
       allow list: if isSuperAdmin();
 
       // WRITE: Super Admin or Company Admin
       allow create, delete: if isSuperAdmin();
-      allow update: if isCompanyAdmin(companyId) || isSuperAdmin();
+      allow update: if isCompanyAdmin(companyId);
 
       // --- SUBCOLLECTIONS ---
 
@@ -273,77 +273,77 @@ service cloud.firestore {
       // to secure_documents (isCompanyTeam) can also save/edit a reusable template.
       // Deletion stays admin-only, mirroring signing_requests delete.
       match /templates/{templateId} {
-        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
-        allow create, update: if isCompanyTeam(companyId) || isSuperAdmin();
-        allow delete: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow read: if isCompanyTeam(companyId);
+        allow create, update: if isCompanyTeam(companyId);
+        allow delete: if isCompanyAdmin(companyId);
       }
 
       // MESSAGE TEMPLATES: Used for campaigns
       match /message_templates/{templateId} {
-        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
-        allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow read: if isCompanyTeam(companyId);
+        allow write: if isCompanyAdmin(companyId);
       }
 
       // BULK SESSIONS: Tracking messaging campaigns
       match /bulk_sessions/{sessionId} {
-        allow read, write: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow read, write: if isCompanyTeam(companyId);
         
         // Logs Subcollection - Critical for Reports
         match /logs/{logId} {
-             allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+             allow read: if isCompanyTeam(companyId);
         }
       }
 
       // CAMPAIGN DRAFTS: Persistent storage for wizard states
       match /campaign_drafts/{draftId} {
-        allow read, write: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow read, write: if isCompanyTeam(companyId);
       }
 
       // SEGMENTS (Audience Intelligence)
       match /segments/{segmentId} {
-        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
-        allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow read: if isCompanyTeam(companyId);
+        allow write: if isCompanyAdmin(companyId);
         
         match /members/{memberId} {
-            allow read: if isCompanyTeam(companyId) || isSuperAdmin();
-            allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
+            allow read: if isCompanyTeam(companyId);
+            allow write: if isCompanyAdmin(companyId);
         }
       }
 
       // STATS DAILY: Pre-aggregated performance data
       match /stats_daily/{dateId} {
-        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow read: if isCompanyTeam(companyId);
       }
 
       // INTERNAL STATS: Server-maintained dashboard rollups (KPI tiles). Client read-only.
       match /internal_stats/{docId} {
-        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow read: if isCompanyTeam(companyId);
         allow write: if false;
       }
 
       // NOTIFICATIONS: Company activity notifications
       match /notifications/{notificationId} {
-        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
-        allow create: if isCompanyAdmin(companyId) || isSuperAdmin();
-        allow update: if isCompanyTeam(companyId) || isSuperAdmin();
-        allow delete: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow read: if isCompanyTeam(companyId);
+        allow create: if isCompanyAdmin(companyId);
+        allow update: if isCompanyTeam(companyId);
+        allow delete: if isCompanyAdmin(companyId);
       }
 
       // FEATURE ALERTS: Tracking user interactions with scheduled deactivation warnings
       match /feature_alerts/{alertId} {
-        allow read, write: if isSuperAdmin() || isCompanyTeam(companyId);
+        allow read, write: if isCompanyTeam(companyId);
       }
 
       // SECURE SETTINGS: Email Config & System Keys
       // Moved from public document to private subcollection
       match /system_settings/email_config {
-        allow read, write: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow read, write: if isCompanyAdmin(companyId);
       }
 
       // Per-company settings docs (custom questions, ATS SMS templates, etc.)
       match /settings/{settingDocId} {
-        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
-        allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow read: if isCompanyTeam(companyId);
+        allow write: if isCompanyAdmin(companyId);
       }
 
       // SIGNING REQUESTS: Secure Envelopes for E-Signatures
@@ -351,8 +351,7 @@ service cloud.firestore {
          // BUG-2 FIX: accessToken has been moved to the secrets subcollection below.
          // Team members can now safely read all signing request metadata.
          allow read: if (isCompanyTeam(companyId)) ||
-                     (isSignedIn() && resource.data.recipientId == request.auth.uid) || 
-                     isSuperAdmin();
+                     (isSignedIn() && resource.data.recipientId == request.auth.uid);
          
          // Create: Company Team only
          allow create: if isCompanyTeam(companyId);
@@ -400,8 +399,7 @@ service cloud.firestore {
         // 2. The Driver (Owner)
         // 3. Super Admin
         allow read: if isCompanyTeam(companyId) || 
-                    (isSignedIn() && (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid || isEmailOwner(resource.data.email))) ||
-                    isSuperAdmin();
+                    (isSignedIn() && (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid || isEmailOwner(resource.data.email)));
         
         // UPDATE:
         // Company Team: operational updates; status must stay within ATS / legacy funnel enums.
@@ -414,24 +412,24 @@ service cloud.firestore {
                        applicationDriverSelfUpdateAllowed() &&
                        applicationDriverSelfStatusTransitionAllowed()));
 
-        allow delete: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow delete: if isCompanyAdmin(companyId);
 
         // Application Subcollections
         match /dq_files/{fileId} { 
-          allow read: if isCompanyTeam(companyId) || isSuperAdmin() || canReadApplicationSubcollectionDoc(resource.data);
-          allow write: if isCompanyTeam(companyId) || isSuperAdmin(); 
+          allow read: if isCompanyTeam(companyId) || canReadApplicationSubcollectionDoc(resource.data);
+          allow write: if isCompanyTeam(companyId); 
         }
         match /general_documents/{fileId} { 
-          allow read: if isCompanyTeam(companyId) || isSuperAdmin() || canReadApplicationSubcollectionDoc(resource.data);
-          allow write: if isCompanyTeam(companyId) || isSuperAdmin(); 
+          allow read: if isCompanyTeam(companyId) || canReadApplicationSubcollectionDoc(resource.data);
+          allow write: if isCompanyTeam(companyId); 
         }
-        match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
-        match /activity_logs/{activityId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
-        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId); }
+        match /activity_logs/{activityId} { allow read, write: if isCompanyTeam(companyId); }
+        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId); }
         // Company-proposed pending changes: team may READ (to show badges); all
         // writes go through the proposeApplicationChanges / submitChangeResolution
         // callables (Admin SDK), so client writes are denied.
-        match /pending_changes/{fieldKey} { allow read: if isCompanyTeam(companyId) || isSuperAdmin(); allow write: if false; }
+        match /pending_changes/{fieldKey} { allow read: if isCompanyTeam(companyId); allow write: if false; }
 
         // SUBMISSION SNAPSHOT — the frozen record of exactly what the driver saw,
         // answered, accepted and signed.
@@ -448,7 +446,7 @@ service cloud.firestore {
         // canReadApplicationSubcollectionDoc can identify the owner, exactly as
         // dq_files and general_documents already do.
         match /submission/{submissionVersion} {
-          allow read: if isCompanyTeam(companyId) || isSuperAdmin() || canReadApplicationSubcollectionDoc(resource.data);
+          allow read: if isCompanyTeam(companyId) || canReadApplicationSubcollectionDoc(resource.data);
           allow write: if false; // server-only (Admin SDK); snapshots are never edited
         }
       }
@@ -477,34 +475,34 @@ service cloud.firestore {
 
       // LEADS (Company Specific)
       match /leads/{leadId} {
-        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
-        allow create: if (isCompanyTeam(companyId) || isSuperAdmin()) &&
+        allow read: if isCompanyTeam(companyId);
+        allow create: if isCompanyTeam(companyId) &&
                          tenantCompanyIdMatches(companyId) &&
                          (isSuperAdmin() || leadCompanyTeamWriteAllowed());
         allow update: if tenantCompanyIdImmutable() &&
-                         (isCompanyTeam(companyId) || isSuperAdmin()) &&
+                         isCompanyTeam(companyId) &&
                          (isSuperAdmin() || leadCompanyTeamWriteAllowed());
-        allow delete: if isCompanyTeam(companyId) || isSuperAdmin();
-        match /activity_logs/{logId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
-        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
-        match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
-        match /dq_files/{fileId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
-        match /general_documents/{fileId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
-        match /pending_changes/{fieldKey} { allow read: if isCompanyTeam(companyId) || isSuperAdmin(); allow write: if false; }
+        allow delete: if isCompanyTeam(companyId);
+        match /activity_logs/{logId} { allow read, write: if isCompanyTeam(companyId); }
+        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId); }
+        match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId); }
+        match /dq_files/{fileId} { allow read, write: if isCompanyTeam(companyId); }
+        match /general_documents/{fileId} { allow read, write: if isCompanyTeam(companyId); }
+        match /pending_changes/{fieldKey} { allow read: if isCompanyTeam(companyId); allow write: if false; }
       }
 
       // TEAM MEMBERS
       match /team/{userId} {
-        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
-        allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow read: if isCompanyTeam(companyId);
+        allow write: if isCompanyAdmin(companyId);
       }
 
       // INTEGRATIONS: Number inventory and provider config (Encrypted)
       match /integrations/{integrationId} {
         // Read: Admins need to see inventory/assignments
-        allow read: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow read: if isCompanyAdmin(companyId);
         // Update: Company Admin can update assignments/defaultNumber
-        allow update: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow update: if isCompanyAdmin(companyId);
         // Create/Delete: Restricted to Super Admin
         allow create, delete: if isSuperAdmin();
       }
