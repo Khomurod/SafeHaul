@@ -99,3 +99,39 @@ describe('saveEmailSettings verifies what it saves', () => {
         expect(result.verified).toBe(true);
     });
 });
+
+describe('what saveEmailSettings stores', () => {
+    it('stores a new password over the stored one, trimmed and otherwise as typed', async () => {
+        mockDocs.set(EMAIL_CONFIG, { smtpPass: 'stored-password' });
+        mockVerify.mockResolvedValue(true);
+        await save({ ...FORM, smtpPass: '  p@ss w0rd!#$%^&*()  ' });
+
+        expect(mockTransportOptions[0].auth.pass).toBe('p@ss w0rd!#$%^&*()');
+        expect(storedConfig().smtpPass).toBe('p@ss w0rd!#$%^&*()');
+    });
+
+    it('refuses a first setup without a password, and writes nothing', async () => {
+        await expect(save({ ...FORM, smtpPass: '   ' })).rejects.toMatchObject({
+            code: 'invalid-argument',
+            message: 'SMTP password is required for initial setup. Please enter your SMTP password.',
+        });
+        expect(mockWrites).toEqual([]);
+        expect(mockVerify).not.toHaveBeenCalled();
+    });
+
+    it("copies the settings to the company document for its status, never the password", async () => {
+        mockVerify.mockResolvedValue(true);
+        await save({ ...FORM, smtpPass: 'artificial-password', signature: 'Best regards' });
+
+        const companyWrite = mockWrites.find((write) => write.path === 'companies/co-1');
+        expect(companyWrite.data).toEqual({
+            'emailSettings.smtpHost': 'smtp.example.com',
+            'emailSettings.smtpPort': 587,
+            'emailSettings.smtpUser': 'hiring@example.com',
+            'emailSettings.signature': 'Best regards',
+            'emailSettings.isVerified': true,
+            'emailSettings.updatedAt': 'server-time',
+        });
+        expect(JSON.stringify(companyWrite.data)).not.toContain('artificial-password');
+    });
+});
