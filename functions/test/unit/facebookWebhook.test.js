@@ -193,13 +193,18 @@ describe.each([
         expect(storedLeads()).toEqual([]);
     });
 
-    it('writes nothing for a page no company is bound to, or one bound without a token', async () => {
+    it.each([
+        ['no company is bound to', 'page-1'],
+        ['bound without a token', 'page-2'],
+    ])('acknowledges a lead for a page %s, and writes nothing', async (_case, pageId) => {
         mock.reset({ 'integrations_index/page-2': { companyId: 'co-1', claimPending: true } });
         const res = response();
-        await handler(post(leadgen({ leadgen_id: 'lead-1', page_id: 'page-1' })), res);
-        await handler(post(leadgen({ leadgen_id: 'lead-1', page_id: 'page-2' })), res);
+        await handler(post(leadgen({ leadgen_id: 'lead-1', page_id: pageId })), res);
 
+        // Anything but 200 makes Facebook send the event again.
+        expect(res.status).toHaveBeenCalledWith(200);
         expect(res.send).toHaveBeenCalledWith('EVENT_RECEIVED');
+        expect(res.sendStatus).not.toHaveBeenCalled();
         expect(mockAxiosGet).not.toHaveBeenCalled();
         expect(storedLeads()).toEqual([]);
     });
