@@ -8139,3 +8139,136 @@ The pinned first column (audit step K, 2026-09-06) of a DataTable; the
 native contract's is measured beside its other numbers in
 probes-system.mjs. `position` and `left` are the pin; `z-index` is the local
 ```
+
+## `src/firestore.rules`
+
+```text
+Legacy support for older apps matched by Email
+```
+
+```text
+Nested in roles object (legacy/alternate structure)
+```
+
+```text
+SEC-002: true only when the caller belongs to at least one company that the
+target profile document (a driver or a staff user) is ALSO associated with.
+This replaces the previous "any staff can read any profile" global access.
+```
+
+```text
+Missing/legacy companyIds (field absent) => not a list => returns false, so a
+profile is NOT readable by staff until it has been backfilled. Run the
+backfillProfileCompanyIds callable BEFORE deploying these rules so existing
+teammate lookups (lead upload/assignment, team management) keep working.
+```
+
+```text
+2. SUPER ADMIN GLOBAL BYPASS REMOVED
+=========================================================
+Previous global wildcard removed for security hardening.
+Access is now controlled by specific collection rules.
+```
+
+```text
+We intentionally removed strict field enumerations to prevent brittle failures.
+```
+
+```text
+SEC-004: the unauthenticated guest direct-create path (isValidGuestApplication)
+was removed. Public/guest applications go exclusively through the
+submitGuestApplication callable (Admin SDK — rate-limited + server-sanitized),
+which bypasses these rules. Direct client creation is no longer possible for
+an unauthenticated caller, closing the spam / fake-record surface.
+```
+
+```text
+SECURE SETTINGS: Email Config & System Keys
+Moved from public document to private subcollection
+```
+
+```text
+BUG-2 FIX: accessToken has been moved to the secrets subcollection below.
+Team members can now safely read all signing request metadata.
+```
+
+```text
+FIX: Validate signature integrity
+```
+
+```text
+BUG-2 FIX: Secrets subcollection — holds the accessToken.
+```
+
+```text
+NOTE (SEC-004): guests do NOT create applications directly. Public/guest
+submissions go through the submitGuestApplication callable (Admin SDK),
+so there is no unauthenticated create branch here.
+```
+
+```text
+Tenant binding (mirrors leads at line ~434): staff / super-admin
+```
+
+```text
+BUG-2 FIX: Removed isStaff() from list queries.
+Previously ANY dashboard user from ANY company could list ALL driver profiles (cross-tenant leak).
+Now: list (query) restricted to owner + super admin.
+SEC-002 FIX: get (single doc) is no longer allowed for ANY staff globally.
+A staff member may read a driver profile only when they share a company
+```
+
+```text
+application doc, not this global profile, so they are unaffected.
+```
+
+```text
+Subcollections (Drafts, Documents)
+NOTE: `saved_jobs` removed — the driver saved-jobs / job-board feature was
+deleted (commit 5a4c8dd); the path now relies on Firestore default-deny.
+```
+
+```text
+SEC-002 FIX: a staff user may read another user's profile ONLY when they
+share a company (server-maintained companyIds), not across all tenants.
+```
+
+```text
+username query) is no longer allowed for non-super-admins.
+```
+
+```text
+--- SERVER-ONLY LEDGERS (A6 — defense-in-depth + self-documentation) ---
+```
+
+```text
+Both collections outlived the site that filled them. The rules are
+UNCHANGED and must stay `if false`: the documents hold encrypted Telegram
+```
+
+```text
+SEC-003: a recruiter link belongs to ONE company. Previously ANY staff
+(from any company) could create or overwrite ANY link code. Now the
+creator must be a team member of the company stamped on the link, updates
+are restricted to that same company, and companyId is immutable.
+```
+
+```text
+--- JOB POSTS (REMOVED) ---
+The public Job Board feature was removed (commit 5a4c8dd). The former
+`job_posts` rules (public `read: if true` + company-team write) are deleted
+so this path relies on Firestore default-deny. No active code reads or
+writes this collection; any historical documents are simply left
+unreachable (not deleted). See firestore.rules.security.test.js for the
+default-deny regression test.
+```
+
+```text
+#20 FIX: Require companyId to be a string — prevents reads on logs missing the field
+```
+
+## `src/storage.rules`
+
+```text
+Allow images and PDFs, max 20MB (increased for high-quality envelopes)
+```
