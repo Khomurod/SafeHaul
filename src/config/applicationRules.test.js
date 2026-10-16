@@ -150,10 +150,11 @@ describe('what the wizard leans on', () => {
         expect(renamed[0].milesField).toBe('expStraightTruckMiles');
     });
 
-    it('every vehicle category field exists in the shared table', () => {
+    it('every vehicle category field exists in the shared table, "Other" included', () => {
+        // "Other" is hidden by default, but a company that shows it asks for it
+        // like any other: the review page, the record and the PDF read this table.
         const ids = new Set(STANDARD_SECTIONS.flatMap((s) => s.fields.map((f) => f.id)));
         for (const category of APPLICATION_RULES_CATALOG.optionSets.vehicleCategories) {
-            if (category.id === 'other') continue; // hidden by default; collected only when a company shows it
             expect(ids.has(category.milesField)).toBe(true);
             expect(ids.has(category.expField)).toBe(true);
         }
