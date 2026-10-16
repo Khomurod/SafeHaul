@@ -2,13 +2,15 @@ import React from 'react';
 import { Icon, Building, Users, FileText, UserPlus } from '@design-system/icons';
 import { MetricCard } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
+import { AnalyticsView } from '../views/AnalyticsView';
 
 /**
  * Super Admin landing view: the platform-wide counts — companies, users,
  * applications and leads, each its own count (`stats.companyCount` / `userCount`
  * / `appCount` / `leadCount`). A count that failed shows "Error" from its own
  * flag (`statsError.<field>`), never 0, with the "..." placeholder while
- * loading.
+ * loading. Below them, the Activity section (`AnalyticsView`): the calls logged
+ * in a chosen period, which loads, fails and retries on its own.
  *
  * Fixed here:
  *  - Legacy palette (`bg-white`, `text-gray-*`, `bg-blue-100`, `bg-red-100`)
@@ -22,7 +24,7 @@ import { ResponsiveGrid, Stack } from '@/design-system/layouts';
  *
  * `MetricCard` gained a `danger` tone for this view — see the roadmap note. The
  * `<h1>` lives in the Super Admin masthead (one per page), so this view's title
- * is an `<h2>`.
+ * is an `<h2>` and the Activity section's an `<h3>`.
  */
 const METRICS = [
   { key: 'companies', title: 'Total Companies', icon: Building, field: 'companyCount' },
@@ -65,6 +67,8 @@ export function DashboardView({ stats, statsLoading, statsError }) {
           );
         })}
       </ResponsiveGrid>
+
+      <AnalyticsView />
     </Stack>
   );
 }

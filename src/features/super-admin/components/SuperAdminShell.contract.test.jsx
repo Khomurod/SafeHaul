@@ -275,6 +275,16 @@ describe('Super Admin shell — the addresses of merged screens', () => {
         expect(within(nav).getByRole('button', { name: 'Maintenance' })).toHaveAttribute('aria-current', 'page');
     });
 
+    it('opens the Dashboard from the old Analytics address, keeping the query string', async () => {
+        renderShellAfter(['/super-admin/analytics?e2eAuth=super_admin']);
+
+        expect(view()).toHaveAttribute('data-active-view', 'dashboard');
+        await waitFor(() => expect(address()).toHaveTextContent(/^\/super-admin\?e2eAuth=super_admin$/));
+        const nav = screen.getByRole('navigation', { name: 'Super Admin sections' });
+        expect(within(nav).getByRole('button', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
+        expect(within(nav).queryByRole('button', { name: 'Analytics' })).not.toBeInTheDocument();
+    });
+
     it('replaces the old address rather than stacking one, so Back does not loop', async () => {
         renderShellAfter(['/super-admin/companies?e2eAuth=super_admin', '/super-admin/stats-backfill?e2eAuth=super_admin']);
         await waitFor(() => expect(address()).toHaveTextContent(/^\/super-admin\/maintenance\?e2eAuth=super_admin$/));

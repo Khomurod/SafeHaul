@@ -1,11 +1,14 @@
 /**
- * Contract freeze + defect proof for the migrated Super Admin `AnalyticsView`.
+ * Contract freeze + defect proof for `AnalyticsView`, the Dashboard's Activity
+ * section.
  *
  * The CSV export is the risky part — column order, header text and filename
  * pattern are a real downstream contract — so those are frozen before any
- * presentation change. The rest proves the tab/date-range selection is no
- * longer communicated by colour alone and that the trend chart is reachable
- * without sight.
+ * presentation change. Its figures are the ones `stats_daily` holds: calls, and
+ * the last day a recruiter logged one; "Total Actions" only ever repeated the
+ * calls and is gone. The rest proves the tab/date-range selection is no longer
+ * communicated by colour alone, that the trend chart is reachable without
+ * sight, and that a failed read is an error with a retry, never zeros.
  *
  * All company and recruiter names below are artificial.
  */
@@ -33,19 +36,26 @@ const STATS = {
         { date: '2026-07-03', value: 2 },
     ],
     companyPerformance: [
-        { companyId: 'c1', companyName: 'Artificial Freight Co', callsMade: 30, actions: 55 },
-        { companyId: 'c2', companyName: 'Second Artificial Carrier', callsMade: 5, actions: 8 },
+        { companyId: 'c1', companyName: 'Artificial Freight Co', callsMade: 30 },
+        { companyId: 'c2', companyName: 'Second Artificial Carrier', callsMade: 5 },
     ],
     userPerformance: [
-        { userId: 'u1', userName: 'Artificial Recruiter', companyName: 'Artificial Freight Co', callsMade: 21, lastActive: { seconds: 1700000000, toDate: () => new Date(1700000000000) } },
+        // The hook's shape: the Chicago day (a stats_daily id) of the last call.
+        { userId: 'u1', userName: 'Artificial Recruiter', companyName: 'Artificial Freight Co', callsMade: 21, lastActive: '2026-11-03' },
     ],
 };
 
 const setDateRange = vi.fn();
+const reload = vi.fn();
+
+/** The hook's answer: loaded, no error, the fixture figures, unless overridden. */
+function analytics(overrides = {}) {
+    return { loading: false, error: null, stats: STATS, dateRange: '30d', setDateRange, reload, ...overrides };
+}
 
 beforeEach(() => {
     vi.clearAllMocks();
-    useAnalytics.mockReturnValue({ loading: false, stats: STATS, dateRange: '30d', setDateRange });
+    useAnalytics.mockReturnValue(analytics());
 });
 
 afterEach(() => {
@@ -86,14 +96,15 @@ describe('AnalyticsView — frozen export contract', () => {
         fireEvent.click(screen.getByRole('button', { name: /Export Companies/ }));
 
         expect(captured.download).toBe('company_performance_30d.csv');
+        // No "Total Actions" column: it was the calls again, under another name.
         expect(await savedRows(captured)).toEqual([
-            '"Company Name","Calls Made","Total Actions"',
-            '"Artificial Freight Co","30","55"',
-            '"Second Artificial Carrier","5","8"',
+            '"Company Name","Calls Made"',
+            '"Artificial Freight Co","30"',
+            '"Second Artificial Carrier","5"',
         ]);
     });
 
-    it('exports recruiters with the exact headers, order and filename, Last Active in one cell', async () => {
+    it('exports recruiters with the exact headers, order and filename, Last Active as the day of the last call', async () => {
         const captured = captureExport();
         render(<AnalyticsView />);
 
@@ -101,27 +112,23 @@ describe('AnalyticsView — frozen export contract', () => {
         fireEvent.click(screen.getByRole('button', { name: /Export Recruiters/ }));
 
         expect(captured.download).toBe('recruiter_performance_30d.csv');
-        // The date holds a comma; joined raw, it split into two columns.
-        const lastActive = new Date(1700000000000).toLocaleString();
+        // It always said "N/A": nothing filled it.
         expect(await savedRows(captured)).toEqual([
             '"Recruiter Name","Company","Calls Made","Last Active"',
-            `"Artificial Recruiter","Artificial Freight Co","21","${lastActive}"`,
+            '"Artificial Recruiter","Artificial Freight Co","21","2026-11-03"',
         ]);
     });
 
     it('keeps a comma, a quote, a # and a formula in a name inside its own cell', async () => {
-        useAnalytics.mockReturnValue({
-            loading: false,
-            dateRange: '30d',
-            setDateRange,
+        useAnalytics.mockReturnValue(analytics({
             stats: {
                 ...STATS,
                 companyPerformance: [
-                    { companyId: 'c3', companyName: 'Artificial Carrier #2, "East"', callsMade: 4, actions: 6 },
-                    { companyId: 'c4', companyName: '=HYPERLINK("http://example.test","x")', callsMade: 1, actions: 2 },
+                    { companyId: 'c3', companyName: 'Artificial Carrier #2, "East"', callsMade: 4 },
+                    { companyId: 'c4', companyName: '=HYPERLINK("http://example.test","x")', callsMade: 1 },
                 ],
             },
-        });
+        }));
         const captured = captureExport();
         render(<AnalyticsView />);
 
@@ -129,10 +136,29 @@ describe('AnalyticsView — frozen export contract', () => {
 
         // In a `data:` URL the file ended at the first `#`; the second row was lost.
         expect(await savedRows(captured)).toEqual([
-            '"Company Name","Calls Made","Total Actions"',
-            '"Artificial Carrier #2, ""East""","4","6"',
-            `"'=HYPERLINK(""http://example.test"",""x"")","1","2"`,
+            '"Company Name","Calls Made"',
+            '"Artificial Carrier #2, ""East""","4"',
+            `"'=HYPERLINK(""http://example.test"",""x"")","1"`,
         ]);
+    });
+
+    it('shows no Total Actions column: stats_daily counts calls and nothing else', () => {
+        render(<AnalyticsView />);
+        fireEvent.click(screen.getByRole('tab', { name: 'Company Performance' }));
+
+        const table = screen.getByRole('table', { name: 'Company performance for the selected period' });
+        expect(within(table).getAllByRole('columnheader').map((th) => th.textContent))
+            .toEqual(['Company', 'Calls Made', 'Engagement']);
+        expect(within(table).queryByText('Total Actions')).not.toBeInTheDocument();
+    });
+
+    it("shows each recruiter's Last Active as the day of their last call", () => {
+        render(<AnalyticsView />);
+        fireEvent.click(screen.getByRole('tab', { name: 'Recruiter Stats' }));
+
+        const row = screen.getByRole('rowheader', { name: 'Artificial Recruiter' }).closest('tr');
+        expect(within(row).getByText('Nov 3, 2026')).toBeInTheDocument();
+        expect(within(row).queryByText('Unknown')).not.toBeInTheDocument();
     });
 
     it('shows no Platform Health card: nothing measured it', () => {
@@ -163,14 +189,14 @@ describe('AnalyticsView — frozen export contract', () => {
 describe('AnalyticsView — selection is never colour-only (defects)', () => {
     it('exposes a real tab interface with aria-selected', () => {
         render(<AnalyticsView />);
-        const tablist = screen.getByRole('tablist', { name: 'Analytics views' });
+        const tablist = screen.getByRole('tablist', { name: 'Activity views' });
         expect(within(tablist).getByRole('tab', { name: 'Activity Overview' })).toHaveAttribute('aria-selected', 'true');
         expect(within(tablist).getByRole('tab', { name: 'Recruiter Stats' })).toHaveAttribute('aria-selected', 'false');
     });
 
     it('moves between tabs with the arrow keys', () => {
         render(<AnalyticsView />);
-        const tablist = screen.getByRole('tablist', { name: 'Analytics views' });
+        const tablist = screen.getByRole('tablist', { name: 'Activity views' });
 
         fireEvent.keyDown(tablist, { key: 'ArrowRight' });
         expect(screen.getByRole('tab', { name: 'Company Performance' })).toHaveAttribute('aria-selected', 'true');
@@ -193,23 +219,19 @@ describe('AnalyticsView — chart is reachable without sight (defect)', () => {
     it('names the trend chart and summarises it', () => {
         render(<AnalyticsView />);
         expect(
-            screen.getByRole('img', { name: /Daily activity trend across 3 days, 15 actions in total, peaking at 9\./ }),
+            screen.getByRole('img', { name: /Daily activity trend across 3 days, 15 calls in total, peaking at 9\./ }),
         ).toBeInTheDocument();
     });
 
     it('also exposes the underlying figures as a table', () => {
         render(<AnalyticsView />);
         const table = screen.getByRole('table', { name: 'Daily activity trend' });
+        expect(within(table).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Date', 'Calls']);
         expect(within(table).getByText('2026-07-02')).toBeInTheDocument();
     });
 
     it('keeps the frozen empty-chart message', () => {
-        useAnalytics.mockReturnValue({
-            loading: false,
-            stats: { ...STATS, dailyTrend: [] },
-            dateRange: '30d',
-            setDateRange,
-        });
+        useAnalytics.mockReturnValue(analytics({ stats: { ...STATS, dailyTrend: [] } }));
         render(<AnalyticsView />);
         expect(screen.getByText('No data available')).toBeInTheDocument();
     });
@@ -222,16 +244,13 @@ describe('AnalyticsView — accessible peak reports real data, not the scale flo
     }
 
     it('reports 0 for all-zero data while the visual scale stays floored at 5', () => {
-        useAnalytics.mockReturnValue({
-            loading: false,
+        useAnalytics.mockReturnValue(analytics({
             stats: trendStats([
                 { date: 'd1', value: 0 },
                 { date: 'd2', value: 0 },
                 { date: 'd3', value: 0 },
             ]),
-            dateRange: '30d',
-            setDateRange,
-        });
+        }));
         const { container } = render(<AnalyticsView />);
         expect(
             screen.getByRole('img', { name: /peaking at 0\./ }),
@@ -242,16 +261,13 @@ describe('AnalyticsView — accessible peak reports real data, not the scale flo
     });
 
     it('reports the real peak when it is below the floor, and geometry still uses 5', () => {
-        useAnalytics.mockReturnValue({
-            loading: false,
+        useAnalytics.mockReturnValue(analytics({
             stats: trendStats([
                 { date: 'd1', value: 0 },
                 { date: 'd2', value: 4 },
                 { date: 'd3', value: 0 },
             ]),
-            dateRange: '30d',
-            setDateRange,
-        });
+        }));
         const { container } = render(<AnalyticsView />);
         // Real peak is 4 — previously mis-announced as 5.
         expect(screen.getByRole('img', { name: /peaking at 4\./ })).toBeInTheDocument();
@@ -262,31 +278,25 @@ describe('AnalyticsView — accessible peak reports real data, not the scale flo
     });
 
     it('reports the real peak when it equals the floor of 5', () => {
-        useAnalytics.mockReturnValue({
-            loading: false,
+        useAnalytics.mockReturnValue(analytics({
             stats: trendStats([
                 { date: 'd1', value: 1 },
                 { date: 'd2', value: 5 },
                 { date: 'd3', value: 3 },
             ]),
-            dateRange: '30d',
-            setDateRange,
-        });
+        }));
         render(<AnalyticsView />);
         expect(screen.getByRole('img', { name: /peaking at 5\./ })).toBeInTheDocument();
     });
 
     it('reports the real peak when it is above the floor', () => {
-        useAnalytics.mockReturnValue({
-            loading: false,
+        useAnalytics.mockReturnValue(analytics({
             stats: trendStats([
                 { date: 'd1', value: 0 },
                 { date: 'd2', value: 9 },
                 { date: 'd3', value: 0 },
             ]),
-            dateRange: '30d',
-            setDateRange,
-        });
+        }));
         const { container } = render(<AnalyticsView />);
         expect(screen.getByRole('img', { name: /peaking at 9\./ })).toBeInTheDocument();
         // Peak 9 (above the floor) drives both text and geometry: middle point
@@ -296,20 +306,58 @@ describe('AnalyticsView — accessible peak reports real data, not the scale flo
     });
 });
 
+describe('AnalyticsView — the Activity section of the Dashboard', () => {
+    it('is titled by an h3 under the Dashboard h2, its cards by h4s', () => {
+        const { container } = render(<AnalyticsView />);
+        expect(container.querySelector('h1, h2')).toBeNull();
+        const section = screen.getByRole('region', { name: 'Activity' });
+        expect(within(section).getByRole('heading', { level: 3, name: 'Activity' })).toBeInTheDocument();
+        expect(screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent.trim())).toEqual([
+            'Daily Activity Trend', 'Top Companies (By Calls)', 'Top Recruiters (By Calls)',
+        ]);
+    });
+});
+
 describe('AnalyticsView — states', () => {
-    it('announces loading', () => {
-        useAnalytics.mockReturnValue({ loading: true, stats: STATS, dateRange: '30d', setDateRange });
+    it('announces loading, keeping the range control and offering no export of figures not yet read', () => {
+        useAnalytics.mockReturnValue(analytics({ loading: true }));
         render(<AnalyticsView />);
-        expect(screen.getByRole('status')).toHaveTextContent('Loading analytics...');
+        expect(screen.getByRole('status')).toHaveTextContent('Loading activity…');
+        expect(screen.getByRole('group', { name: 'Date range' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Export/ })).not.toBeInTheDocument();
+        expect(screen.queryByText('Total Calls')).not.toBeInTheDocument();
+    });
+
+    it('says a failed read failed, instead of showing zeros, and offers to read again', () => {
+        useAnalytics.mockReturnValue(analytics({
+            error: new Error('unavailable'),
+            // What the hook still holds after a failure: never shown as figures.
+            stats: { summary: { totalCalls: 0, activeRecruiters: 0 }, dailyTrend: [], companyPerformance: [], userPerformance: [] },
+        }));
+        render(<AnalyticsView />);
+
+        const alert = screen.getByRole('alert');
+        expect(within(alert).getByRole('heading', { level: 4, name: 'Activity could not be loaded' })).toBeInTheDocument();
+        expect(screen.queryByText('Total Calls')).not.toBeInTheDocument();
+        expect(screen.queryByText('0')).not.toBeInTheDocument();
+        expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Export/ })).not.toBeInTheDocument();
+
+        fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }));
+        expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the range control while a read has failed, so another period can be asked for', () => {
+        useAnalytics.mockReturnValue(analytics({ error: new Error('unavailable') }));
+        render(<AnalyticsView />);
+        fireEvent.click(screen.getByRole('button', { name: '7D' }));
+        expect(setDateRange).toHaveBeenCalledWith('7d');
     });
 
     it('keeps the frozen empty-table messages', () => {
-        useAnalytics.mockReturnValue({
-            loading: false,
+        useAnalytics.mockReturnValue(analytics({
             stats: { ...STATS, companyPerformance: [], userPerformance: [] },
-            dateRange: '30d',
-            setDateRange,
-        });
+        }));
         render(<AnalyticsView />);
         fireEvent.click(screen.getByRole('tab', { name: 'Company Performance' }));
         expect(screen.getByText('No data found for this period.')).toBeInTheDocument();
@@ -318,6 +366,12 @@ describe('AnalyticsView — states', () => {
     });
 
     it('has no accessibility violations', async () => {
+        const { container } = render(<AnalyticsView />);
+        expect((await axe(container)).violations).toEqual([]);
+    });
+
+    it('has no accessibility violations when the read failed', async () => {
+        useAnalytics.mockReturnValue(analytics({ error: new Error('unavailable') }));
         const { container } = render(<AnalyticsView />);
         expect((await axe(container)).violations).toEqual([]);
     });

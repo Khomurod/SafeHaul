@@ -35,7 +35,6 @@ vi.mock('./integrations/IntegrationManager.jsx', () => ({
 vi.mock('./MaintenanceView.jsx', () => ({
     MaintenanceView: (props) => { maintenanceProps.current = props; return <h2>Maintenance</h2>; },
 }));
-vi.mock('../views/AnalyticsView.jsx', () => ({ AnalyticsView: () => null }));
 vi.mock('../views/UnifiedDriverList.jsx', () => ({
     UnifiedDriverList: (props) => { unifiedProps.current = props; return null; },
 }));

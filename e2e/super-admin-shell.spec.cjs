@@ -75,6 +75,22 @@ test.describe('Super Admin shell', () => {
     await expect(nav.getByRole('button', { name: 'Companies' })).toHaveAttribute('aria-current', 'page');
   });
 
+  test('opens the Dashboard from the old Analytics address, replacing it', async ({ page }) => {
+    await openShell(page);
+    const nav = page.getByRole('navigation', { name: 'Super Admin sections' });
+    await nav.getByRole('button', { name: 'Companies' }).click();
+    await expect(page).toHaveURL(/\/super-admin\/companies\?e2eAuth=super_admin$/);
+
+    await page.goto('/super-admin/analytics?e2eAuth=super_admin');
+    await expect(page).toHaveURL(/\/super-admin\?e2eAuth=super_admin$/);
+    await expect(page.getByRole('heading', { name: 'Dashboard', level: 2 })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('heading', { name: 'Activity', level: 3 })).toBeVisible();
+    await expect(nav.getByRole('button', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/super-admin\/companies\?e2eAuth=super_admin$/);
+  });
+
   test('opens Maintenance from the old Stats Backfill address, replacing it', async ({ page }) => {
     await openShell(page);
     await page.goto('/super-admin/stats-backfill?e2eAuth=super_admin');
@@ -109,7 +125,7 @@ test.describe('Super Admin shell', () => {
     const nav = page.getByRole('navigation', { name: 'Super Admin sections' });
 
     for (const label of [
-      'Dashboard', 'Analytics', 'Companies', 'Users', 'Unified Driver DB',
+      'Dashboard', 'Companies', 'Users', 'Unified Driver DB',
       'Global Features', 'SMS Integrations', 'Environment & Integrations',
       'System Health', 'Releases', 'Maintenance', 'Create New',
     ]) {
@@ -178,7 +194,7 @@ test.describe('Super Admin shell', () => {
     // Tab order follows the rail, so the next item is reachable without a mouse.
     await page.keyboard.press('Tab');
     await page.keyboard.press('Enter');
-    await expect(nav.getByRole('button', { name: 'Analytics' })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('button', { name: 'Companies' })).toHaveAttribute('aria-current', 'page');
   });
 
   test('has no serious or critical accessibility violations', async ({ page }) => {

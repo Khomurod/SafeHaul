@@ -47,9 +47,10 @@ const { freezeClock, settle, SHOT } = require('./settle.cjs');
 
 /**
  * A screen is listed with the thing that must be on it before a screenshot is
- * meaningful. Waiting on a real element rather than a network idle is what stops
- * a baseline capturing a half-rendered page — and what makes a genuine
- * regression fail here rather than produce a confusing diff.
+ * meaningful — or, when parts of it load independently, every such thing.
+ * Waiting on a real element rather than a network idle is what stops a baseline
+ * capturing a half-rendered page — and what makes a genuine regression fail here
+ * rather than produce a confusing diff.
  */
 const SCREENS = [
     {
@@ -86,8 +87,9 @@ const SCREENS = [
         name: 'super-admin',
         url: '/super-admin?e2eAuth=super_admin',
         /*
-         * The totals, not the banner heading — and this is why `ready` is worth
-         * choosing carefully rather than defaulting to `<h1>`.
+         * The totals and the Activity section, not the banner heading — and
+         * this is why `ready` is worth choosing carefully rather than
+         * defaulting to `<h1>`.
          *
          * `<h1>Super Admin</h1>` is in the banner and present on first paint, so
          * waiting on it lets the screenshot race the three metric cards: mid-load
@@ -102,8 +104,19 @@ const SCREENS = [
          * Either settled sentence: E2E mode has no backend, so the lists come
          * back empty from the cache and every count, which only the server can
          * answer, fails. The cards say "Error" for a count that failed, never 0.
+         *
+         * The Activity section below loads on its own, so it is waited on too:
+         * its tab strip appears only once the period's figures are read (the
+         * companies list comes back empty from the cache, so the period has no
+         * calls; its dates come from the frozen clock), and its error state is
+         * the other way it can settle. Whichever of the two arrives last, the
+         * screenshot waits for it.
          */
-        ready: (page) => page.getByText(/^(Platform totals loaded\.|\d+ of \d+ platform totals failed to load: .+\.)$/),
+        ready: (page) => [
+            page.getByText(/^(Platform totals loaded\.|\d+ of \d+ platform totals failed to load: .+\.)$/),
+            page.getByRole('tablist', { name: 'Activity views' })
+                .or(page.getByRole('heading', { name: 'Activity could not be loaded' })),
+        ],
     },
     {
         name: 'login',
@@ -184,7 +197,9 @@ test.describe('@visual application screens', () => {
                 await page.goto(screen.url);
                 // A real element, not `networkidle`: this app keeps Firestore
                 // listeners open, so "idle" is a moving target.
-                await expect(screen.ready(page)).toBeVisible({ timeout: 30_000 });
+                for (const ready of [screen.ready(page)].flat()) {
+                    await expect(ready).toBeVisible({ timeout: 30_000 });
+                }
                 await settle(page);
                 await expect(page).toHaveScreenshot(`${screen.name}-${label}.png`, {
                     ...SHOT,

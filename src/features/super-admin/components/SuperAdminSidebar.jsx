@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { LayoutDashboard, Building, Users, FileText, Layers, Plus, BarChart3, Activity, MessageSquare, Wrench, KeyRound, Sparkles, Globe, Inbox, Newspaper, Rocket } from '@design-system/icons';
+import { LayoutDashboard, Building, Users, FileText, Layers, Plus, Activity, MessageSquare, Wrench, KeyRound, Sparkles, Globe, Inbox, Newspaper, Rocket } from '@design-system/icons';
 import { SectionNavigation } from '@/design-system/components';
 import { SUPER_ADMIN_NAV_ITEMS } from '../config/views';
 
@@ -15,7 +15,6 @@ export const NAV_ICONS = {
   FileText,
   Layers,
   Plus,
-  BarChart3,
   Activity,
   MessageSquare,
   Wrench,

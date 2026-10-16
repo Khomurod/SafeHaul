@@ -40,8 +40,19 @@ describe('screens that were merged into another', () => {
         expect(superAdminMovedPath('stats-backfill')).toBe('/super-admin/maintenance');
     });
 
+    it('opens the Dashboard from the old Analytics address, and names the panel itself as where it moved', () => {
+        expect(superAdminViewFromPath('analytics')).toEqual({ view: SUPER_ADMIN_VIEWS.DASHBOARD, companyId: null });
+        expect(superAdminMovedPath('analytics')).toBe('/super-admin');
+    });
+
+    it('offers no Analytics in the rail: activity is on the Dashboard', () => {
+        expect(SUPER_ADMIN_NAV_ITEMS.map((item) => item.label)).not.toContain('Analytics');
+        expect(Object.values(SUPER_ADMIN_VIEWS)).not.toContain('analytics');
+        expect(SUPER_ADMIN_NAV_ITEMS.filter((item) => item.group === 'core').map((item) => item.label)).toEqual(['Dashboard']);
+    });
+
     it('moves nothing else', () => {
-        for (const subPath of [undefined, '', 'maintenance', 'companies', 'nowhere', 'stats-backfill/extra', 'integrations/co-7']) {
+        for (const subPath of [undefined, '', 'maintenance', 'companies', 'nowhere', 'stats-backfill/extra', 'analytics/extra', 'integrations/co-7']) {
             expect(superAdminMovedPath(subPath), String(subPath)).toBeNull();
         }
     });

@@ -152,15 +152,16 @@ test.describe('Super Admin views', () => {
     await expect(nav.getByRole('button', { name: 'Releases' })).toHaveAttribute('aria-current', 'page');
   });
 
-  test('the Analytics tab strip is keyboard operable', async ({ page }) => {
+  test("the Dashboard's Activity tab strip is keyboard operable", async ({ page }) => {
     await openShell(page);
-    await gotoView(page, 'Analytics');
+    await expect(page.getByRole('heading', { name: 'Activity', level: 3 })).toBeVisible({ timeout: 20_000 });
 
-    const tablist = page.getByRole('tablist', { name: 'Analytics views' });
-    // Offline, Firestore points at a closed port (see the header), so the hook's
-    // fetch fails, `loading` clears and the strip renders over empty data — the
-    // same settled state every other view here is asserted in. Wait for it: a
-    // single `isVisible()` sample lands during "Loading analytics..." and skips.
+    const tablist = page.getByRole('tablist', { name: 'Activity views' });
+    // Offline, Firestore points at a closed port (see the header): the SDK goes
+    // offline and the companies list comes back empty from its cache, so the
+    // period settles with no calls and the strip renders — the same settled
+    // state every other view here is asserted in. Wait for it: a single
+    // `isVisible()` sample lands during "Loading activity…" and skips.
     await expect(tablist).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole('tab', { name: 'Activity Overview' }).focus();

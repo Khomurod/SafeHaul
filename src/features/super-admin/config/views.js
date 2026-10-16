@@ -1,6 +1,5 @@
 export const SUPER_ADMIN_VIEWS = Object.freeze({
   DASHBOARD: 'dashboard',
-  ANALYTICS: 'analytics',
   COMPANIES: 'companies',
   USERS: 'users',
   APPLICATIONS: 'applications',
@@ -18,8 +17,9 @@ export const SUPER_ADMIN_VIEWS = Object.freeze({
 });
 
 export const SUPER_ADMIN_NAV_ITEMS = Object.freeze([
+  // The platform totals and, below them, the calls logged in a chosen period.
+  // Its activity was the Analytics screen; that address still opens it.
   { id: SUPER_ADMIN_VIEWS.DASHBOARD, label: 'Dashboard', icon: 'LayoutDashboard', group: 'core' },
-  { id: SUPER_ADMIN_VIEWS.ANALYTICS, label: 'Analytics', icon: 'BarChart3', group: 'core' },
 
   { id: SUPER_ADMIN_VIEWS.COMPANIES, label: 'Companies', icon: 'Building', group: 'data' },
   { id: SUPER_ADMIN_VIEWS.USERS, label: 'Users', icon: 'Users', group: 'data' },
@@ -63,6 +63,7 @@ const ADDRESSABLE_VIEWS = new Set(Object.values(SUPER_ADMIN_VIEWS)
  * went, and the panel rewrites the address to the new one.
  */
 const MOVED_VIEWS = new Map([
+  ['analytics', SUPER_ADMIN_VIEWS.DASHBOARD],
   ['stats-backfill', SUPER_ADMIN_VIEWS.MAINTENANCE],
 ]);
 

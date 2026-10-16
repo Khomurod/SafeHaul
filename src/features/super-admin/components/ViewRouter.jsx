@@ -15,7 +15,6 @@ import { MaintenanceView } from './MaintenanceView.jsx';
 
 
 // --- Views from Parent Directory ---
-import { AnalyticsView } from '../views/AnalyticsView.jsx';
 import { UnifiedDriverList } from '../views/UnifiedDriverList.jsx';
 import { EnvironmentIntegrationsView } from '../views/EnvironmentIntegrationsView.jsx';
 import { AiIntegrationsView } from '../views/AiIntegrationsView.jsx';
@@ -80,10 +79,6 @@ export function ViewRouter({
                     statsLoading={listLoading}
                     statsError={statsError}
                 />
-            );
-        case SUPER_ADMIN_VIEWS.ANALYTICS:
-            return (
-                <AnalyticsView />
             );
 
         case SUPER_ADMIN_VIEWS.COMPANIES:
