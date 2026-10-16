@@ -198,7 +198,7 @@ describe('probes try the spare versions', () => {
         const vision = byId(result.capabilities).vision_single;
 
         expect(vision).toMatchObject({ status: PROBE_STATUS.PASSED, model: SECOND });
-        expect(vision.message).toBe('Passed using ministral-8b-2512 after ministral-14b-2512 failed.');
+        expect(vision.message).toBe(`Passed using ${SECOND} after ${FIRST} failed.`);
         expect(result.success).toBe(true);
     });
 
