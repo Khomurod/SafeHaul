@@ -3,9 +3,9 @@
 // Every rule block is tried by twelve kinds of caller with get, list, create,
 // update and delete, and so is a path that no rule, or only a collection-group
 // rule, matches. So are the requests whose answer depends on the document
-// (owner fields, a status outside the pipeline list, a changed companyId) and
-// the collection-group queries. The answers must equal
-// `firestoreRules.decisions.table.json` byte for byte.
+// (owner fields, each held by driver-1 and then by the caller, a status outside
+// the pipeline list, a changed companyId) and the collection-group queries. The
+// answers must equal `firestoreRules.decisions.table.json` byte for byte.
 //
 // A change to the rules that should leave everyone's access as it was (a shorter
 // helper, a redundant check removed) is proven by an unchanged table. A change
@@ -126,9 +126,37 @@ const PIPELINE_STATUSES = [
   'Stale', 'Offer Accepted', 'Offer Declined',
 ];
 
-const ownedApplication = tenant({
-  applicantId: DRIVER, driverId: DRIVER, email: DRIVER_EMAIL, status: 'New Application', phone: '5550000000',
+// An owner field holds driver-1, and then the caller, so that every kind of caller
+// is tried as the owner and not only a driver with a verified email.
+const OWNERS = [DRIVER, '{uid}'];
+
+const applicationOf = (owner) => tenant({
+  applicantId: owner, driverId: owner, email: DRIVER_EMAIL, status: 'New Application', phone: '5550000000',
 });
+const ownedApplication = applicationOf(DRIVER);
+
+// What a driver may try on their own application, including the reassignment
+// and identity fields the rules keep from them.
+const DRIVER_UPDATES = [
+  [{ note: 'changed' }, 'a field outside the driver\'s list'],
+  [{ assignedTo: 'u-recruiter-a' }, 'assignedTo'],
+  [{ applicantId: SOMEONE }, `applicantId to ${SOMEONE}`],
+  [{ driverId: SOMEONE }, `driverId to ${SOMEONE}`],
+  [{ phone: '5551112222' }, 'phone'],
+  [
+    {
+      ...Object.fromEntries(DRIVER_SELF_UPDATE_FIELDS.map((field) => [field, `changed ${field}`])),
+      status: 'Offer Accepted', offerDetails: { response: 'Offer Accepted' },
+    },
+    'every field on the driver\'s list',
+  ],
+  [{ status: 'Hired' }, 'status Hired'],
+  [{ status: 'Offer Accepted', offerDetails: { response: 'Offer Accepted' } }, 'offer accepted'],
+  [{ status: 'Offer Declined', offerDetails: { response: 'Offer Declined' } }, 'offer declined'],
+  [{ status: 'Offer Accepted', offerDetails: { response: 'Offer Declined' } }, 'offer accepted, response says declined'],
+  [{ status: 'Totally Custom' }, 'status outside the list'],
+  [{ companyId: OTHER_CO }, `companyId to ${OTHER_CO}`],
+];
 const othersApplication = tenant({ applicantId: SOMEONE, driverId: SOMEONE, email: 'other@example.com' });
 
 const ROWS = [
@@ -184,10 +212,10 @@ const ROWS = [
   ...documentRows(`${companyPath}/not_in_the_rules`),
 
   // --- Signing requests ---
-  {
-    op: 'get', path: `${companyPath}/signing_requests/{doc}`, seed: tenant({ recipientId: DRIVER }),
-    note: `recipient ${DRIVER}`,
-  },
+  ...OWNERS.map((recipient) => ({
+    op: 'get', path: `${companyPath}/signing_requests/{doc}`, seed: tenant({ recipientId: recipient }),
+    note: `recipient ${recipient}`,
+  })),
   {
     op: 'get', path: `${companyPath}/signing_requests/{doc}`, seed: tenant({ recipientId: SOMEONE }),
     note: 'recipient someone else',
@@ -201,24 +229,27 @@ const ROWS = [
   {
     op: 'create', path: `${companyPath}/signing_requests/{doc}`, data: tenant({ recipientId: DRIVER, status: 'sent' }),
   },
-  ...[
+  ...OWNERS.flatMap((recipient) => [
     [{ note: 'changed' }, 'a field outside the signer\'s list'],
+    [{ recipientId: SOMEONE }, `recipientId to ${SOMEONE}`],
     [{ status: 'viewed', viewedAt: 'now' }, 'viewed'],
     [{ status: 'declined', declinedReason: 'not mine', clientMetadata: { userAgent: 'test' } }, 'declined'],
     [{ status: 'signed' }, 'signed without signatureData'],
     [{ status: 'signed', signatureData: 'signature', signedAt: 'now' }, 'signed with signatureData'],
   ].map(([data, note]) => ({
     op: 'update', path: `${companyPath}/signing_requests/{doc}`,
-    seed: tenant({ recipientId: DRIVER, status: 'sent' }), data, note: `recipient ${DRIVER}, ${note}`,
-  })),
+    seed: tenant({ recipientId: recipient, status: 'sent' }), data, note: `recipient ${recipient}, ${note}`,
+  }))),
   { op: 'delete', path: `${companyPath}/signing_requests/{doc}`, seed: tenant({ recipientId: DRIVER }) },
   ...documentRows(`${companyPath}/signing_requests/sr-1/secrets`),
 
   // --- Applications ---
   ...[
     [ownedApplication, `applicant, driver and email are ${DRIVER}'s`],
-    [tenant({ applicantId: DRIVER, driverId: SOMEONE }), `applicantId ${DRIVER}`],
-    [tenant({ applicantId: SOMEONE, driverId: DRIVER }), `driverId ${DRIVER}`],
+    ...OWNERS.flatMap((owner) => [
+      [tenant({ applicantId: owner, driverId: SOMEONE }), `applicantId ${owner}`],
+      [tenant({ applicantId: SOMEONE, driverId: owner }), `driverId ${owner}`],
+    ]),
     [tenant({ applicantId: SOMEONE, driverId: SOMEONE, email: DRIVER_EMAIL }), `email ${DRIVER_EMAIL} only`],
     [othersApplication, 'someone else\'s'],
     [{ companyId: OTHER_CO, applicantId: SOMEONE, driverId: SOMEONE }, `companyId ${OTHER_CO}`],
@@ -244,48 +275,33 @@ const ROWS = [
     note: 'the caller\'s own by applicantId alone, id = applicantId',
   },
   ...[
-    [ownedApplication, { note: 'changed' }, 'a field outside the driver\'s list'],
-    [ownedApplication, { phone: '5551112222' }, 'phone'],
-    [
-      ownedApplication,
-      {
-        ...Object.fromEntries(DRIVER_SELF_UPDATE_FIELDS.map((field) => [field, `changed ${field}`])),
-        status: 'Offer Accepted', offerDetails: { response: 'Offer Accepted' },
-      },
-      'every field on the driver\'s list',
-    ],
-    [ownedApplication, { status: 'Hired' }, 'status Hired'],
-    [ownedApplication, { status: 'Offer Accepted', offerDetails: { response: 'Offer Accepted' } }, 'offer accepted'],
-    [ownedApplication, { status: 'Offer Declined', offerDetails: { response: 'Offer Declined' } }, 'offer declined'],
-    [
-      ownedApplication, { status: 'Offer Accepted', offerDetails: { response: 'Offer Declined' } },
-      'offer accepted, response says declined',
-    ],
-    [ownedApplication, { status: 'Totally Custom' }, 'status outside the list'],
-    [ownedApplication, { companyId: OTHER_CO }, `companyId to ${OTHER_CO}`],
+    ...OWNERS.flatMap((owner) => [
+      ...DRIVER_UPDATES.map(([data, note]) => [applicationOf(owner), data, `${owner}'s, ${note}`]),
+      [tenant({ applicantId: owner, driverId: SOMEONE }), { phone: '5551112222' }, `phone, applicantId ${owner} only`],
+      [tenant({ applicantId: SOMEONE, driverId: owner }), { phone: '5551112222' }, `phone, driverId ${owner} only`],
+    ]),
     [tenant({ applicantId: SOMEONE, driverId: SOMEONE, email: DRIVER_EMAIL }), { phone: '5551112222' },
       `phone, ${DRIVER}'s by email only`],
-    [tenant({ applicantId: DRIVER, driverId: SOMEONE }), { phone: '5551112222' }, `phone, applicantId ${DRIVER} only`],
-    [tenant({ applicantId: SOMEONE, driverId: DRIVER }), { phone: '5551112222' }, `phone, driverId ${DRIVER} only`],
     [{ applicantId: DRIVER, driverId: DRIVER }, { note: 'changed' }, 'no companyId'],
-  ].map(([seed, data, note]) => ({
-    op: 'update', path: `${companyPath}/applications/{doc}`, seed, data,
-    note: seed === ownedApplication ? `${DRIVER}'s, ${note}` : note,
-  })),
+  ].map(([seed, data, note]) => ({ op: 'update', path: `${companyPath}/applications/{doc}`, seed, data, note })),
   { op: 'delete', path: `${companyPath}/applications/{doc}`, seed: ownedApplication },
 
   // --- Application subcollections ---
   ...[
-    [{ ownerUserIds: [DRIVER] }, `ownerUserIds has ${DRIVER}`],
-    [{ driverId: DRIVER }, `driverId ${DRIVER}`],
-    [{ applicantId: DRIVER }, `applicantId ${DRIVER}`],
-    [{ userId: DRIVER }, `userId ${DRIVER}`],
+    ...OWNERS.flatMap((owner) => [
+      [{ ownerUserIds: [owner] }, `ownerUserIds has ${owner}`],
+      [{ driverId: owner }, `driverId ${owner}`],
+      [{ applicantId: owner }, `applicantId ${owner}`],
+      [{ userId: owner }, `userId ${owner}`],
+    ]),
     [{ ownerUserIds: [SOMEONE] }, 'someone else\'s'],
   ].map(([seed, note]) => ({ op: 'get', path: `${applicationPath}/dq_files/{doc}`, seed, note })),
   ...documentRows(`${applicationPath}/dq_files`).slice(1),
   { op: 'list', path: `${applicationPath}/dq_files`, where: ['ownerUserIds', 'array-contains', '{uid}'] },
   ...['general_documents', 'submission'].flatMap((name) => [
-    { op: 'get', path: `${applicationPath}/${name}/{doc}`, seed: { driverId: DRIVER }, note: `driverId ${DRIVER}` },
+    ...OWNERS.map((owner) => ({
+      op: 'get', path: `${applicationPath}/${name}/{doc}`, seed: { driverId: owner }, note: `driverId ${owner}`,
+    })),
     { op: 'get', path: `${applicationPath}/${name}/{doc}`, seed: { driverId: SOMEONE }, note: 'someone else\'s' },
     ...documentRows(`${applicationPath}/${name}`).slice(1),
   ]),
@@ -300,7 +316,9 @@ const ROWS = [
 
   // --- Leads ---
   { op: 'get', path: `${companyPath}/leads/{doc}`, seed: tenant() },
-  { op: 'get', path: `${companyPath}/leads/{doc}`, seed: tenant({ userId: DRIVER }), note: `userId ${DRIVER}` },
+  ...OWNERS.map((owner) => ({
+    op: 'get', path: `${companyPath}/leads/{doc}`, seed: tenant({ userId: owner }), note: `userId ${owner}`,
+  })),
   { op: 'get', path: `${companyPath}/leads/{doc}`, seed: { companyId: OTHER_CO }, note: `companyId ${OTHER_CO}` },
   { op: 'list', path: `${companyPath}/leads` },
   ...[
