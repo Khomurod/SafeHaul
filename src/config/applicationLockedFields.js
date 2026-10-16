@@ -139,21 +139,14 @@ function lockedEmployerIssues(lockedEmployers, formData) {
  * The lock list, with anything no longer answered by a row on the application.
  *
  * A lock is a snapshot of an employer's identity taken at the moment the carrier
- * pressed Lock, and the carrier goes on editing the rows afterwards. Nothing kept
- * the two in step, so four ordinary carrier actions produced an application the
- * driver was blocked on and could not fix (found 2026-09-08):
+ * pressed Lock, and the carrier goes on editing the rows afterwards. A lock and
+ * its row that drift apart block the driver on something they cannot fix: a
+ * corrected name or an added USDOT number trips `locked-employer-changed` or
+ * `locked-employer-missing` (the wizard renders a locked row's identity as a
+ * record rather than a field), and a deleted row leaves its lock behind as an
+ * invisible requirement, with the row's own Unlock button gone along with it.
  *
- *   - deleting a locked row left the lock behind as an invisible requirement,
- *     with the row's own Unlock button gone along with the row;
- *   - correcting the NAME on a row locked by USDOT number tripped
- *     `locked-employer-changed`, and the wizard renders a locked row's identity
- *     as a record rather than a field — so the driver was blocked on the one
- *     field they are not allowed to touch;
- *   - correcting the name on a row locked by name moved its signature, and
- *   - adding a USDOT number to a row locked by name moved it too, both landing on
- *     `locked-employer-missing` for a row that is sitting right there.
- *
- * Two things fix that together, and this is the second. The carrier's editor now
+ * Two things keep them in step, and this is the second. The carrier's editor
  * renders a locked row's identity read-only, so a signature cannot drift while
  * the lock exists — the carrier unlocks, corrects, and locks again, which mints a
  * lock that matches. This handles the case that leaves no trace to render: a

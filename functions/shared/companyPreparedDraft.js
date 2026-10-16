@@ -123,7 +123,7 @@ function isoOf(value) {
 }
 
 /**
- * The contact-and-progress shape — and since 2026-09-10, the ONLY list shape.
+ * The contact-and-progress shape — and the ONLY list shape.
  *
  * This is what a carrier sees once the driver has taken the application over, and
  * what it sees for every draft in a list. It carries no answers.

@@ -2,8 +2,9 @@ const { HttpsError } = require("firebase-functions/v2/https");
 
 /**
  * Whether verified token claims, or a user's stored custom claims, make a super
- * admin: `globalRole` at the root (older tokens) or under `roles`, as the
- * Firestore and Storage rules and the site read it.
+ * admin: `roles.globalRole`, which a `super_admin` membership grants, or
+ * `globalRole` at the token root, which the claims writer keeps. The Firestore
+ * and Storage rules and the site read both.
  */
 function isSuperAdminClaims(claims) {
     return claims?.globalRole === 'super_admin' || claims?.roles?.globalRole === 'super_admin';

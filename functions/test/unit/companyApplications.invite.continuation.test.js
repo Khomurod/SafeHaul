@@ -1,35 +1,19 @@
 /**
  * A replacement link returns the driver to the application they already started.
  *
- * ## The production failure this file is built from
+ * ## What this file pins
  *
- * `companies/0AblDiRX0tB9p07hibs3/application_drafts/eb58fc7f58ca61c7218e`, read
- * on 2026-09-09: `origin: 'company'`, `status: 'driver_in_progress'`,
- * `lastSemanticStep: 'consent'`, `clientSeq: 10`, `inviteClaimedAt` at 16:02 —
- * and **`identityKey: null`**. The recruiter minted a replacement link at 16:41,
- * the driver opened it twice (both exchanges returned 200), and both times the
- * page rendered the fresh-application chooser.
- *
- * Two independent defects, and the suite covers both:
- *
- * 1. `requiresIdentity` had no verification path that could run. It delegated to
- *    `findResumableApplication`, which queries `identityKey ==`, and that field was
- *    null — erased by the first autosave issued after a page reload, because the
- *    HMAC needs an SSN and a draft never stores one.
- * 2. Nothing rendered `requires_identity`, which is the client half
- *    (`PublicApplyScreens`).
- *
- * Every fixture here is synthetic. `driverStartedWithoutIdentity` reproduces the
- * *shape* of that record — a taken-over prepared draft with no identity HMAC — and
- * `driverStartedWithIdentity` the shape every draft written from now on has.
- *
- * **Since 2026-10-02 the first shape is refused.** On a prepared draft the carrier
- * typed the last name, the date of birth and the contact detail itself, and with
- * no HMAC the SSN cannot be checked, so the claim that rescued the reported record
- * was one a recruiter could make too — and be handed the driver's answers. It is
- * now `unverifiable`, the driver's own device still resumes with its token, and the
- * `answers` tier survives for a draft the driver started, whose date of birth the
- * carrier has never seen. `driverStartedOwnWithoutIdentity` is that shape.
+ * A replacement link opened on a taken-over draft answers `requiresIdentity`, the
+ * site renders that (`PublicApplyScreens`), and the claim is checked against the
+ * draft the link names. Every fixture here is synthetic.
+ * `driverStartedWithIdentity` is the shape every draft written now has.
+ * `driverStartedWithoutIdentity` is a taken-over prepared draft with no identity
+ * HMAC, and it is refused as `unverifiable`: on a prepared draft the carrier typed
+ * the last name, the date of birth and the contact detail itself, and with no
+ * HMAC the SSN cannot be checked. The driver's own device still resumes with its
+ * token, and the `answers` tier serves a draft the driver started, whose date of
+ * birth the carrier has never seen. `driverStartedOwnWithoutIdentity` is that
+ * shape.
  */
 
 process.env.SMS_ENCRYPTION_KEY = 'x'.repeat(32);
@@ -144,8 +128,8 @@ describe('the replacement link a recruiter creates for a driver who already star
         // The SAME document, not a new one.
         expect(opened.applicantKey).toBe(keyFor());
         expect(opened.formData.cdlNumber).toBe(DRIVER_SECRET);
-        // Where they actually were. Withheld entirely until 2026-09-09, which would
-        // have dropped a confirmed driver back onto page one of their own form.
+        // Where they actually were, so a confirmed driver is not dropped back onto
+        // page one of their own form.
         expect(opened.lastStep).toBe(8);
         expect(opened.lastSemanticStep).toBe('consent');
         expect(opened.resumeToken).toMatch(/^[0-9a-f]{64}$/);
@@ -209,9 +193,9 @@ describe('what the link refuses', () => {
     });
 
     /**
-     * The hole closed on 2026-10-02. Every fact in this claim is one the carrier
-     * typed into its own prepared application, and with no HMAC on file the SSN
-     * cannot be checked — so a match proves nothing about who is asking.
+     * Every fact in this claim is one the carrier typed into its own prepared
+     * application, and with no HMAC on file the SSN cannot be checked — so a
+     * match proves nothing about who is asking.
      */
     it('refuses a prepared application with no HMAC even when every detail matches', async () => {
         await driverStartedWithoutIdentity();
@@ -284,8 +268,8 @@ describe('what the link refuses', () => {
     });
 
     /**
-     * The hole review found on 2026-09-09, and the reason the `answers` tier wants
-     * BOTH stored facts rather than whichever it happens to have.
+     * Why the `answers` tier wants BOTH stored facts rather than whichever it
+     * happens to have.
      *
      * The draft below holds a last name and no date of birth — the ordinary shape of
      * an application a driver has only just taken over. Checking "what we have"

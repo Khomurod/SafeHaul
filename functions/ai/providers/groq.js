@@ -22,11 +22,10 @@ const RESPONSES_PATH = '/responses';
  * thinking.
  *
  * Groq's catalogue is now reasoning-first: `openai/gpt-oss-*` think before
- * answering and charge that thinking against `max_output_tokens`. Measured
- * against the live API on 2026-08-03, `openai/gpt-oss-120b` asked for a
- * one-word answer inside 32 tokens returned `status: "incomplete"`,
- * `incomplete_details.reason: "max_output_tokens"`, and a single `reasoning`
- * output item — no answer at all.
+ * answering and charge that thinking against `max_output_tokens`. Thinking can
+ * use up a small budget — 32 tokens for a one-word answer — and the reply is
+ * then `status: "incomplete"`, `incomplete_details.reason: "max_output_tokens"`
+ * and a single `reasoning` output item — no answer at all.
  *
  * A caller asking for 450 tokens of JSON is asking for 450 tokens *of JSON*.
  * Same reasoning and rationale as the Gemini adapter: one adapter must not mean

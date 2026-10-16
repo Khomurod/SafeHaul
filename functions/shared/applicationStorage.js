@@ -18,12 +18,12 @@ const storagePathOf = (value) => (
 /**
  * Collect Storage object paths from an application doc's file fields ({ storagePath } objects).
  *
- * A custom file question keeps its upload inside `customAnswers` (since
- * 2026-10-02). Those values are whatever the applicant's browser sent, so only a
- * path in the namespace `getSignedUploadUrl` issues application uploads into is
- * taken from there — `companies/{companyId}/applications/guest_uploads/`. The
- * company prefix alone was not enough: a crafted answer could name one of the
- * same company's DQ or PEV files, and this deletion runs with the Admin SDK.
+ * A custom file question keeps its upload inside `customAnswers`. Those values
+ * are whatever the applicant's browser sent, so only a path in the namespace
+ * `getSignedUploadUrl` issues application uploads into is taken from there —
+ * `companies/{companyId}/applications/guest_uploads/`. The company prefix alone
+ * is not enough: a crafted answer could name one of the same company's DQ or PEV
+ * files, and this deletion runs with the Admin SDK.
  */
 function collectStoragePaths(data, companyId) {
     const record = data || {};

@@ -1,22 +1,16 @@
 /**
  * Tenant binding for `connectFacebookPage`.
  *
- * Until 2026-08-25 this callable did:
+ * The caller names the company and the server authorizes it; `request.auth.uid`
+ * is never the tenant. Companies carry generated ids and users join them through
+ * `memberships`; a user can belong to several, which is why there is a company
+ * chooser. A page bound to a user id (`integrations_index/{pageId}.companyId`)
+ * feeds `companies/{uid}/leads` — a tree belonging to no company, which no
+ * screen reads — so such a binding, left by older code, is reclaimed.
  *
- *     const companyId = request.auth.uid; // Assumes 1:1 user-company mapping
- *
- * SafeHaul has never worked that way. Companies carry generated ids and users
- * join them through `memberships`; a user can belong to several, which is why
- * there is a company chooser. So every page connected through this callable
- * wrote `integrations_index/{pageId}.companyId = <a user id>`, and every lead
- * the webhook later ingested went to `companies/{uid}/leads` — a tree belonging
- * to no company, which no screen reads. The leads were not delivered to the
- * wrong tenant; they were silently dropped into nowhere.
- *
- * The caller now names the company and the server authorizes it. These tests
- * cover the full matrix, because the failure mode of getting this wrong the
- * *other* way — trusting a client-supplied id — is worse than the bug being
- * fixed: it would plant one company's leads in another's tenant.
+ * These tests cover the full matrix, because getting this wrong the *other* way
+ * — trusting a client-supplied id — would plant one company's leads in another's
+ * tenant.
  *
  * All ids and tokens below are artificial.
  */

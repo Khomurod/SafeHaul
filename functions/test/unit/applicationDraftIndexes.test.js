@@ -31,9 +31,8 @@ const config = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'firestore.indexe
 const callableSource = fs.readFileSync(path.join(REPO_ROOT, 'functions/drafts/resume.js'), 'utf8');
 /**
  * The carrier-prepared surface reads the same collection, so an equality query
- * there needs its index declared too: on 2026-09-03 review found `origin ==
- * 'company'` ordered by `updatedAt` with no index declared, which would have failed
- * with `FAILED_PRECONDITION` in a deployed project while every test here passed.
+ * there needs its index declared too: without one it fails with
+ * `FAILED_PRECONDITION` in a deployed project while every test here passes.
  * None of these files queries by equality now; a new query must bring its index.
  *
  * Read as a SET of files rather than one path, so splitting the module again does

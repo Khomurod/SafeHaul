@@ -175,14 +175,10 @@ describe('model pin reconciliation', () => {
  * A diagnostic must be able to say "I did not learn anything", and it must not
  * dress that up as either a pass or a failure.
  *
- * Measured against the live vendors on 2026-08-18: a two-image probe against
- * Groq's free tier returned `429 ... tokens per minute (TPM): Limit 8000, Used
- * 3051, Requested 5023`. One vision probe costs roughly 2.5k of an 8k/minute
- * budget and the multi-image one roughly 5k, so six serial probes cannot fit --
- * the connection test was spending the allowance and then reporting the
- * resulting 429 as "this provider cannot read images". Groq's preview vision
- * model separately returned `503 ... currently over capacity`. Neither says
- * anything about the capability.
+ * One vision probe costs roughly 2.5k of an 8k/minute free-tier budget and the
+ * multi-image one roughly 5k, so six serial probes cannot fit, and the 429 that
+ * follows is not "this provider cannot read images". Neither that nor a
+ * `503 ... currently over capacity` says anything about the capability.
  */
 describe('a throttled diagnostic is not a failed capability', () => {
     it('reports a rate limit as rate_limited, not failed', async () => {

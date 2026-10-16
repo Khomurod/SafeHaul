@@ -2,8 +2,8 @@
  * PEV — signature normalisation for the previous-employer portal.
  *
  * The respondent signs the §391.23 response either by drawing on the canvas
- * (a PNG data URL) or, since 2026-09-06 (audit step J), by typing their full
- * name — stored as `TEXT_SIGNATURE:<name>`, the convention the driver
+ * (a PNG data URL) or by typing their full name — stored as
+ * `TEXT_SIGNATURE:<name>`, the convention the driver
  * application already uses for typed marks. Under the ESIGN Act
  * (15 U.S.C. §7006(5)) and UETA a name typed with intent to sign is an
  * electronic signature, so both forms are stored with equal standing and the

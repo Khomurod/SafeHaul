@@ -119,7 +119,7 @@ describe('collectStoragePaths', () => {
     expect(paths.sort()).toEqual(['a/b.jpg', 'c/d.pdf']);
   });
 
-  // A custom file question keeps its upload inside `customAnswers` (2026-10-02).
+  // A custom file question keeps its upload inside `customAnswers`.
   it('gathers custom-question uploads too, but only from the application-upload namespace', () => {
     const own = 'companies/co1/applications/guest_uploads/u1_resume.pdf';
     const paths = collectStoragePaths({

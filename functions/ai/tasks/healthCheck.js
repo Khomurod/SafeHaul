@@ -65,12 +65,10 @@ const PROBE_STATUS = Object.freeze({
     /**
      * The vendor throttled the diagnostic itself.
      *
-     * Measured on 2026-08-18: a two-image probe against Groq's free tier
-     * returned `429 … tokens per minute (TPM): Limit 8000, Used 3051, Requested
-     * 5023`. A vision probe costs roughly 2.5k of that budget and the
-     * multi-image one roughly 5k, so six serial probes cannot all fit inside one
-     * minute — and the connection test was spending the allowance and then
-     * reporting the resulting 429 as "this provider cannot read images".
+     * A vision probe costs roughly 2.5k of a free tier's per-minute token
+     * budget (Groq's is 8,000) and the multi-image one roughly 5k, so six serial
+     * probes cannot all fit inside one minute, and the 429 that follows says the
+     * allowance is spent, not that the provider cannot read images.
      *
      * The capability was never tested. Saying so is the only honest answer, and
      * it must not read as either a pass or a failure.

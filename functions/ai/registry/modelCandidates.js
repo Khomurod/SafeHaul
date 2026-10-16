@@ -56,8 +56,8 @@ const RULES = Object.freeze({
         [LANES.TEXT]: byPreference([/^openai\/gpt-oss-\d+b$/, /^qwen\/qwen\d+(?:\.\d+)?-\d+b$/]),
     },
     // Mistral says which models read images. Dated names only; the Ministral
-    // family first, because a free key can call it (Medium and Small had a
-    // limit of zero on the free plan on 2026-10-07).
+    // family first, because a free key can call it (the free plan gives Medium
+    // and Small a limit of zero).
     mistral: {
         [LANES.VISION]: (entries) => byPreference([/^ministral-\d+b-\d{4}$/, /^(?:mistral-small|pixtral)-[\w-]*\d{4}$/, /^mistral-medium-\d{4}$/])(
             entries.filter((item) => item.vision === true),

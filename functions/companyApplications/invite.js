@@ -16,9 +16,8 @@
  * a usable link.
  *
  * The token algebra those two questions are asked with — which hashes open a
- * draft, and until when — lives in `./inviteTokens.js`, together with the account
- * of the defect that made composing them independently a revival rather than a
- * retirement.
+ * draft, and until when — lives in `./inviteTokens.js`, together with why
+ * composing them independently would revive a link rather than retire it.
  *
  * ## What the exchange hands back, and why it depends on whose words are in the draft
  *
@@ -32,19 +31,12 @@
  *
  * Once the driver has saved — `driver_in_progress` — the answers are theirs, and
  * `shared/companyPreparedDraft.js` says the carrier stops being able to read them.
- * That cutoff was enforced at only one of the two doors: `companyApplications/read.js`
- * consulted `companyMayReadAnswers`, while this file consulted `isCompanyPrepared`,
- * which tests `origin` — a field recording who *created* the draft, which
- * deliberately never changes. So a carrier could mint a link, exchange it itself,
- * and recover exactly the answers the cutoff had just withheld, plus a resume token
- * that could rewrite them. The driver's first save does not clear
- * `inviteTokenHash` either, so the ORIGINAL link already did this — gating the mint
- * would not have closed it. Found and fixed 2026-09-08.
- *
- * So the link is **tiered**, and since 2026-09-09 the tier is decided by
- * `companyMayReadAnswers` — the very predicate the other door has always used.
- * Two questions composed into one boundary is the shape of every defect this file
- * records, so there is now one question.
+ * So the link is **tiered**, and the tier is decided by `companyMayReadAnswers` —
+ * the same predicate `companyApplications/read.js` uses, so both doors ask one
+ * question. Never `isCompanyPrepared`: it tests `origin`, a field recording who
+ * *created* the draft, which deliberately never changes. The driver's first save
+ * does not clear `inviteTokenHash`, so the cutoff has to hold at the exchange, not
+ * only at the mint.
  *
  * Opened with no identity claim and the answers not the carrier's, it returns
  * `requiresIdentity` and writes nothing: a carrier holding this link can neither
@@ -53,15 +45,10 @@
  * hash, which grants liveness but never write authorization — so a carrier opening
  * its own link a few times could silently stop the driver's autosave.)
  *
- * **The claim is checked against the draft this link names**, in `./inviteIdentity.js`.
- * The original plan delegated that to `findResumableApplication`, and neither half
- * of the delegation worked: the client had no screen for `requiresIdentity` at all,
- * so the driver was dropped into the fresh-application chooser, and the lookup
- * queries `identityKey ==` — which autosave was erasing on every save issued
- * without an SSN in memory. Both measured in production on 2026-09-09 against the
- * reported application. A link that already resolved the document has no business
- * asking "does any draft here match this identity"; it asks "is this that
- * applicant".
+ * **The claim is checked against the draft this link names**, in `./inviteIdentity.js`,
+ * not delegated to `findResumableApplication`. A link that already resolved the
+ * document has no business asking "does any draft here match this identity"; it
+ * asks "is this that applicant".
  *
  * ## A continuation link is not only for an application the carrier prepared
  *
@@ -138,8 +125,8 @@ exports.mintApplicationInvite = onCallV2({ cors: true }, async (request) => {
 
     await assertCompanyAccessForRequest(request, companyId, 'mintApplicationInvite');
 
-    // Both of these were missing until 2026-09-08, which made this the only one of
-    // the five prepared-application callables with neither.
+    // The same intake and rate-limit checks as the other four prepared-application
+    // callables.
     await assertCompanyAcceptingIntake(db, companyId);
     const allowed = await checkRateLimit(
         `company_invite_${companyId}_${request.auth.uid}`,
@@ -442,11 +429,9 @@ exports.exchangeApplicationInvite = functions
             applicantKey: candidate.id,
             resumeToken: resumeToken.token,
             formData: restored.formData || {},
-            // Where the driver actually was. Withheld until 2026-09-09, which was
-            // survivable only because a carrier-prepared draft is always on page
-            // one: a driver confirming their identity to continue their own
-            // application would otherwise be handed their answers and dropped back
-            // at the start of the wizard.
+            // Where the driver actually was, so a driver confirming their identity
+            // to continue their own application resumes there rather than at the
+            // start of the wizard.
             lastStep: Number.isInteger(restored.lastStep) ? restored.lastStep : 0,
             lastSemanticStep: typeof restored.lastSemanticStep === 'string'
                 ? restored.lastSemanticStep

@@ -178,8 +178,8 @@ describe('application PDF — the SSN policy', () => {
 describe('application PDF — agreements and signatures', () => {
     it('prints all five agreements with their frozen wording', async () => {
         const { text } = await render();
-        // The MVR authorization joined the set on 2026-09-02; it is answered on
-        // the driving-record step and preserved with the same rigour.
+        // The MVR authorization is part of the set; it is answered on the
+        // driving-record step and preserved with the same rigour.
         expect(text).toMatch(/MOTOR VEHICLE RECORD \(MVR\) AUTHORIZATION/);
         expect(text).toMatch(/AGREEMENT TO CONDUCT TRANSACTION ELECTRONICALLY/);
         expect(text).toMatch(/BACKGROUND CHECK DISCLOSURE AND AUTHORIZATION/);

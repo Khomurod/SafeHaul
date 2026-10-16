@@ -3,7 +3,7 @@
  *
  * A driver who typed a different email or phone on a second visit has a second
  * draft, at a second key. The owner decided that deleting one deletes the other
- * as well (2026-10-07), with the Company Admin shown each one first and free to
+ * as well, with the Company Admin shown each one first and free to
  * keep any that is somebody else's, since a shared phone looks the same.
  *
  * "The same driver" is one of three facts two drafts share: the identity HMAC

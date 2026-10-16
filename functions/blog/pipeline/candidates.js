@@ -22,14 +22,10 @@ const MAX_CANDIDATES = 12;
  * locomotive rule and a TVA environmental finding all arrive tagged
  * `regulation, compliance, freight-market` and all pass a theme-topic filter.
  *
- * That is not a hypothetical. On 2026-08-03 the twelve top candidates for the
- * industry-news slot were, in order: high-speed train noise standards, three VHF
- * omnidirectional range amendments, Class D/E airspace over Morgantown WV, a TVA
- * categorical exclusion, an unleaded aviation gasoline transition plan,
- * locomotive engineer certification, and Jet Route J-24. Not one concerned
- * trucking. A trucking publication that runs an article about jet routes is
- * worse than one that runs nothing, so this gate is deliberately applied before
- * anything reaches an editor or a model.
+ * Such notices can fill every top candidate for a slot. A trucking publication
+ * that runs an article about jet routes is worse than one that runs nothing, so
+ * this gate is deliberately applied before anything reaches an editor or a
+ * model.
  *
  * A keyword gate is crude, and it is chosen over asking a model precisely
  * because it is deterministic, free, and cannot be talked into approving an

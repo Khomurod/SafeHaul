@@ -25,9 +25,8 @@
  * ## Every queued `*Once` value ends with its test
  *
  * `resetDraftState` calls `jest.resetAllMocks()`, which drops a queued `*Once`
- * value that its test never consumed; `clearAllMocks` left it queued, and one
- * leaked for real on 2026-09-08 (a `mockCheckRateLimit.mockResolvedValueOnce(false)`
- * surfaced in the NEXT test's `prepare()`). Jest 30's reset leaves every double
+ * value that its test never consumed; `clearAllMocks` leaves it queued for the
+ * NEXT test. Jest 30's reset leaves every double
  * returning `undefined`, so `resetDraftState` puts the four doubles' defaults
  * back, and a suite with doubles of its own sets theirs after calling it
  * (`.claude/rules/testing.md`).
@@ -127,10 +126,10 @@ function mockDocRef(path) {
     return {
         path,
         // A real `DocumentReference` carries its own id, and code that compares
-        // "is the document I read the one I am writing?" reads it. Missing here
-        // until 2026-09-08, it made every such comparison see `undefined` and
-        // answer "different" — so a correct guard looked like a bug, and an
-        // incorrect one would have passed. Same reasoning as the `ref` note above.
+        // "is the document I read the one I am writing?" reads it. Without it,
+        // every such comparison sees `undefined` and answers "different" — so a
+        // correct guard looks like a bug, and an incorrect one passes. Same
+        // reasoning as the `ref` note above.
         id: path.split('/').pop(),
         get: async () => mockMakeDoc(path),
         set: async (patch, options) => {

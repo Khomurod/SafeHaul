@@ -1,10 +1,9 @@
 /**
  * Shared harness for the `employmentVerification.*` suites.
  *
- * Split out of the single 525-line file on 2026-09-09 for the source-size
- * standard, when the request suite grew the cases that pin employer identity —
- * a Previous Employment Verification must never be able to land on the wrong
- * employer, and proving that takes more than one case.
+ * Shared by more than one suite because the cases that pin employer identity are
+ * many: a Previous Employment Verification must never be able to land on the
+ * wrong employer, and proving that takes more than one case.
  *
  * ## Why the mocks are factories rather than `jest.mock` calls
  *

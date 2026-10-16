@@ -1,20 +1,16 @@
 /**
  * When a link dies, and what a regeneration does to the one it replaced.
  *
- * ## The defect this file exists for
+ * ## What this file pins
  *
- * Found 2026-09-08. Validity was modelled per DOCUMENT while matching was
- * modelled per GENERATION: `inviteNamesDraft` accepted the current hash or any
- * prior hash, `inviteStillValid` read one document-level `inviteTokenExpiresAt`,
- * and the mint rewrote that field unconditionally. Composing the two
- * independently meant an expired token could ride on a newer token's expiry —
- * so "Create a new link" did not retire the old link, it **revived** it, for a
- * further fourteen days, even when it had been dead for a week.
+ * Validity and matching belong to the same token generation: an expired token
+ * must never ride on a newer token's expiry, so "Create a new link" retires the
+ * old link rather than reviving it (`inviteTokens.js`).
  *
- * `companyApplications.invite.test.js` could not see it: it calls
- * `setInviteExpiry` *after* both mints, which forces a live expiry and makes the
- * reset invisible. The sequence that matters is expire → regenerate → present
- * the old token, and it is the first case below.
+ * `companyApplications.invite.test.js` cannot see this: it calls
+ * `setInviteExpiry` *after* both mints, which forces a live expiry. The sequence
+ * that matters is expire → regenerate → present the old token, and it is the
+ * first case below.
  *
  * ## Two things worth knowing before editing this file
  *

@@ -1,35 +1,22 @@
 /**
  * Proving that the person who opened a continuation link is the applicant.
  *
- * ## Why this file exists, and what was actually broken
+ * ## Why this file exists
  *
  * `invite.js` describes a **tiered** link: while the answers are the carrier's own
  * the exchange hands over everything, and once they are the driver's it hands over
- * nothing and answers `requiresIdentity`. The second tier was a sentence, not a
- * mechanism. Three things were missing, all measured in production on 2026-09-09:
+ * nothing and answers `requiresIdentity`. This file is the check behind that
+ * answer; on the site, `ApplyIdentityCheckScreen` renders it, where the intake
+ * chooser would hide the driver's own half-finished application.
  *
- * 1. **Nothing rendered it.** `requires_identity` reached
- *    `resolveApplyStatusScreen`, matched no branch, and fell through to the intake
- *    chooser — so the driver was shown "How would you like to start your driver
- *    application?" with no indication that their own half-finished application was
- *    sitting behind the link they had just opened. That is the reported symptom.
- *
- * 2. **The verification it delegated to could not run.** The plan was
- *    `findResumableApplication`, which queries `identityKey ==`. But autosave wrote
- *    `identityKey: identityKey || null` on every save and the HMAC needs a Social
- *    Security Number, which a draft deliberately never stores — so the first save
- *    after a page reload erased it. `MICHAEL SIMS`, the reported application, held
- *    `identityKey: null` at the consent step. The lookup could never have matched
- *    it. Fixed in `drafts/identity.js` (`identityKeyForSave`); this file is what
- *    covers the drafts already in that state.
- *
- * 3. **A global lookup is the wrong question.** The link already names the draft —
- *    `exchangeApplicationInvite` resolved it from the token before deciding
- *    anything. Asking "does any draft at this company match this identity" throws
- *    that away, needs a composite index, needs the applicant to guess which contact
- *    detail the carrier used, and cannot answer at all for a draft whose stored
- *    identity was lost. So the claim is checked **against the one draft the token
- *    opened**, and nothing else.
+ * The link already names the draft — `exchangeApplicationInvite` resolves it from
+ * the token before deciding anything — so the claim is checked **against the one
+ * draft the token opened**, and nothing else. A global lookup
+ * (`findResumableApplication`, which queries `identityKey ==`) would throw that
+ * away, need a composite index, need the applicant to guess which contact detail
+ * the carrier used, and could not answer at all for a draft whose stored identity
+ * was lost. `drafts/identity.js` (`identityKeyForSave`) keeps a save from erasing
+ * that identity; this file also covers the drafts that hold none.
  *
  * ## What the driver has to prove, and why those facts
  *
@@ -65,17 +52,16 @@
  *   Both of those answers, and the tier refuses rather than checking whichever it
  *   has: the date of birth is the one compared fact the carrier is never shown, so
  *   waiving it when the draft does not hold one leaves a check made entirely of
- *   things the carrier already knows. Review found that on 2026-09-09.
+ *   things the carrier already knows.
  *
  * Honest about its own limit: in the `answers` tier the SSN is *required* and not
  * *verified* — any nine digits pass — so the tier is exactly as strong as the date
  * of birth the carrier is never shown. That holds only for a draft the driver
  * started. On one the carrier **prepared**, the carrier typed the last name, the
- * date of birth and the contact detail itself, so the tier compared nothing it did
- * not already know and a recruiter could pass it and be handed the driver's
- * answers and a resume token. Since 2026-10-02 a prepared draft with no HMAC is
- * refused as `unverifiable` instead: the driver continues on the device that holds
- * their resume token, which asks nothing, or starts a new application. The proper
+ * date of birth and the contact detail itself, so the tier would compare nothing
+ * it does not already know. A prepared draft with no HMAC is therefore refused as
+ * `unverifiable`: the driver continues on the device that holds their resume
+ * token, which asks nothing, or starts a new application. The proper
  * fix for a driver who has lost that device is out-of-band delivery (App Brief §12).
  *
  * A draft that does not hold both of those facts cannot be verified at all, and

@@ -1,9 +1,9 @@
 /**
  * PEV — the employer's portal, and the answer they submit.
  *
- * Split from the single 525-line suite on 2026-09-09 for the source-size standard;
- * `employmentVerification.support.js` holds the harness, and every `describe`
- * keeps its original title so full test names are unchanged.
+ * `employmentVerification.support.js` holds the harness. Every `describe` keeps
+ * the title it had in the single suite these files were split from, so full test
+ * names stay the same.
  */
 
 jest.mock('firebase-functions/v2/https', () => require('./employmentVerification.support').httpsV2Mock());
@@ -149,8 +149,8 @@ describe('employmentVerification callables', () => {
         expect.stringContaining('Employment Verification Completed'),
       );
     });
-    // Step J (2026-09-06): the signature arrives as a drawn PNG or a typed
-    // name and is validated by employmentVerification/signature.js before
+    // The signature arrives as a drawn PNG or a typed name and is
+    // validated by employmentVerification/signature.js before
     // anything is stored. These three pin what submitVerificationResponse
     // does with each outcome; the normaliser's own rules live in
     // pevSignature.test.js.

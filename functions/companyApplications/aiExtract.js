@@ -121,9 +121,9 @@ function visionReaderFor(kind) {
                 const fields = result.fields || {};
                 // The licence reader keeps dates "exactly as printed" — its own prompt
                 // asks for that — so they are normalised here, as every other reader's
-                // already were. Passed through, "03/11/1988" filled the carrier's date
-                // of birth as a value no date control can show, and the expiration was
-                // dropped by the fill plan as not being a date at all (2026-10-01).
+                // are. Passed through, "03/11/1988" would fill the carrier's date of
+                // birth as a value no date control can show, and the fill plan would
+                // drop the expiration as not being a date at all.
                 return {
                     driver: {
                         firstName: fields.firstName || '',

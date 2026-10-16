@@ -26,12 +26,10 @@ const INTERACTIONS_PATH = '/interactions';
  * other provider in the registry reads the parameter that way, and a shared
  * platform is worth little if one adapter silently means something else.
  *
- * Measured against the live API on 2026-08-03 with `gemini-3.6-flash`: a
- * one-word answer consumed 83 thought tokens at the default thinking level and
- * 58 at `thinking_level: low`. A 16-token budget produced 13 thought tokens,
- * zero output tokens and `status: "incomplete"` — the model never got to
- * answer. Real prompts reason more than a one-word reply does, so the headroom
- * is set well above the measured figures rather than at them.
+ * Even a one-word answer spends dozens of thought tokens, and a 16-token budget
+ * can end as `status: "incomplete"` with zero output tokens — the model never
+ * gets to answer. Real prompts reason more than a one-word reply does, so the
+ * headroom is set well above what short replies use rather than at it.
  *
  * This is a ceiling, not a spend: unused budget costs nothing.
  */
@@ -69,8 +67,7 @@ function splitDataUrl(dataUrl) {
  *
  * An image is a content entry of `type: 'image'` carrying `mime_type` and
  * base64 `data` as *sibling* fields — not nested, and not a `data:` URL, which
- * is why the caller's data URL is split. Verified live on 2026-08-03 against
- * `gemini-3.6-flash`, which read an 8×8 red PNG and answered "Red".
+ * is why the caller's data URL is split.
  *
  * A step list is used even for text-only requests. A bare string is also
  * accepted by the API, but one shape means one code path to keep correct.
@@ -105,10 +102,8 @@ function buildInput({ inputText, images }) {
  * reasoning and must never be concatenated into a user-visible article or a
  * JSON payload the router is about to parse, so the type is checked.
  *
- * This originally read a top-level `output` array, which the API does not
- * return. Every Gemini call therefore failed as `malformed_response` — the
- * model answered correctly and the adapter could not see it. Verified against
- * the live API on 2026-08-03.
+ * The API returns no top-level `output` array: a reader that looks for one sees
+ * every correct Gemini answer as `malformed_response`.
  *
  * `output_text` and the legacy `candidates[].content.parts` shape are still
  * accepted: the first is cheap to support if a convenience field appears, and
@@ -168,8 +163,7 @@ const geminiAdapter = {
             // rejects the parts form outright:
             //   400 "The value is invalid for 'system_instruction'.
             //        Expected string, unexpected character: '{'"
-            // The parts form is the `:generateContent` convention, which is
-            // where this came from. Verified live on 2026-08-03.
+            // The parts form is the `:generateContent` convention.
             body.system_instruction = systemInstructions;
         }
 

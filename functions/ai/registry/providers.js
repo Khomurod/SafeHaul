@@ -73,7 +73,7 @@ const PROVIDERS = Object.freeze(
 const PROVIDERS_BY_ID = new Map(PROVIDERS.map((provider) => [provider.id, provider]));
 
 /**
- * The **default** fallback order, and since 2026-08-08 only the default.
+ * The **default** fallback order, and only the default.
  *
  * A Super Admin can store an override in `ai_routing_config/order`, which
  * `functions/ai/router/order.js` applies on top of these rows; the router

@@ -37,11 +37,10 @@ function providersAsked() {
 
 describe('provider ordering', () => {
     it('publishes the required default fallback order', () => {
-        // Gemini leads and Groq is the fallback. The brief specified Groq first;
-        // the owner reversed it on 2026-08-03 after measurement — on the free
-        // tiers Groq's model writes 175-213 word articles against Gemini's
-        // 311-417, while Gemini's request cap makes it the less available of the
-        // two. Gemini for quality, Groq for availability.
+        // Gemini leads and Groq is the fallback, by owner decision: on the free
+        // tiers Groq's model writes far shorter articles than Gemini's, while
+        // Gemini's request cap makes it the less available of the two. Gemini
+        // for quality, Groq for availability.
         expect(DEFAULT_FALLBACK_ORDER).toEqual([
             'gemini',
             'groq',

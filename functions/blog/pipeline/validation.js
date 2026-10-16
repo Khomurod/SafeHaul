@@ -13,17 +13,13 @@ const sanitize = require('./sanitize');
 /**
  * An article shorter than this is not worth publishing.
  *
- * **150, down from 450 in three owner decisions** on 2026-08-03. The trade-off was
- * put to them each time: the free tiers of both AI providers cannot sustain a longer
- * article, and the alternative was a paid tier. This is recorded at length because
- * it is a deliberate reduction in article substance below the 700-1,200 words
- * originally specified — not a constant that drifted.
+ * **150, by owner decision**: the free tiers of both AI providers cannot sustain a
+ * longer article, and the alternative is a paid tier. This is recorded at length
+ * because it is a deliberate reduction in article substance below the 700-1,200
+ * words originally specified — not a constant that drifted.
  *
- * 350, then 200, then 150 — each step measured against what the providers actually
- * produce rather than chosen. Groq's observed drafts were 165, 175 and 213 words,
- * so a 200 floor discarded two of three sound articles and published nothing. 150
- * is set below the measured floor of Groq's output so that a day never passes with
- * nothing published.
+ * 150 is set below the shortest sound drafts Groq writes, measured rather than
+ * chosen, so that a day never passes with nothing published.
  *
  * This is a thin article by any editorial standard, and it is a long way from the
  * 700-1,200 words the brief asked for. It is here because the owner chose a

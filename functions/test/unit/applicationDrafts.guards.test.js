@@ -182,11 +182,9 @@ describe('the company view of unfinished applications', () => {
      * The whole basis of the unified workspace, and the reason it cannot show a
      * draft twice.
      *
-     * Until 2026-09-10 a carrier-prepared draft was returned by this callable AND
-     * by the narrower `listCompanyPreparedApplications`, and the product listed it
-     * on two separate screens. One query over one collection means one row per
-     * document — there is no union to reconcile and no key to match wrongly — so
-     * the property below is structural, not a merge step to keep correct.
+     * One query over one collection means one row per document — there is no
+     * union to reconcile and no key to match wrongly — so the property below is
+     * structural, not a merge step to keep correct.
      */
     it('lists driver-started and carrier-prepared drafts together, once each', async () => {
         await saveFirstPage();

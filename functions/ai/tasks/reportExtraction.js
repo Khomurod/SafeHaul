@@ -181,10 +181,10 @@ function normalizeViolations(raw) {
  * The USDOT number in what the report printed beside a carrier.
  *
  * Read the whole value, then take the number — the same lesson as the state code
- * below. Cutting to twelve characters first turned "USDOT 1234567" into "123456"
- * (found 2026-10-01): seven digits is the ordinary length now, and the wrong number
- * became the identity a carrier then LOCKED, so the driver was held to an employer
- * nobody had. A labelled number wins over an unlabelled one ("MC 765432 USDOT …").
+ * below. Cutting to twelve characters first turns "USDOT 1234567" into "123456":
+ * seven digits is the ordinary length now, and a wrong number becomes the identity
+ * a carrier then LOCKS, holding the driver to an employer nobody had. A labelled
+ * number wins over an unlabelled one ("MC 765432 USDOT …").
  */
 function usdotDigits(raw) {
     const value = text(raw, 60);

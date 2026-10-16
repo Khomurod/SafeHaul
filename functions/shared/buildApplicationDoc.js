@@ -126,10 +126,10 @@ function assertRequiredUnpersistedFields(applicationConfig, formData) {
  *
  * The wizard checks "the last seven days" of the Hours of Service statement and
  * whether a card has "expired" against the applicant's calendar, and this process
- * runs on UTC. Judged on our day, every submission sent between 00:00 UTC and the
- * applicant's own midnight — each US evening — failed a statement the wizard had
- * just accepted, and one whose card expires that day failed an expiry it had just
- * passed (found 2026-10-01). The browser sends its day; it is believed only within
+ * runs on UTC. Judged on our day, a submission sent between 00:00 UTC and the
+ * applicant's own midnight — each US evening — would fail a statement the wizard
+ * had just accepted, and one whose card expires that day an expiry it had just
+ * passed. The browser sends its day; it is believed only within
  * a day of ours, which every real timezone is, so it cannot carry a week-old
  * statement through or backdate an expiry by more than the clock already allows.
  *

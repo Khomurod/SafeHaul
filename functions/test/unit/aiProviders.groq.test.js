@@ -63,10 +63,9 @@ describe('Groq adapter', () => {
     });
 
     it('asks a vision request for json_schema, which qwen3.8 accepts with images', async () => {
-        // `qwen/qwen3.6-27b` rejected `json_schema` with a 400 and was asked in
-        // JSON object mode. Its successor accepts the schema with images
-        // (verified live 2026-10-07 on every photo-reading schema), so Groq now
-        // enforces the shape itself rather than only being told it in the prompt.
+        // `qwen/qwen3.8-27b` accepts the schema with images, on every
+        // photo-reading schema, so Groq enforces the shape itself rather than
+        // only being told it in the prompt.
         const fetchImpl = fetchReturning({
             output: [{ type: 'message', content: [{ type: 'output_text', text: '{"value":"x"}' }] }],
         });
@@ -165,20 +164,16 @@ describe('Groq adapter', () => {
 describe('Groq model pins — verified against the live API', () => {
     /**
      * These are assertions about the *vendor*, not about our code, and they exist
-     * because getting them wrong silently broke every schema-using AI feature in
-     * production while the health check stayed green.
-     *
-     * Verified against the live Groq API on 2026-08-03 with a real key.
+     * because getting them wrong silently breaks every schema-using AI feature
+     * while a plain-text health check stays green.
      */
     const groq = getProvider('groq');
 
     it('asks for json_schema only from the models that accept it', () => {
         // Groq rejects the others outright:
         //   400 "This model does not support response format `json_schema`."
-        // Groq's structured-outputs documentation lists exactly the gpt-oss
-        // models as schema-capable (verified 2026-08-17).
-        //
-        // `qwen/qwen3.8-27b` joined them (verified live with images, 2026-10-07).
+        // Groq's structured-outputs documentation lists the gpt-oss models as
+        // schema-capable, and `qwen/qwen3.8-27b` accepts the schema with images.
         // This is a statement about the *pairing* rather than about every pin:
         // a model pinned to a lane whose structured mode it cannot serve is a
         // guaranteed 400 on every request.
@@ -213,9 +208,8 @@ describe('Groq model pins — verified against the live API', () => {
     });
 
     it('claims vision again, on a model that exists and in a mode it supports', () => {
-        // Vision was withdrawn on 2026-08-03 when Groq retired both llama-4
-        // vision models, came back on `qwen/qwen3.6-27b` (2026-08-17), and moved
-        // to `qwen/qwen3.8-27b` when Groq retired that one too (2026-10-07).
+        // Vision runs on `qwen/qwen3.8-27b`, the one Groq model that reads
+        // images.
         //
         // Two things have to hold together for this to be more than a flag.
         expect(groq.supportsVision).toBe(true);
@@ -238,8 +232,8 @@ describe('Groq model pins — verified against the live API', () => {
 
     it('declares the vendor image cap so the router does not spend a request learning it', () => {
         // `qwen/qwen3.8-27b` accepts at most three images per request and
-        // answers a fourth with `400 "This model supports up to 3 images"`
-        // (2026-10-07). E-Doc sends up to five pages, so the registry states the
+        // answers a fourth with `400 "This model supports up to 3 images"`.
+        // E-Doc sends up to five pages, so the registry states the
         // cap and the router sends a four- or five-page document elsewhere.
         expect(groq.maxImages).toBe(3);
     });

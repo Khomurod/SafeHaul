@@ -376,10 +376,10 @@ describe('submitGuestApplication', () => {
 
   /*
    * The wizard checks "the last seven days" against the applicant's calendar, and
-   * this process runs on UTC, so every submission sent between 00:00 UTC and the
-   * applicant's own midnight — each US evening — failed an Hours of Service
-   * statement the wizard had just accepted (proven 2026-10-01 against these very
-   * modules). Built from the process's OWN calendar, so the scenario "the
+   * this process runs on UTC, so judged on our day a submission sent between
+   * 00:00 UTC and the applicant's own midnight — each US evening — would fail an
+   * Hours of Service statement the wizard had just accepted. Built from the
+   * process's OWN calendar, so the scenario "the
    * applicant is a day behind us" holds in whatever timezone the suite runs.
    */
   describe('rules judged on the applicant\'s own day', () => {

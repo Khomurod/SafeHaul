@@ -3,10 +3,10 @@
  * provider, and how long it should rest.
  *
  * A vendor withdraws, overloads or re-tiers one version far more often than it
- * goes down whole, and on 2026-10-07 all three happened at once: Groq answered
- * 404 for its vision model, Mistral's free plan gave two versions a limit of
- * zero requests a minute, and Gemini's Flash versions were overloaded. With one
- * version per lane, each of those took the whole provider out of the lane.
+ * goes down whole — Groq withdrawing a vision model, Mistral's free plan giving
+ * two versions a limit of zero requests a minute, Gemini's Flash versions
+ * overloaded — and with one version per lane, each of those takes the whole
+ * provider out of the lane.
  *
  * The rule follows whose problem the failure is:
  *
