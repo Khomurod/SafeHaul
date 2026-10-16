@@ -26,9 +26,8 @@ import { ConfirmDialog } from '@design-system/patterns';
  * says is said to whoever cleared it, so it says as little as it can while still
  * being a question someone can answer.
  *
- * `window.confirm` is not an option here even if it were tolerable UX:
- * `src/tests/noBlockingBrowserDialogs.test.js` is a standing ratchet that fails
- * the build on a reachable native dialog.
+ * `window.confirm` is not an option here even if it were tolerable UX: the lint
+ * step refuses a native dialog (ESLint `no-alert`).
  */
 export function ResumeApplicationDialog({ prompt, loading, error, onContinue, onStartOver }) {
     // The prompt the confirmation was opened for. The dialog stays mounted between

@@ -135,12 +135,10 @@ export function stripHtmlComments(source) {
 /**
  * Strips comments while **keeping string literals**.
  *
- * The opposite of what `noBlockingBrowserDialogs.test.js` needs, and for the
- * opposite reason: a class name lives *inside* a string, so stripping strings
- * would blind every rule here. Comments must still go, because this repository
- * documents the defects it fixed in prose — several files explain the exact
- * `bg-blue-600` they removed, and matching that would report a fix as a
- * violation.
+ * A class name lives *inside* a string, so stripping strings would blind every
+ * rule here. Comments must still go, because this repository documents the
+ * defects it fixed in prose — several files explain the exact `bg-blue-600`
+ * they removed, and matching that would report a fix as a violation.
  */
 export function stripComments(source) {
     let out = '';

@@ -121,6 +121,6 @@ system may not depend on `shared`, so the two live here together;
 `tests/architecture.test.js` forbids `shared` imports from this directory
 outright.
 
-No blocking browser dialogs. `confirm()` and `alert()` are rejected by
-`src/tests/noBlockingBrowserDialogs.test.js`; use `ConfirmDialog` for a
+No blocking browser dialogs. The lint step refuses `alert()`, `confirm()` and
+`prompt()` under `src/` (ESLint `no-alert`); use `ConfirmDialog` for a
 confirmation and a toast or `FieldMessage` for a notification.
