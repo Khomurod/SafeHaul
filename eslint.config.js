@@ -107,4 +107,14 @@ export default [
       ],
     },
   },
+  // No blocking browser dialog: confirmations use `ConfirmDialog`, notices a
+  // toast or a `FieldMessage`. `alert`, `confirm` and `prompt` are refused however
+  // they are called, through `window` or `globalThis` too. Tests may stub and
+  // call them. `scripts/test-lint-rules.mjs` proves the rule reaches every other
+  // file under src/ and that no disable comment hides a call.
+  {
+    files: ['src/**/*.{js,jsx,cjs,mjs}'],
+    ignores: ['src/**/*.{test,spec}.{js,jsx,cjs,mjs}'],
+    rules: { 'no-alert': 'error' },
+  },
 ]

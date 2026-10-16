@@ -103,11 +103,9 @@ describe('ConfirmDialog — nothing happens without an explicit confirmation', (
     });
 
     it('a backdrop click does not confirm, and does not dismiss by default', () => {
-        const { container } = setup();
-        const { onConfirm, onCancel } = setup();
+        const { container, onConfirm, onCancel } = setup();
         // The overlay is the dialog's parent element.
-        const overlay = container.querySelector('[role="dialog"]')?.parentElement;
-        if (overlay) fireEvent.mouseDown(overlay);
+        fireEvent.mouseDown(container.querySelector('[role="dialog"]').parentElement);
         expect(onConfirm).not.toHaveBeenCalled();
         expect(onCancel).not.toHaveBeenCalled();
     });

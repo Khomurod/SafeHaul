@@ -232,8 +232,9 @@ describe('Destructive modals — frozen callable contracts', () => {
     const onClose = vi.fn();
     render(<DeleteCompanyModal companyId="co-1" companyName="Artificial Freight Co" onClose={onClose} onConfirm={vi.fn()} />);
 
+    // The backdrop closes on mousedown, so a click would prove nothing.
     const dialog = screen.getByRole('dialog');
-    fireEvent.click(dialog.parentElement);
+    fireEvent.mouseDown(dialog.parentElement);
 
     expect(onClose).not.toHaveBeenCalled();
   });

@@ -17,6 +17,7 @@ const { runAiTask } = require('../../ai/router/router');
 const { AiError } = require('../../ai/router/errors');
 const { PROVIDERS, resolveModels } = require('../../ai/registry/providers');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
+const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
 const {
     mockStore, mockExecute, allConfigured, textTask, visionTask, resetAiRouterState,
 } = require('./aiRouter.support');
@@ -290,7 +291,7 @@ describe('failure handling and fallback triggers', () => {
             if (provider.id !== 'huggingface') expect(new Set(calls).size).toBe(calls.length);
         }
         expect(mockExecute.mock.calls.filter(([id]) => id === 'gemini').map(([, ctx]) => ctx.model))
-            .toEqual(['gemini-3.6-flash', 'gemini-3.5-flash-lite']);
+            .toEqual(MODEL_VERSIONS.gemini[CAPABILITIES.TEXT]);
     });
 
     it('records a quota failure so the provider enters cooldown', async () => {

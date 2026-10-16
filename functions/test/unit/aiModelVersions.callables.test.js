@@ -47,6 +47,8 @@ jest.mock('../../ops/modelRefresh', () => ({
 const aiCallables = require('../../ai/callables');
 const { ACTIONS, RESULTS } = require('../../environmentVault/audit');
 const { PROVIDERS, isRetired } = require('../../ai/registry/providers');
+const { CAPABILITIES } = require('../../ai/registry/capabilities');
+const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
 const { orderProviders } = jest.requireActual('../../ai/router/order');
 const { CHECK_NOW_BUDGET_MS } = require('../../ai/callables/versions');
 
@@ -66,7 +68,7 @@ beforeEach(() => {
     mockStore.readAllConfigs.mockResolvedValue(new Map(Object.entries({
         gemini: {
             enabled: true,
-            modelLists: { vision: { models: ['gemini-3.7-flash', 'gemini-3.6-flash'], seed: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'] } },
+            modelLists: { vision: { models: ['gemini-3.7-flash', 'gemini-3.6-flash'], seed: MODEL_VERSIONS.gemini[CAPABILITIES.VISION] } },
             modelCheck: {
                 checkedAt: CHECKED_AT,
                 reason: 'daily',

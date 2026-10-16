@@ -16,6 +16,8 @@ const {
     PROBES, RED_PNG, BLUE_PNG, PROBE_IMAGE_SIZE, solidColorPng,
 } = require('../../ai/tasks/healthProbes');
 const { AiError } = require('../../ai/router/errors');
+const { CAPABILITIES } = require('../../ai/registry/capabilities');
+const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
 const {
     mockExecute, healthyProvider, byId, resetHealthCheckState,
 } = require('./aiHealthCheck.support');
@@ -61,7 +63,7 @@ describe('probes exercise what SafeHaul actually asks for', () => {
         await testProviderConnection('groq');
 
         const visionCall = mockExecute.mock.calls.find(([, ctx]) => ctx.images?.length === 1)[1];
-        expect(visionCall.model).toBe('qwen/qwen3.8-27b');
+        expect(visionCall.model).toBe(MODEL_VERSIONS.groq[CAPABILITIES.VISION][0]);
     });
 });
 
@@ -182,9 +184,11 @@ describe('failing correctly', () => {
  * which version answered.
  */
 describe('probes try the spare versions', () => {
+    const [FIRST, SECOND] = MODEL_VERSIONS.mistral[CAPABILITIES.VISION];
+
     it('passes on a spare version when the first was withdrawn, and says so', async () => {
         mockExecute.mockImplementation((providerId, context) => {
-            if (context.images && context.model === 'ministral-14b-2512') {
+            if (context.images && context.model === FIRST) {
                 throw new AiError('model_unavailable', 'HTTP 404', { providerId, status: 404 });
             }
             return healthyProvider(providerId, context);
@@ -193,8 +197,8 @@ describe('probes try the spare versions', () => {
         const result = await testProviderConnection('mistral');
         const vision = byId(result.capabilities).vision_single;
 
-        expect(vision).toMatchObject({ status: PROBE_STATUS.PASSED, model: 'ministral-8b-2512' });
-        expect(vision.message).toBe('Passed using ministral-8b-2512 after ministral-14b-2512 failed.');
+        expect(vision).toMatchObject({ status: PROBE_STATUS.PASSED, model: SECOND });
+        expect(vision.message).toBe(`Passed using ${SECOND} after ${FIRST} failed.`);
         expect(result.success).toBe(true);
     });
 
@@ -211,7 +215,7 @@ describe('probes try the spare versions', () => {
 
         await testProviderConnection('mistral');
 
-        expect(visionModels).toEqual(['ministral-14b-2512']);
+        expect(visionModels).toEqual([FIRST]);
     });
 
     it('stops switching when the test has no time left for another probe', async () => {
@@ -235,7 +239,7 @@ describe('probes try the spare versions', () => {
             clock.mockRestore();
         }
 
-        expect(visionModels).toEqual(['ministral-14b-2512']);
+        expect(visionModels).toEqual([FIRST]);
     });
 });
 

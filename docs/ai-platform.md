@@ -566,7 +566,7 @@ continues down the order. The provider is *not* retried — hammering a vendor t
 just rejected the credential is pointless — it is simply skipped.
 
 `isTaskFatal()` in `router/errors.js` is the single place that distinction lives.
-`aiRouter.test.js` pins failover for `unauthorized` and for a raw `TypeError`,
+`aiRouter.fallback.test.js` pins failover for `unauthorized` and for a raw `TypeError`,
 and pins that `invalid_request` still stops on the first provider.
 
 Measured impact: with a Groq `401` and a working Gemini, the blog pipeline went
@@ -1197,10 +1197,10 @@ retrying into the limit. "A test that did not finish is not a pass" still holds 
 
 | Suite | Covers |
 | --- | --- |
-| `functions/test/unit/aiRouter.test.js` | Ordering, capability gating, every fallback trigger, terminal categories, cooldown, no-loop, telemetry secrecy, credential-read failure failing over, transaction timelines |
+| `functions/test/unit/aiRouter.*.test.js` | One file per topic: ordering and capability gating (`routing`), every fallback trigger, terminal categories, cooldown, no-loop and credential-read failure failing over (`fallback`), version switching and rests (`versions`, `versionRest`), infrastructure failures, images and deadlines (`resilience`), telemetry secrecy and transaction timelines (`observability`), parallel config reads (`reads`) |
 | `functions/test/unit/aiTelemetry.test.js` | Transaction shape, attempt cap, the allowlist at both levels, vendor-code validation, and explicit refusal to record prompts, images, credentials or extracted fields |
 | `functions/test/unit/aiTelemetryIndexes.test.js` | Composite indexes read out of the real query chain, and the TTL policy |
-| `functions/test/unit/aiHealthCheck.test.js` | Capability probes, including failing correctly: schema rejected while text works, retired vision model, an image ignored, a rubber-stamped claim |
+| `functions/test/unit/aiHealthCheck.*.test.js` | Capability probes, including failing correctly: schema rejected while text works, retired vision model, an image ignored, a rubber-stamped claim (`probes`); model pins and throttled diagnostics (`pins`); stored results, a provider put back in use, secrecy (`results`) |
 | `functions/test/unit/aiProviders.test.js` | All nine adapters: endpoint, auth header, structured mode, response envelope, HTTP classification, timeout, path-traversal refusal |
 | `functions/test/unit/aiCredentials.test.js` | Secret naming, namespace refusal, lifecycle, legacy fallback, every callable's authorization, audit records, Groq migration |
 | `functions/test/unit/cdlParser.test.js` | Callable contract preserved, guards ordered before AI spend, error mapping, log privacy |

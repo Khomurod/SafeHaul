@@ -51,12 +51,9 @@ const meta = {
             story: { inline: false, iframeHeight: 460 },
             description: {
                 component: [
-                    '**Status: Approved, and mandatory.** A permanent CI ratchet',
-                    '(`src/tests/noBlockingBrowserDialogs.test.js`) fails the build on any',
-                    'reachable `window.confirm` / `confirm()` / `window.alert` / `alert()` in',
-                    '`src/`. Blocking browser dialogs came back three separate times during the',
-                    'migration, which is why the check now looks for both the bare and',
-                    '`window.`-prefixed forms.',
+                    '**Status: Approved, and mandatory.** The lint step (ESLint `no-alert`)',
+                    'refuses any call to `alert`, `confirm` or `prompt` under `src/`, bare or',
+                    'through `window`.',
                     '',
                     '**Location caveat — Needs review.** Like `Modal`, this belongs in',
                     '`design-system/patterns` long-term. It sits beside `Modal` because the design',

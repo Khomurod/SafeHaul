@@ -227,10 +227,9 @@ describe('the guard stays silent on correct code', () => {
 /**
  * Comments are stripped, strings are not.
  *
- * This is the exact opposite of `noBlockingBrowserDialogs.test.js`, and for the
- * opposite reason: a class name lives *inside* a string literal, so stripping
- * strings would blind every rule. But this repository documents the defects it
- * fixed in prose, and several files name the exact `bg-blue-600` they removed.
+ * A class name lives *inside* a string literal, so stripping strings would blind
+ * every rule. But this repository documents the defects it fixed in prose, and
+ * several files name the exact `bg-blue-600` they removed.
  */
 describe('comment handling', () => {
     it('ignores a violation named in a line comment', () => {

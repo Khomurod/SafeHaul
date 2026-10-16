@@ -18,6 +18,7 @@ jest.mock('../../ai/providers', () => require('./aiRouter.support').providersMoc
 const { runAiTask } = require('../../ai/router/router');
 const { AiError } = require('../../ai/router/errors');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
+const { MODEL_VERSIONS } = require('../../ai/registry/modelVersions');
 const { TASK_TYPES, PRIVACY, defineTask } = require('../../ai/tasks/contract');
 const {
     REMOVED_REST_MS, SLOW_REST_MS, RATE_LIMIT_REST_MIN_MS, RATE_LIMIT_REST_MAX_MS,
@@ -27,7 +28,8 @@ const {
 } = require('./aiRouter.support');
 
 const MISTRAL_FIRST = { providerOrder: ['mistral', 'groq'] };
-const [FIRST, SECOND, THIRD] = ['ministral-14b-2512', 'ministral-8b-2512', 'mistral-medium-latest'];
+const [FIRST, SECOND, THIRD] = MODEL_VERSIONS.mistral[CAPABILITIES.VISION];
+const [GROQ_VISION] = MODEL_VERSIONS.groq[CAPABILITIES.VISION];
 
 function readTask(extra = {}) {
     return defineTask({
@@ -220,13 +222,14 @@ describe('the next request starts on a version that works', () => {
 
     it('rests only in the lane the version failed in', async () => {
         // A rest from a photo read leaves the same model's text lane alone.
+        const [textFirst] = MODEL_VERSIONS.mistral[CAPABILITIES.STRUCTURED_JSON];
         mockStore.readAllConfigs.mockResolvedValue(allConfigured({
-            mistral: { versionRest: restEntry(FIRST, Date.now() + 60000, 'vision') },
+            mistral: { versionRest: restEntry(textFirst, Date.now() + 60000, 'vision') },
         }));
 
         await runAiTask(textReadTask(), MISTRAL_FIRST);
 
-        expect(asked()).toEqual([`mistral/${FIRST}`]);
+        expect(asked()).toEqual([`mistral/${textFirst}`]);
     });
 
     it('uses a version again once its rest has passed', async () => {
@@ -267,7 +270,7 @@ describe('the next request starts on a version that works', () => {
 
         await runAiTask(readTask(), { providerOrder: ['openrouter', 'groq'] });
 
-        expect(asked()).toEqual(['openrouter/test/vision-model', 'groq/qwen/qwen3.8-27b']);
+        expect(asked()).toEqual(['openrouter/test/vision-model', `groq/${GROQ_VISION}`]);
     });
 });
 
@@ -279,7 +282,7 @@ describe('a document read does not sit through a long stated wait', () => {
 
         const result = await runAiTask(readTask(), { providerOrder: ['groq', 'mistral'] });
 
-        expect(asked()).toEqual(['groq/qwen/qwen3.8-27b', `mistral/${FIRST}`]);
+        expect(asked()).toEqual([`groq/${GROQ_VISION}`, `mistral/${FIRST}`]);
         expect(result.providerId).toBe('mistral');
         expect(Date.now() - startedAt).toBeLessThan(1000);
         // Groq's turn looked ahead to Mistral; the walk did not ask again.
@@ -292,7 +295,7 @@ describe('a document read does not sit through a long stated wait', () => {
             groq: () => {
                 groqCalls += 1;
                 if (groqCalls === 1) throw fail('rate_limited', { status: 429, retryAfterMs: 5 });
-                return { text: '{"value":"x"}', model: 'qwen/qwen3.8-27b' };
+                return { text: '{"value":"x"}', model: GROQ_VISION };
             },
         });
 
@@ -374,7 +377,7 @@ describe('unless no provider after it can read', () => {
         const result = await runThroughPause(readTask(), ['groq', 'mistral'], 7000);
 
         expect(result.providerId).toBe('groq');
-        expect(asked()).toEqual(['groq/qwen/qwen3.8-27b', 'groq/qwen/qwen3.8-27b']);
+        expect(asked()).toEqual([`groq/${GROQ_VISION}`, `groq/${GROQ_VISION}`]);
     });
 
     it.each([
