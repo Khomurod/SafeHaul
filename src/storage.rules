@@ -49,7 +49,7 @@ service firebase.storage {
 
     // VALIDATION
     function isValidFile() {
-      // Allow images and PDFs, max 20MB (increased for high-quality envelopes)
+      // Allow images and PDFs, max 20MB (high-quality envelopes)
       return request.resource.size < 20 * 1024 * 1024 &&
              request.resource.contentType.matches('application/pdf|image/.*');
     }
