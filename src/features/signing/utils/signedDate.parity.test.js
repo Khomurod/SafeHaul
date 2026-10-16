@@ -7,7 +7,9 @@
 // recruiter's send and preview and for the signing room's re-check across UTC
 // midnight. If the two drifted, a screen could show one day and the sealed PDF
 // print another. Both copies run here over one table of inputs and must give the
-// same answer, a thrown error included, whatever zone the device is in.
+// same answer, a thrown error included, whatever zone the device is in. The day
+// both print is also pinned to the UTC day, so the copies cannot drift together
+// into the device's zone.
 // `rollSignedDateFields` exists only here; `signedDate.test.js` covers it.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -31,20 +33,21 @@ const outcome = (fn, ...args) => {
 // formatted in the device's zone would print another day in one of them.
 const ZONES = ['America/Los_Angeles', 'UTC', 'Pacific/Kiritimati'];
 
-// Either side of UTC midnight; the same instants as a signer west or east of UTC
-// writes them (still the 11th, already the 12th); a leap day, the turn of a
-// year, the epoch; and a date that is no date at all.
+// Either side of UTC midnight; instants a signer west or east of UTC writes on
+// another local day than the UTC one (still the 11th, already the 12th); a leap
+// day, the turn of a year, the epoch; and a date that is no date at all. Each
+// with the day both copies must print: the UTC day.
 const INSTANTS = [
-    '2026-09-11T23:59:59.999Z',
-    '2026-09-12T00:00:00.000Z',
-    '2026-09-11T19:30:00-05:00',
-    '2026-09-12T08:30:00+09:00',
-    '2028-02-29T23:59:59.999Z',
-    '2027-01-01T00:00:00.000Z',
-    '1970-01-01T00:00:00.000Z',
-    'not a date',
+    ['2026-09-11T23:59:59.999Z', 'September 11, 2026'],
+    ['2026-09-12T00:00:00.000Z', 'September 12, 2026'],
+    ['2026-09-11T19:30:00-05:00', 'September 12, 2026'],
+    ['2026-09-12T08:30:00+09:00', 'September 11, 2026'],
+    ['2028-02-29T23:59:59.999Z', 'February 29, 2028'],
+    ['2027-01-01T00:00:00.000Z', 'January 1, 2027'],
+    ['1970-01-01T00:00:00.000Z', 'January 1, 1970'],
+    ['not a date', 'Invalid Date'],
 ];
-const DATES = INSTANTS.map((instant) => new Date(instant));
+const DATES = INSTANTS.map(([instant]) => new Date(instant));
 
 const FIELDS = [
     undefined, null, 0, '', '{{current_date}}', {},
@@ -83,9 +86,10 @@ describe.each(ZONES)('parity with functions/shared/signedDate.js on a device in 
         else process.env.TZ = previous;
     });
 
-    it.each(INSTANTS)('formats %s as the same day', (instant) => {
+    it.each(INSTANTS)('formats %s as %s, the UTC day, on both sides', (instant, utcDay) => {
         const date = new Date(instant);
-        expect(site.formatSignedDate(date)).toBe(server.formatSignedDate(date));
+        expect(site.formatSignedDate(date)).toBe(utcDay);
+        expect(server.formatSignedDate(date)).toBe(utcDay);
     });
 
     it.each(FIELDS.map((field) => [field]))('resolves %j the same way at every instant', (field) => {
