@@ -29,26 +29,30 @@ const OUTSIDE_THE_TABLE = Object.freeze({
     signatureDate: 'the agreements',
 });
 
-const tableIds = new Set(STANDARD_SECTIONS.flatMap((section) => section.fields.flatMap((field) => [
-    field.id,
-    ...(field.columns || []).map((column) => column.id),
-])));
+/** The table's fields by id; a repeating one carries its rows' columns. */
+const tableFields = new Map(STANDARD_SECTIONS.flatMap((section) => section.fields.map((field) => [field.id, field])));
+
+/** A dossier row section whose rows the table stores under another name. */
+const ROWS_STORED_AS = Object.freeze({ employmentHistory: 'employers' });
 
 const schemaFields = APPLICATION_SCHEMA.sections.flatMap((section) => (section.fields || []).map((field) => field.key));
-const schemaRowFields = APPLICATION_SCHEMA.sections.flatMap((section) => (section.itemFields || []).map((field) => field.key));
+const schemaRowFields = APPLICATION_SCHEMA.sections.flatMap((section) => (section.itemFields || [])
+    .map((field) => [ROWS_STORED_AS[section.id] || section.id, field.key]));
 
 describe('the dossier shows only what the record keeps', () => {
     it.each(schemaFields)('holds %s in the shared table, or says why not', (key) => {
-        expect(tableIds.has(key) || Object.hasOwn(OUTSIDE_THE_TABLE, key)).toBe(true);
+        expect(tableFields.has(key) || Object.hasOwn(OUTSIDE_THE_TABLE, key)).toBe(true);
     });
 
-    it.each(schemaRowFields)('holds the row field %s in the shared table', (key) => {
-        expect(tableIds.has(key)).toBe(true);
+    it.each(schemaRowFields)('holds the %s rows\' %s among their columns', (rowsId, key) => {
+        const rows = tableFields.get(rowsId);
+        expect(rows?.repeating).toBe(true);
+        expect(rows.columns.map((column) => column.id)).toContain(key);
     });
 
     it('lists as an exception only fields the table really lacks', () => {
         for (const key of Object.keys(OUTSIDE_THE_TABLE)) {
-            expect(tableIds.has(key)).toBe(false);
+            expect(tableFields.has(key)).toBe(false);
             expect(schemaFields).toContain(key);
         }
     });
