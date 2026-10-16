@@ -181,6 +181,7 @@ function createFirestoreMock(seed = {}) {
             Timestamp: {
                 now: () => ({ toMillis: () => Date.now() }),
                 fromMillis: (millis) => ({ toMillis: () => millis }),
+                fromDate: (date) => ({ toMillis: () => date.getTime() }),
             },
         }),
         auth: () => ({ getUser: async () => ({ customClaims: {} }) }),
