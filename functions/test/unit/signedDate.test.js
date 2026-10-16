@@ -6,8 +6,9 @@ const {
 } = require('../../shared/signedDate');
 
 // The server-side half of the mirror. `src/features/signing/utils/signedDate.test.js`
-// drives the identical cases against the browser copy; the two lists are meant to
-// be read side by side, because the two modules cannot import each other.
+// drives the identical cases against the browser copy. The two modules cannot
+// import each other, so `src/features/signing/utils/signedDate.parity.test.js`
+// runs both copies over one table of inputs.
 const PREPARED_ON = new Date('2026-05-07T12:00:00Z');
 const SIGNED_ON = new Date('2026-09-11T12:00:00Z');
 
