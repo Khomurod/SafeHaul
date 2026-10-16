@@ -21,6 +21,7 @@ const {
   fillStep2,
   fillStep3RequiredFields,
   uploadStandardDocuments,
+  uploadedFields,
 } = require('./helpers/wizardHelpers.cjs');
 
 /** Drives the wizard to the document step with three files uploaded. */
@@ -31,7 +32,7 @@ async function reachUploadedDocuments(page) {
   await fillStep2(page);
   await fillStep3RequiredFields(page);
   await uploadStandardDocuments(page);
-  await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
+  await expect(uploadedFields(page)).toHaveCount(3);
 }
 
 const removeButton = (page) => page.getByRole('button', { name: /^Remove .* file$/ }).first();
@@ -59,7 +60,7 @@ test.describe('ConfirmDialog — real browser', () => {
     await expect(dialog).toHaveAttribute('aria-modal', 'true');
 
     // Still three uploads: opening the dialog removed nothing.
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
+    await expect(uploadedFields(page)).toHaveCount(3);
     expect(nativeDialogs, 'a blocking browser dialog was used').toBe(0);
   });
 
@@ -88,7 +89,7 @@ test.describe('ConfirmDialog — real browser', () => {
     // Click the overlay well away from the panel.
     await page.mouse.click(4, 4);
 
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
+    await expect(uploadedFields(page)).toHaveCount(3);
   });
 
   test('confirming removes exactly the chosen file', async ({ page }) => {
@@ -100,7 +101,7 @@ test.describe('ConfirmDialog — real browser', () => {
 
     await expect(page.getByRole('dialog', { name: 'Remove this file?' })).toHaveCount(0);
     // Exactly one of the three uploads is gone.
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(2);
+    await expect(uploadedFields(page)).toHaveCount(2);
   });
 
   test('has no serious or critical accessibility violations', async ({ page }) => {

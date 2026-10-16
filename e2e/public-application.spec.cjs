@@ -5,6 +5,7 @@ const {
   fillStep2,
   fillStep3RequiredFields,
   uploadStandardDocuments,
+  uploadedFields,
   continueToStep,
   expectStep,
   chooseRadio,
@@ -34,7 +35,7 @@ test.describe('guest public application', () => {
     await uploadStandardDocuments(page);
 
     // Every upload card reports success before the step advances.
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
+    await expect(uploadedFields(page)).toHaveCount(3);
 
     await continueToStep(page, 'Motor Vehicle Record');
     await completeRemainingSteps(page);
