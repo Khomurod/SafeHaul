@@ -1,10 +1,11 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { Icon, Play, CheckCircle } from '@design-system/icons';
 import { Button, Card, FormField, Input, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
+import { useFocusAfterRun } from '../hooks/useFocusAfterRun';
 
 /**
  * Performance-stats backfill, a card on the Maintenance page.
@@ -51,18 +52,9 @@ export default function StatsBackfillPanel() {
     const companyFieldId = useId();
     const companyRunRef = useRef(null);
     const allRunRef = useRef(null);
-    // The button that started the confirmed run in flight.
-    const focusAfterRun = useRef(null);
-
-    // Confirming disables every run button, so the dialog's own focus hand-back
-    // lands on <body>. Once the run is over, focus goes back to the button that
-    // started it — unless the operator has since put it somewhere else.
-    useEffect(() => {
-        if (loading || !focusAfterRun.current) return;
-        const trigger = focusAfterRun.current;
-        focusAfterRun.current = null;
-        if (!document.activeElement || document.activeElement === document.body) trigger.focus();
-    }, [loading]);
+    // Confirming disables every run button; once the run is over, focus goes
+    // back to the one that started it.
+    const focusAfterRun = useFocusAfterRun(loading);
 
     const runBackfill = async (targetCompanyId, dryRun) => {
         if (!targetCompanyId.trim()) {

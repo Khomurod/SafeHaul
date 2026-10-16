@@ -4,6 +4,7 @@ import { Badge, Button, Card } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 import { usePublicProfileSync } from '../hooks/usePublicProfileSync';
+import { useFocusAfterRun } from '../hooks/useFocusAfterRun';
 
 /**
  * Maintenance → Public profiles: Sync Public Profiles and its output log.
@@ -30,11 +31,13 @@ const LOG_TONE_CLASS = {
 export function PublicProfileSyncCard() {
     const { runBackfillProfiles, backfillStatus, logs } = usePublicProfileSync();
     const [confirming, setConfirming] = useState(false);
+    const running = backfillStatus === 'running';
     const triggerRef = useRef(null);
-    const focusAfterRun = useRef(false);
+    // Confirming disables the trigger while the sync runs; once it is over,
+    // focus goes back to it.
+    const focusAfterRun = useFocusAfterRun(running);
     const logRef = useRef(null);
     const logHeadingId = useId();
-    const running = backfillStatus === 'running';
 
     // The newest line in view. The log scrolls itself: `scrollIntoView` would
     // scroll every ancestor too, and on this page that moved the whole screen.
@@ -43,28 +46,16 @@ export function PublicProfileSyncCard() {
         if (log) log.scrollTop = log.scrollHeight;
     }, [logs]);
 
-    // Confirming disables the trigger while the sync runs, so the dialog's own
-    // focus hand-back lands on <body>. Once the run is over, focus goes back to
-    // the trigger — unless the operator has since put it somewhere else.
-    useEffect(() => {
-        if (running || !focusAfterRun.current) return;
-        focusAfterRun.current = false;
-        if (!document.activeElement || document.activeElement === document.body) {
-            triggerRef.current?.focus();
-        }
-    }, [running]);
-
     const confirmSync = () => {
         setConfirming(false);
-        focusAfterRun.current = true;
+        focusAfterRun.current = triggerRef.current;
         runBackfillProfiles();
     };
 
     return (
         <Card padding="lg">
+            <h3 className="mb-ds-2 text-ds-heading-sm font-semibold text-ds-content">Public profiles</h3>
             <Stack gap="lg">
-                <h3 className="text-ds-heading-sm font-semibold text-ds-content">Public profiles</h3>
-
                 <MaintenanceAction
                     description="Force-sync all company data to public_profiles (fixes broken driver app links)"
                     status={backfillStatus}
