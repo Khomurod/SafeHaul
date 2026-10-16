@@ -65,23 +65,24 @@ describe('VOEPreviewModal axe', () => {
   // document's small print is pinned by class instead: slate-500 outside the
   // 80%-opacity questionnaire and slate-700 inside it, where 500 blends to
   // 3.25:1. slate-400 fails — 2.56:1 on white, 2.45:1 on the slate-50 box and
-  // ~2:1 inside the questionnaire.
+  // ~2:1 inside the questionnaire. The shades are the frozen `voe-*` print
+  // values (`VOE_PRINT` in tailwind.config.js), Tailwind's own as literals.
   it('keeps every grey and red in the document at or above the AA floor', () => {
     renderModal({ applicant: { ...APPLICANT, signature: null } });
     const doc = screen.getByTestId('voe-document');
     const classes = (root) => [...root.querySelectorAll('[class]')].flatMap((el) => el.getAttribute('class').split(/\s+/));
     const all = classes(doc);
-    expect(all.filter((c) => /^text-(slate|gray)-(100|200|300|400)$/.test(c))).toEqual([]);
-    expect(all.filter((c) => /^text-red-(100|200|300|400|500)$/.test(c) )).toEqual(['text-red-500']); // the alert glyph only: a graphic, 3.76:1 > 3:1
+    expect(all.filter((c) => /^text-voe-(slate|gray)-(100|200|300|400)$/.test(c))).toEqual([]);
+    expect(all.filter((c) => /^text-voe-red-(100|200|300|400|500)$/.test(c) )).toEqual(['text-voe-red-500']); // the alert glyph only: a graphic, 3.76:1 > 3:1
     const faded = doc.querySelector('.opacity-80');
     expect(faded).not.toBeNull();
-    const fadedShades = classes(faded).filter((c) => /^text-slate-\d+$/.test(c)).map((c) => Number(c.split('-')[2]));
+    const fadedShades = classes(faded).filter((c) => /^text-voe-slate-\d+$/.test(c)).map((c) => Number(c.split('-')[3]));
     expect(fadedShades.length).toBeGreaterThan(10);
     expect(fadedShades.filter((n) => n < 700)).toEqual([]);
   });
 
   // Opacity is part of effective contrast, and the pin above reads only the
-  // shade. axe 4.13 caught what 4.11 did not: `text-slate-500` under
+  // shade. axe 4.13 caught what 4.11 did not: `text-voe-slate-500` under
   // `opacity-50` blends to about 2.3:1 on white, so the sender's "Verified
   // Business Entity" line failed WCAG 1.4.3 while its shade looked compliant.
   // Dropping that opacity fixed it; this pins the FAMILY, so any new fractional
@@ -90,7 +91,7 @@ describe('VOEPreviewModal axe', () => {
   //
   // Two treatments are documented and allowed: the questionnaire block, whose
   // shades the test above separately holds at >= 700, and the watermark, which
-  // is decorative — `pointer-events-none`, `-z-10`, and it wraps a glyph, not
+  // is decorative — `pointer-events-none`, `z-voe-watermark`, and it wraps a glyph, not
   // text.
   it('allows only the two documented opacity treatments in the document', () => {
     renderModal({ applicant: { ...APPLICANT, signature: null } });

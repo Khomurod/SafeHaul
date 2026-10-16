@@ -1236,9 +1236,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - `check:ui-contract` refuses any violation that
   `src/design-system/ui-contract.allowlist.json` does not record with a reason.
   A fixed violation lowers its entry; growth is a hand edit, judged in review.
-- Tailwind's radius and shadow scales share names with the `--ds-*` ones and sit
-  one step off (`rounded-lg` is 8px, `rounded-ds-lg` 12px): convert by value,
-  never name.
+- The Tailwind theme is strict: a default colour, size, radius, shadow or layer
+  (`bg-white`, `rounded-lg`, `z-10`) compiles to nothing. Use the `--ds-*` ones.
 - **No guard catches a hand-composed pattern** — a status screen from `Card` +
   `StatusMedallion` + heading + body + actions, or a `Modal` with its own
   Cancel/Confirm footer, passes every rule while duplicating

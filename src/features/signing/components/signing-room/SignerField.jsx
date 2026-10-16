@@ -70,7 +70,7 @@ export function SignerField({
             return (
                 <SignerFieldOverlay field={field}>
                     <input
-                        className={`${fillClass} rounded-ds-sm border-2 border-ds-status-info-border bg-ds-status-info-bg px-2 text-base md:text-ds-sm`}
+                        className={`${fillClass} rounded-ds-sm border-2 border-ds-status-info-border bg-ds-status-info-bg px-2 text-ds-control-mobile md:text-ds-sm`}
                         placeholder="Type here..."
                         aria-label={fieldLabel(field, fieldPosition, fieldTotal)}
                         value={fieldValues[field.id] || ''}
@@ -98,7 +98,7 @@ export function SignerField({
                 <SignerFieldOverlay field={field}>
                     <input
                         type="date"
-                        className={`${fillClass} rounded-ds-sm border-2 border-ds-status-success-border bg-ds-status-success-bg px-2 text-base md:text-ds-sm`}
+                        className={`${fillClass} rounded-ds-sm border-2 border-ds-status-success-border bg-ds-status-success-bg px-2 text-ds-control-mobile md:text-ds-sm`}
                         aria-label={fieldLabel(field, fieldPosition, fieldTotal)}
                         value={fieldValues[field.id] || ''}
                         readOnly={!ready}

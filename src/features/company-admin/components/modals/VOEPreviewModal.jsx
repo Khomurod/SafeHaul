@@ -299,11 +299,11 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                 <div className="flex flex-wrap items-center justify-between gap-ds-3">
                     <div className="flex min-w-0 flex-wrap gap-ds-4">
                         <p className="flex items-center gap-ds-2 text-ds-xs font-bold text-ds-content-secondary">
-                            <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-ds-status-success-fg" />
+                            <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-ds-full bg-ds-status-success-fg" />
                             <span className="[overflow-wrap:anywhere]">RECIPIENT: {getFieldValue(employer.companyName || employer.name)}</span>
                         </p>
                         <p className="flex items-center gap-ds-2 text-ds-xs font-bold text-ds-content-secondary">
-                            <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-ds-action-primary" />
+                            <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-ds-full bg-ds-action-primary" />
                             <span className="[overflow-wrap:anywhere]">APPLICANT: {getFieldValue(applicant.firstName)} {getFieldValue(applicant.lastName)}</span>
                         </p>
                     </div>
