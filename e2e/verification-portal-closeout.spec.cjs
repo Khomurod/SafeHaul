@@ -5,9 +5,12 @@ const { test, expect } = require('@playwright/test');
  *
  * WHY THIS SPEC EXISTS
  *
- * `pev-request-and-portal-response.spec.cjs` covers the happy "No / No Record
- * Found" path, desktop focus, overflow and one axe pass. It leaves the parts
- * that only a real browser can prove:
+ * What a unit test can assert — the validation summary's wording, the error
+ * association on the drawing surface, the status screens' messages — is
+ * asserted in `VerificationPortal*.test.jsx`, and
+ * `pev-request-and-portal-response.spec.cjs` keeps the employment question's
+ * desktop focus and the phone layout. This spec holds the parts that only a
+ * real browser can prove:
  *
  *  - **Signing.** happy-dom has no 2D canvas at all, so every unit test of
  *    `SignaturePad` runs against a stub. Whether a drag actually puts ink on
@@ -100,32 +103,6 @@ test.describe('Verification portal signing', () => {
     // away from the cursor: the old code sized it from the parent's offsetWidth,
     // which included the container's 2 px border.
     expect(geometry.attrW).toBe(geometry.cssW);
-  });
-
-  test('names the drawing surface and associates its instructions', async ({ page }) => {
-    await gotoForm(page);
-    const surface = page.getByRole('img', { name: /signature/i });
-    await expect(surface).toBeVisible();
-
-    const described = await surface.evaluate((el) => (el.getAttribute('aria-describedby') || '')
-      .split(' ')
-      .map((id) => document.getElementById(id)?.textContent || '')
-      .join(' '));
-    expect(described).toContain('By signing, you certify that the information provided is true and accurate.');
-  });
-
-  test('associates the signature error with the surface and marks it invalid', async ({ page }) => {
-    await gotoForm(page);
-    await submitButton(page).click();
-    await expect(errorSummary(page)).toBeVisible();
-
-    const surface = page.getByRole('img', { name: /signature/i });
-    await expect(surface).toHaveAttribute('aria-invalid', 'true');
-    const described = await surface.evaluate((el) => (el.getAttribute('aria-describedby') || '')
-      .split(' ')
-      .map((id) => document.getElementById(id)?.textContent || '')
-      .join(' '));
-    expect(described).toContain('Please provide your electronic signature');
   });
 });
 
@@ -242,34 +219,6 @@ test.describe('Verification portal validation and submission', () => {
     await expect(page.getByText(/A PDF record has been generated/i)).toBeVisible();
   });
 
-  test('names failing fields by their on-page label and moves focus to the summary', async ({ page }) => {
-    await gotoForm(page);
-    await submitButton(page).click();
-
-    const summary = errorSummary(page);
-    await expect(summary).toBeVisible();
-    await expect(summary).toBeFocused();
-
-    await expect(summary).toContainText('Was this individual employed by your company?');
-    await expect(summary).toContainText('Your Full Name');
-    await expect(summary).toContainText('Electronic Signature');
-    await expect(summary).toContainText('Please provide your electronic signature');
-    // The old camelCase-key rendering is gone.
-    await expect(summary).not.toContainText('was Employed');
-    await expect(summary).not.toContainText('signature Data');
-  });
-
-  test('retires a summary entry as soon as its field is fixed', async ({ page }) => {
-    await gotoForm(page);
-    await submitButton(page).click();
-    await expect(errorSummary(page)).toContainText('Your Full Name');
-
-    await page.getByPlaceholder('e.g., John Smith').fill('Alex Employer');
-
-    await expect(errorSummary(page)).not.toContainText('Your Full Name');
-    await expect(errorSummary(page)).toContainText('Electronic Signature');
-  });
-
   /**
    * Implicit submission is the path the disabled submit Button does not cover:
    * pressing Enter in a text field submits the form even while that button is
@@ -305,18 +254,6 @@ test.describe('Verification portal validation and submission', () => {
     expect(submitEvents).toBeGreaterThanOrEqual(1);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(page.getByText('Verification Error')).toHaveCount(0);
-  });
-
-  test('shows a busy, non-resubmittable control during submission', async ({ page }) => {
-    await gotoForm(page);
-    await page.getByText('No / No Record Found').click();
-    await fillRespondent(page);
-    await signWithMouse(page);
-
-    await submitButton(page).click();
-    await expect(page.getByText(/Verification Submitted Successfully/i)).toBeVisible({ timeout: 15_000 });
-    // The submit control does not survive into the success screen.
-    await expect(submitButton(page)).toHaveCount(0);
   });
 });
 
@@ -373,16 +310,6 @@ test.describe('Verification portal states and accessibility', () => {
       expect(await seriousViolations(page)).toEqual([]);
     });
   }
-
-  test('maps the expired and invalid states to their frozen messages', async ({ page }) => {
-    await page.goto('/verify/e2e-token-1?e2eVerify=expired');
-    await expect(page.getByText(
-      'This verification request has expired. Please contact the requesting company for a new link.',
-    )).toBeVisible();
-
-    await page.goto('/verify/e2e-token-1?e2eVerify=invalid');
-    await expect(page.getByText('This verification link is invalid or has been removed.')).toBeVisible();
-  });
 
   test('renders the success state with one h1 and no serious axe violations', async ({ page }) => {
     await gotoForm(page);

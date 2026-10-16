@@ -27,6 +27,8 @@ const {
  *    is always what the respondent can see, the same invariant the pad keeps on
  *    resize (`verification-portal-closeout.spec.cjs`);
  *  - the Type state has no serious axe violations of its own.
+ * The consent wording that describes the typed field is asserted in
+ * `SignatureInput.test.jsx`.
  *
  * Runs on Chromium and Mobile Chrome. No real tokens, drivers or employers.
  */
@@ -57,19 +59,6 @@ test.describe('Verification portal typed signature', () => {
     await submitButton(page).focus();
     await page.keyboard.press('Enter');
     await expect(page.getByText(/Verification Submitted Successfully/i)).toBeVisible({ timeout: 15_000 });
-  });
-
-  test('tells the respondent that typing the name is their legal signature', async ({ page }) => {
-    await gotoForm(page);
-    await typeToggle(page).click();
-    const field = typedField(page);
-    await expect(field).toHaveAttribute('aria-describedby', /.+/);
-    const described = await field.evaluate((el) => (el.getAttribute('aria-describedby') || '')
-      .split(/\s+/)
-      .map((id) => document.getElementById(id)?.textContent || '')
-      .join(' '));
-    expect(described).toMatch(/electronic signature/i);
-    expect(described).toMatch(/ESIGN/);
   });
 
   test('switching method clears the other mark, so the form only ever submits what is on screen', async ({ page }) => {
