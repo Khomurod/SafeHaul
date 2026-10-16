@@ -19,7 +19,8 @@
  * - a tab strip is `role="tablist"`, a file picker `<input type="file">`, a new
  *   tab `target="_blank"`, an overlay a class list holding `fixed` and
  *   `inset-0` on some path, wherever its strings are split
- *   (`clsx('fixed', 'inset-0')`, `'fixed ' + 'inset-0'`, an array joined);
+ *   (`clsx('fixed', 'inset-0')`, `'fixed ' + 'inset-0'`, an array joined, the
+ *   keys of `clsx({ fixed: open, 'inset-0': open })`);
  * - and nine primitives throw on a label that is not a string, so a JSX
  *   `label` on one is a crash the moment that branch renders.
  *
@@ -128,11 +129,34 @@ const joined = (left, right) => new Set([...left].flatMap((a) => [...right].map(
 const either = (left, right) => new Set([...left, ...right]);
 
 /**
+ * An object a class helper reads as a map of class names to conditions: a
+ * call's argument, directly or through an array, a conditional's branch or a
+ * logical operand (`clsx({ fixed: open })`, `clsx([on && { 'inset-0': on }])`).
+ */
+function isClassMap(node) {
+    if (node?.type !== 'ObjectExpression') return false;
+    let child = node;
+    let parent = node.parent;
+    while (parent?.type === 'ArrayExpression' || parent?.type === 'LogicalExpression'
+        || (parent?.type === 'ConditionalExpression' && child !== parent.test)) {
+        child = parent;
+        parent = parent.parent;
+    }
+    return parent?.type === 'CallExpression' && parent.arguments.includes(child);
+}
+
+/** A class map's key as the class names it holds: `fixed`, `'inset-0'`, `` [`inset-0`] ``. */
+const keyPaths = (property) => {
+    if (!property.computed && property.key.type === 'Identifier') return new Set([overlayBits(property.key.name)]);
+    return overlayPaths(property.key);
+};
+
+/**
  * What each path through a class expression yields of the two. The strings
  * of a concatenation, a template, an array and a call's arguments (`clsx`,
- * `[…].join(' ')`) are joined; a conditional's branches are alternatives, and
- * `&&` may add nothing. A name is not followed: its string is judged where it
- * is written.
+ * `[…].join(' ')`) are joined; a conditional's branches are alternatives,
+ * `&&` may add nothing, and each key of a class map may be added or not. A
+ * name is not followed: its string is judged where it is written.
  */
 function overlayPaths(node) {
     switch (node?.type) {
@@ -155,6 +179,11 @@ function overlayPaths(node) {
             return either(overlayPaths(node.consequent), overlayPaths(node.alternate));
         case 'LogicalExpression':
             return either(node.operator === '&&' ? NOTHING : overlayPaths(node.left), overlayPaths(node.right));
+        case 'ObjectExpression':
+            return isClassMap(node)
+                ? node.properties.reduce((paths, property) => (property.type === 'Property'
+                    ? joined(paths, either(NOTHING, keyPaths(property))) : paths), NOTHING)
+                : NOTHING;
         default:
             return NOTHING;
     }
@@ -176,6 +205,10 @@ function joinsInto(parent, child) {
             return parent.arguments.includes(child) || (parent.callee === child && child.type === 'MemberExpression');
         case 'MemberExpression':
             return parent.object === child && parent.parent?.type === 'CallExpression' && parent.parent.callee === parent;
+        case 'Property':
+            return parent.key === child && isClassMap(parent.parent);
+        case 'ObjectExpression':
+            return isClassMap(parent);
         default:
             return false;
     }

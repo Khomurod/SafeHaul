@@ -5,7 +5,9 @@ import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
 import tailwindConfig from '../../tailwind.config.js';
-import { colourDeclarationsIn, holdsRawColour, rawValuesIn } from '../../scripts/eslint-rules/raw-values.mjs';
+import {
+  colourDeclarationsIn, colourLiteralsIn, holdsRawColour, rawValuesIn,
+} from '../../scripts/eslint-rules/raw-values.mjs';
 
 /**
  * The stylesheets under `src/` reach colours, stacking layers and type sizes
@@ -44,7 +46,7 @@ const offContractApply = (list) => {
  * `forced-colors` block must use (`Canvas`, `Highlight`) are not raw.
  */
 const rawColours = (css) => [
-  ...(css.match(/#[0-9a-fA-F]{3,8}\b|(?<![\w-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|device-cmyk)\(/gi) ?? []),
+  ...colourLiteralsIn(css),
   ...colourDeclarationsIn(css).map((found) => found.match).filter((match) => !holdsRawColour(match, { words: false })),
 ];
 
@@ -96,6 +98,8 @@ describe('the stylesheet contract', () => {
     ['a raw colour', '.x { color: var(--ds-color-content); }', 0],
     ['a raw colour', '.x { color: red; border: 1px solid rebeccapurple; }', 2],
     ['a raw colour', '.x { background: oklch(50% 0.2 20); outline-color: hwb(0 0% 0%); }', 2],
+    ['a raw colour', '.x { background: color-mix(in srgb, var(--ds-color-surface) 50%, var(--ds-color-content)); }', 1],
+    ['a raw colour', '.x { --tint: light-dark(var(--ds-color-content), var(--ds-color-surface)); }', 1],
     ['a raw colour', '.x { border-color: transparent; fill: currentColor; animation: highlight 1s; }', 0],
     ['a raw colour', '@media (forced-colors: active) { .x { border-bottom-color: Highlight; } }', 0],
     ['a bare z-index', '.x { z-index: 60; }', 1],

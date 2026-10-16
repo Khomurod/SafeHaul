@@ -253,6 +253,10 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['raw-hex-colour', 'a colour function in a declaration', "export const INK = 'rgb(15 23 42)';\n"],
         ['raw-hex-colour', 'a named colour in a style string', 'export const CSS = `body { color: red; }`;\n'],
         ['raw-hex-colour', 'a hex in an object', "export const palette = { primary: '#004C68' };\n"],
+        ['raw-hex-colour', 'a mix of two roles', view('<div className="bg-[color-mix(in_srgb,var(--ds-color-surface)_50%,var(--ds-color-content))]" />')],
+        ['raw-hex-colour', 'a light-dark pair', view('<div className="text-[light-dark(var(--ds-color-content),var(--ds-color-surface))]" />')],
+        ['raw-hex-colour', 'a hex in a custom property', "export const CSS = ':root { --accent: #fff; }';\n"],
+        ['raw-hex-colour', 'a colour function in a custom property', 'export const CSS = `.x { --tint: oklch(50% 0.2 20); }`;\n'],
         ['sub-12px-type', 'a typed size', view('<span className="text-[length:10px]">x</span>')],
         ['sub-12px-type', 'a calculated size', view('<span className="text-[calc(10px)]">x</span>')],
         ['sub-12px-type', 'a size in rem', view('<span className="text-[0.5rem]">x</span>')],
@@ -269,6 +273,9 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['hand-built-overlay', 'the classes concatenated', view("<div className={'fixed ' + 'inset-0'} />")],
         ['hand-built-overlay', 'the classes in a joined array', view("<div className={['fixed', open && 'inset-0'].filter(Boolean).join(' ')} />")],
         ['hand-built-overlay', 'the classes either side of a template hole', view("<div className={`fixed ${open ? 'inset-0' : ''}`} />")],
+        ['hand-built-overlay', 'the classes as keys of a class map', view("<div className={clsx({ fixed: open, 'inset-0': open })} />")],
+        ['hand-built-overlay', 'a class map beside a string', view("<div className={clsx('fixed', { 'inset-0': open })} />")],
+        ['hand-built-overlay', 'a class map behind a condition', view("<div className={clsx(open && { fixed: true, 'inset-0': true })} />")],
         ['raw-table', 'a table outside the approved list', view('<table><tbody /></table>')],
         ['hand-styled-button', 'a styled button', view('<button className="px-4 py-2 bg-ds-surface rounded">Go</button>')],
         ['hand-styled-field', 'a styled input', view('<input className="border rounded px-3" />')],
@@ -326,6 +333,8 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
     const compiles = async (name) => (await postcss([tailwindcss({ ...appTheme, content: [{ raw: name, extension: 'html' }] })])
         .process('@tailwind utilities;', { from: undefined })).css.trim() !== '';
     const forms = ['bg-[red]', 'bg-[oklch(50%_0.2_20)]', 'text-[rebeccapurple]', 'border-[color:red]', 'shadow-[0_0_0_1px_red]',
+        'bg-[color-mix(in_srgb,var(--ds-color-surface)_50%,var(--ds-color-content))]',
+        'text-[light-dark(var(--ds-color-content),var(--ds-color-surface))]',
         'bg-[var(--brand,#fff)]', 'md:[color:red]', 'text-[length:10px]', 'text-[calc(10px)]', 'text-[0.5rem]', '[font-size:10px]',
         'text-[clamp(0.75rem,2vw,1rem)]', 'text-[larger]', 'z-[calc(100)]', 'z-[calc(var(--ds-z-modal)+1)]', '[z-index:9999]'];
     const inert = [];
@@ -379,6 +388,11 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
             + 'group-[.red]:flex supports-[color:red]:flex [&_svg]:fill-current" />'),
         'a system colour, for forced colours': view('<div className="forced-colors:border-[Highlight]" />'),
         'an overlay\'s classes on exclusive branches': view("<div className={open ? 'fixed' : 'inset-0'} />"),
+        'a plain object whose keys only look like classes': "export const LABELS = { fixed: 'Fixed', 'inset-0': 'Inset' };\n"
+            + "export const joined = [{ fixed: true }, 'inset-0'].join(' ');\n",
+        'class maps on exclusive branches': view("<div className={clsx(open ? { fixed: true } : { 'inset-0': true })} />"),
+        'a custom property holding a role, and a link': "export const CSS = ':root { --accent: var(--ds-color-brand); }';\n"
+            + "export const DOCS = 'https://example.com/guide#add';\n",
         'a violation named in a comment': '// this used to be text-[10px] and z-[9999]\n/* was bg-[#fff], target="_blank" and fixed inset-0 */\nexport const a = 1;\n',
     };
     const flagged = [];

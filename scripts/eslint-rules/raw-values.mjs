@@ -41,13 +41,23 @@ export const COLOUR_WORDS = new Set(`
 `.trim().split(/\s+/));
 
 const HEX = /#[0-9a-fA-F]{3,8}(?![\w-])/;
-const COLOUR_FUNCTION = /(?<![\w-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|device-cmyk)\(/i;
+/*
+ * Every CSS function that makes a colour. One that only combines roles
+ * (`color-mix()`, `light-dark()`, `rgb(from var(--ds-…) …)`) makes a colour no
+ * role names, so it is as raw as a hex.
+ */
+const COLOUR_FUNCTIONS = 'rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark|contrast-color|color-contrast'
+    + '|device-cmyk|ictcp|jzazbz|jzczhz';
+const COLOUR_FUNCTION = new RegExp(String.raw`(?<![\w-])(?:${COLOUR_FUNCTIONS})\(`, 'i');
 
 /** A value with quoted text, `url()` and variable names taken out: what is left is the value's own. */
 const ownText = (value) => value
     .replace(/(["'])(?:\\.|(?!\1)[^\\])*\1/g, ' ')
     .replace(/url\([^)]*\)/gi, ' ')
     .replace(/var\(\s*--[\w-]*/g, 'var(');
+
+/** Every hex and colour function in `text`, as written: what a stylesheet may not hold. */
+export const colourLiteralsIn = (text) => text.match(new RegExp(`${HEX.source}|${COLOUR_FUNCTION.source}`, 'gi')) ?? [];
 
 /**
  * Does this CSS value hold a raw colour? A hex or a colour function anywhere;
@@ -66,7 +76,7 @@ export function holdsRawColour(value, { words = true } = {}) {
 export function isColour(text, { words = true } = {}) {
     const value = text.trim();
     if (/^#[0-9a-fA-F]{3,8}$/.test(value)) return true;
-    if (/^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|device-cmyk)\(.*\)$/is.test(value)) return true;
+    if (new RegExp(String.raw`^(?:${COLOUR_FUNCTIONS})\(.*\)$`, 'is').test(value)) return true;
     return words && COLOUR_WORDS.has(value.toLowerCase());
 }
 
@@ -131,21 +141,25 @@ function arbitraryCheck(utility, property, raw) {
 const ARBITRARY = /(?<![\w[\]-])(?:-?([a-z][a-z\d]*(?:-[a-z\d]+)*?)-\[([^\]\s]+)\]|\[(--[\w-]+|[a-z][a-z\d-]*):([^\]\s]+)\])(?!:)/g;
 
 /*
- * Markup and style text: a declaration whose property takes a colour, where
- * a declaration starts (`background: #ffffff`, `style="color:red"`), and a
+ * Markup and style text: a declaration, where one starts (`background:
+ * #ffffff`, `style="color:red"`, `:root { --accent: #fff }`), and a
  * presentation attribute (`fill="#004C68"`). `#` is not always a colour, so
  * each names its context: an anchor (`#main`), a gradient reference
- * (`url(#id)`) or an id selector stays silent, and "Pick a color: red" in
- * prose is not a declaration.
+ * (`url(#id)`), an id selector or a link (`https://…#add`) stays silent, and
+ * "Pick a color: red" in prose is not a declaration.
  */
-const DECLARATION = /(?:^|[{;"'`])\s*(-{0,2}[a-z][\w-]*)\s*:\s*['"]?([^;{}"'`\n]+)/g;
+const DECLARATION = /(?:^|[{;"'`])\s*(-{0,2}[a-z][\w-]*)\s*:(?!\/\/)\s*['"]?([^;{}"'`\n]+)/g;
 const PRESENTATION = /(?<![\w-])(?:fill|stroke|stopColor|stop-color|floodColor|flood-color|lightingColor|lighting-color|color)\s*=\s*(["'])(.*?)\1/g;
 
-/** Every declaration in `text` whose property takes a colour and whose value holds a raw one. */
+/**
+ * Every declaration in `text` whose value holds a raw colour: a hex or a colour
+ * function under any property, a custom one included, and a colour keyword
+ * under a property that takes a colour.
+ */
 export function colourDeclarationsIn(text) {
     return [...text.matchAll(DECLARATION)].flatMap((match) => {
         const [whole, property, value] = match;
-        if (!COLOUR_PROPERTY.test(property) || !holdsRawColour(value)) return [];
+        if (!holdsRawColour(value, { words: COLOUR_PROPERTY.test(property) })) return [];
         const index = match.index + whole.indexOf(property);
         return [{ check: 'raw-hex-colour', match: text.slice(index, match.index + whole.length).trim(), index }];
     });
