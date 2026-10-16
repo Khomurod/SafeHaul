@@ -4,6 +4,7 @@ const { defineSecret } = require("firebase-functions/params");
 const functions = require("firebase-functions"); // V1 for public HTTP
 const { admin } = require("../firebaseAdmin");
 const { assertCompanyAdminStrict } = require("../shared/companyAccess");
+const { normalizeSearchPhone } = require("../shared/searchNormalization");
 const axios = require("axios");
 const crypto = require("crypto");
 
@@ -384,6 +385,10 @@ async function processLead(value) {
         email: '',
         source: 'Facebook Ads',
         status: 'New Lead',
+        // As Quick Add and the lead import write them: unassigned as the
+        // lists' Unassigned filter asks for it.
+        assignedTo: '',
+        assignedToName: '',
         createdAt: admin.firestore.Timestamp.fromDate(new Date(leadData.created_time || Date.now())),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         facebookLeadId: leadgen_id,
@@ -411,6 +416,9 @@ async function processLead(value) {
     if (!mappedLead.firstName && !mappedLead.lastName) {
         mappedLead.lastName = 'Facebook Lead';
     }
+
+    // The phone key the lead import finds a duplicate by.
+    mappedLead.normalizedPhone = normalizeSearchPhone(mappedLead.phone);
 
     // 4. Save to Company Subcollection
     await db.collection('companies').doc(companyId).collection('leads').add(mappedLead);

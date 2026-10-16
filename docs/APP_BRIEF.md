@@ -1282,8 +1282,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   leaves it out. A notice counts such records (`UndatedRecordsNotice`) and
   search finds them; dating them is the owner's data change.
 - **An unassigned lead stores `assignedTo: ''`**, which the Unassigned filter
-  asks for. Older leads with `null` (imported) or no field (quick-added) are
-  not found there; fixing them is the owner's data change.
+  asks for. Older leads with `null` (imported) or none (Quick Add, Facebook)
+  are not found there; fixing them is the owner's data change.
 - **Facebook lead capture is switched off; an earlier defect may have stranded
   leads** in `companies/{uid}/leads`, which no screen reads
   (`scripts/audit-facebook-lead-tenancy.mjs` reports any). Connect rules: §7.
