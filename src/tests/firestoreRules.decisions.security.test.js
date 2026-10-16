@@ -1,6 +1,6 @@
 // firestore.rules as one decision table: who may do what.
 //
-// Every rule block is tried by twelve kinds of caller with get, list, create,
+// Every rule block is tried by thirteen kinds of caller with get, list, create,
 // update and delete, and so is a path that no rule, or only a collection-group
 // rule, matches. So are the requests whose answer depends on the document
 // (owner fields, each held by driver-1 and then by the caller, a status outside
@@ -72,6 +72,12 @@ const PERSONAS = [
   },
   { key: 'adminB', uid: 'u-admin-b', claims: team('company_admin', OTHER_CO), about: `company_admin of ${OTHER_CO}` },
   {
+    key: 'recruiterAB',
+    uid: 'u-recruiter-ab',
+    claims: { roles: { [CO]: 'recruiter', [OTHER_CO]: 'recruiter' }, companyTeamIds: [CO, OTHER_CO] },
+    about: `recruiter of ${CO} and ${OTHER_CO}, ${OTHER_CO} second in companyTeamIds`,
+  },
+  {
     key: 'superRoot',
     uid: 'u-super-root',
     claims: { globalRole: 'super_admin' },
@@ -118,7 +124,8 @@ const DRIVER_SELF_UPDATE_FIELDS = [
   'submittedAt', 'updatedAt', 'lifecycle',
 ];
 
-// Every status the rules let the company team set on an application or a lead.
+// Every status the rules let the company team set on an application or a lead,
+// each tried wherever the rules check it.
 const PIPELINE_STATUSES = [
   'New', 'New Lead', 'Contact Attempt 1', 'Contact Attempt 2', 'Contact Attempt 3', 'Contacted',
   'Attempted', 'Disqualified', 'In Process', 'Interested', 'Hired', 'Terminated', 'Declined',
@@ -156,6 +163,16 @@ const DRIVER_UPDATES = [
   [{ status: 'Offer Accepted', offerDetails: { response: 'Offer Declined' } }, 'offer accepted, response says declined'],
   [{ status: 'Totally Custom' }, 'status outside the list'],
   [{ companyId: OTHER_CO }, `companyId to ${OTHER_CO}`],
+];
+
+// The owner fields the application subcollections' shared reader looks for, each
+// held by `owner`, and ownerUserIds also with `owner` second.
+const ownerFieldSeeds = (owner) => [
+  [{ ownerUserIds: [owner] }, `ownerUserIds has ${owner}`],
+  [{ ownerUserIds: [SOMEONE, owner] }, `ownerUserIds has ${owner} second`],
+  [{ driverId: owner }, `driverId ${owner}`],
+  [{ applicantId: owner }, `applicantId ${owner}`],
+  [{ userId: owner }, `userId ${owner}`],
 ];
 const othersApplication = tenant({ applicantId: SOMEONE, driverId: SOMEONE, email: 'other@example.com' });
 
@@ -284,25 +301,24 @@ const ROWS = [
       `phone, ${DRIVER}'s by email only`],
     [{ applicantId: DRIVER, driverId: DRIVER }, { note: 'changed' }, 'no companyId'],
   ].map(([seed, data, note]) => ({ op: 'update', path: `${companyPath}/applications/{doc}`, seed, data, note })),
+  ...PIPELINE_STATUSES.map((status) => ({
+    op: 'update', path: `${companyPath}/applications/{doc}`, seed: othersApplication, data: { status },
+    note: `someone else's, status ${status}`,
+  })),
   { op: 'delete', path: `${companyPath}/applications/{doc}`, seed: ownedApplication },
 
   // --- Application subcollections ---
   ...[
-    ...OWNERS.flatMap((owner) => [
-      [{ ownerUserIds: [owner] }, `ownerUserIds has ${owner}`],
-      [{ driverId: owner }, `driverId ${owner}`],
-      [{ applicantId: owner }, `applicantId ${owner}`],
-      [{ userId: owner }, `userId ${owner}`],
-    ]),
+    ...OWNERS.flatMap(ownerFieldSeeds),
     [{ ownerUserIds: [SOMEONE] }, 'someone else\'s'],
   ].map(([seed, note]) => ({ op: 'get', path: `${applicationPath}/dq_files/{doc}`, seed, note })),
   ...documentRows(`${applicationPath}/dq_files`).slice(1),
   { op: 'list', path: `${applicationPath}/dq_files`, where: ['ownerUserIds', 'array-contains', '{uid}'] },
   ...['general_documents', 'submission'].flatMap((name) => [
-    ...OWNERS.map((owner) => ({
-      op: 'get', path: `${applicationPath}/${name}/{doc}`, seed: { driverId: owner }, note: `driverId ${owner}`,
-    })),
-    { op: 'get', path: `${applicationPath}/${name}/{doc}`, seed: { driverId: SOMEONE }, note: 'someone else\'s' },
+    ...[
+      ...OWNERS.flatMap(ownerFieldSeeds),
+      [{ driverId: SOMEONE }, 'someone else\'s'],
+    ].map(([seed, note]) => ({ op: 'get', path: `${applicationPath}/${name}/{doc}`, seed, note })),
     ...documentRows(`${applicationPath}/${name}`).slice(1),
   ]),
   ...documentRows(`${applicationPath}/internal_notes`),
@@ -323,13 +339,13 @@ const ROWS = [
   { op: 'list', path: `${companyPath}/leads` },
   ...[
     [tenant(), 'no status'],
-    [tenant({ status: 'New Lead' }), 'status New Lead'],
+    ...PIPELINE_STATUSES.map((status) => [tenant({ status }), `status ${status}`]),
     [tenant({ status: 'Totally Custom' }), 'status outside the list'],
     [{ companyId: OTHER_CO }, `companyId ${OTHER_CO}`],
   ].map(([data, note]) => ({ op: 'create', path: `${companyPath}/leads/{doc}`, data, note })),
   ...[
     [{ note: 'changed' }, 'a field'],
-    [{ status: 'Contacted' }, 'status Contacted'],
+    ...PIPELINE_STATUSES.map((status) => [{ status }, `status ${status}`]),
     [{ status: 'Totally Custom' }, 'status outside the list'],
     [{ companyId: OTHER_CO }, `companyId to ${OTHER_CO}`],
   ].map(([data, note]) => ({
@@ -344,6 +360,7 @@ const ROWS = [
   ...[
     [{ companyIds: [CO] }, `companyIds [${CO}]`],
     [{ companyIds: [OTHER_CO] }, `companyIds [${OTHER_CO}]`],
+    [{ companyIds: ['co-c', CO] }, `companyIds [co-c, ${CO}]`],
     [{ firstName: 'Old' }, 'no companyIds'],
   ].map(([seed, note]) => ({ op: 'get', path: 'drivers/{doc}', seed, note })),
   { op: 'list', path: 'drivers' },
@@ -365,6 +382,7 @@ const ROWS = [
   ...[
     [{ companyIds: [CO] }, `companyIds [${CO}]`],
     [{ companyIds: [OTHER_CO] }, `companyIds [${OTHER_CO}]`],
+    [{ companyIds: ['co-c', CO] }, `companyIds [co-c, ${CO}]`],
     [{ name: 'Old' }, 'no companyIds'],
   ].map(([seed, note]) => ({ op: 'get', path: 'users/{doc}', seed, note })),
   { op: 'list', path: 'users' },
