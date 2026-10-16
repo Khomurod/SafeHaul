@@ -18,7 +18,8 @@
  *   `aria-expanded` too and are not this;
  * - a tab strip is `role="tablist"`, a file picker `<input type="file">`, a new
  *   tab `target="_blank"`, an overlay a class list holding `fixed` and
- *   `inset-0`;
+ *   `inset-0` on some path, wherever its strings are split
+ *   (`clsx('fixed', 'inset-0')`, `'fixed ' + 'inset-0'`, an array joined);
  * - and nine primitives throw on a label that is not a string, so a JSX
  *   `label` on one is a crash the moment that branch renders.
  *
@@ -111,10 +112,81 @@ function insideHeading(openingElement) {
 
 /** A class token, without its variants and `!`: `md:!fixed` is `fixed`. */
 const bareClass = (token) => token.split(':').pop().replace(/^!/, '');
-const holdsOverlay = (text) => {
-    const classes = new Set(text.split(/\s+/).map(bareClass));
-    return classes.has('fixed') && classes.has('inset-0');
-};
+
+/*
+ * A hand-built overlay is `fixed` and `inset-0` in one class list, on some
+ * path. Each path's share of the two is a pair of bits, and an expression
+ * yields the set of pairs its paths can: a few at most, so every combination
+ * is cheap to follow.
+ */
+const FIXED = 1;
+const INSET = 2;
+const NOTHING = new Set([0]);
+const overlayBits = (text) => text.split(/\s+/).map(bareClass)
+    .reduce((bits, name) => bits | (name === 'fixed' ? FIXED : 0) | (name === 'inset-0' ? INSET : 0), 0);
+const joined = (left, right) => new Set([...left].flatMap((a) => [...right].map((b) => a | b)));
+const either = (left, right) => new Set([...left, ...right]);
+
+/**
+ * What each path through a class expression yields of the two. The strings
+ * of a concatenation, a template, an array and a call's arguments (`clsx`,
+ * `[…].join(' ')`) are joined; a conditional's branches are alternatives, and
+ * `&&` may add nothing. A name is not followed: its string is judged where it
+ * is written.
+ */
+function overlayPaths(node) {
+    switch (node?.type) {
+        case 'Literal':
+            return new Set([typeof node.value === 'string' ? overlayBits(node.value) : 0]);
+        case 'TemplateLiteral':
+            return node.expressions.reduce((paths, expression) => joined(paths, overlayPaths(expression)),
+                new Set([overlayBits(node.quasis.map((quasi) => quasi.value.cooked ?? quasi.value.raw).join(' '))]));
+        case 'BinaryExpression':
+            return node.operator === '+' ? joined(overlayPaths(node.left), overlayPaths(node.right)) : NOTHING;
+        case 'ArrayExpression':
+            return node.elements.reduce((paths, element) => joined(paths, overlayPaths(element)), NOTHING);
+        case 'SpreadElement':
+        case 'JSXExpressionContainer':
+            return overlayPaths(node.argument ?? node.expression);
+        case 'CallExpression':
+            return node.arguments.reduce((paths, argument) => joined(paths, overlayPaths(argument)),
+                node.callee.type === 'MemberExpression' ? overlayPaths(node.callee.object) : NOTHING);
+        case 'ConditionalExpression':
+            return either(overlayPaths(node.consequent), overlayPaths(node.alternate));
+        case 'LogicalExpression':
+            return either(node.operator === '&&' ? NOTHING : overlayPaths(node.left), overlayPaths(node.right));
+        default:
+            return NOTHING;
+    }
+}
+
+/** Does `parent` join `child` into the same class list? */
+function joinsInto(parent, child) {
+    switch (parent?.type) {
+        case 'BinaryExpression':
+            return parent.operator === '+';
+        case 'TemplateLiteral':
+        case 'ArrayExpression':
+        case 'SpreadElement':
+        case 'LogicalExpression':
+            return true;
+        case 'ConditionalExpression':
+            return child !== parent.test;
+        case 'CallExpression':
+            return parent.arguments.includes(child) || (parent.callee === child && child.type === 'MemberExpression');
+        case 'MemberExpression':
+            return parent.object === child && parent.parent?.type === 'CallExpression' && parent.parent.callee === parent;
+        default:
+            return false;
+    }
+}
+
+/** The whole class expression a string belongs to. */
+function classExpression(node) {
+    let root = node;
+    while (joinsInto(root.parent, root)) root = root.parent;
+    return root;
+}
 
 export default {
     meta: {
@@ -156,6 +228,15 @@ export default {
             }
         };
 
+        // Each class expression once, however many strings it is built from.
+        const judged = new Set();
+        const overlay = (node) => {
+            const root = classExpression(node);
+            if (judged.has(root)) return;
+            judged.add(root);
+            if (overlayPaths(root).has(FIXED | INSET)) report(root, 'hand-built-overlay');
+        };
+
         return {
             JSXOpeningElement(node) {
                 const element = elementName(node);
@@ -184,12 +265,11 @@ export default {
             Literal(node) {
                 if (typeof node.value !== 'string') return;
                 readText(node, node.value);
-                if (holdsOverlay(node.value)) report(node, 'hand-built-overlay');
+                overlay(node);
             },
             TemplateLiteral(node) {
-                const text = node.quasis.map((quasi) => quasi.value.cooked ?? quasi.value.raw).join(' ');
                 node.quasis.forEach((quasi) => readText(quasi, quasi.value.cooked ?? quasi.value.raw));
-                if (holdsOverlay(text)) report(node, 'hand-built-overlay');
+                overlay(node);
             },
         };
     },

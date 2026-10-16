@@ -111,6 +111,11 @@ export const DS_EXCEPTIONS = {
             + 'listbox, and `Button` renders role="button", which would break the combobox contract. No '
             + 'Combobox/Listbox primitive exists yet.',
     },
+    'src/features/driver-app/hooks/guestUploadImage.js': {
+        'raw-hex-colour': 'roadmap §5 — white paper. A JPEG has no transparency, so '
+            + 'shrinkPhoto fills its canvas white before it redraws the driver\'s photo: the colour becomes '
+            + 'part of the image file the driver uploads, not a surface role a theme may re-tune.',
+    },
     'src/features/settings/components/IntegrationsTab.jsx': {
         'raw-hex-colour': 'roadmap §5 — #1877F2 is Facebook\'s brand blue on the Facebook connection tile. '
             + 'A third-party mark is not a SafeHaul role and must not be re-tuned by a change to this '

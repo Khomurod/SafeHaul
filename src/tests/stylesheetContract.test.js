@@ -5,7 +5,7 @@ import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 import { describe, expect, it } from 'vitest';
 import tailwindConfig from '../../tailwind.config.js';
-import { rawValuesIn } from '../../scripts/eslint-rules/raw-values.mjs';
+import { colourDeclarationsIn, holdsRawColour, rawValuesIn } from '../../scripts/eslint-rules/raw-values.mjs';
 
 /**
  * The stylesheets under `src/` reach colours, stacking layers and type sizes
@@ -38,8 +38,18 @@ const offContractApply = (list) => {
   return [...rawValuesIn(list).map((found) => found.match), ...overlay];
 };
 
+/*
+ * A hex or a colour function anywhere, and a colour keyword where a declaration
+ * expects a colour (`color: red`, `border: 1px solid tan`). The system colours a
+ * `forced-colors` block must use (`Canvas`, `Highlight`) are not raw.
+ */
+const rawColours = (css) => [
+  ...(css.match(/#[0-9a-fA-F]{3,8}\b|(?<![\w-])(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|device-cmyk)\(/gi) ?? []),
+  ...colourDeclarationsIn(css).map((found) => found.match).filter((match) => !holdsRawColour(match, { words: false })),
+];
+
 const RULES = {
-  'a raw colour': (css) => css.match(/#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/g) ?? [],
+  'a raw colour': rawColours,
   'a bare z-index': (css) => css.match(/z-index:\s*-?\d+/g) ?? [],
   'a font size below 12px': (css) => css.match(/font-size:\s*(?:[0-9]|1[01])(?:\.\d+)?px\b/g) ?? [],
   'an @apply list off the class contract': (css) => [...css.matchAll(/@apply\s+([^;{}]+);/g)]
@@ -84,6 +94,10 @@ describe('the stylesheet contract', () => {
     ['a raw colour', '.x { color: #fff; }', 1],
     ['a raw colour', '.x { background: rgba(0, 0, 0, 0.2); border-color: hsl(0 0% 0%); }', 2],
     ['a raw colour', '.x { color: var(--ds-color-content); }', 0],
+    ['a raw colour', '.x { color: red; border: 1px solid rebeccapurple; }', 2],
+    ['a raw colour', '.x { background: oklch(50% 0.2 20); outline-color: hwb(0 0% 0%); }', 2],
+    ['a raw colour', '.x { border-color: transparent; fill: currentColor; animation: highlight 1s; }', 0],
+    ['a raw colour', '@media (forced-colors: active) { .x { border-bottom-color: Highlight; } }', 0],
     ['a bare z-index', '.x { z-index: 60; }', 1],
     ['a bare z-index', '.x { z-index: -1; }', 1],
     ['a bare z-index', '.x { z-index: var(--ds-z-modal); }', 0],

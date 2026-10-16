@@ -237,8 +237,38 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['arbitrary-type-size', 'an arbitrary size', view('<span className="text-[17px]">x</span>')],
         ['raw-z-index', 'an arbitrary layer', view('<div className="z-[9999]" />')],
         ['raw-z-index', 'a style-object layer', 'export const s = { position: "absolute", zIndex: 20 };\n'],
+        // Every other arbitrary syntax Tailwind compiles (O1c proves each does).
+        ['raw-hex-colour', 'a named colour', view('<div className="bg-[red]" />')],
+        ['raw-hex-colour', 'a modern colour function', view('<div className="bg-[oklch(50%_0.2_20)]" />')],
+        ['raw-hex-colour', 'a named colour on text', view('<span className="text-[rebeccapurple]">x</span>')],
+        ['raw-hex-colour', 'a colour type hint', view('<div className="border-[color:red]" />')],
+        ['raw-hex-colour', 'a colour inside a shadow', view('<div className="shadow-[0_0_0_1px_red]" />')],
+        ['raw-hex-colour', 'a variable with a raw fallback', view('<div className="bg-[var(--brand,#fff)]" />')],
+        ['raw-hex-colour', 'an arbitrary property', view('<div className="md:[color:red]" />')],
+        ['raw-hex-colour', 'a named colour in a style property', view("<div style={{ borderColor: 'red' }} />")],
+        ['raw-hex-colour', 'a colour inside a style shorthand', view("<div style={{ borderTop: '1px solid #ccc' }} />")],
+        ['raw-hex-colour', 'a named colour in a colour prop', view('<SignaturePad penColor="black" />')],
+        ['raw-hex-colour', 'a named colour in an SVG attribute', view('<path fill="red" />')],
+        ['raw-hex-colour', 'a named colour on a canvas', "export function ink(ctx) {\n  ctx.fillStyle = 'black';\n}\n"],
+        ['raw-hex-colour', 'a colour function in a declaration', "export const INK = 'rgb(15 23 42)';\n"],
+        ['raw-hex-colour', 'a named colour in a style string', 'export const CSS = `body { color: red; }`;\n'],
+        ['raw-hex-colour', 'a hex in an object', "export const palette = { primary: '#004C68' };\n"],
+        ['sub-12px-type', 'a typed size', view('<span className="text-[length:10px]">x</span>')],
+        ['sub-12px-type', 'a calculated size', view('<span className="text-[calc(10px)]">x</span>')],
+        ['sub-12px-type', 'a size in rem', view('<span className="text-[0.5rem]">x</span>')],
+        ['sub-12px-type', 'a font-size property', view('<span className="[font-size:10px]">x</span>')],
+        ['arbitrary-type-size', 'a clamped size', view('<span className="text-[clamp(0.75rem,2vw,1rem)]">x</span>')],
+        ['arbitrary-type-size', 'a size keyword', view('<span className="text-[larger]">x</span>')],
+        ['raw-z-index', 'a calculated layer', view('<div className="z-[calc(100)]" />')],
+        ['raw-z-index', 'a layer counted from a named one', view('<div className="z-[calc(var(--ds-z-modal)+1)]" />')],
+        ['raw-z-index', 'a z-index property', view('<div className="[z-index:9999]" />')],
+        ['raw-z-index', 'a calculated style-object layer', "export const s = { zIndex: 'calc(100)' };\n"],
         ['hand-built-overlay', 'a fixed inset-0 class list', view('<div className="fixed inset-0 bg-ds-overlay" />')],
         ['hand-built-overlay', 'an overlayClassName', view('<Modal overlayClassName="fixed inset-0 z-50 flex bg-ds-overlay p-4">{body}</Modal>')],
+        ['hand-built-overlay', 'the classes as two arguments', view("<div className={clsx('fixed', 'inset-0')} />")],
+        ['hand-built-overlay', 'the classes concatenated', view("<div className={'fixed ' + 'inset-0'} />")],
+        ['hand-built-overlay', 'the classes in a joined array', view("<div className={['fixed', open && 'inset-0'].filter(Boolean).join(' ')} />")],
+        ['hand-built-overlay', 'the classes either side of a template hole', view("<div className={`fixed ${open ? 'inset-0' : ''}`} />")],
         ['raw-table', 'a table outside the approved list', view('<table><tbody /></table>')],
         ['hand-styled-button', 'a styled button', view('<button className="px-4 py-2 bg-ds-surface rounded">Go</button>')],
         ['hand-styled-field', 'a styled input', view('<input className="border rounded px-3" />')],
@@ -265,6 +295,9 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['sub-12px-type', 2, view('<div className="text-[10px] md:text-[9px]" />')],
         ['raw-z-index', 2, view('<div className="z-[10]" /><div className="-z-[70]" />')],
         ['raw-hex-colour', 2, view('<div className="bg-[#1877F2]/10 text-[#1877F2]" />')],
+        ['raw-hex-colour', 2, view('<div className="bg-[red] hover:text-[oklch(0.5_0.2_20)]" />')],
+        ['sub-12px-type', 2, view('<div className="text-[length:10px] md:text-[calc(9px)]" />')],
+        ['hand-built-overlay', 1, view("<div className={['fixed inset-0', on && 'fixed', 'inset-0'].join(' ')} />")],
         ['hand-built-overlay', 2, view('<div className="fixed inset-0 bg-ds-overlay" /><div className="inset-0 fixed flex" />')],
         ['hand-rolled-disclosure', 1, view('<h3 className="x" /><h3><button aria-expanded={o} /></h3>')],
         ['hand-rolled-disclosure', 1, view('<h3 onClick={() => f()} /><h3><button aria-expanded={o} /></h3>')],
@@ -281,6 +314,29 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
     }
     assert('O1b. every occurrence is reported, not just the first, and every heading level and throwing primitive is read',
         miscounted.length === 0, miscounted.join('; '));
+
+    /*
+     * The arbitrary forms O1 refuses are real: each compiles with the
+     * application's own Tailwind configuration, so each would reach the screen.
+     * And the colour keywords read are the ones Tailwind parses as colours.
+     */
+    const { default: postcss } = await import('postcss');
+    const { default: tailwindcss } = await import('tailwindcss');
+    const { default: appTheme } = await import('../tailwind.config.js');
+    const compiles = async (name) => (await postcss([tailwindcss({ ...appTheme, content: [{ raw: name, extension: 'html' }] })])
+        .process('@tailwind utilities;', { from: undefined })).css.trim() !== '';
+    const forms = ['bg-[red]', 'bg-[oklch(50%_0.2_20)]', 'text-[rebeccapurple]', 'border-[color:red]', 'shadow-[0_0_0_1px_red]',
+        'bg-[var(--brand,#fff)]', 'md:[color:red]', 'text-[length:10px]', 'text-[calc(10px)]', 'text-[0.5rem]', '[font-size:10px]',
+        'text-[clamp(0.75rem,2vw,1rem)]', 'text-[larger]', 'z-[calc(100)]', 'z-[calc(var(--ds-z-modal)+1)]', '[z-index:9999]'];
+    const inert = [];
+    for (const name of forms) if (!(await compiles(name))) inert.push(name);
+    const { COLOUR_WORDS } = await import('./eslint-rules/raw-values.mjs');
+    const { default: colourNames } = await import('tailwindcss/lib/util/colorNames.js');
+    const tailwindNames = Object.keys(colourNames.default ?? colourNames);
+    const unread = tailwindNames.filter((name) => !COLOUR_WORDS.has(name));
+    assert(`O1c. each arbitrary form O1 refuses compiles with the app's Tailwind (${forms.length}), and every colour name Tailwind parses is read (${tailwindNames.length})`,
+        inert.length === 0 && unread.length === 0 && COLOUR_WORDS.size === tailwindNames.length,
+        [...inert.map((name) => `${name} compiles to nothing`), ...unread.map((name) => `${name} is not read`)].join('; '));
 
     /*
      * The other half: a rule that fires on correct code gets switched off.
@@ -313,6 +369,16 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         'a Button in a heading, and the primitive\'s own Heading': view('<h2><Button aria-expanded={rulesOpen} aria-controls="rules">Rules</Button></h2>'
             + '<Heading id={headingId}><button aria-expanded={isOpen} /></Heading>'),
         'a heading with no expanding button': view('<h3 className="m-0">Plain section title</h3><h3 /><h3><button type="button" onClick={save}>Save</button></h3>'),
+        'a token, a keyword or a length in an arbitrary value': view('<div className="bg-[var(--ds-color-surface)] '
+            + 'text-[color:var(--ds-color-content)] border-[color:currentColor] bg-[transparent] '
+            + 'text-[length:var(--ds-font-size-xs)] z-[var(--ds-z-modal)] border-[14px] bg-[url(/hero.png)] grid-cols-[8rem_1fr]" />'),
+        'a colour word where no colour is expected': view('<div className="transition-[background-color,box-shadow] '
+            + "animate-[highlight_1s_ease-out] content-['red'] [mask-image:linear-gradient(black,transparent)]\" />")
+            + "export const tone = 'green';\nexport const prompt = 'Pick a color: red or blue';\n",
+        'arbitrary variants, which select rather than paint': view('<div className="data-[state=open]:bg-ds-surface '
+            + 'group-[.red]:flex supports-[color:red]:flex [&_svg]:fill-current" />'),
+        'a system colour, for forced colours': view('<div className="forced-colors:border-[Highlight]" />'),
+        'an overlay\'s classes on exclusive branches': view("<div className={open ? 'fixed' : 'inset-0'} />"),
         'a violation named in a comment': '// this used to be text-[10px] and z-[9999]\n/* was bg-[#fff], target="_blank" and fixed inset-0 */\nexport const a = 1;\n',
     };
     const flagged = [];

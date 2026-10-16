@@ -3,32 +3,40 @@
  * stacking layer, where the strict theme cannot refuse it.
  *
  * Read in two places. Every string and template chunk, through
- * `./raw-values.mjs`: an arbitrary value in a class list (`bg-[#000]/20`,
- * `text-[10px]`, `text-[17px]`, `z-[9999]`), a colour declaration or a
- * presentation attribute in a style or markup string. And the syntax, for a
- * colour the string alone does not show is one: a presentation attribute
- * (`<path fill="#004C68">`), a style property (`{ color: '#fff' }`), an
- * assignment (`ctx.strokeStyle = '#333'`, `const INK = '#0f172a'`), and a bare
- * number in a style object (`{ zIndex: 20 }`).
+ * `./raw-values.mjs`: an arbitrary value or property in a class list
+ * (`bg-[#000]/20`, `bg-[red]`, `text-[length:10px]`, `z-[calc(100)]`,
+ * `[color:red]`), a colour declaration or a presentation attribute in a style
+ * or markup string. And the syntax, for a colour the string alone does not
+ * show is one: a presentation attribute or a colour prop
+ * (`<path fill="#004C68">`, `<SignaturePad penColor="black">`), a style
+ * property (`{ borderTop: '1px solid red' }`), an assignment
+ * (`ctx.strokeStyle = '#333'`, `const INK = '#0f172a'`), and a number in a
+ * style object's layer (`{ zIndex: 20 }`, `{ zIndex: 'calc(100)' }`).
  *
- * Comments are not read; neither is the text between JSX tags, which is prose
- * and never a class list.
+ * A colour is a hex, a colour function or a colour keyword. A keyword counts
+ * only where a colour is expected — a presentation attribute or colour prop, a
+ * style property that takes one, an assignment to a name that holds one —
+ * since `'green'` is as often a tone's name. Comments are not read; neither is
+ * the text between JSX tags, which is prose and never a class list.
  */
 
 import {
     CHECKS, exceptedChecks, locate, optionsSchema,
 } from './context.mjs';
 import { staticString } from './jsx.mjs';
-import { REMEDIES, rawValuesIn } from './raw-values.mjs';
+import {
+    REMEDIES, holdsRawColour, isColour, numericLayer, rawValuesIn,
+} from './raw-values.mjs';
 
-/** The SVG presentation attributes that take a colour. */
+/** The SVG presentation attributes that take a colour; any prop named for one (`penColor`) does too. */
 const PRESENTATION = new Set([
     'fill', 'stroke', 'stopColor', 'stop-color', 'floodColor', 'flood-color', 'lightingColor', 'lighting-color', 'color',
 ]);
-const HEX = /^#[0-9a-fA-F]{3,8}$/;
-const STARTS_WITH_HEX = /^#[0-9a-fA-F]{3,8}\b/;
-/** A style property that takes a colour: `color`, `background`, `borderColor`, `fill`, `stroke`… */
-const COLOUR_KEY = /(?:color|background|border|fill|stroke)$/i;
+const COLOUR_PROP = /colou?r$/i;
+/** A style property that takes a colour: `color`, `backgroundColor`, `borderTop`, `boxShadow`, `penColor`… */
+const COLOUR_KEY = /^(?:color|background|border|outline|fill|stroke|text-?decoration|column-?rule)|(?:color|shadow)$/i;
+/** A name that holds a colour: `fillStyle`, `shadowColor`, `INK`, `penColor`. */
+const COLOUR_NAME = /(?:colou?r|style|fill|stroke|ink|background)$/i;
 const Z_INDEX_KEY = new Set(['zIndex', 'z-index']);
 
 const keyName = (property) => {
@@ -37,14 +45,21 @@ const keyName = (property) => {
     return typeof property.key.value === 'string' ? property.key.value : null;
 };
 
-/** A number written as one: `20`, `-1`, `'20'`. */
+/** The name an assignment writes: `INK`, `ctx.fillStyle`'s `fillStyle`; null for a pattern. */
+const targetName = (node) => {
+    if (node?.type === 'Identifier') return node.name;
+    if (node?.type === 'MemberExpression') return node.computed ? staticString(node.property) : node.property.name;
+    return null;
+};
+
+/** A layer written as a number: `20`, `-1`, `'20'`, `'calc(100)'`. */
 const stackingNumber = (node) => {
     if (node?.type === 'Literal' && typeof node.value === 'number') return String(node.value);
     if (node?.type === 'UnaryExpression' && node.operator === '-' && typeof node.argument.value === 'number') {
         return `-${node.argument.value}`;
     }
     const text = staticString(node);
-    return text !== null && /^-?\d+$/.test(text.trim()) ? text.trim() : null;
+    return text !== null && numericLayer(text) ? text.trim() : null;
 };
 
 export default {
@@ -68,9 +83,10 @@ export default {
                 report(node, check, match, place.loc);
             }
         };
-        const hexValue = (node, value) => {
+        /** A whole string that is one colour, written to `name`; a keyword only when the name holds a colour. */
+        const colourValue = (node, value, name) => {
             const text = staticString(value);
-            if (text !== null && HEX.test(text)) report(node, 'raw-hex-colour', text);
+            if (text !== null && isColour(text, { words: COLOUR_NAME.test(name ?? '') })) report(node, 'raw-hex-colour', text);
         };
         return {
             Literal(node) {
@@ -80,24 +96,27 @@ export default {
                 readText(node, node.value.cooked ?? node.value.raw);
             },
             JSXAttribute(node) {
-                if (PRESENTATION.has(node.name?.name)) hexValue(node, node.value);
+                const name = node.name?.name;
+                const text = PRESENTATION.has(name) || COLOUR_PROP.test(name) ? staticString(node.value) : null;
+                if (text !== null && holdsRawColour(text)) report(node, 'raw-hex-colour', text);
             },
             Property(node) {
                 const key = keyName(node);
                 if (key === null) return;
-                if (COLOUR_KEY.test(key)) {
-                    const text = staticString(node.value);
-                    if (text !== null && STARTS_WITH_HEX.test(text)) report(node, 'raw-hex-colour', `${key}: ${text}`);
+                // A colour-taking key holds one anywhere in its value; any other key, as its whole value.
+                const text = staticString(node.value);
+                if (text !== null && (COLOUR_KEY.test(key) ? holdsRawColour(text) : isColour(text, { words: false }))) {
+                    report(node, 'raw-hex-colour', `${key}: ${text}`);
                 }
                 if (Z_INDEX_KEY.has(key)) {
                     const value = stackingNumber(node.value);
                     if (value !== null) report(node, 'raw-z-index', `${key}: ${value}`);
                 }
             },
-            VariableDeclarator(node) { hexValue(node, node.init); },
-            AssignmentExpression(node) { hexValue(node, node.right); },
-            AssignmentPattern(node) { hexValue(node, node.right); },
-            PropertyDefinition(node) { hexValue(node, node.value); },
+            VariableDeclarator(node) { colourValue(node, node.init, targetName(node.id)); },
+            AssignmentExpression(node) { colourValue(node, node.right, targetName(node.left)); },
+            AssignmentPattern(node) { colourValue(node, node.right, targetName(node.left)); },
+            PropertyDefinition(node) { colourValue(node, node.value, keyName(node)); },
         };
     },
 };
