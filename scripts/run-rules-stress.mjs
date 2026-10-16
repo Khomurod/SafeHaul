@@ -19,6 +19,7 @@ const rulesTestArgs = [
   'src/tests/firestoreRules.profiles.security.test.js',
   'src/tests/firestoreRules.applications.security.test.js',
   'src/tests/firestoreRules.surfaces.security.test.js',
+  'src/tests/firestoreRules.decisions.security.test.js',
   'src/tests/storage.rules.security.test.js',
 ];
 
