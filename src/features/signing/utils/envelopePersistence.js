@@ -21,7 +21,7 @@ import {
     normalizePrefillPolicy,
     resolveFieldsForSend,
 } from '@features/signing/utils/prefillEngine';
-import { serializeTemplateFields } from '@features/signing/utils/templateFieldSerializer';
+import { deserializeTemplateField, serializeTemplateFields } from '@features/signing/utils/templateFieldSerializer';
 import { SAVE_STATES } from '@features/signing/utils/editorSaveState';
 import { deliveryFields, createSigningRequest, announceSigningRequest } from '@features/signing/utils/signingRequestWrite';
 import { normalizePhone } from '@shared/utils/helpers';
@@ -66,23 +66,7 @@ export async function hydrateEnvelopeForEdit({
         // Hydrate fields (convert stored format back to editor format)
         if (data.fields) {
             // SAFETY: Filter out null/undefined elements from Firestore before hydrating
-            const hydratedFields = (data.fields || []).filter(f => f != null).map(f => ({
-                id: f.id,
-                type: f.type,
-                label: f.label || f.type,
-                page: f?.pageNumber || f?.page || 1,
-                x: f.xPosition ?? f.x ?? 10,
-                y: f.yPosition ?? f.y ?? 10,
-                width: f.width || 25,
-                height: f.height || 5,
-                required: f.required ?? true,
-                readOnly: f.readOnly ?? false,
-                prefillPolicy: f.prefillPolicy || (f.readOnly ? 'locked' : 'editable'),
-                bindingKey: f.bindingKey || '',
-                prefillGroupKey: f.prefillGroupKey || '',
-                defaultValue: f.defaultValue || '',
-                fontSize: f.fontSize || 'Auto',
-            }));
+            const hydratedFields = (data.fields || []).filter(f => f != null).map(deserializeTemplateField);
             resetEditorHistory(hydratedFields);
         }
 
