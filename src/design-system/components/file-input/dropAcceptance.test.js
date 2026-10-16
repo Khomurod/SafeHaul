@@ -4,10 +4,10 @@ import { matchesAccept, resolveDroppedFiles } from './dropAcceptance';
 /**
  * The rules a drop is judged by, tested directly.
  *
- * These ran through a rendered component and a synthetic `DataTransfer` before
- * 2026-08-26, which tested the wiring and left the rules themselves covered only
- * where a component test happened to reach them. `accept` has three syntaxes and
- * the message has more shapes than the component has states.
+ * A rendered component and a synthetic `DataTransfer` test the wiring, and cover
+ * the rules themselves only where a component test happens to reach them.
+ * `accept` has three syntaxes and the message has more shapes than the
+ * component has states.
  */
 
 const file = (name, type = '') => new File(['x'], name, { type });
@@ -192,10 +192,9 @@ describe('resolveDroppedFiles', () => {
 
     it('carries a surplus file a single-file field had no room for', () => {
       /*
-       * Found in review on 2026-08-26: the message said "only one.png was added"
-       * while `rejected` was empty, which tells a caller two contradictory
-       * things. `rejected` means what you dropped and did not get, whichever of
-       * the two reasons applies.
+       * The message must not say "only one.png was added" while `rejected` is
+       * empty, which tells a caller two contradictory things. `rejected` means
+       * what you dropped and did not get, whichever of the two reasons applies.
        */
       const second = file('banner.png', 'image/png');
       const { accepted, rejected } = resolveDroppedFiles({

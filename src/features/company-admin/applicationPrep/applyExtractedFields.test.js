@@ -37,7 +37,7 @@ describe('filling an empty application', () => {
         expect(formData).toMatchObject({
             firstName: 'Dana', lastName: 'Alvarez', dob: '1988-03-11',
             // The licence prints 'TX'; the driver's state pickers hold names and
-            // rendered the code as "Alabama" (2026-10-01), so both are filled as one.
+            // render a bare code as "Alabama", so both are filled as one.
             street: '1 Main St', city: 'Dallas', state: 'Texas', zip: '75001',
             cdlNumber: 'TX1234567', cdlState: 'Texas', cdlClass: 'Class A',
             cdlExpiration: '2030-12-31', endorsements: 'H,N', medCardExpiration: '2027-06-30',
@@ -144,12 +144,12 @@ describe('a partial answer', () => {
  * A lock the driver can satisfy, whatever the report's spelling.
  *
  * The reader matches a report's carrier to a row already on the application by
- * USDOT number or by name. It used to lock the REPORT's spelling, so a row the
- * recruiter typed as "Acme Trucking LLC" was locked as "ACME TRUCKING": every
- * carrier save kept the lock (same USDOT signature), and the driver was then
- * refused at submission with `locked-employer-changed` on a name the wizard shows
- * them as a record they cannot edit (2026-10-01). Driven here through the same
- * functions the save and the submission use.
+ * USDOT number or by name, and locks the ROW's spelling, not the report's. A row
+ * the recruiter typed as "Acme Trucking LLC" locked as "ACME TRUCKING" survives
+ * every carrier save (same USDOT signature), and the driver is then refused at
+ * submission with `locked-employer-changed` on a name the wizard shows them as a
+ * record they cannot edit. Driven here through the same functions the save and
+ * the submission use.
  */
 describe('locking a carrier that is already on the application', () => {
     const lockAndSubmit = (rows, carrier) => {

@@ -17,11 +17,9 @@ import { Button, MetricCard, TabList, TabPanel } from '@/design-system/component
 import { PageContainer, PageHeader, ResponsiveGrid, Section, Stack } from '@/design-system/layouts';
 
 // The ids are the frozen `activeTab` contract ('drafts' | 'history'); labels and
-// icons are presentation only. The strip itself is the design system's `TabList`
-// since 2026-08-25 — it was a hand-rolled tablist with a comment saying "the
-// design system has no tab primitive yet", which stopped being true on
-// 2026-08-21. It also stops being the product's fourth tab appearance: a
-// page-level view switcher looks like every other page-level view switcher.
+// icons are presentation only. The strip itself is the design system's
+// `TabList`, not a hand-rolled tablist, so a page-level view switcher looks like
+// every other page-level view switcher.
 const CAMPAIGN_TABS = [
     { id: 'drafts', label: 'Drafts', icon: LayoutGrid },
     { id: 'history', label: 'Past Sequences', icon: History },

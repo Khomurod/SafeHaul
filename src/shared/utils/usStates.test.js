@@ -23,10 +23,10 @@ describe('toUsStateName', () => {
         ['new  york', 'New York'],
         ['NC', 'North Carolina'],
         ['WV', 'West Virginia'],
-        // Listed since 2026-10-02; before that a DC licence or address had nowhere to go.
+        // Listed, so a DC licence or address has somewhere to go.
         ['DC', 'District of Columbia'],
         ['district of columbia', 'District of Columbia'],
-        // The territories, listed since 2026-10-09; their licences print these codes.
+        // The territories; their licences print these codes.
         ['PR', 'Puerto Rico'],
         ['GU', 'Guam'],
         ['vi', 'U.S. Virgin Islands'],

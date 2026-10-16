@@ -28,7 +28,7 @@ const { test, expect } = require('@playwright/test');
  * reading the ink back) are shared with
  * `verification-portal-typed-signature.spec.cjs` through
  * `helpers/verificationPortalHelpers.cjs`; that spec owns the Draw | Type
- * choice added on 2026-09-06 (audit step J).
+ * choice.
  */
 
 const {

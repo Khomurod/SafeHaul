@@ -2,10 +2,9 @@
  * Contract freeze + a11y proof for the two bodies rendered inside the Super Admin
  * Edit User dialog: `EditUserNameForm` and `UserMembershipsManager`.
  *
- * These were missed by the 2026-07-28 Super Admin dialog pass — `EditUserModal`'s
- * shell was migrated while both bodies stayed fully legacy (blocking
- * `window.confirm`/`alert`, `title`-only icon-button names, an unlabelled per-row
- * role select, a 2.56:1 grey, an unnamed scroll region). Migrated 2026-07-28.
+ * Both bodies follow the design system, as `EditUserModal`'s shell does: no
+ * blocking `window.confirm`/`alert`, no `title`-only icon-button names, a
+ * labelled per-row role select, no 2.56:1 grey, and a named scroll region.
  *
  * Frozen here: every service call and argument shape, the callback ordering, the
  * role option sets and their differing labels, the available-company filter, the
@@ -73,9 +72,7 @@ function renderNameForm(props = {}) {
  * resolves later. So the await is satisfied by the option and the assertion after
  * it reads a list that has not arrived.
  *
- * That cost a `frontend-quality` failure on 2026-09-06, on a change that touched
- * only documentation and tooling. Reproduced by resolving the memberships one
- * macrotask later: three tests fail with the exact CI messages.
+ * Resolving the memberships one macrotask later reproduces it: three tests fail.
  *
  * This is the waiting rule in `.claude/rules/testing.md`, in a third spelling. The first two were about the same
  * element rendering before its content; this one is a DIFFERENT element that
@@ -111,11 +108,11 @@ beforeEach(() => {
      * which is exactly the timing that varies under a loaded CI runner — the
      * value survives into the NEXT test and outranks the defaults set here.
      *
-     * That is what failed on 2026-08-26: "offers only companies the user is not
-     * already in" relies on the default membership in `co-1` being filtered out
-     * of the select, got a leaked `{ docs: [] }` instead, and reported
-     * `['', 'co-1', 'co-2', 'co-3']`. It passed in isolation and passed a full
-     * local run of all 4470 tests, because the leak needs the timing to slip.
+     * "offers only companies the user is not already in" relies on the default
+     * membership in `co-1` being filtered out of the select; a leaked
+     * `{ docs: [] }` makes it report `['', 'co-1', 'co-2', 'co-3']`, yet it passes
+     * in isolation and in a full local run, because the leak needs the timing to
+     * slip.
      *
      * `resetAllMocks` drops once-queues as well as call records. Every
      * implementation this file relies on is re-established immediately below, so
@@ -260,10 +257,9 @@ describe('EditUserNameForm — delete user (destructive)', () => {
 
 describe('UserMembershipsManager — listing contract', () => {
     // The first paint after the memberships promise resolves competes with the
-    // whole 4,500-test CI run for the event loop; the default 1 s findBy
-    // timeout expired once on a loaded runner (2026-09-01) with the load
-    // itself already confirmed. The generous timeout is on the initial-load
-    // assertions only — the same family, fixed together.
+    // whole CI run for the event loop, and the default 1 s findBy timeout can
+    // expire on a loaded runner with the load itself already confirmed. The
+    // generous timeout is on the initial-load assertions only — the same family.
     const INITIAL_LOAD = { timeout: 5000 };
 
     it('loads memberships for the user and names the company', async () => {
@@ -305,8 +301,7 @@ describe('UserMembershipsManager — listing contract', () => {
      * gets is `['', 'co-1', 'co-2', 'co-3']`: everything, unfiltered.
      *
      * Locally the load almost always resolves inside `findBy`'s own polling and
-     * this passes. On a loaded CI runner the gap opens, and it did: this exact
-     * message, on 2026-08-26 and again on 2026-09-06.
+     * this passes. On a loaded CI runner the gap opens.
      *
      * The waiting rule in `.claude/rules/testing.md` is the general form — wait on the rendered consequence,
      * which is the assertion you were going to make anyway. Note the shape it

@@ -69,13 +69,8 @@ describe('FileInput', () => {
 });
 
 /**
- * The three shapes the product actually uses.
- *
- * This component shipped on 2026-08-21 and four days later had two consumers,
- * while nine raw `<input type="file">` controls were still in the tree — every
- * one carrying a comment that said no file-input contract existed. Migrating them
- * is what showed why: the contract existed, and its API covered one of the three
- * shapes. A primitive that fits a third of its call sites does not get adopted.
+ * The three shapes the product actually uses. A primitive that fits a third of
+ * its call sites does not get adopted, so the API covers all three.
  */
 describe('FileInput shapes', () => {
   it('hides the field label on request while keeping the accessible name', () => {
@@ -98,11 +93,10 @@ describe('FileInput shapes', () => {
   });
 
   /*
-   * Disabling the element that has focus drops focus to `<body>`, so an upload
-   * started from the keyboard used to end with the user at the top of the
-   * document. The two pickers this component replaced each had their own
-   * focus-return effect; a review on 2026-08-25 caught that deleting them left
-   * nothing here.
+   * Disabling the element that has focus drops focus to `<body>`, so without a
+   * focus-return effect an upload started from the keyboard ends with the user
+   * at the top of the document. This component owns that effect; the pickers
+   * built on it have none of their own.
    */
   it('returns focus to the picker when the upload it disabled itself for ends', () => {
     const Harness = ({ uploading }) => (
@@ -310,12 +304,12 @@ describe('FileInput shapes', () => {
   });
 
   /*
-   * The behaviour the docblocks claimed for months and did not have.
+   * A drop on the dashed panel reaches the input.
    *
    * A `<label>` forwards *activation* to the control it labels, which is a click
-   * and not a drop, and the input is clipped to 1x1 — so before 2026-08-25 a file
-   * dropped on the dashed panel landed on the label and was discarded. Four
-   * upload panels advertised a dropzone that ignored drops.
+   * and not a drop, and the input is clipped to 1x1 — so without a handler a file
+   * dropped on the dashed panel lands on the label and is discarded, and an
+   * upload panel advertises a dropzone that ignores drops.
    *
    * The assertion that matters is not "onDrop ran" but "the consumer got its
    * file the same way it always does": every call site reads

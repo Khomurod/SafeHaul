@@ -2,10 +2,9 @@
  * Accessibility and defect-fix proof for the migrated `IntegrationsTab`.
  *
  * `IntegrationsTab.contract.test.jsx` freezes the SDK/login/Graph/callable
- * contracts frozen by the 2026-07-23 deep-audit. This file proves the
- * concrete presentation defects recorded there are fixed, without touching
- * (or implying a fix to) the unrelated, unfixed tenant-binding security
- * defect in `connectFacebookPage` — that stays out of scope.
+ * contracts. This file proves the tab's presentation defects stay fixed: a
+ * connected state that is not colour-only, an announced SDK-loading notice, the
+ * 12px floor, and no secret in the DOM.
  */
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';

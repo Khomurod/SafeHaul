@@ -83,8 +83,8 @@ describe('ApplicationRulesPanel', () => {
     });
 
     it('builds every element id without whitespace, so a selector can name it', () => {
-        // `EXPERIENCE_OPTIONS` carries "0-6 months"; interpolated raw, that made an
-        // invalid id, and axe hung on the selector happy-dom 20.4+ refuses (2026-09-06).
+        // `EXPERIENCE_OPTIONS` carries "0-6 months"; interpolated raw, that makes an
+        // invalid id, and axe hangs on the selector happy-dom 20.4+ refuses.
         const { container } = render(<ApplicationRulesPanel rules={{}} onChange={vi.fn()} />);
         const ids = [...container.querySelectorAll('[id]')].map((el) => el.id);
         expect(ids.length).toBeGreaterThan(10);

@@ -38,10 +38,10 @@ describe('BrandingSection', () => {
     });
 
     /*
-     * The picker is the design system's `FileInput` since 2026-08-25, so the
-     * input is named by its FIELD and the visible affordance is the `<label>`
-     * wrapping it rather than a `Button` that calls `.click()` on it. Same
-     * migration, same reasoning, as `ProfileAvatarField`.
+     * The picker is the design system's `FileInput`, so the input is named by
+     * its FIELD and the visible affordance is the `<label>` wrapping it rather
+     * than a `Button` that calls `.click()` on it. Same reasoning as
+     * `ProfileAvatarField`.
      */
     it('exposes a labelled file input with accepted types and a described trigger in edit mode', () => {
         const { container } = setup({ companyLogoUrl: LOGO_URL, isEditing: true });
@@ -90,12 +90,9 @@ describe('BrandingSection', () => {
     /*
      * The upload is disabled, busy, AND announced.
      *
-     * This test used to assert that `aria-busy` plus the button text had replaced
-     * this component's own `role="status"` region. Neither of those is announced,
-     * so what it really asserted was that the announcement had gone — the
-     * migration's markup, not the screen's behaviour. Found in review on
-     * 2026-08-26. The region is `FileInput`'s now; the behaviour is still this
-     * screen's, so this is where it is checked.
+     * `aria-busy` plus the button text is not an announcement. The
+     * `role="status"` region is `FileInput`'s; the behaviour is this screen's, so
+     * this is where it is checked.
      */
     it('says it is busy, announces the upload, and refuses a second file', () => {
         const { container } = setup({ companyLogoUrl: LOGO_URL, isEditing: true, logoUploading: true });

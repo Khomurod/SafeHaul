@@ -57,11 +57,9 @@ describe('SubmissionRecordNotice', () => {
     /*
      * The same question, asked of the current spelling.
      *
-     * Until 2026-09-06 this file hand-built its block and carried its own tone
-     * map, so the check was "is `ds-status-warning` in the wrapper's class
-     * list". It renders a `Notice` now: the tone is an attribute and the colours
-     * live in `Notice.css`, so the class assertion is `data-tone`. The half that
-     * matters is unchanged — no raw palette colour, in any spelling.
+     * It renders a `Notice`: the tone is an attribute and the colours live in
+     * `Notice.css`, so the tone assertion is `data-tone`. The half that matters
+     * is no raw palette colour, in any spelling.
      */
     it('states its tone through the design system, never a raw palette colour', () => {
         const { container } = render(<SubmissionRecordNotice record={presentSubmission(null)} />);

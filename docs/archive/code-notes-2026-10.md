@@ -4940,3 +4940,1926 @@ revision. `verify-shipped` caught it, which is the only reason anybody knew.
 Nothing in the test suite could have caught it: the functions load fine, the
 unit tests pass, and a pull request never deploys. This test is the guard.
 ```
+
+## `e2e/a11y.spec.cjs`
+
+```text
+Tagged @a11y for grouping only. These specs run inside the BLOCKING
+`frontend-e2e` lane as of 2026-08-25.
+
+They used to be excluded from it with `--grep-invert "@a11y"` and run in a
+separate `continue-on-error` job, because when they were written the browser
+could not be downloaded in the sandbox and they had never been proven. They
+have been green in CI ever since — 11/11 on every run of the campaign that
+wrote the "flip to blocking once green" note. An accessibility gate nobody has
+to pass is a report, not a gate. `scripts/test-ci-plan.mjs` (K2) asserts no
+workflow step excludes them again.
+```
+
+```text
+A public, mobile-first, single-task form asking for four things, one of
+them a Social Security Number — so its labelling, its error announcement
+and its focus order are exactly what this lane is for. It did not exist
+before 2026-09-09; the outcome behind it fell through to the intake
+chooser.
+```
+
+```text
+The surfaces that changed hands on 2026-08-25, and the keyboard behaviour axe
+cannot see.
+
+axe is a static check on a rendered tree: it can tell you a tab has no
+accessible name, and it cannot tell you the arrow keys do nothing. Eleven tab
+strips, four toggle groups and nine file pickers moved onto design-system
+primitives in that campaign; these assert the parts of that move a screenshot
+and an axe scan both miss.
+```
+
+```text
+The carrier's prep editor. Its select and checkbox fields were text boxes
+until 2026-10-01, and the controls that replaced them are the design
+system's own. What this checks is that the editor gives them names and that
+a keyboard reaches them, not the browser's own handling of a select.
+```
+
+```text
+The 2026-08-25 walkthrough found seven call sites rendering the
+browser's black UA outline instead of the product's blue ring, because
+`focus-visible:shadow-ds-focus` draws a box-shadow and does not replace
+`outline`. `utilities.css` fixes that globally; this proves it on a real
+screen, by tabbing and asserting SOMETHING visible marks focus.
+```
+
+```text
+A focusable DataTable row draws its ring on its CELLS — a
+`<tr>` cannot carry a box-shadow reliably, so DataTable.css
+puts the inset ring on `tr:focus-visible > *` and resets the
+row's own outline. Read the ring where the row paints it. On a
+412px screen the collapsed navigation lets Tab reach the rows
+within twenty presses, which is how the mobile lane found
+this heuristic reading the wrong element (2026-09-07).
+```
+
+## `e2e/campaign-audience-builder.spec.cjs`
+
+```text
+The picker is the approved `FileInput` dropzone as of 2026-08-25, so the
+trigger is a `<label>` and not a button: one focusable file input, named by
+its field, with "Choose file" as the label's visible words. "One trigger"
+is still the point of this test — a hidden input driven by a separate
+button was two things claiming to be the control.
+```
+
+## `e2e/company-prepared-application.spec.cjs`
+
+```text
+This used to fall through in silence, and that behaviour was pinned here
+as correct on the grounds that a driver following a stale link should
+land on the ordinary application rather than a diagnostic. Two things
+were wrong with it. The driver could not tell a dead link from a working
+one — and worse, the fall-through never claims the invitation, so the
+carrier's locked employers go unenforced and it receives a second,
+unprepared application, losing the 49 CFR 391.21 employment history it
+had prepared. Changed 2026-09-08.
+```
+
+```text
+## The reported failure, and why only a browser could show it
+
+A carrier-prepared application for a driver who had reached the consent step.
+The recruiter pressed "Create a replacement link"; the driver opened it and the
+page rendered the fresh-application chooser — "How would you like to start your
+driver application?" — with their own half-finished application sitting behind
+the link. Measured in production on 2026-09-09.
+
+`exchangeApplicationInvite` answered correctly the whole time: `requiresIdentity`,
+with no answers and no token. The defect was that the outcome matched no branch
+in `resolveApplyStatusScreen`, and the chooser sits at the bottom of it. Nothing
+short of rendering the page could see that, which is why it is here rather than
+only in the contract suite.
+```
+
+```text
+Reached from the unified unfinished-applications workspace since 2026-09-10,
+where starting an application is the primary action. `e2eUnfinished=mock` puts
+```
+
+```text
+Measured 2026-10-01: every one of these was a free-text box, so a carrier's
+"TX" reached the driver's state picker — which lists names — as "Alabama",
+the medical card read "[object Object]", and a Social Security Number box
+took input the server then silently discarded.
+```
+
+```text
+The owner's decision of 2026-10-06: an admin reads what the driver wrote
+too. A recruiter still cannot, which the unit suites pin; this harness
+signs in only as an admin.
+```
+
+## `e2e/company-profile-security.spec.cjs`
+
+```text
+The avatar assertions were rewritten on 2026-08-25 for the approved
+`FileInput`. The control used to be a `Button` driving a hidden input, so they
+looked for a *button* and asserted the input was NOT inside a label. The
+picker contract is the opposite by design: a real focusable input inside a
+`<label>` styled as the visible control, with the accessible name on the field.
+Same intent, the contract's shape. See `design-system/components/file-input`.
+```
+
+## `e2e/company-settings-branding.spec.cjs`
+
+```text
+Rewritten 2026-08-25 for the approved `FileInput`. The control used to be a
+`Button` driving a hidden input, so these tests looked for a *button* and
+asserted the input was NOT inside a label. The design system's picker contract
+is the opposite by design: a real `<input type="file">`, visually hidden but
+focusable, inside a `<label>` styled as the visible control — which is what
+makes the whole label a click and drag-and-drop target with no handler, and
+puts the accessible name on the field rather than on the trigger. The tests
+keep their intent (named, keyboard-reachable, visibly focused, no *button*
+nesting, accepted types announced) and follow that shape.
+```
+
+## `e2e/company-settings-integrations.spec.cjs`
+
+```text
+The real Facebook SDK is not reachable from this environment. Until
+2026-09-06 that left the "Connect Facebook" control in whichever state the
+network produced, and the keyboard test skipped on every CI run. The SDK is
+now stubbed at the network edge (`page.route` on connect.facebook.net), the
+same way the product code loads it — `window.fbAsyncInit` fires, `FB.init`
+runs, the button enables — so the enabled state is deterministic here and
+the "SDK Loading..." state stays covered by IntegrationsTab.contract.test.jsx.
+```
+
+## `e2e/company-settings-questions.spec.cjs`
+
+```text
+A `tab`, not a `button`, since 2026-08-25: this strip had tab *behaviour*
+with no ARIA at all and is the approved `TabList` now, so the control
+announces as a tab in a tablist and the panel it shows is a `tabpanel`.
+That is the point of the migration — the old markup told assistive
+technology nothing about the relationship this test is here to check.
+```
+
+## `e2e/confirmation-dialogs.spec.cjs`
+
+```text
+Real-browser verification for the shared `ConfirmDialog` that replaced the last
+blocking `window.confirm` / `confirm()` guards (2026-07-28).
+```
+
+## `e2e/dialog-layering.spec.cjs`
+
+```text
+`WorkspaceFrame`'s mobile navigation drawer read `--ds-z-modal` (60) until
+2026-09-05, which is the dialog layer — so in the CSS the drawer outranked
+every `<Modal>`, and nine hand-written `z-[60]`, `z-[70]` and `z-[9999]`
+overlays across the tree existed because each new thing that had to sit on
+top picked a number bigger than whatever it had lost to.
+
+**What this does NOT claim.** The drawer-over-dialog conflict is not
+reachable through the company workspace UI today: while the drawer is open
+its backdrop covers every page control, and nothing rendered inside the
+drawer opens a dialog — both verified while writing this. So the ordering was
+wrong rather than visibly broken, and what is fixed is a trap: any future
+"open a dialog from the navigation" would have fallen into it, and the
+escalation war above shows what that costs. Saying so is better than claiming
+a user-visible bug that cannot be demonstrated.
+```
+
+## `e2e/driver-dossier.spec.cjs`
+
+```text
+Both hidden utilities: they emit the same clip rule, and a hidden control
+clips to 1x1 rather than 0x0, so naming only one flagged a control nobody
+can see. Made consistent with `lead-intake.spec.cjs` on 2026-08-25.
+```
+
+## `e2e/edoc-documents-workspace.spec.cjs`
+
+```text
+Rewritten 2026-08-25 with the approved `TabList`, and the change is
+deliberate rather than incidental.
+
+This workspace renders **one** panel — the selected tab's — so the three
+unselected tabs have no panel in the document to control. The old markup
+pointed all four at the single panel's id, which is three references to
+something that is not theirs; the primitive sets `aria-controls` on the
+selected tab only, because an `aria-controls` naming an element that does
+not exist is worse than its absence (the APG says as much for a lazily
+rendered panel).
+```
+
+## `e2e/edoc-editor-mobile.spec.cjs`
+
+```text
+Selected by the CHROME CONTRACT rather than by a radius utility. This read
+`.include('.rounded-t-ds-xl')` until 2026-09-05, when the bottom-sheet
+radius moved from the call site's class list into `Modal.css` — at which
+point the selector matched nothing and the scope silently became "the
+editor nav only". A sibling spec caught the same shape by throwing; this
+one would just have quietly stopped checking the sheet.
+```
+
+## `e2e/edoc-envelope-creator-shell.spec.cjs`
+
+```text
+This read `.include('.z-30')` until 2026-09-05, when the raw stacking
+numbers were replaced by named layers and the selector silently matched
+nothing — axe then threw rather than passing vacuously, which is the only
+reason it was noticed. A test that targets a utility class is coupled to
+how the thing looks, and the whole point of the design-system work is
+that how a thing looks is free to change.
+```
+
+## `e2e/edoc-envelope-sidebar.spec.cjs`
+
+```text
+The picker is the approved `FileInput` dropzone since 2026-08-25, so its
+accessible name is the FIELD ("Choose a PDF file") and "Choose File" is the
+label's visible words. A file input maps to the `button` role, which is how
+assistive technology sees it and why the name has to be the field rather
+than the trigger's text. The frozen copy on screen is unchanged.
+```
+
+## `e2e/edoc-recruiter-send-and-sign.spec.cjs`
+
+```text
+Until 2026-09-06 this asked CDP for `Input.synthesizePinchGesture`, which
+headless CI Chromium refuses, so the test skipped on every run. The hook
+(`usePdfZoomGestures`) listens for touchstart/touchmove/touchend on the
+scroller and reads `e.touches`, so the gesture is driven with exactly
+those events: two fingers 80px apart, spread to 160px over six moves, then
+lifted — the same ×2 the CDP call asked for. `hasTouch: true` on this
+describe gives the page the Touch and TouchEvent constructors.
+```
+
+## `e2e/guest-cdl-autofill.spec.cjs`
+
+```text
+It had no browser test at all, and the one defect it carried only a browser
+shows: a licence prints its state as a postal code ("TX"), the auto-fill wrote
+that code into both state pickers, and the pickers list names. Given a value
+with no option, Chromium selected the first one it could, so a driver with an
+Austin address saw "Alabama" twice while the form held "TX" — and the step's
+validation passed, because the field was not empty (found 2026-10-01, in a real
+browser against the real Cloud Functions).
+```
+
+```text
+The photo is the application's CDL front (2026-10-06), so the License step must
+show it attached whether or not the licence could be read: the driver never
+photographs it a second time.
+```
+
+```text
+The District of Columbia joined the state list on 2026-10-02. Before that a DC
+licence left both pickers empty, because "DC" had no name to become.
+```
+
+## `e2e/guest-custom-file-question.spec.cjs`
+
+```text
+Until 2026-10-02 the question recorded the chosen file's NAME the moment a file
+was picked — before the upload had finished, and whether or not it ever did —
+and threw away the storage path the upload returned. So the company saw a
+filename that nothing referenced, and a failed upload still read as answered.
+The answer is the uploaded file now, recorded only once it has landed.
+```
+
+## `e2e/helpers/verificationPortalHelpers.cjs`
+
+```text
+Extracted on 2026-09-06 when the typed-signature tests (audit step J) pushed
+the closeout spec past the 500-line maximum. Everything here is a *page
+gesture*, not an assertion about the product: how to load the mock form, how
+to put ink on the canvas the way a mouse or a finger does, how to read that
+ink back, how to fill the shortest valid response. The specs own what is
+asserted about each of those.
+```
+
+## `e2e/helpers/wizardHelpers.cjs`
+
+```text
+DETERMINISM CONTRACT (2026-07-27) — read before editing.
+
+Every step transition and every asynchronous side effect is waited for by
+*state*, never by a sleep and never by leaning on Playwright's per-action
+auto-wait to paper over a missing barrier. Two concrete flakes were traced to
+violations of that rule:
+
+1. `setInputFiles` × 3 followed immediately by clicking Continue. The three
+   guest uploads are independent async writes, and `isUploading` briefly drops
+   to false between them — so the "Continue" label reappears, Playwright clicks
+   it, and `Step3_License.handleContinue` runs while the third upload has not
+   yet reached `formData`. It sets "Please upload required documents: Medical
+   Card." and refuses to advance. The arriving upload then *clears* that
+   message, leaving a page that looks completely valid but is still on step 3.
+   The run then times out on `label[for="consent-mvr-yes"]` — the reported
+   symptom, three steps away from the cause. Fixed by
+   `waitForUploads()`, which waits for each field's own committed
+   `data-upload-state="uploaded"`.
+
+2. Chained `Continue` clicks with no assertion between them. React commits the
+   step change asynchronously, so the *same* still-mounted button can be
+   clicked twice and one step is silently skipped. Fixed by `continueToStep()`,
+   which asserts the new `#step-title` after every advance.
+
+Neither fix hides an application defect: the missing-upload message is now a
+focused `role="alert"`, and the wizard now moves focus to each new step's
+heading instead of running two competing scroll animations.
+```
+
+## `e2e/public-application-responsive.spec.cjs`
+
+```text
+so naming only one of them made this guard flag a control nobody can see.
+`lead-intake.spec.cjs` already skipped both; the three sweeps that named
+one were the inconsistency, found 2026-08-25.
+```
+
+## `e2e/super-admin-views.spec.cjs`
+
+```text
+Added 2026-07-28 with the final three views of the Super Admin row.
+```
+
+```text
+same settled state every other view here is asserted in. Wait for it.
+Until 2026-09-06 this sampled `isVisible()` once, during "Loading
+analytics...", and skipped on every CI run (audit step H).
+```
+
+```text
+---- The final three views of the Super Admin row (2026-07-28) ----
+```
+
+```text
+Removed on 2026-10-11: they wrote test accounts and schema defaults into
+the live database.
+```
+
+## `e2e/unfinished-applications-admin.spec.cjs`
+
+```text
+The owner decided on 2026-10-06 that a Company Admin reads every unfinished
+application, corrects the ones the driver owns, and may delete any of them. The worklist comes from its `e2eUnfinished=mock` fixture; the
+```
+
+## `e2e/verification-portal-closeout.spec.cjs`
+
+```text
+reading the ink back) are shared with
+`verification-portal-typed-signature.spec.cjs` through
+`helpers/verificationPortalHelpers.cjs`; that spec owns the Draw | Type
+choice added on 2026-09-06 (audit step J).
+```
+
+## `e2e/verification-portal-typed-signature.spec.cjs`
+
+```text
+The Draw | Type signature choice on the public verification portal
+(audit step J, 2026-09-06).
+
+A canvas has no keyboard path, so until this change a respondent who could
+not use a mouse or a finger had no way to produce the legally operative mark
+on a 49 CFR §391.23 response — and axe could not see it, because axe cannot
+detect a missing input modality. `SignatureInput` now offers "Type": the name
+is stored as `TEXT_SIGNATURE:<name>` with the method recorded, never drawn
+into a PNG, so the record says which kind of mark it was.
+```
+
+## `e2e/voe-print-export.spec.cjs`
+
+```text
+The generated document is INCLUDED since 2026-09-06. Until then its grey
+legal small print (slate-400: 2.56:1 on white, 2.45:1 on the slate-50 box,
+2.07:1 inside the 80%-opacity questionnaire) was excluded as an open owner
+decision; the audit resolved it by recolouring to the nearest AA greys —
+WCAG 1.4.3 has no exemption for legal small print. A failure here now
+means the document itself regressed.
+```
+
+## `e2e/visual/app.spec.cjs`
+
+```text
+Blocking in CI, as of 2026-08-25. All twenty baselines that existed then used
+to fail on GitHub's runners, on every run, invisibly: the application fetched
+Inter from rsms.me and the runner never received it, so each screenshot was a
+whole page of substituted glyphs. The font is served from the repository now
+(`design-system/tokens/typeface.css`), which is what makes these comparable
+across machines. See the header of `catalog.spec.cjs`.
+```
+
+```text
+`<h1>Super Admin</h1>` is in the banner and present on first paint, so
+the old predicate let the screenshot race the three metric cards. The
+committed baseline had caught them mid-load showing `•••`; a run on
+2026-08-25 caught them resolved showing `0`, and the lane failed on a
+diff of three glyphs with nothing wrong in the product. That is exactly
+the failure a blocking lane cannot have: one flake teaches everyone to
+disbelieve the next real regression.
+```
+
+```text
+answer, fails. The cards say "Error", not the 0 they once showed for a
+count that failed.
+```
+
+```text
+Added 2026-08-25. The ten screens above were the ones the lane started
+with; these five are the rest of the areas a user actually spends time in,
+and every one of them was unmeasured while the lane was advisory:
+
+ - the signing room is where a legally operative signature is made;
+ - the change-review portal is a public token route with no navigation
+   around it, so nothing else on the screen would reveal a broken state;
+ - Unfinished applications and the two lead lists are three more tables, and
+   tables are where this campaign found most of its geometry defects;
+ - Import Leads carries the `FileInput` dropzone that four uploads
+   migrated onto, so its appearance is now a shared contract rather than
+   one screen's decision.
+```
+
+```text
+`e2eUnfinished=mock`, added 2026-08-25 because this screen was the one
+in this list whose content came from a real callable. With no
+credentials the call fails, and *how* it fails decides what renders:
+the committed baseline was a loading skeleton captured in one
+environment, and CI captured something 30% different. Every other
+route here already uses a fixture harness; this one now does too.
+```
+
+## `e2e/visual/catalog.spec.cjs`
+
+```text
+## Why this lane is blocking, as of 2026-08-25
+
+It was `continue-on-error` before, on the stated grounds that the catalog did
+not load Inter so text rasterised with whatever the runner's `sans-serif`
+resolved to. The CI record contradicted that diagnosis in both directions: all
+130 catalog baselines passed on GitHub's runners, and all 20 *application*
+baselines failed — because the application fetched Inter from rsms.me and the
+runner never got it. The lane had never been green, and nobody could see that,
+because the step swallowed its own failure.
+
+The font is served from `design-system/fonts/` now, by the application and by
+this catalog, so there is no machine-dependent input left and the lane is
+enforced. The first test below is still the tripwire and matters more than
+ever: it asserts Inter actually loaded, so a font problem is one legible
+failure instead of 150 pixel diffs.
+
+`scripts/test-ci-plan.mjs` (K1) asserts the workflow step carries no
+`continue-on-error`, so this cannot quietly become advisory again.
+```
+
+```text
+The chrome contract, added 2026-09-05. Five shots rather than one because
+the axes are independent and a single composite would hide which moved.
+```
+
+```text
+Added 2026-08-25 to close an asymmetry: `DataTable`'s empty state has had a
+baseline since the lane was written, and the native-table contract — which
+eleven feature files now read — had none for either state worth seeing.
+```
+
+```text
+Audit step K, 2026-09-06: the same matrix as a table at 1440px and as one
+card per row at 412px, so both halves of the phone rule have a picture.
+```
+
+```text
+It was serial until 2026-08-25, and serial mode has one consequence that
+matters more than anything it was buying: **when a test in a serial group
+fails, Playwright skips every remaining test in the group.** With 142 of
+this lane's 174 tests in this one group, a change touching several
+components reported exactly one failure and silently skipped the rest — so
+a re-record looked like "one baseline moved", and a genuinely broken
+catalog produced a diff artifact holding a single image. Measured: a
+one-line CSS change moved several subjects, and the run reported
+`1 failed / 81 did not run` at every worker count, including `--workers=1`
+and `--max-failures=0`.
+
+That is also why the twenty `app.spec.cjs` font failures were all visible
+in CI while this file's were not: that describe was never serial.
+
+Nothing here needed serial. `beforeAll` runs once per worker, so each
+```
+
+## `src/app/routes/StartApplicationRedirect.test.jsx`
+
+```text
+That screen became the primary action inside the unified unfinished-applications
+workspace on 2026-09-10, so the path has no component of its own. A recruiter
+may still have it bookmarked, and internal links may still point at it.
+```
+
+## `src/app/routes/companyRouteManifest.test.js`
+
+```text
+`Started (unfinished)` and `Start an application` were two sidebar items over
+one collection of drafts — `listApplicationDrafts` filters by nothing, so a
+carrier-prepared draft appeared under both. They became one workspace on
+2026-09-10, and this is what stops the second item drifting back in.
+```
+
+## `src/config/applicationSchema.js`
+
+```text
+The 49 CFR 40.25(j) question, and the broader one it replaced on
+2026-10-06, which the Production frontend asks until it is promoted. Each
+shows only on an application that answered it.
+```
+
+```text
+49 CFR 391.21(b)(7): appended after the original keys (2026-09-02) so
+stored rows keep their order; absent on records written before then.
+```
+
+```text
+49 CFR 391.21(b)(10)(iv), asked of a job of the past three years since
+2026-10-06; absent on older rows and older jobs.
+```
+
+## `src/design-system/components/badge/Badge.test.jsx`
+
+```text
+Found by the desktop and mobile visual review on 2026-08-21: a "Removed"
+badge inside a `Stack` rendered as a full-width pill, because a column flex
+container stretches its items across the cross axis — which for a column is
+the width. jsdom has no layout engine, so this asserts the declaration rather
+than the measured box; `check:table-layout` and the catalog screenshots cover
+the rendered result.
+```
+
+## `src/design-system/components/file-input/FileInput.drop.test.jsx`
+
+```text
+A `<label>` forwards a click to the control it names and never a drop, so the
+panel ignored what was dropped on it until 2026-08-25. What replaced that is
+an explicit handler that assigns the files and dispatches a real `change`, and
+these are the mechanics of it: what gets through, what `accept` refuses, and
+what a disabled panel still owes the page.
+```
+
+```text
+The native picker filters by `accept` in its own dialog, so a call site that
+passes `accept="image/*"` has never had to check what it received. Assigning
+`files` programmatically inherits none of that — so before 2026-08-25 a PDF
+dropped on the company-logo control was uploaded and persisted as the logo,
+leaving a broken image. `BrandingSection` passes `image/*`,
+`CompanyProfileTab` uploads whatever arrives, and Storage permits PDFs in
+`company_assets`; nothing else in that chain would have stopped it.
+```
+
+## `src/design-system/components/file-input/FileInput.rejection.test.jsx`
+
+```text
+Found in review on 2026-08-26 and reproduced before it was fixed.
+
+`EnvelopeSidebar` renders `{!file ? <FileInput/> : …}` and `UploadField`
+renders the picker only in its idle state, so a MIXED drop hands them a
+file, they re-render, and the component's own alert is unmounted in the
+commit that created it. The all-refused case was never affected: no file
+arrives, so nothing unmounts.
+```
+
+## `src/design-system/components/file-input/FileInput.test.jsx`
+
+```text
+The three shapes the product actually uses.
+
+This component shipped on 2026-08-21 and four days later had two consumers,
+while nine raw `<input type="file">` controls were still in the tree — every
+one carrying a comment that said no file-input contract existed. Migrating them
+is what showed why: the contract existed, and its API covered one of the three
+shapes. A primitive that fits a third of its call sites does not get adopted.
+```
+
+```text
+Disabling the element that has focus drops focus to `<body>`, so an upload
+started from the keyboard used to end with the user at the top of the
+document. The two pickers this component replaced each had their own
+focus-return effect; a review on 2026-08-25 caught that deleting them left
+nothing here.
+```
+
+```text
+The behaviour the docblocks claimed for months and did not have.
+
+A `<label>` forwards *activation* to the control it labels, which is a click
+and not a drop, and the input is clipped to 1x1 — so before 2026-08-25 a file
+dropped on the dashed panel landed on the label and was discarded. Four
+upload panels advertised a dropzone that ignored drops.
+```
+
+## `src/design-system/components/file-input/dropAcceptance.test.js`
+
+```text
+These ran through a rendered component and a synthetic `DataTransfer` before
+2026-08-26, which tested the wiring and left the rules themselves covered only
+where a component test happened to reach them. `accept` has three syntaxes and
+the message has more shapes than the component has states.
+```
+
+```text
+Found in review on 2026-08-26: the message said "only one.png was added"
+while `rejected` was empty, which tells a caller two contradictory
+things. `rejected` means what you dropped and did not get, whichever of
+the two reasons applies.
+```
+
+## `src/design-system/patterns/modal/ConfirmDialog.test.jsx`
+
+```text
+Contract for the approved `ConfirmDialog` (2026-07-28).
+
+This component replaced the last six blocking `window.confirm` guards in the
+app, so its behaviour is the guarantee every one of those flows now rests on:
+nothing happens until Confirm, nothing happens on Cancel/Escape/backdrop, a
+confirmed action cannot fire twice, and a failure is announced without closing
+the dialog.
+```
+
+## `src/design-system/tests/architecture.test.js`
+
+```text
+`shared` is a compatibility layer that imports *from* the design system, so
+a dependency in this direction is a cycle. It was not enforceable until
+2026-08-21: `ConfirmDialog` composes `Modal`, `Modal` lived in
+`shared/components/modals`, and the pair could only move together. They now
+live in `patterns/modal`, so the rule can finally be a rule.
+```
+
+```text
+The JavaScript half of this rule shipped on 2026-08-21 and the README said
+the boundary was enforced. It was not: the walker only looked at
+`.js/.jsx/.ts/.tsx`, and `design-system/index.css` ended with
+
+    @import '../shared/styles/designTokens.css';
+
+for the whole campaign. A stylesheet crossing the boundary is the same cycle
+as a module crossing it, and it is worse in one way — a token file loaded
+from `shared` is a second source of truth for the thing this directory
+exists to own, and nothing above would ever have said so.
+```
+
+## `src/design-system/tests/tokens.consumers.test.js`
+
+```text
+A 2026-09-04 audit found **fourteen** tokens that nothing used: five palette
+steps, two duplicates of the brand colours under an older name, two spacing
+steps, three type roles and a duration. None of them was wrong; they had
+simply outlived their consumer, and nothing noticed because a token costs
+nothing to keep.
+
+That is the problem. A vocabulary nobody prunes stops being a vocabulary and
+becomes a list — the next person reads `--ds-color-teal-500` beside
+`--ds-color-brand-mint`, cannot tell which is live, and picks one. Thirteen
+were deleted on 2026-09-05; this is what stops the next thirteen.
+```
+
+## `src/design-system/tests/tokens.test.js`
+
+```text
+`content-muted` moved from slate-500 to slate-600 on 2026-08-21 so it is
+safe wherever it lands, replacing a rule that said "approved on `surface`
+only" — a rule three real axe violations proved was too easy to forget.
+```
+
+```text
+Every gap the 2026-08 audit found. Feature code reached for a raw palette
+class in each of these places because the role had no utility to reach for,
+so an unbridged role is a cause of the inconsistency, not a cosmetic
+omission.
+```
+
+## `src/features/applications/components/PreservedApplicationView.jsx`
+
+```text
+A hand-composed `EmptyState` until 2026-09-06: a bordered box with
+`role="status"`, a large decorative glyph, a bold line and a
+supporting line. That is the pattern exactly, and roadmap §7 records
+this shape as the drift no rule can see — every piece is an approved
+primitive, so nothing complains.
+
+The 40px glyph is what surfaced it. It is not a step on the icon
+scale, snapping it to 32 would have been a visible change made for no
+reason, and the honest answer to "which container owns this size" is
+the one that owns the whole block.
+
+The live region moves rather than doubling: `EmptyState` announces
+politely and renders the `role="status"` itself, so the hand-written
+one goes with the `div` that carried it. And the bold paragraph
+becomes the state's heading, which puts an empty state's message in
+the document outline where it belongs — `headingLevel={3}` because
+this renders inside a tab under an `h2`.
+```
+
+## `src/features/applications/components/PreservedApplicationView.test.jsx`
+
+```text
+A custom file question's answer, since 2026-10-02. It used to be a filename
+nothing referenced; it is the upload itself now, and the company can open it.
+```
+
+## `src/features/applications/components/SubmissionRecordNotice.test.jsx`
+
+```text
+Until 2026-09-06 this file hand-built its block and carried its own tone
+map, so the check was "is `ds-status-warning` in the wrapper's class
+list". It renders a `Notice` now: the tone is an attribute and the colours
+live in `Notice.css`, so the class assertion is `data-tone`. The half that
+matters is unchanged — no raw palette colour, in any spelling.
+```
+
+## `src/features/campaigns/CampaignsDashboard.jsx`
+
+```text
+The ids are the frozen `activeTab` contract ('drafts' | 'history'); labels and
+icons are presentation only. The strip itself is the design system's `TabList`
+since 2026-08-25 — it was a hand-rolled tablist with a comment saying "the
+design system has no tab primitive yet", which stopped being true on
+2026-08-21. It also stops being the product's fourth tab appearance: a
+page-level view switcher looks like every other page-level view switcher.
+```
+
+## `src/features/campaigns/components/AudienceBuilder.test.jsx`
+
+```text
+The picker is the design system's `FileInput variant="dropzone"` since
+2026-08-25. The accept list is byte-for-byte the same; what changed is that
+the visible affordance is the `<label>` wrapping the input rather than a
+sibling `Button` calling `.click()` on it, and `FileInput`'s `onDrop`
+makes the whole panel a real drop target.
+```
+
+```text
+This was the one `useBulkImport` consumer that passed no `onError`, so the
+hook fell back to a blocking `alert()` and every CSV/Sheet import failure
+froze the tab with a native prompt. Fixed 2026-07-28.
+```
+
+## `src/features/campaigns/components/DetailedReportModal.test.jsx`
+
+```text
+The requirement is unchanged — a tall report must never clip Close or
+Retry — but the mechanism moved on 2026-09-05, and this test was
+written against the mechanism.
+
+It used to scroll the OVERLAY (`overflow-y-auto` on the backdrop) with
+an auto-margin panel that could grow past the viewport. The chrome
+contract scrolls the PANEL instead, capped at `--ds-dialog-max-height`
+— same guarantee, and the cap is what makes it a guarantee rather than
+a consequence of the page being tall enough.
+```
+
+## `src/features/companies/components/DashboardToolbar.jsx`
+
+```text
+Migrated 2026-08-21. Presentation only — the filter keys, the driver-type
+option list, the `setFilters` shape, `clearFilters`, the assignment action and
+the my-assignments toggle are unchanged.
+
+This screen was the campaign's exemplar, and it is worth recording what it
+looked like: four hand-built buttons with four *different* paddings
+(`px-4 py-1.5`, `px-3 py-2`, `p-2`, `px-4 p-2`), a search input at `py-2` and
+three filter selects at `p-2` — so no two controls in one toolbar were the
+same height — plus `text-gray-900`, `bg-blue-600` and `border-gray-200`
+throughout, and hand-built `text-xs font-bold uppercase` labels.
+
+Every control now comes from the shared scale, so the row lines up without
+anything being set here. The filter labels are real `FormField` labels, which
+also fixes the accessibility defect underneath the styling: the filter
+controls were labelled by an adjacent `<label>` with no `htmlFor` and had no
+`id`, so each announced as an anonymous combobox.
+```
+
+## `src/features/companies/hooks/dashboardQueries.js`
+
+```text
+The dashboard's Firestore side, split out of `useCompanyDashboard.js` on
+2026-09-01 for the source-size standard. Everything here is React-free:
+```
+
+## `src/features/companies/hooks/useCompanyDashboard.js`
+
+```text
+lives in `dashboardQueries.js` since the 2026-09-01 source-size split. This
+```
+
+## `src/features/companies/services/companyService.js`
+
+```text
+Application Rules and optional integrations (2026-09-02). Written only when
+the company has them, so a company that never opened those tabs keeps the
+platform defaults and its document is untouched.
+```
+
+## `src/features/company-admin/applicationPrep/ApplicationPrepEditor.test.jsx`
+
+```text
+Measured in a real browser on 2026-10-01 against the real callables: the editor
+rendered "Upload Medical Card" as a text box reading "[object Object]", offered
+a Social Security Number box whose contents the server silently discarded, and
+took the state, licence state, endorsements and "known by other name" as free
+text — so a carrier's "TX" reached the driver's state picker, which lists
+names, and showed as "Alabama" while the application went on holding "TX".
+```
+
+## `src/features/company-admin/applicationPrep/PreparedEmployersPanel.test.jsx`
+
+```text
+A lock stores a snapshot of an employer's identity, and this panel used to let
+the carrier go on editing the very fields that snapshot is taken from. The two
+drifted, and four ordinary edits produced an application the driver was blocked
+on at submission and could not fix. The sharpest: a corrected NAME on a row
+locked by USDOT number trips `locked-employer-changed`, while the driver's
+wizard renders that identity as a record rather than a field — so they were
+blocked on the one field they are not allowed to touch. Found 2026-09-08.
+```
+
+## `src/features/company-admin/applicationPrep/applyExtractedFields.test.js`
+
+```text
+The licence prints 'TX'; the driver's state pickers hold names and
+rendered the code as "Alabama" (2026-10-01), so both are filled as one.
+```
+
+```text
+The reader matches a report's carrier to a row already on the application by
+USDOT number or by name. It used to lock the REPORT's spelling, so a row the
+recruiter typed as "Acme Trucking LLC" was locked as "ACME TRUCKING": every
+carrier save kept the lock (same USDOT signature), and the driver was then
+refused at submission with `locked-employer-changed` on a name the wizard shows
+them as a record they cannot edit (2026-10-01). Driven here through the same
+functions the save and the submission use.
+```
+
+## `src/features/company-admin/applicationPrep/mergeExtractionResults.test.js`
+
+```text
+The bug this pins was a shallow spread. The second call answers only for the
+documents the model reported as unreadable, so it returns a complete shape that
+is mostly empty — and spread over the first pass, `carriers: []` and an empty
+`license` erased everything a readable PSP report and a readable licence had
+already produced. One unreadable medical card cost the recruiter every other
+field, silently, with a success message on screen.
+
+Found in review on 2026-09-03.
+```
+
+## `src/features/company-admin/applicationPrep/unfinishedRowActions.test.js`
+
+```text
+`Started (unfinished)` and `Start an application` became one workspace on
+2026-09-10, and the risk in that move is uniformity: a driver-started row
+offered the same actions as a carrier-prepared one would hand a recruiter a
+read they must not have. These drive the decision directly, so it is pinned
+whatever any table later renders.
+```
+
+```text
+The owner's decision of 2026-10-06: a Company Admin opens every row and may
+delete any of them. Recruiters keep everything above.
+```
+
+## `src/features/company-admin/components/CompanyBulkUpload.a11y.test.jsx`
+
+```text
+Two polite regions in this tree since 2026-08-26: the upload picker's
+own, which `FileInput` renders present-and-empty until an upload
+starts, and this notice. The claim under test is that the message is
+announced *politely* rather than as an alert, so it is asserted across
+the polite regions rather than against a single match.
+```
+
+## `src/features/company-admin/components/modals/PEVRequestModal.a11y.test.jsx`
+
+```text
+`PEVRequestModal.test.jsx` covers the FMCSA lookup, the contact seeding and
+the validation *behaviour*. This file covers what the 2026-07-27 migration is
+responsible for and what nothing previously asserted: that this is a real
+dialog with real focus handling, and that the delivery method is a real radio
+group rather than three buttons that look like one.
+```
+
+## `src/features/company-admin/components/modals/VOEPreviewModal.a11y.test.jsx`
+
+```text
+axe cannot measure colour contrast in happy-dom, so the AA floor of the
+document's small print is pinned by class instead. Real-browser axe found
+slate-400 at 2.56:1 (white), 2.45:1 (the slate-50 box) and ~2:1 inside the
+80%-opacity questionnaire; recoloured 2026-09-06 (audit step G) to slate-500
+outside that block and slate-700 inside it, where 500 blends to 3.25:1.
+```
+
+## `src/features/company-admin/components/modals/VOEPreviewModal.export.test.jsx`
+
+```text
+## The reason, corrected 2026-09-04
+
+This header used to say the two export paths carry no SafeHaul stylesheet, so
+a `--ds-*` colour would resolve to nothing. **That is false on both paths, and
+saying so was worse than saying nothing** — it invited someone to check it,
+find it wrong, and conclude the whole exception was unfounded:
+
+  1. `handleDownloadPDF` rasterises with html2canvas, which reads **computed**
+     style. `var()` is already resolved before the rasteriser sees it.
+  2. `handlePrint` does not write `innerHTML` into a CDN-Tailwind window. The
+     pipeline was rebuilt on 2026-07-27: it clones the node as a DOM tree and
+     inlines the application's own stylesheets through `collectPrintStyles`,
+     which copies every readable sheet — `tokens/foundation.css` and
+     `semantic.css` included. Those properties *are* there.
+```
+
+## `src/features/company-admin/components/modals/VOEPreviewModal.print.test.jsx`
+
+```text
+The print pipeline was **rebuilt** on 2026-07-27. The previous version of this
+block froze the broken behaviour: five `document.write` payloads, a
+`sanitizeUserContent` step and a 1 s timer. That pipeline emitted an unsigned,
+unstyled text dump, because `sanitizeUserContent` is the *user-content* policy
+— no `div`, no `class`, no `img` — and the document is trusted structure. See
+`@shared/utils/printDocument`.
+
+What is frozen now: the pop-up feature string, the `Print VOE` title, the
+20 px body padding, and that the on-screen document node is never mutated.
+What changed on purpose: the document is cloned as a DOM tree instead of
+serialised and re-parsed; the application's own CSS is inlined instead of
+fetched from the Tailwind CDN; and print waits on the new document's
+resources instead of a flat timer.
+```
+
+## `src/features/company-admin/components/modals/driver-dossier/DossierSidebar.contract.test.jsx`
+
+```text
+The strip is the design system's `TabList` since 2026-08-25, so the ids come
+from one `idBase` shared with `DriverProfileModal` (which renders the panel)
+rather than from two id-builder functions passed across the prop boundary.
+```
+
+```text
+the attribute optional in exactly that case. Pointing every tab at a panel
+id that does not exist, which is what this used to assert, is a dangling
+IDREF.
+```
+
+## `src/features/company-admin/components/modals/driver-dossier/tabs/ApplicationTab.employers.contract.test.jsx`
+
+```text
+## What could not be done before 2026-09-09
+
+`SchemaSection` renders an `array` section as read-only `FieldDisplay` rows
+whatever `isEditing` says. So a company admin could edit every scalar field on
+a submitted application and **none** of the employment history — the section a
+recruiter most often has to correct, since 49 CFR 391.21(b)(10) wants three
+years accounted for and a driver who left an employer out or mistyped a date is
+the ordinary case.
+```
+
+## `src/features/company-admin/components/modals/driver-dossier/tabs/DocumentsTab.contract.test.jsx`
+
+```text
+It is the approved `EmptyState` as of 2026-08-25, not a hand-composed
+icon-and-copy block. The frozen copy is the state's heading, which is what
+makes it reachable by heading navigation as well as announced.
+```
+
+## `src/features/company-admin/components/profile/ProfileAvatarField.test.jsx`
+
+```text
+The picker is the design system's `FileInput` since 2026-08-25. It was a
+hidden input driven by a `Button` calling `.click()` on it — which works
+with a keyboard, but names the trigger rather than the field and was one of
+three ways this product opened a picker.
+
+So the assertions move with it: the input is named by its FIELD (as every
+other control in the system is), and the visible affordance is the
+`<label>` that wraps it rather than a separate button. That is the
+structural rule the primitive exists to enforce — a real focusable input
+behind a real label, which also makes the label the browser's own
+drag-and-drop target.
+```
+
+```text
+This test used to assert that `aria-busy` and the button text had replaced
+the `role="status"` region this component owned before the `FileInput`
+migration. That was the wrong assertion to write: neither of those is
+announced — `aria-busy` sits on an input the upload has just disabled and
+taken focus from, and the button text is ordinary content. Rewriting the
+test to match the new markup is what let a real regression through, and a
+review on 2026-08-26 caught it. The region lives in `FileInput` now, so it
+is asserted here as behaviour this screen still has rather than as markup
+this file owns.
+```
+
+## `src/features/company-admin/components/tabs/DossierBodies.notes.test.jsx`
+
+```text
+The loading line and the empty block used to be two different shapes in
+the same slot — small centred text, then a dashed bordered panel — and the
+empty one announced nothing when the notes resolved. Both are the approved
+page-state pattern as of 2026-08-25, which is where "the three states of
+one slot look alike" is a rule rather than a habit.
+```
+
+## `src/features/company-admin/components/tabs/PEVTab.flow.test.jsx`
+
+```text
+`sendVerificationRequest` stamps a stable identity on the row it resolves —
+that identity is what the employer's own answer is later filed against — and
+this write used to put a snapshot of `appData.employers` back over the whole
+array, erasing it a moment later. The completion write-back would then find
+no row it could safely mirror onto. Found in self-review on 2026-09-09,
+before it shipped.
+```
+
+## `src/features/company-admin/views/DocumentsManager.views.test.jsx`
+
+```text
+The strip is the design system's `TabList` since 2026-08-25.
+
+`aria-controls` is on the SELECTED tab only. One panel is rendered, so
+pointing all four tabs at it was fine here but is not the primitive's
+contract — it renders a panel per selected tab, and an unselected tab
+pointing at an id that does not exist is a dangling IDREF. The ARIA tab
+pattern makes the attribute optional in exactly that case.
+```
+
+```text
+The transition, not the state. Until 2026-09-06 the locked check returned
+BEFORE `useEffect`, `useTemplateSendFlow` and `usePostSubmitForms`, so a
+company whose profile arrived (or was edited) with E-Docs off after the
+first paint changed the hook count between renders — the one thing React
+forbids — and the screen threw instead of showing the lock. The static test
+above renders locked from the start and can never see that; this one flips
+the flag on a mounted screen, which is what the audit's lint warnings were
+pointing at (three `react-hooks/rules-of-hooks` sites, all in this file).
+```
+
+## `src/features/company-admin/views/UnfinishedApplicationsPage.admin.test.jsx`
+
+```text
+The owner decided on 2026-10-06 that a Company Admin opens every unfinished
+application — read-only where the driver has written — and may delete any of
+them. Recruiters keep what `UnfinishedApplicationsPage.contract.test.jsx`
+pins; these drive the same screen with an admin's claims, and once with a
+recruiter's to show the two do not bleed into each other.
+```
+
+## `src/features/company-admin/views/UnfinishedApplicationsPage.contract.test.jsx`
+
+```text
+## And, since 2026-09-10, that a merged screen did not merge the rules
+
+`Started (unfinished)` and `Start an application` became one place. Both
+origins now share one table, so the cases below pin the three things that could
+go wrong in exactly that move: a draft appearing twice, a driver-started row
+offering a read it must not offer, and a link landing on the wrong applicant.
+```
+
+```text
+Until 2026-09-09 this screen had one control — Refresh — because
+`mintApplicationInvite` refused any draft the carrier had not itself prepared.
+So a recruiter watching somebody stop at the licence page could only ask them
+to start again, which throws away every answer the draft feature exists to
+keep. The cases below are the workflow and the restraint that goes with it.
+```
+
+```text
+The one failure that used to produce nothing at all, found in review on
+2026-09-09.
+
+`useInviteLink` records a refused mint in its `error`, and this screen never
+read it — so an ended session or a spent rate limit stopped the button
+spinning and left the recruiter with no link and no explanation. Exactly the
+silence the clipboard case above already fixed, one step earlier: a lost link
+this time, not a lost convenience.
+```
+
+## `src/features/company-admin/views/UnfinishedApplicationsPage.prep.test.jsx`
+
+```text
+Retargeted on 2026-09-10 from `StartApplicationPage`, which no longer exists as
+a screen: starting an application is the primary action inside
+`UnfinishedApplicationsPage`, and the wizard itself moved to
+`ApplicationPrepWorkspace`. These cases deliberately still drive the whole
+company flow through the page rather than the extracted component — the flow is
+what a recruiter performs, and the split is an internal one.
+
+What is pinned here is the flow this page owns — the Manual/AI choice, the AI
+upload step, and that per-application state (identity, answers, documents, the
+invite link) never leaks from one driver to the next — plus the two findings the
+earlier review caught, now under the new flow:
+```
+
+```text
+resolves, the staleness guard rejects it, and the notice never appears. The
+plain-render case above passes throughout, so this is the case that has to
+exist — it is the one the recruiter actually meets in a dev build, and it is
+the SECOND guard in this effect to fail this way (the first cancelled its own
+in-flight load). Found in review on 2026-09-10.
+```
+
+```text
+This used to assert the opposite: Save was `disabled` until an email or
+phone existed, and nothing on the screen said so. The precise sentence
+was already written on the server and was unreachable, because the
+client guard stopped the request ever being made. Changed 2026-09-08 —
+`UnfinishedApplicationsPage.prepActions.contract.test.jsx` drives the same rule
+through the real editor and the real fields.
+```
+
+## `src/features/company-admin/views/UnfinishedApplicationsPage.purge.test.jsx`
+
+```text
+The owner decided on 2026-10-07 that deleting one deletes the same driver's
+other unfinished application too, shown first. The server's side of it is
+`functions/test/unit/applicationDrafts.purge.test.js`.
+```
+
+## `src/features/driver-app/components/application/PublicApplyHandler.continuation.contract.test.jsx`
+
+```text
+The reported bug, as a test: a replacement link must not open a fresh application.
+
+## What was measured in production on 2026-09-09
+
+A carrier-prepared application for a driver who had reached the consent step. The
+recruiter pressed "Create a replacement link"; the driver opened it; the page
+rendered **"How would you like to start your driver application?"** with
+"Upload CDL for Auto-Fill" and "Fill Out Manually" — the fresh-application
+chooser — and no mention of the application they had spent an hour on. The
+exchange returned 200 both times they tried.
+
+The cause was on this side of the wire: `exchangeApplicationInvite` answers
+`requiresIdentity` once the answers behind a link are the driver's own, that
+outcome matched no branch in `resolveApplyStatusScreen`, and the chooser is what
+sits at the bottom of that function. The code comment standing in for the missing
+screen claimed the driver "is asked for their details by the ordinary resume flow
+underneath" — a flow that only triggers on the first Next of page one, inside the
+blank application the chooser had just started.
+
+So the first case here is written as the negative the report describes, and the
+rest are the outcomes a driver actually needs: their answers back, their step
+back, and a way forward when the details genuinely do not match.
+```
+
+## `src/features/driver-app/components/application/PublicApplyHandler.discardIdentity.contract.test.jsx`
+
+```text
+Split from the 2203-line original on 2026-09-01 for the source-size
+standard (PA-2); the shared harness lives in
+PublicApplyHandler.contract.support.jsx, and every describe keeps its
+original title so full test names are unchanged.
+```
+
+## `src/features/driver-app/components/application/PublicApplyHandler.discardReset.contract.test.jsx`
+
+```text
+Split from the 2203-line original on 2026-09-01 for the source-size
+standard (PA-2); the shared harness lives in
+PublicApplyHandler.contract.support.jsx, and every describe keeps its
+original title so full test names are unchanged.
+```
+
+## `src/features/driver-app/components/application/PublicApplyHandler.discardTabs.contract.test.jsx`
+
+```text
+Split from the 2203-line original on 2026-09-01 for the source-size
+standard (PA-2); the shared harness lives in
+PublicApplyHandler.contract.support.jsx, and every describe keeps its
+original title so full test names are unchanged.
+```
+
+## `src/features/driver-app/components/application/PublicApplyHandler.loadAndPostSubmit.contract.test.jsx`
+
+```text
+Added 2026-09-02 by the `PA-0` coverage audit, which found these two paths
+characterised nowhere in the browser. The error strings were asserted only as
+a prop handed to `ApplyLinkErrorScreen`, never as the container's routing;
+and the production open-document path (`createPostApplicationSigningRequest`)
+was pinned on the server and driven in the E2E journey's mock branch, while
+the browser's payload, return path, session snapshot and navigation were not.
+Same harness as the other suites; the registrations delegate to the support
+module (see its header for the `CA-3` deadlock rule that shapes them).
+```
+
+```text
+re-render lands a tick later. Waiting on the spy and then reading the DOM
+synchronously is two different moments, and on a loaded CI runner the gap
+opens: this failed there on 2026-09-05 while passing locally every time,
+alone and in a full run, which is exactly the signature the repository's
+own notes record for the `EditUserBodies` leak.
+```
+
+## `src/features/driver-app/components/application/PublicApplyHandler.progressResume.contract.test.jsx`
+
+```text
+Split from the 2203-line original on 2026-09-01 for the source-size
+standard (PA-2); the shared harness lives in
+PublicApplyHandler.contract.support.jsx, and every describe keeps its
+original title so full test names are unchanged.
+```
+
+## `src/features/driver-app/components/application/PublicApplyHandler.reconcile.contract.test.jsx`
+
+```text
+Split from the 2203-line original on 2026-09-01 for the source-size
+standard (PA-2); the shared harness lives in
+PublicApplyHandler.contract.support.jsx, and every describe keeps its
+original title so full test names are unchanged.
+```
+
+## `src/features/driver-app/components/application/PublicApplyHandler.submit.contract.test.jsx`
+
+```text
+Split from the 2203-line original on 2026-09-01 for the source-size
+standard (PA-2); the shared harness lives in
+PublicApplyHandler.contract.support.jsx, and every describe keeps its
+original title so full test names are unchanged.
+```
+
+```text
+The applicant's own calendar day, which the server judges "the last seven
+days" and "expired" against when it is within a day of its own (2026-10-01).
+```
+
+```text
+The day the applicant pressed Submit, so a replay is judged on the day the
+page was, as the direct attempt is (found in review, 2026-10-01).
+```
+
+```text
+A refusal used to be retried three times and then shown as "Application
+Saved … No data will be lost", while the replay sent the same payload into the
+same refusal and gave up silently: an application the driver believed sent
+and the carrier never received (found 2026-10-01).
+```
+
+## `src/features/driver-app/components/application/PublicApplyScreens.gate.test.jsx`
+
+```text
+The precedence is the point. Before 2026-09-08 an unopenable, expired,
+rate-limited or temporarily unavailable link resolved to `null`, was
+indistinguishable from having followed no link at all, and dropped the driver
+into the ordinary application — possibly pre-filled from a different
+applicant's saved draft — with nothing said. Two positions in the chain are
+therefore load-bearing, and both are asserted here: below a submitted
+```
+
+## `src/features/driver-app/components/application/UploadField.preview.test.jsx`
+
+```text
+An upload used to leave a signed read URL in the form data, and that signature
+lives FIFTEEN MINUTES. It was persisted into the draft and handed to the driver
+by the invite exchange, so a document a recruiter attached on Tuesday was a
+broken image and a Storage error page by the time the driver opened their link
+— and the same for the recruiter reopening their own draft an hour later. The
+durable identifier was sitting beside it, unused. Found 2026-09-08.
+```
+
+## `src/features/driver-app/components/application/UploadField.test.jsx`
+
+```text
+jsdom does not implement window.confirm, so it is stubbed by assignment
+rather than spied on. It is asserted *unused*: the removal prompt was a bare
+`confirm(...)` until 2026-07-28 and must not come back.
+```
+
+```text
+`FileInput` renders its own rejection alert, but this field renders the picker
+only while there is nothing to show — so the accepted file unmounts the alert
+in the commit that created it, and the applicant never learns that a second
+file was turned away. Found in review on 2026-08-26.
+```
+
+```text
+The picker is the design system's `FileInput variant="dropzone"` since
+2026-08-25. It was a `Button` driving a `tabIndex={-1}` hidden input; it is
+now a real focusable input behind a real `<label>`, which is the primitive's
+one structural rule; `FileInput`'s `onDrop` is what makes the panel a real
+drop target.
+
+So the trigger is not a `<button>` any more, the input IS in the tab order,
+and the visible copy is unchanged. The accessible name moved from "the frozen
+visible copy plus a hidden disambiguating suffix" to the field's own label,
+which is what every other control in the system announces as.
+```
+
+## `src/features/driver-app/components/application/applicationDraftStorage.identity.test.js`
+
+```text
+Half of the original `applicationDraftStorage.test.js`, split on 2026-09-01
+for the source-size standard. This file keeps the identity-and-lifecycle
+```
+
+## `src/features/driver-app/components/application/applicationDraftStorage.sync.test.js`
+
+```text
+Half of the original `applicationDraftStorage.test.js`, split on 2026-09-01
+for the source-size standard. This file keeps the storage-and-sync suites —
+```
+
+## `src/features/driver-app/components/application/publicApplyBootstrap.invite.test.js`
+
+```text
+ - the exchange runs BEFORE the post-apply session restore, and a successful one
+   clears that session — which is what stops a 24-hour-old confirmation screen
+   for this carrier hiding a live invitation (found 2026-09-08);
+```
+
+```text
+Review found this on 2026-09-09, and it is the foreign-slot rule reaching one
+step further than it did.
+
+`requires_identity` used to fall through to the local-draft restore
+unconditionally, so a shared or kiosk browser loaded the PREVIOUS applicant's
+answers into `formData` — behind the confirmation screen, where the driver
+cannot see them. They do not stay invisible: `adoptOpenedApplication` merges
+the real answers over `prev` and every key the target application does not
+itself hold survives, so the next autosave writes a stranger's employer rows
+and upload descriptors onto this driver's DOT application. The reconciliation
+effect already withheld the same slot for the same reason; this is the other
+reader of it.
+```
+
+```text
+The second route to the reported symptom, found in review on 2026-09-09.
+
+A live invitation waiting on "Confirm it's you" used to fall through to the
+post-apply restore, which sets `submissionStatus = 'success'` — and success
+renders ABOVE the confirmation screen. So a driver who submitted an
+application to this carrier in this tab within the last 24 hours, and then
+opened a continuation link for a DIFFERENT unfinished one, saw the old
+confirmation screen and no question at all: the intake chooser bug wearing a
+different mask, and permanent, because the session is rewritten on every
+load.
+```
+
+## `src/features/driver-app/components/application/publicApplyDraftSync.test.js`
+
+```text
+It runs on load and again after a continuation link's identity check, and it is
+a round trip — a cold-startable callable, on a phone. Until 2026-10-01 it applied
+`Math.max(current, saved)` when it landed, so a driver who went back a page in
+that window was put straight back where they had been: reproduced in a real
+browser against the real callables by delaying `resumeApplicationDraft` 1.5s.
+```
+
+## `src/features/driver-app/components/application/publicApplyPreflight.test.js`
+
+```text
+Both used to be refused with a toast and no routing, which left the applicant
+on the signature page with no idea which page held the field (2026-10-01).
+```
+
+## `src/features/driver-app/components/application/reportSuggestions.test.js`
+
+```text
+'tx' is filled as 'Texas': the licence-state picker holds names, and given
+the code it rendered "Alabama" (2026-10-01).
+```
+
+## `src/features/driver-app/components/application/steps/DynamicQuestionsStep.test.jsx`
+
+```text
+Until 2026-10-02 this recorded `file.name` the moment a file was chosen and
+threw away the storage path the upload returned, so the company saw a filename
+nothing referenced — and a failed upload still read as answered.
+```
+
+## `src/features/driver-changes/ReviewChangePortal.test.jsx`
+
+```text
+Before 2026-09-09 employers could not be edited at all, so this change never
+appeared here. It does now, and the generic array preview renders "N item(s)" —
+which asked a driver to approve **"2 item(s) → 1 item(s)"** with no way to tell
+which employer had gone.
+```
+
+## `src/features/driver-changes/employerChangeSummary.js`
+
+```text
+Employers became editable on 2026-09-09, which is what turned a cosmetic gap
+into a real one: before that, `employers` could not appear in a pending change
+at all.
+```
+
+## `src/features/settings/components/CompanyProfileTab.test.jsx`
+
+```text
+The picker is `FileInput` since 2026-08-25: a label, not a button.
+```
+
+## `src/features/settings/components/EmailSettingsTab.test.jsx`
+
+```text
+`Link external` since 2026-08-25, instead of a hand-written
+`target="_blank"`. The announcement is the whole reason the primitive
+exists — target plus rel written by hand gets the new tab and the
+tabnabbing fix and silently drops the WCAG 3.2.5 announcement — so the
+assertion now requires it rather than just the attributes.
+```
+
+## `src/features/settings/components/IntegrationsTab.a11y.test.jsx`
+
+```text
+`IntegrationsTab.contract.test.jsx` freezes the SDK/login/Graph/callable
+contracts frozen by the 2026-07-23 deep-audit. This file proves the
+concrete presentation defects recorded there are fixed, without touching
+(or implying a fix to) the unrelated, unfixed tenant-binding security
+defect in `connectFacebookPage` — that stays out of scope.
+```
+
+## `src/features/settings/components/IntegrationsTab.contract.test.jsx`
+
+```text
+Contract freeze for `IntegrationsTab`, written before its design-system
+migration. This file had zero test coverage before this campaign. It pins
+the exact contracts recorded in the 2026-07-23 Integrations deep-audit
+(NO-GO) so a presentation-only migration cannot silently change them:
+```
+
+```text
+This freeze does NOT change, endorse, or attempt to fix the tenant-binding
+defect recorded in that audit (the backend derives the tenant from
+`request.auth.uid` rather than the real company id) — that remains a
+separate, security-reviewed backend project. No backend file is touched
+here or by the presentation migration that follows.
+```
+
+```text
+`companyId` joined this payload on 2026-08-25. Before it, the callable
+derived the tenant from `request.auth.uid`, which is not a company id
+in this application, so every connected page wrote its leads to a tree
+no screen reads. It is part of the frozen contract now.
+```
+
+## `src/features/settings/components/NumberAssignmentManager.a11y.test.jsx`
+
+```text
+`NumberAssignmentManager.test.jsx` freezes the SMS/token business logic
+(cases A–O). This file proves what the 2026-07-23 deep-audit recorded as
+known debt is now fixed: unlabelled per-row and default-line selects,
+sub-12px status text, and color-only status indicators.
+```
+
+## `src/features/settings/components/profile/BrandingSection.test.jsx`
+
+```text
+The picker is the design system's `FileInput` since 2026-08-25, so the
+input is named by its FIELD and the visible affordance is the `<label>`
+wrapping it rather than a `Button` that calls `.click()` on it. Same
+migration, same reasoning, as `ProfileAvatarField`.
+```
+
+```text
+This test used to assert that `aria-busy` plus the button text had replaced
+this component's own `role="status"` region. Neither of those is announced,
+so what it really asserted was that the announcement had gone — the
+migration's markup, not the screen's behaviour. Found in review on
+2026-08-26. The region is `FileInput`'s now; the behaviour is still this
+screen's, so this is where it is checked.
+```
+
+## `src/features/settings/components/questions/CustomQuestionsBuilder.test.jsx`
+
+```text
+The empty panel was a hand-composed dashed block with its copy in a `<p>`;
+it is the approved `EmptyState` as of 2026-08-25, with the "add your first
+question" control as the state's action rather than a `<div>` under the
+text. The copy and the control's behaviour are unchanged — the test above
+still clicks the same button and asserts the same frozen defaults.
+```
+
+## `src/features/settings/components/rules/ApplicationRulesPanel.test.jsx`
+
+```text
+`EXPERIENCE_OPTIONS` carries "0-6 months"; interpolated raw, that made an
+invalid id, and axe hung on the selector happy-dom 20.4+ refuses (2026-09-06).
+```
+
+## `src/features/signing/components/envelope-creator/EnvelopeSidebar.drop.test.jsx`
+
+```text
+The picker here renders only while `!file`, so a mixed drop hands
+`handleFileChange` the PDF, the branch flips, and anything the picker rendered
+about the file it refused goes with it. Found in review on 2026-08-26.
+```
+
+## `src/features/signing/components/envelope-creator/EnvelopeSidebar.test.jsx`
+
+```text
+The rail sections are the design system's `Disclosure` since 2026-08-25,
+which UNMOUNTS a closed panel where this component used `hidden`. Both take
+it out of the accessibility tree; unmounting also takes it out of
+find-in-page and screen-reader browse mode, which is the primitive's stated
+reason. Safe here because the recipient fields are lifted state, so
+collapsing a section loses no typed value.
+```
+
+```text
+The picker is the design system's `FileInput variant="dropzone"` since
+2026-08-25 — a real focusable input behind a real `<label>`, instead of a
+hidden `tabIndex={-1}` input clicked by a `Button`. The frozen copy and the
+accept list are unchanged; what changed is that the panel itself is the
+control, and `FileInput`'s `onDrop` accepts a PDF dropped onto it.
+```
+
+```text
+The delivery toggle is the design system's `SegmentedControl` since
+2026-08-25 — one of the four call sites the primitive was built for. It was
+a `role="group"` of `Button variant={selected ? 'primary' : 'secondary'}`,
+which meant the selected state was a *button variant*: the same tokens as a
+primary action, on a control that is not an action.
+```
+
+## `src/features/signing/components/envelope-creator/ResizableDraggableField.appearance.test.jsx`
+
+```text
+12x12 until 2026-09-06. Neither exception applied: the handle sits on the
+field, itself a target, so Spacing fails; Alt+arrows is keyboard-only, so
+Equivalent does not reach a pointer user. Half the box lies over the page
+and half over the field, so the footprint inside the field is unchanged.
+```
+
+## `src/features/super-admin/components/CompaniesView.test.jsx`
+
+```text
+Two defects in one row, found 2026-08-25.
+
+The loading and error rows put their live-region role on the `<td>`, which
+REPLACES the cell role: a row whose only child is not a cell is a row
+assistive technology may drop from the table altogether. And the empty row
+carried no role at all, so filtering the list down to nothing replaced the
+whole table and announced nothing.
+
+`ModernDriverTable` and `DataTable` both already put the role in a wrapper
+inside the cell. This asserts the same shape here, in both directions —
+the role is on the wrapper, and it is not on the cell.
+```
+
+## `src/features/super-admin/components/CreateView.contract.test.jsx`
+
+```text
+Contract freeze + a11y proof for `CreateView`, written with its design-system
+migration (2026-07-28).
+```
+
+## `src/features/super-admin/components/FeaturesView.test.jsx`
+
+```text
+Filtering the matrix down to nothing replaced the whole table body and
+announced nothing (2026-08-25). The role goes in a wrapper inside the
+cell, never on the `<td>` — on the cell it replaces the cell role.
+```
+
+## `src/features/super-admin/components/SuperAdminSidebar.icons.test.jsx`
+
+```text
+resolves them through an explicit `ICONS` map. A name the map does not have
+used to resolve to `undefined`, and `undefined` does not throw — it renders
+nothing, the row collapses to zero width, and the label wraps **one character
+per line**, adding a hundred-odd pixels of broken navigation.
+
+That happened on 2026-08-29: a new entry named `Inbox`, which was not
+imported. Nothing failed. The unit suites passed, lint passed, the build
+passed; only the visual-regression gate caught it, and only because a full-page
+screenshot got taller. **A defect that is invisible to every check but a pixel
+diff is one worth a cheap direct test**, which is this file.
+```
+
+## `src/features/super-admin/components/SystemHealthView.contract.test.jsx`
+
+```text
+The Deep Diagnostic, "Sync Backend Structure" and the one-off SMS history
+backfill were removed (2026-10-11): the first wrote test users and records into
+the live database, the second wrote schema defaults into every live record. What
+stays is frozen here: the Public Profiles action and its labels, its announced
+outcome, the output log, and the heading structure.
+```
+
+## `src/features/super-admin/components/modals/superAdminModals.dialog.test.jsx`
+
+```text
+Before the 2026-07-28 migration every one of these was a hand-built
+`fixed inset-0` overlay: no `role="dialog"`, no focus trap, no Escape, no
+focus restoration, and unnamed icon-only close controls. This file proves each
+of those is fixed and freezes the callable payloads the modals own, so the
+presentation change cannot quietly alter a destructive action.
+```
+
+```text
+Filtering to nothing replaced the whole table with a hand-composed
+icon-and-copy block that carried no live-region role, so a screen-reader
+user typing in the filter got silence (found 2026-08-25). It is the approved
+`EmptyState` now, which owns the announcement, and it keeps the two distinct
+strings — "nothing matches your filter" must not read as "nothing exists".
+```
+
+## `src/features/super-admin/components/users/EditUserBodies.contract.test.jsx`
+
+```text
+These were missed by the 2026-07-28 Super Admin dialog pass — `EditUserModal`'s
+shell was migrated while both bodies stayed fully legacy (blocking
+`window.confirm`/`alert`, `title`-only icon-button names, an unlabelled per-row
+role select, a 2.56:1 grey, an unnamed scroll region). Migrated 2026-07-28.
+```
+
+```text
+That cost a `frontend-quality` failure on 2026-09-06, on a change that touched
+only documentation and tooling. Reproduced by resolving the memberships one
+macrotask later: three tests fail with the exact CI messages.
+```
+
+```text
+That is what failed on 2026-08-26: "offers only companies the user is not
+already in" relies on the default membership in `co-1` being filtered out
+of the select, got a leaked `{ docs: [] }` instead, and reported
+`['', 'co-1', 'co-2', 'co-3']`. It passed in isolation and passed a full
+local run of all 4470 tests, because the leak needs the timing to slip.
+```
+
+```text
+The first paint after the memberships promise resolves competes with the
+whole 4,500-test CI run for the event loop; the default 1 s findBy
+timeout expired once on a loaded runner (2026-09-01) with the load
+itself already confirmed. The generous timeout is on the initial-load
+assertions only — the same family, fixed together.
+```
+
+```text
+Locally the load almost always resolves inside `findBy`'s own polling and
+this passes. On a loaded CI runner the gap opens, and it did: this exact
+message, on 2026-08-26 and again on 2026-09-06.
+```
+
+## `src/features/super-admin/views/UnifiedDriverList.bulkSafety.test.jsx`
+
+```text
+Operator-safety regression guard for the Unified Driver Database's bulk
+actions — third and final shape (2026-09-06).
+
+The history this file guards against, in order:
+
+ 1. Message / Assign / Move Status / Archive were placeholders that fired a
+    **success** toast and did nothing. Archive also asked
+    `window.confirm("Are you sure you want to archive N records?")`, so an
+    operator could confirm a destructive-sounding action on real driver records
+    and be told it had succeeded.
+ 2. From 2026-07-28 the four controls stayed visible but disabled and labelled
+    unavailable, so the owner decision stayed visible too.
+ 3. The decision (2026-09-06): controls that do nothing are not shown. The bar
+    and the row-selection checkboxes that existed only to feed it are removed.
+    A real bulk action returns together with its selection when a recruiter
+    asks for one.
+
+This file fails if any earlier shape comes back: no selection checkboxes, no
+```
+
+## `src/features/verification/VerificationPortal.closeout.test.jsx`
+
+```text
+`VerificationPortal.test.jsx` (2026-07-23) froze the token load, the
+conditional reveals, the submit payload and the status screens, and it mocks
+`SignaturePad` away. This file covers what that slice left open and what this
+campaign changed:
+```
+
+## `src/features/verification/VerificationPortal.typedSignature.test.jsx`
+
+```text
+The typed signature path through the real form (audit step J, 2026-09-06):
+a respondent who cannot use a pointer can still sign — by choosing "Type" and
+typing their name — and what reaches the callable says so.
+```
+
+## `src/hooks/useSubmissionQueue.test.js`
+
+```text
+Left out, a replay was judged on the server's UTC day: after 8 p.m. Eastern
+that is tomorrow, and an Hours of Service statement the page accepted is the
+wrong week (found in review, 2026-10-01).
+```
+
+## `src/main.jsx`
+
+```text
+The pdf.js worker wiring that used to sit here moved to `@lib/pdf/pdfWorker`,
+imported by the PDF features themselves, so the 117 kB pdfjs chunk no longer
+ships to every route (2026-09-06, audit step I).
+```
+
+## `src/shared/components/admin/BulkUploadLayout.a11y.test.jsx`
+
+```text
+The picker is `FileInput variant="dropzone"` since 2026-08-25, so the
+clipping class is the design system's own rather than Tailwind's `sr-only`.
+The property under test is unchanged and is the whole point of the rule:
+`display: none` and `visibility: hidden` both take the input out of the tab
+order, and the picker with it.
+```
+
+```text
+Two polite regions in this tree since 2026-08-26: the upload picker's
+own, which `FileInput` renders present-and-empty until an upload
+starts, and this notice. The claim under test is that the message is
+announced *politely* rather than as an alert, so it is asserted across
+the polite regions rather than against a single match.
+```
+
+## `src/shared/components/feedback/CrashAndQueueSurfaces.contract.test.jsx`
+
+```text
+Written on 2026-09-06, after the icon migration shipped `<Icon icon={X} />`
+into all three of them while the import line still read
+`import { Home, RefreshCw } from '@design-system/icons'` — no `Icon`. Every
+one of those files throws `ReferenceError: Icon is not defined` the moment it
+renders, and `QueueStatusIndicator` mounts at the App root, so going offline
+took the whole application down.
+
+Nothing caught it. Not the 5170 unit tests, because these three render only on
+a crash or an offline queue and no test had ever rendered them. Not lint,
+because plain `no-undef` does not resolve JSX identifiers — that is what
+`react/jsx-no-undef` is for, and it was off. Not the icon check, which looked
+for `lucide-react` imports and is blind to what a file renders. Only the
+`@a11y` end-to-end lane failed, at a 180-second timeout whose message named a
+checkbox rather than the error.
+
+The general fix is the lint rule, now on and pinned by
+`scripts/test-lint-rules.mjs` M1. This file is the specific one: it renders each of these surfaces at
+least once, so a crash screen can never again be shipped in a state where it
+crashes.
+```
+
+## `src/shared/components/feedback/ToastProvider.contract.test.jsx`
+
+```text
+Contract freeze + a11y proof for `ToastProvider`, written with its visual
+migration (2026-07-28) — the roadmap's "Toast/notification" row.
+```
+
+```text
+The migration changes only presentation (semantic status tokens instead of nine
+legacy palette classes, an approved `IconButton` instead of a hand-rolled 28 px
+box, a viewport-safe stack) plus one additive accessibility fix: the severity
+is now announced before the message.
+```
+
+## `src/shared/components/form/RadioGroup.test.jsx`
+
+```text
+`EXPERIENCE_OPTIONS` really carries "0-6 months". Interpolated raw, the id
+was invalid HTML (no ASCII whitespace allowed) and axe hung on the selector
+it built from it under happy-dom 20.4+ (found 2026-09-06).
+```
+
+## `src/shared/components/schema/SchemaRenderer.test.jsx`
+
+```text
+Edit mode is used by exactly two screens — the carrier's prep editor and the
+dossier's Edit Application — and until 2026-10-01 every type fell through to a
+text box. These pin what each type is now, in the format the driver's wizard
+reads, because a value the wizard cannot show is a value the driver never saw.
+```
+
+## `src/shared/components/signature/SignaturePad.contract.test.jsx`
+
+```text
+`SignaturePad` collects the legally operative mark on an FMCSA 49 CFR §391.23
+employer verification. The 2026-07-23 portal migration deliberately left it
+untouched, so it went into this campaign as the last unmigrated surface — with
+raw palette classes, no accessible name, an unassociated error, and a bare
+`<button>` clear action.
+```
+
+## `src/shared/components/table/ModernDriverTable.contract.test.jsx`
+
+```text
+Contract freeze + a11y proof for `ModernDriverTable`, written with its
+design-system migration (2026-07-28) — the roadmap's oldest open table row.
+```
+
+## `src/shared/services/fmcsaEmployerSocrata.test.js`
+
+```text
+DC joined the shared state list on 2026-10-02, so a DC carrier's state fills in.
+```
+
+## `src/shared/utils/usStates.test.js`
+
+```text
+Listed since 2026-10-02; before that a DC licence or address had nowhere to go.
+```
+
+```text
+The territories, listed since 2026-10-09; their licences print these codes.
+```
+
+## `src/tests/auth.test.jsx`
+
+```text
+The first version mocked the sign-in to resolve after a 100 ms `setTimeout`,
+asserted the button was disabled, and returned. The timer then fired while
+the file's environment was tearing down; `loginUser` threw on
+`undefined.user`, `LoginScreen`'s catch called `console.error`, and Vitest
+failed the whole run with `EnvironmentTeardownError: Closing rpc while
+"onUserConsoleLog" was pending` — 5210 tests passed, exit code 1. Twice in a
+row in CI on 2026-09-08, on a change that touched only `functions/`.
+```
+
+## `src/tests/brandAssets.test.jsx`
+
+```text
+A FIFTH literal copy of a brand value lives in the same file, three lines
+above the favicon, and nothing compared it until 2026-09-06:
+```
+
+```text
+attribute is outside what that guard claims to check, by design. It was
+therefore guarded by nothing at all, which is the exact condition this file
+opens by describing: a copy nothing compares is a copy that diverges.
+```
+
+```text
+...and the colours have to survive the render, which is a different claim
+from "the source names a token" and turned out to be the one that mattered.
+
+When the raw hexes were replaced with `style={{ fill: 'var(--ds-…)' }}` on
+2026-09-05, three of `SafeHaulLoader`'s paths ended up with TWO `style`
+attributes — the new fill, and the animation delay that was already there.
+JSX keeps the last one, so the fill was dropped and three quarters of the
+loading mark rendered unfilled. Every existing check passed: the source
+contains the token, contains no hex, and draws the right paths.
+
+Vite printed a warning about it, and a warning in a build log is not a
+guard. This renders both marks and reads what actually reached the DOM.
+```
+
+## `src/tests/mockResetHygiene.test.js`
+
+```text
+queues one its component never consumes leaks it into the next test. That
+cost a real CI failure on 2026-08-26, and the 2026-09-06 audit found the same
+pairing in 23 more files. All were converted to `vi.resetAllMocks()` in one
+change; this test keeps the family closed by refusing any test file under
+`src/` that pairs the two again.
+```
+
+## `src/tests/noBlockingBrowserDialogs.test.js`
+
+```text
+Added 2026-07-28 when the last of them was replaced. Blocking browser dialogs
+came back three separate times during the design-system migration, each time
+because a *bare* `confirm(...)` slipped past a scan that only looked for
+`window.confirm`. This test looks for both forms so that cannot happen again.
+```
+
+## `src/tests/pageShell.test.js`
+
+```text
+It carried Tailwind's raw `bg-gray-50` for the entire design-system campaign
+and was fixed to `bg-ds-canvas` on 2026-09-06. **Neither guard that looks at
+this file can see it go wrong again**, and both limits were measured rather
+than assumed:
+
+- `check:ui-contract` reaches `index.html` (since 2026-09-05) but its
+```
+
+```text
+So the swap was invisible to every automated check the repository has, in
+both directions. That is precisely the shape of thing that needs a test
+naming the intended value.
+```
+
+## `src/tests/pdfWorkerWiring.test.js`
+
+```text
+    imports `react-pdf`, or the 399 kB pdfjs chunk ships to every route again
+    (audit step I, 2026-09-06: it was preloaded on `/apply` and `/login`).
+```
+
+## `src/tests/uiContract.ratchet.test.js`
+
+```text
+The two shapes the rule could not see until 2026-09-05. Every raw
+colour still in this tree is spelled one of these ways: the brand
+marks used SVG attributes, and the signature pads assign to a canvas
+context. Widening the rule to cover them found four unrecorded sites.
+```
+
+```text
+This asserted 0 until 2026-09-05, and the exemption was correct at the
+time: `overlayClassName` was the approved way to position a dialog, its
+values legitimately contain `fixed inset-0`, and counting them would
+have fired on 20 correct call sites. `Modal` removed the prop once
+every call site moved to the chrome contract, so the exemption's whole
+premise is gone — and the rule now means what the roadmap always
+claimed it did.
+```

@@ -54,11 +54,11 @@ test.describe('Campaign audience builder slice', () => {
 
     await expect(page.getByRole('tablist', { name: 'Import method' })).toBeVisible();
     /*
-     * The picker is the approved `FileInput` dropzone as of 2026-08-25, so the
-     * trigger is a `<label>` and not a button: one focusable file input, named by
-     * its field, with "Choose file" as the label's visible words. "One trigger"
-     * is still the point of this test — a hidden input driven by a separate
-     * button was two things claiming to be the control.
+     * The picker is the approved `FileInput` dropzone, so the trigger is a
+     * `<label>` and not a button: one focusable file input, named by its field,
+     * with "Choose file" as the label's visible words. "One trigger" is the point
+     * of this test — a hidden input driven by a separate button is two things
+     * claiming to be the control.
      */
     const upload = page.getByLabel('Upload a recipient list');
     await expect(upload).toHaveAttribute('type', 'file');

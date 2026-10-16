@@ -1,5 +1,5 @@
-// Half of the original `applicationDraftStorage.test.js`, split on 2026-09-01
-// for the source-size standard. This file keeps the identity-and-lifecycle
+// One of the two `applicationDraftStorage` suites, split for the source-size
+// standard. This file keeps the identity-and-lifecycle
 // suites — sensitive fields, the draft's name, and the discard mark; the
 // storage/sync mechanics live in `applicationDraftStorage.sync.test.js`.
 // The outer describe title is shared so every test keeps its original name.

@@ -162,12 +162,10 @@ test.describe('E-Doc compact editor', () => {
      * company shell also keeps its own navigation drawer in the DOM, and its
      * markup is not what this spec is asserting on.
      *
-     * Selected by the CHROME CONTRACT rather than by a radius utility. This read
-     * `.include('.rounded-t-ds-xl')` until 2026-09-05, when the bottom-sheet
-     * radius moved from the call site's class list into `Modal.css` — at which
-     * point the selector matched nothing and the scope silently became "the
-     * editor nav only". A sibling spec caught the same shape by throwing; this
-     * one would just have quietly stopped checking the sheet.
+     * Selected by the CHROME CONTRACT rather than by a radius utility: the
+     * bottom-sheet radius lives in `Modal.css`, not in the call site's class
+     * list, and a selector that matches nothing silently shrinks the scope to
+     * "the editor nav only" — this would quietly stop checking the sheet.
      */
     const sheetPanel = '.ds-modal[data-placement="bottom"] .ds-modal__panel';
     /*

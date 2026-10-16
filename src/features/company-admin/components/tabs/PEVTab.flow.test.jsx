@@ -278,11 +278,10 @@ describe('PEVTab initiation flow and callable payload', () => {
    * The stored `employerId` survives the write that follows a send.
    *
    * `sendVerificationRequest` stamps a stable identity on the row it resolves —
-   * that identity is what the employer's own answer is later filed against — and
-   * this write used to put a snapshot of `appData.employers` back over the whole
-   * array, erasing it a moment later. The completion write-back would then find
-   * no row it could safely mirror onto. Found in self-review on 2026-09-09,
-   * before it shipped.
+   * that identity is what the employer's own answer is later filed against — so
+   * this write must not put a snapshot of `appData.employers` back over the
+   * whole array, erasing it a moment later: the completion write-back would then
+   * find no row it could safely mirror onto.
    */
   it('does not erase the employer identity the callable just stamped', async () => {
     fnMocks.callable.mockResolvedValue({

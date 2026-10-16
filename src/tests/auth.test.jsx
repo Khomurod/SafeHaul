@@ -129,13 +129,11 @@ describe('Authentication Flow', () => {
     /**
      * The pending sign-in is settled INSIDE the test.
      *
-     * The first version mocked the sign-in to resolve after a 100 ms `setTimeout`,
-     * asserted the button was disabled, and returned. The timer then fired while
-     * the file's environment was tearing down; `loginUser` threw on
-     * `undefined.user`, `LoginScreen`'s catch called `console.error`, and Vitest
-     * failed the whole run with `EnvironmentTeardownError: Closing rpc while
-     * "onUserConsoleLog" was pending` — 5210 tests passed, exit code 1. Twice in a
-     * row in CI on 2026-09-08, on a change that touched only `functions/`.
+     * A sign-in mocked to resolve on a timer the test does not wait for fires
+     * while the file's environment is tearing down: `loginUser` throws on
+     * `undefined.user`, `LoginScreen`'s catch calls `console.error`, and Vitest
+     * fails the whole run with `EnvironmentTeardownError: Closing rpc while
+     * "onUserConsoleLog" was pending` — every test passed, exit code 1.
      *
      * So the promise is a deferred the test rejects, and the test waits for the
      * rendered consequence before it ends (.claude/rules/testing.md).

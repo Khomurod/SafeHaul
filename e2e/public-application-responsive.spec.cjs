@@ -83,9 +83,8 @@ async function undersizedControls(page, minimum = MIN_TARGET) {
        * Both hidden utilities, not just the design system's one. `sr-only` and
        * `ds-visually-hidden` emit the same clip rule, so an author picking either
        * means the same thing — but a hidden control clips to 1x1 rather than 0x0,
-       * so naming only one of them made this guard flag a control nobody can see.
-       * `lead-intake.spec.cjs` already skipped both; the three sweeps that named
-       * one were the inconsistency, found 2026-08-25.
+       * so naming only one of them makes this guard flag a control nobody can
+       * see. `lead-intake.spec.cjs` skips both too.
        */
       if (el.classList.contains('ds-visually-hidden') || el.classList.contains('sr-only')) continue;
       if (el.type === 'checkbox' || el.type === 'radio') continue;

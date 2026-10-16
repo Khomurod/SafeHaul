@@ -1,6 +1,5 @@
 /**
- * Contract freeze + a11y proof for `ModernDriverTable`, written with its
- * design-system migration (2026-07-28) — the roadmap's oldest open table row.
+ * Contract freeze + a11y proof for `ModernDriverTable`.
  *
  * `DataTable` is deliberately not adopted (see the component's recorded
  * exception). This file exists to prove that no accessibility or visual debt

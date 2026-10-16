@@ -46,11 +46,10 @@ describe('CustomQuestionsBuilder', () => {
     });
 
     /*
-     * The empty panel was a hand-composed dashed block with its copy in a `<p>`;
-     * it is the approved `EmptyState` as of 2026-08-25, with the "add your first
+     * The empty panel is the approved `EmptyState`, with the "add your first
      * question" control as the state's action rather than a `<div>` under the
-     * text. The copy and the control's behaviour are unchanged — the test above
-     * still clicks the same button and asserts the same frozen defaults.
+     * text. The copy and the control's behaviour are frozen — the test above
+     * clicks the same button and asserts the same frozen defaults.
      */
     it('renders the empty panel as the approved page state, announced', () => {
         render(<Harness />);

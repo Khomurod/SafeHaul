@@ -129,11 +129,11 @@ describe('BulkUploadLayout — named controls (defects 3, 5, 6)', () => {
 
 describe('BulkUploadLayout — keyboard-reachable file input (defect 4)', () => {
     /*
-     * The picker is `FileInput variant="dropzone"` since 2026-08-25, so the
-     * clipping class is the design system's own rather than Tailwind's `sr-only`.
-     * The property under test is unchanged and is the whole point of the rule:
-     * `display: none` and `visibility: hidden` both take the input out of the tab
-     * order, and the picker with it.
+     * The picker is `FileInput variant="dropzone"`, so the clipping class is the
+     * design system's own rather than Tailwind's `sr-only`. The property under
+     * test is the whole point of the rule: `display: none` and
+     * `visibility: hidden` both take the input out of the tab order, and the
+     * picker with it.
      */
     it('keeps the file input in the tab order rather than display:none', () => {
         render(<BulkUploadLayout {...makeProps()} />);
@@ -275,7 +275,7 @@ describe('BulkUploadLayout — non-blocking feedback', () => {
 
         expect(screen.queryByRole('alert')).toBeNull();
         /*
-         * Two polite regions in this tree since 2026-08-26: the upload picker's
+         * Two polite regions in this tree: the upload picker's
          * own, which `FileInput` renders present-and-empty until an upload
          * starts, and this notice. The claim under test is that the message is
          * announced *politely* rather than as an alert, so it is asserted across

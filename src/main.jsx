@@ -8,9 +8,8 @@ import './index.css';
 import { attachDeferredIntegrations, initSentry, whenIdle } from '@lib/monitoring/sentry';
 import { capZoomOnIOS } from '@app/startup/viewportZoom';
 
-// The pdf.js worker wiring that used to sit here moved to `@lib/pdf/pdfWorker`,
-// imported by the PDF features themselves, so the 117 kB pdfjs chunk no longer
-// ships to every route (2026-09-06, audit step I).
+// The pdf.js worker wiring lives in `@lib/pdf/pdfWorker`, imported by the PDF
+// features themselves, so the pdfjs chunk does not ship to every route.
 
 // --- MONITORING ---
 // Sentry starts with error capture only; tracing and Session Replay are attached

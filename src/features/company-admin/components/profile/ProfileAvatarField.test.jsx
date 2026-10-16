@@ -35,17 +35,15 @@ describe('ProfileAvatarField', () => {
     });
 
     /*
-     * The picker is the design system's `FileInput` since 2026-08-25. It was a
-     * hidden input driven by a `Button` calling `.click()` on it — which works
-     * with a keyboard, but names the trigger rather than the field and was one of
-     * three ways this product opened a picker.
+     * The picker is the design system's `FileInput`, not a hidden input driven
+     * by a `Button` calling `.click()` on it — which works with a keyboard, but
+     * names the trigger rather than the field.
      *
-     * So the assertions move with it: the input is named by its FIELD (as every
-     * other control in the system is), and the visible affordance is the
-     * `<label>` that wraps it rather than a separate button. That is the
-     * structural rule the primitive exists to enforce — a real focusable input
-     * behind a real label, which also makes the label the browser's own
-     * drag-and-drop target.
+     * So the input is named by its FIELD (as every other control in the system
+     * is), and the visible affordance is the `<label>` that wraps it rather than
+     * a separate button. That is the structural rule the primitive exists to
+     * enforce — a real focusable input behind a real label, which also makes the
+     * label the browser's own drag-and-drop target.
      */
     it('exposes a labelled image-only file input described by the help text', () => {
         const { container } = setup({ photoURL: PHOTO_URL });
@@ -97,14 +95,10 @@ describe('ProfileAvatarField', () => {
     /*
      * The upload is disabled, busy, AND announced.
      *
-     * This test used to assert that `aria-busy` and the button text had replaced
-     * the `role="status"` region this component owned before the `FileInput`
-     * migration. That was the wrong assertion to write: neither of those is
-     * announced — `aria-busy` sits on an input the upload has just disabled and
-     * taken focus from, and the button text is ordinary content. Rewriting the
-     * test to match the new markup is what let a real regression through, and a
-     * review on 2026-08-26 caught it. The region lives in `FileInput` now, so it
-     * is asserted here as behaviour this screen still has rather than as markup
+     * `aria-busy` and the button text are not announcements: `aria-busy` sits on
+     * an input the upload has just disabled and taken focus from, and the button
+     * text is ordinary content. The `role="status"` region lives in `FileInput`,
+     * so it is asserted here as behaviour this screen has rather than as markup
      * this file owns.
      */
     it('says it is busy, announces the upload, and refuses a second file', () => {

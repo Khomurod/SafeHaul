@@ -435,11 +435,8 @@ test.describe('VOE preview accessibility and layout', () => {
     await openHarness(page);
 
     const results = await new AxeBuilder({ page })
-      // The generated document is INCLUDED since 2026-09-06. Until then its grey
-      // legal small print (slate-400: 2.56:1 on white, 2.45:1 on the slate-50 box,
-      // 2.07:1 inside the 80%-opacity questionnaire) was excluded as an open owner
-      // decision; the audit resolved it by recolouring to the nearest AA greys —
-      // WCAG 1.4.3 has no exemption for legal small print. A failure here now
+      // The generated document is INCLUDED: its legal small print uses AA greys,
+      // because WCAG 1.4.3 has no exemption for legal small print. A failure here
       // means the document itself regressed.
       .include('[role="dialog"]')
       .analyze();

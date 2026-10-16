@@ -62,10 +62,10 @@ afterEach(cleanup);
 
 describe('VOEPreviewModal axe', () => {
   // axe cannot measure colour contrast in happy-dom, so the AA floor of the
-  // document's small print is pinned by class instead. Real-browser axe found
-  // slate-400 at 2.56:1 (white), 2.45:1 (the slate-50 box) and ~2:1 inside the
-  // 80%-opacity questionnaire; recoloured 2026-09-06 (audit step G) to slate-500
-  // outside that block and slate-700 inside it, where 500 blends to 3.25:1.
+  // document's small print is pinned by class instead: slate-500 outside the
+  // 80%-opacity questionnaire and slate-700 inside it, where 500 blends to
+  // 3.25:1. slate-400 fails — 2.56:1 on white, 2.45:1 on the slate-50 box and
+  // ~2:1 inside the questionnaire.
   it('keeps every grey and red in the document at or above the AA floor', () => {
     renderModal({ applicant: { ...APPLICANT, signature: null } });
     const doc = screen.getByTestId('voe-document');

@@ -1,9 +1,8 @@
 /**
  * Contract freeze for the public application container — starting over, and discards racing writes.
- * Split from the 2203-line original on 2026-09-01 for the source-size
- * standard (PA-2); the shared harness lives in
- * PublicApplyHandler.contract.support.jsx, and every describe keeps its
- * original title so full test names are unchanged.
+ * One of the container's contract suites, split for the source-size standard
+ * (PA-2); the shared harness lives in PublicApplyHandler.contract.support.jsx,
+ * and every describe keeps its title so full test names stay stable.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

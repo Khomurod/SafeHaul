@@ -1,6 +1,5 @@
 /**
- * Contract freeze + a11y proof for `ToastProvider`, written with its visual
- * migration (2026-07-28) — the roadmap's "Toast/notification" row.
+ * Contract freeze + a11y proof for `ToastProvider`.
  *
  * Every feature in the app calls this provider, so the public API is the thing
  * most worth freezing. Frozen here: the four `show*` helpers and the severity
@@ -9,10 +8,8 @@
  * name, stacking order, and the fact that the surface renders its children
  * untouched.
  *
- * The migration changes only presentation (semantic status tokens instead of nine
- * legacy palette classes, an approved `IconButton` instead of a hand-rolled 28 px
- * box, a viewport-safe stack) plus one additive accessibility fix: the severity
- * is now announced before the message.
+ * Its presentation is semantic status tokens, an approved `IconButton` and a
+ * viewport-safe stack, and the severity is announced before the message.
  */
 import React from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';

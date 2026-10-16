@@ -191,10 +191,10 @@ describe('ResizableDraggableField — presentation', () => {
     });
 
     it('gives the resize handle a 24px target centred on the corner (WCAG 2.2 SC 2.5.8)', () => {
-        // 12x12 until 2026-09-06. Neither exception applied: the handle sits on the
-        // field, itself a target, so Spacing fails; Alt+arrows is keyboard-only, so
+        // Not 12x12: neither exception applies. The handle sits on the field,
+        // itself a target, so Spacing fails; Alt+arrows is keyboard-only, so
         // Equivalent does not reach a pointer user. Half the box lies over the page
-        // and half over the field, so the footprint inside the field is unchanged.
+        // and half over the field, so the footprint inside the field stays 12x12.
         const { container } = renderField({}, { isSelected: true });
         const tokens = container.querySelector('.resize-handle').className.split(/\s+/);
         for (const token of ['h-6', 'w-6', '-bottom-3', '-right-3']) expect(tokens).toContain(token);

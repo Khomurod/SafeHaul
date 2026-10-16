@@ -16,10 +16,8 @@ const forbiddenDependencies = [
   /(?:^|[/\\])features[/\\]/,
   /*
    * `shared` is a compatibility layer that imports *from* the design system, so
-   * a dependency in this direction is a cycle. It was not enforceable until
-   * 2026-08-21: `ConfirmDialog` composes `Modal`, `Modal` lived in
-   * `shared/components/modals`, and the pair could only move together. They now
-   * live in `patterns/modal`, so the rule can finally be a rule.
+   * a dependency in this direction is a cycle. `ConfirmDialog` composes `Modal`,
+   * so the pair moves together; both live in `patterns/modal`.
    */
   /@shared(?:\/|['"])/,
   /from\s+['"](?:\.\.\/)+shared[/'"]/,
@@ -52,16 +50,16 @@ describe('design-system dependency boundary', () => {
   });
 
   /*
-   * The JavaScript half of this rule shipped on 2026-08-21 and the README said
-   * the boundary was enforced. It was not: the walker only looked at
-   * `.js/.jsx/.ts/.tsx`, and `design-system/index.css` ended with
+   * The walker above looks only at `.js/.jsx/.ts/.tsx`, so it cannot see a
+   * stylesheet crossing the boundary, such as `design-system/index.css` ending
+   * with
    *
    *     @import '../shared/styles/designTokens.css';
    *
-   * for the whole campaign. A stylesheet crossing the boundary is the same cycle
-   * as a module crossing it, and it is worse in one way — a token file loaded
-   * from `shared` is a second source of truth for the thing this directory
-   * exists to own, and nothing above would ever have said so.
+   * A stylesheet crossing the boundary is the same cycle as a module crossing
+   * it, and it is worse in one way — a token file loaded from `shared` is a
+   * second source of truth for the thing this directory exists to own, and
+   * nothing above would ever say so.
    */
   it('does not reach outside itself from a stylesheet either', () => {
     const escapes = [];

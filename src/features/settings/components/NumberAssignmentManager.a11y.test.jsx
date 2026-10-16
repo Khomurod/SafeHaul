@@ -3,9 +3,9 @@
  * (and its DefaultLineSection / AssignmentTable / AssignmentRow subcomponents).
  *
  * `NumberAssignmentManager.test.jsx` freezes the SMS/token business logic
- * (cases A–O). This file proves what the 2026-07-23 deep-audit recorded as
- * known debt is now fixed: unlabelled per-row and default-line selects,
- * sub-12px status text, and color-only status indicators.
+ * (cases A–O). This file proves the presentation stays fixed: labelled per-row
+ * and default-line selects, no sub-12px status text, and no color-only status
+ * indicators.
  *
  * All phone numbers and names below are artificial.
  */

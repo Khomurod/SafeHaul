@@ -94,7 +94,7 @@ export async function saveCompanySettings(companyId, settingsData) {
     payload.postApplicationTemplates = settingsData.postApplicationTemplates;
   }
 
-  // Application Rules and optional integrations (2026-09-02). Written only when
+  // Application Rules and optional integrations. Written only when
   // the company has them, so a company that never opened those tabs keeps the
   // platform defaults and its document is untouched.
   if (settingsData.applicationRules && typeof settingsData.applicationRules === 'object') {

@@ -12,7 +12,7 @@
  *    draft carries no identity HMAC;
  *  - the exchange runs BEFORE the post-apply session restore, and a successful one
  *    clears that session — which is what stops a 24-hour-old confirmation screen
- *    for this carrier hiding a live invitation (found 2026-09-08);
+ *    for this carrier hiding a live invitation;
  *  - a failed exchange touches none of that, so a driver who re-clicks their own
  *    dead link after submitting keeps their confirmation number and checklist;
  *  - a link the driver has already started returns no token and no answers, and
@@ -232,18 +232,17 @@ describe('opening an application a carrier prepared', () => {
     });
 
     /**
-     * Review found this on 2026-09-09, and it is the foreign-slot rule reaching one
-     * step further than it did.
+     * The foreign-slot rule reaches `requires_identity` too.
      *
-     * `requires_identity` used to fall through to the local-draft restore
-     * unconditionally, so a shared or kiosk browser loaded the PREVIOUS applicant's
+     * `requires_identity` must not fall through to the local-draft restore
+     * unconditionally: a shared or kiosk browser would load the PREVIOUS applicant's
      * answers into `formData` — behind the confirmation screen, where the driver
      * cannot see them. They do not stay invisible: `adoptOpenedApplication` merges
      * the real answers over `prev` and every key the target application does not
      * itself hold survives, so the next autosave writes a stranger's employer rows
      * and upload descriptors onto this driver's DOT application. The reconciliation
-     * effect already withheld the same slot for the same reason; this is the other
-     * reader of it.
+     * effect withholds the same slot for the same reason; this is the other reader
+     * of it.
      *
      * The cost is stated where the OPENED path states it: an unclaimed slot loses
      * its LOCAL backup of this slug. Their server copy is untouched, the link names
@@ -345,16 +344,13 @@ describe('a finished application and a live invitation in the same tab', () => {
     });
 
     /**
-     * The second route to the reported symptom, found in review on 2026-09-09.
-     *
-     * A live invitation waiting on "Confirm it's you" used to fall through to the
+     * A live invitation waiting on "Confirm it's you" must not fall through to the
      * post-apply restore, which sets `submissionStatus = 'success'` — and success
-     * renders ABOVE the confirmation screen. So a driver who submitted an
-     * application to this carrier in this tab within the last 24 hours, and then
-     * opened a continuation link for a DIFFERENT unfinished one, saw the old
-     * confirmation screen and no question at all: the intake chooser bug wearing a
-     * different mask, and permanent, because the session is rewritten on every
-     * load.
+     * renders ABOVE the confirmation screen. A driver who submitted an application
+     * to this carrier in this tab within the last 24 hours, and then opened a
+     * continuation link for a DIFFERENT unfinished one, would see the old
+     * confirmation screen and no question at all — permanently, because the
+     * session is rewritten on every load.
      *
      * Retired here rather than reordered on the screen: the exchange resolved a
      * LIVE draft, and a submission deletes the draft the invite hash lives on, so

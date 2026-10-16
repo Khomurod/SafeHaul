@@ -52,11 +52,11 @@ test.describe('E-Doc envelope creator sidebar', () => {
   });
 
   /*
-   * The picker is the approved `FileInput` dropzone since 2026-08-25, so its
-   * accessible name is the FIELD ("Choose a PDF file") and "Choose File" is the
-   * label's visible words. A file input maps to the `button` role, which is how
-   * assistive technology sees it and why the name has to be the field rather
-   * than the trigger's text. The frozen copy on screen is unchanged.
+   * The picker is the approved `FileInput` dropzone, so its accessible name is
+   * the FIELD ("Choose a PDF file") and "Choose File" is the label's visible
+   * words. A file input maps to the `button` role, which is how assistive
+   * technology sees it and why the name has to be the field rather than the
+   * trigger's text. The copy on screen is frozen.
    */
   const picker = (page) => page.getByRole('button', { name: 'Choose a PDF file', exact: true });
 

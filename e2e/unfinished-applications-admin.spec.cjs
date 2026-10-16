@@ -1,7 +1,7 @@
 /**
  * A Company Admin's own powers in the unfinished-applications workspace.
  *
- * The owner decided on 2026-10-06 that a Company Admin reads every unfinished
+ * The owner's decision: a Company Admin reads every unfinished
  * application, corrects the ones the driver owns, and may delete any of them. The worklist comes from its `e2eUnfinished=mock` fixture; the
  * callables behind these actions are answered here, at the network, because an
  * E2E run points at an unreachable Firebase project on purpose. What a browser

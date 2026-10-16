@@ -1,11 +1,11 @@
 /**
  * Dialog-behaviour and contract freeze for the Super Admin modals.
  *
- * Before the 2026-07-28 migration every one of these was a hand-built
- * `fixed inset-0` overlay: no `role="dialog"`, no focus trap, no Escape, no
- * focus restoration, and unnamed icon-only close controls. This file proves each
- * of those is fixed and freezes the callable payloads the modals own, so the
- * presentation change cannot quietly alter a destructive action.
+ * Each of these is a real dialog, not a hand-built `fixed inset-0` overlay: it
+ * has `role="dialog"`, a focus trap, Escape, focus restoration, and named
+ * icon-only close controls. This file proves each of those and freezes the
+ * callable payloads the modals own, so a presentation change cannot quietly
+ * alter a destructive action.
  *
  * All company, user and driver names below are artificial.
  */
@@ -381,11 +381,11 @@ describe('ViewCompanyAppsModal — frozen data contract', () => {
   });
 
   /*
-   * Filtering to nothing replaced the whole table with a hand-composed
-   * icon-and-copy block that carried no live-region role, so a screen-reader
-   * user typing in the filter got silence (found 2026-08-25). It is the approved
-   * `EmptyState` now, which owns the announcement, and it keeps the two distinct
-   * strings — "nothing matches your filter" must not read as "nothing exists".
+   * Filtering to nothing replaces the whole table, so the empty state must carry
+   * a live-region role or a screen-reader user typing in the filter gets silence.
+   * It is the approved `EmptyState`, which owns the announcement, and it keeps
+   * the two distinct strings — "nothing matches your filter" must not read as
+   * "nothing exists".
    */
   it('announces the filtered-empty state, and distinguishes it from never-any', async () => {
     mockLoadApplications.mockResolvedValue([

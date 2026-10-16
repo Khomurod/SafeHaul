@@ -8,22 +8,14 @@ import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions
 /**
  * The candidate/lead list toolbar.
  *
- * Migrated 2026-08-21. Presentation only — the filter keys, the driver-type
- * option list, the `setFilters` shape, `clearFilters`, the assignment action and
- * the my-assignments toggle are unchanged.
+ * Presentation only — the filter keys, the driver-type option list, the
+ * `setFilters` shape, `clearFilters`, the assignment action and the
+ * my-assignments toggle belong to the caller and stay as they are.
  *
- * This screen was the campaign's exemplar, and it is worth recording what it
- * looked like: four hand-built buttons with four *different* paddings
- * (`px-4 py-1.5`, `px-3 py-2`, `p-2`, `px-4 p-2`), a search input at `py-2` and
- * three filter selects at `p-2` — so no two controls in one toolbar were the
- * same height — plus `text-gray-900`, `bg-blue-600` and `border-gray-200`
- * throughout, and hand-built `text-xs font-bold uppercase` labels.
- *
- * Every control now comes from the shared scale, so the row lines up without
- * anything being set here. The filter labels are real `FormField` labels, which
- * also fixes the accessibility defect underneath the styling: the filter
- * controls were labelled by an adjacent `<label>` with no `htmlFor` and had no
- * `id`, so each announced as an anonymous combobox.
+ * Every control comes from the shared scale, so the row lines up without
+ * anything being set here. The filter labels are real `FormField` labels: a
+ * control labelled by an adjacent `<label>` with no `htmlFor`, and with no
+ * `id`, announces as an anonymous combobox.
  */
 
 // --- CONFIGURATION ---

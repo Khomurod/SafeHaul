@@ -1,26 +1,25 @@
 /**
- * The reported bug, as a test: a replacement link must not open a fresh application.
+ * A replacement link must not open a fresh application.
  *
- * ## What was measured in production on 2026-09-09
+ * ## The failure this guards against
  *
- * A carrier-prepared application for a driver who had reached the consent step. The
- * recruiter pressed "Create a replacement link"; the driver opened it; the page
- * rendered **"How would you like to start your driver application?"** with
+ * A carrier-prepared application for a driver who has reached the consent step. The
+ * recruiter presses "Create a replacement link" and the driver opens it; the page
+ * must not render **"How would you like to start your driver application?"** with
  * "Upload CDL for Auto-Fill" and "Fill Out Manually" — the fresh-application
- * chooser — and no mention of the application they had spent an hour on. The
- * exchange returned 200 both times they tried.
+ * chooser — and no mention of the application they spent an hour on, while the
+ * exchange returns 200.
  *
- * The cause was on this side of the wire: `exchangeApplicationInvite` answers
- * `requiresIdentity` once the answers behind a link are the driver's own, that
- * outcome matched no branch in `resolveApplyStatusScreen`, and the chooser is what
- * sits at the bottom of that function. The code comment standing in for the missing
- * screen claimed the driver "is asked for their details by the ordinary resume flow
- * underneath" — a flow that only triggers on the first Next of page one, inside the
- * blank application the chooser had just started.
+ * The cause would be on this side of the wire: `exchangeApplicationInvite` answers
+ * `requiresIdentity` once the answers behind a link are the driver's own, and that
+ * outcome must match a branch in `resolveApplyStatusScreen`, because the chooser is
+ * what sits at the bottom of that function. The ordinary resume flow cannot stand in
+ * for that screen: it only triggers on the first Next of page one, inside the blank
+ * application the chooser has just started.
  *
- * So the first case here is written as the negative the report describes, and the
- * rest are the outcomes a driver actually needs: their answers back, their step
- * back, and a way forward when the details genuinely do not match.
+ * So the first case here is written as that negative, and the rest are the outcomes
+ * a driver actually needs: their answers back, their step back, and a way forward
+ * when the details genuinely do not match.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';

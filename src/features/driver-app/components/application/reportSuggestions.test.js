@@ -87,7 +87,7 @@ describe('license fill plan', () => {
             ['endorsements', 'fill'],
         ]);
         // 'tx' is filled as 'Texas': the licence-state picker holds names, and given
-        // the code it rendered "Alabama" (2026-10-01).
+        // the code it renders "Alabama".
         expect(licensePatch(plan)).toEqual({ cdlState: 'Texas', cdlClass: 'Class A', cdlExpiration: '2030-12-31', endorsements: 'H,N' });
         expect(licensePatch(plan)).not.toHaveProperty('cdlNumber');
     });

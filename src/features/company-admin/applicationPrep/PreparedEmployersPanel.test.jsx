@@ -1,13 +1,13 @@
 /**
  * Employment history as the carrier fills it in, and what the lock does to it.
  *
- * A lock stores a snapshot of an employer's identity, and this panel used to let
- * the carrier go on editing the very fields that snapshot is taken from. The two
- * drifted, and four ordinary edits produced an application the driver was blocked
- * on at submission and could not fix. The sharpest: a corrected NAME on a row
- * locked by USDOT number trips `locked-employer-changed`, while the driver's
- * wizard renders that identity as a record rather than a field — so they were
- * blocked on the one field they are not allowed to touch. Found 2026-09-08.
+ * A lock stores a snapshot of an employer's identity, so the carrier must not go
+ * on editing the very fields that snapshot is taken from: the two drift, and four
+ * ordinary edits produce an application the driver is blocked on at submission
+ * and cannot fix. The sharpest: a corrected NAME on a row locked by USDOT number
+ * trips `locked-employer-changed`, while the driver's wizard renders that
+ * identity as a record rather than a field — so they are blocked on the one
+ * field they are not allowed to touch.
  *
  * The identity is therefore a read-only display while the lock exists, which is
  * also the rule the design system already states for a field its viewer may not

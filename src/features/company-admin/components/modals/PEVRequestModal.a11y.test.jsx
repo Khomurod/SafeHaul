@@ -2,10 +2,9 @@
  * Dialog and delivery-choice semantics for the PEV request modal.
  *
  * `PEVRequestModal.test.jsx` covers the FMCSA lookup, the contact seeding and
- * the validation *behaviour*. This file covers what the 2026-07-27 migration is
- * responsible for and what nothing previously asserted: that this is a real
- * dialog with real focus handling, and that the delivery method is a real radio
- * group rather than three buttons that look like one.
+ * the validation *behaviour*. This file covers the semantics: that this is a
+ * real dialog with real focus handling, and that the delivery method is a real
+ * radio group rather than three buttons that look like one.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

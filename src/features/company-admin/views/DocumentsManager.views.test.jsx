@@ -60,10 +60,10 @@ describe('DocumentsManager views', () => {
     });
 
     /*
-     * The strip is the design system's `TabList` since 2026-08-25.
+     * The strip is the design system's `TabList`.
      *
      * `aria-controls` is on the SELECTED tab only. One panel is rendered, so
-     * pointing all four tabs at it was fine here but is not the primitive's
+     * pointing all four tabs at it would work here but is not the primitive's
      * contract — it renders a panel per selected tab, and an unselected tab
      * pointing at an id that does not exist is a dangling IDREF. The ARIA tab
      * pattern makes the attribute optional in exactly that case.
@@ -193,14 +193,13 @@ describe('DocumentsManager gating', () => {
     });
 
     /*
-     * The transition, not the state. Until 2026-09-06 the locked check returned
-     * BEFORE `useEffect`, `useTemplateSendFlow` and `usePostSubmitForms`, so a
-     * company whose profile arrived (or was edited) with E-Docs off after the
-     * first paint changed the hook count between renders — the one thing React
-     * forbids — and the screen threw instead of showing the lock. The static test
-     * above renders locked from the start and can never see that; this one flips
-     * the flag on a mounted screen, which is what the audit's lint warnings were
-     * pointing at (three `react-hooks/rules-of-hooks` sites, all in this file).
+     * The transition, not the state. The locked check must not return BEFORE
+     * `useEffect`, `useTemplateSendFlow` and `usePostSubmitForms`: a company whose
+     * profile arrives (or is edited) with E-Docs off after the first paint would
+     * change the hook count between renders — the one thing React forbids — and
+     * the screen would throw instead of showing the lock. The static test above
+     * renders locked from the start and can never see that; this one flips the
+     * flag on a mounted screen, the case `react-hooks/rules-of-hooks` warns about.
      */
     it('survives E-Docs being switched off while the screen is open', () => {
         const { rerender } = renderManager();

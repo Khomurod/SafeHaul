@@ -1,25 +1,18 @@
 /**
  * The three surfaces that only render when something has already gone wrong.
  *
- * Written on 2026-09-06, after the icon migration shipped `<Icon icon={X} />`
- * into all three of them while the import line still read
- * `import { Home, RefreshCw } from '@design-system/icons'` — no `Icon`. Every
- * one of those files throws `ReferenceError: Icon is not defined` the moment it
- * renders, and `QueueStatusIndicator` mounts at the App root, so going offline
- * took the whole application down.
+ * These render only on a crash or an offline queue, so nothing else renders
+ * them. One that renders `<Icon icon={X} />` without importing `Icon` throws
+ * `ReferenceError: Icon is not defined` the moment it renders, and
+ * `QueueStatusIndicator` mounts at the App root, so going offline would take
+ * the whole application down.
  *
- * Nothing caught it. Not the 5170 unit tests, because these three render only on
- * a crash or an offline queue and no test had ever rendered them. Not lint,
- * because plain `no-undef` does not resolve JSX identifiers — that is what
- * `react/jsx-no-undef` is for, and it was off. Not the icon check, which looked
- * for `lucide-react` imports and is blind to what a file renders. Only the
- * `@a11y` end-to-end lane failed, at a 180-second timeout whose message named a
- * checkbox rather than the error.
- *
- * The general fix is the lint rule, now on and pinned by
- * `scripts/test-lint-rules.mjs` M1. This file is the specific one: it renders each of these surfaces at
- * least once, so a crash screen can never again be shipped in a state where it
- * crashes.
+ * Plain `no-undef` does not resolve JSX identifiers — that is what
+ * `react/jsx-no-undef` is for — and the icon check looks for `lucide-react`
+ * imports and is blind to what a file renders. The general guard is the lint
+ * rule, on and pinned by `scripts/test-lint-rules.mjs` M1. This file is the
+ * specific one: it renders each of these surfaces at least once, so a crash
+ * screen can never be shipped in a state where it crashes.
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';

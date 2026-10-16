@@ -1,5 +1,5 @@
 /**
- * The typed signature path through the real form (audit step J, 2026-09-06):
+ * The typed signature path through the real form:
  * a respondent who cannot use a pointer can still sign — by choosing "Type" and
  * typing their name — and what reaches the callable says so.
  *

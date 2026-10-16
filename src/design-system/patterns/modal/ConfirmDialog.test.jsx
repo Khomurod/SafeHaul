@@ -1,11 +1,11 @@
 /**
- * Contract for the approved `ConfirmDialog` (2026-07-28).
+ * Contract for the approved `ConfirmDialog`.
  *
- * This component replaced the last six blocking `window.confirm` guards in the
- * app, so its behaviour is the guarantee every one of those flows now rests on:
- * nothing happens until Confirm, nothing happens on Cancel/Escape/backdrop, a
- * confirmed action cannot fire twice, and a failure is announced without closing
- * the dialog.
+ * Every confirmation flow in the app rests on this component instead of a
+ * blocking `window.confirm`, so its behaviour is their guarantee: nothing
+ * happens until Confirm, nothing happens on Cancel/Escape/backdrop, a confirmed
+ * action cannot fire twice, and a failure is announced without closing the
+ * dialog.
  */
 import React from 'react';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';

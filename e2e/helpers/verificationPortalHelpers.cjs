@@ -5,12 +5,10 @@ const AxeBuilder = require('@axe-core/playwright').default;
  * Shared helpers for the public verification portal specs
  * (`verification-portal-closeout.spec.cjs`, `verification-portal-typed-signature.spec.cjs`).
  *
- * Extracted on 2026-09-06 when the typed-signature tests (audit step J) pushed
- * the closeout spec past the 500-line maximum. Everything here is a *page
- * gesture*, not an assertion about the product: how to load the mock form, how
- * to put ink on the canvas the way a mouse or a finger does, how to read that
- * ink back, how to fill the shortest valid response. The specs own what is
- * asserted about each of those.
+ * Everything here is a *page gesture*, not an assertion about the product: how
+ * to load the mock form, how to put ink on the canvas the way a mouse or a
+ * finger does, how to read that ink back, how to fill the shortest valid
+ * response. The specs own what is asserted about each of those.
  */
 
 /** The pending form, served from the E2E mock scenario — no real token. */

@@ -11,12 +11,11 @@
  * functional specs already use, so the data is deterministic fixture data and no
  * credentials are involved.
  *
- * Blocking in CI, as of 2026-08-25. All twenty baselines that existed then used
- * to fail on GitHub's runners, on every run, invisibly: the application fetched
- * Inter from rsms.me and the runner never received it, so each screenshot was a
- * whole page of substituted glyphs. The font is served from the repository now
- * (`design-system/tokens/typeface.css`), which is what makes these comparable
- * across machines. See the header of `catalog.spec.cjs`.
+ * Blocking in CI. The font is served from the repository
+ * (`design-system/tokens/typeface.css`), never fetched at runtime, which is what
+ * makes these comparable across machines: a runner that cannot reach a font CDN
+ * screenshots a whole page of substituted glyphs. See the header of
+ * `catalog.spec.cjs`.
  *
  * ## Which screens, and why not all of them
  *
@@ -91,12 +90,10 @@ const SCREENS = [
          * choosing carefully rather than defaulting to `<h1>`.
          *
          * `<h1>Super Admin</h1>` is in the banner and present on first paint, so
-         * the old predicate let the screenshot race the three metric cards. The
-         * committed baseline had caught them mid-load showing `•••`; a run on
-         * 2026-08-25 caught them resolved showing `0`, and the lane failed on a
-         * diff of three glyphs with nothing wrong in the product. That is exactly
-         * the failure a blocking lane cannot have: one flake teaches everyone to
-         * disbelieve the next real regression.
+         * waiting on it lets the screenshot race the three metric cards: mid-load
+         * on one run, resolved on the next, a diff with nothing wrong in the
+         * product. That is exactly the failure a blocking lane cannot have: one
+         * flake teaches everyone to disbelieve the next real regression.
          *
          * `DashboardView` announces the transition itself, so waiting on that
          * announcement pins the screenshot to the *settled* state rather than to
@@ -104,8 +101,7 @@ const SCREENS = [
          *
          * Either settled sentence: E2E mode has no backend, so the lists come
          * back empty from the cache and every count, which only the server can
-         * answer, fails. The cards say "Error", not the 0 they once showed for a
-         * count that failed.
+         * answer, fails. The cards say "Error" for a count that failed, never 0.
          */
         ready: (page) => page.getByText(/^(Platform totals loaded\.|\d+ of \d+ platform totals failed to load: .+\.)$/),
     },
@@ -125,18 +121,16 @@ const SCREENS = [
         ready: (page) => page.getByRole('heading', { level: 1 }).first(),
     },
     /*
-     * Added 2026-08-25. The ten screens above were the ones the lane started
-     * with; these five are the rest of the areas a user actually spends time in,
-     * and every one of them was unmeasured while the lane was advisory:
+     * These five are the rest of the areas a user actually spends time in:
      *
      *  - the signing room is where a legally operative signature is made;
      *  - the change-review portal is a public token route with no navigation
      *    around it, so nothing else on the screen would reveal a broken state;
      *  - Unfinished applications and the two lead lists are three more tables, and
-     *    tables are where this campaign found most of its geometry defects;
-     *  - Import Leads carries the `FileInput` dropzone that four uploads
-     *    migrated onto, so its appearance is now a shared contract rather than
-     *    one screen's decision.
+     *    tables are where geometry defects most often show;
+     *  - Import Leads carries the `FileInput` dropzone that four uploads share,
+     *    so its appearance is a shared contract rather than one screen's
+     *    decision.
      */
     {
         name: 'signing-room',
@@ -151,12 +145,10 @@ const SCREENS = [
     {
         name: 'company-unfinished',
         /*
-         * `e2eUnfinished=mock`, added 2026-08-25 because this screen was the one
-         * in this list whose content came from a real callable. With no
-         * credentials the call fails, and *how* it fails decides what renders:
-         * the committed baseline was a loading skeleton captured in one
-         * environment, and CI captured something 30% different. Every other
-         * route here already uses a fixture harness; this one now does too.
+         * `e2eUnfinished=mock`, because without it this screen's content comes
+         * from a real callable. With no credentials the call fails, and *how* it
+         * fails decides what renders, which differs from one environment to the
+         * next. Every route here uses a fixture harness.
          */
         url: '/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock',
         // A fixture row, not the `<h1>` — the heading paints before the data.

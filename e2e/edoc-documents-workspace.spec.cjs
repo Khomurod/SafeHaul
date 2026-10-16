@@ -76,16 +76,15 @@ test.describe('E-Doc Documents workspace', () => {
   });
 
   /*
-   * Rewritten 2026-08-25 with the approved `TabList`, and the change is
-   * deliberate rather than incidental.
+   * The approved `TabList`, and its `aria-controls` shape is deliberate rather
+   * than incidental.
    *
    * This workspace renders **one** panel — the selected tab's — so the three
-   * unselected tabs have no panel in the document to control. The old markup
-   * pointed all four at the single panel's id, which is three references to
-   * something that is not theirs; the primitive sets `aria-controls` on the
-   * selected tab only, because an `aria-controls` naming an element that does
-   * not exist is worse than its absence (the APG says as much for a lazily
-   * rendered panel).
+   * unselected tabs have no panel in the document to control. Pointing all four
+   * at the single panel's id would be three references to something that is
+   * not theirs; the primitive sets `aria-controls` on the selected tab only,
+   * because an `aria-controls` naming an element that does not exist is worse
+   * than its absence (the APG says as much for a lazily rendered panel).
    *
    * So the contract is: the selected tab points at the rendered panel, the panel
    * points back at it, and the others point at nothing. Asserting all three

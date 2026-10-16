@@ -1,17 +1,15 @@
 /**
  * Starting an application from the unified workspace, and switching between drivers.
  *
- * Retargeted on 2026-09-10 from `StartApplicationPage`, which no longer exists as
- * a screen: starting an application is the primary action inside
- * `UnfinishedApplicationsPage`, and the wizard itself moved to
- * `ApplicationPrepWorkspace`. These cases deliberately still drive the whole
- * company flow through the page rather than the extracted component — the flow is
- * what a recruiter performs, and the split is an internal one.
+ * Starting an application is the primary action inside
+ * `UnfinishedApplicationsPage`, and the wizard itself lives in
+ * `ApplicationPrepWorkspace`. These cases deliberately drive the whole company
+ * flow through the page rather than the extracted component — the flow is what
+ * a recruiter performs, and the split is an internal one.
  *
  * What is pinned here is the flow this page owns — the Manual/AI choice, the AI
  * upload step, and that per-application state (identity, answers, documents, the
- * invite link) never leaks from one driver to the next — plus the two findings the
- * earlier review caught, now under the new flow:
+ * invite link) never leaks from one driver to the next — in particular:
  *
  *  - starting another application must not save one driver's answers under another
  *    driver's key (the email/phone in the answers is the key);
@@ -267,10 +265,10 @@ describe('a prepared application the driver has taken over', () => {
      * React replays an effect's setup/cleanup/setup in development, and a mount
      * flag written only in the cleanup is therefore left `false` forever: the load
      * resolves, the staleness guard rejects it, and the notice never appears. The
-     * plain-render case above passes throughout, so this is the case that has to
-     * exist — it is the one the recruiter actually meets in a dev build, and it is
-     * the SECOND guard in this effect to fail this way (the first cancelled its own
-     * in-flight load). Found in review on 2026-09-10.
+     * plain-render case above passes either way, so this is the case that has to
+     * exist — it is the one the recruiter actually meets in a dev build. Every
+     * guard in this effect is exposed to it: one that cancels its own in-flight
+     * load fails the same way.
      */
     it('says it under StrictMode too, which is how the app is really rendered', async () => {
         render(
@@ -417,12 +415,11 @@ describe('one driver never leaks into the next', () => {
     });
 
     it('lets Save be pressed with nothing entered, and says what it needs', async () => {
-        // This used to assert the opposite: Save was `disabled` until an email or
-        // phone existed, and nothing on the screen said so. The precise sentence
-        // was already written on the server and was unreachable, because the
-        // client guard stopped the request ever being made. Changed 2026-09-08 —
-        // `UnfinishedApplicationsPage.prepActions.contract.test.jsx` drives the same rule
-        // through the real editor and the real fields.
+        // Save is never `disabled` for want of an email or phone: the server's
+        // precise sentence says what it needs, and a client guard that stops the
+        // request ever being made leaves that sentence unreachable and the screen
+        // silent. `UnfinishedApplicationsPage.prepActions.contract.test.jsx` drives
+        // the same rule through the real editor and the real fields.
         render(<UnfinishedApplicationsPage />);
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
         fireEvent.click(await screen.findByTestId('mode-manual'));

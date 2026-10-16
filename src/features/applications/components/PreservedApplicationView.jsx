@@ -204,23 +204,18 @@ function AgreementRow({ agreement }) {
 export function PreservedApplicationView({ record, openUploads = false }) {
     if (!record || !record.isPreserved) {
         /*
-         * A hand-composed `EmptyState` until 2026-09-06: a bordered box with
-         * `role="status"`, a large decorative glyph, a bold line and a
-         * supporting line. That is the pattern exactly, and roadmap §7 records
-         * this shape as the drift no rule can see — every piece is an approved
-         * primitive, so nothing complains.
+         * The approved `EmptyState`, not a hand-composed one: a bordered box
+         * with `role="status"`, a large decorative glyph, a bold line and a
+         * supporting line is the pattern exactly, and roadmap §7 records that
+         * shape as the drift no rule can see — every piece is an approved
+         * primitive, so nothing complains. The glyph's size belongs to
+         * `EmptyState`, the container that owns the whole block.
          *
-         * The 40px glyph is what surfaced it. It is not a step on the icon
-         * scale, snapping it to 32 would have been a visible change made for no
-         * reason, and the honest answer to "which container owns this size" is
-         * the one that owns the whole block.
-         *
-         * The live region moves rather than doubling: `EmptyState` announces
-         * politely and renders the `role="status"` itself, so the hand-written
-         * one goes with the `div` that carried it. And the bold paragraph
-         * becomes the state's heading, which puts an empty state's message in
-         * the document outline where it belongs — `headingLevel={3}` because
-         * this renders inside a tab under an `h2`.
+         * `EmptyState` announces politely and renders the `role="status"`
+         * itself, so nothing here adds a second live region. The message is the
+         * state's heading, which puts an empty state's message in the document
+         * outline where it belongs — `headingLevel={3}` because this renders
+         * inside a tab under an `h2`.
          */
         return (
             <EmptyState

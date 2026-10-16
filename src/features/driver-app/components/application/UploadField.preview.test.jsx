@@ -1,12 +1,12 @@
 /**
  * Looking at a document that is already on the application.
  *
- * An upload used to leave a signed read URL in the form data, and that signature
- * lives FIFTEEN MINUTES. It was persisted into the draft and handed to the driver
- * by the invite exchange, so a document a recruiter attached on Tuesday was a
- * broken image and a Storage error page by the time the driver opened their link
- * — and the same for the recruiter reopening their own draft an hour later. The
- * durable identifier was sitting beside it, unused. Found 2026-09-08.
+ * A signed read URL lives FIFTEEN MINUTES, and the form data is persisted into the
+ * draft and handed to the driver by the invite exchange, so a document is signed
+ * again from its durable path whenever it is looked at. A stored URL would make a
+ * document a recruiter attached days earlier a broken image and a Storage error
+ * page by the time the driver opened their link — and the same for the recruiter
+ * reopening their own draft an hour later.
  *
  * Nothing here asks anyone to upload a file again because a viewing link went
  * stale, and the three ways looking can fail are told apart, because only one of

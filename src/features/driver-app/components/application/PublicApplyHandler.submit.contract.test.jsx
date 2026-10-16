@@ -1,9 +1,8 @@
 /**
  * Contract freeze for the public application container — the submission contract.
- * Split from the 2203-line original on 2026-09-01 for the source-size
- * standard (PA-2); the shared harness lives in
- * PublicApplyHandler.contract.support.jsx, and every describe keeps its
- * original title so full test names are unchanged.
+ * One of the container's contract suites, split for the source-size standard
+ * (PA-2); the shared harness lives in PublicApplyHandler.contract.support.jsx,
+ * and every describe keeps its title so full test names stay stable.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -94,7 +93,7 @@ describe('PublicApplyHandler submission contract', () => {
     // back only if the draft has one since (`companyEditsSync.js`).
     expect(payload.seenRevision).toBe(0);
     // The applicant's own calendar day, which the server judges "the last seven
-    // days" and "expired" against when it is within a day of its own (2026-10-01).
+    // days" and "expired" against when it is within a day of its own.
     const now = new Date();
     const localDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     expect(payload.applicantToday).toBe(localDay);
@@ -158,7 +157,7 @@ describe('PublicApplyHandler submission contract', () => {
         type: 'guest',
         userId: null,
         // The day the applicant pressed Submit, so a replay is judged on the day the
-        // page was, as the direct attempt is (found in review, 2026-10-01).
+        // page was, as the direct attempt is.
         applicantToday: localDay,
         applySlug: 'acme',
         // Null for this fixture, and correctly so: it is a draft written before drafts
@@ -196,10 +195,10 @@ describe('PublicApplyHandler submission contract', () => {
   });
 
   it('stops at a refusal: no retries, no queued screen, the server\'s sentence and the page it names', async () => {
-    // A refusal used to be retried three times and then shown as "Application
-    // Saved … No data will be lost", while the replay sent the same payload into the
-    // same refusal and gave up silently: an application the driver believed sent
-    // and the carrier never received (found 2026-10-01).
+    // A refusal is neither retried nor shown as "Application Saved … No data will
+    // be lost" while a replay sends the same payload into the same refusal and
+    // gives up silently: that would be an application the driver believes sent
+    // and the carrier never receives.
     const refusal = Object.assign(
       new Error("The application does not meet this carrier's requirements: Complete the Hours of Service statement."),
       {

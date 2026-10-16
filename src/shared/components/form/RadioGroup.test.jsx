@@ -126,8 +126,8 @@ describe('RadioGroup repeated-row scoping (defect regression)', () => {
 describe('RadioGroup element ids stay valid for any option value', () => {
   it('slugs a value that contains whitespace, and keeps the real value on the input', () => {
     // `EXPERIENCE_OPTIONS` really carries "0-6 months". Interpolated raw, the id
-    // was invalid HTML (no ASCII whitespace allowed) and axe hung on the selector
-    // it built from it under happy-dom 20.4+ (found 2026-09-06).
+    // is invalid HTML (no ASCII whitespace allowed) and axe hangs on the selector
+    // it builds from it under happy-dom 20.4+.
     render(
       <RadioGroup
         label="Experience"

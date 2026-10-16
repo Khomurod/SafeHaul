@@ -2,21 +2,19 @@
  * The driver's CDL photo auto-fill — "Upload CDL for Auto-Fill (Fastest)", the
  * first thing the public application offers — and what it puts on screen.
  *
- * It had no browser test at all, and the one defect it carried only a browser
- * shows: a licence prints its state as a postal code ("TX"), the auto-fill wrote
- * that code into both state pickers, and the pickers list names. Given a value
- * with no option, Chromium selected the first one it could, so a driver with an
- * Austin address saw "Alabama" twice while the form held "TX" — and the step's
- * validation passed, because the field was not empty (found 2026-10-01, in a real
- * browser against the real Cloud Functions).
+ * What only a browser shows: a licence prints its state as a postal code ("TX"),
+ * and both state pickers list names. Given a value with no option, Chromium
+ * selects the first one it can, so a code written straight into the pickers
+ * shows a driver with an Austin address "Alabama" twice while the form holds
+ * "TX" — and the step's validation passes, because the field is not empty.
  *
  * The three calls the auto-fill makes are stubbed at the network edge, the way
  * `company-settings-integrations.spec.cjs` stubs the Facebook SDK: reserving the
  * upload path, the Storage upload itself, and the AI parser's reply. Everything
  * after the reply is the product.
  *
- * The photo is the application's CDL front (2026-10-06), so the License step must
- * show it attached whether or not the licence could be read: the driver never
+ * The photo is the application's CDL front, so the License step must show it
+ * attached whether or not the licence could be read: the driver never
  * photographs it a second time.
  */
 const { test, expect } = require('@playwright/test');
@@ -123,8 +121,8 @@ test.describe('CDL photo auto-fill', () => {
         await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'uploaded');
     });
 
-    // The District of Columbia joined the state list on 2026-10-02. Before that a DC
-    // licence left both pickers empty, because "DC" had no name to become.
+    // The District of Columbia is on the state list; without it a DC licence
+    // leaves both pickers empty, because "DC" has no name to become.
     test('fills both state pickers with the District of Columbia from a DC licence', async ({ page }) => {
         await stubAutoFillNetwork(page, '1100 4TH ST SW, WASHINGTON, DC 20024');
         await autoFillFromLicence(page);
