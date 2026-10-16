@@ -140,12 +140,29 @@ describe.each([
             email: 'alice@example.com',
             source: 'Facebook Ads',
             status: 'New Lead',
+            assignedTo: '',
+            assignedToName: '',
+            normalizedPhone: '5551234567',
             createdAt: expect.anything(),
             updatedAt: '__server_timestamp__',
             facebookLeadId: 'lead-1',
             pageId: 'page-1',
         });
         expect(lead.createdAt.toMillis()).toBe(Date.parse('2026-10-01T12:00:00Z'));
+    });
+
+    it('writes a lead the Unassigned filter and the import\'s duplicate check can find', async () => {
+        for (const [phone, normalizedPhone] of [['(555) 123-4567', '5551234567'], ['1-555-123-4567', '5551234567'], [undefined, '']]) {
+            mock.reset({ 'integrations_index/page-1': PAGE_BINDING });
+            mockAxiosGet.mockResolvedValueOnce({
+                data: { field_data: phone ? [{ name: 'phone_number', values: [phone] }] : [] },
+            });
+
+            await handler(post(leadgen({ leadgen_id: 'lead-1', page_id: 'page-1' })), response());
+
+            const [[, lead]] = storedLeads();
+            expect(lead).toEqual(expect.objectContaining({ assignedTo: '', assignedToName: '', normalizedPhone }));
+        }
     });
 
     it('ignores a company named in the payload', async () => {
