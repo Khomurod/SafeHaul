@@ -1,7 +1,8 @@
 // src/features/signing/utils/templateFieldSerializer.js
 //
 // Pure, dependency-free serialization of a placed signing field into the exact
-// shape persisted on a template / signing_request document.
+// shape persisted on a template / signing_request document, and the way back
+// (`deserializeTemplateField`).
 //
 // WHY THIS EXISTS: Firestore rejects writes that contain `undefined` anywhere in
 // the payload ("Unsupported field value: undefined"). The signing-field objects
@@ -53,6 +54,35 @@ export function serializeTemplateField(field = {}) {
         bindingKey: str(field.bindingKey, ''),
         prefillGroupKey: str(field.prefillGroupKey, ''),
         fontSize: str(field.fontSize, 'Auto'),
+    };
+}
+
+/**
+ * Read one stored field back into the editor's shape, for "Correct" and "Edit
+ * Template". The stored names come first and the editor's after, and what an
+ * older document lacks takes the editor's own defaults, which differ from the
+ * serializer's on purpose: x and y 10, and a label of the field's type.
+ *
+ * @param {object} field A stored field (not null).
+ * @returns {object} A field for the EnvelopeCreator canvas.
+ */
+export function deserializeTemplateField(field) {
+    return {
+        id: field.id,
+        type: field.type,
+        label: field.label || field.type,
+        page: field.pageNumber || field.page || 1,
+        x: field.xPosition ?? field.x ?? 10,
+        y: field.yPosition ?? field.y ?? 10,
+        width: field.width || 25,
+        height: field.height || 5,
+        required: field.required ?? true,
+        readOnly: field.readOnly ?? false,
+        prefillPolicy: field.prefillPolicy || (field.readOnly ? 'locked' : 'editable'),
+        bindingKey: field.bindingKey || '',
+        prefillGroupKey: field.prefillGroupKey || '',
+        defaultValue: field.defaultValue || '',
+        fontSize: field.fontSize || 'Auto',
     };
 }
 

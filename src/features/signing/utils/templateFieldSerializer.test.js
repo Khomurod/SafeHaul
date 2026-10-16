@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+    deserializeTemplateField,
     serializeTemplateField,
     serializeTemplateFields,
 } from './templateFieldSerializer';
@@ -116,5 +117,42 @@ describe('serializeTemplateFields — array handling', () => {
         const out = serializeTemplateFields([{ id: 'x' }]);
         const round = JSON.parse(JSON.stringify(out));
         expect(round).toEqual(out);
+    });
+});
+
+describe('deserializeTemplateField — a stored field back in the editor', () => {
+    it('fills what an older document lacks with the editor\'s own defaults', () => {
+        expect(deserializeTemplateField({ id: 'f1', type: 'signature' })).toEqual({
+            id: 'f1', type: 'signature', label: 'signature', page: 1,
+            x: 10, y: 10, width: 25, height: 5, required: true, readOnly: false,
+            prefillPolicy: 'editable', bindingKey: '', prefillGroupKey: '',
+            defaultValue: '', fontSize: 'Auto',
+        });
+    });
+
+    it('reads the stored names first, then the editor\'s', () => {
+        const field = deserializeTemplateField({
+            id: 'f2', type: 'text', pageNumber: 2, page: 3,
+            xPosition: 0, x: 40, yPosition: null, y: 60,
+        });
+        expect(field).toMatchObject({ page: 2, x: 0, y: 60 });
+        expect(deserializeTemplateField({ id: 'f3', type: 'text', page: 4, x: 5, y: 6 }))
+            .toMatchObject({ page: 4, x: 5, y: 6 });
+    });
+
+    it('reads a read-only field without a policy as locked', () => {
+        expect(deserializeTemplateField({ id: 'f4', type: 'text', readOnly: true }))
+            .toMatchObject({ readOnly: true, prefillPolicy: 'locked' });
+    });
+
+    it('gives back what serializeTemplateField wrote', () => {
+        const stored = serializeTemplateField({
+            id: 'f5', type: 'date', label: 'Date signed', page: 2,
+            x: 10.5, y: 20.25, width: 30, height: 8, required: false,
+            defaultValue: '{{current_date}}', readOnly: true,
+            prefillPolicy: 'locked', bindingKey: 'current_date',
+            prefillGroupKey: 'dates', fontSize: '12',
+        });
+        expect(serializeTemplateField(deserializeTemplateField(stored))).toEqual(stored);
     });
 });
