@@ -11,7 +11,9 @@
 // envelope void) need seeded Firestore data that is not reachable under
 // `VITE_E2E_TEST_MODE=1`; those are covered by their focused unit suites, which can
 // supply data deterministically. What is verified here is the *dialog contract*
-// itself, which all six share through one component.
+// itself, which all six share through one component. Dismissal by Keep file and
+// by Escape, and the focus going back to the trigger, are asserted in
+// `UploadField.test.jsx`, `ConfirmDialog.test.jsx` and `Modal.test.jsx`.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 const {
@@ -74,31 +76,6 @@ test.describe('ConfirmDialog — real browser', () => {
       await page.keyboard.press('Tab');
       expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
     }
-  });
-
-  test('Escape dismisses without removing and restores focus to the trigger', async ({ page }) => {
-    await reachUploadedDocuments(page);
-    const trigger = removeButton(page);
-    await trigger.focus();
-    await trigger.click();
-
-    await expect(page.getByRole('dialog', { name: 'Remove this file?' })).toBeVisible();
-    await page.keyboard.press('Escape');
-
-    await expect(page.getByRole('dialog', { name: 'Remove this file?' })).toHaveCount(0);
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
-    await expect(trigger).toBeFocused();
-  });
-
-  test('Cancel dismisses without removing', async ({ page }) => {
-    await reachUploadedDocuments(page);
-    await removeButton(page).click();
-
-    const dialog = page.getByRole('dialog', { name: 'Remove this file?' });
-    await dialog.getByRole('button', { name: 'Keep file' }).click();
-
-    await expect(page.getByRole('dialog', { name: 'Remove this file?' })).toHaveCount(0);
-    await expect(page.getByText('Uploaded Successfully')).toHaveCount(3);
   });
 
   test('a backdrop click does not confirm a destructive action', async ({ page }) => {
