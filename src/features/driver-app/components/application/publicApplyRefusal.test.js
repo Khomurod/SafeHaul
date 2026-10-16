@@ -10,9 +10,9 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@shared/components/layout/Stepper', () => ({
-    // The semantic step is under test here. The index it maps to belongs to the
-    // Stepper's own contract.
+vi.mock('@shared/components/layout/wizardSteps', () => ({
+    // The semantic step is under test here. The index it maps to belongs to
+    // `wizardSteps.test.js`.
     resolveWizardStepIndex: (semanticStep, hasCustomQuestions) => `${semanticStep}${hasCustomQuestions ? '+custom' : ''}`,
 }));
 

@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 import {
     buildSemanticStepOrder,
     resolveWizardStepIndex,
-} from '@shared/components/layout/Stepper';
+} from '@shared/components/layout/wizardSteps';
 import { markDraftSynced } from '../components/application/applicationDraftStorage';
 import { useResumeTokenOwnership } from './useResumeTokenOwnership';
 import {

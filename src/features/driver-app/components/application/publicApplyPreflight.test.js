@@ -9,15 +9,12 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@shared/components/layout/Stepper', () => ({
-    // The semantic step is what is under test; the index it maps to is the
-    // Stepper's own contract.
-    resolveWizardStepIndex: (semanticStep, hasCustomQuestions) => `${semanticStep}${hasCustomQuestions ? '+custom' : ''}`,
+vi.mock('@shared/components/layout/wizardSteps', async (importOriginal) => ({
     // The real order, which decides the earliest page.
-    buildSemanticStepOrder: (hasCustomQuestions) => [
-        'contact', 'qualifications', 'license', 'violations', 'accidents', 'employment', 'general',
-        ...(hasCustomQuestions ? ['custom_questions'] : []), 'review', 'consent',
-    ],
+    ...(await importOriginal()),
+    // The semantic step is what is under test; the index it maps to is
+    // `wizardSteps.test.js`'s.
+    resolveWizardStepIndex: (semanticStep, hasCustomQuestions) => `${semanticStep}${hasCustomQuestions ? '+custom' : ''}`,
 }));
 
 import { runSubmissionPreflight } from './publicApplyPreflight';
@@ -52,7 +49,6 @@ function run({ formData, company = {}, customQuestions = [], uploads = {} } = {}
         formData,
         company,
         customQuestions,
-        consentStepIndex: 99,
         cdlUploadConfig: uploads.cdl || HIDDEN,
         medCardConfig: uploads.medCard || HIDDEN,
         mvrConsentConfig: uploads.mvr || HIDDEN,
@@ -208,7 +204,7 @@ describe('runSubmissionPreflight', () => {
     it('sends a missing signature to the consent step', () => {
         const { result, setCurrentStep } = run({ formData: completeForm({ signature: '' }) });
         expect(result.ok).toBe(false);
-        expect(setCurrentStep).toHaveBeenCalledWith(99);
+        expect(setCurrentStep).toHaveBeenCalledWith('consent');
     });
 
     // A toast with no routing would leave the applicant on the signature page with

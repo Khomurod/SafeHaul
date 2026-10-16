@@ -14,6 +14,7 @@
  * every save writes beside `updatedAt`), and Firestore deletes it some hours after
  * that, so the last day reads "Due for removal" rather than a count.
  */
+import { buildSemanticStepOrder } from '@shared/components/layout/wizardSteps';
 import { STEP_LABELS, startedBy } from './unfinishedRowActions';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -46,14 +47,6 @@ export const WORKLIST_FILTERS = Object.freeze([
 ]);
 
 /**
- * The wizard's pages, in its order (`buildSemanticStepOrder` in `Stepper.jsx`,
- * which a test holds this to), with the company's questions when it asks any.
- */
-export function wizardSteps(hasCustomQuestions) {
-    return Object.keys(STEP_LABELS).filter((step) => hasCustomQuestions || step !== 'custom_questions');
-}
-
-/**
  * How far the application has got: "Step 3 of 9", the page it reached, and
  * whether only the review and the signature are left.
  *
@@ -67,7 +60,7 @@ export function wizardSteps(hasCustomQuestions) {
  */
 export function progressOf(entry, { hasCustomQuestions = false } = {}) {
     const semantic = typeof entry?.lastSemanticStep === 'string' ? entry.lastSemanticStep : null;
-    const steps = wizardSteps(hasCustomQuestions || semantic === 'custom_questions');
+    const steps = buildSemanticStepOrder(hasCustomQuestions || semantic === 'custom_questions');
     const reached = semantic ? steps.indexOf(semantic) : -1;
     const numbered = Number.isInteger(entry?.lastStep) ? entry.lastStep : 0;
     const index = reached >= 0 ? reached : Math.min(Math.max(numbered, 0), steps.length - 1);

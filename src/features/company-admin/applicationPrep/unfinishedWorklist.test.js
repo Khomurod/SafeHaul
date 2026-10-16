@@ -4,7 +4,7 @@
  * the filters keep.
  */
 import { describe, expect, it } from 'vitest';
-import { buildSemanticStepOrder } from '@shared/components/layout/Stepper';
+import { buildSemanticStepOrder } from '@shared/components/layout/wizardSteps';
 import {
     WORKLIST_FILTERS,
     countByFilter,
@@ -15,8 +15,8 @@ import {
     progressOf,
     removalOf,
     visibleRows,
-    wizardSteps,
 } from './unfinishedWorklist';
+import { STEP_LABELS } from './unfinishedRowActions';
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -30,9 +30,8 @@ const SENT = { origin: 'company', status: 'sent' };
 const TAKEN_OVER = { origin: 'company', status: 'driver_in_progress' };
 
 describe('the wizard’s pages', () => {
-    it('are the wizard’s own, in its order, with and without the company’s questions', () => {
-        expect(wizardSteps(true)).toEqual(buildSemanticStepOrder(true));
-        expect(wizardSteps(false)).toEqual(buildSemanticStepOrder(false));
+    it('each have a name here, in the wizard’s order', () => {
+        expect(Object.keys(STEP_LABELS)).toEqual(buildSemanticStepOrder(true));
     });
 });
 
