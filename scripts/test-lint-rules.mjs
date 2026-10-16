@@ -308,6 +308,9 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['raw-hex-colour', 'a colour assembled from parts', view("<div style={{ color: '#' + 'fff' }} />")],
         ['sub-12px-type', 'a font size held in a constant', view('<span style={{ fontSize: NOTE }}>x</span>', 'const NOTE = 10;')],
         ['sub-12px-type', 'a font size from a constants object', view('<span style={{ fontSize: SIZES.note }}>x</span>', 'const SIZES = { note: 10 };')],
+        ['raw-hex-colour', 'a named colour on a later line of a style string', 'export const CSS = `.x {\n  background: linear-gradient(\n    var(--ds-color-surface),\n    red\n  );\n}`;\n'],
+        ['raw-hex-colour', 'a colour inside an assigned border', "export function frame(node) {\n  node.style.border = '1px solid red';\n}\n"],
+        ['raw-hex-colour', 'a colour inside an assigned shadow', "export function glow(node) {\n  node.style.boxShadow = '0 0 2px #fff';\n}\n"],
         ['hand-built-overlay', 'a fixed inset-0 class list', view('<div className="fixed inset-0 bg-ds-overlay" />')],
         ['hand-built-overlay', 'an overlayClassName', view('<Modal overlayClassName="fixed inset-0 z-50 flex bg-ds-overlay p-4">{body}</Modal>')],
         ['hand-built-overlay', 'the classes as two arguments', view("<div className={clsx('fixed', 'inset-0')} />")],
@@ -322,6 +325,10 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['hand-built-overlay', 'a nullish fallback beside its negation', view("<div className={clsx(open ?? 'fixed', !open && 'inset-0')} />")],
         ['raw-table', 'a table outside the approved list', view('<table><tbody /></table>')],
         ['hand-styled-button', 'a styled button', view('<button className="px-4 py-2 bg-ds-surface rounded">Go</button>')],
+        ['hand-styled-button', 'arbitrary padding on a button', view('<button className="p-[13px]">Go</button>')],
+        ['hand-styled-button', 'an arbitrary height on a button', view('<button className="h-[44px]">Go</button>')],
+        ['hand-styled-button', 'a size utility on a button', view('<button className="size-10">x</button>')],
+        ['hand-styled-field', 'an arbitrary type size on a field', view('<input className="text-[15px]" />')],
         ['hand-styled-field', 'a styled input', view('<input className="border rounded px-3" />')],
         ['hand-styled-anchor', 'a styled anchor', view('<a href="/x" className="px-4 py-2 rounded border">Go</a>')],
         ['raw-file-input', 'a raw file input', view('<input type="file" />')],
@@ -337,6 +344,9 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['raw-file-input', 'a file input type in a spread', view("<input {...{ type: 'file' }} />")],
         ['raw-file-input', 'a file input type in a named spread', view('<input {...picker} />', "const picker = { type: 'file' };")],
         ['raw-file-input', 'a file input type in a conditional spread', view("<input {...(upload ? { type: 'file' } : {})} />")],
+        ['raw-file-input', 'a file input set after a spread', view("<input {...{ type: 'text' }} type=\"file\" />")],
+        ['raw-file-input', 'a file input a later unknown spread may keep', view('<input type="file" {...rest} />')],
+        ['raw-file-input', 'a file input a later spread overwrites on one branch only', view("<input type=\"file\" {...(on ? { type: 'text' } : {})} />")],
         ['hand-rolled-tablist', 'a tab strip role in a spread', view("<div {...{ role: 'tablist' }} />")],
         ['hand-written-target-blank', 'a new tab in a spread', view("<a href={url} {...{ target: '_blank' }}>Docs</a>")],
         ['hand-rolled-toggle', 'a pressed state in a spread', view("<button {...{ 'aria-pressed': on }}>x</button>")],
@@ -471,6 +481,10 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
             + view('<span style={note}>x</span>', "const note = { fontSize: 'inherit' };"),
         'values folded into roles, and spreads that hold no file input': view("<div style={{ zIndex: 'var(--ds-z-' + 'modal)', fontSize: `var(--ds-font-size-${'xs'})` }} />"
             + "<input {...{ type: 'text' }} /><input {...rest} /><a href={url} {...{ target: '_self' }}>x</a>"),
+        'setters a later one overwrites': view("<input type=\"file\" {...{ type: 'text' }} />"
+            + "<div {...{ role: 'tablist' }} role=\"presentation\" />"
+            + "<button className=\"px-4 py-2 rounded\" {...{ className: 'flex' }}>Go</button>"
+            + "<a href={url} target=\"_blank\" {...{ target: '_self' }}>x</a>"),
         'a role, a type and a target chosen on every branch': view("<div role={open ? 'dialog' : undefined} />"
             + "<input type={secret ? 'password' : 'text'} /><input type={kind} /><a href={url} target={inPlace ? '_self' : '_top'}>x</a>"),
         'a custom property holding a role, and a link': "export const CSS = ':root { --accent: var(--ds-color-brand); }';\n"

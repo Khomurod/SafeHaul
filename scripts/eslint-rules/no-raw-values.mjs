@@ -100,10 +100,15 @@ export default {
             const found = LAYER_OR_SIZE.has(css) ? layerOrSize(css, value, sourceCode) : null;
             if (found) report(node, found.check, `${name}: ${found.value}`);
         };
-        /** A string that is one colour on some branch, written to `name`; a keyword only when the name holds a colour. */
+        /**
+         * A colour written to `name` on some branch: anywhere in the value when
+         * the name is a colour-taking style (`node.style.border = '1px solid red'`),
+         * else as the whole value — a keyword only when the name holds a colour.
+         */
         const colourValue = (node, value, name) => {
             const words = COLOUR_NAME.test(name ?? '');
-            const text = stringsYielded(value).find((one) => isColour(one, { words }));
+            const raw = COLOUR_KEY.test(name ?? '') ? (one) => holdsRawColour(one) : (one) => isColour(one, { words });
+            const text = stringsYielded(value).find(raw);
             if (text !== undefined) report(node, 'raw-hex-colour', text);
         };
         return {

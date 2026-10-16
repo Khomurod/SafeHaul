@@ -113,39 +113,53 @@ export function valuesYielded(node, through = null, depth = 0) {
 }
 
 /**
- * The values an object spread gives `name`: a literal object's property
- * (`{...{ type: 'file' }}`), on either branch (`{...(on ? { role: 'tablist' } : {})}`),
- * in a spread inside it, or in an object the file binds once to a name
- * (`{...picker}`). Each is the property's value node.
+ * What an object spread does to the attribute `name`: the values it can set,
+ * and whether it sets one on every path (`always`), which overwrites what came
+ * before. A literal object, either branch of one (`{...(on ? { role: 'tablist' } : {})}`),
+ * a spread inside it and an object the file binds once to a name
+ * (`{...picker}`) are read; anything else may set nothing.
  */
-export function spreadValues(node, name, sourceCode, depth = 0) {
-    if (!node || depth > 8) return [];
-    const next = (child) => spreadValues(child, name, sourceCode, depth + 1);
+export function spreadSetting(node, name, sourceCode, depth = 0) {
+    const none = { values: [], always: false };
+    if (!node || depth > 8) return none;
+    const next = (child) => spreadSetting(child, name, sourceCode, depth + 1);
     switch (node.type) {
         case 'ObjectExpression':
-            return node.properties.flatMap((property) => (property.type === 'SpreadElement' ? next(property.argument)
-                : propertyKey(property) === name ? [property.value] : []));
-        case 'ConditionalExpression':
-            return [...next(node.consequent), ...next(node.alternate)];
+            return node.properties.reduce((setting, property) => {
+                if (property.type !== 'SpreadElement') {
+                    return propertyKey(property) === name ? { values: [property.value], always: true } : setting;
+                }
+                const inner = next(property.argument);
+                return inner.always ? inner : { values: [...setting.values, ...inner.values], always: setting.always };
+            }, none);
+        case 'ConditionalExpression': {
+            const [yes, no] = [next(node.consequent), next(node.alternate)];
+            return { values: [...yes.values, ...no.values], always: yes.always && no.always };
+        }
         case 'LogicalExpression':
-            return [...next(node.left), ...next(node.right)];
+            return { values: [...next(node.left).values, ...next(node.right).values], always: false };
         case 'Identifier': {
             const value = uniqueInitialiser(sourceCode, node.name);
-            return value ? next(value) : [];
+            return value ? next(value) : none;
         }
         default:
-            return [];
+            return none;
     }
 }
 
 /**
- * Every value an opening element gives the attribute `name`: written on it
- * (`null` for a bare attribute) or in an object it spreads (`spreadValues`).
+ * Every value the attribute `name` can end up with on an opening element.
+ * JSX applies attributes in order, so a later setter overwrites an earlier
+ * one: a written attribute always does, a spread only where it sets the name
+ * on every path (`spreadSetting`). Each is a value node, `null` for a bare
+ * attribute.
  */
 export function attributeValues(openingElement, name, sourceCode) {
-    return openingElement.attributes.flatMap((one) => (one.type === 'JSXSpreadAttribute'
-        ? spreadValues(one.argument, name, sourceCode)
-        : one.name?.name === name ? [one.value] : []));
+    return openingElement.attributes.reduce((values, one) => {
+        if (one.type !== 'JSXSpreadAttribute') return one.name?.name === name ? [one.value] : values;
+        const setting = spreadSetting(one.argument, name, sourceCode);
+        return setting.always ? setting.values : [...values, ...setting.values];
+    }, []);
 }
 
 /**

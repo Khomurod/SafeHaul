@@ -7,7 +7,8 @@
  *
  * - a styled control is a raw `<button>`, `<a>`, `<input>`, `<select>` or
  *   `<textarea>` whose class list carries padding, a background, a border, a
- *   radius, a type size or a height — a bare one (a tab, a cell trigger) is
+ *   radius, a type size or a height, arbitrary values included (`p-[13px]`) —
+ *   a bare one (a tab, a cell trigger) is
  *   fine. A class list held in a variable counts only when the file binds the
  *   name once, to text that styles on every path; `className={props.className}`
  *   is a pass-through and is never judged;
@@ -27,7 +28,8 @@
  *   `label` on one is a crash the moment that branch renders.
  *
  * An attribute counts whether it is written on the element or in an object
- * the element spreads (`<input {...{ type: 'file' }} />`, `{...picker}`).
+ * the element spreads (`<input {...{ type: 'file' }} />`, `{...picker}`), and
+ * as JSX applies it: a later setter overwrites an earlier one.
  *
  * A component (`<Button aria-pressed>`) is never judged: what it does with a
  * prop is its own contract. `skip` turns checks off for a scope (the design
@@ -39,11 +41,11 @@ import {
     CHECKS, exceptedChecks, locate, optionsSchema,
 } from './context.mjs';
 import {
-    attributeValues, certainlyText, elementName, lastClassSetter, spreadValues, stringsIn, uniqueInitialiser, valuesYielded,
+    attributeValues, certainlyText, elementName, lastClassSetter, stringsIn, uniqueInitialiser, valuesYielded,
 } from './jsx.mjs';
 
 /** Classes that decide a control's geometry or colour rather than its layout. */
-export const STYLING_SIGNAL = /\b(?:p|px|py|pt|pb|pl|pr)-(?:\d|ds-)|\bbg-|\bborder(?:-|\b)|\brounded|\btext-(?:xs|sm|base|lg|xl)|\bh-\d|\bmin-h-/;
+export const STYLING_SIGNAL = /\b(?:p|px|py|pt|pb|pl|pr|ps|pe)-(?:\d|ds-|\[)|\bbg-|\bborder(?:-|\b)|\brounded|\btext-(?:xs|sm|base|lg|xl|\[)|\b(?:h|size)-(?:\d|\[)|\bmin-h-/;
 
 const STYLED_CONTROL = {
     button: 'hand-styled-button',
@@ -378,10 +380,14 @@ export default {
 
         return {
             JSXOpeningElement(node) {
+                // What each attribute ends up as, written on the element or in an object it spreads.
+                const values = (name) => attributeValues(node, name, sourceCode);
+                if (values('role').some((value) => mayBe(value, isTablist, through))) report(node, 'hand-rolled-tablist');
+                if (values('target').some((value) => mayBe(value, isBlank, through))) {
+                    report(node, 'hand-written-target-blank');
+                }
                 const element = elementName(node);
                 if (element === null) return;
-                // Written on the element or in an object it spreads (`{...{ type: 'file' }}`).
-                const values = (name) => attributeValues(node, name, sourceCode);
                 const has = (name) => values(name).length > 0;
                 if (STYLED_CONTROL[element] && styled(node)) report(node, STYLED_CONTROL[element], { element });
                 if (element === 'input' && values('type').some((value) => mayBe(value, isFile, through))) {
@@ -397,16 +403,6 @@ export default {
                 if (THROWS_ON_NON_STRING_LABEL.has(element) && values('label').some(mayBeJsx)) {
                     report(node, 'jsx-label-on-throwing-primitive', { element });
                 }
-            },
-            JSXAttribute(node) {
-                const name = node.name?.name;
-                if (name === 'role' && mayBe(node.value, isTablist, through)) report(node, 'hand-rolled-tablist');
-                if (name === 'target' && mayBe(node.value, isBlank, through)) report(node, 'hand-written-target-blank');
-            },
-            JSXSpreadAttribute(node) {
-                const values = (name) => spreadValues(node.argument, name, sourceCode);
-                if (values('role').some((value) => mayBe(value, isTablist, through))) report(node, 'hand-rolled-tablist');
-                if (values('target').some((value) => mayBe(value, isBlank, through))) report(node, 'hand-written-target-blank');
             },
             Literal(node) {
                 if (typeof node.value !== 'string') return;

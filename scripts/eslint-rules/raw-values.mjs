@@ -286,7 +286,7 @@ const ARBITRARY = /(?<![\w[\]-])(?:-?([a-z][a-z\d]*(?:-[a-z\d]+)*?)-\[([^\]\s]+)
  * (`url(#id)`), an id selector or a link (`https://…#add`) stays silent, and
  * "Pick a color: red" in prose is not a declaration.
  */
-const DECLARATION = /(?:^|[{;"'`])\s*(-{0,2}[a-zA-Z][\w-]*)\s*:(?!\/\/)\s*['"]?([^;{}"'`\n]+)/g;
+const DECLARATION = /(?:^|[{;"'`])\s*(-{0,2}[a-zA-Z][\w-]*)\s*:(?!\/\/)\s*['"]?([^;{}"'`]+)/g;
 const PRESENTATION = /(?<![\w-])(?:fill|stroke|stopColor|stop-color|floodColor|flood-color|lightingColor|lighting-color|color)\s*=\s*(["'])(.*?)\1/gi;
 /** An SVG `font-size` attribute in markup: a number there is user units, which are px. */
 const FONT_SIZE_ATTRIBUTE = /(?<![\w-])(?:font-size|fontSize)\s*=\s*(["'])(.*?)\1/gi;
