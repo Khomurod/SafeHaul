@@ -43,6 +43,10 @@ export function initSentry(env = import.meta.env) {
         tracesSampleRate: Number.isFinite(configured) ? configured : DEFAULT_TRACES_SAMPLE_RATE,
         replaysSessionSampleRate: 0.1,
         replaysOnErrorSampleRate: 1.0,
+        // SDK 11 collects these by default when `dataCollection` is unset (SDK 10
+        // did not): `userInfo` lets Sentry store the driver's IP address with
+        // every event and session. Kept off, as before.
+        dataCollection: { userInfo: false, cookies: false, httpBodies: [] },
         // A5: deep-scrub PII from every event and breadcrumb before it leaves the browser.
         beforeSend: (event) => scrub(event),
         beforeBreadcrumb: (breadcrumb) => scrub(breadcrumb),

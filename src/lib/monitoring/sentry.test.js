@@ -35,6 +35,11 @@ describe('initSentry', () => {
         expect(sentryMock.init.mock.calls[1][0].tracesSampleRate).toBe(0.2);
         expect(sentryMock.init.mock.calls[1][0].release).toBeUndefined();
     });
+
+    it("collects no more than SDK 10 did: no IP address, cookies or HTTP bodies, which SDK 11 sends when `dataCollection` is unset", () => {
+        initSentry({ PROD: true });
+        expect(sentryMock.init.mock.calls[0][0].dataCollection).toEqual({ userInfo: false, cookies: false, httpBodies: [] });
+    });
 });
 
 describe('attachDeferredIntegrations', () => {
