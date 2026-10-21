@@ -106,80 +106,55 @@ exports.onNewApplicationNotification = onDocumentCreated(
     }
 );
 
-// --- TRIGGER 4: Callback Scheduled (from activity logs) ---
+// --- TRIGGERS 4 and 5: a callback, from an application's or a lead's call log ---
+// A log with `callbackAt` (a callback, or "Remind me in 1 Hour" after No Answer)
+// reminds the recruiter who logged it: the bell shows a notification with a
+// `recipientId` to that person only. `callbackLabel` is the time as the
+// recruiter chose it, in their own clock ("Oct 22 at 3:00 PM"). A callback
+// logged without a time stays a notification for the team.
+async function notifyCallback(event, collectionName, recordId, relatedType) {
+    const data = event.data?.data();
+    if (!data || !(data.callbackAt || data.outcome === 'callback')) return;
+
+    const recordDoc = await db.collection('companies').doc(event.params.companyId)
+        .collection(collectionName).doc(recordId).get();
+    const record = recordDoc.data() || {};
+    const name = plainGuestText(
+        record.fullName || `${record.firstName || ''} ${record.lastName || ''}`.trim(), 80,
+    ) || (relatedType === 'lead' ? 'Lead' : 'Driver');
+    const when = typeof data.callbackLabel === 'string' ? plainGuestText(data.callbackLabel, 40) : '';
+    const recipientId = data.callbackAt && typeof data.performedBy === 'string' ? data.performedBy : null;
+
+    await createNotification(db, event.params.companyId, {
+        type: 'callback_scheduled',
+        title: 'Call back',
+        message: when ? `Call back ${name}, ${when}` : `Call back ${name}`,
+        relatedId: recordId,
+        relatedType,
+        ...(recipientId && { recipientId, callbackAt: data.callbackAt }),
+        performedBy: data.performedBy || null,
+        performedByName: data.performedByName || null,
+    });
+}
+
 exports.onCallbackScheduled = onDocumentCreated(
     {
         document: 'companies/{companyId}/applications/{appId}/activity_logs/{logId}',
         region: 'us-central1'
     },
-    async (event) => {
-
-        const data = event.data?.data();
-
-        if (!data) return;
-
-        // Only notify for callbacks
-        if (data.outcome !== 'callback') return;
-
-        // Get applicant info from parent document
-        const appRef = db.collection('companies').doc(event.params.companyId)
-            .collection('applications').doc(event.params.appId);
-        const appDoc = await appRef.get();
-        const appData = appDoc.data() || {};
-
-        const applicantName = `${appData.firstName || ''} ${appData.lastName || ''}`.trim() || 'Driver';
-        const scheduledTime = data.callbackTime || data.notes || 'No time specified';
-
-        await createNotification(db, event.params.companyId, {
-            type: 'callback_scheduled',
-            title: 'Callback Scheduled',
-            message: `${applicantName}: ${scheduledTime}`,
-            relatedId: event.params.appId,
-            relatedType: 'application',
-            performedBy: data.performedBy,
-            performedByName: data.performedByName
-        });
-    }
+    (event) => notifyCallback(event, 'applications', event.params.appId, 'application')
 );
 
-// --- TRIGGER 5: Callback Scheduled (from LEADS activity logs) ---
 exports.onLeadCallbackScheduled = onDocumentCreated(
     {
         document: 'companies/{companyId}/leads/{leadId}/activity_logs/{logId}',
         region: 'us-central1'
     },
-    async (event) => {
-
-        const data = event.data?.data();
-
-        if (!data) return;
-
-        // Only notify for callbacks
-        if (data.outcome !== 'callback') return;
-
-        // Get lead info from parent document
-        const leadRef = db.collection('companies').doc(event.params.companyId)
-            .collection('leads').doc(event.params.leadId);
-        const leadDoc = await leadRef.get();
-        const leadData = leadDoc.data() || {};
-
-        const leadName = leadData.fullName || `${leadData.firstName || ''} ${leadData.lastName || ''}`.trim() || 'Lead';
-        const scheduledTime = data.callbackTime || data.notes || 'No time specified';
-
-        await createNotification(db, event.params.companyId, {
-            type: 'callback_scheduled',
-            title: 'Callback Scheduled',
-            message: `${leadName}: ${scheduledTime}`,
-            relatedId: event.params.leadId,
-            relatedType: 'lead',
-            performedBy: data.performedBy,
-            performedByName: data.performedByName
-        });
-    }
+    (event) => notifyCallback(event, 'leads', event.params.leadId, 'lead')
 );
 
 
-// --- TRIGGER 5: DL-4 FIX — Send confirmation email to applicant on new application ---
+// --- TRIGGER 6: DL-4 FIX — Send confirmation email to applicant on new application ---
 // Why a server-side trigger (not client-side send):
 //  1. Ensures the email is sent even when the client drops the connection after submit.
 //  2. The Cloud Function has access to the company's SMTP config (and decrypts the password).

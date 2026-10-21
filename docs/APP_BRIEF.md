@@ -935,7 +935,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 |---|---|---|
 | **Firebase** (Auth, Firestore, Storage, Functions, Hosting) | Everything | Project config |
 | **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
-| **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); the password is saved encrypted (`enc:v1:`), shown in the UI only by the vault's audited reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until migrated); it decrypts an `enc:v1:` password |
+| **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); password saved encrypted (`enc:v1:`), shown in the UI only by the vault's reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until migrated) |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat connected in Super Admin → System Health. The marketing-site bot is **retired** (`LD-R3`): promotion's `scripts/retire-functions.mjs` keeps `listLandingLeads`; a rollback past it calls deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
@@ -1026,9 +1026,9 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
-- **Notifications** — status changes, lead assignment, new applications,
-  scheduled callbacks, and an applicant confirmation email on every new
-  application.
+- **Notifications** — status changes, lead assignment, new applications, an
+  applicant confirmation email. A call with a callback time (or "Remind me in 1
+  Hour", still No Answer) reminds only its recruiter (`recipientId`).
 - **Automated contact SMS** — moving an application or lead *into*
   `Contact Attempt 1/2/3` sends the matching template from
   `companies/{id}/settings/automated_sms`. Transition-only, so idempotent; no
