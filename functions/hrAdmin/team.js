@@ -32,7 +32,7 @@ const { isSuperAdminClaims } = require("../shared/superAdmin");
 //   2. The SEC-002 rule denying the read: `users/{uid}` get requires the TARGET's
 //      server-maintained `companyIds` to intersect the READER's `companyTeamIds`
 //      claim. Profiles predating that field, and readers holding a stale token,
-//      are denied — exactly what backfillUserCompanyIds warns about.
+//      are denied.
 //   3. A profile whose name lives in a different field (`fullName`,
 //      `displayName`, `firstName`/`lastName`).
 //   4. A membership pointing at a uid with no Auth account — genuinely orphaned.

@@ -1,7 +1,6 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
-const functions = require("firebase-functions"); // V1 for public HTTP
 const { admin } = require("../firebaseAdmin");
 const { assertCompanyAdminStrict } = require("../shared/companyAccess");
 const { normalizeSearchPhone } = require("../shared/searchNormalization");
@@ -436,73 +435,3 @@ async function processLead(value) {
     await db.collection('companies').doc(companyId).collection('leads').add(mappedLead);
     console.log(`Ingested Facebook Lead ${leadgen_id} for Company ${companyId}`);
 }
-
-/**
- * Facebook Webhook Handler - V1 Version (Public HTTP by default)
- * This version uses Cloud Functions Gen 1 which doesn't have Cloud Run auth issues
- */
-exports.facebookWebhookV1 = functions.https.onRequest(async (req, res) => {
-    // Use runtime config or environment for secrets in V1
-    const APP_SECRET = process.env.FACEBOOK_APP_SECRET_VALUE || '';
-    const VERIFY_TOKEN_VALUE = process.env.FACEBOOK_VERIFY_TOKEN_VALUE;
-    if (!VERIFY_TOKEN_VALUE) {
-        console.error("FACEBOOK_VERIFY_TOKEN_VALUE is not set.");
-        return res.sendStatus(500);
-    }
-
-    // A. Verification (GET)
-    if (req.method === 'GET') {
-        const mode = req.query['hub.mode'];
-        const token = req.query['hub.verify_token'];
-        const challenge = req.query['hub.challenge'];
-
-        if (mode && token) {
-            if (mode === 'subscribe' && token === VERIFY_TOKEN_VALUE) {
-                console.log('WEBHOOK_VERIFIED_V1');
-                return res.status(200).send(challenge);
-            } else {
-                return res.sendStatus(403);
-            }
-        }
-    }
-
-    // B. Security (Signature Check for POST)
-    if (req.method === 'POST') {
-        if (!APP_SECRET) {
-            console.error("Critical: APP_SECRET not set for V1 webhook.");
-            return res.sendStatus(500);
-        }
-
-        const signature = metaSignature(req, APP_SECRET);
-        if (signature === 'missing') {
-            console.warn("Missing X-Hub-Signature-256 V1");
-            return res.sendStatus(401);
-        }
-        if (signature === 'invalid') {
-            console.error("Invalid Signature V1");
-            return res.sendStatus(403);
-        }
-
-        // C. Process Entries
-        try {
-            const body = req.body;
-            if (body.object === 'page') {
-                for (const entry of body.entry) {
-                    for (const change of entry.changes) {
-                        if (change.field === 'leadgen') {
-                            await processLead(change.value);
-                        }
-                    }
-                }
-                return res.status(200).send('EVENT_RECEIVED');
-            } else {
-                return res.sendStatus(404);
-            }
-        } catch (error) {
-            console.error("Webhook Error V1:", error);
-            return res.sendStatus(500);
-        }
-    }
-
-    return res.sendStatus(405);
-});

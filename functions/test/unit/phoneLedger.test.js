@@ -1,7 +1,4 @@
-const {
-    derivePhoneLedgerKeys,
-    isCanonicalPhoneLedgerKey,
-} = require('../../bulkActions/helpers/phoneLedger');
+const { derivePhoneLedgerKeys } = require('../../bulkActions/helpers/phoneLedger');
 
 describe('phoneLedger helper', () => {
     it('derives deterministic canonical + legacy-compatible keys for US numbers', () => {
@@ -23,9 +20,7 @@ describe('phoneLedger helper', () => {
         ]));
     });
 
-    it('returns empty lookup for malformed input and validates canonical key shape', () => {
+    it('returns empty lookup for malformed input', () => {
         expect(derivePhoneLedgerKeys('123')).toEqual({ canonical: null, lookupKeys: [] });
-        expect(isCanonicalPhoneLedgerKey('+15551234567')).toBe(true);
-        expect(isCanonicalPhoneLedgerKey('15551234567')).toBe(false);
     });
 });

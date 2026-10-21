@@ -32,7 +32,7 @@ This runbook defines operations ownership, alerting responses, quota controls, a
 3. Validate smoke checks:
    - Auth login
    - `initBulkSession`
-   - `sendSMS` (non-production dry-run tenant)
+   - `sendTestSMS` (non-production dry-run tenant)
    - `submitGuestApplication`
 4. Reopen traffic once errors return to baseline.
 

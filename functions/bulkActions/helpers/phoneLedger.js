@@ -20,11 +20,6 @@ function derivePhoneLedgerKeys(rawPhone) {
     return { canonical, lookupKeys: [...keys] };
 }
 
-function isCanonicalPhoneLedgerKey(phoneKey) {
-    return /^\+\d{10,20}$/.test(String(phoneKey || ""));
-}
-
 module.exports = {
     derivePhoneLedgerKeys,
-    isCanonicalPhoneLedgerKey,
 };

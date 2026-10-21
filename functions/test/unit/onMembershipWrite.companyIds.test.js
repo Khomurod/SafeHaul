@@ -90,8 +90,7 @@ describe('onMembershipWrite — users/{uid}.companyIds covers EVERY membership',
   // THE DIVERGENCE: companyIds decides who may read THIS user's profile. Deriving
   // it from the staff-role allowlist left members holding any other role with
   // `companyIds: []`, so their own teammates were denied the read and the roster
-  // showed them as "Unknown / No Email". It also reverted backfillUserCompanyIds,
-  // which maps every membership that has a companyId.
+  // showed them as "Unknown / No Email".
   it('includes a company-scoped super_admin membership, which the allowlist dropped', async () => {
     state.memberships = [{ userId: 'u1', companyId: 'co-a', role: 'super_admin' }];
     await fire('u1');

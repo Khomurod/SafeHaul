@@ -1,14 +1,12 @@
 const sessionController = require('./controllers/sessionController');
 const analyticsService = require('./services/analyticsService');
 const batchWorker = require('./workers/batchWorker');
-const adminTools = require('./admin/backfillSmsSentPhones');
 const sessionDeleted = require('./workers/sessionDeleted');
 
 module.exports = {
     ...sessionController,
     ...analyticsService,
     ...batchWorker,
-    ...adminTools,
     deleteBulkSessionData: sessionDeleted.deleteBulkSessionData
 };
 

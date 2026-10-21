@@ -1,6 +1,5 @@
 /**
- * The Facebook lead webhooks (`facebookWebhook`, and the first-generation
- * `facebookWebhookV1` that reads its secrets from the environment).
+ * The Facebook lead webhook (`facebookWebhook`).
  *
  * GET answers Facebook's subscription check only with the verify token. A POST
  * must carry a valid `X-Hub-Signature` over the raw body before anything is
@@ -18,7 +17,6 @@ jest.mock('firebase-functions/v2/https', () => ({
         constructor(code, message) { super(message); this.code = code; }
     },
 }));
-jest.mock('firebase-functions', () => ({ https: { onRequest: jest.fn((fn) => fn) } }));
 const mockSecrets = {};
 jest.mock('firebase-functions/params', () => ({
     defineSecret: (name) => ({ value: () => mockSecrets[name] }),
@@ -33,7 +31,7 @@ const { createFirestoreMock } = require('../helpers/firestoreMock');
 const mock = createFirestoreMock();
 jest.mock('../../firebaseAdmin', () => ({ admin: mock.admin, db: mock.db }));
 
-const { facebookWebhook, facebookWebhookV1 } = require('../../integrations/facebook');
+const { facebookWebhook } = require('../../integrations/facebook');
 
 const APP_SECRET = 'artificial-app-secret';
 const VERIFY_TOKEN = 'artificial-verify-token';
@@ -68,8 +66,6 @@ beforeEach(() => {
     jest.spyOn(console, 'warn').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
     Object.assign(mockSecrets, { FACEBOOK_APP_SECRET: APP_SECRET, FACEBOOK_VERIFY_TOKEN: VERIFY_TOKEN });
-    process.env.FACEBOOK_APP_SECRET_VALUE = APP_SECRET;
-    process.env.FACEBOOK_VERIFY_TOKEN_VALUE = VERIFY_TOKEN;
     mock.reset({ 'integrations_index/page-1': PAGE_BINDING });
     mockAxiosGet.mockResolvedValue({
         data: {
@@ -86,13 +82,10 @@ beforeEach(() => {
 
 afterEach(() => {
     jest.restoreAllMocks();
-    delete process.env.FACEBOOK_APP_SECRET_VALUE;
-    delete process.env.FACEBOOK_VERIFY_TOKEN_VALUE;
 });
 
 describe.each([
     ['facebookWebhook', facebookWebhook],
-    ['facebookWebhookV1', facebookWebhookV1],
 ])('%s', (_name, handler) => {
     it("answers Facebook's subscription check with the challenge when the verify token matches", async () => {
         const res = response();
@@ -207,7 +200,6 @@ describe.each([
 
     it('refuses every POST while the app secret is missing', async () => {
         delete mockSecrets.FACEBOOK_APP_SECRET;
-        delete process.env.FACEBOOK_APP_SECRET_VALUE;
         const res = response();
         await handler(post(leadgen({ leadgen_id: 'lead-1', page_id: 'page-1' })), res);
 
@@ -253,13 +245,5 @@ describe('without a verify token', () => {
         delete mockSecrets.FACEBOOK_VERIFY_TOKEN;
 
         await expect(facebookWebhook(get({}), response())).rejects.toThrow('FACEBOOK_VERIFY_TOKEN secret is not set in production.');
-    });
-
-    it('facebookWebhookV1 answers 500', async () => {
-        delete process.env.FACEBOOK_VERIFY_TOKEN_VALUE;
-        const res = response();
-        await facebookWebhookV1(get({}), res);
-
-        expect(res.sendStatus).toHaveBeenCalledWith(500);
     });
 });
