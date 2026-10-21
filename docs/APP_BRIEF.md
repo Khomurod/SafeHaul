@@ -924,7 +924,8 @@ only**.
 `callTracking`. Semantics are **opt-out**: a missing key means *enabled*; only
 an explicit `false` disables. `features` is stripped from the public profile
 projection, and `/apply/:slug` is not gated by any flag. See
-[`docs/feature-flags.md`](./feature-flags.md).
+[`docs/feature-flags.md`](./feature-flags.md). Only a super admin changes them,
+`planType`, `appSlug`, `isActive` or `status`.
 
 ---
 
@@ -978,11 +979,11 @@ projection, and `/apply/:slug` is not gated by any flag. See
 
 **A Facebook page belongs to one company.** `connectFacebookPage` takes the
 company from the client and authorizes it against the caller's per-company role.
-A page an earlier defect bound to a user id is reclaimed when its owning admin
-reconnects it; a page held by a real company is refused, so no company can take
-over another's lead feed. The claim is a Firestore transaction taken *before*
+A page bound to a user id (an old defect) is reclaimed when its admin reconnects
+it; one held by another company is refused. The claim is a Firestore transaction taken *before*
 the Facebook OAuth exchange (two simultaneous connects cannot both pass),
-released if the connect then fails.
+released if the connect then fails. An event needs Meta's `X-Hub-Signature-256`,
+compared in constant time; SHA-1 alone is refused.
 
 ---
 
@@ -1443,9 +1444,8 @@ require or an `admin.<path>` the wrapper lacks; `deployedEntryPoint.test.js`
 loads `index.js` under plain Node. Under Jest the ES-module-only `jose` (unused, §10) maps to an
 empty stand-in.
 
-**Playwright** runs in CI as 4 shards, `workers: 1` and `retries: 2` each
-(§10): desktop Chromium and `@mobile` tests on an
-emulated Pixel 7. Runner safety:
+**Playwright** runs in CI as 4 shards (`workers: 1`, `retries: 2`; §10):
+desktop Chromium and `@mobile` on an emulated Pixel 7. Runner safety:
 [`.claude/rules/testing.md`](../.claude/rules/testing.md).
 
 **The first download has a budget.** `npm run check:bundle-budget` sums the
