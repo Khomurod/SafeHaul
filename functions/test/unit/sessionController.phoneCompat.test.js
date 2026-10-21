@@ -312,6 +312,33 @@ describe('initBulkSession launch limit', () => {
         expect(targetIds).not.toContain('lead2000');
     });
 
+    it('takes Limit Volume\'s newest recipients, after the already messaged are left out', async () => {
+        const at = (day) => ({ toMillis: () => Date.UTC(2026, 9, day) });
+        mockBuildLeadQueries.mockReturnValue([{
+            select: jest.fn().mockReturnThis(),
+            get: jest.fn().mockResolvedValue({
+                docs: [
+                    { id: 'oldest', data: () => ({ phone: phoneOf(1), createdAt: at(1) }) },
+                    { id: 'newest', data: () => ({ phone: phoneOf(2), createdAt: at(20) }) },
+                    { id: 'undated', data: () => ({ phone: phoneOf(3) }) },
+                    { id: 'newer', data: () => ({ phone: phoneOf(4), createdAt: at(15) }) },
+                    { id: 'middle', data: () => ({ phone: phoneOf(5), createdAt: at(10) }) },
+                ],
+                size: 5,
+            }),
+        }]);
+        // The newest was texted today.
+        mockGetAll.mockImplementation(async (...refs) => refs.map((ref) => {
+            const hit = ref.id === phoneOf(2);
+            return { id: ref.id, exists: hit, data: () => (hit ? { lastSentAt: new Date() } : undefined) };
+        }));
+
+        const result = await launch({ leadType: 'leads', campaignLimit: '2', excludeRecentDays: '7' });
+
+        expect(result.targetCount).toBe(2);
+        expect(writtenTargets()).toEqual(['newer', 'middle']);
+    });
+
     it('refuses an uploaded list of 2,001 before any row is written', async () => {
         await expect(launch({ leadType: 'import', excludeRecentDays: 'off' }, rows(2001))).rejects.toMatchObject({
             code: 'invalid-argument',

@@ -133,14 +133,10 @@ const buildLeadQueries = (companyId, filters, userId) => {
     // if (filters.excludeRecentDays) { ... }
 
 
-    // 6. Campaign Limit
-    if (filters.campaignLimit) {
-        const limit = parseInt(filters.campaignLimit);
-        if (!isNaN(limit) && limit > 0) {
-            console.log(`DEBUG QueryBuilder: Applying limit ${limit}`);
-            applyToAll(q => q.limit(limit));
-        }
-    }
+    // 6. Limit Volume is not a query limit: it takes the newest N recipients
+    // after the exclusions (`campaignLimit.js`, used by the count, the preview
+    // and the launch). A query limit took the first N in document order, and
+    // each of split queries took its own N.
 
     // 7. Last Call Outcome
     if (filters.lastCallOutcome && filters.lastCallOutcome !== 'all') {
