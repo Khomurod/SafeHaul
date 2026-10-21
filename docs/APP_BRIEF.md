@@ -1227,7 +1227,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 | Command | Blocking | Catches |
 |---|---|---|
 | `npm test` (`design-system/tests/`) | yes | An import across a layer boundary, in stylesheets or modules; a broken token contract or a pairing below AA |
-| `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control, a hand-rolled tablist, toggle, current-item control or avatar disc, a raw file input, a hand-written `target="_blank"` — in JSX, stories and CSS |
+| `ds/*` rules in `lint:frontend` | yes | An arbitrary colour, size or layer (`ds/no-raw-values`), a raw table (`ds/native-table`), a hand-styled control, tablist, toggle, current-item control, raw file input or hand-written `target="_blank"` (`ds/use-primitive`); stylesheets by `stylesheetContract.test.js` |
 | `npm run lint:frontend` | yes | **Any** file under `src/`, outside `src/design-system/icons/`, importing `lucide-react`; there is no exemption list (`scripts/test-lint-rules.mjs` drives the rule) |
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — for `DataTable` and the `ds-native-table` contract |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours, and a frozen table column losing its opaque background |
@@ -1238,9 +1238,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Inter is self-hosted** in `src/design-system/fonts/` (SIL OFL 1.1), never
   from a third party (CI renders the real typeface, no user's IP is disclosed),
   cut by script: a page loads only letters it shows (`fonts/README.md`).
-- `check:ui-contract` refuses any violation that
-  `src/design-system/ui-contract.allowlist.json` does not record with a reason.
-  A fixed violation lowers its entry; growth is a hand edit, judged in review.
+- A `ds/*` exception is a file in `scripts/eslint-rules/exceptions.mjs`, with
+  its reason; adding one is judged in review.
 - The Tailwind theme is strict: a default colour, size, radius, shadow or layer
   (`bg-white`, `rounded-lg`, `z-10`) compiles to nothing. Use the `--ds-*` ones.
 - **No guard catches a hand-composed pattern** — a status screen from `Card` +
@@ -1392,7 +1391,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 `npm run storybook` / `npm run test:stories`. CI also runs
 `check:callable-contract`, `check:ai-boundary`, `check:ci-plan`,
 `check:release-scripts`, `check:deploy-script`, `check:function-exports`,
-`check:ui-contract`, `check:table-layout`, `check:visual-contract`,
+`check:table-layout`, `check:visual-contract`,
 `test:visual`, `test:secret-scan`, and a secret scan
 (`scripts/secret-scan.mjs`, a pinned Gitleaks CLI) — all blocking. CI's frontend
 job runs `lint:frontend`, not the root `npm run lint`, so a check that lives

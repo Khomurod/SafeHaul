@@ -101,9 +101,8 @@ invisible on slate-900.
 
 ## The guard
 
-`check:ui-contract`'s `hand-rolled-current` rule refuses a raw `<button>`
-carrying `aria-current` outside the design system's own source, and
-`hand-rolled-toggle` (from the chip slice) does the same for `aria-pressed`.
+`ds/use-primitive` refuses a raw `<button>` carrying `aria-current` outside the
+design system's own source, and does the same for `aria-pressed`.
 
 Both are scoped to real controls. Three non-interactive `aria-current` sites in
 the tree — a `<li>` step indicator, a `<span>` step chip — are correct markup for

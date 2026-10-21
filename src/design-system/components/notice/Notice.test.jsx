@@ -161,8 +161,7 @@ describe('Notice', () => {
     // Three consumers in the first migration area are the error summary a step
     // focuses when it refuses Continue. A caller must not have to remember a
     // `focus-visible:` utility to make that visible, so the rule is here.
-    // `__dirname`, not `import.meta.url` — Vitest rewrites the latter, which
-    // is the same hazard `uiContract.ratchet.test.js` was retargeted for.
+    // `__dirname`, not `import.meta.url`: Vitest rewrites the latter.
     const rules = readFileSync(path.join(__dirname, 'Notice.css'), 'utf8');
     expect(rules).toMatch(/\.ds-notice:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--ds-color-focus\)/);
     expect(rules).not.toMatch(/@media[^{]*max-width:\s*639px/);

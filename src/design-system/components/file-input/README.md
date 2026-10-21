@@ -4,8 +4,8 @@ The approved file-picker contract. Nine places were feature-owned for want of
 one, and between them had three different ways of opening a picker.
 
 **The API covers all three of the product's shapes**, because a primitive that
-fits a third of its call sites does not get adopted. `check:ui-contract`'s
-`raw-file-input` rule is what stops a tenth being written.
+fits a third of its call sites does not get adopted. `ds/use-primitive`
+refuses a raw file input, which is what stops a tenth being written.
 
 ## The one structural rule
 

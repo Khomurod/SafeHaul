@@ -151,8 +151,7 @@ user-facing string. Boundaries worth knowing:
 ## Guardrails
 
 Every guard is blocking, and CI runs all of them. Before a UI pull request run
-`npm test`, `npm run lint:frontend`, `npm run check:ui-contract`,
-`npm run test:stories` and `npm run test:e2e -- --grep "@a11y"`; when
+`npm test`, `npm run lint:frontend` (its `ds/*` rules), `npm run test:stories` and `npm run test:e2e -- --grep "@a11y"`; when
 components, tokens, styles or tables change, also run
 `npm run check:visual-contract`, `npm run check:table-layout` and
 `npm run test:visual` (each after `npm run build-storybook`).

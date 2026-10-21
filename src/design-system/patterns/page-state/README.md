@@ -135,8 +135,8 @@ catches it. The wrapper shape is the one `ErrorBoundary` uses.
 
 It is a **hand-composed state**: `Card` + `StatusMedallion` + heading + body +
 actions, every ingredient an approved primitive, arranged into the shape these
-three components own. No `check:ui-contract` rule can see one — there is nothing
-wrong with any of the parts.
+three components own. No lint rule can see one — there is nothing wrong with
+any of the parts.
 
 Hand-composed states drift: one kind of screen ends up with several title
 sizes, medallion sizes, icon sizes and gaps, and a panel-level empty can

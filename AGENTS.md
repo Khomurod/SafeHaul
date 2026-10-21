@@ -81,7 +81,7 @@ only to learn *why* a rule exists).
 | Build | `npm run build`, then `npm run check:bundle-budget` |
 | Browser tests | `npm run test:e2e -- --project=chromium`, one suite at a time |
 | Firestore rules | `npm run test:rules` (with emulators: `npm run test:rules:emulators`) |
-| Guards (CI runs all) | `check:source-size`, `check:agent-docs`, `check:ui-contract`, `check:ai-boundary`, `check:function-exports`, `check:public-claims`, `check:ci-plan`, and `node scripts/check-callable-contract.mjs` |
+| Guards (CI runs all) | `check:source-size`, `check:agent-docs`, `check:ai-boundary`, `check:function-exports`, `check:public-claims`, `check:ci-plan`, and `node scripts/check-callable-contract.mjs` |
 
 ## 5. Before you touch an area, read its rules
 

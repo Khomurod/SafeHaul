@@ -10,8 +10,8 @@ Company Profile, had tab *behaviour* with no tab semantics at all: plain
 `<button>`s, `activeTab` state and a coloured border, so assistive technology
 could not tell it was a tab interface or say which section was current.
 
-All eleven are migrated. `check:ui-contract`'s `hand-rolled-tablist` rule is
-what keeps the twelfth from being written, because a roadmap line is not a
+All eleven are migrated. `ds/use-primitive`, which refuses a raw
+`role="tablist"`, is what keeps the twelfth from being written, because a roadmap line is not a
 guard.
 
 ```jsx

@@ -86,6 +86,5 @@ shipped and left it unmigrated.
 variant — the candidate list's sort arrows, which are icon-only at 24px and are
 not chips. See `../button/README.md`.
 
-`check:ui-contract`'s `hand-rolled-toggle` rule refuses a raw `<button>` or `<a>`
-carrying `aria-pressed` anywhere outside the design system's own source, so the
-shape cannot come back by hand.
+`ds/use-primitive` refuses a raw `<button>` carrying `aria-pressed` anywhere
+outside the design system's own source, so the shape cannot come back by hand.

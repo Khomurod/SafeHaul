@@ -31,7 +31,7 @@
  * becomes three separate rounds — the "fix the family" rule in
  * `.claude/rules/release-pipeline.md`.
  *
- * `scripts/test-ui-contract-scope.mjs` §S10 asserts no recursive `rmSync` in
+ * `scripts/test-source-size.mjs` §T asserts no recursive `rmSync` in
  * `scripts/` is written without retries, so the next harness cannot reintroduce
  * it by copying an older one.
  */

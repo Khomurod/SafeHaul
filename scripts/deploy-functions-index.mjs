@@ -3,8 +3,8 @@
  * on index.js: the loader around its export statements picks the module
  * FUNCTION_TARGET names (functions/test/unit/functionTarget.test.js).
  *
- * The file is read as its syntax tree (@babel/parser, as scripts/ui-contract/
- * reads JSX), without positions, comments or how a literal was written, so
+ * The file is read as its syntax tree (@babel/parser), without positions,
+ * comments or how a literal was written, so
  * formatting never counts and the meaning always does:
  * - an export's wiring is a statement of exactly the form
  *   `if (wanted('X')) exports.X = <module or its member>;`, with its place among

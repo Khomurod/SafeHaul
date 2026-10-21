@@ -89,6 +89,7 @@ circles:
 | A numbered step marker in a progress indicator | no primitive; recorded as a gap |
 | A radio dot, a selection indicator | the form controls that own them |
 
-That is why `check:ui-contract`'s `hand-rolled-avatar` rule reads what a disc
-**holds** — a person's initial — rather than its shape. A shape-only rule
-matched all 25 and would have demanded `Avatar` for every one of them.
+A check for a hand-drawn disc would have to read what it **holds** — a
+person's initial — rather than its shape: a shape-only rule matched all 25 and
+would have demanded `Avatar` for every one of them. No lint rule checks it
+today.

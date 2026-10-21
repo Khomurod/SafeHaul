@@ -349,8 +349,6 @@ console.log('\nK. Guards that stay guards');
         ['Check agent instruction sizes', ['npm run check:agent-docs']],
         ['Verify the AI-boundary guard', ['npm run test:ai-boundary']],
         ['Verify the AI provider boundary', ['npm run check:ai-boundary']],
-        ['Verify the UI-contract guard', ['npm run test:ui-contract'], /^test-ui-contract(-[a-z]+)?\.mjs$/],
-        ['UI contract ratchet', ['npm run check:ui-contract']],
         ['Verify the lint rules', ['npm run test:lint-rules']],
         ['Verify the bundle-budget guard', ['npm run test:bundle-budget']],
     ];
@@ -359,7 +357,6 @@ console.log('\nK. Guards that stay guards');
         ['Verify the source-size guard', 'Check source sizes'],
         ['Verify the agent-docs guard', 'Check agent instruction sizes'],
         ['Verify the AI-boundary guard', 'Verify the AI provider boundary'],
-        ['Verify the UI-contract guard', 'UI contract ratchet'],
     ];
     /**
      * What each npm script a row names runs, exactly. The script is the next hop
@@ -378,11 +375,6 @@ console.log('\nK. Guards that stay guards');
         'check:agent-docs': 'node scripts/check-agent-docs.mjs',
         'test:ai-boundary': 'node scripts/test-ai-boundary.mjs',
         'check:ai-boundary': 'node scripts/check-ai-provider-boundary.mjs',
-        'test:ui-contract': [
-            'node scripts/test-ui-contract.mjs', 'node scripts/test-ui-contract-state.mjs',
-            'node scripts/test-ui-contract-scope.mjs', 'node scripts/test-ui-contract-allowlist.mjs',
-        ].join(' && '),
-        'check:ui-contract': 'node scripts/check-ui-contract.mjs',
         'test:lint-rules': 'node scripts/test-lint-rules.mjs',
         'test:bundle-budget': 'node scripts/test-bundle-budget.mjs',
     };
