@@ -15,6 +15,7 @@ vi.mock('firebase/storage', async () => (await import('./DossierBodies.contract.
 vi.mock('@shared/utils/activityLogger', async () => (await import('./DossierBodies.contract.support')).activityLoggerMock());
 vi.mock('@features/applications/services/applicationPdfService', async () => (await import('./DossierBodies.contract.support')).applicationPdfServiceMock());
 vi.mock('@features/auth/services/userService', async () => (await import('./DossierBodies.contract.support')).userServiceMock());
+vi.mock('./dqFileSync', async () => (await import('./DossierBodies.contract.support')).dqFileSyncMock());
 
 import { DQFileTab } from './DQFileTab';
 import { ActivityHistoryTab } from './ActivityHistoryTab';

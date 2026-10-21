@@ -107,3 +107,52 @@ it('files an arriving application\'s uploads unmarked', async () => {
         options: { merge: true },
     }]);
 });
+
+// What the wizard has stored since 2026-09-08: the file's path, never a link.
+const GUEST = { name: 'cdl.jpg', storagePath: 'companies/co1/applications/guest_uploads/1760000000000_ab12cd_cdl.jpg' };
+
+it('files an arriving application\'s upload that has a path and no link', async () => {
+    await onApplicationSubmitted({
+        params: { companyId: 'co1', applicationId: 'app1' },
+        data: { data: () => ({ signature: `data:image/png;base64,${'A'.repeat(50)}`, 'cdl-front': GUEST }) },
+    });
+
+    const dqWrites = mockWrites.filter(({ path }) => path.includes('/dq_files/'));
+    expect(dqWrites).toEqual([{
+        path: PATH,
+        data: expect.objectContaining({ storagePath: GUEST.storagePath, fileName: 'cdl.jpg', isSynced: true }),
+        options: { merge: true },
+    }]);
+});
+
+it('files a path-only upload added after the application arrived', async () => {
+    await onApplicationUpdated({
+        params: { companyId: 'co1', applicationId: 'app1' },
+        data: { before: { data: () => ({}) }, after: { data: () => ({ 'cdl-front': GUEST }) } },
+    });
+
+    expect(mockWrites).toEqual([expect.objectContaining({ path: PATH })]);
+});
+
+
+it('files nothing when only the link of the same upload was signed again', async () => {
+    await onApplicationUpdated({
+        params: { companyId: 'co1', applicationId: 'app1' },
+        data: {
+            before: { data: () => ({ 'cdl-front': { ...GUEST, url: 'https://signed.example.test/a' } }) },
+            after: { data: () => ({ 'cdl-front': { ...GUEST, url: 'https://signed.example.test/b' } }) },
+        },
+    });
+
+    expect(mockWrites).toEqual([]);
+});
+
+it('takes no other company\'s path for an upload', async () => {
+    const foreign = { name: 'x.jpg', storagePath: 'companies/co2/applications/guest_uploads/1760000000000_ab12cd_x.jpg' };
+    await onApplicationUpdated({
+        params: { companyId: 'co1', applicationId: 'app1' },
+        data: { before: { data: () => ({}) }, after: { data: () => ({ 'cdl-front': foreign }) } },
+    });
+
+    expect(mockWrites).toEqual([]);
+});

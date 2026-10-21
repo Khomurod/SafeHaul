@@ -1,7 +1,7 @@
 import React, { useId, useRef, useState, useEffect, useMemo } from 'react';
 import { db } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
-import { collection, addDoc, getDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDoc, getDocs, deleteDoc, doc, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Icon, Upload, Trash2, FileText, Download } from '@design-system/icons';
 import { logActivity } from '@shared/utils/activityLogger';
@@ -20,7 +20,7 @@ import {
   isDriverUploadPath,
   openApplicationFile,
 } from '@features/applications/services/openApplicationFile';
-import { fetchAndSyncDqFiles } from './dqFileSync';
+import { fileDriverUploads } from './dqFileSync';
 
 /**
  * Driver Qualification file management for one application or lead.
@@ -30,10 +30,7 @@ import { fetchAndSyncDqFiles } from './dqFileSync';
  * Presentation only. Frozen and unchanged: the eleven `DQ_FILE_TYPES` and their
  * order (with `[0]` as the initial and post-upload reset value); the
  * `companies/{companyId}/{collectionName}/{applicationId}/dq_files` sub-collection
- * and its `orderBy('createdAt', 'desc')`; the eight `syncTargets` field→type
- * mappings and their expiration fields, which must stay in step with
- * `driverSync.js`; the de-duplication by `url`; the auto-sync payload including
- * `ownerUserIds`, `isSynced` and `sourceField`; the Storage path
+ * and its `orderBy('createdAt', 'desc')`; the Storage path
  * `companies/{companyId}/applications/{applicationId}/dq_files/{ms}_{type-with-non-alphanumerics-as-underscores}_{name}`
  * — which deliberately uses `applications` even for leads to satisfy the existing
  * Storage rules, and starts with the upload's time so a second file of one type
@@ -44,11 +41,13 @@ import { fetchAndSyncDqFiles } from './dqFileSync';
  * and their label text; the 2-second upload-message reset; and every user-facing
  * string.
  *
- * A synced record (`isSynced`) files the application's own upload. Deleting it
- * leaves the file, and keeps the record unlisted with `removedAt`: the sync files
- * any upload no record matches, so a deleted one came straight back. A new upload
- * of that type clears the mark (`driverSync.js`). A driver's upload opens from a
- * link signed when it is pressed; the `url` it was copied with lived minutes.
+ * A synced record (`isSynced`) files the application's own upload, and only the
+ * server writes one (`functions/shared/dqUploads.js`): when the application
+ * arrives or an upload changes, and when this tab opens (`fileDriverUploads`),
+ * for any upload no record holds. Deleting one leaves the file, and keeps the
+ * record unlisted with `removedAt`, so it is not filed again; a new upload of
+ * that type clears the mark. A driver's upload opens from a link signed when it
+ * is pressed; the `url` it was copied with lived minutes.
  *
  * Defects fixed:
  *  1. **Blocking `window.confirm` on the destructive delete** → the shared
@@ -170,19 +169,38 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
     return { label: 'Active', tone: 'success' };
   };
 
-  // --- 2. Fetch and Sync DQ files ---
-  const fetchAndSyncFiles = () => fetchAndSyncDqFiles({
-    dqFilesCollectionRef,
-    companyId,
-    collectionName,
-    applicationId,
-    setDqFiles,
-    setLoading,
-    setError,
-  });
+  // --- 2. Read the DQ files ---
+  // Only the latest read shows: the one after the server files uploads can
+  // overtake the first.
+  const readCount = useRef(0);
+  const loadFiles = async () => {
+    const read = ++readCount.current;
+    setLoading(true);
+    setError('');
+    try {
+      const snapshot = await getDocs(query(dqFilesCollectionRef, orderBy("createdAt", "desc")));
+      if (read === readCount.current) setDqFiles(snapshot.docs.map((file) => ({ id: file.id, ...file.data() })));
+    } catch (err) {
+      console.error("Error fetching DQ files:", err);
+      if (read === readCount.current) setError("Could not load DQ files. Check permissions.");
+    } finally {
+      if (read === readCount.current) setLoading(false);
+    }
+  };
 
+  // The list shows at once; the server files the uploads no record holds yet,
+  // and the list is read again when it filed any.
   useEffect(() => {
-    fetchAndSyncFiles();
+    let current = true;
+    loadFiles();
+    fileDriverUploads({ companyId, collectionName, applicationId }).then(
+      (filed) => { if (current && filed > 0) loadFiles(); },
+      (err) => {
+        console.error("Could not file the driver's uploads:", err);
+        if (current) setError("Some of the driver's uploads could not be added here. Open this tab again to retry.");
+      },
+    );
+    return () => { current = false; };
   }, [dqFilesCollectionRef]);
 
   // --- 3. Handle File Upload ---
@@ -240,8 +258,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
       setSelectedFileType(DQ_FILE_TYPES[0]);
       if (fileInputRef.current) fileInputRef.current.value = null;
 
-      // Assuming fetchDqFiles is meant to be fetchAndSyncFiles
-      await fetchAndSyncFiles();
+      await loadFiles();
       setTimeout(() => setUploadMessage(''), 2000);
 
     } catch (err) {
@@ -263,7 +280,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
       const docRef = doc(dqFilesCollectionRef, file.id);
       if (file.isSynced) {
         // The application's own upload: the file stays, and so does the record,
-        // marked removed, so that the sync does not file the upload again.
+        // marked removed, so that the server does not file the upload again.
         await updateDoc(docRef, { removedAt: serverTimestamp() });
       } else {
         // Delete from Storage
@@ -284,8 +301,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
         'user'
       );
 
-      // Assuming fetchDqFiles is meant to be fetchAndSyncFiles
-      await fetchAndSyncFiles();
+      await loadFiles();
 
     } catch (err) {
       console.error("Delete failed:", err);
@@ -294,7 +310,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
     }
   };
 
-  // A synced record marked removed is kept for the sync's matching, never shown.
+  // A synced record marked removed is kept for the server's matching, never shown.
   const shownFiles = dqFiles.filter((file) => !file.removedAt);
 
   return (

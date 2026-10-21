@@ -1018,6 +1018,10 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
   marked `validation_error`), files its details (no SSN) under `drivers/{id}/pending_updates`,
   read by nothing, and adds the company to an existing profile (`{id}`: the Auth uid of a known email;
   for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created.
+- **DQ file** — an application's uploads become `dq_files/{type}` records when it
+  arrives or one changes, matched by `storagePath` (a link only without one);
+  opening the DQ tab files any still missing (`syncDqFiles`, leads too). A
+  removed entry stays removed.
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
@@ -1391,9 +1395,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 `test:visual`, `test:secret-scan`, and a secret scan
 (`scripts/secret-scan.mjs`, a pinned Gitleaks CLI) — all blocking. CI's frontend
 job runs `lint:frontend`, not the root `npm run lint`, so a check that lives
-only in the root lint is not a CI gate. `npm run typecheck` runs in
-`frontend-quality` and blocks like the rest; the modules `jsconfig.json` checks
-have no type errors. TypeScript 7 reads a JSDoc `{object}` strictly (name the
+only in the root lint is not a CI gate. `npm run typecheck` blocks in
+`frontend-quality`. TypeScript 7 reads a JSDoc `{object}` strictly (name the
 fields, or `Record<string, unknown>`) and has no `baseUrl`; a `TS5xxx` error
 means the configuration was rejected and nothing was checked.
 
@@ -1414,9 +1417,7 @@ re-scanned, never stepped over.
 - Exemptions are pinned, not trusted: `.gitleaks.toml` may declare only the
   reviewed tables, keys and values; `gitleaks:allow` comments are switched off;
   a `.gitleaksignore` fails the job.
-- Because a deploy requires this job, nothing reaches Testing unless every
-  commit since the last fully validated release was scanned by a scanner that
-  passed its own tests.
+- A deploy requires this job.
 - The full-history sweep is the separate, non-blocking `secret-history-audit`
   workflow (the history's known legacy findings would otherwise fail unrelated
   releases); `docs/SECRET_HISTORY_AUDIT.md` lists the credentials still needing
@@ -1439,9 +1440,8 @@ without `paths:` and a path the instructions name that does not exist.
 import: `firebase-admin` 14's root export has no services, and suites that mock
 it would not notice. `functions/test/unit/firebaseAdmin.test.js` refuses a root
 require or an `admin.<path>` the wrapper lacks; `deployedEntryPoint.test.js`
-loads `index.js` under plain Node. Under Jest the ES-module-only `jose` (App
-Check and phone-number tokens, neither used — §10) maps to an empty stand-in;
-Jest on Node 22 cannot `require()` it.
+loads `index.js` under plain Node. Under Jest the ES-module-only `jose` (unused, §10) maps to an
+empty stand-in.
 
 **Playwright** runs in CI as 4 shards, `workers: 1` and `retries: 2` each
 (§10): desktop Chromium and `@mobile` tests on an

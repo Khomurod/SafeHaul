@@ -234,6 +234,8 @@ function exportFunctions(wanted) {
   // Signed download URLs for driver-uploaded application files (guest_uploads): re-signs
   // at view time so company users can open CDLs/medical cards (the persisted URL expires).
   if (wanted('getSignedApplicationFileUrl')) exports.getSignedApplicationFileUrl = require('./getSignedApplicationFileUrl').getSignedApplicationFileUrl;
+  // The DQ tab, on opening: files the record's uploads no DQ record holds yet.
+  if (wanted('syncDqFiles')) exports.syncDqFiles = require('./syncDqFiles').syncDqFiles;
   // The ONLY way to read a preserved original application PDF. Authorizes the
   // caller and writes an audit record before issuing a short-lived signed URL.
   if (wanted('getApplicationOriginalPdfUrl')) exports.getApplicationOriginalPdfUrl = require('./applicationOriginalPdf').getApplicationOriginalPdfUrl;
