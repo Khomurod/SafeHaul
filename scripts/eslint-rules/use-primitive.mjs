@@ -44,8 +44,16 @@ import {
     attributeValues, certainlyText, elementName, lastClassSetter, memberValue, stringsIn, uniqueInitialiser, valuesYielded,
 } from './jsx.mjs';
 
-/** Classes that decide a control's geometry or colour rather than its layout. */
-export const STYLING_SIGNAL = /\b(?:p|px|py|pt|pb|pl|pr|ps|pe)-(?:\d|ds-|\[)|\bbg-|\bborder(?:-|\b)|\brounded|\btext-(?:xs|sm|base|lg|xl|\[)|\b(?:h|size)-(?:\d|\[)|\bmin-h-/;
+/** The app's type scale, `theme.fontSize` (`scripts/test-lint-rules.mjs` §O keeps the two the same). */
+const TYPE_SCALE = 'ds-(?:xs|sm|body(?:-lg)?|heading-(?:sm|md|lg|xl)|control-mobile)|voe-(?:xs|sm|lg|xl|2xl|4xl)';
+
+/**
+ * Classes that decide a control's geometry or colour rather than its layout,
+ * each read from the start of a class: a type size from the scale counts, a
+ * text colour (`text-ds-border`) does not.
+ */
+export const STYLING_SIGNAL = new RegExp('(?<![\\w-])(?:(?:p|px|py|pt|pb|pl|pr|ps|pe)-(?:\\d|ds-|\\[)|bg-|border(?:-|\\b)|rounded'
+    + `|text-(?:xs|sm|base|lg|xl|\\[|(?:${TYPE_SCALE})(?![\\w-]))|(?:h|size)-(?:\\d|\\[)|min-h-)`);
 
 const STYLED_CONTROL = {
     button: 'hand-styled-button',
@@ -200,15 +208,16 @@ const listMethod = (call) => {
 /**
  * How `node` is read as a list of class names: `'helper'` as a class helper's
  * argument, `'join'` as an array `.join()` flattens — directly or through an
- * array, a spread, a branch, `.filter()` or `.concat()` — or null when it is
- * not a class list at all.
+ * array, a spread (into an object too), a branch, `.filter()` or `.concat()` —
+ * or null when it is not a class list at all.
  */
 function classListContext(node) {
     let child = node;
     let parent = node.parent;
     for (;;) {
         if (parent?.type === 'ArrayExpression' || parent?.type === 'SpreadElement' || parent?.type === 'LogicalExpression'
-            || (parent?.type === 'ConditionalExpression' && child !== parent.test)) {
+            || (parent?.type === 'ConditionalExpression' && child !== parent.test)
+            || (parent?.type === 'ObjectExpression' && child.type === 'SpreadElement')) {
             child = parent;
             parent = parent.parent;
         } else if (parent?.type === 'MemberExpression' && parent.object === child && parent.parent?.callee === parent
@@ -261,9 +270,10 @@ function overlayPaths(node, list, text) {
         case 'ArrayExpression':
             return list ? node.elements.reduce((all, element) => joined(all, paths(element)), NOTHING) : NOTHING;
         case 'ObjectExpression':
+            // A class map spread into a class map adds its own entries.
             return list === 'helper'
-                ? node.properties.reduce((all, property) => (property.type === 'Property'
-                    ? joined(all, entryPaths(property, text)) : all), NOTHING)
+                ? node.properties.reduce((all, property) => joined(all, property.type === 'Property'
+                    ? entryPaths(property, text) : paths(property)), NOTHING)
                 : NOTHING;
         case 'SpreadElement':
             return paths(node.argument);

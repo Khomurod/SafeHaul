@@ -323,9 +323,10 @@ work complete because code exists.** The PR checklist is
 
 Do not "fix" these without reading why they exist. Each is recorded in the
 component too, and every allowlist entry tolerated for one of them cites this
-section. (Other entries: the design system's own `DataTable`, `FileInput` and
-`TabList`, where the rules send feature code; two test doubles; tinted blocks
-`hand-composed-notice` tolerates — §7.)
+section. (Other entries: the design system's own `DataTable`, `FileInput`,
+`TabList` and `Chip`, where the rules send feature code; two test doubles; the
+login card's contact link (§6); tinted blocks `hand-composed-notice` tolerates —
+§7.)
 
 | Exception | Where | Why it is allowed | Retires when |
 |---|---|---|---|
@@ -378,6 +379,7 @@ are fully approved, §7 is permanent.
 |---|---|---|
 | `[!]` Replacement wording for the customer named in operator copy: `StatsBackfillPanel`'s All-Companies help text reads "Only run after verifying Ray Star LLC results.", preserved verbatim | The repository establishes no generic replacement | Owner (product/copy) |
 | `[ ]` A semantic scrim role, retiring the audience preview's `bg-black/20` (§5) | Naming a new role is a design-system decision, not a mechanical swap | Design-system decision |
+| `[ ]` The login card's hand-styled "Contact SafeHaul" link (`LoginScreen.jsx`): `Link` would underline it, `ButtonLink` frame it | Either changes how the login page looks | Design-system decision |
 | `[ ]` Whether `Notice` may carry positioning and elevation, so `QueueStatusIndicator`'s fixed floating banner (`fixed bottom-4 right-4 z-ds-toast`, `shadow-ds-lg`, its local `QueueNotice`) can be absorbed | `Notice`'s `className` contract is margin and width only, so this is a component change, not a migration | Design-system decision |
 | `[ ]` `rem` instead of `px` for the `--ds-*` contract | Zoom scales both (WCAG 2.2 SC 1.4.4 is met), but `px` ignores a user's default font-size preference; it would be its own campaign with its own visual review | Recorded, not scheduled |
 | `[!]` **NO-GO beyond presentation:** Company Settings → SMS. Number assignment is migrated for presentation only, and its contracts are frozen: the `saveSmsLineAssignments` and `verifyLineConnection` payloads, the line-token model, the `sms_provider` document. `LineManager` (the Phone Line Wallet, secret entry) stays unmigrated and out of scope | Entanglement with `LineManager` | Owner |
@@ -494,14 +496,11 @@ read them.
 
 ## 8. Migration state
 
-**The programme is closed.** All 19 screen areas are migrated — the company
-workspace and settings, login/auth, the public driver application, the driver
-dossier, PEV/VOE, e-docs and signing, lead intake and Super Admin — plus the
-Environment & Integrations vault, AI Integrations, Blog Posts and AI provider
-priority; newer screens use approved components and `--ds-*` tokens from the
-start. Every remaining exception rests on a true reason recorded at the call
-site and in the allowlist (`npm run check:ui-contract` prints the count). One
-area is NO-GO beyond presentation (§6).
+**The programme is closed.** Every screen area is migrated, and newer screens
+use approved components and `--ds-*` tokens from the start. Every remaining
+exception rests on a true reason recorded at the call site and in the allowlist
+(`npm run check:ui-contract` prints the count). One area is NO-GO beyond
+presentation (§6).
 
 **Complete families** — the primitive exists *and* every consumer that can use
 it does:

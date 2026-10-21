@@ -333,6 +333,8 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['hand-built-overlay', 'two classes behind the same condition', view("<div className={clsx(open && 'fixed', open && 'inset-0')} />")],
         ['hand-built-overlay', 'two classes behind the same falsy condition', view("<div className={clsx(open || 'fixed', open || 'inset-0')} />")],
         ['hand-built-overlay', 'a nullish fallback beside its negation', view("<div className={clsx(open ?? 'fixed', !open && 'inset-0')} />")],
+        ['hand-built-overlay', 'the classes in a class map spread into a class map', view("<div className={clsx({ ...{ fixed: open, 'inset-0': open } })} />")],
+        ['hand-built-overlay', 'a class map spread beside a key', view("<div className={clsx({ fixed: open, ...(open ? { 'inset-0': true } : {}) })} />")],
         ['raw-table', 'a table outside the approved list', view('<table><tbody /></table>')],
         ['hand-styled-button', 'a styled button', view('<button className="px-4 py-2 bg-ds-surface rounded">Go</button>')],
         ['hand-styled-button', 'arbitrary padding on a button', view('<button className="p-[13px]">Go</button>')],
@@ -341,6 +343,8 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['hand-styled-field', 'an arbitrary type size on a field', view('<input className="text-[15px]" />')],
         ['hand-styled-field', 'a styled input', view('<input className="border rounded px-3" />')],
         ['hand-styled-anchor', 'a styled anchor', view('<a href="/x" className="px-4 py-2 rounded border">Go</a>')],
+        ['hand-styled-button', 'a type size from the scale on a button', view('<button className="text-ds-body">Go</button>')],
+        ['hand-styled-anchor', 'a type size from the scale on an anchor', view('<a href="/x" className="font-bold text-ds-sm">Go</a>')],
         ['raw-file-input', 'a raw file input', view('<input type="file" />')],
         ['hand-rolled-tablist', 'a hand-rolled tab strip', view('<div role="tablist" />')],
         ['raw-file-input', 'a file input on one branch', view("<input type={uploading ? 'file' : 'text'} />")],
@@ -432,6 +436,20 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         [...inert.map((name) => `${name} compiles to nothing`), ...unread.map((name) => `${name} is not read`)].join('; '));
 
     /*
+     * A control is styled by a type size from the app's own scale, and not by a
+     * text colour: every `theme.fontSize` name marks it, no `theme.colors` name does.
+     */
+    const { STYLING_SIGNAL } = await import('./eslint-rules/use-primitive.mjs');
+    const colourKeys = (colours, prefix = '') => Object.entries(colours).flatMap(([key, value]) => (
+        value && typeof value === 'object' ? colourKeys(value, `${prefix}${key}-`) : [`${prefix}${key}`.replace(/-DEFAULT$/, '')]));
+    const sizes = Object.keys(appTheme.theme.fontSize);
+    const unmarked = sizes.filter((size) => !STYLING_SIGNAL.test(`text-${size}`));
+    const marked = colourKeys(appTheme.theme.colors).filter((colour) => STYLING_SIGNAL.test(`text-${colour}`));
+    assert(`O1d. every type size of the app's scale marks a control styled (${sizes.length}), and no text colour does`,
+        unmarked.length === 0 && marked.length === 0,
+        [...unmarked.map((size) => `text-${size} is not read`), ...marked.map((colour) => `text-${colour} is read as a size`)].join('; '));
+
+    /*
      * The other half: a rule that fires on correct code gets switched off.
      * Each of these was a "stays silent" case for the same check.
      */
@@ -485,6 +503,10 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
             + "<div className={clsx(open && 'fixed', !open && 'inset-0')} />"
             + "<div className={cn(open ? 'fixed' : '', open ? '' : 'inset-0')} />"),
         'class maps on exclusive branches': view("<div className={clsx(open ? { fixed: true } : { 'inset-0': true })} />"),
+        'class maps spread on opposite conditions, or not read': view("<div className={clsx({ ...{ fixed: open }, ...{ 'inset-0': !open } })} />"
+            + "<div className={clsx({ fixed: open, ...flags })} />"),
+        'a colour on a control, not a size': view('<button className="text-ds-content-link">Go</button>'
+            + '<a href="/x" className="font-bold text-ds-content-muted">x</a>'),
         'classes behind a condition and its fallback': view("<div className={clsx(open || 'fixed', open && 'inset-0')} />"
             + "<div className={clsx(open ?? 'fixed', open && 'inset-0')} />"),
         'a font size that is a role or no size at all, anywhere': "export const NOTE = { fontSize: 'var(--ds-font-size-xs)' };\n"

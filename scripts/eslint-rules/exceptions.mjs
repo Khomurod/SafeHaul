@@ -3,9 +3,9 @@
  *
  * Read by every rule in `./index.mjs` (each takes the checks it owns) and
  * passed in by `eslint.config.js`. Each reason is the one roadmap §5 records
- * for the call site; the design system's own `DataTable`, `FileInput` and
- * `TabList`, where the rules send feature code, and two test doubles are the
- * others.
+ * for the call site; the design system's own `DataTable`, `FileInput`,
+ * `TabList` and `Chip`, where the rules send feature code, two test doubles and
+ * a link that waits on a roadmap §6 decision are the others.
  *
  * An exception covers its check in the whole file — there are no counts — so
  * one is added only by hand, with its reason, and judged in review. ESLint
@@ -58,6 +58,10 @@ export const DS_EXCEPTIONS = {
             + '(--ds-color-brand-accent / -primary) cover everything on that panel that carries meaning; '
             + 'these three are translucent, and a Tailwind opacity modifier cannot be applied to a var() '
             + 'colour, so tokenising them would mean three single-use tint tokens for a blur.',
+        'hand-styled-anchor': 'the login card\'s "Contact SafeHaul" mail link is drawn by hand: small bold '
+            + 'link-coloured text whose arrow moves on hover. `Link` would underline it and `ButtonLink` would '
+            + 'frame it as a button, so moving it to either changes how the login page looks: a design decision '
+            + '(roadmap §6), not a mechanical one. Retire this entry with it.',
     },
     'src/features/campaigns/components/AudienceBuilder.jsx': {
         'raw-hex-colour': 'roadmap §5 — `bg-[#000]/20`, the scrim behind the audience preview list. '
