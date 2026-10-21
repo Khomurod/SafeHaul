@@ -234,6 +234,13 @@ function classListContext(node) {
     }
 }
 
+/** `.filter(Boolean)` or `.filter((name) => name)`: drops what is falsy, and so no class string. */
+const keepsEveryClass = ([predicate, ...rest]) => rest.length === 0 && (
+    (predicate?.type === 'Identifier' && predicate.name === 'Boolean')
+    || (predicate?.type === 'ArrowFunctionExpression' && predicate.params.length === 1
+        && predicate.params[0].type === 'Identifier' && predicate.body.type === 'Identifier'
+        && predicate.body.name === predicate.params[0].name));
+
 /** A class map's key as the class names it holds: `fixed`, `'inset-0'`, `` [`inset-0`] ``. */
 const keyPaths = (property, text) => (!property.computed && property.key.type === 'Identifier'
     ? [path(overlayBits(property.key.name))]
@@ -245,6 +252,60 @@ function entryPaths(property, text) {
     if (property.value.type === 'Literal') return property.value.value ? keys : NOTHING;
     const condition = conditionOf(property.value, text);
     return either(assuming(NOTHING, condition, false), assuming(keys, condition, true));
+}
+
+/** A key the source spells out (`fixed`, `'inset-0'`, `` [`inset-0`] ``), or null. */
+function spelledKey(property) {
+    const { key } = property;
+    if (!property.computed && key.type === 'Identifier') return key.name;
+    if (key.type === 'Literal') return String(key.value);
+    if (key.type === 'TemplateLiteral' && key.expressions.length === 0) return key.quasis[0].value.cooked;
+    return null;
+}
+
+/** What spreading `node` adds: an object's entries; nothing for `null`, `undefined` or `false`. */
+function spreadEntries(node) {
+    if (node?.type === 'ObjectExpression') return node.properties;
+    if ((node?.type === 'Literal' && !node.value) || (node?.type === 'Identifier' && node.name === 'undefined')) return [];
+    return null;
+}
+
+/**
+ * A class map as JavaScript leaves it, on each path: a later key replaces an
+ * earlier one, an object spread into the map adds its entries in place, and a
+ * spread a condition chooses (`...(open ? { … } : {})`, `...(open && { … })`)
+ * is each of its branches. A spread the source does not spell out, or a key it
+ * computes, may replace any key before it, so those are not read.
+ */
+function mapPaths(properties, text) {
+    // Past `MAX_PATHS` branches the map is not read, which can only drop a finding.
+    const add = (variant, entries) => entries.reduce((all, entry) => (all.length > MAX_PATHS
+        ? all : all.flatMap((one) => place(one, entry))), [variant]);
+    const branch = (variant, condition, truthy, entries) => add(
+        { conditions: [...variant.conditions, [condition, truthy]], entries: new Map(variant.entries) }, entries);
+    function place(variant, entry) {
+        if (entry.type === 'Property') {
+            const key = spelledKey(entry);
+            if (key === null) return [{ ...variant, entries: new Map([[entry, entry]]) }];
+            return [{ ...variant, entries: new Map(variant.entries).set(key, entry) }];
+        }
+        const spread = entry.argument;
+        if (spreadEntries(spread)) return add(variant, spreadEntries(spread));
+        const condition = conditionOf(spread.type === 'ConditionalExpression' ? spread.test : spread.left, text);
+        if (spread.type === 'ConditionalExpression' && spreadEntries(spread.consequent) && spreadEntries(spread.alternate)) {
+            return [...branch(variant, condition, true, spreadEntries(spread.consequent)),
+                ...branch(variant, condition, false, spreadEntries(spread.alternate))];
+        }
+        if (spread.type === 'LogicalExpression' && spread.operator === '&&' && spreadEntries(spread.right)) {
+            return [...branch(variant, condition, true, spreadEntries(spread.right)), ...branch(variant, condition, false, [])];
+        }
+        return [{ ...variant, entries: new Map() }];
+    }
+    const variants = add({ conditions: [], entries: new Map() }, properties);
+    if (variants.length > MAX_PATHS) return NOTHING;
+    return variants.reduce((all, variant) => either(all, variant.conditions.reduce(
+        (paths, [condition, truthy]) => assuming(paths, condition, truthy),
+        [...variant.entries.values()].reduce((paths, entry) => joined(paths, entryPaths(entry, text)), NOTHING))), []);
 }
 
 /**
@@ -270,11 +331,7 @@ function overlayPaths(node, list, text) {
         case 'ArrayExpression':
             return list ? node.elements.reduce((all, element) => joined(all, paths(element)), NOTHING) : NOTHING;
         case 'ObjectExpression':
-            // A class map spread into a class map adds its own entries.
-            return list === 'helper'
-                ? node.properties.reduce((all, property) => joined(all, property.type === 'Property'
-                    ? entryPaths(property, text) : paths(property)), NOTHING)
-                : NOTHING;
+            return list === 'helper' ? mapPaths(node.properties, text) : NOTHING;
         case 'SpreadElement':
             return paths(node.argument);
         case 'JSXExpressionContainer':
@@ -296,7 +353,8 @@ function overlayPaths(node, list, text) {
             }
             const method = listMethod(node);
             if (method === 'join') return paths(node.callee.object, 'join');
-            if (method === 'filter') return paths(node.callee.object);
+            // Only a filter that keeps every class string (`Boolean`, `(name) => name`) is followed.
+            if (method === 'filter') return keepsEveryClass(node.arguments) ? paths(node.callee.object) : NOTHING;
             if (method === 'concat') {
                 return node.arguments.reduce((all, argument) => joined(all, paths(argument)), paths(node.callee.object));
             }

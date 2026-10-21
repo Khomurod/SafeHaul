@@ -339,6 +339,8 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['hand-built-overlay', 'a nullish fallback beside its negation', view("<div className={clsx(open ?? 'fixed', !open && 'inset-0')} />")],
         ['hand-built-overlay', 'the classes in a class map spread into a class map', view("<div className={clsx({ ...{ fixed: open, 'inset-0': open } })} />")],
         ['hand-built-overlay', 'a class map spread beside a key', view("<div className={clsx({ fixed: open, ...(open ? { 'inset-0': true } : {}) })} />")],
+        ['hand-built-overlay', 'a key a later spread turns on', view("<div className={clsx({ fixed: false, ...{ fixed: true }, 'inset-0': true })} />")],
+        ['hand-built-overlay', 'the classes kept by an identity filter', view("<div className={['fixed', 'inset-0'].filter((name) => name).join(' ')} />")],
         ['raw-table', 'a table outside the approved list', view('<table><tbody /></table>')],
         ['hand-styled-button', 'a styled button', view('<button className="px-4 py-2 bg-ds-surface rounded">Go</button>')],
         ['hand-styled-button', 'arbitrary padding on a button', view('<button className="p-[13px]">Go</button>')],
@@ -510,6 +512,12 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         'class maps on exclusive branches': view("<div className={clsx(open ? { fixed: true } : { 'inset-0': true })} />"),
         'class maps spread on opposite conditions, or not read': view("<div className={clsx({ ...{ fixed: open }, ...{ 'inset-0': !open } })} />"
             + "<div className={clsx({ fixed: open, ...flags })} />"),
+        'class-map keys a later entry turns off': view("<div className={clsx({ fixed: true, ...{ fixed: false }, 'inset-0': true })} />"
+            + "<div className={clsx({ fixed: open, ...(open ? { fixed: false } : null), 'inset-0': open })} />"
+            + "<div className={clsx({ fixed: true, 'inset-0': true, ...rest })} />"
+            + "<div className={clsx({ fixed: true, 'inset-0': true, [name]: false })} />"),
+        'classes a filter may drop before the join': view("<div className={['fixed', 'inset-0'].filter((name) => name !== 'fixed').join(' ')} />"
+            + "<div className={['fixed', 'inset-0'].filter(keep).join(' ')} />"),
         'a colour on a control, not a size': view('<button className="text-ds-content-link">Go</button>'
             + '<a href="/x" className="font-bold text-ds-content-muted">x</a>'),
         'classes behind a condition and its fallback': view("<div className={clsx(open || 'fixed', open && 'inset-0')} />"
