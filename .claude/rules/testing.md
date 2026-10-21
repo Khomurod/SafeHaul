@@ -41,7 +41,8 @@ because ignoring it once cost real time; the incidents are in
    functional lanes only.** The pixel lane (`test:visual`) and
    `check:visual-contract` need the browser revision Playwright pins; with any
    other build their differences are meaningless. Say so instead of updating
-   baselines.
+   baselines; take an intended change from CI with
+   `npm run screenshots:pull -- <run id>` and look at each image first.
 7. **If creating a pull request fails with a server error**, first check whether
    the pull request was created anyway. Never push an empty commit to change the
    SHA.

@@ -40,7 +40,7 @@
  *    reuses a shape already covered here gains little; one that introduces a new
  *    shape should be added, and adding it is two lines.
  *
- * Update baselines with:  npm run test:visual:update
+ * Update baselines with:  npm run screenshots:pull -- <CI run id>
  */
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
