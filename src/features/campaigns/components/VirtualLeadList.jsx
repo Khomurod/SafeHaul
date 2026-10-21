@@ -31,7 +31,10 @@ const STATUS_TONE = {
  */
 const PANEL_CLASS = 'h-[500px] w-full overflow-hidden rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse';
 
-export default function VirtualLeadList({ companyId, filters, excludedIds = [], onToggleExclusion, localData = null, excludedPhones = null, onLeadsChange }) {
+// `method` is the campaign's channel: the preview of CRM leads leaves out those a
+// campaign of that channel already reached. For an uploaded list,
+// `alreadyMessagedKeys` names those rows by their key.
+export default function VirtualLeadList({ companyId, filters, excludedIds = [], onToggleExclusion, localData = null, alreadyMessagedKeys = null, onLeadsChange, method = 'sms' }) {
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(false);
     const [lastDocId, setLastDocId] = useState(null);
@@ -65,6 +68,7 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
             const result = await getLeadsFn({
                 companyId,
                 filters: backendFilters,
+                method,
                 pageSize: 50,
                 lastDocId: reset ? null : lastDocId
             });
@@ -86,7 +90,7 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
             setLoading(false);
             fetchingRef.current = false;
         }
-    }, [companyId, filters, lastDocId, hasMore, localData]);
+    }, [companyId, filters, lastDocId, hasMore, localData, method]);
 
     // Reset and load when filters change
     useEffect(() => {
@@ -103,7 +107,7 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
             fetchingRef.current = false;
             loadMore(true);
         }
-    }, [filters, companyId, localData]);
+    }, [filters, companyId, localData, method]);
 
     // Tells the audience step which leads the preview holds once a load settles,
     // so its count subtracts an un-ticked lead only while the lead is listed. A
@@ -116,10 +120,8 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
     const rowContent = (index, user) => {
         const safeId = user.id || `import_${index}`;
         const isExcluded = excludedIds.includes(safeId);
-        // Check if this row is excluded by the phone filter (import mode only)
-        const isPhoneExcluded = excludedPhones instanceof Set && user.normalizedPhone
-            ? excludedPhones.has(user.normalizedPhone)
-            : false;
+        // An uploaded row a campaign of this channel already reached.
+        const isPhoneExcluded = alreadyMessagedKeys instanceof Set && alreadyMessagedKeys.has(safeId);
         const name = user.firstName ? `${user.firstName} ${user.lastName || ''}` : (user.name || 'Unknown');
         const contact = user.phone || user.normalizedPhone || user.email || 'No Contact Info';
 

@@ -70,9 +70,19 @@ describe('VirtualLeadList — remote fetching', () => {
                 excludeRecentDays: null, // 'off' maps to null
                 campaignLimit: 100, // parsed to a number
             },
+            method: 'sms',
             pageSize: 50,
             lastDocId: null,
         });
+    });
+
+    it('asks for the campaign\'s channel, and again when it changes', async () => {
+        const { rerender } = render(<VirtualLeadList companyId="co-1" filters={{}} method="email" />);
+        await waitFor(() => expect(mockCallable).toHaveBeenCalledTimes(1));
+        rerender(<VirtualLeadList companyId="co-1" filters={{}} method="sms" />);
+        await waitFor(() => expect(mockCallable).toHaveBeenCalledTimes(2));
+
+        expect(mockCallable.mock.calls.map(([args]) => args.method)).toEqual(['email', 'sms']);
     });
 
     it('keeps a real exclusion window and nulls an absent campaign limit', async () => {
@@ -266,7 +276,7 @@ describe('VirtualLeadList — selection semantics', () => {
                 companyId="co-1"
                 filters={{}}
                 localData={[lead('l1', { normalizedPhone: '+15550100' })]}
-                excludedPhones={new Set(['+15550100'])}
+                alreadyMessagedKeys={new Set(['l1'])}
                 onToggleExclusion={onToggleExclusion}
             />,
         );
@@ -278,7 +288,7 @@ describe('VirtualLeadList — selection semantics', () => {
         expect(onToggleExclusion).not.toHaveBeenCalled();
     });
 
-    it('ignores phone exclusions when no excludedPhones set is supplied', () => {
+    it('marks no row already messaged when no set of keys is supplied', () => {
         const onToggleExclusion = vi.fn();
         render(
             <VirtualLeadList
@@ -388,7 +398,7 @@ describe('VirtualLeadList — virtualization contract', () => {
                     lead('l3', { normalizedPhone: '+15550100' }),
                 ]}
                 excludedIds={['l2']}
-                excludedPhones={new Set(['+15550100'])}
+                alreadyMessagedKeys={new Set(['l3'])}
                 onToggleExclusion={vi.fn()}
             />,
         );

@@ -3,12 +3,20 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
 import { ERROR_MESSAGES, UPLOAD_EXCLUDE_DEFAULT } from '../constants/campaignConstants';
 
-export function useCampaignTargeting(companyId, filters, currentUser) {
+/**
+ * The audience count for a campaign of `method`'s channel ('sms' or 'email').
+ * "Already messaged" is a recipient a campaign of the same channel reached
+ * inside the window (`functions/bulkActions/helpers/recentlyMessaged.js`):
+ * `alreadyMessaged` says how many the count leaves out, and for an uploaded
+ * list `alreadyMessagedKeys` names those rows by their preview key.
+ */
+export function useCampaignTargeting(companyId, filters, currentUser, method = 'sms') {
     const [matchCount, setMatchCount] = useState(0);
+    const [alreadyMessaged, setAlreadyMessaged] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    // Set of normalized phone strings that should be excluded (import mode only)
-    const [excludedPhones, setExcludedPhones] = useState(new Set());
+    // The uploaded rows a campaign of this channel already reached, by row key.
+    const [alreadyMessagedKeys, setAlreadyMessagedKeys] = useState(new Set());
 
     // Debounce ref to prevent rapid-fire queries
     const timeoutRef = useRef(null);
@@ -28,14 +36,15 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
             setIsLoading(true);
             setError(null);
 
-            // Import mode: check sms_sent_phones for already-messaged numbers
+            // Import mode: ask which rows this channel already reached.
             if (filters.leadType === 'import') {
                 const rawData = filters.rawData || [];
                 const importCount = rawData.length;
+                setAlreadyMessaged(0);
 
                 if (importCount === 0) {
                     setMatchCount(0);
-                    setExcludedPhones(new Set());
+                    setAlreadyMessagedKeys(new Set());
                     setError(ERROR_MESSAGES.ZERO_RESULTS);
                     setIsLoading(false);
                     return;
@@ -46,27 +55,31 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                 const excludeSetting = filters.excludeRecentDays || UPLOAD_EXCLUDE_DEFAULT;
                 if (excludeSetting === 'off') {
                     setMatchCount(importCount);
-                    setExcludedPhones(new Set());
+                    setAlreadyMessagedKeys(new Set());
                     setIsLoading(false);
                     return;
                 }
 
-                // Extract normalized phones from the imported rows
-                const phones = rawData
-                    .map(row => row.normalizedPhone)
-                    .filter(p => p && p.length > 0);
+                // Each row by the key the preview and the launch name it by.
+                const recipients = rawData.map((row, index) => ({
+                    key: row.id || `import_${index}`,
+                    phone: row.normalizedPhone || row.phone || '',
+                    email: row.email || '',
+                }));
 
                 try {
                     const checkFn = httpsCallable(functions, 'checkImportPhones');
                     const result = await checkFn({
                         companyId,
-                        phones,
-                        excludeRecentDays: excludeSetting
+                        method,
+                        excludeRecentDays: excludeSetting,
+                        recipients,
                     });
                     if (stale) return;
 
-                    const excluded = new Set(result.data.excludedPhones || []);
-                    setExcludedPhones(excluded);
+                    const excluded = new Set(result.data.excludedKeys || []);
+                    setAlreadyMessagedKeys(excluded);
+                    setAlreadyMessaged(excluded.size);
                     const filteredCount = Math.max(0, importCount - excluded.size);
                     setMatchCount(filteredCount);
                     if (filteredCount === 0) setError(ERROR_MESSAGES.ZERO_RESULTS);
@@ -75,7 +88,7 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                     console.error('checkImportPhones error:', err);
                     // Non-fatal: fall back to raw count so the user isn't blocked
                     setMatchCount(importCount);
-                    setExcludedPhones(new Set());
+                    setAlreadyMessagedKeys(new Set());
                 } finally {
                     if (!stale) setIsLoading(false);
                 }
@@ -95,9 +108,10 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                     campaignLimit: filters.campaignLimit ? parseInt(filters.campaignLimit) : null
                 };
 
-                const result = await getCountFn({ companyId, filters: backendFilters });
+                const result = await getCountFn({ companyId, filters: backendFilters, method });
                 if (stale) return;
                 let count = result.data.count || 0;
+                setAlreadyMessaged(result.data.alreadyMessaged || 0);
 
                 // Apply client-side cap visualization if set
                 if (backendFilters.campaignLimit) {
@@ -105,14 +119,15 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
                 }
 
                 setMatchCount(count);
-                setExcludedPhones(new Set());
+                setAlreadyMessagedKeys(new Set());
                 if (count === 0) setError(ERROR_MESSAGES.ZERO_RESULTS);
 
             } catch (err) {
                 if (stale) return;
                 console.error("Targeting Error:", err);
                 setMatchCount(0);
-                setExcludedPhones(new Set());
+                setAlreadyMessaged(0);
+                setAlreadyMessagedKeys(new Set());
                 setError(ERROR_MESSAGES.COUNT_FAILED);
             } finally {
                 if (!stale) setIsLoading(false);
@@ -141,10 +156,11 @@ export function useCampaignTargeting(companyId, filters, currentUser) {
         filters.excludeRecentDays,
         filters.campaignLimit,
         filters.rawData,        // Re-check when import data changes
+        method,
         companyId,
         currentUser,
         attempt
     ]);
 
-    return { matchCount, isLoading, error, excludedPhones, retry };
+    return { matchCount, alreadyMessaged, isLoading, error, alreadyMessagedKeys, retry };
 }

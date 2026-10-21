@@ -136,7 +136,7 @@ describe('analyticsService phone compatibility', () => {
         });
 
         // Single lead should be excluded once, not over-counted
-        expect(result.count).toBe(0);
+        expect(result).toEqual({ count: 0, alreadyMessaged: 1 });
     });
 
     it('getFilteredLeadsPage remains consistent under mixed ledger key styles', async () => {
@@ -193,10 +193,11 @@ describe('analyticsService phone compatibility', () => {
 
     const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
 
-    it('the count and the preview leave out a lead texted inside the window whose last bulk message is older', async () => {
+    const { emailLedgerKey } = require('../../bulkActions/helpers/recentlyMessaged');
+
+    it('a logged call is not a message: the count and the preview keep the lead', async () => {
         const docs = [
-            { id: 'texted', data: { firstName: 'T', phone: '(555) 000-0001', lastBulkMessageAt: daysAgo(90), lastContactedAt: daysAgo(1) } },
-            { id: 'quiet', data: { firstName: 'Q', phone: '(555) 000-0002', lastBulkMessageAt: daysAgo(90) } },
+            { id: 'called', data: { firstName: 'C', phone: '(555) 000-0001', lastContactedAt: daysAgo(1) } },
         ];
         mockBuildLeadQueries.mockImplementation(() => [makeQueryFromDocs(docs)]);
         mockLedgerDocs({});
@@ -205,21 +206,64 @@ describe('analyticsService phone compatibility', () => {
         const count = await analyticsService.getFilterCount({ auth: { uid: 'u1' }, data: { companyId: 'co1', filters } });
         const page = await analyticsService.getFilteredLeadsPage({ auth: { uid: 'u1' }, data: { companyId: 'co1', filters, pageSize: 50 } });
 
-        expect(count.count).toBe(1);
-        expect(page.leads.map((l) => l.id)).toEqual(['quiet']);
+        expect(count).toEqual({ count: 1, alreadyMessaged: 0 });
+        expect(page.leads.map((l) => l.id)).toEqual(['called']);
+    });
+
+    it('an email campaign leaves out the emailed, not the texted, and says how many', async () => {
+        const docs = [
+            { id: 'texted', data: { firstName: 'T', phone: '(555) 000-0001', email: 'tess@example.com' } },
+            { id: 'emailed', data: { firstName: 'E', phone: '(555) 000-0002', email: 'Eve@Example.com' } },
+        ];
+        mockBuildLeadQueries.mockImplementation(() => [makeQueryFromDocs(docs)]);
+        mockLedgerDocs({
+            '+15550000001': { lastSentAt: daysAgo(1) },
+            [emailLedgerKey('eve@example.com')]: { lastSentAt: daysAgo(1) },
+        });
+        const data = { companyId: 'co1', filters: { excludeRecentDays: '7' }, method: 'email' };
+
+        const count = await analyticsService.getFilterCount({ auth: { uid: 'u1' }, data });
+        const page = await analyticsService.getFilteredLeadsPage({ auth: { uid: 'u1' }, data: { ...data, pageSize: 50 } });
+        const sms = await analyticsService.getFilterCount({ auth: { uid: 'u1' }, data: { ...data, method: 'sms' } });
+
+        expect(count).toEqual({ count: 1, alreadyMessaged: 1 });
+        expect(page.leads.map((l) => l.id)).toEqual(['texted']);
+        expect(sms).toEqual({ count: 1, alreadyMessaged: 1 });
+    });
+
+    it('checkImportPhones names the uploaded rows the campaign\'s channel reached', async () => {
+        mockLedgerDocs({
+            '+15550000001': { lastSentAt: daysAgo(1) },
+            [emailLedgerKey('eve@example.com')]: { lastSentAt: daysAgo(1) },
+        });
+        const recipients = [
+            { key: 'import_0', phone: '5550000001', email: 'tess@example.com' },
+            { key: 'row-7', phone: '', email: 'eve@example.com' },
+        ];
+        const ask = (method) => analyticsService.checkImportPhones({
+            auth: { uid: 'u1' },
+            data: { companyId: 'co1', recipients, method, excludeRecentDays: '7' },
+        });
+
+        expect(await ask('sms')).toEqual({ excludedKeys: ['import_0'] });
+        expect(await ask('email')).toEqual({ excludedKeys: ['row-7'] });
     });
 
     it('the count reads a window it does not know as 7 days, as the launch does', async () => {
         mockBuildLeadQueries.mockImplementation(() => [makeQueryFromDocs([
-            { id: 'month', data: { phone: '(555) 000-0003', lastContactedAt: daysAgo(30) } },
+            { id: 'month', data: { phone: '(555) 000-0003' } },
+            { id: 'days', data: { phone: '(555) 000-0004' } },
         ])]);
-        mockLedgerDocs({});
+        mockLedgerDocs({
+            '+15550000003': { lastSentAt: daysAgo(30) },
+            '+15550000004': { lastSentAt: daysAgo(3) },
+        });
 
         const count = await analyticsService.getFilterCount({
             auth: { uid: 'u1' },
             data: { companyId: 'co1', filters: { excludeRecentDays: 'fortnight' } },
         });
 
-        expect(count.count).toBe(1);
+        expect(count).toEqual({ count: 1, alreadyMessaged: 1 });
     });
 });

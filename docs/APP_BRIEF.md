@@ -311,9 +311,8 @@ form or a mislabelled method (`functions/employmentVerification/signature.js`).
 submitted application (§5).
 
 **Bulk SMS / email campaigns.** Audience building over leads, then a resilient
-session-based worker (§8). Partial by design: the carrier connects its own
-messaging provider and is billed by it. No two-way threads, no automated
-multi-step drips.
+session-based worker (§8). Partial: the carrier connects and pays its own
+messaging provider. No two-way threads or drips.
 
 **Super admin operations.** Dashboard (totals and calls per period), companies
 (each with its features and SMS setup), users, unified driver DB, Environment &
@@ -1047,10 +1046,10 @@ The submit trigger records each event once in `processing_status` (30-day
 ### Bulk campaigns
 
 A launch or retry sends at most **2,000** (`launchLimit.js`), refused before
-writing. A recursive worker sends **50 per batch**, re-checking the session: a
-cancel stops at once. One rule (`recentlyMessaged.js`) keeps the recently
-messaged out of count, preview and launch: **7 days** by default for uploads,
-none for CRM. Recipients: `meta/targets` (older: `targetIds`); a deleted
+writing. A worker sends **50 per batch**, re-checking the session: a cancel
+stops at once. One rule (`recentlyMessaged.js`) leaves out of count, preview
+and launch whom a same-channel campaign reached (its ledger; a call is not a
+message): **7 days** by default for uploads, none for CRM. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
 and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
 closed on a bad number) and every email with a usable one; no reply fills them (§12).

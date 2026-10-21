@@ -2,9 +2,10 @@
 //
 // Who a campaign's "Exclude Previously Messaged" window leaves out, decided one
 // way for the count, the preview list and the launch, for CRM leads and
-// uploaded lists alike. Each of them used to carry its own copy of the rule,
-// and the copies disagreed on what a bad window meant and on which of a lead's
-// two stamps counted.
+// uploaded lists alike: a recipient a campaign of the same channel reached
+// inside the window. The send loop writes a channel's ledger only for a
+// message that went out (`sms_sent_phones`, `email_sent_addresses`), so a
+// failed send, a logged call or a message by the other channel does not count.
 
 const { admin } = require("../../firebaseAdmin");
 const { derivePhoneLedgerKeys } = require("./phoneLedger");
@@ -34,15 +35,6 @@ function excludeWindow(excludeRecentDays) {
 function withinWindow(stamp, window) {
     if (!window.active || !stamp) return false;
     return window.since === null || stamp >= window.since;
-}
-
-/**
- * Whether a CRM lead's own stamps put a message inside the window: the bulk
- * system's lastBulkMessageAt, or lastContactedAt, which single texts and the old
- * reactivation batches set. Either one counts.
- */
-function leadMessagedWithin(data, window) {
-    return withinWindow(data?.lastBulkMessageAt, window) || withinWindow(data?.lastContactedAt, window);
 }
 
 /** The email ledger's document id: the lowercased address, base64url without padding. */
@@ -84,10 +76,10 @@ async function readLedger({ db, collection, name, byId, window, messaged }) {
 }
 
 /**
- * The keys of the recipients messaged inside the window by the company's ledgers:
- * the SMS ledger for every campaign, under a number's canonical and legacy keys,
- * and the email ledger for an email campaign. A ledger that cannot be read
- * leaves out only its own matches.
+ * The keys of the recipients a campaign of `method`'s channel messaged inside
+ * the window: the email ledger for an email campaign, else the SMS ledger,
+ * under a number's canonical and legacy keys. A ledger that cannot be read is
+ * logged and finds nothing.
  * @param {{ db: object, companyId: string, window: object, method?: string,
  *           recipients: Array<{ key: string, phone?: string, email?: string }> }} args
  * @returns {Promise<Set<string>>}
@@ -97,12 +89,6 @@ async function recipientsMessagedWithin({ db, companyId, window, method, recipie
     if (!window.active || !recipients?.length) return messaged;
     const company = db.collection("companies").doc(companyId);
 
-    const byPhoneKey = new Map();
-    recipients.forEach(({ key, phone }) => {
-        derivePhoneLedgerKeys(phone || "").lookupKeys.forEach((id) => addTo(byPhoneKey, id, key));
-    });
-    await readLedger({ db, collection: company.collection("sms_sent_phones"), name: "sms_sent_phones", byId: byPhoneKey, window, messaged });
-
     if (method === "email") {
         const byEmailKey = new Map();
         recipients.forEach(({ key, email }) => {
@@ -110,14 +96,20 @@ async function recipientsMessagedWithin({ db, companyId, window, method, recipie
             if (id) addTo(byEmailKey, id, key);
         });
         await readLedger({ db, collection: company.collection("email_sent_addresses"), name: "email_sent_addresses", byId: byEmailKey, window, messaged });
+        return messaged;
     }
+
+    const byPhoneKey = new Map();
+    recipients.forEach(({ key, phone }) => {
+        derivePhoneLedgerKeys(phone || "").lookupKeys.forEach((id) => addTo(byPhoneKey, id, key));
+    });
+    await readLedger({ db, collection: company.collection("sms_sent_phones"), name: "sms_sent_phones", byId: byPhoneKey, window, messaged });
     return messaged;
 }
 
 module.exports = {
     excludeWindow,
     withinWindow,
-    leadMessagedWithin,
     emailLedgerKey,
     recipientsMessagedWithin,
     LOOKUP_CHUNK,

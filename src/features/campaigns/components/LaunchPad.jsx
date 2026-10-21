@@ -76,8 +76,18 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
     };
 
 
+    const methodLabel = campaign.messageConfig?.method === 'email' ? 'Email' : 'SMS';
+    // The audience step counts for one channel (`countedFor`): a count made for
+    // the other leaves out the wrong recipients, so it is counted again first.
+    const countedFor = campaign.countedFor || null;
+    const countedLabel = countedFor?.method === 'email' ? 'Email' : 'SMS';
+    const countedForOtherChannel = Boolean(countedFor) && countedLabel !== methodLabel;
+
     // Validation
     const errors = [];
+    if (countedForOtherChannel) {
+        errors.push(`The audience was counted for ${countedLabel}. Open Audience to count it for ${methodLabel}.`);
+    }
     if (!campaign.matchCount || campaign.matchCount === 0) errors.push("No audience selected");
     if (campaign.matchCount > MAX_RECIPIENTS_PER_LAUNCH) {
         errors.push(`At most ${MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')} recipients per launch (this audience has ${campaign.matchCount.toLocaleString('en-US')})`);
@@ -89,7 +99,6 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
     // Time Estimation (Sequential: 3s per lead)
     const estimatedMinutes = Math.ceil(((campaign.matchCount || 0) * 3) / 60);
 
-    const methodLabel = campaign.messageConfig?.method === 'email' ? 'Email' : 'SMS';
     const previewMessage = campaign.messageConfig?.message || '';
 
     return (
@@ -102,6 +111,9 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                 <h2 className="mb-ds-2 text-ds-heading-lg font-bold text-ds-content">Ready for Liftoff?</h2>
                 <p className="mx-auto mb-ds-8 max-w-md text-ds-body text-ds-content-secondary">
                     You are about to message <strong>{campaign.matchCount || 0}</strong> recipients via <strong>{methodLabel}</strong>.
+                    {!countedForOtherChannel && countedFor?.alreadyMessaged > 0 && (
+                        <> {countedFor.alreadyMessaged} already messaged by {methodLabel} are left out.</>
+                    )}
                 </p>
 
                 {errors.length > 0 ? (
