@@ -314,9 +314,9 @@ submitted application (§5).
 session-based worker (§8). Partial: the carrier connects and pays its own
 messaging provider. No two-way threads or drips.
 
-**Super admin operations.** Dashboard (totals and calls per period), companies
-(each with its features and SMS setup), users, unified driver DB, Environment &
-Integrations vault, AI providers, blog, website-lead archive, system health,
+**Super admin operations.** Dashboard (totals, calls per period), companies
+(each with its features and SMS), a features overview, users, unified driver
+DB, Environment & Integrations vault, AI providers, blog, website leads, system health,
 releases, Maintenance (writes ask first).
 
 ---
@@ -872,7 +872,7 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
 
 **Things that are easy to get wrong:**
 
-- **There is no super-admin global wildcard** in Firestore rules, deliberately;
+- **There is no super-admin global wildcard** in Firestore rules, by design;
   super admin is granted per collection.
 - **Cross-tenant profile reads are closed.** Staff may read a `drivers/{id}` or
   `users/{id}` profile only when they share a company with it, via

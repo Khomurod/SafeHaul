@@ -3,6 +3,8 @@ export const SUPER_ADMIN_VIEWS = Object.freeze({
   COMPANIES: 'companies',
   // One company's screen, addressed under the list: its features and its SMS.
   COMPANY: 'company',
+  // Every company's features in one view-only table.
+  FEATURES: 'features',
   USERS: 'users',
   APPLICATIONS: 'applications',
   ENVIRONMENT: 'environment-integrations',
@@ -20,10 +22,13 @@ export const SUPER_ADMIN_NAV_ITEMS = Object.freeze([
   // Its activity was the Analytics screen; that address still opens it.
   { id: SUPER_ADMIN_VIEWS.DASHBOARD, label: 'Dashboard', icon: 'LayoutDashboard', group: 'core' },
 
-  // A company opens its own screen, with its features and its SMS setup. They
-  // were the Global Features and SMS Integrations screens; those addresses
-  // still open the list, and an SMS setup's address the company's SMS tab.
+  // A company opens its own screen, with its features and its SMS setup. The
+  // old SMS Integrations address still opens the list, and an SMS setup's
+  // address the company's SMS tab.
   { id: SUPER_ADMIN_VIEWS.COMPANIES, label: 'Companies', icon: 'Building', group: 'data' },
+  // Which company has which feature, at a glance. View only: a row opens that
+  // company's Features tab, where they are switched.
+  { id: SUPER_ADMIN_VIEWS.FEATURES, label: 'Features', icon: 'Zap', group: 'data' },
   { id: SUPER_ADMIN_VIEWS.USERS, label: 'Users', icon: 'Users', group: 'data' },
   { id: SUPER_ADMIN_VIEWS.APPLICATIONS, label: 'Unified Driver DB', icon: 'FileText', group: 'data' },
 
@@ -68,7 +73,6 @@ const ADDRESSABLE_VIEWS = new Set(Object.values(SUPER_ADMIN_VIEWS)
 const MOVED_VIEWS = new Map([
   ['analytics', SUPER_ADMIN_VIEWS.DASHBOARD],
   ['stats-backfill', SUPER_ADMIN_VIEWS.MAINTENANCE],
-  ['features', SUPER_ADMIN_VIEWS.COMPANIES],
   ['integrations', SUPER_ADMIN_VIEWS.COMPANIES],
 ]);
 // One company's SMS setup was `integrations/<id>`; it is that company's SMS tab.

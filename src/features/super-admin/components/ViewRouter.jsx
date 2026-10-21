@@ -9,6 +9,7 @@ import { UsersView } from './UsersView.jsx';
 
 import { CreateView } from './CreateView.jsx';
 import { CompanyView } from './CompanyView.jsx';
+import { FeaturesOverview } from './FeaturesOverview.jsx';
 import { SystemHealthView } from './SystemHealthView.jsx';
 import { MaintenanceView } from './MaintenanceView.jsx';
 
@@ -109,6 +110,8 @@ export function ViewRouter({
                     onViewApps={onViewApps}
                 />
             );
+        case SUPER_ADMIN_VIEWS.FEATURES:
+            return <FeaturesOverview onOpenCompany={onOpenCompany} />;
         case SUPER_ADMIN_VIEWS.USERS:
             return (
                 <UsersView

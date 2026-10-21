@@ -123,12 +123,16 @@ test.describe('Super Admin shell', () => {
     await expect(page.getByRole('heading', { name: 'Manage Companies' })).toBeVisible();
   });
 
-  test('opens the companies list from the old Global Features and SMS Integrations addresses', async ({ page }) => {
-    for (const old of ['features', 'integrations']) {
-      await page.goto(`/super-admin/${old}?e2eAuth=super_admin`);
-      await expect(page).toHaveURL(/\/super-admin\/companies\?e2eAuth=super_admin$/);
-      await expect(page.getByRole('heading', { name: 'Manage Companies' })).toBeVisible({ timeout: 30_000 });
-    }
+  test('opens the companies list from the old SMS Integrations address', async ({ page }) => {
+    await page.goto('/super-admin/integrations?e2eAuth=super_admin');
+    await expect(page).toHaveURL(/\/super-admin\/companies\?e2eAuth=super_admin$/);
+    await expect(page.getByRole('heading', { name: 'Manage Companies' })).toBeVisible({ timeout: 30_000 });
+  });
+
+  test('opens the features overview at its own address', async ({ page }) => {
+    await page.goto('/super-admin/features?e2eAuth=super_admin');
+    await expect(page).toHaveURL(/\/super-admin\/features\?e2eAuth=super_admin$/);
+    await expect(page.getByRole('heading', { name: 'Features', level: 2 })).toBeVisible({ timeout: 30_000 });
   });
 
   test('reaches every Super Admin section from the rail', async ({ page }) => {
@@ -136,7 +140,7 @@ test.describe('Super Admin shell', () => {
     const nav = page.getByRole('navigation', { name: 'Super Admin sections' });
 
     for (const label of [
-      'Dashboard', 'Companies', 'Users', 'Unified Driver DB', 'Environment & Integrations',
+      'Dashboard', 'Companies', 'Features', 'Users', 'Unified Driver DB', 'Environment & Integrations',
       'System Health', 'Releases', 'Maintenance', 'Create New',
     ]) {
       await nav.getByRole('button', { name: label }).click();
