@@ -49,7 +49,7 @@ export const GLYPH = Symbol.for('safehaul.design-system.glyph');
  * Wrap one icon component as a token.
  *
  * `name` is passed explicitly rather than read from `component.displayName`,
- * and that is not redundancy. 33 of the 171 names this application uses are
+ * and that is not redundancy. 37 of the 170 names this application uses are
  * lucide COMPATIBILITY ALIASES whose `displayName` is the newer canonical name:
  * `AlertCircle` reports `CircleAlert`, `Home` reports `House`, `Filter` reports
  * `Funnel`. Deriving the name would have quietly renamed a fifth of the
