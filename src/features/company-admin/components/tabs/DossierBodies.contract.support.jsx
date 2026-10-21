@@ -8,7 +8,8 @@
  *  - DQ: the `dq_files` sub-collection path and ordering, the Storage path
  *    (including its deliberate `applications` segment for leads), the upload
  *    document shape, both `logActivity` calls and their exact detail strings, the
- *    delete-Storage-then-Firestore order, and the expiration thresholds.
+ *    delete-Storage-then-Firestore order, the expiration thresholds, and that
+ *    only the server files the record's uploads (`fileDriverUploads`).
  *  - Activity: the `leads`/`applications` collection normalisation, the
  *    `activity_logs` path and ordering, the five filter rules, and the
  *    Today/Yesterday/Recent grouping.
@@ -51,6 +52,7 @@ export const logActivity = vi.fn();
 export const getPortalUser = vi.fn();
 export const downloadPreserved = vi.fn();
 export const signedFileUrl = vi.fn();
+export const fileDriverUploads = vi.fn();
 
 // --- vi.mock factory bodies, verbatim from the original registrations ------
 
@@ -89,6 +91,7 @@ export const applicationPdfServiceMock = () => ({
 });
 export const userServiceMock = () => ({ getPortalUser: (...a) => getPortalUser(...a) });
 export const applicationFileLinkMock = () => ({ signedApplicationFileUrl: (...a) => signedFileUrl(...a) });
+export const dqFileSyncMock = () => ({ fileDriverUploads: (...a) => fileDriverUploads(...a) });
 
 // --- helpers and fixtures, verbatim ----------------------------------------
 
@@ -111,6 +114,7 @@ export function resetHarness() {
     getPortalUser.mockResolvedValue({ name: 'Test Recruiter' });
     downloadPreserved.mockResolvedValue({ url: 'https://signed.test/original.pdf' });
     signedFileUrl.mockResolvedValue('https://signed.test/driver-upload.jpg');
+    fileDriverUploads.mockResolvedValue(0);
     vi.spyOn(console, 'error').mockImplementation(() => {});
 }
 

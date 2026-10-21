@@ -1,6 +1,6 @@
 // Dossier tab bodies contract, part 1 of 4: `DQFileTab` — file listing and
 // expiration status, the preserved application original, the upload and
-// delete contracts, and auto-sync from the parent application.
+// delete contracts, and the record's uploads, which only the server files.
 // The shared harness — mock state, factories, fixtures and render builders —
 // lives in `DossierBodies.contract.support.jsx`; the registrations below
 // delegate to it. See that file's header for the scope of this freeze.
@@ -15,6 +15,7 @@ vi.mock('firebase/storage', async () => (await import('./DossierBodies.contract.
 vi.mock('@shared/utils/activityLogger', async () => (await import('./DossierBodies.contract.support')).activityLoggerMock());
 vi.mock('@features/applications/services/applicationPdfService', async () => (await import('./DossierBodies.contract.support')).applicationPdfServiceMock());
 vi.mock('@features/auth/services/userService', async () => (await import('./DossierBodies.contract.support')).userServiceMock());
+vi.mock('./dqFileSync', async () => (await import('./DossierBodies.contract.support')).dqFileSyncMock());
 vi.mock('@features/applications/services/applicationFileLink', async () => (await import('./DossierBodies.contract.support')).applicationFileLinkMock());
 
 import { DQFileTab } from './DQFileTab';
@@ -29,6 +30,7 @@ import {
     downloadPreserved,
     signedFileUrl,
     SYNCED_DRIVER_UPLOAD,
+    fileDriverUploads,
 } from './DossierBodies.contract.support';
 
 const renderDq = makeRenderDq(DQFileTab);
@@ -323,16 +325,11 @@ describe('DQFileTab — a driver upload filed from the application', () => {
     });
 
     it('removes only its DQ entry, never the application\'s own file, and it stays removed', async () => {
-        // The stored rows, as each load reads them. The application still holds
-        // the upload, which is what the tab's sync files from.
+        // The stored rows, as each load reads them.
         let rows = [['license_front', SYNCED_DRIVER_UPLOAD]];
         fs.getDocs.mockImplementation(async () => snap(rows));
         fs.updateDoc.mockImplementation(async (ref, data) => {
             rows = rows.map(([id, row]) => [id, id === ref.id ? { ...row, ...data } : row]);
-        });
-        fs.getDoc.mockResolvedValue({
-            exists: () => true,
-            data: () => ({ 'cdl-front': { name: 'cdl-front.jpg', url: SYNCED_DRIVER_UPLOAD.url, storagePath: SYNCED_DRIVER_UPLOAD.storagePath } }),
         });
         renderDq();
 
@@ -349,8 +346,8 @@ describe('DQFileTab — a driver upload filed from the application', () => {
             'Deleted DQ file: CDL Front - cdl-front.jpg',
             'user',
         ));
-        // Marked removed rather than deleted: the sync matches an upload against
-        // the records it finds, so a deleted record was filed again at once.
+        // Marked removed rather than deleted: the server matches an upload against
+        // the records it finds, so a deleted record would be filed again.
         expect(fs.updateDoc).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'license_front' }),
             { removedAt: 'SERVER_TIMESTAMP' },
@@ -359,44 +356,41 @@ describe('DQFileTab — a driver upload filed from the application', () => {
         expect(storageMocks.deleteObject).not.toHaveBeenCalled();
         expect(await screen.findByText('No DQ files have been uploaded for this driver.')).toBeInTheDocument();
         expect(fs.addDoc).not.toHaveBeenCalled();
+        // Asked once, when the tab opened; a removal asks nothing of it.
+        expect(fileDriverUploads).toHaveBeenCalledTimes(1);
     });
 });
 
-describe('DQFileTab — auto-sync from the parent application', () => {
-    it('syncs an unsynced parent upload with the frozen payload and expiration', async () => {
-        fs.getDoc.mockResolvedValue({
-            exists: () => true,
-            data: () => ({
-                'medical-card-upload': { url: 'https://example.test/mc', name: 'mc.jpg', storagePath: 'p/mc.jpg' },
-                medCardExpiration: '2027-05-01',
-                driverId: 'driver-9',
-            }),
-        });
+describe('DQFileTab — the record\'s uploads, filed by the server', () => {
+    it('asks the server when the tab opens, and reads the list again when it filed any', async () => {
+        const reads = [snap([]), snap([['license_front', SYNCED_DRIVER_UPLOAD]])];
+        fs.getDocs.mockImplementation(async () => reads.shift() ?? snap([['license_front', SYNCED_DRIVER_UPLOAD]]));
+        fileDriverUploads.mockResolvedValue(1);
         renderDq();
 
-        await waitFor(() => expect(fs.addDoc).toHaveBeenCalled());
-        expect(fs.addDoc.mock.calls[0][1]).toMatchObject({
-            fileType: 'Medical Card',
-            fileName: 'mc.jpg',
-            url: 'https://example.test/mc',
-            storagePath: 'p/mc.jpg',
-            isSynced: true,
-            sourceField: 'medical-card-upload',
-            expirationDate: '2027-05-01',
-            ownerUserIds: ['driver-9'],
-        });
-    });
-
-    it('does not re-sync a file whose url is already present', async () => {
-        fs.getDocs.mockResolvedValue(snap([['f1', { ...DQ_FILE, url: 'https://example.test/mc' }]]));
-        fs.getDoc.mockResolvedValue({
-            exists: () => true,
-            data: () => ({ 'medical-card-upload': { url: 'https://example.test/mc' } }),
-        });
-        renderDq();
-
-        await waitFor(() => expect(fs.getDocs).toHaveBeenCalled());
+        expect(await screen.findByRole('button', { name: /^Download CDL Front: cdl-front\.jpg/ })).toBeInTheDocument();
+        expect(fileDriverUploads).toHaveBeenCalledWith({ companyId: 'co-1', collectionName: 'applications', applicationId: 'app-1' });
+        expect(fs.getDocs).toHaveBeenCalledTimes(2);
+        // The tab writes no record of an upload; the server does.
         expect(fs.addDoc).not.toHaveBeenCalled();
+        expect(fs.getDoc).not.toHaveBeenCalled();
+    });
+
+    it('asks for a lead\'s uploads under the lead, and reads once when nothing was filed', async () => {
+        renderDq({ collectionName: 'leads' });
+
+        expect(await screen.findByText('No DQ files have been uploaded for this driver.')).toBeInTheDocument();
+        await waitFor(() => expect(fileDriverUploads).toHaveBeenCalledWith({ companyId: 'co-1', collectionName: 'leads', applicationId: 'app-1' }));
+        expect(fs.getDocs).toHaveBeenCalledTimes(1);
+    });
+
+    it('says so when the server could not file them, and still lists the files', async () => {
+        fs.getDocs.mockResolvedValue(snap([['f1', DQ_FILE]]));
+        fileDriverUploads.mockRejectedValue(new Error('unavailable'));
+        renderDq();
+
+        expect(await screen.findByText("Some of the driver's uploads could not be added here. Open this tab again to retry."))
+            .toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /^Download Medical Card: medcard\.pdf/ })).toBeInTheDocument();
     });
 });
-

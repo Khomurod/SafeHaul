@@ -5,6 +5,7 @@ const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/
 const { admin, db, auth } = require("./firebaseAdmin");
 const { LIFECYCLE_STATUSES } = require("./shared/constants");
 const { isPlaceholderEmail } = require("./shared/placeholderDomains");
+const { fileDqUploads, uploadKeys } = require("./shared/dqUploads");
 
 // B1 FIX: processing_status is an idempotency ledger that only needs to outlive the longest
 // retry/replay window. Stamp an expiresAt so a Firestore native TTL policy on the
@@ -229,61 +230,15 @@ exports.onApplicationSubmitted = onDocumentCreated({
   // Process the driver data
   await processDriverData(data, appId);
 
-  // --- FAN-OUT FILES TO DQ_FILES (Fix for Recruiter Dashboard) ---
-  const fileMappings = [
-    { field: 'cdl-front', type: 'license_front', label: 'CDL Front' },
-    { field: 'cdl-back', type: 'license_back', label: 'CDL Back' },
-    { field: 'medical-card-upload', type: 'medical_card', label: 'Medical Card' },
-    { field: 'twic-card-upload', type: 'twic_card', label: 'TWIC Card' },
-    { field: 'mvr-upload', type: 'mvr', label: 'MVR' },
-    { field: 'mvr-consent-upload', type: 'mvr_consent', label: 'MVR Consent' },
-    { field: 'drug-test-consent-upload', type: 'drug_test_consent', label: 'Drug Test Consent' },
-    { field: 'ssc-upload', type: 'ssn_card', label: 'SSN Card' }
-  ];
-
-  const dqRef = appRef.collection('dq_files');
-
-  for (const mapping of fileMappings) {
-    const fileData = data[mapping.field];
-    if (fileData && fileData.url) {
-      // We use a deterministic ID based on the file type
-      const docId = mapping.type;
-
-      await dqRef.doc(docId).set({
-        type: mapping.type,
-        fileType: mapping.label, // Added for consistency with client-side sync
-        label: mapping.label,
-        status: 'pending_review', // Default status for new uploads
-        fileUrl: fileData.url,
-        url: fileData.url, // Added for consistency with client-side
-        storagePath: fileData.ref || fileData.storagePath || '', // Handle varied naming
-        fileName: fileData.name || `${mapping.label}.jpg`,
-        uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        uploadedBy: 'driver_app',
-        applicationId: appId,
-        applicantId: data.applicantId || null,
-        driverId: data.driverId || null,
-        userId: data.userId || null,
-        ownerUserIds: [data.driverId || data.userId || data.applicantId || appId],
-        isSynced: true,
-        sourceField: mapping.field,
-        // The DQ tab keeps a synced record it deleted, marked removed, so this
-        // upload is not filed twice; a new upload of the type shows again.
-        removedAt: admin.firestore.FieldValue.delete()
-      }, { merge: true });
-
-      console.log(`[onApplicationSubmitted] Fanned out ${mapping.type} to dq_files for ${appId}`);
-    }
-  }
+  // The application's uploads, filed in its DQ file (`shared/dqUploads.js`).
+  await fileDqUploads(appRef, data, { companyId, applicationId: appId, isNew: () => true, label: 'onApplicationSubmitted' });
 
   console.log(`[onApplicationSubmitted] Successfully processed ${appId}`);
 });
 
 /**
- * Sync Files on Application Update
- * Handles files that are uploaded AFTER the initial application submission.
- * This ensures DQ files are synced even when documents are added later.
+ * An upload added to, or replaced in, an application after it arrived is filed
+ * in its DQ file; the same file, its link signed again, is not (`shared/dqUploads.js`).
  */
 exports.onApplicationUpdated = onDocumentUpdated({
   document: "companies/{companyId}/applications/{applicationId}",
@@ -291,84 +246,16 @@ exports.onApplicationUpdated = onDocumentUpdated({
 }, async (event) => {
   const beforeData = event.data.before.data();
   const afterData = event.data.after.data();
-  const companyId = event.params.companyId;
-  const appId = event.params.applicationId;
-
-  // FILE MAPPINGS - same as in onApplicationSubmitted
-  const fileMappings = [
-    { field: 'cdl-front', type: 'license_front', label: 'CDL Front' },
-    { field: 'cdl-back', type: 'license_back', label: 'CDL Back' },
-    { field: 'medical-card-upload', type: 'medical_card', label: 'Medical Card' },
-    { field: 'twic-card-upload', type: 'twic_card', label: 'TWIC Card' },
-    { field: 'mvr-upload', type: 'mvr', label: 'MVR' },
-    { field: 'mvr-consent-upload', type: 'mvr_consent', label: 'MVR Consent' },
-    { field: 'drug-test-consent-upload', type: 'drug_test_consent', label: 'Drug Test Consent' },
-    { field: 'ssc-upload', type: 'ssn_card', label: 'SSN Card' }
-  ];
+  const { companyId, applicationId: appId } = event.params;
 
   const appRef = db.collection("companies").doc(companyId).collection("applications").doc(appId);
-  const dqRef = appRef.collection('dq_files');
-
-  const fileFieldsUnchanged = fileMappings.every((mapping) => {
-    const beforeFile = beforeData[mapping.field];
-    const afterFile = afterData[mapping.field];
-    const bUrl = beforeFile && beforeFile.url;
-    const aUrl = afterFile && afterFile.url;
-    return bUrl === aUrl;
+  const filed = await fileDqUploads(appRef, afterData, {
+    companyId,
+    applicationId: appId,
+    isNew: (keys, { field }) => !uploadKeys(beforeData[field], companyId).some((key) => keys.includes(key)),
+    label: 'onApplicationUpdated',
   });
-  if (fileFieldsUnchanged) {
-    return;
-  }
-
-  let syncCount = 0;
-
-  for (const mapping of fileMappings) {
-    const beforeFile = beforeData[mapping.field];
-    const afterFile = afterData[mapping.field];
-
-    // Check if a NEW file was added (didn't exist before, exists now)
-    const hadFileBefore = beforeFile && beforeFile.url;
-    const hasFileNow = afterFile && afterFile.url;
-
-    // Only sync if file was newly added or URL changed
-    if (hasFileNow && (!hadFileBefore || beforeFile.url !== afterFile.url)) {
-      const docId = mapping.type;
-
-      try {
-        await dqRef.doc(docId).set({
-          type: mapping.type,
-          fileType: mapping.label, // Added for consistency with client-side sync
-          label: mapping.label,
-          status: 'pending_review',
-          fileUrl: afterFile.url,
-          url: afterFile.url, // Added for consistency with client-side
-          storagePath: afterFile.storagePath || afterFile.ref || '',
-          fileName: afterFile.name || `${mapping.label}.jpg`,
-          uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          uploadedBy: 'driver_app',
-          applicationId: appId,
-          applicantId: afterData.applicantId || null,
-          driverId: afterData.driverId || null,
-          userId: afterData.userId || null,
-          ownerUserIds: [afterData.driverId || afterData.userId || afterData.applicantId || appId],
-          isSynced: true,
-          sourceField: mapping.field,
-          // A new upload of a type whose entry the DQ tab removed shows again.
-          removedAt: admin.firestore.FieldValue.delete()
-        }, { merge: true });
-
-        syncCount++;
-        console.log(`[onApplicationUpdated] Synced NEW file ${mapping.type} for ${appId}`);
-      } catch (syncError) {
-        console.error(`[onApplicationUpdated] Failed to sync ${mapping.type}:`, syncError);
-      }
-    }
-  }
-
-  if (syncCount > 0) {
-    console.log(`[onApplicationUpdated] Synced ${syncCount} new files for application ${appId}`);
-  }
+  if (filed > 0) console.log(`[onApplicationUpdated] Filed ${filed} new uploads for application ${appId}`);
 });
 
 // 4. Sync Driver Log Activity (Fix for Permission Error + Support both 'activities' and 'activity_logs')
