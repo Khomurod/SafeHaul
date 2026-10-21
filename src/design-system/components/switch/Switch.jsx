@@ -11,8 +11,8 @@ import './Switch.css';
  * Getting this backwards produces a control that either announces a state it
  * has not reached yet, or a form field that saves behind the user's back.
  *
- * The Super Admin feature matrix is a grid of these: each cell applies at once,
- * and a `Checkbox` there would announce the wrong role.
+ * A company's features on the owner panel are a column of these: each applies
+ * at once, and a `Checkbox` there would announce the wrong role.
  *
  * State is exposed through `aria-checked` and through the thumb's position, so
  * it never depends on colour alone. `tone` only tints the *on* state, for the

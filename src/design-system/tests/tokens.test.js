@@ -335,15 +335,13 @@ describe('design tokens', () => {
     /*
      * The load-bearing half. A `z-index: 2` outside a stacking context is not a
      * local layer at all — it is an application-scale value that loses to
-     * everything. Two containers are isolated by hand for exactly this reason,
-     * and both are asserted here because deleting the `isolate` is a silent
+     * everything. The editor's page wrapper is isolated by hand for exactly
+     * this reason, and asserted here because deleting the `isolate` is a silent
      * change that nothing else would catch.
      */
     const reads = (file) => fs.readFileSync(path.resolve(tokenRoot, '../..', file), 'utf8');
     const workbench = reads('features/signing/components/envelope-creator/PdfFieldWorkbench.jsx');
     expect(workbench).toMatch(/className=\{`relative isolate inline-block/);
-    const matrix = reads('features/super-admin/components/FeaturesView.jsx');
-    expect(matrix).toMatch(/className="isolate min-h-0 flex-1 overflow-auto/);
   });
 
   it('keeps the workspace drawer off the dialog layer', () => {

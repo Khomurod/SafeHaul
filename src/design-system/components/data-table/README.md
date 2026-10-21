@@ -96,9 +96,6 @@ columns themselves are the signal that there is more.
   column pinned, its region named as one that scrolls (`useCardsLayout`). The
   unfinished-applications list is the first; the `CardsOnMobile` story is the
   shape to copy.
-- **A specialized interactive grid keeps its own layering.** The Super Admin
-  feature matrix freezes a header row *and* a first column that cross, and
-  keeps its hand-layered `sticky` cells on the contract's three local layers.
 
 `check:visual-contract` measures the pinned cell (`position`, `left`,
 `z-index`, background) and the card shape at 412px and 1440px;

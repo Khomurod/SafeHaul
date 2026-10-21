@@ -1201,8 +1201,7 @@ focusable horizontal-scroll region, sticky header, first column pinned
 per-row form controls worked one record at a time — the SMS recruiter-assignment
 matrix — becomes one card per row under 768px
 (`data-mobile-presentation="cards"`), the same elements at every width, as does
-a `DataTable` of such rows (`mobilePresentation="cards"`). The Super Admin
-feature matrix is the one specialized grid. Source and guards:
+a `DataTable` of such rows (`mobilePresentation="cards"`). Source and guards:
 `src/design-system/components/data-table/README.md`.
 
 **Two contracts have no exception route**, because the code refuses to run: a
