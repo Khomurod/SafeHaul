@@ -16,6 +16,24 @@ const FACEBOOK_VERIFY_TOKEN = defineSecret("FACEBOOK_VERIFY_TOKEN");
 const db = admin.firestore();
 
 /**
+ * Meta's signature of a webhook event: HMAC-SHA256 of the raw body with the app
+ * secret, sent as `X-Hub-Signature-256: sha256=<hex>` with every event. The
+ * older SHA-1 header is not accepted. Compared in constant time.
+ *
+ * @returns {'missing'|'invalid'|'valid'}
+ */
+function metaSignature(req, appSecret) {
+    const header = req.headers['x-hub-signature-256'];
+    if (typeof header !== 'string' || header === '') return 'missing';
+    const [algorithm, given] = header.split('=');
+    if (algorithm !== 'sha256' || !given) return 'invalid';
+    const expected = crypto.createHmac('sha256', appSecret).update(req.rawBody).digest('hex');
+    const a = Buffer.from(given, 'utf8');
+    const b = Buffer.from(expected, 'utf8');
+    return a.length === b.length && crypto.timingSafeEqual(a, b) ? 'valid' : 'invalid';
+}
+
+/**
  * Connect a Facebook Page to the Platform
  * 1. Exchange User Token for Long-Lived Page Token
  * 2. Store in global integrations index
@@ -300,21 +318,15 @@ exports.facebookWebhook = onRequest(
                 return res.sendStatus(500);
             }
 
-            const signature = req.headers['x-hub-signature'];
-            if (!signature) {
-                console.warn("Missing X-Hub-Signature");
-                return res.sendStatus(401); // P1-4 FIX: Enforce signature validation
-            } else {
-                const elements = signature.split('=');
-                const signatureHash = elements[1];
-                const expectedHash = crypto.createHmac('sha1', APP_SECRET)
-                    .update(req.rawBody) // Firebase Functions preserves rawBody
-                    .digest('hex');
-
-                if (signatureHash !== expectedHash) {
-                    console.error("Invalid Signature");
-                    return res.sendStatus(403);
-                }
+            // Firebase Functions keeps the raw body the signature covers.
+            const signature = metaSignature(req, APP_SECRET);
+            if (signature === 'missing') {
+                console.warn("Missing X-Hub-Signature-256");
+                return res.sendStatus(401);
+            }
+            if (signature === 'invalid') {
+                console.error("Invalid Signature");
+                return res.sendStatus(403);
             }
 
             // C. Process Entries
@@ -461,19 +473,12 @@ exports.facebookWebhookV1 = functions.https.onRequest(async (req, res) => {
             return res.sendStatus(500);
         }
 
-        const signature = req.headers['x-hub-signature'];
-        if (!signature) {
-            console.warn("Missing X-Hub-Signature V1");
+        const signature = metaSignature(req, APP_SECRET);
+        if (signature === 'missing') {
+            console.warn("Missing X-Hub-Signature-256 V1");
             return res.sendStatus(401);
         }
-
-        const elements = signature.split('=');
-        const signatureHash = elements[1];
-        const expectedHash = crypto.createHmac('sha1', APP_SECRET)
-            .update(req.rawBody)
-            .digest('hex');
-
-        if (signatureHash !== expectedHash) {
+        if (signature === 'invalid') {
             console.error("Invalid Signature V1");
             return res.sendStatus(403);
         }

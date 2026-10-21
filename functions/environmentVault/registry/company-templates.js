@@ -225,7 +225,7 @@ const EMAIL_CONFIG_FIELDS = [
     {
         field: 'smtpPass',
         displayName: 'SMTP password',
-        description: 'Mail server password. Stored in plaintext on an admin-only subcollection by deliberate decision — see functions/saveEmailSettings.js.',
+        description: 'Mail server password, stored encrypted (enc:v1:) in a server-only document — see functions/saveEmailSettings.js. Older saves may hold it in plain text until the next save.',
         encrypted: false,
         sensitivity: SENSITIVITY.CRITICAL,
         editable: false,

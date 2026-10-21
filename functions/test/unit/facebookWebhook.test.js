@@ -40,12 +40,13 @@ const VERIFY_TOKEN = 'artificial-verify-token';
 const PAGE_BINDING = { companyId: 'co-1', accessToken: 'page-token-1', platform: 'facebook' };
 
 const leadgen = (value) => ({ object: 'page', entry: [{ changes: [{ field: 'leadgen', value }] }] });
-const sign = (rawBody, secret = APP_SECRET) => `sha1=${crypto.createHmac('sha1', secret).update(rawBody).digest('hex')}`;
+// Meta signs every event with HMAC-SHA256 in `X-Hub-Signature-256`.
+const sign = (rawBody, secret = APP_SECRET, algorithm = 'sha256') => `${algorithm}=${crypto.createHmac(algorithm, secret).update(rawBody).digest('hex')}`;
 
 function post(body, { signature } = {}) {
     const rawBody = Buffer.from(JSON.stringify(body));
     const headers = {};
-    if (signature !== null) headers['x-hub-signature'] = signature === undefined ? sign(rawBody) : signature;
+    if (signature !== null) headers['x-hub-signature-256'] = signature === undefined ? sign(rawBody) : signature;
     return { method: 'POST', query: {}, headers, rawBody, body };
 }
 
@@ -187,11 +188,15 @@ describe.each([
 
     it.each([
         ['without a signature', { signature: null }, 401],
+        ['signed only the old SHA-1 way', { signature: null, sha1: true }, 401],
         ['with a signature made with another secret', { signature: 'wrong' }, 403],
+        ['with a signature of another length', { signature: 'sha256=abc' }, 403],
+        ['with a signature that names no algorithm', { signature: 'deadbeef' }, 403],
     ])('refuses a POST %s, before reading anything', async (_case, options, status) => {
         const body = leadgen({ leadgen_id: 'lead-1', page_id: 'page-1' });
         const request = post(body, options);
-        if (options.signature === 'wrong') request.headers['x-hub-signature'] = sign(request.rawBody, 'another-secret');
+        if (options.signature === 'wrong') request.headers['x-hub-signature-256'] = sign(request.rawBody, 'another-secret');
+        if (options.sha1) request.headers['x-hub-signature'] = sign(request.rawBody, APP_SECRET, 'sha1');
         const res = response();
         await handler(request, res);
 

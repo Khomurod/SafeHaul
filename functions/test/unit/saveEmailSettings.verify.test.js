@@ -27,7 +27,7 @@ jest.mock('../../firebaseAdmin', () => {
         collection: (name) => ({ doc: (id) => ref(`${path}/${name}/${id}`) }),
     });
     const db = { collection: (name) => ({ doc: (id) => ref(`${name}/${id}`) }) };
-    return { db, admin: { firestore: Object.assign(() => db, { FieldValue: { serverTimestamp: () => 'server-time' } }) } };
+    return { db, admin: { firestore: Object.assign(() => db, { FieldValue: { serverTimestamp: () => 'server-time', delete: () => 'field-delete' } }) } };
 });
 jest.mock('../../shared/rateLimiter', () => ({ checkRateLimit: async () => true }));
 jest.mock('../../shared/companyAccess', () => ({ assertCompanyAdminStrict: async () => {} }));
@@ -42,6 +42,13 @@ jest.mock('nodemailer', () => ({
 }));
 
 const { saveEmailSettings } = require('../../saveEmailSettings');
+const { decrypt, encrypt } = require('../../integrations/encryption');
+
+/** The password a stored `enc:v1:` value holds. */
+const opened = (stored) => {
+    expect(stored).toMatch(/^enc:v1:/);
+    return decrypt(stored.slice('enc:v1:'.length));
+};
 
 const EMAIL_CONFIG = 'companies/co-1/system_settings/email_config';
 const FORM = { companyId: 'co-1', smtpHost: 'smtp.example.com', smtpPort: 587, smtpUser: 'hiring@example.com', signature: '' };
@@ -50,6 +57,7 @@ const storedConfig = () => mockWrites.find((write) => write.path === EMAIL_CONFI
 
 beforeEach(() => {
     jest.resetAllMocks();
+    process.env.SMS_ENCRYPTION_KEY = 'artificial-key-of-32-characters!';
     mockDocs.clear();
     mockWrites.length = 0;
     mockTransportOptions.length = 0;
@@ -95,8 +103,20 @@ describe('saveEmailSettings verifies what it saves', () => {
         const result = await save(FORM);
 
         expect(mockTransportOptions[0].auth.pass).toBe('stored-password');
-        expect(storedConfig()).toMatchObject({ smtpPass: 'stored-password', isVerified: true });
+        // A password stored before encryption is encrypted on the next save.
+        expect(opened(storedConfig().smtpPass)).toBe('stored-password');
+        expect(storedConfig().isVerified).toBe(true);
         expect(result.verified).toBe(true);
+    });
+
+    it('keeps a stored encrypted password as it is, and connects with what it holds', async () => {
+        const stored = `enc:v1:${encrypt('stored-password')}`;
+        mockDocs.set(EMAIL_CONFIG, { smtpPass: stored });
+        mockVerify.mockResolvedValue(true);
+        await save(FORM);
+
+        expect(mockTransportOptions[0].auth.pass).toBe('stored-password');
+        expect(storedConfig().smtpPass).toBe(stored);
     });
 });
 
@@ -107,7 +127,14 @@ describe('what saveEmailSettings stores', () => {
         await save({ ...FORM, smtpPass: '  p@ss w0rd!#$%^&*()  ' });
 
         expect(mockTransportOptions[0].auth.pass).toBe('p@ss w0rd!#$%^&*()');
-        expect(storedConfig().smtpPass).toBe('p@ss w0rd!#$%^&*()');
+        expect(JSON.stringify(storedConfig())).not.toContain('p@ss w0rd');
+        expect(opened(storedConfig().smtpPass)).toBe('p@ss w0rd!#$%^&*()');
+    });
+
+    it('refuses a value that is already encrypted, and writes nothing', async () => {
+        await expect(save({ ...FORM, smtpPass: `enc:v1:${encrypt('x')}` })).rejects.toMatchObject({ code: 'invalid-argument' });
+        expect(mockWrites).toEqual([]);
+        expect(mockVerify).not.toHaveBeenCalled();
     });
 
     it('refuses a first setup without a password, and writes nothing', async () => {
@@ -131,6 +158,8 @@ describe('what saveEmailSettings stores', () => {
             'emailSettings.signature': 'Best regards',
             'emailSettings.isVerified': true,
             'emailSettings.updatedAt': 'server-time',
+            // The copy older saves left on the company document, which the whole team reads.
+            'emailSettings.smtpPass': 'field-delete',
         });
         expect(JSON.stringify(companyWrite.data)).not.toContain('artificial-password');
     });

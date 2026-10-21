@@ -1,15 +1,16 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("./firebaseAdmin");
 const { decrypt } = require("./integrations/encryption");
+const { sealPassword } = require("./shared/smtpSettings");
 
 /**
- * One-time migration: Move email settings from root company doc to admin-only subcollection.
+ * One-time migration: Move email settings from root company doc to the server-only email_config document.
  *
  * For each company:
  *  1. If system_settings/email_config already exists with smtpPass → SKIP (idempotent)
  *  2. If root emailSettings exists:
- *     a. If smtpPass is enc:v1:... → decrypt to plaintext, store in subcollection
- *     b. If smtpPass is plaintext → copy as-is to subcollection
+ *     a. If smtpPass is enc:v1:... → check it decrypts, store it as it is in the subcollection
+ *     b. If smtpPass is plaintext → store it encrypted (shared/smtpSettings.js)
  *     c. Remove smtpPass from root emailSettings (keep non-sensitive fields)
  *  3. If no emailSettings → SKIP
  *
@@ -62,14 +63,14 @@ exports.migrateEmailSettings = onCall(
                     continue;
                 }
 
-                // Decrypt if encrypted, otherwise use as-is
-                let plaintextPassword;
+                // Stored encrypted, as saveEmailSettings stores it; a plain one is encrypted.
+                let storedPassword;
                 const storedPass = legacySettings.smtpPass;
 
                 if (storedPass.startsWith('enc:v1:')) {
                     try {
-                        plaintextPassword = decrypt(storedPass.slice('enc:v1:'.length));
-                        console.log(`[migrateEmailSettings] Decrypted password for company ${companyId}`);
+                        decrypt(storedPass.slice('enc:v1:'.length));
+                        storedPassword = storedPass;
                     } catch (decryptErr) {
                         // Double-encrypted or corrupted — flag for manual intervention
                         console.error(`[migrateEmailSettings] DECRYPT FAILED for ${companyId}:`, decryptErr.message);
@@ -83,17 +84,15 @@ exports.migrateEmailSettings = onCall(
                         continue;
                     }
                 } else {
-                    // Already plaintext
-                    plaintextPassword = storedPass;
-                    console.log(`[migrateEmailSettings] Plaintext password for company ${companyId}`);
+                    storedPassword = sealPassword(storedPass);
                 }
 
-                // Write to admin-only subcollection
+                // Write the server-only email_config document
                 await emailConfigRef.set({
                     smtpHost: legacySettings.smtpHost || '',
                     smtpPort: legacySettings.smtpPort || 587,
                     smtpUser: legacySettings.smtpUser || '',
-                    smtpPass: plaintextPassword,
+                    smtpPass: storedPassword,
                     signature: legacySettings.signature || '',
                     isVerified: legacySettings.isVerified || false,
                     updatedAt: legacySettings.updatedAt || admin.firestore.FieldValue.serverTimestamp(),

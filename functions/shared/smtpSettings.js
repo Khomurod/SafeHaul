@@ -4,17 +4,24 @@
  * (`bulkActions/workers/senderSetup.js`).
  *
  * `saveEmailSettings` stores them in `system_settings/email_config`, the
- * password in plain text by decision. Older companies keep them on the company
- * document (`emailSettings`), and the oldest in `integrations/email_settings`,
- * with other field names and no server for a Gmail account. A password saved
- * encrypted (`enc:v1:`) is decrypted here, so the calling function binds
- * SMS_ENCRYPTION_KEY.
+ * password encrypted (`enc:v1:`, `sealPassword`). Older companies keep them on
+ * the company document (`emailSettings`), and the oldest in
+ * `integrations/email_settings`, with other field names and no server for a
+ * Gmail account; a password stored before encryption is plain text. Either is
+ * read here, so the calling function binds SMS_ENCRYPTION_KEY.
  */
 const crypto = require('crypto');
 const { db } = require('../firebaseAdmin');
-const { decrypt } = require('../integrations/encryption');
+const { decrypt, encrypt } = require('../integrations/encryption');
 
 const ENCRYPTED = 'enc:v1:';
+
+/** A password as it is stored: encrypted, and marked so. */
+function sealPassword(plain) {
+    return ENCRYPTED + encrypt(plain);
+}
+
+const isSealed = (stored) => typeof stored === 'string' && stored.startsWith(ENCRYPTED);
 
 function plainPassword(stored) {
     if (!stored.startsWith(ENCRYPTED)) return stored;
@@ -79,4 +86,6 @@ function smtpFingerprint(settings) {
         .digest('hex');
 }
 
-module.exports = { normalizeSmtpSettings, readSmtpSettings, smtpTransportOptions, smtpFingerprint };
+module.exports = {
+    isSealed, normalizeSmtpSettings, plainPassword, readSmtpSettings, sealPassword, smtpTransportOptions, smtpFingerprint,
+};

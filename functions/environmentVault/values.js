@@ -17,6 +17,7 @@
 const { HttpsError } = require('firebase-functions/v2/https');
 const { admin, db } = require('../firebaseAdmin');
 const { decrypt, encrypt } = require('../integrations/encryption');
+const { isSealed, plainPassword } = require('../shared/smtpSettings');
 const {
     AVAILABILITY,
     getCompanyField,
@@ -125,13 +126,15 @@ function readStoredField(data, resolved) {
  *
  * Values written before the encryption chokepoint existed are plaintext, and a
  * stored boolean (`isSandbox`) is never encrypted. Both are returned as-is
- * rather than being fed to `decrypt`, which would throw on a malformed IV.
+ * rather than being fed to `decrypt`, which would throw on a malformed IV. An
+ * SMTP password is stored `enc:v1:`-marked (`shared/smtpSettings.js`).
  */
 function decryptStored(stored, definition) {
     if (stored === null || stored === undefined) return null;
     if (typeof stored === 'boolean') return String(stored);
     if (typeof stored === 'number') return String(stored);
     if (typeof stored !== 'string') return null;
+    if (isSealed(stored)) return plainPassword(stored);
     if (!definition.encrypted) return stored;
     if (!CIPHERTEXT_PATTERN.test(stored)) return stored;
     return decrypt(stored);

@@ -62,7 +62,7 @@ erDiagram
 | `verification_requests` | token | **read:** super only · **write:** denied | PEV; all portal access via callables |
 | `verification_requests/{token}/responses` | `responseId` | same as parent | PEV responses |
 | `analytics` | `docId` | **read:** super · **write:** denied | Platform analytics |
-| `system_settings` | `settingId` | **read:** staff or super · **write:** super | Global settings |
+| `system_settings` | `settingId` | **read, write:** super | Global settings |
 | `recruiter_links` | `code` | **read:** public · **create/update:** super, or team **of the company stamped on the link** (`companyId` immutable) · **delete:** super | Recruiter attribution URLs. SEC-003: any staff from any company could previously create or overwrite any link code |
 | `job_posts` | `postId` | **server** (no rule → default deny) | **Retired.** The public job board was removed (commit `5a4c8dd`) and the former public-read / company-team-write rules were **deleted**. Historical documents are left unreachable rather than deleted. `firestore.rules.security.test.js` has a default-deny regression test |
 
@@ -97,7 +97,7 @@ Used by Cloud Functions with Admin SDK:
 | `internal_stats/{docId}` | read: team · write: **denied** | Dashboard KPI rollups (server-only writes) |
 | `notifications/{id}` | read: team · create: admin · update: team · delete: admin | Company-scoped notifications |
 | `feature_alerts/{id}` | read/write: team or super | Scheduled deactivation warning analytics |
-| `system_settings/email_config` | read/write: admin | SMTP credentials (sensitive) |
+| `system_settings/email_config` | server only | SMTP credentials; the password encrypted (`enc:v1:`) |
 | `settings/{docId}` | read: team · write: admin | Custom questions, ATS SMS templates, etc. |
 | `signing_requests/{id}` | read: team, recipient, super · create: team · update: team or recipient (limited fields) · delete: admin | E-sign envelopes |
 | `signing_requests/{id}/secrets/{id}` | create: team · read/update/delete: **denied** | `accessToken`; Functions only after create |

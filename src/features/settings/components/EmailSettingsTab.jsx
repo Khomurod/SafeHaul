@@ -23,7 +23,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
         smtpPort: 587,
         smtpUser: '',
         // NOTE: smtpPass is intentionally NOT stored in this state object.
-        // The password lives only in the admin-only subcollection on the server.
+        // The password lives only in a server-only document.
         signature: '',
         isVerified: false
     });

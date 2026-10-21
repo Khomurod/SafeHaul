@@ -311,12 +311,13 @@ sends with and reports identity only.
 | `smtpHost` | plaintext | internal | Yes | No — edit in Company Settings so the connection is re-tested | No — referenced |
 | `smtpPort` | plaintext | public | Yes | No — same | No — referenced |
 | `smtpUser` | plaintext | internal | Yes | No — same | No — referenced |
-| `smtpPass` | plaintext | critical | Yes | No — same | No — referenced |
+| `smtpPass` | encrypted (`enc:v1:`) | critical | Yes | No — same | No — referenced |
 
-`smtpPass` is plaintext at rest by a deliberate earlier decision recorded in
-[`functions/saveEmailSettings.js`](../functions/saveEmailSettings.js): the
-subcollection is admin-only, and encryption had caused double-encryption
-corruption. This vault does not change that; it inventories it.
+[`functions/saveEmailSettings.js`](../functions/saveEmailSettings.js) stores
+`smtpPass` encrypted with an `enc:v1:` mark and refuses a submitted value that
+already carries it, so a password is never encrypted twice. A password saved
+before that stays plain text until the company's next save. No browser reads
+this document: only the server and this vault's reveal decrypt it.
 
 #### `integrations_index/{pageId}` — connected Facebook page
 

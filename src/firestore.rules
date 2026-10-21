@@ -252,9 +252,13 @@ service cloud.firestore {
       allow get: if isCompanyTeam(companyId);
       allow list: if isSuperAdmin();
 
-      // WRITE: Super Admin or Company Admin
+      // WRITE: Super Admin or Company Admin. What the platform owner decides —
+      // whether the company is active, its plan, its features, its public
+      // address — only a super admin changes.
       allow create, delete: if isSuperAdmin();
-      allow update: if isCompanyAdmin(companyId);
+      allow update: if isSuperAdmin() || (isCompanyAdmin(companyId)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['isActive', 'status', 'planType', 'features', 'featureSchedules', 'appSlug']));
 
       // --- SUBCOLLECTIONS ---
 
@@ -325,9 +329,10 @@ service cloud.firestore {
         allow read, write: if isCompanyTeam(companyId);
       }
 
-      // SECURE SETTINGS: Email Config & System Keys
+      // SECURE SETTINGS: the SMTP password. Server-only: saveEmailSettings
+      // writes it, getEmailSettingsMeta answers what the settings screen shows.
       match /system_settings/email_config {
-        allow read, write: if isCompanyAdmin(companyId);
+        allow read, write: if false;
       }
 
       // Per-company settings docs (custom questions, ATS SMS templates, etc.)
@@ -617,8 +622,7 @@ service cloud.firestore {
 
     // --- SYSTEM SETTINGS ---
     match /system_settings/{settingId} {
-      allow read: if isStaff() || isSuperAdmin();
-      allow write: if isSuperAdmin();
+      allow read, write: if isSuperAdmin();
     }
     
     // --- RECRUITER LINKS ---

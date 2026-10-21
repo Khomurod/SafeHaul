@@ -208,6 +208,30 @@ const ROWS = [
     op: 'update', path: companyPath, seed: { name: 'Company A', isActive: true }, data: { isActive: false },
     note: 'deactivates it',
   },
+  {
+    op: 'update', path: companyPath, seed: { name: 'Company A', isActive: false }, data: { isActive: true },
+    note: 'reactivates it',
+  },
+  {
+    op: 'update', path: companyPath, seed: { name: 'Company A', isActive: true }, data: { status: 'suspended' },
+    note: 'changes its status',
+  },
+  {
+    op: 'update', path: companyPath, seed: { name: 'Company A', planType: 'free' }, data: { planType: 'paid' },
+    note: 'changes its plan',
+  },
+  {
+    op: 'update', path: companyPath, seed: { name: 'Company A', features: { pev: false } }, data: { features: { pev: true } },
+    note: 'switches a feature on',
+  },
+  {
+    op: 'update', path: companyPath, seed: { name: 'Company A' }, data: { featureSchedules: { pev: '2099-01-01T00:00:00Z' } },
+    note: 'schedules a feature',
+  },
+  {
+    op: 'update', path: companyPath, seed: { name: 'Company A', appSlug: 'company-a' }, data: { appSlug: 'company-b' },
+    note: 'changes its public address',
+  },
   { op: 'delete', path: companyPath, seed: { name: 'Company A', isActive: true } },
 
   // --- Company subcollections ---

@@ -924,7 +924,8 @@ only**.
 `callTracking`. Semantics are **opt-out**: a missing key means *enabled*; only
 an explicit `false` disables. `features` is stripped from the public profile
 projection, and `/apply/:slug` is not gated by any flag. See
-[`docs/feature-flags.md`](./feature-flags.md).
+[`docs/feature-flags.md`](./feature-flags.md). Only a super admin changes them,
+`planType`, `appSlug`, `isActive` or `status`.
 
 ---
 
@@ -934,7 +935,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 |---|---|---|
 | **Firebase** (Auth, Firestore, Storage, Functions, Hosting) | Everything | Project config |
 | **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
-| **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (its admins may read it directly); password in plain text by decision, shown in the UI only by the vault's audited reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until migrated); it decrypts an `enc:v1:` password |
+| **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); the password is saved encrypted (`enc:v1:`), shown in the UI only by the vault's audited reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until migrated); it decrypts an `enc:v1:` password |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat connected in Super Admin → System Health. The marketing-site bot is **retired** (`LD-R3`): promotion's `scripts/retire-functions.mjs` keeps `listLandingLeads`; a rollback past it calls deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
@@ -978,11 +979,11 @@ projection, and `/apply/:slug` is not gated by any flag. See
 
 **A Facebook page belongs to one company.** `connectFacebookPage` takes the
 company from the client and authorizes it against the caller's per-company role.
-A page an earlier defect bound to a user id is reclaimed when its owning admin
-reconnects it; a page held by a real company is refused, so no company can take
-over another's lead feed. The claim is a Firestore transaction taken *before*
+A page bound to a user id (an old defect) is reclaimed when its admin reconnects
+it; one held by another company is refused. The claim is a Firestore transaction taken *before*
 the Facebook OAuth exchange (two simultaneous connects cannot both pass),
-released if the connect then fails.
+released if the connect then fails. An event needs Meta's `X-Hub-Signature-256`,
+compared in constant time; SHA-1 alone is refused.
 
 ---
 
@@ -1443,9 +1444,8 @@ require or an `admin.<path>` the wrapper lacks; `deployedEntryPoint.test.js`
 loads `index.js` under plain Node. Under Jest the ES-module-only `jose` (unused, §10) maps to an
 empty stand-in.
 
-**Playwright** runs in CI as 4 shards, `workers: 1` and `retries: 2` each
-(§10): desktop Chromium and `@mobile` tests on an
-emulated Pixel 7. Runner safety:
+**Playwright** runs in CI as 4 shards (`workers: 1`, `retries: 2`; §10):
+desktop Chromium and `@mobile` on an emulated Pixel 7. Runner safety:
 [`.claude/rules/testing.md`](../.claude/rules/testing.md).
 
 **The first download has a budget.** `npm run check:bundle-budget` sums the
