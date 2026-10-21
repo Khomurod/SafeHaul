@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Icon, Facebook, CheckCircle, Loader2, Blocks } from '@design-system/icons';
+import { Icon, Megaphone, CheckCircle, Loader2, Blocks } from '@design-system/icons';
 import { functions } from '@lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -157,7 +157,7 @@ export function IntegrationsTab({ companyId }) {
                     <div className="flex flex-col items-start justify-between gap-ds-4 sm:flex-row">
                         <div className="flex min-w-0 items-start gap-ds-4">
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-lg bg-[#1877F2]/10 text-[#1877F2]">
-                                <Icon icon={Facebook} size="2xl" />
+                                <Icon icon={Megaphone} size="2xl" />
                             </div>
                             <div className="min-w-0">
                                 <h2 className="flex flex-wrap items-center gap-ds-2 font-bold text-ds-content">
@@ -190,7 +190,7 @@ export function IntegrationsTab({ companyId }) {
                                     disabled={connecting || !isSdkLoaded}
                                     loading={connecting}
                                 >
-                                    {!connecting && <Icon icon={Facebook} />}
+                                    {!connecting && <Icon icon={Megaphone} />}
                                     {connecting ? 'Connecting...' : 'Connect Facebook'}
                                 </Button>
                             )}

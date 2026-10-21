@@ -31,7 +31,7 @@ describe('glyph tokens', () => {
     });
 
     it('carries the name the codebase writes, not lucide’s canonical one', () => {
-        // 33 of the 171 are compatibility aliases: `AlertTriangle` reports a
+        // 37 of the 170 are compatibility aliases: `AlertTriangle` reports a
         // `displayName` of `TriangleAlert`. Reading the name off the component
         // would have renamed a fifth of the registry to identifiers that appear
         // nowhere in this repository.

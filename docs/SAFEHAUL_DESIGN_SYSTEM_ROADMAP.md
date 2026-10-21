@@ -187,6 +187,8 @@ The reverse directions are prohibited — including any `@shared` import inside
   page-level state glyph is `3xl` (32).
 - **Decorative glyphs are `aria-hidden`; a glyph that *is* the control takes
   `label`** and becomes `role="img"` with that name. A blank `label` throws.
+- **No brand marks.** `lucide-react` 1.x ships none, so the registry has none:
+  the Facebook Lead Ads card shows `Megaphone` on its brand blue (§5).
 
 **States, announcements and focus**
 - **A state must announce itself.** Loading and empty are `role="status"`

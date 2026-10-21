@@ -28,7 +28,7 @@ Nothing below 12px: a stroked glyph loses its interior and reads as a smudge.
 
 ## A glyph is a token, not a component
 
-`glyphs.js` exports 171 **tokens**. A token cannot be rendered:
+`glyphs.js` exports 170 **tokens**. A token cannot be rendered:
 
 ```jsx
 <Trash2 size={13} />   // throws, by name, at the call site
@@ -125,7 +125,7 @@ carry brand colour from `--ds-color-brand-*` and are pinned by
 
 ## Two things the measurement found
 
-**33 of the 171 names are lucide compatibility aliases** whose canonical name
+**37 of the 170 names are lucide compatibility aliases** whose canonical name
 has since changed: `AlertCircle` is today's `CircleAlert`, `Home` is `House`,
 `Filter` is `Funnel`, `Loader2` is `LoaderCircle`. The registry keeps the names
 this codebase actually writes, which is why `glyph()` takes the name rather than
