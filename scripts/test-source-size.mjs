@@ -10,8 +10,8 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   EXCLUDED,
@@ -363,6 +363,39 @@ assert('F6. and every format left out says why it is not source',
   assert('F8. nothing but a test is exempt, and no list can make it so',
     !/backlog/i.test(checker) && !/EXCEPTIONS|maxLines/.test(checker + scope),
     'an exemption list in the branch under test is an allowlist');
+}
+
+console.log('\nT. Throwaway directories are removed without racing git');
+/*
+ * Not a size rule: here because this suite runs in the job no lane can skip.
+ * Deleting a throwaway repository can fail with ENOTEMPTY in the cleanup of a
+ * harness whose every assertion passed: `git gc --auto` writes into `.git`
+ * after the command that triggered it returned, and `force: true` suppresses
+ * ENOENT and nothing else. `scripts/lib/throwaway.mjs` fixes both; this stops
+ * the next harness copying the old shape, over every file with it.
+ */
+{
+  const offenders = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) { walk(full); continue; }
+      if (!entry.name.endsWith('.mjs')) continue;
+      const source = readFileSync(full, 'utf8');
+      for (const match of source.matchAll(/rmSync\([^;]*?recursive:\s*true[^;]*?\)/gs)) {
+        if (/maxRetries/.test(match[0])) continue;
+        offenders.push(`${relative(repoRoot, full)}: ${match[0].replace(/\s+/g, ' ').slice(0, 70)}`);
+      }
+    }
+  };
+  walk(resolve(repoRoot, 'scripts'));
+  assert('T1. no recursive rmSync in scripts/ is written without retries',
+    offenders.length === 0, offenders.join(' | '));
+
+  const helper = readFileSync(resolve(repoRoot, 'scripts/lib/throwaway.mjs'), 'utf8');
+  assert('T2. the shared remover retries, and the shared init disables git maintenance',
+    /maxRetries:\s*\d+/.test(helper) && /retryDelay:\s*\d+/.test(helper)
+    && /'gc\.auto',\s*'0'/.test(helper) && /'maintenance\.auto',\s*'false'/.test(helper));
 }
 
 console.log(failures === 0

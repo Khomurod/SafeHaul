@@ -16,10 +16,10 @@ import { rawValuesIn } from '../../scripts/eslint-rules/raw-values.mjs';
  * looks at this file can see it go wrong**, and both limits were measured
  * rather than assumed:
  *
- * - `check:ui-contract` reaches `index.html`, but its
- *   `raw-palette-class` rule refuses *raw palette* names. Deleting the class
- *   outright, or swapping it for a different `--ds-*` role such as
- *   `bg-ds-surface`, is on-contract and passes.
+ * - No lint rule reads `index.html`, and a raw palette name would be the only
+ *   thing one could refuse there. Deleting the class outright, or swapping it
+ *   for a different `--ds-*` role such as `bg-ds-surface`, is on-contract and
+ *   passes.
  * - The pixel lane cannot resolve the change at all. `--ds-color-canvas` is
  *   slate-50 `#f8fafc` and Tailwind's gray-50 is `#f9fafb` — one unit apart on
  *   red and on blue. Run through Playwright's own pixelmatch at the lane's own

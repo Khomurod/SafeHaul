@@ -17,8 +17,8 @@
  * throughout this file is the count of approved *files*; three of them hold more
  * than one `<table>`, for fifteen in total — fourteen visible, all on this
  * contract, plus one `sr-only` table that has no appearance and is exempt.
- * `check:ui-contract` counts tables rather than files, so a three-table file
- * cannot satisfy the rule with one class.)
+ * `ds/native-table` checks each table rather than each file, so a three-table
+ * file cannot satisfy the rule with one class.)
  *
  * Cell padding had already drifted for the same reason: `px-ds-6` (24px) in
  * `CompaniesView`, `px-ds-5` (20px) and `px-ds-4` (16px) in `ModernDriverTable`,
@@ -37,8 +37,8 @@
  *
  * `density="compact"` on the table element mirrors `DataTable`'s prop.
  *
- * `check:ui-contract` requires every file with an approved `raw-table` exception
- * to reference this class, so "we kept a native table" can no longer quietly mean
+ * `ds/native-table` requires every table in a file approved to keep one to
+ * carry this class, so "we kept a native table" can no longer quietly mean
  * "we styled a table by hand".
  *
  * ## The state row

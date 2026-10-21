@@ -321,10 +321,8 @@ work complete because code exists.** The PR checklist is
 ## 5. Approved, evidenced exceptions — these are not debt
 
 Do not "fix" these without reading why they exist. Each is recorded in the
-component too, and every allowlist entry tolerated for one of them cites this
-section. (Other entries: the design system's own `DataTable`, `FileInput`,
-`TabList` and `Chip`, where the rules send feature code; two test doubles;
-tinted blocks `hand-composed-notice` tolerates — §7.)
+component too, and every lint exception (`scripts/eslint-rules/exceptions.mjs`)
+tolerated for one of them cites this section.
 
 | Exception | Where | Why it is allowed | Retires when |
 |---|---|---|---|
@@ -351,7 +349,7 @@ that retires when the primitive lands. **Do not delete an entry while its call
 site still cites it.** Before declaring a family closed, check the primitive
 against every shape its call sites have (one that fits a third of them does not
 get adopted), cite only consumers that really have the shape, and ship it with
-its consumers and a `check:ui-contract` rule — a roadmap line is not a guard. A
+its consumers and a `ds/*` lint rule — a roadmap line is not a guard. A
 rule must not demand a component that does not exist: record the gap here
 instead.
 
@@ -410,10 +408,6 @@ delete one without replacing the guarantee. All are blocking, and none may carry
 | `no-alert` = `error` for `src/` outside test files (`eslint.config.js`) | A call to `alert`, `confirm` or `prompt`: bare, through `window` or `globalThis`, in brackets or inside a template literal. A disable comment does not hide one | `frontend-quality` · `scripts/test-lint-rules.mjs` N1–N4b, in `callable-contract` |
 | `src/tests/pageShell.test.js` — *the one class no guard could hold* — and `src/tests/brandAssets.test.jsx` | `index.html`'s `<body>` without exactly one background utility, `bg-ds-canvas`, on a declared role (`raw-palette-class` cannot hold it — a swap to another role passes — and the pixel lane cannot see it); a favicon or `theme-color` literal differing from the brand tokens, favicon paths or gradient geometry differing from the logo's, a hex in `Logo.jsx` or `SafeHaulLoader.jsx`; a raw value in `index.html` | `frontend-quality` |
 | `VOEPreviewModal.export.test.jsx` | A `ds-*` class inside the exported §391.23 document, a missing token outside it, or a frozen `voe-*` value that differs from the Tailwind value it copies | `frontend-quality` |
-| `src/tests/uiContract.ratchet.test.js` | `check:ui-contract`'s rules missing their defects or firing on correct code | `frontend-quality` |
-| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | Zero-tolerance against the allowlist: raw palette classes; raw hex (`raw-hex-colour`: classes, CSS, SVG presentation attributes, JS assignments — not anchors, gradient references, id selectors or hex-like placeholders); sub-12px and off-scale type; Tailwind and bare radii/shadows (`tailwind-radius`, `tailwind-shadow`); `@apply`; bare stacking numbers (`raw-z-index`, `css-raw-z-index`); hand-built overlays (`hand-built-overlay`); raw tables (`raw-table`); hand-styled controls (`hand-styled-button`, `hand-styled-field`, `hand-styled-anchor` — a class list hoisted into a variable is resolved, `scripts/ui-contract/bindings.mjs`); hand-rolled `role="tablist"` strips (`hand-rolled-tablist`), toggles (`hand-rolled-toggle`, a raw `<button aria-pressed>`), current-item controls (`hand-rolled-current`, a raw `<button aria-current>`), avatar discs (`hand-rolled-avatar`, a round disc holding a person's initial) and disclosures (`hand-rolled-disclosure`, a `<button aria-expanded>` inside a heading); hand-composed notices (a `bg-ds-status-*-bg` tint with its matching border on an element whose own body holds words and no control, table or `Card` — `src/design-system/` included); raw file inputs; hand-written `target="_blank"`; a JSX-element `label` on a primitive that throws on a non-string one (`jsx-label-on-throwing-primitive`); an approved native table without `ds-native-table`, counted per `<table>`. It scans what Tailwind's `content` compiles — `src/` and `index.html` (class-list rules only there and in stories) | `callable-contract` · `scripts/ci-plan/test-guards.mjs` K5 |
-| `src/design-system/ui-contract.allowlist.json` (read by `check:ui-contract`) | Anything unlisted, a count higher than recorded, an entry whose rule has no `reasons` text, a malformed count — there is no `debt` option. A count the tree has fallen below is lowered: a local run rewrites the file, CI warns. The check never adds an entry or raises a count; an exception that grows is a hand edit with a reason, judged in review, and there is no base-commit comparison. Keys are repo-relative. The design system is exempt from `hand-rolled-toggle` and `hand-rolled-current` only (`SegmentedControl`, `SectionNavigation` are those shapes), as a named list, not a path skip | `callable-contract` · `scripts/test-ui-contract-allowlist.mjs` |
-| `npm run test:ui-contract` (four suites) | Wrong decisions on fixtures (`scripts/test-ui-contract.mjs`; §H keeps stylesheets and HTML out of the JSX parser); the state rules (`scripts/test-ui-contract-state.mjs`, §P, with §P6/§P7 asserting exemptions as a set); lost coverage — per-format floors, every Tailwind `content` root scanned (`scripts/test-ui-contract-scope.mjs`, §S2f); the allowlist's shape and how a fixed entry is lowered (`scripts/test-ui-contract-allowlist.mjs`). Its wiring, the suite list read off disk included, is `scripts/ci-plan/test-guards.mjs` K5 | `callable-contract` |
 | `ds/no-raw-values` = `error` for `src/` outside tests (`scripts/eslint-rules/`) | An arbitrary colour, type size or layer in any syntax Tailwind compiles (`bg-[red]`, `text-[length:10px]`, `z-[calc(100)]`); a raw colour, numeric layer or off-scale size where a style names one | `frontend-quality` · `test-lint-rules.mjs` §O, in `callable-contract` |
 | `ds/native-table`, same scope, off in stories | A `<table>` in a file §5 does not approve, or one whose last class setter may lack `ds-native-table` | as above |
 | `ds/use-primitive`, same scope (the design system skips toggle and current, stories the markup checks) | A hand-styled `<button>`, `<a>` or field (a hoisted class list is resolved); a raw `role="tablist"`, a `<button>` with `aria-pressed` or `aria-current`, or with `aria-expanded` in a heading; a raw file input; `target="_blank"`; `fixed inset-0`, however split; a JSX `label` on a primitive that throws on one. Exceptions per file and check, with a §5 reason (`exceptions.mjs`); no comment hides one | as above |
@@ -457,9 +451,8 @@ read them.
   every failure it knows of.
 - A guard that measures nothing fails: zero tables, zero files or a vanished
   subject is a broken check, not a pass.
-- Read JSX through `scripts/ui-contract/jsx.mjs` (`lastClassSetter`,
-  `certainlyText`, `parseModule`), in a lint rule `scripts/eslint-rules/jsx.mjs`;
-  never copy them into a new rule.
+- In a lint rule read JSX through `scripts/eslint-rules/jsx.mjs`; never copy
+  its helpers into a new rule.
 - Ask "does this element carry this attribute?", never "does this text appear?".
   When a check needs a third fix, change what it asks rather than how carefully
   it looks, and sweep the sibling rules for the same shape.
@@ -477,16 +470,13 @@ read them.
 
 ### Still open
 
-- Most `check:ui-contract` rules still match text; only the native-table tether
-  and the styled-control rules parse.
-- `hand-composed-notice` reads literal classes, so a tint arriving through a
-  lookup (`const { wrapper } = TONES[tone]`) is invisible to it.
+- No rule replaces the old hand-composed notice and avatar-disc checks: a
+  tinted block or a hand-drawn initials disc passes lint.
 - `check:table-layout` measures the catalog, not the application — a feature
   screen with no story is not measured (`test:visual`'s screens check
   appearance, not overflow); some screens have no baseline at all, e.g. the
   campaign editor and the schema editors' edit mode.
-- In `index.html` the scan runs only the class-list rules; values in attributes
-  there are pinned by tests, not a rule.
+- `index.html` is pinned by tests (`pageShell.test.js`), not a rule.
 - Tailwind's extractor compiles class names found in prose (`.bg-gray-50` ships
   from comments that name it — the hazard `tailwind.config.js` documents for
   stories). Recorded, not fixed.
@@ -495,8 +485,8 @@ read them.
 
 **The programme is closed.** Every screen area is migrated, and newer screens
 use approved components and `--ds-*` tokens from the start. Every remaining
-exception rests on a true reason recorded at the call site and in the allowlist
-(`npm run check:ui-contract` prints the count). One area is NO-GO beyond
+exception rests on a true reason recorded at the call site and in
+`scripts/eslint-rules/exceptions.mjs`. One area is NO-GO beyond
 presentation (§6).
 
 **Complete families** — the primitive exists *and* every consumer that can use
@@ -527,7 +517,7 @@ Storybook (`npm run storybook`, `npm run build-storybook`), built in CI by
 from `src/design-system/stories/fixtures.js` — **no production data may appear
 in a story** — use no domain vocabulary, and state **Approved**, **Needs
 review** or **Temporary**. The catalog is what people copy, so stories meet
-`check:ui-contract`'s class-list rules; the markup-shaped rules are off, as a
+`ds/no-raw-values`; `ds/native-table` and the markup checks are off there, as a
 story legitimately demonstrates a native table and discusses the patterns the
 rules forbid.
 

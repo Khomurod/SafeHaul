@@ -4,11 +4,9 @@
  * The questions are about elements and attributes, never about characters
  * between `<` and `>`: which element this is, whether it carries an attribute,
  * which attribute decides its class list, and whether every path through an
- * expression certainly yields a class. `lastClassSetter` and `certainlyText`
- * answer the same questions as `scripts/ui-contract/jsx.mjs`, over ESLint's
- * tree (`Literal`) instead of Babel's (`StringLiteral`), and
- * `scripts/test-lint-rules.mjs` §O drives them over every bypass that module
- * was hardened against.
+ * expression certainly yields a class. `scripts/test-lint-rules.mjs` §O drives
+ * `lastClassSetter` and `certainlyText` over every bypass they are hardened
+ * against.
  */
 
 /** A lowercase host element's name (`button`, `table`, `h3`), or a component's; `null` for `<a.b>`. */

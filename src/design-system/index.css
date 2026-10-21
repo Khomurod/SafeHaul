@@ -8,8 +8,8 @@
  * It imports nothing from outside `src/design-system`, in CSS as in
  * JavaScript: `tests/architecture.test.js` walks CSS as well as JavaScript, so
  * "no `shared` inside the design system" covers an `@import` too, and
- * `check:ui-contract` scans stylesheets for raw colour and sub-12px type as
- * well as JSX.
+ * `src/tests/stylesheetContract.test.js` holds stylesheets to the same raw
+ * colour and sub-12px type rules the `ds/*` lint rules hold JSX to.
  */
 @import './tokens/typeface.css';
 @import './tokens/index.css';

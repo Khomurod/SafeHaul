@@ -174,10 +174,9 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
               `aria-controls`, no roving `tabIndex` and no arrow keys — so
               assistive technology could not tell it was a tab interface or say
               which section was current, and it was the only such strip left in
-              the product. `check:ui-contract`'s `hand-rolled-tablist` rule could
-              not see it either, precisely because it had no `role="tablist"` to
-              match; the `hand-styled-button` rule is what caught it, once the
-              scanner stopped truncating attribute lists at the `>` in `=>`.
+              the product. A tablist rule cannot see such a strip, precisely
+              because it has no `role="tablist"` to match; the hand-styled
+              button check is what catches it.
             */}
             <TabList
                 ariaLabel="Company profile sections"

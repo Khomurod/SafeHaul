@@ -27,7 +27,7 @@ and say why in one line.
 
 | Check | Ran | Notes |
 |---|---|---|
-| `npm run check:ui-contract` and `npm run test:stories` | [ ] | the allowlist may only shrink |
+| `npm run test:stories` | [ ] | |
 | `check:visual-contract`, `check:table-layout`, `test:visual` (components, tokens, styles or tables moved) | [ ] | |
 | Desktop review at 1440 and phone review at 412 | [ ] | what you checked on the phone |
 | Keyboard order, visible focus, accessible names; dialogs trap and restore focus | [ ] | |

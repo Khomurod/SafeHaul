@@ -33,7 +33,7 @@ change.
 5. **UI work must not change** Firebase rules, data structures, backend behaviour,
    integrations, permissions, routes, feature flags or business workflows unless
    the task separately justifies and approves that change.
-6. **Guards to run:** `npm run check:ui-contract`, `npm run lint:frontend`,
+6. **Guards to run:** `npm run lint:frontend` (its `ds/*` rules),
    `npm run test:stories`. Run `npm run check:visual-contract`,
    `npm run check:table-layout` and `npm run test:visual` (each needs
    `npm run build-storybook`) when components, tokens, styles or tables change.

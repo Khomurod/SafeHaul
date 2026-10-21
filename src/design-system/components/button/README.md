@@ -78,7 +78,7 @@ Features own labels, icons, permission checks, and callbacks.
     (`variant={on ? 'primary' : 'secondary'}`), which is a perfectly good answer.
     Reach for `pressed` when the variant has to stay put.
   - For a pill-shaped toggle — a filter strip, a tag row — use `Chip` instead.
-    `check:ui-contract` refuses a raw `<button aria-pressed>` either way.
+    `ds/use-primitive` refuses a raw `<button aria-pressed>` either way.
 
 Do not recolour a `Button` with a background utility class from a feature. The
 component's own `[data-variant]` rules carry two selectors, so a single-class

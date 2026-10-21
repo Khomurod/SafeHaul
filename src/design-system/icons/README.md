@@ -109,7 +109,7 @@ so a `.ts` or `.tsx` file under `src/` needs a TypeScript lint setup first. And
 no comment is an exception: the test lints every file that holds an ESLint
 comment again, with `eslint-disable` and inline rule settings ignored.
 
-The scope is `src/`, the same scope `check:ui-contract` governs, because that is
+The scope is `src/`, the same scope the `ds/*` rules govern, because that is
 what Vite bundles; a fixture in `scripts/` describing an import is not an import.
 There is no list of exceptions.
 
