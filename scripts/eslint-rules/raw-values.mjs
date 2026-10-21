@@ -241,16 +241,20 @@ function fontShorthandSize(value) {
 export const cssName = (key) => (/^[a-z][a-zA-Z]*$/.test(key) ? key.replace(/[A-Z]/g, (letter) => `-${letter}`) : key)
     .toLowerCase();
 
+/** A value without its priority: `10px !important` is 10px, and so is Tailwind's `10px_!important`. */
+const withoutPriority = (value) => (typeof value === 'string' ? value.replace(/[\s_]*![\s_]*important[\s_]*$/i, '') : value);
+
 /**
  * The check a layer or a type size breaks, however it is written: a
  * `z-index` that holds a number, a `font-size` — or a `font` shorthand's size
  * — off the scale or below the floor. A number is a layer, or px, as React
- * writes one. A value that is not a size CSS computes (`'Auto'`, `'inherit'`)
- * sets none; any other name is not judged here.
+ * writes one, and `!important` changes no size. A value that is not a size
+ * CSS computes (`'Auto'`, `'inherit'`) sets none; any other name is not judged
+ * here.
  */
 export function layerOrSizeCheck(name, value) {
-    if (name === 'z-index') return numericLayer(String(value)) ? 'raw-z-index' : null;
-    const text = typeof value === 'number' ? `${value}px` : value;
+    if (name === 'z-index') return numericLayer(String(withoutPriority(value))) ? 'raw-z-index' : null;
+    const text = typeof value === 'number' ? `${value}px` : withoutPriority(value);
     if (typeof text !== 'string' || (name !== 'font-size' && name !== 'font')) return null;
     const size = name === 'font' ? fontShorthandSize(text) : text.trim();
     return size !== null && sizeRange(size) !== null ? typeSizeCheck(size) : null;
@@ -278,14 +282,14 @@ const COLOUR_PROPERTY = /(?:^|-)(?:color|background|border|outline|shadow|fill|s
 function arbitraryCheck(utility, property, raw) {
     if (utility !== null) {
         const [, hint = null, value] = /^(?:([a-z-]+):)?(.*)$/s.exec(raw);
-        if (utility === 'z') return numericLayer(value) ? 'raw-z-index' : null;
+        if (utility === 'z') return numericLayer(withoutPriority(value)) ? 'raw-z-index' : null;
         if (utility === 'text' && (SIZE_HINTS.has(hint) || (hint === null && IS_TYPE_SIZE.test(value)))) {
             return typeSizeCheck(value);
         }
         return holdsRawColour(value, { words: hint === 'color' || COLOUR_UTILITIES.has(utility) }) ? 'raw-hex-colour' : null;
     }
-    if (property === 'z-index') return numericLayer(raw) ? 'raw-z-index' : null;
-    if (property === 'font-size' || property === 'font') return typeSizeCheck(raw);
+    if (property === 'z-index') return numericLayer(withoutPriority(raw)) ? 'raw-z-index' : null;
+    if (property === 'font-size' || property === 'font') return typeSizeCheck(withoutPriority(raw));
     return holdsRawColour(raw, { words: COLOUR_PROPERTY.test(property) }) ? 'raw-hex-colour' : null;
 }
 

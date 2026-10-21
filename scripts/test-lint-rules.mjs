@@ -301,6 +301,10 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         ['raw-z-index', 'a layer as a default', "export function Panel({ zIndex = 60 }) {\n  return zIndex;\n}\n"],
         ['sub-12px-type', 'a bare zero font size in a style string', "export const CSS = '.x { font-size: 0; }';\n"],
         ['sub-12px-type', 'a zero font size as text', view("<span style={{ fontSize: '0' }}>x</span>")],
+        ['sub-12px-type', 'a font size marked important in a style string', "export const CSS = '.x { font-size: 10px !important; }';\n"],
+        ['sub-12px-type', 'an arbitrary font size property marked important', view('<span className="[font-size:10px!important]">x</span>')],
+        ['sub-12px-type', 'an arbitrary font size marked important after a space', view('<span className="[font-size:10px_!important]">x</span>')],
+        ['raw-z-index', 'an arbitrary layer marked important', view('<div className="z-[9999!important]" />')],
         ['sub-12px-type', 'a font size added up', view('<span style={{ fontSize: 6 + 4 }}>x</span>')],
         ['sub-12px-type', 'a font size from a template', view('<span style={{ fontSize: `${10}px` }}>x</span>')],
         ['raw-z-index', 'a layer added up', view('<div style={{ zIndex: 50 + 10 }} />')],
@@ -424,7 +428,8 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         'bg-[color-mix(in_srgb,var(--ds-color-surface)_50%,var(--ds-color-content))]',
         'text-[light-dark(var(--ds-color-content),var(--ds-color-surface))]',
         'bg-[var(--brand,#fff)]', 'md:[color:red]', 'text-[length:10px]', 'text-[calc(10px)]', 'text-[0.5rem]', '[font-size:10px]',
-        'text-[clamp(0.75rem,2vw,1rem)]', 'text-[larger]', 'z-[calc(100)]', 'z-[calc(var(--ds-z-modal)+1)]', '[z-index:9999]'];
+        'text-[clamp(0.75rem,2vw,1rem)]', 'text-[larger]', 'z-[calc(100)]', 'z-[calc(var(--ds-z-modal)+1)]', '[z-index:9999]',
+        '[font-size:10px!important]', '[font-size:10px_!important]', 'z-[9999!important]'];
     const inert = [];
     for (const name of forms) if (!(await compiles(name))) inert.push(name);
     const { COLOUR_WORDS } = await import('./eslint-rules/raw-values.mjs');
