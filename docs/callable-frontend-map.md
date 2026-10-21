@@ -92,9 +92,6 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 
 | Callable | Notes |
 |----------|-------|
-| `backfillAllSmsSentPhones` | All-company SMS history backfill. Its one-off System Health button was removed on 2026-10-11; no screen has shown it since the 2026-10-12 release |
-| `backfillSmsSentPhones` | Per-company SMS phone backfill; no UI |
-| `sendSMS` | Admin-only outbound SMS. Signing links are texted by the `notifySignerSMS` trigger alone; Production's e-document screens also call it until their next release |
 | `migrateEmailSettings` | One-time migration; invoke callable manually (ops) |
 | `reconcileCompanyDashboardStats` | KPI reconciliation callable ([`dashboardStatsRollup.js`](../functions/dashboardStatsRollup.js)) |
 
@@ -105,7 +102,7 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 | Export | Type | Invocation |
 |--------|------|------------|
 | `processBulkBatch` | HTTP `onRequest` | Cloud Tasks → POST with `X-SafeHaul-Internal-Auth` |
-| `facebookWebhook`, `facebookWebhookV1` | HTTP | Facebook Lead Ads |
+| `facebookWebhook` | HTTP | Facebook Lead Ads |
 | `companyApi` | HTTP `onRequest` | Another service, with a company's API key: `GET https://us-central1-truckerapp-system.cloudfunctions.net/companyApi/v1/...` and `Authorization: Bearer <key>`. Read-only; see [`companyApi/routes.js`](../functions/companyApi/routes.js) |
 | `onApplicationSubmitted`, `onLeadWrittenDashboardRollup`, … | Firestore triggers | Automatic on writes |
 | `enforceFeatureSchedules`, `cleanupOrphanedSignatures`, `processVerificationReminders` | Scheduled | Cloud Scheduler |

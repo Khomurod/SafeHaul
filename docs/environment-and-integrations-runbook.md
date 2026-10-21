@@ -111,8 +111,6 @@ Value availability values:
 | `APP_BASE_URL` | SafeHaul platform | public | `server-runtime` | reveal / — / — | Yes |
 | `BULK_SESSION_MAX_SENDS` | SafeHaul platform | internal | `server-runtime` | reveal / — / — | Yes |
 | `DOCUMENT_VISION_PROVIDER` | Groq (AI) | internal | `server-runtime` | reveal / — / — | Yes |
-| `FACEBOOK_APP_SECRET_VALUE` | Facebook Lead Ads | critical | `server-runtime` | reveal / — / — | Yes |
-| `FACEBOOK_VERIFY_TOKEN_VALUE` | Facebook Lead Ads | sensitive | `server-runtime` | reveal / — / — | Yes |
 | `FUNCTION_REGION` | Google Cloud Tasks | internal | `server-runtime` | reveal / — / — | Yes |
 | `GCP_REGION` | Google Cloud Tasks | internal | `server-runtime` | reveal / — / — | Yes |
 | `GROQ_DOCUMENT_VISION_MODEL` | Groq (AI) | internal | `server-runtime` | reveal / — / — | Yes |
@@ -396,7 +394,7 @@ screen reader.
 | Reason shown | Applies to |
 | --- | --- |
 | Managed by deployment | `vite-build`, most `functions-env` |
-| Protected infrastructure key | `secret-manager`, `BULK_WORKER_SECRET`, Facebook legacy env copies |
+| Protected infrastructure key | `secret-manager`, `BULK_WORKER_SECRET` |
 | Source does not support editing | `github-actions-secret`, `local-tooling` |
 | Injected by the platform at runtime | `firebase-runtime`, `repo-config` |
 | Cannot be deleted while referenced | credentials the active integration needs |

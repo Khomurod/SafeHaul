@@ -3,7 +3,7 @@
  */
 
 const {
-    CATEGORIES, SOURCES, AVAILABILITY, SENSITIVITY, DEPLOYMENT_MANAGED, PROTECTED,
+    CATEGORIES, SOURCES, AVAILABILITY, SENSITIVITY, DEPLOYMENT_MANAGED,
 } = require('./vocabulary');
 
 // ---------------------------------------------------------------------------
@@ -64,28 +64,6 @@ const FUNCTIONS_ENTRIES = [
         optional: true,
         consumers: ['functions/bulkActions/services/queueService.js'],
         ...DEPLOYMENT_MANAGED,
-    },
-    {
-        key: 'FACEBOOK_APP_SECRET_VALUE',
-        displayName: 'Facebook app secret (legacy V1 webhook)',
-        description: 'Plain environment copy of the Facebook app secret read by the legacy V1 webhook signature check. The V2 webhook uses the Secret Manager binding instead.',
-        category: CATEGORIES.GLOBAL_INTEGRATION,
-        integration: 'Facebook Lead Ads',
-        sensitivity: SENSITIVITY.CRITICAL,
-        optional: true,
-        consumers: ['functions/integrations/facebook.js'],
-        ...PROTECTED,
-    },
-    {
-        key: 'FACEBOOK_VERIFY_TOKEN_VALUE',
-        displayName: 'Facebook verify token (legacy V1 webhook)',
-        description: 'Plain environment copy of the Facebook webhook verify token read by the legacy V1 webhook handshake.',
-        category: CATEGORIES.GLOBAL_INTEGRATION,
-        integration: 'Facebook Lead Ads',
-        sensitivity: SENSITIVITY.SENSITIVE,
-        optional: true,
-        consumers: ['functions/integrations/facebook.js'],
-        ...PROTECTED,
     },
 ].map((entry) => ({
     ...entry,

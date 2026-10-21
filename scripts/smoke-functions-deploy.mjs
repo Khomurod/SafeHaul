@@ -7,7 +7,6 @@ if (!projectId) {
 }
 
 const required = [
-  "sendSMS",
   "sendTestSMS",
   "initBulkSession",
   "retryFailedAttempts",

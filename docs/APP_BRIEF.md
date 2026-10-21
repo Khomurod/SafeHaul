@@ -1376,10 +1376,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   raises weekly grouped PRs (root, `functions/`, Actions; majors apart) with a
   **seven-day cooldown**, so a package pulled within days never arrives;
   security fixes are not delayed.
-- **One-time backfill callables are still exported** (`backfillUserCompanyIds`,
-  `backfillDriverCompanyIds`, `backfillPublicProfiles`, `migrateEmailSettings`,
-  `backfillApplicationSearchFields`, stats and SMS-phone backfills): Super
-  Admin maintenance tools, not dead code; check before removing one.
+- **One-time backfill callables are still exported** (`backfillPublicProfiles`,
+  `migrateEmailSettings`, `backfillApplicationSearchFields`, stats backfills):
+  Super Admin maintenance tools, not dead code; check before removing one.
 
 ---
 

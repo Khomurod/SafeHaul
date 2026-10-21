@@ -20,8 +20,6 @@ function exportFunctions(wanted) {
   if (wanted('resumeBulkSession')) exports.resumeBulkSession = require('./bulkActions').resumeBulkSession;
   if (wanted('pauseBulkSession')) exports.pauseBulkSession = require('./bulkActions').pauseBulkSession;
   if (wanted('cancelBulkSession')) exports.cancelBulkSession = require('./bulkActions').cancelBulkSession;
-  if (wanted('backfillSmsSentPhones')) exports.backfillSmsSentPhones = require('./bulkActions').backfillSmsSentPhones;
-  if (wanted('backfillAllSmsSentPhones')) exports.backfillAllSmsSentPhones = require('./bulkActions').backfillAllSmsSentPhones;
   if (wanted('checkImportPhones')) exports.checkImportPhones = require('./bulkActions').checkImportPhones;
   if (wanted('deleteBulkSessionData')) exports.deleteBulkSessionData = require('./bulkActions').deleteBulkSessionData;
 
@@ -50,16 +48,6 @@ function exportFunctions(wanted) {
   // the Admin SDK + Firebase Auth as fallback, and reports missing/stale/orphaned/
   // duplicate records explicitly instead of as unknown users.
   if (wanted('listCompanyTeam')) exports.listCompanyTeam = require('./hrAdmin').listCompanyTeam;
-
-  // 2c. SEC-002: one-time backfill of users/{uid}.companyIds from memberships.
-  // Must be run (LIVE) before deploying the SEC-002 Firestore rules so existing
-  // same-company teammate reads keep working. Super-admin only.
-  if (wanted('backfillUserCompanyIds')) exports.backfillUserCompanyIds = require('./backfillUserCompanyIds').backfillUserCompanyIds;
-
-  // 2d. SEC-002 follow-up: backfill drivers/{id}.companyIds from existing
-  // applications/leads so same-company staff can read connected driver profiles.
-  // Forward population is handled by driverSync; this seeds pre-existing drivers.
-  if (wanted('backfillDriverCompanyIds')) exports.backfillDriverCompanyIds = require('./backfillDriverCompanyIds').backfillDriverCompanyIds;
 
   // 3. Company Admin
   if (wanted('deleteCompany')) exports.deleteCompany = require('./companyAdmin').deleteCompany;
@@ -179,11 +167,9 @@ function exportFunctions(wanted) {
 
   if (wanted('connectFacebookPage')) exports.connectFacebookPage = require('./integrations/facebook').connectFacebookPage;
   if (wanted('facebookWebhook')) exports.facebookWebhook = require('./integrations/facebook').facebookWebhook;
-  if (wanted('facebookWebhookV1')) exports.facebookWebhookV1 = require('./integrations/facebook').facebookWebhookV1; // V1 version - public by default
   if (wanted('saveIntegrationConfig')) exports.saveIntegrationConfig = require('./integrations/index').saveIntegrationConfig;
   if (wanted('verifySmsConfig')) exports.verifySmsConfig = require('./integrations/index').verifySmsConfig; // Added missing export
   if (wanted('sendTestSMS')) exports.sendTestSMS = require('./integrations/index').sendTestSMS;
-  if (wanted('sendSMS')) exports.sendSMS = require('./integrations/index').sendSMS; // NEW: Real Outbound
 
   // Digital Wallet
   if (wanted('addPhoneLine')) exports.addPhoneLine = require('./integrations/index').addPhoneLine;

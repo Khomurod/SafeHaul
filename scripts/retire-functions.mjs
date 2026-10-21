@@ -122,6 +122,35 @@ export const RETIREMENTS = Object.freeze([
         since: 'a2f5b5bd98c87c9c40b3e721c09ef668c54bb27e',
         names: Object.freeze(['onDriverProfileCreated']),
     }),
+    Object.freeze({
+        // Admin-only outbound SMS. Signing links are texted by `notifySignerSMS`;
+        // the e-document screens that also called it changed in `afa3645`.
+        id: 'send-sms',
+        since: 'afa36455b688f5125ebc222ad0d458e07b13d99c',
+        names: Object.freeze(['sendSMS']),
+    }),
+    Object.freeze({
+        // The first-generation Facebook webhook, which read its secrets from an
+        // environment nothing sets. Facebook calls `facebookWebhook`; no release
+        // ever called this one.
+        id: 'facebook-webhook-v1',
+        since: '9d8892dd9748d63510e3f108301dd6ddb0305211',
+        names: Object.freeze(['facebookWebhookV1']),
+    }),
+    Object.freeze({
+        // One-time `companyIds` backfills of users and drivers that no screen
+        // ever called; membership and driver writes keep both fields current.
+        id: 'company-ids-backfill',
+        since: '9d8892dd9748d63510e3f108301dd6ddb0305211',
+        names: Object.freeze(['backfillUserCompanyIds', 'backfillDriverCompanyIds']),
+    }),
+    Object.freeze({
+        // The `sms_sent_phones` backfills. The per-company one lost its screen in
+        // `bf07bf6`, the all-companies one its System Health button in `7aaca38`.
+        id: 'sms-sent-phones-backfill',
+        since: '7aaca385a3a86a173805b2bbbb4eac1bc234ffcb',
+        names: Object.freeze(['backfillSmsSentPhones', 'backfillAllSmsSentPhones']),
+    }),
 ]);
 
 export const REGION = 'us-central1';

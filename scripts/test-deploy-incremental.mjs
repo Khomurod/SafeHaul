@@ -117,8 +117,8 @@ section('2. Closure walker');
     closure.has('functions/bulkActions/controllers/sessionController.js')
   );
   assert(
-    'bulkActions/index.js pulls in admin/backfillSmsSentPhones.js',
-    closure.has('functions/bulkActions/admin/backfillSmsSentPhones.js')
+    'bulkActions/index.js pulls in workers/sessionDeleted.js',
+    closure.has('functions/bulkActions/workers/sessionDeleted.js')
   );
 }
 {
@@ -193,7 +193,7 @@ section('6. Simulating the commit that triggered the full deploy');
 {
   // The actual list of files reported in your CI log.
   const changed = [
-    'functions/bulkActions/admin/backfillSmsSentPhones.js',
+    'functions/bulkActions/workers/sessionDeleted.js',
     'functions/bulkActions/controllers/sessionController.js',
     'functions/bulkActions/workers/batchWorker.js',
     'functions/companyAdmin.js',

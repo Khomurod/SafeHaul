@@ -11,8 +11,8 @@ import { TelegramAlertsCard } from './alerts/TelegramAlertsCard';
  * Public Profiles and its output log among them. There is no Deep Diagnostic
  * (it created test users and records in the live database with a fixed
  * password) and no "Sync Backend Structure" (it wrote schema defaults into every
- * live record missing a field), here or as a server callable, and the one-off
- * SMS history backfill (`backfillAllSmsSentPhones`) has no button.
+ * live record missing a field), here or as a server callable, and no one-off
+ * SMS history backfill.
  */
 export function SystemHealthView() {
     return (
