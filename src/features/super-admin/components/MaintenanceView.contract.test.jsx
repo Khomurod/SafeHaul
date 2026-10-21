@@ -83,19 +83,21 @@ describe('Maintenance page', () => {
         expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
             'Employer backfill',
             'Public profiles',
+            'Data cleanup',
             'On other screens',
         ]);
         expect(screen.getByTestId('stats-backfill-panel')).toBeInTheDocument();
         expect(screen.getByTestId('historical-migration-panel')).toBeInTheDocument();
     });
 
-    it('keeps the order: employer backfill, stats, public profiles, historical records, then the links', () => {
+    it('keeps the order: employer backfill, stats, public profiles, historical records, data cleanup, then the links', () => {
         renderView();
         const order = [
             screen.getByRole('heading', { name: 'Employer backfill' }),
             screen.getByTestId('stats-backfill-panel'),
             screen.getByRole('heading', { name: 'Public profiles' }),
             screen.getByTestId('historical-migration-panel'),
+            screen.getByRole('heading', { name: 'Data cleanup' }),
             screen.getByRole('heading', { name: 'On other screens' }),
         ];
         for (let i = 1; i < order.length; i += 1) {

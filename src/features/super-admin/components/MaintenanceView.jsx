@@ -7,6 +7,7 @@ import { EmployerBackfillCard } from './EmployerBackfillCard';
 import StatsBackfillPanel from './StatsBackfillPanel';
 import { PublicProfileSyncCard } from './PublicProfileSyncCard';
 import { HistoricalMigrationPanel } from './HistoricalMigrationPanel';
+import { DataCleanupCard } from './DataCleanupCard';
 
 /**
  * Super Admin → Maintenance: every platform-wide repair and backfill on one
@@ -40,6 +41,7 @@ export function MaintenanceView({ onDataUpdate }) {
             <StatsBackfillPanel />
             <PublicProfileSyncCard />
             <HistoricalMigrationPanel />
+            <DataCleanupCard />
 
             <Card padding="lg">
                 <h3 className="mb-ds-2 text-ds-heading-sm font-semibold text-ds-content">On other screens</h3>

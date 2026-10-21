@@ -32,6 +32,8 @@ const ACTIONS = Object.freeze({
     // users are served.
     RELEASE_STATUS: 'release-status',
     PROMOTE: 'promote',
+    // Maintenance → Data cleanup: a run that changed (or tried to change) stored data.
+    DATA_CLEANUP: 'data-cleanup',
 });
 
 const RESULTS = Object.freeze({
@@ -84,6 +86,12 @@ const ALLOWED_METADATA = Object.freeze([
     'runId',
     'requestId',
     'channel',
+    // Maintenance → Data cleanup: which item, check or run, how many records
+    // it changed and whether it finished. Counts only, never a record's value.
+    'item',
+    'mode',
+    'count',
+    'done',
 ]);
 
 /** Coerces a metadata value to a small, safe scalar. */

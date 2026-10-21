@@ -934,7 +934,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 |---|---|---|
 | **Firebase** (Auth, Firestore, Storage, Functions, Hosting) | Everything | Project config |
 | **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
-| **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); password saved encrypted (`enc:v1:`), shown in the UI only by the vault's reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until migrated) |
+| **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); password saved encrypted (`enc:v1:`), shown in the UI only by the vault's reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until Data cleanup moves them) |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat connected in Super Admin → System Health. The marketing-site bot is **retired** (`LD-R3`): promotion's `scripts/retire-functions.mjs` keeps `listLandingLeads`; a rollback past it calls deleted functions (`docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat and the watcher's state: `system_jobs/platformAlerts` (server-only). The retired bot's secrets are unbound; rotate its token (runbook) |
@@ -1286,7 +1286,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   search finds them; dating them is the owner's data change.
 - **An unassigned lead stores `assignedTo: ''`**, which the Unassigned filter
   asks for. Older leads with `null` (imported) or none (Quick Add, Facebook)
-  are not found there; fixing them is the owner's data change.
+  are not found there until Data cleanup's lead fields item runs (below).
 - **Facebook lead capture is switched off; an earlier defect may have stranded
   leads** in `companies/{uid}/leads`, which no screen reads
   (`scripts/audit-facebook-lead-tenancy.mjs` reports any). Connect rules: §7.
@@ -1369,16 +1369,17 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   diagnostic, connection tests, model-pin verification and manual publication
   check need a deployed environment's credentials; a green run proves none.
 - **Known dependency advisories.** `npm audit` (root and `functions/`) gives the
-  live list; most have an in-range fix. A few wait on a major or upstream: root
-  `exceljs` and the `firebase` SDK's pinned `@grpc/grpc-js` 1.9; in `functions/`,
-  `uuid` via `gaxios` 6 (`@google-cloud/storage` 8), which calls only `uuid.v4`,
-  outside the advisory (`npm audit fix` would downgrade). `.github/dependabot.yml`
-  raises weekly grouped PRs (root, `functions/`, Actions; majors apart) with a
-  **seven-day cooldown**, so a package pulled within days never arrives;
-  security fixes are not delayed.
+  live list; a few wait on a major or upstream. `.github/dependabot.yml` raises
+  weekly grouped PRs (root, `functions/`, Actions; majors apart) with a
+  **seven-day cooldown**; security fixes are not delayed.
 - **One-time backfill callables are still exported** (`backfillPublicProfiles`,
   `migrateEmailSettings`, `backfillApplicationSearchFields`, stats backfills):
   Super Admin maintenance tools, not dead code; check before removing one.
+- **Maintenance → Data cleanup** (`dataCleanup`) removes leftovers item by item:
+  Deep Diagnostic test accounts, SSN copies, stored PEV links, old lead fields,
+  application search fields, SMTP password copies outside `email_config`. Check
+  counts; Run confirms, needs a recent sign-in, is audited, resumes
+  (`done: false`). Several-value `driverType` lists are only counted.
 
 ---
 
