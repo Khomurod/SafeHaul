@@ -46,6 +46,11 @@ function normalizeSmtpSettings(stored) {
     };
 }
 
+/** Of the stored settings, newest place first, the first that holds a password: the ones email is sent with. */
+function effectiveStoredSettings(...candidates) {
+    return candidates.find((candidate) => candidate?.smtpPass || candidate?.password) || null;
+}
+
 /** The first settings holding a password, newest place first, and the company's name. */
 async function readSmtpSettings(companyId) {
     const companyRef = db.collection('companies').doc(companyId);
@@ -57,8 +62,7 @@ async function readSmtpSettings(companyId) {
     const company = companySnap.data();
     const companyName = company.companyName || 'SafeHaul';
 
-    const stored = [configSnap.exists ? configSnap.data() : null, company.emailSettings]
-        .find((candidate) => candidate?.smtpPass || candidate?.password);
+    const stored = effectiveStoredSettings(configSnap.exists ? configSnap.data() : null, company.emailSettings);
     if (stored) return { settings: normalizeSmtpSettings(stored), companyName };
 
     const oldest = await companyRef.collection('integrations').doc('email_settings').get();
@@ -87,5 +91,5 @@ function smtpFingerprint(settings) {
 }
 
 module.exports = {
-    isSealed, normalizeSmtpSettings, plainPassword, readSmtpSettings, sealPassword, smtpTransportOptions, smtpFingerprint,
+    effectiveStoredSettings, isSealed, normalizeSmtpSettings, plainPassword, readSmtpSettings, sealPassword, smtpTransportOptions, smtpFingerprint,
 };

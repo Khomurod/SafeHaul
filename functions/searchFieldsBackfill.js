@@ -22,6 +22,32 @@ function assertSuperAdmin(request) {
     }
 }
 
+/** The fields an application's search fields are built from. */
+const SEARCH_SOURCE_FIELDS = Object.freeze([
+    'firstName', 'lastName', 'email', 'phone', 'phoneNumber', 'confirmationNumber', 'applicationId',
+]);
+/** Every field the two lists name: what a read needs to decide. */
+const SEARCH_READ_FIELDS = Object.freeze([
+    ...SEARCH_SOURCE_FIELDS, ...Object.keys(buildApplicationSearchFields({})),
+]);
+
+/**
+ * The search fields to merge into an application, or null when every one
+ * already holds its value. Data Cleanup (Maintenance) uses the same rule.
+ */
+function applicationSearchFieldsUpdate(docSnap) {
+    const data = docSnap.data() || {};
+    const fields = buildApplicationSearchFields({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone || data.phoneNumber,
+        confirmationNumber: data.confirmationNumber,
+        applicationId: data.applicationId || docSnap.id,
+    });
+    return Object.entries(fields).some(([key, value]) => data[key] !== value) ? fields : null;
+}
+
 async function backfillCompanyApplications(companyId) {
     const appsRef = db.collection('companies').doc(companyId).collection('applications');
     const snapshot = await appsRef.get();
@@ -31,18 +57,8 @@ async function backfillCompanyApplications(companyId) {
     let batchCount = 0;
 
     for (const docSnap of snapshot.docs) {
-        const data = docSnap.data() || {};
-        const fields = buildApplicationSearchFields({
-            firstName: data.firstName,
-            lastName: data.lastName,
-            email: data.email,
-            phone: data.phone || data.phoneNumber,
-            confirmationNumber: data.confirmationNumber,
-            applicationId: data.applicationId || docSnap.id,
-        });
-
-        const needsUpdate = Object.entries(fields).some(([key, value]) => data[key] !== value);
-        if (!needsUpdate) continue;
+        const fields = applicationSearchFieldsUpdate(docSnap);
+        if (!fields) continue;
 
         batch.set(docSnap.ref, fields, { merge: true });
         updated++;
@@ -98,4 +114,6 @@ exports.backfillApplicationSearchFields = onCall({
     }
 });
 
+exports.applicationSearchFieldsUpdate = applicationSearchFieldsUpdate;
+exports.SEARCH_READ_FIELDS = SEARCH_READ_FIELDS;
 exports.__private = { backfillCompanyApplications };

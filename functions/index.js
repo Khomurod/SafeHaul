@@ -124,6 +124,8 @@ function exportFunctions(wanted) {
   // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).
   if (wanted('analyzeEdocFieldPlacement')) exports.analyzeEdocFieldPlacement = require('./edocFieldPlacement').analyzeEdocFieldPlacement;
   if (wanted('backfillApplicationSearchFields')) exports.backfillApplicationSearchFields = require('./searchFieldsBackfill').backfillApplicationSearchFields;
+  // Maintenance → Data cleanup: the owner's one-time removal of leftover data, checked before it runs.
+  if (wanted('dataCleanup')) exports.dataCleanup = require('./maintenance/dataCleanup').dataCleanup;
   // Gives applications submitted before preservation a preserved record and PDF,
   // built only from evidence that survives, and marked as reconstructed.
   if (wanted('reconstructHistoricalApplications')) exports.reconstructHistoricalApplications = require('./reconstructHistoricalApplications').reconstructHistoricalApplications;
