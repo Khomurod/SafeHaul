@@ -20,6 +20,7 @@ import { Logo } from '@shared/components/Logo';
 import { Modal } from '@design-system/patterns';
 import {
     Button,
+    ButtonLink,
     Card,
     FormField,
     IconButton,
@@ -227,12 +228,9 @@ export function LoginScreen() {
               <p className="text-ds-xs text-ds-content-muted mb-4 leading-relaxed">
                 Contact our administration team to set up a new company account.
               </p>
-              <a
-                href="mailto:info@safehaul.io"
-                className="inline-flex items-center gap-2 text-ds-sm text-ds-content-link hover:gap-3 font-bold transition-all"
-              >
+              <ButtonLink href="mailto:info@safehaul.io" variant="secondary" size="sm">
                 Contact SafeHaul <Icon icon={ArrowRight} />
-              </a>
+              </ButtonLink>
             </Card>
           </div>
 
@@ -275,7 +273,7 @@ export function LoginScreen() {
               Whether you're a driver seeking your next opportunity or a company building your fleet, SafeHaul connects you to success.
             </p>
 
-            <div className="mb-ds-10 flex flex-col gap-ds-4 text-left">
+            <div className="flex flex-col gap-ds-4 text-left">
               <div className="flex items-start gap-ds-4 rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse-subtle p-ds-4 backdrop-blur-sm transition-colors hover:bg-ds-surface-inverse-hover">
                 <div aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-lg bg-ds-brand-accent-soft">
                   <Icon icon={Briefcase} size="xl" className="text-ds-brand-accent" />
@@ -295,31 +293,6 @@ export function LoginScreen() {
                   <p className="text-ds-body text-ds-content-on-inverse-muted">Streamline recruitment, manage applications, and connect with qualified CDL drivers faster than ever.</p>
                 </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-ds-4">
-              <div className="text-center">
-                <div className="mb-ds-1 text-ds-heading-xl font-bold text-ds-brand-accent">10K+</div>
-                <div className="text-ds-body text-ds-content-on-inverse-muted">Active Drivers</div>
-              </div>
-              <div className="text-center">
-                <div className="mb-ds-1 text-ds-heading-xl font-bold text-ds-brand-accent">10+</div>
-                <div className="text-ds-body text-ds-content-on-inverse-muted">Partner Carriers</div>
-              </div>
-              <div className="text-center">
-                <div className="mb-ds-1 text-ds-heading-xl font-bold text-ds-brand-accent">98%</div>
-                <div className="text-ds-body text-ds-content-on-inverse-muted">Satisfaction Rate</div>
-              </div>
-            </div>
-
-            <div className="mt-ds-10 flex items-center justify-center gap-ds-2 text-ds-body text-ds-content-on-inverse-muted">
-              <Icon icon={CheckCircle2} className="text-ds-brand-accent" />
-              <span>DOT Compliant</span>
-              {/* A pipe is read out as "vertical line" by some screen readers; it
-                  is a visual separator between two claims, nothing more. */}
-              <span aria-hidden="true" className="mx-ds-2">|</span>
-              <Icon icon={CheckCircle2} className="text-ds-brand-accent" />
-              <span>FMCSA Approved</span>
             </div>
           </div>
         </div>
