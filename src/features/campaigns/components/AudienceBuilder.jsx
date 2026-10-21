@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useId, useMemo, useRef } from 'react';
 import { useCampaignTargeting } from '../hooks/useCampaignTargeting';
 import { useCompanyTeam } from '@/shared/hooks/useCompanyTeam';
 import { useData } from '@/context/DataContext';
@@ -27,23 +27,26 @@ const getUploadFingerprint = (rows) => {
     return `${rows.length}:${identity}`;
 };
 
-// Who the audience leaves out, each recipient once. An uploaded row the ledger
-// finds is "already messaged" whether or not it was also un-ticked. A CRM lead
-// counts as un-ticked only while the preview lists it: the server's count
-// already leaves out a lead the filters no longer match.
-const countExclusions = ({ uploadRows, excludedIds, excludedPhones, listedLeadIds }) => {
+// Who the audience leaves out, each recipient once. An uploaded row a campaign
+// of this channel already reached is "already messaged" whether or not it was
+// also un-ticked. A CRM lead counts as un-ticked only while the preview lists
+// it: the server's count already leaves out a lead the filters no longer match.
+const countExclusions = ({ uploadRows, excludedIds, alreadyMessagedKeys, listedLeadIds }) => {
     if (!uploadRows) {
-        return { manual: excludedIds.filter((id) => listedLeadIds.has(id)).length, phone: 0 };
+        return { manual: excludedIds.filter((id) => listedLeadIds.has(id)).length, messaged: 0 };
     }
     const unticked = new Set(excludedIds);
     let manual = 0;
-    let phone = 0;
+    let messaged = 0;
     uploadRows.forEach((row, index) => {
-        if (row.normalizedPhone && excludedPhones.has(row.normalizedPhone)) phone += 1;
-        else if (unticked.has(row.id || `import_${index}`)) manual += 1;
+        const key = row.id || `import_${index}`;
+        if (alreadyMessagedKeys.has(key)) messaged += 1;
+        else if (unticked.has(key)) manual += 1;
     });
-    return { manual, phone };
+    return { manual, messaged };
 };
+
+const CHANNEL_LABELS = { sms: 'SMS', email: 'email' };
 
 // Feature-owned tab models. The design system has no tab primitive yet, so the
 // audience builder renders accessible WAI-ARIA tablists here. The values are the
@@ -68,7 +71,13 @@ const EXCLUDE_RECENT_OPTIONS = [
     { value: 'forever', label: 'All Time (Never Re-send)' },
 ];
 
-export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey = 'default' }) {
+/**
+ * `method` is the campaign's channel ('sms' or 'email'): the count leaves out
+ * whoever a campaign of that channel already reached inside the window.
+ * `onChange(filters, count, { method, alreadyMessaged })` reports the count and
+ * the channel it was made for.
+ */
+export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey = 'default', method = 'sms' }) {
     const { currentUser } = useData();
     const { team } = useCompanyTeam(companyId);
 
@@ -96,7 +105,10 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
     }, []);
 
     // 1. CRM COUNT HOOK (Stateless now)
-    const { matchCount, isLoading: isCountLoading, excludedPhones, error: countError, retry: retryCount } = useCampaignTargeting(companyId, localFilters, currentUser);
+    const {
+        matchCount, alreadyMessaged, isLoading: isCountLoading, alreadyMessagedKeys, error: countError, retry: retryCount,
+    } = useCampaignTargeting(companyId, localFilters, currentUser, method);
+    const channelLabel = CHANNEL_LABELS[method] || CHANNEL_LABELS.sms;
     // A count the server could not make is a failure, not an empty audience.
     const countFailed = countError === ERROR_MESSAGES.COUNT_FAILED;
 
@@ -162,23 +174,25 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
     // Calculated View State
     const isUploadMode = activeTab === 'upload';
     const uploadRows = isUploadMode ? (csvData.length > 0 ? csvData : localFilters.rawData || []) : null;
-    const { manual: manualExcludedCount, phone: phoneExcludedCount } = countExclusions({
+    const { manual: manualExcludedCount, messaged: uploadMessagedCount } = countExclusions({
         uploadRows,
         excludedIds: localFilters.excludedLeadIds || [],
-        excludedPhones,
+        alreadyMessagedKeys,
         listedLeadIds,
     });
+    const messagedCount = uploadRows ? uploadMessagedCount : alreadyMessaged;
 
     // An upload is counted row by row; a CRM audience starts from the server's count.
     const finalCount = uploadRows
-        ? uploadRows.length - phoneExcludedCount - manualExcludedCount
+        ? uploadRows.length - uploadMessagedCount - manualExcludedCount
         : Math.max(0, matchCount - manualExcludedCount);
 
     // Effect: Sync filters + count to parent. The count leaves out the rows the
     // recruiter un-ticked: it is the number the launch screen says will be messaged.
+    const countedFor = useMemo(() => ({ method, alreadyMessaged: messagedCount }), [method, messagedCount]);
     useEffect(() => {
-        onChange(localFilters, finalCount);
-    }, [localFilters, finalCount, onChange]);
+        onChange(localFilters, finalCount, countedFor);
+    }, [localFilters, finalCount, countedFor, onChange]);
 
 
 
@@ -203,7 +217,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
     const excludeRecentField = (defaultValue) => (
         <FormField
             label="Exclude Previously Messaged"
-            description="Skip numbers that already received a message."
+            description={`Skip anyone a campaign already reached by ${channelLabel}.`}
         >
             <Select
                 value={localFilters.excludeRecentDays || defaultValue}
@@ -433,8 +447,8 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                 {manualExcludedCount > 0 && (
                                     <Badge tone="danger">{manualExcludedCount} manually excluded</Badge>
                                 )}
-                                {phoneExcludedCount > 0 && (
-                                    <Badge tone="warning">{phoneExcludedCount} already messaged</Badge>
+                                {messagedCount > 0 && (
+                                    <Badge tone="warning">{messagedCount} already messaged by {channelLabel}</Badge>
                                 )}
                                 {finalCount > MAX_RECIPIENTS_PER_LAUNCH && (
                                     <Badge tone="danger">Over the {MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')}-per-launch limit</Badge>
@@ -463,8 +477,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                 excludedIds={localFilters.excludedLeadIds}
                                 onToggleExclusion={handleToggleExclusion}
                                 localData={uploadRows}
-                                excludedPhones={isUploadMode ? excludedPhones : null}
+                                alreadyMessagedKeys={isUploadMode ? alreadyMessagedKeys : null}
                                 onLeadsChange={handleLeadsChange}
+                                method={method}
                             />
                         </div>
 
@@ -473,7 +488,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                             <Button
                                 variant="primary"
                                 fullWidth
-                                onClick={() => onChange(localFilters, finalCount)}
+                                onClick={() => onChange(localFilters, finalCount, countedFor)}
                             >
                                 <Icon icon={CheckCircle2} size="xl" />
                                 Confirm Audience ({finalCount})

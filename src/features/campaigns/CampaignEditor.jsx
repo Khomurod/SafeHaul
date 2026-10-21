@@ -97,13 +97,17 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
         }));
     };
 
-    const handleAudienceChange = useCallback((newFilters, count) => {
+    // `countedFor` names the channel the count was made for, and how many it
+    // left out as already messaged by that channel; the launch checks it.
+    const handleAudienceChange = useCallback((newFilters, count, countedFor = null) => {
         setCampaignData(prev => {
             // Guard against no-op updates to avoid render loops from effect-driven callbacks.
-            if (prev.filters === newFilters && (prev.matchCount || 0) === (count || 0)) {
+            if (prev.filters === newFilters && (prev.matchCount || 0) === (count || 0)
+                && prev.countedFor?.method === countedFor?.method
+                && prev.countedFor?.alreadyMessaged === countedFor?.alreadyMessaged) {
                 return prev;
             }
-            return { ...prev, filters: newFilters, matchCount: count };
+            return { ...prev, filters: newFilters, matchCount: count, countedFor };
         });
         setIsDirty(true);
     }, []);
@@ -176,6 +180,7 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
                             filters={campaignData.filters || {}}
                             campaignScopeKey={`${companyId || 'no-company'}:${campaignId || 'new-campaign'}`}
                             onChange={handleAudienceChange}
+                            method={campaignData.messageConfig?.method === 'email' ? 'email' : 'sms'}
                         />
                     )}
 

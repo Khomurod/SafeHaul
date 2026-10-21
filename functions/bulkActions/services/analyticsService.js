@@ -4,9 +4,11 @@ const { buildLeadQueries } = require("../helpers/queryBuilder");
 const { assertCompanyAdmin } = require("../helpers/auth");
 const {
     excludeWindow,
-    leadMessagedWithin,
     recipientsMessagedWithin,
 } = require("../helpers/recentlyMessaged");
+
+// A campaign's channel. A caller that names none (an older screen) counts for SMS.
+const methodOf = (request) => (request.data?.method === 'email' ? 'email' : 'sms');
 
 /**
  * Safely convert a Firestore Timestamp, Date, string, or number to an ISO string.
@@ -24,6 +26,7 @@ exports.getFilterCount = onCall({ cors: true, memory: '512MiB' }, async (request
 
     const { companyId, filters } = request.data;
     if (!companyId) throw new HttpsError('invalid-argument', 'Company ID is required.');
+    const method = methodOf(request);
 
     // RBAC
     await assertCompanyAdmin(request.auth.uid, companyId);
@@ -31,37 +34,34 @@ exports.getFilterCount = onCall({ cors: true, memory: '512MiB' }, async (request
     // Build Queries
     const queries = buildLeadQueries(companyId, filters || {}, request.auth.uid);
 
-    // Run Count Aggregation
+    // Run Count Aggregation. The answer says how many the window left out:
+    // `alreadyMessaged`, recipients a campaign of this channel reached.
     try {
         let total = 0;
+        let alreadyMessaged = 0;
 
-        // With an exclusion window the documents are read, not counted, so each
-        // lead's own stamps and the SMS ledger can be checked (`recentlyMessaged`).
+        // With an exclusion window the documents are read, not counted, so the
+        // channel's ledger can be checked (`recentlyMessaged`).
         const window = excludeWindow(filters?.excludeRecentDays);
         if (window.active) {
-            const snapshots = await Promise.all(queries.map(q => q.select('lastBulkMessageAt', 'lastContactedAt', 'phone', 'phoneNumber').get()));
+            const snapshots = await Promise.all(queries.map(q => q.select('phone', 'phoneNumber', 'email').get()));
 
-            const candidates = new Map(); // leadId -> phone
+            const candidates = new Map(); // leadId -> { key, phone, email }
             snapshots.forEach(snap => {
                 snap.docs.forEach(d => {
                     const data = d.data();
-                    if (leadMessagedWithin(data, window)) return;
-                    candidates.set(d.id, data.phone || data.phoneNumber || '');
+                    candidates.set(d.id, { key: d.id, phone: data.phone || data.phoneNumber || '', email: data.email });
                 });
             });
 
-            let messaged = new Set();
-            try {
-                messaged = await recipientsMessagedWithin({
-                    db,
-                    companyId,
-                    window,
-                    recipients: [...candidates].map(([key, phone]) => ({ key, phone })),
-                });
-            } catch (phoneErr) {
-                console.error('[getFilterCount] sms_sent_phones check error (proceeding without):', phoneErr);
-            }
-
+            const messaged = await recipientsMessagedWithin({
+                db,
+                companyId,
+                window,
+                method,
+                recipients: [...candidates.values()],
+            });
+            alreadyMessaged = messaged.size;
             total = candidates.size - messaged.size;
 
         } else {
@@ -73,7 +73,7 @@ exports.getFilterCount = onCall({ cors: true, memory: '512MiB' }, async (request
             total = counts.reduce((a, b) => a + b, 0);
         }
 
-        return { count: total };
+        return { count: total, alreadyMessaged };
 
     } catch (err) {
         console.error("Filter Count Error:", err);
@@ -86,6 +86,7 @@ exports.getFilteredLeadsPage = onCall({ cors: true, memory: '512MiB' }, async (r
 
     const { companyId, filters, pageSize, lastDocId } = request.data;
     const limit = Math.min(pageSize || 50, 100);
+    const method = methodOf(request);
 
     // RBAC
     await assertCompanyAdmin(request.auth.uid, companyId);
@@ -116,13 +117,10 @@ exports.getFilteredLeadsPage = onCall({ cors: true, memory: '512MiB' }, async (r
         const fetchLimit = limit * 3;
         const snap = await mainQuery.limit(fetchLimit).get();
 
-        // First pass: leave out the leads whose own stamps fall inside the window.
         const window = excludeWindow(filters?.excludeRecentDays);
         const candidates = [];
         for (const d of snap.docs) {
             const data = d.data();
-            if (leadMessagedWithin(data, window)) continue;
-
             candidates.push({
                 id: d.id,
                 firstName: data.firstName,
@@ -135,26 +133,15 @@ exports.getFilteredLeadsPage = onCall({ cors: true, memory: '512MiB' }, async (r
             });
         }
 
-        // Second pass: the SMS ledger, for numbers messaged without a lead stamp.
-        if (window.active && candidates.length > 0) {
-            try {
-                const messaged = await recipientsMessagedWithin({
-                    db,
-                    companyId,
-                    window,
-                    recipients: candidates.map((lead) => ({ key: lead.id, phone: lead.phone })),
-                });
-                if (messaged.size > 0) {
-                    const filtered = candidates.filter((lead) => !messaged.has(lead.id));
-                    console.log(`[getFilteredLeadsPage v3] Candidates: ${candidates.length}, Phone excluded: ${candidates.length - filtered.length}, Final: ${filtered.length}`);
-                    return { leads: filtered.slice(0, limit) };
-                }
-            } catch (phoneErr) {
-                console.error('[getFilteredLeadsPage] sms_sent_phones check error (proceeding without):', phoneErr);
-            }
-        }
-
-        return { leads: candidates.slice(0, limit) };
+        // Then the channel's ledger: who a campaign of this channel reached.
+        const messaged = await recipientsMessagedWithin({
+            db,
+            companyId,
+            window,
+            method,
+            recipients: candidates.map((lead) => ({ key: lead.id, phone: lead.phone, email: lead.email })),
+        });
+        return { leads: candidates.filter((lead) => !messaged.has(lead.id)).slice(0, limit) };
 
     } catch (err) {
         console.error("Preview Error:", err);
@@ -163,37 +150,42 @@ exports.getFilteredLeadsPage = onCall({ cors: true, memory: '512MiB' }, async (r
 });
 
 /**
- * Check which imported phone numbers have already been messaged.
- * Used by the frontend preview to grey out / exclude already-messaged contacts
- * before the user launches the campaign.
+ * Which uploaded rows a campaign of the same channel already reached inside
+ * the window. The upload preview greys them out and the count leaves them out.
  *
- * @param {string}   companyId        - The company to check against
- * @param {string[]} phones           - Array of NORMALIZED phone strings (digits only)
+ * @param {string}   companyId         - The company to check against
+ * @param {Array<{key: string, phone?: string, email?: string}>} recipients - the rows, each by its key
+ * @param {string}   [method]          - 'sms' | 'email'; SMS when none is named
  * @param {string}   excludeRecentDays - 'forever' | '7' | '14' | '30' | 'off'
- * @returns {{ excludedPhones: string[] }}
+ * @returns {{ excludedKeys: string[] }}
+ *
+ * An older screen sends `phones` (normalized numbers) instead and is answered
+ * `{ excludedPhones }`, for SMS.
  */
 exports.checkImportPhones = onCall({ cors: true, memory: '256MiB' }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'User must be logged in.');
 
-    const { companyId, phones, excludeRecentDays } = request.data;
+    const { companyId, phones, recipients, excludeRecentDays } = request.data;
     if (!companyId) throw new HttpsError('invalid-argument', 'companyId is required.');
     await assertCompanyAdmin(request.auth.uid, companyId);
-    if (!Array.isArray(phones) || phones.length === 0) return { excludedPhones: [] };
+
+    const byPhone = !Array.isArray(recipients);
+    const rows = byPhone
+        ? (Array.isArray(phones) ? phones : []).map((phone) => ({ key: phone, phone }))
+        : recipients
+            .filter((row) => row && typeof row.key === 'string')
+            .map(({ key, phone, email }) => ({ key, phone: String(phone || ''), email: String(email || '') }));
+    const answer = (keys) => (byPhone ? { excludedPhones: keys } : { excludedKeys: keys });
 
     const window = excludeWindow(excludeRecentDays);
-    if (!window.active) return { excludedPhones: [] };
+    if (!window.active || rows.length === 0) return answer([]);
 
-    try {
-        // Each phone is its own recipient key, so the answer lists the phones as sent.
-        const messaged = await recipientsMessagedWithin({
-            db,
-            companyId,
-            window,
-            recipients: phones.map((phone) => ({ key: phone, phone })),
-        });
-        return { excludedPhones: [...messaged] };
-    } catch (chunkErr) {
-        console.error('[checkImportPhones] Chunk lookup error:', chunkErr);
-        return { excludedPhones: [] };
-    }
+    const messaged = await recipientsMessagedWithin({
+        db,
+        companyId,
+        window,
+        method: byPhone ? 'sms' : methodOf(request),
+        recipients: rows,
+    });
+    return answer([...messaged]);
 });

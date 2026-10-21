@@ -36,10 +36,14 @@ const importMocks = vi.hoisted(() => ({
 }));
 
 // What the count hook answers. A test sets the numbers the ledger found.
-const defaultTargeting = () => ({ matchCount: 10, isLoading: false, excludedPhones: new Set() });
+const defaultTargeting = () => ({ matchCount: 10, alreadyMessaged: 0, isLoading: false, alreadyMessagedKeys: new Set() });
 let mockTargeting = defaultTargeting();
+const targetingCalls = [];
 vi.mock('../hooks/useCampaignTargeting', () => ({
-    useCampaignTargeting: () => mockTargeting,
+    useCampaignTargeting: (...args) => {
+        targetingCalls.push(args);
+        return mockTargeting;
+    },
 }));
 
 // Captures the options AudienceBuilder passes, so the fix that stopped
@@ -138,7 +142,8 @@ describe('AudienceBuilder', () => {
             expect.objectContaining({
                 excludedLeadIds: ['lead1']
             }),
-            9
+            9,
+            expect.objectContaining({ method: 'sms' }),
         );
 
         // Simulate parent updating props (as real app would)
@@ -172,7 +177,8 @@ describe('AudienceBuilder', () => {
 
         expect(handleChange).toHaveBeenCalledWith(
             expect.objectContaining({ excludedLeadIds: ['import_0'] }),
-            1
+            1,
+            expect.objectContaining({ method: 'sms' }),
         );
 
         mockCsvData = [
@@ -257,7 +263,8 @@ describe('AudienceBuilder', () => {
         fireEvent.click(checkboxes[0]); // un-tick Alice, the only row
         expect(handleChange).toHaveBeenCalledWith(
             expect.objectContaining({ excludedLeadIds: ['import_0'] }),
-            0
+            0,
+            expect.objectContaining({ method: 'sms' }),
         );
 
         rerender(
@@ -306,6 +313,7 @@ describe('AudienceBuilder', () => {
         expect(handleChange).toHaveBeenLastCalledWith(
             expect.objectContaining({ excludedLeadIds: ['lead1'] }),
             9,
+            expect.objectContaining({ method: 'sms' }),
         );
 
         // Alice is an applicant, not one of "My Leads": the server's count of 10
@@ -317,6 +325,7 @@ describe('AudienceBuilder', () => {
         expect(handleChange).toHaveBeenLastCalledWith(
             expect.objectContaining({ leadType: 'leads', excludedLeadIds: ['lead1'] }),
             10,
+            expect.objectContaining({ method: 'sms' }),
         );
         expect(screen.queryByText(/manually excluded/)).not.toBeInTheDocument();
     });
@@ -341,18 +350,20 @@ describe('AudienceBuilder', () => {
         expect(handleChange).toHaveBeenLastCalledWith(
             expect.objectContaining({ excludedLeadIds: ['import_0'] }),
             2,
+            expect.objectContaining({ method: 'sms' }),
         );
 
         // Under "Last 7 Days" the ledger finds Alice's number. She is left out
         // once: two of the three rows are messaged, not one.
-        mockTargeting = { ...defaultTargeting(), matchCount: 2, excludedPhones: new Set(['+15550000001']) };
+        mockTargeting = { ...defaultTargeting(), matchCount: 2, alreadyMessagedKeys: new Set(['import_0']) };
         fireEvent.change(screen.getByLabelText('Exclude Previously Messaged'), { target: { value: '7' } });
 
         expect(handleChange).toHaveBeenLastCalledWith(
             expect.objectContaining({ excludeRecentDays: '7', excludedLeadIds: ['import_0'] }),
             2,
+            expect.objectContaining({ method: 'sms' }),
         );
-        expect(screen.getByText('1 already messaged')).toBeInTheDocument();
+        expect(screen.getByText('1 already messaged by SMS')).toBeInTheDocument();
         expect(screen.queryByText(/manually excluded/)).not.toBeInTheDocument();
     });
 
@@ -372,6 +383,7 @@ describe('AudienceBuilder', () => {
         expect(handleChange).toHaveBeenLastCalledWith(
             expect.objectContaining({ excludedLeadIds: ['import_5'] }),
             5,
+            expect.objectContaining({ method: 'sms' }),
         );
 
         // The sheet is imported again: the same length and the same first five
@@ -382,6 +394,7 @@ describe('AudienceBuilder', () => {
         expect(handleChange).toHaveBeenLastCalledWith(
             expect.objectContaining({ excludedLeadIds: [] }),
             6,
+            expect.objectContaining({ method: 'sms' }),
         );
         expect(screen.getByRole('checkbox', { name: 'Gus Driver' })).toBeChecked();
     });
@@ -419,6 +432,7 @@ describe('AudienceBuilder — migrated presentation', () => {
         expect(onChange).toHaveBeenCalledWith(
             { leadType: 'applications', status: ['new'], recruiterId: 'all' },
             10,
+            expect.objectContaining({ method: 'sms' }),
         );
         expect(screen.getByLabelText('Source')).toHaveValue('applications');
         expect(screen.getByLabelText('Owner')).toHaveValue('all');
@@ -530,6 +544,7 @@ describe('AudienceBuilder — migrated presentation', () => {
         expect(onChange).toHaveBeenCalledWith(
             expect.objectContaining({ excludedLeadIds: ['lead1'] }),
             9,
+            expect.objectContaining({ method: 'sms' }),
         );
 
         // …and so does the confirm action.
@@ -538,7 +553,18 @@ describe('AudienceBuilder — migrated presentation', () => {
         expect(onChange).toHaveBeenLastCalledWith(
             expect.objectContaining({ excludedLeadIds: ['lead1'] }),
             9,
+            expect.objectContaining({ method: 'sms' }),
         );
+    });
+
+    it('counts an email campaign by email, says so, and reports the channel it counted for', () => {
+        mockTargeting = { ...defaultTargeting(), matchCount: 8, alreadyMessaged: 3 };
+        const { onChange } = renderBuilder({ method: 'email' });
+
+        expect(targetingCalls.at(-1)[3]).toBe('email');
+        expect(listProps.at(-1).method).toBe('email');
+        expect(screen.getByText('3 already messaged by email')).toBeInTheDocument();
+        expect(onChange).toHaveBeenLastCalledWith(expect.anything(), 8, { method: 'email', alreadyMessaged: 3 });
     });
 
     it('passes the frozen VirtualLeadList props in CRM and upload modes', () => {
@@ -548,7 +574,8 @@ describe('AudienceBuilder — migrated presentation', () => {
         const crmProps = listProps.at(-1);
         expect(crmProps.companyId).toBe('co-1');
         expect(crmProps.localData).toBeNull();
-        expect(crmProps.excludedPhones).toBeNull();
+        expect(crmProps.alreadyMessagedKeys).toBeNull();
+        expect(crmProps.method).toBe('sms');
         expect(crmProps.filters).toEqual(expect.objectContaining({ excludedLeadIds: [] }));
         expect(typeof crmProps.onToggleExclusion).toBe('function');
         expect(typeof crmProps.onLeadsChange).toBe('function');
@@ -556,7 +583,7 @@ describe('AudienceBuilder — migrated presentation', () => {
         fireEvent.click(screen.getByRole('tab', { name: /Upload List/ }));
         const uploadProps = listProps.at(-1);
         expect(uploadProps.localData).toEqual(mockCsvData);
-        expect(uploadProps.excludedPhones).toBeInstanceOf(Set);
+        expect(uploadProps.alreadyMessagedKeys).toBeInstanceOf(Set);
     });
 
     /*

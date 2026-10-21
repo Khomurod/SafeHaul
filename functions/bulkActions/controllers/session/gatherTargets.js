@@ -5,8 +5,8 @@
 // `sessionController.js`. `verifyDirectSelection` is the BULK-2 IDOR
 // gate: caller-provided IDs count only if the company's own collections
 // contain them. `gatherIdsFromQueries` runs the filter queries and applies
-// the recently-messaged exclusions (lead timestamps, the sms_sent_phones
-// ledger, and the email_sent_addresses ledger), by the one rule in
+// the recently-messaged exclusion (the campaign channel's ledger,
+// sms_sent_phones or email_sent_addresses), by the one rule in
 // `helpers/recentlyMessaged.js`.
 //
 // The import branch does not gather here: its IDs are minted while the
@@ -18,7 +18,6 @@ const { admin, db } = require("../../../firebaseAdmin");
 const { buildLeadQueries } = require("../../helpers/queryBuilder");
 const {
     excludeWindow,
-    leadMessagedWithin,
     recipientsMessagedWithin,
 } = require("../../helpers/recentlyMessaged");
 
@@ -81,7 +80,7 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
 
     // Apply .select() to only fetch fields needed for in-memory filtering.
     // This prevents crashes from corrupt Timestamp fields in documents.
-    const fieldsNeeded = ['lastBulkMessageAt', 'lastContactedAt', 'phone', 'phoneNumber', 'email'];
+    const fieldsNeeded = ['phone', 'phoneNumber', 'email'];
     const selectQueries = queries.map(q => typeof q.select === 'function' ? q.select(...fieldsNeeded) : q);
 
     try {
@@ -98,39 +97,25 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
             }
         }
 
-        // The lead's own stamps first; the recruiter's un-ticked leads come off last.
+        // The channel's ledger first; the recruiter's un-ticked leads come off last.
         const window = excludeWindow(filters.excludeRecentDays);
         const candidates = new Map(); // leadId -> { key, phone, email }
-        let excludedByTimestamp = 0;
         snapshots.forEach(snap => {
             snap.docs.forEach(d => {
                 const data = d.data();
-                if (leadMessagedWithin(data, window)) {
-                    excludedByTimestamp++;
-                    return;
-                }
                 candidates.set(d.id, { key: d.id, phone: data.phone || data.phoneNumber || '', email: data.email });
             });
         });
-        console.log(`[initBulkSession] Timestamp filter excluded ${excludedByTimestamp} leads (lastBulkMessageAt OR lastContactedAt)`);
 
-        // Then the ledgers, which also hold leads messaged by campaigns that
-        // never stamped the lead document.
-        let messaged = new Set();
-        try {
-            messaged = await recipientsMessagedWithin({
-                db,
-                companyId,
-                window,
-                method: config?.method,
-                recipients: [...candidates.values()],
-            });
-            if (messaged.size > 0) {
-                console.log(`[initBulkSession] Ledger filter removed ${messaged.size} leads (sms_sent_phones / email_sent_addresses)`);
-            }
-        } catch (ledgerErr) {
-            // Non-fatal: if the ledgers cannot be read, proceed with the stamps alone.
-            console.error('[initBulkSession] Ledger cross-check error (proceeding without):', ledgerErr);
+        const messaged = await recipientsMessagedWithin({
+            db,
+            companyId,
+            window,
+            method: config?.method,
+            recipients: [...candidates.values()],
+        });
+        if (messaged.size > 0) {
+            console.log(`[initBulkSession] Already messaged by ${config?.method === 'email' ? 'email' : 'SMS'}: ${messaged.size} leads left out`);
         }
 
         const matches = [...candidates.keys()].filter((id) => !messaged.has(id));

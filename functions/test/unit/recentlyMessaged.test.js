@@ -1,6 +1,8 @@
 // The one "Exclude Previously Messaged" rule the count, the preview list and
-// the launch share (`bulkActions/helpers/recentlyMessaged.js`). Firestore is a
-// map of ledger documents; stamps are Dates. All data is artificial.
+// the launch share (`bulkActions/helpers/recentlyMessaged.js`): a campaign
+// message the same channel sent inside the window, by that channel's ledger.
+// A logged call, or a message by the other channel, does not count. Firestore
+// is a map of ledger documents; stamps are Dates. All data is artificial.
 
 jest.mock('../../firebaseAdmin', () => ({
     admin: { firestore: { Timestamp: { fromDate: (date) => date } } },
@@ -8,7 +10,6 @@ jest.mock('../../firebaseAdmin', () => ({
 
 const {
     excludeWindow,
-    leadMessagedWithin,
     emailLedgerKey,
     recipientsMessagedWithin,
     LOOKUP_CHUNK,
@@ -62,22 +63,6 @@ describe('excludeWindow', () => {
     });
 });
 
-describe('leadMessagedWithin', () => {
-    const week = excludeWindow('7');
-
-    it("counts either of a lead's stamps, not only the first one present", () => {
-        expect(leadMessagedWithin({ lastBulkMessageAt: daysAgo(90), lastContactedAt: daysAgo(1) }, week)).toBe(true);
-        expect(leadMessagedWithin({ lastBulkMessageAt: daysAgo(2) }, week)).toBe(true);
-        expect(leadMessagedWithin({ lastBulkMessageAt: daysAgo(90), lastContactedAt: daysAgo(30) }, week)).toBe(false);
-        expect(leadMessagedWithin({}, week)).toBe(false);
-    });
-
-    it('counts any stamp for forever, and nothing without a window', () => {
-        expect(leadMessagedWithin({ lastContactedAt: daysAgo(900) }, excludeWindow('forever'))).toBe(true);
-        expect(leadMessagedWithin({ lastContactedAt: daysAgo(1) }, excludeWindow('off'))).toBe(false);
-    });
-});
-
 describe('emailLedgerKey', () => {
     it('is the lowercased address in base64url without padding, as the send loop writes it', () => {
         expect(emailLedgerKey(' Driver@Example.COM ')).toBe(Buffer.from('driver@example.com').toString('base64url'));
@@ -123,35 +108,30 @@ describe('recipientsMessagedWithin', () => {
         expect([...messaged].sort()).toEqual(['a', 'b']);
     });
 
-    it('reads the email ledger for an email campaign only', async () => {
-        const { db } = ledgerDb({ [`email_sent_addresses/${emailLedgerKey('pat@example.com')}`]: { lastSentAt: daysAgo(1) } });
-        const recipients = [{ key: 'p', phone: '', email: 'Pat@Example.com' }];
+    it('reads the ledger of the campaign\'s own channel only', async () => {
+        const { db } = ledgerDb({
+            [`email_sent_addresses/${emailLedgerKey('pat@example.com')}`]: { lastSentAt: daysAgo(1) },
+            'sms_sent_phones/+15550000001': { lastSentAt: daysAgo(1) },
+        });
+        const recipients = [
+            { key: 'emailed', phone: '5550000002', email: 'Pat@Example.com' },
+            { key: 'texted', phone: '5550000001', email: 'sam@example.com' },
+        ];
+        const ask = (method) => recipientsMessagedWithin({ db, companyId: 'co-1', window: excludeWindow('7'), method, recipients });
 
-        const sms = await recipientsMessagedWithin({ db, companyId: 'co-1', window: excludeWindow('7'), method: 'sms', recipients });
-        const email = await recipientsMessagedWithin({ db, companyId: 'co-1', window: excludeWindow('7'), method: 'email', recipients });
-
-        expect([...sms]).toEqual([]);
-        expect([...email]).toEqual(['p']);
+        expect([...await ask('sms')]).toEqual(['texted']);
+        expect([...await ask(undefined)]).toEqual(['texted']);
+        expect([...await ask('email')]).toEqual(['emailed']);
     });
 
-    it("keeps one ledger's matches when the other ledger cannot be read", async () => {
-        const entries = {
-            'sms_sent_phones/+15550000001': { lastSentAt: daysAgo(1) },
-            [`email_sent_addresses/${emailLedgerKey('pat@example.com')}`]: { lastSentAt: daysAgo(1) },
-        };
-        const recipients = [
-            { key: 'texted', phone: '5550000001', email: 'sam@example.com' },
-            { key: 'emailed', phone: '5550000002', email: 'pat@example.com' },
-        ];
-        const args = { companyId: 'co-1', window: excludeWindow('7'), method: 'email', recipients };
+    it('logs a ledger it cannot read and finds nothing in it', async () => {
         const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const { db } = ledgerDb({ 'sms_sent_phones/+15550000001': { lastSentAt: daysAgo(1) } }, { failing: 'sms_sent_phones' });
 
-        const emailDown = await recipientsMessagedWithin({ ...args, db: ledgerDb(entries, { failing: 'email_sent_addresses' }).db });
-        const smsDown = await recipientsMessagedWithin({ ...args, db: ledgerDb(entries, { failing: 'sms_sent_phones' }).db });
+        const messaged = await recipientsMessagedWithin({ db, companyId: 'co-1', window: excludeWindow('7'), recipients: [{ key: 'a', phone: '5550000001' }] });
 
-        expect([...emailDown]).toEqual(['texted']);
-        expect([...smsDown]).toEqual(['emailed']);
-        expect(errors).toHaveBeenCalledTimes(2);
+        expect(messaged.size).toBe(0);
+        expect(errors).toHaveBeenCalledTimes(1);
         errors.mockRestore();
     });
 
