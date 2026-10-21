@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { rawValuesIn } from '../../scripts/eslint-rules/raw-values.mjs';
 
 /**
  * The application's page ground, and why a test has to hold it.
@@ -59,5 +60,18 @@ describe('the application page shell', () => {
   /* The role has to exist, or the class compiles to `var()` with nothing behind it. */
   it('resolves that role to a declared token', () => {
     expect(semantic).toMatch(/--ds-color-canvas:\s*var\(--ds-color-[\w-]+\)\s*;/);
+  });
+
+  /*
+   * Tailwind compiles `index.html` like any component, and the strict theme
+   * cannot refuse an arbitrary value: the shell is held to the raw-value rules
+   * `ds/no-raw-values` reads JavaScript with. The fixture is built, not
+   * written, so Tailwind's scan of this file does not compile it.
+   */
+  it('carries no raw colour, arbitrary type size or unnamed layer', () => {
+    const shell = html.replace(/<!--[\s\S]*?-->/g, '');
+    expect(rawValuesIn(shell).map((found) => found.match)).toEqual([]);
+    const broken = shell.replace('class="bg-ds-canvas"', `class="bg-ds-canvas ${['text', '[10px]'].join('-')}"`);
+    expect(rawValuesIn(broken).map((found) => found.check)).toEqual(['sub-12px-type']);
   });
 });

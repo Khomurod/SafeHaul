@@ -323,16 +323,17 @@ work complete because code exists.** The PR checklist is
 
 Do not "fix" these without reading why they exist. Each is recorded in the
 component too, and every allowlist entry tolerated for one of them cites this
-section. (Other entries: the design system's own `DataTable`, `FileInput` and
-`TabList`, where the rules send feature code; two test doubles; tinted blocks
-`hand-composed-notice` tolerates — §7.)
+section. (Other entries: the design system's own `DataTable`, `FileInput`,
+`TabList` and `Chip`, where the rules send feature code; two test doubles; the
+login card's contact link (§6); tinted blocks `hand-composed-notice` tolerates —
+§7.)
 
 | Exception | Where | Why it is allowed | Retires when |
 |---|---|---|---|
 | `ModernDriverTable` does not adopt `DataTable` | `src/shared/components/table/ModernDriverTable.jsx`; one consumer, `UnifiedDriverList` | Consumer-owned `render()` columns with per-cell `stopPropagation`, row activation, per-row selection *and* a footer pager, plus a caller `getRowClassName` with no `getRowTone` equivalent — unproven for `DataTable` on the highest-row-count surface. Its contract tests assert everything `DataTable` would supply | — |
 | Native tables for editable matrices and per-row interactive rows | `FeaturesView` (×2), `AssignmentTable`, `LineManager`, `CompaniesView`, `CampaignResultsTable`, `DetailedReportModal`, `ModernDriverTable` (×2), `AnalyticsView` (×3: linked tables in one scroll region with per-row actions, plus the chart's `sr-only` text equivalent), `ViewCompanyAppsModal` (per-row filter in a dialog), `StatsBackfillPanel` (six per-row actions, live progress), `UsersView` (in a virtualised scroll region: `DataTable` owns its own, and nesting two reproduces the dead-gutter defect) | `DataTable` is proven only for display tables. Every `<table>` applies `ds-native-table` (`components/data-table/nativeTable.css`) and so reads the `--ds-table-*` roles; `check:ui-contract` checks it per `<table>`, `check:table-layout` measures it | — |
 | The generated 49 CFR §391.23 document | `VOEDocument.jsx`, shown by `VOEPreviewModal`: the frozen `voe-*` print values (`VOE_PRINT` in `tailwind.config.js`: Tailwind 3.4's palette, type sizes, radii, shadow and watermark layer as literals), sub-12px type, three glyphs opened through `glyphComponent` | Immutable legal content that must render the same next year: a `--ds-*` role is themeable by design, and a palette change must never restyle a signed, exported regulatory artefact. Its class list is the rasteriser's capture surface. (Not because tokens would fail to resolve — `html2canvas` reads computed style and `collectPrintStyles` inlines the app's stylesheets.) Its shades still meet AA, and the `voe-print-export` axe scan includes it. `VOEPreviewModal.export.test.jsx` enforces the boundary both ways | Export parity is re-proved — a real captured PDF and a real printed page, not a unit test. Treat any exported document as immutable content |
-| White paper in the print safety net | `src/shared/utils/printDocument.js` (`PRINT_DOCUMENT_STYLES`) | `background: #ffffff` is a fact about paper, not a surface role; these rules are injected as a string for the case where `collectPrintStyles` could not read a sheet | — |
+| White paper | `printDocument.js` (`PRINT_DOCUMENT_STYLES`); `guestUploadImage.js` (`shrinkPhoto`) | Paper, not a surface role: print's `background: #ffffff`, a string for when `collectPrintStyles` cannot read a sheet; a shrunk photo on white, as a JPEG has no transparency | — |
 | Signature ink | `SignatureSheet.jsx`, `SignaturePad.jsx`, `lib/signature.js` (×2, which must agree) | The canvas is rasterised to a PNG stored in a signed document; re-theming must never retint a signature already given | Never |
 | `DeviceMockup` artwork | `campaigns/components/DeviceMockup.jsx` | A picture of a physical phone: bezel, buttons and battery pips are moulded plastic, their greys declared once as hex in the `DEVICE` constant and their radii as lengths; the status-bar time is `text-[10px]` because a real one is that small. The *screen* takes `--ds-color-surface`; the fake status bar is `aria-hidden` | Never |
 | Login hero wash | `LoginScreen.jsx` (raw hexes, white `bg-[#fff]/5` among them) | Artwork: three blobs blurred over 256–384px, `aria-hidden`, no information; an opacity modifier cannot apply to a `var()` colour. Everything meaningful on the panel uses the brand roles | — |
@@ -378,6 +379,7 @@ are fully approved, §7 is permanent.
 |---|---|---|
 | `[!]` Replacement wording for the customer named in operator copy: `StatsBackfillPanel`'s All-Companies help text reads "Only run after verifying Ray Star LLC results.", preserved verbatim | The repository establishes no generic replacement | Owner (product/copy) |
 | `[ ]` A semantic scrim role, retiring the audience preview's `bg-black/20` (§5) | Naming a new role is a design-system decision, not a mechanical swap | Design-system decision |
+| `[ ]` The login card's hand-styled "Contact SafeHaul" link (`LoginScreen.jsx`): `Link` would underline it, `ButtonLink` frame it | Either changes how the login page looks | Design-system decision |
 | `[ ]` Whether `Notice` may carry positioning and elevation, so `QueueStatusIndicator`'s fixed floating banner (`fixed bottom-4 right-4 z-ds-toast`, `shadow-ds-lg`, its local `QueueNotice`) can be absorbed | `Notice`'s `className` contract is margin and width only, so this is a component change, not a migration | Design-system decision |
 | `[ ]` `rem` instead of `px` for the `--ds-*` contract | Zoom scales both (WCAG 2.2 SC 1.4.4 is met), but `px` ignores a user's default font-size preference; it would be its own campaign with its own visual review | Recorded, not scheduled |
 | `[!]` **NO-GO beyond presentation:** Company Settings → SMS. Number assignment is migrated for presentation only, and its contracts are frozen: the `saveSmsLineAssignments` and `verifyLineConnection` payloads, the line-token model, the `sms_provider` document. `LineManager` (the Phone Line Wallet, secret entry) stays unmigrated and out of scope | Entanglement with `LineManager` | Owner |
@@ -409,12 +411,16 @@ delete one without replacing the guarantee. All are blocking, and none may carry
 | `src/design-system/contract.test.js`, `src/design-system/tests/productionFallbacks.test.jsx` | A prop check that does not throw outside a production build, or that throws in one (it reports once, to the console and Sentry, and returns); a component that, after a reported misuse, crashes or hides content instead of drawing its default | `frontend-quality` |
 | `src/design-system/tests/stackingLayers.test.js` | A `<thead>` on `sticky` or above; the topbar, notifications panel and candidate toolbar layers are pinned individually | `frontend-quality` |
 | `no-alert` = `error` for `src/` outside test files (`eslint.config.js`) | A call to `alert`, `confirm` or `prompt`: bare, through `window` or `globalThis`, in brackets or inside a template literal. A disable comment does not hide one | `frontend-quality` · `scripts/test-lint-rules.mjs` N1–N4b, in `callable-contract` |
-| `src/tests/pageShell.test.js` — *the one class no guard could hold* — and `src/tests/brandAssets.test.jsx` | `index.html`'s `<body>` without exactly one background utility, `bg-ds-canvas`, on a declared role (`raw-palette-class` cannot hold it — a swap to another role passes — and the pixel lane cannot see it); a favicon or `theme-color` literal differing from the brand tokens, favicon paths or gradient geometry differing from the logo's, a hex in `Logo.jsx` or `SafeHaulLoader.jsx` | `frontend-quality` |
+| `src/tests/pageShell.test.js` — *the one class no guard could hold* — and `src/tests/brandAssets.test.jsx` | `index.html`'s `<body>` without exactly one background utility, `bg-ds-canvas`, on a declared role (`raw-palette-class` cannot hold it — a swap to another role passes — and the pixel lane cannot see it); a favicon or `theme-color` literal differing from the brand tokens, favicon paths or gradient geometry differing from the logo's, a hex in `Logo.jsx` or `SafeHaulLoader.jsx`; a raw value in `index.html` | `frontend-quality` |
 | `VOEPreviewModal.export.test.jsx` | A `ds-*` class inside the exported §391.23 document, a missing token outside it, or a frozen `voe-*` value that differs from the Tailwind value it copies | `frontend-quality` |
 | `src/tests/uiContract.ratchet.test.js` | `check:ui-contract`'s rules missing their defects or firing on correct code | `frontend-quality` |
 | `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | Zero-tolerance against the allowlist: raw palette classes; raw hex (`raw-hex-colour`: classes, CSS, SVG presentation attributes, JS assignments — not anchors, gradient references, id selectors or hex-like placeholders); sub-12px and off-scale type; Tailwind and bare radii/shadows (`tailwind-radius`, `tailwind-shadow`); `@apply`; bare stacking numbers (`raw-z-index`, `css-raw-z-index`); hand-built overlays (`hand-built-overlay`); raw tables (`raw-table`); hand-styled controls (`hand-styled-button`, `hand-styled-field`, `hand-styled-anchor` — a class list hoisted into a variable is resolved, `scripts/ui-contract/bindings.mjs`); hand-rolled `role="tablist"` strips (`hand-rolled-tablist`), toggles (`hand-rolled-toggle`, a raw `<button aria-pressed>`), current-item controls (`hand-rolled-current`, a raw `<button aria-current>`), avatar discs (`hand-rolled-avatar`, a round disc holding a person's initial) and disclosures (`hand-rolled-disclosure`, a `<button aria-expanded>` inside a heading); hand-composed notices (a `bg-ds-status-*-bg` tint with its matching border on an element whose own body holds words and no control, table or `Card` — `src/design-system/` included); raw file inputs; hand-written `target="_blank"`; a JSX-element `label` on a primitive that throws on a non-string one (`jsx-label-on-throwing-primitive`); an approved native table without `ds-native-table`, counted per `<table>`. It scans what Tailwind's `content` compiles — `src/` and `index.html` (class-list rules only there and in stories) | `callable-contract` · `scripts/ci-plan/test-guards.mjs` K5 |
 | `src/design-system/ui-contract.allowlist.json` (read by `check:ui-contract`) | Anything unlisted, a count higher than recorded, an entry whose rule has no `reasons` text, a malformed count — there is no `debt` option. A count the tree has fallen below is lowered: a local run rewrites the file, CI warns. The check never adds an entry or raises a count; an exception that grows is a hand edit with a reason, judged in review, and there is no base-commit comparison. Keys are repo-relative. The design system is exempt from `hand-rolled-toggle` and `hand-rolled-current` only (`SegmentedControl`, `SectionNavigation` are those shapes), as a named list, not a path skip | `callable-contract` · `scripts/test-ui-contract-allowlist.mjs` |
 | `npm run test:ui-contract` (four suites) | Wrong decisions on fixtures (`scripts/test-ui-contract.mjs`; §H keeps stylesheets and HTML out of the JSX parser); the state rules (`scripts/test-ui-contract-state.mjs`, §P, with §P6/§P7 asserting exemptions as a set); lost coverage — per-format floors, every Tailwind `content` root scanned (`scripts/test-ui-contract-scope.mjs`, §S2f); the allowlist's shape and how a fixed entry is lowered (`scripts/test-ui-contract-allowlist.mjs`). Its wiring, the suite list read off disk included, is `scripts/ci-plan/test-guards.mjs` K5 | `callable-contract` |
+| `ds/no-raw-values` = `error` for `src/` outside tests (`scripts/eslint-rules/`) | An arbitrary colour, type size or layer in any syntax Tailwind compiles (`bg-[red]`, `text-[length:10px]`, `z-[calc(100)]`); a raw colour, numeric layer or off-scale size where a style names one | `frontend-quality` · `test-lint-rules.mjs` §O, in `callable-contract` |
+| `ds/native-table`, same scope, off in stories | A `<table>` in a file §5 does not approve, or one whose last class setter may lack `ds-native-table` | as above |
+| `ds/use-primitive`, same scope (the design system skips toggle and current, stories the markup checks) | A hand-styled `<button>`, `<a>` or field (a hoisted class list is resolved); a raw `role="tablist"`, a `<button>` with `aria-pressed` or `aria-current`, or with `aria-expanded` in a heading; a raw file input; `target="_blank"`; `fixed inset-0`, however split; a JSX `label` on a primitive that throws on one. Exceptions per file and check, with a §5 reason (`exceptions.mjs`); no comment hides one | as above |
+| `src/tests/stylesheetContract.test.js` | A raw colour (hex, colour function, or keyword in a colour declaration), a bare `z-index`, sub-12px type or an off-contract `@apply` in a stylesheet under `src/` (token files exempt) | `frontend-quality` |
 | `no-restricted-syntax` = `error` for `src/` outside `src/design-system/icons/` (`eslint.config.js`) | An import, re-export, `import()` or `require` of `lucide-react`. There is no exemption list | `frontend-quality` · `scripts/test-lint-rules.mjs` L1–L3, in `callable-contract` |
 | `react/jsx-no-undef` and `react-hooks/rules-of-hooks` = `error` (`eslint.config.js`) | A JSX name that was never imported, such as `<Icon>`; a hook called conditionally | `frontend-quality` · `scripts/test-lint-rules.mjs` M1–M2; the step, `scripts/ci-plan/test-guards.mjs` K1e |
 | `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | A catalog story that fails to render or fails axe | `frontend-quality` · `test-ci-plan.mjs` K1d |
@@ -455,7 +461,8 @@ read them.
 - A guard that measures nothing fails: zero tables, zero files or a vanished
   subject is a broken check, not a pass.
 - Read JSX through `scripts/ui-contract/jsx.mjs` (`lastClassSetter`,
-  `certainlyText`, `parseModule`); never copy them into a new rule.
+  `certainlyText`, `parseModule`), in a lint rule `scripts/eslint-rules/jsx.mjs`;
+  never copy them into a new rule.
 - Ask "does this element carry this attribute?", never "does this text appear?".
   When a check needs a third fix, change what it asks rather than how carefully
   it looks, and sweep the sibling rules for the same shape.
@@ -489,14 +496,11 @@ read them.
 
 ## 8. Migration state
 
-**The programme is closed.** All 19 screen areas are migrated — the company
-workspace and settings, login/auth, the public driver application, the driver
-dossier, PEV/VOE, e-docs and signing, lead intake and Super Admin — plus the
-Environment & Integrations vault, AI Integrations, Blog Posts and AI provider
-priority; newer screens use approved components and `--ds-*` tokens from the
-start. Every remaining exception rests on a true reason recorded at the call
-site and in the allowlist (`npm run check:ui-contract` prints the count). One
-area is NO-GO beyond presentation (§6).
+**The programme is closed.** Every screen area is migrated, and newer screens
+use approved components and `--ds-*` tokens from the start. Every remaining
+exception rests on a true reason recorded at the call site and in the allowlist
+(`npm run check:ui-contract` prints the count). One area is NO-GO beyond
+presentation (§6).
 
 **Complete families** — the primitive exists *and* every consumer that can use
 it does:
