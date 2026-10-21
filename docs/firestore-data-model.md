@@ -97,7 +97,7 @@ Used by Cloud Functions with Admin SDK:
 | `internal_stats/{docId}` | read: team · write: **denied** | Dashboard KPI rollups (server-only writes) |
 | `notifications/{id}` | read: team · create: admin · update: team · delete: admin | Company-scoped notifications |
 | `feature_alerts/{id}` | read/write: team or super | Scheduled deactivation warning analytics |
-| `system_settings/email_config` | read/write: admin | SMTP credentials (sensitive) |
+| `system_settings/email_config` | server only | SMTP credentials; the password encrypted (`enc:v1:`) |
 | `settings/{docId}` | read: team · write: admin | Custom questions, ATS SMS templates, etc. |
 | `signing_requests/{id}` | read: team, recipient, super · create: team · update: team or recipient (limited fields) · delete: admin | E-sign envelopes |
 | `signing_requests/{id}/secrets/{id}` | create: team · read/update/delete: **denied** | `accessToken`; Functions only after create |

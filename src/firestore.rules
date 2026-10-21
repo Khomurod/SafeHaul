@@ -329,9 +329,10 @@ service cloud.firestore {
         allow read, write: if isCompanyTeam(companyId);
       }
 
-      // SECURE SETTINGS: Email Config & System Keys
+      // SECURE SETTINGS: the SMTP password. Server-only: saveEmailSettings
+      // writes it, getEmailSettingsMeta answers what the settings screen shows.
       match /system_settings/email_config {
-        allow read, write: if isCompanyAdmin(companyId);
+        allow read, write: if false;
       }
 
       // Per-company settings docs (custom questions, ATS SMS templates, etc.)

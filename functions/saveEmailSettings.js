@@ -3,22 +3,18 @@ const { admin, db } = require("./firebaseAdmin");
 const { checkRateLimit } = require("./shared/rateLimiter");
 const { assertCompanyAdminStrict } = require("./shared/companyAccess");
 const { testEmailCredentials } = require("./emailService");
-const { normalizeSmtpSettings } = require("./shared/smtpSettings");
+const { isSealed, normalizeSmtpSettings, sealPassword } = require("./shared/smtpSettings");
 
 /**
- * Save email settings to admin-only subcollection.
+ * Saves a company's email settings to `companies/{companyId}/system_settings/
+ * email_config`, which only the server reads or writes (Firestore rules).
  *
- * REFACTOR: Previously stored encrypted password on root company doc
- * (readable by all team members). Now stores plaintext password in
- * companies/{companyId}/system_settings/email_config — restricted
- * to company_admin + super_admin by Firestore rules.
- *
- * Why plaintext instead of encrypted:
- *  1. The subcollection is admin-only (not team-readable), so exposure is minimal.
- *  2. Encryption caused double-encryption bugs when the frontend accidentally
- *     resubmitted the ciphertext — corrupting credentials and failing SMTP auth.
- *  3. The backend still needs the raw password to create SMTP connections,
- *     so encryption only added complexity without real security benefit.
+ * The password is stored encrypted (`enc:v1:`, `sealPassword`); every reader
+ * opens it through `shared/smtpSettings.js`, and the vault shows it decrypted.
+ * A value that is already encrypted is refused, so ciphertext sent back can
+ * never be encrypted twice. A blank password keeps the stored one, encrypting
+ * it if an older save left it in plain text. The copy older saves left on the
+ * company document, which the whole team reads, is removed.
  *
  * The SMTP password is NEVER returned to the frontend.
  *
@@ -27,7 +23,7 @@ const { normalizeSmtpSettings } = require("./shared/smtpSettings");
  * Settings runs no Test Connection first.
  */
 exports.saveEmailSettings = onCall(
-    // The secret decrypts a stored password saved encrypted (shared/smtpSettings.js) for that check.
+    // The secret encrypts the password, and decrypts a stored one for that check.
     { cors: true, secrets: ['SMS_ENCRYPTION_KEY'] },
     async (request) => {
         if (!request.auth) {
@@ -49,7 +45,7 @@ exports.saveEmailSettings = onCall(
         // Sensitive config writes require strict company admin (or super admin).
         await assertCompanyAdminStrict(request.auth.uid, companyId);
 
-        // Reference to the admin-only subcollection document
+        // The server-only email_config document
         const emailConfigRef = db.collection('companies').doc(companyId)
             .collection('system_settings').doc('email_config');
 
@@ -57,21 +53,24 @@ exports.saveEmailSettings = onCall(
         // If smtpPass is omitted/empty, preserve the existing password from the subcollection.
         let finalPassword;
 
+        if (isSealed(smtpPass)) {
+            throw new HttpsError('invalid-argument', 'Enter the SMTP password itself.');
+        }
         if (smtpPass && smtpPass.trim()) {
-            // New plaintext password provided — store as-is (no encryption)
-            finalPassword = smtpPass.trim();
+            finalPassword = sealPassword(smtpPass.trim());
         } else {
             // No new password provided — fetch and preserve existing password
             const existingDoc = await emailConfigRef.get();
             const existingSettings = existingDoc.exists ? existingDoc.data() : {};
-            finalPassword = existingSettings.smtpPass || null;
+            const stored = existingSettings.smtpPass || null;
 
-            if (!finalPassword) {
+            if (!stored) {
                 throw new HttpsError(
                     'invalid-argument',
                     'SMTP password is required for initial setup. Please enter your SMTP password.'
                 );
             }
+            finalPassword = isSealed(stored) ? stored : sealPassword(stored);
         }
 
         // The settings are saved either way; only a connection that opens marks them verified.
@@ -91,18 +90,17 @@ exports.saveEmailSettings = onCall(
             smtpHost: smtpHost.trim(),
             smtpPort: parseInt(smtpPort) || 587,
             smtpUser: smtpUser.trim(),
-            smtpPass: finalPassword,           // Plaintext — subcollection is admin-only
+            smtpPass: finalPassword,           // Encrypted
             signature: signature || '',
             isVerified: check.success === true,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedBy: request.auth.uid,
         };
 
-        // Write to admin-only subcollection (not root company doc)
         await emailConfigRef.set(emailConfig, { merge: true });
 
         // Also update non-sensitive fields on root company doc for backward compat
-        // (UI status banners, etc.) — but NEVER the password
+        // (UI status banners, etc.) — never the password, and drop one an older save left there
         await db.collection('companies').doc(companyId).update({
             'emailSettings.smtpHost': emailConfig.smtpHost,
             'emailSettings.smtpPort': emailConfig.smtpPort,
@@ -110,6 +108,7 @@ exports.saveEmailSettings = onCall(
             'emailSettings.signature': emailConfig.signature,
             'emailSettings.isVerified': emailConfig.isVerified,
             'emailSettings.updatedAt': emailConfig.updatedAt,
+            'emailSettings.smtpPass': admin.firestore.FieldValue.delete(),
         });
 
         console.log(`[saveEmailSettings] Settings saved for company ${companyId} by ${request.auth.uid}`);

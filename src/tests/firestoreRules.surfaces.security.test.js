@@ -124,10 +124,11 @@ describeFirestore('firestore.rules security regressions', () => {
     await assertFails(getDoc(doc(teamOf('company-b'), 'companies', 'company-a', 'notifications', 'n2')));
   });
 
-  it('SURFACE: the email config is admin-only — a recruiter of the SAME company cannot read it', async () => {
+  it('SURFACE: the email config is server-only — not even the company admin reads it', async () => {
     await seed(['companies', 'company-a', 'system_settings', 'email_config'], { host: 'smtp.example.test' });
 
-    await assertSucceeds(getDoc(doc(teamOf('company-a', 'company_admin'), 'companies', 'company-a', 'system_settings', 'email_config')));
+    await assertFails(getDoc(doc(teamOf('company-a', 'company_admin'), 'companies', 'company-a', 'system_settings', 'email_config')));
+    await assertFails(setDoc(doc(teamOf('company-a', 'company_admin'), 'companies', 'company-a', 'system_settings', 'email_config'), { smtpPass: 'x' }));
     await assertFails(getDoc(doc(teamOf('company-a'), 'companies', 'company-a', 'system_settings', 'email_config')));
     await assertFails(getDoc(doc(teamOf('company-b', 'company_admin'), 'companies', 'company-a', 'system_settings', 'email_config')));
     await assertFails(getDoc(doc(guestCtx(), 'companies', 'company-a', 'system_settings', 'email_config')));

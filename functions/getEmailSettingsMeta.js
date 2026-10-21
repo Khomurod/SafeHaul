@@ -27,7 +27,7 @@ exports.getEmailSettingsMeta = onCall(
         // Metadata includes sensitive integration details; require admin access.
         await assertCompanyAdminStrict(request.auth.uid, companyId);
 
-        // PRIMARY: Read from admin-only subcollection
+        // PRIMARY: Read from the server-only email_config document
         const emailConfigRef = db.collection('companies').doc(companyId)
             .collection('system_settings').doc('email_config');
         const configDoc = await emailConfigRef.get();

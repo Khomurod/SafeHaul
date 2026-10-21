@@ -17,6 +17,7 @@ jest.mock('../../firebaseAdmin', () => require('./environmentVault.callables.sup
 
 const vault = require('../../environmentVault');
 const { encrypt } = require('../../integrations/encryption');
+const { sealPassword } = require('../../shared/smtpSettings');
 const {
     mock, superAdmin, request, auditRecords, resetVaultState, restoreVaultState,
     ENCRYPTION_KEY, CLIENT_ID_PLAINTEXT, CLIENT_SECRET_PLAINTEXT, LINE_JWT_PLAINTEXT,
@@ -79,6 +80,18 @@ describe('reveal', () => {
         }));
         expect(result.value).toBe(SMTP_PASSWORD_PLAINTEXT);
         expect(result.availability).toBe('firestore-plaintext');
+    });
+
+    it('decrypts an SMTP password saved encrypted', async () => {
+        const doc = mock.docs.get('companies/co-alpha/system_settings/email_config');
+        mock.docs.set('companies/co-alpha/system_settings/email_config', {
+            ...doc,
+            smtpPass: sealPassword(SMTP_PASSWORD_PLAINTEXT),
+        });
+        const result = await vault.revealEnvironmentValue(request(superAdmin(), {
+            entryId: 'company:co-alpha:email_config:smtpPass',
+        }));
+        expect(result.value).toBe(SMTP_PASSWORD_PLAINTEXT);
     });
 
     it('reveals a Cloud Functions runtime value', async () => {
