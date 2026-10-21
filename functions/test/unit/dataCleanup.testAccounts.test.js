@@ -41,6 +41,8 @@ function seed() {
             'memberships/m-gone': { userId: 'gone-uid', companyId: 'carrier-one' },
             'memberships/m-real': { userId: 'real-uid', companyId: 'carrier-one', role: 'company_admin' },
             'memberships/m-real-flagged': { userId: 'real-uid', companyId: 'carrier-one', isTestRecord: true },
+            // A real user's membership in the look-alike company below: left with it.
+            'memberships/m-lookalike': { userId: 'real-uid', companyId: 'SYS_TEST_1680000000000' },
             [`companies/${A}`]: { companyName: 'Test Company A', isTestRecord: true },
             [`companies/${A}/applications/${DRIVER}`]: { applicantName: 'Test Driver', isTestRecord: true },
             [`companies/${A}/applications/${DRIVER}/activities/act-1`]: { type: 'note' },
@@ -94,6 +96,7 @@ describe('data cleanup — test accounts', () => {
             'companies/carrier-one',
             'drivers/SYS_DRIVER_1680000000000',
             'drivers/driver-real',
+            'memberships/m-lookalike',
             'memberships/m-real',
             'memberships/m-real-flagged',
             'public_profiles/SYS_TEST_1680000000000',

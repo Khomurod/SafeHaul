@@ -76,19 +76,27 @@ async function findUserDocs(ctx, loginUids, keptUids, counts) {
     return refs;
 }
 
-async function findMemberships(ctx, uids) {
+/**
+ * Memberships of the test logins, and memberships in test companies. Those in a
+ * kept look-alike company stay with it, and those of a login that could not be
+ * deleted stay until a later run deletes the login.
+ */
+async function findMemberships(ctx, uids, keptCompanies, failedUids) {
     const memberships = ctx.db.collection('memberships');
     const refs = new Map();
     for (let i = 0; i < uids.length; i += IN_LIMIT) {
         const snap = await memberships.where('userId', 'in', uids.slice(i, i + IN_LIMIT)).get();
-        for (const doc of snap.docs) refs.set(doc.ref.path, doc.ref);
+        for (const doc of snap.docs) refs.set(doc.ref.path, doc);
     }
     const inTestCompanies = await memberships
         .where('companyId', '>=', 'SYS_TEST_').where('companyId', '<', prefixEnd('SYS_TEST_')).get();
     for (const doc of inTestCompanies.docs) {
-        if (TEST_COMPANY_ID.test(String(doc.data()?.companyId || ''))) refs.set(doc.ref.path, doc.ref);
+        if (TEST_COMPANY_ID.test(String(doc.data()?.companyId || ''))) refs.set(doc.ref.path, doc);
     }
-    return [...refs.values()];
+    return [...refs.values()]
+        .filter((doc) => !keptCompanies.has(String(doc.data()?.companyId || '')))
+        .filter((doc) => !failedUids.has(String(doc.data()?.userId || '')))
+        .map((doc) => doc.ref);
 }
 
 /** Test companies, including ones whose document is gone but whose records remain. */
@@ -159,8 +167,8 @@ async function sweep(ctx) {
 
     const userDocs = await findUserDocs(ctx, loginUids, logins.kept, counts);
     for (const uid of failed) userDocs.delete(uid);
-    const memberships = await findMemberships(ctx, [...new Set([...loginUids, ...userDocs.keys()])]);
     const companies = await findCompanies(ctx, counts);
+    const memberships = await findMemberships(ctx, [...new Set([...loginUids, ...userDocs.keys()])], companies.kept, failed);
     const drivers = await findByIdPrefix(ctx, 'drivers', 'SYS_DRIVER_', TEST_DRIVER_ID,
         (doc) => doc.data()?.isTestRecord === true, counts);
     const profiles = await findByIdPrefix(ctx, 'public_profiles', 'SYS_TEST_', TEST_COMPANY_ID,

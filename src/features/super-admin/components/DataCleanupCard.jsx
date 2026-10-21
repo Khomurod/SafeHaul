@@ -108,7 +108,9 @@ function CleanupItem({ item, state, busy, onCheck, onRun, checkButtonRef }) {
     const descriptionId = useId();
     const mine = busy?.item === item.id;
     const { check, lastRun, error } = state;
-    const canRun = Boolean(check) && check.total > 0;
+    // A check cut off by the time limit may not have reached the records yet;
+    // Run resumes from the current state, so it is offered then too.
+    const canRun = Boolean(check) && (check.total > 0 || check.done === false);
 
     return (
         <section aria-labelledby={headingId} className="border-t border-ds-border-subtle pt-ds-4">

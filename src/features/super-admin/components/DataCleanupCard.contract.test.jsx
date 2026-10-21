@@ -72,6 +72,14 @@ describe('Data cleanup card', () => {
         expect(button('Run')).toBeDisabled();
     });
 
+    it('offers Run when the check stopped at the time limit before finding anything', async () => {
+        cleanup.mockImplementation(async () => ({ data: { ...SSN_CLEAN, done: false } }));
+        render(<DataCleanupCard />);
+        fireEvent.click(button('Check'));
+        await waitFor(() => expect(within(ssnRow()).getByText('Check stopped at the time limit; these are the numbers so far.')).toBeInTheDocument());
+        expect(button('Run')).not.toBeDisabled();
+    });
+
     it('runs nothing unless the confirmation, which repeats the numbers, is accepted', async () => {
         cleanup.mockImplementation(async () => ({ data: SSN_FOUND }));
         render(<DataCleanupCard />);
