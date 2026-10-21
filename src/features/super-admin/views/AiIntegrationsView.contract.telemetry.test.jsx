@@ -1,5 +1,5 @@
 /**
- * Telemetry: the panel, the Providers and Logs tabs, and article transactions in the log.
+ * Telemetry: AI activity's one place (the Logs tab), the Providers and Logs tabs, and article transactions in the log.
  *
  * Part of the AiIntegrationsView contract suite, split from the original
  * single file by subject. The fixtures, callable stubs, spies and the
@@ -36,17 +36,11 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-describe('telemetry panel', () => {
-    it('shows an empty state when nothing has run', async () => {
-        await renderView();
-        expect(screen.getByText('No AI requests have been recorded yet.')).toBeTruthy();
-    });
-
-    it('sends an operator to the Logs tab rather than showing a second, shallower list', async () => {
-        // The flat list this replaces could not answer the question it invited:
-        // it showed that a request failed and never which providers were tried
-        // or why. Keeping it alongside the Logs tab would be two competing
-        // answers to the same question.
+describe('AI activity has one place: the Logs tab', () => {
+    it('shows no activity summary on the Providers tab, even when the server sends recent transactions', async () => {
+        // The provider list still carries `telemetry` (a site on an earlier
+        // release reads it), but a count with an "Open logs" jump beside the
+        // Logs tab would be a second place for the same answer.
         stubCallables({
             listAiProviders: vi.fn().mockResolvedValue({
                 data: {
@@ -61,8 +55,33 @@ describe('telemetry panel', () => {
         });
         render(<AiIntegrationsView />);
 
-        await waitFor(() => expect(screen.getByText('1 recent transaction recorded.')).toBeTruthy());
-        expect(screen.getByRole('button', { name: /open logs/i })).toBeTruthy();
+        await waitFor(() => expect(screen.getAllByText('Groq').length).toBeGreaterThan(0));
+        expect(screen.getByRole('tab', { name: /providers/i })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.queryByText('Recent AI activity')).toBeNull();
+        expect(screen.queryByText(/recent transactions? recorded/)).toBeNull();
+        expect(screen.queryByRole('button', { name: /open logs/i })).toBeNull();
+    });
+
+    it('still lists the transactions on the Logs tab', async () => {
+        stubCallables({
+            listAiTelemetry: vi.fn().mockResolvedValue({
+                data: {
+                    entries: [{
+                        id: 't1', transactionId: 'txn-1', taskType: 'cdl_extraction', providerId: 'groq',
+                        model: 'model-a', outcome: 'success', latencyMs: 812, fallbackCount: 0,
+                        timestamp: '2026-08-02T12:00:00Z', attempts: [],
+                    }],
+                    truncated: false,
+                    windowSize: 1,
+                },
+            }),
+        });
+        await renderView();
+        fireEvent.click(screen.getByRole('tab', { name: /logs/i }));
+
+        const table = await screen.findByRole('table', { name: /AI transactions/i });
+        await waitFor(() => expect(within(table).getByText('CDL extraction')).toBeTruthy());
+        expect(callables.listAiTelemetry).toHaveBeenCalled();
     });
 });
 

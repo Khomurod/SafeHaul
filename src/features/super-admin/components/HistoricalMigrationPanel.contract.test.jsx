@@ -12,7 +12,7 @@
  *  3. It survives failure visibly. A partial run must leave the action available
  *     and say exactly what is left.
  *  4. It reads nothing until asked. The survey reads every application and checks
- *     every PDF; on the dashboard it ran on every visit.
+ *     every PDF; run on mount it would run on every visit to its page.
  *
  * All company ids and names below are artificial.
  */

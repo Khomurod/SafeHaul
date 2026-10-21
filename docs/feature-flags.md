@@ -7,7 +7,7 @@ Per-tenant feature toggles live on **`companies/{companyId}`** as two parallel m
 | `features` | `Record<string, boolean>` | Current on/off state. **A missing key is on; only an explicit `false` turns a feature off.** |
 | `featureSchedules` | `Record<string, string \| null>` | ISO-8601 datetime when a feature should auto-disable |
 
-Super admins manage both via [`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx). Company users see scheduled shutdown warnings via [`FeatureDeactivationWarning.jsx`](../src/features/company-admin/components/FeatureDeactivationWarning.jsx).
+Super admins manage both on each company's own screen, its Features tab ([`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx)). Company users see scheduled shutdown warnings via [`FeatureDeactivationWarning.jsx`](../src/features/company-admin/components/FeatureDeactivationWarning.jsx).
 
 ---
 
@@ -85,9 +85,9 @@ User must pick date + time; past times rejected.
 
 Sets `featureSchedules.{key}`: `null`.
 
-### Bulk enable/disable
+### No bulk enable/disable
 
-`handleBulkAction` sets `features.{key}` for all companies (batch writes, 400 per batch). Does not bulk-update schedules.
+Features are set one company at a time, on its screen; nothing writes a feature for every company.
 
 ### Alert analytics
 
@@ -166,7 +166,7 @@ After scheduler runs past June 1:
 
 | File | Role |
 |------|------|
-| [`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx) | Admin matrix UI |
+| [`FeaturesView.jsx`](../src/features/super-admin/components/FeaturesView.jsx) | A company's Features tab (Super Admin → Companies → the company) |
 | [`featureScheduler.js`](../functions/featureScheduler.js) | Auto-disable job |
 | [`companyRouteManifest.js`](../src/app/routes/companyRouteManifest.js) | Nav `featureFlag` keys |
 | [`CompanySidebar.jsx`](../src/features/company-admin/layout/CompanySidebar.jsx) | Nav filtering |

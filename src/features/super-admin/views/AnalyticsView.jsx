@@ -1,14 +1,18 @@
 import React, { useId, useState } from 'react';
-import { Icon, BarChart3, Download, Users, Phone, TrendingUp, ArrowUpRight, User } from '@design-system/icons';
+import { Icon, BarChart3, Download, Users, Phone, TrendingUp, ArrowUpRight, User, RefreshCw } from '@design-system/icons';
 import { useAnalytics } from '@features/analytics';
 import { downloadCsv, toCsvText } from '@shared/utils/csvExport';
 import {
     Badge, Button, Card, MetricCard, TabList, TabPanel,
 } from '@/design-system/components';
-import { ResponsiveGrid, Stack } from '@/design-system/layouts';
+import { ResponsiveGrid, Section, Stack } from '@/design-system/layouts';
+import { ErrorState, LoadingState } from '@design-system/patterns';
 
 /**
- * Platform-wide analytics for Super Admin.
+ * The Super Admin Dashboard's Activity section: calls logged across every
+ * company in a chosen period, read from each company's `stats_daily`. It was
+ * the separate Analytics screen; the Dashboard's `<h2>` now heads it, so its
+ * own title is an `<h3>` and its cards' titles are `<h4>`s.
  *
  * Presentation only — `useAnalytics` owns the data. Frozen contracts: the
  * `7d`/`30d`/`90d` range values, the CSV export column order, header text,
@@ -16,7 +20,18 @@ import { ResponsiveGrid, Stack } from '@/design-system/layouts';
  * `company_performance_{range}.csv`), the top-5 slices, the `callsMade > 20`
  * High/Low rule, and every frozen string.
  *
+ * Figures are shown, and exported, only once they have been read: while they
+ * load and when the read fails the section keeps its title and range control
+ * and says which, rather than showing zeros. `stats_daily` counts logged calls
+ * and nothing else, so every figure here is calls.
+ *
  * Fixed here:
+ *  - "Total Actions" (a table column and a CSV column) was the calls added up a
+ *    second time; it had no other source and is gone, and the chart's summary
+ *    says calls. "Last Active" was never filled, so every recruiter read
+ *    "Unknown" ("N/A" in the CSV); it is the last day in the period the
+ *    recruiter logged a call. A failed read showed a screen of zeros; it is an
+ *    announced error with Try again.
  *  - The export joined raw values with commas into a `data:` URL: "Last Active"
  *    ("10/14/2026, 4:05 PM") split into two columns, a comma or quote in a name
  *    shifted the row, a name beginning `=` ran as a formula, and the file ended at
@@ -89,7 +104,7 @@ function ActivityTrendChart({ data }) {
                     aria-labelledby={titleId}
                 >
                     <title id={titleId}>
-                        {`Daily activity trend across ${data.length} days, ${total} actions in total, peaking at ${dataPeak}.`}
+                        {`Daily activity trend across ${data.length} days, ${total} calls in total, peaking at ${dataPeak}.`}
                     </title>
                     {[0, 0.25, 0.5, 0.75, 1].map(tick => (
                         <line
@@ -132,7 +147,7 @@ function ActivityTrendChart({ data }) {
             <table className="sr-only ds-native-table">
                 <caption>Daily activity trend</caption>
                 <thead>
-                    <tr><th scope="col">Date</th><th scope="col">Actions</th></tr>
+                    <tr><th scope="col">Date</th><th scope="col">Calls</th></tr>
                 </thead>
                 <tbody>
                     {data.map((d, i) => (
@@ -152,10 +167,19 @@ const TABS = [
 
 const DATE_RANGES = ['7d', '30d', '90d'];
 
+/** A Chicago calendar day (`YYYY-MM-DD`, a `stats_daily` id) as "Nov 3, 2026". */
+function formatDay(dateKey) {
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+    }).format(new Date(`${dateKey}T12:00:00Z`));
+}
+
 export function AnalyticsView() {
-    const { loading, stats, dateRange, setDateRange } = useAnalytics();
+    const { loading, error, stats, dateRange, setDateRange, reload } = useAnalytics();
     const [activeTab, setActiveTab] = useState('overview');
     const tabsId = useId();
+    const headingId = useId();
+    const ready = !loading && !error;
 
     const handleExport = () => {
         let headers = [];
@@ -168,236 +192,249 @@ export function AnalyticsView() {
                 u.userName,
                 u.companyName,
                 u.callsMade,
-                u.lastActive ? new Date(u.lastActive.seconds * 1000).toLocaleString() : 'N/A'
+                // The day of the recruiter's last call, as `stats_daily` names it.
+                u.lastActive || 'N/A'
             ]);
             filename = `recruiter_performance_${dateRange}.csv`;
         } else {
-            headers = ['Company Name', 'Calls Made', 'Total Actions'];
-            rows = stats.companyPerformance.map(c => [c.companyName, c.callsMade, c.actions]);
+            headers = ['Company Name', 'Calls Made'];
+            rows = stats.companyPerformance.map(c => [c.companyName, c.callsMade]);
             filename = `company_performance_${dateRange}.csv`;
         }
 
-        // Every cell escaped: "Last Active" holds a comma ("10/14/2026, 4:05 PM") and
-        // a name can hold a comma, a quote, a formula or a `#`.
+        // Every cell escaped: a name can hold a comma, a quote, a formula or a `#`.
         downloadCsv(filename, toCsvText([headers, ...rows]));
     };
 
-    if (loading) {
-        return (
-            <p role="status" className="p-ds-12 text-center text-ds-content-muted">
-                Loading analytics...
-            </p>
-        );
-    }
-
     return (
-        <Stack gap="lg" className="flex h-full flex-col">
+        <Section labelledBy={headingId}>
+            <Stack gap="lg">
 
-            {/* 1. Header & Controls */}
-            <Card
-                as="header"
-                padding="md"
-                className="flex shrink-0 flex-col items-start justify-between gap-ds-4 md:flex-row md:items-center"
-            >
-                <div>
-                    <h2 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                        <Icon icon={BarChart3} size="2xl" className="text-ds-content-link" /> Platform Analytics
-                    </h2>
-                    <p className="text-ds-sm text-ds-content-muted">Monitor usage and performance across all companies.</p>
-                </div>
-
-                <div className="flex flex-wrap gap-ds-2">
-                    <div
-                        role="group"
-                        aria-label="Date range"
-                        className="flex rounded-ds-md bg-ds-surface-subtle p-1"
-                    >
-                        {DATE_RANGES.map(range => (
-                            <Button
-                                key={range}
-                                size="sm"
-                                variant={dateRange === range ? 'primary' : 'ghost'}
-                                aria-pressed={dateRange === range}
-                                onClick={() => setDateRange(range)}
-                            >
-                                {range.toUpperCase()}
-                            </Button>
-                        ))}
+                {/* 1. Header & Controls */}
+                <Card
+                    as="header"
+                    padding="md"
+                    className="flex shrink-0 flex-col items-start justify-between gap-ds-4 md:flex-row md:items-center"
+                >
+                    <div>
+                        <h3 id={headingId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
+                            <Icon icon={BarChart3} size="2xl" className="text-ds-content-link" /> Activity
+                        </h3>
+                        <p className="text-ds-sm text-ds-content-muted">
+                            Calls logged across all companies in the selected period.
+                        </p>
                     </div>
 
-                    <Button variant="primary" onClick={handleExport}>
-                        <Icon icon={Download} /> Export {activeTab === 'users' ? 'Recruiters' : 'Companies'}
-                    </Button>
-                </div>
-            </Card>
+                    <div className="flex flex-wrap gap-ds-2">
+                        <div
+                            role="group"
+                            aria-label="Date range"
+                            className="flex rounded-ds-md bg-ds-surface-subtle p-1"
+                        >
+                            {DATE_RANGES.map(range => (
+                                <Button
+                                    key={range}
+                                    size="sm"
+                                    variant={dateRange === range ? 'primary' : 'ghost'}
+                                    aria-pressed={dateRange === range}
+                                    onClick={() => setDateRange(range)}
+                                >
+                                    {range.toUpperCase()}
+                                </Button>
+                            ))}
+                        </div>
 
-            {/* 2. Summary Cards */}
-            <ResponsiveGrid minItemWidth="220px" className="shrink-0">
-                <MetricCard label="Total Calls" value={stats.summary.totalCalls} tone="info" icon={<Icon icon={Phone} size="xl" />} />
-                <MetricCard label="Active Companies" value={stats.companyPerformance.length} tone="accent" icon={<Icon icon={Users} size="xl" />} />
-                <MetricCard label="Active Recruiters" value={stats.summary.activeRecruiters} tone="warning" icon={<Icon icon={User} size="xl" />} />
-            </ResponsiveGrid>
+                        {ready && (
+                            <Button variant="primary" onClick={handleExport}>
+                                <Icon icon={Download} /> Export {activeTab === 'users' ? 'Recruiters' : 'Companies'}
+                            </Button>
+                        )}
+                    </div>
+                </Card>
 
-            {/* 3. Tabs & Content */}
-            <Card padding="none" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <TabList
-                    ariaLabel="Analytics views"
-                    idBase={tabsId}
-                    tabs={TABS}
-                    activeTab={activeTab}
-                    onChange={setActiveTab}
-                    className="overflow-x-auto px-ds-6 pt-ds-2"
-                />
+                {loading && <LoadingState title="Loading activity…" headingLevel={4} />}
 
-                <TabPanel
-                    idBase={tabsId}
-                    tabId={activeTab}
-                    className="flex-1 overflow-auto bg-ds-canvas p-ds-6"
-                >
+                {!loading && error && (
+                    <ErrorState
+                        title="Activity could not be loaded"
+                        description="The figures for this period could not be read, so none are shown. Try again, or choose another period."
+                        headingLevel={4}
+                        actions={(
+                            <Button variant="secondary" onClick={reload}>
+                                <Icon icon={RefreshCw} /> Try again
+                            </Button>
+                        )}
+                    />
+                )}
 
-                    {activeTab === 'overview' && (
-                        <Stack gap="lg">
-                            <Card padding="lg">
-                                <h3 className="mb-ds-6 flex items-center gap-ds-2 text-ds-sm font-bold text-ds-content">
-                                    <Icon icon={TrendingUp} className="text-ds-content-link" /> Daily Activity Trend
-                                </h3>
-                                <ActivityTrendChart data={stats.dailyTrend} />
-                            </Card>
+                {ready && (
+                    <>
+                        {/* 2. Summary Cards */}
+                        <ResponsiveGrid minItemWidth="220px" className="shrink-0">
+                            <MetricCard label="Total Calls" value={stats.summary.totalCalls} tone="info" icon={<Icon icon={Phone} size="xl" />} />
+                            <MetricCard label="Active Companies" value={stats.companyPerformance.length} tone="accent" icon={<Icon icon={Users} size="xl" />} />
+                            <MetricCard label="Active Recruiters" value={stats.summary.activeRecruiters} tone="warning" icon={<Icon icon={User} size="xl" />} />
+                        </ResponsiveGrid>
 
-                            <div className="grid grid-cols-1 gap-ds-6 md:grid-cols-2">
-                                <Card padding="lg">
-                                    <h3 className="mb-ds-4 text-ds-sm font-bold text-ds-content">Top Companies (By Calls)</h3>
-                                    <Stack gap="md">
-                                        {stats.companyPerformance.slice(0, 5).map((comp, i) => (
-                                            <div key={i} className="flex items-center justify-between gap-ds-3">
-                                                <div className="flex min-w-0 items-center gap-ds-3">
-                                                    <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-full bg-ds-status-info-bg text-ds-xs font-bold text-ds-status-info-fg">
-                                                        {i + 1}
-                                                    </span>
-                                                    <span className="truncate text-ds-sm font-medium text-ds-content-secondary">{comp.companyName}</span>
-                                                </div>
-                                                <div className="flex shrink-0 items-center gap-ds-2">
-                                                    <span aria-hidden="true" className="h-2 w-24 overflow-hidden rounded-ds-full bg-ds-surface-subtle">
-                                                        <span
-                                                            className="block h-full rounded-ds-full bg-ds-action-primary"
-                                                            style={{ width: `${(comp.callsMade / (stats.summary.totalCalls || 1)) * 100}%` }}
-                                                        />
-                                                    </span>
-                                                    <span className="text-ds-xs font-bold text-ds-content-secondary">{comp.callsMade} calls</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {stats.companyPerformance.length === 0 && <p className="text-ds-xs italic text-ds-content-muted">No data yet.</p>}
+                        {/* 3. Tabs & Content */}
+                        <Card padding="none" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                            <TabList
+                                ariaLabel="Activity views"
+                                idBase={tabsId}
+                                tabs={TABS}
+                                activeTab={activeTab}
+                                onChange={setActiveTab}
+                                className="overflow-x-auto px-ds-6 pt-ds-2"
+                            />
+
+                            <TabPanel
+                                idBase={tabsId}
+                                tabId={activeTab}
+                                className="flex-1 overflow-auto bg-ds-canvas p-ds-6"
+                            >
+
+                                {activeTab === 'overview' && (
+                                    <Stack gap="lg">
+                                        <Card padding="lg">
+                                            <h4 className="mb-ds-6 flex items-center gap-ds-2 text-ds-sm font-bold text-ds-content">
+                                                <Icon icon={TrendingUp} className="text-ds-content-link" /> Daily Activity Trend
+                                            </h4>
+                                            <ActivityTrendChart data={stats.dailyTrend} />
+                                        </Card>
+
+                                        <div className="grid grid-cols-1 gap-ds-6 md:grid-cols-2">
+                                            <Card padding="lg">
+                                                <h4 className="mb-ds-4 text-ds-sm font-bold text-ds-content">Top Companies (By Calls)</h4>
+                                                <Stack gap="md">
+                                                    {stats.companyPerformance.slice(0, 5).map((comp, i) => (
+                                                        <div key={i} className="flex items-center justify-between gap-ds-3">
+                                                            <div className="flex min-w-0 items-center gap-ds-3">
+                                                                <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-full bg-ds-status-info-bg text-ds-xs font-bold text-ds-status-info-fg">
+                                                                    {i + 1}
+                                                                </span>
+                                                                <span className="truncate text-ds-sm font-medium text-ds-content-secondary">{comp.companyName}</span>
+                                                            </div>
+                                                            <div className="flex shrink-0 items-center gap-ds-2">
+                                                                <span aria-hidden="true" className="h-2 w-24 overflow-hidden rounded-ds-full bg-ds-surface-subtle">
+                                                                    <span
+                                                                        className="block h-full rounded-ds-full bg-ds-action-primary"
+                                                                        style={{ width: `${(comp.callsMade / (stats.summary.totalCalls || 1)) * 100}%` }}
+                                                                    />
+                                                                </span>
+                                                                <span className="text-ds-xs font-bold text-ds-content-secondary">{comp.callsMade} calls</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {stats.companyPerformance.length === 0 && <p className="text-ds-xs italic text-ds-content-muted">No data yet.</p>}
+                                                </Stack>
+                                            </Card>
+
+                                            <Card padding="lg">
+                                                <h4 className="mb-ds-4 text-ds-sm font-bold text-ds-content">Top Recruiters (By Calls)</h4>
+                                                <Stack gap="md">
+                                                    {stats.userPerformance.slice(0, 5).map((user, i) => (
+                                                        <div key={i} className="flex items-center justify-between gap-ds-3">
+                                                            <div className="flex min-w-0 items-center gap-ds-3">
+                                                                <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-full bg-ds-status-accent-bg text-ds-xs font-bold text-ds-status-accent-fg">
+                                                                    {i + 1}
+                                                                </span>
+                                                                <span className="min-w-0">
+                                                                    <span className="block truncate text-ds-sm font-medium text-ds-content-secondary">{user.userName}</span>
+                                                                    <span className="block truncate text-ds-xs text-ds-content-muted">{user.companyName}</span>
+                                                                </span>
+                                                            </div>
+                                                            <span className="shrink-0 text-ds-xs font-bold text-ds-content-secondary">{user.callsMade} calls</span>
+                                                        </div>
+                                                    ))}
+                                                    {stats.userPerformance.length === 0 && <p className="text-ds-xs italic text-ds-content-muted">No data yet.</p>}
+                                                </Stack>
+                                            </Card>
+                                        </div>
                                     </Stack>
-                                </Card>
+                                )}
 
-                                <Card padding="lg">
-                                    <h3 className="mb-ds-4 text-ds-sm font-bold text-ds-content">Top Recruiters (By Calls)</h3>
-                                    <Stack gap="md">
-                                        {stats.userPerformance.slice(0, 5).map((user, i) => (
-                                            <div key={i} className="flex items-center justify-between gap-ds-3">
-                                                <div className="flex min-w-0 items-center gap-ds-3">
-                                                    <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-full bg-ds-status-accent-bg text-ds-xs font-bold text-ds-status-accent-fg">
-                                                        {i + 1}
-                                                    </span>
-                                                    <span className="min-w-0">
-                                                        <span className="block truncate text-ds-sm font-medium text-ds-content-secondary">{user.userName}</span>
-                                                        <span className="block truncate text-ds-xs text-ds-content-muted">{user.companyName}</span>
-                                                    </span>
-                                                </div>
-                                                <span className="shrink-0 text-ds-xs font-bold text-ds-content-secondary">{user.callsMade} calls</span>
-                                            </div>
-                                        ))}
-                                        {stats.userPerformance.length === 0 && <p className="text-ds-xs italic text-ds-content-muted">No data yet.</p>}
-                                    </Stack>
-                                </Card>
-                            </div>
-                        </Stack>
-                    )}
+                                {activeTab === 'companies' && (
+                                    <Card
+                                        padding="none"
+                                        role="region"
+                                        aria-label="Company performance. Scroll horizontally to view all columns."
+                                        tabIndex={0}
+                                        className="overflow-x-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
+                                    >
+                                        <table className="ds-native-table" data-density="compact" data-row-hover data-pin-first-column>
+                                            <caption className="sr-only">Company performance for the selected period</caption>
+                                            <thead className="bg-ds-table-header-bg text-ds-table-header-fg">
+                                                <tr>
+                                                    <th scope="col">Company</th>
+                                                    <th scope="col" className="text-center">Calls Made</th>
+                                                    <th scope="col" className="text-right">Engagement</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {stats.companyPerformance.map((comp) => (
+                                                    <tr key={comp.companyId} className="transition-colors">
+                                                        <th scope="row" className="font-medium text-ds-content">{comp.companyName}</th>
+                                                        <td className="text-center tabular-nums">{comp.callsMade}</td>
+                                                        <td className="text-right">
+                                                            <Badge tone={comp.callsMade > 20 ? 'success' : 'warning'} icon={ArrowUpRight}>
+                                                                {comp.callsMade > 20 ? 'High' : 'Low'}
+                                                            </Badge>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {stats.companyPerformance.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="3" className="text-center italic text-ds-content-muted">No data found for this period.</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </Card>
+                                )}
 
-                    {activeTab === 'companies' && (
-                        <Card
-                    padding="none"
-                    role="region"
-                    aria-label="Company performance. Scroll horizontally to view all columns."
-                    tabIndex={0}
-                    className="overflow-x-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
-                >
-                            <table className="ds-native-table" data-density="compact" data-row-hover data-pin-first-column>
-                                <caption className="sr-only">Company performance for the selected period</caption>
-                                <thead className="bg-ds-table-header-bg text-ds-table-header-fg">
-                                    <tr>
-                                        <th scope="col">Company</th>
-                                        <th scope="col" className="text-center">Calls Made</th>
-                                        <th scope="col" className="text-center">Total Actions</th>
-                                        <th scope="col" className="text-right">Engagement</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {stats.companyPerformance.map((comp) => (
-                                        <tr key={comp.companyId} className="transition-colors">
-                                            <th scope="row" className="font-medium text-ds-content">{comp.companyName}</th>
-                                            <td className="text-center tabular-nums">{comp.callsMade}</td>
-                                            <td className="text-center tabular-nums">{comp.actions}</td>
-                                            <td className="text-right">
-                                                <Badge tone={comp.callsMade > 20 ? 'success' : 'warning'} icon={ArrowUpRight}>
-                                                    {comp.callsMade > 20 ? 'High' : 'Low'}
-                                                </Badge>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {stats.companyPerformance.length === 0 && (
-                                        <tr>
-                                            <td colSpan="4" className="text-center italic text-ds-content-muted">No data found for this period.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                {activeTab === 'users' && (
+                                    <Card
+                                        padding="none"
+                                        role="region"
+                                        aria-label="Recruiter performance. Scroll horizontally to view all columns."
+                                        tabIndex={0}
+                                        className="overflow-x-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
+                                    >
+                                        <table className="ds-native-table" data-density="compact" data-row-hover data-pin-first-column>
+                                            <caption className="sr-only">Recruiter performance for the selected period</caption>
+                                            <thead className="bg-ds-table-header-bg text-ds-table-header-fg">
+                                                <tr>
+                                                    <th scope="col">Recruiter Name</th>
+                                                    <th scope="col">Company</th>
+                                                    <th scope="col" className="text-center">Calls Made</th>
+                                                    <th scope="col" className="text-right">Last Active</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {stats.userPerformance.map((user) => (
+                                                    <tr key={user.userId} className="transition-colors">
+                                                        <th scope="row" className="text-ds-content">{user.userName}</th>
+                                                        <td>{user.companyName}</td>
+                                                        <td className="text-center font-mono tabular-nums text-ds-content-link">{user.callsMade}</td>
+                                                        <td className="text-right text-ds-sm text-ds-content-muted">
+                                                            {user.lastActive ? formatDay(user.lastActive) : 'Unknown'}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {stats.userPerformance.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan="4" className="text-center italic text-ds-content-muted">No activity found for this period.</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </Card>
+                                )}
+                            </TabPanel>
                         </Card>
-                    )}
-
-                    {activeTab === 'users' && (
-                        <Card
-                    padding="none"
-                    role="region"
-                    aria-label="Recruiter performance. Scroll horizontally to view all columns."
-                    tabIndex={0}
-                    className="overflow-x-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
-                >
-                            <table className="ds-native-table" data-density="compact" data-row-hover data-pin-first-column>
-                                <caption className="sr-only">Recruiter performance for the selected period</caption>
-                                <thead className="bg-ds-table-header-bg text-ds-table-header-fg">
-                                    <tr>
-                                        <th scope="col">Recruiter Name</th>
-                                        <th scope="col">Company</th>
-                                        <th scope="col" className="text-center">Calls Made</th>
-                                        <th scope="col" className="text-right">Last Active</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {stats.userPerformance.map((user) => (
-                                        <tr key={user.userId} className="transition-colors">
-                                            <th scope="row" className="text-ds-content">{user.userName}</th>
-                                            <td>{user.companyName}</td>
-                                            <td className="text-center font-mono tabular-nums text-ds-content-link">{user.callsMade}</td>
-                                            <td className="text-right text-ds-sm text-ds-content-muted">
-                                                {user.lastActive?.toDate
-                                                    ? user.lastActive.toDate().toLocaleString()
-                                                    : 'Unknown'}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {stats.userPerformance.length === 0 && (
-                                        <tr>
-                                            <td colSpan="4" className="text-center italic text-ds-content-muted">No activity found for this period.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </Card>
-                    )}
-                </TabPanel>
-            </Card>
-        </Stack>
+                    </>
+                )}
+            </Stack>
+        </Section>
     );
 }

@@ -12,9 +12,8 @@ describe('Switch', () => {
   });
 
   it('requires a label naming what it turns on', () => {
-    // The Super Admin feature matrix once shipped a grid of these with no name
-    // at all: a screen-reader user heard "button" and could not tell which
-    // feature it was, which company it belonged to, or whether it was on.
+    // A switch with no name: a screen-reader user hears "button" and cannot
+    // tell which feature it is, which company it belongs to, or whether it is on.
     expect(() => render(<Switch label="" onChange={vi.fn()} />))
       .toThrow(/requires a non-empty label/i);
   });

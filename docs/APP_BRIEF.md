@@ -315,9 +315,10 @@ session-based worker (§8). Partial by design: the carrier connects its own
 messaging provider and is billed by it. No two-way threads, no automated
 multi-step drips.
 
-**Super admin operations.** Companies, users, unified driver DB, global feature
-flags, SMS integrations, Environment & Integrations vault, AI providers, blog,
-website-lead archive, system health, stats backfill, releases.
+**Super admin operations.** Dashboard (totals and calls per period), companies
+(each with its features and SMS setup), users, unified driver DB, Environment &
+Integrations vault, AI providers, blog, website-lead archive, system health,
+releases, Maintenance (writes ask first).
 
 ---
 
@@ -1017,7 +1018,7 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
   marked `validation_error`), files its details (no SSN) under `drivers/{id}/pending_updates`,
   read by nothing, and adds the company to an existing profile (`{id}`: the Auth uid of a known email;
   for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created.
-- **Stats** — `activity_logs` writes roll up into `stats_daily`; application and
+- **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
 - **Notifications** — status changes, lead assignment, new applications,
@@ -1200,8 +1201,7 @@ focusable horizontal-scroll region, sticky header, first column pinned
 per-row form controls worked one record at a time — the SMS recruiter-assignment
 matrix — becomes one card per row under 768px
 (`data-mobile-presentation="cards"`), the same elements at every width, as does
-a `DataTable` of such rows (`mobilePresentation="cards"`). The Super Admin
-feature matrix is the one specialized grid. Source and guards:
+a `DataTable` of such rows (`mobilePresentation="cards"`). Source and guards:
 `src/design-system/components/data-table/README.md`.
 
 **Two contracts have no exception route**, because the code refuses to run: a
@@ -1349,8 +1349,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Historical reconstruction is an ongoing migration.** Applications submitted
   before snapshot preservation get a record and PDF rebuilt only from surviving
   evidence and **marked as reconstructed** (`reconstructHistoricalApplications`);
-  `surveyHistoricalReconstruction` counts what is left when the owner presses
-  the dashboard's "Check what is left", and says when nothing is. See
+  `surveyHistoricalReconstruction` counts what is left when asked on
+  Maintenance, and says when nothing is. See
   [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md).
 - **A deleted blog article does not free its slot.** Deletion leaves a tombstone
   and `slotIsFilled` checks only that the slot's document exists, so the day

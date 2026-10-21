@@ -2,9 +2,9 @@
  * Contract freeze + safety proof for the migrated `StatsBackfillPanel`.
  *
  * This panel rewrites `stats_daily`, for one company or for every company on the
- * platform, so the callable names, timeout and payloads are frozen first. The
- * headline fix is that "Run All Companies" previously ran with **no confirmation
- * of any kind**.
+ * platform, so the callable names, timeout and payloads are frozen first. Both
+ * writing runs wait for a confirmation; the dry-runs, which write nothing, do
+ * not.
  *
  * All company IDs below are artificial.
  */
@@ -43,12 +43,15 @@ describe('StatsBackfillPanel — frozen callable contracts', () => {
         expect(callable).toHaveBeenCalledWith({ companyId: 'artificial-company-id', dryRun: true });
     });
 
-    it('trims the company id and passes dryRun false for the real run', async () => {
+    it('trims the company id and passes dryRun false for the confirmed real run', async () => {
         render(<StatsBackfillPanel />);
         enterCompanyId('  padded-id  ');
         fireEvent.click(screen.getByRole('button', { name: /Run Actual Backfill/ }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Run for this company' }));
 
         await waitFor(() => expect(callable).toHaveBeenCalledWith({ companyId: 'padded-id', dryRun: false }));
+        expect(httpsCallable).toHaveBeenCalledWith({ __functions: true }, 'backfillCompanyStats', { timeout: 540000 });
+        expect(callable).toHaveBeenCalledTimes(1);
     });
 
     it('calls backfillAllStats with the exact name, timeout and payload', async () => {
@@ -71,6 +74,74 @@ describe('StatsBackfillPanel — frozen callable contracts', () => {
     });
 });
 
+describe('StatsBackfillPanel — Run Actual Backfill is confirmed', () => {
+    /** The single-company writing run, with focus on its trigger as a keyboard user would have it. */
+    function openCompanyConfirmation(id = 'artificial-company-id') {
+        render(<StatsBackfillPanel />);
+        enterCompanyId(id);
+        const trigger = screen.getByRole('button', { name: /Run Actual Backfill/ });
+        trigger.focus();
+        fireEvent.click(trigger);
+        return trigger;
+    }
+
+    it('does not call the callable until the confirmation is accepted', async () => {
+        openCompanyConfirmation();
+
+        // It overwrites that company's stats_daily, and used to run on the click.
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog).toHaveAccessibleName('Run the backfill for this company?');
+        expect(httpsCallable).not.toHaveBeenCalled();
+        expect(callable).not.toHaveBeenCalled();
+    });
+
+    it('names the company and says what it overwrites', async () => {
+        openCompanyConfirmation('  padded-id  ');
+
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByText('padded-id')).toBeInTheDocument();
+        expect(dialog).toHaveTextContent(/overwrit/);
+        expect(dialog).toHaveTextContent(/cannot be undone/);
+    });
+
+    it('runs nothing on Cancel, and gives focus back to the trigger', async () => {
+        const trigger = openCompanyConfirmation();
+        fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(callable).not.toHaveBeenCalled();
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    it('runs nothing on Escape, and gives focus back to the trigger', async () => {
+        const trigger = openCompanyConfirmation();
+        fireEvent.keyDown(await screen.findByRole('dialog'), { key: 'Escape' });
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(callable).not.toHaveBeenCalled();
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    it('gives focus back to the trigger once the confirmed run has finished', async () => {
+        const trigger = openCompanyConfirmation();
+        fireEvent.click(await screen.findByRole('button', { name: 'Run for this company' }));
+
+        // Confirming disables the trigger while the run is in flight, so the
+        // dialog's own hand-back cannot land on it.
+        await waitFor(() => expect(document.activeElement).toBe(trigger));
+        expect(trigger).not.toBeDisabled();
+    });
+
+    it('leaves the single-company dry-run unguarded', async () => {
+        render(<StatsBackfillPanel />);
+        enterCompanyId();
+        fireEvent.click(screen.getByRole('button', { name: /Dry-Run \(Preview\)/ }));
+
+        await waitFor(() => expect(callable).toHaveBeenCalledWith({ companyId: 'artificial-company-id', dryRun: true }));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+});
+
 describe('StatsBackfillPanel — Run All Companies is confirmed (defect)', () => {
     it('does not call the callable until the confirmation is accepted', async () => {
         render(<StatsBackfillPanel />);
@@ -89,13 +160,39 @@ describe('StatsBackfillPanel — Run All Companies is confirmed (defect)', () =>
         await waitFor(() => expect(callable).toHaveBeenCalledWith({ dryRun: false }));
     });
 
-    it('does not run when the confirmation is cancelled', async () => {
+    it('does not run when the confirmation is cancelled, and gives focus back to the trigger', async () => {
         render(<StatsBackfillPanel />);
-        fireEvent.click(screen.getByRole('button', { name: /Run All Companies/ }));
+        const trigger = screen.getByRole('button', { name: /Run All Companies/ });
+        trigger.focus();
+        fireEvent.click(trigger);
         fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
 
         expect(callable).not.toHaveBeenCalled();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    it('does not run on Escape, and gives focus back to the trigger', async () => {
+        render(<StatsBackfillPanel />);
+        const trigger = screen.getByRole('button', { name: /Run All Companies/ });
+        trigger.focus();
+        fireEvent.click(trigger);
+        fireEvent.keyDown(await screen.findByRole('dialog'), { key: 'Escape' });
+
+        expect(callable).not.toHaveBeenCalled();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(document.activeElement).toBe(trigger);
+    });
+
+    it('gives focus back to the trigger once the confirmed run has finished', async () => {
+        render(<StatsBackfillPanel />);
+        const trigger = screen.getByRole('button', { name: /Run All Companies/ });
+        trigger.focus();
+        fireEvent.click(trigger);
+        fireEvent.click(await screen.findByRole('button', { name: 'Run for all companies' }));
+
+        await waitFor(() => expect(document.activeElement).toBe(trigger));
+        expect(callable).toHaveBeenCalledWith({ dryRun: false });
     });
 
     it('warns that the action is irreversible and platform-wide', async () => {
@@ -178,5 +275,13 @@ describe('StatsBackfillPanel — preserved product copy', () => {
     it('has no accessibility violations', async () => {
         const { container } = render(<StatsBackfillPanel />);
         expect((await axe(container)).violations).toEqual([]);
+    });
+
+    it('is a section of the Maintenance page: its title is an h3 under the page h2', () => {
+        const { container } = render(<StatsBackfillPanel />);
+        expect(container.querySelector('h1, h2')).toBeNull();
+        expect(screen.getByRole('heading', { level: 3, name: 'Performance Stats Backfill' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 4, name: 'Single Company Backfill' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 4, name: 'All Companies' })).toBeInTheDocument();
     });
 });

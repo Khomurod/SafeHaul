@@ -8,7 +8,6 @@ import {
     FieldMessage,
     TabList,
     TabPanel,
-    tabIds,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
@@ -39,7 +38,6 @@ import { AiLogsPanel } from '../components/ai/AiLogsPanel';
 import { buildProviderColumns } from '../components/ai/aiProviderColumns';
 import { AiMediaProvidersSection } from '../components/ai/AiMediaProvidersSection';
 import { AiDiagnosticsCards } from '../components/ai/AiDiagnosticsCards';
-import { AiRecentActivityCard } from '../components/ai/AiRecentActivityCard';
 import { AiProvidersOverview } from '../components/ai/AiProvidersOverview';
 import { AiIntegrationsModals } from '../components/ai/AiIntegrationsModals';
 
@@ -60,12 +58,15 @@ import { AiIntegrationsModals } from '../components/ai/AiIntegrationsModals';
  * This view does not render a `PageHeader`: the Super Admin masthead owns the
  * single `<h1>`, so the page starts at `<h2>`.
  *
- * At ~490 lines this file is deliberately the screen's orchestration and no
- * more: the state, the handlers, and the layout. What each region renders
- * lives beside it in `../components/ai/` — the provider table's columns, the
- * overview, the Research & Media section, the diagnostics cards, the
- * recent-activity card and the three dialogs — each taking exactly the state
- * and handlers it always used, as props.
+ * This file is deliberately the screen's orchestration and no more: the
+ * state, the handlers, and the layout. What each region renders lives beside
+ * it in `../components/ai/` — the provider table's columns, the overview, the
+ * Research & Media section, the diagnostics cards and the three dialogs — each
+ * taking exactly the state and handlers it always used, as props.
+ *
+ * Recent AI activity has one place, the Logs tab. `listAiProviders` still
+ * returns `telemetry`, so a site still serving an earlier release of this
+ * screen keeps working; this screen does not read it.
  */
 /**
  * The two halves of this screen.
@@ -87,7 +88,6 @@ export function AiIntegrationsView() {
     const [providers, setProviders] = useState([]);
     const [routing, setRouting] = useState(null);
     const [mediaProviders, setMediaProviders] = useState([]);
-    const [telemetry, setTelemetry] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(null);
 
@@ -120,7 +120,6 @@ export function AiIntegrationsView() {
             ]);
             setProviders(ai.providers || []);
             setRouting(ai.routing || null);
-            setTelemetry(ai.telemetry || []);
             setMediaProviders(media.providers || []);
         } catch (error) {
             setLoadError(describeAiError(error, 'The AI provider list could not be loaded.'));
@@ -361,17 +360,6 @@ export function AiIntegrationsView() {
         handleToggleEnabled, revealed, testingId,
     ]);
 
-    const openLogsTab = () => {
-        setActiveTab('logs');
-        /*
-          Focus follows the switch, so a keyboard user is not
-          left on a button whose panel just changed under them.
-          `tabIds` is the design system's own id contract, which
-          is why the strip no longer needs a ref map here.
-        */
-        document.getElementById(tabIds(tabsId, 'logs').tabId)?.focus();
-    };
-
     return (
         <Stack gap="lg">
             <div>
@@ -447,11 +435,6 @@ export function AiIntegrationsView() {
                 checkingCredentialAccess={checkingCredentialAccess}
                 handleCheckCredentialAccess={handleCheckCredentialAccess}
             />
-
-            {/* Recent activity lives in the Logs tab now: one transaction per
-                row, expandable into the provider timeline. A second, shallower
-                list here would be a competing answer to the same question. */}
-            <AiRecentActivityCard telemetry={telemetry} onOpenLogs={openLogsTab} />
             </Stack>
             )}
             </TabPanel>

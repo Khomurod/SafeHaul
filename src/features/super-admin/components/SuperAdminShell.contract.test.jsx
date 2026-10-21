@@ -2,15 +2,16 @@
  * Contract freeze + defect proof for the Super Admin shell
  * (`SuperAdminDashboard`, `DashboardHeader`, `SuperAdminSidebar`).
  *
- * The shell owns a maintenance action that writes to live data across every
- * company, so the callable name, timeout and payload are frozen here before any
- * presentation change. The rest proves the accessibility defects the migration
- * set out to fix are actually fixed:
+ * The masthead holds the product identity, the global search and logout; the
+ * maintenance actions live on the Maintenance page, whose suite
+ * (`MaintenanceView.contract.test.jsx`) froze the employer backfill's callable,
+ * confirmation and focus hand-back when the button moved there. This suite
+ * proves the accessibility defects the migration set out to fix are fixed:
  *  - the global search input had no label,
  *  - the clear-search control had no accessible name,
  *  - the nav had no accessible name and signalled the active view by colour only,
- *  - the backfill was guarded by a blocking `window.confirm` and reported by a
- *    blocking `alert()`.
+ * and that the screen is in the address, including the addresses of screens
+ * that were merged into another.
  *
  * All company/user names below are artificial.
  */
@@ -44,22 +45,28 @@ vi.mock('../hooks/useSuperAdminData', () => ({
 // The view layer is exercised by its own suites; the shell only needs to prove
 // it routes and composes.
 vi.mock('./ViewRouter', () => ({
-    ViewRouter: ({ activeView, isSearching, selectedIntegrationCompany, onSelectIntegrationCompany, onBackToIntegrations }) => (
+    ViewRouter: ({ activeView, isSearching, selectedCompany, companyRevision, onOpenCompany, onCompanyTab, onBackToCompanies }) => (
         <div
             data-testid="view-router"
             data-active-view={activeView}
             data-searching={String(isSearching)}
-            data-company-id={selectedIntegrationCompany?.id ?? ''}
-            data-picked-name={selectedIntegrationCompany?.picked?.companyName ?? ''}
+            data-company-id={selectedCompany?.id ?? ''}
+            data-tab={selectedCompany?.tab ?? ''}
+            data-revision={String(companyRevision)}
         >
-            <button type="button" onClick={() => onSelectIntegrationCompany({ id: 'co-9', companyName: 'Artificial Carrier 9' })}>
-                Set up SMS for Artificial Carrier 9
+            <button type="button" onClick={() => onOpenCompany({ id: 'co-9', companyName: 'Artificial Carrier 9' })}>
+                Open Artificial Carrier 9
             </button>
-            <button type="button" onClick={onBackToIntegrations}>Back to SMS integrations</button>
+            <button type="button" onClick={() => onCompanyTab('sms')}>Show the SMS tab</button>
+            <button type="button" onClick={onBackToCompanies}>Back to companies</button>
         </div>
     ),
 }));
-vi.mock('./DashboardModals', () => ({ DashboardModals: () => null }));
+vi.mock('./DashboardModals', () => ({
+    DashboardModals: ({ onRefreshData }) => (
+        <button type="button" onClick={onRefreshData}>Save company details</button>
+    ),
+}));
 
 import { SuperAdminDashboard } from './SuperAdminDashboard';
 
@@ -114,135 +121,6 @@ beforeEach(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-describe('Super Admin shell — frozen maintenance contract', () => {
-    it('calls backfillEmployerFields with the exact name, timeout and payload', async () => {
-        const backfillFn = vi.fn().mockResolvedValue({ data: { message: 'done', stats: {} } });
-        httpsCallable.mockReturnValue(backfillFn);
-
-        renderShell();
-        fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
-
-        await waitFor(() => expect(backfillFn).toHaveBeenCalled());
-        expect(httpsCallable).toHaveBeenCalledWith(
-            { __functions: true },
-            'backfillEmployerFields',
-            { timeout: 540000 },
-        );
-        expect(backfillFn).toHaveBeenCalledWith({ dryRun: false });
-    });
-
-    it('does not run the backfill unless the confirmation is accepted', async () => {
-        const backfillFn = vi.fn().mockResolvedValue({ data: { message: 'done', stats: {} } });
-        httpsCallable.mockReturnValue(backfillFn);
-
-        renderShell();
-        fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
-
-        expect(backfillFn).not.toHaveBeenCalled();
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    });
-
-    it('keeps the toast + refresh sequence on success', async () => {
-        const backfillFn = vi.fn().mockResolvedValue({
-            data: { message: 'Backfill complete', stats: { totalDocs: 9, updatedDocs: 4, skippedDocs: 5, errorDocs: 0 } },
-        });
-        httpsCallable.mockReturnValue(backfillFn);
-
-        renderShell();
-        fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
-
-        await waitFor(() => expect(showSuccess).toHaveBeenCalledWith('Backfill complete'));
-        expect(showInfo).toHaveBeenCalledWith('Running employer field backfill... this may take a few minutes.');
-        expect(refreshData).toHaveBeenCalled();
-    });
-
-    it('reports failures through the error toast rather than throwing', async () => {
-        httpsCallable.mockReturnValue(vi.fn().mockRejectedValue(new Error('nope')));
-
-        renderShell();
-        fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
-
-        await waitFor(() => expect(showError).toHaveBeenCalledWith('Employer backfill failed: nope'));
-    });
-});
-
-describe('Super Admin shell — blocking dialogs replaced (defect)', () => {
-    it('never calls window.confirm or window.alert', async () => {
-        // jsdom does not implement `confirm`/`alert`, so install stubs rather than
-        // spy on them. If the shell ever reintroduces a blocking dialog these fire.
-        const confirmSpy = vi.fn(() => true);
-        const alertSpy = vi.fn();
-        vi.stubGlobal('confirm', confirmSpy);
-        vi.stubGlobal('alert', alertSpy);
-        httpsCallable.mockReturnValue(
-            vi.fn().mockResolvedValue({ data: { message: 'ok', stats: { totalDocs: 1 } } }),
-        );
-
-        renderShell();
-        fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
-
-        await screen.findByText('Employer backfill report');
-        expect(confirmSpy).not.toHaveBeenCalled();
-        expect(alertSpy).not.toHaveBeenCalled();
-        vi.unstubAllGlobals();
-    });
-
-    it('returns focus to the Backfill trigger after the report is closed', async () => {
-        httpsCallable.mockReturnValue(vi.fn().mockResolvedValue({
-            data: { message: 'ok', stats: { totalDocs: 3 } },
-        }));
-
-        renderShell();
-        const trigger = screen.getByRole('button', { name: /Backfill Employers/i });
-        trigger.focus();
-        fireEvent.click(trigger);
-        fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
-
-        await screen.findByText('Employer backfill report');
-        fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-
-        // The confirmation cannot hand focus back itself: confirming disables the
-        // trigger and unmounts the dialog in the same commit, so its restore
-        // targets a disabled button and lands on <body>. Without the explicit
-        // hand-back, a keyboard user ends the flow at the top of the page.
-        await waitFor(() => {
-            expect(document.activeElement).toBe(
-                screen.getByRole('button', { name: /Backfill Employers/i }),
-            );
-        });
-    });
-
-    it('presents the confirmation as a real dialog with an accessible name', async () => {
-        renderShell();
-        fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
-
-        const dialog = await screen.findByRole('dialog');
-        expect(dialog).toHaveAttribute('aria-modal', 'true');
-        expect(within(dialog).getByText('Run employer field backfill?')).toBeInTheDocument();
-    });
-
-    it('shows the same four counters the alert() used to print', async () => {
-        httpsCallable.mockReturnValue(vi.fn().mockResolvedValue({
-            data: { message: 'ok', stats: { totalDocs: 12, updatedDocs: 7, skippedDocs: 4, errorDocs: 1 } },
-        }));
-
-        renderShell();
-        fireEvent.click(screen.getByRole('button', { name: /Backfill Employers/i }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Run backfill' }));
-
-        const report = await screen.findByRole('dialog');
-        expect(within(report).getByText('Total applications').nextSibling).toHaveTextContent('12');
-        expect(within(report).getByText('Updated').nextSibling).toHaveTextContent('7');
-        expect(within(report).getByText('Already correct').nextSibling).toHaveTextContent('4');
-        expect(within(report).getByText('Errors').nextSibling).toHaveTextContent('1');
-    });
-});
-
 describe('Super Admin shell — header accessibility (defects)', () => {
     it('gives the global search box an accessible name', () => {
         renderShell();
@@ -263,6 +141,14 @@ describe('Super Admin shell — header accessibility (defects)', () => {
         expect(logout).toHaveAttribute('id', 'logout-button-super');
         fireEvent.click(logout);
         expect(handleLogout).toHaveBeenCalled();
+    });
+
+    it('carries no maintenance action: the employer backfill is on the Maintenance page', () => {
+        renderShell();
+        const banner = screen.getByRole('banner');
+        expect(within(banner).queryByRole('button', { name: /Backfill Employers/i })).not.toBeInTheDocument();
+        expect(within(banner).getAllByRole('button').map((button) => button.id)).toEqual(['logout-button-super']);
+        expect(httpsCallable).not.toHaveBeenCalled();
     });
 });
 
@@ -286,11 +172,15 @@ describe('Super Admin shell — navigation (defects)', () => {
         fireEvent.click(within(nav).getByRole('button', { name: 'Unified Driver DB' }));
         expect(screen.getByTestId('view-router')).toHaveAttribute('data-active-view', 'applications');
 
-        fireEvent.click(within(nav).getByRole('button', { name: 'SMS Integrations' }));
-        expect(screen.getByTestId('view-router')).toHaveAttribute('data-active-view', 'integrations');
+        expect(within(nav).queryByRole('button', { name: 'SMS Integrations' })).not.toBeInTheDocument();
+        expect(within(nav).queryByRole('button', { name: 'Global Features' })).not.toBeInTheDocument();
 
         fireEvent.click(within(nav).getByRole('button', { name: 'System Health' }));
         expect(screen.getByTestId('view-router')).toHaveAttribute('data-active-view', 'system-health');
+
+        fireEvent.click(within(nav).getByRole('button', { name: 'Maintenance' }));
+        expect(screen.getByTestId('view-router')).toHaveAttribute('data-active-view', 'maintenance');
+        expect(within(nav).queryByRole('button', { name: 'Stats Backfill' })).not.toBeInTheDocument();
     });
 
     it('clears the search query when a section is chosen', () => {
@@ -340,28 +230,118 @@ describe('Super Admin shell — the screen in the address', () => {
         expect(view()).toHaveAttribute('data-active-view', 'companies');
     });
 
-    it("reopens a company's SMS setup from its address, for the setup to read the company", () => {
-        renderShell('/super-admin/integrations/co-7');
+    it("opens a company's screen from its address, on the tab it names, as part of Companies", () => {
+        renderShell('/super-admin/companies/co-7/sms');
 
-        expect(view()).toHaveAttribute('data-active-view', 'integration-setup');
+        expect(view()).toHaveAttribute('data-active-view', 'company');
         expect(view()).toHaveAttribute('data-company-id', 'co-7');
-        expect(view()).toHaveAttribute('data-picked-name', '');
+        expect(view()).toHaveAttribute('data-tab', 'sms');
+        expect(within(nav()).getByRole('button', { name: 'Companies' })).toHaveAttribute('aria-current', 'page');
     });
 
-    it('puts the SMS setup a row opens into the address, and leaves it for the list', () => {
-        renderShell('/super-admin/integrations');
+    it("opens a company's features when its address names no tab", () => {
+        renderShell('/super-admin/companies/co-7');
 
-        fireEvent.click(screen.getByRole('button', { name: 'Set up SMS for Artificial Carrier 9' }));
-        expect(screen.getByTestId('address')).toHaveTextContent('/super-admin/integrations/co-9');
-        expect(view()).toHaveAttribute('data-picked-name', 'Artificial Carrier 9');
+        expect(view()).toHaveAttribute('data-company-id', 'co-7');
+        expect(view()).toHaveAttribute('data-tab', 'features');
+    });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Back to SMS integrations' }));
-        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/integrations$/);
-        expect(view()).toHaveAttribute('data-active-view', 'integrations');
+    it('puts the company a row opens into the address; a tab replaces it, so Back leaves the company', () => {
+        renderShell('/super-admin/companies?e2eAuth=super_admin');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Open Artificial Carrier 9' }));
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/companies\/co-9\?e2eAuth=super_admin$/);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Show the SMS tab' }));
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/companies\/co-9\/sms\?e2eAuth=super_admin$/);
+        expect(view()).toHaveAttribute('data-tab', 'sms');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/companies\?e2eAuth=super_admin$/);
+        expect(view()).toHaveAttribute('data-active-view', 'companies');
+    });
+
+    it("leaves a company's screen for the list", () => {
+        renderShell('/super-admin/companies/co-9');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back to companies' }));
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/companies$/);
+        expect(view()).toHaveAttribute('data-active-view', 'companies');
+    });
+
+    it("has the company's screen read it again when its details are saved, and refreshes the lists", () => {
+        renderShell('/super-admin/companies/co-9');
+        expect(view()).toHaveAttribute('data-revision', '0');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Save company details' }));
+        expect(view()).toHaveAttribute('data-revision', '1');
+        expect(refreshData).toHaveBeenCalledTimes(1);
     });
 
     it('opens the dashboard for an address it does not know', () => {
         renderShell('/super-admin/nowhere');
         expect(view()).toHaveAttribute('data-active-view', 'dashboard');
+    });
+});
+
+describe('Super Admin shell — the addresses of merged screens', () => {
+    const view = () => screen.getByTestId('view-router');
+    const address = () => screen.getByTestId('address');
+
+    /** The panel at the last of `entries`, with the earlier ones behind it in history. */
+    function renderShellAfter(entries) {
+        return render(
+            <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+                <Routes>
+                    <Route path="/super-admin/*" element={<SuperAdminDashboard />} />
+                </Routes>
+                <AddressProbe />
+            </MemoryRouter>,
+        );
+    }
+
+    it('opens Maintenance from the old Stats Backfill address, keeping the query string', async () => {
+        renderShellAfter(['/super-admin/stats-backfill?e2eAuth=super_admin']);
+
+        expect(view()).toHaveAttribute('data-active-view', 'maintenance');
+        await waitFor(() => expect(address()).toHaveTextContent(/^\/super-admin\/maintenance\?e2eAuth=super_admin$/));
+        const nav = screen.getByRole('navigation', { name: 'Super Admin sections' });
+        expect(within(nav).getByRole('button', { name: 'Maintenance' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('opens the Dashboard from the old Analytics address, keeping the query string', async () => {
+        renderShellAfter(['/super-admin/analytics?e2eAuth=super_admin']);
+
+        expect(view()).toHaveAttribute('data-active-view', 'dashboard');
+        await waitFor(() => expect(address()).toHaveTextContent(/^\/super-admin\?e2eAuth=super_admin$/));
+        const nav = screen.getByRole('navigation', { name: 'Super Admin sections' });
+        expect(within(nav).getByRole('button', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
+        expect(within(nav).queryByRole('button', { name: 'Analytics' })).not.toBeInTheDocument();
+    });
+
+    it('opens the companies list from the old Global Features and SMS Integrations addresses', async () => {
+        renderShellAfter(['/super-admin/features?e2eAuth=super_admin']);
+        expect(view()).toHaveAttribute('data-active-view', 'companies');
+        await waitFor(() => expect(address()).toHaveTextContent(/^\/super-admin\/companies\?e2eAuth=super_admin$/));
+    });
+
+    it("opens a company's SMS tab from the old address of its SMS setup", async () => {
+        renderShellAfter(['/super-admin/integrations/co-7?e2eAuth=super_admin']);
+
+        expect(view()).toHaveAttribute('data-active-view', 'company');
+        expect(view()).toHaveAttribute('data-company-id', 'co-7');
+        expect(view()).toHaveAttribute('data-tab', 'sms');
+        await waitFor(() => expect(address()).toHaveTextContent(/^\/super-admin\/companies\/co-7\/sms\?e2eAuth=super_admin$/));
+    });
+
+    it('replaces the old address rather than stacking one, so Back does not loop', async () => {
+        renderShellAfter(['/super-admin/companies?e2eAuth=super_admin', '/super-admin/stats-backfill?e2eAuth=super_admin']);
+        await waitFor(() => expect(address()).toHaveTextContent(/^\/super-admin\/maintenance\?e2eAuth=super_admin$/));
+
+        // A push would put the old address behind the new one: Back would land
+        // on it and be sent forward to Maintenance again.
+        fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
+        expect(address()).toHaveTextContent(/^\/super-admin\/companies\?e2eAuth=super_admin$/);
+        expect(view()).toHaveAttribute('data-active-view', 'companies');
     });
 });

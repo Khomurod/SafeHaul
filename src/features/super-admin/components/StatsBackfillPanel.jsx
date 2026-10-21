@@ -1,13 +1,14 @@
-import React, { useId, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { Icon, Play, CheckCircle } from '@design-system/icons';
 import { Button, Card, FormField, Input, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
+import { useFocusAfterRun } from '../hooks/useFocusAfterRun';
 
 /**
- * Performance-stats backfill maintenance panel.
+ * Performance-stats backfill, a card on the Maintenance page.
  *
  * Presentation only. Frozen contracts: the `backfillCompanyStats` and
  * `backfillAllStats` callable names, their `{ timeout: 540000 }` option, the
@@ -16,12 +17,14 @@ import { ConfirmDialog } from '@design-system/patterns';
  * precedence and every frozen string.
  *
  * Defects fixed here:
- *  1. **"Run All Companies" had no confirmation at all**, while the
- *     single-company action at least required an explicit ID. It rewrites
- *     `stats_daily` for *every* company on the platform and takes up to nine
- *     minutes. It is now behind an accessible confirmation dialog. The
- *     dry-run variants stay unguarded, because they are explicitly
- *     non-mutating — the dialog only gates the writing runs.
+ *  1. **Neither writing run asked first.** "Run All Companies" rewrites
+ *     `stats_daily` for *every* company on the platform and "Run Actual
+ *     Backfill" overwrites one company's, each taking up to nine minutes. Both
+ *     are now behind an accessible confirmation dialog, and once a confirmed
+ *     run ends focus goes back to the button that started it (confirming
+ *     disables it, so the dialog's own hand-back cannot). The dry-run variants
+ *     stay unguarded, because they are explicitly non-mutating — the dialogs
+ *     only gate the writing runs.
  *  2. Neither the error nor the result was announced, so a screen-reader user
  *     got no feedback at all from a nine-minute maintenance action. Both are
  *     now live regions, and the in-flight state is announced too.
@@ -44,8 +47,14 @@ export default function StatsBackfillPanel() {
     // Having a hardcoded company ID in production code risks running a backfill
     // against the wrong company (data corruption) and exposes internal IDs.
     const [companyId, setCompanyId] = useState('');
-    const [confirmingRunAll, setConfirmingRunAll] = useState(false);
+    // Which writing run is waiting for its confirmation: 'company', 'all' or null.
+    const [confirming, setConfirming] = useState(null);
     const companyFieldId = useId();
+    const companyRunRef = useRef(null);
+    const allRunRef = useRef(null);
+    // Confirming disables every run button; once the run is over, focus goes
+    // back to the one that started it.
+    const focusAfterRun = useFocusAfterRun(loading);
 
     const runBackfill = async (targetCompanyId, dryRun) => {
         if (!targetCompanyId.trim()) {
@@ -71,8 +80,15 @@ export default function StatsBackfillPanel() {
         }
     };
 
+    const confirmCompanyRun = () => {
+        setConfirming(null);
+        focusAfterRun.current = companyRunRef.current;
+        return runBackfill(companyId, false);
+    };
+
     const runAllBackfill = async (dryRun) => {
-        setConfirmingRunAll(false);
+        setConfirming(null);
+        if (!dryRun) focusAfterRun.current = allRunRef.current;
         setLoading(true);
         setError('');
         setResult(null);
@@ -107,9 +123,9 @@ export default function StatsBackfillPanel() {
         <Card padding="lg">
             <Stack gap="lg">
                 <div>
-                    <h2 className="mb-ds-2 text-ds-heading-sm font-semibold text-ds-content">
+                    <h3 className="mb-ds-2 text-ds-heading-sm font-semibold text-ds-content">
                         Performance Stats Backfill
-                    </h2>
+                    </h3>
                     <p className="text-ds-sm text-ds-content-secondary">
                         Rebuild stats_daily from all historical activity data. Use dry-run first to preview results.
                     </p>
@@ -122,9 +138,9 @@ export default function StatsBackfillPanel() {
 
                 {/* Single Company Section */}
                 <Card padding="md" className="border-ds-status-info-border">
-                    <h3 className="mb-ds-3 font-semibold text-ds-content">
+                    <h4 className="mb-ds-3 font-semibold text-ds-content">
                         Single Company Backfill
-                    </h3>
+                    </h4>
                     <FormField
                         id={companyFieldId}
                         label="Company ID"
@@ -150,9 +166,10 @@ export default function StatsBackfillPanel() {
                             Dry-Run (Preview)
                         </Button>
                         <Button
+                            ref={companyRunRef}
                             variant="primary"
                             tone="success"
-                            onClick={() => runBackfill(companyId, false)}
+                            onClick={() => setConfirming('company')}
                             disabled={loading || !companyId.trim()}
                             loading={loading}
                         >
@@ -164,9 +181,9 @@ export default function StatsBackfillPanel() {
 
                 {/* All Companies Section */}
                 <Card padding="md" className="border-ds-status-warning-border bg-ds-status-warning-bg">
-                    <h3 className="mb-ds-3 font-semibold text-ds-content">
+                    <h4 className="mb-ds-3 font-semibold text-ds-content">
                         All Companies
-                    </h3>
+                    </h4>
                     <p className="mb-ds-4 text-ds-sm text-ds-content-secondary">
                         ⚠️ This will process all companies. Only run after verifying Ray Star LLC results.
                     </p>
@@ -181,8 +198,9 @@ export default function StatsBackfillPanel() {
                             Dry-Run All
                         </Button>
                         <Button
+                            ref={allRunRef}
                             variant="danger"
-                            onClick={() => setConfirmingRunAll(true)}
+                            onClick={() => setConfirming('all')}
                             disabled={loading}
                             loading={loading}
                         >
@@ -194,7 +212,7 @@ export default function StatsBackfillPanel() {
 
                 {/* Results Display */}
                 {error && (
-                    <Notice announce="assertive" tone="danger" title="Error" titleAs="h4">
+                    <Notice announce="assertive" tone="danger" title="Error" titleAs="h5">
                         {error}
                     </Notice>
                 )}
@@ -209,9 +227,9 @@ export default function StatsBackfillPanel() {
                         <div className="mb-ds-4 flex items-start gap-ds-3">
                             <Icon icon={CheckCircle} size="xl" className="mt-0.5 shrink-0 text-ds-status-success-fg" />
                             <div>
-                                <h4 className="mb-1 font-semibold text-ds-status-success-fg">
+                                <h5 className="mb-1 font-semibold text-ds-status-success-fg">
                                     {result.dryRun ? 'Dry-Run Complete' : 'Backfill Complete'}
-                                </h4>
+                                </h5>
                                 <p className="text-ds-sm text-ds-status-success-fg">
                                     {result.dryRun
                                         ? 'Preview generated successfully. No data was modified.'
@@ -234,9 +252,9 @@ export default function StatsBackfillPanel() {
                         {/* Preview Data */}
                         {result.preview && result.preview.length > 0 && (
                             <div className="mt-ds-4">
-                                <h5 className="mb-ds-2 text-ds-sm font-semibold text-ds-content">
+                                <h6 className="mb-ds-2 text-ds-sm font-semibold text-ds-content">
                                     Preview (First {result.preview.length} Days)
-                                </h5>
+                                </h6>
                                 <div
                                     role="region"
                                     aria-label="Backfill preview by day. Scroll to view all rows and columns."
@@ -271,13 +289,46 @@ export default function StatsBackfillPanel() {
                 )}
             </Stack>
 
-            {confirmingRunAll && (
+            {confirming === 'company' && (
+                <RunCompanyConfirmDialog
+                    companyId={companyId.trim()}
+                    onCancel={() => setConfirming(null)}
+                    onConfirm={confirmCompanyRun}
+                />
+            )}
+
+            {confirming === 'all' && (
                 <RunAllConfirmDialog
-                    onCancel={() => setConfirmingRunAll(false)}
+                    onCancel={() => setConfirming(null)}
                     onConfirm={() => runAllBackfill(false)}
                 />
             )}
         </Card>
+    );
+}
+
+/**
+ * Confirmation for one company's writing backfill, which used to run on the
+ * click: it overwrites that company's `stats_daily`, day by day, with figures
+ * rebuilt from its call history.
+ */
+function RunCompanyConfirmDialog({ companyId, onCancel, onConfirm }) {
+    return (
+        <ConfirmDialog
+            tone="danger"
+            title="Run the backfill for this company?"
+            description={(
+                <>
+                    This writes <code>stats_daily</code> for company <code>{companyId}</code>,
+                    overwriting each day&rsquo;s existing figures with ones rebuilt from its call
+                    history. It can take up to nine minutes and cannot be undone. Run the dry-run
+                    first if you have not already.
+                </>
+            )}
+            confirmLabel="Run for this company"
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+        />
     );
 }
 

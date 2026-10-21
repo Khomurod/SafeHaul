@@ -3,14 +3,15 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 
 /**
- * System Health's maintenance action and its output log.
+ * Sync Public Profiles, on the Maintenance page: the `backfillPublicProfiles`
+ * run, its status and its output log.
  *
  * The Deep Diagnostic (it created test users and records in the live database
  * with a fixed password), "Sync Backend Structure" (it wrote schema defaults into
  * every live record missing a field) and the one-off SMS history backfill were
  * removed, and so were the server callables behind them.
  */
-export function useSystemHealth() {
+export function usePublicProfileSync() {
     const [logs, setLogs] = useState([]);
     const [backfillStatus, setBackfillStatus] = useState('idle'); // idle, running, success, error
 

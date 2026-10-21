@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { db } from '@lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
@@ -7,9 +7,18 @@ const CHICAGO_TZ = 'America/Chicago';
 /**
  * Analytics hook that reads from pre-aggregated stats_daily collection
  * This is much more efficient than collection group queries on raw activities
+ *
+ * It reports only what `stats_daily` holds, which is logged calls: each
+ * company's calls, each recruiter's calls and the last day in the period they
+ * logged one (`lastActive`, a Chicago `YYYY-MM-DD`, the day's document id). A
+ * read that fails sets `error` rather than leaving zeros to be shown;
+ * `reload()` reads the same period again.
  */
 export function useAnalytics() {
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    // Bumped by `reload()`, so the same period can be read again.
+    const [attempt, setAttempt] = useState(0);
     const [stats, setStats] = useState({
         summary: {
             totalCalls: 0,
@@ -47,6 +56,7 @@ export function useAnalytics() {
 
         const fetchAnalytics = async () => {
             setLoading(true);
+            setError(null);
             try {
                 // 1. Calculate date range in Chicago timezone
                 const now = new Date();
@@ -97,8 +107,7 @@ export function useAnalytics() {
                         compStats[companyId] = {
                             companyId,
                             companyName,
-                            callsMade: 0,
-                            actions: 0
+                            callsMade: 0
                         };
                     }
 
@@ -111,7 +120,6 @@ export function useAnalytics() {
                         // Update totals
                         totalCalls += dials;
                         compStats[companyId].callsMade += dials;
-                        compStats[companyId].actions += dials;
 
                         // Update daily trend
                         if (dailyCounts.hasOwnProperty(displayKey)) {
@@ -126,10 +134,17 @@ export function useAnalytics() {
                                     userId,
                                     userName: userData.name || 'Unknown User',
                                     companyName,
-                                    callsMade: 0
+                                    callsMade: 0,
+                                    lastActive: null
                                 };
                             }
                             userStats[userId].callsMade += (userData.dials || 0);
+                            // The latest day with a logged call. Date keys sort
+                            // as text, and the days arrive in no set order.
+                            const lastActive = userStats[userId].lastActive;
+                            if ((userData.dials || 0) > 0 && (lastActive === null || dateKey > lastActive)) {
+                                userStats[userId].lastActive = dateKey;
+                            }
                         });
                     });
                 });
@@ -160,8 +175,9 @@ export function useAnalytics() {
                     dailyTrend: trendData
                 });
 
-            } catch (error) {
-                console.error("Analytics Error:", error);
+            } catch (readError) {
+                console.error("Analytics Error:", readError);
+                if (isMounted) setError(readError);
             } finally {
                 if (isMounted) setLoading(false);
             }
@@ -170,12 +186,16 @@ export function useAnalytics() {
         fetchAnalytics();
 
         return () => { isMounted = false; };
-    }, [dateRange]);
+    }, [dateRange, attempt]);
+
+    const reload = useCallback(() => setAttempt((count) => count + 1), []);
 
     return {
         loading,
+        error,
         stats,
         dateRange,
-        setDateRange
+        setDateRange,
+        reload
     };
 }

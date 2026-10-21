@@ -4,19 +4,20 @@
  * The four metrics, their order, the fields they read and the "..." / "Error"
  * placeholders are the contract. "Total Applications" read the leads' count, and
  * a count's failure was the list's flag: each count now has its own.
+ *
+ * The Dashboard is also where activity is read: the period figures that were
+ * the Analytics screen sit below the totals. That section has its own suite
+ * (`../views/AnalyticsView.test.jsx`); here it only needs its place.
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 
-// The temporary historical-migration panel is a separate unit with its own
-// contract test, calls Firebase on mount, and carries its own live region. Stubbed
-// here so this suite keeps testing exactly what it always tested — the three
-// metrics and the dashboard's own announcements — rather than two components at
-// once.
-vi.mock('./HistoricalMigrationPanel', () => ({
-    HistoricalMigrationPanel: () => <div data-testid="historical-migration-panel" />,
+vi.mock('../views/AnalyticsView', () => ({
+    AnalyticsView: () => (
+        <section aria-label="Activity" data-testid="activity-section"><h3>Activity</h3></section>
+    ),
 }));
 
 import { DashboardView } from './DashboardView';
@@ -100,12 +101,32 @@ describe('DashboardView — failure is announced, not colour-only (defect)', () 
     });
 });
 
-describe('DashboardView — temporary historical-migration action', () => {
-    // The panel decides for itself whether to appear; the view's only job is to
-    // give it a place. If this mount is ever dropped, the migration becomes
-    // unreachable from the UI.
-    it('gives the temporary migration panel a place below the metrics', () => {
+describe('DashboardView — one screen with the platform totals and the activity', () => {
+    it('is one screen under one h2: the four totals, then the Activity section', () => {
+        const { container } = renderView();
+
+        expect([...container.querySelectorAll('h2')].map((h) => h.textContent)).toEqual(['Dashboard']);
+        const activity = screen.getByTestId('activity-section');
+        const lastTotal = screen.getByText('Total Leads');
+        expect(lastTotal.compareDocumentPosition(activity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('shows the activity while the totals are still loading, and when they failed', () => {
+        const { unmount } = renderView({ statsLoading: true });
+        expect(screen.getByTestId('activity-section')).toBeInTheDocument();
+        unmount();
+
+        renderView({ statsError: { ...NO_ERRORS, companyCount: true, userCount: true, appCount: true, leadCount: true } });
+        expect(screen.getByTestId('activity-section')).toBeInTheDocument();
+    });
+});
+
+describe('DashboardView — maintenance lives elsewhere', () => {
+    // The historical-records action moved to the Maintenance page with the other
+    // repairs (`MaintenanceView.contract.test.jsx` gives it its place there).
+    it('carries no maintenance action', () => {
         renderView();
-        expect(screen.getByTestId('historical-migration-panel')).toBeInTheDocument();
+        expect(screen.queryByText('Historical application records')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Check what is left|Migrate|Backfill|Sync/ })).not.toBeInTheDocument();
     });
 });

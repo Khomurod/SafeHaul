@@ -1,22 +1,20 @@
 import React, { useState, useMemo, useEffect, useId } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
-import { Icon, Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Crown, Shield, MessageSquare, Phone, Database, CheckCircle, XCircle } from '@design-system/icons';
+import { Icon, Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Crown, Shield, CheckCircle, XCircle } from '@design-system/icons';
 import { db } from '@lib/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { Badge, Button, Card, IconButton, Input, Notice, Select } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 
 /**
- * Super Admin companies table. Also serves the SMS Integrations hub via
- * `isIntegrationMode`, where the row action selects a company for integration
- * setup instead of opening the editor.
+ * Super Admin companies table. A company opens its own screen (`onOpen`),
+ * where its features and its SMS setup are; the pencil opens its details
+ * editor.
  *
- * Presentation only. Frozen contracts: the
- * `companies/{id}/integrations/sms_provider` enrichment read, the
- * `updateDoc(companies/{id}, { isActive })` toggle, the name/slug/id search, the
- * client-side 20/50/100 pagination, the `loadMore('companies')` database
- * pagination, and every frozen string.
+ * Frozen contracts: the `updateDoc(companies/{id}, { isActive })` toggle, the
+ * name/slug/id search, the client-side 20/50/100 pagination, the
+ * `loadMore('companies')` database pagination, and every frozen string.
  *
  * `DataTable` is deliberately not used, matching the exception already recorded
  * for `CampaignResultsTable`, `AssignmentTable` and `ViewCompanyAppsModal`: this
@@ -26,12 +24,8 @@ import { ConfirmDialog } from '@design-system/patterns';
  * semantic markup, `--ds-*` tokens, `Badge`, `Button`/`IconButton`.
  *
  * Defects fixed here:
- *  1. **Stale derived data.** `filteredCompanyList`'s `useMemo` read `displayList`
- *     (companies merged with their SMS enrichment) but listed only
- *     `[companySearch, companyList]` as dependencies. When the async enrichment
- *     resolved, `displayList` changed but the filtered list did not recompute, so
- *     in Integrations mode the SMS numbers stayed blank until an unrelated
- *     re-render. Now depends on `displayList`.
+ *  1. **Stale derived data.** `filteredCompanyList` depends on `displayList`
+ *     (companies merged with a status just toggled), not on `companyList`.
  *  2. **Action clicks also triggered the row.** The row's `onClick` opened the
  *     editor, and the per-row action buttons did not stop propagation, so
  *     "View Applications" or "Delete" *also* opened the edit modal — two dialogs
@@ -54,15 +48,15 @@ export function CompaniesView({
     onViewApps,
     onEdit,
     onDelete,
+    onOpen,
     loadMore,
     isLoadingMore = false,
     hasMore,
-    isIntegrationMode = false
 }) {
     const [companySearch, setCompanySearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
-    const [enrichedCompanies, setEnrichedCompanies] = useState({}); // ID -> { defaultPhoneNumber, smsProvider }
+    const [enrichedCompanies, setEnrichedCompanies] = useState({}); // ID -> { isActive } just written
     const [togglingCompany, setTogglingCompany] = useState(null);
     const [pendingToggle, setPendingToggle] = useState(null);
     const [toggleError, setToggleError] = useState('');
@@ -90,38 +84,6 @@ export function CompaniesView({
         }
     };
 
-    useEffect(() => {
-        if (!isIntegrationMode || companyList.length === 0) return;
-
-        const fetchEnrichment = async () => {
-            const newEnrichment = { ...enrichedCompanies };
-            let changed = false;
-
-            for (const company of companyList) {
-                if (!newEnrichment[company.id]) {
-                    try {
-                        const snap = await getDoc(doc(db, `companies/${company.id}/integrations`, 'sms_provider'));
-                        if (snap.exists()) {
-                            const data = snap.data();
-                            newEnrichment[company.id] = {
-                                defaultPhoneNumber: data.defaultPhoneNumber || null,
-                                smsProvider: data.provider || null
-                            };
-                            changed = true;
-                        } else {
-                            newEnrichment[company.id] = { defaultPhoneNumber: null, smsProvider: null };
-                        }
-                    } catch (e) {
-                        console.error("Error fetching enrichment for", company.id, e);
-                    }
-                }
-            }
-            if (changed) setEnrichedCompanies(newEnrichment);
-        };
-
-        fetchEnrichment();
-    }, [isIntegrationMode, companyList]);
-
     // Merge enriched data into the list for easy access in render
     const displayList = useMemo(() => {
         return companyList.map(c => ({
@@ -141,8 +103,8 @@ export function CompaniesView({
 
             return name.includes(searchTerm) || slug.includes(searchTerm) || id.includes(searchTerm);
         });
-        // `displayList`, not `companyList`: the SMS enrichment arrives later and
-        // must flow through to the rendered rows.
+        // `displayList`, not `companyList`: a status just toggled must flow
+        // through to the rendered rows.
     }, [companySearch, displayList]);
 
     const totalPages = Math.ceil(filteredCompanyList.length / itemsPerPage);
@@ -155,7 +117,7 @@ export function CompaniesView({
         setCurrentPage(1);
     }, [companySearch, itemsPerPage]);
 
-    const openCompany = (company) => (isIntegrationMode ? onEdit(company) : onEdit(company.id));
+    const openCompany = (company) => onOpen(company);
 
     /** Runs a row action without also firing the row's own click handler. */
     const rowAction = (fn) => (event) => {
@@ -163,15 +125,13 @@ export function CompaniesView({
         fn();
     };
 
-    const title = isIntegrationMode ? "SMS Integrations Hub" : "Manage Companies";
-    // A glyph TOKEN either way, so it is rendered through `Icon` below.
-    const titleGlyph = isIntegrationMode ? MessageSquare : Building;
+    const title = "Manage Companies";
 
     return (
         <Card padding="none" className="flex h-full flex-col overflow-hidden">
             <div className="shrink-0 border-b border-ds-border-subtle p-ds-5">
                 <h2 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                    <Icon icon={titleGlyph} size="xl" className="text-ds-content-link" />
+                    <Icon icon={Building} size="xl" className="text-ds-content-link" />
                     {title}
                 </h2>
             </div>
@@ -220,7 +180,7 @@ export function CompaniesView({
                         <tr>
                             <th scope="col">Company Name</th>
                             <th scope="col">Slug / ID</th>
-                            <th scope="col">{isIntegrationMode ? "SMS Number" : "Plan"}</th>
+                            <th scope="col">Plan</th>
                             <th scope="col" className="text-center">Status</th>
                             <th scope="col" className="text-right">Actions</th>
                         </tr>
@@ -273,18 +233,7 @@ export function CompaniesView({
                                             </span>
                                         </td>
                                         <td>
-                                            {isIntegrationMode ? (
-                                                <span className="flex flex-col items-start gap-1">
-                                                    {company.defaultPhoneNumber ? (
-                                                        <Badge tone="success" icon={Phone}>{company.defaultPhoneNumber}</Badge>
-                                                    ) : (
-                                                        <span className="text-ds-xs italic text-ds-content-muted">Not Provisioned</span>
-                                                    )}
-                                                    {company.smsProvider && (
-                                                        <span className="text-ds-xs uppercase tracking-widest text-ds-content-muted">{company.smsProvider}</span>
-                                                    )}
-                                                </span>
-                                            ) : company.planType === 'paid' ? (
+                                            {company.planType === 'paid' ? (
                                                 <Badge tone="warning" icon={Crown}>Pro Plan</Badge>
                                             ) : (
                                                 <Badge tone="neutral" icon={Shield}>Free Plan</Badge>
@@ -311,39 +260,30 @@ export function CompaniesView({
                                         </td>
                                         <td className="text-right">
                                             <div className="flex justify-end gap-ds-2">
-                                                {isIntegrationMode ? (
-                                                    <Button variant="primary" size="sm" onClick={rowAction(() => onEdit(company))}>
-                                                        <Icon icon={Database} size="sm" /> Manage API
-                                                        <span className="sr-only"> for {companyName}</span>
-                                                    </Button>
-                                                ) : (
-                                                    <>
-                                                        <IconButton
-                                                            label={`View applications for ${companyName}`}
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={rowAction(() => onViewApps({ id: company.id, name: company.companyName }))}
-                                                        >
-                                                            <Icon icon={FileText} size="lg" />
-                                                        </IconButton>
-                                                        <IconButton
-                                                            label={`Edit ${companyName}`}
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={rowAction(() => onEdit(company.id))}
-                                                        >
-                                                            <Icon icon={Edit2} size="lg" />
-                                                        </IconButton>
-                                                        <IconButton
-                                                            label={`Delete ${companyName}`}
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={rowAction(() => onDelete({ id: company.id, name: company.companyName }))}
-                                                        >
-                                                            <Icon icon={Trash2} size="lg" className="text-ds-status-danger-fg" />
-                                                        </IconButton>
-                                                    </>
-                                                )}
+                                                <IconButton
+                                                    label={`View applications for ${companyName}`}
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={rowAction(() => onViewApps({ id: company.id, name: company.companyName }))}
+                                                >
+                                                    <Icon icon={FileText} size="lg" />
+                                                </IconButton>
+                                                <IconButton
+                                                    label={`Edit ${companyName}`}
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={rowAction(() => onEdit(company.id))}
+                                                >
+                                                    <Icon icon={Edit2} size="lg" />
+                                                </IconButton>
+                                                <IconButton
+                                                    label={`Delete ${companyName}`}
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={rowAction(() => onDelete({ id: company.id, name: company.companyName }))}
+                                                >
+                                                    <Icon icon={Trash2} size="lg" className="text-ds-status-danger-fg" />
+                                                </IconButton>
                                             </div>
                                         </td>
                                     </tr>

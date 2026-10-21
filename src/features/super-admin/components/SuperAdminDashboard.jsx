@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useState } from 'react';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
-import { db, functions } from '@lib/firebase';
-import { httpsCallable } from "firebase/functions";
+import { db } from '@lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useSuperAdminData } from '../hooks/useSuperAdminData';
 import { useToast } from '@shared/components/feedback';
@@ -11,22 +10,27 @@ import { DashboardHeader } from './DashboardHeader';
 import { ViewRouter } from './ViewRouter';
 import { DashboardModals } from './DashboardModals';
 import {
-  BackfillEmployersConfirmDialog,
-  BackfillEmployersResultDialog,
-} from './BackfillEmployersDialogs';
-import { SUPER_ADMIN_VIEWS, superAdminPathFor, superAdminViewFromPath } from '../config/views';
+  SUPER_ADMIN_VIEWS,
+  superAdminMovedPath,
+  superAdminPathFor,
+  superAdminViewFromPath,
+} from '../config/views';
 
 export function SuperAdminDashboard() {
   const { handleLogout } = useData();
-  const { showSuccess, showError, showInfo } = useToast();
+  const { showError } = useToast();
   const navigate = useNavigate();
   const { search } = useLocation();
   // The screen is in the address (`config/views.js`): a reload, Back and a
   // shared link keep it. Choosing one adds a history entry, and keeps the query
   // string, which is how the browser tests sign in.
-  const { view: activeView, companyId: integrationCompanyId } = superAdminViewFromPath(useParams()['*']);
-  const setActiveView = useCallback((view, companyId = null) => {
-    navigate({ pathname: superAdminPathFor(view, companyId), search });
+  const subPath = useParams()['*'];
+  const { view: activeView, companyId, tab: companyTab } = superAdminViewFromPath(subPath);
+  // A merged screen's old address opens the screen that holds it now (above),
+  // and is replaced by that screen's address, so Back does not return to it.
+  const movedTo = superAdminMovedPath(subPath);
+  const setActiveView = useCallback((view, id = null, tab = null, replace = false) => {
+    navigate({ pathname: superAdminPathFor(view, id, tab), search }, { replace });
   }, [navigate, search]);
 
   const {
@@ -56,42 +60,15 @@ export function SuperAdminDashboard() {
   const [deletingUser, setDeletingUser] = useState(null);
   const [viewingCompanyApps, setViewingCompanyApps] = useState(null);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  // The company whose SMS setup is open comes from the address. The row picked
-  // in the list goes with it; a company named only by the address (a reload, a
-  // shared link) is read before its setup opens (`IntegrationSetup`).
-  const [pickedIntegrationCompany, setPickedIntegrationCompany] = useState(null);
-
-  const [backfillingEmployers, setBackfillingEmployers] = useState(false);
-  const [confirmingBackfill, setConfirmingBackfill] = useState(false);
-  const [backfillReport, setBackfillReport] = useState(null);
-  // The backfill spans two dialogs, and the shared Modal's own focus restoration
-  // cannot bridge them: confirming disables the trigger (`loading`) *and*
-  // unmounts the confirmation, so the confirmation restores focus to a disabled
-  // button — which silently lands on <body>. The result dialog then captures
-  // <body> as its "previously focused" element, and closing the report drops a
-  // keyboard user at the top of the page. Holding the trigger ourselves lets us
-  // put focus back where it started once the whole flow ends.
-  const backfillTriggerRef = useRef(null);
-  const restoreFocusAfterReport = useRef(false);
-
-  // Deliberately an effect rather than a call inside the dialog's `onClose`:
-  // the closing Modal restores focus in its own unmount cleanup, which runs
-  // *after* the click handler, so focusing there would just be overwritten.
-  // A parent effect runs after that cleanup, so this wins.
-  useEffect(() => {
-    if (!backfillReport && restoreFocusAfterReport.current) {
-      restoreFocusAfterReport.current = false;
-      backfillTriggerRef.current?.focus();
-    }
-  }, [backfillReport]);
+  // A company's screen reads it again when its details are saved here.
+  const [companyRevision, setCompanyRevision] = useState(0);
+  const refreshAfterEdit = useCallback(() => {
+    refreshData();
+    setCompanyRevision((revision) => revision + 1);
+  }, [refreshData]);
 
   const isSearching = searchQuery.length > 0;
-  const selectedIntegrationCompany = integrationCompanyId
-    ? {
-      id: integrationCompanyId,
-      picked: pickedIntegrationCompany?.id === integrationCompanyId ? pickedIntegrationCompany : null,
-    }
-    : null;
+  const selectedCompany = companyId ? { id: companyId, tab: companyTab } : null;
 
   const onModalClose = () => {
     setEditingCompanyDoc(null);
@@ -119,39 +96,15 @@ export function SuperAdminDashboard() {
     });
   };
 
-  // The blocking `window.confirm` guard is now an accessible confirmation dialog;
-  // the callable payload, timeout, toasts and refresh below are unchanged.
-  const runBackfillEmployers = async () => {
-    setConfirmingBackfill(false);
-    setBackfillingEmployers(true);
-    showInfo("Running employer field backfill... this may take a few minutes.");
-
-    try {
-      const backfillFn = httpsCallable(functions, 'backfillEmployerFields', { timeout: 540000 });
-      const result = await backfillFn({ dryRun: false });
-      const stats = result.data.stats || {};
-      showSuccess(result.data.message);
-      // Was a blocking `alert()`; the same four counters now render in a dialog.
-      setBackfillReport(stats);
-      refreshData();
-    } catch (e) {
-      console.error("Employer Backfill Failed:", e);
-      showError("Employer backfill failed: " + e.message);
-    } finally {
-      setBackfillingEmployers(false);
-    }
-  };
-
   return (
     <>
+      {movedTo && <Navigate replace to={{ pathname: movedTo, search }} />}
+
       <div id="super-admin-container" className="min-h-screen bg-ds-canvas">
 
         <DashboardHeader
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          onBackfillEmployers={() => setConfirmingBackfill(true)}
-          backfillTriggerRef={backfillTriggerRef}
-          backfillingEmployers={backfillingEmployers}
           onLogout={handleLogout}
         />
 
@@ -174,12 +127,13 @@ export function SuperAdminDashboard() {
               searchResults={searchResults}
               totalSearchResults={totalSearchResults}
               allCompaniesMap={allCompaniesMap}
-              selectedIntegrationCompany={selectedIntegrationCompany}
-              onSelectIntegrationCompany={(company) => {
-                setPickedIntegrationCompany(company);
-                setActiveView(SUPER_ADMIN_VIEWS.INTEGRATION_SETUP, company.id);
-              }}
-              onBackToIntegrations={() => setActiveView(SUPER_ADMIN_VIEWS.INTEGRATIONS)}
+              selectedCompany={selectedCompany}
+              companyRevision={companyRevision}
+              onOpenCompany={(company) => setActiveView(SUPER_ADMIN_VIEWS.COMPANY, company.id)}
+              // A tab is a place on the same screen: it replaces the address, so
+              // Back leaves the company rather than walking its tabs.
+              onCompanyTab={(tab) => setActiveView(SUPER_ADMIN_VIEWS.COMPANY, companyId, tab, true)}
+              onBackToCompanies={() => setActiveView(SUPER_ADMIN_VIEWS.COMPANIES)}
               stats={stats}
               statsError={statsError}
               listLoading={listLoading}
@@ -203,25 +157,6 @@ export function SuperAdminDashboard() {
         </div>
       </div>
 
-      {confirmingBackfill && (
-        <BackfillEmployersConfirmDialog
-          onConfirm={runBackfillEmployers}
-          onCancel={() => setConfirmingBackfill(false)}
-        />
-      )}
-
-      {backfillReport && (
-        <BackfillEmployersResultDialog
-          stats={backfillReport}
-          onClose={() => {
-            // By now `backfillingEmployers` is false, so the trigger is
-            // focusable again and this is the end of the flow.
-            restoreFocusAfterReport.current = true;
-            setBackfillReport(null);
-          }}
-        />
-      )}
-
       <DashboardModals
         editingCompanyDoc={editingCompanyDoc}
         deletingCompany={deletingCompany}
@@ -231,7 +166,7 @@ export function SuperAdminDashboard() {
         selectedApplication={selectedApplication}
         allCompaniesMap={allCompaniesMap}
         onClose={onModalClose}
-        onRefreshData={refreshData}
+        onRefreshData={refreshAfterEdit}
       />
     </>
   );

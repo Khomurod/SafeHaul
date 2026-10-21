@@ -258,9 +258,8 @@ The reverse directions are prohibited — including any `@shared` import inside
   `"rowgroup"`, `"row"`, `"columnheader"`, `"cell"` — because `display: block`
   drops the implicit ones). `DataTable` does the same for a work list with
   `mobilePresentation="cards"` (labels from each column's `mobileLabel` or
-  header; `mobileCards.css`). The Super Admin feature matrix is the one
-  specialized grid. Source: `components/data-table/README.md` ("Tables on
-  phones"), `pinnedColumn.css`, the `Patterns/Native table` and
+  header; `mobileCards.css`). Source: `components/data-table/README.md`
+  ("Tables on phones"), `pinnedColumn.css`, the `Patterns/Native table` and
   `DataTable/Cards on mobile` stories.
 - **The column contract holds only options the table acts on**
   (`components/data-table/README.md`): an option that changes no rendering or
@@ -407,7 +406,7 @@ delete one without replacing the guarantee. All are blocking, and none may carry
 | Guard | What it refuses | CI job · pinned by |
 |---|---|---|
 | `src/design-system/tests/architecture.test.js` | An import from features, application context, Firebase or `shared` into `src/design-system`, in modules and stylesheets (every `@import` and `url()` is resolved); a story importing features, Firebase, context or domain services | `frontend-quality` |
-| `src/design-system/tests/tokens.test.js`, `src/design-system/tests/tokens.consumers.test.js` | A broken semantic token contract or a contrast pairing below AA (both directions); an unbridged Tailwind utility; a Tailwind default colour, type size, radius, shadow or layer that compiles (the theme is strict), or preflight's border colour moving; a control sizing itself in pixels; stacking layers out of order or without a utility; a removed hand-placed `isolate` (`PdfFieldWorkbench`'s page wrapper, the feature matrix's scroll region); a token nothing reads | `frontend-quality` |
+| `src/design-system/tests/tokens.test.js`, `src/design-system/tests/tokens.consumers.test.js` | A broken semantic token contract or a contrast pairing below AA (both directions); an unbridged Tailwind utility; a Tailwind default colour, type size, radius, shadow or layer that compiles (the theme is strict), or preflight's border colour moving; a control sizing itself in pixels; stacking layers out of order or without a utility; a removed hand-placed `isolate` (`PdfFieldWorkbench`'s page wrapper); a token nothing reads | `frontend-quality` |
 | `src/design-system/contract.test.js`, `src/design-system/tests/productionFallbacks.test.jsx` | A prop check that does not throw outside a production build, or that throws in one (it reports once, to the console and Sentry, and returns); a component that, after a reported misuse, crashes or hides content instead of drawing its default | `frontend-quality` |
 | `src/design-system/tests/stackingLayers.test.js` | A `<thead>` on `sticky` or above; the topbar, notifications panel and candidate toolbar layers are pinned individually | `frontend-quality` |
 | `no-alert` = `error` for `src/` outside test files (`eslint.config.js`) | A call to `alert`, `confirm` or `prompt`: bare, through `window` or `globalThis`, in brackets or inside a template literal. A disable comment does not hide one | `frontend-quality` · `scripts/test-lint-rules.mjs` N1–N4b, in `callable-contract` |

@@ -11,7 +11,8 @@ import { ConfirmDialog } from '@design-system/patterns';
  *
  * Applications submitted before records were preserved have no immutable
  * submission record and no official PDF. The backfill is a super-admin callable
- * run per company, and this panel is the one-off surface for finishing it.
+ * run per company, and this panel, a card on the Maintenance page, is the
+ * one-off surface for finishing it.
  *
  * WHY IT COUNTS INSTEAD OF BEING TOLD
  * -----------------------------------
@@ -26,8 +27,8 @@ import { ConfirmDialog } from '@design-system/patterns';
  * WHY IT WAITS TO BE ASKED
  * ------------------------
  * The survey reads every application of every company and checks each preserved
- * record's PDF in Storage. Run on mount, it ran on every visit to the dashboard,
- * the console's heaviest read, for a migration that ends.
+ * record's PDF in Storage. Run on mount, it would run on every visit to the
+ * page, the console's heaviest read, for a migration that ends.
  *
  * WHEN THE WORK IS DONE
  * ---------------------
