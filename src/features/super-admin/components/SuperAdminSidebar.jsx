@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { LayoutDashboard, Building, Users, FileText, Layers, Plus, Activity, MessageSquare, Wrench, KeyRound, Sparkles, Globe, Inbox, Newspaper, Rocket } from '@design-system/icons';
+import { LayoutDashboard, Building, Users, FileText, Plus, Activity, Wrench, KeyRound, Sparkles, Globe, Inbox, Newspaper, Rocket } from '@design-system/icons';
 import { SectionNavigation } from '@/design-system/components';
-import { SUPER_ADMIN_NAV_ITEMS } from '../config/views';
+import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_VIEWS } from '../config/views';
 
 /**
  * Exported so a test can assert every configured icon name resolves. The nav
@@ -13,10 +13,8 @@ export const NAV_ICONS = {
   Building,
   Users,
   FileText,
-  Layers,
   Plus,
   Activity,
-  MessageSquare,
   Wrench,
   KeyRound,
   Sparkles,
@@ -95,8 +93,10 @@ export function SuperAdminSidebar({
     <SectionNavigation
       label="Super Admin sections"
       groups={groups}
-      // While a global search is showing results, no section is the current one.
-      currentId={isSearching ? null : activeView}
+      // While a global search is showing results, no section is the current one;
+      // a company's own screen is part of Companies.
+      currentId={isSearching ? null
+        : activeView === SUPER_ADMIN_VIEWS.COMPANY ? SUPER_ADMIN_VIEWS.COMPANIES : activeView}
       onSelect={handleSelect}
       // `SectionNavigation` takes a fixed prop list and does not spread extras,
       // so there is no `data-testid` here — tests target the named landmark.

@@ -25,12 +25,12 @@ export function SuperAdminDashboard() {
   // shared link keep it. Choosing one adds a history entry, and keeps the query
   // string, which is how the browser tests sign in.
   const subPath = useParams()['*'];
-  const { view: activeView, companyId: integrationCompanyId } = superAdminViewFromPath(subPath);
+  const { view: activeView, companyId, tab: companyTab } = superAdminViewFromPath(subPath);
   // A merged screen's old address opens the screen that holds it now (above),
   // and is replaced by that screen's address, so Back does not return to it.
   const movedTo = superAdminMovedPath(subPath);
-  const setActiveView = useCallback((view, companyId = null) => {
-    navigate({ pathname: superAdminPathFor(view, companyId), search });
+  const setActiveView = useCallback((view, id = null, tab = null, replace = false) => {
+    navigate({ pathname: superAdminPathFor(view, id, tab), search }, { replace });
   }, [navigate, search]);
 
   const {
@@ -60,18 +60,15 @@ export function SuperAdminDashboard() {
   const [deletingUser, setDeletingUser] = useState(null);
   const [viewingCompanyApps, setViewingCompanyApps] = useState(null);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  // The company whose SMS setup is open comes from the address. The row picked
-  // in the list goes with it; a company named only by the address (a reload, a
-  // shared link) is read before its setup opens (`IntegrationSetup`).
-  const [pickedIntegrationCompany, setPickedIntegrationCompany] = useState(null);
+  // A company's screen reads it again when its details are saved here.
+  const [companyRevision, setCompanyRevision] = useState(0);
+  const refreshAfterEdit = useCallback(() => {
+    refreshData();
+    setCompanyRevision((revision) => revision + 1);
+  }, [refreshData]);
 
   const isSearching = searchQuery.length > 0;
-  const selectedIntegrationCompany = integrationCompanyId
-    ? {
-      id: integrationCompanyId,
-      picked: pickedIntegrationCompany?.id === integrationCompanyId ? pickedIntegrationCompany : null,
-    }
-    : null;
+  const selectedCompany = companyId ? { id: companyId, tab: companyTab } : null;
 
   const onModalClose = () => {
     setEditingCompanyDoc(null);
@@ -130,12 +127,13 @@ export function SuperAdminDashboard() {
               searchResults={searchResults}
               totalSearchResults={totalSearchResults}
               allCompaniesMap={allCompaniesMap}
-              selectedIntegrationCompany={selectedIntegrationCompany}
-              onSelectIntegrationCompany={(company) => {
-                setPickedIntegrationCompany(company);
-                setActiveView(SUPER_ADMIN_VIEWS.INTEGRATION_SETUP, company.id);
-              }}
-              onBackToIntegrations={() => setActiveView(SUPER_ADMIN_VIEWS.INTEGRATIONS)}
+              selectedCompany={selectedCompany}
+              companyRevision={companyRevision}
+              onOpenCompany={(company) => setActiveView(SUPER_ADMIN_VIEWS.COMPANY, company.id)}
+              // A tab is a place on the same screen: it replaces the address, so
+              // Back leaves the company rather than walking its tabs.
+              onCompanyTab={(tab) => setActiveView(SUPER_ADMIN_VIEWS.COMPANY, companyId, tab, true)}
+              onBackToCompanies={() => setActiveView(SUPER_ADMIN_VIEWS.COMPANIES)}
               stats={stats}
               statsError={statsError}
               listLoading={listLoading}
@@ -168,7 +166,7 @@ export function SuperAdminDashboard() {
         selectedApplication={selectedApplication}
         allCompaniesMap={allCompaniesMap}
         onClose={onModalClose}
-        onRefreshData={refreshData}
+        onRefreshData={refreshAfterEdit}
       />
     </>
   );

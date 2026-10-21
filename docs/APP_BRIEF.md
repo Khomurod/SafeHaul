@@ -315,8 +315,8 @@ session-based worker (§8). Partial by design: the carrier connects its own
 messaging provider and is billed by it. No two-way threads, no automated
 multi-step drips.
 
-**Super admin operations.** Dashboard (totals and calls per period), companies,
-users, unified driver DB, global feature flags, SMS integrations, Environment &
+**Super admin operations.** Dashboard (totals and calls per period), companies
+(each with its features and SMS setup), users, unified driver DB, Environment &
 Integrations vault, AI providers, blog, website-lead archive, system health,
 releases, Maintenance (writes ask first).
 

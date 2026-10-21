@@ -106,18 +106,29 @@ test.describe('Super Admin shell', () => {
     await expect(page).toHaveURL(/\/super-admin\?e2eAuth=super_admin$/);
   });
 
-  // Offline (VITE_E2E_TEST_MODE=1) the company cannot be read, so the setup
+  // Offline (VITE_E2E_TEST_MODE=1) the company cannot be read, so its screen
   // settles on the failed read; a missing company gets "Company not found".
-  // Either way the form, which would save under the address's id, stays shut.
-  test("opens a company's SMS setup from its address only after reading the company", async ({ page }) => {
+  // Either way the SMS form, which would save under the address's id, stays shut.
+  test("opens a company's SMS tab from the old setup address only after reading the company", async ({ page }) => {
     await page.goto('/super-admin/integrations/e2e-unknown-company?e2eAuth=super_admin');
+    await expect(page).toHaveURL(/\/super-admin\/companies\/e2e-unknown-company\/sms\?e2eAuth=super_admin$/);
     await expect(page.getByRole('heading', { name: /^(Could not load this company|Company not found)$/ }))
       .toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole('group', { name: 'Select provider' })).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Super Admin sections' })
+      .getByRole('button', { name: 'Companies' })).toHaveAttribute('aria-current', 'page');
 
-    await page.getByRole('button', { name: 'Back to List' }).click();
-    await expect(page).toHaveURL(/\/super-admin\/integrations\?e2eAuth=super_admin$/);
-    await expect(page.getByRole('heading', { name: 'SMS Integrations Hub' })).toBeVisible();
+    await page.getByRole('button', { name: 'All companies' }).click();
+    await expect(page).toHaveURL(/\/super-admin\/companies\?e2eAuth=super_admin$/);
+    await expect(page.getByRole('heading', { name: 'Manage Companies' })).toBeVisible();
+  });
+
+  test('opens the companies list from the old Global Features and SMS Integrations addresses', async ({ page }) => {
+    for (const old of ['features', 'integrations']) {
+      await page.goto(`/super-admin/${old}?e2eAuth=super_admin`);
+      await expect(page).toHaveURL(/\/super-admin\/companies\?e2eAuth=super_admin$/);
+      await expect(page.getByRole('heading', { name: 'Manage Companies' })).toBeVisible({ timeout: 30_000 });
+    }
   });
 
   test('reaches every Super Admin section from the rail', async ({ page }) => {
@@ -125,8 +136,7 @@ test.describe('Super Admin shell', () => {
     const nav = page.getByRole('navigation', { name: 'Super Admin sections' });
 
     for (const label of [
-      'Dashboard', 'Companies', 'Users', 'Unified Driver DB',
-      'Global Features', 'SMS Integrations', 'Environment & Integrations',
+      'Dashboard', 'Companies', 'Users', 'Unified Driver DB', 'Environment & Integrations',
       'System Health', 'Releases', 'Maintenance', 'Create New',
     ]) {
       await nav.getByRole('button', { name: label }).click();

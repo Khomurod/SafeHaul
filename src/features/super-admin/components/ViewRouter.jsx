@@ -8,9 +8,8 @@ import { CompaniesView } from './CompaniesView.jsx';
 import { UsersView } from './UsersView.jsx';
 
 import { CreateView } from './CreateView.jsx';
-import { FeaturesView } from './FeaturesView.jsx';
+import { CompanyView } from './CompanyView.jsx';
 import { SystemHealthView } from './SystemHealthView.jsx';
-import { IntegrationSetup } from './integrations/IntegrationSetup.jsx';
 import { MaintenanceView } from './MaintenanceView.jsx';
 
 
@@ -51,10 +50,12 @@ export function ViewRouter({
     hasMoreCompanies,
     hasMoreUsers,
     hasMoreApps,
-    // Integration Specific
-    selectedIntegrationCompany,
-    onSelectIntegrationCompany,
-    onBackToIntegrations
+    // One company's screen
+    selectedCompany,
+    companyRevision = 0,
+    onOpenCompany,
+    onCompanyTab,
+    onBackToCompanies,
 }) {
 
     if (isSearching) {
@@ -90,9 +91,22 @@ export function ViewRouter({
                     onViewApps={onViewApps}
                     onEdit={onEditCompany}
                     onDelete={onDeleteCompany}
+                    onOpen={onOpenCompany}
                     loadMore={loadMore}
                     isLoadingMore={loadingMore.companies}
                     hasMore={hasMoreCompanies}
+                />
+            );
+        case SUPER_ADMIN_VIEWS.COMPANY:
+            return (
+                <CompanyView
+                    companyId={selectedCompany?.id}
+                    tab={selectedCompany?.tab}
+                    revision={companyRevision}
+                    onTabChange={onCompanyTab}
+                    onBack={onBackToCompanies}
+                    onEdit={onEditCompany}
+                    onViewApps={onViewApps}
                 />
             );
         case SUPER_ADMIN_VIEWS.USERS:
@@ -122,13 +136,6 @@ export function ViewRouter({
                     isLoading={listLoading}
                 />
             );
-        case SUPER_ADMIN_VIEWS.FEATURES:
-            return (
-                <FeaturesView
-                    companyList={companyList}
-                    onDataUpdate={onDataUpdate}
-                />
-            );
         case SUPER_ADMIN_VIEWS.SYSTEM_HEALTH:
             return (
                 <SystemHealthView />
@@ -142,29 +149,6 @@ export function ViewRouter({
                     allCompaniesMap={allCompaniesMap}
                     onDataUpdate={onDataUpdate}
                     setActiveView={setActiveView}
-                />
-            );
-        case SUPER_ADMIN_VIEWS.INTEGRATIONS:
-            return (
-                <CompaniesView
-                    listLoading={listLoading}
-                    statsError={statsError}
-                    companyList={companyList}
-                    onViewApps={onViewApps}
-                    onEdit={onSelectIntegrationCompany} // Use select for integration
-                    onDelete={onDeleteCompany}
-                    loadMore={loadMore}
-                    isLoadingMore={loadingMore.companies}
-                    hasMore={hasMoreCompanies}
-                    isIntegrationMode={true} // Add flag for special UI if needed
-                />
-            );
-        case SUPER_ADMIN_VIEWS.INTEGRATION_SETUP:
-            return (
-                <IntegrationSetup
-                    companyId={selectedIntegrationCompany?.id}
-                    pickedCompany={selectedIntegrationCompany?.picked}
-                    onBack={onBackToIntegrations}
                 />
             );
         case SUPER_ADMIN_VIEWS.ENVIRONMENT:

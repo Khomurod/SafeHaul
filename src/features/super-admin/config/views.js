@@ -1,11 +1,10 @@
 export const SUPER_ADMIN_VIEWS = Object.freeze({
   DASHBOARD: 'dashboard',
   COMPANIES: 'companies',
+  // One company's screen, addressed under the list: its features and its SMS.
+  COMPANY: 'company',
   USERS: 'users',
   APPLICATIONS: 'applications',
-  FEATURES: 'features',
-  INTEGRATIONS: 'integrations',
-  INTEGRATION_SETUP: 'integration-setup',
   ENVIRONMENT: 'environment-integrations',
   AI_INTEGRATIONS: 'ai-integrations',
   BLOG_POSTS: 'blog-posts',
@@ -21,14 +20,15 @@ export const SUPER_ADMIN_NAV_ITEMS = Object.freeze([
   // Its activity was the Analytics screen; that address still opens it.
   { id: SUPER_ADMIN_VIEWS.DASHBOARD, label: 'Dashboard', icon: 'LayoutDashboard', group: 'core' },
 
+  // A company opens its own screen, with its features and its SMS setup. They
+  // were the Global Features and SMS Integrations screens; those addresses
+  // still open the list, and an SMS setup's address the company's SMS tab.
   { id: SUPER_ADMIN_VIEWS.COMPANIES, label: 'Companies', icon: 'Building', group: 'data' },
   { id: SUPER_ADMIN_VIEWS.USERS, label: 'Users', icon: 'Users', group: 'data' },
   { id: SUPER_ADMIN_VIEWS.APPLICATIONS, label: 'Unified Driver DB', icon: 'FileText', group: 'data' },
 
-  { id: SUPER_ADMIN_VIEWS.FEATURES, label: 'Global Features', icon: 'Layers', group: 'ops' },
-  { id: SUPER_ADMIN_VIEWS.INTEGRATIONS, label: 'SMS Integrations', icon: 'MessageSquare', group: 'ops' },
-  // The platform-wide configuration inventory. Deliberately separate from
-  // "SMS Integrations", which stays the per-company SMS setup workflow.
+  // The platform-wide configuration inventory. Deliberately separate from a
+  // company's SMS tab, which stays the per-company SMS setup workflow.
   { id: SUPER_ADMIN_VIEWS.ENVIRONMENT, label: 'Environment & Integrations', icon: 'KeyRound', group: 'ops' },
   // The shared AI platform's own console. Separate from "Environment &
   // Integrations", which inventories AI credentials read-only and points here
@@ -52,10 +52,13 @@ export const SUPER_ADMIN_NAV_ITEMS = Object.freeze([
   { id: SUPER_ADMIN_VIEWS.CREATE, label: 'Create New', icon: 'Plus', group: 'create' },
 ]);
 
+/** A company's screen, a tab per thing set for it; it opens on the first. */
+export const COMPANY_TABS = Object.freeze(['features', 'sms']);
+
 const PANEL_PATH = '/super-admin';
-// Every screen but one company's SMS setup, which is addressed under its list.
+// Every screen but one company's, which is addressed under the list.
 const ADDRESSABLE_VIEWS = new Set(Object.values(SUPER_ADMIN_VIEWS)
-  .filter((view) => view !== SUPER_ADMIN_VIEWS.INTEGRATION_SETUP));
+  .filter((view) => view !== SUPER_ADMIN_VIEWS.COMPANY));
 
 /**
  * The old addresses of screens merged into another, and the screen each one
@@ -65,26 +68,33 @@ const ADDRESSABLE_VIEWS = new Set(Object.values(SUPER_ADMIN_VIEWS)
 const MOVED_VIEWS = new Map([
   ['analytics', SUPER_ADMIN_VIEWS.DASHBOARD],
   ['stats-backfill', SUPER_ADMIN_VIEWS.MAINTENANCE],
+  ['features', SUPER_ADMIN_VIEWS.COMPANIES],
+  ['integrations', SUPER_ADMIN_VIEWS.COMPANIES],
 ]);
+// One company's SMS setup was `integrations/<id>`; it is that company's SMS tab.
+const MOVED_SMS_SETUP = 'integrations';
 
 /**
  * The panel's screen is in the address, so a reload, Back and a shared link
  * keep it: `/super-admin` is the dashboard, `/super-admin/<view>` any other
- * screen, and `/super-admin/integrations/<companyId>` one company's SMS setup.
- * A merged screen's old address opens the screen that holds it now. Any other
- * address is the dashboard.
+ * screen, and `/super-admin/companies/<companyId>[/<tab>]` one company's, on
+ * its first tab unless the address names another. A merged screen's old
+ * address opens the screen that holds it now. Any other address is the
+ * dashboard.
  *
  * @param {string} [subPath] what follows `/super-admin/`
- * @returns {{ view: string, companyId: string|null }}
+ * @returns {{ view: string, companyId: string|null, tab: string|null }}
  */
 export function superAdminViewFromPath(subPath = '') {
-  const [first = '', second = '', ...rest] = String(subPath).split('/').filter(Boolean);
-  if (first === SUPER_ADMIN_VIEWS.INTEGRATIONS && second && rest.length === 0) {
-    return { view: SUPER_ADMIN_VIEWS.INTEGRATION_SETUP, companyId: second };
+  const [first = '', second = '', third = '', ...rest] = String(subPath).split('/').filter(Boolean);
+  const screen = (view, companyId = null, tab = null) => ({ view, companyId, tab });
+  if (first === SUPER_ADMIN_VIEWS.COMPANIES && second && rest.length === 0 && (!third || COMPANY_TABS.includes(third))) {
+    return screen(SUPER_ADMIN_VIEWS.COMPANY, second, third || COMPANY_TABS[0]);
   }
-  if (ADDRESSABLE_VIEWS.has(first) && !second) return { view: first, companyId: null };
-  if (MOVED_VIEWS.has(first) && !second) return { view: MOVED_VIEWS.get(first), companyId: null };
-  return { view: SUPER_ADMIN_VIEWS.DASHBOARD, companyId: null };
+  if (first === MOVED_SMS_SETUP && second && !third) return screen(SUPER_ADMIN_VIEWS.COMPANY, second, 'sms');
+  if (ADDRESSABLE_VIEWS.has(first) && !second) return screen(first);
+  if (MOVED_VIEWS.has(first) && !second) return screen(MOVED_VIEWS.get(first));
+  return screen(SUPER_ADMIN_VIEWS.DASHBOARD);
 }
 
 /**
@@ -96,14 +106,18 @@ export function superAdminViewFromPath(subPath = '') {
  * @returns {string|null}
  */
 export function superAdminMovedPath(subPath = '') {
-  const [first = '', ...rest] = String(subPath).split('/').filter(Boolean);
-  return rest.length === 0 && MOVED_VIEWS.has(first) ? superAdminPathFor(MOVED_VIEWS.get(first)) : null;
+  const [first = '', second = '', ...rest] = String(subPath).split('/').filter(Boolean);
+  if (rest.length > 0) return null;
+  if (first === MOVED_SMS_SETUP && second) return superAdminPathFor(SUPER_ADMIN_VIEWS.COMPANY, second, 'sms');
+  return !second && MOVED_VIEWS.has(first) ? superAdminPathFor(MOVED_VIEWS.get(first)) : null;
 }
 
-/** The address of a screen; an SMS setup needs the id of its company. */
-export function superAdminPathFor(view, companyId = null) {
-  if (view === SUPER_ADMIN_VIEWS.INTEGRATION_SETUP) {
-    return `${PANEL_PATH}/${SUPER_ADMIN_VIEWS.INTEGRATIONS}${companyId ? `/${companyId}` : ''}`;
+/** The address of a screen; a company's needs its id, and names any tab but the first. */
+export function superAdminPathFor(view, companyId = null, tab = null) {
+  if (view === SUPER_ADMIN_VIEWS.COMPANY) {
+    if (!companyId) return `${PANEL_PATH}/${SUPER_ADMIN_VIEWS.COMPANIES}`;
+    const tabPath = COMPANY_TABS.includes(tab) && tab !== COMPANY_TABS[0] ? `/${tab}` : '';
+    return `${PANEL_PATH}/${SUPER_ADMIN_VIEWS.COMPANIES}/${companyId}${tabPath}`;
   }
   if (view === SUPER_ADMIN_VIEWS.DASHBOARD || !ADDRESSABLE_VIEWS.has(view)) return PANEL_PATH;
   return `${PANEL_PATH}/${view}`;

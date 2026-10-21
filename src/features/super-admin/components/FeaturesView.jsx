@@ -1,51 +1,28 @@
-import React, { useId, useState, useMemo } from 'react';
+import React, { useId, useState } from 'react';
 import { db } from '@lib/firebase';
-import { doc, updateDoc, writeBatch } from 'firebase/firestore';
-import { Icon, Search, Zap, Loader2, Calendar, X, Clock, BarChart2 } from '@design-system/icons';
+import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { Icon, Zap, Loader2, Calendar, X, Clock, BarChart2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { collection, getDocs } from 'firebase/firestore';
-import { Button, Card, IconButton, Input, Switch } from '@/design-system/components';
-import { Stack } from '@/design-system/layouts';
+import { Button, IconButton, Switch } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
 
 /**
- * Global feature-override matrix: one row per company, one column per feature.
+ * One company's features: a switch for each, a scheduled switch-off, and the
+ * interactions with the alert a switched-off feature shows. The Features tab of
+ * the company's screen (`CompanyView`).
  *
- * Presentation only. Frozen contracts: the `features.{key}` /
- * `featureSchedules.{key}` update shapes, the "clear the schedule when a feature
- * is toggled manually" rule, the ISO-string schedule value, the missing-field /
- * invalid / past-date validation order, the `feature_alerts` aggregation by
- * `userEmail || userId || 'Unknown'`, the five feature keys and their order, and
- * every toast string.
+ * Frozen contracts: the `features.{key}` / `featureSchedules.{key}` update
+ * shapes, the "clear the schedule when a feature is toggled manually" rule, the
+ * ISO-string schedule value, the missing-field / invalid / past-date
+ * validation order, the `feature_alerts` aggregation by
+ * `userEmail || userId || 'Unknown'`, the five feature keys and their order,
+ * and every toast string.
  *
- * Defects fixed here:
- *  1. **The feature toggles had no accessible name and no state.** Each was a
- *     bare `<button>` containing only a styled `<span>` — no text, no
- *     `aria-label`, no `aria-checked`, no `role`. A screen-reader user heard
- *     "button" and could not tell which feature it was, which company it
- *     belonged to, or whether it was on. They are now approved `Switch`
- *     controls whose label names both the feature and the company.
- *  2. Two hand-built `fixed inset-0` overlays (schedule, alert stats) with no
- *     dialog role, focus trap, Escape or focus restoration — both now use the
- *     approved accessible `Modal`. The old ones also closed on any backdrop click
- *     while relying on `stopPropagation` inside, so a drag that ended outside
- *     discarded an in-progress schedule.
- *  3. `text-[10px]` schedule text, below the 12 px floor.
- *  4. The schedule date/time inputs were unlabelled — `<label>` with no
- *     `htmlFor` and no `id` on the control.
- *  5. The per-cell schedule / cancel / alerts controls were icon-only with no
- *     accessible name, repeated once per company × feature.
- *  6. Legacy palette throughout, including two saturated modal headers.
- *
- * These cells are `Switch`, not `Checkbox`: toggling one writes to Firestore
- * immediately, and a checkbox announces a value you set and then submit.
- *
- * NOTE — `handleBulkAction` below is **unreachable**: nothing in the render calls
- * it, so the platform has no bulk enable/disable UI despite the handler existing.
- * It is left intact rather than migrated or deleted — building the UI would be
- * inventing a workflow, and deleting it would discard possibly-staged work.
- * Recorded in the roadmap for an owner decision.
+ * These are `Switch`, not `Checkbox`: toggling one writes to Firestore
+ * immediately, and a checkbox announces a value you set and then submit. After
+ * a write the company is read again (`onChanged`), and every control waits for
+ * that read, so a second click cannot write the value the first one replaced.
  */
 const ALL_FEATURES = [
     { key: 'pev', label: 'PEV' },
@@ -55,18 +32,13 @@ const ALL_FEATURES = [
     { key: 'callTracking', label: 'Call Tracking' }
 ];
 
-export function FeaturesView({ companyList, onDataUpdate }) {
-    const { showSuccess, showError, showInfo } = useToast();
-    const [search, setSearch] = useState('');
+export function FeaturesView({ company, onChanged }) {
+    const { showSuccess, showError } = useToast();
+    const titleId = useId();
     const [loading, setLoading] = useState(false);
-    const [bulkLoading, setBulkLoading] = useState(false);
-    const searchId = useId();
-
-    const filteredList = useMemo(() => {
-        if (!search) return companyList;
-        const term = search.toLowerCase();
-        return companyList.filter(c => c.companyName?.toLowerCase().includes(term));
-    }, [companyList, search]);
+    // The company as read when a write began: until it is read again, every control waits.
+    const [writtenOver, setWrittenOver] = useState(null);
+    const busy = writtenOver === company;
 
     const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
     const [selectedScheduleInfo, setSelectedScheduleInfo] = useState(null);
@@ -78,22 +50,33 @@ export function FeaturesView({ companyList, onDataUpdate }) {
     const [alertStats, setAlertStats] = useState([]);
     const [statsLoading, setStatsLoading] = useState(false);
 
-    const toggleFeature = async (company, featureKey, currentValue) => {
+    /** Writes `fields` to the company; true when saved, and the company is read again. */
+    const write = async (fields) => {
+        setWrittenOver(company);
         try {
-            const docRef = doc(db, "companies", company.id);
-            await updateDoc(docRef, {
+            await updateDoc(doc(db, "companies", company.id), fields);
+            onChanged();
+            return true;
+        } catch (e) {
+            setWrittenOver(null);
+            throw e;
+        }
+    };
+
+    const toggleFeature = async (featureKey, currentValue) => {
+        try {
+            await write({
                 [`features.${featureKey}`]: !currentValue,
                 [`featureSchedules.${featureKey}`]: null // clear schedule if manually toggled
             });
             showSuccess(`Updated ${company.companyName}`);
-            onDataUpdate();
         } catch (e) {
             console.error("Update failed:", e);
             showError("Failed to toggle feature.");
         }
     };
 
-    const openScheduleModal = (company, featureKey) => {
+    const openScheduleModal = (featureKey) => {
         setSelectedScheduleInfo({ company, featureKey });
         setScheduleDate('');
         setScheduleTime('');
@@ -106,7 +89,7 @@ export function FeaturesView({ companyList, onDataUpdate }) {
             return;
         }
 
-        const { company, featureKey } = selectedScheduleInfo;
+        const { featureKey } = selectedScheduleInfo;
         const dtStr = `${scheduleDate}T${scheduleTime}:00`;
         const dt = new Date(dtStr);
         if (isNaN(dt.getTime())) {
@@ -121,13 +104,11 @@ export function FeaturesView({ companyList, onDataUpdate }) {
 
         setLoading(true);
         try {
-            const docRef = doc(db, "companies", company.id);
-            await updateDoc(docRef, {
+            await write({
                 [`featureSchedules.${featureKey}`]: dt.toISOString()
             });
             showSuccess(`Scheduled deactivation for ${company.companyName}`);
             setScheduleModalOpen(false);
-            onDataUpdate();
         } catch (e) {
             console.error("Schedule failed:", e);
             showError("Failed to schedule deactivation.");
@@ -136,21 +117,19 @@ export function FeaturesView({ companyList, onDataUpdate }) {
         }
     };
 
-    const cancelSchedule = async (company, featureKey) => {
+    const cancelSchedule = async (featureKey) => {
         try {
-            const docRef = doc(db, "companies", company.id);
-            await updateDoc(docRef, {
+            await write({
                 [`featureSchedules.${featureKey}`]: null
             });
             showSuccess(`Cancelled schedule for ${company.companyName}`);
-            onDataUpdate();
         } catch (e) {
             console.error("Cancel schedule failed:", e);
             showError("Failed to cancel schedule.");
         }
     };
 
-    const openStatsModal = async (company, featureKey) => {
+    const openStatsModal = async (featureKey) => {
         setSelectedStatsInfo({ company, featureKey });
         setAlertStats([]);
         setStatsModalOpen(true);
@@ -185,169 +164,89 @@ export function FeaturesView({ companyList, onDataUpdate }) {
         }
     };
 
-    // Unreachable — see this file's header note. Preserved verbatim.
-    const handleBulkAction = async (featureKey, targetState) => {
-        setBulkLoading(true);
-        showInfo("Processing bulk update...");
-
-        try {
-            const BATCH_SIZE = 400;
-            const chunks = [];
-            for (let i = 0; i < companyList.length; i += BATCH_SIZE) {
-                chunks.push(companyList.slice(i, i + BATCH_SIZE));
-            }
-
-            for (const chunk of chunks) {
-                const batch = writeBatch(db);
-                chunk.forEach(company => {
-                    const ref = doc(db, "companies", company.id);
-                    batch.update(ref, { [`features.${featureKey}`]: targetState });
-                });
-                await batch.commit();
-            }
-
-            showSuccess(`Successfully ${targetState ? 'Enabled' : 'Disabled'} feature for all companies.`);
-            onDataUpdate();
-        } catch (e) {
-            console.error("Bulk update failed:", e);
-            showError("Bulk update failed.");
-        } finally {
-            setBulkLoading(false);
-        }
-    };
-    // Referenced so the unreachable handler does not read as an unused-variable
-    // lint error while it awaits an owner decision.
-    void handleBulkAction; void bulkLoading;
-
     return (
         <>
-            <Stack gap="lg" className="flex h-full flex-col">
-                <Card padding="none" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                    <div className="shrink-0 border-b border-ds-border-subtle p-ds-5">
-                        <h2 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                            <Icon icon={Zap} size="xl" className="text-ds-status-accent-fg" />
-                            Company Feature Overrides
-                        </h2>
-                    </div>
-
-                    <div className="shrink-0 border-b border-ds-border-subtle bg-ds-surface p-ds-4">
-                        <div className="relative max-w-md">
-                            <label htmlFor={searchId} className="sr-only">Search companies by name</label>
-                            <Input
-                                id={searchId}
-                                type="search"
-                                placeholder="Search companies..."
-                                className="pl-10"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                            <Icon icon={Search} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
-                        </div>
-                    </div>
-
-                    {/* Keyboard-focusable, named scroll region: below `sm` the table
-                    scrolls horizontally, and in the empty state it holds no
-                    focusable children, so keyboard users could not scroll it at
-                    all (axe `scrollable-region-focusable`). Same pattern already
-                    used by `EnvelopeHistory` and `CampaignResultsTable`. */}
+            <section aria-labelledby={titleId}>
+                <h3 id={titleId} className="mb-ds-3 flex items-center gap-ds-2 text-ds-body font-bold text-ds-content">
+                    <Icon icon={Zap} className="text-ds-status-accent-fg" />
+                    Features
+                </h3>
                 <div
                     role="region"
-                    aria-label="Feature matrix"
+                    aria-label="Features of this company"
                     tabIndex={0}
-                    /*
-                     * `isolate` is what makes the three `layer-*` tiers below
-                     * local. A sticky matrix needs an internal order — row
-                     * header under column header under the corner where they
-                     * cross — and that order is nobody's business outside this
-                     * region. Safe to isolate: both of this view's dialogs are
-                     * rendered after this element closes, not inside it.
-                     */
-                    className="isolate min-h-0 flex-1 overflow-auto bg-ds-canvas focus-visible:outline-none focus-visible:shadow-ds-focus"
+                    className="overflow-x-auto rounded-ds-lg border border-ds-border-subtle focus-visible:outline-none focus-visible:shadow-ds-focus"
                 >
-                        <table className="ds-native-table">
-                            <caption className="sr-only">Feature overrides by company</caption>
-                            <thead className="sticky top-0 z-ds-layer-2 shadow-ds-xs">
-                                <tr>
-                                    {/* The corner cell crosses both, so it is the top tier. */}
-                                    <th scope="col" className="sticky left-0 z-ds-layer-3">Company Name</th>
-                                    {ALL_FEATURES.map(f => (
-                                        <th key={f.key} scope="col" className="whitespace-nowrap text-center">
-                                            {f.label}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredList.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={ALL_FEATURES.length + 1} className="text-center text-ds-content-muted">
-                                            <div role="status">No companies found.</div>
+                    <table className="ds-native-table">
+                        <caption className="sr-only">Features of {company.companyName}</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Feature</th>
+                                <th scope="col">On</th>
+                                <th scope="col">Scheduled switch-off</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {ALL_FEATURES.map(f => {
+                                // On unless switched off, as every screen that honours
+                                // the flag reads it (`features.{key} === false` hides it).
+                                const isEnabled = company.features?.[f.key] !== false;
+                                const schedule = company.featureSchedules?.[f.key];
+
+                                return (
+                                    <tr key={f.key}>
+                                        <th scope="row" className="font-medium text-ds-content">{f.label}</th>
+                                        <td>
+                                            <Switch
+                                                label={`${f.label} for ${company.companyName}`}
+                                                checked={isEnabled}
+                                                disabled={busy}
+                                                onChange={() => toggleFeature(f.key, isEnabled)}
+                                            />
+                                        </td>
+                                        <td>
+                                            <div className="flex flex-wrap items-center gap-ds-2">
+                                                {isEnabled && (
+                                                    <IconButton
+                                                        label={`Schedule deactivation of ${f.label} for ${company.companyName}`}
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        disabled={busy}
+                                                        onClick={() => openScheduleModal(f.key)}
+                                                    >
+                                                        <Icon icon={Calendar} />
+                                                    </IconButton>
+                                                )}
+                                                {schedule && (
+                                                    <>
+                                                        <span className="flex items-center gap-1 rounded-ds-sm bg-ds-status-warning-bg px-1.5 py-1 text-ds-xs text-ds-status-warning-fg">
+                                                            <Icon icon={Clock} size="xs" />
+                                                            {new Date(schedule).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                                            <IconButton
+                                                                label={`Cancel scheduled deactivation of ${f.label} for ${company.companyName}`}
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                disabled={busy}
+                                                                onClick={() => cancelSchedule(f.key)}
+                                                            >
+                                                                <Icon icon={X} size="xs" />
+                                                            </IconButton>
+                                                        </span>
+                                                        <Button variant="ghost" size="sm" onClick={() => openStatsModal(f.key)}>
+                                                            <Icon icon={BarChart2} size="xs" /> Alerts
+                                                            <span className="sr-only">{` for ${f.label} at ${company.companyName}`}</span>
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
-                                ) : filteredList.map(company => (
-                                    <tr key={company.id} className="transition-colors">
-                                        <th scope="row" className="sticky left-0 z-ds-layer-1 border-r border-ds-border-subtle font-medium text-ds-content">
-                                            {company.companyName}
-                                        </th>
-                                        {ALL_FEATURES.map(f => {
-                                            // On unless switched off, as every screen that honours
-                                            // the flag reads it (`features.{key} === false` hides it).
-                                            const isEnabled = company.features?.[f.key] !== false;
-                                            const schedule = company.featureSchedules?.[f.key];
-
-                                            return (
-                                                <td key={f.key} className="min-w-[160px] space-y-ds-2 text-center">
-                                                    <div className="flex items-center justify-center gap-ds-2">
-                                                        <Switch
-                                                            label={`${f.label} for ${company.companyName}`}
-                                                            checked={isEnabled}
-                                                            onChange={() => toggleFeature(company, f.key, isEnabled)}
-                                                        />
-                                                        {isEnabled && (
-                                                            <IconButton
-                                                                label={`Schedule deactivation of ${f.label} for ${company.companyName}`}
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => openScheduleModal(company, f.key)}
-                                                            >
-                                                                <Icon icon={Calendar} />
-                                                            </IconButton>
-                                                        )}
-                                                    </div>
-                                                    {schedule && (
-                                                        <div className="flex flex-col items-center justify-center gap-1 rounded-ds-sm bg-ds-status-warning-bg px-1.5 py-1 text-ds-xs leading-tight text-ds-status-warning-fg">
-                                                            <div className="flex items-center gap-1">
-                                                                <Icon icon={Clock} size="xs" />
-                                                                <span>{new Date(schedule).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
-                                                                <IconButton
-                                                                    label={`Cancel scheduled deactivation of ${f.label} for ${company.companyName}`}
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => cancelSchedule(company, f.key)}
-                                                                >
-                                                                    <Icon icon={X} size="xs" />
-                                                                </IconButton>
-                                                            </div>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => openStatsModal(company, f.key)}
-                                                            >
-                                                                <Icon icon={BarChart2} size="xs" /> Alerts
-                                                                <span className="sr-only">{` for ${f.label} at ${company.companyName}`}</span>
-                                                            </Button>
-                                                        </div>
-                                                    )}
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-            </Stack>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
             {scheduleModalOpen && (
                 <ScheduleDeactivationDialog

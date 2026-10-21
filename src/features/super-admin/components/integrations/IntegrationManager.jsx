@@ -3,7 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { Icon, Save, Send, Database, ArrowLeft, CheckCircle } from '@design-system/icons';
+import { Icon, Save, Send, Database, CheckCircle } from '@design-system/icons';
 import { Badge, Button, Card, Checkbox, FormField, Input, Notice } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { LineManager } from './LineManager';
@@ -41,7 +41,7 @@ import { LineManager } from './LineManager';
  * here but migrated separately; the provider tone choice (RingCentral vs 8x8)
  * stays feature-owned domain-to-visual mapping.
  */
-export function IntegrationManager({ companyId, companyName, onBack }) {
+export function IntegrationManager({ companyId, companyName }) {
     const { showSuccess, showError, showWarning } = useToast();
     const [provider, setProvider] = useState('ringcentral');
 
@@ -256,15 +256,11 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
     return (
         <Card padding="lg">
             <div className="mb-ds-4 flex flex-wrap items-center justify-between gap-ds-3">
-                <h2 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
+                {/* Under the company's own heading, on its SMS tab. */}
+                <h3 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
                     <Icon icon={Database} size="2xl" className="text-ds-content-link" />
                     <span>SMS Integration <span className="font-normal text-ds-content-muted">for</span> {companyName || 'Company'}</span>
-                </h2>
-                {onBack && (
-                    <Button variant="ghost" size="sm" onClick={onBack}>
-                        <Icon icon={ArrowLeft} /> Back to List
-                    </Button>
-                )}
+                </h3>
             </div>
 
             {fetchError && (

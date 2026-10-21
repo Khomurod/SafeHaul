@@ -480,7 +480,7 @@ The vault callables must bind the secrets to see them. Check that
 `SMS_ENCRYPTION_KEY` has changed. Every existing ciphertext was encrypted with
 the previous key and is unrecoverable without it. Restore the previous key
 version in Secret Manager; if it is genuinely lost, each affected company must
-re-enter its credentials through the existing SMS Integrations workflow. This is
+re-enter its credentials on its SMS tab (Companies → the company → SMS). This is
 why the key is Reveal-only and has no Edit, Replace or Delete control here.
 
 **"GITHUB_TOKEN shows as Not retrievable."**

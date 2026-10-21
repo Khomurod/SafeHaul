@@ -1,10 +1,10 @@
 /**
- * Contract freeze + defect proof for the migrated `FeaturesView`.
+ * Contract freeze + defect proof for `FeaturesView`, one company's Features tab.
  *
- * This matrix writes feature flags for every company on the platform, so the
- * exact `features.{key}` / `featureSchedules.{key}` update shapes are frozen
- * first. The headline fix is that the toggles previously had no accessible name
- * and no state at all.
+ * It writes the company's feature flags, so the exact `features.{key}` /
+ * `featureSchedules.{key}` update shapes are frozen first. Every toggle has an
+ * accessible name and a state, and after a write every control waits until the
+ * company has been read again.
  *
  * All company names below are artificial.
  */
@@ -25,7 +25,6 @@ vi.mock('firebase/firestore', () => ({
     collection: vi.fn((_db, ...p) => ({ path: p.join('/') })),
     updateDoc: (...a) => updateDoc(...a),
     getDocs: (...a) => getDocs(...a),
-    writeBatch: vi.fn(() => ({ update: vi.fn(), commit: vi.fn() })),
 }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showSuccess, showError, showInfo }),
@@ -33,13 +32,11 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({
 
 import { FeaturesView } from './FeaturesView';
 
-const COMPANIES = [
-    { id: 'co-1', companyName: 'Artificial Freight Co', features: { pev: true, eDocs: false }, featureSchedules: {} },
-    { id: 'co-2', companyName: 'Second Artificial Carrier', features: {}, featureSchedules: {} },
-];
+const COMPANY = { id: 'co-1', companyName: 'Artificial Freight Co', features: { pev: true, eDocs: false }, featureSchedules: {} };
+const UNSET = { id: 'co-2', companyName: 'Second Artificial Carrier', features: {}, featureSchedules: {} };
 
 function renderView(props = {}) {
-    return render(<FeaturesView companyList={COMPANIES} onDataUpdate={vi.fn()} {...props} />);
+    return render(<FeaturesView company={COMPANY} onChanged={vi.fn()} {...props} />);
 }
 
 beforeEach(() => {
@@ -49,9 +46,9 @@ beforeEach(() => {
 });
 
 describe('FeaturesView — frozen write contract', () => {
-    it('writes the feature flag and clears its schedule in one update', async () => {
-        const onDataUpdate = vi.fn();
-        renderView({ onDataUpdate });
+    it('writes the feature flag and clears its schedule in one update, then has the company read again', async () => {
+        const onChanged = vi.fn();
+        renderView({ onChanged });
 
         fireEvent.click(screen.getByRole('switch', { name: 'E-Docs for Artificial Freight Co' }));
 
@@ -62,7 +59,7 @@ describe('FeaturesView — frozen write contract', () => {
             'featureSchedules.eDocs': null,
         });
         expect(showSuccess).toHaveBeenCalledWith('Updated Artificial Freight Co');
-        expect(onDataUpdate).toHaveBeenCalled();
+        expect(onChanged).toHaveBeenCalledTimes(1);
     });
 
     it('inverts an already-enabled feature', async () => {
@@ -71,33 +68,48 @@ describe('FeaturesView — frozen write contract', () => {
         await waitFor(() => expect(updateDoc.mock.calls[0][1]['features.pev']).toBe(false));
     });
 
-    it('exposes the five feature columns in the frozen order', () => {
+    it('lists the five features in the frozen order', () => {
         renderView();
-        const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);
-        expect(headers).toEqual(['Company Name', 'PEV', 'Campaigns', 'E-Docs', 'Import Leads', 'Call Tracking']);
+        const features = screen.getAllByRole('rowheader').map((h) => h.textContent);
+        expect(features).toEqual(['PEV', 'Campaigns', 'E-Docs', 'Import Leads', 'Call Tracking']);
     });
 
-    it('reports a failed toggle through the frozen toast', async () => {
+    it('reports a failed toggle through the frozen toast, and lets the operator try again', async () => {
         updateDoc.mockRejectedValueOnce(new Error('nope'));
-        renderView();
-        fireEvent.click(screen.getByRole('switch', { name: 'PEV for Artificial Freight Co' }));
+        const onChanged = vi.fn();
+        renderView({ onChanged });
+        const pev = screen.getByRole('switch', { name: 'PEV for Artificial Freight Co' });
+        fireEvent.click(pev);
         await waitFor(() => expect(showError).toHaveBeenCalledWith('Failed to toggle feature.'));
+        expect(onChanged).not.toHaveBeenCalled();
+        expect(pev).toBeEnabled();
     });
+});
 
-    it('filters companies by name', () => {
-        renderView();
-        fireEvent.change(screen.getByLabelText('Search companies by name'), { target: { value: 'second' } });
-        expect(screen.queryByText('Artificial Freight Co')).not.toBeInTheDocument();
-        expect(screen.getByText('Second Artificial Carrier')).toBeInTheDocument();
+describe('FeaturesView — a write waits for the company to be read again', () => {
+    it('holds every control after a write, so a second click cannot write the value the first replaced', async () => {
+        const { rerender } = renderView();
+        fireEvent.click(screen.getByRole('switch', { name: 'PEV for Artificial Freight Co' }));
+        await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
+
+        const pev = screen.getByRole('switch', { name: 'PEV for Artificial Freight Co' });
+        expect(pev).toBeDisabled();
+        expect(screen.getByRole('switch', { name: 'E-Docs for Artificial Freight Co' })).toBeDisabled();
+        fireEvent.click(pev);
+        expect(updateDoc).toHaveBeenCalledTimes(1);
+
+        // The company as read again, with the write in it.
+        rerender(<FeaturesView company={{ ...COMPANY, features: { pev: false, eDocs: false } }} onChanged={vi.fn()} />);
+        expect(screen.getByRole('switch', { name: 'PEV for Artificial Freight Co' })).toBeEnabled();
+        expect(screen.getByRole('switch', { name: 'PEV for Artificial Freight Co' })).not.toBeChecked();
     });
 });
 
 describe('FeaturesView — toggles are named and stateful (defect)', () => {
     it('gives every toggle an accessible name identifying feature and company', () => {
         renderView();
-        // 2 companies x 5 features
-        expect(screen.getAllByRole('switch')).toHaveLength(10);
-        expect(screen.getByRole('switch', { name: 'Campaigns for Second Artificial Carrier' })).toBeInTheDocument();
+        expect(screen.getAllByRole('switch')).toHaveLength(5);
+        expect(screen.getByRole('switch', { name: 'Campaigns for Artificial Freight Co' })).toBeInTheDocument();
     });
 
     it('exposes the on/off state programmatically, not by colour', () => {
@@ -107,7 +119,7 @@ describe('FeaturesView — toggles are named and stateful (defect)', () => {
     });
 
     it('shows a feature the company never set as on, as the app treats it, and switches it off', async () => {
-        renderView();
+        renderView({ company: UNSET });
         const campaigns = screen.getByRole('switch', { name: 'Campaigns for Second Artificial Carrier' });
         expect(campaigns).toBeChecked();
 
@@ -129,7 +141,7 @@ describe('FeaturesView — toggles are named and stateful (defect)', () => {
 });
 
 describe('FeaturesView — schedule dialog (defects)', () => {
-    const scheduled = [{ ...COMPANIES[0], featureSchedules: { pev: '2099-01-01T10:00:00.000Z' } }];
+    const scheduled = { ...COMPANY, featureSchedules: { pev: '2099-01-01T10:00:00.000Z' } };
 
     it('opens as a real dialog with labelled date and time fields', async () => {
         renderView();
@@ -169,22 +181,25 @@ describe('FeaturesView — schedule dialog (defects)', () => {
         expect(payload['featureSchedules.pev']).toMatch(/^2099-01-01T/);
     });
 
-    it('names the cancel-schedule control', () => {
-        renderView({ companyList: scheduled });
+    it('names the cancel-schedule control, and still offers a new schedule beside it', () => {
+        renderView({ company: scheduled });
+        expect(
+            screen.getByRole('button', { name: 'Schedule deactivation of PEV for Artificial Freight Co' }),
+        ).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Cancel scheduled deactivation of PEV for Artificial Freight Co' }),
         ).toBeInTheDocument();
     });
 
     it('clears the schedule field on cancel', async () => {
-        renderView({ companyList: scheduled });
+        renderView({ company: scheduled });
         fireEvent.click(screen.getByRole('button', { name: 'Cancel scheduled deactivation of PEV for Artificial Freight Co' }));
         await waitFor(() => expect(updateDoc).toHaveBeenCalledWith({ path: 'companies/co-1' }, { 'featureSchedules.pev': null }));
     });
 });
 
 describe('FeaturesView — alert stats dialog', () => {
-    const scheduled = [{ ...COMPANIES[0], featureSchedules: { pev: '2099-01-01T10:00:00.000Z' } }];
+    const scheduled = { ...COMPANY, featureSchedules: { pev: '2099-01-01T10:00:00.000Z' } };
 
     it('aggregates alerts per user for the chosen feature only', async () => {
         getDocs.mockResolvedValue({
@@ -194,7 +209,7 @@ describe('FeaturesView — alert stats dialog', () => {
                 { data: () => ({ featureKey: 'eDocs', userEmail: 'b@example.test', views: 9 }) },
             ],
         });
-        renderView({ companyList: scheduled });
+        renderView({ company: scheduled });
 
         fireEvent.click(screen.getByRole('button', { name: /Alerts for PEV at Artificial Freight Co/ }));
 
@@ -215,7 +230,7 @@ describe('FeaturesView — alert stats dialog', () => {
                 { data: () => ({ featureKey: 'pev', views: 1 }) },
             ],
         });
-        renderView({ companyList: scheduled });
+        renderView({ company: scheduled });
         fireEvent.click(screen.getByRole('button', { name: /Alerts for PEV at Artificial Freight Co/ }));
 
         expect(await screen.findByText('uid-1')).toBeInTheDocument();
@@ -223,28 +238,15 @@ describe('FeaturesView — alert stats dialog', () => {
     });
 
     it('keeps the frozen empty-stats copy', async () => {
-        renderView({ companyList: scheduled });
+        renderView({ company: scheduled });
         fireEvent.click(screen.getByRole('button', { name: /Alerts for PEV at Artificial Freight Co/ }));
         expect(await screen.findByText('No alert interactions recorded yet.')).toBeInTheDocument();
     });
 });
 
 describe('FeaturesView — accessibility', () => {
-    it('has no violations in the matrix', async () => {
-        const { container } = renderView();
+    it('has no violations', async () => {
+        const { container } = renderView({ company: { ...COMPANY, featureSchedules: { pev: '2099-01-01T10:00:00.000Z' } } });
         expect((await axe(container)).violations).toEqual([]);
-    });
-
-    it('keeps the frozen empty-list copy, and announces it', () => {
-        renderView({ companyList: [] });
-        const empty = screen.getByText('No companies found.');
-        expect(empty).toBeInTheDocument();
-        /*
-         * Filtering the matrix down to nothing replaces the whole table body, so
-         * the empty state announces itself. The role goes in a wrapper inside the
-         * cell, never on the `<td>` — on the cell it replaces the cell role.
-         */
-        expect(empty).toHaveAttribute('role', 'status');
-        expect(empty.closest('td')).not.toHaveAttribute('role');
     });
 });

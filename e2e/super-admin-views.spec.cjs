@@ -19,8 +19,6 @@ const VIEWS = [
   { nav: 'Companies', expect: (page) => page.getByRole('heading', { name: 'Manage Companies' }) },
   { nav: 'Users', expect: (page) => page.getByRole('heading', { name: 'Manage All Users' }) },
   { nav: 'Unified Driver DB', expect: (page) => page.getByRole('heading', { name: 'Unified Driver Database' }) },
-  { nav: 'Global Features', expect: (page) => page.getByRole('heading', { name: 'Company Feature Overrides' }) },
-  { nav: 'SMS Integrations', expect: (page) => page.getByRole('heading', { name: 'SMS Integrations Hub' }) },
   // The configuration inventory. Offline its table settles into the announced
   // load failure (the callable is unreachable under VITE_E2E_TEST_MODE=1); the
   // page heading and the security notice render either way, so that is what is
@@ -109,6 +107,22 @@ test.describe('Super Admin views', () => {
       expect(severe, `${view.nav} axe`).toEqual([]);
     });
   }
+
+  // Offline the company cannot be read, so its screen settles on the failed
+  // read (or "Company not found"): announced, with the way back, never a form.
+  test("a company's screen settles on its read, with no serious accessibility violations", async ({ page }) => {
+    await page.goto('/super-admin/companies/e2e-company/sms?e2eAuth=super_admin');
+    await expect(page.getByRole('heading', { name: /^(Could not load this company|Company not found)$/ }))
+      .toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /All companies/ })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Select provider' })).toHaveCount(0);
+
+    const { violations } = await new AxeBuilder({ page }).include('main').analyze();
+    const severe = violations
+      .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+      .map((v) => `${v.id} [${v.impact}]`);
+    expect(severe, 'company screen axe').toEqual([]);
+  });
 
   test('every migrated view keeps exactly one h1 (the masthead)', async ({ page }) => {
     await openShell(page);

@@ -94,7 +94,7 @@ const NO_DOC = { exists: () => false };
 
 async function renderManager(props = {}) {
     const utils = render(
-        <IntegrationManager companyId="co-1" companyName="Artificial Freight Co" onBack={vi.fn()} {...props} />,
+        <IntegrationManager companyId="co-1" companyName="Artificial Freight Co" {...props} />,
     );
     // Wait out the mount fetch (the loading spinner is replaced by the form).
     await waitFor(() => expect(screen.queryByText('Loading existing configuration...')).not.toBeInTheDocument());

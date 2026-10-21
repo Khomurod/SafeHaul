@@ -45,22 +45,28 @@ vi.mock('../hooks/useSuperAdminData', () => ({
 // The view layer is exercised by its own suites; the shell only needs to prove
 // it routes and composes.
 vi.mock('./ViewRouter', () => ({
-    ViewRouter: ({ activeView, isSearching, selectedIntegrationCompany, onSelectIntegrationCompany, onBackToIntegrations }) => (
+    ViewRouter: ({ activeView, isSearching, selectedCompany, companyRevision, onOpenCompany, onCompanyTab, onBackToCompanies }) => (
         <div
             data-testid="view-router"
             data-active-view={activeView}
             data-searching={String(isSearching)}
-            data-company-id={selectedIntegrationCompany?.id ?? ''}
-            data-picked-name={selectedIntegrationCompany?.picked?.companyName ?? ''}
+            data-company-id={selectedCompany?.id ?? ''}
+            data-tab={selectedCompany?.tab ?? ''}
+            data-revision={String(companyRevision)}
         >
-            <button type="button" onClick={() => onSelectIntegrationCompany({ id: 'co-9', companyName: 'Artificial Carrier 9' })}>
-                Set up SMS for Artificial Carrier 9
+            <button type="button" onClick={() => onOpenCompany({ id: 'co-9', companyName: 'Artificial Carrier 9' })}>
+                Open Artificial Carrier 9
             </button>
-            <button type="button" onClick={onBackToIntegrations}>Back to SMS integrations</button>
+            <button type="button" onClick={() => onCompanyTab('sms')}>Show the SMS tab</button>
+            <button type="button" onClick={onBackToCompanies}>Back to companies</button>
         </div>
     ),
 }));
-vi.mock('./DashboardModals', () => ({ DashboardModals: () => null }));
+vi.mock('./DashboardModals', () => ({
+    DashboardModals: ({ onRefreshData }) => (
+        <button type="button" onClick={onRefreshData}>Save company details</button>
+    ),
+}));
 
 import { SuperAdminDashboard } from './SuperAdminDashboard';
 
@@ -166,8 +172,8 @@ describe('Super Admin shell — navigation (defects)', () => {
         fireEvent.click(within(nav).getByRole('button', { name: 'Unified Driver DB' }));
         expect(screen.getByTestId('view-router')).toHaveAttribute('data-active-view', 'applications');
 
-        fireEvent.click(within(nav).getByRole('button', { name: 'SMS Integrations' }));
-        expect(screen.getByTestId('view-router')).toHaveAttribute('data-active-view', 'integrations');
+        expect(within(nav).queryByRole('button', { name: 'SMS Integrations' })).not.toBeInTheDocument();
+        expect(within(nav).queryByRole('button', { name: 'Global Features' })).not.toBeInTheDocument();
 
         fireEvent.click(within(nav).getByRole('button', { name: 'System Health' }));
         expect(screen.getByTestId('view-router')).toHaveAttribute('data-active-view', 'system-health');
@@ -224,24 +230,52 @@ describe('Super Admin shell — the screen in the address', () => {
         expect(view()).toHaveAttribute('data-active-view', 'companies');
     });
 
-    it("reopens a company's SMS setup from its address, for the setup to read the company", () => {
-        renderShell('/super-admin/integrations/co-7');
+    it("opens a company's screen from its address, on the tab it names, as part of Companies", () => {
+        renderShell('/super-admin/companies/co-7/sms');
 
-        expect(view()).toHaveAttribute('data-active-view', 'integration-setup');
+        expect(view()).toHaveAttribute('data-active-view', 'company');
         expect(view()).toHaveAttribute('data-company-id', 'co-7');
-        expect(view()).toHaveAttribute('data-picked-name', '');
+        expect(view()).toHaveAttribute('data-tab', 'sms');
+        expect(within(nav()).getByRole('button', { name: 'Companies' })).toHaveAttribute('aria-current', 'page');
     });
 
-    it('puts the SMS setup a row opens into the address, and leaves it for the list', () => {
-        renderShell('/super-admin/integrations');
+    it("opens a company's features when its address names no tab", () => {
+        renderShell('/super-admin/companies/co-7');
 
-        fireEvent.click(screen.getByRole('button', { name: 'Set up SMS for Artificial Carrier 9' }));
-        expect(screen.getByTestId('address')).toHaveTextContent('/super-admin/integrations/co-9');
-        expect(view()).toHaveAttribute('data-picked-name', 'Artificial Carrier 9');
+        expect(view()).toHaveAttribute('data-company-id', 'co-7');
+        expect(view()).toHaveAttribute('data-tab', 'features');
+    });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Back to SMS integrations' }));
-        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/integrations$/);
-        expect(view()).toHaveAttribute('data-active-view', 'integrations');
+    it('puts the company a row opens into the address; a tab replaces it, so Back leaves the company', () => {
+        renderShell('/super-admin/companies?e2eAuth=super_admin');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Open Artificial Carrier 9' }));
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/companies\/co-9\?e2eAuth=super_admin$/);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Show the SMS tab' }));
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/companies\/co-9\/sms\?e2eAuth=super_admin$/);
+        expect(view()).toHaveAttribute('data-tab', 'sms');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/companies\?e2eAuth=super_admin$/);
+        expect(view()).toHaveAttribute('data-active-view', 'companies');
+    });
+
+    it("leaves a company's screen for the list", () => {
+        renderShell('/super-admin/companies/co-9');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back to companies' }));
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/super-admin\/companies$/);
+        expect(view()).toHaveAttribute('data-active-view', 'companies');
+    });
+
+    it("has the company's screen read it again when its details are saved, and refreshes the lists", () => {
+        renderShell('/super-admin/companies/co-9');
+        expect(view()).toHaveAttribute('data-revision', '0');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Save company details' }));
+        expect(view()).toHaveAttribute('data-revision', '1');
+        expect(refreshData).toHaveBeenCalledTimes(1);
     });
 
     it('opens the dashboard for an address it does not know', () => {
@@ -283,6 +317,21 @@ describe('Super Admin shell — the addresses of merged screens', () => {
         const nav = screen.getByRole('navigation', { name: 'Super Admin sections' });
         expect(within(nav).getByRole('button', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
         expect(within(nav).queryByRole('button', { name: 'Analytics' })).not.toBeInTheDocument();
+    });
+
+    it('opens the companies list from the old Global Features and SMS Integrations addresses', async () => {
+        renderShellAfter(['/super-admin/features?e2eAuth=super_admin']);
+        expect(view()).toHaveAttribute('data-active-view', 'companies');
+        await waitFor(() => expect(address()).toHaveTextContent(/^\/super-admin\/companies\?e2eAuth=super_admin$/));
+    });
+
+    it("opens a company's SMS tab from the old address of its SMS setup", async () => {
+        renderShellAfter(['/super-admin/integrations/co-7?e2eAuth=super_admin']);
+
+        expect(view()).toHaveAttribute('data-active-view', 'company');
+        expect(view()).toHaveAttribute('data-company-id', 'co-7');
+        expect(view()).toHaveAttribute('data-tab', 'sms');
+        await waitFor(() => expect(address()).toHaveTextContent(/^\/super-admin\/companies\/co-7\/sms\?e2eAuth=super_admin$/));
     });
 
     it('replaces the old address rather than stacking one, so Back does not loop', async () => {

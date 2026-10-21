@@ -5,7 +5,7 @@
  * argument shapes are frozen before any presentation change. The defect suites
  * below each fail against the pre-migration component.
  *
- * All company names, slugs and phone numbers below are artificial.
+ * All company names and slugs below are artificial.
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -13,12 +13,10 @@ import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const updateDoc = vi.fn(() => Promise.resolve());
-const getDoc = vi.fn();
 
 vi.mock('@lib/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
     doc: vi.fn((_db, ...path) => ({ path: path.join('/') })),
-    getDoc: (...a) => getDoc(...a),
     updateDoc: (...a) => updateDoc(...a),
 }));
 
@@ -40,6 +38,7 @@ function renderView(props = {}) {
             onViewApps={vi.fn()}
             onEdit={vi.fn()}
             onDelete={vi.fn()}
+            onOpen={vi.fn()}
             loadMore={vi.fn()}
             hasMore={false}
             {...props}
@@ -49,7 +48,6 @@ function renderView(props = {}) {
 
 beforeEach(() => {
     vi.resetAllMocks();
-    getDoc.mockResolvedValue({ exists: () => false });
     vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -70,12 +68,20 @@ describe('CompaniesView — frozen callback contracts', () => {
         expect(onEdit).toHaveBeenCalledWith('co-1');
     });
 
-    it('passes the whole company object to onEdit in integration mode', () => {
-        const onEdit = vi.fn();
-        renderView({ isIntegrationMode: true, onEdit });
+    it("passes the whole company to onOpen, for the company's own screen", () => {
+        const onOpen = vi.fn();
+        renderView({ onOpen });
 
-        fireEvent.click(screen.getByRole('button', { name: /Manage API for Artificial Freight Co/ }));
-        expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'co-1' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Artificial Freight Co' }));
+        expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'co-1', companyName: 'Artificial Freight Co' }));
+    });
+
+    it('reads nothing per row: what is set for a company is on its own screen', () => {
+        renderView();
+        expect(screen.getAllByRole('row')).toHaveLength(3);
+        expect(screen.queryByText('Not Provisioned')).not.toBeInTheDocument();
+        expect(screen.getAllByRole('columnheader').map((h) => h.textContent))
+            .toEqual(['Company Name', 'Slug / ID', 'Plan', 'Status', 'Actions']);
     });
 
     it('calls loadMore with the exact "companies" key', () => {
@@ -154,67 +160,46 @@ describe('CompaniesView — frozen callback contracts', () => {
     });
 });
 
-describe('CompaniesView — stale enrichment defect', () => {
-    it('shows the SMS number once the async enrichment resolves', async () => {
-        // The pre-migration `filteredCompanyList` memo read `displayList` but
-        // depended on `[companySearch, companyList]`, so the enrichment landing
-        // in state never reached the rendered rows.
-        getDoc.mockResolvedValue({
-            exists: () => true,
-            data: () => ({ defaultPhoneNumber: '+15550000001', provider: 'artificial-provider' }),
-        });
-
-        renderView({ isIntegrationMode: true });
-
-        // Both rows resolve from the same mock, so both must update — the point
-        // is that the enrichment reaches the rendered rows at all.
-        expect(await screen.findAllByText('+15550000001')).toHaveLength(2);
-        expect(screen.getAllByText('artificial-provider')).toHaveLength(2);
-    });
-
-    it('still shows the frozen not-provisioned copy when there is no config', async () => {
-        renderView({ isIntegrationMode: true });
-        expect(await screen.findAllByText('Not Provisioned')).toHaveLength(2);
-    });
-});
-
 describe('CompaniesView — row actions no longer double-fire (defect)', () => {
-    it('does not also open the editor when a row action is used', () => {
+    it('does not also open the company when a row action is used', () => {
+        const onOpen = vi.fn();
         const onEdit = vi.fn();
         const onViewApps = vi.fn();
-        renderView({ onEdit, onViewApps });
+        renderView({ onOpen, onEdit, onViewApps });
 
         fireEvent.click(screen.getByRole('button', { name: 'View applications for Artificial Freight Co' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Artificial Freight Co' }));
 
         expect(onViewApps).toHaveBeenCalledTimes(1);
-        // Pre-migration this bubbled to the row's onClick and stacked two dialogs.
-        expect(onEdit).not.toHaveBeenCalled();
+        expect(onEdit).toHaveBeenCalledTimes(1);
+        // Pre-migration this bubbled to the row's onClick and stacked two screens.
+        expect(onOpen).not.toHaveBeenCalled();
     });
 
-    it('does not open the editor when the status toggle is used', () => {
-        const onEdit = vi.fn();
-        renderView({ onEdit });
+    it('does not open the company when the status toggle is used', () => {
+        const onOpen = vi.fn();
+        renderView({ onOpen });
         fireEvent.click(screen.getByRole('button', { name: /Active — Artificial Freight Co/ }));
-        expect(onEdit).not.toHaveBeenCalled();
+        expect(onOpen).not.toHaveBeenCalled();
     });
 
     it('still opens the company from a pointer click on the row', () => {
-        const onEdit = vi.fn();
-        renderView({ onEdit });
+        const onOpen = vi.fn();
+        renderView({ onOpen });
         fireEvent.click(screen.getByText('Second Artificial Carrier').closest('tr'));
-        expect(onEdit).toHaveBeenCalledWith('co-2');
+        expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'co-2' }));
     });
 });
 
 describe('CompaniesView — keyboard and naming (defects)', () => {
     it('makes the company name a real button so it is keyboard reachable', () => {
-        const onEdit = vi.fn();
-        renderView({ onEdit });
+        const onOpen = vi.fn();
+        renderView({ onOpen });
         const nameButton = screen.getByRole('button', { name: 'Artificial Freight Co' });
         nameButton.focus();
         expect(nameButton).toHaveFocus();
         fireEvent.click(nameButton);
-        expect(onEdit).toHaveBeenCalledWith('co-1');
+        expect(onOpen).toHaveBeenCalledTimes(1);
     });
 
     it('names every icon-only row action after its company', () => {
