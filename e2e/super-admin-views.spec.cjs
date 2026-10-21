@@ -17,6 +17,9 @@ const SUPER_ADMIN_URL = '/super-admin?e2eAuth=super_admin';
 const VIEWS = [
   { nav: 'Dashboard', expect: (page) => page.getByRole('heading', { name: 'Dashboard', level: 2 }) },
   { nav: 'Companies', expect: (page) => page.getByRole('heading', { name: 'Manage Companies' }) },
+  // Every company's features, view only. Offline its table settles into the
+  // announced load failure; the heading renders either way.
+  { nav: 'Features', expect: (page) => page.getByRole('heading', { name: 'Features', level: 2 }) },
   { nav: 'Users', expect: (page) => page.getByRole('heading', { name: 'Manage All Users' }) },
   { nav: 'Unified Driver DB', expect: (page) => page.getByRole('heading', { name: 'Unified Driver Database' }) },
   // The configuration inventory. Offline its table settles into the announced

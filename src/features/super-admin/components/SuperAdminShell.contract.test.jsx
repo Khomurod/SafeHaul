@@ -319,10 +319,16 @@ describe('Super Admin shell — the addresses of merged screens', () => {
         expect(within(nav).queryByRole('button', { name: 'Analytics' })).not.toBeInTheDocument();
     });
 
-    it('opens the companies list from the old Global Features and SMS Integrations addresses', async () => {
-        renderShellAfter(['/super-admin/features?e2eAuth=super_admin']);
+    it('opens the companies list from the old SMS Integrations address', async () => {
+        renderShellAfter(['/super-admin/integrations?e2eAuth=super_admin']);
         expect(view()).toHaveAttribute('data-active-view', 'companies');
         await waitFor(() => expect(address()).toHaveTextContent(/^\/super-admin\/companies\?e2eAuth=super_admin$/));
+    });
+
+    it('opens the features overview at its own address', () => {
+        renderShellAfter(['/super-admin/features?e2eAuth=super_admin']);
+        expect(view()).toHaveAttribute('data-active-view', 'features');
+        expect(address()).toHaveTextContent(/^\/super-admin\/features\?e2eAuth=super_admin$/);
     });
 
     it("opens a company's SMS tab from the old address of its SMS setup", async () => {

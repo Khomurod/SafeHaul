@@ -6,6 +6,7 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Button, IconButton, Switch } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
+import { COMPANY_FEATURES, isFeatureOn } from '../config/features';
 
 /**
  * One company's features: a switch for each, a scheduled switch-off, and the
@@ -24,13 +25,7 @@ import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
  * a write the company is read again (`onChanged`), and every control waits for
  * that read, so a second click cannot write the value the first one replaced.
  */
-const ALL_FEATURES = [
-    { key: 'pev', label: 'PEV' },
-    { key: 'campaignsEnabled', label: 'Campaigns' },
-    { key: 'eDocs', label: 'E-Docs' },
-    { key: 'importLeads', label: 'Import Leads' },
-    { key: 'callTracking', label: 'Call Tracking' }
-];
+const ALL_FEATURES = COMPANY_FEATURES;
 
 export function FeaturesView({ company, onChanged }) {
     const { showSuccess, showError } = useToast();
@@ -190,7 +185,7 @@ export function FeaturesView({ company, onChanged }) {
                             {ALL_FEATURES.map(f => {
                                 // On unless switched off, as every screen that honours
                                 // the flag reads it (`features.{key} === false` hides it).
-                                const isEnabled = company.features?.[f.key] !== false;
+                                const isEnabled = isFeatureOn(company, f.key);
                                 const schedule = company.featureSchedules?.[f.key];
 
                                 return (

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { LayoutDashboard, Building, Users, FileText, Plus, Activity, Wrench, KeyRound, Sparkles, Globe, Inbox, Newspaper, Rocket } from '@design-system/icons';
+import { LayoutDashboard, Building, Users, FileText, Plus, Activity, Wrench, KeyRound, Sparkles, Globe, Inbox, Newspaper, Rocket, Zap } from '@design-system/icons';
 import { SectionNavigation } from '@/design-system/components';
 import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_VIEWS } from '../config/views';
 
@@ -22,6 +22,7 @@ export const NAV_ICONS = {
   Globe,
   Inbox,
   Rocket,
+  Zap,
 };
 
 /**

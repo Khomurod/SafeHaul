@@ -64,11 +64,17 @@ describe('screens that were merged into another', () => {
         expect(SUPER_ADMIN_NAV_ITEMS.filter((item) => item.group === 'core').map((item) => item.label)).toEqual(['Dashboard']);
     });
 
-    it('opens the companies list from the old Global Features and SMS Integrations addresses', () => {
-        for (const subPath of ['features', 'integrations']) {
-            expect(superAdminViewFromPath(subPath), subPath).toEqual({ view: SUPER_ADMIN_VIEWS.COMPANIES, companyId: null, tab: null });
-            expect(superAdminMovedPath(subPath), subPath).toBe('/super-admin/companies');
-        }
+    it('opens the companies list from the old SMS Integrations address', () => {
+        expect(superAdminViewFromPath('integrations')).toEqual({ view: SUPER_ADMIN_VIEWS.COMPANIES, companyId: null, tab: null });
+        expect(superAdminMovedPath('integrations')).toBe('/super-admin/companies');
+    });
+
+    it('opens the features overview at its address, a view of every company\'s features', () => {
+        expect(superAdminViewFromPath('features')).toEqual({ view: SUPER_ADMIN_VIEWS.FEATURES, companyId: null, tab: null });
+        expect(superAdminMovedPath('features')).toBeNull();
+        expect(superAdminPathFor(SUPER_ADMIN_VIEWS.FEATURES)).toBe('/super-admin/features');
+        const labels = SUPER_ADMIN_NAV_ITEMS.map((item) => item.label);
+        expect(labels.slice(labels.indexOf('Companies'), labels.indexOf('Companies') + 2)).toEqual(['Companies', 'Features']);
     });
 
     it("opens a company's SMS tab from the old address of its SMS setup", () => {
@@ -76,11 +82,10 @@ describe('screens that were merged into another', () => {
         expect(superAdminMovedPath('integrations/co-7')).toBe('/super-admin/companies/co-7/sms');
     });
 
-    it('offers neither Global Features nor SMS Integrations in the rail: both are on a company\'s screen', () => {
+    it('offers no SMS Integrations in the rail: it is on a company\'s screen', () => {
         const labels = SUPER_ADMIN_NAV_ITEMS.map((item) => item.label);
         expect(labels).not.toContain('Global Features');
         expect(labels).not.toContain('SMS Integrations');
-        expect(Object.values(SUPER_ADMIN_VIEWS)).not.toContain('features');
         expect(Object.values(SUPER_ADMIN_VIEWS)).not.toContain('integrations');
     });
 
