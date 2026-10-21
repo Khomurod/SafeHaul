@@ -10,8 +10,8 @@
 // the dev server, the snapshot path template and the retry/worker settings
 // cannot drift between the two lanes.
 //
-// Run it with `npm run test:visual`; regenerate baselines with
-// `npm run test:visual:update`.
+// Run it with `npm run test:visual`. Baselines come from CI's pinned browser:
+// take an intended change with `npm run screenshots:pull -- <CI run id>`.
 
 const { devices } = require('@playwright/test');
 const base = require('./playwright.config.cjs');

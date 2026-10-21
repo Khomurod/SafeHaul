@@ -21,7 +21,7 @@
  * `scripts/test-ci-plan.mjs` (K1) asserts the workflow step carries no
  * `continue-on-error`, so this cannot quietly become advisory.
  *
- * Update baselines with:  npm run test:visual:update
+ * Update baselines with:  npm run screenshots:pull -- <CI run id>
  */
 const { test, expect } = require('@playwright/test');
 const { startCatalogServer } = require('./catalogServer.cjs');

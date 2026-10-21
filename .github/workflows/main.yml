@@ -517,9 +517,9 @@ jobs:
       - name: Say so when an application screenshot moved
         if: always() && steps.visual-regression.outcome == 'failure'
         run: |
-          echo "::error title=Application screenshots moved::A pixel baseline changed. Download the"\
+          echo "::error title=Application screenshots moved::A pixel baseline changed. Look at the"\
                "app-screenshots-diff artifact. If the change is intended, run"\
-               "'npm run test:visual:update' and commit the baselines."
+               "'npm run screenshots:pull -- ${{ github.run_id }}' and commit the baselines."
 
   storybook-build:
     name: Build the design-system catalog
@@ -649,9 +649,9 @@ jobs:
       - name: Say so when the visual lane moved
         if: always() && steps.visual-regression.outcome == 'failure'
         run: |
-          echo "::error title=Visual baselines moved::A pixel baseline changed. Download the"\
+          echo "::error title=Visual baselines moved::A pixel baseline changed. Look at the"\
                "visual-regression-diff artifact. If the change is intended, run"\
-               "'npm run test:visual:update' and commit the baselines."
+               "'npm run screenshots:pull -- ${{ github.run_id }}' and commit the baselines."
 
       - name: Upload the static catalog
         uses: actions/upload-artifact@v7
