@@ -249,6 +249,22 @@ describe('analyticsService phone compatibility', () => {
         expect(await ask('email')).toEqual({ excludedKeys: ['row-7'] });
     });
 
+    it('Limit Volume caps the count and the preview at the newest N', async () => {
+        mockBuildLeadQueries.mockImplementation(() => [makeQueryFromDocs([
+            { id: 'a', data: { firstName: 'A', phone: '(555) 000-0011' } },
+            { id: 'b', data: { firstName: 'B', phone: '(555) 000-0012' } },
+            { id: 'c', data: { firstName: 'C', phone: '(555) 000-0013' } },
+        ])]);
+        mockLedgerDocs({});
+        const filters = { excludeRecentDays: '7', campaignLimit: 2 };
+
+        const count = await analyticsService.getFilterCount({ auth: { uid: 'u1' }, data: { companyId: 'co1', filters } });
+        const page = await analyticsService.getFilteredLeadsPage({ auth: { uid: 'u1' }, data: { companyId: 'co1', filters, pageSize: 50 } });
+
+        expect(count).toEqual({ count: 2, alreadyMessaged: 0 });
+        expect(page.leads.map((l) => l.id)).toEqual(['a', 'b']);
+    });
+
     it('the count reads a window it does not know as 7 days, as the launch does', async () => {
         mockBuildLeadQueries.mockImplementation(() => [makeQueryFromDocs([
             { id: 'month', data: { phone: '(555) 000-0003' } },

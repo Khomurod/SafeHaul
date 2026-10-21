@@ -32,6 +32,21 @@ export const UPLOAD_EXCLUDE_DEFAULT = '7';
  */
 export const MAX_RECIPIENTS_PER_LAUNCH = 2000;
 
+/**
+ * What a campaign's log says of one recipient. The send loop logs `delivered`
+ * when the SMS provider or the mail server took the message: that is "Sent",
+ * not proof it arrived. Anything else is "Not sent", with the reason the send
+ * loop recorded.
+ */
+export function sendResultOf(log) {
+    const sent = log?.status === 'delivered' || log?.isSuccess === true;
+    return {
+        sent,
+        label: sent ? 'Sent' : 'Not sent',
+        reason: sent ? null : (log?.error || 'No reason was recorded'),
+    };
+}
+
 export const LAST_CALL_RESULTS = [
     { id: 'no_answer', label: 'No Answer', value: 'No Answer' },
     { id: 'left_voicemail', label: 'Left Voicemail', value: 'Left Voicemail' },

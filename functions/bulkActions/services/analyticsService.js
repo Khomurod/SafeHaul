@@ -1,6 +1,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { db } = require("../../firebaseAdmin");
 const { buildLeadQueries } = require("../helpers/queryBuilder");
+const { campaignLimitOf } = require("../helpers/campaignLimit");
 const { assertCompanyAdmin } = require("../helpers/auth");
 const {
     excludeWindow,
@@ -73,7 +74,9 @@ exports.getFilterCount = onCall({ cors: true, memory: '512MiB' }, async (request
             total = counts.reduce((a, b) => a + b, 0);
         }
 
-        return { count: total, alreadyMessaged };
+        // Limit Volume holds the audience to the newest N of these.
+        const limit = campaignLimitOf(filters);
+        return { count: limit > 0 ? Math.min(total, limit) : total, alreadyMessaged };
 
     } catch (err) {
         console.error("Filter Count Error:", err);
@@ -141,7 +144,10 @@ exports.getFilteredLeadsPage = onCall({ cors: true, memory: '512MiB' }, async (r
             method,
             recipients: candidates.map((lead) => ({ key: lead.id, phone: lead.phone, email: lead.email })),
         });
-        return { leads: candidates.filter((lead) => !messaged.has(lead.id)).slice(0, limit) };
+        // Newest first already; Limit Volume shows no more than the campaign takes.
+        const campaignLimit = campaignLimitOf(filters);
+        const shown = campaignLimit > 0 ? Math.min(limit, campaignLimit) : limit;
+        return { leads: candidates.filter((lead) => !messaged.has(lead.id)).slice(0, shown) };
 
     } catch (err) {
         console.error("Preview Error:", err);

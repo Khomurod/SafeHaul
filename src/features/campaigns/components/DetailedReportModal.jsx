@@ -6,6 +6,7 @@ import { db, functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback';
 import { ConfirmDialog, Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton } from '@/design-system/components';
+import { sendResultOf } from '../constants/campaignConstants';
 
 export default function DetailedReportModal({ companyId, sessionId, isOpen, onClose }) {
     const [logs, setLogs] = useState([]);
@@ -157,7 +158,7 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
                                 </tr>
                             ) : (
                                 logs.map((log) => {
-                                    const delivered = log.status === 'delivered' || log.isSuccess;
+                                    const result = sendResultOf(log);
                                     return (
                                         <tr key={log.id}>
                                             <td className="whitespace-nowrap text-ds-sm font-medium text-ds-content">
@@ -167,12 +168,12 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
                                                 {log.recipientIdentity || 'N/A'}
                                             </td>
                                             <td>
-                                                <Badge tone={delivered ? 'success' : 'danger'}>
-                                                    {delivered ? 'Delivered' : 'Failed'}
+                                                <Badge tone={result.sent ? 'success' : 'danger'}>
+                                                    {result.label}
                                                 </Badge>
                                             </td>
                                             <td className="text-ds-sm text-ds-content-muted [overflow-wrap:anywhere]">
-                                                {log.error || '-'}
+                                                {result.reason || '-'}
                                             </td>
                                         </tr>
                                     );

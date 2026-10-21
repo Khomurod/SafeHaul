@@ -118,11 +118,11 @@ describe('DetailedReportModal — status mapping', () => {
         renderModal();
 
         const statusRow = await screen.findByText('By status');
-        expect(within(statusRow.closest('tr')).getByText('Delivered').closest('.ds-badge')).toHaveAttribute('data-tone', 'success');
+        expect(within(statusRow.closest('tr')).getByText('Sent').closest('.ds-badge')).toHaveAttribute('data-tone', 'success');
         const flagRow = screen.getByText('By flag').closest('tr');
-        expect(within(flagRow).getByText('Delivered')).toBeInTheDocument();
+        expect(within(flagRow).getByText('Sent')).toBeInTheDocument();
         const failedRow = screen.getByText('Failed one').closest('tr');
-        expect(within(failedRow).getByText('Failed').closest('.ds-badge')).toHaveAttribute('data-tone', 'danger');
+        expect(within(failedRow).getByText('Not sent').closest('.ds-badge')).toHaveAttribute('data-tone', 'danger');
         expect(within(failedRow).getByText('Invalid number')).toBeInTheDocument();
     });
 
@@ -131,7 +131,7 @@ describe('DetailedReportModal — status mapping', () => {
         renderModal();
         expect(await screen.findByText('Unknown')).toBeInTheDocument();
         expect(screen.getByText('N/A')).toBeInTheDocument();
-        expect(screen.getByText('-')).toBeInTheDocument();
+        expect(screen.getByText('No reason was recorded')).toBeInTheDocument();
     });
 });
 

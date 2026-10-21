@@ -16,6 +16,7 @@
 const { HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("../../../firebaseAdmin");
 const { buildLeadQueries } = require("../../helpers/queryBuilder");
+const { campaignLimitOf, createdMillis } = require("../../helpers/campaignLimit");
 const {
     excludeWindow,
     recipientsMessagedWithin,
@@ -80,7 +81,7 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
 
     // Apply .select() to only fetch fields needed for in-memory filtering.
     // This prevents crashes from corrupt Timestamp fields in documents.
-    const fieldsNeeded = ['phone', 'phoneNumber', 'email'];
+    const fieldsNeeded = ['phone', 'phoneNumber', 'email', 'createdAt'];
     const selectQueries = queries.map(q => typeof q.select === 'function' ? q.select(...fieldsNeeded) : q);
 
     try {
@@ -99,11 +100,16 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
 
         // The channel's ledger first; the recruiter's un-ticked leads come off last.
         const window = excludeWindow(filters.excludeRecentDays);
-        const candidates = new Map(); // leadId -> { key, phone, email }
+        const candidates = new Map(); // leadId -> { key, phone, email, created }
         snapshots.forEach(snap => {
             snap.docs.forEach(d => {
                 const data = d.data();
-                candidates.set(d.id, { key: d.id, phone: data.phone || data.phoneNumber || '', email: data.email });
+                candidates.set(d.id, {
+                    key: d.id,
+                    phone: data.phone || data.phoneNumber || '',
+                    email: data.email,
+                    created: createdMillis(data.createdAt),
+                });
             });
         });
 
@@ -118,16 +124,16 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
             console.log(`[initBulkSession] Already messaged by ${config?.method === 'email' ? 'email' : 'SMS'}: ${messaged.size} leads left out`);
         }
 
-        const matches = [...candidates.keys()].filter((id) => !messaged.has(id));
-        // Limit Volume holds the whole audience. Each query already takes it,
-        // but filters split into two queries (`buildLeadQueries`) would
-        // otherwise bring back up to twice as many. As on the screen, the limit
-        // comes before the un-ticked leads: un-ticking one lowers the count
-        // rather than letting another lead take its place.
-        const limit = parseInt(filters.campaignLimit);
-        const limited = limit > 0 ? matches.slice(0, limit) : matches;
+        // Limit Volume takes the newest recipients the exclusion left. As on the
+        // screen, the limit comes before the un-ticked leads: un-ticking one
+        // lowers the count rather than letting another lead take its place.
+        const matches = [...candidates.values()].filter(({ key }) => !messaged.has(key));
+        const limit = campaignLimitOf(filters);
+        const limited = limit > 0
+            ? matches.sort((a, b) => b.created - a.created).slice(0, limit)
+            : matches;
         const excludedLeadIds = new Set(filters.excludedLeadIds || []);
-        return limited.filter((id) => !excludedLeadIds.has(id));
+        return limited.map(({ key }) => key).filter((id) => !excludedLeadIds.has(id));
     } catch (qErr) {
         throw new HttpsError('internal', `Query execution failed: ${qErr.message}`);
     }

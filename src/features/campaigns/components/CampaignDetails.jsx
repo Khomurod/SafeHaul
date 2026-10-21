@@ -272,7 +272,7 @@ export function CampaignDetails({ campaign, onClose }) {
                         />
                         <StatCard
                             icon={AlertCircle}
-                            label="Failed"
+                            label="Not sent"
                             tone="danger"
                             value={campaign.progress ? campaign.progress.failedCount : 0}
                         />

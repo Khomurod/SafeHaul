@@ -315,7 +315,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                             {excludeRecentField('off')}
                                         </div>
 
-                                        <FormField label="Limit Volume" description={`Leave empty to message all matches, up to ${MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')} per launch.`}>
+                                        <FormField label="Limit Volume" description={`Messages the newest matches, up to this many. Leave empty to message all matches, up to ${MAX_RECIPIENTS_PER_LAUNCH.toLocaleString('en-US')} per launch.`}>
                                             <Input
                                                 type="number"
                                                 placeholder="No Limit"

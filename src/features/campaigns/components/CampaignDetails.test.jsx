@@ -102,7 +102,7 @@ describe('CampaignDetails — rendering', () => {
         renderDetails();
         expect(screen.getByText('Audience').closest('.ds-card')).toHaveTextContent('100');
         expect(screen.getByText('Sent').closest('.ds-card')).toHaveTextContent('45');
-        expect(screen.getByText('Failed').closest('.ds-card')).toHaveTextContent('5');
+        expect(screen.getByText('Not sent').closest('.ds-card')).toHaveTextContent('5');
     });
 
     it('falls back to matchCount / zeros when there is no progress', () => {

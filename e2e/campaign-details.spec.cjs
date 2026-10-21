@@ -23,10 +23,12 @@ test.describe('CampaignDetails compatibility slice', () => {
   test('renders the detail view with status, stats, progress and message', async ({ page }) => {
     await openDetails(page);
     await expect(page.getByText('Completed', { exact: true })).toBeVisible();
-    // Scope to the stat cards ("Failed" also appears as per-row result badges).
-    await expect(page.locator('.ds-card').filter({ hasText: 'Audience' })).toBeVisible();
-    await expect(page.locator('.ds-card').filter({ hasText: 'Sent' })).toBeVisible();
-    await expect(page.locator('.ds-card').filter({ hasText: 'Failed' }).first()).toBeVisible();
+    // Scope to the stat cards by their exact label ("Sent" and "Not sent" also
+    // appear as per-row result badges).
+    const statCard = (label) => page.locator('.ds-card').filter({ has: page.getByText(label, { exact: true }) }).first();
+    await expect(statCard('Audience')).toBeVisible();
+    await expect(statCard('Sent')).toBeVisible();
+    await expect(statCard('Not sent')).toBeVisible();
     await expect(page.getByRole('progressbar', { name: 'Campaign progress' })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Message Content/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Details', exact: true })).toBeVisible();

@@ -40,8 +40,8 @@ describe('CampaignResultsTable', () => {
         await waitFor(() => {
             expect(screen.getByText('John Doe')).toBeInTheDocument();
             expect(screen.getByText('Jane Smith')).toBeInTheDocument();
-            expect(screen.getByText('Delivered')).toBeInTheDocument();
-            expect(screen.getByText('Failed')).toBeInTheDocument();
+            expect(screen.getByText('Sent')).toBeInTheDocument();
+            expect(screen.getByText('Not sent')).toBeInTheDocument();
             expect(screen.getByText('Invalid number')).toBeInTheDocument();
         });
     });
@@ -117,18 +117,22 @@ describe('CampaignResultsTable', () => {
         expect(screen.getByRole('table')).toBeInTheDocument();
     });
 
-    it('maps delivered to Delivered and every other status to Failed', async () => {
+    it('says Sent for a message the provider took and Not sent, with its reason, for any other', async () => {
         getDocs.mockResolvedValue(asSnapshot([
             { id: '1', recipientName: 'One', recipientIdentity: '555-0100', status: 'delivered', timestamp: { toDate: () => new Date() } },
-            { id: '2', recipientName: 'Two', recipientIdentity: '555-0101', status: 'failed', timestamp: { toDate: () => new Date() } },
+            { id: '2', recipientName: 'Two', recipientIdentity: '555-0101', status: 'failed', error: 'Invalid number', timestamp: { toDate: () => new Date() } },
             { id: '3', recipientName: 'Three', recipientIdentity: '555-0102', status: 'queued', timestamp: { toDate: () => new Date() } },
             { id: '4', recipientName: 'Four', recipientIdentity: '555-0103', timestamp: { toDate: () => new Date() } },
         ]));
         render(<CampaignResultsTable companyId="123" campaignId="abc" />);
         await screen.findByText('One');
 
-        expect(screen.getAllByText('Delivered')).toHaveLength(1);
-        expect(screen.getAllByText('Failed')).toHaveLength(3);
+        expect(screen.getAllByText('Sent')).toHaveLength(1);
+        expect(screen.getAllByText('Not sent')).toHaveLength(3);
+        // "Delivered" claimed what the provider cannot tell us.
+        expect(screen.queryByText('Delivered')).not.toBeInTheDocument();
+        expect(screen.getByText('Invalid number')).toBeInTheDocument();
+        expect(screen.getAllByText('No reason was recorded')).toHaveLength(2);
     });
 
     it('formats the timestamp and falls back to Pending when absent', async () => {

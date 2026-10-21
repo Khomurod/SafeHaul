@@ -30,8 +30,8 @@ test.describe('Campaign results table slice', () => {
     }
     await expect(page.getByText('E2E Recipient 1', { exact: true })).toBeVisible();
     // Status is icon + text, never colour-only.
-    await expect(page.getByText('Delivered').first()).toBeVisible();
-    await expect(page.getByText('Failed').first()).toBeVisible();
+    await expect(page.getByText('Sent', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Not sent', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Carrier rejected the message.').first()).toBeVisible();
   });
 

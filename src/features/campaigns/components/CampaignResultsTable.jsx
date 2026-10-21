@@ -4,6 +4,7 @@ import { db } from '@lib/firebase';
 import { Icon, CheckCircle2, AlertCircle, Clock, Search } from '@design-system/icons';
 import { Card, Badge, Input, Label } from '@/design-system/components';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { sendResultOf } from '../constants/campaignConstants';
 
 // Artificial fixtures for the deterministic E2E design-system review of this
 // table (populated state, scroll/sticky header, statuses, filtering). Never real
@@ -122,7 +123,7 @@ export function CampaignResultsTable({ companyId, campaignId }) {
                             </tr>
                         ) : (
                             filteredLogs.map(log => {
-                                const delivered = log.status === 'delivered';
+                                const result = sendResultOf(log);
                                 return (
                                     <tr key={log.id} className="transition-colors">
                                         <th scope="row" className="align-top">
@@ -132,11 +133,11 @@ export function CampaignResultsTable({ companyId, campaignId }) {
                                             <span className="font-mono text-ds-xs text-ds-content-secondary">{log.recipientIdentity}</span>
                                         </td>
                                         <td className="align-top">
-                                            <Badge tone={delivered ? 'success' : 'danger'} icon={delivered ? CheckCircle2 : AlertCircle}>
-                                                {delivered ? 'Delivered' : 'Failed'}
+                                            <Badge tone={result.sent ? 'success' : 'danger'} icon={result.sent ? CheckCircle2 : AlertCircle}>
+                                                {result.label}
                                             </Badge>
-                                            {log.error && (
-                                                <p className="mt-ds-1 text-ds-xs font-medium text-ds-status-danger-fg">{log.error}</p>
+                                            {result.reason && (
+                                                <p className="mt-ds-1 text-ds-xs font-medium text-ds-status-danger-fg">{result.reason}</p>
                                             )}
                                         </td>
                                         <td className="align-top">
