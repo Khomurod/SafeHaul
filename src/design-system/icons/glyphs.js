@@ -52,7 +52,7 @@ import {
     CreditCard as LucideCreditCard, Crown as LucideCrown, Database as LucideDatabase,
     DatabaseZap as LucideDatabaseZap, Download as LucideDownload, Edit2 as LucideEdit2,
     Edit3 as LucideEdit3, Eraser as LucideEraser, ExternalLink as LucideExternalLink,
-    Eye as LucideEye, EyeOff as LucideEyeOff, Facebook as LucideFacebook,
+    Eye as LucideEye, EyeOff as LucideEyeOff,
     FileCheck as LucideFileCheck, FilePlus2 as LucideFilePlus2,
     FileSignature as LucideFileSignature, FileSpreadsheet as LucideFileSpreadsheet,
     FileText as LucideFileText, Files as LucideFiles, Filter as LucideFilter,
@@ -155,7 +155,6 @@ export const Eraser = /* #__PURE__ */ glyph(LucideEraser, 'Eraser');
 export const ExternalLink = /* #__PURE__ */ glyph(LucideExternalLink, 'ExternalLink');
 export const Eye = /* #__PURE__ */ glyph(LucideEye, 'Eye');
 export const EyeOff = /* #__PURE__ */ glyph(LucideEyeOff, 'EyeOff');
-export const Facebook = /* #__PURE__ */ glyph(LucideFacebook, 'Facebook');
 export const FileCheck = /* #__PURE__ */ glyph(LucideFileCheck, 'FileCheck');
 export const FilePlus2 = /* #__PURE__ */ glyph(LucideFilePlus2, 'FilePlus2');
 export const FileSignature = /* #__PURE__ */ glyph(LucideFileSignature, 'FileSignature');
@@ -285,7 +284,7 @@ export const GLYPH_NAMES = Object.freeze([
     'ChevronRight', 'ChevronUp', 'ChevronsLeft', 'ChevronsRight', 'Circle', 'CircleDot',
     'ClipboardList', 'Clock', 'CloudUpload', 'Copy', 'CopyPlus', 'CreditCard', 'Crown',
     'Database', 'DatabaseZap', 'Download', 'Edit2', 'Edit3', 'Eraser', 'ExternalLink',
-    'Eye', 'EyeOff', 'Facebook', 'FileCheck', 'FilePlus2', 'FileSignature',
+    'Eye', 'EyeOff', 'FileCheck', 'FilePlus2', 'FileSignature',
     'FileSpreadsheet', 'FileText', 'Files', 'Filter', 'Fingerprint', 'GitBranch', 'Globe',
     'Grid', 'GripVertical', 'HardDrive', 'Hash', 'HelpCircle', 'History', 'Home',
     'Hourglass', 'Image', 'Inbox', 'Info', 'Key', 'KeyRound', 'Layers', 'LayoutDashboard',
