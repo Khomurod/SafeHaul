@@ -103,6 +103,8 @@ export function CallOutcomeModalUI({
 
   showDetailInputs,
   showCallbackSelect,
+  reminderLabel = '',
+  onQuickReminder,
 }) {
   const titleId = useId();
   const callbackDateId = useId();
@@ -111,18 +113,6 @@ export function CallOutcomeModalUI({
   const experienceId = useId();
   const freightId = useId();
   const notesId = useId();
-
-  const handleQuickReminder = () => {
-    const now = new Date();
-    now.setHours(now.getHours() + 1);
-    const dateStr = toIsoDay(now);
-    const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
-
-    setCallbackDate(dateStr);
-    setCallbackTime(timeStr);
-    setOutcome('callback');
-    setNotes('Quick reminder set: No Answer (1 hr follow-up)');
-  };
 
   return (
     <Modal
@@ -177,9 +167,15 @@ export function CallOutcomeModalUI({
 
           {outcome === 'no_answer' && (
             <div className="flex justify-center">
-              <Button variant="secondary" size="sm" onClick={handleQuickReminder}>
-                <Icon icon={BellPlus} size="sm" /> Remind me in 1 Hour
-              </Button>
+              {reminderLabel ? (
+                <p role="status" className="flex items-center gap-1 text-ds-sm text-ds-status-info-fg">
+                  <Icon icon={BellPlus} size="sm" /> Reminder set for {reminderLabel}
+                </p>
+              ) : (
+                <Button variant="secondary" size="sm" onClick={onQuickReminder}>
+                  <Icon icon={BellPlus} size="sm" /> Remind me in 1 Hour
+                </Button>
+              )}
             </div>
           )}
 

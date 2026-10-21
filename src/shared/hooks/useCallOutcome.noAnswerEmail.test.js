@@ -30,7 +30,6 @@ vi.mock('firebase/firestore', () => ({
 vi.mock('firebase/functions', () => ({
     httpsCallable: (...args) => fb.httpsCallable(...args),
 }));
-vi.mock('@lib/notificationService', () => ({ sendNotification: vi.fn() }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
     useToast: () => ({ showSuccess: vi.fn(), showError: vi.fn() }),
 }));

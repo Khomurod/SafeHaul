@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore';
-import { db } from '@lib/firebase';
+import { auth, db } from '@lib/firebase';
 
 /**
- * Hook to manage company notifications
+ * Hook to manage company notifications. A notification with a `recipientId` (a
+ * callback reminder) is shown only to that person.
  * @param {string} companyId - The ID of the company
  * @returns {Object} Notifications data and management functions
  */
@@ -27,10 +28,10 @@ export function useCompanyNotifications(companyId) {
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const items = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            const uid = auth.currentUser?.uid;
+            const items = snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(item => !item.recipientId || item.recipientId === uid);
             setNotifications(items);
             setLoading(false);
             setError(null);

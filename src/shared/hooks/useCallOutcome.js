@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { db, auth, functions } from '@lib/firebase';
 import { addDoc, collection, serverTimestamp, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { sendNotification } from '@lib/notificationService';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { isPlaceholderEmail } from '@/config/placeholderDomains';
+import { toIsoDay } from '@/config/applicationDates';
 
 const OUTCOMES = [
     { id: 'interested', isContact: true, label: 'Connected / Interested', status: 'Contacted', archive: false },
@@ -16,6 +16,15 @@ const OUTCOMES = [
     { id: 'no_answer', isContact: false, label: 'No Answer', status: 'Attempted', archive: false },
     { id: 'wrong_number', isContact: false, label: 'Wrong Number', status: 'Disqualified', archive: true }
 ];
+
+/** "Oct 22 at 3:00 PM": the time as the recruiter chose it, in their own clock. */
+function reminderLabelOf(date, time) {
+    const at = date && time ? new Date(`${date}T${time}`) : null;
+    if (!at || Number.isNaN(at.getTime())) return '';
+    const day = at.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const clock = at.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return `${day} at ${clock}`;
+}
 
 export function useCallOutcome(lead, companyId, onUpdate, onClose) {
     const { showSuccess, showError } = useToast();
@@ -29,6 +38,8 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
 
     const [callbackDate, setCallbackDate] = useState('');
     const [callbackTime, setCallbackTime] = useState('');
+    // "Remind me in 1 Hour" after No Answer: a reminder that keeps the result.
+    const [quickReminder, setQuickReminder] = useState(false);
     const [saving, setSaving] = useState(false);
     const [authorName, setAuthorName] = useState('Recruiter');
 
@@ -63,6 +74,15 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
 
     const showDetailInputs = ['interested', 'callback', 'not_qualified', 'not_interested', 'hired_elsewhere'].includes(outcome);
     const showCallbackSelect = outcome === 'callback';
+    const hasReminder = showCallbackSelect || (quickReminder && outcome === 'no_answer');
+    const reminderLabel = hasReminder ? reminderLabelOf(callbackDate, callbackTime) : '';
+
+    const onQuickReminder = () => {
+        const at = new Date(Date.now() + 60 * 60 * 1000);
+        setCallbackDate(toIsoDay(at));
+        setCallbackTime(at.toTimeString().slice(0, 5));
+        setQuickReminder(true);
+    };
 
     const handleSave = async (e) => {
         if (e) e.preventDefault();
@@ -151,6 +171,11 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
                 outcomeLabel: outcomeLabel,
                 isContact: outcomeConfig.isContact,
                 details: `${outcomeLabel}${notes ? `: ${notes}` : ''}`,
+                // The server reminds the recruiter in their bell (notificationTriggers.js).
+                ...(reminderLabel && {
+                    callbackAt: new Date(`${callbackDate}T${callbackTime}`).toISOString(),
+                    callbackLabel: reminderLabel,
+                }),
                 dataChanged: dataChanged,
                 performedBy: auth.currentUser.uid,
                 performedByName: authorName,
@@ -164,7 +189,7 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
             if (showDetailInputs && dataChanged) {
                 noteText += `\n[Updated Details]: Type: ${driverType}, Exp: ${experienceLevel}, Pos: ${position}`;
             }
-            if (showCallbackSelect) noteText += `\n📅 Callback: ${callbackDate} at ${callbackTime}`;
+            if (reminderLabel) noteText += `\n📅 Callback: ${reminderLabel}`;
             if (notes) noteText += `\n${notes}`;
 
             await addDoc(collection(db, 'companies', companyId, targetCollection, lead.id, 'internal_notes'), {
@@ -177,23 +202,6 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
             // --- Global Updates (Handled by Cloud Trigger now) ---
             // The client no longer writes to drivers/{lead.id} directly to avoid permission errors.
             // See functions/driverSync.js -> syncDriverOnLog
-
-            // --- Notifications ---
-            if (showCallbackSelect) {
-                const scheduledTime = new Date(`${callbackDate}T${callbackTime}`);
-                await sendNotification({
-                    recipientId: auth.currentUser.uid,
-                    title: `📞 Callback: ${lead.firstName} ${lead.lastName}`,
-                    message: notes || "Scheduled followup call.",
-                    type: 'callback',
-                    scheduledFor: scheduledTime,
-                    metadata: {
-                        leadId: lead.id,
-                        companyId: companyId,
-                        phone: lead.phone
-                    }
-                });
-            }
 
             // Not to a lead without a real address: the import gives one a made-up
             // address, and an email to it only bounces.
@@ -247,6 +255,7 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
         showCallbackSelect,
         showSuccess,
         companySlug,
-        onQuickReminder: () => { },
+        reminderLabel,
+        onQuickReminder,
     };
 }
