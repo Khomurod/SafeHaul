@@ -14,6 +14,7 @@ vi.mock('html2canvas', async () => (await import('./VOEPreviewModal.contract.sup
 vi.mock('jspdf', async () => (await import('./VOEPreviewModal.contract.support')).jspdfMock());
 
 import { VOEPreviewModal } from './VOEPreviewModal';
+import { RELEASE_NOTES, RELEASE_PARAGRAPHS, RELEASE_RIGHTS } from '@shared/legal/previousEmployerRelease';
 import {
     makeRenderModal,
     resetHarness,
@@ -51,17 +52,27 @@ describe('VOEPreviewModal legal text and ordering', () => {
     );
   });
 
-  it('keeps the release and authorization paragraph verbatim, including both citations', () => {
+  it('prints, above the signature, the release the applicant signed with the application and nothing else', () => {
     renderModal();
     const doc = documentNode();
-    expect(doc).toHaveTextContent(
-      /I, the undersigned applicant, hereby provide specific written consent and authorize the release of all information requested by SafeHaul HR Verification Services on behalf of the prospective employer\./,
-    );
-    expect(doc).toHaveTextContent(/49 CFR §391\.23/);
-    expect(doc).toHaveTextContent(/§40\.321/);
-    expect(doc).toHaveTextContent(
-      /I release all previous employers and their agents from any and all liability which may result from furnishing such information in good faith\./,
-    );
+    for (const wording of [...RELEASE_PARAGRAPHS, ...RELEASE_RIGHTS]) {
+      expect(doc).toHaveTextContent(wording);
+    }
+    // The wording the applicant was never shown is gone.
+    expect(doc).not.toHaveTextContent(/specific written consent/);
+    expect(doc).not.toHaveTextContent(/§40\.321/);
+  });
+
+  it.each([
+    ['predates-wording', { 'signature-date': undefined, signatureDate: '2025-12-01T00:00:00.000Z' }],
+    ['undated', { 'signature-date': undefined, submittedAt: undefined, createdAt: undefined }],
+  ])('reproduces no signature for an application that is %s', (status, change) => {
+    renderModal({ applicant: { ...APPLICANT, ...change } });
+    const doc = documentNode();
+    expect(within(doc).getByTestId('voe-release-note')).toHaveTextContent(RELEASE_NOTES[status]);
+    expect(doc).not.toHaveTextContent(RELEASE_PARAGRAPHS[0]);
+    expect(within(doc).queryByAltText('Signature')).toBeNull();
+    expect(doc).toHaveTextContent('No signature reproduced');
   });
 
   it('keeps the document section order', () => {
@@ -75,7 +86,7 @@ describe('VOEPreviewModal legal text and ordering', () => {
       'To (Previous Employer)',
       'From (Prospective Employer)',
       'Subject Applicant Information',
-      'Legal Release & Authorization',
+      "Applicant's Release (Signed With the Application)",
       'Digital Signature of Applicant',
       'Date of Authorization',
       'Employment History Questionnaire (To be completed by Recipient)',
@@ -177,8 +188,8 @@ describe('VOEPreviewModal field values and fallbacks', () => {
     cleanup();
 
     renderModal({ applicant: { ...APPLICANT, ipAddress: undefined } });
-    const attestation = within(documentNode()).getByText(/Attested to under penalty of perjury/);
-    expect(attestation.textContent).toBe('Attested to under penalty of perjury');
+    const attestation = within(documentNode()).getByText(/Signed electronically with the application/);
+    expect(attestation.textContent).toBe('Signed electronically with the application');
     expect(documentNode()).not.toHaveTextContent(/IP:\s*Verified/);
   });
 });

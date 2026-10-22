@@ -100,7 +100,7 @@ test.describe('Company Settings Email Settings compatibility slice', () => {
 
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
     expect(geometry.contentScrollWidth).toBeLessThanOrEqual(geometry.contentClientWidth);
-    expect(geometry.controlCount).toBe(5); // host, port, user, password, signature
+    expect(geometry.controlCount).toBe(6); // host, port, user, password, signature, verification copies
     expect(geometry.minimumControlHeight).toBeGreaterThanOrEqual(44);
     expect(geometry.nestedHorizontalScrollerCount).toBe(0);
   });

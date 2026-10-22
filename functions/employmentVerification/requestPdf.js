@@ -15,7 +15,7 @@ const { CONTENT_WIDTH, DocumentBuilder, INK, MARGIN, TYPE, wrapText } = require(
 const { embedSignature } = require('../shared/pdf/applicationAgreements');
 const { maskSsn } = require('../shared/pdf/applicationText');
 const { snapshotCompanyDetails } = require('../shared/applicationDefinition');
-const { RELEASE_PARAGRAPHS, RELEASE_RIGHTS, applicantNameOf, releaseOf } = require('../shared/previousEmployerRelease');
+const { RELEASE_NOTES, RELEASE_PARAGRAPHS, RELEASE_RIGHTS, applicantNameOf, releaseOf } = require('../shared/previousEmployerRelease');
 
 const NOT_ON_FILE = 'Not on file';
 
@@ -33,14 +33,6 @@ function joinAddress(parts) {
     const line = parts.map(text).filter(Boolean).join(', ');
     return line || null;
 }
-
-const RELEASE_NOTES = Object.freeze({
-    unsigned: 'The application on file carries no applicant signature, so no signed release is attached.',
-    undated: 'The application on file does not record when it was signed, so the release wording it was '
-        + 'signed under cannot be confirmed, so no signed release is reproduced here.',
-    'predates-wording': 'This application was signed before the release to previous employers was part of '
-        + 'the application, so no signed release is reproduced here.',
-});
 
 function drawParties(doc, { company, employer }) {
     const from = snapshotCompanyDetails(company);

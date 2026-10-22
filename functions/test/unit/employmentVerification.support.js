@@ -32,6 +32,8 @@ const applicationDocs = new Map();
 const responseDocs = new Map();
 const companyDocs = new Map();
 const savedStoragePaths = [];
+/** `dq_files` records written under an application or lead, by `${appKey}/${id}`. */
+const dqFileDocs = new Map();
 
 const createTs = (ms = Date.now()) => ({
   toMillis: () => ms,
@@ -154,6 +156,13 @@ const mockDb = {
                   applicationDocs.set(key, { ...current, ...updates });
                   bump(key);
                 }),
+                collection: jest.fn((name) => ({
+                  doc: jest.fn((id) => ({
+                    set: jest.fn(async (data) => {
+                      if (name === 'dq_files') dqFileDocs.set(`${key}/${id}`, { ...data });
+                    }),
+                  })),
+                })),
               };
             }),
           })),
@@ -325,6 +334,7 @@ function resetPevState() {
   storageFailure = null;
   completionFailure = false;
   savedStoragePaths.length = 0;
+  dqFileDocs.clear();
   mockSendDynamicEmail.mockResolvedValue({ success: true });
   mockCheckRateLimit.mockResolvedValue(true);
   mockAssertCompanyAccessForRequest.mockResolvedValue(undefined);
@@ -343,6 +353,7 @@ module.exports = {
   companyDocs,
   responseDocs,
   savedStoragePaths,
+  dqFileDocs,
   verificationDocs,
   mockAssertCompanyAccessForRequest,
   mockCheckRateLimit,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldCheck, AlertCircle, glyphComponent } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
+import { RELEASE_NOTES, RELEASE_PARAGRAPHS, RELEASE_RIGHTS, releaseOf } from '@shared/legal/previousEmployerRelease';
 
 /*
  * THE ONE FILE IN THE APPLICATION THAT OPENS GLYPH TOKENS BY HAND, and it is
@@ -60,6 +61,10 @@ function authorizationDate(applicant) {
  * own the node: they clone and rasterise exactly what this component renders.
  */
 export function VOEDocument({ employer, applicant, companyName, auditId, signatureUrl, signatureText, documentRef }) {
+    // The signature appears only under the release its signer was shown: the
+    // wording the consent step presented, word for word (`previousEmployerRelease.js`).
+    const release = releaseOf(applicant);
+    const releaseNote = release.status === 'signed' || release.status === 'unsigned' ? null : RELEASE_NOTES[release.status];
     return (
         <div ref={documentRef} data-testid="voe-document" className="bg-voe-white border border-voe-gray-300 shadow-voe-xl p-12 max-w-3xl mx-auto min-h-[1000px] font-serif text-voe-slate-900 leading-relaxed">
 
@@ -140,18 +145,29 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                     <div className="p-2 bg-voe-blue-600 text-voe-white rounded-voe-lg">
                         <PrintShieldCheck size={20} />
                     </div>
-                    <h4 className="text-voe-xl font-bold uppercase underline decoration-voe-blue-600 decoration-4 underline-offset-4">Legal Release & Authorization</h4>
+                    <h4 className="text-voe-xl font-bold uppercase underline decoration-voe-blue-600 decoration-4 underline-offset-4">Applicant&apos;s Release (Signed With the Application)</h4>
                 </div>
 
-                <p className="text-[13px] text-justify mb-10 leading-relaxed text-voe-slate-800 font-medium border-l-4 border-voe-blue-500 pl-6 py-2">
-                    I, the undersigned applicant, hereby provide specific written consent and authorize the release of all information requested by SafeHaul HR Verification Services on behalf of the prospective employer. In accordance with <span className="font-bold">49 CFR §391.23</span> and <span className="font-bold">§40.321</span>, this includes, but is not limited to: my complete employment history, safety performance history, accident records, and all results of drug and alcohol testing (including any refusals to test or violations of Part 382). I release all previous employers and their agents from any and all liability which may result from furnishing such information in good faith.
-                </p>
+                {releaseNote ? (
+                    <p data-testid="voe-release-note" className="text-[13px] mb-10 leading-relaxed text-voe-slate-800 font-medium border-l-4 border-voe-blue-500 pl-6 py-2">
+                        {releaseNote}
+                    </p>
+                ) : (
+                    <div className="text-[13px] text-justify mb-10 leading-relaxed text-voe-slate-800 font-medium border-l-4 border-voe-blue-500 pl-6 py-2">
+                        {RELEASE_PARAGRAPHS.map((paragraph) => <p key={paragraph} className="mb-3">{paragraph}</p>)}
+                        <ul className="list-disc pl-6">
+                            {RELEASE_RIGHTS.map((right) => <li key={right}>{right}</li>)}
+                        </ul>
+                    </div>
+                )}
 
                 <div className="flex justify-between items-end gap-12 font-sans">
                     <div className="flex-1">
                         <p className="text-[10px] font-black text-voe-slate-500 uppercase mb-3 tracking-widest">Digital Signature of Applicant</p>
                         <div className={`h-24 border-b-2 flex items-center justify-center pb-2 px-6 ${signatureUrl || signatureText ? 'border-voe-slate-900' : 'border-voe-red-400 bg-voe-red-50'}`}>
-                            {signatureUrl ? (
+                            {releaseNote ? (
+                                <span className="text-voe-slate-500 text-voe-xs font-bold uppercase tracking-tighter">No signature reproduced</span>
+                            ) : signatureUrl ? (
                                 <img src={signatureUrl} alt="Signature" className="h-20 object-contain" />
                             ) : signatureText ? (
                                 <span className="font-serif italic text-voe-4xl text-voe-slate-900">/s/ {signatureText}</span>
@@ -163,7 +179,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                                 </div>
                             )}
                         </div>
-                        <p className="text-[9px] text-voe-slate-500 mt-3 uppercase tracking-tighter">Attested to under penalty of perjury{applicant.ipAddress && <> &bull; IP: {applicant.ipAddress}</>}</p>
+                        <p className="text-[9px] text-voe-slate-500 mt-3 uppercase tracking-tighter">Signed electronically with the application{applicant.ipAddress && <> &bull; IP: {applicant.ipAddress}</>}</p>
                     </div>
                     <div className="w-56">
                         <p className="text-[10px] font-black text-voe-slate-500 uppercase mb-3 tracking-widest text-right">Date of Authorization</p>

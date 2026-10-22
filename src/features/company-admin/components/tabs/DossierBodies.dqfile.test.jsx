@@ -30,6 +30,7 @@ import {
     downloadPreserved,
     signedFileUrl,
     SYNCED_DRIVER_UPLOAD,
+    FILED_PEV_REQUEST,
     fileDriverUploads,
 } from './DossierBodies.contract.support';
 
@@ -358,6 +359,49 @@ describe('DQFileTab — a driver upload filed from the application', () => {
         expect(fs.addDoc).not.toHaveBeenCalled();
         // Asked once, when the tab opened; a removal asks nothing of it.
         expect(fileDriverUploads).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('DQFileTab — a verification request filed by the server', () => {
+    let tab;
+
+    beforeEach(() => {
+        tab = { opener: 'the dossier', location: { href: '' }, close: vi.fn() };
+        vi.spyOn(window, 'open').mockImplementation(() => tab);
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it('opens the request PDF from a link signed when it is pressed', async () => {
+        fs.getDocs.mockResolvedValue(snap([['pev_request_r1', FILED_PEV_REQUEST]]));
+        renderDq();
+
+        fireEvent.click(await screen.findByRole('button', {
+            name: /^Download PEV Request – Old Carrier: PEV_REQUEST_Old_Carrier_abcd1234\.pdf \(opens in a new tab\)/,
+        }));
+
+        expect(window.open).toHaveBeenCalledWith('', '_blank');
+        await waitFor(() => expect(tab.location.href).toBe('https://signed.test/driver-upload.jpg'));
+        expect(signedFileUrl).toHaveBeenCalledWith(FILED_PEV_REQUEST.storagePath);
+    });
+
+    it('is hidden, not deleted, and its PDF stays where the request keeps it', async () => {
+        let rows = [['pev_request_r1', FILED_PEV_REQUEST]];
+        fs.getDocs.mockImplementation(async () => snap(rows));
+        fs.updateDoc.mockImplementation(async (ref, data) => {
+            rows = rows.map(([id, row]) => [id, id === ref.id ? { ...row, ...data } : row]);
+        });
+        renderDq();
+
+        fireEvent.click(await screen.findByRole('button', { name: /^Delete PEV Request – Old Carrier/ }));
+        fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete file' }));
+
+        await waitFor(() => expect(fs.updateDoc).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'pev_request_r1' }),
+            { removedAt: 'SERVER_TIMESTAMP' },
+        ));
+        expect(fs.deleteDoc).not.toHaveBeenCalled();
+        expect(storageMocks.deleteObject).not.toHaveBeenCalled();
+        expect(await screen.findByText('No DQ files have been uploaded for this driver.')).toBeInTheDocument();
     });
 });
 

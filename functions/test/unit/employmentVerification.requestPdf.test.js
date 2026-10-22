@@ -22,7 +22,7 @@ jest.mock('../../employmentVerification/requestPdf', () => ({
 }));
 
 const {
-    appKey, applicationDocs, verificationDocs, savedStoragePaths,
+    appKey, applicationDocs, verificationDocs, savedStoragePaths, dqFileDocs,
     mockSendDynamicEmail, resetPevState, failNextStorageSave,
 } = require('./employmentVerification.support');
 const { sendVerificationRequest } = require('../../employmentVerification');
@@ -73,6 +73,29 @@ describe('the request document', () => {
         expect(stored.requestRelease).toBe('signed');
         expect(savedStoragePaths).toEqual([stored.requestPdfPath]);
         expect(result.requestPdfPath).toBe(stored.requestPdfPath);
+    });
+
+    it('is filed in the driver\'s DQ file, opening from a signed link and hidden rather than deleted', async () => {
+        await send();
+        const stored = verificationDocs.get('pev-token-123456');
+        const filed = [...dqFileDocs.entries()];
+        expect(filed).toHaveLength(1);
+        const [key, record] = filed[0];
+        expect(key).toMatch(/^co-1\/applications\/app-1\/pev_request_/);
+        expect(record).toMatchObject({
+            type: 'pev_request',
+            fileType: 'PEV Request – Old Carrier',
+            storagePath: stored.requestPdfPath,
+            url: null,
+            isSynced: true,
+            fileName: 'Verification-of-Employment-Request-John-Driver.pdf',
+        });
+    });
+
+    it('files nothing in the DQ file when there is no document', async () => {
+        failNextStorageSave();
+        await send();
+        expect(dqFileDocs.size).toBe(0);
     });
 
     it('is built from the application, the employer row and the request', async () => {

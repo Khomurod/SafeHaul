@@ -11,7 +11,7 @@
  * told, so the screen can say so.
  */
 
-const { storage } = require('../firebaseAdmin');
+const { admin, storage } = require('../firebaseAdmin');
 const { logger } = require('firebase-functions');
 const { buildRequestPdf, requestPdfFilename } = require('./requestPdf');
 
@@ -59,4 +59,32 @@ async function reminderAttachments(path, applicantName) {
     }
 }
 
-module.exports = { requestPdfPath, storeRequestPdf, reminderAttachments };
+/**
+ * File the stored document in the driver's DQ file, as the server files the
+ * application's own uploads: `isSynced`, so removing it on the DQ tab hides the
+ * entry and keeps the request's copy. It opens from a link signed when pressed.
+ */
+async function fileRequestInDq(recordRef, { requestId, path, employerName, applicantName }) {
+    const { FieldValue } = admin.firestore;
+    try {
+        await recordRef.collection('dq_files').doc(`pev_request_${requestId}`).set({
+            type: 'pev_request',
+            fileType: `PEV Request – ${employerName}`,
+            label: 'PEV Request',
+            fileName: requestPdfFilename(applicantName),
+            storagePath: path,
+            url: null,
+            source: 'pev_request',
+            isSynced: true,
+            uploadedBy: 'pev_request',
+            uploadedAt: FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
+        });
+        return true;
+    } catch (error) {
+        logger.error('[PEV] The request document could not be filed in the DQ file.', error);
+        return false;
+    }
+}
+
+module.exports = { fileRequestInDq, requestPdfPath, storeRequestPdf, reminderAttachments };

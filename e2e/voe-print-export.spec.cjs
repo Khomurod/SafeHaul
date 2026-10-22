@@ -172,9 +172,9 @@ test.describe('VOE Print produces the real document', () => {
     expect(parseFloat(computed.signatureBorder)).toBeGreaterThan(0);
 
     // ── Legal text and values, verbatim. ──
-    expect(copy.text).toContain('I, the undersigned applicant, hereby provide specific written consent');
-    expect(copy.text).toContain('49 CFR §391.23');
-    expect(copy.text).toContain('§40.321');
+    expect(copy.text).toContain('I hereby release employers, schools, health care providers and other persons');
+    expect(copy.text).toContain('49 CFR 391.23(d) and (e)');
+    expect(copy.text).not.toContain('specific written consent');
     expect(copy.text).toContain('Request for Verification of Employment');
     expect(copy.text).toContain('Employment History Questionnaire (To be completed by Recipient)');
     expect(copy.text).toContain('Maria Garcia');

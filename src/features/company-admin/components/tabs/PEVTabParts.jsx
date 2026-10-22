@@ -225,6 +225,22 @@ export function PEVHistoryModal({
                                         Sent to: {log.recipient} ({log.method})
                                     </p>
                                 )}
+                                {Array.isArray(log.copies) && log.copies.length > 0 && (
+                                    <p className="mt-ds-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
+                                        Copied: {log.copies.join(', ')}
+                                    </p>
+                                )}
+                                {log.requestPdfPath && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleViewResult(log.requestPdfPath, `request-${i}`)}
+                                        disabled={loadingResultUrl === `request-${i}`}
+                                        loading={loadingResultUrl === `request-${i}`}
+                                    >
+                                        View Request PDF
+                                    </Button>
+                                )}
                                 {log.url && (
                                     <Button
                                         variant="ghost"

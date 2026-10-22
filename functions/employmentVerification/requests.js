@@ -23,7 +23,7 @@ const { v4: uuidv4 } = require("uuid");
 const { logger } = require("firebase-functions");
 const { buildVerificationEmailHTML } = require("./emailTemplates");
 const { employerNameOf, resolveEmployerTarget, withEmployerIds } = require("../shared/employerIdentity");
-const { requestPdfPath, storeRequestPdf } = require("./requestAttachment");
+const { fileRequestInDq, requestPdfPath, storeRequestPdf } = require("./requestAttachment");
 
 /** The most people a request copies; the screen offers the same. */
 const MAX_CC = 5;
@@ -199,9 +199,10 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
         // The request document: the applicant's signed release, for the email and the record.
         const row = stamped[target.index] || {};
         const resolvedEmployerName = employerName || employerNameOf(row) || 'Former Employer';
+        const requestId = uuidv4();
         const requestPdf = await storeRequestPdf({
             path: requestPdfPath({
-                companyId, collectionName, applicationId, employerName: resolvedEmployerName, requestId: uuidv4(),
+                companyId, collectionName, applicationId, employerName: resolvedEmployerName, requestId,
             }),
             company: companyData,
             application,
@@ -221,6 +222,11 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             sentAt: now.toMillis(),
             emailed: deliveryMethod === 'email',
         });
+        if (requestPdf) {
+            await fileRequestInDq(appRef, {
+                requestId, path: requestPdf.path, employerName: resolvedEmployerName, applicantName,
+            });
+        }
 
         // Create verification request document
         const verificationData = {

@@ -141,6 +141,16 @@ export const SYNCED_DRIVER_UPLOAD = {
     sourceField: 'cdl-front',
 };
 
+/** The request PDF a verification sent, which the server files in the DQ file. */
+export const FILED_PEV_REQUEST = {
+    type: 'pev_request',
+    fileType: 'PEV Request – Old Carrier',
+    fileName: 'PEV_REQUEST_Old_Carrier_abcd1234.pdf',
+    url: null,
+    storagePath: 'companies/co-1/applications/app-1/pev_requests/PEV_REQUEST_Old_Carrier_abcd1234.pdf',
+    isSynced: true,
+};
+
 export const makeRenderDq = (DQFileTab) => (props = {}) =>
     render(<DQFileTab companyId="co-1" applicationId="app-1" {...props} />);
 

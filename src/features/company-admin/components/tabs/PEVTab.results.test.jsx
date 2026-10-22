@@ -216,6 +216,42 @@ describe('PEVTab verification history', () => {
     vi.unstubAllGlobals();
   });
 
+  it('names who a request copied and opens the request PDF it sent from a signed link', async () => {
+    const openSpy = vi.fn();
+    vi.stubGlobal('open', openSpy);
+    fnMocks.callable.mockResolvedValue({ data: { url: 'https://signed.test/request.pdf' } });
+    const requestPdfPath = 'companies/co-1/applications/app-1/pev_requests/PEV_REQUEST_A_abcd1234.pdf';
+    renderTab({
+      employers: [{
+        companyName: 'A',
+        verification: {
+          status: 'Sent',
+          history: [{
+            action: 'Sent via Portal', recipient: 'hr@a.test', method: 'Email',
+            copies: ['ops@carrier.test', 'safety@carrier.test'], requestPdfPath,
+            timestamp: '2026-07-02T10:00:00.000Z',
+          }],
+        },
+      }],
+    });
+    fireEvent.click(screen.getByRole('button', { name: /View History/i }));
+
+    expect(screen.getByText('Copied: ops@carrier.test, safety@carrier.test')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View Request PDF' }));
+
+    await waitFor(() => expect(fnMocks.callable).toHaveBeenCalledWith({ storagePath: requestPdfPath }));
+    expect(fnMocks.httpsCallable).toHaveBeenCalledWith(expect.anything(), 'getSignedPevUrl');
+    await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://signed.test/request.pdf', '_blank', 'noopener,noreferrer'));
+    vi.unstubAllGlobals();
+  });
+
+  it('shows neither line for a request that copied no one and kept no PDF', () => {
+    renderTab();
+    fireEvent.click(screen.getByRole('button', { name: /View History/i }));
+    expect(screen.queryByText(/^Copied:/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'View Request PDF' })).toBeNull();
+  });
+
   // DEFECT-FIX assertion (not a frozen contract): the history dialog read only
   // `companyName`, while the employer list uses `companyName || name`. For a
   // legacy-shaped employer the dialog was therefore titled "Not Specified" —

@@ -140,7 +140,7 @@ describe('VOEPreviewModal print pipeline', () => {
     expect(signature.getAttribute('src')).toBe('data:image/png;base64,AAAA');
 
     // Legal text and values.
-    expect(printed.textContent).toContain('I, the undersigned applicant');
+    expect(printed.textContent).toContain('I hereby release employers, schools, health care providers');
     expect(printed.textContent).toContain('Maria Garcia');
     expect(printed.textContent).toContain('***-**-6789');
     expect(printed.textContent).not.toContain('123-45-6789');
