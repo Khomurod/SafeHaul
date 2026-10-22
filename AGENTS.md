@@ -32,6 +32,9 @@ only to learn *why* a rule exists).
   you will not touch.
 - Ask only when different readings would lead to materially different work;
   otherwise choose, state the assumption, and continue.
+- If a simpler way reaches the same result without losing quality, or the
+  request as asked would make things worse, say so before you start and
+  recommend the better way.
 - One task, one small pull request. Do not bundle unrelated changes, and do not
   start internal campaigns (rewrites, migrations, new guards) nobody asked for.
 - Every pull request description starts with **Кратко**: three or four plain

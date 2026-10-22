@@ -139,7 +139,7 @@ through these deliberately:
 - Are the tests actually sufficient for the behavior that changed?
 - Is there leftover debug output, commented-out code, dead code, stray files, or
   temporary scaffolding?
-- Does the final diff contain anything that should not be there?
+- Does every changed line trace to the request? Remove any that do not.
 
 **Fix what you find.** Self-review that only produces a list of problems has not
 done its job. Escalate to the user only what genuinely cannot be resolved inside
