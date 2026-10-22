@@ -308,11 +308,10 @@ describe('CampaignDetails — Check delivery', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Check delivery' }));
 
-        await waitFor(() => expect(toastMocks.showSuccess)
-            .toHaveBeenCalledWith('Delivery checked: 40 delivered, 3 not delivered, 2 still waiting.'));
+        await waitFor(() => expect(screen.getByTestId('results-table')).toHaveAttribute('data-refresh', '1'));
+        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Delivery checked: 40 delivered, 3 not delivered, 2 still waiting.');
         expect(httpsCallableMock).toHaveBeenCalledWith({}, 'checkCampaignDelivery');
         expect(callables.checkCampaignDelivery).toHaveBeenCalledWith({ companyId: 'company123', sessionId: '123' });
-        expect(screen.getByTestId('results-table')).toHaveAttribute('data-refresh', '1');
         await waitFor(() => expect(screen.getByRole('button', { name: 'Check delivery' })).toBeEnabled());
     });
 

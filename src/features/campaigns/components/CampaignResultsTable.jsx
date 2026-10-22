@@ -33,6 +33,8 @@ export function CampaignResultsTable({ companyId, campaignId, refreshKey = 0 }) 
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
 
     useEffect(() => {
+        // A reload (refreshKey) can finish before the read it replaced: only the newest answer is shown.
+        let current = true;
         const fetchLogs = async () => {
             if (!companyId || !campaignId) {
                 setLoading(false);
@@ -51,14 +53,15 @@ export function CampaignResultsTable({ companyId, campaignId, refreshKey = 0 }) 
                     limit(200)
                 );
                 const snap = await getDocs(q);
-                setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                if (current) setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             } catch (err) {
                 console.error("Failed to fetch logs:", err);
             } finally {
-                setLoading(false);
+                if (current) setLoading(false);
             }
         };
         fetchLogs();
+        return () => { current = false; };
     }, [companyId, campaignId, isE2ECampaignMock, refreshKey]);
 
     const filteredLogs = logs.filter(log =>
