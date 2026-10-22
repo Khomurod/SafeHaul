@@ -106,6 +106,12 @@ describe('the request document', () => {
         expect(options().attachments).toHaveLength(1);
     });
 
+    it('files nothing in the DQ file when the email cannot be sent', async () => {
+        mockSendDynamicEmail.mockRejectedValue(new Error('smtp down'));
+        await expect(send()).rejects.toBeTruthy();
+        expect(dqFileDocs.size).toBe(0);
+    });
+
     it('files nothing in the DQ file when there is no document', async () => {
         failNextStorageSave();
         await send();

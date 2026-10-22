@@ -191,7 +191,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                         <p className="text-[10px] font-black text-voe-slate-500 uppercase mb-3 tracking-widest text-right">Date of Authorization</p>
                         <div className="h-24 border-b-2 border-voe-slate-900 flex items-center justify-end pb-2">
                             <div className="text-right">
-                                <span className="text-voe-2xl font-bold text-voe-slate-900">{authorizationDate(applicant, release.signedAt)}</span>
+                                <span className="text-voe-2xl font-bold text-voe-slate-900">{release.status === 'unsigned' ? 'Not signed' : authorizationDate(applicant, release.signedAt)}</span>
                                 <p className="text-[10px] text-voe-slate-500 mt-1 uppercase">Valid for 30 Days</p>
                             </div>
                         </div>

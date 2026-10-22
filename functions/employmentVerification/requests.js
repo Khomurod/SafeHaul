@@ -222,10 +222,6 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             sentAt: now.toMillis(),
             emailed: deliveryMethod === 'email',
         });
-        const requestPdfFiled = requestPdf ? await fileRequestInDq(appRef, {
-            requestId, path: requestPdf.path, employerName: resolvedEmployerName, applicantName,
-        }) : false;
-
         // Create verification request document
         const verificationData = {
             token,
@@ -281,6 +277,12 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
                 ...(requestPdf ? { attachments: [requestPdf.attachment] } : {}),
             });
         }
+
+        // Filed once the request exists and went out, so a failed send leaves no
+        // DQ entry for a request that was never made.
+        const requestPdfFiled = requestPdf ? await fileRequestInDq(appRef, {
+            requestId, path: requestPdf.path, employerName: resolvedEmployerName, applicantName,
+        }) : false;
 
         // No token here: whoever reads the logs could answer as the employer.
         logger.info(`[PEV] Verification request created. Applicant: ${applicantName}, Employer: ${employerName}`);

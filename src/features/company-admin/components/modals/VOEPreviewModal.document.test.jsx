@@ -94,6 +94,11 @@ describe('VOEPreviewModal legal text and ordering', () => {
     expect(doc).not.toHaveTextContent('Signed electronically with the application');
   });
 
+  it('dates no authorization for an unsigned application, whatever else dates it', () => {
+    renderModal({ applicant: { ...APPLICANT, signature: undefined, submittedAt: '2026-08-03T15:00:00.000Z' } });
+    expect(authorizationDate()).toHaveTextContent('Not signed');
+  });
+
   it('keeps the document section order', () => {
     renderModal();
     const text = documentNode().textContent;
