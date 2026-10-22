@@ -38,6 +38,7 @@ const { createHash } = require('crypto');
 
 const { resolveAgreement } = require('./legalAgreements');
 const { resolveCompanyAgreement } = require('./companyAgreementWording');
+const { asPresented } = require('./employerReleaseAgreement');
 const { STANDARD_SECTIONS, visibleFields } = require('./applicationDefinition');
 const { computeEmploymentCoverage } = require('./employmentCoverage');
 const { decodeRepeatingRows } = require('./submissionSnapshotStorage');
@@ -310,15 +311,6 @@ function buildCustomAnswers(definition, customAnswers) {
 }
 
 /**
- * Capture each agreement's exact presented text alongside its own acceptance
- * evidence.
- *
- * @param {object} opts
- * @param {object} opts.definition
- * @param {object} opts.acceptances `{ [agreementId]: { accepted, acceptedAt, ip, userAgent } }`
- * @param {object|null} opts.signature `{ image, type, capturedAt }`
- */
-/**
  * Fingerprint of the signature bitmap.
  *
  * The snapshot deliberately does not store the image itself. But without some
@@ -333,12 +325,17 @@ function signatureFingerprint(image) {
     return createHash('sha256').update(image).digest('hex');
 }
 
-function buildAgreementRecords({ definition, acceptances = {}, signature = null, companyWording = null }) {
+/**
+ * Each agreement's exact presented text with its own acceptance evidence.
+ * `acceptances` is `{ [agreementId]: { accepted, acceptedAt, ip, userAgent } }`,
+ * `signature` `{ image, type, capturedAt }`, `employers` the applicant's rows.
+ */
+function buildAgreementRecords({ definition, acceptances = {}, signature = null, companyWording = null, employers = [] }) {
     const companyName = definition?.company?.companyName || null;
     const declared = Array.isArray(definition?.agreements) ? definition.agreements : [];
     const given = acceptances && typeof acceptances === 'object' ? acceptances : {};
 
-    return declared.map((declaredAgreement) => {
+    return declared.flatMap((declaredAgreement) => {
         // Resolve the exact text at the recorded version: the company's own
         // published wording when the version is one of its `c-…` ids, otherwise
         // the platform registry. Both throw or return nothing on an unknown
@@ -346,7 +343,10 @@ function buildAgreementRecords({ definition, acceptances = {}, signature = null,
         const resolved = resolveCompanyAgreement(declaredAgreement.id, declaredAgreement.version, companyWording, { companyName })
             || resolveAgreement(declaredAgreement.id, declaredAgreement.version, { companyName });
         const evidence = given[declaredAgreement.id];
-        const accepted = Boolean(evidence && evidence.accepted === true);
+        // Not shown at all is not recorded (a release to no listed employer).
+        const presented = asPresented(resolved, evidence, employers);
+        if (!presented) return [];
+        const accepted = Boolean(evidence && evidence.accepted === true) && presented.holds;
         const acceptedAt = accepted ? (clean(evidence.acceptedAt) || null) : null;
         /**
          * HOW acceptance was given, not merely whether.
@@ -362,12 +362,13 @@ function buildAgreementRecords({ definition, acceptances = {}, signature = null,
             ? (clean(evidence.scope) === 'combined' ? 'combined' : 'individual')
             : null;
 
-        return {
+        return [{
             id: resolved.id,
             version: resolved.version,
             title: resolved.title,
             // The verbatim text as displayed. This is what the signature binds to.
-            body: resolved.body,
+            body: presented.body,
+            ...(presented.employers && { employers: presented.employers }),
             // What was presented beside it, such as the FCRA summary of rights,
             // and only when the acceptance says the page showed it: Testing and
             // Production share this backend, and a frontend built before
@@ -397,7 +398,7 @@ function buildAgreementRecords({ definition, acceptances = {}, signature = null,
                     sha256: signatureFingerprint(signature.image),
                 }
                 : null,
-        };
+        }];
     });
 }
 
@@ -458,7 +459,7 @@ function buildSubmissionSnapshot({
         company: definition.company,
         sections: buildSections(definition, data),
         customAnswers: buildCustomAnswers(definition, data.customAnswers),
-        agreements: buildAgreementRecords({ definition, acceptances, signature, companyWording }),
+        agreements: buildAgreementRecords({ definition, acceptances, signature, companyWording, employers: data.employers }),
         employmentCoverage: coverage,
         signature: signature
             ? {

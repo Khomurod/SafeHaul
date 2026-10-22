@@ -95,6 +95,8 @@ async function render(overrides = {}, { companyOver = {}, formOver = {}, accepta
     const acceptances = acceptanceOver || Object.fromEntries(
         definition.agreements.map((a) => [a.id, {
             accepted: true, acceptedAt: SUBMITTED_AT, ip: '203.0.113.42', userAgent: 'TestAgent/1.0',
+            // The release is accepted with the employers it named on screen.
+            ...(a.id === 'previousEmployerRelease' && { employersShown: ['Lone Star Logistics'] }),
         }]),
     );
     const snapshot = buildSubmissionSnapshot({
@@ -176,7 +178,7 @@ describe('application PDF — the SSN policy', () => {
 });
 
 describe('application PDF — agreements and signatures', () => {
-    it('prints all five agreements with their frozen wording', async () => {
+    it('prints all six agreements with their frozen wording', async () => {
         const { text } = await render();
         // The MVR authorization is part of the set; it is answered on the
         // driving-record step and preserved with the same rigour.
@@ -187,7 +189,9 @@ describe('application PDF — agreements and signatures', () => {
         // which itself may wrap: compared with its line breaks folded.
         expect(text.replace(/\s+/g, ' ')).toMatch(/Pre-Employment Screening Program \(PSP\)/);
         expect(text).toMatch(/Clearinghouse/);
-        expect(text).toMatch(/AGREEMENT 5 OF 5/);
+        expect(text).toMatch(/AUTHORIZATION FOR PREVIOUS EMPLOYERS TO RELEASE INFORMATION/);
+        expect(text.replace(/\s+/g, ' ')).toContain('1. I authorize Lone Star Logistics to release to Northwind Freight Systems the information described above.');
+        expect(text).toMatch(/AGREEMENT 6 OF 6/);
     });
 
     it('prints what was provided beside a document, such as the FCRA summary of rights', async () => {

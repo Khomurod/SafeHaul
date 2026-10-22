@@ -84,14 +84,32 @@ describe('getApplicationAgreements', () => {
     await expect(served).resolves.toMatchObject({ companyName: 'Blue Line Freight' });
   });
 
-  it('serves all five required agreements, including the MVR authorization and the Clearinghouse consent', async () => {
-    const result = await getApplicationAgreements({ companyId: 'co1' }, ctx);
+  it('serves all six required agreements to a screen that names the current set', async () => {
+    const result = await getApplicationAgreements({ companyId: 'co1', agreementVersion: 'v3' }, ctx);
     const ids = result.agreements.map((a) => a.id);
 
+    expect(result.agreementVersion).toBe('v3');
     expect(ids).toEqual(requiredAgreementIds());
     expect(ids).toContain('clearinghouseConsent');
     expect(ids).toContain('mvrAuthorization');
-    expect(ids).toHaveLength(5);
+    expect(ids).toHaveLength(6);
+    // The release's per-employer statement travels beside its body.
+    expect(result.agreements.find((a) => a.id === 'previousEmployerRelease').employerStatement)
+      .toBe('I authorize {{employerName}} to release to Blue Line Freight the information described above.');
+    expect(result.agreements.filter((a) => a.employerStatement)).toHaveLength(1);
+  });
+
+  // Screens built before v3 ask without a version and cannot present the
+  // release's statements: they keep the v2 set they can show.
+  it.each([
+    ['no version', {}],
+    ['an older version', { agreementVersion: 'v1' }],
+    ['an unknown version', { agreementVersion: 'v9' }],
+  ])('serves the v2 set to a request that names %s', async (_label, extra) => {
+    const result = await getApplicationAgreements({ companyId: 'co1', ...extra }, ctx);
+    expect(result.agreementVersion).toBe('v2');
+    expect(result.agreements.map((a) => a.id)).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
+    expect(result.agreements.every((a) => a.version === 'v2' && !('employerStatement' in a))).toBe(true);
   });
 
   it('says which page presents each agreement, so the MVR step and the consent step split the set', async () => {
@@ -101,13 +119,14 @@ describe('getApplicationAgreements', () => {
     expect(byId.clearinghouseConsent).toBe('consent');
   });
 
-  it('serves text byte-identical to what the snapshot will preserve', async () => {
-    const result = await getApplicationAgreements({ companyId: 'co1' }, ctx);
+  it.each([['v2', {}], ['v3', { agreementVersion: 'v3' }]])('serves %s text byte-identical to what the snapshot will preserve', async (version, extra) => {
+    const result = await getApplicationAgreements({ companyId: 'co1', ...extra }, ctx);
     // The exact call buildSubmissionSnapshot resolves through.
-    const preserved = resolveAgreementSet({ companyName: 'Blue Line Freight' });
+    const preserved = resolveAgreementSet({ companyName: 'Blue Line Freight', version });
 
     expect(result.agreements.map((a) => a.body)).toEqual(preserved.map((a) => a.body));
     expect(result.agreements.map((a) => a.title)).toEqual(preserved.map((a) => a.title));
+    expect(result.agreements.map((a) => a.employerStatement)).toEqual(preserved.map((a) => a.employerStatement));
   });
 
   it('substitutes the carrier name into the served wording', async () => {
@@ -140,10 +159,10 @@ describe('getApplicationAgreements', () => {
     expect(result.agreements).toHaveLength(5);
   });
 
-  it('reports the current agreement version so acceptance can be recorded against it', async () => {
-    const result = await getApplicationAgreements({ companyId: 'co1' }, ctx);
-    expect(result.agreementVersion).toBe('v2');
-    expect(result.agreements.every((a) => a.version === 'v2')).toBe(true);
+  it('reports the version it served so acceptance can be recorded against it', async () => {
+    const result = await getApplicationAgreements({ companyId: 'co1', agreementVersion: 'v3' }, ctx);
+    expect(result.agreementVersion).toBe('v3');
+    expect(result.agreements.every((a) => a.version === 'v3')).toBe(true);
     // A version's companions travel with it, so the page can show them.
     expect(result.agreements.find((a) => a.id === 'fcraDisclosure').links[0].label)
       .toBe('A Summary of Your Rights Under the Fair Credit Reporting Act');

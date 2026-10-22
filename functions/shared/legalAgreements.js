@@ -60,6 +60,8 @@ function renderAgreementBody(template, { companyName }) {
 // showing them corrected prose after the fact.
 // ---------------------------------------------------------------------------
 
+const { PREVIOUS_EMPLOYER_RELEASE } = require('./employerReleaseAgreement');
+
 const LEGACY_ELECTRONIC_SIG = `AGREEMENT TO CONDUCT TRANSACTION ELECTRONICALLY
 
 1. DEFINITIONS.
@@ -252,6 +254,10 @@ I understand that if a limited query conducted by {{companyName}} indicates that
 
 I further understand that if I refuse to provide consent for {{companyName}} to conduct a limited query of the Clearinghouse, {{companyName}} must prohibit me from performing safety-sensitive functions, including driving a commercial motor vehicle, as required by FMCSA's drug and alcohol program regulations.`;
 
+// v3 — current wording (2026-10-22): the five v2 bodies unchanged, plus the
+// previous employers' release (`employerReleaseAgreement.js`), which exists only
+// from v3, so no v1 or v2 record can claim it.
+
 /**
  * What a v2 page presents beside the document, never inside it: a separate
  * document the law requires, or where the next consent is given. Frozen into
@@ -304,6 +310,7 @@ const AGREEMENTS = Object.freeze({
         versions: {
             v1: { body: V1_MVR_AUTHORIZATION },
             v2: { body: V1_MVR_AUTHORIZATION },
+            v3: { body: V1_MVR_AUTHORIZATION },
         },
     },
     electronicSignature: {
@@ -317,6 +324,7 @@ const AGREEMENTS = Object.freeze({
             'legacy-1': { body: LEGACY_ELECTRONIC_SIG, legacy: true },
             v1: { body: V1_ELECTRONIC_SIG },
             v2: { body: V1_ELECTRONIC_SIG },
+            v3: { body: V1_ELECTRONIC_SIG },
         },
     },
     fcraDisclosure: {
@@ -330,6 +338,7 @@ const AGREEMENTS = Object.freeze({
             'legacy-1': { body: LEGACY_FCRA_DISCLOSURE, legacy: true },
             v1: { body: V1_FCRA_DISCLOSURE },
             v2: { body: V2_FCRA_DISCLOSURE, links: [CFPB_SUMMARY_OF_RIGHTS] },
+            v3: { body: V2_FCRA_DISCLOSURE, links: [CFPB_SUMMARY_OF_RIGHTS] },
         },
     },
     pspDisclosure: {
@@ -343,6 +352,7 @@ const AGREEMENTS = Object.freeze({
             'legacy-1': { body: LEGACY_PSP_DISCLOSURE, legacy: true },
             v1: { body: V1_PSP_DISCLOSURE },
             v2: { body: V2_PSP_DISCLOSURE },
+            v3: { body: V2_PSP_DISCLOSURE },
         },
     },
     clearinghouseConsent: {
@@ -372,12 +382,18 @@ const AGREEMENTS = Object.freeze({
                 title: 'FMCSA DRUG AND ALCOHOL CLEARINGHOUSE CONSENT',
                 links: [CLEARINGHOUSE_FULL_QUERY],
             },
+            v3: {
+                body: V2_CLEARINGHOUSE_CONSENT,
+                title: 'FMCSA DRUG AND ALCOHOL CLEARINGHOUSE CONSENT',
+                links: [CLEARINGHOUSE_FULL_QUERY],
+            },
         },
     },
+    previousEmployerRelease: PREVIOUS_EMPLOYER_RELEASE,
 });
 
 /** Version every NEW submission presents. Historical records keep their own. */
-const CURRENT_AGREEMENT_VERSION = 'v2';
+const CURRENT_AGREEMENT_VERSION = 'v3';
 
 /**
  * Versions a NEW submission may legitimately claim to have displayed.
@@ -435,6 +451,10 @@ function resolveAgreement(agreementId, version, { companyName } = {}) {
         presentedOn: agreement.presentedOn || 'consent',
         legacy: Boolean(entry.legacy),
         links: renderAgreementLinks(entry.links, { companyName }),
+        // `{{employerName}}` stays open: the employers are the applicant's rows.
+        ...(entry.employerStatement
+            ? { employerStatement: renderAgreementBody(entry.employerStatement, { companyName }) }
+            : {}),
     };
 }
 

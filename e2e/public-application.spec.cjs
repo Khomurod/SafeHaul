@@ -14,6 +14,7 @@ const {
   completeRemainingSteps,
   applySignature,
   submitApplication,
+  acceptAgreements,
 } = require('./helpers/wizardHelpers.cjs');
 
 /**
@@ -65,7 +66,7 @@ test.describe('guest public application', () => {
     await expectStep(page, 'Agreements & Signature');
   });
 
-  test('an employer of the past three years needs the reason for leaving and the two DOT answers', async ({ page }) => {
+  test('an employer of the past three years needs the reason for leaving and the two DOT answers, and is named in the release', async ({ page }) => {
     await page.goto('/apply/e2e-company');
     await fillStep1(page, 'employer');
     await fillStep2(page);
@@ -117,6 +118,22 @@ test.describe('guest public application', () => {
     await expect(answer('Reason for Leaving')).toContainText('Better route');
     await expect(answer('Subject to FMCSRs')).toContainText('Yes');
     await expect(answer('Safety-Sensitive (DOT Drug & Alcohol Testing)')).toContainText('No');
+
+    // The consent step's release to previous employers names this employer in a
+    // statement of its own, and is accepted like every other document.
+    await page.getByRole('button', { name: 'Confirm & Proceed' }).click();
+    await expectStep(page, 'Agreements & Signature');
+    const release = page.locator('#agreement-previousEmployerRelease');
+    for (const id of ['electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']) {
+      await page.locator(`#agreement-${id}`).check();
+      await page.getByRole('button', { name: 'Next document' }).click();
+    }
+    await expect(release).toBeVisible();
+    await expect(page.getByText('Document 5 of 5')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Authorization for Previous Employers to Release Information full text' }))
+      .toContainText('1. TEST FIXTURE: Artificial Freight Co may release to the carrier the information described above.');
+    await acceptAgreements(page);
+    await expect(page.getByText('Final Certification & Signature')).toBeVisible();
   });
 
   test('guest upload shows permission error when upload guard denies access', async ({ page }) => {

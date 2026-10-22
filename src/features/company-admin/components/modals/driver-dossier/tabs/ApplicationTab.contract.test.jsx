@@ -294,6 +294,21 @@ describe('ApplicationTab consent summary', () => {
     expect(screen.getByText('Final Certification')).toBeInTheDocument();
   });
 
+  it('shows whether the previous employers release was accepted', () => {
+    renderTab({ ...APP, 'agree-previous-employers': 'agreed' });
+    const row = screen.getByText('Previous Employers Release').closest('li');
+    expect(row).toHaveTextContent('— accepted');
+  });
+
+  // The release is shown only to an applicant who listed an employer, and only
+  // from agreement set v3: with nothing recorded it was never presented, which
+  // is not the same as declined.
+  it('leaves the previous employers release out when none was recorded', () => {
+    renderTab({ ...APP, 'agree-electronic': 'agreed' });
+    expect(screen.getByText('Electronic Transaction Consent')).toBeInTheDocument();
+    expect(screen.queryByText('Previous Employers Release')).toBeNull();
+  });
+
   it('renders a data-url signature image with an accessible name', () => {
     renderTab({ ...APP, signature: 'data:image/png;base64,AAA', signatureDate: '2026-02-01' });
     expect(screen.getByAltText('Driver Signature')).toBeInTheDocument();

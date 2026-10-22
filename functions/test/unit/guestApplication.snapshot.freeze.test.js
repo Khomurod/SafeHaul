@@ -40,7 +40,7 @@ describe('submission freezes a snapshot', () => {
     const snap = onlySnapshot();
     expect(snap.frozen).toBe(true);
     expect(snap.definitionVersion).toMatch(/^[a-f0-9]{16}$/);
-    expect(snap.agreementVersion).toBe('v2');
+    expect(snap.agreementVersion).toBe('v3');
     // Company identity comes from the company document — the public profile
     // deliberately does not expose an address or DOT number.
     expect(snap.company.companyName).toBe('Artificial Freight Co');
@@ -57,9 +57,36 @@ describe('submission freezes a snapshot', () => {
   });
 
   it('captures all five agreements — the MVR authorization and the Clearinghouse consent included', async () => {
+    // This applicant listed no employer, so no previous employers release was shown.
     await submitGuestApplication(payload(), ctx);
     const ids = onlySnapshot().agreements.map((a) => a.id);
     expect(ids).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
+  });
+
+  it('freezes the previous employers release the applicant accepted, naming each employer', async () => {
+    await submitGuestApplication(payload({
+      employers: [{ companyName: 'Lone Star Logistics', startDate: '2023-01', endDate: 'Present' }],
+      agreementAcceptances: {
+        previousEmployerRelease: { accepted: true, acceptedAt: '2026-06-15T12:00:04.000Z', version: 'v3', employersShown: ['Lone Star Logistics'] },
+      },
+    }), ctx);
+
+    const release = onlySnapshot().agreements.find((a) => a.id === 'previousEmployerRelease');
+    expect(release).toMatchObject({ version: 'v3', accepted: true, employers: ['Lone Star Logistics'] });
+    expect(release.body).toContain('1. I authorize Lone Star Logistics to release to Artificial Freight Co the information described above.');
+    expect(release.acceptanceContext.ip).toBe('203.0.113.1');
+    expect(release.signature).not.toBeNull();
+  });
+
+  it('freezes no previous employers release for a screen that showed the v2 set', async () => {
+    const v2 = { accepted: true, acceptedAt: '2026-06-15T12:00:00.000Z', version: 'v2' };
+    await submitGuestApplication(payload({
+      employers: [{ companyName: 'Lone Star Logistics', startDate: '2023-01', endDate: 'Present' }],
+      agreementAcceptances: { electronicSignature: v2, fcraDisclosure: v2, pspDisclosure: v2, clearinghouseConsent: v2 },
+    }), ctx);
+
+    expect(onlySnapshot().agreementVersion).toBe('v2');
+    expect(onlySnapshot().agreements.map((a) => a.id)).not.toContain('previousEmployerRelease');
   });
 
   it('attaches no signature to an agreement with no acceptance evidence', async () => {

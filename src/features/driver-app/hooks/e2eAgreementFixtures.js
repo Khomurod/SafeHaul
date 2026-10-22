@@ -42,6 +42,11 @@ export const E2E_AGREEMENTS = [
     fixture('fcraDisclosure', 'Background Check Disclosure and Authorization', true),
     fixture('pspDisclosure', 'FMCSA PSP Disclosure and Authorization', true),
     fixture('clearinghouseConsent', 'FMCSA Drug and Alcohol Clearinghouse Consent', true),
+    // Shown only once an employer is listed, with one statement naming each.
+    {
+        ...fixture('previousEmployerRelease', 'Authorization for Previous Employers to Release Information', true),
+        employerStatement: 'TEST FIXTURE: {{employerName}} may release to the carrier the information described above.',
+    },
 ];
 
 export default E2E_AGREEMENTS;

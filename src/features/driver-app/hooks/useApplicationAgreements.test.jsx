@@ -34,7 +34,7 @@ describe('useApplicationAgreements', () => {
         await waitFor(() => expect(stepNine.result.current.agreements).toEqual(AGREEMENTS));
 
         expect(mocks.call).toHaveBeenCalledTimes(1);
-        expect(mocks.call).toHaveBeenCalledWith({ companyId: 'c1' });
+        expect(mocks.call).toHaveBeenCalledWith({ companyId: 'c1', agreementVersion: 'v3' });
     });
 
     it('shares one request between two readers at once', async () => {
@@ -75,6 +75,6 @@ describe('useApplicationAgreements', () => {
         const other = renderHook(() => useApplicationAgreements('c2'));
         await waitFor(() => expect(other.result.current.agreements).toEqual(AGREEMENTS));
 
-        expect(mocks.call.mock.calls).toEqual([[{ companyId: 'c1' }], [{ companyId: 'c2' }]]);
+        expect(mocks.call.mock.calls).toEqual([[{ companyId: 'c1', agreementVersion: 'v3' }], [{ companyId: 'c2', agreementVersion: 'v3' }]]);
     });
 });

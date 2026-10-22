@@ -558,26 +558,26 @@ full SSN. **Do not add a Storage rule for that prefix and do not regenerate the
 PDF on download.** Given 15 s at most (the unfinished draft is deleted first), one
 cut short is `pdfPreserved: false`, left to `reconstructHistoricalApplications`.
 
-**Legal agreement wording is versioned and frozen.** Five agreements
-(`mvrAuthorization`, `electronicSignature`, `fcraDisclosure`, `pspDisclosure`,
-`clearinghouseConsent`) live in `functions/shared/legalAgreements.js`. Current
-`v2` (`v1` stays submittable for drafts that accepted it) follows primary
-sources: FMCSA's PSP language word for word, an FCRA disclosure and
-authorization only (the CFPB summary of rights is a version `link`, recorded
-only if shown), and FMCSA's limited-query Clearinghouse consent (a full query
-is consented only in the Clearinghouse). The MVR authorization is answered on
-the Violations step (`consent-mvr`, with its version); on Consent each other
-agreement has a page of its own (the FCRA and PSP stand-alone rules), then the
-certification, ending with the exact 49 CFR 391.21(b)(12) sentence (hard-coded
-in `Step9_Consent.jsx`, not frozen), and the signature. An acceptance counts
-only at the version on screen; a submission binds to the version the applicant
-saw, not what is deployed. **An acceptance's IP is the one the server saw**,
-never the browser's claim: evidence forgeable by the party it incriminates is
-not evidence. `legacy-1` bodies are a **frozen forensic record — never edit
-them**; `clearinghouseConsent` has no `legacy-1`, so reconstruction cannot
-attribute a consent nobody gave. **Applications submitted before the MVR
-authorization existed have no acceptance for it**; their records say so, and
-nothing back-fills one.
+**Legal agreement wording is versioned and frozen** in
+`functions/shared/legalAgreements.js`. Current `v3` (`v1`, `v2` stay
+submittable for drafts that accepted them; a screen that names no version gets
+`v2`) follows primary sources: FMCSA's PSP language word for word, an FCRA
+disclosure and authorization only (the CFPB summary of rights is a version
+`link`, recorded only if shown), FMCSA's limited-query Clearinghouse consent (a
+full query is consented only in the Clearinghouse) and, from v3, the **previous
+employers' release** (`employerReleaseAgreement.js`): one statement per employer
+listed, since 49 CFR 40.321(b) bans blanket releases; not shown or frozen with
+no employer, accepted only for the employers on screen (`employersShown`), never
+company-worded. The MVR authorization is answered on the Violations step
+(`consent-mvr`); on Consent each other agreement has its own page (FCRA and PSP
+stand-alone rules), then the certification ending with the exact 391.21(b)(12)
+sentence (in `Step9_Consent.jsx`) and the signature. An acceptance
+counts only at the version on screen, and binds the submission to it. **An
+acceptance's IP is the one the server saw**, never the browser's claim.
+`legacy-1` bodies are a **frozen forensic record — never edit them**;
+`clearinghouseConsent` has no `legacy-1`, so reconstruction cannot attribute a
+consent nobody gave. **Applications from before the MVR authorization have no
+acceptance for it**, and nothing back-fills one.
 
 **Company wording is immutable too.** Versions are content-addressed (`c-<12 hex>`
 of agreement id + body + the `links` copied from the platform's current version
