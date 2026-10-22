@@ -1,24 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { saveCompanySettings } from '@features/companies';
 import { Icon, Save } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { Button, FormField, FormSection, Input } from '@/design-system/components';
 import { MAX_PEV_COPIES, formatPevCopies, parsePevCopies } from '@features/company-admin/utils/pevCopies';
+import { usePevDefaultCopies } from '@features/company-admin/hooks/usePevDefaultCopies';
 
 /**
  * The people every previous employment verification request copies (CC) by
  * default: `companies/{id}.pevCcEmails`. The send dialog starts from this list
  * and the recruiter may change it for one request.
+ *
+ * The list is read from the company document when the section opens: the
+ * signed-in profile is loaded once per session, so a list saved since would
+ * otherwise show as empty. Once the admin has typed or saved, the read never
+ * replaces the field.
  */
 export function PevCopiesSection({ currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
-    const [text, setText] = useState(() => formatPevCopies(currentCompanyProfile?.pevCcEmails));
+    const { copies } = usePevDefaultCopies(currentCompanyProfile?.id, currentCompanyProfile?.pevCcEmails);
+    const [text, setText] = useState(() => formatPevCopies(copies));
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
+    const typed = useRef(false);
 
     useEffect(() => {
-        setText(formatPevCopies(currentCompanyProfile?.pevCcEmails));
-    }, [currentCompanyProfile?.id, currentCompanyProfile?.pevCcEmails]);
+        if (!typed.current) setText(formatPevCopies(copies));
+    }, [copies]);
 
     const handleSave = async () => {
         const { emails, error: parseError } = parsePevCopies(text);
@@ -29,6 +37,8 @@ export function PevCopiesSection({ currentCompanyProfile }) {
         setSaving(true);
         try {
             await saveCompanySettings(currentCompanyProfile.id, { pevCcEmails: emails });
+            // The field now holds what is saved; a read still on its way is older.
+            typed.current = true;
             setText(formatPevCopies(emails));
             showSuccess(emails.length > 0 ? 'Verification copies saved.' : 'Verification requests will copy no one by default.');
         } catch (saveError) {
@@ -54,6 +64,7 @@ export function PevCopiesSection({ currentCompanyProfile }) {
                     inputMode="email"
                     value={text}
                     onChange={(e) => {
+                        typed.current = true;
                         setText(e.target.value);
                         if (error) setError('');
                     }}
