@@ -23,8 +23,8 @@ describe('PevCopiesSection', () => {
         toastMocks.showError.mockReset();
         toastMocks.showSuccess.mockReset();
         fsMocks.getDoc.mockReset();
-        // The company document as the profile was loaded, unless a test says otherwise.
-        fsMocks.getDoc.mockReturnValue(new Promise(() => {}));
+        // No newer list on the company document, unless a test says otherwise.
+        fsMocks.getDoc.mockResolvedValue({ exists: () => false });
     });
 
     // The signed-in profile is read once per session. A list saved since,
@@ -44,6 +44,18 @@ describe('PevCopiesSection', () => {
         fireEvent.change(field(), { target: { value: 'ops@carrier.test' } });
 
         await act(async () => answer({ exists: () => true, data: () => ({ pevCcEmails: ['safety@carrier.test'] }) }));
+        expect(field()).toHaveValue('ops@carrier.test');
+    });
+
+    it('keeps the list just saved when an older read answers after the save', async () => {
+        let answer;
+        fsMocks.getDoc.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+        render(<PevCopiesSection currentCompanyProfile={{ id: 'co-1' }} />);
+        fireEvent.change(field(), { target: { value: 'ops@carrier.test' } });
+        fireEvent.click(save());
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalled());
+
+        await act(async () => answer({ exists: () => true, data: () => ({ pevCcEmails: ['old@carrier.test'] }) }));
         expect(field()).toHaveValue('ops@carrier.test');
     });
 

@@ -13,7 +13,8 @@ import { usePevDefaultCopies } from '@features/company-admin/hooks/usePevDefault
  *
  * The list is read from the company document when the section opens: the
  * signed-in profile is loaded once per session, so a list saved since would
- * otherwise show as empty. What the admin has typed is never replaced.
+ * otherwise show as empty. Once the admin has typed or saved, the read never
+ * replaces the field.
  */
 export function PevCopiesSection({ currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
@@ -36,7 +37,7 @@ export function PevCopiesSection({ currentCompanyProfile }) {
         setSaving(true);
         try {
             await saveCompanySettings(currentCompanyProfile.id, { pevCcEmails: emails });
-            typed.current = false;
+            // The field now holds what is saved; a read still on its way is older.
             setText(formatPevCopies(emails));
             showSuccess(emails.length > 0 ? 'Verification copies saved.' : 'Verification requests will copy no one by default.');
         } catch (saveError) {
