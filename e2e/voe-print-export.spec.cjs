@@ -172,9 +172,9 @@ test.describe('VOE Print produces the real document', () => {
     expect(parseFloat(computed.signatureBorder)).toBeGreaterThan(0);
 
     // ── Legal text and values, verbatim. ──
-    expect(copy.text).toContain('I, the undersigned applicant, hereby provide specific written consent');
-    expect(copy.text).toContain('49 CFR §391.23');
-    expect(copy.text).toContain('§40.321');
+    expect(copy.text).toContain('I hereby release employers, schools, health care providers and other persons');
+    expect(copy.text).toContain('49 CFR 391.23(d) and (e)');
+    expect(copy.text).not.toContain('specific written consent');
     expect(copy.text).toContain('Request for Verification of Employment');
     expect(copy.text).toContain('Employment History Questionnaire (To be completed by Recipient)');
     expect(copy.text).toContain('Maria Garcia');
@@ -334,13 +334,14 @@ test.describe('VOE Print rejects hostile values', () => {
     ['a data:text/html signature', '&voeSignature=hostile-datahtml'],
     ['a data:image/svg+xml signature', '&voeSignature=hostile-svg'],
   ]) {
-    test(`strips ${label} from the print document`, async ({ page }) => {
+    test(`reproduces ${label} nowhere in the print document`, async ({ page }) => {
       await openHarness(page, param);
       const popup = await print(page);
 
-      const signature = printedDocument(popup).locator('img[alt="Signature"]');
-      await expect(signature).toHaveCount(1);
-      expect(await signature.getAttribute('src')).toBeNull();
+      // Not a drawn image or a typed name, so the release check finds no signature.
+      const printed = printedDocument(popup);
+      await expect(printed.locator('img[alt="Signature"]')).toHaveCount(0);
+      await expect(printed).toContainText('No signature reproduced');
       expect(await popup.evaluate(() => window.__voePwned ?? null)).toBeNull();
 
       await popup.close();

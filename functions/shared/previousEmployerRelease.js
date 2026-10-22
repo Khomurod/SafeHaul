@@ -81,8 +81,18 @@ function applicantNameOf(application) {
     return name || null;
 }
 
+/** Why no signed release is shown, for each status that has none. */
+const RELEASE_NOTES = Object.freeze({
+    unsigned: 'The application on file carries no applicant signature, so no signed release is attached.',
+    undated: 'The application on file does not record when it was signed: the wording it was signed under '
+        + 'cannot be confirmed, so no signed release is reproduced here.',
+    'predates-wording': 'This application was signed before the release to previous employers was part of '
+        + 'the application, so no signed release is reproduced here.',
+});
+
 module.exports = {
     applicantNameOf,
+    RELEASE_NOTES,
     RELEASE_PARAGRAPHS,
     RELEASE_RIGHTS,
     RELEASE_WORDING_SINCE,

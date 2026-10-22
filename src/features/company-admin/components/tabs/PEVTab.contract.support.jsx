@@ -75,6 +75,7 @@ export const pevRequestModalMock = () => ({
     <div data-testid="request-modal" data-employer={employer?.companyName} data-index={employer?.index}>
       <button type="button" onClick={onClose}>request-close</button>
       <button type="button" onClick={() => onProceed('email', { email: 'hr@acme.test' })}>proceed-email</button>
+      <button type="button" onClick={() => onProceed('email', { email: 'hr@acme.test', ccEmails: ['ops@carrier.test'] })}>proceed-email-cc</button>
       <button type="button" onClick={() => onProceed('fax', { fax: '5125550100' })}>proceed-fax</button>
       <button type="button" onClick={() => onProceed('manual', {})}>proceed-manual</button>
       <button type="button" onClick={() => onProceed('manual', { email: 'hr@acme.test', fax: '5125550100' })}>proceed-manual-on-file</button>
@@ -148,6 +149,9 @@ export const makeRenderTab = (PEVTab) => (overrides = {}) => {
   );
 };
 
+/** Where the server stored the request PDF it attached. */
+export const REQUEST_PDF_PATH = 'companies/co-1/applications/app-1/pev_requests/PEV_REQUEST_Acme_Freight_abcd1234.pdf';
+
 /** The original suite's `beforeEach` body, verbatim, for each suite to call. */
 export function resetHarness() {
   vi.clearAllMocks();
@@ -155,7 +159,7 @@ export function resetHarness() {
   // A hand or fax delivery's reply: the server returns a link to pass on and
   // never the bare token.
   fnMocks.callable.mockResolvedValue({
-    data: { success: true, verificationUrl: 'https://portal.test/v/tok-9' },
+    data: { success: true, verificationUrl: 'https://portal.test/v/tok-9', requestPdfPath: REQUEST_PDF_PATH, requestPdfFiled: true },
   });
   storedDoc.employers = [];
   fsMocks.getDoc.mockImplementation(async () => ({

@@ -203,7 +203,59 @@ describe('PEVRequestModal delivery method', () => {
       email: 'hr@swift.test',
       fax: '',
       phone: '',
+      ccEmails: [],
     });
+  });
+});
+
+describe('PEVRequestModal copies (CC)', () => {
+  const renderWith = (props = {}) => {
+    const onProceed = vi.fn();
+    render(
+      <PEVRequestModal
+        employer={{ companyName: 'Swift', companyEmail: 'hr@swift.test', state: 'TX' }}
+        applicant={{}}
+        onClose={vi.fn()}
+        onProceed={onProceed}
+        {...props}
+      />,
+    );
+    return { onProceed, cc: screen.getByLabelText(/^CC \(your team, optional\)/) };
+  };
+
+  it("starts from the company's saved list and sends what the field holds", () => {
+    const { onProceed, cc } = renderWith({ defaultCopies: ['ops@carrier.test'] });
+    expect(cc).toHaveValue('ops@carrier.test');
+    fireEvent.change(cc, { target: { value: 'Ops@Carrier.test, safety@carrier.test; HR@swift.test' } });
+    fireEvent.click(screen.getByRole('button', { name: /Continue to Preview/i }));
+    expect(onProceed).toHaveBeenCalledWith('email', expect.objectContaining({
+      ccEmails: ['ops@carrier.test', 'safety@carrier.test'],
+    }));
+  });
+
+  it('refuses an address that is not one, says which, and focuses the field', async () => {
+    const { onProceed, cc } = renderWith();
+    fireEvent.change(cc, { target: { value: 'ops@carrier.test, not-an-address' } });
+    fireEvent.click(screen.getByRole('button', { name: /Continue to Preview/i }));
+    expect(onProceed).not.toHaveBeenCalled();
+    expect(screen.getByText('"not-an-address" is not a valid email address.')).toBeInTheDocument();
+    await waitFor(() => expect(cc).toHaveFocus());
+  });
+
+  it('refuses more than five copies', () => {
+    const { onProceed, cc } = renderWith();
+    fireEvent.change(cc, { target: { value: 'a@x.test b@x.test c@x.test d@x.test e@x.test f@x.test' } });
+    fireEvent.click(screen.getByRole('button', { name: /Continue to Preview/i }));
+    expect(onProceed).not.toHaveBeenCalled();
+    expect(screen.getByText('Copy at most 5 people.')).toBeInTheDocument();
+  });
+
+  it('copies no one on a request the recruiter delivers by hand', () => {
+    const { onProceed } = renderWith({ defaultCopies: ['ops@carrier.test'] });
+    fireEvent.click(screen.getByLabelText(/Download \/ Print/));
+    expect(screen.queryByLabelText(/^CC \(your team, optional\)/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Preview & Print/i }));
+    expect(onProceed.mock.calls[0][1]).not.toHaveProperty('ccEmails');
   });
 });
 

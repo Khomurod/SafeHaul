@@ -17,7 +17,7 @@ import {
 } from '@features/applications/services/applicationPdfService';
 import {
   BLOCKED_TAB_MESSAGE,
-  isDriverUploadPath,
+  opensFromSignedLink,
   openApplicationFile,
 } from '@features/applications/services/openApplicationFile';
 import { fileDriverUploads } from './dqFileSync';
@@ -428,7 +428,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
                     >
                       <Icon icon={Download} size="lg" className="text-ds-status-info-fg" />
                     </IconButton>
-                  ) : isDriverUploadPath(file.storagePath) ? (
+                  ) : opensFromSignedLink(file.storagePath) ? (
                     <IconButton
                       label={`Download ${file.fileType}: ${file.fileName} (opens in a new tab)`}
                       variant="ghost"

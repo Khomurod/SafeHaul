@@ -300,13 +300,13 @@ definition in `src/features/signing/utils/signedDate.js` and
 `functions/shared/signedDate.js` (CommonJS cannot import ESM): change both.
 
 **Previous employment verification (PEV).** A company admin sends a request to a
-past employer, who answers through a token portal with a reminder cycle (§8) and
-signs **drawn or typed** (`TEXT_SIGNATURE:<name>`, never an image; the method is
-printed on the DQ-file PDF; ESIGN and UETA accept it; `signature.js` refuses
-other forms). Email and reminders attach a request PDF (`…/pev_requests/`,
-`requestPdf.js`): SSN last four, no link, the applicant's signature only under
-the release signed with the application (`previousEmployerRelease.js`; none
-before 2026-01-23). Up to 5 CC get the email, link included.
+past employer, who answers in a token portal (reminders §8) and signs
+**drawn or typed** (`TEXT_SIGNATURE:<name>`, never an image, method on the
+DQ-file PDF; ESIGN/UETA accept it; `signature.js` refuses other forms). Email and
+reminders attach a request PDF (`requestPdf.js`, also filed in the DQ file): SSN
+last four, no link, a signature only under the release the driver signed
+(`previousEmployerRelease.js`, copy in `src/shared/legal/`; none before
+2026-01-23), as the VOE prints. Up to 5 CC (Settings → Email) get it too.
 
 **Driver-approved corrections.** Company admins cannot silently rewrite a
 submitted application (§5).

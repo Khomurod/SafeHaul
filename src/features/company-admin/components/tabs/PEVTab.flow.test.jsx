@@ -29,6 +29,7 @@ import {
     fnMocks,
     storedDoc,
     activityMocks,
+    REQUEST_PDF_PATH,
 } from './PEVTab.contract.support';
 
 const renderTab = makeRenderTab(PEVTab);
@@ -145,7 +146,55 @@ describe('PEVTab initiation flow and callable payload', () => {
       employmentStartDate: '2020-01',
       employmentEndDate: '2022-06',
       deliveryMethod: 'email',
+      ccEmails: [],
     });
+  });
+
+  it('sends the copies the dialog chose with an emailed request', async () => {
+    initiateFirst();
+    fireEvent.click(screen.getByText('proceed-email-cc'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(fnMocks.callable).toHaveBeenCalled());
+    expect(fnMocks.callable.mock.calls[0][0]).toMatchObject({ ccEmails: ['ops@carrier.test'] });
+  });
+
+  it('records who was copied and the request PDF in the history, and says whom it copied', async () => {
+    initiateFirst();
+    fireEvent.click(screen.getByText('proceed-email-cc'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith(expect.stringMatching(/, copying ops@carrier\.test$/)));
+    expect(fsMocks.updateDoc.mock.calls[0][1].employers[0].verification.history.at(-1)).toMatchObject({
+      copies: ['ops@carrier.test'],
+      requestPdfPath: REQUEST_PDF_PATH,
+    });
+    expect(toastMocks.showError).not.toHaveBeenCalled();
+  });
+
+  it('says so when the request went out without its PDF', async () => {
+    fnMocks.callable.mockResolvedValue({ data: { success: true, requestPdfPath: null } });
+    initiateFirst();
+    fireEvent.click(screen.getByText('proceed-email'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith(
+      'The request went out, but its PDF could not be made, so none was attached or filed.',
+    ));
+    expect(toastMocks.showSuccess).toHaveBeenCalled();
+    expect(fsMocks.updateDoc.mock.calls[0][1].employers[0].verification.history.at(-1)).not.toHaveProperty('requestPdfPath');
+  });
+
+  it('says so when the PDF went out but could not be filed in the DQ file', async () => {
+    fnMocks.callable.mockResolvedValue({ data: { success: true, requestPdfPath: REQUEST_PDF_PATH, requestPdfFiled: false } });
+    initiateFirst();
+    fireEvent.click(screen.getByText('proceed-email'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith(
+      'The request went out with its PDF, but the PDF could not be filed in the DQ file. It opens from the verification history.',
+    ));
+    expect(fsMocks.updateDoc.mock.calls[0][1].employers[0].verification.history.at(-1)).toMatchObject({ requestPdfPath: REQUEST_PDF_PATH });
   });
 
   it('sends employerEmail as null for fax and manual delivery', async () => {

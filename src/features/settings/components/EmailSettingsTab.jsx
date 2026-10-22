@@ -15,6 +15,7 @@ import {
     Notice,
     Textarea,
 } from '@/design-system/components';
+import { PevCopiesSection } from './PevCopiesSection';
 
 export function EmailSettingsTab({ currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
@@ -351,6 +352,8 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     />
                 </FormField>
             </FormSection>
+
+            <PevCopiesSection currentCompanyProfile={currentCompanyProfile} />
 
             {/* Setup Guide (feature-owned content) */}
             <Card padding="md">

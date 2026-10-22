@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldCheck, AlertCircle, glyphComponent } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
+import { RELEASE_NOTES, RELEASE_PARAGRAPHS, RELEASE_RIGHTS, releaseOf } from '@shared/legal/previousEmployerRelease';
 
 /*
  * THE ONE FILE IN THE APPLICATION THAT OPENS GLYPH TOKENS BY HAND, and it is
@@ -23,22 +24,26 @@ import { getFieldValue } from '@shared/utils/helpers';
 const PrintShieldCheck = glyphComponent(ShieldCheck);
 const PrintAlertCircle = glyphComponent(AlertCircle);
 
+const utcDay = (date) => date.toLocaleDateString('en-US', { timeZone: 'UTC', month: '2-digit', day: '2-digit', year: 'numeric' });
+
 /**
  * The day the applicant signed. The wizard stamps `signatureDate`, an ISO time
  * (`Step9_Consent.jsx`); older applications carry the form builder's
- * `signature-date`. With neither, the document says so: printing today's date
- * would certify an authorization that has no date.
+ * `signature-date`, printed as written when it reads as a date; failing both,
+ * the instant the release check dated the signature by (`signedAt`, its
+ * submission). With none, the document says so:
+ * printing today's date would certify an authorization that has no date.
  *
  * The instant is dated in UTC, as the e-signing "Date Signed" is
  * (`functions/shared/signedDate.js`), so every printout of one application
  * carries the same date, whoever prints it and wherever they are.
  */
-function authorizationDate(applicant) {
+function authorizationDate(applicant, signedAt) {
     const stamped = applicant.signatureDate ? new Date(applicant.signatureDate) : null;
-    if (stamped && !Number.isNaN(stamped.getTime())) {
-        return stamped.toLocaleDateString('en-US', { timeZone: 'UTC', month: '2-digit', day: '2-digit', year: 'numeric' });
-    }
-    return applicant['signature-date'] || 'Not signed';
+    if (stamped && !Number.isNaN(stamped.getTime())) return utcDay(stamped);
+    const legacy = applicant['signature-date'];
+    if (legacy && !Number.isNaN(Date.parse(String(legacy)))) return legacy;
+    return Number.isFinite(signedAt) ? utcDay(new Date(signedAt)) : 'Not signed';
 }
 
 /**
@@ -60,6 +65,14 @@ function authorizationDate(applicant) {
  * own the node: they clone and rasterise exactly what this component renders.
  */
 export function VOEDocument({ employer, applicant, companyName, auditId, signatureUrl, signatureText, documentRef }) {
+    // The signature appears only under the release its signer was shown: the
+    // wording the consent step presented, word for word (`previousEmployerRelease.js`).
+    const release = releaseOf(applicant);
+    const signed = release.status === 'signed';
+    const releaseNote = signed ? null : RELEASE_NOTES[release.status];
+    // A signature the release check does not accept (a link, a blank typed name)
+    // is not reproduced; with none at all, the recruiter is told to get one.
+    const signatureMissing = !signatureUrl && !signatureText;
     return (
         <div ref={documentRef} data-testid="voe-document" className="bg-voe-white border border-voe-gray-300 shadow-voe-xl p-12 max-w-3xl mx-auto min-h-[1000px] font-serif text-voe-slate-900 leading-relaxed">
 
@@ -140,20 +153,31 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                     <div className="p-2 bg-voe-blue-600 text-voe-white rounded-voe-lg">
                         <PrintShieldCheck size={20} />
                     </div>
-                    <h4 className="text-voe-xl font-bold uppercase underline decoration-voe-blue-600 decoration-4 underline-offset-4">Legal Release & Authorization</h4>
+                    <h4 className="text-voe-xl font-bold uppercase underline decoration-voe-blue-600 decoration-4 underline-offset-4">Applicant&apos;s Release (Signed With the Application)</h4>
                 </div>
 
-                <p className="text-[13px] text-justify mb-10 leading-relaxed text-voe-slate-800 font-medium border-l-4 border-voe-blue-500 pl-6 py-2">
-                    I, the undersigned applicant, hereby provide specific written consent and authorize the release of all information requested by SafeHaul HR Verification Services on behalf of the prospective employer. In accordance with <span className="font-bold">49 CFR §391.23</span> and <span className="font-bold">§40.321</span>, this includes, but is not limited to: my complete employment history, safety performance history, accident records, and all results of drug and alcohol testing (including any refusals to test or violations of Part 382). I release all previous employers and their agents from any and all liability which may result from furnishing such information in good faith.
-                </p>
+                {releaseNote ? (
+                    <p data-testid="voe-release-note" className="text-[13px] mb-10 leading-relaxed text-voe-slate-800 font-medium border-l-4 border-voe-blue-500 pl-6 py-2">
+                        {releaseNote}
+                    </p>
+                ) : (
+                    <div className="text-[13px] text-justify mb-10 leading-relaxed text-voe-slate-800 font-medium border-l-4 border-voe-blue-500 pl-6 py-2">
+                        {RELEASE_PARAGRAPHS.map((paragraph) => <p key={paragraph} className="mb-3">{paragraph}</p>)}
+                        <ul className="list-disc pl-6">
+                            {RELEASE_RIGHTS.map((right) => <li key={right}>{right}</li>)}
+                        </ul>
+                    </div>
+                )}
 
                 <div className="flex justify-between items-end gap-12 font-sans">
                     <div className="flex-1">
                         <p className="text-[10px] font-black text-voe-slate-500 uppercase mb-3 tracking-widest">Digital Signature of Applicant</p>
-                        <div className={`h-24 border-b-2 flex items-center justify-center pb-2 px-6 ${signatureUrl || signatureText ? 'border-voe-slate-900' : 'border-voe-red-400 bg-voe-red-50'}`}>
-                            {signatureUrl ? (
+                        <div className={`h-24 border-b-2 flex items-center justify-center pb-2 px-6 ${signatureMissing ? 'border-voe-red-400 bg-voe-red-50' : 'border-voe-slate-900'}`}>
+                            {!signed && !signatureMissing ? (
+                                <span className="text-voe-slate-500 text-voe-xs font-bold uppercase tracking-tighter">No signature reproduced</span>
+                            ) : signed && signatureUrl ? (
                                 <img src={signatureUrl} alt="Signature" className="h-20 object-contain" />
-                            ) : signatureText ? (
+                            ) : signed && signatureText ? (
                                 <span className="font-serif italic text-voe-4xl text-voe-slate-900">/s/ {signatureText}</span>
                             ) : (
                                 <div className="text-center">
@@ -163,13 +187,13 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                                 </div>
                             )}
                         </div>
-                        <p className="text-[9px] text-voe-slate-500 mt-3 uppercase tracking-tighter">Attested to under penalty of perjury{applicant.ipAddress && <> &bull; IP: {applicant.ipAddress}</>}</p>
+                        {signed && <p className="text-[9px] text-voe-slate-500 mt-3 uppercase tracking-tighter">Signed electronically with the application{applicant.ipAddress && <> &bull; IP: {applicant.ipAddress}</>}</p>}
                     </div>
                     <div className="w-56">
                         <p className="text-[10px] font-black text-voe-slate-500 uppercase mb-3 tracking-widest text-right">Date of Authorization</p>
                         <div className="h-24 border-b-2 border-voe-slate-900 flex items-center justify-end pb-2">
                             <div className="text-right">
-                                <span className="text-voe-2xl font-bold text-voe-slate-900">{authorizationDate(applicant)}</span>
+                                <span className="text-voe-2xl font-bold text-voe-slate-900">{release.status === 'unsigned' ? 'Not signed' : authorizationDate(applicant, release.signedAt)}</span>
                                 <p className="text-[10px] text-voe-slate-500 mt-1 uppercase">Valid for 30 Days</p>
                             </div>
                         </div>

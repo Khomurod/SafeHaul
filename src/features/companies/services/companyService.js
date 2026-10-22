@@ -86,6 +86,8 @@ export async function saveCompanySettings(companyId, settingsData) {
   }
   if (settingsData.companyLogoUrl) payload.companyLogoUrl = settingsData.companyLogoUrl;
   if (settingsData.driverTypes) payload.driverTypes = settingsData.driverTypes;
+  // The people previous employment verification requests copy; an empty list clears it.
+  if (Array.isArray(settingsData.pevCcEmails)) payload.pevCcEmails = settingsData.pevCcEmails;
 
   // NEW: Save application configuration (Required/Optional fields)
   if (settingsData.applicationConfig) payload.applicationConfig = settingsData.applicationConfig;

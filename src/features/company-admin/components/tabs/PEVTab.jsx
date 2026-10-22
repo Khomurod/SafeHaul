@@ -4,7 +4,7 @@ import { getFieldValue } from '@shared/utils/helpers';
 import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useData } from '@/context/DataContext';
-
+import { requestPdfWarning } from '../../utils/pevRequestPdf';
 import { VOEPreviewModal } from '../modals/VOEPreviewModal';
 import { PEVRequestModal } from '../modals/PEVRequestModal';
 import { db, functions } from '@lib/firebase';
@@ -214,6 +214,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 employmentStartDate: startDate,
                 employmentEndDate: endDate,
                 deliveryMethod: emp.deliveryMethod,
+                ...(emp.deliveryMethod === 'email' ? { ccEmails: emp.contactInfo?.ccEmails || [] } : {}),
             });
 
             if (!result.data?.success) {
@@ -225,6 +226,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
             // read this application could use it, so it is never stored (PEV-SEC-3):
             // it shows in this session only, for a manual send to pass on.
             const verificationUrl = result.data.verificationUrl;
+            const copies = emp.deliveryMethod === 'email' ? emp.contactInfo?.ccEmails || [] : [];
             filed = { index: emp.index, method, verificationUrl };
             const logEntry = `Initiated ${method} verification for ${employerName} (Sent to: ${recipient})`;
 
@@ -251,6 +253,8 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                         action: 'Sent via Portal',
                         method,
                         recipient,
+                        ...(copies.length > 0 ? { copies } : {}),
+                        ...(result.data.requestPdfPath ? { requestPdfPath: result.data.requestPdfPath } : {}),
                         timestamp: new Date().toISOString(),
                     }];
                 },
@@ -263,7 +267,8 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 }));
             }
 
-            showSuccess(`Verification request sent to ${getFieldValue(emp.companyName || emp.name)} via ${method} (${recipient})`);
+            showSuccess(`Verification request sent to ${getFieldValue(emp.companyName || emp.name)} via ${method} (${recipient})${copies.length > 0 ? `, copying ${copies.join(', ')}` : ''}`);
+            const pdfWarning = requestPdfWarning(result.data); if (pdfWarning) showError(pdfWarning);
             setShowPreviewModal(false);
             setSelectedEmployer(null);
         } catch (error) {
@@ -430,6 +435,8 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 <PEVRequestModal
                     employer={selectedEmployer}
                     applicant={appData}
+                    companyId={companyId}
+                    defaultCopies={currentCompanyProfile?.pevCcEmails}
                     onClose={() => {
                         setShowInitiateModal(false);
                         setSelectedEmployer(null);
@@ -485,6 +492,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                     historyEntries={historyEntries}
                     handleViewResult={handleViewResult}
                     loadingResultUrl={loadingResultUrl}
+                    showError={showError}
                 />
             )}
         </div>

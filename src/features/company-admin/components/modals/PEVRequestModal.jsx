@@ -6,6 +6,8 @@ import {
 } from '@shared/services/fmcsaEmployerSocrata';
 import { useFmcsaEmployerLookup } from './pev/useFmcsaEmployerLookup';
 import { FmcsaCarrierPicker, buildFmcsaRowKey } from './pev/FmcsaCarrierPicker';
+import { MAX_PEV_COPIES, formatPevCopies, parsePevCopies } from '../../utils/pevCopies';
+import { usePevDefaultCopies } from '../../hooks/usePevDefaultCopies';
 import { Modal } from '@design-system/patterns';
 import {
     Button,
@@ -50,13 +52,16 @@ import {
  * - **The close control has an accessible name.**
  * - **No interface text below the 12 px floor**, the "Missing Info" pill and the
  *   legal note included.
+ * - **Copies (CC) go with an emailed request only**, start from the company's
+ *   saved list, and are checked here as the server checks them (`pevCopies.js`);
+ *   `contactInfo.ccEmails` carries the result.
  */
 
 function employerDisplayName(employer) {
     return String(employer?.companyName || employer?.name || '').trim();
 }
 
-export function PEVRequestModal({ employer, applicant: _applicant, onClose, onProceed }) {
+export function PEVRequestModal({ employer, applicant: _applicant, companyId, defaultCopies = [], onClose, onProceed }) {
     const socrataToken = import.meta.env.VITE_SOCRATA_APP_TOKEN;
     const rawId = useId().replace(/:/g, '');
     const titleId = `pev-request-title-${rawId}`;
@@ -69,6 +74,17 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
     });
 
     const [deliveryMethod, setDeliveryMethod] = useState('email');
+    const savedCopies = usePevDefaultCopies(companyId, defaultCopies);
+    const [copiesText, setCopiesText] = useState(() => formatPevCopies(defaultCopies));
+    const [copiesTouched, setCopiesTouched] = useState(false);
+    const copiesInputRef = useRef(null);
+    // An untouched field waits for the saved list before an emailed request goes on.
+    const copiesPending = deliveryMethod === 'email' && !savedCopies.loaded && !copiesTouched;
+
+    // The saved list, read fresh, replaces the session's copy until the recruiter types.
+    useEffect(() => {
+        if (savedCopies.loaded && !copiesTouched) setCopiesText(formatPevCopies(savedCopies.copies));
+    }, [savedCopies, copiesTouched]);
 
     const [selectedFmcsaKey, setSelectedFmcsaKey] = useState(null);
     /** After selecting a census row: whether FMCSA returned an email on that row */
@@ -161,7 +177,17 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
             return;
         }
 
-        onProceed(deliveryMethod, contactInfo);
+        if (deliveryMethod !== 'email') {
+            onProceed(deliveryMethod, contactInfo);
+            return;
+        }
+        const copies = parsePevCopies(copiesText, contactInfo.email);
+        if (copies.error) {
+            setProceedError({ field: 'cc', message: copies.error });
+            requestAnimationFrame(() => copiesInputRef.current?.focus());
+            return;
+        }
+        onProceed(deliveryMethod, { ...contactInfo, ccEmails: copies.emails });
     };
 
     return (
@@ -272,6 +298,28 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
                                 autoComplete="off"
                             />
                         </FormField>
+                        <div className="mt-ds-4">
+                            <FormField
+                                id="pev-copies"
+                                label="CC (your team, optional)"
+                                description={`Up to ${MAX_PEV_COPIES} addresses, separated by commas. They receive the same email, including the response link.`}
+                                error={proceedError.field === 'cc' ? proceedError.message : undefined}
+                            >
+                                <Input
+                                    ref={copiesInputRef}
+                                    type="text"
+                                    inputMode="email"
+                                    value={copiesText}
+                                    onChange={(e) => {
+                                        setCopiesTouched(true);
+                                        setCopiesText(e.target.value);
+                                        if (proceedError.field === 'cc') setProceedError({ field: null, message: '' });
+                                    }}
+                                    placeholder="safety@yourcompany.com"
+                                    autoComplete="off"
+                                />
+                            </FormField>
+                        </div>
                     </div>
                 )}
 
@@ -290,7 +338,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
                 <Button variant="secondary" fullWidth onClick={onClose}>
                     Cancel
                 </Button>
-                <Button variant="primary" fullWidth onClick={handleContinue}>
+                <Button variant="primary" fullWidth onClick={handleContinue} loading={copiesPending}>
                     <Icon icon={Send} size="lg" />
                     {deliveryMethod === 'manual' ? 'Preview & Print' : 'Continue to Preview'}
                 </Button>

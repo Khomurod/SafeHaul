@@ -64,6 +64,8 @@ const APPLICANT = {
   lastName: 'Garcia',
   ssn: '123-45-6789',
   signature: 'data:image/png;base64,AAAA',
+  // The wizard stamps the signing time; a signature with none is not reproduced.
+  signatureDate: '2026-07-01T12:00:00.000Z',
 };
 
 /**

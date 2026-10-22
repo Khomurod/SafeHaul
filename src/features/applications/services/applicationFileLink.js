@@ -9,13 +9,16 @@
  */
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { isPevRequestPath } from './pevRequestPath';
 
 /**
  * @param {string} storagePath e.g. `companies/{id}/applications/guest_uploads/…`
  * @returns {Promise<string>} a URL that opens the file
  */
 export async function signedApplicationFileUrl(storagePath) {
-    const resign = httpsCallable(functions, 'getSignedApplicationFileUrl');
+    // The request PDF a verification sent lives in the PEV folders, which `getSignedPevUrl` signs.
+    const callable = isPevRequestPath(storagePath) ? 'getSignedPevUrl' : 'getSignedApplicationFileUrl';
+    const resign = httpsCallable(functions, callable);
     const { data } = await resign({ storagePath });
     if (!data?.url) throw new Error('No link was returned for this file.');
     return data.url;

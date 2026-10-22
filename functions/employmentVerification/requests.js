@@ -23,7 +23,7 @@ const { v4: uuidv4 } = require("uuid");
 const { logger } = require("firebase-functions");
 const { buildVerificationEmailHTML } = require("./emailTemplates");
 const { employerNameOf, resolveEmployerTarget, withEmployerIds } = require("../shared/employerIdentity");
-const { requestPdfPath, storeRequestPdf } = require("./requestAttachment");
+const { fileRequestInDq, requestPdfPath, storeRequestPdf } = require("./requestAttachment");
 
 /** The most people a request copies; the screen offers the same. */
 const MAX_CC = 5;
@@ -199,9 +199,10 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
         // The request document: the applicant's signed release, for the email and the record.
         const row = stamped[target.index] || {};
         const resolvedEmployerName = employerName || employerNameOf(row) || 'Former Employer';
+        const requestId = uuidv4();
         const requestPdf = await storeRequestPdf({
             path: requestPdfPath({
-                companyId, collectionName, applicationId, employerName: resolvedEmployerName, requestId: uuidv4(),
+                companyId, collectionName, applicationId, employerName: resolvedEmployerName, requestId,
             }),
             company: companyData,
             application,
@@ -221,7 +222,6 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             sentAt: now.toMillis(),
             emailed: deliveryMethod === 'email',
         });
-
         // Create verification request document
         const verificationData = {
             token,
@@ -278,6 +278,12 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             });
         }
 
+        // Filed once the request exists and went out, so a failed send leaves no
+        // DQ entry for a request that was never made.
+        const requestPdfFiled = requestPdf ? await fileRequestInDq(appRef, {
+            requestId, path: requestPdf.path, employerName: resolvedEmployerName, applicantName,
+        }) : false;
+
         // No token here: whoever reads the logs could answer as the employer.
         logger.info(`[PEV] Verification request created. Applicant: ${applicantName}, Employer: ${employerName}`);
 
@@ -291,6 +297,8 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             // The stored request document, for the PEV tab and the DQ file; null
             // when it could not be made, which the screen reports.
             requestPdfPath: requestPdf?.path || null,
+            // Whether it is in the DQ file too; the screen says when it is not.
+            requestPdfFiled,
             // So the caller writing the initial mirror can find the row this
             // request was actually filed against, rather than the index it
             // pressed on. See `PEVTab.writeVerification`.

@@ -3,6 +3,7 @@ import { Icon, Briefcase, FileText, CheckCircle2, AlertTriangle, Clock, ShieldCh
 import { getFieldValue } from '@shared/utils/helpers';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
+import { BLOCKED_TAB_MESSAGE, openApplicationFile } from '@features/applications/services/openApplicationFile';
 
 /**
  * The PEV tab's presentational pieces, extracted verbatim from `PEVTab.jsx`:
@@ -177,7 +178,15 @@ export function PEVHistoryModal({
     historyEntries,
     handleViewResult,
     loadingResultUrl,
+    showError,
 }) {
+    // The request PDF opens in a tab taken during the press, then signed, so a
+    // popup blocker never swallows it.
+    const openRequestPdf = (path) => {
+        const opening = openApplicationFile(path);
+        if (!opening) showError(BLOCKED_TAB_MESSAGE);
+        else opening.catch((error) => showError(error.message));
+    };
     return (
     <Modal
         labelledBy={historyTitleId}
@@ -224,6 +233,16 @@ export function PEVHistoryModal({
                                     <p className="mt-ds-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
                                         Sent to: {log.recipient} ({log.method})
                                     </p>
+                                )}
+                                {Array.isArray(log.copies) && log.copies.length > 0 && (
+                                    <p className="mt-ds-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
+                                        Copied: {log.copies.join(', ')}
+                                    </p>
+                                )}
+                                {log.requestPdfPath && (
+                                    <Button variant="ghost" size="sm" onClick={() => openRequestPdf(log.requestPdfPath)}>
+                                        View Request PDF
+                                    </Button>
                                 )}
                                 {log.url && (
                                     <Button
