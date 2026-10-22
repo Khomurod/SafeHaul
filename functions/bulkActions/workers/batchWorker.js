@@ -4,6 +4,7 @@ const { admin, db } = require("../../firebaseAdmin");
 const { enqueueWorker } = require("../services/queueService");
 const { setupSender } = require("./senderSetup");
 const { runSendLoop } = require("./sendLoop");
+const { queueDeliveryCheck } = require("../delivery/deliveryQueue");
 const { readSessionTargetIds } = require("../helpers/sessionTargets");
 const { nameFromProfile, cleanString } = require("../../shared/userIdentity");
 
@@ -213,6 +214,12 @@ exports.processBulkBatch = onRequest({
             adapter,
             emailTransporter,
         });
+        // Texts RingCentral accepted get checked for delivery a few minutes from now.
+        if (config.method === 'sms' && loopResult.batchSuccessCount > 0) {
+            await queueDeliveryCheck(companyId, sessionId).catch((e) => {
+                console.error(`[BatchWorker] Could not queue the delivery check of ${sessionId}:`, e.message);
+            });
+        }
         batchSuccessCount = loopResult.batchSuccessCount;
         batchFailCount = loopResult.batchFailCount;
         pointerAdvanceCount += loopResult.pointerAdvanceCount;

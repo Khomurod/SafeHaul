@@ -93,6 +93,7 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 
 | Callable | Notes |
 |----------|-------|
+| `checkCampaignDelivery` | Delivery check of one SMS campaign; the campaign report's button is the next step |
 | `migrateEmailSettings` | One-time migration; invoke callable manually (ops) |
 | `reconcileCompanyDashboardStats` | KPI reconciliation callable ([`dashboardStatsRollup.js`](../functions/dashboardStatsRollup.js)) |
 
@@ -106,7 +107,7 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 | `facebookWebhook` | HTTP | Facebook Lead Ads |
 | `companyApi` | HTTP `onRequest` | Another service, with a company's API key: `GET https://us-central1-truckerapp-system.cloudfunctions.net/companyApi/v1/...` and `Authorization: Bearer <key>`. Read-only; see [`companyApi/routes.js`](../functions/companyApi/routes.js) |
 | `onApplicationSubmitted`, `onLeadWrittenDashboardRollup`, … | Firestore triggers | Automatic on writes |
-| `enforceFeatureSchedules`, `cleanupOrphanedSignatures`, `processVerificationReminders` | Scheduled | Cloud Scheduler |
+| `enforceFeatureSchedules`, `cleanupOrphanedSignatures`, `processVerificationReminders`, `checkSmsDeliveries` | Scheduled | Cloud Scheduler |
 | `sealDocument`, `notifySigner`, `notifySignerSMS`, `handleOptOut`, … | Triggers | Automatic |
 
 ---

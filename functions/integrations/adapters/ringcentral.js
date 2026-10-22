@@ -2,6 +2,16 @@ const BaseAdapter = require('./BaseAdapter');
 const RC = require('@ringcentral/sdk').SDK;
 const { isLikelyValidPhone, normalizePhoneForKeychain } = require('../../utils/phoneUtils');
 
+const SENT_SMS_PAGE_SIZE = 1000;
+
+/** What a send keeps from RingCentral's answer: the message id and its first status. */
+function receiptOf(record) {
+    return {
+        providerMessageId: record?.id != null ? String(record.id) : null,
+        providerStatus: record?.messageStatus || null,
+    };
+}
+
 class RingCentralAdapter extends BaseAdapter {
     constructor(config) {
         super(config);
@@ -39,6 +49,17 @@ class RingCentralAdapter extends BaseAdapter {
     }
 
     async sendSMS(to, text, userId = null, explicitFromNumber = null) {
+        await this.sendSMSWithReceipt(to, text, userId, explicitFromNumber);
+        return true;
+    }
+
+    /**
+     * Sends like `sendSMS` and returns what RingCentral answered:
+     * `{ providerMessageId, providerStatus }`. Accepting a text only queues it,
+     * so the status is usually "Queued"; the message store says later whether it
+     * was delivered (`listSentSms`).
+     */
+    async sendSMSWithReceipt(to, text, userId = null, explicitFromNumber = null) {
         try {
             // Context-Aware Routing
             let fromNumber = null;
@@ -76,8 +97,7 @@ class RingCentralAdapter extends BaseAdapter {
                 }
 
                 console.log(`[RC Adapter] Sending SMS | From: ${fromNumber || 'Default'} | To: ${to}`);
-                await this._sendWithRetry('/restapi/v1.0/account/~/extension/~/sms', payload);
-                return true;
+                return receiptOf(await this._sendWithRetry('/restapi/v1.0/account/~/extension/~/sms', payload));
 
             } catch (primaryError) {
                 // BUG-8 FIX: Only fallback on DETERMINISTIC permission errors (4xx).
@@ -110,8 +130,7 @@ class RingCentralAdapter extends BaseAdapter {
                         to: [{ phoneNumber: to }],
                         text: text
                     };
-                    await this._sendWithRetry('/restapi/v1.0/account/~/extension/~/sms', noFromPayload);
-                    return true;
+                    return receiptOf(await this._sendWithRetry('/restapi/v1.0/account/~/extension/~/sms', noFromPayload));
                 }
 
                 const canFallback = fromNumber && fromNumber !== this.config.defaultPhoneNumber && isPermissionError;
@@ -126,9 +145,9 @@ class RingCentralAdapter extends BaseAdapter {
                             from: { phoneNumber: this.config.defaultPhoneNumber }
                         };
 
-                        await this._sendWithRetry('/restapi/v1.0/account/~/extension/~/sms', fallbackPayload);
+                        const receipt = receiptOf(await this._sendWithRetry('/restapi/v1.0/account/~/extension/~/sms', fallbackPayload));
                         console.log(`[RC Adapter] Fallback success!`);
-                        return true;
+                        return receipt;
 
                     } catch (fallbackError) {
                         console.error(`[RC Adapter] Fallback also failed: ${fallbackError.message}`);
@@ -178,13 +197,14 @@ class RingCentralAdapter extends BaseAdapter {
 
     /**
      * Send with retry on rate limit errors (exponential backoff).
-     * Retries up to 3 times with delays: 5s, 10s, 20s.
+     * Retries up to 3 times with delays: 5s, 10s, 20s. Returns the message record RingCentral answered with.
      */
     async _sendWithRetry(url, payload, maxRetries = 3) {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
-                await this.rc.post(url, payload);
-                return; // Success
+                const response = await this.rc.post(url, payload);
+                // The message record; a body that cannot be read does not undo the send.
+                return typeof response?.json === 'function' ? await response.json().catch(() => null) : null;
             } catch (err) {
                 const msg = err.response?.data?.message || err.message || '';
                 const isRateLimit = msg.toLowerCase().includes('rate') ||
@@ -203,6 +223,34 @@ class RingCentralAdapter extends BaseAdapter {
                 throw err; // Non-rate-limit error or exhausted retries
             }
         }
+    }
+
+    /**
+     * The texts this line's extension sent between `dateFrom` and `dateTo` (ISO
+     * strings), from RingCentral's message store, 1,000 a page. `complete` is
+     * false when there were more than `maxPages` pages. Reading the store needs
+     * the app's "Read Messages" permission; without it RingCentral answers 403.
+     */
+    async listSentSms({ dateFrom, dateTo, maxPages = 20 }) {
+        await this.ensureLoggedIn();
+        const records = [];
+        for (let page = 1; page <= maxPages; page++) {
+            const response = await this.rc.get('/restapi/v1.0/account/~/extension/~/message-store', {
+                direction: 'Outbound',
+                messageType: 'SMS',
+                dateFrom,
+                dateTo,
+                perPage: SENT_SMS_PAGE_SIZE,
+                page,
+            });
+            const body = await response.json();
+            const pageRecords = Array.isArray(body?.records) ? body.records : [];
+            records.push(...pageRecords);
+            const totalPages = body?.paging?.totalPages;
+            const lastPage = totalPages ? page >= totalPages : pageRecords.length < SENT_SMS_PAGE_SIZE;
+            if (lastPage) return { records, complete: true };
+        }
+        return { records, complete: false };
     }
 
     async fetchAvailablePhoneNumbers() {
