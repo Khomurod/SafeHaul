@@ -119,6 +119,14 @@ describe('PEVTab initiation flow and callable payload', () => {
     expect(screen.queryByTestId('request-modal')).toBeNull();
   });
 
+  // The loaded application data has no id, and the preview reads the frozen
+  // release under the application's document.
+  it("gives the preview the application's document id", () => {
+    initiateFirst();
+    fireEvent.click(screen.getByText('proceed-email'));
+    expect(screen.getByTestId('preview-modal')).toHaveAttribute('data-application-id', 'app-1');
+  });
+
   it('returns from the preview to the request modal, not to the list', () => {
     initiateFirst();
     fireEvent.click(screen.getByText('proceed-email'));
