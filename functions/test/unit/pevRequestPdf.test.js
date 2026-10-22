@@ -154,3 +154,42 @@ describe('release wording parity', () => {
         expect(squash(consentStep)).toContain(squash(wording));
     });
 });
+
+describe('the release naming this employer', () => {
+    const { createHash } = require('crypto');
+    const sha = (value) => createHash('sha256').update(value).digest('hex');
+    const BODY = 'AUTHORIZATION FOR PREVIOUS EMPLOYERS TO RELEASE INFORMATION\n\nSandbox Freight LLC ("Prospective Employer") must investigate my safety performance history.';
+    const STATEMENT = '2. I authorize Old Carrier Inc to release to Sandbox Freight LLC the information described above.';
+    const application = { signature: DRAWN, signatureDate: '2026-09-01T15:00:00Z' };
+
+    it('prints the frozen document and this employer\'s statement over the signature it was accepted with', async () => {
+        const { release } = await build(application, {
+            employerRelease: { body: BODY, statement: STATEMENT, signatureSha256: sha(DRAWN) },
+        });
+        expect(release).toBe('signed');
+        expect(printed()).toContain("APPLICANT'S AUTHORIZATION (SIGNED WITH THE APPLICATION)");
+        expect(printed()).toContain(squash(STATEMENT));
+        expect(printed()).toContain('must investigate my safety performance history.');
+        expect(printed()).toContain('accepting this authorization as part of the application');
+        // In place of the certification's release, not beside it.
+        expect(printed()).not.toContain(squash(RELEASE_PARAGRAPHS[0]).slice(0, 60));
+        expect(images).toHaveLength(1);
+    });
+
+    it('prints the certification release when the signature on file is not the one it was accepted with', async () => {
+        await build(application, {
+            employerRelease: { body: BODY, statement: STATEMENT, signatureSha256: sha('TEXT_SIGNATURE:Someone Else') },
+        });
+        expect(printed()).not.toContain(squash(STATEMENT));
+        expect(printed()).toContain("APPLICANT'S RELEASE (SIGNED WITH THE APPLICATION)");
+        expect(printed()).toContain(squash(RELEASE_PARAGRAPHS[0]).slice(0, 60));
+    });
+
+    it('prints nothing of it for an unsigned application', async () => {
+        const { release } = await build({ signatureDate: '2026-09-01T15:00:00Z' }, {
+            employerRelease: { body: BODY, statement: STATEMENT, signatureSha256: sha('') },
+        });
+        expect(release).toBe('unsigned');
+        expect(printed()).not.toContain(squash(STATEMENT));
+    });
+});

@@ -45,4 +45,33 @@ describe('previous employers release parity', () => {
     ])('judges an acceptance the same: %s', (_label, evidence, names) => {
         expect(site.shownWithEmployers(evidence, names)).toBe(server.shownWithEmployers(evidence, names));
     });
+
+    describe('the statement one employer is shown', () => {
+        const { buildApplicationDefinition } = require('../../../functions/shared/applicationDefinition.js');
+        const { buildSubmissionSnapshot } = require('../../../functions/shared/submissionSnapshot.js');
+        const employers = [{ companyName: 'First Lines' }, { companyName: 'Old  Carrier' }];
+        const accepted = buildSubmissionSnapshot({
+            definition: buildApplicationDefinition({ company: { companyName: 'Blue Line Freight' } }),
+            formData: { employers },
+            acceptances: { previousEmployerRelease: { accepted: true, version: 'v3', employersShown: ['First Lines', 'Old Carrier'] } },
+            signature: { image: 'TEXT_SIGNATURE:Jane', type: 'typed' },
+        }).agreements;
+        const refused = accepted.map((a) => ({ ...a, accepted: false }));
+
+        it.each([
+            ['the second employer, by any spacing and case', accepted, 'old carrier'],
+            ['the first employer', accepted, 'First Lines'],
+            ['an employer the record does not name', accepted, 'Someone Else'],
+            ['an unaccepted release', refused, 'First Lines'],
+            ['no record', null, 'First Lines'],
+        ])('is the same on both sides for %s', (_label, agreements, name) => {
+            expect(site.releaseStatementFor(agreements, name)).toEqual(server.releaseStatementFor(agreements, name));
+        });
+
+        it('names only that employer', () => {
+            const found = site.releaseStatementFor(accepted, 'old carrier');
+            expect(found.statement).toBe('2. I authorize Old Carrier to release to Blue Line Freight the information described above.');
+            expect(found.body).not.toContain('First Lines');
+        });
+    });
 });

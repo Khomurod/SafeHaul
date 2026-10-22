@@ -11,6 +11,7 @@ import {
 import { Modal } from '@design-system/patterns';
 import { Button, IconButton } from '@/design-system/components';
 import { VOEDocument } from './VOEDocument';
+import { useEmployerRelease } from '../../hooks/useEmployerRelease';
 
 /**
  * VOE preview: the generated 49 CFR §391.23 verification request, with print,
@@ -97,6 +98,13 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
     const transmitHintId = `voe-transmit-hint-${rawId}`;
     const { currentCompanyProfile } = useData();
     const companyName = currentCompanyProfile?.name || currentCompanyProfile?.companyName || '[PROSPECTIVE COMPANY]';
+    // The release naming this employer, when the applicant accepted one. Print
+    // and Download wait for it, so a copy never goes out with the other text.
+    const { release: employerRelease, loading: releaseLoading } = useEmployerRelease({
+        companyId: currentCompanyProfile?.id,
+        applicant,
+        employerName: employer?.companyName || employer?.name,
+    });
 
     // Stable audit ID — derived from applicationId so it never changes between renders
     const auditId = useMemo(() => {
@@ -312,7 +320,7 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                             variant="secondary"
                             size="sm"
                             onClick={handlePrint}
-                            disabled={isPreparingPrint}
+                            disabled={isPreparingPrint || releaseLoading}
                         >
                             <Icon icon={Printer} size="sm" /> Print
                         </Button>
@@ -320,7 +328,7 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                             variant="secondary"
                             size="sm"
                             onClick={handleDownloadPDF}
-                            disabled={isDownloading}
+                            disabled={isDownloading || releaseLoading}
                             loading={isDownloading}
                         >
                             {isDownloading ? null : <Icon icon={Download} size="sm" />}
@@ -363,6 +371,7 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                         auditId={auditId}
                         signatureUrl={signatureUrl}
                         signatureText={signatureText}
+                        employerRelease={employerRelease}
                         documentRef={documentRef}
                     />
                 </div>

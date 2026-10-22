@@ -204,3 +204,51 @@ describe('reminders', () => {
         expect(options()).toEqual({});
     });
 });
+
+describe('the release the document prints', () => {
+    const { buildApplicationDefinition } = require('../../shared/applicationDefinition');
+    const { buildSubmissionSnapshot } = require('../../shared/submissionSnapshot');
+    const { submissionDocs, failNextSubmissionRead } = require('./employmentVerification.support');
+
+    /** The record a submission with these employers, accepting the release, would hold. */
+    function storeRecord(employers) {
+        const snapshot = buildSubmissionSnapshot({
+            definition: buildApplicationDefinition({ company: { companyName: 'SafeHaul Carrier' } }),
+            formData: { employers },
+            acceptances: {
+                previousEmployerRelease: { accepted: true, version: 'v3', employersShown: employers.map((e) => e.companyName) },
+            },
+            signature: { image: 'TEXT_SIGNATURE:John Driver', type: 'typed' },
+        });
+        submissionDocs.set(`${appKey('co-1', 'applications', 'app-1')}/submission/v1`, snapshot);
+        const app = applicationDocs.get(appKey('co-1', 'applications', 'app-1'));
+        applicationDocs.set(appKey('co-1', 'applications', 'app-1'), { ...app, employers, submissionRecord: { snapshotId: 'v1' } });
+    }
+    const passed = () => mockBuildRequestPdf.mock.calls[0][0].employerRelease;
+
+    it('is the one statement of the record naming this employer, never the others', async () => {
+        storeRecord([{ companyName: 'First Lines' }, { companyName: 'Old Carrier' }]);
+        await send({ employerIndex: 1 });
+        expect(passed()).toMatchObject({
+            statement: '2. I authorize Old Carrier to release to SafeHaul Carrier the information described above.',
+            signatureSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        });
+        expect(passed().body).not.toContain('First Lines');
+    });
+
+    it.each([
+        ['the application points at no record', () => {}],
+        ['the record holds no release', () => {
+            submissionDocs.set(`${appKey('co-1', 'applications', 'app-1')}/submission/v1`, { agreements: [] });
+            const app = applicationDocs.get(appKey('co-1', 'applications', 'app-1'));
+            applicationDocs.set(appKey('co-1', 'applications', 'app-1'), { ...app, submissionRecord: { snapshotId: 'v1' } });
+        }],
+        ['the record cannot be read', () => { storeRecord([{ companyName: 'Old Carrier' }]); failNextSubmissionRead(); }],
+    ])('falls back to the certification release when %s, and the request still goes out', async (_label, arrange) => {
+        arrange();
+        const result = await send();
+        expect(passed()).toBeNull();
+        expect(result.success).toBe(true);
+        expect(mockSendDynamicEmail).toHaveBeenCalledTimes(1);
+    });
+});
