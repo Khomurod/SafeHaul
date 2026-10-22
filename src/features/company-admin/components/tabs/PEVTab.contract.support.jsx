@@ -159,7 +159,7 @@ export function resetHarness() {
   // A hand or fax delivery's reply: the server returns a link to pass on and
   // never the bare token.
   fnMocks.callable.mockResolvedValue({
-    data: { success: true, verificationUrl: 'https://portal.test/v/tok-9', requestPdfPath: REQUEST_PDF_PATH },
+    data: { success: true, verificationUrl: 'https://portal.test/v/tok-9', requestPdfPath: REQUEST_PDF_PATH, requestPdfFiled: true },
   });
   storedDoc.employers = [];
   fsMocks.getDoc.mockImplementation(async () => ({

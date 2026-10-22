@@ -334,13 +334,14 @@ test.describe('VOE Print rejects hostile values', () => {
     ['a data:text/html signature', '&voeSignature=hostile-datahtml'],
     ['a data:image/svg+xml signature', '&voeSignature=hostile-svg'],
   ]) {
-    test(`strips ${label} from the print document`, async ({ page }) => {
+    test(`reproduces ${label} nowhere in the print document`, async ({ page }) => {
       await openHarness(page, param);
       const popup = await print(page);
 
-      const signature = printedDocument(popup).locator('img[alt="Signature"]');
-      await expect(signature).toHaveCount(1);
-      expect(await signature.getAttribute('src')).toBeNull();
+      // Not a drawn image or a typed name, so the release check finds no signature.
+      const printed = printedDocument(popup);
+      await expect(printed.locator('img[alt="Signature"]')).toHaveCount(0);
+      await expect(printed).toContainText('No signature reproduced');
       expect(await popup.evaluate(() => window.__voePwned ?? null)).toBeNull();
 
       await popup.close();

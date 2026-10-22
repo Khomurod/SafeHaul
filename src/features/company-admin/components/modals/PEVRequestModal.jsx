@@ -76,13 +76,15 @@ export function PEVRequestModal({ employer, applicant: _applicant, companyId, de
     const [deliveryMethod, setDeliveryMethod] = useState('email');
     const savedCopies = usePevDefaultCopies(companyId, defaultCopies);
     const [copiesText, setCopiesText] = useState(() => formatPevCopies(defaultCopies));
-    const copiesTouchedRef = useRef(false);
+    const [copiesTouched, setCopiesTouched] = useState(false);
     const copiesInputRef = useRef(null);
+    // An untouched field waits for the saved list before an emailed request goes on.
+    const copiesPending = deliveryMethod === 'email' && !savedCopies.loaded && !copiesTouched;
 
     // The saved list, read fresh, replaces the session's copy until the recruiter types.
     useEffect(() => {
-        if (savedCopies.loaded && !copiesTouchedRef.current) setCopiesText(formatPevCopies(savedCopies.copies));
-    }, [savedCopies]);
+        if (savedCopies.loaded && !copiesTouched) setCopiesText(formatPevCopies(savedCopies.copies));
+    }, [savedCopies, copiesTouched]);
 
     const [selectedFmcsaKey, setSelectedFmcsaKey] = useState(null);
     /** After selecting a census row: whether FMCSA returned an email on that row */
@@ -309,7 +311,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, companyId, de
                                     inputMode="email"
                                     value={copiesText}
                                     onChange={(e) => {
-                                        copiesTouchedRef.current = true;
+                                        setCopiesTouched(true);
                                         setCopiesText(e.target.value);
                                         if (proceedError.field === 'cc') setProceedError({ field: null, message: '' });
                                     }}
@@ -336,7 +338,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, companyId, de
                 <Button variant="secondary" fullWidth onClick={onClose}>
                     Cancel
                 </Button>
-                <Button variant="primary" fullWidth onClick={handleContinue}>
+                <Button variant="primary" fullWidth onClick={handleContinue} loading={copiesPending}>
                     <Icon icon={Send} size="lg" />
                     {deliveryMethod === 'manual' ? 'Preview & Print' : 'Continue to Preview'}
                 </Button>

@@ -324,43 +324,24 @@ describe('VOEPreviewModal print escaping', () => {
     )).toBe(false);
   });
 
-  it('drops a javascript: signature rather than carrying it into the print document', async () => {
+  it.each([
+    // eslint-disable-next-line no-script-url
+    ['javascript:', 'javascript:window.__voePwned = true'],
+    ['data:text/html', 'data:text/html;base64,PHNjcmlwdD4xPC9zY3JpcHQ+'],
+  ])('reproduces no %s signature, on screen or in the print document', async (_kind, signature) => {
     const printWindow = makePrintWindow();
     vi.stubGlobal('open', vi.fn(() => printWindow));
 
-    // eslint-disable-next-line no-script-url
-    renderModal({ applicant: { ...APPLICANT, signature: 'javascript:window.__voePwned = true' } });
+    // Not a drawn image or a typed name, so the release check finds no signature.
+    renderModal({ applicant: { ...APPLICANT, signature } });
+    expect(within(documentNode()).queryByAltText('Signature')).toBeNull();
+    expect(documentNode()).toHaveTextContent('No signature reproduced');
+
     fireEvent.click(screen.getByRole('button', { name: /^Print$/i }));
     await waitFor(() => expect(printWindow.print).toHaveBeenCalled());
-
     const printed = printWindow.document.querySelector('[data-testid="voe-document"]');
-    const signature = printed.querySelector('img[alt="Signature"]');
-    expect(signature).not.toBeNull();
-    expect(signature.getAttribute('src')).toBeNull();
-  });
-
-  it('drops a data:text/html signature', async () => {
-    const printWindow = makePrintWindow();
-    vi.stubGlobal('open', vi.fn(() => printWindow));
-
-    renderModal({
-      applicant: { ...APPLICANT, signature: 'data:text/html;base64,PHNjcmlwdD4xPC9zY3JpcHQ+' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /^Print$/i }));
-    await waitFor(() => expect(printWindow.print).toHaveBeenCalled());
-
-    const printed = printWindow.document.querySelector('[data-testid="voe-document"]');
-    expect(printed.querySelector('img[alt="Signature"]').getAttribute('src')).toBeNull();
-  });
-
-  it('keeps the on-screen signature contract unchanged for those hostile values', () => {
-    // The scrub happens on the clone. The live document is untouched, so the
-    // existing signature rules still hold exactly as before.
-    // eslint-disable-next-line no-script-url
-    renderModal({ applicant: { ...APPLICANT, signature: 'javascript:1' } });
-    expect(within(documentNode()).getByAltText('Signature'))
-      // eslint-disable-next-line no-script-url
-      .toHaveAttribute('src', 'javascript:1');
+    expect(printed.querySelector('img[alt="Signature"]')).toBeNull();
+    expect(printed.innerHTML).not.toContain(signature);
   });
 });
 

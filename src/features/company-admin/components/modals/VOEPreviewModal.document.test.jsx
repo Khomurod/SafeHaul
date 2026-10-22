@@ -66,6 +66,8 @@ describe('VOEPreviewModal legal text and ordering', () => {
   it.each([
     ['predates-wording', { 'signature-date': undefined, signatureDate: '2025-12-01T00:00:00.000Z' }],
     ['undated', { 'signature-date': undefined, submittedAt: undefined, createdAt: undefined }],
+    // A stored value that is neither a drawn image nor a typed name.
+    ['unsigned', { signature: 'https://files.example.test/signature.png' }],
   ])('reproduces no signature for an application that is %s', (status, change) => {
     renderModal({ applicant: { ...APPLICANT, ...change } });
     const doc = documentNode();
@@ -73,6 +75,16 @@ describe('VOEPreviewModal legal text and ordering', () => {
     expect(doc).not.toHaveTextContent(RELEASE_PARAGRAPHS[0]);
     expect(within(doc).queryByAltText('Signature')).toBeNull();
     expect(doc).toHaveTextContent('No signature reproduced');
+    // Nothing was signed under this release, so nothing says it was.
+    expect(doc).not.toHaveTextContent('Signed electronically with the application');
+  });
+
+  it('says the signature is missing, under the unsigned note, when there is none at all', () => {
+    renderModal({ applicant: { ...APPLICANT, signature: undefined } });
+    const doc = documentNode();
+    expect(within(doc).getByTestId('voe-release-note')).toHaveTextContent(RELEASE_NOTES.unsigned);
+    expect(doc).toHaveTextContent('DRIVER SIGNATURE MISSING');
+    expect(doc).not.toHaveTextContent('Signed electronically with the application');
   });
 
   it('keeps the document section order', () => {

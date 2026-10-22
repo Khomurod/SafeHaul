@@ -4,7 +4,7 @@ import { getFieldValue } from '@shared/utils/helpers';
 import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useData } from '@/context/DataContext';
-
+import { requestPdfWarning } from '../../utils/pevRequestPdf';
 import { VOEPreviewModal } from '../modals/VOEPreviewModal';
 import { PEVRequestModal } from '../modals/PEVRequestModal';
 import { db, functions } from '@lib/firebase';
@@ -267,9 +267,8 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 }));
             }
 
-            showSuccess(`Verification request sent to ${getFieldValue(emp.companyName || emp.name)} via ${method} (${recipient})`
-                + (copies.length > 0 ? `, copying ${copies.join(', ')}` : ''));
-            if (!result.data.requestPdfPath) showError('The request went out, but its PDF could not be made, so none was attached or filed.');
+            showSuccess(`Verification request sent to ${getFieldValue(emp.companyName || emp.name)} via ${method} (${recipient})${copies.length > 0 ? `, copying ${copies.join(', ')}` : ''}`);
+            const pdfWarning = requestPdfWarning(result.data); if (pdfWarning) showError(pdfWarning);
             setShowPreviewModal(false);
             setSelectedEmployer(null);
         } catch (error) {
@@ -493,6 +492,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                     historyEntries={historyEntries}
                     handleViewResult={handleViewResult}
                     loadingResultUrl={loadingResultUrl}
+                    showError={showError}
                 />
             )}
         </div>

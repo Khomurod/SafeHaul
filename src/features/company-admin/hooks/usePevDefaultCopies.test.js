@@ -12,8 +12,8 @@ const saved = (data) => ({ exists: () => data !== undefined, data: () => data })
 
 describe('usePevDefaultCopies', () => {
     beforeEach(() => {
-        fs.getDoc.mockReset();
-        fs.doc.mockClear();
+        vi.resetAllMocks();
+        fs.doc.mockImplementation((_db, ...path) => ({ path: path.join('/') }));
     });
 
     it('takes the list saved on the company since the profile loaded', async () => {

@@ -31,11 +31,11 @@ describe('PevCopiesSection', () => {
         fireEvent.change(field(), { target: { value: 'Ops@Carrier.test; ops@carrier.test safety@carrier.test' } });
         fireEvent.click(save());
 
-        await waitFor(() => expect(serviceMocks.saveCompanySettings).toHaveBeenCalledWith('co-1', {
-            pevCcEmails: ['ops@carrier.test', 'safety@carrier.test'],
-        }));
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Verification copies saved.'));
         expect(field()).toHaveValue('ops@carrier.test, safety@carrier.test');
-        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Verification copies saved.');
+        expect(serviceMocks.saveCompanySettings).toHaveBeenCalledWith('co-1', {
+            pevCcEmails: ['ops@carrier.test', 'safety@carrier.test'],
+        });
     });
 
     it('saves an empty field as copying no one', async () => {
@@ -43,8 +43,8 @@ describe('PevCopiesSection', () => {
         fireEvent.change(field(), { target: { value: '' } });
         fireEvent.click(save());
 
-        await waitFor(() => expect(serviceMocks.saveCompanySettings).toHaveBeenCalledWith('co-1', { pevCcEmails: [] }));
-        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Verification requests will copy no one by default.');
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Verification requests will copy no one by default.'));
+        expect(serviceMocks.saveCompanySettings).toHaveBeenCalledWith('co-1', { pevCcEmails: [] });
     });
 
     it('saves nothing while an address is not one, and says which', () => {

@@ -3,6 +3,7 @@ import { Icon, Briefcase, FileText, CheckCircle2, AlertTriangle, Clock, ShieldCh
 import { getFieldValue } from '@shared/utils/helpers';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
+import { BLOCKED_TAB_MESSAGE, openApplicationFile } from '@features/applications/services/openApplicationFile';
 
 /**
  * The PEV tab's presentational pieces, extracted verbatim from `PEVTab.jsx`:
@@ -177,7 +178,15 @@ export function PEVHistoryModal({
     historyEntries,
     handleViewResult,
     loadingResultUrl,
+    showError,
 }) {
+    // The request PDF opens in a tab taken during the press, then signed, so a
+    // popup blocker never swallows it.
+    const openRequestPdf = (path) => {
+        const opening = openApplicationFile(path);
+        if (!opening) showError(BLOCKED_TAB_MESSAGE);
+        else opening.catch((error) => showError(error.message));
+    };
     return (
     <Modal
         labelledBy={historyTitleId}
@@ -231,13 +240,7 @@ export function PEVHistoryModal({
                                     </p>
                                 )}
                                 {log.requestPdfPath && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleViewResult(log.requestPdfPath, `request-${i}`)}
-                                        disabled={loadingResultUrl === `request-${i}`}
-                                        loading={loadingResultUrl === `request-${i}`}
-                                    >
+                                    <Button variant="ghost" size="sm" onClick={() => openRequestPdf(log.requestPdfPath)}>
                                         View Request PDF
                                     </Button>
                                 )}

@@ -222,11 +222,9 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             sentAt: now.toMillis(),
             emailed: deliveryMethod === 'email',
         });
-        if (requestPdf) {
-            await fileRequestInDq(appRef, {
-                requestId, path: requestPdf.path, employerName: resolvedEmployerName, applicantName,
-            });
-        }
+        const requestPdfFiled = requestPdf ? await fileRequestInDq(appRef, {
+            requestId, path: requestPdf.path, employerName: resolvedEmployerName, applicantName,
+        }) : false;
 
         // Create verification request document
         const verificationData = {
@@ -297,6 +295,8 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             // The stored request document, for the PEV tab and the DQ file; null
             // when it could not be made, which the screen reports.
             requestPdfPath: requestPdf?.path || null,
+            // Whether it is in the DQ file too; the screen says when it is not.
+            requestPdfFiled,
             // So the caller writing the initial mirror can find the row this
             // request was actually filed against, rather than the index it
             // pressed on. See `PEVTab.writeVerification`.

@@ -64,7 +64,11 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
     // The signature appears only under the release its signer was shown: the
     // wording the consent step presented, word for word (`previousEmployerRelease.js`).
     const release = releaseOf(applicant);
-    const releaseNote = release.status === 'signed' || release.status === 'unsigned' ? null : RELEASE_NOTES[release.status];
+    const signed = release.status === 'signed';
+    const releaseNote = signed ? null : RELEASE_NOTES[release.status];
+    // A signature the release check does not accept (a link, a blank typed name)
+    // is not reproduced; with none at all, the recruiter is told to get one.
+    const signatureMissing = !signatureUrl && !signatureText;
     return (
         <div ref={documentRef} data-testid="voe-document" className="bg-voe-white border border-voe-gray-300 shadow-voe-xl p-12 max-w-3xl mx-auto min-h-[1000px] font-serif text-voe-slate-900 leading-relaxed">
 
@@ -164,12 +168,12 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                 <div className="flex justify-between items-end gap-12 font-sans">
                     <div className="flex-1">
                         <p className="text-[10px] font-black text-voe-slate-500 uppercase mb-3 tracking-widest">Digital Signature of Applicant</p>
-                        <div className={`h-24 border-b-2 flex items-center justify-center pb-2 px-6 ${signatureUrl || signatureText ? 'border-voe-slate-900' : 'border-voe-red-400 bg-voe-red-50'}`}>
-                            {releaseNote ? (
+                        <div className={`h-24 border-b-2 flex items-center justify-center pb-2 px-6 ${signatureMissing ? 'border-voe-red-400 bg-voe-red-50' : 'border-voe-slate-900'}`}>
+                            {!signed && !signatureMissing ? (
                                 <span className="text-voe-slate-500 text-voe-xs font-bold uppercase tracking-tighter">No signature reproduced</span>
-                            ) : signatureUrl ? (
+                            ) : signed && signatureUrl ? (
                                 <img src={signatureUrl} alt="Signature" className="h-20 object-contain" />
-                            ) : signatureText ? (
+                            ) : signed && signatureText ? (
                                 <span className="font-serif italic text-voe-4xl text-voe-slate-900">/s/ {signatureText}</span>
                             ) : (
                                 <div className="text-center">
@@ -179,7 +183,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                                 </div>
                             )}
                         </div>
-                        <p className="text-[9px] text-voe-slate-500 mt-3 uppercase tracking-tighter">Signed electronically with the application{applicant.ipAddress && <> &bull; IP: {applicant.ipAddress}</>}</p>
+                        {signed && <p className="text-[9px] text-voe-slate-500 mt-3 uppercase tracking-tighter">Signed electronically with the application{applicant.ipAddress && <> &bull; IP: {applicant.ipAddress}</>}</p>}
                     </div>
                     <div className="w-56">
                         <p className="text-[10px] font-black text-voe-slate-500 uppercase mb-3 tracking-widest text-right">Date of Authorization</p>

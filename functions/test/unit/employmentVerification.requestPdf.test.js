@@ -23,7 +23,7 @@ jest.mock('../../employmentVerification/requestPdf', () => ({
 
 const {
     appKey, applicationDocs, verificationDocs, savedStoragePaths, dqFileDocs,
-    mockSendDynamicEmail, resetPevState, failNextStorageSave,
+    mockSendDynamicEmail, resetPevState, failNextStorageSave, failNextDqFiling,
 } = require('./employmentVerification.support');
 const { sendVerificationRequest } = require('../../employmentVerification');
 const { sendReminderEmail } = require('../../employmentVerification/notifications');
@@ -90,6 +90,20 @@ describe('the request document', () => {
             isSynced: true,
             fileName: 'Verification-of-Employment-Request-John-Driver.pdf',
         });
+    });
+
+    it('tells the screen it filed the document', async () => {
+        expect((await send()).requestPdfFiled).toBe(true);
+    });
+
+    it('tells the screen when the document could not be filed, and still sends it', async () => {
+        failNextDqFiling();
+        const result = await send();
+        expect(result.success).toBe(true);
+        expect(result.requestPdfPath).toMatch(/pev_requests\//);
+        expect(result.requestPdfFiled).toBe(false);
+        expect(dqFileDocs.size).toBe(0);
+        expect(options().attachments).toHaveLength(1);
     });
 
     it('files nothing in the DQ file when there is no document', async () => {

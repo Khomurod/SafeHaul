@@ -108,6 +108,10 @@ const setTransactionInterference = (fn) => { interference = fn; };
 let storageFailure = null;
 const failNextStorageSave = (before = async () => {}) => { storageFailure = before; };
 
+/** The next DQ-file record write fails once. */
+let dqFilingFailure = false;
+const failNextDqFiling = () => { dqFilingFailure = true; };
+
 /**
  * The write that marks a request completed fails once, whether it is made alone
  * or in a batch; a failed batch applies none of its writes, as Firestore's does.
@@ -159,6 +163,7 @@ const mockDb = {
                 collection: jest.fn((name) => ({
                   doc: jest.fn((id) => ({
                     set: jest.fn(async (data) => {
+                      if (name === 'dq_files' && dqFilingFailure) { dqFilingFailure = false; throw new Error('dq_files unavailable'); }
                       if (name === 'dq_files') dqFileDocs.set(`${key}/${id}`, { ...data });
                     }),
                   })),
@@ -335,6 +340,7 @@ function resetPevState() {
   completionFailure = false;
   savedStoragePaths.length = 0;
   dqFileDocs.clear();
+  dqFilingFailure = false;
   mockSendDynamicEmail.mockResolvedValue({ success: true });
   mockCheckRateLimit.mockResolvedValue(true);
   mockAssertCompanyAccessForRequest.mockResolvedValue(undefined);
@@ -369,6 +375,7 @@ module.exports = {
   uuidMock,
   resetPevState,
   failNextStorageSave,
+  failNextDqFiling,
   failNextCompletion,
   setTransactionInterference,
   writeApplicationOutOfBand,
