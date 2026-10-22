@@ -116,6 +116,23 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
         && (!agreement.employerStatement || shownWithEmployers(acceptances[agreement.id], employerNames));
     const allAgreementsAccepted = agreements.length > 0 && agreements.every(isAccepted);
 
+    // A per-employer release accepted before every employer was removed is no
+    // longer shown, so its acceptance (and its dossier mirror) is withdrawn: the
+    // record must not keep an acceptance of a document nobody sees.
+    const withdrawn = employerNames.length > 0 ? '' : allAgreements
+        .filter((agreement) => agreement.employerStatement && acceptances[agreement.id])
+        .map((agreement) => agreement.id)
+        .join(',');
+    useEffect(() => {
+        if (!withdrawn) return;
+        const next = { ...(formData.agreementAcceptances || {}) };
+        for (const id of withdrawn.split(',')) {
+            delete next[id];
+            if (LEGACY_ACCEPTANCE_KEYS[id]) updateFormData(LEGACY_ACCEPTANCE_KEYS[id], '');
+        }
+        updateFormData('agreementAcceptances', next);
+    }, [withdrawn, formData.agreementAcceptances, updateFormData]);
+
     // The page showing: a document's index, or `agreements.length` for the
     // certification and signature. Fixed once the set arrives (the first document
     // not yet accepted, or the signature when none is left) and then moved only by

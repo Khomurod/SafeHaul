@@ -419,3 +419,41 @@ describe('Step9_Consent — the previous employers release', () => {
         expect(box('previousEmployerRelease')).not.toBeChecked();
     });
 });
+
+describe('Step9_Consent — a release accepted before the employers were removed', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        resetApplicationAgreementsCache();
+        mockCall.mockResolvedValue({
+            data: {
+                agreementVersion: 'v3',
+                agreements: [...AGREEMENTS, {
+                    id: 'previousEmployerRelease', version: 'v3', title: 'AUTHORIZATION FOR PREVIOUS EMPLOYERS TO RELEASE INFORMATION',
+                    body: 'Release body.', requiresSignature: true, employerStatement: 'I authorize {{employerName}} to release.',
+                }],
+            },
+        });
+    });
+
+    it('is withdrawn, so no acceptance of a release that is no longer shown survives', async () => {
+        const updates = [];
+        function Recording() {
+            const [formData, setFormData] = useState({
+                employers: [],
+                agreementAcceptances: { previousEmployerRelease: { accepted: true, version: 'v3', employersShown: ['Old Carrier'] } },
+                'agree-previous-employers': 'agreed',
+            });
+            return (
+                <Step9_Consent
+                    formData={formData}
+                    updateFormData={(key, value) => { updates.push([key, value]); setFormData((p) => ({ ...p, [key]: value })); }}
+                    onNavigate={vi.fn()} onFinalSubmit={vi.fn()} isSubmitting={false} isUploading={false}
+                />
+            );
+        }
+        render(<Recording />);
+        await waitFor(() => expect(updates).toContainEqual(['agree-previous-employers', '']));
+        const last = updates.filter(([key]) => key === 'agreementAcceptances').at(-1)[1];
+        expect(last).not.toHaveProperty('previousEmployerRelease');
+    });
+});

@@ -511,3 +511,17 @@ describe('the previous employers release is frozen with the employers it named',
     expect(release(snap)).toBeUndefined();
   });
 });
+
+describe('the previous employers release can be stored', () => {
+  it('nests no array directly inside another, its employer list included', () => {
+    const { encodeSnapshotForStorage, findNestedArrayPaths } = require('../../shared/submissionSnapshotStorage');
+    const def = definition();
+    const snap = snapshot({
+      definition: def,
+      formData: { employers: [{ companyName: 'Lone Star Logistics' }, { companyName: 'Prairie Haul' }] },
+      acceptances: { ...acceptAll(def), previousEmployerRelease: { accepted: true, version: 'v3', employersShown: ['Lone Star Logistics', 'Prairie Haul'] } },
+    });
+    expect(snap.agreements.find((a) => a.id === 'previousEmployerRelease').employers).toHaveLength(2);
+    expect(findNestedArrayPaths(encodeSnapshotForStorage(snap))).toEqual([]);
+  });
+});
