@@ -53,7 +53,20 @@ describe('PevCopiesSection', () => {
         render(<PevCopiesSection currentCompanyProfile={{ id: 'co-1' }} />);
         fireEvent.change(field(), { target: { value: 'ops@carrier.test' } });
         fireEvent.click(save());
-        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalled());
+        await waitFor(() => expect(save()).not.toHaveAttribute('aria-busy', 'true'));
+        expect(toastMocks.showSuccess).toHaveBeenCalled();
+
+        await act(async () => answer({ exists: () => true, data: () => ({ pevCcEmails: ['old@carrier.test'] }) }));
+        expect(field()).toHaveValue('ops@carrier.test');
+    });
+
+    it('keeps the list just saved without typing when an older read answers after the save', async () => {
+        let answer;
+        fsMocks.getDoc.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+        render(<PevCopiesSection currentCompanyProfile={{ id: 'co-1', pevCcEmails: ['ops@carrier.test'] }} />);
+        fireEvent.click(save());
+        await waitFor(() => expect(save()).not.toHaveAttribute('aria-busy', 'true'));
+        expect(serviceMocks.saveCompanySettings).toHaveBeenCalledWith('co-1', { pevCcEmails: ['ops@carrier.test'] });
 
         await act(async () => answer({ exists: () => true, data: () => ({ pevCcEmails: ['old@carrier.test'] }) }));
         expect(field()).toHaveValue('ops@carrier.test');

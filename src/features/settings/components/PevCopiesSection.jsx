@@ -38,6 +38,7 @@ export function PevCopiesSection({ currentCompanyProfile }) {
         try {
             await saveCompanySettings(currentCompanyProfile.id, { pevCcEmails: emails });
             // The field now holds what is saved; a read still on its way is older.
+            typed.current = true;
             setText(formatPevCopies(emails));
             showSuccess(emails.length > 0 ? 'Verification copies saved.' : 'Verification requests will copy no one by default.');
         } catch (saveError) {
