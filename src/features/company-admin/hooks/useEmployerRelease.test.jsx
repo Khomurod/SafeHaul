@@ -2,7 +2,7 @@
 // The dossier can hand an open preview fresher data, and no render may then
 // offer the answer read for the old inputs: Print would put it on paper.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 
 const mocks = vi.hoisted(() => ({ getDoc: vi.fn(), releaseStatementFor: vi.fn() }));
 vi.mock('firebase/firestore', () => ({ doc: (...parts) => parts.slice(1).join('/'), getDoc: (...args) => mocks.getDoc(...args) }));
@@ -14,8 +14,7 @@ import { useEmployerRelease } from './useEmployerRelease';
 const applicantWith = (snapshotId, id = 'app-1') => ({ id, signature: 'SIG', submissionRecord: { snapshotId } });
 
 beforeEach(() => {
-    mocks.getDoc.mockReset();
-    mocks.releaseStatementFor.mockReset();
+    vi.resetAllMocks();
 });
 
 describe('useEmployerRelease', () => {
@@ -33,13 +32,17 @@ describe('useEmployerRelease', () => {
         }, { initialProps: { applicant: applicantWith('v1') } });
         await waitFor(() => expect(seen.at(-1).release).toMatchObject({ statement: 'for v1' }));
 
-        mocks.getDoc.mockReturnValueOnce(new Promise(() => {}));
+        let answer;
+        mocks.getDoc.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
         rerender({ applicant: applicantWith('v2') });
 
         const forNew = seen.filter((entry) => entry.snapshotId === 'v2');
         expect(forNew.length).toBeGreaterThan(0);
         expect(forNew.every((entry) => entry.release === null && entry.loading === true)).toBe(true);
         expect(mocks.getDoc).toHaveBeenLastCalledWith('companies/co-1/applications/app-1/submission/v2');
+
+        await act(async () => answer({ exists: () => false }));
+        expect(seen.at(-1)).toMatchObject({ release: null, loading: false });
     });
 
     it('reads nothing without the document id', () => {
