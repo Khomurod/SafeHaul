@@ -80,6 +80,15 @@ describe('getSignedPevUrl', () => {
     });
   });
 
+  it('serves the request document sent to a previous employer', async () => {
+    const result = await getSignedPevUrl({
+      auth: { uid: 'user-1' },
+      data: { storagePath: 'companies/co-1/applications/a1/pev_requests/PEV_REQUEST_Old_Carrier_abcd1234.pdf' },
+    });
+    expect(mockAssertCompanyAccessForRequest).toHaveBeenCalledWith(expect.anything(), 'co-1', 'getSignedPevUrl');
+    expect(result.success).toBe(true);
+  });
+
   it('returns not-found when storage file does not exist', async () => {
     mockExists.mockResolvedValueOnce([false]);
 

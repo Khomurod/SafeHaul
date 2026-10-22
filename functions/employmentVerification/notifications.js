@@ -13,11 +13,12 @@ const {
     buildCarrierCompleteEmailHTML,
     buildCarrierNoResponseEmailHTML,
 } = require("./emailTemplates");
+const { reminderAttachments } = require("./requestAttachment");
 
 // ============================================================
 // HELPER: Send reminder email
 // ============================================================
-async function sendReminderEmail(companyId, recipientEmail, emailParams, reminderType, applicantName) {
+async function sendReminderEmail(companyId, recipientEmail, emailParams, reminderType, applicantName, requestPdfPath = null) {
     const subjects = {
         first_reminder: `Reminder: Employment Verification Pending – ${applicantName}`,
         second_reminder: `2nd Reminder: Employment Verification Required – ${applicantName}`,
@@ -25,7 +26,10 @@ async function sendReminderEmail(companyId, recipientEmail, emailParams, reminde
     };
 
     const html = buildReminderEmailHTML({ ...emailParams, reminderType });
-    await sendDynamicEmail(companyId, recipientEmail, subjects[reminderType], html);
+    // A reminder carries the request's document again; copies go with the first email only.
+    const attachments = await reminderAttachments(requestPdfPath, applicantName);
+    await sendDynamicEmail(companyId, recipientEmail, subjects[reminderType], html,
+        attachments.length > 0 ? { attachments } : {});
 }
 
 /**

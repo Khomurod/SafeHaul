@@ -10,7 +10,7 @@
  * Security:
  *  - Requires authentication
  *  - Validates that the caller belongs to the company that owns the file
- *  - Path must start with `companies/` and contain `pev_results/` or `pev_signatures/`
+ *  - Path must start with `companies/` and contain `pev_results/`, `pev_requests/` or `pev_signatures/`
  */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
@@ -30,7 +30,7 @@ exports.getSignedPevUrl = onCall({ cors: true }, async (request) => {
     }
 
     // 2. Security: Validate the path structure
-    //    Must be: companies/{companyId}/.../(pev_results|pev_signatures)/...
+    //    Must be: companies/{companyId}/.../(pev_results|pev_requests|pev_signatures)/...
     const pathParts = storagePath.split('/');
     if (pathParts[0] !== 'companies' || pathParts.length < 4) {
         throw new HttpsError('invalid-argument', 'Invalid storage path format.');
@@ -39,7 +39,7 @@ exports.getSignedPevUrl = onCall({ cors: true }, async (request) => {
     const companyId = pathParts[1];
 
     // Ensure the path is for PEV-related files only
-    const isPevPath = storagePath.includes('/pev_results/') || storagePath.includes('/pev_signatures/');
+    const isPevPath = ['/pev_results/', '/pev_requests/', '/pev_signatures/'].some((folder) => storagePath.includes(folder));
     if (!isPevPath) {
         throw new HttpsError('invalid-argument', 'This endpoint only serves PEV result files.');
     }

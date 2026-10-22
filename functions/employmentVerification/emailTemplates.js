@@ -25,8 +25,13 @@ function safeRequestText({ applicantName, employerName, companyName, employmentD
 // HELPER: Build verification email HTML with CTA button
 // ============================================================
 function buildVerificationEmailHTML(params) {
-    const { token, baseUrl } = params;
+    const { token, baseUrl, hasRequestPdf = false } = params;
     const { applicantName, employerName, companyName, employmentDates, deadlineDate } = safeRequestText(params);
+    const attachmentNote = hasRequestPdf
+        ? `<p style="font-size: 14px; line-height: 1.6; color: #333;">
+                                The attached PDF carries the request and the applicant's release, signed with their application.
+                            </p>`
+        : '';
     return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f7fa; padding: 0;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background: #f5f7fa;">
@@ -66,6 +71,8 @@ function buildVerificationEmailHTML(params) {
                                 <tr><td style="color: #555; padding: 8px 12px;">Reported Dates:</td><td style="padding: 8px 12px;">${employmentDates}</td></tr>
                                 <tr><td style="color: #555; padding: 8px 12px;">Response Deadline:</td><td style="color: #dc2626; font-weight: bold; padding: 8px 12px;">${deadlineDate}</td></tr>
                             </table>
+
+                            ${attachmentNote}
 
                             <!-- CTA BUTTON -->
                             <table width="100%" cellpadding="0" cellspacing="0" style="margin: 28px 0;">
