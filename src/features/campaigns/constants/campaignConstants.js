@@ -33,18 +33,55 @@ export const UPLOAD_EXCLUDE_DEFAULT = '7';
 export const MAX_RECIPIENTS_PER_LAUNCH = 2000;
 
 /**
+ * What became of an SMS RingCentral accepted, once the server asked it
+ * (`functions/bulkActions/delivery/`). A log without a delivery state (an email,
+ * or a text not checked yet) stays plain "Sent".
+ */
+const DELIVERY_RESULTS = {
+    delivered: { label: 'Delivered', tone: 'success', note: null },
+    pending: { label: 'Awaiting delivery', tone: 'info', note: 'RingCentral has not confirmed delivery yet.' },
+    unconfirmed: { label: 'Delivery not confirmed', tone: 'warning', note: 'RingCentral sent it on but never confirmed delivery.' },
+    unknown: { label: 'Delivery unknown', tone: 'neutral', note: 'RingCentral has no record of this text.' },
+};
+
+/**
  * What a campaign's log says of one recipient. The send loop logs `delivered`
  * when the SMS provider or the mail server took the message: that is "Sent",
- * not proof it arrived. Anything else is "Not sent", with the reason the send
- * loop recorded.
+ * not proof it arrived, until the delivery check records what RingCentral did.
+ * Anything else is "Not sent" ("Not delivered" when RingCentral refused it
+ * later), with the reason the server recorded.
  */
 export function sendResultOf(log) {
     const sent = log?.status === 'delivered' || log?.isSuccess === true;
-    return {
-        sent,
-        label: sent ? 'Sent' : 'Not sent',
-        reason: sent ? null : (log?.error || 'No reason was recorded'),
-    };
+    if (!sent) {
+        return {
+            sent,
+            label: log?.delivery?.state === 'failed' ? 'Not delivered' : 'Not sent',
+            tone: 'danger',
+            reason: log?.error || 'No reason was recorded',
+            note: null,
+        };
+    }
+    const delivery = DELIVERY_RESULTS[log?.delivery?.state] || { label: 'Sent', tone: 'success', note: null };
+    return { sent, ...delivery, reason: null };
+}
+
+/** What the "Check delivery" button tells the recruiter about the server's answer. */
+export function deliveryCheckMessage({ status, counts } = {}) {
+    if (status === 'checked') {
+        const parts = [`${counts?.delivered || 0} delivered`, `${counts?.failed || 0} not delivered`];
+        if (counts?.pending) parts.push(`${counts.pending} still waiting`);
+        if (counts?.unconfirmed) parts.push(`${counts.unconfirmed} not confirmed`);
+        if (counts?.unknown) parts.push(`${counts.unknown} unknown`);
+        return { ok: true, text: `Delivery checked: ${parts.join(', ')}.` };
+    }
+    if (status === 'nothing_to_check') return { ok: true, text: 'Every text in this campaign already has its delivery result.' };
+    if (status === 'not_sms') return { ok: false, text: 'Only SMS campaigns can be checked for delivery.' };
+    if (status === 'unsupported') return { ok: false, text: "This company's SMS provider does not report delivery, so it cannot be checked." };
+    if (status === 'no_permission') {
+        return { ok: false, text: 'RingCentral did not allow SafeHaul to read sent messages. Turn on the "Read Messages" permission for the SafeHaul app in RingCentral, then try again.' };
+    }
+    return { ok: false, text: 'RingCentral could not be reached to check delivery. Please try again later.' };
 }
 
 export const LAST_CALL_RESULTS = [

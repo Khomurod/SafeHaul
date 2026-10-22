@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon, ArrowLeft, Users, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, RefreshCw, Pause, Play, XCircle } from '@design-system/icons';
+import { Icon, ArrowLeft, Users, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, RefreshCw, Pause, Play, XCircle, Search } from '@design-system/icons';
 import { CampaignResultsTable } from './CampaignResultsTable';
 import { functions } from '@lib/firebase';
 import { httpsCallable } from 'firebase/functions';
@@ -7,6 +7,7 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { Badge, Button, Card, IconButton, Notice } from '@/design-system/components';
+import { deliveryCheckMessage } from '../constants/campaignConstants';
 
 // Feature-owned domain → visual mapping (design system only knows generic tones).
 // Tones preserve the previous appearance: active=success, completed=info,
@@ -74,6 +75,9 @@ export function CampaignDetails({ campaign, onClose }) {
     // Replace the two bare `confirm(...)` guards on retry and cancel.
     const [pendingRetry, setPendingRetry] = useState(false);
     const [pendingCancel, setPendingCancel] = useState(false);
+    const [checkingDelivery, setCheckingDelivery] = useState(false);
+    // Bumped after a delivery check, so the recipient log reloads with the new results.
+    const [resultsVersion, setResultsVersion] = useState(0);
     const { showSuccess, showError } = useToast();
 
     if (!campaign) return null;
@@ -164,6 +168,23 @@ export function CampaignDetails({ campaign, onClose }) {
         }
     };
 
+    /** Asks the server to check this SMS campaign's texts with RingCentral now. */
+    const handleCheckDelivery = async () => {
+        try {
+            setCheckingDelivery(true);
+            const checkFn = httpsCallable(functions, 'checkCampaignDelivery');
+            const result = await checkFn({ companyId: effectiveCompanyId, sessionId: campaign.id });
+            const message = deliveryCheckMessage(result?.data);
+            if (message.ok) showSuccess(message.text);
+            else showError(message.text);
+            setResultsVersion((version) => version + 1);
+        } catch (err) {
+            showError(err.message || deliveryCheckMessage().text);
+        } finally {
+            setCheckingDelivery(false);
+        }
+    };
+
     const confirmCancel = async () => {
         try {
             setCancelling(true);
@@ -186,6 +207,7 @@ export function CampaignDetails({ campaign, onClose }) {
     const hasFailures = campaign.progress?.failedCount > 0;
     const isActive = ['active', 'queued', 'scheduled'].includes(campaign.status);
     const isPaused = campaign.status === 'paused';
+    const canCheckDelivery = String(campaign.messageConfig?.method || '').toLowerCase() === 'sms' && campaign.progress?.processedCount > 0;
     const { tone, label } = statusPresentation(campaign.status);
 
     return (
@@ -228,6 +250,13 @@ export function CampaignDetails({ campaign, onClose }) {
                         <Button variant="secondary" size="sm" onClick={() => setPendingCancel(true)} loading={cancelling}>
                             {!cancelling && <Icon icon={XCircle} size="sm" />}
                             {cancelling ? 'Cancelling...' : 'Details & Cancel'}
+                        </Button>
+                    )}
+
+                    {canCheckDelivery && (
+                        <Button variant="secondary" size="sm" onClick={handleCheckDelivery} loading={checkingDelivery}>
+                            {!checkingDelivery && <Icon icon={Search} size="sm" />}
+                            {checkingDelivery ? 'Checking...' : 'Check delivery'}
                         </Button>
                     )}
 
@@ -345,7 +374,7 @@ export function CampaignDetails({ campaign, onClose }) {
                     {/* Individual Results Table.
                         campaign.companyId is not stored on the session doc, so
                         effectiveCompanyId resolves it from context. */}
-                    <CampaignResultsTable companyId={effectiveCompanyId} campaignId={campaign.id} />
+                    <CampaignResultsTable companyId={effectiveCompanyId} campaignId={campaign.id} refreshKey={resultsVersion} />
 
                 </div>
             </div>

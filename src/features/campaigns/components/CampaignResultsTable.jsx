@@ -16,10 +16,16 @@ const E2E_SEED_LOGS = Array.from({ length: 12 }, (_, i) => ({
     recipientIdentity: `555-01${String(i).padStart(2, '0')}`,
     status: i % 3 === 0 ? 'delivered' : 'failed',
     error: i % 3 === 1 ? 'Carrier rejected the message.' : undefined,
+    // What RingCentral reported: delivered, still waiting, or not checked yet ("Sent").
+    delivery: { 0: { state: 'delivered' }, 3: { state: 'pending' } }[i],
     timestamp: i === 11 ? undefined : E2E_SEED_NOW,
 }));
 
-export function CampaignResultsTable({ companyId, campaignId }) {
+// An icon beside each result, so the status does not rest on colour alone.
+const RESULT_ICON = { success: CheckCircle2, danger: AlertCircle, warning: AlertCircle, info: Clock, neutral: Clock };
+
+/** `refreshKey` reloads the log, as after a delivery check. */
+export function CampaignResultsTable({ companyId, campaignId, refreshKey = 0 }) {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -27,6 +33,8 @@ export function CampaignResultsTable({ companyId, campaignId }) {
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
 
     useEffect(() => {
+        // A reload (refreshKey) can finish before the read it replaced: only the newest answer is shown.
+        let current = true;
         const fetchLogs = async () => {
             if (!companyId || !campaignId) {
                 setLoading(false);
@@ -45,15 +53,16 @@ export function CampaignResultsTable({ companyId, campaignId }) {
                     limit(200)
                 );
                 const snap = await getDocs(q);
-                setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                if (current) setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             } catch (err) {
                 console.error("Failed to fetch logs:", err);
             } finally {
-                setLoading(false);
+                if (current) setLoading(false);
             }
         };
         fetchLogs();
-    }, [companyId, campaignId, isE2ECampaignMock]);
+        return () => { current = false; };
+    }, [companyId, campaignId, isE2ECampaignMock, refreshKey]);
 
     const filteredLogs = logs.filter(log =>
         log.recipientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -133,11 +142,14 @@ export function CampaignResultsTable({ companyId, campaignId }) {
                                             <span className="font-mono text-ds-xs text-ds-content-secondary">{log.recipientIdentity}</span>
                                         </td>
                                         <td className="align-top">
-                                            <Badge tone={result.sent ? 'success' : 'danger'} icon={result.sent ? CheckCircle2 : AlertCircle}>
+                                            <Badge tone={result.tone} icon={RESULT_ICON[result.tone]}>
                                                 {result.label}
                                             </Badge>
                                             {result.reason && (
                                                 <p className="mt-ds-1 text-ds-xs font-medium text-ds-status-danger-fg">{result.reason}</p>
+                                            )}
+                                            {result.note && (
+                                                <p className="mt-ds-1 text-ds-xs font-medium text-ds-content-muted">{result.note}</p>
                                             )}
                                         </td>
                                         <td className="align-top">

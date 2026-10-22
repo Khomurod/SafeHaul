@@ -23,7 +23,7 @@ vi.mock('firebase/firestore', () => ({
 const asSnapshot = (rows) => ({ docs: rows.map((data) => ({ id: data.id, data: () => data })) });
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
 });
 
 describe('CampaignResultsTable', () => {
@@ -172,5 +172,54 @@ describe('CampaignResultsTable', () => {
         await screen.findByText('Axe One');
 
         expect((await axe(container)).violations).toEqual([]);
+    });
+
+    it("shows what RingCentral reported for each text, and reloads when asked", async () => {
+        const at = { toDate: () => new Date() };
+        getDocs.mockResolvedValue(asSnapshot([
+            { id: '1', recipientName: 'Arrived', recipientIdentity: '555-0100', status: 'delivered', isSuccess: true, delivery: { state: 'delivered' }, timestamp: at },
+            { id: '2', recipientName: 'Waiting', recipientIdentity: '555-0101', status: 'delivered', isSuccess: true, delivery: { state: 'pending' }, timestamp: at },
+            {
+                id: '3', recipientName: 'Refused', recipientIdentity: '555-0102', status: 'failed', isSuccess: false,
+                error: 'Not delivered: RingCentral reported DeliveryFailed, code SMS-CAR-430.', delivery: { state: 'failed' }, timestamp: at,
+            },
+        ]));
+        const { rerender } = render(<CampaignResultsTable companyId="123" campaignId="abc" refreshKey={0} />);
+        await screen.findByText('Arrived');
+
+        expect(screen.getByText('Delivered')).toBeInTheDocument();
+        expect(screen.getByText('Awaiting delivery')).toBeInTheDocument();
+        expect(screen.getByText('RingCentral has not confirmed delivery yet.')).toBeInTheDocument();
+        expect(screen.getByText('Not delivered')).toBeInTheDocument();
+        expect(screen.getByText('Not delivered: RingCentral reported DeliveryFailed, code SMS-CAR-430.')).toBeInTheDocument();
+        expect(getDocs).toHaveBeenCalledTimes(1);
+
+        getDocs.mockResolvedValue(asSnapshot([
+            { id: '2', recipientName: 'Waiting', recipientIdentity: '555-0101', status: 'delivered', isSuccess: true, delivery: { state: 'unknown' }, timestamp: at },
+        ]));
+        rerender(<CampaignResultsTable companyId="123" campaignId="abc" refreshKey={1} />);
+        await waitFor(() => expect(screen.getByText('Delivery unknown')).toBeInTheDocument());
+        expect(getDocs).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the newest results when an older read finishes after a reload', async () => {
+        const at = { toDate: () => new Date() };
+        let finishFirstRead;
+        getDocs
+            .mockImplementationOnce(() => new Promise((resolve) => { finishFirstRead = resolve; }))
+            .mockResolvedValueOnce(asSnapshot([
+                { id: '1', recipientName: 'Driver One', recipientIdentity: '555-0100', status: 'delivered', isSuccess: true, delivery: { state: 'delivered' }, timestamp: at },
+            ]));
+        const { rerender } = render(<CampaignResultsTable companyId="123" campaignId="abc" refreshKey={0} />);
+        rerender(<CampaignResultsTable companyId="123" campaignId="abc" refreshKey={1} />);
+        await screen.findByText('Delivered');
+
+        finishFirstRead(asSnapshot([
+            { id: '1', recipientName: 'Driver One', recipientIdentity: '555-0100', status: 'delivered', isSuccess: true, delivery: { state: 'pending' }, timestamp: at },
+        ]));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(screen.getByText('Delivered')).toBeInTheDocument();
+        expect(screen.queryByText('Awaiting delivery')).not.toBeInTheDocument();
     });
 });

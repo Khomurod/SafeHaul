@@ -8,6 +8,7 @@ const callables = vi.hoisted(() => ({
     resumeBulkSession: vi.fn(),
     cancelBulkSession: vi.fn(),
     retryFailedAttempts: vi.fn(),
+    checkCampaignDelivery: vi.fn(),
 }));
 const httpsCallableMock = vi.hoisted(() => vi.fn((_fns, name) => callables[name]));
 const toastMocks = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }));
@@ -19,7 +20,7 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({ useToast: () => to
 vi.mock('@/context/DataContext', () => ({ useData: () => useDataMock() }));
 vi.mock('./CampaignResultsTable', () => ({
     CampaignResultsTable: (props) => (
-        <div data-testid="results-table" data-company={props.companyId} data-campaign={props.campaignId} />
+        <div data-testid="results-table" data-company={props.companyId} data-campaign={props.campaignId} data-refresh={props.refreshKey} />
     ),
 }));
 
@@ -50,6 +51,9 @@ beforeEach(() => {
     callables.resumeBulkSession.mockResolvedValue({ data: { success: true } });
     callables.cancelBulkSession.mockResolvedValue({ data: {} });
     callables.retryFailedAttempts.mockResolvedValue({ data: { success: true, targetCount: 3 } });
+    callables.checkCampaignDelivery.mockResolvedValue({
+        data: { status: 'checked', counts: { delivered: 40, failed: 3, pending: 2, unconfirmed: 0, unknown: 0 } },
+    });
 });
 
 afterEach(() => {
@@ -274,5 +278,61 @@ describe('CampaignDetails — a11y & close', () => {
     it('has no accessibility violations', async () => {
         const { container } = renderDetails(makeCampaign({ status: 'failed', error: 'Provider rejected the batch', progress: { processedCount: 10, totalCount: 10, successCount: 5, failedCount: 5 } }));
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe('CampaignDetails — Check delivery', () => {
+    const completedSms = (overrides = {}) => makeCampaign({
+        status: 'completed',
+        progress: { processedCount: 45, totalCount: 45, successCount: 45, failedCount: 0 },
+        messageConfig: { message: 'Hello', method: 'sms' },
+        ...overrides,
+    });
+
+    it('offers the check for an SMS campaign that has sent, and not for email or an unsent one', () => {
+        const { unmount } = renderDetails(completedSms());
+        expect(screen.getByRole('button', { name: 'Check delivery' })).toBeInTheDocument();
+        unmount();
+
+        const email = renderDetails(completedSms({ messageConfig: { message: 'Hi', method: 'email' } }));
+        expect(screen.queryByRole('button', { name: 'Check delivery' })).not.toBeInTheDocument();
+        email.unmount();
+
+        renderDetails(completedSms({ progress: { processedCount: 0, totalCount: 5, successCount: 0, failedCount: 0 } }));
+        expect(screen.queryByRole('button', { name: 'Check delivery' })).not.toBeInTheDocument();
+    });
+
+    it("asks the server, says what it found and reloads the recipient log", async () => {
+        renderDetails(completedSms());
+        expect(screen.getByTestId('results-table')).toHaveAttribute('data-refresh', '0');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Check delivery' }));
+
+        await waitFor(() => expect(screen.getByTestId('results-table')).toHaveAttribute('data-refresh', '1'));
+        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Delivery checked: 40 delivered, 3 not delivered, 2 still waiting.');
+        expect(httpsCallableMock).toHaveBeenCalledWith({}, 'checkCampaignDelivery');
+        expect(callables.checkCampaignDelivery).toHaveBeenCalledWith({ companyId: 'company123', sessionId: '123' });
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Check delivery' })).toBeEnabled());
+    });
+
+    it('says plainly when RingCentral would not share the message history', async () => {
+        callables.checkCampaignDelivery.mockResolvedValue({ data: { status: 'no_permission', counts: {} } });
+        renderDetails(completedSms());
+
+        fireEvent.click(screen.getByRole('button', { name: 'Check delivery' }));
+
+        await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith(expect.stringContaining('"Read Messages" permission')));
+        expect(toastMocks.showSuccess).not.toHaveBeenCalled();
+    });
+
+    it("shows the server's refusal, such as too many checks", async () => {
+        callables.checkCampaignDelivery.mockRejectedValue(new Error('Delivery was checked many times in the last hour. Please try again later.'));
+        renderDetails(completedSms());
+
+        fireEvent.click(screen.getByRole('button', { name: 'Check delivery' }));
+
+        await waitFor(() => expect(toastMocks.showError)
+            .toHaveBeenCalledWith('Delivery was checked many times in the last hour. Please try again later.'));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Check delivery' })).toBeEnabled());
     });
 });
