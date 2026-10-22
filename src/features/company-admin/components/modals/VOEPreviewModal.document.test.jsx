@@ -99,6 +99,12 @@ describe('VOEPreviewModal legal text and ordering', () => {
     expect(authorizationDate()).toHaveTextContent('Not signed');
   });
 
+  it('never prints an unreadable legacy signature-date', () => {
+    renderModal({ applicant: { ...APPLICANT, signatureDate: undefined, 'signature-date': 'not-a-date', submittedAt: '2026-08-03T15:00:00.000Z' } });
+    expect(authorizationDate()).toHaveTextContent('08/03/2026');
+    expect(documentNode()).not.toHaveTextContent('not-a-date');
+  });
+
   it('keeps the document section order', () => {
     renderModal();
     const text = documentNode().textContent;

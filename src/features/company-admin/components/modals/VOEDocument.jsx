@@ -29,8 +29,9 @@ const utcDay = (date) => date.toLocaleDateString('en-US', { timeZone: 'UTC', mon
 /**
  * The day the applicant signed. The wizard stamps `signatureDate`, an ISO time
  * (`Step9_Consent.jsx`); older applications carry the form builder's
- * `signature-date`; failing both, the instant the release check dated the
- * signature by (`signedAt`, its submission). With none, the document says so:
+ * `signature-date`, printed as written when it reads as a date; failing both,
+ * the instant the release check dated the signature by (`signedAt`, its
+ * submission). With none, the document says so:
  * printing today's date would certify an authorization that has no date.
  *
  * The instant is dated in UTC, as the e-signing "Date Signed" is
@@ -40,7 +41,8 @@ const utcDay = (date) => date.toLocaleDateString('en-US', { timeZone: 'UTC', mon
 function authorizationDate(applicant, signedAt) {
     const stamped = applicant.signatureDate ? new Date(applicant.signatureDate) : null;
     if (stamped && !Number.isNaN(stamped.getTime())) return utcDay(stamped);
-    if (applicant['signature-date']) return applicant['signature-date'];
+    const legacy = applicant['signature-date'];
+    if (legacy && !Number.isNaN(Date.parse(String(legacy)))) return legacy;
     return Number.isFinite(signedAt) ? utcDay(new Date(signedAt)) : 'Not signed';
 }
 
