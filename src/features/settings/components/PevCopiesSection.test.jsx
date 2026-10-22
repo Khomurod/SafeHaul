@@ -1,12 +1,15 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const serviceMocks = vi.hoisted(() => ({ saveCompanySettings: vi.fn() }));
 const toastMocks = vi.hoisted(() => ({ showError: vi.fn(), showSuccess: vi.fn() }));
+const fsMocks = vi.hoisted(() => ({ getDoc: vi.fn() }));
 
 vi.mock('@features/companies', () => ({ saveCompanySettings: serviceMocks.saveCompanySettings }));
 vi.mock('@shared/components/feedback', () => ({ useToast: () => toastMocks }));
+vi.mock('@lib/firebase', () => ({ db: {} }));
+vi.mock('firebase/firestore', () => ({ doc: (...parts) => parts.slice(1).join('/'), getDoc: (...args) => fsMocks.getDoc(...args) }));
 
 import { PevCopiesSection } from './PevCopiesSection';
 
@@ -19,6 +22,29 @@ describe('PevCopiesSection', () => {
         serviceMocks.saveCompanySettings.mockResolvedValue();
         toastMocks.showError.mockReset();
         toastMocks.showSuccess.mockReset();
+        fsMocks.getDoc.mockReset();
+        // The company document as the profile was loaded, unless a test says otherwise.
+        fsMocks.getDoc.mockReturnValue(new Promise(() => {}));
+    });
+
+    // The signed-in profile is read once per session. A list saved since,
+    // here or in another tab, must show when Settings opens again.
+    it('shows the list saved since the profile was loaded', async () => {
+        fsMocks.getDoc.mockResolvedValue({ exists: () => true, data: () => ({ pevCcEmails: ['safety@carrier.test'] }) });
+        render(<PevCopiesSection currentCompanyProfile={{ id: 'co-1' }} />);
+
+        await waitFor(() => expect(field()).toHaveValue('safety@carrier.test'));
+        expect(fsMocks.getDoc).toHaveBeenCalledWith('companies/co-1');
+    });
+
+    it('keeps what was typed when the saved list arrives later', async () => {
+        let answer;
+        fsMocks.getDoc.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+        render(<PevCopiesSection currentCompanyProfile={{ id: 'co-1' }} />);
+        fireEvent.change(field(), { target: { value: 'ops@carrier.test' } });
+
+        await act(async () => answer({ exists: () => true, data: () => ({ pevCcEmails: ['safety@carrier.test'] }) }));
+        expect(field()).toHaveValue('ops@carrier.test');
     });
 
     it('starts from the saved list', () => {

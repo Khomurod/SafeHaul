@@ -22,7 +22,9 @@ vi.mock('firebase/functions', () => ({
     // Dispatch by callable name so tests can assert the exact callable used.
     httpsCallable: (_functions, name) => callableMocks[name],
 }));
-vi.mock('@lib/firebase', () => ({ functions: {} }));
+vi.mock('@lib/firebase', () => ({ functions: {}, db: {} }));
+// The verification copies section reads the company document when it opens.
+vi.mock('firebase/firestore', () => ({ doc: () => 'company', getDoc: () => Promise.resolve({ exists: () => false }) }));
 vi.mock('@shared/components/feedback', () => ({
     useToast: () => toastMocks,
 }));
