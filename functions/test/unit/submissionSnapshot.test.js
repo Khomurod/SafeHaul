@@ -467,9 +467,9 @@ describe('the previous employers release is frozen with the employers it named',
   const EMPLOYERS = [{ companyName: 'Lone Star Logistics' }, { name: 'Prairie  Haul' }, { companyName: 'lone star logistics' }];
   const STATEMENTS = '\n\n1. I authorize Lone Star Logistics to release to Artificial Freight Co the information described above.'
     + '\n2. I authorize Prairie Haul to release to Artificial Freight Co the information described above.';
-  const withShown = (def, employersShown) => ({
+  const withShown = (def, employersShown, at = { version: 'v3' }) => ({
     ...acceptAll(def),
-    previousEmployerRelease: { ...acceptAll(def).previousEmployerRelease, employersShown },
+    previousEmployerRelease: { ...acceptAll(def).previousEmployerRelease, ...at, employersShown },
   });
 
   it('freezes one statement per employer, once each, and the signature against it', () => {
@@ -496,6 +496,20 @@ describe('the previous employers release is frozen with the employers it named',
     expect(record.evidenceRecorded).toBe(true);
     expect(record.signature).toBeNull();
     expect(record.body.endsWith(STATEMENTS)).toBe(true);
+  });
+
+  // The statements exist only at v3. Evidence naming any other version, or
+  // none, did not accept the text this record freezes.
+  it.each([
+    ['v2', { version: 'v2' }],
+    ['v1', { version: 'v1' }],
+    ['none', {}],
+  ])('records no acceptance for evidence at version %s', (_label, at) => {
+    const def = definition();
+    const record = release(snapshot({ definition: def, formData: { employers: EMPLOYERS }, acceptances: withShown(def, ['Lone Star Logistics', 'Prairie Haul'], at) }));
+    expect(record.version).toBe('v3');
+    expect(record.accepted).toBe(false);
+    expect(record.signature).toBeNull();
   });
 
   it('records nothing for an applicant who listed no employer, since nothing was shown', () => {

@@ -94,7 +94,8 @@ function asPresented(resolved, evidence, employers) {
     return {
         body: withEmployerStatements(resolved.body, resolved.employerStatement, names),
         employers: names,
-        holds: shownWithEmployers(evidence, names),
+        // Only at the version on screen: no other version has these statements.
+        holds: evidence?.version === resolved.version && shownWithEmployers(evidence, names),
     };
 }
 
