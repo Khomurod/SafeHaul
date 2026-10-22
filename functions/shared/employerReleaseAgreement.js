@@ -99,8 +99,37 @@ function asPresented(resolved, evidence, employers) {
     };
 }
 
+const sameName = (a, b) => String(a || '').replace(/\s+/g, ' ').trim().toLowerCase()
+    === String(b || '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/**
+ * The applicant's accepted release as one employer may be shown it: the
+ * document, and the one statement naming that employer. The other statements
+ * name the applicant's other employers, which this one has no business seeing.
+ * Both are the text frozen at submission, word for word.
+ *
+ * @param {object[]} agreements a submission record's `agreements`
+ * @returns {{ body: string, statement: string, signatureSha256: string|null } | null}
+ *   null when the record holds no accepted release naming this employer
+ */
+function releaseStatementFor(agreements, employerName) {
+    const record = (Array.isArray(agreements) ? agreements : []).find((a) => a && a.id === PREVIOUS_EMPLOYER_RELEASE.id);
+    if (!record || record.accepted !== true || typeof record.body !== 'string' || !Array.isArray(record.employers)) return null;
+    const index = record.employers.findIndex((name) => sameName(name, employerName));
+    const cut = record.body.lastIndexOf('\n\n');
+    if (index < 0 || cut < 0) return null;
+    const statement = record.body.slice(cut + 2).split('\n')[index];
+    if (typeof statement !== 'string' || !statement.startsWith(`${index + 1}. `)) return null;
+    return {
+        body: record.body.slice(0, cut),
+        statement,
+        signatureSha256: (record.signature && record.signature.sha256) || null,
+    };
+}
+
 module.exports = {
     asPresented,
+    releaseStatementFor,
     PREVIOUS_EMPLOYER_RELEASE,
     RELEASE_BODY_V3,
     RELEASE_STATEMENT_V3,

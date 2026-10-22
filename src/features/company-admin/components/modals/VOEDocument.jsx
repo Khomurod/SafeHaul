@@ -64,12 +64,16 @@ function authorizationDate(applicant, signedAt) {
  * `documentRef` arrives as a prop because the modal's print and PDF handlers
  * own the node: they clone and rasterise exactly what this component renders.
  */
-export function VOEDocument({ employer, applicant, companyName, auditId, signatureUrl, signatureText, documentRef }) {
+export function VOEDocument({ employer, applicant, companyName, auditId, signatureUrl, signatureText, employerRelease = null, documentRef }) {
     // The signature appears only under the release its signer was shown: the
     // wording the consent step presented, word for word (`previousEmployerRelease.js`).
     const release = releaseOf(applicant);
     const signed = release.status === 'signed';
     const releaseNote = signed ? null : RELEASE_NOTES[release.status];
+    // The release naming this employer, accepted with this signature
+    // (`useEmployerRelease`), in place of the certification's: its document and
+    // its one statement for this employer, as frozen.
+    const named = signed && employerRelease ? employerRelease : null;
     // A signature the release check does not accept (a link, a blank typed name)
     // is not reproduced; with none at all, the recruiter is told to get one.
     const signatureMissing = !signatureUrl && !signatureText;
@@ -153,10 +157,16 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                     <div className="p-2 bg-voe-blue-600 text-voe-white rounded-voe-lg">
                         <PrintShieldCheck size={20} />
                     </div>
-                    <h4 className="text-voe-xl font-bold uppercase underline decoration-voe-blue-600 decoration-4 underline-offset-4">Applicant&apos;s Release (Signed With the Application)</h4>
+                    <h4 className="text-voe-xl font-bold uppercase underline decoration-voe-blue-600 decoration-4 underline-offset-4">{named ? "Applicant's Authorization (Signed With the Application)" : "Applicant's Release (Signed With the Application)"}</h4>
                 </div>
 
-                {releaseNote ? (
+                {named ? (
+                    <div data-testid="voe-employer-release" className="text-[13px] mb-10 leading-relaxed text-voe-slate-800 font-medium border-l-4 border-voe-blue-500 pl-6 py-2">
+                        {[...named.body.split('\n\n'), named.statement].map((paragraph) => (
+                            <p key={paragraph} className="mb-3 whitespace-pre-line">{paragraph}</p>
+                        ))}
+                    </div>
+                ) : releaseNote ? (
                     <p data-testid="voe-release-note" className="text-[13px] mb-10 leading-relaxed text-voe-slate-800 font-medium border-l-4 border-voe-blue-500 pl-6 py-2">
                         {releaseNote}
                     </p>

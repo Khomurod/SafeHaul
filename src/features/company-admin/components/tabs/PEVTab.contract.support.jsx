@@ -83,9 +83,10 @@ export const pevRequestModalMock = () => ({
   ),
 });
 export const voePreviewModalMock = () => ({
-  VOEPreviewModal: ({ employer, onClose, onSend }) => (
+  VOEPreviewModal: ({ employer, applicant, onClose, onSend }) => (
     <div
       data-testid="preview-modal"
+      data-application-id={applicant?.id}
       data-method={employer?.deliveryMethod}
       data-contact={JSON.stringify(employer?.contactInfo || {})}
     >

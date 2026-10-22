@@ -304,9 +304,11 @@ past employer, who answers in a token portal (reminders §8) and signs
 **drawn or typed** (`TEXT_SIGNATURE:<name>`, never an image, method on the
 DQ-file PDF; ESIGN/UETA accept it; `signature.js` refuses other forms). Email and
 reminders attach a request PDF (`requestPdf.js`, also filed in the DQ file): SSN
-last four, no link, a signature only under the release the driver signed
-(`previousEmployerRelease.js`, copy in `src/shared/legal/`; none before
-2026-01-23), as the VOE prints. Up to 5 CC (Settings → Email) get it too.
+last four, no link, a signature only under the release the driver signed (VOE
+alike): the v3 statement naming this employer, from the `submissionRecord`
+record with its own signature, else the certification's
+(`previousEmployerRelease.js`; none before 2026-01-23). Up to 5 CC (Settings →
+Email) get it too.
 
 **Driver-approved corrections.** Company admins cannot silently rewrite a
 submitted application (§5).
@@ -560,24 +562,23 @@ cut short is `pdfPreserved: false`, left to `reconstructHistoricalApplications`.
 
 **Legal agreement wording is versioned and frozen** in
 `functions/shared/legalAgreements.js`. Current `v3` (`v1`, `v2` stay
-submittable for drafts that accepted them; a screen that names no version gets
-`v2`) follows primary sources: FMCSA's PSP language word for word, an FCRA
-disclosure and authorization only (the CFPB summary of rights is a version
-`link`, recorded only if shown), FMCSA's limited-query Clearinghouse consent (a
-full query is consented only in the Clearinghouse) and, from v3, the **previous
-employers' release** (`employerReleaseAgreement.js`): one statement per employer
-listed, since 49 CFR 40.321(b) bans blanket releases; not shown or frozen with
-no employer, accepted only for the employers on screen (`employersShown`), never
-company-worded. The MVR authorization is answered on the Violations step
-(`consent-mvr`); on Consent each other agreement has its own page (FCRA and PSP
-stand-alone rules), then the certification ending with the exact 391.21(b)(12)
-sentence (in `Step9_Consent.jsx`) and the signature. An acceptance
-counts only at the version on screen, and binds the submission to it. **An
-acceptance's IP is the one the server saw**, never the browser's claim.
-`legacy-1` bodies are a **frozen forensic record — never edit them**;
-`clearinghouseConsent` has no `legacy-1`, so reconstruction cannot attribute a
-consent nobody gave. **Applications from before the MVR authorization have no
-acceptance for it**, and nothing back-fills one.
+submittable for drafts that accepted them; a screen naming no version gets `v2`)
+follows primary sources: FMCSA's PSP language word for word, an FCRA disclosure
+and authorization only (the CFPB summary of rights is a version `link`, recorded
+only if shown), FMCSA's limited-query Clearinghouse consent (a full query is
+consented in the Clearinghouse), and from v3 the **previous employers' release**
+(`employerReleaseAgreement.js`): a statement per listed employer (40.321(b) bans
+blanket releases), not shown or frozen with none, accepted only for the
+employers on screen (`employersShown`), not company-worded. The MVR
+authorization is answered on the Violations step (`consent-mvr`); on Consent
+each other agreement has its own page, then the certification ending with the
+exact 391.21(b)(12) sentence, and the signature. An acceptance counts only at
+the version on screen and binds the submission to it. **An acceptance's IP is
+the one the server saw**, never the browser's claim. `legacy-1` bodies are a
+**frozen forensic record — never edit them**; `clearinghouseConsent` has no
+`legacy-1`, so reconstruction cannot attribute a consent nobody gave.
+**Applications from before the MVR authorization have no acceptance for it**,
+and nothing back-fills one.
 
 **Company wording is immutable too.** Versions are content-addressed (`c-<12 hex>`
 of agreement id + body + the `links` copied from the platform's current version

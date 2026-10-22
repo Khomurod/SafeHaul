@@ -448,7 +448,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
             {showPreviewModal && selectedEmployer && (
                 <VOEPreviewModal
                     employer={selectedEmployer}
-                    applicant={appData}
+                    applicant={appData && { ...appData, id: applicationId }}
                     onClose={() => {
                         setShowPreviewModal(false);
                         setShowInitiateModal(true); // Go back to choice

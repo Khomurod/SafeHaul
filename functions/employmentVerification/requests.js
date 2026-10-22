@@ -24,6 +24,25 @@ const { logger } = require("firebase-functions");
 const { buildVerificationEmailHTML } = require("./emailTemplates");
 const { employerNameOf, resolveEmployerTarget, withEmployerIds } = require("../shared/employerIdentity");
 const { fileRequestInDq, requestPdfPath, storeRequestPdf } = require("./requestAttachment");
+const { releaseStatementFor } = require("../shared/employerReleaseAgreement");
+
+/**
+ * The applicant's release naming this employer, from the submission record the
+ * application points at (`submissionRecord.snapshotId`): the record is what was
+ * signed. Null when there is none, or it cannot be read; the request document
+ * then prints the release in the Certification of Applicant.
+ */
+async function employerReleaseOf(appRef, application, employerName) {
+    const snapshotId = application?.submissionRecord?.snapshotId;
+    if (typeof snapshotId !== 'string' || !snapshotId) return null;
+    try {
+        const snap = await appRef.collection('submission').doc(snapshotId).get();
+        return snap.exists ? releaseStatementFor(snap.data()?.agreements, employerName) : null;
+    } catch (error) {
+        logger.warn('[PEV] The submission record could not be read for the release; printing the certification release.', error);
+        return null;
+    }
+}
 
 /** The most people a request copies; the screen offers the same. */
 const MAX_CC = 5;
@@ -200,6 +219,7 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
         const row = stamped[target.index] || {};
         const resolvedEmployerName = employerName || employerNameOf(row) || 'Former Employer';
         const requestId = uuidv4();
+        const employerRelease = await employerReleaseOf(appRef, application, resolvedEmployerName);
         const requestPdf = await storeRequestPdf({
             path: requestPdfPath({
                 companyId, collectionName, applicationId, employerName: resolvedEmployerName, requestId,
@@ -221,6 +241,7 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             deadlineDate,
             sentAt: now.toMillis(),
             emailed: deliveryMethod === 'email',
+            employerRelease,
         });
         // Create verification request document
         const verificationData = {

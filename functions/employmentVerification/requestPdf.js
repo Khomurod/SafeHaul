@@ -15,6 +15,7 @@ const { CONTENT_WIDTH, DocumentBuilder, INK, MARGIN, TYPE, wrapText } = require(
 const { embedSignature } = require('../shared/pdf/applicationAgreements');
 const { maskSsn } = require('../shared/pdf/applicationText');
 const { snapshotCompanyDetails } = require('../shared/applicationDefinition');
+const { createHash } = require('crypto');
 const { RELEASE_NOTES, RELEASE_PARAGRAPHS, RELEASE_RIGHTS, applicantNameOf, releaseOf } = require('../shared/previousEmployerRelease');
 
 const NOT_ON_FILE = 'Not on file';
@@ -88,27 +89,8 @@ function releaseHeight(doc) {
     return paragraphs + rights + 10;
 }
 
-async function drawRelease(doc, { applicantName, application }) {
-    const release = releaseOf(application);
-    // The wording and the signature beneath it share a page: a signature alone
-    // overleaf no longer shows what it was given under.
-    const keepWith = release.status === 'signed' ? releaseHeight(doc) + SIGNATURE_BLOCK : 40;
-    doc.sectionHeading("Applicant's release (signed with the application)", { keepWith });
-
-    if (release.status !== 'signed') {
-        doc.note(RELEASE_NOTES[release.status]);
-        return release.status;
-    }
-
-    for (const paragraph of RELEASE_PARAGRAPHS) {
-        doc.paragraph(paragraph, { leading: 1.45 });
-        doc.moveDown(4);
-    }
-    for (const right of RELEASE_RIGHTS) {
-        doc.paragraph(`•  ${right}`, { x: MARGIN.LEFT + 10, leading: 1.45 });
-    }
-    doc.moveDown(10);
-
+/** The applicant's signature, its rule, their name and how and when they signed. */
+async function drawSignature(doc, { release, applicantName, signedAs }) {
     const image = release.drawnImage ? await embedSignature(doc.pdfDoc, release.drawnImage) : null;
     if (image) {
         const scale = Math.min(190 / image.width, 46 / image.height, 1);
@@ -131,9 +113,76 @@ async function drawRelease(doc, { applicantName, application }) {
     doc.line(text(applicantName) || 'Applicant', { font: doc.font.bold });
     doc.paragraph(
         `Signed electronically (${release.typedName ? 'typed name' : 'drawn'}) on ${formatDay(release.signedAt)} (UTC), `
-            + 'as part of the Certification of Applicant at the end of the application.',
+            + `${signedAs}.`,
         { size: TYPE.SMALL, color: INK.MUTED },
     );
+}
+
+/** The height a text takes at body size, paragraph by paragraph. */
+function textHeight(doc, paragraphs) {
+    const leading = TYPE.BODY * 1.45;
+    return paragraphs.reduce((sum, p) => sum
+        + wrapText(p, { font: doc.font.regular, size: TYPE.BODY, maxWidth: CONTENT_WIDTH }).length * leading + 4, 0);
+}
+
+/**
+ * The release that names this employer, when the applicant accepted one
+ * (`employerReleaseAgreement.js`): the frozen document and its one statement for
+ * this employer, under the signature it was accepted with. Only that signature:
+ * one whose fingerprint differs from the record's was given to other wording.
+ */
+async function drawEmployerRelease(doc, { applicantName, release, employerRelease }) {
+    const paragraphs = [...employerRelease.body.split('\n\n'), employerRelease.statement];
+    doc.sectionHeading("Applicant's authorization (signed with the application)", {
+        keepWith: Math.min(textHeight(doc, paragraphs), 360) + SIGNATURE_BLOCK,
+    });
+    for (const paragraph of paragraphs) {
+        doc.paragraph(paragraph, { leading: 1.45 });
+        doc.moveDown(4);
+    }
+    doc.moveDown(6);
+    await drawSignature(doc, {
+        release,
+        applicantName,
+        signedAs: 'accepting this authorization as part of the application',
+    });
+    return 'signed';
+}
+
+/** Whether the live signature is the one the frozen release was accepted with. */
+function signedWith(application, sha256) {
+    const raw = typeof application?.signature === 'string' ? application.signature : '';
+    return Boolean(sha256) && Boolean(raw) && createHash('sha256').update(raw).digest('hex') === sha256;
+}
+
+async function drawRelease(doc, { applicantName, application, employerRelease = null }) {
+    const release = releaseOf(application);
+    if (release.status === 'signed' && employerRelease && signedWith(application, employerRelease.signatureSha256)) {
+        return drawEmployerRelease(doc, { applicantName, release, employerRelease });
+    }
+    // The wording and the signature beneath it share a page: a signature alone
+    // overleaf no longer shows what it was given under.
+    const keepWith = release.status === 'signed' ? releaseHeight(doc) + SIGNATURE_BLOCK : 40;
+    doc.sectionHeading("Applicant's release (signed with the application)", { keepWith });
+
+    if (release.status !== 'signed') {
+        doc.note(RELEASE_NOTES[release.status]);
+        return release.status;
+    }
+
+    for (const paragraph of RELEASE_PARAGRAPHS) {
+        doc.paragraph(paragraph, { leading: 1.45 });
+        doc.moveDown(4);
+    }
+    for (const right of RELEASE_RIGHTS) {
+        doc.paragraph(`•  ${right}`, { x: MARGIN.LEFT + 10, leading: 1.45 });
+    }
+    doc.moveDown(10);
+    await drawSignature(doc, {
+        release,
+        applicantName,
+        signedAs: 'as part of the Certification of Applicant at the end of the application',
+    });
     return 'signed';
 }
 
@@ -146,9 +195,12 @@ async function drawRelease(doc, { applicantName, application }) {
  * @param {string} opts.deadlineDate `YYYY-MM-DD`
  * @param {number} opts.sentAt       epoch milliseconds
  * @param {boolean} [opts.emailed]   false when the sender delivers the link by hand
+ * @param {object} [opts.employerRelease] `releaseStatementFor` of the application's record
  * @returns {Promise<{ bytes: Uint8Array, release: string }>}
  */
-async function buildRequestPdf({ company, application, employer, applicantName: requestedName, deadlineDate, sentAt, emailed = true }) {
+async function buildRequestPdf({
+    company, application, employer, applicantName: requestedName, deadlineDate, sentAt, emailed = true, employerRelease = null,
+}) {
     // The name printed under the signature is the one the signed application
     // records, not whatever the caller sent; the caller's stands in only when
     // the application holds none.
@@ -166,7 +218,7 @@ async function buildRequestPdf({ company, application, employer, applicantName: 
 
     drawParties(doc, { company, employer });
     drawApplicant(doc, { applicantName, application, employer });
-    const release = await drawRelease(doc, { applicantName, application });
+    const release = await drawRelease(doc, { applicantName, application, employerRelease });
 
     doc.runningHeader = `Verification of employment · ${text(applicantName) || 'Applicant'}`;
     doc.footerLeft = `Sent ${formatDay(sentAt)}`;

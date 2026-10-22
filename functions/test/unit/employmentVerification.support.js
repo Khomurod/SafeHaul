@@ -34,6 +34,8 @@ const companyDocs = new Map();
 const savedStoragePaths = [];
 /** `dq_files` records written under an application or lead, by `${appKey}/${id}`. */
 const dqFileDocs = new Map();
+/** `<company>/<collection>/<record>/submission/<id>` -> a stored submission record. */
+const submissionDocs = new Map();
 
 const createTs = (ms = Date.now()) => ({
   toMillis: () => ms,
@@ -111,6 +113,8 @@ const failNextStorageSave = (before = async () => {}) => { storageFailure = befo
 /** The next DQ-file record write fails once. */
 let dqFilingFailure = false;
 const failNextDqFiling = () => { dqFilingFailure = true; };
+let submissionReadFailure = false;
+const failNextSubmissionRead = () => { submissionReadFailure = true; };
 
 /**
  * The write that marks a request completed fails once, whether it is made alone
@@ -162,6 +166,11 @@ const mockDb = {
                 }),
                 collection: jest.fn((name) => ({
                   doc: jest.fn((id) => ({
+                    get: jest.fn(async () => {
+                      if (submissionReadFailure) { submissionReadFailure = false; throw new Error('firestore unavailable'); }
+                      const data = name === 'submission' ? submissionDocs.get(`${key}/${name}/${id}`) : undefined;
+                      return { exists: !!data, data: () => data };
+                    }),
                     set: jest.fn(async (data) => {
                       if (name === 'dq_files' && dqFilingFailure) { dqFilingFailure = false; throw new Error('dq_files unavailable'); }
                       if (name === 'dq_files') dqFileDocs.set(`${key}/${id}`, { ...data });
@@ -341,6 +350,8 @@ function resetPevState() {
   savedStoragePaths.length = 0;
   dqFileDocs.clear();
   dqFilingFailure = false;
+  submissionDocs.clear();
+  submissionReadFailure = false;
   mockSendDynamicEmail.mockResolvedValue({ success: true });
   mockCheckRateLimit.mockResolvedValue(true);
   mockAssertCompanyAccessForRequest.mockResolvedValue(undefined);
@@ -360,6 +371,8 @@ module.exports = {
   responseDocs,
   savedStoragePaths,
   dqFileDocs,
+  submissionDocs,
+  failNextSubmissionRead,
   verificationDocs,
   mockAssertCompanyAccessForRequest,
   mockCheckRateLimit,
