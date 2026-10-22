@@ -83,6 +83,8 @@ describe('employmentVerification callables', () => {
         'hr@oldcarrier.com',
         expect.stringContaining('Previous Employment Verification Request'),
         expect.stringContaining('/verify/pev-token-123456'),
+        // This harness's pdf-lib cannot build documents: the request goes out without one.
+        {},
       );
       expect(verificationDocs.get('pev-token-123456')).toMatchObject({
         companyId: 'co-1',

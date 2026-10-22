@@ -77,15 +77,15 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
                 }
 
                 if (daysSinceSent >= 20 && v.reminderCount < 3 && v.employerEmail) {
-                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, 'final_notice', v.applicantName);
+                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, 'final_notice', v.applicantName, v.requestPdfPath);
                     await doc.ref.update({ reminderCount: 3, lastReminderAt: admin.firestore.FieldValue.serverTimestamp(), status: 'reminder_sent' });
                     remindersProcessed++;
                 } else if (daysSinceSent >= 15 && v.reminderCount < 2 && v.employerEmail) {
-                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, 'second_reminder', v.applicantName);
+                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, 'second_reminder', v.applicantName, v.requestPdfPath);
                     await doc.ref.update({ reminderCount: 2, lastReminderAt: admin.firestore.FieldValue.serverTimestamp(), status: 'reminder_sent' });
                     remindersProcessed++;
                 } else if (daysSinceSent >= 5 && v.reminderCount < 1 && v.employerEmail) {
-                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, 'first_reminder', v.applicantName);
+                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, 'first_reminder', v.applicantName, v.requestPdfPath);
                     await doc.ref.update({ reminderCount: 1, lastReminderAt: admin.firestore.FieldValue.serverTimestamp(), status: 'reminder_sent' });
                     remindersProcessed++;
                 }

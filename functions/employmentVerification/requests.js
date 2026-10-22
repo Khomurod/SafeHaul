@@ -23,6 +23,10 @@ const { v4: uuidv4 } = require("uuid");
 const { logger } = require("firebase-functions");
 const { buildVerificationEmailHTML } = require("./emailTemplates");
 const { employerNameOf, resolveEmployerTarget, withEmployerIds } = require("../shared/employerIdentity");
+const { requestPdfPath, storeRequestPdf } = require("./requestAttachment");
+
+/** The most people a request copies; the screen offers the same. */
+const MAX_CC = 5;
 
 /**
  * RFC 5321/5322 compatible email validation.
@@ -45,6 +49,25 @@ function isValidEmail(email) {
     return /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(email);
 }
 
+/**
+ * The company's own people a request copies: valid addresses, each once,
+ * never the employer itself. A copy is the same email the employer gets,
+ * portal link included — the company chose plain CC knowing that.
+ */
+function parseCcEmails(raw, employerEmail) {
+    if (raw === undefined || raw === null) return [];
+    if (!Array.isArray(raw)) throw new HttpsError('invalid-argument', 'CC must be a list of email addresses.');
+    const employer = String(employerEmail || '').trim().toLowerCase();
+    const seen = new Set();
+    for (const entry of raw) {
+        const email = String(entry ?? '').trim().toLowerCase();
+        if (!email) continue;
+        if (!isValidEmail(email)) throw new HttpsError('invalid-argument', `"${email.slice(0, 80)}" is not a valid CC address.`);
+        if (email !== employer) seen.add(email);
+    }
+    if (seen.size > MAX_CC) throw new HttpsError('invalid-argument', `A request can copy at most ${MAX_CC} people.`);
+    return [...seen];
+}
 
 // ============================================================
 // 1. SEND VERIFICATION REQUEST (Called from PEVTab)
@@ -85,6 +108,8 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
     if (deliveryMethod === 'email' && employerEmail && !isValidEmail(employerEmail)) {
         throw new HttpsError('invalid-argument', 'Invalid employer email address format.');
     }
+    // Copies go with the email; a request delivered by hand copies no one.
+    const ccEmails = deliveryMethod === 'email' ? parseCcEmails(request.data?.ccEmails, employerEmail) : [];
 
     // PEV-VAL-3 FIX: Validate employerIndex is a non-negative integer.
     const empIndex = Number(employerIndex);
@@ -130,7 +155,7 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
          */
         const appRef = db.collection('companies').doc(companyId)
             .collection(collectionName).doc(applicationId);
-        const { target, employerId, employers: stamped } = await db.runTransaction(async (tx) => {
+        const { target, employerId, employers: stamped, application } = await db.runTransaction(async (tx) => {
             const appSnap = await tx.get(appRef);
             if (!appSnap.exists) throw new HttpsError('not-found', 'Application not found.');
             const stored = Array.isArray(appSnap.data()?.employers) ? appSnap.data().employers : [];
@@ -154,7 +179,12 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
                 );
             }
             if (changed) tx.update(appRef, { employers: withIds });
-            return { target: found, employerId: withIds[found.index].employerId, employers: withIds };
+            return {
+                target: found,
+                employerId: withIds[found.index].employerId,
+                employers: withIds,
+                application: appSnap.data() || {},
+            };
         });
 
         // Generate unique token
@@ -166,6 +196,32 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
         // Determine base URL
         const baseUrl = companyData.appUrl || 'https://app.safehaul.io';
 
+        // The request document: the applicant's signed release, for the email and the record.
+        const row = stamped[target.index] || {};
+        const resolvedEmployerName = employerName || employerNameOf(row) || 'Former Employer';
+        const requestPdf = await storeRequestPdf({
+            path: requestPdfPath({
+                companyId, collectionName, applicationId, employerName: resolvedEmployerName, requestId: uuidv4(),
+            }),
+            company: companyData,
+            application,
+            employer: {
+                name: resolvedEmployerName,
+                email: employerEmail || row.companyEmail || null,
+                address: row.address,
+                city: row.city,
+                state: row.state,
+                phone: row.phone,
+                position: row.position,
+                startDate: employmentStartDate || row.startDate,
+                endDate: employmentEndDate || row.endDate,
+            },
+            applicantName,
+            deadlineDate,
+            sentAt: now.toMillis(),
+            emailed: deliveryMethod === 'email',
+        });
+
         // Create verification request document
         const verificationData = {
             token,
@@ -176,8 +232,12 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             // The identity the write-back resolves by. `employerIndex` above stays
             // for the audit record and for nothing else.
             employerId,
-            employerName: employerName || employerNameOf(stamped[target.index]) || 'Former Employer',
+            employerName: resolvedEmployerName,
             employerEmail: employerEmail || null,
+            ccEmails,
+            // The document reminders attach again; null when it could not be made.
+            requestPdfPath: requestPdf?.path || null,
+            requestRelease: requestPdf?.release || null,
             applicantName,
             employmentStartDate: employmentStartDate || 'N/A',
             employmentEndDate: employmentEndDate || 'N/A',
@@ -208,10 +268,14 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
                 token,
                 baseUrl,
                 deadlineDate,
+                requestRelease: requestPdf?.release || null,
             });
 
             const subject = `Previous Employment Verification Request – ${applicantName}`;
-            emailResult = await sendDynamicEmail(companyId, employerEmail, subject, emailHTML);
+            emailResult = await sendDynamicEmail(companyId, employerEmail, subject, emailHTML, {
+                ...(ccEmails.length > 0 ? { cc: ccEmails } : {}),
+                ...(requestPdf ? { attachments: [requestPdf.attachment] } : {}),
+            });
         }
 
         // No token here: whoever reads the logs could answer as the employer.
@@ -224,6 +288,9 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             // or by fax. An emailed request reaches the employer directly, and
             // the bare token is never returned.
             ...(deliveryMethod === 'email' ? {} : { verificationUrl: `${baseUrl}/verify/${token}` }),
+            // The stored request document, for the PEV tab and the DQ file; null
+            // when it could not be made, which the screen reports.
+            requestPdfPath: requestPdf?.path || null,
             // So the caller writing the initial mirror can find the row this
             // request was actually filed against, rather than the index it
             // pressed on. See `PEVTab.writeVerification`.

@@ -301,11 +301,12 @@ definition in `src/features/signing/utils/signedDate.js` and
 
 **Previous employment verification (PEV).** A company admin sends a request to a
 past employer, who answers through a token portal with a reminder cycle (§8) and
-signs **drawn or typed**. A typed name is stored as `TEXT_SIGNATURE:<name>`
-(never rendered as an image) and `signatureMethod` (`drawn` | `typed`) is
-recorded and printed on the DQ-file PDF. ESIGN (15 U.S.C. §7006(5)) and UETA
-accept a typed name adopted with intent to sign; the server refuses any other
-form or a mislabelled method (`functions/employmentVerification/signature.js`).
+signs **drawn or typed** (`TEXT_SIGNATURE:<name>`, never an image; the method is
+printed on the DQ-file PDF; ESIGN and UETA accept it; `signature.js` refuses
+other forms). Email and reminders attach a request PDF (`…/pev_requests/`,
+`requestPdf.js`): SSN last four, no link, the applicant's signature only under
+the release signed with the application (`previousEmployerRelease.js`; none
+before 2026-01-23). Up to 5 CC get the email, link included.
 
 **Driver-approved corrections.** Company admins cannot silently rewrite a
 submitted application (§5).
@@ -1348,8 +1349,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   [`docs/environment-and-integrations-runbook.md`](./environment-and-integrations-runbook.md)).
 - **A direct Storage upload can bypass the backend helper** — a documented,
   accepted gap; see `docs/security-posture.md`. Client writes are named per
-  folder in `src/storage.rules`: a PEV result is add-only; PEV signatures and
-  sealed copies are server-only.
+  folder in `src/storage.rules`: a PEV result is add-only; PEV signatures,
+  request PDFs and sealed copies are server-only.
 - **Historical reconstruction is an ongoing migration.** Applications submitted
   before snapshot preservation get a record and PDF rebuilt only from surviving
   evidence and **marked as reconstructed** (`reconstructHistoricalApplications`);
