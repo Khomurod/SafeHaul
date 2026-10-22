@@ -24,22 +24,24 @@ import { RELEASE_NOTES, RELEASE_PARAGRAPHS, RELEASE_RIGHTS, releaseOf } from '@s
 const PrintShieldCheck = glyphComponent(ShieldCheck);
 const PrintAlertCircle = glyphComponent(AlertCircle);
 
+const utcDay = (date) => date.toLocaleDateString('en-US', { timeZone: 'UTC', month: '2-digit', day: '2-digit', year: 'numeric' });
+
 /**
  * The day the applicant signed. The wizard stamps `signatureDate`, an ISO time
  * (`Step9_Consent.jsx`); older applications carry the form builder's
- * `signature-date`. With neither, the document says so: printing today's date
- * would certify an authorization that has no date.
+ * `signature-date`; failing both, the instant the release check dated the
+ * signature by (`signedAt`, its submission). With none, the document says so:
+ * printing today's date would certify an authorization that has no date.
  *
  * The instant is dated in UTC, as the e-signing "Date Signed" is
  * (`functions/shared/signedDate.js`), so every printout of one application
  * carries the same date, whoever prints it and wherever they are.
  */
-function authorizationDate(applicant) {
+function authorizationDate(applicant, signedAt) {
     const stamped = applicant.signatureDate ? new Date(applicant.signatureDate) : null;
-    if (stamped && !Number.isNaN(stamped.getTime())) {
-        return stamped.toLocaleDateString('en-US', { timeZone: 'UTC', month: '2-digit', day: '2-digit', year: 'numeric' });
-    }
-    return applicant['signature-date'] || 'Not signed';
+    if (stamped && !Number.isNaN(stamped.getTime())) return utcDay(stamped);
+    if (applicant['signature-date']) return applicant['signature-date'];
+    return Number.isFinite(signedAt) ? utcDay(new Date(signedAt)) : 'Not signed';
 }
 
 /**
@@ -189,7 +191,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                         <p className="text-[10px] font-black text-voe-slate-500 uppercase mb-3 tracking-widest text-right">Date of Authorization</p>
                         <div className="h-24 border-b-2 border-voe-slate-900 flex items-center justify-end pb-2">
                             <div className="text-right">
-                                <span className="text-voe-2xl font-bold text-voe-slate-900">{authorizationDate(applicant)}</span>
+                                <span className="text-voe-2xl font-bold text-voe-slate-900">{authorizationDate(applicant, release.signedAt)}</span>
                                 <p className="text-[10px] text-voe-slate-500 mt-1 uppercase">Valid for 30 Days</p>
                             </div>
                         </div>

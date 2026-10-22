@@ -78,11 +78,13 @@ describe('PEVRequestModal copies while the saved list loads', () => {
         expect(onProceed).toHaveBeenCalledWith('email', expect.objectContaining({ ccEmails: ['typed@carrier.test'] }));
     });
 
-    it('does not hold a hand-delivered request for the list', () => {
-        pendingRead();
+    it('does not hold a hand-delivered request for the list', async () => {
+        const answer = pendingRead();
         const { onProceed } = renderDialog();
         fireEvent.click(screen.getByLabelText(/Download \/ Print/));
         fireEvent.click(screen.getByRole('button', { name: /Preview & Print/i }));
         expect(onProceed).toHaveBeenCalledWith('manual', expect.not.objectContaining({ ccEmails: expect.anything() }));
+        // Settle the read before the test ends, so nothing is left pending.
+        await act(async () => answer(['new@carrier.test']));
     });
 });
