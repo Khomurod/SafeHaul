@@ -18,6 +18,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `backfillEmployerFields` | [`EmployerBackfillCard.jsx`](../src/features/super-admin/components/EmployerBackfillCard.jsx) (Super Admin → Maintenance, confirmed through [`BackfillEmployersDialogs.jsx`](../src/features/super-admin/components/BackfillEmployersDialogs.jsx)) | Migrate employer fields on applications |
 | `backfillPublicProfiles` | [`usePublicProfileSync.js`](../src/features/super-admin/hooks/usePublicProfileSync.js) (Super Admin → Maintenance, confirmed in [`PublicProfileSyncCard.jsx`](../src/features/super-admin/components/PublicProfileSyncCard.jsx)) | Sync all companies → `public_profiles` |
 | `cancelBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Stop bulk campaign |
+| `checkCampaignDelivery` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Check delivery: ask RingCentral what became of an SMS campaign's texts |
 | `checkImportPhones` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | CSV import phone dedup check |
 | `connectFacebookPage` | [`IntegrationsTab.jsx`](../src/features/settings/components/IntegrationsTab.jsx) | Facebook Lead Ads OAuth |
 | `connectPlatformAlertChat` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: a one-time Start link to the alert bot, then the Telegram chat that used it; the page asks by itself (`checkOnly`) while the link waits, and a press says whether the page showed a chat (`chatShown`) |
@@ -93,7 +94,6 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 
 | Callable | Notes |
 |----------|-------|
-| `checkCampaignDelivery` | Delivery check of one SMS campaign; the campaign report's button is the next step |
 | `migrateEmailSettings` | One-time migration; invoke callable manually (ops) |
 | `reconcileCompanyDashboardStats` | KPI reconciliation callable ([`dashboardStatsRollup.js`](../functions/dashboardStatsRollup.js)) |
 

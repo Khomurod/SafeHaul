@@ -168,12 +168,12 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
                                                 {log.recipientIdentity || 'N/A'}
                                             </td>
                                             <td>
-                                                <Badge tone={result.sent ? 'success' : 'danger'}>
+                                                <Badge tone={result.tone}>
                                                     {result.label}
                                                 </Badge>
                                             </td>
                                             <td className="text-ds-sm text-ds-content-muted [overflow-wrap:anywhere]">
-                                                {result.reason || '-'}
+                                                {result.reason || result.note || '-'}
                                             </td>
                                         </tr>
                                     );

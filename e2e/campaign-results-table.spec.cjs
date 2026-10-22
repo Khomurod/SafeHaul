@@ -31,8 +31,17 @@ test.describe('Campaign results table slice', () => {
     await expect(page.getByText('E2E Recipient 1', { exact: true })).toBeVisible();
     // Status is icon + text, never colour-only.
     await expect(page.getByText('Sent', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Delivered', { exact: true })).toBeVisible();
+    await expect(page.getByText('Awaiting delivery', { exact: true })).toBeVisible();
+    await expect(page.getByText('RingCentral has not confirmed delivery yet.')).toBeVisible();
     await expect(page.getByText('Not sent', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Carrier rejected the message.').first()).toBeVisible();
+  });
+
+  test('offers Check delivery for an SMS campaign that has sent', async ({ page }) => {
+    await openResults(page);
+    // Not clicked: the check would call the real server.
+    await expect(page.getByRole('button', { name: 'Check delivery' })).toBeVisible();
   });
 
   test('filters through the labelled search and shows the empty-search state', async ({ page }) => {

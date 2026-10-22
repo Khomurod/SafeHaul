@@ -173,4 +173,28 @@ describe('CampaignResultsTable', () => {
 
         expect((await axe(container)).violations).toEqual([]);
     });
+
+    it("shows what RingCentral reported for each text, and reloads when asked", async () => {
+        const at = { toDate: () => new Date() };
+        getDocs.mockResolvedValue(asSnapshot([
+            { id: '1', recipientName: 'Arrived', recipientIdentity: '555-0100', status: 'delivered', isSuccess: true, delivery: { state: 'delivered' }, timestamp: at },
+            { id: '2', recipientName: 'Waiting', recipientIdentity: '555-0101', status: 'delivered', isSuccess: true, delivery: { state: 'pending' }, timestamp: at },
+            {
+                id: '3', recipientName: 'Refused', recipientIdentity: '555-0102', status: 'failed', isSuccess: false,
+                error: 'Not delivered: RingCentral reported DeliveryFailed, code SMS-CAR-430.', delivery: { state: 'failed' }, timestamp: at,
+            },
+        ]));
+        const { rerender } = render(<CampaignResultsTable companyId="123" campaignId="abc" refreshKey={0} />);
+        await screen.findByText('Arrived');
+
+        expect(screen.getByText('Delivered')).toBeInTheDocument();
+        expect(screen.getByText('Awaiting delivery')).toBeInTheDocument();
+        expect(screen.getByText('RingCentral has not confirmed delivery yet.')).toBeInTheDocument();
+        expect(screen.getByText('Not delivered')).toBeInTheDocument();
+        expect(screen.getByText('Not delivered: RingCentral reported DeliveryFailed, code SMS-CAR-430.')).toBeInTheDocument();
+        expect(getDocs).toHaveBeenCalledTimes(1);
+
+        rerender(<CampaignResultsTable companyId="123" campaignId="abc" refreshKey={1} />);
+        await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(2));
+    });
 });

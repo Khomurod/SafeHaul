@@ -88,6 +88,7 @@ export function CampaignsDashboard({ companyId }) {
                     status: 'completed',
                     progress: { processedCount: 12, totalCount: 12 },
                     config: { method: 'sms', message: 'Completed seed campaign' },
+                    messageConfig: { method: 'sms', message: 'Completed seed campaign' },
                     createdAt: e2eNow,
                     updatedAt: e2eNow,
                     matchCount: 12,
