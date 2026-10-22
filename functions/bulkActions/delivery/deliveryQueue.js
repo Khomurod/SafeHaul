@@ -37,9 +37,13 @@ async function dueDeliveryChecks(limit) {
     return snap.docs.map((doc) => ({ ref: doc.ref, ...doc.data() }));
 }
 
-/** After a check: back in the queue while texts wait, out when all are settled. */
+/**
+ * After a check: back in the queue while texts wait, out when all are settled.
+ * A failed check, or one RingCentral refused for want of the Read Messages
+ * permission, is tried again hourly, so turning the permission on is enough.
+ */
 async function settleDeliveryCheck(entry, result) {
-    if (result.status === 'error') {
+    if (result.status === 'error' || result.status === 'no_permission') {
         const errors = (entry.errors || 0) + 1;
         if (errors >= MAX_ERRORS) return entry.ref.delete();
         return entry.ref.set({ dueAt: dueIn(ERROR_RETRY_DELAY_MS), errors }, { merge: true });

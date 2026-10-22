@@ -204,6 +204,28 @@ describe('the queue and the scheduled check', () => {
         expect(doc(QUEUE_ENTRY)).toBeUndefined();
     });
 
+    it('tries again later when RingCentral refused for want of the Read Messages permission', async () => {
+        seed({ 'lead-1': justSent() });
+        const refused = Object.assign(new Error('Forbidden'), { response: { status: 403 } });
+        mockGetAdapterForUser.mockResolvedValue({ listSentSms: jest.fn().mockRejectedValue(refused) });
+        await queueDeliveryCheck('co-1', 's-1', 0);
+
+        await checkSmsDeliveries();
+
+        expect(doc(QUEUE_ENTRY)).toMatchObject({ errors: 1 });
+        expect(doc(QUEUE_ENTRY).dueAt.toMillis()).toBeGreaterThan(Date.now() + 59 * 60000);
+    });
+
+    it('takes a campaign whose line keeps no message store off the queue', async () => {
+        seed({ 'lead-1': justSent() });
+        mockGetAdapterForUser.mockResolvedValue({ sendSMS: jest.fn() });
+        await queueDeliveryCheck('co-1', 's-1', 0);
+
+        await checkSmsDeliveries();
+
+        expect(doc(QUEUE_ENTRY)).toBeUndefined();
+    });
+
     it('retries a check that failed later, and gives up after many failures', async () => {
         seed({ 'lead-1': sentLog('5551234567') });
         mockGetAdapterForUser.mockRejectedValue(new Error('No SMS provider configured'));

@@ -17,6 +17,10 @@ const RingCentralAdapter = require('../../integrations/adapters/ringcentral');
 
 const json = (body) => ({ json: async () => body });
 
+beforeEach(() => {
+    jest.resetAllMocks();
+});
+
 function adapterWith(rc) {
     const adapter = new RingCentralAdapter({ clientId: 'cid', clientSecret: 'secret', jwt: 'jwt', defaultPhoneNumber: '+15550000001' });
     adapter.rc = rc;
