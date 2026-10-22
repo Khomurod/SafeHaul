@@ -7,6 +7,7 @@ import { Button, Checkbox, Notice } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { AgreementDocumentPage } from './components/AgreementDocumentPage';
 import { useApplicationAgreements } from '@features/driver-app/hooks/useApplicationAgreements';
+import { releaseEmployerNames, shownWithEmployers, withEmployerStatements } from '@shared/legal/employerReleaseAgreement';
 
 const E2E_SIGNATURE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAAUCAYAAABwR4+JAAAAAXNSR0IArs4c6QAAAO5JREFUaEPt1zEOgjAURdEtjPEEXoCLcAuuYfQAroJzMJ5BG8kpXAxwsf96YfNQfGrJ1zR56Qvwf6MQQxgkNC+CP+zr79WD4QxR2jEfSxO93Jt0NdRnM6xQ81YeJX1FW/EMubQIq4B15xTCg+0haEoQO4jYl3mRr6z4nQ18fpwevUJj2wkfjmaB2YRQ4c2tw+Zx0AMmN7cN6wEJxS3R+lAk4lHCAZ5QULvXLiP9hCV2dAW8hJw8YZSUdBBQ+J0F6sN2W3/8c2kP4aK8e5zQ3VCfN8bYQ9xH+Hh2BV9AE2Lh5ws6gN95AAAAAElFTkSuQmCC';
 
@@ -26,7 +27,7 @@ const E2E_SIGNATURE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAH
  * signature is never attached to unaccepted wording, preserved no signature
  * against any agreement at all.
  *
- * Now: all four required agreements are fetched in full from the server registry
+ * Now: every required agreement is fetched in full from the server registry
  * that also freezes them into the snapshot, each is acknowledged separately, and
  * acceptance is recorded per agreement with its version and timestamp.
  *
@@ -70,6 +71,7 @@ const LEGACY_ACCEPTANCE_KEYS = {
     fcraDisclosure: 'agree-background-check',
     pspDisclosure: 'agree-psp',
     clearinghouseConsent: 'agree-clearinghouse',
+    previousEmployerRelease: 'agree-previous-employers',
 };
 
 /**
@@ -87,10 +89,18 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
     const { agreements: allAgreements, loading: agreementsLoading, error: agreementsError, retry } =
         useApplicationAgreements(companyId);
     // The MVR authorization is read and answered on the Motor Vehicle Record
-    // step; this page shows the agreements that belong to it.
+    // step; this page shows the agreements that belong to it. The previous
+    // employers' release carries one statement per employer listed, and is not
+    // shown to an applicant who listed none: the server records it the same way.
+    const employerNames = useMemo(() => releaseEmployerNames(formData.employers), [formData.employers]);
     const agreements = useMemo(
-        () => allAgreements.filter((agreement) => (agreement.presentedOn || 'consent') === 'consent'),
-        [allAgreements],
+        () => allAgreements
+            .filter((agreement) => (agreement.presentedOn || 'consent') === 'consent')
+            .filter((agreement) => !agreement.employerStatement || employerNames.length > 0)
+            .map((agreement) => (agreement.employerStatement
+                ? { ...agreement, body: withEmployerStatements(agreement.body, agreement.employerStatement, employerNames) }
+                : agreement)),
+        [allAgreements, employerNames],
     );
 
     const isSigned = Boolean(formData.signature);
@@ -99,8 +109,11 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
     const acceptances = formData.agreementAcceptances || {};
     // At the version on screen, not merely accepted: agreeing to earlier wording
     // is not agreeing to this wording.
+    // And for the release, with the employers now listed: one added or renamed
+    // since was not in what they agreed to.
     const isAccepted = (agreement) => acceptances[agreement.id]?.accepted === true
-        && acceptances[agreement.id]?.version === agreement.version;
+        && acceptances[agreement.id]?.version === agreement.version
+        && (!agreement.employerStatement || shownWithEmployers(acceptances[agreement.id], employerNames));
     const allAgreementsAccepted = agreements.length > 0 && agreements.every(isAccepted);
 
     // The page showing: a document's index, or `agreements.length` for the
@@ -173,6 +186,9 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
                 // Whether this page drew the version's links (the FCRA summary of
                 // rights): the server records them as provided only on this word.
                 linksShown: Array.isArray(agreement.links) && agreement.links.length > 0,
+                // The employers the release named on screen; the server honours
+                // the acceptance only for exactly these.
+                ...(agreement.employerStatement ? { employersShown: employerNames } : {}),
                 // The client's own user agent is legitimate to self-report. The IP
                 // is deliberately NOT sent from here: a client-supplied address is
                 // trivially forged, so the server stamps it at submission instead.

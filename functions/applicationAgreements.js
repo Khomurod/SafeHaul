@@ -29,6 +29,14 @@ const {
 const { applyCompanyWording, normalizeWordingDocs } = require('./shared/companyAgreementWording');
 
 /**
+ * The set a screen that names no version is given. Screens built before v3 ask
+ * without one, and cannot present v3's per-employer release: given v3, they would
+ * show the release without the employers it must name. Current screens ask
+ * for `CURRENT_AGREEMENT_VERSION` by name.
+ */
+const UNNAMED_REQUEST_VERSION = 'v2';
+
+/**
  * The company's own agreement wording, if it has published any.
  *
  * Read from `companies/{id}/legal_agreements`, which no client can reach.
@@ -109,6 +117,10 @@ exports.getApplicationAgreements = functions
             throw new functions.https.HttpsError('invalid-argument', 'companyId is required.');
         }
 
+        const agreementVersion = data && data.agreementVersion === CURRENT_AGREEMENT_VERSION
+            ? CURRENT_AGREEMENT_VERSION
+            : UNNAMED_REQUEST_VERSION;
+
         // The company, its public projection and its own wording are independent
         // reads, so all three start now; each keeps its own failure rule.
         const companyData = Promise.resolve()
@@ -129,7 +141,7 @@ exports.getApplicationAgreements = functions
         try {
             const { wording, error } = await wordingRead;
             if (error) throw error;
-            agreements = applyCompanyWording(resolveAgreementSet({ companyName }), wording, { companyName });
+            agreements = applyCompanyWording(resolveAgreementSet({ companyName, version: agreementVersion }), wording, { companyName });
         } catch (err) {
             // `unavailable` from the wording read stays `unavailable`: it tells
             // the applicant to retry rather than that something is broken.
@@ -142,7 +154,7 @@ exports.getApplicationAgreements = functions
         }
 
         return {
-            agreementVersion: CURRENT_AGREEMENT_VERSION,
+            agreementVersion,
             companyName,
             agreements: agreements.map((agreement) => ({
                 id: agreement.id,
@@ -153,6 +165,7 @@ exports.getApplicationAgreements = functions
                 presentedOn: agreement.presentedOn,
                 companyWording: Boolean(agreement.companyWording),
                 links: agreement.links || [],
+                ...(agreement.employerStatement ? { employerStatement: agreement.employerStatement } : {}),
             })),
         };
     });

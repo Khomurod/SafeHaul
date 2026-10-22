@@ -102,7 +102,16 @@ describe('what the applicant is shown and what the record binds to', () => {
     expect(mvr.companyWording).toBe(true);
     expect(mvr.body).toBe(FIRST.replace('{{companyName}}', CO.companyName));
     expect(mvr.presentedOn).toBe('drivingRecord');
-    expect(set.find((a) => a.id === 'fcraDisclosure').version).toBe('v2');
+    expect(set.find((a) => a.id === 'fcraDisclosure').version).toBe('v3');
+  });
+
+  it('never puts company wording in place of the previous employers release', () => {
+    const docs = normalizeWordingDocs({
+      previousEmployerRelease: publishWordingVersion(null, 'previousEmployerRelease', FIRST, { now: '2026-09-02T00:00:00Z' }),
+    });
+    const release = applyCompanyWording(resolveAgreementSet(CO), docs, CO).find((a) => a.id === 'previousEmployerRelease');
+    expect(release.companyWording).toBeUndefined();
+    expect(release.version).toBe('v3');
   });
 
   it('keeps the platform companions beside a company\'s own wording, such as the FCRA summary of rights', () => {

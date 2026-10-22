@@ -116,7 +116,7 @@ describe('Step9_Consent', () => {
 
     it('requests agreements for the company being applied to', async () => {
         render(<Harness />);
-        await waitFor(() => expect(mockCall).toHaveBeenCalledWith({ companyId: 'co1' }));
+        await waitFor(() => expect(mockCall).toHaveBeenCalledWith({ companyId: 'co1', agreementVersion: 'v3' }));
     });
 
     it('moves on only once the document on screen is acknowledged, and ticking does not turn the page', async () => {
@@ -337,5 +337,85 @@ describe('Step9_Consent', () => {
             fireEvent.click(box(a.id));
             fireEvent.click(nextButton());
         }
+    });
+});
+
+describe('Step9_Consent — the previous employers release', () => {
+    const RELEASE = {
+        id: 'previousEmployerRelease', version: 'v3', title: 'AUTHORIZATION FOR PREVIOUS EMPLOYERS TO RELEASE INFORMATION',
+        body: 'Release body for Blue Line Freight.', requiresSignature: true,
+        employerStatement: 'I authorize {{employerName}} to release to Blue Line Freight the information described above.',
+    };
+    const EMPLOYERS = [{ companyName: 'Old Carrier Inc' }, { companyName: 'Two  LLC' }];
+    const STATEMENTS = [
+        '1. I authorize Old Carrier Inc to release to Blue Line Freight the information described above.',
+        '2. I authorize Two LLC to release to Blue Line Freight the information described above.',
+    ];
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        resetApplicationAgreementsCache();
+        mockCall.mockResolvedValue({ data: { agreementVersion: 'v3', companyName: 'Blue Line Freight', agreements: [...AGREEMENTS, RELEASE] } });
+    });
+
+    /** Accept the four other documents and stop on the page after them. */
+    async function acceptOthers() {
+        for (const a of AGREEMENTS) {
+            await waitFor(() => expect(box(a.id)).toBeInTheDocument());
+            fireEvent.click(box(a.id));
+            fireEvent.click(nextButton());
+        }
+    }
+
+    it('names each listed employer in a statement of its own, once each', async () => {
+        render(<Harness initial={{ employers: [...EMPLOYERS, { companyName: 'old carrier inc' }] }} />);
+        await acceptOthers();
+
+        await waitFor(() => expect(box('previousEmployerRelease')).toBeInTheDocument());
+        expect(screen.getByText('Document 5 of 5')).toBeInTheDocument();
+        const text = screen.getByRole('group', { name: `${RELEASE.title} full text` }).textContent;
+        expect(text).toBe(`${RELEASE.body}\n\n${STATEMENTS.join('\n')}`);
+    });
+
+    it('is not shown to an applicant who listed no employer', async () => {
+        render(<Harness initial={{ employers: [{ companyName: '  ' }] }} />);
+        await waitFor(() => expect(screen.getByText(`Document 1 of ${AGREEMENTS.length}`)).toBeInTheDocument());
+        await acceptOthers();
+        expect(await screen.findByText('Final Certification & Signature')).toBeInTheDocument();
+        expect(box('previousEmployerRelease')).toBeNull();
+    });
+
+    it('records the employers it was accepted with', async () => {
+        const updates = [];
+        function Recording() {
+            const [formData, setFormData] = useState({ employers: EMPLOYERS });
+            return (
+                <Step9_Consent
+                    formData={formData}
+                    updateFormData={(key, value) => { updates.push([key, value]); setFormData((p) => ({ ...p, [key]: value })); }}
+                    onNavigate={vi.fn()} onFinalSubmit={vi.fn()} isSubmitting={false} isUploading={false}
+                />
+            );
+        }
+        render(<Recording />);
+        await acceptOthers();
+        await waitFor(() => expect(box('previousEmployerRelease')).toBeInTheDocument());
+        fireEvent.click(box('previousEmployerRelease'));
+
+        const last = updates.filter(([key]) => key === 'agreementAcceptances').at(-1)[1];
+        expect(last.previousEmployerRelease).toMatchObject({ accepted: true, version: 'v3', employersShown: ['Old Carrier Inc', 'Two LLC'] });
+        expect(last.electronicSignature).not.toHaveProperty('employersShown');
+    });
+
+    it('asks again once the employers differ from those it was accepted with', async () => {
+        const acceptances = {
+            ...accepted('v1'),
+            previousEmployerRelease: { accepted: true, version: 'v3', employersShown: ['Old Carrier Inc'] },
+        };
+        render(<Harness initial={{ employers: EMPLOYERS, agreementAcceptances: acceptances }} />);
+
+        // The first document not accepted is where the step opens.
+        await waitFor(() => expect(box('previousEmployerRelease')).toBeInTheDocument());
+        expect(box('previousEmployerRelease')).not.toBeChecked();
     });
 });

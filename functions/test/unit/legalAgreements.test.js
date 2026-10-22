@@ -19,8 +19,14 @@ const CO = { companyName: 'Artificial Freight Co' };
 const LEGACY_PRESENTED_IDS = ['electronicSignature', 'fcraDisclosure', 'pspDisclosure'];
 
 describe('agreement set completeness — no required agreement may go missing', () => {
-  it('always presents all five agreements in a fixed order', () => {
-    expect(requiredAgreementIds()).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
+  it('always presents all six agreements in a fixed order', () => {
+    expect(requiredAgreementIds()).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent', 'previousEmployerRelease']);
+  });
+
+  it('holds the five earlier agreements in v2 sets, the previous employers release only from v3', () => {
+    expect(resolveAgreementSet({ ...CO, version: 'v2' }).map((a) => a.id))
+      .toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
+    expect(Object.keys(AGREEMENTS.previousEmployerRelease.versions)).toEqual(['v3']);
   });
 
   // ONE MVR authorization in the whole application: read and answered on the
@@ -43,7 +49,7 @@ describe('agreement set completeness — no required agreement may go missing', 
 
   it('marks every consent-step agreement as needing a signature', () => {
     const consentStep = resolveAgreementSet(CO).filter((a) => a.presentedOn === 'consent');
-    expect(consentStep).toHaveLength(4);
+    expect(consentStep).toHaveLength(5);
     expect(consentStep.every((a) => a.requiresSignature)).toBe(true);
   });
 
@@ -225,9 +231,9 @@ describe('v2 — each changed agreement follows its primary source', () => {
     }
   });
 
-  it('is the current version, while v1 stays submittable for an application accepted before it', () => {
-    expect(CURRENT_AGREEMENT_VERSION).toBe('v2');
-    expect(submittableVersions()).toEqual(new Set(['v1', 'v2']));
+  it('stays submittable after v3, as v1 does, for an application accepted before it', () => {
+    expect(CURRENT_AGREEMENT_VERSION).toBe('v3');
+    expect(submittableVersions()).toEqual(new Set(['v1', 'v2', 'v3']));
     expect(resolveAgreement('fcraDisclosure', 'v1', CO).links).toEqual([]);
   });
 
@@ -236,5 +242,41 @@ describe('v2 — each changed agreement follows its primary source', () => {
     expect(resolveAgreement('clearinghouseConsent', 'v1', CO).title).toBe('FMCSA CLEARINGHOUSE FULL QUERY CONSENT');
     expect(resolveAgreement('clearinghouseConsent', 'v2', CO).title).toBe('FMCSA DRUG AND ALCOHOL CLEARINGHOUSE CONSENT');
     expect(resolveAgreement('fcraDisclosure', 'v1', CO).title).toBe(resolveAgreement('fcraDisclosure', 'v2', CO).title);
+  });
+});
+
+describe('v3 — the previous employers release', () => {
+  const v3 = (id) => resolveAgreement(id, 'v3', CO);
+
+  it('moves the five earlier agreements to v3 word for word, links and titles included', () => {
+    for (const id of ['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']) {
+      expect({ ...v3(id), version: 'v2' }).toEqual(resolveAgreement(id, 'v2', CO));
+    }
+  });
+
+  it('names the carrier and leaves one statement per employer to be filled in', () => {
+    const release = v3('previousEmployerRelease');
+    expect(release.presentedOn).toBe('consent');
+    expect(release.requiresSignature).toBe(true);
+    expect(release.body).toContain('Artificial Freight Co ("Prospective Employer")');
+    expect(release.body).not.toContain('{{');
+    expect(release.employerStatement).toBe('I authorize {{employerName}} to release to Artificial Freight Co the information described above.');
+  });
+
+  // 49 CFR 40.321(b): consent to a category of parties is a prohibited blanket
+  // release, so no part of the text may authorize "previous employers" at large.
+  it('authorizes only the employers it names', () => {
+    const release = v3('previousEmployerRelease');
+    expect(release.body).toContain('Each authorization below names one employer.');
+    expect(release.body).not.toMatch(/I authorize (all|any|each|my) (previous|former) employers?/i);
+  });
+
+  it('cites the rules it answers', () => {
+    const { body } = v3('previousEmployerRelease');
+    for (const cite of ['49 CFR 391.23', '49 CFR 390.15(b)', '391.23(e) and 40.25(b)']) expect(body).toContain(cite);
+  });
+
+  it('cannot be worded by a company', () => {
+    expect(AGREEMENTS.previousEmployerRelease.companyWording).toBe(false);
   });
 });

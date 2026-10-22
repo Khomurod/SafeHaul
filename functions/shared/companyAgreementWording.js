@@ -167,6 +167,7 @@ function resolveCompanyAgreement(agreementId, version, wordingDocs, { companyNam
  */
 function applyCompanyWording(platformSet, wordingDocs, { companyName } = {}) {
     return platformSet.map((agreement) => {
+        if (AGREEMENTS[agreement.id] && AGREEMENTS[agreement.id].companyWording === false) return agreement;
         const doc = wordingDocs && wordingDocs[agreement.id];
         if (!doc || !doc.currentVersion) return agreement;
         return resolveCompanyAgreement(agreement.id, doc.currentVersion, wordingDocs, { companyName }) || agreement;

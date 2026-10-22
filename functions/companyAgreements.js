@@ -56,6 +56,9 @@ function requireAgreementId(data) {
     if (!AGREEMENTS[agreementId]) {
         throw new functions.https.HttpsError('invalid-argument', 'Unknown agreement.');
     }
+    if (AGREEMENTS[agreementId].companyWording === false) {
+        throw new functions.https.HttpsError('invalid-argument', 'This agreement has no company wording.');
+    }
     return agreementId;
 }
 
@@ -77,7 +80,8 @@ async function readCompanyName(companyId) {
  */
 async function describeCompanyAgreements(companyId) {
     const [wording, companyName] = await Promise.all([readWordingDocs(companyId), readCompanyName(companyId)]);
-    const platform = resolveAgreementSet({ companyName });
+    // Only what a company may word for itself.
+    const platform = resolveAgreementSet({ companyName }).filter((agreement) => AGREEMENTS[agreement.id].companyWording !== false);
     return platform.map((agreement) => {
         const doc = wording[agreement.id] || null;
         const versions = doc

@@ -425,6 +425,8 @@ function ConsentCard({ appData }) {
         // consent step legitimately have no value here, and correctly show as not
         // recorded rather than as refused.
         { key: 'agree-clearinghouse', label: 'FMCSA Clearinghouse Query Consent' },
+        // Shown only to an applicant who listed a previous employer.
+        { key: 'agree-previous-employers', label: 'Previous Employers Release' },
         { key: 'final-certification', label: 'Final Certification' },
     ];
 

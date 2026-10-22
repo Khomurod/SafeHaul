@@ -443,11 +443,11 @@ describe('what was presented beside a document is frozen with it', () => {
   const shownBeside = (def) => Object.fromEntries(Object.entries(acceptAll(def))
     .map(([id, evidence]) => [id, { ...evidence, linksShown: true }]));
 
-  it('records the FCRA summary of rights with the v2 disclosure, and nothing beside the others', () => {
+  it('records the FCRA summary of rights with the current disclosure, and nothing beside the others', () => {
     const def = definition();
     const records = snapshot({ definition: def, acceptances: shownBeside(def) }).agreements;
     const fcra = records.find((a) => a.id === 'fcraDisclosure');
-    expect(fcra.version).toBe('v2');
+    expect(fcra.version).toBe('v3');
     expect(fcra.links.map((link) => link.url))
       .toEqual(['https://files.consumerfinance.gov/f/documents/bcfp_consumer-rights-summary_2018-09.pdf']);
     expect(records.find((a) => a.id === 'pspDisclosure').links).toEqual([]);
@@ -455,9 +455,59 @@ describe('what was presented beside a document is frozen with it', () => {
 
   it('records no link an acceptance does not say was shown', () => {
     const fcra = snapshot().agreements.find((a) => a.id === 'fcraDisclosure');
-    expect(fcra.version).toBe('v2');
+    expect(fcra.version).toBe('v3');
     expect(fcra.accepted).toBe(true);
     expect(fcra.links).toEqual([]);
   });
 });
 
+
+describe('the previous employers release is frozen with the employers it named', () => {
+  const release = (snap) => snap.agreements.find((a) => a.id === 'previousEmployerRelease');
+  const EMPLOYERS = [{ companyName: 'Lone Star Logistics' }, { name: 'Prairie  Haul' }, { companyName: 'lone star logistics' }];
+  const STATEMENTS = '\n\n1. I authorize Lone Star Logistics to release to Artificial Freight Co the information described above.'
+    + '\n2. I authorize Prairie Haul to release to Artificial Freight Co the information described above.';
+  const withShown = (def, employersShown) => ({
+    ...acceptAll(def),
+    previousEmployerRelease: { ...acceptAll(def).previousEmployerRelease, employersShown },
+  });
+
+  it('freezes one statement per employer, once each, and the signature against it', () => {
+    const def = definition();
+    const record = release(snapshot({ definition: def, formData: { employers: EMPLOYERS }, acceptances: withShown(def, ['Lone Star Logistics', 'Prairie Haul']) }));
+    expect(record.version).toBe('v3');
+    expect(record.body.endsWith(STATEMENTS)).toBe(true);
+    expect(record.body).toContain('Artificial Freight Co ("Prospective Employer")');
+    expect(record.employers).toEqual(['Lone Star Logistics', 'Prairie Haul']);
+    expect(record.accepted).toBe(true);
+    expect(record.signature).toMatchObject({ present: true });
+  });
+
+  // An acceptance names the employers on screen when it was given. One for a
+  // different list is not consent to this one, whatever else it says.
+  it.each([
+    ['an employer added since', ['Lone Star Logistics']],
+    ['an employer renamed since', ['Lone Star Logistics', 'Prairie Haulage']],
+    ['no list recorded', undefined],
+  ])('records no acceptance, and no signature, for %s', (_label, shown) => {
+    const def = definition();
+    const record = release(snapshot({ definition: def, formData: { employers: EMPLOYERS }, acceptances: withShown(def, shown) }));
+    expect(record.accepted).toBe(false);
+    expect(record.evidenceRecorded).toBe(true);
+    expect(record.signature).toBeNull();
+    expect(record.body.endsWith(STATEMENTS)).toBe(true);
+  });
+
+  it('records nothing for an applicant who listed no employer, since nothing was shown', () => {
+    const def = definition();
+    const snap = snapshot({ definition: def, formData: { employers: [{ companyName: '   ' }] }, acceptances: withShown(def, []) });
+    expect(release(snap)).toBeUndefined();
+    expect(snap.agreements.map((a) => a.id)).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
+  });
+
+  it('is absent from a submission bound to v2, which never presented it', () => {
+    const def = buildApplicationDefinition({ company: company(), agreementVersion: 'v2' });
+    const snap = snapshot({ definition: def, formData: { employers: EMPLOYERS }, acceptances: withShown(def, ['Lone Star Logistics', 'Prairie Haul']) });
+    expect(release(snap)).toBeUndefined();
+  });
+});

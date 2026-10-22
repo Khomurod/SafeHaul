@@ -294,6 +294,12 @@ describe('ApplicationTab consent summary', () => {
     expect(screen.getByText('Final Certification')).toBeInTheDocument();
   });
 
+  it('shows whether the previous employers release was accepted', () => {
+    renderTab({ ...APP, 'agree-previous-employers': 'agreed' });
+    const row = screen.getByText('Previous Employers Release').closest('li');
+    expect(row).toHaveTextContent('— accepted');
+  });
+
   it('renders a data-url signature image with an accessible name', () => {
     renderTab({ ...APP, signature: 'data:image/png;base64,AAA', signatureDate: '2026-02-01' });
     expect(screen.getByAltText('Driver Signature')).toBeInTheDocument();

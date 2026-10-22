@@ -66,9 +66,10 @@ beforeEach(() => {
 describe('listCompanyAgreementWording', () => {
   it('describes every agreement with its platform text and the company state', async () => {
     const result = await listCompanyAgreementWording({ companyId: 'co1' }, superAdmin);
+    // The previous employers release is not among them: a company cannot word it.
     expect(result.agreements.map((a) => a.id)).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
     const mvr = result.agreements[0];
-    expect(mvr.platformVersion).toBe('v2');
+    expect(mvr.platformVersion).toBe('v3');
     expect(mvr.platformBody).toContain('Blue Line Freight');
     expect(mvr.currentVersion).toBeNull();
     expect(mvr.versions).toEqual([]);
@@ -86,6 +87,12 @@ describe('listCompanyAgreementWording', () => {
 });
 
 describe('publishCompanyAgreementWording', () => {
+  it('refuses company wording for the previous employers release, whose statements are the consent', async () => {
+    await expect(publishCompanyAgreementWording({ companyId: 'co1', agreementId: 'previousEmployerRelease', body: BODY }, superAdmin))
+      .rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(mockDb.wording.previousEmployerRelease).toBeUndefined();
+  });
+
   it('is super-admin only — a company admin cannot change legal wording', async () => {
     await expect(publishCompanyAgreementWording({ companyId: 'co1', agreementId: 'mvrAuthorization', body: BODY }, companyAdmin))
       .rejects.toMatchObject({ code: 'permission-denied' });

@@ -27,6 +27,13 @@ import { functions } from '@lib/firebase';
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
 import { E2E_AGREEMENTS } from './e2eAgreementFixtures';
 
+/**
+ * The agreement set this screen presents, named in the request: the server
+ * gives a request that names none the set screens built before the previous
+ * employers' release could show (`functions/applicationAgreements.js`).
+ */
+export const AGREEMENT_SET_VERSION = 'v3';
+
 /** companyId -> the read in flight or done; a failed read is removed. */
 const agreementReads = new Map();
 
@@ -34,7 +41,7 @@ function readAgreements(companyId) {
     if (!agreementReads.has(companyId)) {
         const read = (async () => {
             const call = httpsCallable(functions, 'getApplicationAgreements');
-            const { data } = await call({ companyId });
+            const { data } = await call({ companyId, agreementVersion: AGREEMENT_SET_VERSION });
             const list = Array.isArray(data?.agreements) ? data.agreements : [];
             if (list.length === 0) {
                 // An empty set is a failure, not an application with no
