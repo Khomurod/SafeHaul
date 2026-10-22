@@ -15,7 +15,7 @@ const { CONTENT_WIDTH, DocumentBuilder, INK, MARGIN, TYPE, wrapText } = require(
 const { embedSignature } = require('../shared/pdf/applicationAgreements');
 const { maskSsn } = require('../shared/pdf/applicationText');
 const { snapshotCompanyDetails } = require('../shared/applicationDefinition');
-const { RELEASE_PARAGRAPHS, RELEASE_RIGHTS, releaseOf } = require('../shared/previousEmployerRelease');
+const { RELEASE_PARAGRAPHS, RELEASE_RIGHTS, applicantNameOf, releaseOf } = require('../shared/previousEmployerRelease');
 
 const NOT_ON_FILE = 'Not on file';
 
@@ -150,13 +150,17 @@ async function drawRelease(doc, { applicantName, application }) {
  * @param {object} opts.company      the company document
  * @param {object} opts.application  the application or lead document
  * @param {object} opts.employer     `{ name, email, address, city, state, phone, position, startDate, endDate }`
- * @param {string} opts.applicantName
+ * @param {string} opts.applicantName  used only when the application records no name
  * @param {string} opts.deadlineDate `YYYY-MM-DD`
  * @param {number} opts.sentAt       epoch milliseconds
  * @param {boolean} [opts.emailed]   false when the sender delivers the link by hand
  * @returns {Promise<{ bytes: Uint8Array, release: string }>}
  */
-async function buildRequestPdf({ company, application, employer, applicantName, deadlineDate, sentAt, emailed = true }) {
+async function buildRequestPdf({ company, application, employer, applicantName: requestedName, deadlineDate, sentAt, emailed = true }) {
+    // The name printed under the signature is the one the signed application
+    // records, not whatever the caller sent; the caller's stands in only when
+    // the application holds none.
+    const applicantName = applicantNameOf(application) || requestedName;
     const doc = await DocumentBuilder.create();
     doc.line('REQUEST FOR VERIFICATION OF EMPLOYMENT', { size: TYPE.TITLE, font: doc.font.bold });
     doc.line('Safety performance history  ·  49 CFR 391.23', { size: TYPE.SUBHEADING, color: INK.MUTED });

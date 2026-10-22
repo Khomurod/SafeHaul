@@ -25,11 +25,15 @@ function safeRequestText({ applicantName, employerName, companyName, employmentD
 // HELPER: Build verification email HTML with CTA button
 // ============================================================
 function buildVerificationEmailHTML(params) {
-    const { token, baseUrl, hasRequestPdf = false } = params;
+    const { token, baseUrl, requestRelease = null } = params;
     const { applicantName, employerName, companyName, employmentDates, deadlineDate } = safeRequestText(params);
-    const attachmentNote = hasRequestPdf
+    // Only a document that reproduces the signed release says it does.
+    const attachmentText = requestRelease === 'signed'
+        ? 'The attached PDF carries the request and the applicant\'s release, signed with their application.'
+        : 'The attached PDF carries the request.';
+    const attachmentNote = requestRelease
         ? `<p style="font-size: 14px; line-height: 1.6; color: #333;">
-                                The attached PDF carries the request and the applicant's release, signed with their application.
+                                ${attachmentText}
                             </p>`
         : '';
     return `

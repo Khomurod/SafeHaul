@@ -29,13 +29,16 @@ const RELEASE_WORDING_SINCE = Date.parse('2026-01-23T00:00:00Z');
 
 const TYPED_PREFIX = 'TEXT_SIGNATURE:';
 
-/** The instant the applicant signed, from the newest field that records it. */
+/**
+ * The instant the applicant signed, from the newest field that records it. The
+ * signature is drawn at submission, so `submittedAt` is a signing time;
+ * `createdAt` is not — an application can be created long before it is signed.
+ */
 function signedAtOf(application) {
     const candidates = [
         application?.signatureDate,
         application?.['signature-date'],
         application?.submittedAt,
-        application?.createdAt,
     ];
     for (const value of candidates) {
         const ms = toMillis(value);
@@ -71,7 +74,15 @@ function releaseOf(application) {
     return { status: 'signed', signedAt, drawnImage, typedName };
 }
 
+/** The applicant's name as the application records it, or null. */
+function applicantNameOf(application) {
+    const part = (key) => (typeof application?.[key] === 'string' ? application[key].trim() : '');
+    const name = ['firstName', 'middleName', 'lastName', 'suffix'].map(part).filter(Boolean).join(' ');
+    return name || null;
+}
+
 module.exports = {
+    applicantNameOf,
     RELEASE_PARAGRAPHS,
     RELEASE_RIGHTS,
     RELEASE_WORDING_SINCE,

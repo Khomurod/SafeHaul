@@ -66,7 +66,7 @@ describe('the request document', () => {
             contentType: 'application/pdf',
         });
         expect(Buffer.compare(attachment.content, Buffer.from(PDF_BYTES))).toBe(0);
-        expect(mockSendDynamicEmail.mock.calls[0][3]).toContain('The attached PDF carries the request');
+        expect(mockSendDynamicEmail.mock.calls[0][3]).toContain("the applicant's release, signed with their application");
 
         const stored = verificationDocs.get('pev-token-123456');
         expect(stored.requestPdfPath).toMatch(/^companies\/co-1\/applications\/app-1\/pev_requests\/PEV_REQUEST_Old_Carrier_.+\.pdf$/);
@@ -86,6 +86,14 @@ describe('the request document', () => {
             }),
             emailed: true,
         }));
+    });
+
+    it.each(['unsigned', 'undated', 'predates-wording'])('claims no signed release in the email when the document is %s', async (release) => {
+        mockBuildRequestPdf.mockImplementation(async () => ({ bytes: PDF_BYTES, release }));
+        await send();
+        const html = mockSendDynamicEmail.mock.calls[0][3];
+        expect(html).toContain('The attached PDF carries the request.');
+        expect(html).not.toContain("applicant's release");
     });
 
     it('does not stop the request when it cannot be stored, and says so', async () => {

@@ -101,6 +101,15 @@ describe('PEV request PDF', () => {
         expect(printed()).toContain('no signed release');
     });
 
+    it('prints under the signature the name the signed application records, not the caller\'s', async () => {
+        await build(
+            { firstName: 'Jane', lastName: 'Testdriver', signature: DRAWN, signatureDate: '2026-09-01T15:00:00Z' },
+            { applicantName: 'Somebody Else' },
+        );
+        expect(printed()).toContain('Jane Testdriver');
+        expect(printed()).not.toContain('Somebody Else');
+    });
+
     it('points a hand-delivered request at the link given with it, not at an email', async () => {
         await build({}, { emailed: false });
         expect(printed()).toContain('provided with this document');
@@ -114,6 +123,10 @@ describe('releaseOf', () => {
         expect(releaseOf({ signature: DRAWN, signatureDate: '2026-05-01T00:00:00Z' }).signedAt).toBe(at);
         expect(releaseOf({ signature: DRAWN, 'signature-date': '05/01/2026' }).signedAt).toBe(Date.parse('05/01/2026'));
         expect(releaseOf({ signature: DRAWN, submittedAt: { toMillis: () => at } }).signedAt).toBe(at);
+    });
+
+    it('does not take the application\'s creation as its signing time', () => {
+        expect(releaseOf({ signature: DRAWN, createdAt: '2026-09-01T15:00:00Z' }).status).toBe('undated');
     });
 
     it('treats the cutoff instant as signed under the wording, and the instant before as not', () => {

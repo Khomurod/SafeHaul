@@ -268,7 +268,7 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
                 token,
                 baseUrl,
                 deadlineDate,
-                hasRequestPdf: Boolean(requestPdf),
+                requestRelease: requestPdf?.release || null,
             });
 
             const subject = `Previous Employment Verification Request – ${applicantName}`;
