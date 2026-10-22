@@ -22,6 +22,8 @@ function exportFunctions(wanted) {
   if (wanted('cancelBulkSession')) exports.cancelBulkSession = require('./bulkActions').cancelBulkSession;
   if (wanted('checkImportPhones')) exports.checkImportPhones = require('./bulkActions').checkImportPhones;
   if (wanted('deleteBulkSessionData')) exports.deleteBulkSessionData = require('./bulkActions').deleteBulkSessionData;
+  if (wanted('checkSmsDeliveries')) exports.checkSmsDeliveries = require('./bulkActions').checkSmsDeliveries;
+  if (wanted('checkCampaignDelivery')) exports.checkCampaignDelivery = require('./bulkActions').checkCampaignDelivery;
 
   // 1. Docs & Email & Public Signing
   if (wanted('sealDocument')) exports.sealDocument = require('./digitalSealing').sealDocument;

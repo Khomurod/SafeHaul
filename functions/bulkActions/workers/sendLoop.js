@@ -66,6 +66,8 @@ async function runSendLoop({
                 let errorMsg = null;
                 let recipientName = "Unknown";
                 let recipientIdentity = "N/A";
+                // RingCentral's id for the text, so the delivery check finds what became of it.
+                let receipt = null;
 
                 // Declare variables in loop scope
                 let leadData = {};
@@ -128,7 +130,11 @@ async function runSendLoop({
                             if (recipientIdentity !== "No Phone") {
                                 const finalMsg = fillPlaceholders(config.message, leadData, plainGuestSmsText);
 
-                                await adapter.sendSMS(recipientIdentity, finalMsg, senderId);
+                                if (typeof adapter.sendSMSWithReceipt === 'function') {
+                                    receipt = await adapter.sendSMSWithReceipt(recipientIdentity, finalMsg, senderId);
+                                } else {
+                                    await adapter.sendSMS(recipientIdentity, finalMsg, senderId);
+                                }
                                 success = true;
                             } else {
                                 errorMsg = "No valid phone number";
@@ -171,6 +177,11 @@ async function runSendLoop({
                     timestamp: admin.firestore.FieldValue.serverTimestamp(),
                     isSuccess: success
                 };
+                if (success && config.method === 'sms') {
+                    // Accepted is not delivered: the check fills in what the carrier did.
+                    logPayload.delivery = { state: 'pending', providerStatus: receipt?.providerStatus || null };
+                    if (receipt?.providerMessageId) logPayload.providerMessageId = receipt.providerMessageId;
+                }
                 try {
                     const applied = await db.runTransaction(async (t) => {
                         const logRef = sessionRef.collection('logs').doc(leadId);

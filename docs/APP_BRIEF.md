@@ -999,20 +999,19 @@ compared in constant time; SHA-1 alone is refused.
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response` and notifies the carrier: the good-faith record |
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
+| `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
 | `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, and runs with or without a chat |
 | `refreshAiModelLists` | hourly at :25, America/Chicago | Daily, and within the hour of a lane failure, re-tests each enabled provider's photo versions on a made-up licence, text ones on a short question; keeps those that pass, adds catalogue models that pass, never empties a lane; tells Telegram what changed or needs fixing |
 | Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is live and opens/closes a GitHub issue |
 
-The blog publishes one article a day, and its scheduler runs hourly on purpose:
-that makes it idempotent, retry-safe, able to recover a day missed in an outage,
-and unable to publish twice in a day (any filled slot closes it). Every run,
-scheduled or operator-triggered, records one row per slot in `blog_runs` naming
-the stage that refused: sourcing, generation, validation, claim check,
-verification, originality, image or publication. An AI transaction's `success`
-means only that a provider replied in shape, not that an article published.
-Super Admin → Blog Posts → **Publication runs** is the read path. **No article
-is ever published to meet the daily count**; refusing is a recorded outcome.
+The blog publishes one article a day; the hourly scheduler is idempotent,
+retry-safe, recovers a missed day, never publishes twice (a filled slot closes
+the day). Every run records a row per slot in `blog_runs` naming the refusing
+stage (sourcing, generation, validation, claim check, verification, originality,
+image, publication), shown in Blog Posts → **Publication runs**; an
+AI `success` means only a reply in shape. **No article is ever published to meet
+the daily count**; refusing is a recorded outcome.
 
 ### Firestore triggers
 
@@ -1034,11 +1033,10 @@ is ever published to meet the daily count**; refusing is a recorded outcome.
   `Contact Attempt 1/2/3` sends the matching template from
   `companies/{id}/settings/automated_sms`. Transition-only, so idempotent; no
   template, no message.
-- **Retention** — TTL overrides in `firestore.indexes.json` delete
-  `blog_runs`, `application_drafts`, `application_draft_audit` and
-  `rate_limits` at `expiresAt`; activity logs carry it for a future policy. An
-  unfinished application expires 30 days after its last save, its uploads by
-  the same rules (`deleteExpiredDraftFiles`).
+- **Retention** — TTL overrides in `firestore.indexes.json` delete `blog_runs`,
+  `application_drafts`, `application_draft_audit` and `rate_limits` at
+  `expiresAt` (activity logs carry one). An unfinished application expires
+  30 days after its last save, its uploads too (`deleteExpiredDraftFiles`).
 
 ### Idempotency
 
@@ -1056,6 +1054,9 @@ keeps the newest N. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
 and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
 closed on a bad number) and every email with a usable one; no reply fills them (§12).
+An SMS logs as sent once RingCentral accepts it; a check (also
+`checkCampaignDelivery`) reads the line's message store (Read Messages) by id,
+else number and time, and fails an undelivered text (reason, totals).
 
 ---
 
@@ -1404,11 +1405,10 @@ means the configuration was rejected and nothing was checked.
 
 **The secret scan covers what the change introduced** — this event's commit
 range plus the resulting source tree — never the whole history. A pull request
-compares against its merge base; everything else (a push to `main`, a manual or
-scheduled run) against the newest ancestor carrying a **fully validated
-release**: a run in which both `secret-scan` and
-`Verify the release is fully validated` succeeded, the second proving the
-scanner passed its own tests. So the increment behind a failed release is
+compares against its merge base; anything else (a push to `main`, a manual or
+scheduled run) against the newest ancestor with a **fully validated release**:
+a run where `secret-scan` and `Verify the release is fully validated` (proving
+the scanner passed its own tests) succeeded. A failed release's increment is
 re-scanned, never stepped over.
 
 - Every base is resolved to its full SHA and must exist, be an ancestor of the
@@ -1492,8 +1492,8 @@ completion** — a PR never deploys, so it cannot exercise the changed path.
 | Public-site visual specification | [`DESIGN.md`](../DESIGN.md) |
 | Manual signing-room device QA | [`docs/qa/edoc-mobile-document-first-qa.md`](./qa/edoc-mobile-document-first-qa.md) |
 
-**`README.md`** is the getting-started guide and documentation map. For what the
-application is and does it defers to this brief; this brief and the code win.
+**`README.md`** is the getting-started guide and documentation map; on what the
+app does, this brief and the code win.
 
 ---
 

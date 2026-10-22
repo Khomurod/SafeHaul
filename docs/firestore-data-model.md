@@ -89,7 +89,7 @@ Used by Cloud Functions with Admin SDK:
 | `templates/{id}` | read: team · write: admin | Hiring offer/form templates |
 | `message_templates/{id}` | read: team · write: admin | Campaign message templates |
 | `bulk_sessions/{id}` | read/write: team | Bulk SMS/email sessions |
-| `bulk_sessions/{id}/logs/{id}` | read: team | Per-message send logs |
+| `bulk_sessions/{id}/logs/{id}` | read: team | Per-message send logs; an SMS keeps RingCentral's `providerMessageId` and its `delivery` state |
 | `campaign_drafts/{id}` | read/write: team | Campaign wizard persistence |
 | `segments/{id}` | read: team · write: admin | Smart segments |
 | `segments/{id}/members/{id}` | read: team · write: admin | Segment membership |
