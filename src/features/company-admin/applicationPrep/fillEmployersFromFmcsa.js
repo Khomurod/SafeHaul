@@ -21,6 +21,12 @@ const CONTACT_FIELDS = Object.freeze(['address', 'city', 'state', 'phone', 'comp
 
 const isBlank = (value) => value === null || value === undefined || String(value).trim() === '';
 
+/** A USDOT number as the census writes it: digits, no leading zeros; '' when not one. */
+const canonicalDot = (value) => {
+    const digits = String(value ?? '').trim().replace(/^0+(?=\d)/, '');
+    return /^\d{1,9}$/.test(digits) ? digits : '';
+};
+
 /** The words of a carrier name that tell carriers apart. */
 function nameWords(name) {
     return String(name ?? '').toUpperCase()
@@ -42,9 +48,9 @@ function namesAgree(a, b) {
 /** The USDOT numbers of rows with a contact field still blank. */
 export function dotsToLookUp(employers) {
     return [...new Set((Array.isArray(employers) ? employers : [])
-        .filter((row) => /^\d+$/.test(String(row?.dotNumber ?? '').trim()))
+        .filter((row) => canonicalDot(row?.dotNumber))
         .filter((row) => CONTACT_FIELDS.some((field) => isBlank(row[field])))
-        .map((row) => String(row.dotNumber).trim()))];
+        .map((row) => canonicalDot(row.dotNumber)))];
 }
 
 /**
@@ -55,13 +61,13 @@ export function dotsToLookUp(employers) {
 export function fillEmployersFromFmcsa(employers, censusRows) {
     const byDot = new Map();
     for (const row of Array.isArray(censusRows) ? censusRows : []) {
-        const dot = String(row?.dot_number ?? '').trim();
+        const dot = canonicalDot(row?.dot_number);
         if (dot && !byDot.has(dot)) byDot.set(dot, row);
     }
     let filled = 0;
     const mismatches = [];
     const next = (Array.isArray(employers) ? employers : []).map((employer) => {
-        const dot = String(employer?.dotNumber ?? '').trim();
+        const dot = canonicalDot(employer?.dotNumber);
         const census = dot && byDot.get(dot);
         if (!census) return employer;
         const fields = mapFmcsaRowToEmployerFields(census, NORTH_AMERICAN_REGION_NAMES);

@@ -418,25 +418,26 @@ describe('contact details from FMCSA for the carriers the report named', () => {
     };
 
     /** The hook's `fillEmployerContacts`, on the same answers `applyExtraction` wrote. */
-    function renderWithLookup() {
-        const { box, applyExtraction } = makeApplyExtraction();
+    function renderWithLookup(initialFormData) {
+        const { box, applyExtraction } = makeApplyExtraction(initialFormData);
         const onFillEmployerContacts = vi.fn((rows) => {
             const result = fillEmployersFromFmcsa(box.formData.employers, rows);
             box.formData = { ...box.formData, employers: result.employers };
             return result;
         });
-        render(
+        const panel = (applicantKey) => (
             <ApplicationAiPrepPanel
                 companyId="co-1"
                 files={{ 'psp-report-upload': UPLOADED }}
                 blobs={{ 'psp-report-upload': FILE }}
-                applicantKey="key-1"
+                applicantKey={applicantKey}
                 onApplyExtraction={applyExtraction}
                 onFillEmployerContacts={onFillEmployerContacts}
                 onBusyChange={vi.fn()}
-            />,
+            />
         );
-        return { box, onFillEmployerContacts };
+        const { rerender } = render(panel('key-1'));
+        return { box, onFillEmployerContacts, openApplicant: (key) => rerender(panel(key)) };
     }
 
     it('asks FMCSA for the USDOT numbers and fills the address and phone', async () => {
@@ -447,7 +448,7 @@ describe('contact details from FMCSA for the carriers the report named', () => {
         fireEvent.click(screen.getByTestId('read-documents'));
 
         expect(await screen.findByTestId('fmcsa-filled')).toHaveTextContent('Filled the address and phone of 1 employer from FMCSA');
-        expect(mocks.byDot).toHaveBeenCalledWith(['123456'], { appToken: 'tok' });
+        expect(mocks.byDot).toHaveBeenCalledWith(['123456'], expect.objectContaining({ appToken: 'tok' }));
         expect(box.formData.employers[0]).toMatchObject({
             companyName: 'Acme Trucking', dotNumber: '123456', address: '100 MAIN ST', city: 'DALLAS', state: 'Texas', phone: '(214) 555-0100',
         });
@@ -477,6 +478,37 @@ describe('contact details from FMCSA for the carriers the report named', () => {
         expect(screen.queryByTestId('fmcsa-filled')).toBeNull();
         expect(onFillEmployerContacts).not.toHaveBeenCalled();
         warn.mockRestore();
+    });
+
+    it('asks in batches when there are more numbers than one request takes', async () => {
+        mocks.token.mockReturnValue('tok');
+        mocks.byDot.mockResolvedValue([]);
+        const typed = Array.from({ length: 30 }, (_, i) => ({ companyName: `Carrier ${i}`, dotNumber: String(900000 + i) }));
+        renderWithLookup({ employers: typed });
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+
+        await screen.findByTestId('read-summary');
+        expect(mocks.byDot).toHaveBeenCalledTimes(2);
+        expect(mocks.byDot.mock.calls[0][0]).toHaveLength(25);
+        expect(mocks.byDot.mock.calls[1][0]).toHaveLength(6);
+        expect(mocks.byDot.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it('drops the read when the recruiter opens another applicant during the lookup', async () => {
+        mocks.token.mockReturnValue('tok');
+        let answer;
+        mocks.byDot.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+        const { onFillEmployerContacts, openApplicant } = renderWithLookup();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+        await waitFor(() => expect(mocks.byDot).toHaveBeenCalled());
+        openApplicant('key-2');
+        answer([CENSUS]);
+
+        await waitFor(() => expect(screen.getByTestId('read-documents')).toBeEnabled());
+        expect(screen.queryByTestId('read-summary')).toBeNull();
+        expect(onFillEmployerContacts).not.toHaveBeenCalled();
     });
 
     it('asks nothing without a census token', async () => {

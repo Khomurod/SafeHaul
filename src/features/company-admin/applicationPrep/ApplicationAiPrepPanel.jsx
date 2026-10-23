@@ -9,8 +9,11 @@ import { describeError } from './useApplicationPrepDraft';
 import { attachedDocuments } from './attachedDocuments';
 import { mergeExtractionResults } from './mergeExtractionResults';
 import { dotsToLookUp } from './fillEmployersFromFmcsa';
-import { fetchFmcsaCarriersByDot } from '@shared/services/fmcsaEmployerSocrata';
+import { MAX_DOTS_PER_LOOKUP, fetchFmcsaCarriersByDot } from '@shared/services/fmcsaEmployerSocrata';
 import { fmcsaLookupToken } from '@shared/services/fmcsaLookupToken';
+
+/** How long the census lookup may take before the read finishes without it. */
+const FMCSA_TIMEOUT_MS = 10000;
 
 // The reader (pdf.js, the page rasterizer, OCR) loads when a read starts: most
 // visits to the page read nothing.
@@ -149,23 +152,38 @@ export function ApplicationAiPrepPanel({
     const onScreen = useRef({ applicantKey, documentSet });
     onScreen.current = { applicantKey, documentSet };
 
+    /** True while the panel still shows what `askedFor` was asked about. */
+    const stillAsked = (askedFor) => mounted.current
+        && askedFor.applicantKey === onScreen.current.applicantKey
+        && askedFor.documentSet === onScreen.current.documentSet;
+
     /**
      * Address, phone and email for the employers with a USDOT number, from
-     * FMCSA's census; see `fillEmployersFromFmcsa`. Best effort: no token or a
-     * failed lookup leaves the fields for the driver, as before.
+     * FMCSA's census; see `fillEmployersFromFmcsa`. Best effort: no token, a
+     * failed lookup or one slower than FMCSA_TIMEOUT_MS leaves the fields for
+     * the driver, as before.
      */
     const contactsFromFmcsa = useCallback(async (applied, askedFor) => {
         const dots = dotsToLookUp(applied?.formData?.employers);
         const appToken = fmcsaLookupToken();
         if (dots.length === 0 || !appToken || !onFillEmployerContacts) return null;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), FMCSA_TIMEOUT_MS);
         try {
-            const rows = await fetchFmcsaCarriersByDot(dots, { appToken });
-            const now = onScreen.current;
-            if (!mounted.current || askedFor.applicantKey !== now.applicantKey || askedFor.documentSet !== now.documentSet) return null;
+            const rows = [];
+            for (let start = 0; start < dots.length; start += MAX_DOTS_PER_LOOKUP) {
+                rows.push(...await fetchFmcsaCarriersByDot(
+                    dots.slice(start, start + MAX_DOTS_PER_LOOKUP),
+                    { appToken, signal: controller.signal },
+                ));
+            }
+            if (!stillAsked(askedFor)) return null;
             return onFillEmployerContacts(rows);
         } catch (lookupError) {
-            console.warn('[ApplicationAiPrepPanel] FMCSA lookup failed:', lookupError?.status || lookupError?.message);
+            console.warn('[ApplicationAiPrepPanel] FMCSA lookup failed:', lookupError?.status || lookupError?.message || lookupError?.name);
             return null;
+        } finally {
+            clearTimeout(timer);
         }
     }, [onFillEmployerContacts]);
 
@@ -237,8 +255,14 @@ export function ApplicationAiPrepPanel({
             }
 
             const applied = onApplyExtraction(extracted);
+            const contacts = await contactsFromFmcsa(applied, askedFor);
+            // The lookup awaited the network: the recruiter may have moved on.
+            if (!stillAsked(askedFor)) {
+                if (mounted.current) setState('idle');
+                return;
+            }
             setMethods(readMethods);
-            setFromFmcsa(await contactsFromFmcsa(applied, askedFor));
+            setFromFmcsa(contacts);
             setReadInPart(Array.isArray(first.truncated) ? first.truncated : []);
             setSummary(applied);
             setState('done');

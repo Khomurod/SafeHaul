@@ -158,6 +158,8 @@ export function useApplicationPrepDraft(companyId) {
     const applyExtraction = useCallback((extracted, options = {}) => {
         const applied = applyExtractedFields(latestFormData.current, extracted, options);
         setDirty(true);
+        // Now, not at the next render: the FMCSA fill that follows reads it.
+        latestFormData.current = applied.formData;
         setFormData(applied.formData);
         if (applied.lockedCarriers.length > 0) {
             setLockedEmployers((previous) => normalizeLockedEmployers([
@@ -180,7 +182,8 @@ export function useApplicationPrepDraft(companyId) {
         const result = fillEmployersFromFmcsa(current.employers, censusRows);
         if (result.filled > 0) {
             setDirty(true);
-            setFormData({ ...current, employers: result.employers });
+            latestFormData.current = { ...current, employers: result.employers };
+            setFormData(latestFormData.current);
         }
         return result;
     }, []);

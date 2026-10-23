@@ -85,3 +85,13 @@ describe('fillEmployersFromFmcsa', () => {
         expect(result.employers[0]).toBe(PSP_ROW);
     });
 });
+
+describe('USDOT numbers written with leading zeros', () => {
+    it('match the census number, which has none', () => {
+        const padded = { ...PSP_ROW, dotNumber: '0001234567' };
+        expect(dotsToLookUp([padded])).toEqual(['1234567']);
+        const { employers, filled } = fillEmployersFromFmcsa([padded], [CENSUS]);
+        expect(filled).toBe(1);
+        expect(employers[0]).toMatchObject({ dotNumber: '0001234567', address: '100 MAIN ST' });
+    });
+});

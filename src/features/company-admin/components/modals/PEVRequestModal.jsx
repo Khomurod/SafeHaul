@@ -241,7 +241,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, companyId, de
 
             <div className="min-h-0 flex-1 space-y-ds-6 overflow-y-auto p-ds-6">
                 {/* FMCSA suggestions */}
-                {socrataToken && companyLabel.length >= 2 && (
+                {socrataToken && (companyLabel.length >= 2 || /^\d{1,9}$/.test(String(employer?.dotNumber ?? '').trim())) && (
                     <FmcsaCarrierPicker
                         fmcsaStateCode={fmcsaStateCode}
                         fmcsaLoading={fmcsaLoading}
