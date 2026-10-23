@@ -20,6 +20,7 @@ describe('evaluateApplicationRules (shared vectors)', () => {
             applicationConfig: vector.applicationConfig,
             formData: resolveFixtures(vector.formData),
             today: vector.today || vectors.today,
+            strict: vector.strict,
         });
         expect(result.blocking.map((issue) => issue.code)).toEqual(vector.blocking);
         expect(result.warnings.map((issue) => issue.code)).toEqual(vector.warnings);

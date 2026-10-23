@@ -2,10 +2,12 @@
 // before it spends a submission attempt, and where it sends the applicant when
 // something is missing.
 //
-// The server refuses every one of these independently
+// The server refuses most of these independently
 // (`assertRequiredUnpersistedFields`, `assertRequiredUploads`,
 // `assertApplicationRules`); this half exists to tell the applicant which
-// answer and take them to it, not to be the enforcement.
+// answer and take them to it. Two are, for now, the browser's alone: the
+// explanation a Yes disclosure needs (the rules' `strict` mode) and a required
+// custom question, which the older Production page does not ask for yet.
 //
 // THE EARLIEST PAGE WINS. Every check runs, and the applicant is sent to the
 // earliest page with something missing, with that page's sentence: a resumed
@@ -21,6 +23,7 @@ import { resolveApplicationGate } from '@/config/applicationGates';
 import { employerRowMissingAnswers } from '@shared/utils/employmentApplicationHelpers';
 import { hasUploadedFile } from './publicApplyHelpers';
 import { getMissingRequiredUnpersistedFields } from './requiredUnpersistedFields';
+import { firstUnansweredRequiredQuestion, requiredQuestionMessage } from './requiredCustomQuestions';
 
 /**
  * @returns {{ ok: boolean, formData: object }} `formData` is the normalised
@@ -78,8 +81,17 @@ export function runSubmissionPreflight({
     rules: company?.applicationRules,
     applicationConfig: company?.applicationConfig,
     formData: normalized,
+    strict: true,
   });
   verdict.blocking.forEach((issue) => refuse(issue.semanticStep, issue.message));
+
+  /**
+   * The company's required questions. The page asks before it moves on, but a
+   * resumed draft never reached it, and a question made required since was
+   * never asked as one.
+   */
+  const unanswered = firstUnansweredRequiredQuestion(customQuestions, normalized);
+  if (unanswered) refuse('custom_questions', requiredQuestionMessage(unanswered));
 
   /**
    * Employers the carrier locked, when this application is one a carrier prepared.

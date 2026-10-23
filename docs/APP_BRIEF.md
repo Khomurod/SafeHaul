@@ -1315,9 +1315,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   identity is a record to the driver (§5); no lock is unsatisfiable, yet nothing
   lets them say "that carrier is not mine" — its own feature, with policy
   questions.
-- **Required custom questions are enforced only on their own page**; neither the
-  final pre-flight nor `submitGuestApplication` checks them, so an application
-  resumed past that page can be submitted without the answer.
+- **Until the next release the browser is stricter than the server**: the wizard
+  refuses a Yes disclosure unexplained and an unanswered required custom
+  question; `submitGuestApplication` does not yet (old page).
 - **A submitted upload's storage path is taken on trust.** Submission only
   checks that an upload exists and marks it (`guestUploads.js`), and
   `deleteApplication` deletes every top-level `{ storagePath }` with the Admin

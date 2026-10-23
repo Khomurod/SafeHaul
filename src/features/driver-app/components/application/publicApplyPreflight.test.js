@@ -155,6 +155,41 @@ describe('runSubmissionPreflight', () => {
         expect(setCurrentStep).toHaveBeenCalledWith('violations');
     });
 
+    it('refuses a Yes whose explanation is empty or only spaces, on the page that asks', () => {
+        const { result, setCurrentStep, showError } = run({
+            formData: completeForm({ 'revoked-licenses': 'yes', revocationExplanation: '   ' }),
+        });
+        expect(result.ok).toBe(false);
+        expect(setCurrentStep).toHaveBeenCalledWith('violations');
+        expect(showError).toHaveBeenCalledWith('Please explain the license denial, suspension or revocation you reported.');
+    });
+
+    describe('the company\'s required questions', () => {
+        const questions = [
+            { id: 'q-cdl-years', type: 'shortAnswer', label: 'Years with a CDL?', required: true },
+            { id: 'q-endorse', type: 'checkboxes', label: 'Endorsements you hold', required: true },
+            { id: 'q-notes', type: 'paragraph', label: 'Anything else?', required: false },
+        ];
+
+        it('sends a draft that never answered one to the questions page, naming it', () => {
+            const { result, setCurrentStep, showError } = run({
+                formData: completeForm({ customAnswers: { 'q-cdl-years': '  ', 'q-endorse': ['H'] } }),
+                customQuestions: questions,
+            });
+            expect(result.ok).toBe(false);
+            expect(setCurrentStep).toHaveBeenCalledWith('custom_questions+custom');
+            expect(showError).toHaveBeenCalledWith('Please answer required question: Years with a CDL?');
+        });
+
+        it('passes every required question answered, the optional one left blank', () => {
+            const { result } = run({
+                formData: completeForm({ customAnswers: { 'q-cdl-years': '6', 'q-endorse': ['H', 'N'] } }),
+                customQuestions: questions,
+            });
+            expect(result.ok).toBe(true);
+        });
+    });
+
     it('accounts for the custom-questions page when routing', () => {
         const { setCurrentStep } = run({
             formData: completeForm({ cdlExpiration: LAST_YEAR }),

@@ -14,9 +14,9 @@
  * Unchanged: the `questionKey(field, index)` resolution order
  * (`field.id || field.key || custom-question-<i>`), the
  * `formData.customAnswers[key]` read with the flat `formData[key]` fallback, the
- * `customAnswers` object write, the checkbox array toggle, the per-type
- * `isEmptyAnswer` rule, the required-question gate and its exact
- * "Please answer required question: …" toast, the `linearScale` numeric coercion,
+ * `customAnswers` object write, the checkbox array toggle, the required-question
+ * gate and its exact "Please answer required question: …" toast (all in
+ * `requiredCustomQuestions.js`, which the pre-flight shares; spaces are no answer), the `linearScale` numeric coercion,
  * the `handleFileUpload(key, file)` call, and the `dotRequired` DOT marker.
  *
  * A time question is three lists (`TimeSelectField`, the same `HH:MM`), never the
@@ -48,6 +48,12 @@ import { StepNavigation } from './components/StepNavigation';
 import TimeSelectField from './components/TimeSelectField';
 import { CustomFileQuestion } from './components/CustomFileQuestion';
 import {
+    customAnswerOf,
+    customQuestionKey,
+    firstUnansweredRequiredQuestion,
+    requiredQuestionMessage,
+} from '../requiredCustomQuestions';
+import {
     Badge,
     Card,
     Checkbox,
@@ -78,36 +84,14 @@ export function DynamicQuestionsStep({
     const anyUploading = Object.keys(uploading).length > 0;
     const ty = new Date().getFullYear();
 
-    const questionKey = (field, index) =>
-        field.id || field.key || `custom-question-${index}`;
-
-    const getAnswer = (field, index) => {
-        const key = questionKey(field, index);
-        if (formData.customAnswers && formData.customAnswers[key] !== undefined) {
-            return formData.customAnswers[key];
-        }
-        return formData[key];
-    };
-
-    const isEmptyAnswer = (field, value) => {
-        if (field.type === 'checkboxes') {
-            return !Array.isArray(value) || value.length === 0;
-        }
-        if (field.type === 'fileUpload') {
-            return !value || (typeof value === 'string' && !value.trim());
-        }
-        return value === undefined || value === null || value === '';
-    };
+    const questionKey = customQuestionKey;
+    const getAnswer = (field, index) => customAnswerOf(formData, field, index);
 
     const handleContinue = () => {
-        for (let i = 0; i < questions.length; i++) {
-            const field = questions[i];
-            if (!field.required) continue;
-            const value = getAnswer(field, i);
-            if (isEmptyAnswer(field, value)) {
-                showError(`Please answer required question: ${field.label || 'Additional question'}`);
-                return;
-            }
+        const unanswered = firstUnansweredRequiredQuestion(questions, formData);
+        if (unanswered) {
+            showError(requiredQuestionMessage(unanswered));
+            return;
         }
         // Then the page's own checks, as every step runs them: a time half chosen
         // for an optional question would otherwise go on as no answer.

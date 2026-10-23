@@ -99,7 +99,7 @@ const Step2_Qualifications = ({ formData, updateFormData, onNavigate, onPartialS
                 />
                 {preEmploymentPositive && (
                     <div id="pre-employment-test-details" className="border-t border-ds-border-subtle pt-ds-4">
-                        <FormField id="pre-employment-test-explanation" label="Please explain:">
+                        <FormField id="pre-employment-test-explanation" label="Please explain:" required>
                             <Textarea
                                 name="pre-employment-test-explanation"
                                 rows="3"
