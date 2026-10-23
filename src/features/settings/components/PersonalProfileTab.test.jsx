@@ -223,6 +223,13 @@ describe('PersonalProfileTab compatibility slice', () => {
         expect(firestoreMocks.updateDoc).not.toHaveBeenCalled();
     });
 
+    it('shows the link area, not a spinner, when no one is signed in', async () => {
+        render(<PersonalProfileTab currentUser={null} currentCompanyProfile={currentCompanyProfile} />);
+
+        await waitFor(() => expect(screen.queryByText('Generating unique code...')).toBeNull());
+        expect(firestoreMocks.getDoc).not.toHaveBeenCalled();
+    });
+
     it('says so when the link could not be copied', async () => {
         navigator.clipboard.writeText.mockRejectedValueOnce(new Error('denied'));
 

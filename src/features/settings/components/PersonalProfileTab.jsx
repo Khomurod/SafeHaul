@@ -35,7 +35,10 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
         setRecruitingCode(null);
         setLinkLoading(true);
         const fetchUserAndCode = async () => {
-            if (!currentUser?.uid) return;
+            if (!currentUser?.uid) {
+                setLinkLoading(false);
+                return;
+            }
             try {
                 const userDoc = await getDoc(doc(db, "users", currentUser.uid));
                 if (!current || !userDoc.exists()) return;

@@ -144,6 +144,13 @@ it('names a member without a profile name by their email, and assigns nobody it 
     ]);
 
     mockWrites.length = 0;
+    mockState.users = { nameless: { name: '   ', displayName: ' ', email: ' riley@example.com ' } };
+    await submit({ signature: SIGNATURE, recruiterCode: 'link-3' });
+    expect(applicationWrites()).toEqual([
+        { kind: 'update', path: APP_PATH, data: { assignedTo: 'nameless', assignedToName: 'riley@example.com' } },
+    ]);
+
+    mockWrites.length = 0;
     mockState.users = {};
     await submit({ signature: SIGNATURE, recruiterCode: 'link-3' });
     expect(applicationWrites()).toEqual([]);

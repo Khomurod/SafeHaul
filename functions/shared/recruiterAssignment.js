@@ -41,7 +41,9 @@ async function resolveRecruiterAssignment(db, companyId, code) {
     const user = userSnap.exists ? userSnap.data() || {} : {};
     // The lists show an assignee only with a name, so a member without one is
     // named by their email, as the team pickers do.
-    const name = String(user.name || user.displayName || user.email || '').trim();
+    const name = [user.name, user.displayName, user.email]
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .find(Boolean) || '';
     if (!name) return null;
     return { assignedTo: userId, assignedToName: name };
 }
