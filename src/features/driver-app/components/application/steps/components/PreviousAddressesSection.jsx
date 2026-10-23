@@ -34,8 +34,8 @@ export function PreviousAddressesSection({ formData, updateFormData, ty, require
         <div className="space-y-ds-3">
             {requiredHint && (
                 <FieldMessage tone="help" data-testid="previous-address-hint">
-                    You have lived at your current address for less than 3 years, so this carrier needs at least one
-                    previous address below.
+                    You have lived at your current address for less than 3 years, so this carrier needs your previous
+                    addresses below, going back 3 years.
                 </FieldMessage>
             )}
             <DynamicRow

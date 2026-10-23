@@ -18,7 +18,7 @@ describe('ApplicationRulesPanel', () => {
 
     it('shows every rule on its platform default when the company has configured nothing', () => {
         render(<ApplicationRulesPanel rules={undefined} onChange={vi.fn()} />);
-        expect(screen.getByRole('switch', { name: /Require previous addresses/ })).toHaveAttribute('aria-checked', 'false');
+        expect(screen.getByRole('switch', { name: /Require previous addresses/ })).toHaveAttribute('aria-checked', 'true');
         // Both expiry rules and the employment rule use the enforcement scale; the
         // two expiry rules default to Allow, employment to Warn.
         expect(screen.getAllByRole('radio', { name: /Allow — accept the application as entered/, checked: true })).toHaveLength(2);
@@ -33,7 +33,7 @@ describe('ApplicationRulesPanel', () => {
         const onChange = vi.fn();
         render(<ApplicationRulesPanel rules={{}} onChange={onChange} />);
         fireEvent.click(screen.getByRole('switch', { name: /Require previous addresses/ }));
-        expect(onChange).toHaveBeenCalledWith({ ...defaultApplicationRules(), requirePreviousAddressUnderThreeYears: true });
+        expect(onChange).toHaveBeenCalledWith({ ...defaultApplicationRules(), requirePreviousAddressUnderThreeYears: false });
     });
 
     it('hides an experience option by unticking it, and a hidden one comes back when ticked', () => {

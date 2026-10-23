@@ -248,6 +248,9 @@ export const SIGNED_DRAFT = {
   // case is covered explicitly below.
   ssn: '123-45-6789',
   'pre-employment-test-positive': 'no',
+  // The carrier's default rules need these answers before a submission.
+  'has-violations': 'no',
+  'has-accidents': 'no',
   'cdl-front': UPLOADED,
   'cdl-back': UPLOADED,
   'medical-card-upload': UPLOADED,

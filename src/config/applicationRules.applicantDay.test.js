@@ -8,7 +8,11 @@ import { employmentCoverageOptions, evaluateApplicationRules } from './applicati
 
 const RULES = { employmentHistoryEnforcement: 'block', employmentHistoryMinimumYears: 1 };
 // Twelve months that end in October, and nothing after.
-const HISTORY = { employers: [{ companyName: 'Acme', startDate: '2025-11', endDate: '2026-10' }] };
+const HISTORY = {
+    employers: [{ companyName: 'Acme', startDate: '2025-11', endDate: '2026-10' }],
+    'has-violations': 'no',
+    'has-accidents': 'no',
+};
 
 let zone;
 

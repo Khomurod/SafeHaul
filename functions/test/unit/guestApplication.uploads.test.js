@@ -85,6 +85,8 @@ const submit = (fields = {}) => submitGuestApplication({
   signature: 'data:image/png;base64,AAA',
   formData: {
     ssn: '123-45-6789',
+    'has-violations': 'no',
+    'has-accidents': 'no',
     'cdl-front': { name: 'front.jpg', storagePath: FRONT },
     'cdl-back': { name: 'back.jpg', storagePath: BACK },
     'medical-card-upload': { name: 'medical.jpg', storagePath: MEDICAL },

@@ -64,15 +64,19 @@ describe('dates (shared vectors)', () => {
 });
 
 describe('resolveApplicationRules', () => {
-    it('reproduces the pre-rules behaviour when nothing is configured', () => {
+    it('asks for the record details and explanations by default, and nothing beyond the pre-rules behaviour', () => {
         expect(rules.resolveApplicationRules(undefined)).toEqual(rules.defaultApplicationRules());
         expect(rules.defaultApplicationRules()).toMatchObject({
+            requirePreviousAddressUnderThreeYears: true,
+            requirePreviousLicenseDetails: true,
+            requireViolationDetails: true,
+            requireAccidentDetails: true,
+            requireFelonyExplanation: true,
             expiredCdl: 'allow',
             expiredMedicalCard: 'allow',
             mvrAuthorization: 'optional',
             employmentHistoryEnforcement: 'warn',
             employmentHistoryMinimumYears: 3,
-            requireFelonyExplanation: false,
             hoursOfServiceStatement: 'off',
         });
     });
