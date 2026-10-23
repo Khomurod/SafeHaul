@@ -49,8 +49,10 @@ const leads = () => docsUnder(`companies/${CO}/leads`);
 const notifications = () => docsUnder(`companies/${CO}/notifications`);
 
 beforeEach(() => {
+    // This file queues a *Once value, so every mock is reset and its default put back.
+    jest.resetAllMocks();
     mock.reset(SEED);
-    mockRateLimit.mockClear();
+    mockRateLimit.mockImplementation(async () => true);
 });
 
 describe('submitReferralInterest', () => {

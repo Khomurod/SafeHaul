@@ -190,22 +190,29 @@ exports.onApplicationSubmitted = onDocumentCreated({
     // Continue processing anyway - the status check is defensive, not blocking
   }
 
-  // The recruiter link's member, when the link belongs to this company's team
-  // (shared/recruiterAssignment.js); else a driver referral link's creator, with
-  // the referral itself (referrals/referralLinks.js). One write either way.
-  if ((data.recruiterCode || data.referralCode) && !data.assignedTo) {
+  // The referral is the server's alone: it comes from the driver referral link
+  // the code names (referrals/referralLinks.js), and a `referral` the
+  // applicant wrote themselves is removed. An unassigned application goes to
+  // the recruiter link's member, when the link belongs to this company's team
+  // (shared/recruiterAssignment.js), else to the referral link's creator.
+  // One write either way.
+  if (data.recruiterCode || data.referralCode || data.referral !== undefined) {
     try {
-      const assignment = data.recruiterCode
+      const unassigned = !data.assignedTo;
+      const assignment = unassigned && data.recruiterCode
         ? await resolveRecruiterAssignment(db, companyId, data.recruiterCode)
         : null;
       const link = data.referralCode ? await resolveReferralLink(db, companyId, data.referralCode) : null;
-      const update = {
-        ...(link && { referral: link.referral }),
-        ...(assignment || (link?.assignedTo ? { assignedTo: link.assignedTo, assignedToName: link.assignedToName } : {})),
-      };
+      const update = {};
+      if (link) update.referral = link.referral;
+      else if (data.referral !== undefined) update.referral = admin.firestore.FieldValue.delete();
+      if (unassigned) {
+        Object.assign(update, assignment
+          || (link?.assignedTo ? { assignedTo: link.assignedTo, assignedToName: link.assignedToName } : {}));
+      }
       if (Object.keys(update).length > 0) {
         await appRef.update(update);
-        console.log(`[onApplicationSubmitted] Attributed app ${appId}: ${update.assignedTo || 'unassigned'}${link ? `, referral ${link.referral.code}` : ''}`);
+        console.log(`[onApplicationSubmitted] Attributed app ${appId}: ${update.assignedTo || data.assignedTo || 'unassigned'}${link ? `, referral ${link.referral.code}` : ''}`);
       } else {
         console.warn(`[onApplicationSubmitted] The link codes on ${appId} name nothing in ${companyId}; left unassigned.`);
       }

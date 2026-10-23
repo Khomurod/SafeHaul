@@ -212,6 +212,34 @@ describe('a driver referral link', () => {
         expect(applicationWrites()).toEqual([]);
     });
 
+    it('records the referral on an application that already has its recruiter, leaving the recruiter', async () => {
+        mockState.referralLinks = { ABCD2345: LINK };
+        mockState.members = [{ userId: 'rec-1', companyId: 'co1', role: 'recruiter' }];
+        mockState.users = { 'rec-1': { name: 'Riley Recruiter' } };
+
+        await submit({ signature: SIGNATURE, referralCode: 'ABCD2345', assignedTo: 'rec-9', assignedToName: 'Sam' });
+
+        expect(applicationWrites()).toEqual([
+            { kind: 'update', path: APP_PATH, data: { referral: { code: 'ABCD2345', referrerName: 'Rita Referrer' } } },
+        ]);
+    });
+
+    it('keeps only the referral the server finds, never one the applicant wrote', async () => {
+        mockState.referralLinks = { ABCD2345: LINK };
+        const forged = { code: 'FAKE2345', referrerName: 'Nobody' };
+
+        await submit({ signature: SIGNATURE, referral: forged });
+        expect(applicationWrites()).toEqual([
+            { kind: 'update', path: APP_PATH, data: { referral: 'DELETE_FIELD' } },
+        ]);
+
+        mockWrites.length = 0;
+        await submit({ signature: SIGNATURE, referral: forged, referralCode: 'ABCD2345' });
+        expect(applicationWrites()).toEqual([
+            { kind: 'update', path: APP_PATH, data: { referral: { code: 'ABCD2345', referrerName: 'Rita Referrer' } } },
+        ]);
+    });
+
     it("lets a recruiter link's member take the application, keeping the referral", async () => {
         mockState.referralLinks = { ABCD2345: LINK };
         mockState.recruiterLinks = { 'link-1': { userId: 'rec-2', companyId: 'co1' } };
