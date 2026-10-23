@@ -116,8 +116,9 @@ export function useDraftLifecycle({
    * that application: a discard (here or in another tab) or a Start Over changes
    * the discard mark, and the wizard they reset is a new application whose page
    * one must not jump to the old Review. A later page the edit left incomplete is
-   * still caught: the submission pre-flight and the server check the whole
-   * application and route the applicant to what is missing.
+   * still caught: the submission pre-flight checks the whole application (the
+   * rules, required questions, uploads and re-entered fields) and routes the
+   * applicant to what is missing.
    */
   const reviewReturnRef = useRef(null);
 

@@ -363,10 +363,35 @@ function expiryIssue(level, fieldId, label, data, today) {
  * @param {Date|string} [opts.today]        Reference day; inject for determinism.
  * @returns {{rules: object, issues: Array, blocking: Array, warnings: Array}}
  */
-function evaluateApplicationRules({ rules: rawRules, applicationConfig, formData, today } = {}) {
+/**
+ * Disclosures whose Yes must be explained, with the page that asks. Checked
+ * only with `strict`: the browser passes it, so the wizard and its pre-flight
+ * refuse an empty (or spaces-only) explanation, while the server does not yet
+ * refuse what an older page in use still lets through.
+ */
+const REQUIRED_EXPLANATIONS = Object.freeze([
+    ['pre-employment-test-positive', 'pre-employment-test-explanation', 'qualifications',
+        'Please explain the positive pre-employment test or refusal you reported.'],
+    ['revoked-licenses', 'revocationExplanation', 'violations',
+        'Please explain the license denial, suspension or revocation you reported.'],
+    ['driving-convictions', 'convictionExplanation', 'violations',
+        'Please explain the conviction or pending charge for driving without a valid license that you reported.'],
+    ['drug-alcohol-convictions', 'drugConvictionExplanation', 'violations',
+        'Please explain the alcohol or controlled substance offense you reported.'],
+]);
+
+function evaluateApplicationRules({ rules: rawRules, applicationConfig, formData, today, strict = false } = {}) {
     const rules = resolveApplicationRules(rawRules);
     const data = normalizeApplicationAnswers(formData);
     const issues = invalidDateIssues(data);
+
+    if (strict) {
+        for (const [flag, field, semanticStep, message] of REQUIRED_EXPLANATIONS) {
+            if (yesNo(data[flag]) === 'yes' && isBlank(data[field])) {
+                issues.push(issue('explanation-required', 'block', semanticStep, field, message));
+            }
+        }
+    }
 
     const addressGate = resolveGate(applicationConfig, 'addressHistory');
     if (rules.requirePreviousAddressUnderThreeYears && !addressGate.hidden

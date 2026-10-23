@@ -38,7 +38,8 @@ export function useStepIssues(semanticStep, formData) {
     const applicationConfig = currentCompanyProfile?.applicationConfig;
 
     return useMemo(() => {
-        const result = evaluateApplicationRules({ rules: rawRules, applicationConfig, formData });
+        // `strict`: the wizard refuses what the server does not refuse yet (see the engine).
+        const result = evaluateApplicationRules({ rules: rawRules, applicationConfig, formData, strict: true });
         const all = issuesForStep(result, semanticStep);
         return {
             rules: result.rules,

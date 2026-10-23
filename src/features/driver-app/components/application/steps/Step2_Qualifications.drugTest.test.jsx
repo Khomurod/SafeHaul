@@ -56,7 +56,7 @@ describe('Step 2 — the 40.25(j) question', () => {
 
     it('asks for an explanation of a Yes under its own key', () => {
         renderStep({ 'pre-employment-test-positive': 'yes' });
-        const explanation = screen.getByLabelText('Please explain:');
+        const explanation = screen.getByLabelText(/^Please explain:/);
         expect(explanation).toHaveAttribute('name', 'pre-employment-test-explanation');
     });
 });

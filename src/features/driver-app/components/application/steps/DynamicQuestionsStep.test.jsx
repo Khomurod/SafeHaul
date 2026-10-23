@@ -429,6 +429,21 @@ describe('DynamicQuestionsStep required gate', () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['short answer', 'shortAnswer'],
+    ['paragraph', 'paragraph'],
+    ['number', 'number'],
+  ])('treats a %s of only spaces as unanswered', (_name, type) => {
+    const { onNavigate } = renderStep(
+      [{ id: 'q4', label: 'Years driving', type, required: true }],
+      { formData: { customAnswers: { q4: '   ' } } },
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(showError).toHaveBeenCalledWith('Please answer required question: Years driving');
+  });
+
   it('advances once every required question is answered', () => {
     const { onNavigate } = renderStep(
       [
