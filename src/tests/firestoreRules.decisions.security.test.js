@@ -126,6 +126,7 @@ const companyPath = `companies/${CO}`;
 const applicationPath = `${companyPath}/applications/app-1`;
 const leadPath = `${companyPath}/leads/lead-1`;
 const referralPath = `${companyPath}/referral_links`;
+const REFERRAL_CODE = 'ABCD2345';
 
 /** A driver referral link made by `creator`, under its own code. */
 const referralLink = (creator) => tenant({
@@ -403,6 +404,8 @@ const ROWS = [
   // --- Referral links ---
   { op: 'get', path: `${referralPath}/{doc}`, seed: referralLink(SOMEONE) },
   { op: 'list', path: referralPath },
+  // A new link is created under a code in the links' alphabet; the shared path
+  // is cleared before each request.
   ...[
     [referralLink('{uid}'), 'the caller\'s own'],
     [referralLink(SOMEONE), `createdBy ${SOMEONE}`],
@@ -411,7 +414,13 @@ const ROWS = [
     [{ ...referralLink('{uid}'), companyId: OTHER_CO }, `the caller's own, companyId ${OTHER_CO}`],
     [{ ...referralLink('{uid}'), referrerName: '' }, 'the caller\'s own, no referrer name'],
     [{ ...referralLink('{uid}'), assignedTo: 'u-recruiter-a' }, 'the caller\'s own, a field outside the list'],
-  ].map(([data, note]) => ({ op: 'create', path: `${referralPath}/{doc}`, data, note })),
+  ].map(([data, note]) => ({
+    op: 'create', path: `${referralPath}/${REFERRAL_CODE}`, data: { ...data, code: data.code === '{doc}' ? REFERRAL_CODE : data.code }, note,
+  })),
+  {
+    op: 'create', path: `${referralPath}/{doc}`, data: referralLink('{uid}'),
+    note: 'the caller\'s own, a code outside the links\' alphabet',
+  },
   ...OWNERS.flatMap((owner) => [
     [{ active: false, deactivatedAt: 'now' }, `createdBy ${owner}, deactivated`],
     [{ referrerName: 'Changed' }, `createdBy ${owner}, referrer name`],

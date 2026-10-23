@@ -492,6 +492,7 @@ service cloud.firestore {
         allow read: if isCompanyTeam(companyId);
         allow create: if isCompanyTeam(companyId) && request.resource.data.createdBy == request.auth.uid &&
                          request.resource.data.companyId == companyId && request.resource.data.code == code &&
+                         code.matches('^[A-HJ-NP-Z2-9]{8}$') &&
                          request.resource.data.active == true && request.resource.data.referrerName is string &&
                          request.resource.data.referrerName.size() > 0 && request.resource.data.referrerName.size() <= 80 &&
                          request.resource.data.keys().hasOnly(['companyId', 'code', 'referrerName', 'referrerPhone', 'createdBy', 'createdByName', 'active', 'createdAt']);

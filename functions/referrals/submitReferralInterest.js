@@ -9,6 +9,7 @@
  * none. The answer is the same either way, so the form cannot be used to learn
  * who is in a company's records.
  */
+const crypto = require('crypto');
 const functions = require('firebase-functions/v1');
 const { admin, db } = require('../firebaseAdmin');
 const { assertCompanyAcceptingIntake } = require('../shared/companyTenant');
@@ -62,22 +63,30 @@ async function existingRecord(company, answers) {
     return found ? found.docs[0].ref : null;
 }
 
-/** Adds the referral to a record that has none, with a line in its activity log. */
+/** Adds the referral to a record that has none, with a line in its activity log, in one commit. */
 async function attachReferral(ref, link, companyId) {
-    const added = await db.runTransaction(async (transaction) => {
+    const logRef = ref.collection('activity_logs').doc();
+    await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(ref);
-        if (!snap.exists || snap.data()?.referral) return false;
+        if (!snap.exists || snap.data()?.referral) return;
         transaction.update(ref, { referral: link.referral, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-        return true;
+        transaction.set(logRef, {
+            action: 'Referral',
+            details: `Referred again through the link of ${link.referral.referrerName || 'a driver'} (${link.referral.code}), by the quick interest form.`,
+            type: 'system',
+            companyId,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
     });
-    if (!added) return;
-    await ref.collection('activity_logs').add({
-        action: 'Referral',
-        details: `Referred again through the link of ${link.referral.referrerName || 'a driver'} (${link.referral.code}), by the quick interest form.`,
-        type: 'system',
-        companyId,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    });
+}
+
+/**
+ * The quick form's lead for a phone number in a company. One id per number, so
+ * two forms sent at once for the same driver meet on one document instead of
+ * making two leads; the number itself is not in the id.
+ */
+function quickFormLeadId(companyId, normalizedPhone) {
+    return `referral_${crypto.createHash('sha256').update(`${companyId}:${normalizedPhone}`).digest('hex').slice(0, 24)}`;
 }
 
 exports.submitReferralInterest = functions
@@ -103,24 +112,33 @@ exports.submitReferralInterest = functions
         }
 
         const now = admin.firestore.FieldValue.serverTimestamp();
-        const leadRef = company.collection('leads').doc();
-        await leadRef.set({
-            companyId,
-            firstName: answers.firstName,
-            lastName: answers.lastName,
-            phone: answers.phone,
-            normalizedPhone: answers.normalizedPhone,
-            email: answers.email,
-            source: 'Driver Referral',
-            status: 'New Lead',
-            assignedTo: link?.assignedTo || '',
-            assignedToName: link?.assignedToName || '',
-            ...(link && { referral: link.referral }),
-            contactConsent: { text: consentText(companyName), at: now, ip: clientIp },
-            'sms-consent': 'yes',
-            createdAt: now,
-            updatedAt: now,
+        const leadRef = company.collection('leads').doc(quickFormLeadId(companyId, answers.normalizedPhone));
+        const created = await db.runTransaction(async (transaction) => {
+            if ((await transaction.get(leadRef)).exists) return false;
+            transaction.set(leadRef, {
+                companyId,
+                firstName: answers.firstName,
+                lastName: answers.lastName,
+                phone: answers.phone,
+                normalizedPhone: answers.normalizedPhone,
+                email: answers.email,
+                source: 'Driver Referral',
+                status: 'New Lead',
+                assignedTo: link?.assignedTo || '',
+                assignedToName: link?.assignedToName || '',
+                ...(link && { referral: link.referral }),
+                contactConsent: { text: consentText(companyName), at: now, ip: clientIp },
+                'sms-consent': 'yes',
+                createdAt: now,
+                updatedAt: now,
+            });
+            return true;
         });
+        if (!created) {
+            // Another form for this driver got there first: it is the record.
+            if (link) await attachReferral(leadRef, link, companyId);
+            return { ok: true };
+        }
 
         if (link?.assignedTo) {
             try {
@@ -140,3 +158,4 @@ exports.submitReferralInterest = functions
     });
 
 exports.consentText = consentText;
+exports.quickFormLeadId = quickFormLeadId;

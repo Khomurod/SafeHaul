@@ -17,7 +17,7 @@ jest.mock('../../firebaseAdmin', () => ({ admin: mock.admin, db: mock.db }));
 const mockRateLimit = jest.fn(async () => true);
 jest.mock('../../shared/rateLimiter', () => ({ checkRateLimit: (...args) => mockRateLimit(...args) }));
 
-const { submitReferralInterest, consentText } = require('../../referrals/submitReferralInterest');
+const { submitReferralInterest, consentText, quickFormLeadId } = require('../../referrals/submitReferralInterest');
 
 const CO = 'co-ref';
 const CODE = 'ABCD2345';
@@ -121,6 +121,20 @@ describe('submitReferralInterest', () => {
         await submit();
         expect(leads()).toHaveLength(0);
         expect(mock.docs.get(`companies/${CO}/applications/app`).referral).toEqual({ code: CODE, referrerName: 'Rita Referrer' });
+    });
+
+    it('meets a form sent at the same moment on one lead, which the slower one only adds its referral to', async () => {
+        // The other form's lead, written after this one looked for a record and before it wrote.
+        const raced = `companies/${CO}/leads/${quickFormLeadId(CO, '5550102030')}`;
+        mock.docs.set(raced, { companyId: CO, source: 'Driver Referral', status: 'New Lead' });
+
+        await expect(submit()).resolves.toEqual({ ok: true });
+
+        expect(leads()).toHaveLength(1);
+        expect(mock.docs.get(raced)).toMatchObject({ status: 'New Lead', referral: { code: CODE } });
+        expect(docsUnder(`${raced}/activity_logs`)).toHaveLength(1);
+        expect(notifications()).toEqual([]);
+        expect(quickFormLeadId(CO, '5550102030')).not.toContain('5550102030');
     });
 
     it.each([
