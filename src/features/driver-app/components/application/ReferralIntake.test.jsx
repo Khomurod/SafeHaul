@@ -10,7 +10,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { resolveApplyStatusScreen } from './PublicApplyScreens';
-import { adoptReferralCode, referralCodeFrom, referralConsentText } from './referralIntake';
+import {
+  adoptReferralCode, findQuickInterestGaps, referralCodeFrom, referralConsentText,
+} from './referralIntake';
 
 const { callable, send } = vi.hoisted(() => {
   const sendFn = vi.fn();
@@ -145,6 +147,17 @@ describe('the quick interest form', () => {
     expect(screen.getByText('Enter a 10-digit US phone number.')).toBeInTheDocument();
     expect(screen.getByText('Please enter a valid email address.')).toBeInTheDocument();
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('refuses the addresses the server refuses, before sending', () => {
+    const answers = {
+      firstName: 'Sam', lastName: 'Rivera', phone: '(312) 555-0142', contactConsent: true,
+    };
+    for (const email of ['a@aol..com', 'a@x,y.com', 'sam@example']) {
+      expect(findQuickInterestGaps({ ...answers, email }).email).toBe('Please enter a valid email address.');
+    }
+    expect(findQuickInterestGaps({ ...answers, email: 'sam.rivera@example.com' })).toEqual({});
+    expect(findQuickInterestGaps({ ...answers, email: '  ' }).email).toBe('Email is required.');
   });
 
   it('sends the answers with the link\'s code and thanks the driver', async () => {

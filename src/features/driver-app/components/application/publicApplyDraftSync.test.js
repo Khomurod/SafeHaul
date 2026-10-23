@@ -22,13 +22,14 @@ function harness({ stepAtStart, referralCode = null, serverFormData = { firstNam
     const stepUpdates = [];
     const formUpdates = [];
     const latestDraftRef = { current: { formData: {}, currentStep: stepAtStart } };
+    const draftIdRef = { current: null };
     reconcileServerDraftOnLoad({
         slug: 'reconcile-step-test',
         invite: { status: 'absent' },
         referralCode,
         resetGenerationRef: { current: 0 },
         restoredFromDraftRef: { current: false },
-        draftIdRef: { current: null },
+        draftIdRef,
         discardGuardsRef: { current: { discardedElsewhere: () => false, handleDiscardedElsewhere: vi.fn() } },
         latestDraftRef,
         restoreFromStoredToken: () => pending.promise,
@@ -42,7 +43,7 @@ function harness({ stepAtStart, referralCode = null, serverFormData = { firstNam
         await pending.promise;
         await Promise.resolve();
     };
-    return { stepUpdates, formUpdates, latestDraftRef, land };
+    return { stepUpdates, formUpdates, latestDraftRef, draftIdRef, land };
 }
 
 afterEach(() => localStorage.clear());
@@ -113,6 +114,21 @@ describe('reconcileServerDraftOnLoad and a referral link', () => {
         expect(stored?.data).toMatchObject({ lastName: 'Lee', referralCode: 'WXYZ6789' });
         expect(stored?.lastStep).toBe(3);
         expect(draftSyncState('reconcile-step-test')?.dirty).toBe(true);
+    });
+
+    it('remembers the name the winning copy is given when it had none', async () => {
+        // An old draft, written before drafts carried a name or sequence.
+        localStorage.setItem('draft_reconcile-step-test', JSON.stringify({ firstName: 'Marcus', referralCode: 'ABCD2345', lastStep: 3 }));
+        const { draftIdRef, land } = harness({
+            stepAtStart: 0,
+            referralCode: 'WXYZ6789',
+            serverFormData: { firstName: 'Marcus', referralCode: 'ABCD2345' },
+        });
+        await land(2);
+        const stored = readApplicationDraft('reconcile-step-test');
+        expect(stored?.data?.referralCode).toBe('WXYZ6789');
+        expect(stored?.meta?.draftId).toBeTruthy();
+        expect(draftIdRef.current).toBe(stored.meta.draftId);
     });
 
     it('leaves the saved code alone when the address carries none', async () => {

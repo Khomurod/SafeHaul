@@ -8,6 +8,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { email as emailRule, phone as phoneRule, required } from '@shared/utils/fieldValidators';
+import { isWellFormedEmail } from '@shared/utils/validation';
 
 /** The shape `newShortCode()` makes: 8 characters, no look-alike letters or digits. */
 const REFERRAL_CODE = /^[A-HJ-NP-Z2-9]{8}$/;
@@ -30,11 +31,17 @@ export function referralConsentText(companyName) {
     + 'Message and data rates may apply. Reply STOP to opt out.';
 }
 
+const requiredEmail = emailRule('Email');
+
+/** The callable's own rule (`functions/shared/isValidEmail.js`), so it refuses nothing the form let through. */
+const email = (value) => requiredEmail(value)
+  || (isWellFormedEmail(String(value).trim()) ? null : 'Please enter a valid email address.');
+
 const CHECKS = Object.freeze({
   firstName: required('First name'),
   lastName: required('Last name'),
   phone: phoneRule('Phone'),
-  email: emailRule('Email'),
+  email,
 });
 
 /** The quick form's problems by field; empty when it can be sent. */

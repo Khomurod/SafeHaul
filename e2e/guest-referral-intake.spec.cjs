@@ -80,6 +80,17 @@ test.describe('guest referral intake', () => {
     await expect(page.getByRole('button', { name: /Quick interest/ })).toHaveCount(0);
   });
 
+  test('an older draft with a saved code does not bring the choice back without one', async ({ page }) => {
+    // A draft from before steps were recorded: nothing skips the first screens,
+    // and the code it carries is from an earlier link.
+    await page.addInitScript(() => {
+      localStorage.setItem('draft_e2e-company', JSON.stringify({ firstName: 'Sam', referralCode: 'ABCD2345' }));
+    });
+    await page.goto('/apply/e2e-company?e2eIntake=choice');
+    await expect(page.getByText('Fill Out Manually')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('button', { name: /Quick interest/ })).toHaveCount(0);
+  });
+
   test('fits a narrow phone from the choice to the thank-you @mobile', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await answerQuickInterest(page);

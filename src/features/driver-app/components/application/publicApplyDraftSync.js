@@ -183,7 +183,8 @@ export function reconcileServerDraftOnLoad({
         // work, written as an ordinary local save so the next sync sends it. Here
         // and not at the earlier local restore: the winner is decided by then, and
         // a copy marked unsynced before the decision would beat a newer server copy.
-        saveApplicationDraft(slug, formData);
+        const saved = saveApplicationDraft(slug, formData);
+        if (saved.draftId) draftIdRef.current = saved.draftId;
       }
 
       // Restored content, whichever copy won: both the local draft and the server

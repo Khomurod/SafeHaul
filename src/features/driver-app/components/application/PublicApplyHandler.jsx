@@ -432,7 +432,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     intakeMode,
     companyId: company?.id,
     companyName: company?.companyName,
-    referralCode: formData.referralCode,
+    referralCode: linkReferralCode,
     handleChooseAutoFill,
     handleChooseManual,
     cdlAutoFillInputRef,
