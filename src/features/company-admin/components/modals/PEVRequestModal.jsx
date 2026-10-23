@@ -118,6 +118,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, companyId, de
     const { fmcsaLoading, fmcsaError, fmcsaRows } = useFmcsaEmployerLookup({
         companyLabel,
         employerStateRaw,
+        dotNumber: employer?.dotNumber,
         socrataToken,
         onRowsLoaded: handleRowsLoaded,
     });

@@ -2,10 +2,11 @@
  * FMCSA carrier lookup via Transportation.gov Socrata SODA API.
  * @see https://data.transportation.gov/resource/az4n-8mr2
  *
- * Two callers with their own queries: the driver's employer lookup
- * (`fetchFmcsaEmployerSuggestions`) and the company's verification request
+ * Three callers with their own queries: the driver's employer lookup
+ * (`fetchFmcsaEmployerSuggestions`), the company's verification request
  * (`fetchFmcsaCarrierCandidatesForPev`, which asks for a Canadian or Mexican
- * region with its country). Both map a row through this file, so a value FMCSA
+ * region with its country) and the carriers a PSP report named, by their
+ * exact USDOT numbers (`fetchFmcsaCarriersByDot`). Both map a row through this file, so a value FMCSA
  * holds but no form should, such as "NONE" in the email column, is dropped in
  * one place.
  */
@@ -256,6 +257,31 @@ export function buildFmcsaDriverSearchUrls(input) {
   });
 }
 
+/** The most USDOT numbers one census request asks for, the PSP reader's carrier cap. */
+export const MAX_DOTS_PER_LOOKUP = 25;
+
+/**
+ * The census rows for these exact USDOT numbers, in one request. Numbers that
+ * are not digits are left out; none left, or no token, asks nothing.
+ * @param {Array<string|number>} dots
+ * @param {{ signal?: AbortSignal, appToken?: string, select?: string }} [options]
+ *   `select` defaults to the driver's lookup columns
+ * @returns {Promise<Array<Record<string, unknown>>>}
+ */
+export async function fetchFmcsaCarriersByDot(dots, options = {}) {
+  const { signal, appToken, select = FMCSA_SELECT_DRIVER } = options;
+  const numbers = [...new Set((Array.isArray(dots) ? dots : [])
+    .map((dot) => String(dot ?? '').trim())
+    .filter((dot) => /^\d{1,9}$/.test(dot))
+    .map(Number))].slice(0, MAX_DOTS_PER_LOOKUP);
+  if (numbers.length === 0 || !appToken) return [];
+  const params = new URLSearchParams();
+  params.set('$select', select);
+  params.set('$where', `dot_number in (${numbers.join(', ')})`);
+  params.set('$limit', String(numbers.length));
+  return fetchJson(`${FMCSA_EMPLOYER_SOCRATA_URL}?${params.toString()}`, { Accept: 'application/json', 'X-App-Token': appToken }, signal);
+}
+
 /**
  * Up to ten carriers for what the driver typed, in `buildFmcsaDriverSearchUrls`'
  * order, each once.
@@ -280,6 +306,9 @@ export async function fetchFmcsaEmployerSuggestions(input, options = {}) {
   }
   return rows;
 }
+
+/** What the verification request reads for one carrier: the driver's columns, plus zip and fax. */
+export const FMCSA_SELECT_PEV = `${FMCSA_SELECT_DRIVER},phy_zip,fax`;
 
 /**
  * For PEV modal: optional employer state first (matches application phy_state), then nationwide.

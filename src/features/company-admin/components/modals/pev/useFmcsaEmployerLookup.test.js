@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 
 vi.mock('@shared/services/fmcsaEmployerSocrata', () => ({
+    FMCSA_SELECT_PEV: 'pev-columns',
     fetchFmcsaCarrierCandidatesForPev: vi.fn(),
+    fetchFmcsaCarriersByDot: vi.fn(),
 }));
 
-import { fetchFmcsaCarrierCandidatesForPev } from '@shared/services/fmcsaEmployerSocrata';
+import { fetchFmcsaCarrierCandidatesForPev, fetchFmcsaCarriersByDot } from '@shared/services/fmcsaEmployerSocrata';
 import { useFmcsaEmployerLookup } from './useFmcsaEmployerLookup';
 
 const ROWS = [{ dot_number: '42', legal_name: 'Swift LLC' }];
@@ -70,5 +72,34 @@ describe('useFmcsaEmployerLookup', () => {
             useFmcsaEmployerLookup({ companyLabel: 'Swift Transportation', employerStateRaw: '', socrataToken: 'tok' }));
         await new Promise((r) => setTimeout(r, 0));
         expect(result.current.fmcsaError).toBeNull();
+    });
+
+    it('asks for the row\'s USDOT number first, and lists only that carrier when FMCSA has it', async () => {
+        const byDot = [{ dot_number: '1234567', legal_name: 'ACME TRUCKING LLC' }];
+        fetchFmcsaCarriersByDot.mockResolvedValue(byDot);
+        const { result } = renderHook(() =>
+            useFmcsaEmployerLookup({ companyLabel: 'Acme Trucking', employerStateRaw: '', dotNumber: '1234567', socrataToken: 'tok' }));
+
+        await waitFor(() => expect(result.current.fmcsaRows).toEqual(byDot));
+        expect(fetchFmcsaCarriersByDot).toHaveBeenCalledWith(['1234567'], expect.objectContaining({ appToken: 'tok', select: 'pev-columns' }));
+        expect(fetchFmcsaCarrierCandidatesForPev).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the name when FMCSA has no carrier with that number', async () => {
+        fetchFmcsaCarriersByDot.mockResolvedValue([]);
+        const { result } = renderHook(() =>
+            useFmcsaEmployerLookup({ companyLabel: 'Swift Transportation', employerStateRaw: '', dotNumber: '99', socrataToken: 'tok' }));
+
+        await waitFor(() => expect(result.current.fmcsaRows).toEqual(ROWS));
+        expect(fetchFmcsaCarriersByDot).toHaveBeenCalledTimes(1);
+        expect(fetchFmcsaCarrierCandidatesForPev).toHaveBeenCalledWith('Swift Transportation', expect.any(Object));
+    });
+
+    it('searches by name alone when the row has no USDOT number', async () => {
+        const { result } = renderHook(() =>
+            useFmcsaEmployerLookup({ companyLabel: 'Swift Transportation', employerStateRaw: '', dotNumber: 'MC-12', socrataToken: 'tok' }));
+
+        await waitFor(() => expect(result.current.fmcsaRows).toEqual(ROWS));
+        expect(fetchFmcsaCarriersByDot).not.toHaveBeenCalled();
     });
 });

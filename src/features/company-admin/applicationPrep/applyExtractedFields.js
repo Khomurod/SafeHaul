@@ -29,8 +29,9 @@ import { toUsStateName } from '@shared/utils/usStates';
  *
  * ## A PSP carrier is a sighting, and stays one
  *
- * The row it produces holds a name and a USDOT number and nothing else. The dates
- * are not in the report — an inspection date is not a hire date — so they are left
+ * The row it produces holds a name and a USDOT number. The panel then asks FMCSA
+ * for that number's address and phone (`fillEmployersFromFmcsa`). The dates are
+ * not in the report — an inspection date is not a hire date — so they are left
  * empty for whoever can actually answer them.
  */
 

@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
     extractDocuments: vi.fn(),
     httpsCallable: vi.fn(),
     call: vi.fn(),
+    token: vi.fn(),
+    byDot: vi.fn(),
 }));
 
 vi.mock('./extraction/documentExtractionPipeline', async (importOriginal) => ({
@@ -30,9 +32,15 @@ vi.mock('./extraction/documentExtractionPipeline', async (importOriginal) => ({
 }));
 vi.mock('firebase/functions', () => ({ httpsCallable: mocks.httpsCallable }));
 vi.mock('@lib/firebase', () => ({ functions: {} }));
+vi.mock('@shared/services/fmcsaLookupToken', () => ({ fmcsaLookupToken: mocks.token }));
+vi.mock('@shared/services/fmcsaEmployerSocrata', async (importOriginal) => ({
+    ...(await importOriginal()),
+    fetchFmcsaCarriersByDot: mocks.byDot,
+}));
 
 import { ApplicationAiPrepPanel } from './ApplicationAiPrepPanel';
 import { applyExtractedFields } from './applyExtractedFields';
+import { fillEmployersFromFmcsa } from './fillEmployersFromFmcsa';
 
 /** What an upload leaves in the form data. Not readable, by itself. */
 const UPLOADED = { name: 'psp.pdf', url: 'https://signed.example/psp.pdf', storagePath: 'companies/co-1/applications/psp.pdf' };
@@ -101,6 +109,9 @@ beforeEach(() => {
         documents: { psp: { text: 'PSP body' } }, methods: { psp: 'text' }, failures: {},
     });
     mocks.call.mockResolvedValue({ data: { success: true, extracted: EXTRACTED, methods: { psp: 'text' } } });
+    // No census token, as in CI: the existing cases read without a lookup.
+    mocks.token.mockReturnValue('');
+    mocks.byDot.mockResolvedValue([]);
 });
 
 describe('reading what is attached', () => {
@@ -397,5 +408,83 @@ describe('a document this browser no longer holds', () => {
     it('says nothing when every attached document is here', () => {
         renderPanel();
         expect(screen.queryByTestId('reattach-to-read')).toBeNull();
+    });
+});
+
+describe('contact details from FMCSA for the carriers the report named', () => {
+    const CENSUS = {
+        dot_number: '123456', legal_name: 'ACME TRUCKING INC', phy_street: '100 MAIN ST',
+        phy_city: 'DALLAS', phy_state: 'TX', phy_country: 'US', phone: '(214) 555-0100',
+    };
+
+    /** The hook's `fillEmployerContacts`, on the same answers `applyExtraction` wrote. */
+    function renderWithLookup() {
+        const { box, applyExtraction } = makeApplyExtraction();
+        const onFillEmployerContacts = vi.fn((rows) => {
+            const result = fillEmployersFromFmcsa(box.formData.employers, rows);
+            box.formData = { ...box.formData, employers: result.employers };
+            return result;
+        });
+        render(
+            <ApplicationAiPrepPanel
+                companyId="co-1"
+                files={{ 'psp-report-upload': UPLOADED }}
+                blobs={{ 'psp-report-upload': FILE }}
+                applicantKey="key-1"
+                onApplyExtraction={applyExtraction}
+                onFillEmployerContacts={onFillEmployerContacts}
+                onBusyChange={vi.fn()}
+            />,
+        );
+        return { box, onFillEmployerContacts };
+    }
+
+    it('asks FMCSA for the USDOT numbers and fills the address and phone', async () => {
+        mocks.token.mockReturnValue('tok');
+        mocks.byDot.mockResolvedValue([CENSUS]);
+        const { box } = renderWithLookup();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+
+        expect(await screen.findByTestId('fmcsa-filled')).toHaveTextContent('Filled the address and phone of 1 employer from FMCSA');
+        expect(mocks.byDot).toHaveBeenCalledWith(['123456'], { appToken: 'tok' });
+        expect(box.formData.employers[0]).toMatchObject({
+            companyName: 'Acme Trucking', dotNumber: '123456', address: '100 MAIN ST', city: 'DALLAS', state: 'Texas', phone: '(214) 555-0100',
+        });
+        expect(screen.queryByTestId('fmcsa-name-differs')).toBeNull();
+    });
+
+    it('warns when FMCSA lists that number under another name', async () => {
+        mocks.token.mockReturnValue('tok');
+        mocks.byDot.mockResolvedValue([{ ...CENSUS, legal_name: 'BLUE RIVER FREIGHT INC' }]);
+        renderWithLookup();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+
+        expect(await screen.findByTestId('fmcsa-name-differs'))
+            .toHaveTextContent('Check Acme Trucking: FMCSA lists USDOT 123456 as BLUE RIVER FREIGHT INC.');
+    });
+
+    it('still shows what it read when the lookup fails, and fills nothing', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        mocks.token.mockReturnValue('tok');
+        mocks.byDot.mockRejectedValue(Object.assign(new Error('throttled'), { status: 429 }));
+        const { onFillEmployerContacts } = renderWithLookup();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+
+        expect(await screen.findByTestId('read-summary')).toHaveTextContent(/added 1 employer/);
+        expect(screen.queryByTestId('fmcsa-filled')).toBeNull();
+        expect(onFillEmployerContacts).not.toHaveBeenCalled();
+        warn.mockRestore();
+    });
+
+    it('asks nothing without a census token', async () => {
+        renderWithLookup();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+
+        await screen.findByTestId('read-summary');
+        expect(mocks.byDot).not.toHaveBeenCalled();
     });
 });

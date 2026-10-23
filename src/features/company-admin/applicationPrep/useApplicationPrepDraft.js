@@ -3,6 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { normalizeLockedEmployers, reconcileLockedEmployers } from '@/config/applicationLockedFields';
 import { applyExtractedFields } from './applyExtractedFields';
+import { fillEmployersFromFmcsa } from './fillEmployersFromFmcsa';
 
 /**
  * One carrier-prepared application, from the recruiter's side.
@@ -170,6 +171,20 @@ export function useApplicationPrepDraft(companyId) {
         return applied;
     }, []);
 
+    /**
+     * Fill the blank contact fields of employers from FMCSA's census rows, on
+     * the answers as they are now (see `applyExtraction`).
+     */
+    const fillEmployerContacts = useCallback((censusRows) => {
+        const current = latestFormData.current;
+        const result = fillEmployersFromFmcsa(current.employers, censusRows);
+        if (result.filled > 0) {
+            setDirty(true);
+            setFormData({ ...current, employers: result.employers });
+        }
+        return result;
+    }, []);
+
     const load = useCallback(async (key) => {
         setBusy(true);
         setError(null);
@@ -229,7 +244,7 @@ export function useApplicationPrepDraft(companyId) {
     }, []);
 
     return {
-        formData, updateField, applyExtraction,
+        formData, updateField, applyExtraction, fillEmployerContacts,
         lockedEmployers, lockEmployers, unlockEmployer,
         applicantKey, status, busy, error, dirty,
         save, load,

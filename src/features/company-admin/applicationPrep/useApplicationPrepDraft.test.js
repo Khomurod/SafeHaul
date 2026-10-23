@@ -54,6 +54,20 @@ describe('preparing an application', () => {
         ]);
     });
 
+    it('fills blank employer contacts from FMCSA on the answers as they are now', () => {
+        const { result } = renderHook(() => useApplicationPrepDraft('co-1'));
+        act(() => result.current.updateField('employers', [{ id: 1, companyName: 'Acme Trucking', dotNumber: '123456', phone: '' }]));
+
+        let outcome;
+        act(() => {
+            outcome = result.current.fillEmployerContacts([{ dot_number: '123456', legal_name: 'ACME TRUCKING', phone: '(214) 555-0100' }]);
+        });
+
+        expect(outcome.filled).toBe(1);
+        expect(result.current.formData.employers[0]).toMatchObject({ companyName: 'Acme Trucking', dotNumber: '123456', phone: '(214) 555-0100' });
+        expect(result.current.dirty).toBe(true);
+    });
+
     it('refuses to lock a row it cannot identify', () => {
         const { result } = renderHook(() => useApplicationPrepDraft('co-1'));
         act(() => result.current.lockEmployers([{ companyName: '', dotNumber: '' }]));

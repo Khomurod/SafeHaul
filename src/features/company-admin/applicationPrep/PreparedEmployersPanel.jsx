@@ -3,6 +3,8 @@ import { Icon, Lock, Unlock } from '@design-system/icons';
 import DynamicRow from '@shared/components/form/DynamicRow';
 import InputField from '@shared/components/form/InputField';
 import DateTripletField from '@shared/components/form/DateTripletField';
+import { StateSelectField } from '@features/driver-app/components/application/steps/components/StateSelectField';
+import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions';
 import { Badge, Button, FieldDisplay, FormSection } from '@/design-system/components';
 import { EMPTY_EMPLOYER } from '@features/driver-app/components/application/steps/components/employmentRowShapes';
 import { employerSignature, isLockedEmployerRow } from '@/config/applicationLockedFields';
@@ -11,8 +13,10 @@ import { employerSignature, isLockedEmployerRow } from '@/config/applicationLock
  * Employment history, as the carrier can fill it in, plus the lock.
  *
  * The wizard's own employer row is the driver's form and stays that way. This is
- * the carrier's shorter version of it: who, when, and why they left — the fields a
- * recruiter reading a PSP report or a driver's own file can actually answer.
+ * the carrier's shorter version of it: who, where to reach them, when, and why
+ * they left — the fields a recruiter reading a PSP report or a driver's own file
+ * can actually answer. A PSP carrier's address and phone come from FMCSA by its
+ * USDOT number (`fillEmployersFromFmcsa`) and show here to be checked.
  *
  * Locking is per row and explicit. It says "this carrier is on the safety record I
  * used to start this application", which is a claim only the person holding that
@@ -94,6 +98,50 @@ export function PreparedEmployersPanel({ formData, updateFormData, lockedEmploye
                         />
                     </>
                 )}
+                <InputField
+                    label="Street address"
+                    id={`prep-emp-street-${index}`}
+                    name="address"
+                    value={item.address}
+                    onChange={handleChange}
+                />
+                <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-2">
+                    <InputField
+                        label="City"
+                        id={`prep-emp-city-${index}`}
+                        name="city"
+                        value={item.city}
+                        onChange={handleChange}
+                    />
+                    <StateSelectField
+                        id={`prep-emp-state-${index}`}
+                        name="state"
+                        groups={NORTH_AMERICAN_REGION_GROUPS}
+                        label="State / Province"
+                        placeholder="Select state or province"
+                        required={false}
+                        value={item.state}
+                        onChange={(e) => handleChange(e.target.name, e.target.value)}
+                    />
+                </div>
+                <div className="grid grid-cols-1 items-start gap-ds-4 sm:grid-cols-2">
+                    <InputField
+                        label="Company phone"
+                        id={`prep-emp-phone-${index}`}
+                        name="phone"
+                        type="tel"
+                        value={item.phone}
+                        onChange={handleChange}
+                    />
+                    <InputField
+                        label="Company email"
+                        id={`prep-emp-email-${index}`}
+                        name="companyEmail"
+                        type="email"
+                        value={item.companyEmail}
+                        onChange={handleChange}
+                    />
+                </div>
                 <InputField
                     label="Position held"
                     id={`prep-emp-position-${index}`}
