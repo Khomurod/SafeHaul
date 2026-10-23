@@ -44,7 +44,7 @@ describe('PEVRequestModal', () => {
   });
 
 
-  it('offers the carrier found by USDOT number when the row has no usable name', async () => {
+  it('offers the carrier found by USDOT number, padded or not, when the row has no usable name', async () => {
 
     const fetchMock = vi.fn(() => Promise.resolve({
       ok: true,
@@ -54,7 +54,7 @@ describe('PEVRequestModal', () => {
 
     render(
       <PEVRequestModal
-        employer={{ ...baseEmployer, companyName: '', dotNumber: '42' }}
+        employer={{ ...baseEmployer, companyName: '', dotNumber: '00000000042' }}
         applicant={{}}
         onClose={() => {}}
         onProceed={() => {}}
@@ -62,7 +62,7 @@ describe('PEVRequestModal', () => {
     );
 
     expect(await screen.findByTestId('fmcsa-row-0')).toHaveTextContent(/Swift LLC/);
-    expect(String(fetchMock.mock.calls[0][0])).toContain('dot_number');
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('$where')).toBe('dot_number in (42)');
   });
 
 

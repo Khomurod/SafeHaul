@@ -12,6 +12,12 @@ import {
     fetchFmcsaCarriersByDot,
 } from '@shared/services/fmcsaEmployerSocrata';
 
+/** A USDOT number without its leading zeros, or '' when it is not one. */
+export function usableDot(value) {
+    const digits = String(value ?? '').trim().replace(/^0+(?=\d)/, '');
+    return /^\d{1,9}$/.test(digits) ? digits : '';
+}
+
 /**
  * @param {object} params
  * @param {string} params.companyLabel  Employer display name (search term).
@@ -29,7 +35,7 @@ export function useFmcsaEmployerLookup({ companyLabel, employerStateRaw, dotNumb
     const abortRef = useRef(null);
 
     useEffect(() => {
-        const dot = /^\d{1,9}$/.test(String(dotNumber ?? '').trim()) ? String(dotNumber).trim() : '';
+        const dot = usableDot(dotNumber);
         if (!socrataToken || ((companyLabel || '').length < 2 && !dot)) {
             setFmcsaRows([]);
             return;
