@@ -301,11 +301,11 @@ definition in `src/features/signing/utils/signedDate.js` and
 **Previous employment verification (PEV).** A company admin sends a request to a
 past employer, who answers in a token portal (reminders §8) and signs drawn or
 typed (`TEXT_SIGNATURE:<name>`, method on the PDF; `signature.js` refuses other
-forms). Violation details are required; a rehire "No" reason, the follow-up
-testing plan and non-DOT-recordable accidents are optional, kept only after the
-answer they follow. Email and reminders attach a request PDF (`requestPdf.js`,
+forms). Violation details are required after a violation; a rehire "No"
+reason, the follow-up testing plan and non-DOT-recordable accidents are
+optional, kept only after the answers before them. Email and reminders attach a request PDF (`requestPdf.js`,
 also in the DQ file): SSN last four, no link, a signature only under the release
-the driver signed (VOE alike): the v3 statement naming this employer, from the
+the driver signed (as in VOE): the v3 statement naming this employer, from the
 `submissionRecord` record with its own signature, else the certification's
 (`previousEmployerRelease.js`; none before 2026-01-23). Up to 5 CC (Settings →
 Email) get it too.

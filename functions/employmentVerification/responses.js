@@ -28,17 +28,22 @@ const FOLLOW_UP_ANSWERS = ['yes', 'in_progress'];
 
 /**
  * The optional answers the portal shows only after a given answer. Each is
- * kept only when the answer it follows is on the response, so text left in a
- * box the employer then hid never reaches the record.
+ * kept only when every answer on the way to its question is on the response
+ * (the portal asks them all only of a past employer), so text left in a box
+ * the employer then hid never reaches the record.
  */
 function followUpAnswers(formResponse) {
     const textOf = (value) => (typeof value === 'string' && value.trim() ? value : null);
-    const otherAccidents = typeof formResponse.hadNonRecordableAccidents === 'boolean'
+    const employed = formResponse.wasEmployed === true;
+    const otherAccidents = employed && typeof formResponse.hadNonRecordableAccidents === 'boolean'
         ? formResponse.hadNonRecordableAccidents
         : null;
     return {
-        rehireExplanation: formResponse.eligibleForRehire === false ? textOf(formResponse.rehireExplanation) : null,
-        followUpTestingPlan: formResponse.hadDrugAlcoholViolations === true
+        rehireExplanation: employed && formResponse.eligibleForRehire === false
+            ? textOf(formResponse.rehireExplanation)
+            : null,
+        followUpTestingPlan: employed && formResponse.subjectToDotTesting === true
+            && formResponse.hadDrugAlcoholViolations === true
             && FOLLOW_UP_ANSWERS.includes(formResponse.completedReturnToDuty)
             ? textOf(formResponse.followUpTestingPlan)
             : null,
