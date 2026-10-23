@@ -54,7 +54,19 @@ export function reconcileServerDraftOnLoad({
     // in flight can be told from where a restore put them. See `setCurrentStep`.
     const stepAtStart = latestDraftRef.current.currentStep;
     restoreFromStoredToken().then((restored) => {
-      if (!current || !restored) return;
+      if (!current) return;
+      if (!restored) {
+        // No server copy, so nothing a local write could outrank: the link code
+        // the page adopted goes into the local copy now, not at the next save.
+        if (!referralCode || resetGenerationRef.current !== generation
+          || discardGuardsRef.current.discardedElsewhere()) return;
+        const local = readApplicationDraft(slug);
+        if (local?.data && local.data.referralCode !== referralCode) {
+          const saved = saveApplicationDraft(slug, { ...local.data, referralCode });
+          if (saved.draftId) draftIdRef.current = saved.draftId;
+        }
+        return;
+      }
       // Discarded while this fetch was open. The read itself succeeded, so nothing
       // looks wrong, and writing its result back would put the discarded answers
       // into storage *after* the reset cleared them — to be restored on the next

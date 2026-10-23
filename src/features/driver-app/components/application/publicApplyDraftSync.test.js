@@ -17,7 +17,7 @@ function deferred() {
     return { promise, resolve };
 }
 
-function harness({ stepAtStart, referralCode = null, serverFormData = { firstName: 'Marcus' } }) {
+function harness({ stepAtStart, referralCode = null, serverFormData = { firstName: 'Marcus' }, discarded = false }) {
     const pending = deferred();
     const stepUpdates = [];
     const formUpdates = [];
@@ -30,7 +30,7 @@ function harness({ stepAtStart, referralCode = null, serverFormData = { firstNam
         resetGenerationRef: { current: 0 },
         restoredFromDraftRef: { current: false },
         draftIdRef,
-        discardGuardsRef: { current: { discardedElsewhere: () => false, handleDiscardedElsewhere: vi.fn() } },
+        discardGuardsRef: { current: { discardedElsewhere: () => discarded, handleDiscardedElsewhere: vi.fn() } },
         latestDraftRef,
         restoreFromStoredToken: () => pending.promise,
         onIdentitySatisfied: vi.fn(),
@@ -43,7 +43,13 @@ function harness({ stepAtStart, referralCode = null, serverFormData = { firstNam
         await pending.promise;
         await Promise.resolve();
     };
-    return { stepUpdates, formUpdates, latestDraftRef, draftIdRef, land };
+    // No server copy to restore: no token, or the server draft is gone.
+    const landNothing = async () => {
+        pending.resolve(null);
+        await pending.promise;
+        await Promise.resolve();
+    };
+    return { stepUpdates, formUpdates, latestDraftRef, draftIdRef, land, landNothing };
 }
 
 afterEach(() => localStorage.clear());
@@ -129,6 +135,34 @@ describe('reconcileServerDraftOnLoad and a referral link', () => {
         expect(stored?.data?.referralCode).toBe('WXYZ6789');
         expect(stored?.meta?.draftId).toBeTruthy();
         expect(draftIdRef.current).toBe(stored.meta.draftId);
+    });
+
+    it('stores the link code in the local copy when there is no server copy', async () => {
+        saveApplicationDraft('reconcile-step-test', { firstName: 'Marcus', referralCode: 'ABCD2345' }, { lastStep: 3 });
+        const { draftId } = readApplicationDraft('reconcile-step-test').meta;
+        const { formUpdates, draftIdRef, landNothing } = harness({ stepAtStart: 0, referralCode: 'WXYZ6789' });
+        await landNothing();
+        const stored = readApplicationDraft('reconcile-step-test');
+        expect(stored?.data).toMatchObject({ firstName: 'Marcus', referralCode: 'WXYZ6789' });
+        expect(stored?.lastStep).toBe(3);
+        expect(stored?.meta?.draftId).toBe(draftId);
+        expect(draftIdRef.current).toBe(draftId);
+        expect(formUpdates).toHaveLength(0);
+    });
+
+    it('writes nothing without a local copy, a link code, or after a discard', async () => {
+        const empty = harness({ stepAtStart: 0, referralCode: 'WXYZ6789' });
+        await empty.landNothing();
+        expect(readApplicationDraft('reconcile-step-test')).toBeNull();
+
+        saveApplicationDraft('reconcile-step-test', { firstName: 'Marcus', referralCode: 'ABCD2345' });
+        const noCode = harness({ stepAtStart: 0 });
+        await noCode.landNothing();
+        expect(readApplicationDraft('reconcile-step-test')?.data?.referralCode).toBe('ABCD2345');
+
+        const discarded = harness({ stepAtStart: 0, referralCode: 'WXYZ6789', discarded: true });
+        await discarded.landNothing();
+        expect(readApplicationDraft('reconcile-step-test')?.data?.referralCode).toBe('ABCD2345');
     });
 
     it('leaves the saved code alone when the address carries none', async () => {
