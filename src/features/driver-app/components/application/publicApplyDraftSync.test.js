@@ -16,13 +16,15 @@ function deferred() {
     return { promise, resolve };
 }
 
-function harness({ stepAtStart }) {
+function harness({ stepAtStart, referralCode = null, serverFormData = { firstName: 'Marcus' } }) {
     const pending = deferred();
     const stepUpdates = [];
+    const formUpdates = [];
     const latestDraftRef = { current: { formData: {}, currentStep: stepAtStart } };
     reconcileServerDraftOnLoad({
         slug: 'reconcile-step-test',
         invite: { status: 'absent' },
+        referralCode,
         resetGenerationRef: { current: 0 },
         restoredFromDraftRef: { current: false },
         draftIdRef: { current: null },
@@ -30,16 +32,16 @@ function harness({ stepAtStart }) {
         latestDraftRef,
         restoreFromStoredToken: () => pending.promise,
         onIdentitySatisfied: vi.fn(),
-        setFormData: vi.fn(),
+        setFormData: (update) => formUpdates.push(update),
         setCurrentStep: (update) => stepUpdates.push(update),
         setIntakeMode: vi.fn(),
     });
     const land = async (stepIndex) => {
-        pending.resolve({ formData: { firstName: 'Marcus' }, stepIndex, clientSeq: 3, applicantKey: 'k1' });
+        pending.resolve({ formData: serverFormData, stepIndex, clientSeq: 3, applicantKey: 'k1' });
         await pending.promise;
         await Promise.resolve();
     };
-    return { stepUpdates, latestDraftRef, land };
+    return { stepUpdates, formUpdates, latestDraftRef, land };
 }
 
 afterEach(() => localStorage.clear());
@@ -71,5 +73,27 @@ describe('reconcileServerDraftOnLoad and the step', () => {
         latestDraftRef.current = { ...latestDraftRef.current, currentStep: 2 };
         await land(4);
         expect(stepUpdates[0](2)).toBe(4);
+    });
+});
+
+describe('reconcileServerDraftOnLoad and a referral link', () => {
+    it('keeps the code of the link clicked over the one the server copy saved', async () => {
+        const { formUpdates, land } = harness({
+            stepAtStart: 0,
+            referralCode: 'WXYZ6789',
+            serverFormData: { firstName: 'Marcus', referralCode: 'ABCD2345' },
+        });
+        await land(2);
+        expect(formUpdates).toHaveLength(1);
+        expect(formUpdates[0]({ referralCode: 'WXYZ6789' })).toMatchObject({ firstName: 'Marcus', referralCode: 'WXYZ6789' });
+    });
+
+    it('leaves the saved code alone when the address carries none', async () => {
+        const { formUpdates, land } = harness({
+            stepAtStart: 0,
+            serverFormData: { firstName: 'Marcus', referralCode: 'ABCD2345' },
+        });
+        await land(2);
+        expect(formUpdates[0]({})).toMatchObject({ referralCode: 'ABCD2345' });
     });
 });

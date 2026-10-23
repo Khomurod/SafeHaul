@@ -30,6 +30,9 @@ export function reconcileServerDraftOnLoad({
   // the ordering half; this is the identity half. See `publicApplyInvite.js` for
   // why the two are separate mechanisms.
   invite,
+  // The code in the address (`referralCodeFrom`), or null: the link clicked wins
+  // over a code an older visit saved, as it does over a restored local draft.
+  referralCode,
   resetGenerationRef,
   restoredFromDraftRef,
   draftIdRef,
@@ -180,7 +183,7 @@ export function reconcileServerDraftOnLoad({
       restoredFromDraftRef.current = true;
       // `resolved.formData` already carries anything typed since load, so it goes
       // last; `prev` still supplies the wizard's untouched defaults.
-      setFormData((prev) => ({ ...prev, ...resolved.formData }));
+      setFormData((prev) => ({ ...prev, ...resolved.formData, ...(referralCode ? { referralCode } : {}) }));
       // `Math.max`: never move an applicant *backwards* from where they already
       // are in this session — and never *forwards* past a Back they pressed while
       // this was in flight. That press is their answer to "where am I", and the
