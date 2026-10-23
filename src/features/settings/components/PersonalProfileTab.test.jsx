@@ -223,10 +223,13 @@ describe('PersonalProfileTab compatibility slice', () => {
         expect(firestoreMocks.updateDoc).not.toHaveBeenCalled();
     });
 
-    it('shows the link area, not a spinner, when no one is signed in', async () => {
+    it('offers no link to copy, and no spinner, when no one is signed in', async () => {
         render(<PersonalProfileTab currentUser={null} currentCompanyProfile={currentCompanyProfile} />);
 
-        await waitFor(() => expect(screen.queryByText('Generating unique code...')).toBeNull());
+        expect(await screen.findByText('Sign in again to see your link.')).toBeInTheDocument();
+        expect(screen.queryByText('Generating unique code...')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Copy' })).toBeNull();
+        expect(screen.queryByText(/recruiter=/)).toBeNull();
         expect(firestoreMocks.getDoc).not.toHaveBeenCalled();
     });
 

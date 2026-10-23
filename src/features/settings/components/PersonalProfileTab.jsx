@@ -81,9 +81,10 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
     // Clean trailing slash just in case
     const cleanBaseUrl = appBaseUrl.replace(/\/$/, "");
 
-    const uniqueLink = recruitingCode 
-        ? `${cleanBaseUrl}/apply/${companySlug}?r=${recruitingCode}`
-        : `${cleanBaseUrl}/apply/${companySlug}?recruiter=${currentUser?.uid}`;
+    // Without a signed-in user there is no one to assign, so there is no link.
+    let uniqueLink = null;
+    if (recruitingCode) uniqueLink = `${cleanBaseUrl}/apply/${companySlug}?r=${recruitingCode}`;
+    else if (currentUser?.uid) uniqueLink = `${cleanBaseUrl}/apply/${companySlug}?recruiter=${currentUser.uid}`;
 
     const handleCopyLink = async () => {
         if (!uniqueLink) return;
@@ -137,6 +138,10 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                                     <Icon icon={Loader2} className="animate-spin" />
                                     Generating unique code...
                                 </div>
+                            ) : !uniqueLink ? (
+                                <p className="text-ds-sm text-ds-content-secondary">
+                                    Sign in again to see your link.
+                                </p>
                             ) : (
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-ds-surface p-2 rounded-ds-md border border-ds-status-info-border">
                                     <code
