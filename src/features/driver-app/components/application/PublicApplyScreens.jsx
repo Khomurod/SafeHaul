@@ -5,6 +5,7 @@ import { ErrorState, LoadingState, PageState } from '@design-system/patterns';
 import { SandboxActionPanel } from '@features/sandbox/SandboxActionPanel';
 import { ApplyIdentityCheckScreen } from './ApplyIdentityCheckScreen';
 import { IntakeChooser } from './IntakeChooser';
+import { ReferralIntake } from './ReferralIntake';
 import { RequiredDocumentsChecklist } from './RequiredDocumentsChecklist';
 import { DOC_STATUS } from './postApplyDocsStorage';
 
@@ -306,6 +307,9 @@ export function SubmissionQueuedScreen({ onGoHome }) {
  *     below the success screen because a confirmed submission outranks a request
  *     to confirm anything, and above the chooser because falling through to the
  *     chooser is exactly what it prevents.
+ *  6. **A referral link's choice in the chooser's own place**, so everything
+ *     that skips the chooser (a restored draft, an opened carrier link, a
+ *     confirmed identity) skips the quick interest offer too.
  *
  * Returns `null` when the wizard itself should render.
  */
@@ -317,7 +321,7 @@ export function resolveApplyStatusScreen({
   onGoHome, onStartNewApplication,
   inviteProblem, inviteProblemDismissed, onContinueWithoutInvite,
   identityCheck, onConfirmIdentity,
-  intakeMode, companyName, handleChooseAutoFill, handleChooseManual,
+  intakeMode, companyId, companyName, referralCode, handleChooseAutoFill, handleChooseManual,
   cdlAutoFillInputRef, handleCdlAutoFillFileChange,
 }) {
   if (loading) return <ApplyLoadingScreen />;
@@ -376,7 +380,7 @@ export function resolveApplyStatusScreen({
   }
 
   if (!intakeMode) {
-    return (
+    const chooser = (
       <IntakeChooser
         companyName={companyName}
         onChooseAutoFill={handleChooseAutoFill}
@@ -384,6 +388,12 @@ export function resolveApplyStatusScreen({
         cdlInputRef={cdlAutoFillInputRef}
         onCdlFileChange={handleCdlAutoFillFileChange}
       />
+    );
+    if (!referralCode) return chooser;
+    return (
+      <ReferralIntake companyId={companyId} companyName={companyName} referralCode={referralCode}>
+        {chooser}
+      </ReferralIntake>
     );
   }
 

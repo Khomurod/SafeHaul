@@ -15,6 +15,7 @@ import {
 } from '@features/sandbox/sandboxConstants';
 import { buildE2EPublicProfile } from './publicApplyHelpers';
 import { readApplicationDraft } from './applicationDraftStorage';
+import { adoptReferralCode } from './referralIntake';
 import {
   DOC_STATUS,
   savePostApplySession,
@@ -161,6 +162,7 @@ export async function loadPublicApplyCompany({
           if (sandboxDraft) {
             setFormData((prev) => ({ ...prev, ...sandboxDraft.data }));
           }
+          adoptReferralCode(searchParams, setFormData);
           const recruiter = searchParams.get('r') || searchParams.get('recruiter');
           if (recruiter) {
             sessionStorage.setItem('pending_application_recruiter', recruiter);
@@ -198,6 +200,7 @@ export async function loadPublicApplyCompany({
               setCurrentStep(e2eDraft.lastStep);
             }
           }
+          adoptReferralCode(searchParams, setFormData);
           setLoading(false);
           return;
         }
@@ -270,6 +273,7 @@ export async function loadPublicApplyCompany({
           }
         }
 
+        adoptReferralCode(searchParams, setFormData);
         const recruiter = searchParams.get('r') || searchParams.get('recruiter');
         if (recruiter) {
           sessionStorage.setItem('pending_application_recruiter', recruiter);
