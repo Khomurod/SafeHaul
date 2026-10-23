@@ -13,24 +13,32 @@ jest.mock('firebase-functions/v2/firestore', () => ({
 
 // `mock`-prefixed so the jest.mock factories may reference them (jest hoisting rule).
 const mockWrites = [];
-const mockState = { guardExists: false, recruiterLinks: {} };
+const mockState = { guardExists: false, recruiterLinks: {}, members: [], users: {} };
 jest.mock('../../firebaseAdmin', () => {
     const docRef = (path) => ({
         path,
         collection: (name) => colRef(`${path}/${name}`),
         get: async () => {
             const [, linkId] = path.match(/^recruiter_links\/(.+)$/) || [];
-            const link = linkId ? mockState.recruiterLinks[linkId] : undefined;
-            return { exists: Boolean(link), data: () => link || {} };
+            const [, userId] = path.match(/^users\/(.+)$/) || [];
+            const found = linkId ? mockState.recruiterLinks[linkId] : userId ? mockState.users[userId] : undefined;
+            return { exists: Boolean(found), data: () => found || {} };
         },
         set: async (data) => { mockWrites.push({ kind: 'set', path, data }); },
         update: async (data) => { mockWrites.push({ kind: 'update', path, data }); },
     });
-    const colRef = (path) => ({
+    const colRef = (path, filters = {}) => ({
         doc: (id) => docRef(`${path}/${id}`),
-        where() { return this; },
+        where: (field, _op, value) => colRef(path, { ...filters, [field]: value }),
         limit() { return this; },
-        get: async () => ({ empty: true, docs: [] }),
+        get: async () => {
+            const docs = path === 'memberships'
+                ? mockState.members
+                    .filter((m) => Object.entries(filters).every(([field, value]) => m[field] === value))
+                    .map((m) => ({ data: () => m }))
+                : [];
+            return { empty: docs.length === 0, docs };
+        },
         add: async (data) => { mockWrites.push({ kind: 'add', path, data }); },
     });
     return {
@@ -71,6 +79,8 @@ beforeEach(() => {
     mockWrites.length = 0;
     mockState.guardExists = false;
     mockState.recruiterLinks = {};
+    mockState.members = [];
+    mockState.users = {};
 });
 
 it('writes nothing to a signed application it has nothing to change on', async () => {
@@ -82,14 +92,68 @@ it('writes nothing to a signed application it has nothing to change on', async (
     ]);
 });
 
-it("assigns an application to its recruiter link's member in one write", async () => {
-    mockState.recruiterLinks = { 'link-1': { userId: 'artificial-recruiter' } };
+it("assigns an application to its recruiter link's member, with the name, in one write", async () => {
+    mockState.recruiterLinks = { 'link-1': { userId: 'artificial-recruiter', companyId: 'co1' } };
+    mockState.members = [{ userId: 'artificial-recruiter', companyId: 'co1', role: 'recruiter' }];
+    mockState.users = { 'artificial-recruiter': { name: 'Riley Recruiter' } };
 
     await submit({ signature: SIGNATURE, recruiterCode: 'link-1' });
 
     expect(applicationWrites()).toEqual([
-        { kind: 'update', path: APP_PATH, data: { assignedTo: 'artificial-recruiter' } },
+        { kind: 'update', path: APP_PATH, data: { assignedTo: 'artificial-recruiter', assignedToName: 'Riley Recruiter' } },
     ]);
+});
+
+it("does not assign through another company's link", async () => {
+    mockState.recruiterLinks = { 'link-2': { userId: 'other-recruiter', companyId: 'co2' } };
+    mockState.members = [{ userId: 'other-recruiter', companyId: 'co2', role: 'recruiter' }];
+
+    await submit({ signature: SIGNATURE, recruiterCode: 'link-2' });
+
+    expect(applicationWrites()).toEqual([]);
+});
+
+it('writes nothing for a code nobody owns, rather than the code as the assignee', async () => {
+    await submit({ signature: SIGNATURE, recruiterCode: 'NOSUCH' });
+
+    expect(applicationWrites()).toEqual([]);
+});
+
+it("assigns the older ?recruiter= link's user only when they are on this company's team", async () => {
+    mockState.members = [{ userId: 'team-uid', companyId: 'co1', role: 'hr_user' }];
+    mockState.users = { 'team-uid': { displayName: 'Taylor Team' } };
+
+    await submit({ signature: SIGNATURE, recruiterCode: 'team-uid' });
+    expect(applicationWrites()).toEqual([
+        { kind: 'update', path: APP_PATH, data: { assignedTo: 'team-uid', assignedToName: 'Taylor Team' } },
+    ]);
+
+    mockWrites.length = 0;
+    await submit({ signature: SIGNATURE, recruiterCode: 'outsider-uid' });
+    expect(applicationWrites()).toEqual([]);
+});
+
+it('names a member without a profile name by their email, and assigns nobody it cannot name', async () => {
+    mockState.recruiterLinks = { 'link-3': { userId: 'nameless', companyId: 'co1' } };
+    mockState.members = [{ userId: 'nameless', companyId: 'co1', role: 'recruiter' }];
+    mockState.users = { nameless: { email: 'riley@example.com' } };
+
+    await submit({ signature: SIGNATURE, recruiterCode: 'link-3' });
+    expect(applicationWrites()).toEqual([
+        { kind: 'update', path: APP_PATH, data: { assignedTo: 'nameless', assignedToName: 'riley@example.com' } },
+    ]);
+
+    mockWrites.length = 0;
+    mockState.users = { nameless: { name: '   ', displayName: ' ', email: ' riley@example.com ' } };
+    await submit({ signature: SIGNATURE, recruiterCode: 'link-3' });
+    expect(applicationWrites()).toEqual([
+        { kind: 'update', path: APP_PATH, data: { assignedTo: 'nameless', assignedToName: 'riley@example.com' } },
+    ]);
+
+    mockWrites.length = 0;
+    mockState.users = {};
+    await submit({ signature: SIGNATURE, recruiterCode: 'link-3' });
+    expect(applicationWrites()).toEqual([]);
 });
 
 it('still rejects an application without a valid signature, in one write', async () => {

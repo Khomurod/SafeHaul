@@ -1,6 +1,6 @@
 // src/features/settings/components/PersonalProfileTab.jsx
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from '@lib/firebase';
 import { forgetPortalUser } from '@features/auth/services/userService';
 import { Icon, Save, Loader2, Link as LinkIcon, Copy, CheckCircle } from '@design-system/icons';
@@ -13,6 +13,7 @@ import {
 } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
+import { recruiterCodeFor } from '../services/recruiterLinkCode';
 
 export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
@@ -25,59 +26,39 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
     // FIX: Use Env var if present, otherwise fallback to current origin (robust for MVP)
     const appBaseUrl = import.meta.env.VITE_DRIVER_APP_URL || window.location.origin;
 
+    const companyId = currentCompanyProfile?.id;
+
     useEffect(() => {
+        // A company switch while the page is open asks again: a code made for
+        // the previous company would not assign anyone here.
+        let current = true;
+        setRecruitingCode(null);
+        setLinkLoading(true);
         const fetchUserAndCode = async () => {
-            if (currentUser?.uid) {
-                try {
-                    const userDocRef = doc(db, "users", currentUser.uid);
-                    const userDoc = await getDoc(userDocRef);
+            if (!currentUser?.uid) {
+                setLinkLoading(false);
+                return;
+            }
+            try {
+                const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+                if (!current || !userDoc.exists()) return;
+                const data = userDoc.data();
+                setPersonalData({ name: data.name || '' });
 
-                    if (userDoc.exists()) {
-                        const data = userDoc.data();
-                        setPersonalData({ name: data.name || '' });
-
-                        if (data.recruitingCode) {
-                            setRecruitingCode(data.recruitingCode);
-                            setLinkLoading(false);
-                        } else {
-                            await generateShortCode(currentUser.uid);
-                        }
-                    }
-                } catch (e) {
-                    console.error("Error fetching profile:", e);
-                    setLinkLoading(false);
-                }
+                const savedCode = data.recruitingCode;
+                const code = companyId ? await recruiterCodeFor(currentUser.uid, companyId, savedCode) : null;
+                if (code && code !== savedCode) forgetPortalUser(currentUser.uid);
+                if (current) setRecruitingCode(code);
+            } catch (err) {
+                console.error("Error generating link:", err);
+                if (current) showError("Could not generate tracking link.");
+            } finally {
+                if (current) setLinkLoading(false);
             }
         };
         fetchUserAndCode();
-    }, [currentUser]);
-
-    const generateShortCode = async (uid) => {
-        setLinkLoading(true);
-        try {
-            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-            // 1. Save mapping
-            await setDoc(doc(db, "recruiter_links", code), {
-                userId: uid,
-                companyId: currentCompanyProfile.id,
-                createdAt: new Date()
-            });
-
-            // 2. Save code to user profile
-            await updateDoc(doc(db, "users", uid), {
-                recruitingCode: code
-            });
-            forgetPortalUser(uid);
-
-            setRecruitingCode(code);
-        } catch (err) {
-            console.error("Error generating link:", err);
-            showError("Could not generate tracking link.");
-        } finally {
-            setLinkLoading(false);
-        }
-    };
+        return () => { current = false; };
+    }, [currentUser, companyId, showError]);
 
     const handleSavePersonal = async () => {
         setLoading(true);
@@ -100,13 +81,19 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
     // Clean trailing slash just in case
     const cleanBaseUrl = appBaseUrl.replace(/\/$/, "");
 
-    const uniqueLink = recruitingCode 
-        ? `${cleanBaseUrl}/apply/${companySlug}?r=${recruitingCode}`
-        : `${cleanBaseUrl}/apply/${companySlug}?recruiter=${currentUser?.uid}`;
+    // Without a signed-in user there is no one to assign, so there is no link.
+    let uniqueLink = null;
+    if (recruitingCode) uniqueLink = `${cleanBaseUrl}/apply/${companySlug}?r=${recruitingCode}`;
+    else if (currentUser?.uid) uniqueLink = `${cleanBaseUrl}/apply/${companySlug}?recruiter=${currentUser.uid}`;
 
-    const handleCopyLink = () => {
+    const handleCopyLink = async () => {
         if (!uniqueLink) return;
-        navigator.clipboard.writeText(uniqueLink);
+        try {
+            await navigator.clipboard.writeText(uniqueLink);
+        } catch {
+            showError("Could not copy the link. Select it and copy it yourself.");
+            return;
+        }
         setCopied(true);
         showSuccess("Short link copied!");
         setTimeout(() => setCopied(false), 2000);
@@ -151,6 +138,10 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                                     <Icon icon={Loader2} className="animate-spin" />
                                     Generating unique code...
                                 </div>
+                            ) : !uniqueLink ? (
+                                <p className="text-ds-sm text-ds-content-secondary">
+                                    Sign in again to see your link.
+                                </p>
                             ) : (
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-ds-surface p-2 rounded-ds-md border border-ds-status-info-border">
                                     <code
