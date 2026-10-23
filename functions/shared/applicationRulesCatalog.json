@@ -1,5 +1,5 @@
 {
-    "$comment": "Application Rules a company can set without a code change. Read by functions/shared/applicationRules.js and src/config/applicationRules.js (mirrors) and rendered by the settings UI. Every default reproduces the behaviour the wizard had before the rules existed, so a company that never opens the settings sees no change. Labels are written for company staff, not engineers.",
+    "$comment": "Application Rules a company can set without a code change. Read by functions/shared/applicationRules.js and src/config/applicationRules.js (mirrors) and rendered by the settings UI. The previous-address, other-state licence, violation, accident and felony rules are on by default: an application that says Yes or No to them is complete without the company opening the settings; a company can turn each off. The other defaults reproduce the wizard before the rules existed. Labels are written for company staff, not engineers.",
     "version": 1,
     "groups": [
         { "id": "address", "title": "Address history" },
@@ -20,9 +20,9 @@
             "id": "requirePreviousAddressUnderThreeYears",
             "group": "address",
             "type": "boolean",
-            "default": false,
-            "label": "Require previous addresses when the applicant has lived at their current address for less than 3 years",
-            "help": "When on, an applicant who answers No to “lived here 3 years or more” must add at least one complete previous address before continuing."
+            "default": true,
+            "label": "Require previous addresses covering 3 years when the applicant has lived at their current address for less than 3 years",
+            "help": "When on, an applicant who answers No to “lived here 3 years or more” must add complete previous addresses, the earliest starting at least 3 years ago, before continuing."
         },
         {
             "id": "experienceOptionsHidden",
@@ -71,7 +71,7 @@
             "id": "requirePreviousLicenseDetails",
             "group": "license",
             "type": "boolean",
-            "default": false,
+            "default": true,
             "label": "Require complete details for every other-state license held in the past 3 years",
             "help": "When the applicant says they held a license in another state, at least one complete record (state, number, class, expiration) is required."
         },
@@ -91,7 +91,7 @@
             "id": "requireViolationDetails",
             "group": "drivingRecord",
             "type": "boolean",
-            "default": false,
+            "default": true,
             "label": "When the applicant reports moving violations, require at least one complete violation record",
             "help": "A complete record has a date, the charge and the location."
         },
@@ -99,7 +99,7 @@
             "id": "requireAccidentDetails",
             "group": "drivingRecord",
             "type": "boolean",
-            "default": false,
+            "default": true,
             "label": "When the applicant reports accidents, require complete accident details",
             "help": "Every accident must then record the date, what happened, the number of fatalities, the number of injuries and whether hazardous materials were spilled."
         },
@@ -125,7 +125,7 @@
             "id": "requireFelonyExplanation",
             "group": "disclosures",
             "type": "boolean",
-            "default": false,
+            "default": true,
             "label": "When the applicant reports a felony conviction, require an explanation"
         },
         {

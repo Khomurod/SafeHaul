@@ -211,7 +211,8 @@ const payload = (formData = {}) => ({
   // `ssn` is present because a real submission carries it — the wizard requires it
   // on page one and only the *draft* copies strip it. The server refuses a
   // submission missing a required field the draft never carried.
-  formData: { firstName: 'Ann', lastName: 'Adams', ssn: '123-45-6789', ...formData },
+  // The two answers the carrier's default rules ask before a submission.
+  formData: { firstName: 'Ann', lastName: 'Adams', ssn: '123-45-6789', 'has-violations': 'no', 'has-accidents': 'no', ...formData },
 });
 const ctx = { rawRequest: { ip: '203.0.113.1' } };
 

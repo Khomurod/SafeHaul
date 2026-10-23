@@ -158,8 +158,9 @@ describe('assertApplicationRules', () => {
       .toThrow(/invalid|impossible|date/i);
   });
 
-  it('tolerates a missing form', () => {
-    expect(() => assertApplicationRules(undefined, undefined, undefined)).not.toThrow();
+  it('judges a missing form as an empty one, without crashing', () => {
+    expect(() => assertApplicationRules(undefined, undefined, undefined)).toThrow(/does not meet this carrier's requirements/);
+    expect(() => assertApplicationRules({ requireViolationDetails: false, requireAccidentDetails: false }, undefined, undefined)).not.toThrow();
   });
 });
 

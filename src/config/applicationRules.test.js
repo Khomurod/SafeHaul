@@ -103,8 +103,8 @@ describe('evaluateApplicationRules (shared vectors)', () => {
 
     it('re-evaluates from the answers alone, so changing an answer back and forth changes the verdict', () => {
         const rules = { requireViolationDetails: true };
-        const yes = evaluateApplicationRules({ rules, formData: { 'has-violations': 'yes', employers: vectors.fullHistory }, today: vectors.today });
-        const no = evaluateApplicationRules({ rules, formData: { 'has-violations': 'no', violations: [{ date: 'junk' }], employers: vectors.fullHistory }, today: vectors.today });
+        const yes = evaluateApplicationRules({ rules, formData: { 'has-violations': 'yes', 'has-accidents': 'no', employers: vectors.fullHistory }, today: vectors.today });
+        const no = evaluateApplicationRules({ rules, formData: { 'has-violations': 'no', 'has-accidents': 'no', violations: [{ date: 'junk' }], employers: vectors.fullHistory }, today: vectors.today });
         expect(yes.blocking.map((i) => i.code)).toEqual(['violation-details-required']);
         // Switching to No drops the leftover rows, junk date included.
         expect(no.blocking).toEqual([]);

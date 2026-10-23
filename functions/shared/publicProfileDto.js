@@ -48,10 +48,12 @@ const PUBLIC_APPLICATION_CONFIG_KEYS = [
  * change would keep an old profile, and its public apply page would keep
  * ignoring them, until somebody happened to edit the company again.
  *
- * BUMP THIS whenever `buildPublicProfileDto`'s output shape changes, so every
- * existing profile is rewritten by the reconciler on its next pass.
+ * BUMP THIS whenever `buildPublicProfileDto`'s output shape changes, or a
+ * default it bakes in does (`applicationRules` is resolved against the
+ * catalog's defaults), so every existing profile is rewritten by the
+ * reconciler on its next pass.
  */
-const PUBLIC_PROFILE_DTO_VERSION = 3;
+const PUBLIC_PROFILE_DTO_VERSION = 4;
 
 const { resolveApplicationRules } = require('./applicationRules');
 

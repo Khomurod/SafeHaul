@@ -126,6 +126,10 @@ describe('submitGuestApplication', () => {
       'cdl-front': { url: 'x' },
       'cdl-back': { url: 'y' },
       'medical-card-upload': { url: 'z' },
+      // Answered on every application: the violations and accidents rules are
+      // on by default, and the wizard requires both questions.
+      'has-violations': 'no',
+      'has-accidents': 'no',
     },
   };
 

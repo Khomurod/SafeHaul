@@ -252,6 +252,26 @@ function isCompletePreviousAddress(row) {
         && (Boolean(parseApplicationDate(row.endDate)) || isOngoingToken(row.endDate));
 }
 
+const MONTH_NAMES = Object.freeze(['January', 'February', 'March', 'April', 'May', 'June', 'July',
+    'August', 'September', 'October', 'November', 'December']);
+const monthIndex = ({ year, month }) => year * 12 + (month - 1);
+const monthLabel = (index) => `${MONTH_NAMES[index % 12]} ${Math.floor(index / 12)}`;
+
+/**
+ * Whether the complete previous addresses reach back three years from the
+ * applicant's month: the earliest one starts in that month or before. The
+ * wizard does not ask when the applicant moved into the current address, so
+ * the earliest start is what three years of history comes down to. Returns
+ * the month they must reach, and the earliest they do (or null without one).
+ */
+function previousAddressCoverage(rows, today) {
+    const [year, month] = toIsoDay(today).split('-').map(Number);
+    const needed = monthIndex({ year, month }) - 36;
+    const starts = rows.filter(isCompletePreviousAddress).map((row) => monthIndex(parseApplicationDate(row.startDate)));
+    const earliest = starts.length > 0 ? Math.min(...starts) : null;
+    return { covered: earliest !== null && earliest <= needed, needed, earliest };
+}
+
 function isCompleteLicense(row) {
     return ['state', 'number', 'class'].every((key) => !isBlank(row[key])) && Boolean(parseApplicationDate(row.expiration));
 }
@@ -397,10 +417,18 @@ function evaluateApplicationRules({ rules: rawRules, applicationConfig, formData
 
     const addressGate = resolveGate(applicationConfig, 'addressHistory');
     if (rules.requirePreviousAddressUnderThreeYears && !addressGate.hidden
-        && yesNo(data['residence-3-years']) === 'no'
-        && !listOf(data.previousAddresses).some(isCompletePreviousAddress)) {
-        issues.push(issue('previous-address-required', 'block', 'contact', 'previousAddresses',
-            'Because you have lived at your current address for less than 3 years, add at least one complete previous address (street, city, state, ZIP, and the months you lived there).'));
+        && yesNo(data['residence-3-years']) === 'no') {
+        const addresses = listOf(data.previousAddresses);
+        const coverage = previousAddressCoverage(addresses, today);
+        if (!addresses.some(isCompletePreviousAddress)) {
+            issues.push(issue('previous-address-required', 'block', 'contact', 'previousAddresses',
+                'Because you have lived at your current address for less than 3 years, add at least one complete previous address (street, city, state, ZIP, and the months you lived there).'));
+        } else if (strict && !coverage.covered) {
+            // `strict` only, as the explanations: an older page asks for one address.
+            issues.push(issue('previous-address-coverage', 'block', 'contact', 'previousAddresses',
+                `Your addresses must cover the last 3 years, back to ${monthLabel(coverage.needed)}. `
+                + `The earliest previous address you listed starts in ${monthLabel(coverage.earliest)}: add where you lived before that.`));
+        }
     }
 
     const experience = data['experience-years'];

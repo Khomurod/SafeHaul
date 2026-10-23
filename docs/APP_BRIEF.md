@@ -624,16 +624,15 @@ require a felony explanation · Hours of Service statement off / on (exactly the
 seven days before the reference day: a stale week in a resumed draft is refused
 and re-asked; a driver never on duty gives no relief).
 
-- **Every default reproduces the pre-2026-09-02 behaviour** (`warn` is what
-  "three-year coverage" always did). An impossible date (30 February, a year out
-  of range) is refused regardless of configuration.
+- **On by default:** previous addresses (3 years back; the server asks for one
+  until it is strict), other-state licence, violation and accident details, the
+  felony explanation; other defaults keep the old behaviour (`warn` coverage).
+  An impossible date (30 February) is refused whatever the configuration.
 - Legacy records with violation or accident rows but no Yes/No answer read as
   Yes. An explicit No drops everything it revealed — rows *and* conditional
   fields such as the licence-revocation, conviction and felony explanations — at
-  review, pre-flight and server (`normalizeApplicationAnswers`), per
-  `conditionalAnswers` in `applicationRulesCatalog.json` (read by both mirrors).
-  A conditional field missing from that list is still submitted after a No and
-  prints under it on the PDF.
+  review, pre-flight and server (`normalizeApplicationAnswers`, per the
+  catalog's `conditionalAnswers`); a field missing there survives a No.
 
 **The reference day is the applicant's, within a day of the server's.** The
 browser judges "the last seven days", "expired" and the employment window's
