@@ -199,10 +199,12 @@ service cloud.firestore {
 
     // Allows ANY signed-in user to create an application IF they are the driver/applicant
     // No field list on purpose: a strict enumeration made submissions brittle.
+    // A driver's own application, without the fields only the server decides:
+    // who it is assigned to and which referral brought it.
     function isValidAuthenticatedApplication() {
       let data = request.resource.data;
-      return (data.driverId == request.auth.uid) || 
-             (data.applicantId == request.auth.uid);
+      return ((data.driverId == request.auth.uid) || (data.applicantId == request.auth.uid)) &&
+             !data.keys().hasAny(['assignedTo', 'assignedToName', 'referral']);
     }
 
     // DETERMINISTIC ID CHECK: Ensures the Firestore document ID matches
