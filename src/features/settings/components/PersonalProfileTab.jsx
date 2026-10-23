@@ -1,6 +1,6 @@
 // src/features/settings/components/PersonalProfileTab.jsx
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from '@lib/firebase';
 import { forgetPortalUser } from '@features/auth/services/userService';
 import { Icon, Save, Loader2, Link as LinkIcon, Copy, CheckCircle } from '@design-system/icons';
@@ -13,6 +13,7 @@ import {
 } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
+import { recruiterCodeFor } from '../services/recruiterLinkCode';
 
 export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
@@ -36,12 +37,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                         const data = userDoc.data();
                         setPersonalData({ name: data.name || '' });
 
-                        if (data.recruitingCode) {
-                            setRecruitingCode(data.recruitingCode);
-                            setLinkLoading(false);
-                        } else {
-                            await generateShortCode(currentUser.uid);
-                        }
+                        await loadLinkCode(data.recruitingCode);
                     }
                 } catch (e) {
                     console.error("Error fetching profile:", e);
@@ -52,24 +48,11 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
         fetchUserAndCode();
     }, [currentUser]);
 
-    const generateShortCode = async (uid) => {
+    const loadLinkCode = async (savedCode) => {
         setLinkLoading(true);
         try {
-            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-            // 1. Save mapping
-            await setDoc(doc(db, "recruiter_links", code), {
-                userId: uid,
-                companyId: currentCompanyProfile.id,
-                createdAt: new Date()
-            });
-
-            // 2. Save code to user profile
-            await updateDoc(doc(db, "users", uid), {
-                recruitingCode: code
-            });
-            forgetPortalUser(uid);
-
+            const code = await recruiterCodeFor(currentUser.uid, currentCompanyProfile.id, savedCode);
+            if (code && code !== savedCode) forgetPortalUser(currentUser.uid);
             setRecruitingCode(code);
         } catch (err) {
             console.error("Error generating link:", err);
@@ -104,9 +87,14 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
         ? `${cleanBaseUrl}/apply/${companySlug}?r=${recruitingCode}`
         : `${cleanBaseUrl}/apply/${companySlug}?recruiter=${currentUser?.uid}`;
 
-    const handleCopyLink = () => {
+    const handleCopyLink = async () => {
         if (!uniqueLink) return;
-        navigator.clipboard.writeText(uniqueLink);
+        try {
+            await navigator.clipboard.writeText(uniqueLink);
+        } catch {
+            showError("Could not copy the link. Select it and copy it yourself.");
+            return;
+        }
         setCopied(true);
         showSuccess("Short link copied!");
         setTimeout(() => setCopied(false), 2000);

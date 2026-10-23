@@ -6,6 +6,7 @@ const { admin, db, auth } = require("./firebaseAdmin");
 const { LIFECYCLE_STATUSES } = require("./shared/constants");
 const { isPlaceholderEmail } = require("./shared/placeholderDomains");
 const { fileDqUploads, uploadKeys } = require("./shared/dqUploads");
+const { resolveRecruiterAssignment } = require("./shared/recruiterAssignment");
 
 // B1 FIX: processing_status is an idempotency ledger that only needs to outlive the longest
 // retry/replay window. Stamp an expiresAt so a Firestore native TTL policy on the
@@ -188,16 +189,17 @@ exports.onApplicationSubmitted = onDocumentCreated({
     // Continue processing anyway - the status check is defensive, not blocking
   }
 
-  // AUTO-ASSIGN LOGIC
+  // The recruiter link's member, when the link belongs to this company's team
+  // (shared/recruiterAssignment.js).
   if (data.recruiterCode && !data.assignedTo) {
     try {
-      const linkSnap = await db.collection("recruiter_links").doc(data.recruiterCode).get();
-      const assignedTo = linkSnap.exists ? linkSnap.data().userId : data.recruiterCode;
-
-      await appRef.update({
-        assignedTo: assignedTo
-      });
-      console.log(`[onApplicationSubmitted] Auto-assigned app ${appId} to recruiter ${assignedTo}`);
+      const assignment = await resolveRecruiterAssignment(db, companyId, data.recruiterCode);
+      if (assignment) {
+        await appRef.update(assignment);
+        console.log(`[onApplicationSubmitted] Auto-assigned app ${appId} to recruiter ${assignment.assignedTo}`);
+      } else {
+        console.warn(`[onApplicationSubmitted] Recruiter code on ${appId} names no member of ${companyId}; left unassigned.`);
+      }
     } catch (e) {
       console.error("Auto-assign failed:", e);
     }

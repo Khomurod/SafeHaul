@@ -63,7 +63,7 @@ erDiagram
 | `verification_requests/{token}/responses` | `responseId` | same as parent | PEV responses |
 | `analytics` | `docId` | **read:** super · **write:** denied | Platform analytics |
 | `system_settings` | `settingId` | **read, write:** super | Global settings |
-| `recruiter_links` | `code` | **read:** public · **create/update:** super, or team **of the company stamped on the link** (`companyId` immutable) · **delete:** super | Recruiter attribution URLs. SEC-003: any staff from any company could previously create or overwrite any link code |
+| `recruiter_links` | `code` | **read:** public · **create/update:** super, or team **of the company stamped on the link** (`companyId` immutable) · **delete:** super | Recruiter attribution URLs (`?r=<code>`). A new code is 8 characters and never overwrites an existing link. A submitted application is assigned (`assignedTo`, `assignedToName`) only to a member of the application's company: the link's owner, or the user of an older `?recruiter=<uid>` link (`shared/recruiterAssignment.js`). Hold nothing personal here: the collection is publicly readable |
 | `job_posts` | `postId` | **server** (no rule → default deny) | **Retired.** The public job board was removed (commit `5a4c8dd`) and the former public-read / company-team-write rules were **deleted**. Historical documents are left unreachable rather than deleted. `firestore.rules.security.test.js` has a default-deny regression test |
 
 ### Server-only top-level (no rules → client denied)

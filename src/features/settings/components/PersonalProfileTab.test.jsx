@@ -7,6 +7,8 @@ const firestoreMocks = vi.hoisted(() => ({
     getDoc: vi.fn(),
     setDoc: vi.fn(),
     updateDoc: vi.fn(),
+    // recruiter_links/{code} → the link stored there, if any.
+    links: {},
 }));
 
 const toastMocks = vi.hoisted(() => ({
@@ -16,11 +18,22 @@ const toastMocks = vi.hoisted(() => ({
 
 const forgetPortalUser = vi.hoisted(() => vi.fn());
 
+const linkSnapshot = (path) => {
+    const link = firestoreMocks.links[path];
+    return { exists: () => Boolean(link), data: () => link };
+};
+
 vi.mock('firebase/firestore', () => ({
     doc: vi.fn((_db, ...segments) => segments.join('/')),
-    getDoc: firestoreMocks.getDoc,
-    setDoc: firestoreMocks.setDoc,
+    getDoc: (path) => (path.startsWith('recruiter_links/') ? Promise.resolve(linkSnapshot(path)) : firestoreMocks.getDoc(path)),
     updateDoc: firestoreMocks.updateDoc,
+    // A transaction reads the link store and commits its writes through
+    // `setDoc`, so a test sees each link created (or refused) like any write.
+    runTransaction: async (_db, run) => {
+        const writes = [];
+        await run({ get: async (path) => linkSnapshot(path), set: (path, data) => writes.push([path, data]) });
+        for (const [path, data] of writes) await firestoreMocks.setDoc(path, data);
+    },
 }));
 
 vi.mock('@lib/firebase', () => ({ db: {} }));
@@ -61,6 +74,7 @@ describe('PersonalProfileTab compatibility slice', () => {
         toastMocks.showError.mockReset();
         toastMocks.showSuccess.mockReset();
         firestoreMocks.getDoc.mockResolvedValue(existingUser());
+        firestoreMocks.links = { 'recruiter_links/ABC123': { userId: 'user-1', companyId: 'company-1' } };
         firestoreMocks.setDoc.mockResolvedValue();
         firestoreMocks.updateDoc.mockResolvedValue();
 
@@ -121,7 +135,6 @@ describe('PersonalProfileTab compatibility slice', () => {
         firestoreMocks.getDoc.mockResolvedValue(existingUser({
             recruitingCode: undefined,
         }));
-        const random = vi.spyOn(Math, 'random').mockReturnValue(0.123456789);
 
         render(
             <PersonalProfileTab
@@ -148,8 +161,47 @@ describe('PersonalProfileTab compatibility slice', () => {
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
             `${window.location.origin}/apply/safehaul-logistics?r=${generatedCode}`,
         );
-        expect(toastMocks.showSuccess).toHaveBeenCalledWith('Short link copied!');
-        random.mockRestore();
+        await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Short link copied!'));
+        expect(generatedCode).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
+    });
+
+    it('draws another code rather than overwrite a link someone already has', async () => {
+        firestoreMocks.getDoc.mockResolvedValue(existingUser({ recruitingCode: undefined }));
+        const values = vi.spyOn(crypto, 'getRandomValues')
+            .mockImplementationOnce((bytes) => bytes.fill(0))
+            .mockImplementationOnce((bytes) => bytes.fill(1));
+        firestoreMocks.links = { 'recruiter_links/AAAAAAAA': { userId: 'someone-else', companyId: 'company-9' } };
+
+        render(<PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />);
+
+        await waitFor(() => expect(firestoreMocks.setDoc).toHaveBeenCalledOnce());
+        expect(firestoreMocks.setDoc.mock.calls[0][0]).toBe('recruiter_links/BBBBBBBB');
+        expect(firestoreMocks.updateDoc).toHaveBeenCalledWith('users/user-1', { recruitingCode: 'BBBBBBBB' });
+        values.mockRestore();
+    });
+
+    it("offers the team-checked ?recruiter= link when the saved code was made for another company", async () => {
+        firestoreMocks.links = { 'recruiter_links/ABC123': { userId: 'user-1', companyId: 'company-other' } };
+
+        render(<PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
+        await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+            `${window.location.origin}/apply/safehaul-logistics?recruiter=user-1`,
+        ));
+        expect(firestoreMocks.setDoc).not.toHaveBeenCalled();
+        expect(firestoreMocks.updateDoc).not.toHaveBeenCalled();
+    });
+
+    it('says so when the link could not be copied', async () => {
+        navigator.clipboard.writeText.mockRejectedValueOnce(new Error('denied'));
+
+        render(<PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Copy' }));
+        await waitFor(() => expect(toastMocks.showError)
+            .toHaveBeenCalledWith('Could not copy the link. Select it and copy it yourself.'));
+        expect(toastMocks.showSuccess).not.toHaveBeenCalledWith('Short link copied!');
     });
 
     it('preserves the recruiting-link generation error feedback', async () => {
