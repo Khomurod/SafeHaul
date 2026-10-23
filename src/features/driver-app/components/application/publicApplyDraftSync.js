@@ -135,6 +135,10 @@ export function reconcileServerDraftOnLoad({
         return;
       }
 
+      // The link clicked wins over a code the stored copy carries, in what is
+      // written back as well as on screen.
+      const formData = referralCode ? { ...resolved.formData, referralCode } : resolved.formData;
+
       // Write the outcome back locally when the **server** copy won.
       //
       // Otherwise the next navigation would write that server content out as if it
@@ -156,8 +160,8 @@ export function reconcileServerDraftOnLoad({
         //
         // Keys only the local copy has count the same way, for the same reason.
         const serverSeq = Number.isInteger(restored.clientSeq) ? restored.clientSeq : null;
-        const holdsMoreThanServer = !sameDraftData(resolved.formData, restored.formData);
-        const reconciled = saveApplicationDraft(slug, resolved.formData, holdsMoreThanServer
+        const holdsMoreThanServer = !sameDraftData(formData, restored.formData);
+        const reconciled = saveApplicationDraft(slug, formData, holdsMoreThanServer
           // One above the server's position, with the synced position left at it:
           // dirty, so the next navigation or reconnect sends it, while a later
           // genuine server advance is still recognised by `clientSeq !== syncedSeq`.
@@ -181,9 +185,9 @@ export function reconcileServerDraftOnLoad({
       // what is on screen is the discarded application. Only answers typed in this
       // tab and never stored survive one.
       restoredFromDraftRef.current = true;
-      // `resolved.formData` already carries anything typed since load, so it goes
+      // `formData` already carries anything typed since load, so it goes
       // last; `prev` still supplies the wizard's untouched defaults.
-      setFormData((prev) => ({ ...prev, ...resolved.formData, ...(referralCode ? { referralCode } : {}) }));
+      setFormData((prev) => ({ ...prev, ...formData }));
       // `Math.max`: never move an applicant *backwards* from where they already
       // are in this session — and never *forwards* past a Back they pressed while
       // this was in flight. That press is their answer to "where am I", and the

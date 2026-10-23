@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reconcileServerDraftOnLoad } from './publicApplyDraftSync';
+import { draftSyncState, readApplicationDraft } from './applicationDraftStorage';
 
 /**
  * Where the late server-draft reconciliation leaves the applicant.
@@ -86,6 +87,17 @@ describe('reconcileServerDraftOnLoad and a referral link', () => {
         await land(2);
         expect(formUpdates).toHaveLength(1);
         expect(formUpdates[0]({ referralCode: 'WXYZ6789' })).toMatchObject({ firstName: 'Marcus', referralCode: 'WXYZ6789' });
+    });
+
+    it('stores the link code with the copy it writes back, still owed to the server', async () => {
+        const { land } = harness({
+            stepAtStart: 0,
+            referralCode: 'WXYZ6789',
+            serverFormData: { firstName: 'Marcus', referralCode: 'ABCD2345' },
+        });
+        await land(2);
+        expect(readApplicationDraft('reconcile-step-test')?.data?.referralCode).toBe('WXYZ6789');
+        expect(draftSyncState('reconcile-step-test')?.dirty).toBe(true);
     });
 
     it('leaves the saved code alone when the address carries none', async () => {
