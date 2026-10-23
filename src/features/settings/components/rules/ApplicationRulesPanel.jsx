@@ -191,7 +191,7 @@ export function ApplicationRulesPanel({ rules: rawRules, onChange, readOnly = fa
                 Nothing here changes which questions are asked — that is Standard Questions. These rules decide what happens
                 when an answer needs more attention. Every rule starts on the platform default: details and explanations
                 behind a Yes, and previous addresses for 3 years, are required; the rest is as the application behaved before
-                rules existed. Only what you change applies to your applicants, and it is checked again when they submit.
+                rules existed. A rule you change replaces the default for your applicants; the rest keep it. Rules are checked again at submit.
             </p>
             {APPLICATION_RULES_CATALOG.groups.map((group) => {
                 const groupRules = APPLICATION_RULES_CATALOG.rules.filter((rule) => rule.group === group.id);
