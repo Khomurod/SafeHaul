@@ -257,9 +257,13 @@ const UploadField = ({
             {/* SUCCESS / VIEW STATE — also not a `Notice`. This is a file row:
                 a thumbnail, a filename, a status line and two controls. A
                 leading tick would displace the thumbnail and the controls would
-                fall under the filename. */}
+                fall under the filename. `min-w-0` lets the row shrink to the
+                card: without it the filename sets the row's width, and the
+                whole form section with it, past a phone's screen. The name
+                wraps rather than truncates, so a phone's long camera name is
+                still told apart from its neighbour's. */}
             {(hasValue && status !== 'uploading' && status !== 'error') && (
-                <div className="flex items-center gap-ds-3 rounded-ds-md border border-ds-status-success-border bg-ds-status-success-bg p-ds-3">
+                <div className="flex min-w-0 items-center gap-ds-3 rounded-ds-md border border-ds-status-success-border bg-ds-status-success-bg p-ds-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-ds-md bg-ds-surface text-ds-status-success-fg">
                         {isImage && fileUrl ? (
                             <img src={fileUrl} alt={`${label} preview`} loading="lazy" className="h-full w-full object-cover" />
@@ -268,7 +272,7 @@ const UploadField = ({
                         )}
                     </span>
                     <div className="min-w-0 flex-1">
-                        <p className="truncate text-ds-sm font-medium text-ds-content">
+                        <p className="break-all text-ds-sm font-medium text-ds-content">
                             {fileName}
                         </p>
                         {/* Announced when the upload lands, so a screen-reader user is

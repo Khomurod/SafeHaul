@@ -66,7 +66,7 @@ function ReviewSection({ title, onEdit, children }) {
             <div className="flex items-center justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-5 py-ds-3">
                 <h2 className="text-ds-body font-bold text-ds-content">{title}</h2>
                 {onEdit && (
-                    <Button variant="ghost" size="md" onClick={onEdit} aria-label={`Edit ${title}`}>
+                    <Button variant="ghost" size="md" className="shrink-0" onClick={onEdit} aria-label={`Edit ${title}`}>
                         <Icon icon={Edit2} size="sm" /> Edit
                     </Button>
                 )}
