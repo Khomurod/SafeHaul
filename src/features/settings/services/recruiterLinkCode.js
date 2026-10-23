@@ -23,10 +23,11 @@ export function newRecruiterCode(random = (n) => crypto.getRandomValues(new Uint
 class CodeTaken extends Error {}
 
 /**
- * The code to show for this company: the user's saved code when its link was
- * made for this company; `null` when it belongs to another company (the page
- * then offers the `?recruiter=` link, which the server checks against this
- * company's team); a newly created code when there is none.
+ * The code to show for this company: the user's saved code when its link is
+ * theirs and was made for this company; `null` when it is theirs but for another
+ * company (the page then offers the `?recruiter=` link, which the server checks
+ * against this company's team); a newly created code when there is none, or the
+ * saved code's link names someone else.
  *
  * @param {string} uid
  * @param {string} companyId
@@ -36,7 +37,8 @@ class CodeTaken extends Error {}
 export async function recruiterCodeFor(uid, companyId, savedCode) {
     if (savedCode) {
         const link = await getDoc(doc(db, 'recruiter_links', savedCode));
-        if (link.exists()) return link.data()?.companyId === companyId ? savedCode : null;
+        const saved = link.exists() ? link.data() || {} : null;
+        if (saved?.userId === uid) return saved.companyId === companyId ? savedCode : null;
     }
     for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
         const code = newRecruiterCode();

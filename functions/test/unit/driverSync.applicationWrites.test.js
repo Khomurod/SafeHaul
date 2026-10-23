@@ -133,6 +133,22 @@ it("assigns the older ?recruiter= link's user only when they are on this company
     expect(applicationWrites()).toEqual([]);
 });
 
+it('names a member without a profile name by their email, and assigns nobody it cannot name', async () => {
+    mockState.recruiterLinks = { 'link-3': { userId: 'nameless', companyId: 'co1' } };
+    mockState.members = [{ userId: 'nameless', companyId: 'co1', role: 'recruiter' }];
+    mockState.users = { nameless: { email: 'riley@example.com' } };
+
+    await submit({ signature: SIGNATURE, recruiterCode: 'link-3' });
+    expect(applicationWrites()).toEqual([
+        { kind: 'update', path: APP_PATH, data: { assignedTo: 'nameless', assignedToName: 'riley@example.com' } },
+    ]);
+
+    mockWrites.length = 0;
+    mockState.users = {};
+    await submit({ signature: SIGNATURE, recruiterCode: 'link-3' });
+    expect(applicationWrites()).toEqual([]);
+});
+
 it('still rejects an application without a valid signature, in one write', async () => {
     await submit({ signature: 'not-a-signature' });
 

@@ -26,41 +26,36 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
     // FIX: Use Env var if present, otherwise fallback to current origin (robust for MVP)
     const appBaseUrl = import.meta.env.VITE_DRIVER_APP_URL || window.location.origin;
 
+    const companyId = currentCompanyProfile?.id;
+
     useEffect(() => {
+        // A company switch while the page is open asks again: a code made for
+        // the previous company would not assign anyone here.
+        let current = true;
+        setRecruitingCode(null);
+        setLinkLoading(true);
         const fetchUserAndCode = async () => {
-            if (currentUser?.uid) {
-                try {
-                    const userDocRef = doc(db, "users", currentUser.uid);
-                    const userDoc = await getDoc(userDocRef);
+            if (!currentUser?.uid) return;
+            try {
+                const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+                if (!current || !userDoc.exists()) return;
+                const data = userDoc.data();
+                setPersonalData({ name: data.name || '' });
 
-                    if (userDoc.exists()) {
-                        const data = userDoc.data();
-                        setPersonalData({ name: data.name || '' });
-
-                        await loadLinkCode(data.recruitingCode);
-                    }
-                } catch (e) {
-                    console.error("Error fetching profile:", e);
-                    setLinkLoading(false);
-                }
+                const savedCode = data.recruitingCode;
+                const code = companyId ? await recruiterCodeFor(currentUser.uid, companyId, savedCode) : null;
+                if (code && code !== savedCode) forgetPortalUser(currentUser.uid);
+                if (current) setRecruitingCode(code);
+            } catch (err) {
+                console.error("Error generating link:", err);
+                if (current) showError("Could not generate tracking link.");
+            } finally {
+                if (current) setLinkLoading(false);
             }
         };
         fetchUserAndCode();
-    }, [currentUser]);
-
-    const loadLinkCode = async (savedCode) => {
-        setLinkLoading(true);
-        try {
-            const code = await recruiterCodeFor(currentUser.uid, currentCompanyProfile.id, savedCode);
-            if (code && code !== savedCode) forgetPortalUser(currentUser.uid);
-            setRecruitingCode(code);
-        } catch (err) {
-            console.error("Error generating link:", err);
-            showError("Could not generate tracking link.");
-        } finally {
-            setLinkLoading(false);
-        }
-    };
+        return () => { current = false; };
+    }, [currentUser, companyId, showError]);
 
     const handleSavePersonal = async () => {
         setLoading(true);

@@ -174,10 +174,40 @@ describe('PersonalProfileTab compatibility slice', () => {
 
         render(<PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />);
 
-        await waitFor(() => expect(firestoreMocks.setDoc).toHaveBeenCalledOnce());
+        // The link shows once both writes are done.
+        expect(await screen.findByText(/\/apply\/safehaul-logistics\?r=BBBBBBBB$/)).toBeInTheDocument();
+        expect(firestoreMocks.setDoc).toHaveBeenCalledOnce();
         expect(firestoreMocks.setDoc.mock.calls[0][0]).toBe('recruiter_links/BBBBBBBB');
         expect(firestoreMocks.updateDoc).toHaveBeenCalledWith('users/user-1', { recruitingCode: 'BBBBBBBB' });
         values.mockRestore();
+    });
+
+    it("makes the user their own link when the saved code's link names someone else", async () => {
+        firestoreMocks.links = { 'recruiter_links/ABC123': { userId: 'someone-else', companyId: 'company-1' } };
+
+        render(<PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />);
+
+        expect(await screen.findByText(/\/apply\/safehaul-logistics\?r=[A-HJ-NP-Z2-9]{8}$/)).toBeInTheDocument();
+        const [linkReference, linkPayload] = firestoreMocks.setDoc.mock.calls[0];
+        expect(linkReference).not.toBe('recruiter_links/ABC123');
+        expect(linkPayload).toEqual(expect.objectContaining({ userId: 'user-1', companyId: 'company-1' }));
+    });
+
+    it('asks again for the link when the company changes while the page is open', async () => {
+        firestoreMocks.links = {
+            'recruiter_links/ABC123': { userId: 'user-1', companyId: 'company-1' },
+        };
+        const { rerender } = render(
+            <PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />,
+        );
+        expect(await screen.findByText(/\/apply\/safehaul-logistics\?r=ABC123$/)).toBeInTheDocument();
+
+        rerender(
+            <PersonalProfileTab currentUser={currentUser} currentCompanyProfile={{ id: 'company-2', appSlug: 'blue-line' }} />,
+        );
+
+        expect(await screen.findByText(/\/apply\/blue-line\?recruiter=user-1$/)).toBeInTheDocument();
+        expect(screen.queryByText(/\?r=ABC123$/)).toBeNull();
     });
 
     it("offers the team-checked ?recruiter= link when the saved code was made for another company", async () => {
