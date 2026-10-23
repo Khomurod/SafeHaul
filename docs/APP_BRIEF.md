@@ -274,8 +274,10 @@ uses, none a submission marked or older than 2026-10-12; its tokens learn
 under the company with the same tooling: status funnel, activity log, notes,
 documents, assignment. Leads come by quick-add, CSV / spreadsheet import, the
 Facebook Lead Ads webhook, or a referral quick form. **Driver referral links**
-(Referral Links page: any staff member makes one; an admin sees all, others
-their own; deactivate only; `referral_links`, team-only): a quick-form lead
+(Referral Links page: any staff member makes one; admins see all, others
+theirs; deactivate only; `referral_links`, team-only). `/apply/<slug>?ref=`
+offers, in the intake chooser's place, the quick form (names, phone, email,
+required contact consent) or the full application. A quick-form lead
 (`submitReferralInterest`) or an application with `referralCode` carries
 `referral` (shown in the dossier) and goes to the link's creator while on the
 team, who is notified.
@@ -759,16 +761,14 @@ Only the link the latest mint replaced stays live (`MAX_PRIOR_INVITE_HASHES` is
 carried forward; legacy bare-string prior hashes read as dead. Pinned by
 `companyApplications.invite.expiry.test.js`.
 
-**A dead link says so; starting fresh is a choice.** The exchange throws like
-its sibling callables; `publicApplyInvite.js` classifies by what the driver is
-told. **`unopenable` is one bucket on purpose** (wrong, expired, submitted,
-superseded, discarded — the server answers them identically; a deleted draft's
-own link hears `removed`); other causes split only where the driver
-can act, **retry first for transient ones** (a silent fall-through would skip
-the claim, leave locks unenforced and hand the carrier a second, unprepared
-application). `ApplyLinkProblemScreen` sits below the success screen and above
-the intake chooser, so an ordinary application is an explicit button;
-`resolveApplyStatusScreen` (`PublicApplyScreens.jsx`) owns that order.
+**A dead link says so; starting fresh is a choice.** `publicApplyInvite.js`
+classifies the exchange's refusal by what the driver is told. **`unopenable` is
+one bucket on purpose** (wrong, expired, submitted, superseded, discarded: the
+server answers alike; a deleted draft's own link hears `removed`); other causes
+split only where the driver can act, **retry first for transient ones** (a
+silent fall-through would skip the claim and its locks).
+`ApplyLinkProblemScreen` sits below the success screen and above the intake
+chooser; `resolveApplyStatusScreen` (`PublicApplyScreens.jsx`) owns that order.
 
 ### Locked employers
 

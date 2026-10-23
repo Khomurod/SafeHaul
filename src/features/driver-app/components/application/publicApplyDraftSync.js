@@ -30,6 +30,9 @@ export function reconcileServerDraftOnLoad({
   // the ordering half; this is the identity half. See `publicApplyInvite.js` for
   // why the two are separate mechanisms.
   invite,
+  // The code in the address (`referralCodeFrom`), or null: the link clicked wins
+  // over a code an older visit saved, as it does over a restored local draft.
+  referralCode,
   resetGenerationRef,
   restoredFromDraftRef,
   draftIdRef,
@@ -51,7 +54,20 @@ export function reconcileServerDraftOnLoad({
     // in flight can be told from where a restore put them. See `setCurrentStep`.
     const stepAtStart = latestDraftRef.current.currentStep;
     restoreFromStoredToken().then((restored) => {
-      if (!current || !restored) return;
+      if (!current) return;
+      if (!restored) {
+        // No server copy, so nothing a local write could outrank: the link code
+        // the page adopted goes into the local copy now, not at the next save —
+        // never into another applicant's copy (`foreignSlot`, below).
+        if (!referralCode || invite?.foreignSlot || resetGenerationRef.current !== generation
+          || discardGuardsRef.current.discardedElsewhere()) return;
+        const local = readApplicationDraft(slug);
+        if (local?.data && local.data.referralCode !== referralCode) {
+          const saved = saveApplicationDraft(slug, { ...local.data, referralCode });
+          if (saved.draftId) draftIdRef.current = saved.draftId;
+        }
+        return;
+      }
       // Discarded while this fetch was open. The read itself succeeded, so nothing
       // looks wrong, and writing its result back would put the discarded answers
       // into storage *after* the reset cleared them — to be restored on the next
@@ -132,6 +148,10 @@ export function reconcileServerDraftOnLoad({
         return;
       }
 
+      // The link clicked wins over a code the stored copy carries, in what is
+      // written back as well as on screen.
+      const formData = referralCode ? { ...resolved.formData, referralCode } : resolved.formData;
+
       // Write the outcome back locally when the **server** copy won.
       //
       // Otherwise the next navigation would write that server content out as if it
@@ -153,8 +173,8 @@ export function reconcileServerDraftOnLoad({
         //
         // Keys only the local copy has count the same way, for the same reason.
         const serverSeq = Number.isInteger(restored.clientSeq) ? restored.clientSeq : null;
-        const holdsMoreThanServer = !sameDraftData(resolved.formData, restored.formData);
-        const reconciled = saveApplicationDraft(slug, resolved.formData, holdsMoreThanServer
+        const holdsMoreThanServer = !sameDraftData(formData, restored.formData);
+        const reconciled = saveApplicationDraft(slug, formData, holdsMoreThanServer
           // One above the server's position, with the synced position left at it:
           // dirty, so the next navigation or reconnect sends it, while a later
           // genuine server advance is still recognised by `clientSeq !== syncedSeq`.
@@ -171,6 +191,13 @@ export function reconcileServerDraftOnLoad({
             draftId: draftIdRef.current,
           });
         if (reconciled.draftId) draftIdRef.current = reconciled.draftId;
+      } else if (referralCode && resolved.formData.referralCode !== referralCode) {
+        // Local won, so its sequences stay as they are; only the link code is new
+        // work, written as an ordinary local save so the next sync sends it. Here
+        // and not at the earlier local restore: the winner is decided by then, and
+        // a copy marked unsynced before the decision would beat a newer server copy.
+        const saved = saveApplicationDraft(slug, formData);
+        if (saved.draftId) draftIdRef.current = saved.draftId;
       }
 
       // Restored content, whichever copy won: both the local draft and the server
@@ -178,9 +205,9 @@ export function reconcileServerDraftOnLoad({
       // what is on screen is the discarded application. Only answers typed in this
       // tab and never stored survive one.
       restoredFromDraftRef.current = true;
-      // `resolved.formData` already carries anything typed since load, so it goes
+      // `formData` already carries anything typed since load, so it goes
       // last; `prev` still supplies the wizard's untouched defaults.
-      setFormData((prev) => ({ ...prev, ...resolved.formData }));
+      setFormData((prev) => ({ ...prev, ...formData }));
       // `Math.max`: never move an applicant *backwards* from where they already
       // are in this session — and never *forwards* past a Back they pressed while
       // this was in flight. That press is their answer to "where am I", and the

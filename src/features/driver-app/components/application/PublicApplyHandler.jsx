@@ -27,6 +27,7 @@ import {
   listenForReconnectFlush,
 } from './publicApplyDraftSync';
 import { INVITE_OUTCOMES } from './publicApplyInvite';
+import { referralCodeFrom } from './referralIntake';
 // And in hooks of their own: the circular discard/resume pair, the draft
 // lifecycle, and the post-submission documents flow.
 import { useDiscardAwareResume } from './useDiscardAwareResume';
@@ -46,6 +47,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const params = useParams();
   const slug = sandbox ? SANDBOX_APP_SLUG : params.slug;
   const [searchParams] = useSearchParams();
+  const linkReferralCode = referralCodeFrom(searchParams);
   const navigate = useNavigate();
   const { showSuccess, showError, showInfo } = useToast();
 
@@ -253,6 +255,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     return reconcileServerDraftOnLoad({
       slug,
       invite: inviteOutcome,
+      referralCode: linkReferralCode,
       resetGenerationRef,
       restoredFromDraftRef,
       draftIdRef,
@@ -264,7 +267,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       setCurrentStep,
       setIntakeMode,
     });
-  }, [company?.id, sandbox, slug, inviteOutcome, restoreFromStoredToken, resetGenerationRef, restoredFromDraftRef, draftIdRef, discardGuardsRef, markIdentitySatisfied]);
+  }, [company?.id, sandbox, slug, inviteOutcome, linkReferralCode, restoreFromStoredToken, resetGenerationRef, restoredFromDraftRef, draftIdRef, discardGuardsRef, markIdentitySatisfied]);
 
   /** Retries the server copy when the connection comes back — see the listener. */
   useEffect(() => {
@@ -427,7 +430,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     identityCheck,
     onConfirmIdentity,
     intakeMode,
+    companyId: company?.id,
     companyName: company?.companyName,
+    referralCode: linkReferralCode,
     handleChooseAutoFill,
     handleChooseManual,
     cdlAutoFillInputRef,
