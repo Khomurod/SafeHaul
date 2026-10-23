@@ -36,6 +36,10 @@ export const featureScreens = Object.freeze({
   // Tiny synchronous redirect — the screen it replaced is now the primary action
   // inside `companyUnfinishedApplications`. Not worth a lazy chunk.
   startApplicationRedirect: StartApplicationRedirect,
+  referralLinksPage: lazyNamed(
+    () => import('@features/referrals/ReferralLinksPage'),
+    'ReferralLinksPage',
+  ),
   companyCampaignsPage: lazyNamed(
     () => import('@features/campaigns/pages/CompanyCampaignsPage'),
     'CompanyCampaignsPage',

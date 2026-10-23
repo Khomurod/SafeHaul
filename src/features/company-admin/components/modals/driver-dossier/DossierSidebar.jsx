@@ -89,6 +89,12 @@ export function DossierSidebar({
                             {fullName || 'Driver'}
                         </h2>
                         <div className="mt-ds-1"><StatusBadge status={currentStatus} /></div>
+                        {/* Set by the server from the link the driver came through. */}
+                        {appData?.referral?.code && (
+                            <p className="mt-ds-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
+                                Referred by {appData.referral.referrerName || 'a driver'} · link {appData.referral.code}
+                            </p>
+                        )}
                     </div>
                 </div>
 

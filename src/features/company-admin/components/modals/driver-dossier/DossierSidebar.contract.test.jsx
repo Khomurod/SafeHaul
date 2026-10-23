@@ -212,3 +212,18 @@ describe('DossierSidebar contact actions', () => {
     expect(screen.queryByRole('link', { name: /email/i })).toBeNull();
   });
 });
+
+describe('DossierSidebar — a referred driver', () => {
+  afterEach(cleanup);
+
+  it('says who referred the driver and through which link, and nothing for anyone else', () => {
+    renderSidebar({
+      appData: { firstName: 'Dana', lastName: 'Driver', referral: { code: 'ABCD2345', referrerName: 'Rita Referrer' } },
+    });
+    expect(screen.getByText('Referred by Rita Referrer · link ABCD2345')).toBeInTheDocument();
+
+    cleanup();
+    renderSidebar({ appData: { firstName: 'Dana', lastName: 'Driver' } });
+    expect(screen.queryByText(/Referred by/)).toBeNull();
+  });
+});
