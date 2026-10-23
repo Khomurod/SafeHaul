@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Button, IconButton } from '@/design-system/components';
-import { Icon, LayoutDashboard, Users, Building2, User, Search, FileText, Megaphone, Upload, PlusCircle, Settings, ChevronRight, ChevronsLeft, ChevronsRight, GitBranch, Hourglass, X } from '@design-system/icons';
+import { Icon, LayoutDashboard, Users, Building2, User, Search, FileText, Megaphone, Upload, PlusCircle, Settings, ChevronRight, ChevronsLeft, ChevronsRight, GitBranch, Hourglass, Share2, X } from '@design-system/icons';
 import { useData } from '@/context/DataContext';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 import {
@@ -23,6 +23,7 @@ const ICON_MAP = Object.freeze({
   Settings,
   GitBranch,
   Hourglass,
+  Share2,
 });
 
 function stripEdgeDividers(entries) {

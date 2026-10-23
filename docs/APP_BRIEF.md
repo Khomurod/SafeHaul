@@ -274,9 +274,11 @@ uses, none a submission marked or older than 2026-10-12; its tokens learn
 under the company with the same tooling: status funnel, activity log, notes,
 documents, assignment. Leads come by quick-add, CSV / spreadsheet import, the
 Facebook Lead Ads webhook, or a referral quick form. **Driver referral links**
-(`referral_links`, team-only, deactivate only): a quick-form lead
+(Referral Links page: any staff member makes one; an admin sees all, others
+their own; deactivate only; `referral_links`, team-only): a quick-form lead
 (`submitReferralInterest`) or an application with `referralCode` carries
-`referral` and goes to the link's creator while on the team, who is notified.
+`referral` (shown in the dossier) and goes to the link's creator while on the
+team, who is notified.
 
 **E-documents and signing.** Recruiters build envelopes with placed signer
 fields (optionally AI-suggested); recipients sign **with no account** at

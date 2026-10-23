@@ -67,6 +67,15 @@ export const COMPANY_ROUTE_MANIFEST = Object.freeze([
     nav: { kind: 'group-item', group: 'applications', label: 'My Leads', icon: 'User' },
   },
   {
+    id: 'referralLinks',
+    path: 'referral-links',
+    screen: 'referralLinksPage',
+    featureName: 'Referral Links',
+    // Any staff member makes links; what each comes in through is assigned to
+    // its creator. A Company Admin sees every link, anyone else their own.
+    nav: { kind: 'group-item', group: 'applications', label: 'Referral Links', icon: 'Share2' },
+  },
+  {
     id: 'campaigns',
     path: 'campaigns',
     screen: 'companyCampaignsPage',
