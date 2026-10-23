@@ -8,12 +8,12 @@
  * Scenarios covered:
  *   1. Static parser: every export in functions/index.js maps to a real file.
  *   2. Closure walker on a known nested chain.
- *   3. fileToEntrypoints gives a helper one module loads to exactly that module
- *      (shared/clientIp.js → publicSigning.js).
+ *   3. fileToEntrypoints gives a helper exactly the modules that load it
+ *      (shared/clientIp.js → publicSigning.js and referrals/submitReferralInterest.js).
  *   4. Strict runtime filter only includes deployable JS sources.
  *   5. resolveRelativeRequire refuses to escape functions/.
  *   6. Simulating today's commit produces a small, correct deploy plan.
- *   7. Touching ONLY shared/clientIp.js produces exactly the publicSigning exports.
+ *   7. Touching ONLY shared/clientIp.js produces exactly those modules' exports.
  *   8. Touching ONLY a deeply nested utils/* file deploys all entrypoints that
  *      actually consume it (no over-deploy, no under-deploy).
  *   9. Touching a file that no entrypoint references is skipped (no full fallback).
@@ -128,16 +128,16 @@ section('2. Closure walker');
   assert('companyAdmin closure contains itself', closure.has('functions/companyAdmin.js'));
 }
 
-// ───────── 3. A helper one module loads ─────────
-section('3. shared/clientIp.js → publicSigning.js attribution');
+// ───────── 3. A helper two modules load ─────────
+section('3. shared/clientIp.js → its loaders attribution');
 {
   const owners = fileToEntries.get('functions/shared/clientIp.js');
   assert('clientIp is reachable from at least one entrypoint', !!(owners && owners.size > 0));
   if (owners) {
     assertEqual(
-      'clientIp is owned by exactly publicSigning.js',
+      'clientIp is owned by exactly the modules that load it',
       [...owners].sort(),
-      ['functions/publicSigning.js']
+      ['functions/publicSigning.js', 'functions/referrals/submitReferralInterest.js']
     );
   }
 }
@@ -222,10 +222,11 @@ section('7. Touching ONLY shared/clientIp.js');
   const plan = planFor(['functions/shared/clientIp.js']);
   assert('plan is partial', plan.kind === 'partial');
   if (plan.kind === 'partial') {
-    const expected = (fileToExports.get('functions/publicSigning.js') || []).slice().sort();
+    const expected = ['functions/publicSigning.js', 'functions/referrals/submitReferralInterest.js']
+      .flatMap((file) => fileToExports.get(file) || []).sort();
     assertEqual('no orphan skips', plan.skippedOrphans, []);
-    assert('publicSigning has exports to compare', expected.length > 0);
-    assertEqual('plan equals exactly the publicSigning exports', plan.exports, expected);
+    assert('publicSigning has exports to compare', (fileToExports.get('functions/publicSigning.js') || []).length > 0);
+    assertEqual('plan equals exactly the exports of the modules that load it', plan.exports, expected);
   }
 }
 
