@@ -19,8 +19,10 @@ const emptyParts = () => ({ year: '', month: '', day: '' });
  * What differs between a full date (`DateTripletField`, stored YYYY-MM-DD) and
  * a month (`MonthYearField`, stored YYYY-MM): how a stored value reads back,
  * the default year range, the hidden group name when there is no label, and
- * the layout (three selects wrap on a phone so a four-digit year is never
- * clipped; two fit one row).
+ * the layout. A full date's year takes a row of its own on a phone. Below
+ * `sm` a month's two selects are never narrower than a four-digit year needs
+ * (7rem): they share a row while the space allows and wrap when it does not,
+ * as in a list row on a 360 px phone, where side by side the year read "202".
  */
 const PRECISION = {
     day: {
@@ -38,7 +40,7 @@ const PRECISION = {
         minYear: 1970,
         yearsAhead: 10,
         hiddenName: 'Required month and year',
-        grid: 'grid grid-cols-2 gap-ds-2',
+        grid: 'grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-ds-2 sm:grid-cols-2',
     },
 };
 

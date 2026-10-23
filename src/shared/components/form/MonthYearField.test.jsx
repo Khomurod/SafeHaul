@@ -155,3 +155,17 @@ describe('MonthYearField accessible naming', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
+
+describe('MonthYearField on a narrow phone', () => {
+  // Side by side in a list row on a 360 px phone each select was 97 px and a
+  // chosen year read "202". Below `sm` each select now keeps the 7rem a year
+  // needs, wrapping under the month when the row is too narrow for both.
+  // The real layout is measured in e2e/guest-application-phone-layout.spec.cjs.
+  it('never squeezes a select below the width of a year, and pairs them from sm up', () => {
+    renderField();
+    const grid = monthSelect().closest('div').parentElement;
+    expect(grid.className).toContain('grid-cols-[repeat(auto-fit,minmax(7rem,1fr))]');
+    expect(grid.className).toContain('sm:grid-cols-2');
+    expect(yearSelect().closest('div').parentElement).toBe(grid);
+  });
+});
