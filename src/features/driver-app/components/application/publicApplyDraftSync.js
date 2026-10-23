@@ -178,6 +178,12 @@ export function reconcileServerDraftOnLoad({
             draftId: draftIdRef.current,
           });
         if (reconciled.draftId) draftIdRef.current = reconciled.draftId;
+      } else if (referralCode && resolved.formData.referralCode !== referralCode) {
+        // Local won, so its sequences stay as they are; only the link code is new
+        // work, written as an ordinary local save so the next sync sends it. Here
+        // and not at the earlier local restore: the winner is decided by then, and
+        // a copy marked unsynced before the decision would beat a newer server copy.
+        saveApplicationDraft(slug, formData);
       }
 
       // Restored content, whichever copy won: both the local draft and the server

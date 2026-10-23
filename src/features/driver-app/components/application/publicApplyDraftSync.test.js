@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reconcileServerDraftOnLoad } from './publicApplyDraftSync';
-import { draftSyncState, readApplicationDraft } from './applicationDraftStorage';
+import { draftSyncState, readApplicationDraft, saveApplicationDraft } from './applicationDraftStorage';
 
 /**
  * Where the late server-draft reconciliation leaves the applicant.
@@ -97,6 +97,21 @@ describe('reconcileServerDraftOnLoad and a referral link', () => {
         });
         await land(2);
         expect(readApplicationDraft('reconcile-step-test')?.data?.referralCode).toBe('WXYZ6789');
+        expect(draftSyncState('reconcile-step-test')?.dirty).toBe(true);
+    });
+
+    it('stores the link code when this device\'s unsent copy wins too', async () => {
+        saveApplicationDraft('reconcile-step-test', { firstName: 'Marcus', lastName: 'Lee', referralCode: 'ABCD2345' }, { lastStep: 3 });
+        const { formUpdates, land } = harness({
+            stepAtStart: 0,
+            referralCode: 'WXYZ6789',
+            serverFormData: { firstName: 'Marcus', referralCode: 'ABCD2345' },
+        });
+        await land(2);
+        expect(formUpdates[0]({})).toMatchObject({ lastName: 'Lee', referralCode: 'WXYZ6789' });
+        const stored = readApplicationDraft('reconcile-step-test');
+        expect(stored?.data).toMatchObject({ lastName: 'Lee', referralCode: 'WXYZ6789' });
+        expect(stored?.lastStep).toBe(3);
         expect(draftSyncState('reconcile-step-test')?.dirty).toBe(true);
     });
 
