@@ -1,10 +1,11 @@
 import React from 'react';
-import { FormField, FormSection, Input, Select } from '@/design-system/components';
+import { FormField, FormSection, Input, Select, Textarea } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { RadioGroup } from '../RadioGroup';
+import { TEXT_ANSWER_MAX_LENGTH } from './textLimits';
 
-/** Section 1: Employment Confirmation. Presentation migrated; field names,
- *  option values, placeholders, and the conditional block are unchanged. */
+/** Section 1: Employment Confirmation. After "No" to rehire the employer may
+ *  say why; the explanation is optional. */
 export function EmploymentSection({ formData, formErrors, updateField }) {
     return (
         <FormSection
@@ -105,6 +106,16 @@ export function EmploymentSection({ formData, formErrors, updateField }) {
                             { value: false, label: 'No' },
                         ]}
                     />
+                    {formData.eligibleForRehire === false && (
+                        <FormField id="verify-rehire-explanation" label="Please explain (optional)">
+                            <Textarea
+                                rows={3}
+                                maxLength={TEXT_ANSWER_MAX_LENGTH}
+                                value={formData.rehireExplanation}
+                                onChange={(e) => updateField('rehireExplanation', e.target.value)}
+                            />
+                        </FormField>
+                    )}
                 </Stack>
             )}
         </FormSection>

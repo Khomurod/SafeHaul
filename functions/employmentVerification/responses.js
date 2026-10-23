@@ -13,6 +13,45 @@ const { generateVerificationPDF } = require("./pdf");
 const { notifyCarrierVerificationComplete } = require("./notifications");
 const { normaliseSignature } = require("./signature");
 
+/** The free-text answers, each limited to 2,000 characters. */
+const TEXT_ANSWERS = [
+    ['violationDetails', 'Violation details'],
+    ['accidentDetails', 'Accident details'],
+    ['additionalComments', 'Additional comments'],
+    ['rehireExplanation', 'The rehire explanation'],
+    ['followUpTestingPlan', 'The follow-up testing plan'],
+    ['nonRecordableAccidentDetails', 'Other accident details'],
+];
+
+/** Return-to-duty answers after which a follow-up testing plan applies. */
+const FOLLOW_UP_ANSWERS = ['yes', 'in_progress'];
+
+/**
+ * The optional answers the portal shows only after a given answer. Each is
+ * kept only when every answer on the way to its question is on the response
+ * (the portal asks them all only of a past employer), so text left in a box
+ * the employer then hid never reaches the record.
+ */
+function followUpAnswers(formResponse) {
+    const textOf = (value) => (typeof value === 'string' && value.trim() ? value : null);
+    const employed = formResponse.wasEmployed === true;
+    const otherAccidents = employed && typeof formResponse.hadNonRecordableAccidents === 'boolean'
+        ? formResponse.hadNonRecordableAccidents
+        : null;
+    return {
+        rehireExplanation: employed && formResponse.eligibleForRehire === false
+            ? textOf(formResponse.rehireExplanation)
+            : null,
+        followUpTestingPlan: employed && formResponse.subjectToDotTesting === true
+            && formResponse.hadDrugAlcoholViolations === true
+            && FOLLOW_UP_ANSWERS.includes(formResponse.completedReturnToDuty)
+            ? textOf(formResponse.followUpTestingPlan)
+            : null,
+        hadNonRecordableAccidents: otherAccidents,
+        nonRecordableAccidentDetails: otherAccidents === true ? textOf(formResponse.nonRecordableAccidentDetails) : null,
+    };
+}
+
 /**
  * The checks an answer must pass. They run before the request is claimed: a
  * claim left behind by a refused answer ('processing') took the request out of
@@ -28,15 +67,11 @@ function validateResponse(formResponse) {
     // ./signature.js for what is refused and why.
     const signature = normaliseSignature(formResponse.signatureData, formResponse.signatureMethod);
 
-    // PEV-VAL-1 FIX: Server-side length limits to prevent oversized PDF / memory exhaustion
-    if (formResponse.violationDetails && formResponse.violationDetails.length > 2000) {
-        throw new HttpsError('invalid-argument', 'Violation details cannot exceed 2000 characters.');
-    }
-    if (formResponse.accidentDetails && formResponse.accidentDetails.length > 2000) {
-        throw new HttpsError('invalid-argument', 'Accident details cannot exceed 2000 characters.');
-    }
-    if (formResponse.additionalComments && formResponse.additionalComments.length > 2000) {
-        throw new HttpsError('invalid-argument', 'Additional comments cannot exceed 2000 characters.');
+    // Server-side length limits to prevent oversized PDF / memory exhaustion
+    for (const [field, label] of TEXT_ANSWERS) {
+        if (formResponse[field] && formResponse[field].length > 2000) {
+            throw new HttpsError('invalid-argument', `${label} cannot exceed 2000 characters.`);
+        }
     }
     return signature;
 }
@@ -130,6 +165,9 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
             completedReturnToDuty: formResponse.completedReturnToDuty || null,
             hadAccidents: formResponse.hadAccidents ?? null,
             accidentDetails: formResponse.accidentDetails || null,
+
+            // Optional answers that follow another one (see followUpAnswers).
+            ...followUpAnswers(formResponse),
 
             // Section 3: Additional Info
             additionalComments: formResponse.additionalComments || null,
