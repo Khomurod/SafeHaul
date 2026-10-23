@@ -254,6 +254,72 @@ describe('employmentVerification callables', () => {
       expect(responseDocs.has('pev-token-6/submission')).toBe(false);
     });
 
+    it('limits each new free-text answer to 2000 characters', async () => {
+      for (const [i, field] of ['rehireExplanation', 'followUpTestingPlan', 'nonRecordableAccidentDetails'].entries()) {
+        const token = `pev-token-long-${i}`;
+        seedSubmittableRequest(token, `app-long-${i}`);
+        await expect(submit(token, { [field]: 'x'.repeat(2001) })).rejects.toMatchObject({ code: 'invalid-argument' });
+        expect(responseDocs.has(`${token}/submission`)).toBe(false);
+      }
+    });
+
+    it('stores the optional follow-up answers after the answer they follow', async () => {
+      seedSubmittableRequest('pev-token-11', 'app-11');
+
+      await submit('pev-token-11', {
+        signatureData: 'TEXT_SIGNATURE:HR Lead',
+        signatureMethod: 'typed',
+        eligibleForRehire: false,
+        rehireExplanation: 'Repeated late deliveries.',
+        subjectToDotTesting: true,
+        hadDrugAlcoholViolations: true,
+        violationDetails: 'Positive test, 2023.',
+        completedReturnToDuty: 'in_progress',
+        followUpTestingPlan: '6 tests in 12 months; 2 done.',
+        hadNonRecordableAccidents: true,
+        nonRecordableAccidentDetails: 'Backed into a pole, 2024.',
+      });
+
+      expect(responseDocs.get('pev-token-11/submission')).toMatchObject({
+        rehireExplanation: 'Repeated late deliveries.',
+        followUpTestingPlan: '6 tests in 12 months; 2 done.',
+        hadNonRecordableAccidents: true,
+        nonRecordableAccidentDetails: 'Backed into a pole, 2024.',
+      });
+    });
+
+    it('keeps no follow-up text whose question the answers hid, and nothing for an old portal', async () => {
+      seedSubmittableRequest('pev-token-12', 'app-12');
+      seedSubmittableRequest('pev-token-13', 'app-13');
+
+      await submit('pev-token-12', {
+        signatureData: 'TEXT_SIGNATURE:HR Lead',
+        signatureMethod: 'typed',
+        eligibleForRehire: true,
+        rehireExplanation: 'Typed before switching to Yes.',
+        hadDrugAlcoholViolations: true,
+        completedReturnToDuty: 'no',
+        followUpTestingPlan: 'Typed before switching to No.',
+        hadNonRecordableAccidents: false,
+        nonRecordableAccidentDetails: 'Typed before switching to No.',
+      });
+      // The portal in Production does not send these fields.
+      await submit('pev-token-13', { signatureData: 'TEXT_SIGNATURE:HR Lead', signatureMethod: 'typed' });
+
+      expect(responseDocs.get('pev-token-12/submission')).toMatchObject({
+        rehireExplanation: null,
+        followUpTestingPlan: null,
+        hadNonRecordableAccidents: false,
+        nonRecordableAccidentDetails: null,
+      });
+      expect(responseDocs.get('pev-token-13/submission')).toMatchObject({
+        rehireExplanation: null,
+        followUpTestingPlan: null,
+        hadNonRecordableAccidents: null,
+        nonRecordableAccidentDetails: null,
+      });
+    });
+
     const drawnSignature = {
       signatureData: `data:image/png;base64,${ONE_PIXEL_PNG_BASE64}`,
       signatureMethod: 'drawn',

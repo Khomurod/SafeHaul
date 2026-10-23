@@ -88,14 +88,18 @@ export function useVerificationPortal(token) {
         positionHeld: '',
         reasonForLeaving: '',
         eligibleForRehire: null,
+        rehireExplanation: '',
         // Section 2: Safety
         subjectToFmcsrs: null,
         subjectToDotTesting: null,
         hadDrugAlcoholViolations: null,
         violationDetails: '',
         completedReturnToDuty: '',
+        followUpTestingPlan: '',
         hadAccidents: null,
         accidentDetails: '',
+        hadNonRecordableAccidents: null,
+        nonRecordableAccidentDetails: '',
         // Section 3: Additional
         additionalComments: '',
         // Section 4: Respondent
@@ -196,6 +200,9 @@ export function useVerificationPortal(token) {
             if (formData.subjectToFmcsrs === null) errors.subjectToFmcsrs = 'Required';
             if (formData.subjectToDotTesting === null) errors.subjectToDotTesting = 'Required';
             if (formData.subjectToDotTesting && formData.hadDrugAlcoholViolations === null) errors.hadDrugAlcoholViolations = 'Required';
+            if (formData.subjectToDotTesting && formData.hadDrugAlcoholViolations && !formData.violationDetails.trim()) {
+                errors.violationDetails = 'Required';
+            }
             if (formData.hadAccidents === null) errors.hadAccidents = 'Required';
         }
         if (!formData.respondentName) errors.respondentName = 'Required';

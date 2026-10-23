@@ -4,9 +4,13 @@ import { Stack } from '@/design-system/layouts';
 import { RadioGroup } from '../RadioGroup';
 import { TEXT_ANSWER_MAX_LENGTH } from './textLimits';
 
+/** Return-to-duty answers after which a follow-up testing plan applies. */
+const FOLLOW_UP_ANSWERS = ['yes', 'in_progress'];
+
 /** Section 2: Safety & Compliance (FMCSA required). Only rendered when
- *  formData.wasEmployed is truthy (the parent controls that). Field names,
- *  option values, conditionals, and messages are unchanged. */
+ *  formData.wasEmployed is truthy (the parent controls that). The questions
+ *  about other accidents, the follow-up testing plan and their details are
+ *  optional; Violation Details is required after a violation. */
 export function SafetySection({ formData, formErrors, updateField }) {
     return (
         <FormSection
@@ -58,7 +62,12 @@ export function SafetySection({ formData, formErrors, updateField }) {
 
                     {formData.hadDrugAlcoholViolations && (
                         <Stack gap="md">
-                            <FormField id="verify-violation-details" label="Violation Details" required>
+                            <FormField
+                                id="verify-violation-details"
+                                label="Violation Details"
+                                required
+                                error={formErrors.violationDetails}
+                            >
                                 <Textarea
                                     rows={3}
                                     required={false}
@@ -80,6 +89,20 @@ export function SafetySection({ formData, formErrors, updateField }) {
                                     { value: 'in_progress', label: 'In Progress' },
                                 ]}
                             />
+                            {FOLLOW_UP_ANSWERS.includes(formData.completedReturnToDuty) && (
+                                <FormField
+                                    id="verify-follow-up-testing-plan"
+                                    label="Follow-up testing plan"
+                                    description="Number and frequency of follow-up tests, how many are done and how many remain, the end date, and the SAP's name."
+                                >
+                                    <Textarea
+                                        rows={3}
+                                        maxLength={TEXT_ANSWER_MAX_LENGTH}
+                                        value={formData.followUpTestingPlan}
+                                        onChange={(e) => updateField('followUpTestingPlan', e.target.value)}
+                                    />
+                                </FormField>
+                            )}
                         </Stack>
                     )}
                 </Stack>
@@ -112,6 +135,34 @@ export function SafetySection({ formData, formErrors, updateField }) {
                                 value={formData.accidentDetails}
                                 onChange={(e) => updateField('accidentDetails', e.target.value)}
                                 placeholder="For each accident, provide: Date, Location, Nature of accident, Fatalities (Y/N), Injuries (Y/N), Hazmat spill (Y/N)"
+                            />
+                        </FormField>
+                    </div>
+                )}
+
+                <div className="mt-ds-4">
+                    <RadioGroup
+                        name="hadNonRecordableAccidents"
+                        legend="Were there any other accidents involving this driver in the last 3 years that were not DOT-recordable?"
+                        description="Optional. For example, minor collisions or property damage below the DOT definition above."
+                        value={formData.hadNonRecordableAccidents}
+                        onChange={(v) => updateField('hadNonRecordableAccidents', v)}
+                        options={[
+                            { value: true, label: 'Yes' },
+                            { value: false, label: 'No' },
+                        ]}
+                    />
+                </div>
+
+                {formData.hadNonRecordableAccidents && (
+                    <div className="mt-ds-4">
+                        <FormField id="verify-non-recordable-accident-details" label="Other Accident Details">
+                            <Textarea
+                                rows={3}
+                                maxLength={TEXT_ANSWER_MAX_LENGTH}
+                                value={formData.nonRecordableAccidentDetails}
+                                onChange={(e) => updateField('nonRecordableAccidentDetails', e.target.value)}
+                                placeholder="For each accident: Date, Location, What happened"
                             />
                         </FormField>
                     </div>

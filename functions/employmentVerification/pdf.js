@@ -24,6 +24,9 @@ function answer(value, yes = 'Yes') {
     return 'Not answered';
 }
 
+/** The portal's return-to-duty choices as the record states them. */
+const RETURN_TO_DUTY = { yes: 'Yes', no: 'No', in_progress: 'In progress' };
+
 // ============================================================
 // HELPER: Generate PDF for DQ File
 // ============================================================
@@ -153,6 +156,9 @@ async function generateVerificationPDF(verificationData, responseData, token) {
         for (const [label, value] of section1) {
             drawRow(label, value);
         }
+        if (responseData.rehireExplanation) {
+            drawParagraph('Rehire Explanation:', responseData.rehireExplanation);
+        }
 
         y -= 10;
         drawLine(50, y, width - 50, y);
@@ -178,7 +184,10 @@ async function generateVerificationPDF(verificationData, responseData, token) {
         }
 
         if (responseData.completedReturnToDuty) {
-            drawRow('Return-to-Duty Completed:', responseData.completedReturnToDuty);
+            drawRow('Return-to-Duty Completed:', RETURN_TO_DUTY[responseData.completedReturnToDuty] || responseData.completedReturnToDuty);
+        }
+        if (responseData.followUpTestingPlan) {
+            drawParagraph('Follow-up Testing Plan:', responseData.followUpTestingPlan);
         }
 
         y -= 6;
@@ -187,6 +196,16 @@ async function generateVerificationPDF(verificationData, responseData, token) {
 
         if (responseData.accidentDetails) {
             drawParagraph('Accident Details:', responseData.accidentDetails);
+        }
+
+        // Asked as an optional question; a response without an answer prints nothing.
+        if (typeof responseData.hadNonRecordableAccidents === 'boolean') {
+            y -= 6;
+            const otherAccidents = answer(responseData.hadNonRecordableAccidents, 'YES');
+            drawRow('Non-Recordable Accidents:', otherAccidents, { color: flagged(otherAccidents) });
+        }
+        if (responseData.nonRecordableAccidentDetails) {
+            drawParagraph('Non-Recordable Accident Details:', responseData.nonRecordableAccidentDetails);
         }
 
         y -= 10;

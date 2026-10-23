@@ -294,19 +294,19 @@ restamping a still-*bound* field even if an older send baked in a date.
 day moved, updates any field declared a signing date (binding or unresolved
 token) and asks the signer to look again. A bare `{{current_date}}` typed into
 other **locked** text cannot be re-checked (string matching would rewrite a hire
-date that is today): it seals correctly, only its preview can lag a day. Nothing
-else is touched — an editable box mentioning the date keeps what was typed. One
+date that is today): it seals correctly, only its preview can lag a day. One
 definition in `src/features/signing/utils/signedDate.js` and
-`functions/shared/signedDate.js` (CommonJS cannot import ESM): change both.
+`functions/shared/signedDate.js`: change both.
 
 **Previous employment verification (PEV).** A company admin sends a request to a
-past employer, who answers in a token portal (reminders §8) and signs
-**drawn or typed** (`TEXT_SIGNATURE:<name>`, never an image, method on the
-DQ-file PDF; ESIGN/UETA accept it; `signature.js` refuses other forms). Email and
-reminders attach a request PDF (`requestPdf.js`, also filed in the DQ file): SSN
-last four, no link, a signature only under the release the driver signed (VOE
-alike): the v3 statement naming this employer, from the `submissionRecord`
-record with its own signature, else the certification's
+past employer, who answers in a token portal (reminders §8) and signs drawn or
+typed (`TEXT_SIGNATURE:<name>`, method on the PDF; `signature.js` refuses other
+forms). Violation details are required; a rehire "No" reason, the follow-up
+testing plan and non-DOT-recordable accidents are optional, kept only after the
+answer they follow. Email and reminders attach a request PDF (`requestPdf.js`,
+also in the DQ file): SSN last four, no link, a signature only under the release
+the driver signed (VOE alike): the v3 statement naming this employer, from the
+`submissionRecord` record with its own signature, else the certification's
 (`previousEmployerRelease.js`; none before 2026-01-23). Up to 5 CC (Settings →
 Email) get it too.
 

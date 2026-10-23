@@ -149,13 +149,17 @@ describe('useVerificationPortal — token-load and submission contract', () => {
                 positionHeld: '',
                 reasonForLeaving: '',
                 eligibleForRehire: null,
+                rehireExplanation: '',
                 subjectToFmcsrs: null,
                 subjectToDotTesting: null,
                 hadDrugAlcoholViolations: null,
                 violationDetails: '',
                 completedReturnToDuty: '',
+                followUpTestingPlan: '',
                 hadAccidents: null,
                 accidentDetails: '',
+                hadNonRecordableAccidents: null,
+                nonRecordableAccidentDetails: '',
                 additionalComments: '',
                 respondentName: 'Artificial Respondent',
                 respondentTitle: 'Safety Director',
@@ -166,6 +170,41 @@ describe('useVerificationPortal — token-load and submission contract', () => {
             },
         });
         expect(result.current.completed).toBe(true);
+        scrollTo.mockRestore();
+    });
+
+    it('refuses a reported violation without its details, blank or spaces only', async () => {
+        const { result } = renderHook(() => useVerificationPortal('token-abc'));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+        fillMinimumValidForm(result);
+        act(() => result.current.updateField('wasEmployed', true));
+        for (const [field, value] of Object.entries({
+            confirmedStartDate: '2020-02-02',
+            confirmedEndDate: '2023-03-03',
+            positionHeld: 'Driver',
+            reasonForLeaving: 'Laid Off',
+            subjectToFmcsrs: true,
+            subjectToDotTesting: true,
+            hadDrugAlcoholViolations: true,
+            hadAccidents: false,
+            violationDetails: '   ',
+        })) {
+            act(() => result.current.updateField(field, value));
+        }
+
+        await act(async () => {
+            await result.current.handleSubmit({ preventDefault: () => {} });
+        });
+        expect(callables.submitVerificationResponse).not.toHaveBeenCalled();
+        expect(result.current.formErrors).toEqual({ violationDetails: 'Required' });
+
+        act(() => result.current.updateField('violationDetails', 'Positive test, 2023.'));
+        expect(result.current.formErrors).toEqual({});
+        await act(async () => {
+            await result.current.handleSubmit({ preventDefault: () => {} });
+        });
+        expect(callables.submitVerificationResponse).toHaveBeenCalledTimes(1);
         scrollTo.mockRestore();
     });
 

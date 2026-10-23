@@ -190,6 +190,43 @@ describe('PEV result PDF', () => {
         expect(images[0].y).toBeGreaterThanOrEqual(EDGE);
     });
 
+    it('prints the follow-up answers when the employer gave them', async () => {
+        await render({
+            eligibleForRehire: false,
+            rehireExplanation: 'Repeated late deliveries.',
+            hadDrugAlcoholViolations: true,
+            violationDetails: 'Positive test, 2023.',
+            completedReturnToDuty: 'in_progress',
+            followUpTestingPlan: '6 tests in 12 months; 2 done.',
+            hadNonRecordableAccidents: true,
+            nonRecordableAccidentDetails: 'Backed into a pole, 2024.',
+        });
+
+        const texts = drawn.map((d) => d.text);
+        expect(texts).toEqual(expect.arrayContaining([
+            'Rehire Explanation:', 'Repeated late deliveries.',
+            'Follow-up Testing Plan:', '6 tests in 12 months; 2 done.',
+            'Non-Recordable Accident Details:', 'Backed into a pole, 2024.',
+        ]));
+        expect(valueBeside('Return-to-Duty Completed:')).toBe('In progress');
+        expect(valueBeside('Non-Recordable Accidents:')).toBe('YES');
+    });
+
+    it('prints nothing for the optional questions a response never answered', async () => {
+        await render({});
+
+        const texts = drawn.map((d) => d.text);
+        for (const label of ['Rehire Explanation:', 'Follow-up Testing Plan:', 'Non-Recordable Accidents:', 'Non-Recordable Accident Details:']) {
+            expect(texts).not.toContain(label);
+        }
+    });
+
+    it('prints a "No" to other accidents as the employer gave it', async () => {
+        await render({ hadNonRecordableAccidents: false });
+
+        expect(valueBeside('Non-Recordable Accidents:')).toBe('No');
+    });
+
     it('prints the additional comments the employer wrote', async () => {
         await render({ additionalComments: 'Would rehire for local routes only.' });
 

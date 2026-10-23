@@ -47,6 +47,7 @@ const FIELD_LABELS = {
     subjectToFmcsrs: 'Was this driver subject to the Federal Motor Carrier Safety Regulations (FMCSRs)?',
     subjectToDotTesting: 'Was this driver subject to DOT drug & alcohol testing requirements?',
     hadDrugAlcoholViolations: 'Did this driver have any DOT drug or alcohol violations?',
+    violationDetails: 'Violation Details',
     hadAccidents: 'Were there any DOT-recordable accidents involving this driver in the last 3 years?',
     respondentName: 'Your Full Name',
     respondentTitle: 'Your Title / Position',
