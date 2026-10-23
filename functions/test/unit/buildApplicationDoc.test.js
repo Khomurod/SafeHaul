@@ -164,6 +164,23 @@ describe('assertApplicationRules', () => {
   });
 });
 
+describe('buildApplicationDoc — what the server decides', () => {
+  it('drops a guest-sent assignee and referral, and keeps the referral code for the trigger', () => {
+    const built = buildApplicationDoc({
+      companyId: 'co1', companyName: 'Co', email: 'a@b.test', phone: '5551234567', signature: 'TEXT_SIGNATURE:A',
+      formData: {
+        firstName: 'A', assignedTo: 'someone', assignedToName: 'Someone', referral: { code: 'FAKE' }, referralCode: ' ABCD2345 ',
+      },
+    });
+
+    expect(built.applicationDoc).not.toHaveProperty('assignedTo');
+    expect(built.applicationDoc).not.toHaveProperty('assignedToName');
+    expect(built.applicationDoc).not.toHaveProperty('referral');
+    expect(built.applicationDoc.referralCode).toBe('ABCD2345');
+    expect(built.applicationDoc.firstName).toBe('A');
+  });
+});
+
 describe('assertLockedEmployers', () => {
   const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
   const locked = [{ signature: 'dot:123456', companyName: 'Acme Trucking', dotNumber: '123456' }];

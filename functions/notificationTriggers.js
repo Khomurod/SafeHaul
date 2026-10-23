@@ -6,20 +6,7 @@ const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/
 // H5 FIX: Use shared db instance from firebaseAdmin instead of lazy-initializing a duplicate
 const { db } = require("./firebaseAdmin");
 const { escapeHtml, plainGuestText } = require("./shared/plainText");
-
-// --- Helper: Create Notification ---
-async function createNotification(db, companyId, notification) {
-    const notifRef = db.collection('companies').doc(companyId).collection('notifications').doc();
-
-    await notifRef.set({
-        ...notification,
-        read: false,
-        createdAt: new Date()
-    });
-
-    console.log(`[Notifications] Created: ${notification.type} for ${companyId}`);
-    return notifRef.id;
-}
+const { createNotification } = require("./shared/createNotification");
 
 // --- TRIGGER 1: Application Status Changed ---
 exports.onApplicationStatusChanged = onDocumentUpdated(

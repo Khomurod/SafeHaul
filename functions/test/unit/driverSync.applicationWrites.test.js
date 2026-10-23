@@ -13,7 +13,7 @@ jest.mock('firebase-functions/v2/firestore', () => ({
 
 // `mock`-prefixed so the jest.mock factories may reference them (jest hoisting rule).
 const mockWrites = [];
-const mockState = { guardExists: false, recruiterLinks: {}, members: [], users: {} };
+const mockState = { guardExists: false, recruiterLinks: {}, referralLinks: {}, members: [], users: {} };
 jest.mock('../../firebaseAdmin', () => {
     const docRef = (path) => ({
         path,
@@ -21,7 +21,10 @@ jest.mock('../../firebaseAdmin', () => {
         get: async () => {
             const [, linkId] = path.match(/^recruiter_links\/(.+)$/) || [];
             const [, userId] = path.match(/^users\/(.+)$/) || [];
-            const found = linkId ? mockState.recruiterLinks[linkId] : userId ? mockState.users[userId] : undefined;
+            const [, referralId] = path.match(/^companies\/co1\/referral_links\/(.+)$/) || [];
+            const found = linkId ? mockState.recruiterLinks[linkId]
+                : userId ? mockState.users[userId]
+                    : referralId ? mockState.referralLinks[referralId] : undefined;
             return { exists: Boolean(found), data: () => found || {} };
         },
         set: async (data) => { mockWrites.push({ kind: 'set', path, data }); },
@@ -81,6 +84,7 @@ beforeEach(() => {
     mockState.recruiterLinks = {};
     mockState.members = [];
     mockState.users = {};
+    mockState.referralLinks = {};
 });
 
 it('writes nothing to a signed application it has nothing to change on', async () => {
@@ -177,3 +181,53 @@ it('writes nothing for an event it has already processed', async () => {
 
     expect(mockWrites).toEqual([]);
 });
+
+describe('a driver referral link', () => {
+    const LINK = { companyId: 'co1', code: 'ABCD2345', referrerName: 'Rita Referrer', createdBy: 'rec-1', active: true };
+
+    it('records the referral and assigns its creator, in one write', async () => {
+        mockState.referralLinks = { ABCD2345: LINK };
+        mockState.members = [{ userId: 'rec-1', companyId: 'co1', role: 'recruiter' }];
+        mockState.users = { 'rec-1': { name: 'Riley Recruiter' } };
+
+        await submit({ signature: SIGNATURE, referralCode: 'abcd2345' });
+
+        expect(applicationWrites()).toEqual([{
+            kind: 'update',
+            path: APP_PATH,
+            data: { referral: { code: 'ABCD2345', referrerName: 'Rita Referrer' }, assignedTo: 'rec-1', assignedToName: 'Riley Recruiter' },
+        }]);
+    });
+
+    it('records the referral alone when its creator has left the team, and nothing for a switched-off link', async () => {
+        mockState.referralLinks = { ABCD2345: LINK, ZZZZ9999: { ...LINK, code: 'ZZZZ9999', active: false } };
+
+        await submit({ signature: SIGNATURE, referralCode: 'ABCD2345' });
+        expect(applicationWrites()).toEqual([
+            { kind: 'update', path: APP_PATH, data: { referral: { code: 'ABCD2345', referrerName: 'Rita Referrer' } } },
+        ]);
+
+        mockWrites.length = 0;
+        await submit({ signature: SIGNATURE, referralCode: 'ZZZZ9999' });
+        expect(applicationWrites()).toEqual([]);
+    });
+
+    it("lets a recruiter link's member take the application, keeping the referral", async () => {
+        mockState.referralLinks = { ABCD2345: LINK };
+        mockState.recruiterLinks = { 'link-1': { userId: 'rec-2', companyId: 'co1' } };
+        mockState.members = [
+            { userId: 'rec-1', companyId: 'co1', role: 'recruiter' },
+            { userId: 'rec-2', companyId: 'co1', role: 'recruiter' },
+        ];
+        mockState.users = { 'rec-2': { name: 'Robin' } };
+
+        await submit({ signature: SIGNATURE, recruiterCode: 'link-1', referralCode: 'ABCD2345' });
+
+        expect(applicationWrites()).toEqual([{
+            kind: 'update',
+            path: APP_PATH,
+            data: { referral: { code: 'ABCD2345', referrerName: 'Rita Referrer' }, assignedTo: 'rec-2', assignedToName: 'Robin' },
+        }]);
+    });
+});
+

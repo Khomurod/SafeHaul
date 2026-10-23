@@ -7,6 +7,7 @@ const { LIFECYCLE_STATUSES } = require("./shared/constants");
 const { isPlaceholderEmail } = require("./shared/placeholderDomains");
 const { fileDqUploads, uploadKeys } = require("./shared/dqUploads");
 const { resolveRecruiterAssignment } = require("./shared/recruiterAssignment");
+const { resolveReferralLink } = require("./referrals/referralLinks");
 
 // B1 FIX: processing_status is an idempotency ledger that only needs to outlive the longest
 // retry/replay window. Stamp an expiresAt so a Firestore native TTL policy on the
@@ -190,15 +191,23 @@ exports.onApplicationSubmitted = onDocumentCreated({
   }
 
   // The recruiter link's member, when the link belongs to this company's team
-  // (shared/recruiterAssignment.js).
-  if (data.recruiterCode && !data.assignedTo) {
+  // (shared/recruiterAssignment.js); else a driver referral link's creator, with
+  // the referral itself (referrals/referralLinks.js). One write either way.
+  if ((data.recruiterCode || data.referralCode) && !data.assignedTo) {
     try {
-      const assignment = await resolveRecruiterAssignment(db, companyId, data.recruiterCode);
-      if (assignment) {
-        await appRef.update(assignment);
-        console.log(`[onApplicationSubmitted] Auto-assigned app ${appId} to recruiter ${assignment.assignedTo}`);
+      const assignment = data.recruiterCode
+        ? await resolveRecruiterAssignment(db, companyId, data.recruiterCode)
+        : null;
+      const link = data.referralCode ? await resolveReferralLink(db, companyId, data.referralCode) : null;
+      const update = {
+        ...(link && { referral: link.referral }),
+        ...(assignment || (link?.assignedTo ? { assignedTo: link.assignedTo, assignedToName: link.assignedToName } : {})),
+      };
+      if (Object.keys(update).length > 0) {
+        await appRef.update(update);
+        console.log(`[onApplicationSubmitted] Attributed app ${appId}: ${update.assignedTo || 'unassigned'}${link ? `, referral ${link.referral.code}` : ''}`);
       } else {
-        console.warn(`[onApplicationSubmitted] Recruiter code on ${appId} names no member of ${companyId}; left unassigned.`);
+        console.warn(`[onApplicationSubmitted] The link codes on ${appId} name nothing in ${companyId}; left unassigned.`);
       }
     } catch (e) {
       console.error("Auto-assign failed:", e);

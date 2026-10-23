@@ -81,6 +81,7 @@ function exportFunctions(wanted) {
 
   // 4b. Guest Application Submission (Admin SDK — bypasses rules)
   if (wanted('submitGuestApplication')) exports.submitGuestApplication = require('./guestApplication').submitGuestApplication;
+  if (wanted('submitReferralInterest')) exports.submitReferralInterest = require('./referrals/submitReferralInterest').submitReferralInterest;
   // Serves the legal agreements the apply page displays, from the same registry
   // that freezes them into the submission snapshot, so displayed and preserved
   // wording cannot diverge.

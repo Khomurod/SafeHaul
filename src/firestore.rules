@@ -486,6 +486,20 @@ service cloud.firestore {
         match /pending_changes/{fieldKey} { allow read: if isCompanyTeam(companyId); allow write: if false; }
       }
 
+      // REFERRAL LINKS: a staff member's link for a driver who refers others. Team-only
+      // (the referrer's name stays private); the server resolves codes. Deactivate only.
+      match /referral_links/{code} {
+        allow read: if isCompanyTeam(companyId);
+        allow create: if isCompanyTeam(companyId) && request.resource.data.createdBy == request.auth.uid &&
+                         request.resource.data.companyId == companyId && request.resource.data.code == code &&
+                         request.resource.data.active == true && request.resource.data.referrerName is string &&
+                         request.resource.data.referrerName.size() > 0 && request.resource.data.referrerName.size() <= 80 &&
+                         request.resource.data.keys().hasOnly(['companyId', 'code', 'referrerName', 'referrerPhone', 'createdBy', 'createdByName', 'active', 'createdAt']);
+        allow update: if isCompanyTeam(companyId) && (resource.data.createdBy == request.auth.uid || isCompanyAdmin(companyId)) &&
+                         request.resource.data.active == false &&
+                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active', 'deactivatedAt']);
+      }
+
       // TEAM MEMBERS
       match /team/{userId} {
         allow read: if isCompanyTeam(companyId);

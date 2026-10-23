@@ -271,9 +271,12 @@ uses, none a submission marked or older than 2026-10-12; its tokens learn
 ### Pipeline, documents and operations
 
 **Recruiter pipeline (ATS).** Applications and leads are separate collections
-under the company with the same tooling: status funnel, activity log, internal
-notes, documents, assignment. Leads arrive by manual quick-add, CSV /
-spreadsheet import, or the Facebook Lead Ads webhook.
+under the company with the same tooling: status funnel, activity log, notes,
+documents, assignment. Leads come by quick-add, CSV / spreadsheet import, the
+Facebook Lead Ads webhook, or a referral quick form. **Driver referral links**
+(`referral_links`, team-only, deactivate only): a quick-form lead
+(`submitReferralInterest`) or an application with `referralCode` carries
+`referral` and goes to the link's creator while on the team, who is notified.
 
 **E-documents and signing.** Recruiters build envelopes with placed signer
 fields (optionally AI-suggested); recipients sign **with no account** at
@@ -313,14 +316,13 @@ Email) get it too.
 **Driver-approved corrections.** Company admins cannot silently rewrite a
 submitted application (§5).
 
-**Bulk SMS / email campaigns.** Audience building over leads, then a resilient
-session-based worker (§8). Partial: the carrier connects and pays its own
-messaging provider. No two-way threads or drips.
+**Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
+worker (§8); the carrier connects and pays its own messaging provider. No
+two-way threads or drips.
 
-**Super admin operations.** Dashboard (totals, calls per period), companies
-(each with its features and SMS), a features overview, users, unified driver
-DB, Environment & Integrations vault, AI providers, blog, website leads, system health,
-releases, Maintenance (writes ask first).
+**Super admin operations.** Dashboard, companies (features, SMS), features
+overview, users, unified driver DB, environment vault, AI providers, blog,
+website leads, health, releases, Maintenance (writes ask first).
 
 ---
 
@@ -1263,14 +1265,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 
 **Retired — do not resurrect, and do not treat leftovers as bugs:**
 
-- **Lead Distribution Engine** (platform-wide daily lead fan-out). Fully
-  removed; no `isPlatformLead`, `distributedAt`, `visitedCompanyIds` or
-  `dailyLeadQuota`.
-- **Public job board / driver saved jobs.** Rules for `job_posts` and
-  `drivers/{id}/saved_jobs` were deleted: default-deny keeps their old
-  documents, unreachable.
-- **`/join/:companyId` self-service team join.** Backing callable disabled,
-  route removed. Use Super Admin → Create Portal User.
+- **Lead Distribution Engine** (no `isPlatformLead`, `distributedAt`,
+  `visitedCompanyIds`, `dailyLeadQuota`). **Job board / saved jobs** (rules
+  deleted; old documents unreachable). **`/join/:companyId`** (use Create Portal User).
 - **GitHub Models** as an AI provider.
 - **Smart Segments** — triggers go at the next promotion; data stays unread.
 - **`Khomurod/SafeHaul-for-Gemini-Antigravity`** — archived; never develop or
@@ -1365,8 +1362,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   [`docs/news-and-insights.md`](./news-and-insights.md).
 - **The blog's word floor is 150 words**, not the 700–1,200 first specified: a
   recorded owner decision for free-tier provider limits; a higher tier undoes it.
-- **`themesAreDistinct` is exported, tested and called by nothing**: one article
-  a day leaves no set to check, and the 60-day duplicate window keeps days apart.
+- **`themesAreDistinct` is called by nothing** (one article a day; the 60-day
+  window keeps days apart).
 - **The AI live-credential checks cannot run in CI**: the credential-access
   diagnostic, connection tests, model-pin verification and manual publication
   check need a deployed environment's credentials; a green run proves none.
