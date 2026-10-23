@@ -3,6 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { normalizeLockedEmployers, reconcileLockedEmployers } from '@/config/applicationLockedFields';
 import { applyExtractedFields } from './applyExtractedFields';
+import { fillEmployersFromFmcsa } from './fillEmployersFromFmcsa';
 
 /**
  * One carrier-prepared application, from the recruiter's side.
@@ -157,6 +158,8 @@ export function useApplicationPrepDraft(companyId) {
     const applyExtraction = useCallback((extracted, options = {}) => {
         const applied = applyExtractedFields(latestFormData.current, extracted, options);
         setDirty(true);
+        // Now, not at the next render: the FMCSA fill that follows reads it.
+        latestFormData.current = applied.formData;
         setFormData(applied.formData);
         if (applied.lockedCarriers.length > 0) {
             setLockedEmployers((previous) => normalizeLockedEmployers([
@@ -168,6 +171,21 @@ export function useApplicationPrepDraft(companyId) {
             ]));
         }
         return applied;
+    }, []);
+
+    /**
+     * Fill the blank contact fields of employers from FMCSA's census rows, on
+     * the answers as they are now (see `applyExtraction`).
+     */
+    const fillEmployerContacts = useCallback((censusRows) => {
+        const current = latestFormData.current;
+        const result = fillEmployersFromFmcsa(current.employers, censusRows);
+        if (result.filled > 0) {
+            setDirty(true);
+            latestFormData.current = { ...current, employers: result.employers };
+            setFormData(latestFormData.current);
+        }
+        return result;
     }, []);
 
     const load = useCallback(async (key) => {
@@ -229,7 +247,7 @@ export function useApplicationPrepDraft(companyId) {
     }, []);
 
     return {
-        formData, updateField, applyExtraction,
+        formData, updateField, applyExtraction, fillEmployerContacts,
         lockedEmployers, lockEmployers, unlockEmployer,
         applicantKey, status, busy, error, dirty,
         save, load,

@@ -272,6 +272,7 @@ export function ApplicationPrepWorkspace({ companyId, appSlug, openKey = null, o
                         blobs={documentBlobs}
                         applicantKey={prep.applicantKey}
                         onApplyExtraction={prep.applyExtraction}
+                        onFillEmployerContacts={prep.fillEmployerContacts}
                         busy={readerBusy}
                         onBusyChange={setReaderBusy}
                     />
@@ -344,6 +345,7 @@ export function ApplicationPrepWorkspace({ companyId, appSlug, openKey = null, o
                         blobs={documentBlobs}
                         applicantKey={prep.applicantKey}
                         onApplyExtraction={prep.applyExtraction}
+                        onFillEmployerContacts={prep.fillEmployerContacts}
                         busy={readerBusy}
                         onBusyChange={setReaderBusy}
                     />

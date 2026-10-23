@@ -5,7 +5,7 @@ import {
 } from '@shared/services/fmcsaEmployerSocrata';
 import InputField from '@shared/components/form/InputField';
 import { FieldMessage, Input, Label } from '@/design-system/components';
-import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { fmcsaLookupToken } from '@shared/services/fmcsaLookupToken';
 
 const DEBOUNCE_MS = 400;
 
@@ -15,18 +15,6 @@ const PICKED_FIELDS = Object.freeze(['companyName', 'dotNumber', 'address', 'cit
 const COUNTRY_NAMES = Object.freeze({ CA: 'Canada', MX: 'Mexico' });
 
 export { mapFmcsaRowToEmployerFields };
-
-/**
- * The Socrata app token. A browser test asks for a placeholder with
- * `?e2eSafer=mock` and answers the lookup's requests itself; a production build
- * never takes one.
- */
-function lookupToken() {
-  const token = import.meta.env.VITE_SOCRATA_APP_TOKEN;
-  if (token) return token;
-  const mocked = isE2ETestMode && !import.meta.env.PROD && getE2EQueryParam('e2eSafer', '') === 'mock';
-  return mocked ? 'e2e-placeholder' : '';
-}
 
 /** A suggestion's second line: USDOT number, place, and "Inactive" for a closed carrier. */
 function describeCarrier(row) {
@@ -69,7 +57,7 @@ export default function EmployerNameAutocomplete({
   // Why the name is needed, shown under it as `InputField` shows its own.
   error,
 }) {
-  const token = lookupToken();
+  const token = fmcsaLookupToken();
   const listboxId = useId();
   const wrapRef = useRef(null);
   const listRef = useRef(null);

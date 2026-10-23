@@ -99,3 +99,21 @@ describe('an employer the carrier locked', () => {
         expect(screen.getByRole('textbox', { name: 'Company name' })).toHaveValue('Their Own Job');
     });
 });
+
+describe('where to reach the employer', () => {
+    it('shows the address, city, state, phone and email to check and correct, on a locked row too', () => {
+        const filled = { ...ACME, address: '100 MAIN ST', city: 'DALLAS', state: 'Texas', phone: '(214) 555-0100', companyEmail: '' };
+        const { updateFormData } = renderPanel({ employers: [filled], locked: [ACME] });
+
+        expect(screen.getByRole('textbox', { name: 'Street address' })).toHaveValue('100 MAIN ST');
+        expect(screen.getByRole('textbox', { name: 'City' })).toHaveValue('DALLAS');
+        expect(screen.getByRole('combobox', { name: 'State / Province' })).toHaveValue('Texas');
+        expect(screen.getByRole('textbox', { name: 'Company phone' })).toHaveValue('(214) 555-0100');
+        expect(screen.getByRole('textbox', { name: 'Company email' })).toHaveValue('');
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Company phone' }), { target: { value: '(214) 555-0199' } });
+        const [key, update] = updateFormData.mock.calls.at(-1);
+        expect(key).toBe('employers');
+        expect(update([filled])).toEqual([expect.objectContaining({ phone: '(214) 555-0199', companyName: 'Acme Trucking' })]);
+    });
+});

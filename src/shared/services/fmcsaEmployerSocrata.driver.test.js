@@ -14,6 +14,7 @@ import {
   FMCSA_SELECT_EXTENDED,
   buildFmcsaDriverSearchUrls,
   buildFmcsaEmployerSearchUrlFromCompanyName,
+  fetchFmcsaCarriersByDot,
   fetchFmcsaEmployerSuggestions,
   mapFmcsaRowToEmployerFields,
   mapFmcsaRowToPevContact,
@@ -150,5 +151,33 @@ describe('what reaches the employer row', () => {
 
   it('takes the cell phone when the main phone is empty', () => {
     expect(mapFmcsaRowToEmployerFields(carrier({ phone: '', cell_phone: ' 4165550100 ' }), NORTH_AMERICAN_REGION_NAMES).phone).toBe('4165550100');
+  });
+});
+
+describe('the carriers a PSP report named, by USDOT number', () => {
+  it('asks once for every distinct number, digits only, at most 25', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([{ dot_number: '42' }]) }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const dots = ['42', ' 42 ', 'MC-9', '', ...Array.from({ length: 30 }, (_, i) => String(1000 + i))];
+    const rows = await fetchFmcsaCarriersByDot(dots, { appToken: 't' });
+
+    expect(rows).toEqual([{ dot_number: '42' }]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = new URL(fetchMock.mock.calls[0][0]);
+    const where = url.searchParams.get('$where');
+    expect(where.startsWith('dot_number in (42, 1000, ')).toBe(true);
+    expect(where.split(',')).toHaveLength(25);
+    expect(where).not.toMatch(/MC/);
+    expect(url.searchParams.get('$select')).toContain('phy_street');
+    expect(fetchMock.mock.calls[0][1].headers['X-App-Token']).toBe('t');
+  });
+
+  it('asks nothing without a token or without a number', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(fetchFmcsaCarriersByDot(['42'], {})).resolves.toEqual([]);
+    await expect(fetchFmcsaCarriersByDot(['MC-9', ''], { appToken: 't' })).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

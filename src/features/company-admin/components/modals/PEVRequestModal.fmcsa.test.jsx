@@ -44,6 +44,28 @@ describe('PEVRequestModal', () => {
   });
 
 
+  it('offers the carrier found by USDOT number, padded or not, when the row has no usable name', async () => {
+
+    const fetchMock = vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve([{ dot_number: '42', legal_name: 'Swift LLC', phy_city: 'Phoenix', phy_state: 'AZ' }]),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <PEVRequestModal
+        employer={{ ...baseEmployer, companyName: '', dotNumber: '00000000042' }}
+        applicant={{}}
+        onClose={() => {}}
+        onProceed={() => {}}
+      />,
+    );
+
+    expect(await screen.findByTestId('fmcsa-row-0')).toHaveTextContent(/Swift LLC/);
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('$where')).toBe('dot_number in (42)');
+  });
+
+
   it('fetches FMCSA candidates and fills contact fields when a row is chosen', async () => {
 
     const fetchMock = vi.fn(() =>

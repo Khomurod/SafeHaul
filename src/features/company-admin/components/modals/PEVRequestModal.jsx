@@ -4,7 +4,7 @@ import {
     mapFmcsaRowToPevContact,
     normalizeEmployerStateToFmcsaPhyState,
 } from '@shared/services/fmcsaEmployerSocrata';
-import { useFmcsaEmployerLookup } from './pev/useFmcsaEmployerLookup';
+import { useFmcsaEmployerLookup, usableDot } from './pev/useFmcsaEmployerLookup';
 import { FmcsaCarrierPicker, buildFmcsaRowKey } from './pev/FmcsaCarrierPicker';
 import { MAX_PEV_COPIES, formatPevCopies, parsePevCopies } from '../../utils/pevCopies';
 import { usePevDefaultCopies } from '../../hooks/usePevDefaultCopies';
@@ -118,6 +118,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, companyId, de
     const { fmcsaLoading, fmcsaError, fmcsaRows } = useFmcsaEmployerLookup({
         companyLabel,
         employerStateRaw,
+        dotNumber: employer?.dotNumber,
         socrataToken,
         onRowsLoaded: handleRowsLoaded,
     });
@@ -240,7 +241,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, companyId, de
 
             <div className="min-h-0 flex-1 space-y-ds-6 overflow-y-auto p-ds-6">
                 {/* FMCSA suggestions */}
-                {socrataToken && companyLabel.length >= 2 && (
+                {socrataToken && (companyLabel.length >= 2 || usableDot(employer?.dotNumber)) && (
                     <FmcsaCarrierPicker
                         fmcsaStateCode={fmcsaStateCode}
                         fmcsaLoading={fmcsaLoading}

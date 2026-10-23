@@ -3,11 +3,17 @@ import { httpsCallable } from 'firebase/functions';
 import { Icon, AlertCircle, Loader2, Sparkles } from '@design-system/icons';
 
 import { functions } from '@lib/firebase';
-import { Badge, Button, Card, FieldMessage } from '@/design-system/components';
+import { Badge, Button, Card, FieldMessage, Notice } from '@/design-system/components';
 import { aiReadErrorMessage } from '@shared/utils/aiReadErrors';
 import { describeError } from './useApplicationPrepDraft';
 import { attachedDocuments } from './attachedDocuments';
 import { mergeExtractionResults } from './mergeExtractionResults';
+import { dotsToLookUp } from './fillEmployersFromFmcsa';
+import { MAX_DOTS_PER_LOOKUP, fetchFmcsaCarriersByDot } from '@shared/services/fmcsaEmployerSocrata';
+import { fmcsaLookupToken } from '@shared/services/fmcsaLookupToken';
+
+/** How long the census lookup may take before the read finishes without it. */
+const FMCSA_TIMEOUT_MS = 10000;
 
 // The reader (pdf.js, the page rasterizer, OCR) loads when a read starts: most
 // visits to the page read nothing.
@@ -25,7 +31,8 @@ const loadReader = () => import('./extraction/documentExtractionPipeline');
  * Fills fields that are empty and leaves alone every one that is not, saying which
  * it left. Adds carriers the PSP report named as employer rows holding a name and
  * a USDOT number — never dates, which the report does not contain — and locks
- * them, because being on that report is exactly the claim a lock makes. Adds
+ * them, because being on that report is exactly the claim a lock makes. Their
+ * blank address and phone then come from FMCSA by that exact number. Adds
  * the convictions the motor vehicle record lists, never a PSP report's inspection
  * violations.
  *
@@ -105,12 +112,14 @@ function describeReadError(error) {
 }
 
 export function ApplicationAiPrepPanel({
-    companyId, files, blobs, applicantKey, onApplyExtraction, busy, onBusyChange,
+    companyId, files, blobs, applicantKey, onApplyExtraction, onFillEmployerContacts, busy, onBusyChange,
 }) {
     const [state, setState] = useState('idle');
     const [error, setError] = useState(null);
     const [methods, setMethods] = useState({});
     const [summary, setSummary] = useState(null);
+    // What FMCSA filled in for the employers, by their USDOT numbers.
+    const [fromFmcsa, setFromFmcsa] = useState(null);
     // Documents too long to be read in full, which the recruiter is asked to check.
     const [readInPart, setReadInPart] = useState([]);
 
@@ -143,12 +152,48 @@ export function ApplicationAiPrepPanel({
     const onScreen = useRef({ applicantKey, documentSet });
     onScreen.current = { applicantKey, documentSet };
 
+    /** True while the panel still shows what `askedFor` was asked about. */
+    const stillAsked = (askedFor) => mounted.current
+        && askedFor.applicantKey === onScreen.current.applicantKey
+        && askedFor.documentSet === onScreen.current.documentSet;
+
+    /**
+     * Address, phone and email for the employers with a USDOT number, from
+     * FMCSA's census; see `fillEmployersFromFmcsa`. Best effort: no token, a
+     * failed lookup or one slower than FMCSA_TIMEOUT_MS leaves the fields for
+     * the driver, as before.
+     */
+    const contactsFromFmcsa = useCallback(async (applied, askedFor) => {
+        const dots = dotsToLookUp(applied?.formData?.employers);
+        const appToken = fmcsaLookupToken();
+        if (dots.length === 0 || !appToken || !onFillEmployerContacts) return null;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), FMCSA_TIMEOUT_MS);
+        try {
+            const rows = [];
+            for (let start = 0; start < dots.length; start += MAX_DOTS_PER_LOOKUP) {
+                rows.push(...await fetchFmcsaCarriersByDot(
+                    dots.slice(start, start + MAX_DOTS_PER_LOOKUP),
+                    { appToken, signal: controller.signal },
+                ));
+            }
+            if (!stillAsked(askedFor)) return null;
+            return onFillEmployerContacts(rows);
+        } catch (lookupError) {
+            console.warn('[ApplicationAiPrepPanel] FMCSA lookup failed:', lookupError?.status || lookupError?.message || lookupError?.name);
+            return null;
+        } finally {
+            clearTimeout(timer);
+        }
+    }, [onFillEmployerContacts]);
+
     const read = useCallback(async () => {
         // Which application and which documents this answer will belong to.
         const askedFor = { applicantKey, documentSet };
         setState('reading');
         setError(null);
         setSummary(null);
+        setFromFmcsa(null);
         onBusyChange?.(true);
         try {
             const { extractDocuments } = await loadReader();
@@ -210,7 +255,14 @@ export function ApplicationAiPrepPanel({
             }
 
             const applied = onApplyExtraction(extracted);
+            const contacts = await contactsFromFmcsa(applied, askedFor);
+            // The lookup awaited the network: the recruiter may have moved on.
+            if (!stillAsked(askedFor)) {
+                if (mounted.current) setState('idle');
+                return;
+            }
             setMethods(readMethods);
+            setFromFmcsa(contacts);
             setReadInPart(Array.isArray(first.truncated) ? first.truncated : []);
             setSummary(applied);
             setState('done');
@@ -221,7 +273,7 @@ export function ApplicationAiPrepPanel({
         } finally {
             onBusyChange?.(false);
         }
-    }, [companyId, applicantKey, documentSet, onApplyExtraction, onBusyChange, readable]);
+    }, [companyId, applicantKey, documentSet, onApplyExtraction, onBusyChange, readable, contactsFromFmcsa]);
 
     return (
         <Card padding="md">
@@ -283,6 +335,18 @@ export function ApplicationAiPrepPanel({
                             {' '}{summary.added.violations} violation{summary.added.violations === 1 ? '' : 's'}.
                             {summary.added.employers > 0 && ' Carriers from the PSP report are locked — the driver adds the dates and why they left.'}
                         </p>
+                        {fromFmcsa?.filled > 0 && (
+                            <p className="text-ds-sm text-ds-content-secondary" data-testid="fmcsa-filled">
+                                Filled the address and phone of {fromFmcsa.filled} employer{fromFmcsa.filled === 1 ? '' : 's'} from
+                                {' '}FMCSA by USDOT number. This is the carrier&apos;s current listing — check it below.
+                            </p>
+                        )}
+                        {fromFmcsa?.mismatches?.map((entry) => (
+                            <Notice key={entry.dotNumber} tone="warning" size="sm" data-testid="fmcsa-name-differs">
+                                Check {entry.companyName || 'an employer'}: FMCSA lists USDOT {entry.dotNumber} as {entry.censusName}.
+                                {' '}The report&apos;s number may have been misread.
+                            </Notice>
+                        ))}
                         {summary.kept.length > 0 && (
                             <p className="text-ds-xs text-ds-content-muted">
                                 Kept what you had already typed in: {summary.kept.join(', ')}.

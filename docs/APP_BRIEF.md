@@ -1153,11 +1153,11 @@ else number and time, and fails an undelivered text (reason, totals).
   deletes nothing.
 - **Imported reports suggest; they never answer.** A PSP report or MVR the
   applicant uploads yields suggestions with their own Add buttons. Nothing
-  entered is overwritten, nothing is added twice, and a PSP carrier sighting
-  becomes an employer row holding only the name and USDOT number — **PSP data is
-  inspection and crash history, never employment dates or convictions**: the UI
-  says so, and violations come from the MVR alone (the carrier's reader too).
-  Neither document is stored or logged; its pages live in memory for one request.
+  entered is overwritten or added twice; a PSP carrier becomes an employer row
+  with its name and USDOT number, and the carrier's reader fills blank contacts
+  from FMCSA by that exact number — **PSP data is never employment dates or
+  convictions**: the UI says so, and violations come from the MVR alone. Neither
+  document is stored or logged; its pages live in memory for one request.
 - **The public site stays dependency-free**: no framework, no build step, no
   application or design-system imports. `web/privacy.html` ships no `<script>`
   at all, asserted by `src/tests/hostingConfig.test.js`.
