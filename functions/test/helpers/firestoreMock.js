@@ -46,8 +46,10 @@ function setPath(target, dotted, value) {
 
 /**
  * @param {Record<string, object>} seed Document path → document data.
+ * @param {{ filters?: boolean }} [options] `filters`: `where(field, '==', value)`
+ *   keeps only the matching documents. Off by default, where `where` keeps all.
  */
-function createFirestoreMock(seed = {}) {
+function createFirestoreMock(seed = {}, options = {}) {
     /** @type {Map<string, object>} */
     const docs = new Map(Object.entries(clone(seed)));
     let autoId = 0;
@@ -115,7 +117,11 @@ function createFirestoreMock(seed = {}) {
             select: () => query,
             limit: (count) => makeQuery(paths.slice(0, count)),
             orderBy: () => query,
-            where: () => query,
+            where: (field, op, value) => {
+                if (!options.filters) return query;
+                if (op !== '==') throw new Error(`The Firestore mock filters on '==' only, not '${op}'.`);
+                return makeQuery(paths.filter((docPath) => docs.get(docPath)?.[field] === value));
+            },
         };
         return query;
     }

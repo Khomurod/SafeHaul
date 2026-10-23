@@ -199,6 +199,9 @@ function assertRequiredUploads(applicationConfig, formData) {
     }
 }
 
+/** Fields the server sets on an application; a guest's values are dropped. */
+const SERVER_DECIDED_FIELDS = Object.freeze(['assignedTo', 'assignedToName', 'referral']);
+
 function buildApplicationDoc({
     companyId,
     companyName,
@@ -208,7 +211,10 @@ function buildApplicationDoc({
     formData,
     sourceMeta = {},
 }) {
-    const normalizedFormData = formData && typeof formData === 'object' ? formData : {};
+    // Who an application is assigned to, and who referred the driver, are the
+    // server's to decide (onApplicationSubmitted), never the guest's to send.
+    const normalizedFormData = { ...(formData && typeof formData === 'object' ? formData : {}) };
+    for (const key of SERVER_DECIDED_FIELDS) delete normalizedFormData[key];
     const { applicantKey, applicantKeyFull } = generateApplicantKey(companyId, email, phone);
     const applicationId = generateApplicationId(applicantKey);
     const confirmationNumber = generateConfirmationNumber();
@@ -233,6 +239,9 @@ function buildApplicationDoc({
         sourceType: sourceMeta.sourceType || normalizedFormData.sourceType || 'Public Application',
         sourceSlug: sourceMeta.sourceSlug ?? normalizedFormData.sourceSlug ?? null,
         recruiterCode: sourceMeta.recruiterCode ?? normalizedFormData.recruiterCode ?? null,
+        referralCode: typeof normalizedFormData.referralCode === 'string'
+            ? normalizedFormData.referralCode.trim().slice(0, 16) || null
+            : null,
         employers: Array.isArray(normalizedFormData.employers) ? normalizedFormData.employers : [],
         violations: Array.isArray(normalizedFormData.violations) ? normalizedFormData.violations : [],
         accidents: Array.isArray(normalizedFormData.accidents) ? normalizedFormData.accidents : [],

@@ -125,6 +125,13 @@ const namedDocRows = (path, seed = tenant()) => [
 const companyPath = `companies/${CO}`;
 const applicationPath = `${companyPath}/applications/app-1`;
 const leadPath = `${companyPath}/leads/lead-1`;
+const referralPath = `${companyPath}/referral_links`;
+const REFERRAL_CODE = 'ABCD2345';
+
+/** A driver referral link made by `creator`, under its own code. */
+const referralLink = (creator) => tenant({
+  code: '{doc}', referrerName: 'Rita Referrer', createdBy: creator, createdByName: 'A Recruiter', active: true, createdAt: 'then',
+});
 
 // Every field on the rules' list of what a driver may change on their application,
 // besides status and offerDetails, which change together.
@@ -393,6 +400,36 @@ const ROWS = [
   { op: 'delete', path: `${companyPath}/leads/{doc}`, seed: tenant() },
   ...['activity_logs', 'activities', 'internal_notes', 'dq_files', 'general_documents', 'pending_changes']
     .flatMap((name) => documentRows(`${leadPath}/${name}`)),
+
+  // --- Referral links ---
+  { op: 'get', path: `${referralPath}/{doc}`, seed: referralLink(SOMEONE) },
+  { op: 'list', path: referralPath },
+  // A new link is created under a code in the links' alphabet; the shared path
+  // is cleared before each request.
+  ...[
+    [referralLink('{uid}'), 'the caller\'s own'],
+    [referralLink(SOMEONE), `createdBy ${SOMEONE}`],
+    [{ ...referralLink('{uid}'), active: false }, 'the caller\'s own, inactive'],
+    [{ ...referralLink('{uid}'), code: 'NOTTHEID' }, 'the caller\'s own, code is not the id'],
+    [{ ...referralLink('{uid}'), companyId: OTHER_CO }, `the caller's own, companyId ${OTHER_CO}`],
+    [{ ...referralLink('{uid}'), referrerName: '' }, 'the caller\'s own, no referrer name'],
+    [{ ...referralLink('{uid}'), assignedTo: 'u-recruiter-a' }, 'the caller\'s own, a field outside the list'],
+  ].map(([data, note]) => ({
+    op: 'create', path: `${referralPath}/${REFERRAL_CODE}`, data: { ...data, code: data.code === '{doc}' ? REFERRAL_CODE : data.code }, note,
+  })),
+  {
+    op: 'create', path: `${referralPath}/{doc}`, data: referralLink('{uid}'),
+    note: 'the caller\'s own, a code outside the links\' alphabet',
+  },
+  ...OWNERS.flatMap((owner) => [
+    [{ active: false, deactivatedAt: 'now' }, `createdBy ${owner}, deactivated`],
+    [{ referrerName: 'Changed' }, `createdBy ${owner}, referrer name`],
+  ].map(([data, note]) => ({ op: 'update', path: `${referralPath}/{doc}`, seed: referralLink(owner), data, note }))),
+  {
+    op: 'update', path: `${referralPath}/{doc}`, seed: { ...referralLink('{uid}'), active: false },
+    data: { active: true }, note: 'the caller\'s own, reactivated',
+  },
+  { op: 'delete', path: `${referralPath}/{doc}`, seed: referralLink('{uid}'), note: 'the caller\'s own' },
 
   // --- Driver profiles ---
   { op: 'get', path: 'drivers/{uid}', seed: { companyIds: [CO] }, note: 'the caller\'s own' },

@@ -28,6 +28,21 @@ async function resolveRecruiterAssignment(db, companyId, code) {
         userId = link.userId;
     }
 
+    const assignedToName = await teamMemberName(db, companyId, userId);
+    return assignedToName === null ? null : { assignedTo: userId, assignedToName };
+}
+
+/**
+ * The name of a member of the company's team (their email when their profile
+ * has no name), or `null` when they are not on the team or have neither.
+ *
+ * @param {FirebaseFirestore.Firestore} db
+ * @param {string} companyId
+ * @param {string} userId
+ * @returns {Promise<string|null>}
+ */
+async function teamMemberName(db, companyId, userId) {
+    if (!companyId || typeof userId !== 'string' || !userId) return null;
     const [membershipSnap, userSnap] = await Promise.all([
         db.collection('memberships')
             .where('userId', '==', userId)
@@ -37,15 +52,13 @@ async function resolveRecruiterAssignment(db, companyId, code) {
         db.collection('users').doc(userId).get(),
     ]);
     if (membershipSnap.empty) return null;
-
     const user = userSnap.exists ? userSnap.data() || {} : {};
     // The lists show an assignee only with a name, so a member without one is
     // named by their email, as the team pickers do.
     const name = [user.name, user.displayName, user.email]
         .map((value) => (typeof value === 'string' ? value.trim() : ''))
-        .find(Boolean) || '';
-    if (!name) return null;
-    return { assignedTo: userId, assignedToName: name };
+        .find(Boolean);
+    return name || null;
 }
 
-module.exports = { resolveRecruiterAssignment };
+module.exports = { resolveRecruiterAssignment, teamMemberName };

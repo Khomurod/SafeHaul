@@ -7,6 +7,7 @@ const { LIFECYCLE_STATUSES } = require("./shared/constants");
 const { isPlaceholderEmail } = require("./shared/placeholderDomains");
 const { fileDqUploads, uploadKeys } = require("./shared/dqUploads");
 const { resolveRecruiterAssignment } = require("./shared/recruiterAssignment");
+const { resolveReferralLink } = require("./referrals/referralLinks");
 
 // B1 FIX: processing_status is an idempotency ledger that only needs to outlive the longest
 // retry/replay window. Stamp an expiresAt so a Firestore native TTL policy on the
@@ -189,16 +190,31 @@ exports.onApplicationSubmitted = onDocumentCreated({
     // Continue processing anyway - the status check is defensive, not blocking
   }
 
-  // The recruiter link's member, when the link belongs to this company's team
-  // (shared/recruiterAssignment.js).
-  if (data.recruiterCode && !data.assignedTo) {
+  // The referral is the server's alone: it comes from the driver referral link
+  // the code names (referrals/referralLinks.js), and a `referral` the
+  // applicant wrote themselves is removed. An unassigned application goes to
+  // the recruiter link's member, when the link belongs to this company's team
+  // (shared/recruiterAssignment.js), else to the referral link's creator.
+  // One write either way.
+  if (data.recruiterCode || data.referralCode || data.referral !== undefined) {
     try {
-      const assignment = await resolveRecruiterAssignment(db, companyId, data.recruiterCode);
-      if (assignment) {
-        await appRef.update(assignment);
-        console.log(`[onApplicationSubmitted] Auto-assigned app ${appId} to recruiter ${assignment.assignedTo}`);
+      const unassigned = !data.assignedTo;
+      const assignment = unassigned && data.recruiterCode
+        ? await resolveRecruiterAssignment(db, companyId, data.recruiterCode)
+        : null;
+      const link = data.referralCode ? await resolveReferralLink(db, companyId, data.referralCode) : null;
+      const update = {};
+      if (link) update.referral = link.referral;
+      else if (data.referral !== undefined) update.referral = admin.firestore.FieldValue.delete();
+      if (unassigned) {
+        Object.assign(update, assignment
+          || (link?.assignedTo ? { assignedTo: link.assignedTo, assignedToName: link.assignedToName } : {}));
+      }
+      if (Object.keys(update).length > 0) {
+        await appRef.update(update);
+        console.log(`[onApplicationSubmitted] Attributed app ${appId}: ${update.assignedTo || data.assignedTo || 'unassigned'}${link ? `, referral ${link.referral.code}` : ''}`);
       } else {
-        console.warn(`[onApplicationSubmitted] Recruiter code on ${appId} names no member of ${companyId}; left unassigned.`);
+        console.warn(`[onApplicationSubmitted] The link codes on ${appId} name nothing in ${companyId}; left unassigned.`);
       }
     } catch (e) {
       console.error("Auto-assign failed:", e);

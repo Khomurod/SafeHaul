@@ -103,6 +103,7 @@ Used by Cloud Functions with Admin SDK:
 | `signing_requests/{id}/secrets/{id}` | create: team · read/update/delete: **denied** | `accessToken`; Functions only after create |
 | `applications/{applicationId}` | see below | Core applicant record |
 | `leads/{leadId}` | team read/write with `companyId` immutability + ATS status enums | CRM leads |
+| `referral_links/{code}` | read: team · create: team, as `createdBy`, `code` = id, `active` true, listed fields only · update: creator or admin, only `active` → false and `deactivatedAt` · delete: none | Driver referral links: `{ companyId, code, referrerName, referrerPhone?, createdBy, createdByName, active, createdAt, deactivatedAt? }`. A lead or application that came through one carries `referral: { code, referrerName }` |
 | `team/{userId}` | read: team · write: admin | Company roster metadata |
 | `integrations/{integrationId}` | read/update: admin · create/delete: super | Encrypted SMS provider config |
 

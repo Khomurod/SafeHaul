@@ -38,13 +38,14 @@ Admin-SDK server submit path.
 
 | Control | Implementation |
 |---------|----------------|
-| IP rate limits | `checkRateLimit` on `getSignedUploadUrl`, `getSignedGuestUploadUrl`, `submitGuestApplication` |
+| IP rate limits | `checkRateLimit` on `getSignedUploadUrl`, `getSignedGuestUploadUrl`, `submitGuestApplication`, `submitReferralInterest` |
 | Tenant / intake gate | `assertCompanyAcceptingIntake` before upload path reservation, signed read URLs, and submit |
 | MIME allowlist | `getSignedUploadUrl` (`storageSecure.js`) |
 | Path isolation | Storage writes only under `companies/{id}/{applications\|autofill}/guest_uploads/` |
 | No public Storage read | Storage rules: guest `create` only; `read` for company admins; guests use callable signed URLs |
 | Short-lived preview URLs | `getSignedGuestUploadUrl` — 15-minute signed read URLs, path-validated. **Minted when a document is looked at and never persisted** (`useSignedUploadPreview`); baking one into the draft made it expire under the driver, and the durable `storagePath` beside it is what a preview is re-signed from. Authorization is unchanged. |
-| Primary submit path | `submitGuestApplication` via Admin SDK (Firestore client rules are fallback only) |
+| Primary submit path | `submitGuestApplication` via Admin SDK (Firestore client rules are fallback only); `submitReferralInterest` for the referral quick form |
+| Server-decided fields | A guest's `assignedTo`, `assignedToName` and `referral` are dropped (`buildApplicationDoc`); the trigger sets them from a link code the server looks up. The trigger also removes a `referral` a signed-in driver wrote into their own application. Open item: the signed-in driver create rule still accepts `assignedTo` (a rules change, awaiting the owner). `referral_links` are team-only, so a referrer's name is never public |
 
 ## The carrier's invite link
 
