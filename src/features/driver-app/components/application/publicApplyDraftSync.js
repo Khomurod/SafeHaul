@@ -57,8 +57,9 @@ export function reconcileServerDraftOnLoad({
       if (!current) return;
       if (!restored) {
         // No server copy, so nothing a local write could outrank: the link code
-        // the page adopted goes into the local copy now, not at the next save.
-        if (!referralCode || resetGenerationRef.current !== generation
+        // the page adopted goes into the local copy now, not at the next save —
+        // never into another applicant's copy (`foreignSlot`, below).
+        if (!referralCode || invite?.foreignSlot || resetGenerationRef.current !== generation
           || discardGuardsRef.current.discardedElsewhere()) return;
         const local = readApplicationDraft(slug);
         if (local?.data && local.data.referralCode !== referralCode) {

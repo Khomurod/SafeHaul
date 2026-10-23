@@ -17,7 +17,10 @@ function deferred() {
     return { promise, resolve };
 }
 
-function harness({ stepAtStart, referralCode = null, serverFormData = { firstName: 'Marcus' }, discarded = false }) {
+function harness({
+    stepAtStart, referralCode = null, serverFormData = { firstName: 'Marcus' }, discarded = false,
+    invite = { status: 'absent' },
+}) {
     const pending = deferred();
     const stepUpdates = [];
     const formUpdates = [];
@@ -25,7 +28,7 @@ function harness({ stepAtStart, referralCode = null, serverFormData = { firstNam
     const draftIdRef = { current: null };
     reconcileServerDraftOnLoad({
         slug: 'reconcile-step-test',
-        invite: { status: 'absent' },
+        invite,
         referralCode,
         resetGenerationRef: { current: 0 },
         restoredFromDraftRef: { current: false },
@@ -162,6 +165,13 @@ describe('reconcileServerDraftOnLoad and a referral link', () => {
 
         const discarded = harness({ stepAtStart: 0, referralCode: 'WXYZ6789', discarded: true });
         await discarded.landNothing();
+        expect(readApplicationDraft('reconcile-step-test')?.data?.referralCode).toBe('ABCD2345');
+
+        // The stored copy is another applicant's, left in this browser by an earlier visit.
+        const foreign = harness({
+            stepAtStart: 0, referralCode: 'WXYZ6789', invite: { status: 'opened', foreignSlot: true },
+        });
+        await foreign.landNothing();
         expect(readApplicationDraft('reconcile-step-test')?.data?.referralCode).toBe('ABCD2345');
     });
 
