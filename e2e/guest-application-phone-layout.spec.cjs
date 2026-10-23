@@ -82,8 +82,10 @@ test.describe('driver application on a narrow phone @mobile', () => {
     await waitForUploads(page, Object.keys(PHONE_FILE_NAMES));
 
     expect(await horizontalSpill(page)).toEqual({ page: 0, card: 0 });
-    // The whole name is shown, wrapped inside the row.
-    await expect(page.getByText(PHONE_FILE_NAMES['cdl-front'], { exact: true })).toBeVisible();
+    // The whole name is shown, wrapped inside the row rather than cut short.
+    const fileName = page.getByText(PHONE_FILE_NAMES['cdl-front'], { exact: true });
+    await expect(fileName).toBeVisible();
+    expect(await fileName.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0);
     await continueToStep(page, 'Motor Vehicle Record');
   });
 
