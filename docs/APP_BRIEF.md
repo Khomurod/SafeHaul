@@ -604,22 +604,22 @@ and not required until a company opts in, `emergencyContacts` is hidden —
 flipping either changes or blocks every existing company's application.
 
 **Application Rules have one engine.** `functions/shared/applicationRules.js`
-mirrors `src/config/applicationRules.js` byte-for-byte
+mirrors `src/config/applicationRules.js` exactly
 (`applicationRules.test.js`; date helpers in `applicationDates.js` likewise),
 driven by `functions/shared/applicationRulesCatalog.json`, which the settings UI
 also renders. `evaluateApplicationRules` runs in each wizard step as answers
-change, in the final pre-flight (walking a resumed applicant to the first
+change, in the final pre-flight (sending a resumed applicant to the first
 failing page) and in `submitGuestApplication` (`assertApplicationRules`, same
-sentence). Super Admin sets any company's rules (Companies → Edit); Company
-Admins set their own (Settings). The rules: previous address when under three
-years at the current one · which experience options are offered · which
-vehicle-experience categories show and their wording (stored keys never change;
-a hidden category with a saved value still displays) · expired CDL and expired
-medical card, each allow / warn / block · require previous-licence details · MVR
-authorization optional / required (a Yes needs its recorded acceptance evidence,
-so only Yes waits for the wording) · require violation and
-accident details on Yes (accidents record fatalities, injuries, hazmat spill) ·
-employment history allow / warn / block with a configurable minimum of years ·
+sentence). Super Admin sets any company's rules, Company Admins their own. The
+rules: previous address when under three years at the current one · which
+experience options are offered (Step 2, vehicle lists) · which vehicle
+categories show and their wording (stored keys never change; a hidden category's
+saved value still displays; each list offers "None" first, one box sets all) ·
+expired CDL and expired medical card, each allow / warn / block · require
+previous-licence details · MVR authorization optional / required (a Yes needs
+its recorded acceptance evidence, so only Yes waits for the wording) · require
+violation and accident details on Yes (accidents: fatalities, injuries, hazmat)
+· employment history allow / warn / block with a configurable minimum of years ·
 require a felony explanation · Hours of Service statement off / on (exactly the
 seven days before the reference day: a stale week in a resumed draft is refused
 and re-asked; a driver never on duty gives no relief).

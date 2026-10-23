@@ -87,3 +87,18 @@ describe('Step 7 — emergency-contacts gate', () => {
         expect(screen.getByText(/Contact #1 \(Optional\)/i)).toBeTruthy();
     });
 });
+
+describe('Step 7 — vehicle experience choices', () => {
+    it('leaves out the experience choices the company hid, as Step 2 does', () => {
+        companyProfile.applicationRules = { experienceOptionsHidden: ['New'] };
+        try {
+            renderStep();
+            const years = screen.getByLabelText('Experience in Straight Truck');
+            const choices = Array.from(years.options).map((option) => option.textContent);
+            expect(choices).not.toContain('Student / Recent Grad');
+            expect(choices.slice(0, 3)).toEqual(['Select…', 'None', '0-6 Months']);
+        } finally {
+            delete companyProfile.applicationRules;
+        }
+    });
+});
