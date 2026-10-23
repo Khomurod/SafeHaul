@@ -325,16 +325,6 @@ function expiryIssue(level, fieldId, label, data, today) {
 }
 
 /**
- * Evaluate a company's rules against an applicant's answers.
- *
- * @param {object} opts
- * @param {object} [opts.rules]             The company's stored `applicationRules` (raw; defaults applied here).
- * @param {object} [opts.applicationConfig] The company's gate map, so a hidden question is never enforced.
- * @param {object} [opts.formData]          The answers.
- * @param {Date|string} [opts.today]        Reference day; inject for determinism.
- * @returns {{rules: object, issues: Array, blocking: Array, warnings: Array}}
- */
-/**
  * Disclosures whose Yes must be explained, with the page that asks. Checked
  * only with `strict`: the browser passes it, so the wizard and its pre-flight
  * refuse an empty (or spaces-only) explanation, while the server does not yet
@@ -350,6 +340,18 @@ const REQUIRED_EXPLANATIONS = Object.freeze([
     ['drug-alcohol-convictions', 'drugConvictionExplanation', 'violations',
         'Please explain the alcohol or controlled substance offense you reported.'],
 ]);
+
+/**
+ * Evaluate a company's rules against an applicant's answers.
+ *
+ * @param {object} opts
+ * @param {object} [opts.rules]             The company's stored `applicationRules` (raw; defaults applied here).
+ * @param {object} [opts.applicationConfig] The company's gate map, so a hidden question is never enforced.
+ * @param {object} [opts.formData]          The answers.
+ * @param {Date|string} [opts.today]        Reference day; inject for determinism.
+ * @param {boolean} [opts.strict]           Also refuse what only the browser checks yet (see REQUIRED_EXPLANATIONS).
+ * @returns {{rules: object, issues: Array, blocking: Array, warnings: Array}}
+ */
 
 function evaluateApplicationRules({ rules: rawRules, applicationConfig, formData, today, strict = false } = {}) {
     const rules = resolveApplicationRules(rawRules);
