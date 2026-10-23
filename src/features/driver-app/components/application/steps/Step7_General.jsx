@@ -48,9 +48,12 @@ const Step7_General = ({ formData, updateFormData, onNavigate, onPartialSubmit }
 
     const yesNoOptions = YES_NO_OPTIONS;
     const milesOptions = MILES_DRIVEN_OPTIONS;
-    const expOptions = EXPERIENCE_OPTIONS;
     const hasFelony = formData['has-felony'] === 'yes';
     const { rules, blocking, attempted, issuesRef, refuseIfBlocked } = useStepGate('general', formData);
+    // The experience choices a company hid on Step 2 are hidden here too.
+    const expOptions = EXPERIENCE_OPTIONS.filter(
+        (option) => !rules.experienceOptionsHidden.includes(option.value),
+    );
     const vehicleCategories = visibleVehicleCategories(rules);
 
     const handleContinue = () => {

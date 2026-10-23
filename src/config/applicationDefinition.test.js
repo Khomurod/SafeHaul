@@ -180,6 +180,19 @@ describe('buildApplicationReview', () => {
         }
     });
 
+    it('shows a vehicle type answered "None" as None, not as unanswered, and on the stored record', () => {
+        const formData = { expStraightTruckMiles: 'None', expStraightTruckExp: 'None' };
+        const answers = buildApplicationReview({ applicationConfig: {}, formData }).sections.flatMap((s) => s.answers);
+        const record = serverSnapshot.buildSections(
+            serverDefinition.buildApplicationDefinition({ company: { applicationConfig: {} } }), formData,
+        )
+            .flatMap((s) => s.answers);
+        for (const label of ['Straight Truck — Miles Driven', 'Straight Truck — Experience']) {
+            expect(answers.find((a) => a.label === label)).toMatchObject({ value: 'None', isMissing: false });
+            expect(record.find((a) => a.label === label)).toMatchObject({ displayValue: 'None' });
+        }
+    });
+
     it('never returns a raw object as a value', () => {
         const { sections } = buildApplicationReview({
             applicationConfig: {},

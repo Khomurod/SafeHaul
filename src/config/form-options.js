@@ -48,6 +48,9 @@ export const MILITARY_BRANCH_OPTIONS = [
   { label: 'National Guard', value: 'National Guard' }
 ];
 
+/** A vehicle-experience answer meaning "I have not driven this type"; first in those lists. */
+export const NO_EXPERIENCE = 'None';
+
 export const MILES_DRIVEN_OPTIONS = [
   { label: '0 - 25,000', value: '0-25k' },
   { label: '25,000 - 50,000', value: '25k-50k' },
