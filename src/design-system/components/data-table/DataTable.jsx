@@ -1,15 +1,11 @@
 import React, { memo, useEffect, useMemo, useRef } from 'react';
-import {
-  AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
-  Icon,
-  Inbox,
-} from '../../icons';
+import { AlertTriangle, Icon, Inbox } from '../../icons';
+import { Button } from '../button';
 import { defineTableColumns } from './tableColumnContract';
 import { useCardsLayout } from './useCardsLayout';
 import { ariaSortOf, checkSort } from './sorting';
 import { CardSortControl, SortButton } from './SortControls';
+import { TablePagination } from './TablePagination';
 import { contractViolation } from '../../contract';
 import './DataTable.css';
 import './pinnedColumn.css';
@@ -20,6 +16,38 @@ import './mobileCards.css';
  * no floor, for a small table whose columns squeeze to fit their container.
  */
 const MIN_WIDTHS = new Set(['none', 'standard', 'wide']);
+
+/**
+ * The tallest the rows may get before they scroll under the sticky header:
+ * `sm` 256px, `md` 400px. Without it the table grows with its rows, or fills a
+ * parent of bounded height.
+ */
+const MAX_HEIGHTS = new Set(['sm', 'md']);
+
+/**
+ * The page sizes the "Rows per page" list may offer, or `null` for no list. A
+ * setting the table cannot act on is reported and the list left out, so a
+ * production build keeps Previous and Next rather than a list that does nothing.
+ */
+function usablePageSizes(pagination) {
+  const sizes = pagination?.pageSizes;
+  if (sizes === undefined || sizes === null) return null;
+  const counts = Array.isArray(sizes) && sizes.length > 0
+    && sizes.every((size) => Number.isInteger(size) && size > 0);
+  if (!counts) {
+    contractViolation('DataTable pagination.pageSizes must be a non-empty list of whole numbers above 0.');
+    return null;
+  }
+  if (typeof pagination.onPageSizeChange !== 'function') {
+    contractViolation('DataTable pagination.pageSizes needs pagination.onPageSizeChange.');
+    return null;
+  }
+  if (!sizes.includes(pagination.pageSize)) {
+    contractViolation(`DataTable pagination.pageSize "${pagination.pageSize}" is not one of pagination.pageSizes.`);
+    return null;
+  }
+  return sizes;
+}
 
 /**
  * The label a cell shows beside its value as a card on a phone: the column's
@@ -68,7 +96,7 @@ function StateContent({ state, empty, error, loadingLabel }) {
     return (
       <div className="ds-data-table__state ds-data-table__state--error" role="alert">
         <Icon icon={AlertTriangle} size="3xl" />
-        <p className="ds-data-table__state-title">Unable to load records</p>
+        <p className="ds-data-table__state-title">{error.title || 'Unable to load records'}</p>
         <p className="ds-data-table__state-description">{error.message}</p>
         {error.onRetry && (
           <button
@@ -90,6 +118,11 @@ function StateContent({ state, empty, error, loadingLabel }) {
       <p className="ds-data-table__state-title">{empty.title}</p>
       {empty.description && (
         <p className="ds-data-table__state-description">{empty.description}</p>
+      )}
+      {empty.action && (
+        <Button variant="secondary" size="sm" onClick={empty.action.onClick}>
+          {empty.action.label}
+        </Button>
       )}
     </div>
   );
@@ -148,6 +181,10 @@ function LoadingRows({ columns, showSelection, loadingLabel, role }) {
  * card pins nothing; at 768px and up it is the table it always was, its first
  * column pinned. It takes no `selection`: a list worked one record at a time has
  * no bulk action, and a card has no header row to hold "select all".
+ *
+ * `maxHeight` caps a table that shares its space, such as one inside a panel or
+ * a dialog: its rows scroll under the sticky header. A parent of bounded height
+ * needs no cap, since the table fills it and scrolls the same way.
  */
 export const DataTable = /* @__PURE__ */ memo(function DataTable({
   ariaLabel,
@@ -159,6 +196,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   getRowTone,
   density = 'comfortable',
   minWidth = 'wide',
+  maxHeight,
   mobilePresentation = 'scroll',
   pinFirstColumn = true,
   mobileHint = 'Swipe horizontally to view all columns and actions.',
@@ -198,6 +236,12 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
     contractViolation(`Unsupported DataTable minWidth "${minWidth}"; use ${[...MIN_WIDTHS].join(', ')}.`);
     tableMinWidth = 'wide';
   }
+  let tableMaxHeight = maxHeight ?? undefined;
+  if (tableMaxHeight !== undefined && !MAX_HEIGHTS.has(tableMaxHeight)) {
+    contractViolation(`Unsupported DataTable maxHeight "${maxHeight}"; use ${[...MAX_HEIGHTS].join(', ')}.`);
+    tableMaxHeight = undefined;
+  }
+  const pageSizes = usablePageSizes(pagination);
   /** A role stated outright, in cards only; a table's own markup carries it otherwise. */
   const role = (name) => (cards ? name : undefined);
 
@@ -230,6 +274,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
       data-pin-first-column={pinFirstColumn || undefined}
       data-has-selection={showSelection || undefined}
       data-embedded={embedded || undefined}
+      data-max-height={tableMaxHeight}
       aria-busy={isLoading || undefined}
     >
       {showInlineError && (
@@ -369,34 +414,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
       </div>
 
       {pagination && !isLoading && (
-        <nav
-          className="ds-data-table__pagination"
-          aria-label={`${ariaLabel} pagination`}
-        >
-          <span className="ds-data-table__pagination-label">{pagination.label}</span>
-          <div className="ds-data-table__pagination-controls">
-            <button
-              type="button"
-              aria-label="Previous page"
-              onClick={pagination.onPrev}
-              disabled={!pagination.hasPrev}
-            >
-              <Icon icon={ChevronLeft} size="lg" />
-            </button>
-            <span aria-live="polite">
-              Page <strong>{pagination.currentPage}</strong> of{' '}
-              <strong>{pagination.totalPages || 1}</strong>
-            </span>
-            <button
-              type="button"
-              aria-label="Next page"
-              onClick={pagination.onNext}
-              disabled={!pagination.hasNext}
-            >
-              <Icon icon={ChevronRight} size="lg" />
-            </button>
-          </div>
-        </nav>
+        <TablePagination ariaLabel={ariaLabel} pagination={pagination} pageSizes={pageSizes} />
       )}
     </section>
   );

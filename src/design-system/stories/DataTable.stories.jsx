@@ -1,7 +1,8 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { Icon, Eye, Inbox } from '@design-system/icons';
+import { Icon, Eye, Inbox, X } from '@design-system/icons';
 import { Badge, Button, DataTable, IconButton } from '@design-system/components';
+import { Modal } from '@design-system/patterns';
 import { NOT_PROVIDED, RECORDS } from './fixtures';
 
 /** Reference column set reused across the stories below. */
@@ -80,6 +81,7 @@ const meta = {
   argTypes: {
     density: { control: 'inline-radio', options: ['comfortable', 'compact'] },
     minWidth: { control: 'inline-radio', options: ['none', 'standard', 'wide'] },
+    maxHeight: { control: 'inline-radio', options: [undefined, 'sm', 'md'] },
     isLoading: { control: 'boolean' },
     embedded: { control: 'boolean' },
     data: { control: false },
@@ -468,4 +470,90 @@ export const BadgeWithTrailingDetail = {
 export const BadgeWithTrailingDetailMobile = {
   ...BadgeWithTrailingDetail,
   globals: { viewport: { value: 'safehaulMobile' } },
+};
+
+/** Enough rows to pass a height cap: the fixtures four times over, each its own id. */
+const MANY_RECORDS = Array.from({ length: 24 }, (_, index) => {
+  const record = RECORDS[index % RECORDS.length];
+  const number = String(index + 1).padStart(3, '0');
+  return { ...record, id: `rec-many-${number}`, reference: `REC-${number}` };
+});
+
+/**
+ * `maxHeight="md"` (400px) for a table that shares its space, such as a panel
+ * beside other content: the rows scroll under the sticky header. `sm` is 256px.
+ * A parent of bounded height needs no cap, as the table fills it (see
+ * `InDialog`).
+ */
+export const BoundedHeight = {
+  args: { data: MANY_RECORDS, density: 'compact', maxHeight: 'md' },
+};
+
+/** "Rows per page", for a list the feature pages itself. */
+export const PageSize = {
+  args: {
+    pagination: {
+      ...WithPagination.args.pagination,
+      label: 'Showing 1–20 of 128 records',
+      totalPages: 7,
+      pageSize: 20,
+      pageSizes: [20, 50, 100],
+      onPageSizeChange: fn(),
+    },
+  },
+};
+
+/** An empty list with the one thing to do next. */
+export const EmptyWithAction = {
+  args: {
+    data: [],
+    empty: {
+      title: 'No records yet.',
+      description: 'Records you add appear here.',
+      icon: Inbox,
+      action: { label: 'Add a record', onClick: fn() },
+    },
+  },
+};
+
+const DIALOG_TITLE_ID = 'data-table-dialog-title';
+
+function TableDialog(args) {
+  const [open, setOpen] = React.useState(true);
+  return (
+    <>
+      <Button variant="primary" onClick={() => setOpen(true)}>Open records</Button>
+      {open && (
+        <Modal labelledBy={DIALOG_TITLE_ID} onClose={() => setOpen(false)} size="4xl" scroll="body" fill>
+          <div
+            style={{
+              display: 'flex',
+              flexShrink: 0,
+              alignItems: 'flex-start',
+              gap: 'var(--ds-space-3)',
+              borderBottom: '1px solid var(--ds-color-border-subtle)',
+              padding: 'var(--ds-space-5)',
+            }}
+          >
+            <h2 id={DIALOG_TITLE_ID} style={{ margin: 0, flex: 1 }}>Records</h2>
+            <IconButton variant="ghost" size="sm" label="Close dialog" onClick={() => setOpen(false)}>
+              <Icon icon={X} size="lg" />
+            </IconButton>
+          </div>
+          <DataTable {...args} />
+        </Modal>
+      )}
+    </>
+  );
+}
+
+/**
+ * A table inside a dialog. The dialog is `fill` with `scroll="body"`, so its
+ * height is fixed; the `embedded` table fills what the heading leaves and its
+ * rows scroll under the sticky header, the heading and the close button staying
+ * put. No `maxHeight` is needed: the dialog bounds it.
+ */
+export const InDialog = {
+  render: TableDialog,
+  args: { data: MANY_RECORDS, density: 'compact', embedded: true, minWidth: 'standard' },
 };

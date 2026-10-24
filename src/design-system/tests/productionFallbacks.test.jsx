@@ -91,6 +91,26 @@ describe('a production build draws the default after a misused prop', () => {
         expect(reported()).toHaveLength(8);
     });
 
+    it('DataTable: page sizes it cannot act on draw no "Rows per page", and Previous and Next stay', () => {
+        const columns = defineTableColumns([{ key: 'name', header: 'Name', render: cell }]);
+        const paging = {
+            currentPage: 1, totalPages: 2, hasPrev: false, hasNext: true, onPrev: vi.fn(), onNext: vi.fn(), pageSize: 20,
+        };
+        [
+            { ...paging, pageSizes: 20, onPageSizeChange: vi.fn() },
+            { ...paging, pageSizes: [20, 50] },
+            { ...paging, pageSizes: [50, 100], onPageSizeChange: vi.fn() },
+            { ...paging, pageSizes: [20, 'all'], onPageSizeChange: vi.fn() },
+        ].forEach((pagination) => {
+            render(<DataTable ariaLabel="Drivers" columns={columns} data={[{ id: 'd1', name: 'Ada' }]} pagination={pagination} />);
+            expect(screen.queryByRole('combobox', { name: 'Rows per page' })).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
+            cleanup();
+        });
+        // Three messages: a list that is not one and a list of non-numbers share one.
+        expect(reported()).toHaveLength(3);
+    });
+
     it('Disclosure: a heading level that is not one is an h3', () => {
         render(<Disclosure title="Licences" headingLevel={9}>Body</Disclosure>);
         expect(screen.getByRole('heading', { level: 3, name: 'Licences' })).toBeInTheDocument();

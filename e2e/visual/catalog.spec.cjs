@@ -122,6 +122,11 @@ const SUBJECTS = [
     // Sorting by a header, and the "Sort by" list that replaces it above the cards.
     ['components-datatable--sortable', 'data-table-sortable'],
     ['components-datatable--sortable-cards', 'data-table-sortable-cards'],
+    // A capped height, a dialog it fills, rows per page, and an empty list's action.
+    ['components-datatable--bounded-height', 'data-table-bounded-height'],
+    ['components-datatable--in-dialog', 'data-table-in-dialog'],
+    ['components-datatable--page-size', 'data-table-page-size'],
+    ['components-datatable--empty-with-action', 'data-table-empty-action'],
 
     // Dialogs.
     ['components-modal--default', 'modal'],
