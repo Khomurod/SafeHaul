@@ -117,6 +117,9 @@ const SUBJECTS = [
     ['components-datatable--long-and-missing-content', 'data-table-extremes'],
     // The other half of the phone rule for `DataTable`: a table at 1440px, cards at 412px.
     ['components-datatable--cards-on-mobile', 'data-table-cards'],
+    // Sorting by a header, and the "Sort by" list that replaces it above the cards.
+    ['components-datatable--sortable', 'data-table-sortable'],
+    ['components-datatable--sortable-cards', 'data-table-sortable-cards'],
 
     // Dialogs.
     ['components-modal--default', 'modal'],

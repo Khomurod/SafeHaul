@@ -11,7 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildCandidateColumns } from './candidateListColumns';
 
 const recruiterCell = (item) => {
-    const columns = buildCandidateColumns({ sortConfig: {}, handleDateSort: vi.fn(), handlePhoneClick: vi.fn() });
+    const columns = buildCandidateColumns({ handlePhoneClick: vi.fn() });
     const column = columns.find((c) => c.key === 'assignee');
     return render(<div data-testid="cell">{column.render(item)}</div>);
 };

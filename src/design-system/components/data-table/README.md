@@ -2,7 +2,7 @@
 
 `DataTable` is SafeHaul's approved business-neutral primitive for record lists
 that need consistent columns, selection, pagination, and async states. Feature
-modules still own the records, labels, filters, sorting decisions, actions,
+modules still own the records, labels, filters, the sort order, actions,
 permissions, formatting callbacks, and data loading.
 
 ## Column contract
@@ -21,9 +21,39 @@ Create columns with `defineTableColumns`. A column supports:
 | `truncate` | Applies the approved single-line truncation behavior |
 | `stopPropagation` | Keeps a nested cell action from also activating its row |
 | `mobileLabel` | The label beside the value when the table is cards on a phone; `''` shows none |
+| `sortable` | `true`, or `{ first, labels }`: the column sorts by pressing its header. See [Sorting](#sorting) |
 
 Do not add header-only or cell-only alignment classes. Add a reusable width or
 alignment option to this contract when a genuine missing case is found.
+
+## Sorting
+
+The table draws the sort control; the feature owns the order. Pass `sort`
+(`{ key, direction }`, `direction` is `asc` or `desc`) and
+`onSortChange({ key, direction })`, and hand the table its rows already in that
+order, whether the order comes from a query or from the page.
+
+- A sortable header is one `<button>` named by the header text, with one arrow,
+  inside a `<th>` that carries `aria-sort` while its column is the sorted one.
+  The header text must be a string: it names the button and the phone's options.
+- One column is sorted at a time and the list always has an order, so a header
+  has two states, never "unsorted". Pressing the sorted header turns it;
+  pressing another sorts by it in its `first` direction (`asc` unless set; a
+  date column usually starts `desc`, newest first).
+- Only the sorted column shows its arrow. Another sortable header shows the
+  direction a press would ask for on hover or focus. The arrow keeps its space
+  while hidden, so a sortable header needs about 16px more than its text (see
+  the header widths below). In an `end` column the arrow leads.
+- Pressing a header never activates a row.
+- With `mobilePresentation="cards"`, while the cards are on screen the header row
+  is hidden, so a **Sort by** list sits above the cards: every sortable column in
+  both directions, worded by `labels` (`{ asc: 'Oldest first', desc: 'Newest
+  first' }`; `Ascending` / `Descending` by default).
+- The table refuses (`contractViolation`) a sortable column without
+  `onSortChange`, a sortable column whose header is not text, a `sort.key` that
+  is not a sortable column, and a direction other than `asc` or `desc`.
+
+Do not draw sort arrows inside a header yourself.
 
 ## Native table and interaction policy
 
@@ -133,6 +163,8 @@ header text once the cell padding is taken (desktop / phone):
 | `md` | 104px / 112px |
 | `lg` | 136px / 144px |
 | `xl` | 180px / 188px |
+
+A sortable header's arrow takes about 16px of that, hidden or not.
 
 A header that does not fit shows an ellipsis in production, and fails
 `check:table-layout` and `e2e/table-layout.spec.cjs` unless its column declares

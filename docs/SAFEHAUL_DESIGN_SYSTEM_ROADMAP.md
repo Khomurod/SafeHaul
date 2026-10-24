@@ -267,7 +267,8 @@ The reverse directions are prohibited — including any `@shared` import inside
   (`components/data-table/README.md`): an option that changes no rendering or
   behaviour is removed, not kept for later. A column is `start` (text) or `end`
   (numbers), never centred; a header is one line; `minWidth` is `wide`,
-  `standard` or `none`.
+  `standard` or `none`. A list sorts from its headers (`sortable`, with the
+  feature's `sort` and `onSortChange`; a "Sort by" list above phone cards).
 - **Scroll regions are keyboard-reachable and named**; every row action has a
   record-specific accessible name. Prefer deciding which actions a row offers in
   a pure, tested module (as `unfinishedRowActions.js` does) over a `render`

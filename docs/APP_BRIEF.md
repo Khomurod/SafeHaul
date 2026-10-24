@@ -1282,7 +1282,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   more (`truncated`). No pagination — a second list would break one-query,
   one-row-per-document.
 - **A record without `createdAt` is missing from the candidate lists**, which
-  Firestore sorts by it (newest first, or as the Added Date arrows say): a sort
+  Firestore sorts by it (newest first, or as the Added header says): a sort
   leaves it out. A notice counts such records (`UndatedRecordsNotice`) and
   search finds them; dating them is the owner's data change.
 - **An unassigned lead stores `assignedTo: ''`**, which the Unassigned filter

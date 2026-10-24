@@ -1,0 +1,75 @@
+/*
+ * A sortable header: the whole label is the button, and one arrow says how the
+ * list is ordered. The button takes the header's own type (size, weight,
+ * capitals, letter-spacing) so a sortable header reads like any other.
+ */
+.ds-data-table__sort {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: var(--ds-control-height-xs);
+  align-items: center;
+  gap: var(--ds-space-1);
+  margin: 0;
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  padding: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  text-transform: inherit;
+}
+
+/* The header clips what overflows it, so the focus ring is drawn inside. */
+.ds-data-table__sort:focus-visible {
+  outline: none;
+  box-shadow: inset var(--ds-focus-ring);
+}
+
+.ds-data-table__sort-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-data-table__sort > svg {
+  flex: 0 0 auto;
+  color: var(--ds-color-content-muted);
+  opacity: 0;
+}
+
+/* An unsorted column shows the order a press would ask for, when asked. */
+.ds-data-table__sort:hover > svg,
+.ds-data-table__sort:focus-visible > svg {
+  opacity: 1;
+}
+
+/* The sorted column always shows its direction, in the label's own colour. */
+.ds-data-table__sort[data-active] {
+  color: var(--ds-color-content);
+}
+
+.ds-data-table__sort[data-active] > svg {
+  color: var(--ds-color-content);
+  opacity: 1;
+}
+
+/* In an end-aligned (number) column the arrow leads, so the label stays on the edge. */
+.ds-data-table [data-align='end'] .ds-data-table__sort {
+  flex-direction: row-reverse;
+}
+
+/* On a phone the header row is behind the cards, and the sort sits above them. */
+.ds-data-table__card-sort {
+  border-bottom: 1px solid var(--ds-table-divider);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  background: var(--ds-color-surface);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ds-data-table__sort > svg {
+    transition: opacity 120ms ease;
+  }
+}

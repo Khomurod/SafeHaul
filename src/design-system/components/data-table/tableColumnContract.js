@@ -1,6 +1,8 @@
 import { contractViolation } from '../../contract';
 const ALIGNMENTS = new Set(['start', 'end']);
 const WIDTHS = new Set(['auto', 'xs', 'sm', 'md', 'lg', 'xl', 'actions']);
+const SORT_DIRECTIONS = new Set(['asc', 'desc']);
+const SORT_LABELS = Object.freeze({ asc: 'Ascending', desc: 'Descending' });
 
 export const TABLE_COLUMN_ALIGNMENTS = Object.freeze([...ALIGNMENTS]);
 export const TABLE_COLUMN_WIDTHS = Object.freeze([...WIDTHS]);
@@ -48,6 +50,8 @@ export function defineTableColumns(columns) {
       return [];
     }
 
+    const sortable = sortableOf(column);
+
     let align = column.align ?? 'start';
     let width = column.width ?? 'auto';
     let { mobileLabel } = column;
@@ -74,9 +78,45 @@ export function defineTableColumns(columns) {
       align,
       width,
       mobileLabel,
+      sortable,
       rowHeader: Boolean(column.rowHeader),
       stopPropagation: Boolean(column.stopPropagation),
       truncate: Boolean(column.truncate),
     })];
   }));
+}
+
+/**
+ * A column the reader can sort by pressing its header: `sortable: true`, or
+ * `{ first, labels }` — the direction a first press asks for (`asc` unless set)
+ * and the words a phone's "Sort by" list uses for each direction. The feature
+ * still owns the order itself (`DataTable`'s `sort` / `onSortChange`). Returns
+ * the normalised setting, or `null` for a column that does not sort.
+ */
+function sortableOf(column) {
+  const { sortable } = column;
+  // `null` is what this function returns for a plain column, so a column list
+  // that has already been through `defineTableColumns` passes again unchanged.
+  if (sortable === undefined || sortable === null || sortable === false) return null;
+  const spec = sortable === true ? {} : sortable;
+  if (!spec || typeof spec !== 'object') {
+    contractViolation(`DataTable column "${column.key}" has an unsupported sortable setting.`);
+    return null;
+  }
+  // The header is the button's name and the phone's "Sort by" option.
+  if (typeof column.header !== 'string' || column.header.trim() === '') {
+    contractViolation(`Sortable DataTable column "${column.key}" needs a text header.`);
+    return null;
+  }
+  const first = spec.first ?? 'asc';
+  if (!SORT_DIRECTIONS.has(first)) {
+    contractViolation(`Unsupported first sort direction "${first}" for "${column.key}".`);
+    return null;
+  }
+  const labels = { ...SORT_LABELS, ...spec.labels };
+  if (typeof labels.asc !== 'string' || typeof labels.desc !== 'string') {
+    contractViolation(`DataTable column "${column.key}" needs string sort labels.`);
+    return null;
+  }
+  return Object.freeze({ first, labels: Object.freeze(labels) });
 }

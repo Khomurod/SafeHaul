@@ -1,8 +1,9 @@
 /**
- * The Added Date arrows set the order Firestore sorts the whole list by: the
- * dashboard hook's `dateOrder`, newest first unless Earliest first is pressed.
+ * Pressing the Added header sets the order Firestore sorts the whole list by:
+ * the dashboard hook's `dateOrder`, newest first until the header is pressed.
  * The page shows the rows in the order the list query returns them, so a page
- * never reorders on its own, and the pressed arrow says which order is in force.
+ * never reorders on its own, and the header's `aria-sort` says which order is
+ * in force.
  */
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,39 +57,39 @@ import { CompanyCandidatesListPage } from './CompanyCandidatesListPage';
 
 const rowOrder = () => screen.getAllByRole('row', { name: /^Open driver dossier for / })
     .map((row) => row.getAttribute('aria-label'));
-const latest = () => screen.getByRole('button', { name: 'Sort by latest added date' });
-const earliest = () => screen.getByRole('button', { name: 'Sort by earliest added date' });
+/** The Added header: one button, and its column header says how the list is ordered. */
+const added = () => screen.getByRole('button', { name: 'Added' });
+const addedHeader = () => screen.getByRole('columnheader', { name: 'Added' });
 
 beforeEach(() => {
     fixture.dateOrder = 'desc';
     fixture.setDateOrder.mockClear();
 });
 
-describe('the Added Date arrows', () => {
-    it('show newest first as the order in force, and leave the rows as the list query returned them', () => {
+describe('the Added header', () => {
+    it('says newest first is the order in force, and leaves the rows as the list query returned them', () => {
         render(<MemoryRouter><CompanyCandidatesListPage scope="applications" /></MemoryRouter>);
 
-        expect(latest()).toHaveAttribute('aria-pressed', 'true');
-        expect(earliest()).toHaveAttribute('aria-pressed', 'false');
+        expect(addedHeader()).toHaveAttribute('aria-sort', 'descending');
         expect(rowOrder()).toEqual(['Open driver dossier for Ben Middle', 'Open driver dossier for Ann Early']);
     });
 
-    it('turn the whole list earliest first, and back to newest first when Earliest first is pressed again', async () => {
+    it('turns the whole list oldest first, and back to newest first when pressed again', async () => {
         const { rerender } = render(<MemoryRouter><CompanyCandidatesListPage scope="applications" /></MemoryRouter>);
-        await userEvent.click(earliest());
+        await userEvent.click(added());
         expect(fixture.setDateOrder).toHaveBeenLastCalledWith('asc');
 
         fixture.dateOrder = 'asc';
         rerender(<MemoryRouter><CompanyCandidatesListPage scope="applications" /></MemoryRouter>);
-        expect(earliest()).toHaveAttribute('aria-pressed', 'true');
-        await userEvent.click(earliest());
+        expect(addedHeader()).toHaveAttribute('aria-sort', 'ascending');
+        await userEvent.click(added());
         expect(fixture.setDateOrder).toHaveBeenLastCalledWith('desc');
     });
 
-    it('keep newest first when Latest first is pressed', async () => {
+    it('does not open a record when the header is pressed', async () => {
         render(<MemoryRouter><CompanyCandidatesListPage scope="applications" /></MemoryRouter>);
-        await userEvent.click(latest());
+        await userEvent.click(added());
 
-        expect(fixture.setDateOrder).toHaveBeenLastCalledWith('desc');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 });
