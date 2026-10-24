@@ -20,10 +20,13 @@ export function PageContainer({ children, width = 'wide', className = '', ...pro
  * the word read after it ("8 applications"); the screen shows the number only.
  * The count is a `status` region, so a screen reader hears it change when a
  * filter or a search changes the list. Leave `count` out while the number is
- * unknown.
+ * unknown: with `countLabel` given, the region stays in place, empty and
+ * unseen, so the number that arrives is announced too (a region inserted
+ * together with its content often is not).
  */
 export function PageHeader({ title, description, actions, count, countLabel, className = '', ...props }) {
   const hasCount = count !== undefined && count !== null;
+  const showsCount = hasCount || (typeof countLabel === 'string' && countLabel.trim() !== '');
   if (hasCount && (!Number.isInteger(count) || count < 0)) {
     contractViolation(`PageHeader count must be a whole number of records, not ${count}.`);
   }
@@ -34,12 +37,16 @@ export function PageHeader({ title, description, actions, count, countLabel, cla
   return (
     <header {...props} className={`ds-page-header ${className}`.trim()}>
       <div className="ds-page-header__content">
-        {hasCount ? (
+        {showsCount ? (
           <div className="ds-page-header__title">
             <h1>{title}</h1>
             <span className="ds-page-header__count" role="status">
-              {COUNT_FORMAT.format(count)}
-              <span className="ds-visually-hidden"> {countLabel}</span>
+              {hasCount && (
+                <>
+                  {COUNT_FORMAT.format(count)}
+                  <span className="ds-visually-hidden"> {countLabel}</span>
+                </>
+              )}
             </span>
           </div>
         ) : (

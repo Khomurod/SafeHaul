@@ -42,8 +42,20 @@ describe('page layouts', () => {
       expect(screen.getByRole('status')).toHaveTextContent(/^0 leads$/);
     });
 
-    it('shows nothing while the number is unknown', () => {
-      render(<PageHeader title="Leads" countLabel="leads" />);
+    it('keeps an empty status region while the number is unknown, so the first one is announced', () => {
+      const { rerender } = render(<PageHeader title="Leads" countLabel="leads" />);
+      const region = screen.getByRole('status');
+      expect(region).toBeEmptyDOMElement();
+
+      rerender(<PageHeader title="Leads" count={8} countLabel="leads" />);
+
+      // The same element: a region inserted with its content is often not read.
+      expect(screen.getByRole('status')).toBe(region);
+      expect(region).toHaveTextContent(/^8 leads$/);
+    });
+
+    it('draws a plain heading when the page shows no count at all', () => {
+      render(<PageHeader title="Settings" />);
 
       expect(screen.queryByRole('status')).toBeNull();
     });

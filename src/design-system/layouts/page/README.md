@@ -8,4 +8,5 @@ the rendered text, controls, and composition decisions.
 records beside the `<h1>`, outside it, so the heading keeps the page's name. The
 screen shows the number; a screen reader reads it with its word ("8
 applications"), and hears it change, because the count is a `status` region.
-Leave `count` out while the number is unknown.
+Leave `count` out while the number is unknown; with `countLabel` given, the
+region stays in place, empty, so the number that arrives is announced.

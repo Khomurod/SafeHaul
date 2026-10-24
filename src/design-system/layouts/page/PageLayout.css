@@ -71,6 +71,13 @@
   white-space: nowrap;
 }
 
+/* Waiting for its number: in place for a screen reader, nothing on screen. */
+.ds-page-header__count:empty {
+  min-height: 0;
+  border: 0;
+  padding: 0;
+}
+
 .ds-page-header p {
   margin-top: var(--ds-space-2);
   color: var(--ds-color-content-secondary);
