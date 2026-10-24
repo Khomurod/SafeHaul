@@ -19,7 +19,7 @@
  *
  * ## Which screens, and why not all of them
  *
- * Fifteen screens, thirty baselines. The list is chosen, not exhaustive, and the
+ * Two baselines a screen (1440, 412). The list is chosen, not exhaustive, and the
  * rule is: **a screen earns a baseline when a design-system change could break it
  * in a way no other guard would catch.** So it holds one of each workspace shape
  * (a dashboard of cards, a dense table, a settings form, a tabbed workspace, a
@@ -45,7 +45,7 @@
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
 const {
-    API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables,
+    AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables,
 } = require('../helpers/callables.cjs');
 const { uploadLeadFile } = require('../helpers/leadImport.cjs');
 
@@ -117,6 +117,13 @@ const SCREENS = [
         url: '/super-admin/blog-posts?e2eAuth=super_admin',
         callables: { listBlogPosts: BLOG_POSTS, listBlogRuns: BLOG_RUNS },
         ready: (page) => page.getByText('Why drivers stay: five retention habits', { exact: true }),
+    },
+    {
+        name: 'super-admin-ai-logs',
+        url: '/super-admin/ai-integrations?e2eAuth=super_admin',
+        callables: { listAiTelemetry: AI_TELEMETRY },
+        open: (page) => page.getByRole('tab', { name: 'Logs' }).click(),
+        ready: (page) => page.getByText('Request rejected by vendor', { exact: true }),
     },
     {
         name: 'super-admin-website-leads',

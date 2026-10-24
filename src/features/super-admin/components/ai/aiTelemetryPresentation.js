@@ -26,24 +26,23 @@ export function describeTaskType(taskType) {
 }
 
 /**
- * The quick filters across the top of the Logs tab.
+ * The segments across the top of the Logs tab: which feature's transactions.
  *
- * `taskType` maps straight onto the server-side filter; `outcome` onto the
- * other. Deliberately the shortcuts an operator actually reaches for — "is
- * anything broken", and then the three features that use AI.
+ * `taskType` maps straight onto the server-side filter. Whether only errors
+ * show is the toolbar's switch, so it combines with any feature ("CDL errors").
  */
-export const LOG_QUICK_FILTERS = Object.freeze([
-    { id: 'all', label: 'All', filters: {} },
-    { id: 'errors', label: 'Errors', filters: { outcome: 'failure' } },
-    { id: 'cdl', label: 'CDL', filters: { taskType: 'cdl_extraction' } },
-    { id: 'edocs', label: 'E-Docs', filters: { taskType: 'edoc_field_placement' } },
+export const LOG_SEGMENTS = Object.freeze([
+    { id: 'all', label: 'All' },
+    { id: 'cdl', label: 'CDL', taskType: 'cdl_extraction' },
+    { id: 'edocs', label: 'E-Docs', taskType: 'edoc_field_placement' },
     // Deliberately no `taskType`: an article run makes TWO transactions —
     // generation and the fact-check — and this filter used to name only the first.
     // So a run refused by the fact-check was invisible under the one filter an
     // operator would think to use, which is most of why "generation succeeded" was
     // being read as "an article published". Article transactions are selected
     // client-side from the pair below.
-    { id: 'articles', label: 'Articles', filters: { articleTasks: true } },
+    { id: 'articles', label: 'Articles', articleTasks: true },
+    { id: 'tests', label: 'Connection tests', taskType: 'health_check' },
 ]);
 
 /** The task types that make up one article run, in the order they happen. */

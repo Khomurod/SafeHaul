@@ -283,9 +283,10 @@ The reverse directions are prohibited — including any `@shared` import inside
   Links and Settings → API Keys (row actions in a last column; a settings tab
   with its own header is the page's one `<h1>`), and Super Admin's Website
   Leads, Blog Posts and Features (`PageHeader level={2}`, the masthead holding
-  the `<h1>`). Temporary exception: `ListToolbar` draws its segments as its own
-  buttons until `SegmentedControl` has an underlined, scrolling appearance with
-  counts.
+  the `<h1>`). AI Integrations → Logs, a tab of a console, has the toolbar, the
+  rows and the cards, with no count. Temporary exception: `ListToolbar` draws
+  its segments as its own buttons until `SegmentedControl` has an underlined,
+  scrolling appearance with counts.
   Tablet widths, which the visual contract does not measure, are held by
   `e2e/list-page-tablet.spec.cjs`.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
@@ -413,7 +414,7 @@ are fully approved, §7 is permanent.
 | Employers sign the verification portal by drawing or typing | `SignatureInput` (`shared/components/signature`) wraps the pad in a `SegmentedControl` Draw \| Type choice, Draw by default; a typed name is stored as `TEXT_SIGNATURE:<name>` and never rasterised; the method travels with the response and the server refuses a mislabelled one; the DQ-file PDF prints a typed name in an oblique face under "(typed)"; switching method clears the mark |
 | Editable matrices and tables on phones | The §3 table rule; the SMS recruiter matrix is one card per row under 768px and a table with its name column pinned above it |
 | Work lists on phones (2026-10-08) | `DataTable` `mobilePresentation="cards"`, for rows worked one at a time and never compared: the unfinished-applications list first (`UnfinishedWorklistTable.jsx`, reviewed at 412, 820 and 1440), then the candidate lists, except Company Leads with its checkboxes, and E-Docs Sent Documents. Each cell's label is its column's `mobileLabel`, else its header; `''` gives an actions cell the card's width; no `selection` |
-| AI Integrations → Logs (`AiLogsPanel.jsx`) | `DataTable` at `density="compact"`, `minWidth="wide"`, default labelled horizontal scroll; nothing hidden at any width, full detail in a dialog reached by activating the row; status column `xl` (a non-wrapping `Badge` plus detail text) |
+| AI Integrations → Logs (`AiLogsPanel.jsx`) | A list page in its tab: `ListToolbar` (feature segments, "Errors only", search, Filters for provider and dates), `DataTable embedded` at `density="compact"`, cards on a phone; full detail in a dialog reached by activating the row; status column `xl` (a non-wrapping `Badge` plus detail text) |
 | Guided tour removed (owner) | A reintroduced tour must first answer the dialog question — a blocking backdrop needs `role="dialog"`, a focus move and Escape — starting from a named close control and step progress announced in text |
 | Facebook Integrations flag stays off (owner) | The visible "not production-ready" notice stays with it; `scripts/audit-facebook-lead-tenancy.mjs` is a read-only report |
 | `Modal` and `ConfirmDialog` live in `design-system/patterns/modal` | Import them from `@design-system/patterns`; the `shared` barrel does not re-export them. The domain modals (`CallOutcomeModal`, `CompanyChooserModal`, `FeatureLockedModal`, `ManageTeamModal`) stay in `shared` |
@@ -497,12 +498,12 @@ read them.
 
 - No rule replaces the old hand-composed notice and avatar-disc checks: a
   tinted block or a hand-drawn initials disc passes lint.
-- `e2e/table-layout.spec.cjs` measures real records on 6 of its 15 screens (on
-  AI integrations, the model versions table only); on the 9 marked `empty` the
-  fixtures show none, so only headers and the empty state are measured. Tables no fixture renders are not measured at all (import
-  preview, campaign results and report, stats backfill preview); some screens
-  have no baseline at all, e.g. the campaign editor and the schema editors' edit
-  mode.
+- `e2e/table-layout.spec.cjs` measures real records on 14 of its 18 screens (on
+  the AI Providers tab, the model versions table only); on the 4 marked `empty`
+  the fixtures show none, so only headers and the empty state are measured.
+  Tables no fixture renders are not measured at all (campaign results and
+  report, stats backfill preview); some screens have no baseline at all, e.g.
+  the campaign editor and the schema editors' edit mode.
 - `index.html` is pinned by tests (`pageShell.test.js`), not a rule.
 - Tailwind's extractor compiles class names found in prose (`.bg-gray-50` ships
   from comments that name it — the hazard `tailwind.config.js` documents for

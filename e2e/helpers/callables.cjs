@@ -83,4 +83,32 @@ const BLOG_POSTS = Object.freeze({
 });
 const BLOG_RUNS = Object.freeze({ runs: [], truncated: false, unavailable: false, retentionDays: 30 });
 
-module.exports = { API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables };
+/**
+ * Three AI transactions as `listAiTelemetry` returns them: a CDL read that
+ * needed two fallbacks, an E-Doc analysis the vendor refused (the longest
+ * outcome label), and a fact-check that refused an article. Made up.
+ */
+const AI_TELEMETRY = Object.freeze({
+  truncated: false,
+  windowSize: 3,
+  entries: [
+    {
+      id: 't1', transactionId: 'txn-cdl', taskType: 'cdl_extraction', providerId: 'groq', model: 'qwen/qwen3.6-27b',
+      outcome: 'success', latencyMs: 2992, fallbackCount: 2, timestamp: '2026-10-21T15:14:00.000Z', attempts: [],
+    },
+    {
+      id: 't2', transactionId: 'txn-edoc', taskType: 'edoc_field_placement', providerId: 'gemini', model: 'gemini-3.7-flash',
+      outcome: 'failure', category: 'provider_request_rejected', latencyMs: 812, fallbackCount: 3,
+      timestamp: '2026-10-21T14:02:00.000Z', attempts: [],
+    },
+    {
+      id: 't3', transactionId: 'txn-check', taskType: 'article_fact_check', providerId: 'mistral', model: 'mistral-large-latest',
+      outcome: 'success', verdict: 'unsupported', latencyMs: 15400, fallbackCount: 0,
+      timestamp: '2026-10-21T12:00:00.000Z', attempts: [],
+    },
+  ],
+});
+
+module.exports = {
+  AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables,
+};
