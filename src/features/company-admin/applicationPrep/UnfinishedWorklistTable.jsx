@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { DataTable } from '@/design-system/components';
 import { describeUnfinishedRow } from './unfinishedRowActions';
-import { ActivityCell, DriverCell, ProgressCell, RowActions, StatusCell } from './UnfinishedWorklistCells';
+import { ActivityCell, DriverCell, PhoneCell, ProgressCell, RowActions, StatusCell } from './UnfinishedWorklistCells';
 
 /** A draft's document id, which is what makes a row one draft. */
 const rowIdOf = (entry) => entry.applicantKey;
@@ -19,6 +19,10 @@ const rowIdOf = (entry) => entry.applicantKey;
  * because it is one document — and `describeUnfinishedRow` decides what each row
  * may do, which is the part that must NOT be uniform. See that module for the
  * four cases, and for what a Company Admin may do besides (`isCompanyAdmin`).
+ *
+ * One fact per column where splitting loses nothing: the phone has its own,
+ * while a status keeps who prepared it beside it and the last activity keeps
+ * when the row will be removed, because each explains the other.
  *
  * On a phone each row is a card (`mobilePresentation="cards"`): its driver is the
  * title, every other cell sits under its column's name, and the actions take the
@@ -57,16 +61,24 @@ export function UnfinishedWorklistTable({
              * A width of its own, not `auto`: every other column has one, and an
              * `auto` column gets what is left, which on a tablet, where the table
              * scrolls at its narrowest, was nothing at all. With every column
-             * sized the table never goes narrower than their sum (1012px) and
-             * shares out any room above it.
+             * sized the table never goes narrower than their sum (1112px, inside
+             * the 1134px a 1440px window leaves it) and shares out any room above.
              */
             width: 'xl',
             render: (entry) => <DriverCell entry={entry} />,
         },
         {
+            key: 'phone',
+            header: 'Phone',
+            width: 'md',
+            render: (entry) => <PhoneCell entry={entry} />,
+        },
+        {
             key: 'progress',
             header: 'How far they got',
-            width: 'xl',
+            // `lg`: the bar takes any width, and the page's name wraps under
+            // "Step 3 of 9".
+            width: 'lg',
             render: (entry) => <ProgressCell entry={entry} hasCustomQuestions={hasCustomQuestions} />,
         },
         {

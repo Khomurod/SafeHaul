@@ -1,6 +1,6 @@
 import React from 'react';
-import { Icon, AlertTriangle, Copy, Link2, Pencil, Phone, Trash2 } from '@design-system/icons';
-import { Badge, Button, Chip, FieldMessage, ProgressBar } from '@/design-system/components';
+import { Icon, AlertTriangle, Copy, Link2, Pencil, Trash2 } from '@design-system/icons';
+import { Badge, Button, FieldMessage, Link, ProgressBar } from '@/design-system/components';
 import { formatPhoneNumber } from '@shared/utils/helpers';
 import { describeApplicant } from './unfinishedRowActions';
 import { describeActivity, describeSent, progressOf, removalOf } from './unfinishedWorklist';
@@ -17,31 +17,46 @@ function telHref(digits) {
     return `tel:${digits.length === 10 ? `+1${digits}` : digits}`;
 }
 
-/** Who, and how to reach them: the name, the phone as a call, the email. */
+/** The digits of the row's phone, or '' when it has none. */
+const phoneDigits = (entry) => String(entry.phone || '').replace(/\D/g, '');
+
+/**
+ * Who: the name, and under it, quieter, the email that tells two drivers of
+ * the same name apart, or that there is no way to reach them yet. A row with
+ * no name yet says so, quietly.
+ */
 export function DriverCell({ entry }) {
-    const { name, displayName, actionName } = describeApplicant(entry);
-    const phone = String(entry.phone || '').replace(/\D/g, '');
-    const shown = formatPhoneNumber(phone);
+    const { name, displayName } = describeApplicant(entry);
     return (
         <div className="flex min-w-0 flex-col items-start gap-ds-1">
-            <span className={name ? 'font-semibold text-ds-content' : 'italic text-ds-content-muted'}>
+            <span className={name ? 'font-semibold text-ds-content' : 'text-ds-content-muted'}>
                 {displayName}
             </span>
-            {phone && (
-                // The Call on a phone: a link, so the device dials.
-                <Chip href={telHref(phone)} icon={Phone} aria-label={`Call ${actionName} at ${shown}`}>
-                    {shown}
-                </Chip>
-            )}
             {/* `break-words`: an address has no space to break at, and a card or a
                 column narrower than it would clip it. */}
             {entry.email && (
                 <span className="max-w-full break-words text-ds-sm text-ds-content-secondary">{entry.email}</span>
             )}
-            {!phone && !entry.email && (
+            {!entry.email && !phoneDigits(entry) && (
                 <span className="text-ds-sm text-ds-content-muted">No contact details yet</span>
             )}
         </div>
+    );
+}
+
+/** The phone as a call: a link, so a phone dials it. A quiet dash when there is none. */
+export function PhoneCell({ entry }) {
+    const phone = phoneDigits(entry);
+    if (!phone) return <span className="text-ds-content-muted">—</span>;
+    const shown = formatPhoneNumber(phone);
+    return (
+        <Link
+            href={telHref(phone)}
+            aria-label={`Call ${describeApplicant(entry).actionName} at ${shown}`}
+            className="whitespace-nowrap tabular-nums"
+        >
+            {shown}
+        </Link>
     );
 }
 

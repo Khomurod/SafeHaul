@@ -7,7 +7,7 @@ import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useData } from '@/context/DataContext';
 import { Button, Card, FieldMessage, Notice } from '@/design-system/components';
-import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
+import { Inline, PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { LoadingState } from '@/design-system/patterns';
 import { useInviteLink } from '../applicationPrep/useInviteLink';
 import { useUnfinishedDraftDelete } from '../applicationPrep/useUnfinishedDraftDelete';
@@ -117,6 +117,8 @@ export function UnfinishedApplicationsPage() {
     const [filter, setFilter] = useState('all');
     const [query, setQuery] = useState('');
     const counts = useMemo(() => countByFilter(drafts, now), [drafts, now]);
+    /** The list is in, so there is something to count. */
+    const ready = !loading && !error;
     // The wizard's page count depends on whether the company asks questions of its own.
     const hasCustomQuestions = (currentCompanyProfile?.customQuestions?.length || 0) > 0;
 
@@ -318,19 +320,22 @@ export function UnfinishedApplicationsPage() {
             <Stack gap="lg">
                 <PageHeader
                     title="Unfinished applications"
+                    // The rows the filter and the search keep; none while the
+                    // list loads or could not be read.
+                    count={ready ? shown.length : undefined}
+                    countLabel={shown.length === 1 ? 'unfinished application' : 'unfinished applications'}
                     description={`Applications a driver or your team began and nobody has submitted yet. They are not in the applications pipeline: nothing has been signed and no consent given. Each is removed automatically after ${retentionDays} days without activity.`}
+                    actions={(
+                        <Inline gap="sm">
+                            <Button variant="primary" onClick={startNew} disabled={!companyId}>
+                                <Icon icon={Plus} size="sm" /> Start an application
+                            </Button>
+                            <Button variant="secondary" onClick={load} disabled={loading}>
+                                <Icon icon={RefreshCw} size="sm" /> Refresh
+                            </Button>
+                        </Inline>
+                    )}
                 />
-
-                {/* Below the description rather than beside it: beside it, a tablet
-                    squeezes the description into a column a few words wide. */}
-                <div className="flex flex-wrap gap-ds-2">
-                    <Button variant="primary" onClick={startNew} disabled={!companyId}>
-                        <Icon icon={Plus} size="sm" /> Start an application
-                    </Button>
-                    <Button variant="secondary" onClick={load} disabled={loading}>
-                        <Icon icon={RefreshCw} size="sm" /> Refresh
-                    </Button>
-                </div>
 
                 {error && (
                     <Card padding="md">
@@ -359,7 +364,7 @@ export function UnfinishedApplicationsPage() {
                 <Card padding="none" className="overflow-hidden">
                     <UnfinishedWorklistToolbar
                         counts={counts}
-                        ready={!loading && !error}
+                        ready={ready}
                         truncated={truncated}
                         query={query}
                         onQuery={setQuery}
@@ -393,16 +398,10 @@ export function UnfinishedApplicationsPage() {
                             onCopy: copyUrl,
                         }}
                     />
-                    {!loading && drafts.length > 0 && (
-                        <div className="flex flex-wrap justify-between gap-ds-2 border-t border-ds-border-subtle bg-ds-surface-subtle px-ds-4 py-ds-3 text-ds-sm text-ds-content-secondary">
-                            {/* Spoken as it changes, so a search or a filter says what it kept. */}
-                            <span aria-live="polite">
-                                {truncated
-                                    ? `Showing ${shown.length} of the ${drafts.length} most recently active`
-                                    : `Showing ${shown.length} of ${drafts.length}`}
-                            </span>
-                            <span>Newest activity first, as of the last refresh</span>
-                        </div>
+                    {ready && truncated && (
+                        <p className="border-t border-ds-border-subtle bg-ds-surface-subtle px-ds-4 py-ds-3 text-ds-sm text-ds-content-secondary">
+                            {`Only the ${drafts.length} most recently active are listed.`}
+                        </p>
                     )}
                 </Card>
 
