@@ -223,15 +223,16 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   const showSelection = Boolean(selection);
   const normalizedError = typeof error === 'string' ? { message: error } : error;
   const showInlineError = normalizedError && data.length > 0 && !isLoading;
-  /**
-   * An empty list or a failed load with nothing to show. It is drawn under the
-   * scroll region rather than as a row spanning the table, so on a phone, where
-   * the table is wider than its card, the message and its button stay in view
-   * instead of centring across columns scrolled out of sight.
-   */
   let bodyState = null;
   if (!isLoading && data.length === 0) bodyState = normalizedError ? 'error' : 'empty';
   const cards = mobilePresentation === 'cards';
+  /**
+   * Where a table scrolls sideways, an empty or failed list is drawn under the
+   * scroll region, as wide as the card: as a row spanning the table, a phone
+   * would centre it across columns scrolled out of sight. Cards keep it as a
+   * row, since a card is the screen's width and its header row is hidden.
+   */
+  const statePanel = cards ? null : bodyState;
   /** Cards on screen now; at 768px and up the same table can scroll sideways. */
   const cardsOnScreen = useCardsLayout(cards);
   if (cards && showSelection) {
@@ -269,7 +270,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
       data-has-selection={showSelection || undefined}
       data-embedded={embedded || undefined}
       data-max-height={tableMaxHeight}
-      data-state={bodyState || undefined}
+      data-state={statePanel || undefined}
       aria-busy={isLoading || undefined}
     >
       {showInlineError && (
@@ -345,7 +346,15 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
                 loadingLabel={loadingLabel}
                 role={role}
               />
-            ) : bodyState ? null : (
+            ) : bodyState ? (
+              cards && (
+                <tr role={role('row')}>
+                  <td role={role('cell')} colSpan={normalizedColumns.length + (showSelection ? 1 : 0)}>
+                    <StateContent state={bodyState} empty={empty} error={normalizedError} loadingLabel={loadingLabel} />
+                  </td>
+                </tr>
+              )
+            ) : (
               data.map((row) => {
                 const rowId = getRowId(row);
                 const isSelected = selectedSet.has(rowId);
@@ -404,10 +413,10 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
         </table>
       </div>
 
-      {bodyState && (
+      {statePanel && (
         <div className="ds-data-table__state-panel">
           <StateContent
-            state={bodyState}
+            state={statePanel}
             empty={empty}
             error={normalizedError}
             loadingLabel={loadingLabel}

@@ -55,6 +55,20 @@ describe('DataTable — bounded height, state wording, page size', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  it('keeps the state as a row of the table when the rows are cards', () => {
+    const { container } = render(
+      <DataTable
+        ariaLabel="Example records"
+        columns={columns}
+        data={[]}
+        mobilePresentation="cards"
+        empty={{ title: 'No records yet.' }}
+      />,
+    );
+    expect(screen.getByRole('table', { name: 'Example records' })).toContainElement(screen.getByRole('status'));
+    expect(container.querySelector('.ds-data-table')).not.toHaveAttribute('data-state');
+  });
+
 
   it('caps its height at a known size, and refuses any other', () => {
     const { container, rerender } = render(
