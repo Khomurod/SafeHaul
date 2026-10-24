@@ -16,9 +16,8 @@ async function openApplicationsWithFilters(page) {
   await filters.click();
   return {
     filters,
-    region: page.getByRole('region', {
-      name: 'Applications table. Scroll horizontally to view all columns.',
-    }),
+    // Named "… Scroll horizontally …" while it is a table, plainly as cards.
+    region: page.getByRole('region', { name: /^Applications table/ }),
     firstRow: page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' }),
     // The last of the filter fields: the bottom of the Filters row.
     lastFilter: page.getByLabel('Filter by date'),
@@ -122,12 +121,44 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByRole('button', { name: /Assign \(/ })).toHaveCount(0);
   });
 
-  test('exposes every column through the documented mobile scroll pattern @mobile', async ({ page }, testInfo) => {
+  test('shows Applications as one card per driver on a phone @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation is verified in a mobile project.');
     await openCandidatePage(page, '/company/drivers/applications', 'Applications');
 
+    const region = page.getByRole('region', { name: 'Applications table', exact: true });
+    expect(await region.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await expect(page.getByText('Swipe horizontally to view all columns and actions.')).toHaveCount(0);
+    // Sorting moves from the hidden headers to a list above the cards.
+    await expect(page.getByLabel('Sort by')).toHaveValue('addedDate:desc');
+
+    const maria = page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' });
+    // Each value sits under its column's label (drawn from `data-label`).
+    await expect(maria.locator('[data-label="Recruiter"]')).toHaveText('E2E Admin');
+    await expect(maria.locator('[data-label="Applied"]')).toHaveText('Jul 10, 2026');
+    // The number starts where the other values do, not centred in its column.
+    const call = maria.getByRole('button', { name: 'Call Maria Garcia at (512) 555-0134', exact: true });
+    const [callBox, statusBox] = await Promise.all([
+      call.getByText('(512) 555-0134').boundingBox(),
+      maria.locator('[data-label="Status"] > *').first().boundingBox(),
+    ]);
+    expect(Math.abs(callBox.x - statusBox.x)).toBeLessThanOrEqual(1);
+
+    // The number calls; the name opens the dossier.
+    await call.click();
+    await expect(page.getByRole('dialog', { name: 'Log call result' })).toBeVisible();
+    await page.getByRole('button', { name: 'Close call result' }).click();
+    await maria.getByRole('rowheader').click();
+    await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
+  });
+
+  test('keeps Company Leads, with its checkboxes, a table that scrolls on a phone @mobile', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation is verified in a mobile project.');
+    await openCandidatePage(page, '/company/drivers/leads/company', 'Company Leads');
+
     const region = page.getByRole('region', {
-      name: 'Applications table. Scroll horizontally to view all columns.',
+      name: 'Company Leads table. Scroll horizontally to view all columns.',
     });
     const dimensions = await region.evaluate((element) => ({
       clientWidth: element.clientWidth,
@@ -140,10 +171,9 @@ test.describe('Company candidate-list DataTable pilot', () => {
     expect(dimensions.overflowX).toBe('auto');
     expect(dimensions.tabIndex).toBe(0);
     await expect(page.getByText('Swipe horizontally to view all columns and actions.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Call Maria Garcia at (512) 555-0134', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Call Lena Leadsen at (408) 555-0110', exact: true })).toBeVisible();
 
-    await page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' })
-      .click({ position: { x: 12, y: 12 } });
+    await page.getByRole('row', { name: 'Open driver dossier for Lena Leadsen' }).getByRole('rowheader').click();
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);

@@ -165,6 +165,9 @@ export function buildCandidateColumns({ handlePhoneClick, scope, teamMembers = [
                     <Button
                         variant="link"
                         size="sm"
+                        // At the start of a card's value column, with the other
+                        // values, rather than stretched across it and centred.
+                        className="justify-self-start"
                         onClick={(e) => handlePhoneClick(e, item)}
                         aria-label={`Call ${getCandidateName(item)} at ${phone}`}
                     >
