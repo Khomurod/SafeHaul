@@ -40,6 +40,9 @@ describe('the features overview', () => {
         expect(within(blue).getAllByText('On')).toHaveLength(4);
         expect(within(acme).getByText(/Off from/)).toBeInTheDocument();
         expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+        // The heading counts the companies, as every list's heading counts its records.
+        expect(screen.getByRole('heading', { level: 2, name: 'Features' })).toBeInTheDocument();
+        expect(screen.getByRole('status')).toHaveTextContent(/^2 companies$/);
         expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 

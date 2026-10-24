@@ -93,6 +93,8 @@ export function FeaturesOverview({ onOpenCompany }) {
             <PageHeader
                 level={2}
                 title="Features"
+                count={loading || failed ? undefined : companies.length}
+                countLabel={companies.length === 1 ? 'company' : 'companies'}
                 description="Which company has which feature. Open a company to switch one or schedule it off."
             />
             <DataTable
