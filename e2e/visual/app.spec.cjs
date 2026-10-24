@@ -45,7 +45,7 @@
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
 const {
-    AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS, serveCallables,
+    AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS, serveCallables,
 } = require('../helpers/callables.cjs');
 const { uploadLeadFile } = require('../helpers/leadImport.cjs');
 
@@ -197,6 +197,20 @@ const SCREENS = [
             page.getByText(/^(Platform totals loaded\.|\d+ of \d+ platform totals failed to load: .+\.)$/),
             page.getByRole('rowheader', { name: 'Riley Sample' }),
         ],
+    },
+    /*
+     * Maintenance after a dry run of the stats backfill, answered with fourteen
+     * made-up days (`BACKFILL_PREVIEW`), so the preview's 256px cap shows.
+     */
+    {
+        name: 'super-admin-backfill-preview',
+        url: '/super-admin/maintenance?e2eAuth=super_admin',
+        callables: { backfillCompanyStats: BACKFILL_PREVIEW },
+        open: async (page) => {
+            await page.getByLabel('Company ID').fill('e2e-company-artificial');
+            await page.getByRole('button', { name: 'Dry-Run (Preview)' }).click();
+        },
+        ready: (page) => page.getByRole('rowheader', { name: '2026-10-01' }),
     },
     {
         name: 'login',

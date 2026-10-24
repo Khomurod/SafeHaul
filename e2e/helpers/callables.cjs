@@ -157,6 +157,18 @@ const ENVIRONMENT_INVENTORY = Object.freeze({
   ],
 });
 
+// A dry run of `backfillCompanyStats` for a made-up company: fourteen days, so
+// the preview overflows its 256px cap and scrolls under its header.
+const BACKFILL_PREVIEW = Object.freeze({
+  dryRun: true, companyId: 'e2e-company-artificial', totalActivitiesProcessed: 1284,
+  legacyCount: 312, modernCount: 972, daysWithStats: 14,
+  preview: Array.from({ length: 14 }, (_, i) => ({
+    dateKey: `2026-10-${String(i + 1).padStart(2, '0')}`,
+    totalDials: 40 + ((i * 37) % 90), connected: 12 + ((i * 11) % 30), userCount: 2 + (i % 5),
+  })),
+});
+
 module.exports = {
-  AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS, serveCallables,
+  AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS,
+  serveCallables,
 };

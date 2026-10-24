@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { measureTables } = require('../scripts/table-layout/measureTables.cjs');
 const { freezeClock, settle } = require('./visual/settle.cjs');
 const {
-    AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS, serveCallables,
+    AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS, serveCallables,
 } = require('./helpers/callables.cjs');
 const { uploadLeadFile } = require('./helpers/leadImport.cjs');
 
@@ -34,9 +34,11 @@ const { uploadLeadFile } = require('./helpers/leadImport.cjs');
  * reached by `open`, which presses what a person would.
  *
  * Not covered, because no fixture renders the table without Firestore: the
- * campaign results and report (need a finished campaign), the stats backfill
- * preview (needs a run), and the dossier's own tables. The import-leads preview
- * is covered: the screen picks a made-up file, as a person would.
+ * campaign results and report (need a finished campaign), a company's alert
+ * interactions (read from its `feature_alerts`), and the dossier's own tables.
+ * The import-leads preview is covered: the screen picks a made-up file, as a
+ * person would; so is the stats backfill preview, from a dry run answered by
+ * `callables`.
  */
 
 // Two services as `getAiModelVersions` returns them (shape:
@@ -144,7 +146,21 @@ const SCREENS = [
         row: 'Alexandra Montgomery-Okonkwo',
         table: 'Recruiter performance for the selected period',
     },
+    {
+        name: 'super admin stats backfill preview',
+        url: '/super-admin/maintenance?e2eAuth=super_admin',
+        callables: { backfillCompanyStats: BACKFILL_PREVIEW },
+        open: runBackfillDryRun,
+        row: '2026-10-14',
+        table: 'Backfill preview by day',
+    },
 ];
+
+/** Asks for a dry run of one made-up company, as an operator would. */
+async function runBackfillDryRun(page) {
+    await page.getByLabel('Company ID').fill('e2e-company-artificial');
+    await page.getByRole('button', { name: 'Dry-Run (Preview)' }).click();
+}
 
 const WIDTHS = [
     { label: 'desktop', width: 1440, height: 900 },
