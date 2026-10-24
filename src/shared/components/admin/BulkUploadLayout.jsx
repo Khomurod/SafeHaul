@@ -239,11 +239,19 @@ export function BulkUploadLayout({
         previewIndex: index,
         row,
     }));
+    // Every column `lg`, so the longest header ("normalizedPhone") fits on
+    // its line and a value is readable: eight of them are wider than the
+    // dialog, so the preview scrolls sideways rather than squeezing each
+    // column to a few letters. A longer value is cut, and whole on hover.
     const previewColumns = previewKeys.map((key) => ({
         key,
         header: key,
+        width: 'lg',
         truncate: true,
-        render: (entry) => String(entry.row[key] || ''),
+        render: (entry) => {
+            const value = String(entry.row[key] || '');
+            return <span title={value || undefined}>{value}</span>;
+        },
     }));
 
     const hasCountableProgress = Number(progressCount?.total) > 0;

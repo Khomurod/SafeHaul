@@ -45,6 +45,7 @@
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
 const { API_KEYS, serveCallables } = require('../helpers/callables.cjs');
+const { uploadLeadFile } = require('../helpers/leadImport.cjs');
 
 /**
  * A screen is listed with the thing that must be on it before a screenshot is
@@ -202,6 +203,12 @@ const SCREENS = [
         name: 'company-import-leads',
         url: '/company/import-leads?e2eAuth=company_admin',
         ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
+    {
+        name: 'company-import-preview',
+        url: '/company/import-leads?e2eAuth=company_admin',
+        open: uploadLeadFile,
+        ready: (page) => page.getByText('Okonkwo-Fairweather'),
     },
 ];
 

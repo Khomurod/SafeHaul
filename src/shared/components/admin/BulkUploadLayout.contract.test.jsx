@@ -298,6 +298,21 @@ describe('BulkUploadLayout — preserved contracts', () => {
         expect(screen.getByText('Two')).toBeInTheDocument();
     });
 
+    it('gives every preview column a width, so a value stays readable and whole on hover', () => {
+        const csvData = [{
+            firstName: 'Artificial',
+            email: 'artificial.applicant.with.a.long.address@example.test',
+            normalizedPhone: '5550100000',
+        }];
+        render(<BulkUploadLayout {...makeProps({ step: 'preview', csvData })} />);
+        const table = screen.getByRole('table', { name: 'Import preview' });
+        for (const header of within(table).getAllByRole('columnheader')) {
+            expect(header, header.textContent).toHaveAttribute('data-width', 'lg');
+        }
+        expect(within(table).getByText(csvData[0].email))
+            .toHaveAttribute('title', csvData[0].email);
+    });
+
     it('renders empty cells for values missing from a later row', () => {
         const csvData = [
             { firstName: 'Artificial', lastName: 'One' },

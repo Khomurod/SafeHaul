@@ -270,6 +270,8 @@ The reverse directions are prohibited — including any `@shared` import inside
   (numbers), never centred; a header is one line; `minWidth` is `wide`,
   `standard` or `none`. A list sorts from its headers (`sortable`, with the
   feature's `sort` and `onSortChange`; a "Sort by" list above phone cards).
+  Every column has a width bucket; the dashboard leaderboard and the import
+  preview, whose rows are compared, scroll on a phone.
 - **A list page follows the six rules in `patterns/list-toolbar/README.md`**:
   one heading with the count, one `ListToolbar` row, one row per record in a
   `DataTable embedded`, sorting from headers, calm statuses, cards on phones.

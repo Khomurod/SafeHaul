@@ -2,6 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { measureTables } = require('../scripts/table-layout/measureTables.cjs');
 const { freezeClock, settle } = require('./visual/settle.cjs');
 const { API_KEYS, serveCallables } = require('./helpers/callables.cjs');
+const { uploadLeadFile } = require('./helpers/leadImport.cjs');
 
 /**
  * @table-layout — a table cell contains what is put in it, on the application's
@@ -30,10 +31,10 @@ const { API_KEYS, serveCallables } = require('./helpers/callables.cjs');
  * callable returns, served in place of the network. A table behind a tab is
  * reached by `open`, which presses what a person would.
  *
- * Not covered, because no fixture renders the table without Firestore:
- * the import-leads preview (needs an uploaded file), the campaign results and
- * report (need a finished campaign), the stats backfill preview (needs a run),
- * and the dossier's own tables.
+ * Not covered, because no fixture renders the table without Firestore: the
+ * campaign results and report (need a finished campaign), the stats backfill
+ * preview (needs a run), and the dossier's own tables. The import-leads preview
+ * is covered: the screen picks a made-up file, as a person would.
  */
 
 // Two services as `getAiModelVersions` returns them (shape:
@@ -69,6 +70,13 @@ const SCREENS = [
     { name: 'applications', url: '/company/drivers/applications?e2eAuth=company_admin', row: 'James McDonald' },
     { name: 'company leads', url: '/company/drivers/leads/company?e2eAuth=company_admin', row: 'Omar Attempt' },
     { name: 'my leads', url: '/company/drivers/leads/my?e2eAuth=company_admin', row: 'Lena Leadsen' },
+    {
+        name: 'import leads preview',
+        url: '/company/import-leads?e2eAuth=company_admin',
+        // The preview shows the file a person picks, so the screen picks one.
+        open: uploadLeadFile,
+        row: 'Okonkwo-Fairweather',
+    },
     { name: 'unfinished applications', url: '/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock', row: 'Dana Whitfield' },
     {
         name: 'e-docs sent documents',
