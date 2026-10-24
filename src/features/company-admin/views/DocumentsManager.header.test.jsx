@@ -3,7 +3,7 @@
 // The shared harness — mock state, factories, fixtures and helpers — lives in
 // `DocumentsManager.support.jsx`; the registrations below delegate to it.
 import React from 'react';
-import { screen, fireEvent } from '@testing-library/react';
+import { act, screen, fireEvent, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -32,6 +32,8 @@ import {
     creatorProps,
     firestoreMocks,
     functionsMocks,
+    sentProps,
+    signingRequestsMock,
 } from './DocumentsManager.support';
 
 const renderManager = makeRenderManager(DocumentsManager, MemoryRouter);
@@ -103,6 +105,41 @@ describe('DocumentsManager header', () => {
     it('has no accessibility violations in the header region', async () => {
         const { container } = renderManager();
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe('DocumentsManager sent documents count', () => {
+    const sent = (id, overrides = {}) => ({ id, title: `Artificial ${id}`, status: 'sent', ...overrides });
+    it('counts the sent documents beside the heading on Sent Documents only', () => {
+        signingRequestsMock.current = {
+            ...signingRequestsMock.current,
+            documents: [sent('a'), sent('b', { status: 'signed' }), sent('c', { emailStatus: 'failed' })],
+        };
+        renderManager();
+        const header = screen.getByRole('heading', { level: 1, name: 'Documents' }).closest('header');
+        // The region stays in place, empty, so a screen reader hears the count arrive.
+        expect(within(header).getByRole('status')).toHaveTextContent(/^$/);
+
+        fireEvent.click(tabs().sent);
+        expect(within(header).getByRole('status')).toHaveTextContent(/^3 sent documents$/);
+
+        // The documents the panel's search and filters keep.
+        act(() => sentProps.current.setFilters((prev) => ({ ...prev, needsAttention: true })));
+        expect(within(header).getByRole('status')).toHaveTextContent(/^1 sent document$/);
+
+        fireEvent.click(tabs().templates);
+        expect(within(header).getByRole('status')).toHaveTextContent(/^$/);
+    });
+
+    it.each([
+        ['loading', { isLoading: true }],
+        ['failed', { loadError: 'Could not load document history. Please try again.' }],
+    ])('shows no count while the documents are %s', (_, state) => {
+        signingRequestsMock.current = { ...signingRequestsMock.current, documents: [], ...state };
+        renderManager();
+        fireEvent.click(tabs().sent);
+        const header = screen.getByRole('heading', { level: 1, name: 'Documents' }).closest('header');
+        expect(within(header).getByRole('status')).toHaveTextContent(/^$/);
     });
 });
 

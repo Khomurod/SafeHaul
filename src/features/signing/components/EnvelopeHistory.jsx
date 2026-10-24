@@ -38,6 +38,13 @@ const STATUS_PRESENTATION = {
  */
 const PAGE_SIZE = 25;
 
+/** "Oct 23, 2026", the date the request was sent, or null without one. */
+function formatSentDate(createdAt) {
+    if (typeof createdAt?.seconds !== 'number') return null;
+    return new Date(createdAt.seconds * 1000)
+        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 /**
  * Company-side sent-documents table.
  *
@@ -60,6 +67,7 @@ export default function EnvelopeHistory({
     loadError: loadErrorProp,
     onRetry,
     emptyState,
+    embedded = false,
 }) {
     const [copyingId, setCopyingId] = useState(null);
     const [voidingId, setVoidingId] = useState(null);
@@ -69,8 +77,8 @@ export default function EnvelopeHistory({
     const [page, setPage] = useState(1);
     const { showSuccess, showError } = useToast();
     // Quick actions stay `sm` on desktop for row density but grow to the 44px
-    // `lg` control on touch layouts, where the row is reached by horizontal
-    // scroll and a 36px target is too small.
+    // `lg` control on a phone, where each row is a card and a 36px target is
+    // too small.
     const isMobile = useIsMobile();
     const quickActionSize = isMobile ? 'lg' : 'sm';
 
@@ -212,6 +220,7 @@ export default function EnvelopeHistory({
 
     const renderDeliveryMethods = (docItem) => (
         <span className="inline-flex flex-wrap items-center gap-ds-1">
+            {/* FEAT-4: Delivery method badge */}
             {docItem.sendEmail && <Badge tone="info" icon={Mail}>Email</Badge>}
             {docItem.sendSms && <Badge tone="success" icon={MessageSquare}>SMS</Badge>}
             {docItem.sendEmail === false && docItem.sendSms !== true && (
@@ -280,23 +289,28 @@ export default function EnvelopeHistory({
             );
         }
 
-        /*
-         * -mr-ds-4 pulls the quick action toward the table's right border. The
-         * scroll region reserves a scrollbar gutter and every cell carries the
-         * shared ds-space-5 inline padding, which left the right-aligned action
-         * ~36px from the border while the left edge sits at ~21px. Offsetting
-         * the feature's own content by ds-space-4 restores the symmetry without
-         * touching the DataTable padding contract other tables rely on.
-         */
-        return <div className="-mr-ds-4 flex items-center justify-end gap-ds-2">{action}</div>;
+        return action;
     };
 
+    /*
+     * One fact per column: the document, who it went to (the name, and under it,
+     * quieter, how to reach them), how it was delivered, where it stands, when it
+     * was sent, and the one quick action. The status keeps a failed delivery's
+     * reason under its badge, because the reason explains the status.
+     */
     const columns = defineTableColumns([
         {
             key: 'title',
-            header: 'Document Title',
+            header: 'Document',
             rowHeader: true,
-            // 'auto' lets the document name take the width the fixed columns leave.
+            /*
+             * A width of its own, not `auto`, like every column here: an `auto`
+             * column gets what is left, which on a tablet, where the table scrolls
+             * at its narrowest, was a few letters. With every column sized the
+             * table never goes narrower than their sum (1,080px, inside the
+             * 1,134px a 1440px window leaves it) and shares out any room above.
+             */
+            width: 'xl',
             render: (docItem) => {
                 const title = docItem.title || 'Untitled';
                 return (
@@ -310,9 +324,7 @@ export default function EnvelopeHistory({
         {
             key: 'recipient',
             header: 'Recipient',
-            // 'auto', like the title: the two identity columns share the spare
-            // width, so a typical email plus its delivery badge stays on one
-            // line and the row stays compact.
+            width: 'xl',
             render: (docItem) => (
                 <div className="min-w-0">
                     <div
@@ -321,15 +333,21 @@ export default function EnvelopeHistory({
                     >
                         {docItem.recipientName}
                     </div>
-                    <div className="mt-ds-1 flex flex-wrap items-center gap-ds-2">
-                        <span className="text-ds-xs text-ds-content-muted [overflow-wrap:anywhere]">
-                            {docItem.recipientEmail || docItem.recipientPhone || 'No email or phone'}
-                        </span>
-                        {/* FEAT-4: Delivery method badge */}
-                        {renderDeliveryMethods(docItem)}
+                    <div
+                        className="line-clamp-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]"
+                        title={docItem.recipientEmail || docItem.recipientPhone || undefined}
+                    >
+                        {docItem.recipientEmail || docItem.recipientPhone || 'No email or phone'}
                     </div>
                 </div>
             ),
+        },
+        {
+            key: 'delivery',
+            header: 'Delivery',
+            // 'lg': "Email" and "SMS" side by side on one line.
+            width: 'lg',
+            render: renderDeliveryMethods,
         },
         {
             key: 'status',
@@ -339,21 +357,22 @@ export default function EnvelopeHistory({
         },
         {
             key: 'createdAt',
-            header: 'Sent Date',
-            align: 'end',
-            width: 'sm',
-            render: (docItem) => (
-                <span className="font-mono text-ds-sm text-ds-content-secondary">
-                    {docItem.createdAt?.seconds ? new Date(docItem.createdAt.seconds * 1000).toLocaleDateString() : '--'}
-                </span>
-            ),
+            // Not "Sent", which is also a status.
+            header: 'Date sent',
+            width: 'md',
+            render: (docItem) => {
+                const date = formatSentDate(docItem.createdAt);
+                return date
+                    ? <span className="whitespace-nowrap tabular-nums">{date}</span>
+                    : <span className="text-ds-content-muted">—</span>;
+            },
         },
         {
             key: 'actions',
-            // The same -mr-ds-4 offset as the quick-action cells, so the
-            // heading stays exactly above its buttons.
-            header: <span className="-mr-ds-4 inline-block">Actions</span>,
+            headerLabel: 'Actions',
             align: 'end',
+            // No label on a card: its button is the card's last line.
+            mobileLabel: '',
             // 'lg', not 'actions': one labelled quick action needs a real column,
             // and the old 64px 'actions' width is what stacked buttons vertically.
             width: 'lg',
@@ -394,6 +413,8 @@ export default function EnvelopeHistory({
         <>
             <DataTable
                 ariaLabel="Document history"
+                mobilePresentation="cards"
+                embedded={embedded}
                 data={visibleDocs}
                 columns={columns}
                 isLoading={loading}

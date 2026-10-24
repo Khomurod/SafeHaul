@@ -26,7 +26,8 @@ const { freezeClock, settle } = require('./visual/settle.cjs');
  * and the empty or error row are measured; a screen moves to `row` when its
  * fixture gains records. A screen whose records come from a callable, which the
  * e2e build cannot reach, gets them from `callables`: the response that
- * callable returns, served in place of the network.
+ * callable returns, served in place of the network. A table behind a tab is
+ * reached by `open`, which presses what a person would.
  *
  * Not covered, because no fixture renders the table without Firestore:
  * the import-leads preview (needs an uploaded file), the campaign results and
@@ -68,6 +69,12 @@ const SCREENS = [
     { name: 'company leads', url: '/company/drivers/leads/company?e2eAuth=company_admin', row: 'Omar Attempt' },
     { name: 'my leads', url: '/company/drivers/leads/my?e2eAuth=company_admin', row: 'Lena Leadsen' },
     { name: 'unfinished applications', url: '/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock', row: 'Dana Whitfield' },
+    {
+        name: 'e-docs sent documents',
+        url: '/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock&e2eEdocSent=mock',
+        open: (page) => page.getByRole('tab', { name: /^Sent Documents/ }).click(),
+        row: 'Ana Lucia Ferreira-Montgomery',
+    },
     { name: 'referral links', url: '/company/referral-links?e2eAuth=company_admin', empty: 'No referral links yet' },
     { name: 'settings api keys', url: '/company/settings?section=api_keys&e2eAuth=company_admin', empty: 'Unable to load records' },
     { name: 'super admin features', url: '/super-admin/features?e2eAuth=super_admin', empty: 'No companies yet' },
@@ -120,6 +127,7 @@ test.describe('@table-layout application tables', () => {
                 await freezeClock(page);
                 if (screen.callables) await serveCallables(page, screen.callables);
                 await page.goto(screen.url);
+                if (screen.open) await screen.open(page);
                 // `table` names the one table the text must be in, where another
                 // table on the screen could show the same text.
                 const tables = screen.table ? page.getByRole('table', { name: screen.table }) : page.locator('table');

@@ -1,8 +1,8 @@
 // E2E coverage for the EnvelopeHistory design-system migration (Documents
-// Center → history table). The e2eEdoc=mock harness stubs templates only; it
-// does not seed `signing_requests`, and seeding it would require changing
-// DocumentsManager, which is out of scope for this slice. So the browser-level
-// assertions cover the DataTable shell that renders regardless of data: the
+// Center → history table). These run on the plain e2eEdoc=mock harness, which
+// seeds no `signing_requests`, so they cover the DataTable shell that renders
+// regardless of data (the list with made-up documents, `e2eEdocSent=mock`, is
+// covered by the workspace spec, the table-layout guard and the screenshots): the
 // labelled keyboard-reachable scroll region, the column contract, the
 // announced loading/empty/error state, responsive overflow at 1440/1024/412
 // and a scoped real-browser axe pass.
@@ -21,8 +21,9 @@ async function openHistory(page) {
   await page.goto(URL);
   await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible({ timeout: 20_000 });
   // The workspace opens on Overview; the history table lives in Sent Documents.
+  // On a phone the rows are cards, and the region drops "Scroll horizontally".
   await page.getByRole('tab', { name: /^Sent Documents/ }).click();
-  await expect(page.getByRole('region', { name: /^Document history\./ })).toBeVisible({
+  await expect(page.getByRole('region', { name: /^Document history/ })).toBeVisible({
     timeout: 20_000,
   });
 }
@@ -46,10 +47,11 @@ test.describe('E-Doc envelope history slice', () => {
 
     const headers = page.getByRole('columnheader');
     await expect(headers).toHaveText([
-      'Document Title',
+      'Document',
       'Recipient',
+      'Delivery',
       'Status',
-      'Sent Date',
+      'Date sent',
       'Actions',
     ]);
   });

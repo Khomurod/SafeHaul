@@ -52,18 +52,29 @@ beforeEach(() => {
     historyProps.current = null;
 });
 
+const openFilters = () => fireEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+
 describe('filter controls', () => {
-    it('offers search, status, delivery, date and needs-attention', () => {
+    it('offers search, needs-attention and Filters in one row, the fields behind Filters', () => {
         renderPanel();
-        expect(screen.getByLabelText('Search documents or recipients')).toBeInTheDocument();
+        expect(screen.getByRole('searchbox', { name: 'Search documents or recipients' })).toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: 'Needs attention only' })).toBeInTheDocument();
+        expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+        // No second heading and no "Showing X of Y": the workspace heading counts.
+        expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+        openFilters();
+        expect(screen.getByRole('group', { name: 'Filters' })).toBeInTheDocument();
         expect(screen.getByLabelText('Status')).toBeInTheDocument();
         expect(screen.getByLabelText('Delivery method')).toBeInTheDocument();
         expect(screen.getByLabelText('Sent date')).toBeInTheDocument();
-        expect(screen.getByRole('checkbox', { name: 'Needs attention only' })).toBeInTheDocument();
     });
 
     it('hides the date filter when no document carries a usable timestamp', () => {
         renderPanel({ documents: [doc({ createdAt: null })] });
+        openFilters();
+        expect(screen.getByLabelText('Status')).toBeInTheDocument();
         expect(screen.queryByLabelText('Sent date')).not.toBeInTheDocument();
     });
 
@@ -84,6 +95,7 @@ describe('filter controls', () => {
                 doc({ id: 'b', status: 'signed', deliveryMethod: 'copy' }),
             ],
         });
+        openFilters();
 
         fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'signed' } });
         expect(historyProps.current.documents.map((d) => d.id)).toEqual(['b']);
@@ -97,8 +109,9 @@ describe('filter controls', () => {
         renderPanel({
             documents: [doc({ id: 'ok' }), doc({ id: 'failed', emailStatus: 'failed' })],
         });
-        fireEvent.click(screen.getByRole('checkbox', { name: 'Needs attention only' }));
+        fireEvent.click(screen.getByRole('switch', { name: 'Needs attention only' }));
         expect(historyProps.current.documents.map((d) => d.id)).toEqual(['failed']);
+        expect(screen.getByRole('switch', { name: 'Needs attention only' })).toHaveAttribute('aria-checked', 'true');
     });
 
     it('honours a filter set before the panel mounted', () => {
@@ -107,27 +120,37 @@ describe('filter controls', () => {
             initialFilters: { ...DEFAULT_FILTERS, needsAttention: true },
         });
         expect(historyProps.current.documents.map((d) => d.id)).toEqual(['failed']);
+        expect(screen.getByRole('switch', { name: 'Needs attention only' })).toHaveAttribute('aria-checked', 'true');
     });
 
-    it('resets every filter, and is disabled while nothing is filtered', () => {
-        renderPanel({ documents: [doc({ id: 'a' }), doc({ id: 'b', title: 'W-9' })] });
-        const reset = screen.getByRole('button', { name: 'Reset filters' });
-        expect(reset).toBeDisabled();
+    it('counts the fields that apply on Filters and clears only those', () => {
+        renderPanel({
+            documents: [
+                doc({ id: 'a', status: 'sent', deliveryMethod: 'email' }),
+                doc({ id: 'b', title: 'W-9', status: 'signed', deliveryMethod: 'sms' }),
+            ],
+        });
+        openFilters();
+        expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
 
-        fireEvent.change(screen.getByLabelText('Search documents or recipients'), { target: { value: 'w-9' } });
-        expect(reset).toBeEnabled();
+        fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'signed' } });
+        fireEvent.change(screen.getByLabelText('Delivery method'), { target: { value: 'sms' } });
+        fireEvent.change(screen.getByRole('searchbox', { name: 'Search documents or recipients' }), { target: { value: 'w-9' } });
+        expect(screen.getByRole('button', { name: 'Filters 2 applied' })).toBeInTheDocument();
 
-        fireEvent.click(reset);
-        expect(historyProps.current.documents).toHaveLength(2);
-        expect(screen.getByLabelText('Search documents or recipients')).toHaveValue('');
+        fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+        expect(screen.getByLabelText('Status')).toHaveValue('all');
+        expect(screen.getByLabelText('Delivery method')).toHaveValue('all');
+        // The search is its own control, in view, and keeps what was typed.
+        expect(screen.getByRole('searchbox', { name: 'Search documents or recipients' })).toHaveValue('w-9');
+        expect(historyProps.current.documents.map((d) => d.id)).toEqual(['b']);
+        expect(screen.getByRole('button', { name: /^Filters/ })).toHaveFocus();
     });
 
-    it('reports how many documents are showing', () => {
-        renderPanel({ documents: [doc({ id: 'a' }), doc({ id: 'b', title: 'W-9' })] });
-        expect(screen.getByRole('status')).toHaveTextContent('Showing 2 of 2 documents');
-
-        fireEvent.change(screen.getByLabelText('Search documents or recipients'), { target: { value: 'w-9' } });
-        expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 documents');
+    it('opens Filters from the start when one already applies', () => {
+        renderPanel({ initialFilters: { ...DEFAULT_FILTERS, status: 'signed' } });
+        expect(screen.getByLabelText('Status')).toHaveValue('signed');
+        expect(screen.getByRole('button', { name: 'Filters 1 applied' })).toHaveAttribute('aria-expanded', 'true');
     });
 });
 
@@ -150,7 +173,6 @@ describe('states passed to the table', () => {
         expect(historyProps.current.isLoading).toBe(true);
         expect(historyProps.current.loadError).toMatch(/Could not load document history/);
         expect(historyProps.current.onRetry).toBe(onRetry);
-        expect(screen.getByRole('status')).toHaveTextContent('Loading documents…');
     });
 
     it('keeps the company and the correction handler on the table', () => {
@@ -166,6 +188,24 @@ describe('states passed to the table', () => {
 
         fireEvent.change(screen.getByLabelText('Search documents or recipients'), { target: { value: 'zzz' } });
         expect(historyProps.current.emptyState.title).toBe('No documents match these filters.');
+    });
+
+    it('says what Needs attention looks for when it alone finds nothing', () => {
+        renderPanel({ documents: [doc()] });
+        fireEvent.click(screen.getByRole('switch', { name: 'Needs attention only' }));
+        expect(historyProps.current.documents).toEqual([]);
+        expect(historyProps.current.emptyState).toEqual({
+            title: 'Nothing needs attention.',
+            description: 'This lists failed deliveries and failed seals. A document waiting for a signature is not one.',
+        });
+
+        fireEvent.change(screen.getByLabelText('Search documents or recipients'), { target: { value: 'offer' } });
+        expect(historyProps.current.emptyState.title).toBe('No documents match these filters.');
+    });
+
+    it('lays the table into the toolbar\'s card', () => {
+        renderPanel();
+        expect(historyProps.current.embedded).toBe(true);
     });
 
     it('has no accessibility violations', async () => {
