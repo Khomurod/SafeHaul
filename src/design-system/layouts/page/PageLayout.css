@@ -22,13 +22,20 @@
 
 .ds-page-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--ds-space-6);
+  gap: var(--ds-space-4) var(--ds-space-6);
 }
 
+/*
+ * The heading and its description keep at least 30rem beside the actions. With
+ * less room, as on a tablet, the actions move under the description instead of
+ * squeezing it into a column a few words wide.
+ */
 .ds-page-header__content {
   min-width: 0;
+  flex: 1 1 30rem;
 }
 
 .ds-page-header h1,
@@ -142,6 +149,11 @@
   .ds-page-header {
     flex-direction: column;
     gap: var(--ds-space-4);
+  }
+
+  /* In a column a basis would be a height. */
+  .ds-page-header__content {
+    flex-basis: auto;
   }
 
   .ds-page-header__actions {
