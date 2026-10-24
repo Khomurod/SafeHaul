@@ -172,6 +172,30 @@ const SCREENS = [
                 .or(page.getByRole('heading', { name: 'Activity could not be loaded' })),
         ],
     },
+    /*
+     * The Activity section's two performance tables, with made-up figures
+     * (`e2eAnalytics=mock`): without them the period has no calls and each
+     * table shows only its empty message. Waits on the platform totals for the
+     * reason given above.
+     */
+    {
+        name: 'super-admin-activity-companies',
+        url: '/super-admin?e2eAuth=super_admin&e2eAnalytics=mock',
+        open: (page) => page.getByRole('tab', { name: 'Company Performance' }).click(),
+        ready: (page) => [
+            page.getByText(/^(Platform totals loaded\.|\d+ of \d+ platform totals failed to load: .+\.)$/),
+            page.getByRole('rowheader', { name: 'Sample Haulage' }),
+        ],
+    },
+    {
+        name: 'super-admin-activity-recruiters',
+        url: '/super-admin?e2eAuth=super_admin&e2eAnalytics=mock',
+        open: (page) => page.getByRole('tab', { name: 'Recruiter Stats' }).click(),
+        ready: (page) => [
+            page.getByText(/^(Platform totals loaded\.|\d+ of \d+ platform totals failed to load: .+\.)$/),
+            page.getByRole('rowheader', { name: 'Riley Sample' }),
+        ],
+    },
     {
         name: 'login',
         url: '/login',

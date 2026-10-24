@@ -14,9 +14,9 @@
  * Hand-picked classes that happen to resolve to what the header roles do
  * (`bg-ds-surface-subtle`, `text-ds-content-secondary`) are a coincidence, not a
  * contract, and a change to either role would break them silently. ("Eleven"
- * throughout this file is the count of approved *files*; three of them hold more
- * than one `<table>`, for fifteen in total — fourteen visible, all on this
- * contract, plus one `sr-only` table that has no appearance and is exempt.
+ * throughout this file is the count of approved *files*; two of them hold two
+ * `<table>`s, for thirteen in total — twelve visible, all on this contract,
+ * plus one `sr-only` table that has no appearance and is exempt.
  * `ds/native-table` checks each table rather than each file, so a three-table
  * file cannot satisfy the rule with one class.)
  *
@@ -116,7 +116,7 @@
 /*
  * `th[scope="row"]` is a data cell too — a row header — and needs the same
  * padding as its siblings or the first column sits closer to the edge than the
- * rest. Two of the eleven tables use one.
+ * rest. Most of these tables use one.
  */
 .ds-native-table > tbody > tr > td,
 .ds-native-table > tbody > tr > th {

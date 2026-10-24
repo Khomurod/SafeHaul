@@ -206,15 +206,11 @@ export const DS_EXCEPTIONS = {
             + 'interaction §5 approves a native table for.',
     },
     'src/features/super-admin/views/AnalyticsView.jsx': {
-        'raw-table': 'roadmap §5 — three <table> elements: two visible native tables with per-row actions, '
-            + 'which apply ds-native-table and so read the --ds-table-* header, divider and density roles, '
-            + 'plus one sr-only table that is the text equivalent of the chart above it. DataTable is a '
-            + 'display-table contract and does not cover per-row actions in two linked tables sharing one '
-            + 'scroll region. All three carry ds-native-table, the hidden one included: the guard has no '
-            + 'hidden-table exemption, because deciding whether a class list is hidden at every breakpoint '
-            + 'is not decidable (sr-only xl:not-sr-only is hidden on a phone and visible on a desktop, and '
-            + 'that pattern is already in this repo). Measured first — sr-only keeps position:absolute and '
-            + 'clip:rect(0,0,0,0), so the contract changes the box and nothing visible.',
+        'raw-table': 'roadmap §5 — one sr-only <table>, the text equivalent of the chart above it, '
+            + 'which has no appearance. The two performance tables are DataTables. It carries '
+            + 'ds-native-table all the same: the guard has no hidden-table exemption, because deciding '
+            + 'whether a class list is hidden at every breakpoint is not decidable (sr-only xl:not-sr-only '
+            + 'is hidden on a phone and visible on a desktop, and that pattern is already in this repo).',
     },
     'src/lib/signature.js': {
         'raw-hex-colour': 'roadmap §5 — signature ink, rasterised into a legal record. The canvas this '

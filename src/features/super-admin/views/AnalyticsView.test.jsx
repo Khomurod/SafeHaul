@@ -184,6 +184,25 @@ describe('AnalyticsView — frozen export contract', () => {
         expect(within(high).getByText('High')).toBeInTheDocument();
         expect(within(low).getByText('Low')).toBeInTheDocument();
     });
+
+    it('draws both performance tables on the shared table, counts on the end edge and nothing centred', () => {
+        render(<AnalyticsView />);
+        const expectations = [
+            ['Company Performance', 'Company performance for the selected period', ['Calls Made', 'Engagement']],
+            ['Recruiter Stats', 'Recruiter performance for the selected period', ['Calls Made', 'Last Active']],
+        ];
+        for (const [tab, name, endHeaders] of expectations) {
+            fireEvent.click(screen.getByRole('tab', { name: tab }));
+            const table = screen.getByRole('table', { name });
+            expect(table.closest('.ds-data-table')).not.toBeNull();
+            expect(table).not.toHaveClass('ds-native-table');
+            expect(within(table).getAllByRole('columnheader')
+                .filter((th) => th.getAttribute('data-align') === 'end')
+                .map((th) => th.textContent)).toEqual(endHeaders);
+            expect(table.querySelector('.text-center')).toBeNull();
+            expect(within(table).getAllByRole('rowheader').length).toBeGreaterThan(0);
+        }
+    });
 });
 
 describe('AnalyticsView — selection is never colour-only (defects)', () => {
