@@ -25,10 +25,12 @@ export function mockCompanies() {
 }
 
 /**
- * One company's applications as `loadApplications` returns them: each name,
- * contact and date shape the dialog resolves, and the longest strings it shows.
+ * A company's applications as `loadApplications` returns them. Only the first
+ * company has any: each name, contact and date shape the dialog resolves, and
+ * the longest strings it shows. The others have none.
  */
-export function mockCompanyApplications() {
+export function mockCompanyApplications(companyId) {
+    if (companyId !== 'e2e-co-1') return [];
     const at = (iso) => ({ seconds: Date.parse(iso) / 1000 });
     return [
         {

@@ -130,7 +130,7 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
       setLoading(true);
       setError('');
       if (isE2ETestMode && getE2EQueryParam('e2eCompanies', '') === 'mock') {
-        setApplications(mockCompanyApplications());
+        setApplications(mockCompanyApplications(companyId));
         setLoading(false);
         return;
       }
