@@ -13,7 +13,7 @@ export function PageContainer({ children, width = 'wide', className = '', ...pro
 }
 
 /**
- * The page's `<h1>`, an optional description and an action slot.
+ * The page's heading, an optional description and an action slot.
  *
  * `count` is the number of records a list page shows, drawn beside the heading
  * and outside it, so the heading's name stays the page's name. `countLabel` is
@@ -23,8 +23,17 @@ export function PageContainer({ children, width = 'wide', className = '', ...pro
  * unknown: with `countLabel` given, the region stays in place, empty and
  * unseen, so the number that arrives is announced too (a region inserted
  * together with its content often is not).
+ *
+ * `level` is `1` unless a shell's masthead already holds the page's one `<h1>`,
+ * as the Super Admin console's does: there it is `2`. The header looks the
+ * same at either level. `headingRef` reaches the heading, for a page that moves
+ * focus to it; the heading is then focusable from script.
  */
-export function PageHeader({ title, description, actions, count, countLabel, className = '', ...props }) {
+const LEVELS = new Set([1, 2]);
+
+export function PageHeader({
+  title, description, actions, count, countLabel, level = 1, headingRef, className = '', ...props
+}) {
   const hasCount = count !== undefined && count !== null;
   const showsCount = hasCount || (typeof countLabel === 'string' && countLabel.trim() !== '');
   if (hasCount && (!Number.isInteger(count) || count < 0)) {
@@ -33,13 +42,22 @@ export function PageHeader({ title, description, actions, count, countLabel, cla
   if (hasCount && (typeof countLabel !== 'string' || countLabel.trim() === '')) {
     contractViolation('PageHeader count needs a countLabel: the word read after the number.');
   }
+  if (!LEVELS.has(level)) {
+    contractViolation(`PageHeader level must be 1 or 2, not ${level}.`);
+  }
+  const Heading = level === 2 ? 'h2' : 'h1';
+  const heading = (
+    <Heading ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="ds-page-header__heading">
+      {title}
+    </Heading>
+  );
 
   return (
     <header {...props} className={`ds-page-header ${className}`.trim()}>
       <div className="ds-page-header__content">
         {showsCount ? (
           <div className="ds-page-header__title">
-            <h1>{title}</h1>
+            {heading}
             <span className="ds-page-header__count" role="status">
               {hasCount && (
                 <>
@@ -50,7 +68,7 @@ export function PageHeader({ title, description, actions, count, countLabel, cla
             </span>
           </div>
         ) : (
-          <h1>{title}</h1>
+          heading
         )}
         {description && <p>{description}</p>}
       </div>

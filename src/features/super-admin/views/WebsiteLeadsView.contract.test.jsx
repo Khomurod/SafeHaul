@@ -102,6 +102,19 @@ describe('Website Leads — read-only archive', () => {
         expect(screen.getByText('Failed')).toBeInTheDocument();
     });
 
+    it('puts one fact in a cell, under a level-2 heading with the count', async () => {
+        render(<WebsiteLeadsView />);
+        const row = (await screen.findByText('Dana Fixture')).closest('tr');
+        const cell = (label) => row.querySelector(`[data-label="${label}"]`);
+
+        expect(cell('Company')).toHaveTextContent(/^Ridgeline Carriers$/);
+        expect(cell('Drivers')).toHaveTextContent(/^25$/);
+        // The masthead holds the page's <h1>; this view's heading is the h2.
+        expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+        expect(screen.getByRole('heading', { level: 2, name: 'Website Leads' })).toBeInTheDocument();
+        expect(screen.getByRole('status')).toHaveTextContent(/^1 lead$/);
+    });
+
     it('says so plainly when the archive is empty', async () => {
         mockLeads([]);
         render(<WebsiteLeadsView />);

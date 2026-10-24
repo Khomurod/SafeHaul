@@ -44,7 +44,9 @@
  */
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
-const { API_KEYS, serveCallables } = require('../helpers/callables.cjs');
+const {
+    API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables,
+} = require('../helpers/callables.cjs');
 const { uploadLeadFile } = require('../helpers/leadImport.cjs');
 
 /**
@@ -104,6 +106,23 @@ const SCREENS = [
         name: 'company-campaigns',
         url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
         ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
+    {
+        name: 'super-admin-features',
+        url: '/super-admin/features?e2eAuth=super_admin&e2eFeatures=mock',
+        ready: (page) => page.getByText('Sample Haulage', { exact: true }),
+    },
+    {
+        name: 'super-admin-blog-posts',
+        url: '/super-admin/blog-posts?e2eAuth=super_admin',
+        callables: { listBlogPosts: BLOG_POSTS, listBlogRuns: BLOG_RUNS },
+        ready: (page) => page.getByText('Why drivers stay: five retention habits', { exact: true }),
+    },
+    {
+        name: 'super-admin-website-leads',
+        url: '/super-admin/website-leads?e2eAuth=super_admin',
+        callables: { listLandingLeads: WEBSITE_LEADS },
+        ready: (page) => page.getByText('Dev Patel', { exact: true }),
     },
     {
         name: 'super-admin',

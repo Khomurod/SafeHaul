@@ -1,7 +1,9 @@
 const { test, expect } = require('@playwright/test');
 const { measureTables } = require('../scripts/table-layout/measureTables.cjs');
 const { freezeClock, settle } = require('./visual/settle.cjs');
-const { API_KEYS, serveCallables } = require('./helpers/callables.cjs');
+const {
+    API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables,
+} = require('./helpers/callables.cjs');
 const { uploadLeadFile } = require('./helpers/leadImport.cjs');
 
 /**
@@ -91,7 +93,7 @@ const SCREENS = [
         callables: { listCompanyApiKeys: API_KEYS },
         row: 'Artificial TMS',
     },
-    { name: 'super admin features', url: '/super-admin/features?e2eAuth=super_admin', empty: 'No companies yet' },
+    { name: 'super admin features', url: '/super-admin/features?e2eAuth=super_admin&e2eFeatures=mock', row: 'Northern Plains Refrigerated Transport Cooperative' },
     { name: 'super admin companies', url: '/super-admin/companies?e2eAuth=super_admin', empty: 'No companies found.' },
     { name: 'super admin users', url: '/super-admin/users?e2eAuth=super_admin', empty: 'No users found.' },
     { name: 'super admin unified driver db', url: '/super-admin/applications?e2eAuth=super_admin', empty: 'No drivers match your filters.' },
@@ -103,8 +105,18 @@ const SCREENS = [
         table: 'AI model versions',
         callables: { getAiModelVersions: AI_MODEL_VERSIONS },
     },
-    { name: 'super admin blog posts', url: '/super-admin/blog-posts?e2eAuth=super_admin', empty: 'No articles have been published yet.' },
-    { name: 'super admin website leads', url: '/super-admin/website-leads?e2eAuth=super_admin', empty: 'No leads were captured.' },
+    {
+        name: 'super admin blog posts',
+        url: '/super-admin/blog-posts?e2eAuth=super_admin',
+        callables: { listBlogPosts: BLOG_POSTS, listBlogRuns: BLOG_RUNS },
+        row: 'Why drivers stay: five retention habits',
+    },
+    {
+        name: 'super admin website leads',
+        url: '/super-admin/website-leads?e2eAuth=super_admin',
+        callables: { listLandingLeads: WEBSITE_LEADS },
+        row: 'Marisol Quintero-Abernathy',
+    },
 ];
 
 const WIDTHS = [

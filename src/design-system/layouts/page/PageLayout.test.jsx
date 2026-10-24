@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { createRef } from 'react';
 import { render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -79,6 +79,44 @@ describe('page layouts', () => {
         <PageHeader title="Applications" count={8} countLabel="applications" actions={<button type="button">Export</button>} />,
       );
       expect((await axe(container)).violations).toEqual([]);
+    });
+  });
+
+  describe('PageHeader level', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('is a second-level heading under a masthead that holds the page\'s h1, drawn the same', () => {
+      render(<PageHeader level={2} title="Blog Posts" count={3} countLabel="articles" />);
+
+      const heading = screen.getByRole('heading', { level: 2, name: 'Blog Posts' });
+      expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+      expect(heading).toHaveClass('ds-page-header__heading');
+      expect(screen.getByRole('heading', { level: 2 })).toBe(heading);
+      expect(screen.getByRole('status')).toHaveTextContent(/^3 articles$/);
+    });
+
+    it('hands its heading to a page that moves focus to it', () => {
+      const ref = createRef();
+      render(<PageHeader level={2} title="Blog Posts" headingRef={ref} />);
+
+      expect(ref.current).toBe(screen.getByRole('heading', { level: 2, name: 'Blog Posts' }));
+      ref.current.focus();
+      expect(ref.current).toHaveFocus();
+    });
+
+    it('is not focusable without a headingRef', () => {
+      render(<PageHeader title="Settings" />);
+
+      expect(screen.getByRole('heading', { level: 1 })).not.toHaveAttribute('tabindex');
+    });
+
+    it.each([[3], [0], ['2']])('refuses %p as a level', (level) => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      expect(() => render(<PageHeader title="Leads" level={level} />))
+        .toThrow('PageHeader level must be 1 or 2');
     });
   });
 });

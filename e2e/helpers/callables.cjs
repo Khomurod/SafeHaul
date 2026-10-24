@@ -36,4 +36,51 @@ const API_KEYS = Object.freeze({
   ],
 });
 
-module.exports = { API_KEYS, serveCallables };
+/**
+ * The website-lead archive as `listLandingLeads` returns it: a qualified lead
+ * with long names, a contact-only lead whose delivery failed, and one never
+ * sent. Every person, company and address is made up.
+ */
+const WEBSITE_LEADS = Object.freeze({
+  leads: [
+    {
+      id: 'lead-1', createdAt: '2026-10-21T15:05:00.000Z', fullName: 'Marisol Quintero-Abernathy',
+      workEmail: 'marisol.quintero-abernathy@artificial-freight.example', phone: '(555) 010-2211',
+      companyName: 'Artificial Freight Lines of the Southwest', companySize: '51-200', stage: 'qualified',
+      delivery: { status: 'delivered' },
+    },
+    {
+      id: 'lead-2', createdAt: '2026-10-19T09:40:00.000Z', fullName: 'Dev Patel', workEmail: 'dev@example.test',
+      stage: 'contact', delivery: { status: 'failed' },
+    },
+    {
+      id: 'lead-3', createdAt: '2026-10-02T20:15:00.000Z', fullName: 'Ola Nordmann', workEmail: 'ola@example.test',
+      companyName: 'Fjord Haulage', companySize: '1-10', stage: 'qualified', delivery: { status: 'disabled' },
+    },
+  ],
+});
+
+/**
+ * Three articles as `listBlogPosts` returns them, one with a long title and one
+ * removed, and an empty run ledger as `listBlogRuns` returns it. Made up.
+ */
+const BLOG_POSTS = Object.freeze({
+  posts: [
+    {
+      id: '2026-10-23_industry-news', slug: 'hours-of-service-changes-before-the-winter-peak',
+      title: 'Hours-of-service changes every dispatcher should know before the winter peak',
+      publicationDate: '2026-10-23', status: 'published',
+    },
+    {
+      id: '2026-10-22_recruitment', slug: 'why-drivers-stay', title: 'Why drivers stay: five retention habits',
+      publicationDate: '2026-10-22', status: 'published',
+    },
+    {
+      id: '2026-10-20_safehaul-education', slug: 'removed-article', title: 'An article that was removed',
+      publicationDate: '2026-10-20', status: 'deleted',
+    },
+  ],
+});
+const BLOG_RUNS = Object.freeze({ runs: [], truncated: false, unavailable: false, retentionDays: 30 });
+
+module.exports = { API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables };
