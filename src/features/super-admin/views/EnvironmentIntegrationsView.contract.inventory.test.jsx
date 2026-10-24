@@ -87,9 +87,30 @@ describe('inventory presentation', () => {
         expect(within(row).getByText('Configured')).toBeInTheDocument();
     });
 
-    it('filters by source', async () => {
+    it('filters by source behind Filters, and Clear filters keeps the status and the search', async () => {
         await renderLoaded();
+        fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
         fireEvent.change(screen.getByLabelText('Source'), { target: { value: 'github-actions-secret' } });
+
+        expect(screen.getByRole('button', { name: 'Reveal ARTIFICIAL_CI_TOKEN' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Reveal ARTIFICIAL_MASTER_KEY' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Filters 1 applied' })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Missing' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+        // The source is cleared; "Missing" still applies.
+        expect(screen.getByRole('button', { name: 'Missing' })).toHaveAttribute('aria-pressed', 'true');
+        expect(rowFor('ARTIFICIAL_OPTIONAL_URL')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Reveal ARTIFICIAL_CI_TOKEN' })).not.toBeInTheDocument();
+    });
+
+    it('narrows by status from the segments', async () => {
+        await renderLoaded();
+        const status = screen.getByRole('group', { name: 'Status' });
+        expect(within(status).getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
+
+        fireEvent.click(within(status).getByRole('button', { name: 'Not retrievable' }));
 
         expect(screen.getByRole('button', { name: 'Reveal ARTIFICIAL_CI_TOKEN' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Reveal ARTIFICIAL_MASTER_KEY' })).not.toBeInTheDocument();

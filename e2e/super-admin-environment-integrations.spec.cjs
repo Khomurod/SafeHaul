@@ -59,7 +59,12 @@ test.describe('Super Admin Environment & Integrations', () => {
   test('gives every filter control an accessible name', async ({ page }) => {
     await openVault(page);
     await expect(page.getByLabel('Search keys, integrations and companies')).toBeVisible();
-    for (const label of ['Category', 'Source', 'Integration', 'Scope', 'Company', 'Status', 'Writability']) {
+    const status = page.getByRole('group', { name: 'Status' });
+    for (const label of ['All', 'Configured', 'Missing', 'Not retrievable']) {
+      await expect(status.getByRole('button', { name: label, exact: true })).toBeVisible();
+    }
+    await page.getByRole('button', { name: 'Filters' }).click();
+    for (const label of ['Category', 'Source', 'Integration', 'Scope', 'Company', 'Writability']) {
       await expect(page.getByLabel(label, { exact: true })).toBeVisible();
     }
   });
@@ -82,6 +87,7 @@ test.describe('Super Admin Environment & Integrations', () => {
     await page.keyboard.type('encryption');
     await expect(search).toHaveValue('encryption');
 
+    await page.getByRole('button', { name: 'Filters' }).click();
     await page.getByLabel('Source', { exact: true }).focus();
     await expect(page.getByLabel('Source', { exact: true })).toBeFocused();
   });

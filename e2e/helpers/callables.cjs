@@ -109,6 +109,54 @@ const AI_TELEMETRY = Object.freeze({
   ],
 });
 
+/**
+ * Four rows as `listEnvironmentAndIntegrations` returns them: a configured
+ * secret that needs a deployment (two status badges), a company credential
+ * that can be edited, a missing optional value, and a CI secret that cannot be
+ * read back. Every key and company is made up; values are always masked.
+ */
+const envEntry = (over) => ({
+  category: 'infrastructure-security', integration: 'SafeHaul platform', scope: 'global',
+  source: 'secret-manager', sensitivity: 'critical', description: 'A made-up configuration entry.',
+  availability: 'server-runtime', requiresDeployment: false, optional: false,
+  permissions: { revealable: true, editable: false, replaceable: false, addable: false, deletable: false, testable: false },
+  restrictions: {
+    edit: 'Managed by deployment', replace: 'Managed by deployment',
+    add: 'Source does not support adding keys here', delete: 'Source does not support deletion',
+  },
+  maskedValue: '********', status: 'configured', statusResolvedBy: 'server', unavailableReason: null,
+  companyId: null, companyName: null, lastUpdated: null, updatedBy: null,
+  ...over,
+});
+const ENVIRONMENT_INVENTORY = Object.freeze({
+  generatedAt: 1, companyError: null, recentActivity: [],
+  entries: [
+    envEntry({
+      id: 'secret-manager:ARTIFICIAL_ENCRYPTION_MASTER_KEY', key: 'ARTIFICIAL_ENCRYPTION_MASTER_KEY',
+      displayName: 'Artificial encryption master key', requiresDeployment: true,
+    }),
+    envEntry({
+      id: 'company:co-north:sms_provider:clientSecret', key: 'clientSecret', displayName: 'SMS provider client secret',
+      category: 'company-integration', integration: 'SMS provider', scope: 'company', companyId: 'co-north',
+      companyName: 'Northern Plains Refrigerated Transport', source: 'firestore-encrypted', availability: 'firestore-encrypted',
+      permissions: { revealable: true, editable: true, replaceable: true, addable: false, deletable: true, testable: false },
+      restrictions: { edit: null, replace: null, add: 'Source does not support adding keys here', delete: null },
+      lastUpdated: Date.parse('2026-10-20T15:00:00Z'), updatedBy: 'artificial.admin@example.test',
+    }),
+    envEntry({
+      id: 'functions-env:ARTIFICIAL_OPTIONAL_WEBHOOK_URL', key: 'ARTIFICIAL_OPTIONAL_WEBHOOK_URL',
+      displayName: 'Artificial optional webhook URL', category: 'functions-env', source: 'functions-env',
+      sensitivity: 'internal', status: 'missing', optional: true,
+      permissions: { revealable: false, editable: false, replaceable: false, addable: false, deletable: false, testable: false },
+    }),
+    envEntry({
+      id: 'github-actions-secret:ARTIFICIAL_CI_TOKEN', key: 'ARTIFICIAL_CI_TOKEN', displayName: 'Artificial CI token',
+      category: 'github-actions', source: 'github-actions-secret', availability: 'not-retrievable', status: 'unknown',
+      permissions: { revealable: false, editable: false, replaceable: false, addable: false, deletable: false, testable: false },
+    }),
+  ],
+});
+
 module.exports = {
-  AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables,
+  AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS, serveCallables,
 };

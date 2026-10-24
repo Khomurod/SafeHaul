@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { measureTables } = require('../scripts/table-layout/measureTables.cjs');
 const { freezeClock, settle } = require('./visual/settle.cjs');
 const {
-    AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables,
+    AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS, serveCallables,
 } = require('./helpers/callables.cjs');
 const { uploadLeadFile } = require('./helpers/leadImport.cjs');
 
@@ -97,7 +97,12 @@ const SCREENS = [
     { name: 'super admin companies', url: '/super-admin/companies?e2eAuth=super_admin', empty: 'No companies found.' },
     { name: 'super admin users', url: '/super-admin/users?e2eAuth=super_admin', empty: 'No users found.' },
     { name: 'super admin unified driver db', url: '/super-admin/applications?e2eAuth=super_admin', empty: 'No drivers match your filters.' },
-    { name: 'super admin environment', url: '/super-admin/environment-integrations?e2eAuth=super_admin', empty: 'Unable to load records' },
+    {
+        name: 'super admin environment',
+        url: '/super-admin/environment-integrations?e2eAuth=super_admin',
+        callables: { listEnvironmentAndIntegrations: ENVIRONMENT_INVENTORY },
+        row: 'ARTIFICIAL_OPTIONAL_WEBHOOK_URL',
+    },
     {
         name: 'super admin ai integrations',
         url: '/super-admin/ai-integrations?e2eAuth=super_admin',

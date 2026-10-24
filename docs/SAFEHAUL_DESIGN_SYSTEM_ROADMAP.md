@@ -283,10 +283,10 @@ The reverse directions are prohibited — including any `@shared` import inside
   Links and Settings → API Keys (row actions in a last column; a settings tab
   with its own header is the page's one `<h1>`), and Super Admin's Website
   Leads, Blog Posts and Features (`PageHeader level={2}`, the masthead holding
-  the `<h1>`). AI Integrations → Logs, a tab of a console, has the toolbar, the
-  rows and the cards, with no count. Temporary exception: `ListToolbar` draws
-  its segments as its own buttons until `SegmentedControl` has an underlined,
-  scrolling appearance with counts.
+  the `<h1>`). AI Logs and Environment & Integrations have the toolbar, rows
+  and cards; no count, as their consoles show totals. Temporary exception:
+  `ListToolbar` draws its segments as its own buttons until `SegmentedControl`
+  has an underlined, scrolling appearance with counts.
   Tablet widths, which the visual contract does not measure, are held by
   `e2e/list-page-tablet.spec.cjs`.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
@@ -498,8 +498,8 @@ read them.
 
 - No rule replaces the old hand-composed notice and avatar-disc checks: a
   tinted block or a hand-drawn initials disc passes lint.
-- `e2e/table-layout.spec.cjs` measures real records on 14 of its 18 screens (on
-  the AI Providers tab, the model versions table only); on the 4 marked `empty`
+- `e2e/table-layout.spec.cjs` measures real records on 15 of its 18 screens (on
+  the AI Providers tab, the model versions table only); on the 3 marked `empty`
   the fixtures show none, so only headers and the empty state are measured.
   Tables no fixture renders are not measured at all (campaign results and
   report, stats backfill preview); some screens have no baseline at all, e.g.
