@@ -236,7 +236,10 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                             } : undefined}
                             density="compact"
                             minWidth="wide"
-                            mobilePresentation="scroll"
+                            // A record is worked one at a time, so a phone shows
+                            // cards; a list with checkboxes stays a table that
+                            // scrolls, as cards take no selection.
+                            mobilePresentation={canAssign ? 'scroll' : 'cards'}
                             pagination={{
                                 currentPage: dashboard.currentPage,
                                 totalPages: dashboard.totalPages,

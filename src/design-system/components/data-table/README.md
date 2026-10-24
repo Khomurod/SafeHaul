@@ -88,11 +88,10 @@ Features may provide `mobileHint` when the default mention of columns and
 actions does not describe the table. The hint must explain the retained
 horizontal-overflow interaction without domain logic entering the component.
 
-For the Company candidate-list pilot, the mobile presentation is `scroll`.
-Candidate records are a comparison surface with meaningful status, date,
-assignment and phone columns; hiding those columns or converting them to
-cards would remove context. The focused, labelled scroll region preserves the
-native table and all actions, and a mobile-only hint explains the gesture.
+The candidate lists (Applications, Company Leads, My Leads) are cards on a
+phone: a recruiter works one driver at a time there, and every column still
+shows, under its label. Company Leads for an admin keeps `scroll`, because its
+checkboxes assign leads in bulk and cards take no selection.
 
 ### Tables on phones: the rule
 
