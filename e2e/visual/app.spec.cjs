@@ -80,6 +80,13 @@ const SCREENS = [
         ready: (page) => page.getByRole('tablist').first(),
     },
     {
+        name: 'company-edocs-sent',
+        url: '/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock&e2eEdocSent=mock',
+        // The list is a tab of the workspace, pressed as a person would.
+        open: (page) => page.getByRole('tab', { name: /^Sent Documents/ }).click(),
+        ready: (page) => page.getByText('Ana Lucia Ferreira-Montgomery'),
+    },
+    {
         name: 'company-campaigns',
         url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
         ready: (page) => page.getByRole('heading', { level: 1 }).first(),
@@ -201,6 +208,7 @@ test.describe('@visual application screens', () => {
                 // re-baseline itself every day.
                 await freezeClock(page);
                 await page.goto(screen.url);
+                if (screen.open) await screen.open(page);
                 // A real element, not `networkidle`: this app keeps Firestore
                 // listeners open, so "idle" is a moving target.
                 for (const ready of [screen.ready(page)].flat()) {

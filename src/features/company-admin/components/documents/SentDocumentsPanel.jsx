@@ -1,11 +1,9 @@
-import React, { useId, useMemo } from 'react';
-import { Icon, Search } from '@design-system/icons';
+import React, { useMemo, useState } from 'react';
 import EnvelopeHistory from '@features/signing/components/EnvelopeHistory';
-import { Button, Checkbox, FormField, Input, Select } from '@/design-system/components';
-import { Stack } from '@/design-system/layouts';
+import { Card, FormField, Select } from '@/design-system/components';
+import { ListToolbar } from '@/design-system/patterns';
 import {
     DATE_FILTERS,
-    DEFAULT_FILTERS,
     DELIVERY_FILTERS,
     STATUS_FILTERS,
     filterDocuments,
@@ -13,14 +11,38 @@ import {
     supportsDateFilter,
 } from '@features/company-admin/utils/documentsWorkspace';
 
+/** The fields behind Filters, each back to "all" when cleared. */
+const FILTER_FIELDS = Object.freeze({ status: 'all', delivery: 'all', date: 'all' });
+
 /**
- * Documents workspace — Sent Documents.
+ * What the table says when nothing is listed. "Needs attention only" on its own
+ * says what it looks for, which the switch has no room to explain.
+ */
+function emptyStateFor(filters) {
+    if (isDefaultFilters(filters)) return { title: 'No documents sent yet.' };
+    if (isDefaultFilters({ ...filters, needsAttention: false })) {
+        return {
+            title: 'Nothing needs attention.',
+            description: 'This lists failed deliveries and failed seals. A document waiting for a signature is not one.',
+        };
+    }
+    return {
+        title: 'No documents match these filters.',
+        description: 'Try clearing the search or the filters.',
+    };
+}
+
+/**
+ * Documents workspace — Sent Documents, a list page in the workspace's tab.
  *
- * Owns the filter controls only. The live listener, the row actions (Copy Link,
- * Correct, Void, Download) and the details dialog stay in `EnvelopeHistory`, so
- * filtering can never change what a row can do.
+ * Owns the controls only, in the list-page standard's one row (`ListToolbar`):
+ * the search, "Needs attention only", and Filters for status, delivery method
+ * and sent date. The count is the workspace heading's (`DocumentsManager`). The
+ * live listener, the row actions (Copy Link, Correct, Void, Download) and the
+ * details dialog stay in `EnvelopeHistory`, so filtering can never change what a
+ * row can do.
  *
- * The date filter is only rendered when the loaded documents actually carry
+ * The date filter is only offered when the loaded documents actually carry
  * usable `createdAt` timestamps — offering a filter that silently matches
  * everything would be worse than not offering it.
  */
@@ -34,105 +56,78 @@ export function SentDocumentsPanel({
     filters,
     setFilters,
 }) {
-    const rawId = useId().replace(/:/g, '');
-    const filtersHeadingId = `sent-documents-filters-${rawId}`;
-
     const visibleDocuments = useMemo(() => filterDocuments(documents, filters), [documents, filters]);
     const dateFilterAvailable = useMemo(() => supportsDateFilter(documents), [documents]);
-    const filtersActive = !isDefaultFilters(filters);
+    const activeCount = ['status', 'delivery', ...(dateFilterAvailable ? ['date'] : [])]
+        .filter((key) => (filters[key] || 'all') !== 'all').length;
+    // Open from the start when a filter already applies, so what narrows the
+    // list is in view.
+    const [filtersOpen, setFiltersOpen] = useState(activeCount > 0);
 
     const update = (patch) => setFilters((prev) => ({ ...prev, ...patch }));
 
     return (
-        <Stack gap="md">
-            <section
-                aria-labelledby={filtersHeadingId}
-                className="rounded-ds-xl border border-ds-border bg-ds-surface p-ds-4"
-            >
-                <h2 id={filtersHeadingId} className="mb-ds-3 text-ds-body font-bold text-ds-content">
-                    Filter documents
-                </h2>
+        <Card padding="none">
+            <ListToolbar
+                toggle={{
+                    label: 'Needs attention only',
+                    checked: Boolean(filters.needsAttention),
+                    onChange: (next) => update({ needsAttention: next }),
+                }}
+                search={{
+                    label: 'Search documents or recipients',
+                    placeholder: 'Title, name, email or phone',
+                    value: filters.search,
+                    onChange: (search) => update({ search }),
+                }}
+                filters={{
+                    open: filtersOpen,
+                    onOpenChange: setFiltersOpen,
+                    activeCount,
+                    onClear: () => update(FILTER_FIELDS),
+                    children: (
+                        <>
+                            <FormField label="Status">
+                                <Select value={filters.status} onChange={(event) => update({ status: event.target.value })}>
+                                    {STATUS_FILTERS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </Select>
+                            </FormField>
 
-                <div className="grid grid-cols-1 gap-ds-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <FormField label="Search documents or recipients">
-                        <Input
-                            type="search"
-                            value={filters.search}
-                            placeholder="Title, name, email or phone"
-                            onChange={(event) => update({ search: event.target.value })}
-                        />
-                    </FormField>
+                            <FormField label="Delivery method">
+                                <Select value={filters.delivery} onChange={(event) => update({ delivery: event.target.value })}>
+                                    {DELIVERY_FILTERS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </Select>
+                            </FormField>
 
-                    <FormField label="Status">
-                        <Select value={filters.status} onChange={(event) => update({ status: event.target.value })}>
-                            {STATUS_FILTERS.map((option) => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                        </Select>
-                    </FormField>
-
-                    <FormField label="Delivery method">
-                        <Select value={filters.delivery} onChange={(event) => update({ delivery: event.target.value })}>
-                            {DELIVERY_FILTERS.map((option) => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                        </Select>
-                    </FormField>
-
-                    {dateFilterAvailable && (
-                        <FormField label="Sent date">
-                            <Select value={filters.date} onChange={(event) => update({ date: event.target.value })}>
-                                {DATE_FILTERS.map((option) => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </Select>
-                        </FormField>
-                    )}
-                </div>
-
-                <div className="mt-ds-3 flex flex-wrap items-center justify-between gap-ds-3">
-                    <Checkbox
-                        id={`sent-documents-attention-${rawId}`}
-                        label="Needs attention only"
-                        description="Delivery or sealing failures. Documents waiting for a signature are not failures."
-                        checked={filters.needsAttention}
-                        onChange={() => update({ needsAttention: !filters.needsAttention })}
-                    />
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={!filtersActive}
-                        onClick={() => setFilters({ ...DEFAULT_FILTERS })}
-                    >
-                        Reset filters
-                    </Button>
-                </div>
-
-                <p role="status" className="mt-ds-2 flex items-center gap-ds-1 text-ds-xs text-ds-content-secondary">
-                    <Icon icon={Search} size="xs" />
-                    {isLoading
-                        ? 'Loading documents…'
-                        : `Showing ${visibleDocuments.length} of ${documents.length} document${documents.length === 1 ? '' : 's'}.`}
-                </p>
-            </section>
+                            {dateFilterAvailable && (
+                                <FormField label="Sent date">
+                                    <Select value={filters.date} onChange={(event) => update({ date: event.target.value })}>
+                                        {DATE_FILTERS.map((option) => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </Select>
+                                </FormField>
+                            )}
+                        </>
+                    ),
+                }}
+            />
 
             <EnvelopeHistory
+                embedded
                 companyId={companyId}
                 onCorrect={onCorrect}
                 documents={visibleDocuments}
                 isLoading={isLoading}
                 loadError={loadError}
                 onRetry={onRetry}
-                emptyState={
-                    filtersActive
-                        ? {
-                            title: 'No documents match these filters.',
-                            description: 'Try clearing the search or resetting the filters.',
-                        }
-                        : { title: 'No documents sent yet.' }
-                }
+                emptyState={emptyStateFor(filters)}
             />
-        </Stack>
+        </Card>
     );
 }
 

@@ -163,13 +163,13 @@ describe('EnvelopeHistory — delivery method and fallbacks', () => {
         expect(screen.getByText('SMS')).toBeInTheDocument();
     });
 
-    it('falls back to Untitled, plain contact-missing wording, and -- for a missing date', () => {
+    it('falls back to Untitled, plain contact-missing wording, and a quiet dash for a missing date', () => {
         renderHistory();
         emit([makeDoc({ title: undefined, recipientEmail: undefined, recipientPhone: undefined, createdAt: undefined })]);
         expect(screen.getByText('Untitled')).toBeInTheDocument();
         // A bare dash reads as an accident; the fallback says what is missing.
         expect(screen.getByText('No email or phone')).toBeInTheDocument();
-        expect(screen.getByText('--')).toBeInTheDocument();
+        expect(screen.getByText('—')).toBeInTheDocument();
     });
 
     it('falls back to the phone number when there is no email', () => {
@@ -181,7 +181,8 @@ describe('EnvelopeHistory — delivery method and fallbacks', () => {
     it('renders the date from createdAt.seconds', () => {
         renderHistory();
         emit([makeDoc({ createdAt: { seconds: 1700000000 } })]);
-        expect(screen.getByText(new Date(1700000000 * 1000).toLocaleDateString())).toBeInTheDocument();
+        // The month spelled, as every list writes a date: "Nov 14, 2023".
+        expect(screen.getByText('Nov 14, 2023')).toBeInTheDocument();
     });
 });
 
@@ -247,16 +248,19 @@ describe('EnvelopeHistory — quick action hierarchy', () => {
         },
     );
 
-    it('offsets the Actions heading and quick action toward the table edge together', () => {
+    it('puts the delivery method in a column of its own, apart from the recipient', () => {
         renderHistory();
-        emit([makeDoc({ status: 'sent' })]);
-        // Both carry the same -mr-ds-4: it compensates the scrollbar gutter +
-        // shared cell padding on the table's right edge, and the heading must
-        // keep the exact offset of the buttons below it or they drift apart.
-        const header = screen.getByRole('columnheader', { name: 'Actions' });
-        expect(header.querySelector('span')).toHaveClass('-mr-ds-4');
-        const quickAction = screen.getByRole('button', { name: 'Link for Offer Letter' });
-        expect(quickAction.parentElement).toHaveClass('-mr-ds-4', 'justify-end');
+        emit([makeDoc({ status: 'sent', sendEmail: true, sendSms: true })]);
+        expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual(
+            ['Document', 'Recipient', 'Delivery', 'Status', 'Date sent', 'Actions'],
+        );
+        const row = screen.getByRole('row', { name: 'Details for Offer Letter' });
+        const cells = within(row).getAllByRole('cell');
+        const delivery = cells.find((cell) => cell.getAttribute('data-label') === 'Delivery');
+        expect(within(delivery).getByText('Email')).toBeInTheDocument();
+        expect(within(delivery).getByText('SMS')).toBeInTheDocument();
+        const recipient = cells.find((cell) => cell.getAttribute('data-label') === 'Recipient');
+        expect(within(recipient).queryByText('Email')).not.toBeInTheDocument();
     });
 
     it('never renders more than one action control in an ordinary row', () => {

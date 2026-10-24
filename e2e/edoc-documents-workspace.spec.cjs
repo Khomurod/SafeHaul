@@ -46,7 +46,7 @@ test.describe('E-Doc Documents workspace', () => {
 
     await tab(page, 'Sent Documents').click();
     await expect(tab(page, 'Sent Documents')).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByRole('region', { name: 'Filter documents' })).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search documents or recipients' })).toBeVisible();
 
     await tab(page, 'Templates').click();
     await expect(page.getByRole('region', { name: 'Template library' })).toBeVisible();
@@ -144,18 +144,30 @@ test.describe('E-Doc Documents workspace', () => {
     await expect(page.getByText('2 fields')).toBeVisible();
   });
 
-  test('filters sent documents and resets them', async ({ page }) => {
-    await openDocuments(page);
+  // The made-up sent documents (`e2eEdocSent=mock`): six, two signed, two with
+  // a failure that needs attention.
+  test('narrows sent documents from one row of controls, the count beside the heading', async ({ page }) => {
+    await page.goto(`${URL}&e2eEdocSent=mock`);
     await tab(page, 'Sent Documents').click();
+    const count = page.locator('header [role="status"]');
+    await expect(count).toHaveText(/^6\s*sent documents$/, { timeout: 20_000 });
 
-    const reset = page.getByRole('button', { name: 'Reset filters' });
-    await expect(reset).toBeDisabled();
+    await page.getByRole('searchbox', { name: 'Search documents or recipients' }).fill('W-9');
+    await expect(count).toHaveText(/^1\s*sent documents$/);
+    await page.getByRole('searchbox', { name: 'Search documents or recipients' }).fill('');
 
-    await page.getByLabel('Search documents or recipients').fill('zzz-no-such-document');
-    await expect(reset).toBeEnabled();
+    await page.getByRole('button', { name: /^Filters/ }).click();
+    await page.getByLabel('Status').selectOption('signed');
+    await expect(count).toHaveText(/^2\s*sent documents$/);
+    await page.getByRole('button', { name: 'Clear filters' }).click();
+    await expect(count).toHaveText(/^6\s*sent documents$/);
+    await expect(page.getByRole('button', { name: /^Filters/ })).toBeFocused();
 
-    await reset.click();
-    await expect(page.getByLabel('Search documents or recipients')).toHaveValue('');
+    await page.getByRole('switch', { name: 'Needs attention only' }).click();
+    await expect(count).toHaveText(/^2\s*sent documents$/);
+    const table = page.getByRole('table', { name: /^Document history/ });
+    await expect(table.getByText('Drug and Alcohol Policy Acknowledgement')).toBeVisible();
+    await expect(table.getByText('Lease Agreement')).toBeVisible();
   });
 
   test('keeps Application Forms configuration in its own view', async ({ page }) => {
@@ -208,7 +220,7 @@ test.describe('E-Doc Documents workspace', () => {
     await check();
 
     await tab(page, 'Sent Documents').click();
-    await expect(page.getByRole('region', { name: 'Filter documents' })).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search documents or recipients' })).toBeVisible();
     await check();
 
     await tab(page, 'Templates').click();

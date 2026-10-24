@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useEffect, useId } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useId, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '@lib/firebase';
 import { collection, query, onSnapshot, orderBy, deleteDoc, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -13,7 +13,8 @@ import { SentDocumentsPanel } from '../components/documents/SentDocumentsPanel';
 import { TemplateLibraryPanel } from '../components/documents/TemplateLibraryPanel';
 import { ApplicationFormsPanel } from '../components/documents/ApplicationFormsPanel';
 import { NewDocumentDialog } from '../components/documents/NewDocumentDialog';
-import { DEFAULT_FILTERS, isTemplateDuplicable } from '../utils/documentsWorkspace';
+import { DEFAULT_FILTERS, filterDocuments, isTemplateDuplicable } from '../utils/documentsWorkspace';
+import { mockSigningRequests } from './documentsMock';
 import { useTemplateSendFlow } from '../hooks/useTemplateSendFlow';
 import { usePostSubmitForms } from '../hooks/usePostSubmitForms';
 
@@ -63,7 +64,6 @@ export default function DocumentsManager() {
 
     const [sentFilters, setSentFilters] = useState({ ...DEFAULT_FILTERS });
 
-
     // Replaces the blocking `window.confirm("Delete template?")`.
     const [pendingTemplateDelete, setPendingTemplateDelete] = useState(null);
     const [deletingTemplate, setDeletingTemplate] = useState(false);
@@ -75,11 +75,19 @@ export default function DocumentsManager() {
     // Sent Documents table read the same documents rather than opening two
     // listeners on companies/{id}/signing_requests.
     const {
-        documents: signingRequests,
+        documents: liveSigningRequests,
         isLoading: signingRequestsLoading,
         loadError: signingRequestsError,
         retry: retrySigningRequests,
     } = useSigningRequests(isE2EEdocMock ? null : currentCompanyProfile?.id);
+    // The harness's made-up sent documents (`documentsMock.js`), only when asked for.
+    const isE2ESentMock = isE2EEdocMock && getE2EQueryParam('e2eEdocSent', '') === 'mock';
+    const mockedSigningRequests = useMemo(() => (isE2ESentMock ? mockSigningRequests() : null), [isE2ESentMock]);
+    const signingRequests = mockedSigningRequests ?? liveSigningRequests;
+    // Sent Documents is a list page in this workspace, so the heading carries its
+    // count once loaded: the documents its search and filters keep.
+    const sentCount = useMemo(() => filterDocuments(signingRequests, sentFilters).length, [signingRequests, sentFilters]);
+    const showSentCount = activeTab === 'sent' && !signingRequestsLoading && !signingRequestsError;
 
     // Fetch Templates
     useEffect(() => {
@@ -328,6 +336,8 @@ export default function DocumentsManager() {
                             stacks the actions under the title. */}
                         <PageHeader
                             title="Documents"
+                            count={showSentCount ? sentCount : undefined}
+                            countLabel={sentCount === 1 ? 'sent document' : 'sent documents'}
                             description="Create, send, track and manage documents requiring completion or signature."
                             actions={
                                 <Inline gap="sm">
