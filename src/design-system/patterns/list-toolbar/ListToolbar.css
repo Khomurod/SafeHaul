@@ -74,8 +74,15 @@
   font-weight: var(--ds-font-weight-semibold);
 }
 
+/*
+ * Wraps among themselves too: a list in a narrow column, such as a console
+ * beside its sidebar on a tablet, can be narrower than the tools even once
+ * they sit under the segments.
+ */
 .ds-list-toolbar__tools {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-3);
   margin-inline-start: auto;
@@ -86,6 +93,7 @@
   position: relative;
   width: 280px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .ds-list-toolbar__search .ds-form-control {
