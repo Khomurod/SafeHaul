@@ -80,6 +80,13 @@ targets through design-system tokens and component CSS.
 whose columns squeeze to fit their container. Any other value is a contract
 violation.
 
+`maxHeight` caps a table that shares its space, such as a panel beside other
+content: `sm` (256px) or `md` (400px), and its rows scroll under the sticky
+header. Without it the table grows with its rows. A parent of bounded height,
+such as a `fill` dialog with `scroll="body"`, needs no cap: the table fills it
+and scrolls the same way (the `InDialog` story). Any other value is a contract
+violation.
+
 Use `embedded` when a parent `Card` owns the surrounding border, radius, and
 elevation. The table retains its column, density, state, and interaction
 contracts without creating a second nested surface.
@@ -198,12 +205,22 @@ fixtures gain records.
 ## Async and feedback states
 
 - Loading keeps column structure visible and exposes a polite status.
-- Empty states accept a feature-owned title, description, and optional icon.
-- Errors use an alert and retry action. When existing rows are available, the
-  error is an inline notice so stale-but-useful data is not discarded.
+- Empty states accept a feature-owned title, description, optional icon, and an
+  optional `action` (`{ label, onClick }`), drawn as one secondary button for
+  the one thing to do next, such as adding the first record.
+- Errors use an alert and retry action. The title is the feature's `title`
+  ("Unable to load applications"), else "Unable to load records". When existing
+  rows are available, the error is an inline notice so stale-but-useful data is
+  not discarded.
 - Pagination controls are always labelled and take the shared control height
   (`--ds-control-height-md`, 44px), so they match every other control in the
-  product rather than being table-specific.
+  product rather than being table-specific. A feature that lets the reader pick
+  the page length passes `pageSize`, `pageSizes` (such as `[20, 50, 100]`) and
+  `onPageSizeChange(size)`, and the bar shows a labelled "Rows per page" list.
+  `pageSizes` without the callback, or a `pageSize` not in the list, is a
+  contract violation.
+- A row's actions are always visible. There is no hover-only reveal: it hides
+  the actions from touch and from a reader who has not found them yet.
 
 ## Verification contract
 

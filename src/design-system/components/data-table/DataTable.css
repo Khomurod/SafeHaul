@@ -53,6 +53,19 @@
    */
 }
 
+/*
+ * A bounded table: its rows scroll under the sticky header once they pass the
+ * cap. The vertical scrollbar then takes its own room at the inline end, which
+ * is the scrollbar the note above leaves space for.
+ */
+.ds-data-table[data-max-height='sm'] .ds-data-table__scroll-region {
+  max-height: 256px;
+}
+
+.ds-data-table[data-max-height='md'] .ds-data-table__scroll-region {
+  max-height: 400px;
+}
+
 .ds-data-table__scroll-region:focus-visible {
   box-shadow: inset var(--ds-focus-ring);
 }
@@ -389,6 +402,13 @@
   white-space: nowrap;
 }
 
+.ds-data-table__page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  margin-inline-end: var(--ds-space-2);
+}
+
 .ds-data-table__pagination button {
   display: inline-flex;
   width: var(--ds-control-height-md);
@@ -437,7 +457,14 @@
 
   .ds-data-table__pagination-controls {
     width: 100%;
+    flex-wrap: wrap;
     justify-content: space-between;
+  }
+
+  /* A line of its own, so Previous, the page and Next stay together below it. */
+  .ds-data-table__page-size {
+    flex: 1 0 100%;
+    margin-inline-end: 0;
   }
 }
 
