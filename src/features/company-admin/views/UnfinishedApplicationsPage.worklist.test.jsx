@@ -1,6 +1,6 @@
 /**
- * The worklist as a recruiter works it: the summary above it, the search, the
- * filters and their counts, and what each row says about time — with the clock
+ * The worklist as a recruiter works it: the count beside its heading, the
+ * search, the filters and their counts, and what each row says about time — with the clock
  * fixed, because "3 days ago" and "Removed in 4 days" are only true at a moment.
  *
  * The rows are the E2E fixture (`mockDrafts`), the same six the pixel lane
@@ -59,27 +59,34 @@ const table = () => screen.getByRole('table', { name: 'Unfinished applications' 
 const shownNames = () => within(table()).getAllByRole('rowheader').map((cell) => cell.firstChild.firstChild.textContent);
 const filter = (name) => screen.getByRole('button', { name });
 
-describe('the summary', () => {
-    it('says how many there are, how many are nearly done and how many have gone quiet', async () => {
+/** The number beside the page's heading: the rows the filter and the search keep. */
+const headingCount = () => within(screen.getByRole('heading', { level: 1 }).closest('header')).getByRole('status');
+
+describe('the count', () => {
+    it('sits beside the heading, says what the list shows, and is spoken as it changes', async () => {
         await renderWorklist();
 
-        expect(screen.getByRole('heading', { level: 2, name: '6 unfinished' })).toBeInTheDocument();
-        expect(screen.getByText('1 almost done · 2 with no activity for a week or more')).toBeInTheDocument();
-        // Spoken as it changes, so a search or a filter says what it kept.
-        expect(screen.getByText('Showing 6 of 6')).toHaveAttribute('aria-live', 'polite');
-        expect(screen.getByText('Newest activity first, as of the last refresh')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Unfinished applications' })).toBeInTheDocument();
+        expect(headingCount()).toHaveTextContent(/^6 unfinished applications$/);
+        // One heading: no second one above the table, and no "Showing X of Y".
+        expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
+        expect(screen.queryByText(/^Showing/)).toBeNull();
+        // Starting and refreshing are the page's own actions, in its header.
+        const header = screen.getByRole('heading', { level: 1 }).closest('header');
+        expect(within(header).getByRole('button', { name: 'Start an application' })).toBeInTheDocument();
+        expect(within(header).getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
     });
 
-    it('says when the list holds only the most recent, and that every count is then "at least"', async () => {
+    it('says when the list holds only the most recent, and that every filter count is then "at least"', async () => {
         listSpy.mockImplementation(async () => ({
             data: { drafts: mockDrafts(NOW).slice(0, 2), truncated: true, retentionDays: 30 },
         }));
         await renderWorklist();
 
-        expect(screen.getByRole('heading', { level: 2, name: '2+ unfinished' })).toBeInTheDocument();
-        expect(screen.getByText('1+ almost done · 0+ with no activity for a week or more')).toBeInTheDocument();
+        expect(headingCount()).toHaveTextContent(/^2 unfinished applications$/);
+        expect(filter('All 2+')).toBeInTheDocument();
         expect(filter('No activity for a week 0+')).toBeInTheDocument();
-        expect(screen.getByText('Showing 2 of the 2 most recently active')).toBeInTheDocument();
+        expect(screen.getByText('Only the 2 most recently active are listed.')).toBeInTheDocument();
     });
 
     it('counts nothing until the list is in, and nothing when it could not be read', async () => {
@@ -89,12 +96,11 @@ describe('the summary', () => {
 
         // Loading: the filters are there to choose, without a zero beside each.
         expect(await screen.findByRole('button', { name: 'All' })).toBeInTheDocument();
-        expect(screen.queryByRole('heading', { level: 2, name: /unfinished/ })).toBeNull();
-        expect(screen.queryByText(/almost done ·/)).toBeNull();
+        expect(headingCount()).toBeEmptyDOMElement();
 
         fail(Object.assign(new Error('offline'), { code: 'functions/unavailable' }));
         expect(await screen.findByText(/could not be loaded|connection/i)).toBeInTheDocument();
-        expect(screen.queryByRole('heading', { level: 2, name: /unfinished/ })).toBeNull();
+        expect(headingCount()).toBeEmptyDOMElement();
         expect(filter('All')).toBeInTheDocument();
     });
 });
@@ -116,7 +122,7 @@ describe('the filters', () => {
         expect(shownNames()).toEqual(['Dana Whitfield']);
         expect(filter('Almost done 1')).toHaveAttribute('aria-pressed', 'true');
         expect(filter('All 6')).toHaveAttribute('aria-pressed', 'false');
-        expect(screen.getByText('Showing 1 of 6')).toBeInTheDocument();
+        expect(headingCount()).toHaveTextContent(/^1 unfinished applications$/);
 
         fireEvent.click(filter('Prepared by us 3'));
         expect(shownNames()).toEqual(['Priya Raman', 'Marcus Iyer', 'Tomas Okafor']);
@@ -143,7 +149,7 @@ describe('the search', () => {
 
         fireEvent.change(search(), { target: { value: '(555) 010-44' } });
         expect(shownNames()).toEqual(['Marcus Iyer']);
-        expect(screen.getByText('Showing 1 of 6')).toBeInTheDocument();
+        expect(headingCount()).toHaveTextContent(/^1 unfinished applications$/);
 
         // With the country code, as a driver says it on the phone.
         fireEvent.change(search(), { target: { value: '+1 (555) 010-44' } });
@@ -158,7 +164,7 @@ describe('the search', () => {
 
         expect(screen.getByText('Nothing here matches.')).toBeInTheDocument();
         expect(filter('All 6')).toBeInTheDocument();
-        expect(screen.getByText('Showing 0 of 6')).toBeInTheDocument();
+        expect(headingCount()).toHaveTextContent(/^0 unfinished applications$/);
     });
 
     it('keeps the empty list’s own words for a company with nothing unfinished', async () => {
@@ -166,12 +172,26 @@ describe('the search', () => {
         render(<UnfinishedApplicationsPage />);
 
         expect(await screen.findByText('Nothing is unfinished.')).toBeInTheDocument();
-        expect(screen.queryByText(/^Showing/)).toBeNull();
+        expect(headingCount()).toHaveTextContent(/^0 unfinished applications$/);
     });
 });
 
 describe('each row', () => {
     const rowOf = (name) => within(table()).getByRole('rowheader', { name: new RegExp(`^${name}`) }).closest('[role="row"], tr');
+
+    it('has the phone in a column of its own, as a call, and a quiet dash without one', async () => {
+        await renderWorklist();
+
+        const call = within(rowOf('Dana Whitfield')).getByRole('link', { name: 'Call Dana Whitfield at (555) 010-2233' });
+        expect(call).toHaveAttribute('href', 'tel:+15550102233');
+        expect(call.closest('td')).toHaveAttribute('data-label', 'Phone');
+        // The name's cell keeps the email, quieter, under the name.
+        expect(within(rowOf('Dana Whitfield')).getByRole('rowheader')).toHaveTextContent(/^Dana Whitfielddana\.whitfield@example\.test$/);
+
+        const noPhone = rowOf('Name not entered yet');
+        expect(within(noPhone).queryByRole('link')).toBeNull();
+        expect(within(noPhone).getByText('—').closest('td')).toHaveAttribute('data-label', 'Phone');
+    });
 
     it('says how far it got, and calls the last two pages almost done', async () => {
         await renderWorklist();
@@ -256,7 +276,7 @@ describe('a link made on a row', () => {
         await waitFor(() => expect(filter('No activity for a week 1')).toBeInTheDocument());
         expect(shownNames()).toEqual(['Name not entered yet', 'Jordan Ellis']);
         expect(screen.getByText(/invite-1/)).toBeInTheDocument();
-        expect(screen.getByText('Showing 2 of 6')).toBeInTheDocument();
+        expect(headingCount()).toHaveTextContent(/^2 unfinished applications$/);
 
         // In its place under All too: the order is the last read's until Refresh.
         fireEvent.click(filter('All 6'));

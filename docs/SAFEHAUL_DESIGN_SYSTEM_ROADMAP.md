@@ -273,8 +273,8 @@ The reverse directions are prohibited — including any `@shared` import inside
 - **A list page follows the six rules in `patterns/list-toolbar/README.md`**:
   one heading with the count, one `ListToolbar` row, one row per record in a
   `DataTable embedded`, sorting from headers, calm statuses, cards on phones.
-  Example: the `Patterns/List page` stories; Applications, Company Leads and
-  My Leads follow it. Temporary exception: its segments are its own buttons
+  Example: the `Patterns/List page` stories; Applications, Company Leads,
+  My Leads and Unfinished applications follow it. Temporary exception: its segments are its own buttons
   until `SegmentedControl` has an underlined, scrolling appearance with counts.
   Tablet widths, which the visual contract does not measure, are held by
   `e2e/list-page-tablet.spec.cjs`.

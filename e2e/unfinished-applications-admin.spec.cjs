@@ -167,18 +167,20 @@ test.describe('a Company Admin and an unfinished application', () => {
         await expect(page.getByRole('button', { name: /Open the application for Marcus Iyer/i })).toBeVisible();
     });
 
-    test('the list sums itself up, and the filters and the search narrow it', async ({ page }) => {
+    test('the list counts itself beside its heading, and the filters and the search narrow it', async ({ page }) => {
         await page.goto(START_URL);
         const table = page.getByRole('table', { name: 'Unfinished applications' });
         const rowNames = () => table.getByRole('rowheader').locator('span').first();
+        // The number beside the heading, as a screen reader reads it.
+        const listCount = (count) => page.getByText(`${count} unfinished applications`, { exact: true });
 
-        await expect(page.getByRole('heading', { level: 2, name: '6 unfinished' })).toBeVisible();
-        await expect(page.getByText('1 almost done · 2 with no activity for a week or more')).toBeVisible();
+        await expect(listCount(6)).toBeAttached();
+        await expect(page.getByRole('button', { name: 'Almost done 1' })).toBeVisible();
         await expect(table.getByRole('rowheader')).toHaveCount(6);
 
         await page.getByRole('button', { name: 'No activity for a week 2' }).click();
         await expect(table.getByRole('rowheader')).toHaveCount(2);
-        await expect(page.getByText('Showing 2 of 6')).toBeVisible();
+        await expect(listCount(2)).toBeAttached();
         await expect(rowNames()).toHaveText('Name not entered yet');
 
         await page.getByRole('searchbox', { name: 'Search by name, phone or email' }).fill('jordan');
@@ -204,7 +206,7 @@ test.describe('a Company Admin and an unfinished application', () => {
         // A card's values sit under their column's name, which the table's header
         // no longer shows.
         const card = page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: /^Dana Whitfield/ }) });
-        await expect(card.getByRole('cell').first()).toHaveAttribute('data-label', 'How far they got');
+        await expect(card.getByRole('cell').first()).toHaveAttribute('data-label', 'Phone');
         // Inside the screen, measured where it could spill: the workspace clips its
         // own overflow, so the page's width would never show a card wider than it.
         const spill = await page.evaluate(() => {
@@ -289,7 +291,7 @@ test.describe('a Company Admin and an unfinished application', () => {
         await stubCallable(page, 'getApplicationDraft', DRAFT_VIEW);
         await stubPurge(page);
         await page.goto(START_URL);
-        await expect(page.getByRole('heading', { level: 2, name: '6 unfinished' })).toBeVisible();
+        await expect(page.getByRole('table', { name: 'Unfinished applications' }).getByRole('rowheader')).toHaveCount(6);
         expect(await seriousViolations(page)).toEqual([]);
 
         await page.getByRole('button', { name: /Delete everything for Dana Whitfield/i }).click();
