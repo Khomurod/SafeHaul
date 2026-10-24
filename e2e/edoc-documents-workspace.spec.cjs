@@ -153,7 +153,7 @@ test.describe('E-Doc Documents workspace', () => {
     await expect(count).toHaveText(/^6\s*sent documents$/, { timeout: 20_000 });
 
     await page.getByRole('searchbox', { name: 'Search documents or recipients' }).fill('W-9');
-    await expect(count).toHaveText(/^1\s*sent documents$/);
+    await expect(count).toHaveText(/^1\s*sent document$/);
     await page.getByRole('searchbox', { name: 'Search documents or recipients' }).fill('');
 
     await page.getByRole('button', { name: /^Filters/ }).click();
