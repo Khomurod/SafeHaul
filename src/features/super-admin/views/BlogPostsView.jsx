@@ -175,7 +175,9 @@ export function BlogPostsView() {
         {
             key: 'actions',
             header: 'Actions',
-            width: 'actions',
+            // `actions` holds one icon button under an empty header; a visible
+            // "Actions" header needs `sm` (data-table README).
+            width: 'sm',
             align: 'end',
             render: (post) => (
                 <div className="flex justify-end gap-ds-1">

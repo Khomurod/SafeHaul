@@ -266,7 +266,8 @@ The reverse directions are prohibited — including any `@shared` import inside
 - **The column contract holds only options the table acts on**
   (`components/data-table/README.md`): an option that changes no rendering or
   behaviour is removed, not kept for later. A column is `start` (text) or `end`
-  (numbers), never centred; `minWidth` is `wide`, `standard` or `none`.
+  (numbers), never centred; a header is one line; `minWidth` is `wide`,
+  `standard` or `none`.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
   record-specific accessible name. Prefer deciding which actions a row offers in
   a pure, tested module (as `unfinishedRowActions.js` does) over a `render`
