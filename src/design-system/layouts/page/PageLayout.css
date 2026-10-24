@@ -43,6 +43,41 @@
   line-height: var(--ds-line-height-tight);
 }
 
+.ds-page-header__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+
+.ds-page-header__title h1 {
+  min-width: 0;
+}
+
+/* The number of records beside the heading, quieter than the heading itself. */
+.ds-page-header__count {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-full);
+  padding: 2px var(--ds-space-2);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-content-secondary);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--ds-line-height-tight);
+  white-space: nowrap;
+}
+
+/* Waiting for its number: in place for a screen reader, nothing on screen. */
+.ds-page-header__count:empty {
+  min-height: 0;
+  border: 0;
+  padding: 0;
+}
+
 .ds-page-header p {
   margin-top: var(--ds-space-2);
   color: var(--ds-color-content-secondary);

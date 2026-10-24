@@ -60,4 +60,57 @@ describe('Switch', () => {
     );
     expect((await axe(container)).violations).toEqual([]);
   });
+
+  describe('with showLabel', () => {
+    it('prints the label beside the switch and takes its name from it', () => {
+      render(<Switch showLabel label="Only mine" onChange={vi.fn()} />);
+
+      const control = screen.getByRole('switch', { name: 'Only mine' });
+      expect(control).not.toHaveAttribute('aria-label');
+      expect(screen.getByText('Only mine').tagName).toBe('LABEL');
+      expect(screen.getByText('Only mine')).toHaveAttribute('for', control.id);
+    });
+
+    it('moves the switch when the words are pressed', () => {
+      const onChange = vi.fn();
+      render(<Switch showLabel checked={false} label="Only mine" onChange={onChange} />);
+
+      fireEvent.click(screen.getByText('Only mine'));
+
+      expect(onChange).toHaveBeenCalledWith(true);
+    });
+
+    it('does not move when disabled, by the switch or by the words', () => {
+      const onChange = vi.fn();
+      render(<Switch showLabel disabled label="Only mine" onChange={onChange} />);
+
+      fireEvent.click(screen.getByText('Only mine'));
+      fireEvent.click(screen.getByRole('switch'));
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('keeps an id the caller gives it', () => {
+      render(<Switch showLabel id="only-mine" label="Only mine" onChange={vi.fn()} />);
+
+      expect(screen.getByRole('switch', { name: 'Only mine' })).toHaveAttribute('id', 'only-mine');
+    });
+
+    it('puts className on the pair, so a toolbar places both together', () => {
+      const { container } = render(<Switch showLabel className="toolbar-slot" label="Only mine" onChange={vi.fn()} />);
+
+      expect(container.firstChild).toHaveClass('ds-switch-field', 'toolbar-slot');
+      expect(screen.getByRole('switch')).not.toHaveClass('toolbar-slot');
+    });
+
+    it('has no accessibility violations', async () => {
+      const { container } = render(
+        <div>
+          <Switch showLabel checked label="Only mine" onChange={vi.fn()} />
+          <Switch showLabel disabled label="Archived too" onChange={vi.fn()} />
+        </div>,
+      );
+      expect((await axe(container)).violations).toEqual([]);
+    });
+  });
 });
