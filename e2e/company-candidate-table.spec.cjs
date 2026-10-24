@@ -135,9 +135,16 @@ test.describe('Company candidate-list DataTable pilot', () => {
     // Each value sits under its column's label (drawn from `data-label`).
     await expect(maria.locator('[data-label="Recruiter"]')).toHaveText('E2E Admin');
     await expect(maria.locator('[data-label="Applied"]')).toHaveText('Jul 10, 2026');
+    // The number starts where the other values do, not centred in its column.
+    const call = maria.getByRole('button', { name: 'Call Maria Garcia at (512) 555-0134', exact: true });
+    const [callBox, statusBox] = await Promise.all([
+      call.getByText('(512) 555-0134').boundingBox(),
+      maria.locator('[data-label="Status"] > *').first().boundingBox(),
+    ]);
+    expect(Math.abs(callBox.x - statusBox.x)).toBeLessThanOrEqual(1);
 
     // The number calls; the name opens the dossier.
-    await maria.getByRole('button', { name: 'Call Maria Garcia at (512) 555-0134', exact: true }).click();
+    await call.click();
     await expect(page.getByRole('dialog', { name: 'Log call result' })).toBeVisible();
     await page.getByRole('button', { name: 'Close call result' }).click();
     await maria.getByRole('rowheader').click();
