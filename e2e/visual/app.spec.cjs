@@ -208,7 +208,8 @@ const SCREENS = [
         name: 'company-import-preview',
         url: '/company/import-leads?e2eAuth=company_admin',
         open: uploadLeadFile,
-        ready: (page) => page.getByText('Okonkwo-Fairweather'),
+        // Exact: the email cell holds the same name.
+        ready: (page) => page.getByText('Okonkwo-Fairweather', { exact: true }),
     },
 ];
 
