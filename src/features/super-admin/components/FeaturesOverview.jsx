@@ -1,11 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@lib/firebase';
-import { Badge, Button, DataTable } from '@/design-system/components';
-import { Stack } from '@/design-system/layouts';
+import { Badge, DataTable } from '@/design-system/components';
+import { PageHeader, Stack } from '@/design-system/layouts';
+import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { COMPANY_FEATURES, isFeatureOn } from '../config/features';
+import { mockFeatureCompanies } from './featuresOverviewMock';
 
 const nameOf = (company) => company.companyName || company.name || company.id;
+
+/**
+ * The bucket a feature's one-line header needs (data-table README: about 8px
+ * a capital, `sm` 80px, `md` 104px, `lg` 136px of text).
+ */
+function headerWidth(label) {
+    if (label.length <= 9) return 'sm';
+    return label.length <= 12 ? 'md' : 'lg';
+}
 
 /** "Off from Oct 30": the day a scheduled switch-off takes effect, in the viewer's clock. */
 function scheduledOff(company, key) {
@@ -28,6 +39,11 @@ export function FeaturesOverview({ onOpenCompany }) {
     const load = useCallback(async () => {
         setLoading(true);
         setFailed(false);
+        if (isE2ETestMode && getE2EQueryParam('e2eFeatures', '') === 'mock') {
+            setCompanies(mockFeatureCompanies().sort((a, b) => nameOf(a).localeCompare(nameOf(b))));
+            setLoading(false);
+            return;
+        }
         try {
             const snap = await getDocs(collection(db, 'companies'));
             const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -42,32 +58,22 @@ export function FeaturesOverview({ onOpenCompany }) {
 
     useEffect(() => { load(); }, [load]);
 
+    // The widths fit the 926px the console leaves at 1440 (856px): each
+    // feature column is as wide as its one-line header needs.
     const columns = useMemo(() => [
         {
             key: 'company',
             header: 'Company',
             rowHeader: true,
-            // `md`, like the feature columns, so the table stretches each one far
-            // enough at 1440px for its one-line header ("Call Tracking").
-            width: 'md',
+            width: 'lg',
             render: (company) => (
-                <div className="flex flex-wrap items-center gap-ds-2">
-                    <span className="font-semibold text-ds-content [overflow-wrap:anywhere]">{nameOf(company)}</span>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        aria-label={`Open ${nameOf(company)} features`}
-                        onClick={() => onOpenCompany(company)}
-                    >
-                        Open
-                    </Button>
-                </div>
+                <span className="font-semibold text-ds-content [overflow-wrap:anywhere]">{nameOf(company)}</span>
             ),
         },
         ...COMPANY_FEATURES.map(({ key, label }) => ({
             key,
             header: label,
-            width: 'md',
+            width: headerWidth(label),
             render: (company) => {
                 const on = isFeatureOn(company, key);
                 const offFrom = on ? scheduledOff(company, key) : null;
@@ -79,16 +85,18 @@ export function FeaturesOverview({ onOpenCompany }) {
                 );
             },
         })),
-    ], [onOpenCompany]);
+    ], []);
 
     return (
         <Stack gap="lg">
-            <div>
-                <h2 className="text-ds-heading-md font-semibold text-ds-content">Features</h2>
-                <p className="mt-1 max-w-prose text-ds-sm text-ds-content-secondary">
-                    Which company has which feature. Open a company to switch one or schedule it off.
-                </p>
-            </div>
+            {/* Level 2: the Super Admin masthead holds the page's one <h1>. */}
+            <PageHeader
+                level={2}
+                title="Features"
+                count={loading || failed ? undefined : companies.length}
+                countLabel={companies.length === 1 ? 'company' : 'companies'}
+                description="Which company has which feature. Open a company to switch one or schedule it off."
+            />
             <DataTable
                 ariaLabel="Features of every company"
                 density="compact"
@@ -97,6 +105,10 @@ export function FeaturesOverview({ onOpenCompany }) {
                 data={companies}
                 columns={columns}
                 getRowId={(company) => company.id}
+                // A row opens that company's Features tab, as a row opens its
+                // record on every list (Enter or Space from the keyboard).
+                getRowLabel={(company) => `Open ${nameOf(company)} features`}
+                onRowActivate={onOpenCompany}
                 isLoading={loading}
                 loadingLabel="Loading companies"
                 error={failed ? { message: 'The companies could not be read.', onRetry: load } : undefined}

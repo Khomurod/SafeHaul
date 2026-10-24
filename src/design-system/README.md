@@ -103,7 +103,7 @@ barrels: `@design-system/components`, `/patterns`, `/layouts` and `/icons`.
 | `Modal`, `ConfirmDialog` | `patterns/modal` | Chrome is props only (`patterns/modal/README.md`); `className` / `overlayClassName` throw. `ConfirmDialog` puts initial focus on Cancel, guards against double activation, and disables Escape / backdrop dismissal while `loading`; Escape routes to `onCancel` |
 | `ListToolbar` | `patterns/list-toolbar` | Segments, switch, search, Filters and the page's actions above a list; not `role="toolbar"`. The list-page standard is its README |
 | `PageState`, `EmptyState`, `ErrorState`, `LoadingState` | `patterns/page-state` | `surface="inverse"` (the medallion stays light); `titleId` (a full-page state names its `<main>`, where `role="status"` is invalid); `children` (a reference, a checklist); `focusOnMount`. Anything that needs its own structure is a page, not a state |
-| `PageContainer`, `PageHeader`, `Section`, `Stack`, `Inline`, `ResponsiveGrid`; `WorkspaceFrame` | `layouts/page`, `layouts/workspace` | `PageHeader` renders the page-level `<h1>`; inside Super Admin the masthead owns it, so views use an `<h2>` composition |
+| `PageContainer`, `PageHeader`, `Section`, `Stack`, `Inline`, `ResponsiveGrid`; `WorkspaceFrame` | `layouts/page`, `layouts/workspace` | `PageHeader` renders the page-level `<h1>`; inside Super Admin the masthead owns it, so a view passes `level={2}` |
 | `Icon` and glyph tokens | `icons/` | Sizes and naming: roadmap §3 |
 
 Rules that go with the catalog:

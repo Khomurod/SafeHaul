@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon, Download, RefreshCw } from '@design-system/icons';
 
 import { Badge, Button, Card, DataTable, FieldMessage } from '@/design-system/components';
-import { Stack } from '@/design-system/layouts';
+import { PageHeader, Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
 
 import { describeLeadsError, listWebsiteLeads } from '../services/websiteLeads';
@@ -50,6 +50,16 @@ const CSV_COLUMNS = [
     ['deliveryAttempts', (lead) => lead.delivery?.attempts],
 ];
 
+const RECEIVED_FORMAT = new Intl.DateTimeFormat('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+});
+
+/** "Oct 21, 2026, 3:05 PM", in the viewer's clock: one line in its column. */
+function formatReceived(value) {
+    const at = new Date(value);
+    return Number.isNaN(at.getTime()) ? '—' : RECEIVED_FORMAT.format(at);
+}
+
 /** Every value here was typed by a member of the public: `csvCell` makes a formula text. */
 function toCsv(leads) {
     return toCsvText([
@@ -94,25 +104,32 @@ export function WebsiteLeadsView() {
             header: 'Lead',
             rowHeader: true,
             width: 'lg',
+            // The email under the name, quieter: the one second line a row
+            // header may carry, to tell two people of the same name apart.
             render: (lead) => (
-                <div className="flex flex-col gap-ds-1">
+                <div className="flex min-w-0 flex-col gap-ds-1">
                     <span className="font-medium text-ds-content">{lead.fullName || 'Unnamed'}</span>
-                    <span className="text-ds-sm text-ds-content-secondary">{lead.workEmail}</span>
+                    <span className="truncate text-ds-sm text-ds-content-secondary" title={lead.workEmail}>
+                        {lead.workEmail}
+                    </span>
                 </div>
             ),
         },
         {
             key: 'company',
             header: 'Company',
-            width: 'md',
-            render: (lead) => (
-                <div className="flex flex-col gap-ds-1">
-                    <span className="text-ds-sm text-ds-content">{lead.companyName || '—'}</span>
-                    {lead.companySize && (
-                        <span className="text-ds-sm text-ds-content-secondary">{lead.companySize} drivers</span>
-                    )}
-                </div>
-            ),
+            width: 'lg',
+            render: (lead) => (lead.companyName
+                ? <span className="text-ds-sm text-ds-content">{lead.companyName}</span>
+                : <span className="text-ds-sm text-ds-content-muted">—</span>),
+        },
+        {
+            key: 'companySize',
+            header: 'Drivers',
+            width: 'sm',
+            render: (lead) => (lead.companySize
+                ? <span className="text-ds-sm text-ds-content tabular-nums">{lead.companySize}</span>
+                : <span className="text-ds-sm text-ds-content-muted">—</span>),
         },
         {
             key: 'stage',
@@ -141,41 +158,37 @@ export function WebsiteLeadsView() {
         {
             key: 'createdAt',
             header: 'Received',
-            width: 'sm',
-            render: (lead) => (
-                <span className="text-ds-sm text-ds-content-secondary">
-                    {lead.createdAt ? new Date(lead.createdAt).toLocaleString() : '—'}
-                </span>
-            ),
+            width: 'lg',
+            render: (lead) => (lead.createdAt
+                ? <span className="text-ds-sm text-ds-content-secondary">{formatReceived(lead.createdAt)}</span>
+                : <span className="text-ds-sm text-ds-content-muted">—</span>),
         },
     ], []);
 
     return (
         <Stack gap="lg">
-            <div className="flex flex-wrap items-start justify-between gap-ds-3">
-                <div>
-                    <h2 className="text-ds-heading-md font-semibold text-ds-content">
-                        Website Leads
-                    </h2>
-                    <p className="mt-1 max-w-prose text-ds-sm text-ds-content-secondary">
-                        Leads captured by the SafeHaul marketing site before it was retired.
-                        This is a read-only archive — nothing new arrives here, and a rebuilt
-                        contact form will collect leads separately.
-                    </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-ds-2">
-                    <Button variant="secondary" onClick={load} disabled={loading}>
-                        <Icon icon={RefreshCw} size="sm" /> Refresh
-                    </Button>
-                    <Button
-                        variant="primary"
-                        onClick={exportCsv}
-                        disabled={loading || leads.length === 0}
-                    >
-                        <Icon icon={Download} size="sm" /> Export CSV
-                    </Button>
-                </div>
-            </div>
+            {/* Level 2: the Super Admin masthead holds the page's one <h1>. */}
+            <PageHeader
+                level={2}
+                title="Website Leads"
+                description="Leads captured by the SafeHaul marketing site before it was retired. This is a read-only archive — nothing new arrives here, and a rebuilt contact form will collect leads separately."
+                count={loading || loadError ? undefined : leads.length}
+                countLabel={leads.length === 1 ? 'lead' : 'leads'}
+                actions={(
+                    <div className="flex flex-wrap items-center gap-ds-2">
+                        <Button variant="secondary" onClick={load} disabled={loading}>
+                            <Icon icon={RefreshCw} size="sm" /> Refresh
+                        </Button>
+                        <Button
+                            variant="primary"
+                            onClick={exportCsv}
+                            disabled={loading || leads.length === 0}
+                        >
+                            <Icon icon={Download} size="sm" /> Export CSV
+                        </Button>
+                    </div>
+                )}
+            />
 
             {loadError && (
                 <Card padding="md" tone="danger">
@@ -187,6 +200,7 @@ export function WebsiteLeadsView() {
                 ariaLabel="Leads captured from the retired marketing site"
                 density="compact"
                 minWidth="none"
+                mobilePresentation="cards"
                 data={leads}
                 columns={columns}
                 isLoading={loading}

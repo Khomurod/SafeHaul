@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon, ExternalLink, RefreshCw, Trash2 } from '@design-system/icons';
 
 import { Badge, Button, Card, DataTable, FieldMessage } from '@/design-system/components';
-import { Stack } from '@/design-system/layouts';
+import { PageHeader, Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useToast } from '@shared/components/feedback';
 
@@ -34,7 +34,7 @@ import { BlogRunLedger } from '../components/blog/BlogRunLedger';
  * naming the article, server-side authorization and a value-free audit record.
  * The post leaves the public site immediately.
  *
- * No `PageHeader`: the Super Admin masthead owns the single `<h1>`.
+ * Its `PageHeader` is level 2: the Super Admin masthead owns the single `<h1>`.
  */
 export function BlogPostsView() {
     const { showSuccess, showError, showInfo } = useToast();
@@ -175,10 +175,11 @@ export function BlogPostsView() {
         {
             key: 'actions',
             header: 'Actions',
-            // `actions` holds one icon button under an empty header; a visible
-            // "Actions" header needs `sm` (data-table README).
-            width: 'sm',
+            // `lg`: View and Delete side by side, each with its word.
+            width: 'lg',
             align: 'end',
+            // On a phone card the buttons take the card's width, unlabelled.
+            mobileLabel: '',
             render: (post) => (
                 <div className="flex justify-end gap-ds-1">
                     {post.status !== 'deleted' && (
@@ -217,33 +218,28 @@ export function BlogPostsView() {
 
     return (
         <Stack gap="lg">
-            <div>
-                <h2
-                    ref={headingRef}
-                    tabIndex={-1}
-                    className="text-ds-heading-lg font-bold text-ds-content"
-                >
-                    Blog Posts
-                </h2>
-                <p className="mt-1 text-ds-sm text-ds-content-secondary">
-                    Articles published automatically to SafeHaul News &amp; Insights. Three articles
-                    publish each day, one per theme. Deleting one removes it from the site, the index,
-                    the feed and the sitemap immediately.
-                </p>
-            </div>
-
-            <div className="flex flex-wrap gap-ds-2">
-                <Button
-                    variant="secondary"
-                    onClick={() => { load(); loadRuns(); }}
-                    disabled={loading}
-                >
-                    <Icon icon={RefreshCw} size="sm" /> Refresh
-                </Button>
-                <Button variant="secondary" loading={publishing} onClick={handlePublishNow}>
-                    Run today&rsquo;s publication check
-                </Button>
-            </div>
+            <PageHeader
+                level={2}
+                headingRef={headingRef}
+                title="Blog Posts"
+                description="Articles published automatically to SafeHaul News & Insights. Three articles publish each day, one per theme. Deleting one removes it from the site, the index, the feed and the sitemap immediately."
+                count={loading || loadError ? undefined : posts.length}
+                countLabel={posts.length === 1 ? 'article' : 'articles'}
+                actions={(
+                    <div className="flex flex-wrap gap-ds-2">
+                        <Button
+                            variant="secondary"
+                            onClick={() => { load(); loadRuns(); }}
+                            disabled={loading}
+                        >
+                            <Icon icon={RefreshCw} size="sm" /> Refresh
+                        </Button>
+                        <Button variant="secondary" loading={publishing} onClick={handlePublishNow}>
+                            Run today&rsquo;s publication check
+                        </Button>
+                    </div>
+                )}
+            />
 
             {loadError && (
                 <Card padding="md" tone="danger">
@@ -260,6 +256,7 @@ export function BlogPostsView() {
                 ariaLabel="Published blog posts"
                 density="compact"
                 minWidth="none"
+                mobilePresentation="cards"
                 data={posts}
                 columns={columns}
                 isLoading={loading}

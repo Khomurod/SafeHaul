@@ -15,3 +15,9 @@ The heading and description keep at least 30rem beside `actions`. With less
 room, as on a tablet, the actions move under the description rather than
 squeezing it; below 768px they always do, at full width. A page does not need
 its own wrapping class for this.
+
+`PageHeader` is the page's `<h1>` unless `level={2}`: a shell whose masthead
+already holds the one `<h1>`, as Super Admin's does, passes `2`, and the header
+looks the same. A page that moves focus to its heading after an action (the row
+that held focus was removed) passes `headingRef`; the heading is then focusable
+from script, not from Tab.

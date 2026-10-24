@@ -38,12 +38,12 @@
   flex: 1 1 30rem;
 }
 
-.ds-page-header h1,
+.ds-page-header__heading,
 .ds-page-header p {
   margin: 0;
 }
 
-.ds-page-header h1 {
+.ds-page-header__heading {
   color: var(--ds-color-content);
   font-size: var(--ds-font-size-heading-xl);
   font-weight: var(--ds-font-weight-bold);
@@ -57,7 +57,7 @@
   gap: var(--ds-space-2) var(--ds-space-3);
 }
 
-.ds-page-header__title h1 {
+.ds-page-header__title .ds-page-header__heading {
   min-width: 0;
 }
 

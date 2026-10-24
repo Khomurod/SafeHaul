@@ -40,6 +40,9 @@ describe('the features overview', () => {
         expect(within(blue).getAllByText('On')).toHaveLength(4);
         expect(within(acme).getByText(/Off from/)).toBeInTheDocument();
         expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+        // The heading counts the companies, as every list's heading counts its records.
+        expect(screen.getByRole('heading', { level: 2, name: 'Features' })).toBeInTheDocument();
+        expect(screen.getByRole('status')).toHaveTextContent(/^2 companies$/);
         expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
@@ -47,9 +50,15 @@ describe('the features overview', () => {
         const onOpenCompany = vi.fn();
         render(<FeaturesOverview onOpenCompany={onOpenCompany} />);
 
-        await userEvent.click(await screen.findByRole('button', { name: 'Open Blue Line features' }));
-
+        await userEvent.click(await screen.findByRole('row', { name: 'Open Blue Line features' }));
         expect(onOpenCompany).toHaveBeenCalledWith(expect.objectContaining({ id: 'co-b' }));
+
+        // From the keyboard too, as every list's row opens its record.
+        screen.getByRole('row', { name: 'Open Acme Freight features' }).focus();
+        await userEvent.keyboard('{Enter}');
+        expect(onOpenCompany).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'co-a' }));
+        // Nothing else on the row competes for the press.
+        expect(screen.queryByRole('button', { name: /Open/ })).toBeNull();
     });
 
     it('says the companies could not be read, and reads them again on Retry', async () => {
