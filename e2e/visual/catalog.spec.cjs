@@ -166,8 +166,10 @@ const SUBJECTS = [
     // The same matrix as a table at 1440px and as one card per row at 412px, so
     // both halves of the phone rule have a picture.
     ['patterns-native-table--cards-on-mobile', 'pattern-native-table-cards'],
-    ['patterns-filter-panel--default', 'pattern-filter-panel'],
-    ['patterns-filter-panel--no-matching-results', 'pattern-filter-no-results'],
+    // The list-page standard: heading with count, toolbar, table; filters open; nothing found.
+    ['patterns-list-page--default', 'pattern-list-page'],
+    ['patterns-list-page--filters-open', 'pattern-list-page-filters'],
+    ['patterns-list-page--no-matching-results', 'pattern-list-page-no-results'],
     ['patterns-title-deletion-list--default', 'pattern-deletion-list'],
     ['patterns-modal-form--field-validation-error', 'pattern-modal-form-error'],
     ['patterns-back-navigation-and-page-header--with-status', 'pattern-page-header'],

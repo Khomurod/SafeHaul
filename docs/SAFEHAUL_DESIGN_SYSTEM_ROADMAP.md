@@ -65,7 +65,7 @@ src/
 |---|---|---|
 | `tokens` | Primitive scales and semantic roles (content, surface, action, status tone, table role) | Palette names in feature code |
 | `components` | Button, IconButton, Field primitives, Card, Badge, Progress, StatusMedallion, table building blocks. Generic props only | Domain vocabulary |
-| `patterns` | PageState, EmptyState, FormField, dialog sections, DataTable toolbar/pagination, responsive presentation | Data fetching, feature permissions |
+| `patterns` | PageState, EmptyState, FormField, dialog sections, ListToolbar, DataTable pagination, responsive presentation | Data fetching, feature permissions |
 | `layouts` | AppFrame regions, PageContainer, PageHeader (and a list's record `count`), Stack, Inline, split panels | Route knowledge. `CompanyAppShell` stays in its feature because it knows company navigation and deactivation |
 | `features` | Domain language, screens, available actions, adapters such as `applicationStatus -> { tone, icon, label }` | Reusable visual primitives |
 | `shared` | Existing compatibility components and non-visual cross-feature utilities | New long-term visual primitives — those go to `design-system` |
@@ -270,6 +270,10 @@ The reverse directions are prohibited — including any `@shared` import inside
   (numbers), never centred; a header is one line; `minWidth` is `wide`,
   `standard` or `none`. A list sorts from its headers (`sortable`, with the
   feature's `sort` and `onSortChange`; a "Sort by" list above phone cards).
+- **A list page follows the six rules in `patterns/list-toolbar/README.md`**:
+  one heading with the count, one `ListToolbar` row, one row per record in a
+  `DataTable embedded`, sorting from headers, calm statuses, cards on phones.
+  Example: the `Patterns/List page` stories.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
   record-specific accessible name. Prefer deciding which actions a row offers in
   a pure, tested module (as `unfinishedRowActions.js` does) over a `render`
