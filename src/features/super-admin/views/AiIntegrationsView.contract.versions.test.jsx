@@ -135,8 +135,10 @@ describe('the table', () => {
         stubCallables({ getAiModelVersions: load });
         await renderView();
 
-        const retry = await within(versionsTable()).findByRole('button', { name: 'Retry' });
-        expect(within(versionsTable()).getByText('The model versions could not be loaded.')).toBeTruthy();
+        // The failure is drawn under the header row, inside the table's own card.
+        const versionsCard = () => versionsTable().closest('.ds-data-table');
+        const retry = await within(versionsCard()).findByRole('button', { name: 'Retry' });
+        expect(within(versionsCard()).getByText('The model versions could not be loaded.')).toBeTruthy();
         fireEvent.click(retry);
 
         await waitFor(() => expect(within(versionsTable()).getByText('gemini-3.7-flash')).toBeTruthy());

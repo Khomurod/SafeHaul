@@ -319,6 +319,23 @@
   outline-offset: 2px;
 }
 
+/*
+ * The empty or error state under the header row, outside the scroll region, so
+ * it is as wide as the card rather than the table. It takes the cell's padding
+ * and surface, so a table that fits its card looks as it did with a state row.
+ * In a parent of bounded height it, not the header row, takes the spare height.
+ */
+.ds-data-table__state-panel {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: var(--ds-table-active-cell-padding-block) var(--ds-table-cell-padding-inline);
+  background: var(--ds-table-row-bg);
+}
+
+.ds-data-table[data-state] .ds-data-table__scroll-region {
+  flex: 0 0 auto;
+}
+
 .ds-data-table__state {
   display: flex;
   min-height: 260px;
@@ -335,9 +352,11 @@
   color: var(--ds-color-content-danger);
 }
 
+/* A long unbroken word (an ID, a URL) wraps rather than leaving the card. */
 .ds-data-table__state-title,
 .ds-data-table__state-description {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .ds-data-table__state-title {
@@ -442,7 +461,8 @@
   }
 
   .ds-data-table th,
-  .ds-data-table td {
+  .ds-data-table td,
+  .ds-data-table__state-panel {
     padding-right: var(--ds-space-4);
     padding-left: var(--ds-space-4);
   }

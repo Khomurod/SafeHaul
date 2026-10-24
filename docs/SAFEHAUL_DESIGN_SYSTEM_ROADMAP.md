@@ -194,7 +194,7 @@ The reverse directions are prohibited — including any `@shared` import inside
 **States, announcements and focus**
 - **A state must announce itself.** Loading and empty are `role="status"`
   (polite); errors are `role="alert"`. Use `EmptyState` / `ErrorState` /
-  `LoadingState` from `@design-system/patterns`.
+  `LoadingState` (`@design-system/patterns`); `DataTable` draws its own card-wide.
 - **Never nest live regions.** Inside a caller's always-mounted
   `role="status"`/`role="alert"` wrapper a `Notice` takes `announce="off"` (two
   regions announce twice; moving the role onto a conditional child silences it);
