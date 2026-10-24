@@ -44,7 +44,7 @@ const ESSENTIAL_ACTIONS = [
 
 async function openList(page) {
   await page.goto(`/company/drivers/applications${AUTH}`);
-  await expect(page.getByRole('table', { name: 'Driver Applications table' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Applications table' })).toBeVisible();
 }
 
 async function openDossier(page) {

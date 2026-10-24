@@ -15,14 +15,10 @@ const noop = () => {};
 
 const renderToolbar = (props = {}) => render(
     <DashboardToolbar
-        activeTab="applications"
-        dataCount={8}
-        totalCount={8}
         searchQuery=""
         setSearchQuery={noop}
         filters={{}}
         setFilters={noop}
-        clearFilters={noop}
         {...props}
     />,
 );
@@ -76,5 +72,76 @@ describe('DashboardToolbar filter panel', () => {
         expect(within(state).getAllByRole('group').map((group) => group.getAttribute('label')))
             .toEqual(['United States', 'Canada', 'Mexico']);
         expect(state).toHaveValue('Ontario');
+    });
+});
+
+describe('DashboardToolbar on the list-page toolbar', () => {
+    it('says how many of its filters apply, counting the Filters row only', () => {
+        renderToolbar({ filters: { state: 'Texas', driverType: 'Reefer', myAssignmentsOnly: true } });
+
+        expect(screen.getByRole('button', { name: 'Filters 2 applied' })).toBeInTheDocument();
+    });
+
+    it('clears the Filters row and leaves the switch alone', () => {
+        const setFilters = vi.fn();
+        renderToolbar({ setFilters, filters: { state: 'Texas', assignee: 'u1', myAssignmentsOnly: true } });
+        fireEvent.click(screen.getByRole('button', { name: 'Filters 2 applied' }));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+        expect(setFilters.mock.calls[0][0]({ state: 'Texas', assignee: 'u1', myAssignmentsOnly: true, segment: 'x' }))
+            .toEqual({
+                state: '', driverType: '', assignee: '', dateFilter: '', dob: '',
+                myAssignmentsOnly: true, segment: 'x',
+            });
+    });
+
+    it('offers no Clear filters while nothing applies', () => {
+        renderToolbar();
+        fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+
+        expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
+    });
+
+    it('shows the "only mine" switch with its words, and reports the value it moves to', () => {
+        const onToggleMyAssignments = vi.fn();
+        renderToolbar({ showMyAssignmentsToggle: true, myAssignmentsOnly: false, onToggleMyAssignments });
+
+        fireEvent.click(screen.getByText('Only mine'));
+
+        expect(screen.getByRole('switch', { name: 'Only mine' })).toBeInTheDocument();
+        expect(onToggleMyAssignments).toHaveBeenCalledWith(true);
+    });
+
+    it('names the segments as a set and presses the current one', () => {
+        const onChange = vi.fn();
+        renderToolbar({
+            segments: { items: [{ id: 'all', label: 'All Applications' }, { id: 'new', label: 'New' }], value: 'all', onChange },
+        });
+
+        const group = screen.getByRole('group', { name: 'Pipeline segment' });
+        expect(within(group).getByRole('button', { name: 'All Applications' })).toHaveAttribute('aria-pressed', 'true');
+        fireEvent.click(within(group).getByRole('button', { name: 'New' }));
+        expect(onChange).toHaveBeenCalledWith('new');
+    });
+
+    it('offers Assign only to someone who can assign, once rows are selected', () => {
+        const onAssignLeads = vi.fn();
+        const { rerender } = renderToolbar({ canAssign: true, selectedCount: 0, onAssignLeads });
+        expect(screen.queryByRole('button', { name: /Assign/ })).toBeNull();
+
+        rerender(
+            <DashboardToolbar
+                searchQuery=""
+                setSearchQuery={noop}
+                filters={{}}
+                setFilters={noop}
+                canAssign
+                selectedCount={3}
+                onAssignLeads={onAssignLeads}
+            />,
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Assign (3)' }));
+        expect(onAssignLeads).toHaveBeenCalledTimes(1);
     });
 });

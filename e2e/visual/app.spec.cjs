@@ -61,7 +61,8 @@ const SCREENS = [
     {
         name: 'company-candidate-list',
         url: '/company/drivers/applications?e2eAuth=company_admin',
-        ready: (page) => page.getByRole('table').first(),
+        // A fixture row, so the count beside the heading has arrived too.
+        ready: (page) => page.getByText('Maria Garcia'),
     },
     {
         name: 'company-settings',
@@ -170,7 +171,12 @@ const SCREENS = [
     {
         name: 'company-leads',
         url: '/company/drivers/leads/company?e2eAuth=company_admin',
-        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+        ready: (page) => page.getByText('Omar Attempt'),
+    },
+    {
+        name: 'company-my-leads',
+        url: '/company/drivers/leads/my?e2eAuth=company_admin',
+        ready: (page) => page.getByText('Lena Leadsen'),
     },
     {
         name: 'company-import-leads',

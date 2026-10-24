@@ -12,8 +12,13 @@ test.describe('Applications search and pipeline filters', () => {
 
   async function openApplications(page) {
     await page.goto(APPLICATIONS_URL);
-    await expect(page.getByRole('heading', { name: 'Driver Applications' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
     await expect(page.getByText('Maria Garcia')).toBeVisible({ timeout: 15_000 });
+  }
+
+  /** The number of applications beside the heading, as a screen reader reads it. */
+  function listCount(page, count) {
+    return page.getByText(`${count} application${count === 1 ? '' : 's'}`, { exact: true });
   }
 
   function searchBox(page) {
@@ -32,7 +37,7 @@ test.describe('Applications search and pipeline filters', () => {
     await expect(tabs).toHaveText(['All Applications', 'New', 'Hired', 'Terminated', 'Declined']);
 
     // All: every fixture application (8), never leads.
-    await expect(page.getByText('Showing 8 of 8 records')).toBeVisible();
+    await expect(listCount(page, 8)).toBeVisible();
     await expect(page.getByText('Lena Leadsen')).toHaveCount(0);
 
     // New: covers both 'New' and 'New Application' stored statuses.
@@ -40,24 +45,24 @@ test.describe('Applications search and pipeline filters', () => {
     await expect(page.getByText('Maria Garcia')).toBeVisible();
     await expect(page.getByText('James McDonald')).toBeVisible();
     await expect(page.getByText('Aisha Robinson')).toHaveCount(0);
-    await expect(page.getByText('Showing 2 of 2 records')).toBeVisible();
+    await expect(listCount(page, 2)).toBeVisible();
 
     // Hired: 'Hired' + legacy 'Approved'.
     await page.getByRole('button', { name: 'Hired', exact: true }).click();
     await expect(page.getByText('Aisha Robinson')).toBeVisible();
     await expect(page.getByText('Derek Nguyen')).toBeVisible();
-    await expect(page.getByText('Showing 2 of 2 records')).toBeVisible();
+    await expect(listCount(page, 2)).toBeVisible();
 
     // Terminated.
     await page.getByRole('button', { name: 'Terminated', exact: true }).click();
     await expect(page.getByText('Linda Petrov')).toBeVisible();
-    await expect(page.getByText('Showing 1 of 1 records')).toBeVisible();
+    await expect(listCount(page, 1)).toBeVisible();
 
     // Declined: 'Declined' + legacy 'Rejected'.
     await page.getByRole('button', { name: 'Declined', exact: true }).click();
     await expect(page.getByText('Carl Simmons')).toBeVisible();
     await expect(page.getByText('Rosa Rejectova')).toBeVisible();
-    await expect(page.getByText('Showing 2 of 2 records')).toBeVisible();
+    await expect(listCount(page, 2)).toBeVisible();
   });
 
   test('search works across names, email, phone formats, and confirmation number', async ({ page }) => {
@@ -101,13 +106,13 @@ test.describe('Applications search and pipeline filters', () => {
 
     // Clearing the search restores the full list.
     await searchFor(page, '');
-    await expect(page.getByText('Showing 8 of 8 records')).toBeVisible();
+    await expect(listCount(page, 8)).toBeVisible();
   });
 
   test('search combines with the New filter', async ({ page }) => {
     await openApplications(page);
     await page.getByRole('button', { name: 'New', exact: true }).click();
-    await expect(page.getByText('Showing 2 of 2 records')).toBeVisible();
+    await expect(listCount(page, 2)).toBeVisible();
 
     // Maria is in the New segment.
     await searchFor(page, 'maria');
@@ -119,21 +124,21 @@ test.describe('Applications search and pipeline filters', () => {
     await expect(page.getByText('No records found.')).toBeVisible();
   });
 
-  test('My assignments combines with search and tabs', async ({ page }) => {
+  test('Only mine combines with search and tabs', async ({ page }) => {
     await openApplications(page);
 
-    await page.getByRole('button', { name: /My assignments/i }).click();
+    await page.getByRole('switch', { name: 'Only mine' }).click();
     // Maria + Aisha are assigned to the e2e admin.
-    await expect(page.getByText('Showing 2 of 2 records')).toBeVisible();
+    await expect(listCount(page, 2)).toBeVisible();
     await expect(page.getByText('Maria Garcia')).toBeVisible();
     await expect(page.getByText('Aisha Robinson')).toBeVisible();
 
-    // My assignments + New tab -> only Maria.
+    // Only mine + New tab -> only Maria.
     await page.getByRole('button', { name: 'New', exact: true }).click();
     await expect(page.getByText('Maria Garcia')).toBeVisible();
-    await expect(page.getByText('Showing 1 of 1 records')).toBeVisible();
+    await expect(listCount(page, 1)).toBeVisible();
 
-    // My assignments + New + search for someone not assigned -> empty.
+    // Only mine + New + search for someone not assigned -> empty.
     await searchFor(page, 'james');
     await expect(page.getByText('No records found.')).toBeVisible();
   });
@@ -144,14 +149,14 @@ test.describe('Applications search and pipeline filters', () => {
 
     // The fixture stores these three by postal code ("TX"); the list holds names.
     await page.getByRole('combobox', { name: 'State' }).selectOption('Texas');
-    await expect(page.getByText('Showing 3 of 3 records')).toBeVisible();
+    await expect(listCount(page, 3)).toBeVisible();
     await expect(page.getByText('Maria Garcia')).toBeVisible();
     await expect(page.getByText('Aisha Robinson')).toBeVisible();
     await expect(page.getByText('Derek Nguyen')).toBeVisible();
     await expect(page.getByText('James McDonald')).toHaveCount(0);
 
     await page.getByRole('combobox', { name: 'State' }).selectOption('All States');
-    await expect(page.getByText('Showing 8 of 8 records')).toBeVisible();
+    await expect(listCount(page, 8)).toBeVisible();
   });
 
   test('the date filter shows the applications created that day, and counts only them', async ({ page }) => {
@@ -159,11 +164,11 @@ test.describe('Applications search and pipeline filters', () => {
     await page.getByRole('button', { name: /^Filters/ }).click();
 
     await page.getByLabel('Filter by date').fill('2026-07-10');
-    await expect(page.getByText('Showing 1 of 1 records')).toBeVisible();
+    await expect(listCount(page, 1)).toBeVisible();
     await expect(page.getByText('Maria Garcia')).toBeVisible();
     await expect(page.getByText('James McDonald')).toHaveCount(0);
 
     await page.getByLabel('Filter by date').fill('');
-    await expect(page.getByText('Showing 8 of 8 records')).toBeVisible();
+    await expect(listCount(page, 8)).toBeVisible();
   });
 });

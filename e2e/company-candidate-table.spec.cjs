@@ -11,16 +11,17 @@ async function openCandidatePage(page, path, heading) {
 
 /** All Applications with its filter panel open, and what the layout tests reach for. */
 async function openApplicationsWithFilters(page) {
-  await openCandidatePage(page, '/company/drivers/applications', 'Driver Applications');
+  await openCandidatePage(page, '/company/drivers/applications', 'Applications');
   const filters = page.getByRole('button', { name: 'Filters', exact: true });
   await filters.click();
   return {
     filters,
     region: page.getByRole('region', {
-      name: 'Driver Applications table. Scroll horizontally to view all columns.',
+      name: 'Applications table. Scroll horizontally to view all columns.',
     }),
     firstRow: page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' }),
-    clearFilters: page.getByRole('button', { name: 'Clear all filters' }),
+    // The last of the filter fields: the bottom of the Filters row.
+    lastFilter: page.getByLabel('Filter by date'),
   };
 }
 
@@ -42,9 +43,9 @@ test.describe('Company candidate-list DataTable pilot', () => {
 
   test('keeps column alignment synchronized and preserves sort and dossier workflows', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop alignment and keyboard workflow.');
-    await openCandidatePage(page, '/company/drivers/applications', 'Driver Applications');
+    await openCandidatePage(page, '/company/drivers/applications', 'Applications');
 
-    const table = page.getByRole('table', { name: 'Driver Applications table' });
+    const table = page.getByRole('table', { name: 'Applications table' });
     const statusHeader = table.getByRole('columnheader', { name: 'Status' });
     const mariaRow = table.getByRole('row', { name: 'Open driver dossier for Maria Garcia' });
     const mariaStatus = mariaRow.getByRole('cell', { name: 'New Application' });
@@ -120,10 +121,10 @@ test.describe('Company candidate-list DataTable pilot', () => {
 
   test('exposes every column through the documented mobile scroll pattern @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation is verified in a mobile project.');
-    await openCandidatePage(page, '/company/drivers/applications', 'Driver Applications');
+    await openCandidatePage(page, '/company/drivers/applications', 'Applications');
 
     const region = page.getByRole('region', {
-      name: 'Driver Applications table. Scroll horizontally to view all columns.',
+      name: 'Applications table. Scroll horizontally to view all columns.',
     });
     const dimensions = await region.evaluate((element) => ({
       clientWidth: element.clientWidth,
@@ -147,12 +148,12 @@ test.describe('Company candidate-list DataTable pilot', () => {
 
   test('keeps the rows and the whole filter panel in reach on a phone @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Phone layout is verified in a mobile project.');
-    const { filters, region, firstRow, clearFilters } = await openApplicationsWithFilters(page);
+    const { filters, region, firstRow, lastFilter } = await openApplicationsWithFilters(page);
 
     // Upright, upright on a small phone, and on its side.
     for (const size of [null, { width: 412, height: 640 }, { width: 915, height: 412 }]) {
       if (size) await page.setViewportSize(size);
-      await scrollToWithWheel(page, filters, clearFilters);
+      await scrollToWithWheel(page, filters, lastFilter);
       await scrollToWithWheel(page, filters, firstRow);
       expect(await region.evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(240);
     }

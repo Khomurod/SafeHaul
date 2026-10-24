@@ -1,21 +1,21 @@
 // src/features/companies/components/DashboardToolbar.jsx
 
-import React, { useState, useMemo, memo } from 'react';
-import { Icon, Search, Filter, X, Briefcase, Users, UserCircle } from '@design-system/icons';
+import React, { useState, memo } from 'react';
+import { Icon, Users } from '@design-system/icons';
 import { Button, FormField, Input, Select } from '@design-system/components';
+import { ListToolbar } from '@design-system/patterns';
 import { NORTH_AMERICAN_REGION_GROUPS } from '@shared/utils/northAmericanRegions';
 
 /**
- * The candidate/lead list toolbar.
+ * The candidate/lead list toolbar: the list-page `ListToolbar` with this list's
+ * segments, its "only mine" switch, its search, its four filters and the
+ * assignment action.
  *
  * Presentation only — the filter keys, the driver-type option list, the
- * `setFilters` shape, `clearFilters`, the assignment action and the
- * my-assignments toggle belong to the caller and stay as they are.
- *
- * Every control comes from the shared scale, so the row lines up without
- * anything being set here. The filter labels are real `FormField` labels: a
- * control labelled by an adjacent `<label>` with no `htmlFor`, and with no
- * `id`, announces as an anonymous combobox.
+ * `setFilters` shape, the assignment action and the my-assignments toggle
+ * belong to the caller and stay as they are. The filter labels are real
+ * `FormField` labels: a control labelled by an adjacent `<label>` with no
+ * `htmlFor`, and with no `id`, announces as an anonymous combobox.
  */
 
 // --- CONFIGURATION ---
@@ -25,17 +25,19 @@ const DRIVER_TYPE_OPTIONS = [
     "Intermodal", "Power Only", "Hotshot"
 ];
 
-
+/**
+ * The filters the Filters row sets, which "Clear filters" empties. The switch and
+ * the search sit in plain sight with their own controls, so clearing leaves them.
+ */
+const FILTER_FIELD_KEYS = ['driverType', 'state', 'assignee', 'dateFilter', 'dob'];
+const CLEARED_FIELDS = Object.fromEntries(FILTER_FIELD_KEYS.map((key) => [key, '']));
 
 export const DashboardToolbar = memo(function DashboardToolbar({
-    activeTab,
-    dataCount,
-    totalCount,
+    segments,
     searchQuery,
     setSearchQuery,
     filters,
     setFilters,
-    clearFilters,
 
     selectedCount = 0,
     onAssignLeads,
@@ -45,120 +47,41 @@ export const DashboardToolbar = memo(function DashboardToolbar({
     showMyAssignmentsToggle = false,
     myAssignmentsOnly = false,
     onToggleMyAssignments,
-    myAssignmentsLabel = 'My assignments',
+    myAssignmentsLabel = 'Only mine',
 }) {
     const [showFilters, setShowFilters] = useState(false);
-
-    // Helper: Dynamic Tab Title
-    const getTabTitle = () => {
-        switch (activeTab) {
-            case 'applications': return 'Direct Applications';
-
-            case 'company_leads': return 'Imported Company Leads';
-            case 'my_leads': return 'My Assigned Drivers';
-            default: return 'Drivers';
-        }
-    };
 
     const handleFilterChange = (key, value) => {
         setFilters(prev => ({ ...prev, [key]: value }));
     };
 
-    const hasActiveFilters = useMemo(() => {
-        return filters && (filters.state || filters.driverType || filters.dob || filters.assignee || filters.dateFilter || filters.myAssignmentsOnly);
-    }, [filters]);
-
-
+    const activeCount = FILTER_FIELD_KEYS.filter((key) => Boolean(filters?.[key])).length;
 
     return (
         /*
-         * No stacking layer. This toolbar overlays nothing — the filter panel
-         * below expands in flow rather than floating over the table — and
-         * `z-ds-dropdown` on a page container outranked the workspace topbar,
-         * which sits on `sticky`. Everything the topbar contains is trapped in
-         * the topbar's own stacking context, so the open notifications panel
-         * could never climb over a page element on the dropdown layer.
+         * No stacking layer. This toolbar overlays nothing — the filter row
+         * below expands in flow rather than floating over the table — and a
+         * layer on a page container would outrank the workspace topbar, which
+         * sits on `sticky`.
          */
-        <div className="relative flex shrink-0 flex-col gap-ds-3 border-b border-ds-border-subtle bg-ds-surface p-ds-4">
-
-            <div className="flex flex-col items-center justify-between gap-ds-4 sm:flex-row">
-                <div className="flex flex-wrap items-center gap-ds-4">
-                    <div>
-                        <h2 className="flex items-center gap-ds-2 text-ds-heading-md font-bold text-ds-content">
-                            {activeTab === 'company_leads' && <Icon icon={Briefcase} size="lg" className="text-ds-status-warning-fg" />}
-                            {getTabTitle()}
-                        </h2>
-                        <p className="text-ds-xs font-medium text-ds-content-muted">
-                            Showing {dataCount} of {totalCount} records
-                        </p>
-                    </div>
-
-                    {canAssign && selectedCount > 0 && (
-                        <div className="border-l border-ds-border-subtle pl-ds-4 animate-in fade-in slide-in-from-left-2">
-                            <Button variant="primary" onClick={onAssignLeads}>
-                                <Icon icon={Users} />
-                                Assign ({selectedCount})
-                            </Button>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex w-full flex-wrap items-center justify-end gap-ds-2 sm:w-auto">
-                    {showMyAssignmentsToggle && (
-                        /*
-                         * `aria-pressed` rather than a colour swap: this is a
-                         * filter that is on or off, and the previous version
-                         * signalled its state only by turning blue.
-                         */
-                        <Button
-                            variant={myAssignmentsOnly ? 'primary' : 'secondary'}
-                            aria-pressed={myAssignmentsOnly}
-                            onClick={() => onToggleMyAssignments?.(!myAssignmentsOnly)}
-                        >
-                            <Icon icon={UserCircle} />
-                            <span className="hidden sm:inline">{myAssignmentsLabel}</span>
-                            <span className="sm:hidden ds-visually-hidden">{myAssignmentsLabel}</span>
-                        </Button>
-                    )}
-
-                    <div className="relative flex-1 sm:w-64">
-                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-ds-3">
-                            <Icon icon={Search} className="text-ds-content-muted" />
-                        </span>
-                        <Input
-                            type="search"
-                            aria-label="Search name, phone or email"
-                            placeholder="Search name, phone, email..."
-                            className="pl-10"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-
-                    <Button
-                        variant={showFilters || hasActiveFilters ? 'primary' : 'secondary'}
-                        aria-pressed={showFilters}
-                        aria-expanded={showFilters}
-                        onClick={() => setShowFilters(!showFilters)}
-                    >
-                        <Icon icon={Filter} />
-                        <span className="hidden sm:inline">Filters</span>
-                        <span className="sm:hidden ds-visually-hidden">Filters</span>
-                        {/* The dot repeats what the label already says, for a
-                            glance rather than instead of it. */}
-                        {hasActiveFilters && (
-                            <>
-                                <span aria-hidden="true" className="h-2 w-2 rounded-ds-full bg-current" />
-                                <span className="ds-visually-hidden">(filters applied)</span>
-                            </>
-                        )}
-                    </Button>
-                </div>
-            </div>
-
-            {showFilters && (
-                <div className="border-t border-dashed border-ds-border-subtle pb-ds-1 pt-ds-3 animate-in slide-in-from-top-2">
-                    <div className="grid grid-cols-1 gap-ds-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <ListToolbar
+            segments={segments && { ariaLabel: 'Pipeline segment', ...segments }}
+            toggle={showMyAssignmentsToggle
+                ? { label: myAssignmentsLabel, checked: myAssignmentsOnly, onChange: (next) => onToggleMyAssignments?.(next) }
+                : undefined}
+            search={{
+                label: 'Search name, phone or email',
+                placeholder: 'Search name, phone, email...',
+                value: searchQuery,
+                onChange: setSearchQuery,
+            }}
+            filters={{
+                open: showFilters,
+                onOpenChange: setShowFilters,
+                activeCount,
+                onClear: () => setFilters((prev) => ({ ...prev, ...CLEARED_FIELDS })),
+                children: (
+                    <>
                         <FormField id="toolbar-driver-type" label="Freight type">
                             <Select
                                 value={filters?.driverType || ''}
@@ -199,12 +122,6 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                             </Select>
                         </FormField>
 
-                        {/* A plain string label, like its three siblings.
-                            `FormField` throws on anything else, and this one was
-                            passed a `<span>` carrying a decorative calendar icon
-                            — so opening this panel crashed the toolbar. None of
-                            the other filters had an icon anyway; the label reads
-                            the same without it. */}
                         <FormField id="toolbar-date" label="Filter by date">
                             <Input
                                 type="date"
@@ -212,16 +129,15 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                                 onChange={(e) => handleFilterChange('dateFilter', e.target.value)}
                             />
                         </FormField>
-                    </div>
-
-                    <div className="mt-ds-3">
-                        <Button variant="danger" fullWidth className="sm:w-auto" onClick={clearFilters}>
-                            <Icon icon={X} />
-                            Clear all filters
-                        </Button>
-                    </div>
-                </div>
-            )}
-        </div>
+                    </>
+                ),
+            }}
+            actions={canAssign && selectedCount > 0 ? (
+                <Button variant="primary" onClick={onAssignLeads}>
+                    <Icon icon={Users} />
+                    Assign ({selectedCount})
+                </Button>
+            ) : null}
+        />
     );
 });
