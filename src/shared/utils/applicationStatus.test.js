@@ -4,6 +4,7 @@ import {
     normalizeApplicationStatus,
     getStatusesForSegment,
     statusMatchesSegment,
+    applicationStatusLabel,
 } from './applicationStatus';
 
 describe('normalizeApplicationStatus', () => {
@@ -74,5 +75,26 @@ describe('statusMatchesSegment', () => {
     it('all segment matches everything', () => {
         expect(statusMatchesSegment('Whatever', 'all')).toBe(true);
         expect(statusMatchesSegment(null, 'all')).toBe(true);
+    });
+});
+
+describe('applicationStatusLabel', () => {
+    it.each([
+        ['New', 'New'],
+        ['New Application', 'New'],
+        [' new application ', 'New'],
+        ['Hired', 'Hired'],
+        ['Approved', 'Hired'],
+        ['Terminated', 'Terminated'],
+        ['Declined', 'Declined'],
+        ['Rejected', 'Declined'],
+    ])('shows %j as its group name %j', (raw, label) => {
+        expect(applicationStatusLabel(raw)).toBe(label);
+    });
+
+    it('shows any other status as stored, and nothing for none', () => {
+        expect(applicationStatusLabel('Contact Attempt 1')).toBe('Contact Attempt 1');
+        expect(applicationStatusLabel(' Background Check ')).toBe('Background Check');
+        expect(applicationStatusLabel(undefined)).toBe('');
     });
 });

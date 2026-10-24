@@ -64,7 +64,7 @@ const AI_MODEL_VERSIONS = {
 
 const SCREENS = [
     { name: 'company dashboard leaderboard', url: '/company/dashboard?e2eAuth=company_admin', row: 'Jordan Recruiter' },
-    { name: 'applications', url: '/company/drivers/applications?e2eAuth=company_admin', row: 'James Mcdonald' },
+    { name: 'applications', url: '/company/drivers/applications?e2eAuth=company_admin', row: 'James McDonald' },
     { name: 'company leads', url: '/company/drivers/leads/company?e2eAuth=company_admin', row: 'Omar Attempt' },
     { name: 'my leads', url: '/company/drivers/leads/my?e2eAuth=company_admin', row: 'Lena Leadsen' },
     { name: 'unfinished applications', url: '/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock', row: 'Dana Whitfield' },

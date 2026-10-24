@@ -90,7 +90,7 @@ horizontal-overflow interaction without domain logic entering the component.
 
 For the Company candidate-list pilot, the mobile presentation is `scroll`.
 Candidate records are a comparison surface with meaningful status, date,
-assignment, and action columns; hiding those columns or converting them to
+assignment and phone columns; hiding those columns or converting them to
 cards would remove context. The focused, labelled scroll region preserves the
 native table and all actions, and a mobile-only hint explains the gesture.
 

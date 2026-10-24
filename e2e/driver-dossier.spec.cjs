@@ -49,7 +49,9 @@ async function openList(page) {
 
 async function openDossier(page) {
   const row = page.getByRole('row', { name: ROW_NAME });
-  await row.click();
+  // On the driver's name, as a person taps a row: on a phone the middle of a
+  // row's visible part is its phone number, which is the call button.
+  await row.getByRole('rowheader').click();
   await expect(page.getByRole('dialog', DIALOG)).toBeVisible();
   await expect(page.getByRole('tablist', SECTION_NAV)).toBeVisible();
   return row;

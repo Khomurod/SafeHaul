@@ -42,6 +42,17 @@ export function normalizeApplicationStatus(rawStatus) {
 }
 
 /**
+ * The words a list shows for a raw stored status: one name per pipeline group,
+ * the first of its variants ('New Application' reads 'New', 'Approved' reads
+ * 'Hired', 'Rejected' reads 'Declined'); any other status as stored, trimmed.
+ * Display only: the stored value never changes.
+ */
+export function applicationStatusLabel(rawStatus) {
+    const group = APPLICATION_STATUS_GROUPS[normalizeApplicationStatus(rawStatus)];
+    return group ? group[0] : String(rawStatus ?? '').trim();
+}
+
+/**
  * Raw stored status values to use in a Firestore `where('status', 'in', ...)`
  * for a pipeline segment. Returns null for 'all' / unknown segments (no
  * constraint should be applied).

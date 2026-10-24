@@ -1,59 +1,83 @@
 import React from 'react';
-import { Avatar, Chip, IconButton, defineTableColumns } from '@/design-system/components';
-import {
-    Icon as DsIcon,
-    Phone, User, Briefcase, MapPin, Calendar,
-} from '@design-system/icons';
-import { getFieldValue, formatPhoneNumber, toTitleCase } from '@shared/utils/helpers';
+import { Badge, Button, defineTableColumns } from '@/design-system/components';
+import { formatPhoneNumber, toTitleCase } from '@shared/utils/helpers';
+import { applicationStatusLabel } from '@shared/utils/applicationStatus';
+import { toUsStateCode } from '@shared/utils/usStates';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 
 /**
- * The candidate list's column definitions and their pure display helpers,
- * extracted verbatim from `views/CompanyCandidatesListPage.jsx`. The view
- * memoises `buildCandidateColumns(ctx)` with its ORIGINAL dependency array,
- * so capture semantics are unchanged: `handlePhoneClick` arrives through `ctx`
- * exactly as the inline closure captured it. The Added column's order is not a
- * column concern: the page passes it to `DataTable` as `sort`.
+ * The candidate list's columns and their pure display helpers. One fact per
+ * cell, one line per record (the list-page standard,
+ * `src/design-system/patterns/list-toolbar/README.md`): Driver, Phone, Status,
+ * Freight, State, Applied, Last call, Recruiter. The Applied column's order is
+ * not a column concern: the page passes it to `DataTable` as `sort`.
+ *
+ * Each list fits the 1,134px a 1440px window leaves it: Applications 1,112px.
+ * A lead list's Driver column is `xl`, because a stale first attempt ("Stale")
+ * sits beside the name there. Company Leads (1,124px with its selection column)
+ * leaves out State, which its filter and the dossier still show; My Leads
+ * (1,036px) leaves out Recruiter, which would name the reader on every row. A
+ * longer value is shortened with an ellipsis (`truncate`) rather than widening
+ * a column.
  */
 
-// ── Status pill styling ──
-
-// ── Call outcome pill ──
-export const getOutcomePillStyle = (outcome) => {
-    const o = (outcome || '').toLowerCase();
-    if (o.includes('connected') || o.includes('spoke') || o.includes('interested'))
-        return 'bg-ds-status-success-bg text-ds-status-success-fg border-ds-status-success-border';
-    if (o.includes('callback'))
-        return 'bg-ds-status-info-bg text-ds-status-info-fg border-ds-status-info-border';
-    if (o.includes('voicemail'))
-        return 'bg-ds-status-warning-bg text-ds-status-warning-fg border-ds-status-warning-border';
-    if (o.includes('no answer'))
-        return 'bg-ds-status-danger-bg text-ds-status-danger-fg border-ds-status-danger-border';
-    if (o.includes('not interested'))
-        return 'bg-ds-status-neutral-bg text-ds-status-neutral-fg border-ds-status-neutral-border';
-    return 'bg-ds-status-neutral-bg text-ds-status-neutral-fg border-ds-status-neutral-border';
+/**
+ * A name as the driver wrote it ("McDonald", "de la Cruz"). Only a name typed
+ * all in capitals or all in small letters is put in title case.
+ */
+export const nameAsWritten = (text) => {
+    const name = String(text ?? '').trim().replace(/\s+/g, ' ');
+    const oneCase = name === name.toLowerCase() || name === name.toUpperCase();
+    return oneCase ? toTitleCase(name) : name;
 };
 
-export const getCandidateName = (item) => item.fullName
-    ? toTitleCase(item.fullName)
-    : toTitleCase(`${item.firstName || 'Unknown'} ${item.lastName || 'Driver'}`.trim());
+export const getCandidateName = (item) => nameAsWritten(
+    item.fullName || [item.firstName, item.lastName].filter(Boolean).join(' '),
+) || 'Unknown Driver';
 
-// ── A record's Added Date, which the column shows and its arrows sort by ──
+// ── A record's Added Date, which the column shows and its header sorts by ──
 // The day the record was created, which the date filter searches by; an
 // application without one shows its submission day.
 export const addedDateOf = (item) => item.createdAt || item.submittedAt;
 
-// ── Format Firestore timestamp to MM/DD/YYYY ──
+// ── Format a Firestore timestamp as "Jul 11, 2026" ──
 export const formatAddedDate = (item) => {
     const ts = addedDateOf(item);
     if (!ts) return null;
     try {
         const date = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
         if (isNaN(date.getTime())) return null;
-        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     } catch {
         return null;
     }
+};
+
+/** The freight types a record lists, as one line ("Dry Van, Reefer"). */
+export const freightOf = (item) => {
+    const { driverType } = item;
+    if (Array.isArray(driverType)) return driverType.filter(Boolean).join(', ');
+    return typeof driverType === 'string' ? driverType.trim() : '';
+};
+
+/** A US state by its postal code ("Texas" and "TX" both read "TX"); any other region as stored. */
+export const stateOf = (item) => toUsStateCode(item.state) || String(item.state ?? '').trim();
+
+/**
+ * The last call's outcome without the "Connected / " every answered call
+ * starts with ("Not Interested" says the call connected); the stored label
+ * stays whole.
+ */
+export const lastCallOf = (item) => String(item.lastCallOutcome ?? '').replace(/^Connected \/\s*/, '').trim();
+
+/**
+ * The assignee's name from the company's team, else the name the record
+ * stored; '' for a record with no assignee. A name left on an unassigned record
+ * is a leftover: unassigning once stored "Unassigned" as the name.
+ */
+export const recruiterOf = (item, teamNames) => {
+    if (!item.assignedTo) return '';
+    return teamNames.get(item.assignedTo) || item.assignedToName || '';
 };
 
 /** >48h in Contact Attempt 1 (uses statusEnteredAt only). */
@@ -88,209 +112,126 @@ export const LEAD_PIPELINE_TABS = [
     { id: 'interested', label: 'Interested' },
 ];
 
-export function buildCandidateColumns({ handlePhoneClick }) {
-        const cols = [
-            // Identity Cell: Name + Phone/Email
-            {
-                key: 'identity',
-                header: 'Driver / Contact',
-                rowHeader: true,
-                width: 'lg',
-                render: (item) => {
-                    const name = getCandidateName(item);
-                    const stale = staleContactMeta(item);
+/** An empty cell, said quietly. */
+const quiet = (text = '—') => <span className="text-ds-content-muted">{text}</span>;
 
-                    return (
-                        <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-ds-body font-semibold text-ds-content">{name}</p>
-                                {stale && (
-                                    <span
-                                        className={`text-ds-xs font-bold uppercase px-2 py-0.5 rounded-ds-full border ${stale === 'severe'
-                                            ? 'bg-ds-status-danger-bg text-ds-status-danger-fg border-ds-status-danger-border'
-                                            : 'bg-ds-status-warning-bg text-ds-status-warning-fg border-ds-status-warning-border'
-                                            }`}
-                                    >
-                                        Stale CA1
-                                    </span>
-                                )}
-                            </div>
-                            <div className="mt-1">
-                                {/* `sm` is 36px on the shared control scale. The
-                                    hand-written chip was 32px, so this is the one
-                                    place the migration rounds UP rather than down:
-                                    it was the only site with a real touch target,
-                                    and putting it on the scale should not cost it.
-                                    Measured off the baselines: the row pitch stays
-                                    92px, because the two-line stack had the slack. */}
-                                <Chip
-                                    size="sm"
-                                    icon={Phone}
-                                    onClick={(e) => handlePhoneClick(e, item)}
-                                    aria-label={`Call ${name} at ${formatPhoneNumber(getFieldValue(item.phone))}`}
-                                >
-                                    {formatPhoneNumber(getFieldValue(item.phone))}
-                                </Chip>
-                            </div>
-                        </div>
-                    );
-                },
-            },
-        ];
+/** A value that may be cut short: the whole of it on hover. */
+const clipped = (value) => (value ? <span title={value}>{value}</span> : quiet());
 
-        // Status pill
-        cols.push({
-            key: 'status',
-            header: 'Status',
-            // `lg`: the widest status a list shows ("Contact Attempt 1", "New
-            // Application") is a non-wrapping badge, and `sm` could not hold it.
-            width: 'lg',
-            /*
-             * `StatusBadge`, not a fourth hand-built pill. The local one was
-             * tokenised — which is why the colour rules never flagged it — but it
-             * was still a second badge contract, and it had its *own*
-             * status-to-tone mapping that disagreed with the dossier's: this
-             * screen called "Hired" purple while the dossier called it green.
-             * One adapter now, so a status is the same colour wherever it
-             * appears. It also stops wrapping: `Badge` is `white-space: nowrap`
-             * and sized to its content, so "New Application" no longer breaks
-             * across two lines inside a stretched pill.
-             */
-            render: (item) => <StatusBadge status={item.status || 'New'} />,
-        });
+/**
+ * @param {object} ctx
+ * @param {(event: object, item: object) => void} ctx.handlePhoneClick
+ * @param {'applications'|'company_leads'|'my_leads'} [ctx.scope]
+ * @param {Array<{ id: string, name?: string }>} [ctx.teamMembers] `useCompanyTeam`'s team
+ */
+export function buildCandidateColumns({ handlePhoneClick, scope, teamMembers = [] }) {
+    const isApplications = scope === 'applications';
+    const teamNames = new Map(teamMembers.filter((m) => m?.id && m.name).map((m) => [m.id, m.name]));
 
-
-        // Qualifications: Position + Type + Experience + State
-        cols.push({
-            key: 'qualifications',
-            header: 'Position / Type',
-            width: 'lg',
-            render: (item) => {
-                const position = item.positionApplyingTo || 'Driver';
-                const types = Array.isArray(item.driverType) && item.driverType.length > 0
-                    ? item.driverType.join(', ')
-                    : (typeof item.driverType === 'string' && item.driverType ? item.driverType : 'Unspecified');
-
-                return (
-                    <div>
-                        <div className="flex items-center gap-1.5 text-ds-body font-semibold text-ds-content">
-                            <DsIcon icon={Briefcase} size="xs" className="text-ds-content-muted" />
-                            {position}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                            {(item.experience || item['experience-years']) && (
-                                <span className="text-ds-xs text-ds-content-secondary font-medium bg-ds-surface-subtle px-1.5 py-0.5 rounded-ds-sm">
-                                    {item.experience || item['experience-years']} Exp
-                                </span>
-                            )}
-                            {item.state && (
-                                <span className="flex items-center gap-0.5 text-ds-xs text-ds-content-secondary font-medium bg-ds-surface-subtle px-1.5 py-0.5 rounded-ds-sm">
-                                    <DsIcon icon={MapPin} size="xs" className="text-ds-content-muted" /> {item.state}
-                                </span>
-                            )}
-                        </div>
-                        <p className="text-ds-xs text-ds-content-muted font-medium mt-0.5 truncate" title={types}>
-                            {types}
-                        </p>
-                    </div>
-                );
-            },
-        });
-
-        // Added Date. The page owns the order (newest first unless the header
-        // is pressed); the table draws the header's one sort arrow.
-        cols.push({
-            key: 'addedDate',
-            header: 'Added',
-            sortable: { first: 'desc', labels: { desc: 'Newest first', asc: 'Oldest first' } },
-            width: 'md',
-            render: (item) => {
-                const dateStr = formatAddedDate(item);
-                if (!dateStr) {
-                    return <span className="text-ds-xs text-ds-content-muted italic">—</span>;
-                }
-                return (
-                    <span className="inline-flex items-center gap-1 text-ds-xs text-ds-content-secondary font-medium">
-                        <DsIcon icon={Calendar} size="xs" className="text-ds-content-muted" />
-                        {dateStr}
-                    </span>
-                );
-            },
-        });
-
-        // Last Call
-        cols.push({
-            key: 'lastCall',
-            header: 'Last Call',
-            width: 'sm',
-            render: (item) => {
-                if (!item.lastCallOutcome) {
-                    return <span className="text-ds-xs text-ds-content-muted italic">—</span>;
-                }
-                return (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-ds-full text-ds-xs font-semibold border ${getOutcomePillStyle(item.lastCallOutcome)}`}>
-                        {item.lastCallOutcome}
-                    </span>
-                );
-            },
-        });
-
-        // Assignee
-        cols.push({
-            key: 'assignee',
-            header: 'Recruiter',
-            width: 'md',
-            render: (item) => {
-                // A name without an assignee is a leftover: unassigning once
-                // stored "Unassigned" as the name.
-                if (item.assignedTo && item.assignedToName) {
-                    return (
-                        <span className="inline-flex items-center gap-1.5 text-ds-xs font-medium text-ds-content bg-ds-surface-subtle px-2 py-1 rounded-ds-full border border-ds-border-subtle">
-                            <Avatar size="xs" tone="accent">
-                                {item.assignedToName.charAt(0)}
-                            </Avatar>
-                            {item.assignedToName}
-                        </span>
-                    );
-                }
-                return (
-                    <span className="text-ds-xs text-ds-content-muted italic flex items-center gap-1">
-                        <DsIcon icon={User} size="xs" /> Unassigned
-                    </span>
-                );
-            },
-        });
-
-        // Actions — hover reveal
-        cols.push({
-            key: 'actions',
-            header: '',
-            headerLabel: 'Actions',
-            align: 'end',
-            width: 'actions',
-            stopPropagation: true,
+    return defineTableColumns([
+        {
+            key: 'identity',
+            header: 'Driver',
+            rowHeader: true,
+            width: isApplications ? 'lg' : 'xl',
             render: (item) => {
                 const name = getCandidateName(item);
+                const stale = staleContactMeta(item);
                 return (
-                    <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity duration-200">
-                        {/*
-                          `IconButton size="sm"` — 36px, which is exactly the
-                          `h-9 w-9` this had chosen by hand, so the row height does
-                          not move. The accessible name is record-specific, which is
-                          the rule for a row action.
-                        */}
-                        <IconButton
-                            variant="ghost"
-                            size="sm"
-                            label={`Call ${name}`}
-                            onClick={(e) => handlePhoneClick(e, item)}
-                        >
-                            <DsIcon icon={Phone} />
-                        </IconButton>
-                    </div>
+                    <span className="flex min-w-0 items-center gap-ds-2">
+                        <span className="truncate font-semibold text-ds-content" title={name}>{name}</span>
+                        {/* "Stale", not "Stale CA1": the Status beside it says
+                            Contact Attempt 1, and the name keeps the room. */}
+                        {stale && (
+                            <span className="shrink-0" title="More than 48 hours in Contact Attempt 1">
+                                <Badge tone={stale === 'severe' ? 'danger' : 'warning'}>Stale</Badge>
+                            </span>
+                        )}
+                    </span>
                 );
             },
-        });
-
-        return defineTableColumns(cols);
+        },
+        {
+            // The number is the call button: it opens the same call log the
+            // row's phone always did.
+            key: 'phone',
+            header: 'Phone',
+            width: 'md',
+            stopPropagation: true,
+            render: (item) => {
+                if (!item.phone) return quiet();
+                const phone = formatPhoneNumber(item.phone);
+                return (
+                    <Button
+                        variant="link"
+                        size="sm"
+                        onClick={(e) => handlePhoneClick(e, item)}
+                        aria-label={`Call ${getCandidateName(item)} at ${phone}`}
+                    >
+                        <span className="tabular-nums">{phone}</span>
+                    </Button>
+                );
+            },
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            // `lg`: the widest status a list shows ("Contact Attempt 1") is a
+            // non-wrapping badge.
+            width: 'lg',
+            // An application shows one name per pipeline group ("New Application"
+            // reads "New"), the names its segments use; a lead's status as stored.
+            render: (item) => (
+                <StatusBadge status={(isApplications ? applicationStatusLabel(item.status) : item.status) || 'New'} />
+            ),
+        },
+        {
+            key: 'freight',
+            header: 'Freight',
+            width: 'sm',
+            truncate: true,
+            render: (item) => clipped(freightOf(item)),
+        },
+        ...(scope === 'company_leads' ? [] : [{
+            key: 'state',
+            header: 'State',
+            width: 'xs',
+            truncate: true,
+            render: (item) => clipped(stateOf(item)),
+        }]),
+        {
+            // The page owns the order (newest first unless the header is
+            // pressed); the table draws the header's one sort arrow.
+            key: 'addedDate',
+            header: isApplications ? 'Applied' : 'Added',
+            sortable: { first: 'desc', labels: { desc: 'Newest first', asc: 'Oldest first' } },
+            // `md`: "Dec 22, 2026" is about 97px, on one line.
+            width: 'md',
+            render: (item) => {
+                const date = formatAddedDate(item);
+                return date ? <span className="whitespace-nowrap tabular-nums">{date}</span> : quiet();
+            },
+        },
+        {
+            key: 'lastCall',
+            header: 'Last call',
+            // `md`: "Not Interested", "Left Voicemail" and the like whole.
+            width: 'md',
+            truncate: true,
+            render: (item) => {
+                const outcome = lastCallOf(item);
+                return outcome ? <span title={item.lastCallOutcome}>{outcome}</span> : quiet();
+            },
+        },
+        ...(scope === 'my_leads' ? [] : [{
+            key: 'assignee',
+            header: 'Recruiter',
+            width: 'sm',
+            truncate: true,
+            render: (item) => {
+                if (!item.assignedTo) return quiet('Unassigned');
+                return clipped(recruiterOf(item, teamNames));
+            },
+        }]),
+    ]);
 }

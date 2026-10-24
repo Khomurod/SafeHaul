@@ -48,7 +48,8 @@ test.describe('Company candidate-list DataTable pilot', () => {
     const table = page.getByRole('table', { name: 'Applications table' });
     const statusHeader = table.getByRole('columnheader', { name: 'Status' });
     const mariaRow = table.getByRole('row', { name: 'Open driver dossier for Maria Garcia' });
-    const mariaStatus = mariaRow.getByRole('cell', { name: 'New Application' });
+    // Stored as "New Application"; the list shows its group's one name.
+    const mariaStatus = mariaRow.getByRole('cell', { name: 'New', exact: true });
 
     await expect(statusHeader).toHaveAttribute('data-align', 'start');
     await expect(mariaStatus).toHaveAttribute('data-align', 'start');
@@ -71,23 +72,25 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByRole('heading', { name: 'Application Review' })).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Call Maria Garcia', exact: true }).click();
+    // The phone number is the call button.
+    await page.getByRole('button', { name: 'Call Maria Garcia at (512) 555-0134', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Log call result' })).toBeVisible();
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Close call result' }).click();
 
-    // Newest first is the list's own order, and the Added header says so;
+    // Newest first is the list's own order, and the Applied header says so;
     // pressing it turns the whole list oldest first, and again turns it back.
-    const addedHeader = table.getByRole('columnheader', { name: 'Added' });
-    const added = addedHeader.getByRole('button', { name: 'Added' });
+    const addedHeader = table.getByRole('columnheader', { name: 'Applied' });
+    const added = addedHeader.getByRole('button', { name: 'Applied' });
     await expect(addedHeader).toHaveAttribute('aria-sort', 'descending');
-    await expect(table.locator('tbody tr').first()).toContainText(/James Mcdonald/i);
+    // The name as the driver wrote it.
+    await expect(table.locator('tbody tr').first()).toContainText('James McDonald');
     await added.click();
     await expect(addedHeader).toHaveAttribute('aria-sort', 'ascending');
     await expect(table.locator('tbody tr').first()).toContainText(/Linda Petrov/i);
     await added.press('Enter');
     await expect(addedHeader).toHaveAttribute('aria-sort', 'descending');
-    await expect(table.locator('tbody tr').first()).toContainText(/James Mcdonald/i);
+    await expect(table.locator('tbody tr').first()).toContainText('James McDonald');
   });
 
   test('uses native page-aware selection with a mixed select-all state', async ({ page }) => {
@@ -137,7 +140,7 @@ test.describe('Company candidate-list DataTable pilot', () => {
     expect(dimensions.overflowX).toBe('auto');
     expect(dimensions.tabIndex).toBe(0);
     await expect(page.getByText('Swipe horizontally to view all columns and actions.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Call Maria Garcia', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Call Maria Garcia at (512) 555-0134', exact: true })).toBeVisible();
 
     await page.getByRole('row', { name: 'Open driver dossier for Maria Garcia' })
       .click({ position: { x: 12, y: 12 } });
