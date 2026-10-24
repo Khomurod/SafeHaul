@@ -33,12 +33,12 @@ const { uploadLeadFile } = require('./helpers/leadImport.cjs');
  * callable returns, served in place of the network. A table behind a tab is
  * reached by `open`, which presses what a person would.
  *
- * Not covered, because no fixture renders the table without Firestore: the
- * campaign results and report (need a finished campaign), a company's alert
- * interactions (read from its `feature_alerts`), and the dossier's own tables.
- * The import-leads preview is covered: the screen picks a made-up file, as a
- * person would; so is the stats backfill preview, from a dry run answered by
- * `callables`.
+ * Not covered, because no fixture renders the table without Firestore: a
+ * company's alert interactions (read from its `feature_alerts`) and the
+ * dossier's own tables. The import-leads preview is covered: the screen picks
+ * a made-up file, as a person would; so is the stats backfill preview, from a
+ * dry run answered by `callables`, and a finished campaign's results and
+ * report, from the `e2eCampaign=mock` seed.
  */
 
 // Two services as `getAiModelVersions` returns them (shape:
@@ -154,7 +154,27 @@ const SCREENS = [
         row: '2026-10-14',
         table: 'Backfill preview by day',
     },
+    {
+        name: 'campaign results',
+        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
+        open: (page) => openFinishedCampaign(page, /^Details$/i),
+        row: 'E2E Recipient 12',
+        table: 'Recipient delivery log',
+    },
+    {
+        name: 'campaign delivery report',
+        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
+        open: (page) => openFinishedCampaign(page, 'View Report'),
+        row: 'Carrier rejected the message.',
+        table: 'Per-recipient delivery results',
+    },
 ];
+
+/** Opens the seeded finished campaign's details or report, as a person would. */
+async function openFinishedCampaign(page, button) {
+    await page.getByRole('tab', { name: /Past Sequences/i }).click();
+    await page.getByRole('button', { name: button }).first().click();
+}
 
 /** Asks for a dry run of one made-up company, as an operator would. */
 async function runBackfillDryRun(page) {

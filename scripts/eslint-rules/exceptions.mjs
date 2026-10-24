@@ -76,12 +76,6 @@ export const DS_EXCEPTIONS = {
             + 'background, no border) and is a text-and-icon cell trigger. All three are tokenised and '
             + 'carry the shared focus ring.',
     },
-    'src/features/campaigns/components/CampaignResultsTable.jsx': {
-        'raw-table': NATIVE_TABLE,
-    },
-    'src/features/campaigns/components/DetailedReportModal.jsx': {
-        'raw-table': NATIVE_TABLE,
-    },
     'src/features/campaigns/components/DeviceMockup.jsx': {
         'raw-hex-colour': 'roadmap §5 — DeviceMockup is artwork, not interface. The bezel, side buttons '
             + 'and battery pips are moulded plastic, not a SafeHaul surface; mapping them onto '

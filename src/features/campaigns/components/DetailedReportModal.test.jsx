@@ -81,18 +81,32 @@ describe('DetailedReportModal — query contract', () => {
 });
 
 describe('DetailedReportModal — async states', () => {
-    it('shows the loading message while fetching', () => {
+    it('shows the loading state while fetching', () => {
         fs.getDocs.mockReturnValue(new Promise(() => {})); // never resolves
         renderModal();
-        expect(screen.getByText('Loading logs...')).toBeInTheDocument();
-        expect(screen.getByRole('status')).toHaveTextContent('Loading delivery details');
+        // The shared table is busy and announces it.
+        const table = screen.getByRole('table', { name: 'Per-recipient delivery results' });
+        expect(table.closest('.ds-data-table')).toHaveAttribute('aria-busy', 'true');
+        expect(screen.getByText('Loading delivery details').closest('[role="status"]')).not.toBeNull();
     });
 
-    it('shows the exact empty message when there are no logs', async () => {
+    it('shows and announces the exact empty message when there are no logs', async () => {
         fs.getDocs.mockResolvedValue({ docs: [] });
         renderModal();
-        expect(await screen.findByText('No activity logs found. Ensure permissions are set.')).toBeInTheDocument();
-        expect(screen.getByRole('status')).toHaveTextContent('No delivery logs found');
+        const empty = await screen.findByText('No activity logs found. Ensure permissions are set.');
+        expect(empty.closest('[role="status"]')).not.toBeNull();
+    });
+
+    it('announces how many records loaded, and draws them on the shared table', async () => {
+        fs.getDocs.mockResolvedValue({
+            docs: [logDoc('a', { recipientName: 'Test Driver One', status: 'delivered' }), logDoc('b', { recipientName: 'Test Driver Two', status: 'delivered' })],
+        });
+        renderModal();
+        await screen.findByText('Test Driver One');
+        expect(screen.getByText('2 delivery records loaded')).toBeInTheDocument();
+        const table = screen.getByRole('table', { name: 'Per-recipient delivery results' });
+        expect(table.closest('.ds-data-table')).toHaveAttribute('data-max-height', 'md');
+        expect(within(table).getByRole('rowheader', { name: 'Test Driver Two' })).toBeInTheDocument();
     });
 
     it('shows the exact fetch-error toast', async () => {

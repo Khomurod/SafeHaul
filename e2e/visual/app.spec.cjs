@@ -215,6 +215,39 @@ const SCREENS = [
         },
         ready: (page) => page.getByRole('rowheader', { name: '2026-10-01' }),
     },
+    /*
+     * A finished campaign (`e2eCampaign=mock`): its recipient log under Details,
+     * and its delivery report dialog. Twelve made-up recipients, so both capped
+     * tables scroll. Details scrolls inside its own panel, below the masthead, so
+     * the shot brings the log into view there; the window does not move.
+     */
+    {
+        name: 'company-campaign-results',
+        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
+        open: async (page) => {
+            await page.getByRole('tab', { name: /Past Sequences/i }).click();
+            await page.getByRole('button', { name: /^Details$/i }).first().click();
+            await page.getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }).waitFor();
+            // Only the panel that scrolls moves: `scrollIntoView` would also shift the
+            // app shell, uncovering the skip link parked above its top edge.
+            await page.getByRole('heading', { name: 'Recipient Log' }).evaluate((heading) => {
+                let panel = heading.parentElement;
+                while (panel && !/(auto|scroll)/.test(getComputedStyle(panel).overflowY)) panel = panel.parentElement;
+                if (panel) panel.scrollTop += heading.getBoundingClientRect().top - panel.getBoundingClientRect().top;
+            });
+        },
+        ready: (page) => page.getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }),
+    },
+    {
+        name: 'company-campaign-report',
+        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
+        open: async (page) => {
+            await page.getByRole('tab', { name: /Past Sequences/i }).click();
+            await page.getByRole('button', { name: 'View Report' }).first().click();
+        },
+        ready: (page) => page.getByRole('dialog', { name: 'Delivery Report' })
+            .getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }),
+    },
     {
         name: 'login',
         url: '/login',
