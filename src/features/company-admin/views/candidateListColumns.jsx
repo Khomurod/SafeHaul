@@ -2,7 +2,7 @@ import React from 'react';
 import { Avatar, Chip, IconButton, defineTableColumns } from '@/design-system/components';
 import {
     Icon as DsIcon,
-    Phone, User, Briefcase, MapPin, Calendar, ArrowUp, ArrowDown,
+    Phone, User, Briefcase, MapPin, Calendar,
 } from '@design-system/icons';
 import { getFieldValue, formatPhoneNumber, toTitleCase } from '@shared/utils/helpers';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
@@ -11,8 +11,9 @@ import { StatusBadge } from '@shared/components/badges/StatusBadge';
  * The candidate list's column definitions and their pure display helpers,
  * extracted verbatim from `views/CompanyCandidatesListPage.jsx`. The view
  * memoises `buildCandidateColumns(ctx)` with its ORIGINAL dependency array,
- * so capture semantics are unchanged: `handleDateSort` and `handlePhoneClick`
- * arrive through `ctx` exactly as the inline closure captured them.
+ * so capture semantics are unchanged: `handlePhoneClick` arrives through `ctx`
+ * exactly as the inline closure captured it. The Added column's order is not a
+ * column concern: the page passes it to `DataTable` as `sort`.
  */
 
 // ── Status pill styling ──
@@ -87,7 +88,7 @@ export const LEAD_PIPELINE_TABS = [
     { id: 'interested', label: 'Interested' },
 ];
 
-export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneClick }) {
+export function buildCandidateColumns({ handlePhoneClick }) {
         const cols = [
             // Identity Cell: Name + Phone/Email
             {
@@ -196,45 +197,13 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             },
         });
 
-        // Added Date — with inline sort arrows
-        const isDateSorted = sortConfig.key === 'date';
+        // Added Date. The page owns the order (newest first unless the header
+        // is pressed); the table draws the header's one sort arrow.
         cols.push({
             key: 'addedDate',
-            header: (
-                <span className="inline-flex items-center gap-1">
-                    <DsIcon icon={Calendar} size="xs" className="text-ds-content-muted" />
-                    Added
-                    <span className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
-                        {/* Up arrow = Earliest first (asc). `pressed` rather than a
-                            colour utility: the active direction used to be marked
-                            with `text-ds-action-primary`, which loses to the
-                            variant's own `color` and would have left the table
-                            with nothing on screen saying how it is sorted. */}
-                        <IconButton
-                            label="Sort by earliest added date"
-                            variant="ghost"
-                            size="xs"
-                            onClick={() => handleDateSort('asc')}
-                            title="Earliest first"
-                            pressed={isDateSorted && sortConfig.direction === 'asc'}
-                        >
-                            <DsIcon icon={ArrowUp} size="xs" />
-                        </IconButton>
-                        {/* Down arrow = Latest first (desc) */}
-                        <IconButton
-                            label="Sort by latest added date"
-                            variant="ghost"
-                            size="xs"
-                            onClick={() => handleDateSort('desc')}
-                            title="Latest first"
-                            pressed={isDateSorted && sortConfig.direction === 'desc'}
-                        >
-                            <DsIcon icon={ArrowDown} size="xs" />
-                        </IconButton>
-                    </span>
-                </span>
-            ),
-            width: 'lg',
+            header: 'Added',
+            sortable: { first: 'desc', labels: { desc: 'Newest first', asc: 'Oldest first' } },
+            width: 'md',
             render: (item) => {
                 const dateStr = formatAddedDate(item);
                 if (!dateStr) {

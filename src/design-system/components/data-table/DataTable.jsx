@@ -8,6 +8,8 @@ import {
 } from '../../icons';
 import { defineTableColumns } from './tableColumnContract';
 import { useCardsLayout } from './useCardsLayout';
+import { ariaSortOf, checkSort } from './sorting';
+import { CardSortControl, SortButton } from './SortControls';
 import { contractViolation } from '../../contract';
 import './DataTable.css';
 import './pinnedColumn.css';
@@ -126,9 +128,11 @@ function LoadingRows({ columns, showSelection, loadingLabel, role }) {
 /**
  * Accessible, business-neutral table primitive.
  *
- * Features own data, column content, actions, sorting, and pagination
- * callbacks. This component owns the visual column contract, state treatment,
- * selection mechanics, keyboard row activation, and responsive scrolling.
+ * Features own data, column content, actions, the sort order (`sort` and
+ * `onSortChange`), and pagination callbacks. This component owns the visual
+ * column contract, the sort control in a sortable column's header (a "Sort by"
+ * list above the cards on a phone), state treatment, selection mechanics,
+ * keyboard row activation, and responsive scrolling.
  *
  * On a phone the table scrolls sideways inside its labelled region and, by
  * default, pins its first column so the row's label stays in view — the
@@ -165,6 +169,8 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   error,
   selection,
   pagination,
+  sort,
+  onSortChange,
 }) {
   const normalizedColumns = useMemo(() => defineTableColumns(columns), [columns]);
   const selectedSet = useMemo(() => {
@@ -186,6 +192,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   if (cards && showSelection) {
     contractViolation('A DataTable with mobilePresentation="cards" takes no selection; use mobilePresentation="scroll".');
   }
+  checkSort(normalizedColumns, sort, onSortChange);
   let tableMinWidth = minWidth;
   if (!MIN_WIDTHS.has(minWidth)) {
     contractViolation(`Unsupported DataTable minWidth "${minWidth}"; use ${[...MIN_WIDTHS].join(', ')}.`);
@@ -235,6 +242,10 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
         </div>
       )}
 
+      {cardsOnScreen && (
+        <CardSortControl columns={normalizedColumns} sort={sort} onSortChange={onSortChange} />
+      )}
+
       {mobilePresentation === 'scroll' && (
         <p className="ds-data-table__mobile-hint">
           {mobileHint}
@@ -275,9 +286,12 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
                   data-align={column.align}
                   data-width={column.width}
                   data-truncate={column.truncate || undefined}
+                  aria-sort={ariaSortOf(column, sort)}
                 >
                   {column.headerLabel && !column.header ? (
                     <span className="sr-only">{column.headerLabel}</span>
+                  ) : column.sortable && !cardsOnScreen ? (
+                    <SortButton column={column} sort={sort} onSortChange={onSortChange} />
                   ) : column.header}
                 </th>
               ))}

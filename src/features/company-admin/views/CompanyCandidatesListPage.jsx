@@ -44,13 +44,10 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     const [assigningLeads, setAssigningLeads] = useState([]);
     const [selectedRowIds, setSelectedRowIds] = useState([]);
 
-    // The Added Date arrows set the order Firestore sorts the whole list by.
-    // Latest first is the default; Earliest first, pressed again, turns back.
+    // Pressing the Added header sets the order Firestore sorts the whole list
+    // by: newest first by default, oldest first, then newest first again.
     const { dateOrder, setDateOrder } = dashboard;
-    const sortConfig = useMemo(() => ({ key: 'date', direction: dateOrder }), [dateOrder]);
-    const handleDateSort = (direction) => {
-        setDateOrder(direction === 'asc' && dateOrder !== 'asc' ? 'asc' : 'desc');
-    };
+    const sort = useMemo(() => ({ key: 'addedDate', direction: dateOrder }), [dateOrder]);
 
     // Force hook to respect the scope prop
     useEffect(() => {
@@ -160,9 +157,9 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     // pre-existing exhaustive-deps warning), and listing them now would
     // change when the columns rebuild.
     const columns = useMemo(
-        () => buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneClick }),
+        () => buildCandidateColumns({ handlePhoneClick }),
         // eslint-disable-next-line react-hooks/exhaustive-deps -- original deps preserved (see above)
-        [scope, sortConfig],
+        [scope],
     );
     return (
         <div className="h-full flex flex-col bg-ds-surface-subtle">
@@ -243,6 +240,8 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                         data={sortedData}
                         columns={columns}
                         getRowTone={getRowTone}
+                        sort={sort}
+                        onSortChange={({ direction }) => setDateOrder(direction)}
                         getRowLabel={(item) => `Open driver dossier for ${getCandidateName(item)}`}
                         onRowActivate={setSelectedApp}
                         isLoading={dashboard.loading}

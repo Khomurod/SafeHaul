@@ -329,6 +329,84 @@ export const CardsOnMobile = {
 };
 
 /**
+ * Sortable columns. A sortable header is one button with one arrow; the column
+ * says the direction a first press asks for and the words a phone's "Sort by"
+ * list uses. A header needs room for its arrow, which is why Items is `sm` here.
+ */
+const sortableColumns = columns.map((column) => {
+  if (column.key === 'title') return { ...column, sortable: true };
+  if (column.key === 'items') {
+    return { ...column, width: 'sm', sortable: { first: 'desc', labels: { desc: 'Most first', asc: 'Fewest first' } } };
+  }
+  if (column.key === 'updated') {
+    return { ...column, sortable: { first: 'desc', labels: { desc: 'Newest first', asc: 'Oldest first' } } };
+  }
+  return column;
+});
+
+const SORT_VALUES = {
+  title: (row) => row.title,
+  items: (row) => row.items,
+  updated: (row) => Date.parse(row.updated) || 0,
+};
+
+/** The page owns the order, as a feature does; the table only shows which way it runs. */
+function SortedTable(args) {
+  const [sort, setSort] = React.useState(args.sort);
+  const data = React.useMemo(() => {
+    const value = SORT_VALUES[sort.key];
+    const sorted = [...args.data].sort((a, b) => {
+      const [x, y] = [value(a), value(b)];
+      return typeof x === 'string' ? x.localeCompare(y) : x - y;
+    });
+    return sort.direction === 'asc' ? sorted : sorted.reverse();
+  }, [args.data, sort]);
+  return (
+    <DataTable
+      {...args}
+      data={data}
+      sort={sort}
+      onSortChange={(next) => {
+        args.onSortChange(next);
+        setSort(next);
+      }}
+    />
+  );
+}
+
+/**
+ * Sorting by a header. Press a header to sort by it; press the sorted one to
+ * turn it. Only the sorted column shows its arrow until another header is
+ * hovered or focused, and its header carries `aria-sort`.
+ */
+export const Sortable = {
+  render: SortedTable,
+  args: {
+    columns: sortableColumns,
+    sort: { key: 'updated', direction: 'desc' },
+    onSortChange: fn(),
+  },
+};
+
+/**
+ * Sorting with `mobilePresentation="cards"`: header buttons at 768px and up,
+ * and under that a "Sort by" list above the cards, every sortable column both
+ * ways.
+ */
+export const SortableCards = {
+  render: SortedTable,
+  args: {
+    ariaLabel: 'Follow-ups',
+    columns: [sortableColumns[0], columns[1], columns[2], sortableColumns[4], workColumns[4]],
+    density: 'compact',
+    minWidth: 'standard',
+    mobilePresentation: 'cards',
+    sort: { key: 'updated', direction: 'desc' },
+    onSortChange: fn(),
+  },
+};
+
+/**
  * A status column carrying a badge **and** trailing detail text.
  *
  * This is the shape that keeps breaking, and the reason it gets its own story:

@@ -75,17 +75,17 @@ test.describe('Company candidate-list DataTable pilot', () => {
     await expect(page.getByRole('dialog', { name: 'Driver dossier' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Close call result' }).click();
 
-    // Newest first is the list's own order, and the arrow says so; Earliest
-    // first turns the whole list, and pressed again turns it back.
-    const latest = page.getByRole('button', { name: 'Sort by latest added date' });
-    const earliest = page.getByRole('button', { name: 'Sort by earliest added date' });
-    await expect(latest).toHaveAttribute('aria-pressed', 'true');
+    // Newest first is the list's own order, and the Added header says so;
+    // pressing it turns the whole list oldest first, and again turns it back.
+    const addedHeader = table.getByRole('columnheader', { name: 'Added' });
+    const added = addedHeader.getByRole('button', { name: 'Added' });
+    await expect(addedHeader).toHaveAttribute('aria-sort', 'descending');
     await expect(table.locator('tbody tr').first()).toContainText(/James Mcdonald/i);
-    await earliest.click();
-    await expect(earliest).toHaveAttribute('aria-pressed', 'true');
+    await added.click();
+    await expect(addedHeader).toHaveAttribute('aria-sort', 'ascending');
     await expect(table.locator('tbody tr').first()).toContainText(/Linda Petrov/i);
-    await earliest.click();
-    await expect(latest).toHaveAttribute('aria-pressed', 'true');
+    await added.press('Enter');
+    await expect(addedHeader).toHaveAttribute('aria-sort', 'descending');
     await expect(table.locator('tbody tr').first()).toContainText(/James Mcdonald/i);
   });
 
