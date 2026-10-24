@@ -106,7 +106,11 @@ export function buildEnvironmentColumns({ handleAction, revealed }) {
             render: (row) => (
                 <span className="text-ds-sm text-ds-content-secondary">
                     {formatTimestamp(row.lastUpdated)}
-                    {row.updatedBy && <span className="block text-ds-sm text-ds-content-muted">by {row.updatedBy}</span>}
+                    {/* An email has no break of its own; it may break anywhere
+                        rather than run into the next column. */}
+                    {row.updatedBy && (
+                        <span className="block text-ds-sm text-ds-content-muted [overflow-wrap:anywhere]">by {row.updatedBy}</span>
+                    )}
                 </span>
             ),
         },

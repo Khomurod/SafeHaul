@@ -45,7 +45,7 @@
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
 const {
-    AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables,
+    AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS, serveCallables,
 } = require('../helpers/callables.cjs');
 const { uploadLeadFile } = require('../helpers/leadImport.cjs');
 
@@ -124,6 +124,12 @@ const SCREENS = [
         callables: { listAiTelemetry: AI_TELEMETRY },
         open: (page) => page.getByRole('tab', { name: 'Logs' }).click(),
         ready: (page) => page.getByText('Request rejected by vendor', { exact: true }),
+    },
+    {
+        name: 'super-admin-environment',
+        url: '/super-admin/environment-integrations?e2eAuth=super_admin',
+        callables: { listEnvironmentAndIntegrations: ENVIRONMENT_INVENTORY },
+        ready: (page) => page.getByText('ARTIFICIAL_OPTIONAL_WEBHOOK_URL', { exact: true }),
     },
     {
         name: 'super-admin-website-leads',
