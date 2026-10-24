@@ -221,9 +221,16 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   const allRowsSelected = rowIds.length > 0 && selectedOnPage === rowIds.length;
   const someRowsSelected = selectedOnPage > 0 && !allRowsSelected;
   const showSelection = Boolean(selection);
-  const columnCount = normalizedColumns.length + (showSelection ? 1 : 0);
   const normalizedError = typeof error === 'string' ? { message: error } : error;
   const showInlineError = normalizedError && data.length > 0 && !isLoading;
+  /**
+   * An empty list or a failed load with nothing to show. It is drawn under the
+   * scroll region rather than as a row spanning the table, so on a phone, where
+   * the table is wider than its card, the message and its button stay in view
+   * instead of centring across columns scrolled out of sight.
+   */
+  let bodyState = null;
+  if (!isLoading && data.length === 0) bodyState = normalizedError ? 'error' : 'empty';
   const cards = mobilePresentation === 'cards';
   /** Cards on screen now; at 768px and up the same table can scroll sideways. */
   const cardsOnScreen = useCardsLayout(cards);
@@ -253,19 +260,6 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
     }
   };
 
-  const renderStateRow = (state) => (
-    <tr role={role('row')}>
-      <td role={role('cell')} colSpan={columnCount || 1}>
-        <StateContent
-          state={state}
-          empty={empty}
-          error={normalizedError}
-          loadingLabel={loadingLabel}
-        />
-      </td>
-    </tr>
-  );
-
   return (
     <section
       className="ds-data-table"
@@ -275,6 +269,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
       data-has-selection={showSelection || undefined}
       data-embedded={embedded || undefined}
       data-max-height={tableMaxHeight}
+      data-state={bodyState || undefined}
       aria-busy={isLoading || undefined}
     >
       {showInlineError && (
@@ -350,11 +345,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
                 loadingLabel={loadingLabel}
                 role={role}
               />
-            ) : normalizedError && data.length === 0 ? (
-              renderStateRow('error')
-            ) : data.length === 0 ? (
-              renderStateRow('empty')
-            ) : (
+            ) : bodyState ? null : (
               data.map((row) => {
                 const rowId = getRowId(row);
                 const isSelected = selectedSet.has(rowId);
@@ -412,6 +403,17 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
           </tbody>
         </table>
       </div>
+
+      {bodyState && (
+        <div className="ds-data-table__state-panel">
+          <StateContent
+            state={bodyState}
+            empty={empty}
+            error={normalizedError}
+            loadingLabel={loadingLabel}
+          />
+        </div>
+      )}
 
       {pagination && !isLoading && (
         <TablePagination ariaLabel={ariaLabel} pagination={pagination} pageSizes={pageSizes} />

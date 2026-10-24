@@ -37,6 +37,25 @@ function quietly(assertion) {
 afterEach(() => vi.clearAllMocks());
 
 describe('DataTable — bounded height, state wording, page size', () => {
+  it('draws an empty or failed list under the table, as wide as the card, keeping the header row', () => {
+    const { container, rerender } = render(
+      <DataTable ariaLabel="Example records" columns={columns} data={[]} empty={{ title: 'No records yet.' }} />,
+    );
+    const table = screen.getByRole('table', { name: 'Example records' });
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
+    expect(table).not.toContainElement(screen.getByRole('status'));
+    expect(container.querySelector('.ds-data-table')).toHaveAttribute('data-state', 'empty');
+
+    rerender(<DataTable ariaLabel="Example records" columns={columns} data={[]} error="The request failed." />);
+    expect(table).not.toContainElement(screen.getByRole('alert'));
+    expect(container.querySelector('.ds-data-table')).toHaveAttribute('data-state', 'error');
+
+    rerender(<DataTable ariaLabel="Example records" columns={columns} data={rows} />);
+    expect(container.querySelector('.ds-data-table')).not.toHaveAttribute('data-state');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+
   it('caps its height at a known size, and refuses any other', () => {
     const { container, rerender } = render(
       <DataTable ariaLabel="Example records" columns={columns} data={rows} maxHeight="md" />,

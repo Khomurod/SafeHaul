@@ -212,6 +212,11 @@ fixtures gain records.
   ("Unable to load applications"), else "Unable to load records". When existing
   rows are available, the error is an inline notice so stale-but-useful data is
   not discarded.
+- An empty list, or a failed load with no rows, sits under the header row and
+  outside the scroll region, so it is as wide as the card rather than the
+  table: on a phone, where a `scroll` table is wider than the screen, the
+  message and its button stay in view instead of centring across columns
+  scrolled out of sight.
 - Pagination controls are always labelled and take the shared control height
   (`--ds-control-height-md`, 44px), so they match every other control in the
   product rather than being table-specific. A feature that lets the reader pick
