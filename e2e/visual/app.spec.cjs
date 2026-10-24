@@ -200,7 +200,8 @@ const SCREENS = [
     },
     /*
      * Maintenance after a dry run of the stats backfill, answered with fourteen
-     * made-up days (`BACKFILL_PREVIEW`), so the preview's 256px cap shows.
+     * made-up days (`BACKFILL_PREVIEW`), so the preview's 256px cap shows. The
+     * page goes back to the top after the click, as for the Activity tabs.
      */
     {
         name: 'super-admin-backfill-preview',
@@ -209,6 +210,8 @@ const SCREENS = [
         open: async (page) => {
             await page.getByLabel('Company ID').fill('e2e-company-artificial');
             await page.getByRole('button', { name: 'Dry-Run (Preview)' }).click();
+            await page.getByRole('rowheader', { name: '2026-10-01' }).waitFor();
+            await page.evaluate(() => window.scrollTo(0, 0));
         },
         ready: (page) => page.getByRole('rowheader', { name: '2026-10-01' }),
     },
