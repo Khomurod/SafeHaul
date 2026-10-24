@@ -38,8 +38,10 @@ export function CardSortControl({ columns, sort, onSortChange }) {
       <Select
         value={value}
         onChange={(event) => {
-          const [key, direction] = event.target.value.split(':');
-          onSortChange?.({ key, direction });
+          // At the last colon: a column key may hold one, a direction never does.
+          const chosen = event.target.value;
+          const at = chosen.lastIndexOf(':');
+          onSortChange?.({ key: chosen.slice(0, at), direction: chosen.slice(at + 1) });
         }}
       >
         {!sort && <option value="">Choose an order</option>}

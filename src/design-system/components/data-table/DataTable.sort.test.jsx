@@ -181,6 +181,28 @@ describe('DataTable sorting', () => {
       expect(header('Name')).toHaveAttribute('aria-sort', 'ascending');
     });
 
+    it('keeps a column key that holds a colon whole', () => {
+      phoneScreen();
+      const onSortChange = vi.fn();
+      const keyed = defineTableColumns([
+        { key: 'record:updated', header: 'Updated', sortable: true, render: () => 'Today' },
+      ]);
+      render(
+        <DataTable
+          ariaLabel="Records"
+          columns={keyed}
+          data={rows}
+          mobilePresentation="cards"
+          sort={{ key: 'record:updated', direction: 'asc' }}
+          onSortChange={onSortChange}
+        />,
+      );
+
+      fireEvent.change(screen.getByRole('combobox', { name: 'Sort by' }), { target: { value: 'record:updated:desc' } });
+
+      expect(onSortChange).toHaveBeenCalledWith({ key: 'record:updated', direction: 'desc' });
+    });
+
     it('shows no list when nothing sorts', () => {
       phoneScreen();
       const plain = defineTableColumns([{ key: 'note', header: 'Note', render: () => 'Plain' }]);
