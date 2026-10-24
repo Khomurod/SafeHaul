@@ -326,6 +326,7 @@
  * In a parent of bounded height it, not the header row, takes the spare height.
  */
 .ds-data-table__state-panel {
+  min-width: 0;
   flex: 1 1 auto;
   padding: var(--ds-table-active-cell-padding-block) var(--ds-table-cell-padding-inline);
   background: var(--ds-table-row-bg);
@@ -351,9 +352,11 @@
   color: var(--ds-color-content-danger);
 }
 
+/* A long unbroken word (an ID, a URL) wraps rather than leaving the card. */
 .ds-data-table__state-title,
 .ds-data-table__state-description {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .ds-data-table__state-title {
