@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Icon, Calendar, Medal, RefreshCw, Trophy } from '@design-system/icons';
 import {
-    Badge,
     Card,
     DataTable,
     IconButton,
@@ -51,18 +50,17 @@ function getInitials(name) {
         .toUpperCase();
 }
 
-function Rank({ index }) {
-    if (index < 3) {
-        const labels = ['First place', 'Second place', 'Third place'];
-        const tones = ['warning', 'neutral', 'warning'];
-        return (
-            <Badge tone={tones[index]} icon={Medal}>
-                {labels[index]}
-            </Badge>
-        );
-    }
+const PLACES = ['First place', 'Second place', 'Third place'];
+const MEDAL_TONES = ['text-ds-status-warning-fg', 'text-ds-content-muted', 'text-ds-status-warning-fg'];
 
-    return <span className="text-ds-body font-bold text-ds-content-muted">{index + 1}</span>;
+/** The place as a number; the first three carry a medal named for the place. */
+function Rank({ index }) {
+    return (
+        <span className="inline-flex items-center gap-ds-1 font-semibold text-ds-content-secondary tabular-nums">
+            {index < 3 && <Icon icon={Medal} size="sm" label={PLACES[index]} className={MEDAL_TONES[index]} />}
+            {index + 1}
+        </span>
+    );
 }
 
 export function InlineLeaderboard({ companyId }) {
@@ -148,28 +146,25 @@ export function InlineLeaderboard({ companyId }) {
         {
             key: 'rank',
             header: 'Rank',
-            // `md`: the widest rank is the "Second place" badge.
-            width: 'md',
+            width: 'xs',
             render: (agent) => <Rank index={agent.rank} />,
         },
         {
             key: 'recruiter',
             header: 'Recruiter',
             rowHeader: true,
-            width: 'lg',
+            // `xl`: a full name beside its initials, on one line.
+            width: 'xl',
             render: (agent) => (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                     <span
-                        className="w-8 h-8 rounded-ds-md flex items-center justify-center text-ds-xs font-bold bg-ds-status-info-bg text-ds-status-info-fg"
+                        className="w-8 h-8 shrink-0 rounded-ds-md flex items-center justify-center text-ds-xs font-bold bg-ds-status-info-bg text-ds-status-info-fg"
                         aria-hidden="true"
                     >
                         {getInitials(agent.name)}
                     </span>
-                    <span className="min-w-0">
-                        <span className="block text-ds-body font-semibold text-ds-content truncate">
-                            {agent.name}
-                        </span>
-                        {agent.rank === 0 && <Badge tone="warning">MVP</Badge>}
+                    <span className="min-w-0 truncate text-ds-body font-semibold text-ds-content" title={agent.name}>
+                        {agent.name}
                     </span>
                 </div>
             ),
@@ -218,27 +213,32 @@ export function InlineLeaderboard({ companyId }) {
                         fetchData(startDate, endDate);
                     }}
                 >
-                    <div className="flex items-center gap-2 bg-ds-surface-subtle px-3 py-1 rounded-ds-md border border-ds-border-subtle text-ds-xs">
-                        <Icon icon={Calendar} size="sm" className="text-ds-content-muted" />
-                        <Input
-                            type="date"
-                            variant="inline"
-                            size="sm"
-                            aria-label="Leaderboard start date"
-                            value={startDate}
-                            onChange={(event) => setStartDate(event.target.value)}
-                            className="cursor-pointer text-ds-content-secondary"
-                        />
-                        <span className="text-ds-content-muted" aria-hidden="true">–</span>
-                        <Input
-                            type="date"
-                            variant="inline"
-                            size="sm"
-                            aria-label="Leaderboard end date"
-                            value={endDate}
-                            onChange={(event) => setEndDate(event.target.value)}
-                            className="cursor-pointer text-ds-content-secondary"
-                        />
+                    {/* On a phone the range breaks between its two days, never through one. */}
+                    <div className="flex max-w-full flex-wrap items-center gap-x-2 bg-ds-surface-subtle px-3 py-1 rounded-ds-md border border-ds-border-subtle text-ds-xs">
+                        <span className="flex items-center gap-2">
+                            <Icon icon={Calendar} size="sm" className="text-ds-content-muted" />
+                            <Input
+                                type="date"
+                                variant="inline"
+                                size="sm"
+                                aria-label="Leaderboard start date"
+                                value={startDate}
+                                onChange={(event) => setStartDate(event.target.value)}
+                                className="cursor-pointer text-ds-content-secondary"
+                            />
+                        </span>
+                        <span className="flex items-center gap-2">
+                            <span className="text-ds-content-muted" aria-hidden="true">–</span>
+                            <Input
+                                type="date"
+                                variant="inline"
+                                size="sm"
+                                aria-label="Leaderboard end date"
+                                value={endDate}
+                                onChange={(event) => setEndDate(event.target.value)}
+                                className="cursor-pointer text-ds-content-secondary"
+                            />
+                        </span>
                     </div>
                     <IconButton
                         label="Refresh leaderboard"
@@ -258,6 +258,10 @@ export function InlineLeaderboard({ companyId }) {
                     columns={columns}
                     density="compact"
                     minWidth="standard"
+                    // Rows are compared across recruiters, so a phone keeps the
+                    // table and scrolls it. The rank does not name the row, so
+                    // nothing is pinned.
+                    pinFirstColumn={false}
                     mobilePresentation="scroll"
                     mobileHint="Swipe horizontally to view all performance columns."
                     embedded
