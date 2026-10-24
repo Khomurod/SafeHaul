@@ -274,8 +274,9 @@ The reverse directions are prohibited — including any `@shared` import inside
   one heading with the count, one `ListToolbar` row, one row per record in a
   `DataTable embedded`, sorting from headers, calm statuses, cards on phones.
   Example: the `Patterns/List page` stories; Applications, Company Leads,
-  My Leads, Unfinished applications and E-Docs Sent Documents (its count in the
-  workspace heading) follow it. Temporary exception: its segments are its own buttons
+  My Leads, Unfinished applications, E-Docs Sent Documents (its count in the
+  workspace heading), Referral Links and Settings → API Keys (row actions in a
+  last column; a settings tab with its own header is the page's one `<h1>`) follow it. Temporary exception: its segments are its own buttons
   until `SegmentedControl` has an underlined, scrolling appearance with counts.
   Tablet widths, which the visual contract does not measure, are held by
   `e2e/list-page-tablet.spec.cjs`.

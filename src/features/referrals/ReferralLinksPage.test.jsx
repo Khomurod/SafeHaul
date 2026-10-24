@@ -88,8 +88,21 @@ describe('Referral Links', () => {
 
         const row = (await screen.findByText('Rita Referrer')).closest('tr');
         expect(screen.queryByText('Sam Sender')).toBeNull();
-        await waitFor(() => expect(within(row).getByText('3 leads · 2 applications · 1 hired')).toBeInTheDocument());
+        // What it brought in, a number to a column.
+        const cell = (label) => row.querySelector(`[data-label="${label}"]`);
+        await waitFor(() => expect(cell('Leads')).toHaveTextContent(/^3$/));
+        expect(cell('Applications')).toHaveTextContent(/^2$/);
+        expect(cell('Hired')).toHaveTextContent(/^1$/);
         expect(within(row).getByText('ABCD2345')).toBeInTheDocument();
+        // Where the link stands, and apart from it, what can be done with it.
+        expect(within(cell('Status')).getByText('Active')).toBeInTheDocument();
+        expect(within(cell('Status')).queryByRole('button')).toBeNull();
+        expect(within(cell('Link')).queryByRole('button')).toBeNull();
+        const actions = within(row).getAllByRole('cell').at(-1);
+        expect(within(actions).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+            'Copy the link for Rita Referrer',
+            'Deactivate the link for Rita Referrer',
+        ]);
         expect(screen.getByText('You see the links you made.')).toBeInTheDocument();
         expect((await axe(container)).violations).toEqual([]);
     });

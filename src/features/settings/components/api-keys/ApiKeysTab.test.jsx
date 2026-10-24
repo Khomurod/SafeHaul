@@ -64,9 +64,15 @@ describe('the list', () => {
         expect(within(table).getAllByText('Applications')).toHaveLength(2);
         expect(within(table).getAllByText('Never')).toHaveLength(2);
         expect(within(table).getByText('Turned off')).toBeInTheDocument();
-        // Only the key that is on can be turned off.
+        // Only the key that is on can be turned off, from the last column; its
+        // Status says only where it stands.
         expect(within(table).getAllByRole('button', { name: /^Turn off / })).toHaveLength(1);
-        expect(within(table).getByRole('button', { name: 'Turn off Artificial TMS' })).toBeInTheDocument();
+        const row = within(table).getByText('Artificial TMS').closest('tr');
+        const status = row.querySelector('[data-label="Status"]');
+        expect(within(status).getByText('On')).toBeInTheDocument();
+        expect(within(status).queryByRole('button')).toBeNull();
+        expect(within(within(row).getAllByRole('cell').at(-1)).getByRole('button', { name: 'Turn off Artificial TMS' }))
+            .toBeInTheDocument();
     });
 
     it('says when the list could not load, and tries again', async () => {

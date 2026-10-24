@@ -21,6 +21,10 @@ function when(iso) {
 /**
  * A company's API keys, turned-on ones first. On a phone each key is a card:
  * keys are looked at one at a time, never compared.
+ *
+ * Where a key stands is its Status; turning it off is in the last column, as on
+ * every list. The Settings page leaves the table 830px at 1440, and the six
+ * columns come to 824px.
  */
 export function ApiKeysTable({ keys, loading, error, onRevoke }) {
     const columns = useMemo(() => [
@@ -28,12 +32,12 @@ export function ApiKeysTable({ keys, loading, error, onRevoke }) {
             key: 'name',
             header: 'Key',
             rowHeader: true,
-            // `xl`: the id, in a fixed-width face, fits on one line.
-            width: 'xl',
+            // `lg`: the prefix keeps to one line, cut at the end, and is whole on hover.
+            width: 'lg',
             render: (key) => (
                 <div className="min-w-0">
                     <p className="font-semibold text-ds-content [overflow-wrap:anywhere]">{key.name}</p>
-                    <p className="font-mono text-ds-xs text-ds-content-muted [overflow-wrap:anywhere]">{key.prefix}</p>
+                    <p className="truncate font-mono text-ds-xs text-ds-content-muted" title={key.prefix}>{key.prefix}</p>
                 </div>
             ),
         },
@@ -72,27 +76,32 @@ export function ApiKeysTable({ keys, loading, error, onRevoke }) {
         {
             key: 'status',
             header: 'Status',
-            // The status and the one thing to do about it, side by side: with a
-            // column of its own the table outgrew the Settings page at 1440px.
-            width: 'lg',
+            width: 'sm',
+            // A key turned off keeps when under its badge.
             render: (key) => (key.revokedAt ? (
                 <div className="text-ds-sm">
                     <Badge tone="neutral">Turned off</Badge>
                     <p className="mt-ds-1 text-ds-xs text-ds-content-muted">{when(key.revokedAt)}</p>
                 </div>
-            ) : (
-                <div className="flex flex-wrap items-center gap-ds-2">
-                    <Badge tone="success">On</Badge>
-                    <Button
-                        variant="secondary"
-                        tone="danger"
-                        size="sm"
-                        aria-label={`Turn off ${key.name}`}
-                        onClick={() => onRevoke(key)}
-                    >
-                        Turn off
-                    </Button>
-                </div>
+            ) : <Badge tone="success">On</Badge>),
+        },
+        {
+            key: 'actions',
+            headerLabel: 'Actions',
+            align: 'end',
+            // No label on a card: its button is the card's last line.
+            mobileLabel: '',
+            width: 'sm',
+            render: (key) => (key.revokedAt ? null : (
+                <Button
+                    variant="secondary"
+                    tone="danger"
+                    size="sm"
+                    aria-label={`Turn off ${key.name}`}
+                    onClick={() => onRevoke(key)}
+                >
+                    Turn off
+                </Button>
             )),
         },
     ], [onRevoke]);

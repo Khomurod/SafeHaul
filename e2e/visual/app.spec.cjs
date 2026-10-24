@@ -44,6 +44,7 @@
  */
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
+const { API_KEYS, serveCallables } = require('../helpers/callables.cjs');
 
 /**
  * A screen is listed with the thing that must be on it before a screenshot is
@@ -85,6 +86,18 @@ const SCREENS = [
         // The list is a tab of the workspace, pressed as a person would.
         open: (page) => page.getByRole('tab', { name: /^Sent Documents/ }).click(),
         ready: (page) => page.getByText('Ana Lucia Ferreira-Montgomery'),
+    },
+    {
+        name: 'company-referral-links',
+        url: '/company/referral-links?e2eAuth=company_admin&e2eReferrals=mock',
+        ready: (page) => page.getByText('Rosa Delgado'),
+    },
+    {
+        name: 'company-settings-api-keys',
+        url: '/company/settings?section=api_keys&e2eAuth=company_admin',
+        // The keys come from a callable, answered here as the server would.
+        callables: { listCompanyApiKeys: API_KEYS },
+        ready: (page) => page.getByText('Artificial TMS'),
     },
     {
         name: 'company-campaigns',
@@ -207,6 +220,7 @@ test.describe('@visual application screens', () => {
                 // Before navigating: a screen that stamps "now" would otherwise
                 // re-baseline itself every day.
                 await freezeClock(page);
+                if (screen.callables) await serveCallables(page, screen.callables);
                 await page.goto(screen.url);
                 if (screen.open) await screen.open(page);
                 // A real element, not `networkidle`: this app keeps Firestore

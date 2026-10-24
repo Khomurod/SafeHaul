@@ -18,6 +18,9 @@ import { Button, SectionNavigation } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 
+/** The sections whose own `PageHeader` names the page: one `<h1>` there, theirs. */
+const TABS_WITH_OWN_HEADING = new Set(['personal', 'integrations', 'api_keys']);
+
 export function CompanySettings() {
     const { currentCompanyProfile, currentUser, currentUserClaims } = useData();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -164,14 +167,12 @@ export function CompanySettings() {
             </div>
             <div className="max-w-7xl mx-auto px-ds-4 sm:px-ds-6 lg:px-ds-8 pb-20">
                 {/*
-                  Every other tab renders no top-level heading at all (several
-                  use a bare `<h2>`, several use none), so a screen-reader user
-                  landing on them heard an unnamed page. The Personal Profile
-                  tab is the one exception — it already renders its own `<h1>`
-                  via `PageHeader` — so this shell heading is suppressed there
-                  rather than duplicating it.
+                  Most tabs render no top-level heading (several use a bare
+                  `<h2>`, several none), so this one names the page. A tab with
+                  a `PageHeader` of its own already renders the page's `<h1>`,
+                  so this is left out there rather than standing above it.
                 */}
-                {activeTab !== 'personal' && (
+                {!TABS_WITH_OWN_HEADING.has(activeTab) && (
                     <PageHeader title="Company Settings" className="mb-ds-6" />
                 )}
                 <div className="flex min-w-0 flex-col xl:flex-row gap-ds-8">

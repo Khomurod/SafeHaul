@@ -1,6 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { measureTables } = require('../scripts/table-layout/measureTables.cjs');
 const { freezeClock, settle } = require('./visual/settle.cjs');
+const { API_KEYS, serveCallables } = require('./helpers/callables.cjs');
 
 /**
  * @table-layout — a table cell contains what is put in it, on the application's
@@ -75,8 +76,13 @@ const SCREENS = [
         open: (page) => page.getByRole('tab', { name: /^Sent Documents/ }).click(),
         row: 'Ana Lucia Ferreira-Montgomery',
     },
-    { name: 'referral links', url: '/company/referral-links?e2eAuth=company_admin', empty: 'No referral links yet' },
-    { name: 'settings api keys', url: '/company/settings?section=api_keys&e2eAuth=company_admin', empty: 'Unable to load records' },
+    { name: 'referral links', url: '/company/referral-links?e2eAuth=company_admin&e2eReferrals=mock', row: 'Jean-Baptiste Okonkwo-Fairweather' },
+    {
+        name: 'settings api keys',
+        url: '/company/settings?section=api_keys&e2eAuth=company_admin',
+        callables: { listCompanyApiKeys: API_KEYS },
+        row: 'Artificial TMS',
+    },
     { name: 'super admin features', url: '/super-admin/features?e2eAuth=super_admin', empty: 'No companies yet' },
     { name: 'super admin companies', url: '/super-admin/companies?e2eAuth=super_admin', empty: 'No companies found.' },
     { name: 'super admin users', url: '/super-admin/users?e2eAuth=super_admin', empty: 'No users found.' },
@@ -97,20 +103,6 @@ const WIDTHS = [
     { label: 'desktop', width: 1440, height: 900 },
     { label: 'mobile', width: 412, height: 915 },
 ];
-
-/** Answers each named callable with `result`, as the Functions endpoint would. */
-async function serveCallables(page, callables) {
-    const cors = {
-        'access-control-allow-origin': '*',
-        'access-control-allow-headers': '*',
-        'access-control-allow-methods': 'POST, OPTIONS',
-    };
-    for (const [name, result] of Object.entries(callables)) {
-        await page.route(`**/${name}`, (route) => (route.request().method() === 'OPTIONS'
-            ? route.fulfill({ status: 204, headers: cors })
-            : route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ result }) })));
-    }
-}
 
 // Any table on the screen still loading: a busy `DataTable`, or a native
 // table's "Loading…" row.

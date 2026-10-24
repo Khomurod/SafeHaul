@@ -37,7 +37,8 @@ async function openIntegrationsTab(page) {
   await page.goto(SETTINGS_URL);
   await expect(page.getByRole('button', { name: 'Integrations' })).toBeVisible();
   await page.getByRole('button', { name: 'Integrations' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Company Settings' })).toBeVisible();
+  // The tab's own header names the page; the settings shell's is left out there.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(['Integrations']);
   await expect(page.getByRole('heading', { level: 2, name: 'Facebook Lead Ads' })).toBeVisible();
 }
 
