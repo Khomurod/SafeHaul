@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { measureTables } = require('../scripts/table-layout/measureTables.cjs');
 const { freezeClock, settle } = require('./visual/settle.cjs');
 const {
-    API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables,
+    AI_TELEMETRY, API_KEYS, BLOG_POSTS, BLOG_RUNS, WEBSITE_LEADS, serveCallables,
 } = require('./helpers/callables.cjs');
 const { uploadLeadFile } = require('./helpers/leadImport.cjs');
 
@@ -104,6 +104,14 @@ const SCREENS = [
         row: 'Google Gemini',
         table: 'AI model versions',
         callables: { getAiModelVersions: AI_MODEL_VERSIONS },
+    },
+    {
+        name: 'super admin ai logs',
+        url: '/super-admin/ai-integrations?e2eAuth=super_admin',
+        open: (page) => page.getByRole('tab', { name: 'Logs' }).click(),
+        row: 'Request rejected by vendor',
+        table: 'AI transactions',
+        callables: { listAiTelemetry: AI_TELEMETRY },
     },
     {
         name: 'super admin blog posts',

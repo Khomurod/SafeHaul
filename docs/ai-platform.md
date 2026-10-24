@@ -1003,8 +1003,9 @@ Each attempt records `providerId`, `model`, `attemptNumber`, `status`
 where it went.
 
 **Super Admin → AI Integrations → Logs** renders this: one row per transaction,
-filterable by feature, outcome, provider, free text and date, with quick filters
-for All / Errors / CDL / E-Docs / Articles. Activating a row opens the timeline:
+narrowed by feature (All / CDL / E-Docs / Articles / Connection tests), "Errors
+only", free text, and behind Filters the provider and dates. Activating a row
+opens the timeline:
 
 ```
 CDL Extraction · txn 6f2a…

@@ -138,9 +138,13 @@ test.describe('Super Admin AI Integrations', () => {
     await openAi(page);
     await page.getByRole('tab', { name: 'Logs' }).click();
 
-    for (const label of ['All', 'Errors', 'CDL', 'E-Docs', 'Articles']) {
-      await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible();
+    const features = page.getByRole('group', { name: 'Feature' });
+    for (const label of ['All', 'CDL', 'E-Docs', 'Articles', 'Connection tests']) {
+      await expect(features.getByRole('button', { name: label, exact: true })).toBeVisible();
     }
+    await expect(page.getByRole('switch', { name: 'Errors only' })).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Search transactions' })).toBeVisible();
+    await page.getByRole('button', { name: 'Filters' }).click();
     await expect(page.getByRole('combobox', { name: 'Provider' })).toBeVisible();
     await expect(page.getByLabel('From')).toBeVisible();
   });

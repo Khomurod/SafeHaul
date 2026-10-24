@@ -52,7 +52,9 @@ is refused outside a production build; in one it is left out.
 On a phone (639px and below) the segments come first and scroll sideways, then
 the switch, then the search with Filters beside it. Tab follows the same order.
 Wider, when the tools do not fit beside the segments, as on a tablet, they wrap
-under them, and the segments keep their own 48px row.
+under them, and the segments keep their own 48px row. In a column narrower than
+the tools themselves, such as a console beside its sidebar, the tools wrap among
+themselves as well.
 
 ## Accessibility
 
