@@ -157,15 +157,14 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     };
 
     // ── Column Config ──
-    // ── Column Config ──
-    // The original dependency array is preserved deliberately: the handlers
-    // were captured without being listed before the split too (the
-    // pre-existing exhaustive-deps warning), and listing them now would
-    // change when the columns rebuild.
+    // The columns rebuild when the list or the team changes. The phone
+    // handler is left out on purpose: it only reads state setters and the
+    // toast, so the one it captured stays correct.
+    const { teamMembers } = dashboard;
     const columns = useMemo(
-        () => buildCandidateColumns({ handlePhoneClick }),
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- original deps preserved (see above)
-        [scope],
+        () => buildCandidateColumns({ handlePhoneClick, scope, teamMembers }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- handlePhoneClick left out (see above)
+        [scope, teamMembers],
     );
     return (
         <div className="h-full flex flex-col bg-ds-surface-subtle">
@@ -235,7 +234,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                                 selectAllLabel: 'Select all candidates on this page',
                                 getRowLabel: (item) => `Select ${getCandidateName(item)}`,
                             } : undefined}
-                            density="comfortable"
+                            density="compact"
                             minWidth="wide"
                             mobilePresentation="scroll"
                             pagination={{

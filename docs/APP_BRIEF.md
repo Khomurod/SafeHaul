@@ -847,12 +847,12 @@ PEV record.
 the canonical funnel (`New`, `Contact Attempt 1–3`, `In Process`, `Hired`,
 `Terminated`, `Declined`), plus `Interested` and legacy aliases kept selectable
 so older records stay editable. Creation defaults differ: leads get `New Lead`,
-applications `New Application`. Firestore rules validate status transitions and
-**cannot import JS**, so renaming a value means editing the rules too.
+applications `New Application`. Application lists show one name per group
+(`applicationStatusLabel`: `Approved` reads Hired); the value stays. Rules
+validate transitions and **cannot import JS**: a rename edits them too.
 
 **Tenant binding is immutable.** Rules require `companyId` to match the path on
-create and stay unchanged on update, so no record is filed under one company
-while claiming another.
+create and never change, so no record claims another company.
 
 **A deactivated company** (`isActive: false`) takes no applications, passes no
 server staff check, drops out of its staff's tokens (§8) and closes their workspace; never a super admin's.
@@ -1282,7 +1282,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   more (`truncated`). No pagination — a second list would break one-query,
   one-row-per-document.
 - **A record without `createdAt` is missing from the candidate lists**, which
-  Firestore sorts by it (newest first, or as the Added header says): a sort
+  Firestore sorts by it (newest first, or as its date header says): a sort
   leaves it out. A notice counts such records (`UndatedRecordsNotice`) and
   search finds them; dating them is the owner's data change.
 - **An unassigned lead stores `assignedTo: ''`**, which the Unassigned filter

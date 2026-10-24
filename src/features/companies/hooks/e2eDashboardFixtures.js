@@ -129,6 +129,7 @@ export const E2E_DASHBOARD_APPLICATIONS = [
         state: 'NY',
         driverType: ['Dry Van'],
         assignedTo: '',
+        lastCallOutcome: 'Left Voicemail',
         submittedAt: ts('2026-07-01T13:40:00Z'),
         createdAt: ts('2026-07-01T13:40:00Z'),
     },
@@ -154,6 +155,8 @@ export const E2E_DASHBOARD_LEADS = [
         email: 'omar.attempt@example.com',
         phone: '(213) 555-0155',
         status: 'Contact Attempt 1',
+        // Long enough ago to be stale under the screenshots' frozen clock too.
+        statusEnteredAt: ts('2026-06-10T10:00:00Z'),
         state: 'CA',
         driverType: ['Reefer'],
         assignedTo: '',

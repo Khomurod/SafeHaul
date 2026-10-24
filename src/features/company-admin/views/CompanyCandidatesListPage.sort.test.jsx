@@ -1,5 +1,5 @@
 /**
- * Pressing the Added header sets the order Firestore sorts the whole list by:
+ * Pressing the Applied header sets the order Firestore sorts the whole list by:
  * the dashboard hook's `dateOrder`, newest first until the header is pressed.
  * The page shows the rows in the order the list query returns them, so a page
  * never reorders on its own, and the header's `aria-sort` says which order is
@@ -57,16 +57,16 @@ import { CompanyCandidatesListPage } from './CompanyCandidatesListPage';
 
 const rowOrder = () => screen.getAllByRole('row', { name: /^Open driver dossier for / })
     .map((row) => row.getAttribute('aria-label'));
-/** The Added header: one button, and its column header says how the list is ordered. */
-const added = () => screen.getByRole('button', { name: 'Added' });
-const addedHeader = () => screen.getByRole('columnheader', { name: 'Added' });
+/** The Applied header: one button, and its column header says how the list is ordered. */
+const added = () => screen.getByRole('button', { name: 'Applied' });
+const addedHeader = () => screen.getByRole('columnheader', { name: 'Applied' });
 
 beforeEach(() => {
     fixture.dateOrder = 'desc';
     fixture.setDateOrder.mockClear();
 });
 
-describe('the Added header', () => {
+describe('the Applied header', () => {
     it('says newest first is the order in force, and leaves the rows as the list query returned them', () => {
         render(<MemoryRouter><CompanyCandidatesListPage scope="applications" /></MemoryRouter>);
 
