@@ -218,7 +218,8 @@ const SCREENS = [
     /*
      * A finished campaign (`e2eCampaign=mock`): its recipient log under Details,
      * and its delivery report dialog. Twelve made-up recipients, so both capped
-     * tables scroll; the page goes back to the top as above.
+     * tables scroll. Details scrolls inside its own panel, below the masthead, so
+     * the shot brings the log into view there; the window does not move.
      */
     {
         name: 'company-campaign-results',
@@ -226,10 +227,16 @@ const SCREENS = [
         open: async (page) => {
             await page.getByRole('tab', { name: /Past Sequences/i }).click();
             await page.getByRole('button', { name: /^Details$/i }).first().click();
-            await page.getByRole('rowheader', { name: 'E2E Recipient 1' }).waitFor();
-            await page.evaluate(() => window.scrollTo(0, 0));
+            await page.getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }).waitFor();
+            // Only the panel that scrolls moves: `scrollIntoView` would also shift the
+            // app shell, uncovering the skip link parked above its top edge.
+            await page.getByRole('heading', { name: 'Recipient Log' }).evaluate((heading) => {
+                let panel = heading.parentElement;
+                while (panel && !/(auto|scroll)/.test(getComputedStyle(panel).overflowY)) panel = panel.parentElement;
+                if (panel) panel.scrollTop += heading.getBoundingClientRect().top - panel.getBoundingClientRect().top;
+            });
         },
-        ready: (page) => page.getByRole('rowheader', { name: 'E2E Recipient 1' }),
+        ready: (page) => page.getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }),
     },
     {
         name: 'company-campaign-report',
@@ -239,7 +246,7 @@ const SCREENS = [
             await page.getByRole('button', { name: 'View Report' }).first().click();
         },
         ready: (page) => page.getByRole('dialog', { name: 'Delivery Report' })
-            .getByRole('rowheader', { name: 'E2E Recipient 1' }),
+            .getByRole('rowheader', { name: 'E2E Recipient 1', exact: true }),
     },
     {
         name: 'login',
