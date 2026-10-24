@@ -15,6 +15,8 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { loadCompanies } from '@features/companies/services/companyService';
+import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { mockCompanies } from '../components/companiesMock';
 import { USERS_PAGE_SIZE, usersPageQuery, withMemberships } from './superAdminUsers';
 
 const NO_STATS_ERRORS = Object.freeze({
@@ -72,6 +74,16 @@ export function useSuperAdminData() {
     const loadRecentData = useCallback(async () => {
         setLoading(true);
         setStatsError(NO_STATS_ERRORS);
+
+        // The `e2eCompanies=mock` harness: made-up companies, no Firestore.
+        if (isE2ETestMode && getE2EQueryParam('e2eCompanies', '') === 'mock') {
+            const companies = mockCompanies();
+            setCompanyList(companies);
+            setHasMoreCompanies(false);
+            setAllCompaniesMap(new Map(companies.map((company) => [company.id, company.companyName])));
+            setLoading(false);
+            return;
+        }
 
         // Helper to safely fetch with logging
         const safeFetch = async (promise, label, fallback = []) => {

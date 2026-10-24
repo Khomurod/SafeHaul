@@ -17,7 +17,7 @@ import { ConfirmDialog } from '@design-system/patterns';
  * `loadMore('companies')` database pagination, and every frozen string.
  *
  * `DataTable` is deliberately not used, matching the exception already recorded
- * for `CampaignResultsTable`, `AssignmentTable` and `ViewCompanyAppsModal`: this
+ * for `AssignmentTable`: this
  * table carries per-row interactive controls (a status toggle and three actions)
  * plus a row-level click target, which is outside `DataTable`'s proven
  * display-table contract. The approved native-table pattern is used instead —
@@ -240,9 +240,13 @@ export function CompaniesView({
                                             )}
                                         </td>
                                         <td className="text-center">
+                                            {/* `relative` keeps the sr-only text inside the scrolling table:
+                                                without a positioned parent it sat past the right edge and
+                                                widened the whole page on a phone. */}
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
+                                                className="relative"
                                                 loading={togglingCompany === company.id}
                                                 onClick={rowAction(() => setPendingToggle({
                                                     companyId: company.id,

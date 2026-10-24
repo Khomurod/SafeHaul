@@ -188,12 +188,6 @@ export const DS_EXCEPTIONS = {
     'src/features/super-admin/components/integrations/LineManager.jsx': {
         'raw-table': NATIVE_TABLE,
     },
-    'src/features/super-admin/components/modals/ViewCompanyAppsModal.jsx': {
-        'raw-table': 'roadmap §5 — a native table with a per-row filter control and a per-row action, '
-            + 'inside a dialog. Uses the --ds-table-* roles. Converting it to DataTable is out of scope: '
-            + 'DataTable is proven only for display tables, and a per-row filter control is the per-row '
-            + 'interaction §5 approves a native table for.',
-    },
     'src/features/super-admin/views/AnalyticsView.jsx': {
         'raw-table': 'roadmap §5 — one sr-only <table>, the text equivalent of the chart above it, '
             + 'which has no appearance. The two performance tables are DataTables. It carries '

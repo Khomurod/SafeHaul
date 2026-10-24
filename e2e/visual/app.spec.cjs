@@ -216,6 +216,23 @@ const SCREENS = [
         ready: (page) => page.getByRole('rowheader', { name: '2026-10-01' }),
     },
     /*
+     * A company's applications dialog, opened from the companies table on made-up
+     * companies and drivers (`e2eCompanies=mock`). Opened by keyboard: on a phone
+     * the table scrolls sideways under its pinned name column. Focusing the
+     * button scrolls the page, so it goes back to the top, as for the Activity tabs.
+     */
+    {
+        name: 'super-admin-company-applications',
+        url: '/super-admin/companies?e2eAuth=super_admin&e2eCompanies=mock',
+        open: async (page) => {
+            await page.getByRole('button', { name: 'View applications for Artificial Freight Lines' }).focus();
+            await page.keyboard.press('Enter');
+            await page.getByRole('dialog').getByRole('rowheader', { name: /^Ana Lucia Ferreira-Montgomery/ }).waitFor();
+            await page.evaluate(() => window.scrollTo(0, 0));
+        },
+        ready: (page) => page.getByRole('dialog').getByRole('rowheader', { name: /^Ana Lucia Ferreira-Montgomery/ }),
+    },
+    /*
      * A finished campaign (`e2eCampaign=mock`): its recipient log under Details,
      * and its delivery report dialog. Twelve made-up recipients, so both capped
      * tables scroll. Details scrolls inside its own panel, below the masthead, so

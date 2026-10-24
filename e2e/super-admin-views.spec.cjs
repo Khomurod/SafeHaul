@@ -278,6 +278,16 @@ test.describe('Super Admin views', () => {
     });
   }
 
+  // With rows: each status button's sr-only text needs a positioned parent, or
+  // it lands past the table's right edge and widens the page.
+  test('Companies with made-up rows fits 412 px without document overflow', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Explicit viewport runs on the desktop lane.');
+    await page.setViewportSize({ width: 412, height: 915 });
+    await page.goto('/super-admin/companies?e2eAuth=super_admin&e2eCompanies=mock');
+    await expect(page.getByRole('button', { name: 'View applications for Sample Haulage' })).toBeAttached({ timeout: 20_000 });
+    await expectNoHorizontalOverflow(page, '412 Companies with rows');
+  });
+
   test('all migrated views stay usable on a mobile device lane @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
     await openShell(page);
