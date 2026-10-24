@@ -24,15 +24,27 @@ const MIN_WIDTHS = new Set(['none', 'standard', 'wide']);
  */
 const MAX_HEIGHTS = new Set(['sm', 'md']);
 
-/** Reports a page-size setting the table cannot act on. */
-function checkPagination(pagination) {
-  if (!pagination?.pageSizes) return;
+/**
+ * The page sizes the "Rows per page" list may offer, or `null` for no list. A
+ * setting the table cannot act on is reported and the list left out, so a
+ * production build keeps Previous and Next rather than a list that does nothing.
+ */
+function usablePageSizes(pagination) {
+  const sizes = pagination?.pageSizes;
+  if (sizes === undefined || sizes === null) return null;
+  if (!Array.isArray(sizes) || sizes.length === 0) {
+    contractViolation('DataTable pagination.pageSizes must be a non-empty list.');
+    return null;
+  }
   if (typeof pagination.onPageSizeChange !== 'function') {
     contractViolation('DataTable pagination.pageSizes needs pagination.onPageSizeChange.');
+    return null;
   }
-  if (!pagination.pageSizes.includes(pagination.pageSize)) {
+  if (!sizes.includes(pagination.pageSize)) {
     contractViolation(`DataTable pagination.pageSize "${pagination.pageSize}" is not one of pagination.pageSizes.`);
+    return null;
   }
+  return sizes;
 }
 
 /**
@@ -227,7 +239,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
     contractViolation(`Unsupported DataTable maxHeight "${maxHeight}"; use ${[...MAX_HEIGHTS].join(', ')}.`);
     tableMaxHeight = undefined;
   }
-  checkPagination(pagination);
+  const pageSizes = usablePageSizes(pagination);
   /** A role stated outright, in cards only; a table's own markup carries it otherwise. */
   const role = (name) => (cards ? name : undefined);
 
@@ -400,7 +412,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
       </div>
 
       {pagination && !isLoading && (
-        <TablePagination ariaLabel={ariaLabel} pagination={pagination} />
+        <TablePagination ariaLabel={ariaLabel} pagination={pagination} pageSizes={pageSizes} />
       )}
     </section>
   );

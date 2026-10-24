@@ -217,8 +217,9 @@ fixtures gain records.
   product rather than being table-specific. A feature that lets the reader pick
   the page length passes `pageSize`, `pageSizes` (such as `[20, 50, 100]`) and
   `onPageSizeChange(size)`, and the bar shows a labelled "Rows per page" list.
-  `pageSizes` without the callback, or a `pageSize` not in the list, is a
-  contract violation.
+  `pageSizes` that is not a list, `pageSizes` without the callback, or a
+  `pageSize` not in the list is a contract violation, and a production build
+  leaves the list out and keeps Previous and Next.
 - A row's actions are always visible. There is no hover-only reveal: it hides
   the actions from touch and from a reader who has not found them yet.
 

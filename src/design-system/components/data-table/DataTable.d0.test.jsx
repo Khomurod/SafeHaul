@@ -131,6 +131,15 @@ describe('DataTable — bounded height, state wording, page size', () => {
           ariaLabel="Example records"
           columns={columns}
           data={rows}
+          pagination={{ ...paging, pageSize: 20, pageSizes: 20, onPageSizeChange: vi.fn() }}
+        />,
+      )).toThrow('pagination.pageSizes must be a non-empty list');
+
+      expect(() => render(
+        <DataTable
+          ariaLabel="Example records"
+          columns={columns}
+          data={rows}
           pagination={{ ...paging, pageSize: 25, pageSizes: [20, 50], onPageSizeChange: vi.fn() }}
         />,
       )).toThrow('pagination.pageSize "25" is not one of pagination.pageSizes');
