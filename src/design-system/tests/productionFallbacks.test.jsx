@@ -100,12 +100,14 @@ describe('a production build draws the default after a misused prop', () => {
             { ...paging, pageSizes: 20, onPageSizeChange: vi.fn() },
             { ...paging, pageSizes: [20, 50] },
             { ...paging, pageSizes: [50, 100], onPageSizeChange: vi.fn() },
+            { ...paging, pageSizes: [20, 'all'], onPageSizeChange: vi.fn() },
         ].forEach((pagination) => {
             render(<DataTable ariaLabel="Drivers" columns={columns} data={[{ id: 'd1', name: 'Ada' }]} pagination={pagination} />);
             expect(screen.queryByRole('combobox', { name: 'Rows per page' })).not.toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
             cleanup();
         });
+        // Three messages: a list that is not one and a list of non-numbers share one.
         expect(reported()).toHaveLength(3);
     });
 

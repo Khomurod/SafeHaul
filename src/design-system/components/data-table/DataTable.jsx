@@ -32,8 +32,10 @@ const MAX_HEIGHTS = new Set(['sm', 'md']);
 function usablePageSizes(pagination) {
   const sizes = pagination?.pageSizes;
   if (sizes === undefined || sizes === null) return null;
-  if (!Array.isArray(sizes) || sizes.length === 0) {
-    contractViolation('DataTable pagination.pageSizes must be a non-empty list.');
+  const counts = Array.isArray(sizes) && sizes.length > 0
+    && sizes.every((size) => Number.isInteger(size) && size > 0);
+  if (!counts) {
+    contractViolation('DataTable pagination.pageSizes must be a non-empty list of whole numbers above 0.');
     return null;
   }
   if (typeof pagination.onPageSizeChange !== 'function') {
