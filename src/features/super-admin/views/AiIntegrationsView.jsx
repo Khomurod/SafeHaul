@@ -9,7 +9,7 @@ import {
     TabList,
     TabPanel,
 } from '@/design-system/components';
-import { Stack } from '@/design-system/layouts';
+import { PageHeader, Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
 
 import {
@@ -55,8 +55,7 @@ import { AiIntegrationsModals } from '../components/ai/AiIntegrationsModals';
  * guarded console does (`useReauthGuard`). A credential is revealed
  * one at a time, for thirty seconds, and lives only in React state.
  *
- * This view does not render a `PageHeader`: the Super Admin masthead owns the
- * single `<h1>`, so the page starts at `<h2>`.
+ * Its `PageHeader` is level 2: the Super Admin masthead owns the single `<h1>`.
  *
  * This file is deliberately the screen's orchestration and no more: the
  * state, the handlers, and the layout. What each region renders lives beside
@@ -362,14 +361,11 @@ export function AiIntegrationsView() {
 
     return (
         <Stack gap="lg">
-            <div>
-                <h2 className="text-ds-heading-lg font-bold text-ds-content">AI Integrations</h2>
-                <p className="mt-1 text-ds-sm text-ds-content-secondary">
-                    Every AI provider SafeHaul can use, listed in the order the shared router tries them.
-                    All AI features — CDL auto-fill, document field analysis and the News &amp; Insights
-                    blog — route through this one system.
-                </p>
-            </div>
+            <PageHeader
+                level={2}
+                title="AI Integrations"
+                description="Every AI provider SafeHaul can use, listed in the order the shared router tries them. All AI features — CDL auto-fill, document field analysis and the News & Insights blog — route through this one system."
+            />
 
             <TabList
                 ariaLabel="AI Integrations sections"

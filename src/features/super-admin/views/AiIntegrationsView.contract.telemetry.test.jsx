@@ -231,12 +231,66 @@ describe('Providers and Logs tabs', () => {
         fireEvent.click(screen.getByRole('tab', { name: /logs/i }));
         await waitFor(() => expect(callables.listAiTelemetry).toHaveBeenCalled());
 
-        fireEvent.click(screen.getByRole('button', { name: 'Errors' }));
+        fireEvent.click(screen.getByRole('switch', { name: 'Errors only' }));
 
         await waitFor(() => {
             const lastCall = callables.listAiTelemetry.mock.calls.at(-1)[0];
             expect(lastCall).toMatchObject({ outcome: 'failure' });
         });
+    });
+
+    it('combines "Errors only" with a feature, as one request', async () => {
+        stubWithLogs();
+        await renderView();
+        fireEvent.click(screen.getByRole('tab', { name: /logs/i }));
+        await waitFor(() => expect(callables.listAiTelemetry).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole('button', { name: 'CDL' }));
+        fireEvent.click(screen.getByRole('switch', { name: 'Errors only' }));
+
+        await waitFor(() => expect(callables.listAiTelemetry.mock.calls.at(-1)[0]).toEqual({
+            taskType: 'cdl_extraction', outcome: 'failure',
+        }));
+        expect(screen.getByRole('button', { name: 'CDL' }).getAttribute('aria-pressed')).toBe('true');
+        expect(screen.getByRole('switch', { name: 'Errors only' }).getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('lists connection tests under their own segment', async () => {
+        stubWithLogs();
+        await renderView();
+        fireEvent.click(screen.getByRole('tab', { name: /logs/i }));
+        await waitFor(() => expect(callables.listAiTelemetry).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole('button', { name: 'Connection tests' }));
+
+        await waitFor(() => expect(callables.listAiTelemetry.mock.calls.at(-1)[0]).toEqual({
+            taskType: 'health_check',
+        }));
+    });
+
+    it('narrows by provider behind Filters, and Clear filters keeps the feature and the search', async () => {
+        stubWithLogs();
+        await renderView();
+        fireEvent.click(screen.getByRole('tab', { name: /logs/i }));
+        await waitFor(() => expect(callables.listAiTelemetry).toHaveBeenCalled());
+
+        fireEvent.click(screen.getByRole('button', { name: 'CDL' }));
+        fireEvent.change(screen.getByRole('searchbox', { name: 'Search transactions' }), {
+            target: { value: 'quota' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+        fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-08-01' } });
+
+        await waitFor(() => expect(callables.listAiTelemetry.mock.calls.at(-1)[0]).toEqual({
+            taskType: 'cdl_extraction', search: 'quota', from: '2026-08-01',
+        }));
+        expect(screen.getByRole('button', { name: 'Filters 1 applied' })).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+        await waitFor(() => expect(callables.listAiTelemetry.mock.calls.at(-1)[0]).toEqual({
+            taskType: 'cdl_extraction', search: 'quota',
+        }));
     });
 
     it('distinguishes an empty log from a filtered one', async () => {
