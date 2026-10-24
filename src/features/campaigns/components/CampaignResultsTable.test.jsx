@@ -161,6 +161,11 @@ describe('CampaignResultsTable', () => {
         ['Recipient', 'Contact', 'Status', 'Time'].forEach((name) =>
             expect(screen.getByRole('columnheader', { name })).toBeInTheDocument(),
         );
+        // The shared table inside the card, its rows capped at 400px under the header.
+        const frame = screen.getByRole('table', { name: 'Recipient delivery log' }).closest('.ds-data-table');
+        expect(frame).toHaveAttribute('data-embedded', 'true');
+        expect(frame).toHaveAttribute('data-max-height', 'md');
+        expect(screen.getByRole('rowheader', { name: 'Header Check' })).toBeInTheDocument();
     });
 
     it('has no accessibility violations with results rendered', async () => {

@@ -215,6 +215,32 @@ const SCREENS = [
         },
         ready: (page) => page.getByRole('rowheader', { name: '2026-10-01' }),
     },
+    /*
+     * A finished campaign (`e2eCampaign=mock`): its recipient log under Details,
+     * and its delivery report dialog. Twelve made-up recipients, so both capped
+     * tables scroll; the page goes back to the top as above.
+     */
+    {
+        name: 'company-campaign-results',
+        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
+        open: async (page) => {
+            await page.getByRole('tab', { name: /Past Sequences/i }).click();
+            await page.getByRole('button', { name: /^Details$/i }).first().click();
+            await page.getByRole('rowheader', { name: 'E2E Recipient 1' }).waitFor();
+            await page.evaluate(() => window.scrollTo(0, 0));
+        },
+        ready: (page) => page.getByRole('rowheader', { name: 'E2E Recipient 1' }),
+    },
+    {
+        name: 'company-campaign-report',
+        url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',
+        open: async (page) => {
+            await page.getByRole('tab', { name: /Past Sequences/i }).click();
+            await page.getByRole('button', { name: 'View Report' }).first().click();
+        },
+        ready: (page) => page.getByRole('dialog', { name: 'Delivery Report' })
+            .getByRole('rowheader', { name: 'E2E Recipient 1' }),
+    },
     {
         name: 'login',
         url: '/login',

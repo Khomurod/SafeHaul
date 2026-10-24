@@ -2,27 +2,67 @@ import React, { useState, useEffect, useId } from 'react';
 import { collection, query, limit, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { Icon, CheckCircle2, AlertCircle, Clock, Search } from '@design-system/icons';
-import { Card, Badge, Input, Label } from '@/design-system/components';
+import { Card, Badge, DataTable, Input, Label } from '@/design-system/components';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { sendResultOf } from '../constants/campaignConstants';
-
-// Artificial fixtures for the deterministic E2E design-system review of this
-// table (populated state, scroll/sticky header, statuses, filtering). Never real
-// recipient contact data — fictional 555-01xx numbers only.
-const E2E_SEED_NOW = { toDate: () => new Date() };
-const E2E_SEED_LOGS = Array.from({ length: 12 }, (_, i) => ({
-    id: `e2e_log_${i}`,
-    recipientName: `E2E Recipient ${i + 1}`,
-    recipientIdentity: `555-01${String(i).padStart(2, '0')}`,
-    status: i % 3 === 0 ? 'delivered' : 'failed',
-    error: i % 3 === 1 ? 'Carrier rejected the message.' : undefined,
-    // What RingCentral reported: delivered, still waiting, or not checked yet ("Sent").
-    delivery: { 0: { state: 'delivered' }, 3: { state: 'pending' } }[i],
-    timestamp: i === 11 ? undefined : E2E_SEED_NOW,
-}));
+import { E2E_SEED_LOGS } from './campaignLogsMock';
 
 // An icon beside each result, so the status does not rest on colour alone.
 const RESULT_ICON = { success: CheckCircle2, danger: AlertCircle, warning: AlertCircle, info: Clock, neutral: Clock };
+
+/*
+ * One row per recipient: the send result with its icon (never colour alone),
+ * and under it the reason a message failed or a note on its delivery.
+ */
+const RESULT_COLUMNS = [
+    {
+        key: 'recipient',
+        header: 'Recipient',
+        rowHeader: true,
+        width: 'md',
+        render: (log) => (
+            <span className="text-ds-sm font-bold text-ds-content [overflow-wrap:anywhere]">{log.recipientName || 'Unknown'}</span>
+        ),
+    },
+    {
+        key: 'contact',
+        header: 'Contact',
+        width: 'sm',
+        render: (log) => <span className="font-mono text-ds-xs text-ds-content-secondary">{log.recipientIdentity}</span>,
+    },
+    {
+        key: 'status',
+        header: 'Status',
+        width: 'lg',
+        render: (log) => {
+            const result = sendResultOf(log);
+            return (
+                <>
+                    <Badge tone={result.tone} icon={RESULT_ICON[result.tone]}>
+                        {result.label}
+                    </Badge>
+                    {result.reason && (
+                        <p className="mt-ds-1 text-ds-xs font-medium text-ds-status-danger-fg">{result.reason}</p>
+                    )}
+                    {result.note && (
+                        <p className="mt-ds-1 text-ds-xs font-medium text-ds-content-muted">{result.note}</p>
+                    )}
+                </>
+            );
+        },
+    },
+    {
+        key: 'time',
+        header: 'Time',
+        width: 'sm',
+        render: (log) => (
+            <span className="inline-flex items-center gap-ds-1 text-ds-xs font-medium text-ds-content-muted">
+                <Icon icon={Clock} size="xs" />
+                {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
+            </span>
+        ),
+    },
+];
 
 /** `refreshKey` reloads the log, as after a delivery check. */
 export function CampaignResultsTable({ companyId, campaignId, refreshKey = 0 }) {
@@ -107,64 +147,18 @@ export function CampaignResultsTable({ companyId, campaignId, refreshKey = 0 }) 
                 </div>
             </div>
 
-            <div
-                role="region"
-                aria-label="Recipient delivery log"
-                tabIndex={0}
-                className="custom-scrollbar max-h-[400px] overflow-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
-            >
-                <table className="ds-native-table min-w-[640px]" data-density="compact" data-row-hover data-pin-first-column>
-                    <caption className="sr-only">Recipient delivery log</caption>
-                    <thead className="sticky top-0 z-ds-raised">
-                        <tr>
-                            <th scope="col">Recipient</th>
-                            <th scope="col">Contact</th>
-                            <th scope="col">Status</th>
-                            <th scope="col">Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredLogs.length === 0 ? (
-                            <tr>
-                                <td colSpan={4} className="text-center text-ds-sm font-medium text-ds-content-muted">
-                                    No recipients match your search.
-                                </td>
-                            </tr>
-                        ) : (
-                            filteredLogs.map(log => {
-                                const result = sendResultOf(log);
-                                return (
-                                    <tr key={log.id} className="transition-colors">
-                                        <th scope="row" className="align-top">
-                                            <span className="text-ds-sm font-bold text-ds-content">{log.recipientName || 'Unknown'}</span>
-                                        </th>
-                                        <td className="align-top">
-                                            <span className="font-mono text-ds-xs text-ds-content-secondary">{log.recipientIdentity}</span>
-                                        </td>
-                                        <td className="align-top">
-                                            <Badge tone={result.tone} icon={RESULT_ICON[result.tone]}>
-                                                {result.label}
-                                            </Badge>
-                                            {result.reason && (
-                                                <p className="mt-ds-1 text-ds-xs font-medium text-ds-status-danger-fg">{result.reason}</p>
-                                            )}
-                                            {result.note && (
-                                                <p className="mt-ds-1 text-ds-xs font-medium text-ds-content-muted">{result.note}</p>
-                                            )}
-                                        </td>
-                                        <td className="align-top">
-                                            <span className="inline-flex items-center gap-ds-1 text-ds-xs font-medium text-ds-content-muted">
-                                                <Icon icon={Clock} size="xs" />
-                                                {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            {/* The card is the frame; the rows scroll under the header, capped at 400px. */}
+            <DataTable
+                embedded
+                ariaLabel="Recipient delivery log"
+                density="compact"
+                minWidth="none"
+                maxHeight="md"
+                data={filteredLogs}
+                columns={RESULT_COLUMNS}
+                getRowId={(log) => log.id}
+                empty={{ title: 'No recipients match your search.' }}
+            />
         </Card>
     );
 }

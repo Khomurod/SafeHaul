@@ -5,8 +5,51 @@ import { Icon, X, RotateCcw } from '@design-system/icons';
 import { db, functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback';
 import { ConfirmDialog, Modal } from '@design-system/patterns';
-import { Badge, Button, IconButton } from '@/design-system/components';
+import { Badge, Button, DataTable, IconButton } from '@/design-system/components';
+import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { sendResultOf } from '../constants/campaignConstants';
+import { E2E_SEED_LOGS } from './campaignLogsMock';
+
+/** One row per recipient; the error detail wraps rather than widening the dialog. */
+const REPORT_COLUMNS = [
+    {
+        key: 'recipient',
+        header: 'Recipient',
+        rowHeader: true,
+        width: 'md',
+        render: (log) => (
+            <span className="text-ds-sm font-medium text-ds-content [overflow-wrap:anywhere]">{log.recipientName || 'Unknown'}</span>
+        ),
+    },
+    {
+        key: 'contact',
+        header: 'Contact',
+        width: 'sm',
+        render: (log) => <span className="text-ds-sm">{log.recipientIdentity || 'N/A'}</span>,
+    },
+    {
+        key: 'status',
+        header: 'Status',
+        width: 'md',
+        render: (log) => {
+            const result = sendResultOf(log);
+            return <Badge tone={result.tone}>{result.label}</Badge>;
+        },
+    },
+    {
+        key: 'detail',
+        header: 'Error Detail',
+        width: 'xl',
+        render: (log) => {
+            const result = sendResultOf(log);
+            return (
+                <span className="text-ds-sm text-ds-content-muted [overflow-wrap:anywhere]">
+                    {result.reason || result.note || '-'}
+                </span>
+            );
+        },
+    },
+];
 
 export default function DetailedReportModal({ companyId, sessionId, isOpen, onClose }) {
     const [logs, setLogs] = useState([]);
@@ -20,6 +63,11 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
         if (!isOpen || !companyId || !sessionId) return;
 
         const fetchLogs = async () => {
+            if (isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock') {
+                setLogs(E2E_SEED_LOGS);
+                setLoading(false);
+                return;
+            }
             try {
                 setLoading(true);
                 const logsRef = collection(db, 'companies', companyId, 'bulk_sessions', sessionId, 'logs');
@@ -81,12 +129,11 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
 
     if (!isOpen) return null;
 
-    // Announce the async state to assistive tech without exposing recipient data.
-    const statusAnnouncement = loading
-        ? 'Loading delivery details'
-        : logs.length === 0
-            ? 'No delivery logs found'
-            : `${logs.length} delivery ${logs.length === 1 ? 'record' : 'records'} loaded`;
+    // The table announces its loading and empty states; this announces the count
+    // once the records are in, without reading out any recipient's data.
+    const loadedAnnouncement = !loading && logs.length > 0
+        ? `${logs.length} delivery ${logs.length === 1 ? 'record' : 'records'} loaded`
+        : '';
 
     return (
         <Modal
@@ -117,71 +164,20 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
                     </div>
                 </div>
 
-                <p className="sr-only" role="status" aria-live="polite">{statusAnnouncement}</p>
+                <p className="sr-only" role="status" aria-live="polite">{loadedAnnouncement}</p>
 
-                <div
-                    className="max-h-96 overflow-auto rounded-ds-lg border border-ds-border-subtle focus-visible:outline-none focus-visible:shadow-ds-focus"
-                    tabIndex={0}
-                    role="group"
-                    aria-label="Delivery results"
-                >
-                    <table className="ds-native-table min-w-full" data-density="compact" data-pin-first-column>
-                        <caption className="sr-only">Per-recipient delivery results</caption>
-                        <thead className="sticky top-0">
-                            <tr>
-                                <th scope="col" className="font-semibold">
-                                    Recipient
-                                </th>
-                                <th scope="col" className="font-semibold">
-                                    Contact
-                                </th>
-                                <th scope="col" className="font-semibold">
-                                    Status
-                                </th>
-                                <th scope="col" className="font-semibold">
-                                    Error Detail
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
-                                <tr>
-                                    <td colSpan="4" className="text-center text-ds-sm text-ds-content-muted">
-                                        Loading logs...
-                                    </td>
-                                </tr>
-                            ) : logs.length === 0 ? (
-                                <tr>
-                                    <td colSpan="4" className="text-center text-ds-sm text-ds-content-muted">
-                                        No activity logs found. Ensure permissions are set.
-                                    </td>
-                                </tr>
-                            ) : (
-                                logs.map((log) => {
-                                    const result = sendResultOf(log);
-                                    return (
-                                        <tr key={log.id}>
-                                            <td className="whitespace-nowrap text-ds-sm font-medium text-ds-content">
-                                                {log.recipientName || 'Unknown'}
-                                            </td>
-                                            <td className="whitespace-nowrap text-ds-sm">
-                                                {log.recipientIdentity || 'N/A'}
-                                            </td>
-                                            <td>
-                                                <Badge tone={result.tone}>
-                                                    {result.label}
-                                                </Badge>
-                                            </td>
-                                            <td className="text-ds-sm text-ds-content-muted [overflow-wrap:anywhere]">
-                                                {result.reason || result.note || '-'}
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    ariaLabel="Per-recipient delivery results"
+                    density="compact"
+                    minWidth="none"
+                    maxHeight="md"
+                    data={logs}
+                    columns={REPORT_COLUMNS}
+                    getRowId={(log) => log.id}
+                    isLoading={loading}
+                    loadingLabel="Loading delivery details"
+                    empty={{ title: 'No activity logs found. Ensure permissions are set.' }}
+                />
 
                 <div className="flex justify-end">
                     <Button variant="primary" size="md" onClick={onClose}>
