@@ -18,9 +18,10 @@ list page in the product follows the same six rules. The catalog's
    (`count`). There is no second heading above the table and no "Showing X of Y";
    the pagination footer gives the detail.
 2. **One row of controls.** `ListToolbar` puts the segments on the left, and the
-   switch, the search, Filters and the page's own actions on the right. Filters
-   open one row of fields below it. "Clear filters" is a quiet link, shown only
-   while a filter applies.
+   switch, the search, Filters and any action on the list's records (assigning
+   the selected ones) on the right. An action that makes a new record stays in
+   `PageHeader`. Filters open one row of fields below it. "Clear filters" is a
+   quiet link, shown only while a filter applies.
 3. **One row per record, one fact per cell.** The table is a `DataTable
    embedded` in the same `Card padding="none"`. The row's header cell may carry
    one muted second line where people need it to tell records apart (an email
@@ -37,7 +38,8 @@ list page in the product follows the same six rules. The catalog's
 ## `ListToolbar`
 
 Every part is optional, and the page owns every value: the toolbar draws the
-controls and reports what was pressed.
+controls and reports what was pressed. A part without its list or its callback
+is refused outside a production build; in one it is left out.
 
 | Prop | Shape | Draws |
 |---|---|---|
@@ -45,7 +47,7 @@ controls and reports what was pressed.
 | `toggle` | `{ label, checked, onChange(next) }` | A `Switch` with its words beside it (`showLabel`) |
 | `search` | `{ label, placeholder?, value, onChange(text) }` | A search box in a `search` landmark |
 | `filters` | `{ open, onOpenChange(next), activeCount, onClear(), children }` | The Filters button, and when open, a row of the `children` fields with "Clear filters" |
-| `actions` | node | The page's own buttons, last in the row |
+| `actions` | node | Actions on the list's records, such as assigning the selected ones, last in the row |
 
 On a phone (639px and below) the segments come first and scroll sideways, then
 the switch, then the search with Filters beside it. Tab follows the same order.

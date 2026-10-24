@@ -27,6 +27,7 @@ import { TabList } from '../components/tabs/Tabs';
 import { Icon } from '../icons';
 import { ConfirmDialog } from '../patterns/modal/ConfirmDialog';
 import { Modal } from '../patterns/modal/Modal';
+import { ListToolbar } from '../patterns/list-toolbar/ListToolbar';
 import { PageState } from '../patterns/page-state/PageState';
 
 const cell = (row) => row.name;
@@ -153,6 +154,24 @@ describe('a production build draws the default after a misused prop', () => {
     it('ConfirmDialog: an unknown tone is danger', () => {
         render(<ConfirmDialog title="Delete this lead?" tone="loud" onConfirm={() => {}} onCancel={() => {}} />);
         expect(screen.getByRole('button', { name: 'Confirm' })).toHaveAttribute('data-variant', 'danger');
+    });
+
+    it('ListToolbar: a part without its list or its callback is left out, and the rest is drawn', () => {
+        render(
+            <ListToolbar
+                segments={{ ariaLabel: 'Show', value: 'all', onChange: () => {} }}
+                toggle={{ label: 'Only mine', checked: false }}
+                search={{ label: 'Search records', value: '' }}
+                filters={{ open: true, onOpenChange: () => {}, activeCount: 1, children: 'Fields' }}
+                actions={<Button>Assign (2)</Button>}
+            />,
+        );
+        expect(screen.queryByRole('group', { name: 'Show' })).toBeNull();
+        expect(screen.queryByRole('switch')).toBeNull();
+        expect(screen.queryByRole('searchbox')).toBeNull();
+        expect(screen.queryByRole('button', { name: /Filters/ })).toBeNull();
+        expect(screen.queryByText('Fields')).toBeNull();
+        expect(screen.getByRole('button', { name: 'Assign (2)' })).toBeInTheDocument();
     });
 
     it('PageState: a heading level that is not one is an h2', () => {

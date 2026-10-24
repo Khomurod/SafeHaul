@@ -169,6 +169,8 @@ describe('ListToolbar', () => {
       ['a single segment', { segments: { ...segments, items: [SEGMENTS[0]] } }, 'at least two items'],
       ['a value that is not a segment', { segments: { ...segments, value: 'gone' } }, 'value "gone" is not one of its items'],
       ['a search with no label', { search: { label: ' ', onChange: () => {} } }, 'search needs a label'],
+      ['a search that keeps nothing typed', { search: { label: 'Search records', value: '' } }, 'search needs onChange'],
+      ['a switch that cannot change', { toggle: { label: 'Only mine', checked: false } }, 'toggle needs onChange'],
       ['filters with no way to clear them', { filters: { open: false, onOpenChange: () => {} } }, 'need onOpenChange and onClear'],
     ])('%s', (_name, props, message) => {
       vi.spyOn(console, 'error').mockImplementation(() => {});

@@ -6,38 +6,58 @@ import './ListToolbar.css';
 
 const isText = (value) => typeof value === 'string' && value.trim() !== '';
 
+/**
+ * Reports each part used against its contract, and says which parts can be
+ * drawn. In a production build a report returns, so a part without its list or
+ * its callback is left out rather than crashing the page or drawing a control
+ * that does nothing.
+ */
 function checkProps({ segments, toggle, search, filters }) {
+  const usable = { segmentItems: null, toggle: false, search: false, filters: false };
   if (segments) {
     if (!isText(segments.ariaLabel)) {
       contractViolation('ListToolbar segments need an ariaLabel naming the set.');
     }
-    const items = Array.isArray(segments.items) ? segments.items : [];
+    const items = Array.isArray(segments.items)
+      ? segments.items.filter((item) => item && typeof item === 'object')
+      : [];
     if (items.length < 2) {
       contractViolation('ListToolbar segments need at least two items; one is not a choice.');
     } else if (!items.some((item) => item.id === segments.value)) {
       contractViolation(`ListToolbar segments value "${segments.value}" is not one of its items.`);
     }
-    if (typeof segments.onChange !== 'function') {
+    const choosable = typeof segments.onChange === 'function';
+    if (!choosable) {
       contractViolation('ListToolbar segments need onChange.');
     }
+    if (items.length >= 2 && choosable) usable.segmentItems = items;
   }
-  if (toggle && typeof toggle.onChange !== 'function') {
-    contractViolation('ListToolbar toggle needs onChange.');
+  if (toggle) {
+    usable.toggle = typeof toggle.onChange === 'function';
+    if (!usable.toggle) contractViolation('ListToolbar toggle needs onChange.');
   }
-  if (search && !isText(search.label)) {
-    contractViolation('ListToolbar search needs a label: the search box shows none of its own.');
+  if (search) {
+    if (!isText(search.label)) {
+      contractViolation('ListToolbar search needs a label: the search box shows none of its own.');
+    }
+    usable.search = typeof search.onChange === 'function';
+    if (!usable.search) {
+      contractViolation('ListToolbar search needs onChange: without it the box keeps nothing typed.');
+    }
   }
-  if (filters && (typeof filters.onOpenChange !== 'function' || typeof filters.onClear !== 'function')) {
-    contractViolation('ListToolbar filters need onOpenChange and onClear.');
+  if (filters) {
+    usable.filters = typeof filters.onOpenChange === 'function' && typeof filters.onClear === 'function';
+    if (!usable.filters) contractViolation('ListToolbar filters need onOpenChange and onClear.');
   }
+  return usable;
 }
 
 /**
  * The one row of controls above a list: which part of the list (`segments`),
  * an on/off narrowing such as "Only mine" (`toggle`), a `search`, the `filters`
- * that open a second row of fields, and the page's own `actions`. Every part is
- * optional, and the page owns every value: this draws the controls and reports
- * what was pressed.
+ * that open a second row of fields, and `actions` on the list's records (such
+ * as assigning the selected ones). Every part is optional, and the page owns
+ * every value: this draws the controls and reports what was pressed.
  *
  * The segments narrow one list; they do not switch between panels, so each is a
  * button with `aria-pressed` in a named group, not a tab in a `tablist`.
@@ -49,7 +69,7 @@ function checkProps({ segments, toggle, search, filters }) {
 export function ListToolbar({ segments, toggle, search, filters, actions, className = '', ...props }) {
   const filtersId = useId();
   const filtersButton = useRef(null);
-  checkProps({ segments, toggle, search, filters });
+  const shown = checkProps({ segments, toggle, search, filters });
   const activeCount = filters?.activeCount ?? 0;
 
   // "Clear filters" goes away once nothing is applied; focus moves to the
@@ -62,9 +82,13 @@ export function ListToolbar({ segments, toggle, search, filters, actions, classN
   return (
     <div {...props} className={`ds-list-toolbar ${className}`.trim()}>
       <div className="ds-list-toolbar__bar">
-        {segments && (
+        {shown.segmentItems && (
           <div role="group" aria-label={segments.ariaLabel} className="ds-list-toolbar__segments">
-            {segments.items.map((item) => (
+            {/* The toolbar's own buttons, not `SegmentedControl`, which draws
+                boxed cards: these are underlined, scroll in one row and carry
+                counts. A temporary exception, recorded in the roadmap §3 until
+                `SegmentedControl` has that appearance. */}
+            {shown.segmentItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -83,7 +107,7 @@ export function ListToolbar({ segments, toggle, search, filters, actions, classN
         )}
 
         <div className="ds-list-toolbar__tools">
-          {toggle && (
+          {shown.toggle && (
             <Switch
               showLabel
               className="ds-list-toolbar__toggle"
@@ -92,7 +116,7 @@ export function ListToolbar({ segments, toggle, search, filters, actions, classN
               onChange={toggle.onChange}
             />
           )}
-          {search && (
+          {shown.search && (
             <div role="search" className="ds-list-toolbar__search">
               <Icon icon={Search} size="sm" className="ds-list-toolbar__search-icon" />
               <Input
@@ -100,11 +124,11 @@ export function ListToolbar({ segments, toggle, search, filters, actions, classN
                 aria-label={search.label}
                 placeholder={search.placeholder ?? search.label}
                 value={search.value}
-                onChange={(event) => search.onChange?.(event.target.value)}
+                onChange={(event) => search.onChange(event.target.value)}
               />
             </div>
           )}
-          {filters && (
+          {shown.filters && (
             <Button
               ref={filtersButton}
               variant="secondary"
@@ -126,7 +150,7 @@ export function ListToolbar({ segments, toggle, search, filters, actions, classN
         </div>
       </div>
 
-      {filters?.open && (
+      {shown.filters && filters.open && (
         <div id={filtersId} role="group" aria-label="Filters" className="ds-list-toolbar__filters">
           <div className="ds-list-toolbar__filter-fields">{filters.children}</div>
           {activeCount > 0 && (

@@ -273,7 +273,9 @@ The reverse directions are prohibited — including any `@shared` import inside
 - **A list page follows the six rules in `patterns/list-toolbar/README.md`**:
   one heading with the count, one `ListToolbar` row, one row per record in a
   `DataTable embedded`, sorting from headers, calm statuses, cards on phones.
-  Example: the `Patterns/List page` stories.
+  Example: the `Patterns/List page` stories. Temporary exception: its segments
+  are its own buttons until `SegmentedControl` has an underlined, scrolling
+  appearance with counts.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
   record-specific accessible name. Prefer deciding which actions a row offers in
   a pure, tested module (as `unfinishedRowActions.js` does) over a `render`
