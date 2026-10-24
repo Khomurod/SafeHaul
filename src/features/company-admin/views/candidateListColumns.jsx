@@ -141,7 +141,9 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
         cols.push({
             key: 'status',
             header: 'Status',
-            width: 'sm',
+            // `lg`: the widest status a list shows ("Contact Attempt 1", "New
+            // Application") is a non-wrapping badge, and `sm` could not hold it.
+            width: 'lg',
             /*
              * `StatusBadge`, not a fourth hand-built pill. The local one was
              * tokenised — which is why the colour rules never flagged it — but it

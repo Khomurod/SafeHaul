@@ -314,8 +314,9 @@ work complete because code exists.** The PR checklist is
   subject's `ready` names the last thing to arrive. Remove a non-deterministic
   input; never widen `maxDiffPixels` or weaken `check:visual-contract` to absorb
   it.
-- `check:table-layout` measures the catalog only: a feature table that changes
-  shape needs a human look on mobile.
+- `check:table-layout` measures the catalog; `e2e/table-layout.spec.cjs` runs
+  the same measurement over every app screen that shows a table from fixtures.
+  A table no fixture can show still needs a human look on mobile.
 - A test must not find a region by a styling utility (`.z-30`,
   `.rounded-t-ds-xl`): use a `data-testid` or the chrome contract
   (`.ds-modal[data-placement="bottom"]`), and assert an axe `include` matched
@@ -418,7 +419,7 @@ delete one without replacing the guarantee. All are blocking, and none may carry
 | `no-restricted-syntax` = `error` for `src/` outside `src/design-system/icons/` (`eslint.config.js`) | An import, re-export, `import()` or `require` of `lucide-react`. There is no exemption list | `frontend-quality` · `scripts/test-lint-rules.mjs` L1–L3, in `callable-contract` |
 | `react/jsx-no-undef` and `react-hooks/rules-of-hooks` = `error` (`eslint.config.js`) | A JSX name that was never imported, such as `<Icon>`; a hook called conditionally | `frontend-quality` · `scripts/test-lint-rules.mjs` M1–M2; the step, `scripts/ci-plan/test-guards.mjs` K1e |
 | `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | A catalog story that fails to render or fails axe | `frontend-quality` · `test-ci-plan.mjs` K1d |
-| `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | In a real browser at 412px and 1440px, over `DataTable` and `ds-native-table`: a cell whose content overflows unless its column opts into `truncate`, and a region reserving a gutter it never scrolls into. It must stay a real-browser check (jsdom has no layout engine); it waits for each story's Storybook `finished` phase, then `document.fonts.ready` and two painted frames, fails if it measures zero tables, and honours `PW_CHROMIUM_EXECUTABLE` | `storybook-build` · K1b |
+| `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | In a real browser at 412px and 1440px, over `DataTable` and `ds-native-table`: a cell whose content overflows unless its column opts into `truncate`, and a region reserving a gutter it never scrolls into. It must stay a real-browser check (jsdom has no layout engine); it waits for each story's Storybook `finished` phase, then `document.fonts.ready` and two painted frames, fails if it measures zero tables, and honours `PW_CHROMIUM_EXECUTABLE`. The measurement is `scripts/table-layout/measureTables.cjs`, which `e2e/table-layout.spec.cjs` also runs over the app's table screens at both widths | `storybook-build` · K1b; frontend-e2e |
 | `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry at both widths against `src/design-system/tests/visual-contract.snapshot.json` — control heights, cell padding, radii, resolved colours, glyph sizes and the glyph–label gap, frozen-column backgrounds, `SelectableCard`'s states, `SectionNavigation`'s grid templates. A failure names what moved | `storybook-build` · K1b |
 | `npm run test:visual` (`e2e/visual/`) | A pixel change to a catalog subject or application screen at 1440px or 412px, against baselines committed beside the specs. CI runs the catalog in `storybook-build` and the screens in `app-visual`, the browser lane a feature change selects. It reports every failure (the catalog describe is never `mode: 'serial'`); the catalog's first test is a font tripwire (`document.fonts.check('400 16px Inter')` plus pangram metrics, never `getComputedStyle().fontFamily`); both lanes freeze the clock (`e2e/visual/settle.cjs`), and `playwright.visual.config.cjs` pins `locale: 'en-US'` and `timezoneId: 'UTC'`. A failing run uploads `visual-regression-diff` or `app-screenshots-diff` | `storybook-build`, `app-visual` · K1, K1b, A7 |
 | `npm run test:e2e -- --grep "@a11y"` (`e2e/a11y.spec.cjs` and friends) | Real-browser axe failures on the mobile-critical journeys, plus what axe cannot see: roving `tabIndex`, arrow/Home/End on a tab strip, `aria-pressed` on a segmented group, a file input named by its field, the product's focus ring on every Tab stop | `frontend-e2e` · K2/K2b |
@@ -475,10 +476,12 @@ read them.
 
 - No rule replaces the old hand-composed notice and avatar-disc checks: a
   tinted block or a hand-drawn initials disc passes lint.
-- `check:table-layout` measures the catalog, not the application — a feature
-  screen with no story is not measured (`test:visual`'s screens check
-  appearance, not overflow); some screens have no baseline at all, e.g. the
-  campaign editor and the schema editors' edit mode.
+- `e2e/table-layout.spec.cjs` measures real records on 5 of its 15 screens; on
+  the 10 marked `empty` the fixtures show none, so only headers and the empty
+  state are measured. Tables no fixture renders are not measured at all (import
+  preview, campaign results and report, stats backfill preview); some screens
+  have no baseline at all, e.g. the campaign editor and the schema editors' edit
+  mode.
 - `index.html` is pinned by tests (`pageShell.test.js`), not a rule.
 - Tailwind's extractor compiles class names found in prose (`.bg-gray-50` ships
   from comments that name it — the hazard `tailwind.config.js` documents for

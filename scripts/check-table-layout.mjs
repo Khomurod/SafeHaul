@@ -39,20 +39,20 @@
  *    not scrolling is space the table can never paint, and it shows as a strip
  *    of the surface behind it.
  *
- * ## What it does not cover
+ * ## The application's own screens
  *
- * The catalog, not the application. Feature screens are only covered to the
- * extent that a catalog pattern represents them, and catalog fixtures are
- * deliberately generic — "Service alpha" is shorter than a real provider name.
- * A pattern can pass here while the screen it documents overflows on a longer
- * production string. When a feature changes a column's content, measure the
- * screen too.
+ * This script measures the catalog. The same measurement
+ * (`table-layout/measureTables.cjs`) runs over the application's screens in
+ * `e2e/table-layout.spec.cjs`, because catalog fixtures are deliberately generic
+ * — "Service alpha" is shorter than a real provider name — and a pattern can
+ * pass here while the screen it documents overflows.
  */
 
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { measureTables } from './table-layout/measureTables.cjs';
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const STATIC_DIR = resolve(REPO_ROOT, 'storybook-static');
@@ -100,80 +100,6 @@ function serveStatic(root) {
         server.on('error', reject);
         server.listen(0, '127.0.0.1', () => resolvePort({ server, port: server.address().port }));
     });
-}
-
-/**
- * Runs inside the page. Returns the violations found in this render, plus how
- * many populated tables were actually measured — the caller treats "measured
- * nothing anywhere" as a failure rather than a clean result.
- *
- * Kept as a single serialisable function so the measurement lives in one place
- * and is the same at both viewports.
- */
-function measureTables() {
-    const findings = [];
-    let tableCount = 0;
-
-    /*
-     * Both approved table contracts are measured.
-     *
-     * `DataTable` owns its own scroll region, so the dead-gutter invariant is
-     * about that element. `ds-native-table` — the contract every approved
-     * native table applies — deliberately has no scroll container:
-     * a native table is chosen when the feature owns the row's interaction, and
-     * the feature owns its overflow too. So its own element is the subject, and
-     * only the cell-containment invariant applies to it.
-     *
-     * Without the second selector no native table is measured ANYWHERE: only
-     * the catalog's `DataTable` stories would be.
-     */
-    const subjects = [
-        ...Array.from(document.querySelectorAll('.ds-data-table'), (root) => ({
-            region: root.querySelector('.ds-data-table__scroll-region'),
-            checkGutter: true,
-        })),
-        ...Array.from(document.querySelectorAll('table.ds-native-table'), (table) => ({
-            region: table,
-            checkGutter: false,
-        })),
-    ];
-
-    for (const { region, checkGutter } of subjects) {
-        if (!region) continue;
-        // An async/empty state renders the shell with no cells. Counting only
-        // regions that actually contain a row keeps the "did we measure
-        // anything" assertion meaningful.
-        if (region.querySelector('td, th')) tableCount += 1;
-
-        // Invariant 2 — space reserved at the edge that the table cannot paint.
-        if (checkGutter) {
-            const reserved = region.offsetWidth - region.clientWidth;
-            const scrollsVertically = region.scrollHeight > region.clientHeight + 1;
-            if (reserved > 1 && !scrollsVertically) {
-                findings.push({
-                    kind: 'dead-gutter',
-                    detail: `${reserved}px reserved at the edge of a region that does not scroll vertically`,
-                });
-            }
-        }
-
-        // Invariant 1 — every cell contains its content.
-        for (const cell of region.querySelectorAll('td, th')) {
-            if (cell.getAttribute('data-truncate') === 'true') continue;
-            const over = cell.scrollWidth - cell.clientWidth;
-            if (over <= 1) continue;
-            findings.push({
-                kind: 'cell-overflow',
-                width: cell.getAttribute('data-width') || 'auto',
-                over,
-                box: cell.clientWidth,
-                needs: cell.scrollWidth,
-                text: (cell.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 56),
-                detail: `content needs ${cell.scrollWidth}px in a ${cell.clientWidth}px column`,
-            });
-        }
-    }
-    return { findings, tableCount };
 }
 
 /**
