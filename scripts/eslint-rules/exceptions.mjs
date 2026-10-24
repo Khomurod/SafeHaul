@@ -186,11 +186,6 @@ export const DS_EXCEPTIONS = {
     'src/features/super-admin/components/FeaturesView.jsx': {
         'raw-table': NATIVE_TABLE,
     },
-    'src/features/super-admin/components/StatsBackfillPanel.jsx': {
-        'raw-table': 'roadmap §5 — an operator console with six per-row actions and live progress. Uses '
-            + 'the --ds-table-* roles. Per-row interactive rows are the case §5 approves a native table '
-            + 'for.',
-    },
     'src/features/super-admin/components/UsersView.jsx': {
         'raw-table': 'roadmap §5 — a native table inside a virtualised scroll region. Uses the '
             + '--ds-table-* roles. DataTable owns its own scroll container, so adopting it here would mean '

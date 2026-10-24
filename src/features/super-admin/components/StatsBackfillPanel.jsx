@@ -2,7 +2,7 @@ import React, { useId, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { Icon, Play, CheckCircle } from '@design-system/icons';
-import { Button, Card, FormField, Input, Notice } from '@/design-system/components';
+import { Button, Card, DataTable, FormField, Input, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useFocusAfterRun } from '../hooks/useFocusAfterRun';
@@ -39,6 +39,38 @@ import { useFocusAfterRun } from '../hooks/useFocusAfterRun';
  * the repository establishes no generic replacement wording, so the string is
  * preserved verbatim and recorded in the roadmap for an owner to decide.
  */
+/** The dry run's days: counts on the end edge, the rows scrolling under a 256px cap. */
+const PREVIEW_COLUMNS = [
+    {
+        key: 'date',
+        header: 'Date',
+        rowHeader: true,
+        width: 'md',
+        render: (day) => <span className="font-mono">{day.dateKey}</span>,
+    },
+    {
+        key: 'dials',
+        header: 'Dials',
+        align: 'end',
+        width: 'sm',
+        render: (day) => <span className="font-semibold tabular-nums">{day.totalDials}</span>,
+    },
+    {
+        key: 'connected',
+        header: 'Connected',
+        align: 'end',
+        width: 'md',
+        render: (day) => <span className="tabular-nums text-ds-status-success-fg">{day.connected}</span>,
+    },
+    {
+        key: 'users',
+        header: 'Users',
+        align: 'end',
+        width: 'sm',
+        render: (day) => <span className="tabular-nums">{day.userCount}</span>,
+    },
+];
+
 export default function StatsBackfillPanel() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
@@ -255,34 +287,15 @@ export default function StatsBackfillPanel() {
                                 <h6 className="mb-ds-2 text-ds-sm font-semibold text-ds-content">
                                     Preview (First {result.preview.length} Days)
                                 </h6>
-                                <div
-                                    role="region"
-                                    aria-label="Backfill preview by day. Scroll to view all rows and columns."
-                                    tabIndex={0}
-                                    className="max-h-64 overflow-auto rounded-ds-lg border border-ds-border-subtle bg-ds-surface focus-visible:outline-none focus-visible:shadow-ds-focus"
-                                >
-                                    <table className="ds-native-table" data-density="compact" data-pin-first-column>
-                                        <caption className="sr-only">Backfill preview by day</caption>
-                                        <thead className="sticky top-0 bg-ds-table-header-bg">
-                                            <tr>
-                                                <th scope="col" className="font-semibold">Date</th>
-                                                <th scope="col" className="text-right font-semibold">Dials</th>
-                                                <th scope="col" className="text-right font-semibold">Connected</th>
-                                                <th scope="col" className="text-right font-semibold">Users</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {result.preview.map((day, idx) => (
-                                                <tr key={idx}>
-                                                    <th scope="row" className="font-mono font-normal text-ds-content">{day.dateKey}</th>
-                                                    <td className="text-right font-semibold tabular-nums text-ds-content">{day.totalDials}</td>
-                                                    <td className="text-right tabular-nums text-ds-status-success-fg">{day.connected}</td>
-                                                    <td className="text-right tabular-nums">{day.userCount}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <DataTable
+                                    ariaLabel="Backfill preview by day"
+                                    density="compact"
+                                    minWidth="none"
+                                    maxHeight="sm"
+                                    data={result.preview}
+                                    columns={PREVIEW_COLUMNS}
+                                    getRowId={(day) => day.dateKey}
+                                />
                             </div>
                         )}
                     </Card>

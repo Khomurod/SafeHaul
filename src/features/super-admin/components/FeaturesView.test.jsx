@@ -221,6 +221,12 @@ describe('FeaturesView — alert stats dialog', () => {
         expect(cells).toEqual(['5', '1', '1']);
         // The other feature's row must not appear.
         expect(within(table).queryByText('b@example.test')).not.toBeInTheDocument();
+        // The shared table: the counts on the end edge, nothing centred.
+        expect(table.closest('.ds-data-table')).not.toBeNull();
+        expect(within(table).getAllByRole('columnheader')
+            .filter((th) => th.getAttribute('data-align') === 'end')
+            .map((th) => th.textContent)).toEqual(['Views', 'Dismisses (X)', 'Contact Sales Clicks']);
+        expect(table.querySelector('.text-center')).toBeNull();
     });
 
     it('falls back to userId then Unknown', async () => {

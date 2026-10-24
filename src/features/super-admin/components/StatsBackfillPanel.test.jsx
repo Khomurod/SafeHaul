@@ -259,6 +259,12 @@ describe('StatsBackfillPanel — states are announced (defect)', () => {
 
         const table = await screen.findByRole('table', { name: 'Backfill preview by day' });
         expect(within(table).getByText('2026-07-01')).toBeInTheDocument();
+        // The shared table, capped at 256px with the rows scrolling under the header.
+        expect(table.closest('.ds-data-table')).toHaveAttribute('data-max-height', 'sm');
+        expect(within(table).getAllByRole('columnheader')
+            .filter((th) => th.getAttribute('data-align') === 'end')
+            .map((th) => th.textContent)).toEqual(['Dials', 'Connected', 'Users']);
+        expect(within(table).getByRole('rowheader', { name: '2026-07-01' })).toBeInTheDocument();
     });
 });
 

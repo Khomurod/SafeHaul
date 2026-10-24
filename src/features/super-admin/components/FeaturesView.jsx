@@ -1,9 +1,9 @@
 import React, { useId, useState } from 'react';
 import { db } from '@lib/firebase';
 import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
-import { Icon, Zap, Loader2, Calendar, X, Clock, BarChart2 } from '@design-system/icons';
+import { Icon, Zap, Calendar, X, Clock, BarChart2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { Button, IconButton, Switch } from '@/design-system/components';
+import { Button, DataTable, IconButton, Switch } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
 import { COMPANY_FEATURES, isFeatureOn } from '../config/features';
@@ -268,6 +268,26 @@ export function FeaturesView({ company, onChanged }) {
     );
 }
 
+/** Each user's interactions with the alert: one row per email, counts on the end edge. */
+const ALERT_STATS_COLUMNS = [
+    {
+        key: 'email',
+        header: 'User Email',
+        rowHeader: true,
+        width: 'xl',
+        render: (stat) => <span className="[overflow-wrap:anywhere]">{stat.email}</span>,
+    },
+    { key: 'views', header: 'Views', align: 'end', width: 'sm', render: (stat) => <span className="tabular-nums">{stat.views}</span> },
+    { key: 'dismisses', header: 'Dismisses (X)', align: 'end', width: 'md', render: (stat) => <span className="tabular-nums">{stat.dismisses}</span> },
+    {
+        key: 'salesClicks',
+        header: 'Contact Sales Clicks',
+        align: 'end',
+        width: 'lg',
+        render: (stat) => <span className="tabular-nums">{stat.salesClicks}</span>,
+    },
+];
+
 function AlertStatsDialog({ info, stats, loading, onClose }) {
     const titleId = useId();
 
@@ -291,43 +311,17 @@ function AlertStatsDialog({ info, stats, loading, onClose }) {
                     Stats for <strong>{info?.featureKey}</strong> at <strong>{info?.company?.companyName}</strong>.
                 </p>
 
-                {loading ? (
-                    <div role="status" className="flex justify-center p-ds-8">
-                        <Icon icon={Loader2} size="3xl" className="animate-spin text-ds-content-link" />
-                        <span className="sr-only">Loading alert stats</span>
-                    </div>
-                ) : stats.length === 0 ? (
-                    <p className="rounded-ds-lg bg-ds-surface-subtle p-ds-8 text-center text-ds-content-muted">No alert interactions recorded yet.</p>
-                ) : (
-                    <div
-                        role="region"
-                        aria-label="Alert interactions by user. Scroll horizontally to view all columns."
-                        tabIndex={0}
-                        className="overflow-x-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
-                    >
-                        <table className="ds-native-table overflow-hidden rounded-ds-lg border border-ds-border-subtle" data-pin-first-column>
-                            <caption className="sr-only">Alert interactions by user</caption>
-                            <thead>
-                                <tr>
-                                    <th scope="col" className="text-ds-sm">User Email</th>
-                                    <th scope="col" className="text-center text-ds-sm">Views</th>
-                                    <th scope="col" className="text-center text-ds-sm">Dismisses (X)</th>
-                                    <th scope="col" className="text-center text-ds-sm">Contact Sales Clicks</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {stats.map((stat, idx) => (
-                                    <tr key={idx}>
-                                        <th scope="row" className="text-ds-sm font-normal text-ds-content">{stat.email}</th>
-                                        <td className="text-center text-ds-sm tabular-nums">{stat.views}</td>
-                                        <td className="text-center text-ds-sm tabular-nums">{stat.dismisses}</td>
-                                        <td className="text-center text-ds-sm tabular-nums text-ds-content-link">{stat.salesClicks}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                <DataTable
+                    ariaLabel="Alert interactions by user"
+                    density="compact"
+                    minWidth="none"
+                    data={stats}
+                    columns={ALERT_STATS_COLUMNS}
+                    getRowId={(stat) => stat.email}
+                    isLoading={loading}
+                    loadingLabel="Loading alert stats"
+                    empty={{ title: 'No alert interactions recorded yet.' }}
+                />
             </div>
             <div className="flex shrink-0 justify-end border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
                 <Button variant="secondary" onClick={onClose}>Close</Button>
