@@ -141,7 +141,10 @@ fails on a cell whose content is wider than its column. It cannot be a unit test
 jsdom has no layout engine, so `scrollWidth` is always `0` there. The same
 measurement runs over the application's own table screens in
 `e2e/table-layout.spec.cjs` (1440px and 412px), because a feature's real strings
-are longer than a pattern's fixtures. A new table screen joins that list.
+are longer than a pattern's fixtures. A new table screen joins that list. Only
+the screens whose fixtures show records (`row`) have their cells measured; the
+others (`empty`) are measured on their headers and empty state until their
+fixtures gain records.
 
 ## Async and feedback states
 

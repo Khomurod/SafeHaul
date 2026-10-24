@@ -14,9 +14,17 @@ const { freezeClock, settle } = require('./visual/settle.cjs');
  * shows a table under the existing `?e2eAuth=` / `e2e…=mock` fixtures, at both
  * ends of the responsive range.
  *
- * Each screen must measure at least one table: a screen whose table never
- * rendered is a broken setup, not a clean result. A column that clips on
- * purpose declares `truncate`, which the measurement exempts.
+ * Each screen names the text it waits for inside a table body before it
+ * measures: `row`, a record the fixture shows, or `empty`, the empty or error
+ * state it shows instead. A table's loading state (a "Loading…" row, skeleton
+ * rows) never counts as loaded. Each screen must also measure at least one
+ * table. A column that clips on purpose declares `truncate`, which the
+ * measurement exempts.
+ *
+ * Only the screens with a `row` have their cells measured on real records.
+ * Those with `empty` have no records under the fixtures, so only their headers
+ * and the empty or error row are measured; a screen moves to `row` when its
+ * fixture gains records.
  *
  * Not covered, because no fixture renders the table without Firestore:
  * the import-leads preview (needs an uploaded file), the campaign results and
@@ -25,21 +33,21 @@ const { freezeClock, settle } = require('./visual/settle.cjs');
  */
 
 const SCREENS = [
-    { name: 'company dashboard leaderboard', url: '/company/dashboard?e2eAuth=company_admin' },
-    { name: 'applications', url: '/company/drivers/applications?e2eAuth=company_admin' },
-    { name: 'company leads', url: '/company/drivers/leads/company?e2eAuth=company_admin' },
-    { name: 'my leads', url: '/company/drivers/leads/my?e2eAuth=company_admin' },
-    { name: 'unfinished applications', url: '/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock' },
-    { name: 'referral links', url: '/company/referral-links?e2eAuth=company_admin' },
-    { name: 'settings api keys', url: '/company/settings?section=api_keys&e2eAuth=company_admin' },
-    { name: 'super admin features', url: '/super-admin/features?e2eAuth=super_admin' },
-    { name: 'super admin companies', url: '/super-admin/companies?e2eAuth=super_admin' },
-    { name: 'super admin users', url: '/super-admin/users?e2eAuth=super_admin' },
-    { name: 'super admin unified driver db', url: '/super-admin/applications?e2eAuth=super_admin' },
-    { name: 'super admin environment', url: '/super-admin/environment-integrations?e2eAuth=super_admin' },
-    { name: 'super admin ai integrations', url: '/super-admin/ai-integrations?e2eAuth=super_admin' },
-    { name: 'super admin blog posts', url: '/super-admin/blog-posts?e2eAuth=super_admin' },
-    { name: 'super admin website leads', url: '/super-admin/website-leads?e2eAuth=super_admin' },
+    { name: 'company dashboard leaderboard', url: '/company/dashboard?e2eAuth=company_admin', row: 'Jordan Recruiter' },
+    { name: 'applications', url: '/company/drivers/applications?e2eAuth=company_admin', row: 'James Mcdonald' },
+    { name: 'company leads', url: '/company/drivers/leads/company?e2eAuth=company_admin', row: 'Omar Attempt' },
+    { name: 'my leads', url: '/company/drivers/leads/my?e2eAuth=company_admin', row: 'Lena Leadsen' },
+    { name: 'unfinished applications', url: '/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock', row: 'Dana Whitfield' },
+    { name: 'referral links', url: '/company/referral-links?e2eAuth=company_admin', empty: 'No referral links yet' },
+    { name: 'settings api keys', url: '/company/settings?section=api_keys&e2eAuth=company_admin', empty: 'Unable to load records' },
+    { name: 'super admin features', url: '/super-admin/features?e2eAuth=super_admin', empty: 'No companies yet' },
+    { name: 'super admin companies', url: '/super-admin/companies?e2eAuth=super_admin', empty: 'No companies found.' },
+    { name: 'super admin users', url: '/super-admin/users?e2eAuth=super_admin', empty: 'No users found.' },
+    { name: 'super admin unified driver db', url: '/super-admin/applications?e2eAuth=super_admin', empty: 'No drivers match your filters.' },
+    { name: 'super admin environment', url: '/super-admin/environment-integrations?e2eAuth=super_admin', empty: 'Unable to load records' },
+    { name: 'super admin ai integrations', url: '/super-admin/ai-integrations?e2eAuth=super_admin', empty: 'No AI providers are registered.' },
+    { name: 'super admin blog posts', url: '/super-admin/blog-posts?e2eAuth=super_admin', empty: 'No articles have been published yet.' },
+    { name: 'super admin website leads', url: '/super-admin/website-leads?e2eAuth=super_admin', empty: 'No leads were captured.' },
 ];
 
 const WIDTHS = [
@@ -47,7 +55,9 @@ const WIDTHS = [
     { label: 'mobile', width: 412, height: 915 },
 ];
 
-const TABLES = '.ds-data-table:not([aria-busy="true"]) th, table.ds-native-table th';
+// Any table on the screen still loading: a busy `DataTable`, or a native
+// table's "Loading…" row.
+const STILL_LOADING = '.ds-data-table[aria-busy="true"], table.ds-native-table [role="status"]:has-text("Loading")';
 
 test.describe('@table-layout application tables', () => {
     test.use({ locale: 'en-US', timezoneId: 'UTC' });
@@ -59,7 +69,9 @@ test.describe('@table-layout application tables', () => {
                 await page.setViewportSize({ width, height });
                 await freezeClock(page);
                 await page.goto(screen.url);
-                await expect(page.locator(TABLES).first()).toBeAttached({ timeout: 30_000 });
+                await expect(page.locator('table tbody').getByText(screen.row ?? screen.empty).first())
+                    .toBeAttached({ timeout: 30_000 });
+                await expect(page.locator(STILL_LOADING)).toHaveCount(0, { timeout: 30_000 });
                 await settle(page);
 
                 const { findings, tableCount } = await page.evaluate(measureTables);
