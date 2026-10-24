@@ -111,7 +111,7 @@ export function buildProviderColumns({
         {
             key: 'models',
             header: 'Model defaults',
-            width: 'md',
+            width: 'lg',
             render: (provider) => (
                 <Stack gap="sm">
                     <ul className="text-ds-xs text-ds-content-secondary">
@@ -210,7 +210,9 @@ export function buildProviderColumns({
         {
             key: 'actions',
             header: 'Actions',
-            width: 'actions',
+            // `actions` holds one icon button under an empty header; a visible
+            // "Actions" header needs `sm` (data-table README).
+            width: 'sm',
             align: 'end',
             render: (provider) => {
                 if (provider.retired) {

@@ -99,6 +99,18 @@
   text-transform: uppercase;
 }
 
+/*
+ * A header is one line: a label that wraps makes the whole header band taller
+ * and reads as two labels. The ellipsis is a safety net for production only:
+ * `check:table-layout` and `e2e/table-layout.spec.cjs` fail on a header that
+ * does not fit its column unless the column declares `truncate`.
+ */
+.ds-data-table thead th:not(.ds-data-table__selection-cell) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ds-data-table th,
 .ds-data-table td {
   box-sizing: border-box;

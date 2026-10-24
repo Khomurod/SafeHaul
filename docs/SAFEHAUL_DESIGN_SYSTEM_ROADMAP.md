@@ -266,7 +266,8 @@ The reverse directions are prohibited — including any `@shared` import inside
 - **The column contract holds only options the table acts on**
   (`components/data-table/README.md`): an option that changes no rendering or
   behaviour is removed, not kept for later. A column is `start` (text) or `end`
-  (numbers), never centred; `minWidth` is `wide`, `standard` or `none`.
+  (numbers), never centred; a header is one line; `minWidth` is `wide`,
+  `standard` or `none`.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
   record-specific accessible name. Prefer deciding which actions a row offers in
   a pure, tested module (as `unfinishedRowActions.js` does) over a `render`
@@ -476,9 +477,9 @@ read them.
 
 - No rule replaces the old hand-composed notice and avatar-disc checks: a
   tinted block or a hand-drawn initials disc passes lint.
-- `e2e/table-layout.spec.cjs` measures real records on 5 of its 15 screens; on
-  the 10 marked `empty` the fixtures show none, so only headers and the empty
-  state are measured. Tables no fixture renders are not measured at all (import
+- `e2e/table-layout.spec.cjs` measures real records on 6 of its 15 screens (on
+  AI integrations, the model versions table only); on the 9 marked `empty` the
+  fixtures show none, so only headers and the empty state are measured. Tables no fixture renders are not measured at all (import
   preview, campaign results and report, stats backfill preview); some screens
   have no baseline at all, e.g. the campaign editor and the schema editors' edit
   mode.

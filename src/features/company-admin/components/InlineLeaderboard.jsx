@@ -148,7 +148,8 @@ export function InlineLeaderboard({ companyId }) {
         {
             key: 'rank',
             header: 'Rank',
-            width: 'sm',
+            // `md`: the widest rank is the "Second place" badge.
+            width: 'md',
             render: (agent) => <Rank index={agent.rank} />,
         },
         {
@@ -182,7 +183,8 @@ export function InlineLeaderboard({ companyId }) {
             key,
             header,
             align: 'end',
-            width: 'xs',
+            // `sm`: a one-line header such as "Connected" does not fit `xs`.
+            width: 'sm',
             render: (agent) => (
                 <span className="font-semibold text-ds-content-secondary">
                     {agent[key].toLocaleString()}

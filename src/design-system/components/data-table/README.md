@@ -122,6 +122,24 @@ the next column, or past the edge the table paints to.
 than the widest badge — that is a hard floor, not a preference. The same applies
 to buttons with text labels.
 
+A header is one line too (`white-space: nowrap`), so a header is a floor as well:
+twelve-pixel capitals take about 8px a letter. A bucket leaves this much for its
+header text once the cell padding is taken (desktop / phone):
+
+| Bucket | Header text fits in |
+|---|---|
+| `xs` | 48px / 56px — a short word ("Dials") |
+| `sm` | 80px / 88px — "Last call", "Actions" |
+| `md` | 104px / 112px |
+| `lg` | 136px / 144px |
+| `xl` | 180px / 188px |
+
+A header that does not fit shows an ellipsis in production, and fails
+`check:table-layout` and `e2e/table-layout.spec.cjs` unless its column declares
+`truncate`. When a table's fixed columns add up to less than its width they
+stretch to fill it, so a narrow header may fit on a wide screen and not on a
+phone: the spec measures both.
+
 Pick the bucket from the widest thing the column will ever hold, not from the
 common case, and leave real margin rather than a few pixels. If clipping is what
 you actually want, declare `truncate` — that is the supported opt-in, and the

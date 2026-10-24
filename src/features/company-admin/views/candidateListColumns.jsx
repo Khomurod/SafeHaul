@@ -94,7 +94,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                 key: 'identity',
                 header: 'Driver / Contact',
                 rowHeader: true,
-                width: 'xl',
+                width: 'lg',
                 render: (item) => {
                     const name = getCandidateName(item);
                     const stale = staleContactMeta(item);
@@ -203,7 +203,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             header: (
                 <span className="inline-flex items-center gap-1">
                     <DsIcon icon={Calendar} size="xs" className="text-ds-content-muted" />
-                    Added Date
+                    Added
                     <span className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
                         {/* Up arrow = Earliest first (asc). `pressed` rather than a
                             colour utility: the active direction used to be marked
@@ -234,7 +234,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                     </span>
                 </span>
             ),
-            width: 'md',
+            width: 'lg',
             render: (item) => {
                 const dateStr = formatAddedDate(item);
                 if (!dateStr) {
@@ -253,7 +253,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
         cols.push({
             key: 'lastCall',
             header: 'Last Call',
-            width: 'xs',
+            width: 'sm',
             render: (item) => {
                 if (!item.lastCallOutcome) {
                     return <span className="text-ds-xs text-ds-content-muted italic">—</span>;

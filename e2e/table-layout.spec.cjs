@@ -16,21 +16,51 @@ const { freezeClock, settle } = require('./visual/settle.cjs');
  *
  * Each screen names the text it waits for inside a table body before it
  * measures: `row`, a record the fixture shows, or `empty`, the empty or error
- * state it shows instead. A table's loading state (a "Loading…" row, skeleton
- * rows) never counts as loaded. Each screen must also measure at least one
- * table. A column that clips on purpose declares `truncate`, which the
- * measurement exempts.
+ * state it shows instead (in the table named `table`, when one is given). A
+ * table's loading state (a "Loading…" row, skeleton rows) never counts as
+ * loaded. Each screen must also measure at least one table. A column that
+ * clips on purpose declares `truncate`, which the measurement exempts.
  *
  * Only the screens with a `row` have their cells measured on real records.
  * Those with `empty` have no records under the fixtures, so only their headers
  * and the empty or error row are measured; a screen moves to `row` when its
- * fixture gains records.
+ * fixture gains records. A screen whose records come from a callable, which the
+ * e2e build cannot reach, gets them from `callables`: the response that
+ * callable returns, served in place of the network.
  *
  * Not covered, because no fixture renders the table without Firestore:
  * the import-leads preview (needs an uploaded file), the campaign results and
  * report (need a finished campaign), the stats backfill preview (needs a run),
  * and the dossier's own tables.
  */
+
+// Two services as `getAiModelVersions` returns them (shape:
+// `AiIntegrationsView.contract.support.jsx`), with the longest version ids and
+// notes the card shows. Only the model versions table has rows: the provider
+// list's callable is not served, so that table stays empty.
+const AI_MODEL_VERSIONS = {
+    autoSelect: true,
+    running: false,
+    lastRunAt: '2026-10-08T08:25:00.000Z',
+    generatedAt: '2026-10-08T12:00:00.000Z',
+    providers: [
+        {
+            id: 'gemini', displayName: 'Google Gemini', state: 'ready', account: null,
+            checkedAt: '2026-10-08T08:25:00.000Z', reason: null,
+            lanes: [
+                { id: 'vision', status: 'ok', suggested: null, models: [{ id: 'gemini-3.7-flash', result: 'passed' }, { id: 'gemini-3.6-flash', result: 'busy' }] },
+                { id: 'text', status: 'failing', suggested: ['gemini-3.5-flash'], models: [{ id: 'gemini-3.5-flash-lite', result: 'misread' }] },
+            ],
+        },
+        {
+            id: 'groq', displayName: 'Groq', state: 'not_set_up', account: null, checkedAt: null, reason: null,
+            lanes: [
+                { id: 'vision', status: 'unknown', suggested: null, models: [{ id: 'qwen/qwen3.8-27b', result: null }] },
+                { id: 'text', status: null, suggested: null, models: [{ id: 'openai/gpt-oss-20b', result: null }] },
+            ],
+        },
+    ],
+};
 
 const SCREENS = [
     { name: 'company dashboard leaderboard', url: '/company/dashboard?e2eAuth=company_admin', row: 'Jordan Recruiter' },
@@ -45,7 +75,13 @@ const SCREENS = [
     { name: 'super admin users', url: '/super-admin/users?e2eAuth=super_admin', empty: 'No users found.' },
     { name: 'super admin unified driver db', url: '/super-admin/applications?e2eAuth=super_admin', empty: 'No drivers match your filters.' },
     { name: 'super admin environment', url: '/super-admin/environment-integrations?e2eAuth=super_admin', empty: 'Unable to load records' },
-    { name: 'super admin ai integrations', url: '/super-admin/ai-integrations?e2eAuth=super_admin', empty: 'No AI providers are registered.' },
+    {
+        name: 'super admin ai integrations',
+        url: '/super-admin/ai-integrations?e2eAuth=super_admin',
+        row: 'Google Gemini',
+        table: 'AI model versions',
+        callables: { getAiModelVersions: AI_MODEL_VERSIONS },
+    },
     { name: 'super admin blog posts', url: '/super-admin/blog-posts?e2eAuth=super_admin', empty: 'No articles have been published yet.' },
     { name: 'super admin website leads', url: '/super-admin/website-leads?e2eAuth=super_admin', empty: 'No leads were captured.' },
 ];
@@ -54,6 +90,20 @@ const WIDTHS = [
     { label: 'desktop', width: 1440, height: 900 },
     { label: 'mobile', width: 412, height: 915 },
 ];
+
+/** Answers each named callable with `result`, as the Functions endpoint would. */
+async function serveCallables(page, callables) {
+    const cors = {
+        'access-control-allow-origin': '*',
+        'access-control-allow-headers': '*',
+        'access-control-allow-methods': 'POST, OPTIONS',
+    };
+    for (const [name, result] of Object.entries(callables)) {
+        await page.route(`**/${name}`, (route) => (route.request().method() === 'OPTIONS'
+            ? route.fulfill({ status: 204, headers: cors })
+            : route.fulfill({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ result }) })));
+    }
+}
 
 // Any table on the screen still loading: a busy `DataTable`, or a native
 // table's "Loading…" row.
@@ -68,8 +118,12 @@ test.describe('@table-layout application tables', () => {
             test(`${screen.name} @ ${label}`, async ({ page }) => {
                 await page.setViewportSize({ width, height });
                 await freezeClock(page);
+                if (screen.callables) await serveCallables(page, screen.callables);
                 await page.goto(screen.url);
-                await expect(page.locator('table tbody').getByText(screen.row ?? screen.empty).first())
+                // `table` names the one table the text must be in, where another
+                // table on the screen could show the same text.
+                const tables = screen.table ? page.getByRole('table', { name: screen.table }) : page.locator('table');
+                await expect(tables.locator('tbody').getByText(screen.row ?? screen.empty).first())
                     .toBeAttached({ timeout: 30_000 });
                 await expect(page.locator(STILL_LOADING)).toHaveCount(0, { timeout: 30_000 });
                 await settle(page);
