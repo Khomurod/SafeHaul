@@ -477,9 +477,9 @@ read them.
 
 - No rule replaces the old hand-composed notice and avatar-disc checks: a
   tinted block or a hand-drawn initials disc passes lint.
-- `e2e/table-layout.spec.cjs` measures real records on 5 of its 15 screens; on
-  the 10 marked `empty` the fixtures show none, so only headers and the empty
-  state are measured. Tables no fixture renders are not measured at all (import
+- `e2e/table-layout.spec.cjs` measures real records on 6 of its 15 screens (on
+  AI integrations, the model versions table only); on the 9 marked `empty` the
+  fixtures show none, so only headers and the empty state are measured. Tables no fixture renders are not measured at all (import
   preview, campaign results and report, stats backfill preview); some screens
   have no baseline at all, e.g. the campaign editor and the schema editors' edit
   mode.
