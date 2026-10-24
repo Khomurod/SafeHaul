@@ -22,3 +22,7 @@ not reached yet, or a form field that saves behind the user's back.
 - **A real `<button>`**, so Space and Enter work with no key handler of our own.
 - **The thumb's position is the non-colour signal.** `tone` only tints the *on*
   state, for cases where on is affirmative or restrictive rather than neutral.
+- **`showLabel` prints the label beside the switch**, as a `<label>` for the
+  button: the words name it (`aria-labelledby`) and pressing them moves it. Use
+  it for a switch that stands alone, such as "Only mine" in a list toolbar.
+  `className` then goes on the pair, so a layout places both together.

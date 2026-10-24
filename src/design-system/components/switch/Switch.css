@@ -66,3 +66,30 @@
     transition: none;
   }
 }
+
+/*
+ * `showLabel`: the switch and its words as one control. The words are a
+ * `<label>` for the button, so they move the switch too and widen what a finger
+ * can press.
+ */
+.ds-switch-field {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.ds-switch-field__label {
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-line-height-tight);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ds-switch-field[data-disabled] .ds-switch-field__label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

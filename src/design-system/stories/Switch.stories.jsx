@@ -2,14 +2,10 @@ import React, { useState } from 'react';
 import { Card, Switch } from '@design-system/components';
 import { Inline, Stack } from '@design-system/layouts';
 
+/** A switch with its words beside it (`showLabel`): pressing the words moves it too. */
 function Row({ label, tone = 'primary', initial = false, disabled = false }) {
   const [on, setOn] = useState(initial);
-  return (
-    <Inline gap="sm">
-      <Switch checked={on} onChange={setOn} label={label} tone={tone} disabled={disabled} />
-      <span style={{ color: 'var(--ds-color-content)' }}>{label}</span>
-    </Inline>
-  );
+  return <Switch showLabel checked={on} onChange={setOn} label={label} tone={tone} disabled={disabled} />;
 }
 
 const meta = {
@@ -39,6 +35,9 @@ const meta = {
           '  work with no key handler of our own.',
           '- `label` is required and is the accessible name. In a matrix, name **both**',
           '  dimensions: "Enable exports for Northwind Ltd", not "Enable".',
+          '- `showLabel` prints the label beside the switch, as a `<label>` for it: the',
+          '  words name the switch and pressing them moves it. Use it for a switch that',
+          '  stands alone, such as "Only mine" in a list toolbar.',
           '- The thumb\'s position is the non-colour signal. `tone` only tints the *on*',
           '  state, so state never depends on colour alone.',
         ].join('\n'),

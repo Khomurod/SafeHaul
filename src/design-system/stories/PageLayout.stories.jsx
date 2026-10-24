@@ -36,7 +36,7 @@ const meta = {
           '| Primitive | Owns |',
           '| --- | --- |',
           '| `PageContainer` | Maximum page width and horizontal gutters. `width` is `wide` (default) or `standard`. |',
-          '| `PageHeader` | The page `<h1>`, an optional description, and a right-hand action slot. |',
+          '| `PageHeader` | The page `<h1>`, an optional description, an optional record `count` beside the heading, and a right-hand action slot. |',
           '| `Section` | A labelled region within a page. Pass `labelledBy` pointing at its heading. |',
           '| `Stack` | Vertical rhythm. `gap` is `sm`, `md` (default) or `lg`. |',
           '| `Inline` | Horizontal grouping that wraps by default. Same `gap` scale. |',
@@ -54,6 +54,9 @@ const meta = {
           '  where a `<ul>` is what the content actually is.',
           '- Actions in the header follow the header in DOM order, so keyboard order matches',
           '  reading order.',
+          '- `count` sits beside the `<h1>`, not inside it, so the heading keeps the page\'s',
+          '  name. It is a `status` region read with `countLabel` ("8 records"), so a',
+          '  screen reader hears the number change when a filter changes the list.',
           '',
           '### Common mistakes',
           '',
@@ -98,6 +101,25 @@ export const Default = {
               </Button>
             </>
           )}
+        />
+      </PageContainer>
+    </div>
+  ),
+};
+
+/**
+ * A list page's header: the number of records beside the heading. The screen
+ * shows the number; a screen reader reads it with `countLabel`.
+ */
+export const HeaderWithCount = {
+  render: () => (
+    <div className="sb-page">
+      <PageContainer>
+        <PageHeader
+          title="Records"
+          count={1284}
+          countLabel="records"
+          actions={<Button variant="primary" onClick={fn()}>New record</Button>}
         />
       </PageContainer>
     </div>

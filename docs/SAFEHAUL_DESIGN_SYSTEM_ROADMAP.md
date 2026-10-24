@@ -66,7 +66,7 @@ src/
 | `tokens` | Primitive scales and semantic roles (content, surface, action, status tone, table role) | Palette names in feature code |
 | `components` | Button, IconButton, Field primitives, Card, Badge, Progress, StatusMedallion, table building blocks. Generic props only | Domain vocabulary |
 | `patterns` | PageState, EmptyState, FormField, dialog sections, DataTable toolbar/pagination, responsive presentation | Data fetching, feature permissions |
-| `layouts` | AppFrame regions, PageContainer, PageHeader, Stack, Inline, split panels | Route knowledge. `CompanyAppShell` stays in its feature because it knows company navigation and deactivation |
+| `layouts` | AppFrame regions, PageContainer, PageHeader (and a list's record `count`), Stack, Inline, split panels | Route knowledge. `CompanyAppShell` stays in its feature because it knows company navigation and deactivation |
 | `features` | Domain language, screens, available actions, adapters such as `applicationStatus -> { tone, icon, label }` | Reusable visual primitives |
 | `shared` | Existing compatibility components and non-visual cross-feature utilities | New long-term visual primitives — those go to `design-system` |
 | hooks / services | Data, mutations, subscriptions, integration calls, validation, business state | Presentation |
@@ -152,7 +152,8 @@ The reverse directions are prohibited — including any `@shared` import inside
 - **Form controls are 16px under 639px** (`--ds-font-size-control-mobile` on
   `.ds-form-control`, selects too): no iOS zoom.
 - **A control that saves immediately is a `Switch`**; a `Checkbox` announces a
-  value you set and then submit.
+  value you set and then submit. A switch alone in a toolbar shows its words
+  (`showLabel`).
 - **A `Select` bound to stored data offers a stored value its options lack as
   its own option**, rather than letting the browser show the first option.
 - **Explain rather than prevent.** A field the viewer may not change is a

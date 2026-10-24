@@ -65,6 +65,8 @@ const SUBJECTS = [
     ['components-checkbox--states', 'choice-states'],
     ['components-checkbox--radio-group', 'choice-radio-group'],
     ['components-switch--states', 'switch-states'],
+    // Switches with their words beside them (`showLabel`), every tone and disabled.
+    ['components-switch--default', 'switch-with-label'],
     ['components-fileinput--with-description', 'file-input'],
     ['components-fileinput--disabled', 'file-input-disabled'],
     ['components-avatar--sizes', 'avatar-sizes'],
@@ -137,6 +139,7 @@ const SUBJECTS = [
 
     // Page patterns and layout.
     ['components-page-layout--full-page-composition', 'page-layout'],
+    ['components-page-layout--header-with-count', 'page-header-count'],
     ['patterns-page-states--full-page-states', 'page-states'],
     ['patterns-page-states--empty-is-not-one-state', 'page-states-empty'],
     ['patterns-page-states--error-with-stale-data', 'page-states-stale-error'],
