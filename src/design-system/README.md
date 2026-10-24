@@ -21,7 +21,8 @@ Before changing UI code, read:
   `Modal`, the accessible dialog every overlay goes through, and
   `ConfirmDialog`, the one confirmation shape. `patterns/page-state` holds
   `EmptyState`, `ErrorState` and `LoadingState`, which own the announcement each
-  state needs as well as its appearance.
+  state needs as well as its appearance. `patterns/list-toolbar` holds
+  `ListToolbar` and the six rules every list page follows.
 - `layouts/` — business-neutral page and region composition.
 - `icons/` — the icon contract: `Icon`, a seven-step size scale, the
   accessible-name rule and a registry of **glyph tokens** that render only
@@ -100,6 +101,7 @@ barrels: `@design-system/components`, `/patterns`, `/layouts` and `/icons`.
 | `ProgressBar` | `components/progress` | |
 | `DataTable` and `ds-native-table` | `components/data-table` | `DataTable` for display tables, first column pinned by default; `ds-native-table` (`nativeTable.css`, `pinnedColumn.css`) is the contract every approved native table applies. Phones: "Tables on phones" in its README |
 | `Modal`, `ConfirmDialog` | `patterns/modal` | Chrome is props only (`patterns/modal/README.md`); `className` / `overlayClassName` throw. `ConfirmDialog` puts initial focus on Cancel, guards against double activation, and disables Escape / backdrop dismissal while `loading`; Escape routes to `onCancel` |
+| `ListToolbar` | `patterns/list-toolbar` | Segments, switch, search, Filters and the page's actions above a list; not `role="toolbar"`. The list-page standard is its README |
 | `PageState`, `EmptyState`, `ErrorState`, `LoadingState` | `patterns/page-state` | `surface="inverse"` (the medallion stays light); `titleId` (a full-page state names its `<main>`, where `role="status"` is invalid); `children` (a reference, a checklist); `focusOnMount`. Anything that needs its own structure is a page, not a state |
 | `PageContainer`, `PageHeader`, `Section`, `Stack`, `Inline`, `ResponsiveGrid`; `WorkspaceFrame` | `layouts/page`, `layouts/workspace` | `PageHeader` renders the page-level `<h1>`; inside Super Admin the masthead owns it, so views use an `<h2>` composition |
 | `Icon` and glyph tokens | `icons/` | Sizes and naming: roadmap §3 |

@@ -1,0 +1,177 @@
+/*
+ * One row above the list. Segments on the left, the switch, search, Filters
+ * and the page's actions on the right; the open filters a second row below.
+ * The bar wraps the tools under the segments when both do not fit.
+ */
+.ds-list-toolbar {
+  background: var(--ds-color-surface);
+}
+
+.ds-list-toolbar__bar {
+  display: flex;
+  min-height: 60px;
+  flex-wrap: wrap;
+  align-items: stretch;
+  column-gap: var(--ds-space-3);
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+  padding-inline: var(--ds-space-2) var(--ds-space-4);
+}
+
+/* Scrolls sideways rather than wrapping when there are more segments than room. */
+.ds-list-toolbar__segments {
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  gap: var(--ds-space-1);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.ds-list-toolbar__segment {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--ds-space-1);
+  border: 0;
+  padding: 0 var(--ds-space-3);
+  background: none;
+  color: var(--ds-color-content-secondary);
+  font: inherit;
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ds-list-toolbar__segment:hover {
+  color: var(--ds-color-content);
+}
+
+/*
+ * The pressed segment is underlined as well as coloured, so its state never
+ * depends on colour alone. A shadow, not a border, so pressing does not move
+ * the text.
+ */
+.ds-list-toolbar__segment[aria-pressed='true'] {
+  box-shadow: inset 0 -2px 0 var(--ds-color-action-primary);
+  color: var(--ds-color-content-link);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+/* Inside, because the segments clip what overflows them. */
+.ds-list-toolbar__segment:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: -2px;
+}
+
+.ds-list-toolbar__segment-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.ds-list-toolbar__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  margin-inline-start: auto;
+  padding-block: var(--ds-space-3);
+}
+
+.ds-list-toolbar__search {
+  position: relative;
+  width: 280px;
+  min-width: 0;
+}
+
+.ds-list-toolbar__search .ds-form-control {
+  padding-inline-start: var(--ds-space-8);
+}
+
+.ds-list-toolbar__search-icon {
+  position: absolute;
+  top: 50%;
+  left: var(--ds-space-3);
+  color: var(--ds-color-content-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.ds-list-toolbar__filter-count {
+  display: inline-flex;
+  min-width: 20px;
+  min-height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ds-radius-full);
+  padding-inline: var(--ds-space-1);
+  background: var(--ds-color-action-primary);
+  color: var(--ds-color-white);
+  font-size: var(--ds-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The open filters: one row of fields, "Clear filters" at its end. */
+.ds-list-toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ds-space-3);
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+  padding: var(--ds-space-3) var(--ds-space-4) var(--ds-space-4);
+  background: var(--ds-color-canvas);
+}
+
+.ds-list-toolbar__filter-fields {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
+  gap: var(--ds-space-3);
+}
+
+.ds-list-toolbar__clear {
+  margin-inline-start: auto;
+}
+
+/*
+ * Phones: segments, then the switch, then the search with Filters beside it,
+ * which is also the order Tab takes. Every target is at least 44px tall.
+ */
+@media (max-width: 639px) {
+  /*
+   * `nowrap`: in a wrapping column each part would be as wide as its own
+   * content rather than the card, and the segments would push past the edge
+   * instead of scrolling.
+   */
+  .ds-list-toolbar__bar {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    padding: 0;
+  }
+
+  .ds-list-toolbar__segments {
+    min-height: 44px;
+    border-bottom: 1px solid var(--ds-color-border-subtle);
+    padding-inline: var(--ds-space-2);
+  }
+
+  .ds-list-toolbar__tools {
+    flex-wrap: wrap;
+    margin-inline-start: 0;
+    padding: var(--ds-space-3) var(--ds-space-4);
+  }
+
+  .ds-list-toolbar__toggle {
+    min-height: 44px;
+    flex-basis: 100%;
+  }
+
+  .ds-list-toolbar__search {
+    width: auto;
+    flex: 1 1 160px;
+  }
+
+  .ds-list-toolbar__filter-fields {
+    flex-basis: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -100,20 +100,6 @@
   }
 }
 
-/* Filter panel pattern: filters above, results below; side-by-side when wide. */
-.pattern-filter-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--ds-space-5);
-  align-items: start;
-}
-
-@media (min-width: 1024px) {
-  .pattern-filter-layout {
-    grid-template-columns: minmax(240px, 300px) 1fr;
-  }
-}
-
 /* Explanatory note inside a story, for guidance that belongs next to the pixels. */
 .sb-note {
   margin: 0 0 var(--ds-space-4);
