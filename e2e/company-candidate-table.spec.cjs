@@ -51,8 +51,8 @@ test.describe('Company candidate-list DataTable pilot', () => {
 
     await expect(statusHeader).toHaveAttribute('data-align', 'start');
     await expect(mariaStatus).toHaveAttribute('data-align', 'start');
-    await expect(statusHeader).toHaveAttribute('data-width', 'sm');
-    await expect(mariaStatus).toHaveAttribute('data-width', 'sm');
+    await expect(statusHeader).toHaveAttribute('data-width', 'lg');
+    await expect(mariaStatus).toHaveAttribute('data-width', 'lg');
 
     const [headerBox, cellBox] = await Promise.all([
       statusHeader.boundingBox(),
