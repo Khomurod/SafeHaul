@@ -31,6 +31,9 @@ vi.mock('./PersonalProfileTab', () => ({
 vi.mock('./IntegrationsTab', () => ({
     IntegrationsTab: () => <h1>Integrations Content</h1>,
 }));
+vi.mock('./api-keys/ApiKeysTab', () => ({
+    ApiKeysTab: () => <h1>API Keys Content</h1>,
+}));
 vi.mock('@shared/components/modals', () => ({
     ManageTeamModal: () => <div>Manage Team Modal</div>,
 }));
@@ -116,6 +119,17 @@ describe('CompanySettings shell compatibility slice', () => {
         // "Personal Profile Content"); the shell's own heading must not also
         // render, or the page would carry two competing h1s.
         expect(screen.queryByRole('heading', { level: 1, name: 'Company Settings' })).toBeNull();
+    });
+
+    it('keeps one level-1 heading on every tab whose own header names the page', () => {
+        renderSettings();
+        // API Keys and Integrations each render their own `PageHeader` (mocked
+        // here as an `<h1>`): the page has that one heading, not two in a row.
+        fireEvent.click(screen.getByRole('button', { name: 'API Keys' }));
+        expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['API Keys Content']);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Integrations' }));
+        expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Integrations Content']);
     });
 
     it('supports directional focus navigation across visible settings sections', () => {

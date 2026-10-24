@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import {
     countReferrals,
     createReferralLink,
     deactivateReferralLink,
     listReferralLinks,
 } from './referralLinksService';
+import { mockReferralCounts, mockReferralLinks } from './referralLinksMock';
 
 /** Counts are read for this many links at most, newest first. */
 const COUNTED_LINKS = 50;
@@ -26,6 +28,13 @@ export function useReferralLinks({ companyId, uid, isAdmin }) {
         const mine = ++version.current;
         setLoading(true);
         setError(null);
+        // The harness's made-up links (`referralLinksMock.js`), only when asked for.
+        if (isE2ETestMode && getE2EQueryParam('e2eReferrals', '') === 'mock') {
+            setLinks(mockReferralLinks());
+            setCounts(mockReferralCounts());
+            setLoading(false);
+            return;
+        }
         try {
             const next = await listReferralLinks({ companyId, uid, isAdmin });
             if (mine !== version.current) return;

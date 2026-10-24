@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Icon, Share2 } from '@design-system/icons';
 import { ConfirmDialog } from '@design-system/patterns';
 import { Button, Card, Notice } from '@/design-system/components';
-import { PageHeader, Stack } from '@/design-system/layouts';
+import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { useData } from '@/context/DataContext';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -73,53 +73,55 @@ export function ReferralLinksPage() {
     };
 
     return (
-        <Stack gap="lg">
-            <PageHeader
-                title="Referral Links"
-                description="A link for a driver who sends you others. Whoever applies through it is assigned to you."
-                actions={(
-                    <Button variant="primary" onClick={() => setCreating(true)} disabled={loading || !companyId}>
-                        <Icon icon={Share2} />
-                        Create link
-                    </Button>
-                )}
-            />
-
-            <Notice tone="info" title="How it works" titleAs="h2">
-                <ol className="list-decimal space-y-ds-1 ps-ds-5">
-                    <li>Create a link with the referring driver’s name.</li>
-                    <li>Copy it and send it to them to share.</li>
-                    <li>A driver who opens it fills in the full application or a one-minute interest form. You are notified and they are assigned to you.</li>
-                </ol>
-                {isAdmin
-                    ? <p className="mt-ds-2">As a Company Admin you see every link in the company.</p>
-                    : <p className="mt-ds-2">You see the links you made.</p>}
-            </Notice>
-
-            <Card padding="none">
-                <ReferralLinksTable
-                    links={links}
-                    counts={counts}
-                    loading={loading}
-                    onCopy={copy}
-                    onDeactivate={askDeactivate}
-                    error={error ? { message: error, onRetry: reload } : undefined}
+        <PageContainer>
+            <Stack gap="lg">
+                <PageHeader
+                    title="Referral Links"
+                    description="A link for a driver who sends you others. Whoever applies through it is assigned to you."
+                    actions={(
+                        <Button variant="primary" onClick={() => setCreating(true)} disabled={loading || !companyId}>
+                            <Icon icon={Share2} />
+                            Create link
+                        </Button>
+                    )}
                 />
-            </Card>
 
-            {creating && <CreateReferralLinkDialog onCreate={createLink} onClose={() => setCreating(false)} />}
+                <Notice tone="info" title="How it works" titleAs="h2">
+                    <ol className="list-decimal space-y-ds-1 ps-ds-5">
+                        <li>Create a link with the referring driver’s name.</li>
+                        <li>Copy it and send it to them to share.</li>
+                        <li>A driver who opens it fills in the full application or a one-minute interest form. You are notified and they are assigned to you.</li>
+                    </ol>
+                    {isAdmin
+                        ? <p className="mt-ds-2">As a Company Admin you see every link in the company.</p>
+                        : <p className="mt-ds-2">You see the links you made.</p>}
+                </Notice>
 
-            <ConfirmDialog
-                isOpen={Boolean(deactivating)}
-                title={`Switch off the link for ${deactivating?.referrerName || ''}?`}
-                description="Drivers who open it can still apply, but they are no longer assigned to you or counted as referred. A switched-off link cannot be switched on again; create a new one if you need it."
-                confirmLabel="Deactivate"
-                loading={deactivateState.busy}
-                error={deactivateState.error}
-                onConfirm={confirmDeactivate}
-                onCancel={() => setDeactivating(null)}
-            />
-        </Stack>
+                <Card padding="none">
+                    <ReferralLinksTable
+                        links={links}
+                        counts={counts}
+                        loading={loading}
+                        onCopy={copy}
+                        onDeactivate={askDeactivate}
+                        error={error ? { message: error, onRetry: reload } : undefined}
+                    />
+                </Card>
+
+                {creating && <CreateReferralLinkDialog onCreate={createLink} onClose={() => setCreating(false)} />}
+
+                <ConfirmDialog
+                    isOpen={Boolean(deactivating)}
+                    title={`Switch off the link for ${deactivating?.referrerName || ''}?`}
+                    description="Drivers who open it can still apply, but they are no longer assigned to you or counted as referred. A switched-off link cannot be switched on again; create a new one if you need it."
+                    confirmLabel="Deactivate"
+                    loading={deactivateState.busy}
+                    error={deactivateState.error}
+                    onConfirm={confirmDeactivate}
+                    onCancel={() => setDeactivating(null)}
+                />
+            </Stack>
+        </PageContainer>
     );
 }
 

@@ -9,16 +9,20 @@ function when(value) {
     return date ? date.toLocaleDateString('en-US', { dateStyle: 'medium' }) : null;
 }
 
-/** "3 leads · 1 application · 0 hired", or a dash while unknown. */
-function broughtIn(count) {
-    if (!count) return '—';
-    const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-    return `${plural(count.leads, 'lead')} · ${plural(count.applications, 'application')} · ${count.hired} hired`;
+/** One of what a link brought in, or a quiet dash while it is unknown. */
+function broughtIn(count, field) {
+    return count
+        ? <span className="tabular-nums">{count[field]}</span>
+        : <span className="text-ds-content-muted">—</span>;
 }
 
 /**
  * Referral links, switched-on ones first. On a phone each link is a card: a
  * recruiter copies one link at a time.
+ *
+ * What a link is and where it stands sit in their columns; what can be done
+ * with it, Copy and Deactivate, sits in the last one, as on every list. A
+ * switched-off link has nothing left to do.
  */
 export function ReferralLinksTable({ links, counts, loading, error, onCopy, onDeactivate }) {
     const columns = useMemo(() => [
@@ -37,18 +41,8 @@ export function ReferralLinksTable({ links, counts, loading, error, onCopy, onDe
         {
             key: 'link',
             header: 'Link',
-            width: 'md',
-            render: (link) => (
-                <div className="flex flex-wrap items-center gap-ds-2">
-                    <span className="font-mono text-ds-sm">{link.code}</span>
-                    {link.active && (
-                        <Button variant="secondary" size="sm" aria-label={`Copy the link for ${link.referrerName}`} onClick={() => onCopy(link)}>
-                            <Icon icon={Copy} />
-                            Copy
-                        </Button>
-                    )}
-                </div>
-            ),
+            width: 'sm',
+            render: (link) => <span className="font-mono text-ds-sm">{link.code}</span>,
         },
         {
             key: 'created',
@@ -61,19 +55,42 @@ export function ReferralLinksTable({ links, counts, loading, error, onCopy, onDe
                 </div>
             ),
         },
+        // What the link brought in, a number to a column, ending at the right.
+        { key: 'leads', header: 'Leads', align: 'end', width: 'xs', render: (link) => broughtIn(counts[link.code], 'leads') },
         {
-            key: 'brought',
-            header: 'Brought in',
-            width: 'lg',
-            render: (link) => <span className="text-ds-sm">{broughtIn(counts[link.code])}</span>,
+            key: 'applications',
+            header: 'Applications',
+            align: 'end',
+            width: 'md',
+            render: (link) => broughtIn(counts[link.code], 'applications'),
         },
+        { key: 'hired', header: 'Hired', align: 'end', width: 'xs', render: (link) => broughtIn(counts[link.code], 'hired') },
         {
             key: 'status',
             header: 'Status',
-            width: 'md',
+            width: 'sm',
+            // A switched-off link keeps the day it was switched off under its badge.
+            render: (link) => (link.active ? <Badge tone="success">Active</Badge> : (
+                <div className="text-ds-sm">
+                    <Badge tone="neutral">Deactivated</Badge>
+                    {when(link.deactivatedAt) && <p className="mt-ds-1 text-ds-xs text-ds-content-muted">{when(link.deactivatedAt)}</p>}
+                </div>
+            )),
+        },
+        {
+            key: 'actions',
+            headerLabel: 'Actions',
+            align: 'end',
+            // No label on a card: its buttons are the card's last line.
+            mobileLabel: '',
+            // `xl`: Copy and Deactivate side by side.
+            width: 'xl',
             render: (link) => (link.active ? (
-                <div className="flex flex-wrap items-center gap-ds-2">
-                    <Badge tone="success">Active</Badge>
+                <div className="flex flex-wrap items-center justify-end gap-ds-2">
+                    <Button variant="secondary" size="sm" aria-label={`Copy the link for ${link.referrerName}`} onClick={() => onCopy(link)}>
+                        <Icon icon={Copy} />
+                        Copy
+                    </Button>
                     <Button
                         variant="secondary"
                         tone="danger"
@@ -84,12 +101,7 @@ export function ReferralLinksTable({ links, counts, loading, error, onCopy, onDe
                         Deactivate
                     </Button>
                 </div>
-            ) : (
-                <div className="text-ds-sm">
-                    <Badge tone="neutral">Deactivated</Badge>
-                    {when(link.deactivatedAt) && <p className="mt-ds-1 text-ds-xs text-ds-content-muted">{when(link.deactivatedAt)}</p>}
-                </div>
-            )),
+            ) : null),
         },
     ], [counts, onCopy, onDeactivate]);
 
