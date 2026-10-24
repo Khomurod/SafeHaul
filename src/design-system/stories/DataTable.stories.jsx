@@ -79,7 +79,7 @@ const meta = {
   },
   argTypes: {
     density: { control: 'inline-radio', options: ['comfortable', 'compact'] },
-    minWidth: { control: 'inline-radio', options: ['standard', 'wide'] },
+    minWidth: { control: 'inline-radio', options: ['none', 'standard', 'wide'] },
     isLoading: { control: 'boolean' },
     embedded: { control: 'boolean' },
     data: { control: false },
@@ -114,7 +114,7 @@ const meta = {
           '',
           '| Field | Values |',
           '| --- | --- |',
-          '| `align` | `start` (default), `center`, `end` |',
+          '| `align` | `start` (default) for text, `end` for numbers; nothing is centred |',
           '| `width` | `auto`, `xs`, `sm`, `md`, `lg`, `xl`, `actions` |',
           '| `rowHeader` | renders `<th scope="row">` — set it on the identifying column |',
           '| `truncate` | allows the cell to ellipsise instead of wrapping |',

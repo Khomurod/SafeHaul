@@ -148,7 +148,6 @@ export function InlineLeaderboard({ companyId }) {
         {
             key: 'rank',
             header: 'Rank',
-            align: 'center',
             width: 'sm',
             render: (agent) => <Rank index={agent.rank} />,
         },

@@ -14,6 +14,12 @@ import './pinnedColumn.css';
 import './mobileCards.css';
 
 /**
+ * The narrowest a table may get before its region scrolls sideways. `none` sets
+ * no floor, for a small table whose columns squeeze to fit their container.
+ */
+const MIN_WIDTHS = new Set(['none', 'standard', 'wide']);
+
+/**
  * The label a cell shows beside its value as a card on a phone: the column's
  * `mobileLabel`, else its visible header, else its accessible one. `''` is none.
  */
@@ -180,6 +186,11 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
   if (cards && showSelection) {
     contractViolation('A DataTable with mobilePresentation="cards" takes no selection; use mobilePresentation="scroll".');
   }
+  let tableMinWidth = minWidth;
+  if (!MIN_WIDTHS.has(minWidth)) {
+    contractViolation(`Unsupported DataTable minWidth "${minWidth}"; use ${[...MIN_WIDTHS].join(', ')}.`);
+    tableMinWidth = 'wide';
+  }
   /** A role stated outright, in cards only; a table's own markup carries it otherwise. */
   const role = (name) => (cards ? name : undefined);
 
@@ -236,7 +247,7 @@ export const DataTable = /* @__PURE__ */ memo(function DataTable({
         aria-label={cardsOnScreen ? ariaLabel : `${ariaLabel}. Scroll horizontally to view all columns.`}
         tabIndex={0}
       >
-        <table data-min-width={minWidth} role={role('table')}>
+        <table data-min-width={tableMinWidth} role={role('table')}>
           <caption className="sr-only">{ariaLabel}</caption>
           <colgroup>
             {showSelection && <col data-width="selection" />}

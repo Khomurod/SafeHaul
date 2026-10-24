@@ -141,7 +141,6 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
         cols.push({
             key: 'status',
             header: 'Status',
-            align: 'center',
             width: 'sm',
             /*
              * `StatusBadge`, not a fourth hand-built pill. The local one was
@@ -200,7 +199,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
         cols.push({
             key: 'addedDate',
             header: (
-                <span className="inline-flex items-center justify-center gap-1">
+                <span className="inline-flex items-center gap-1">
                     <DsIcon icon={Calendar} size="xs" className="text-ds-content-muted" />
                     Added Date
                     <span className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
@@ -233,7 +232,6 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                     </span>
                 </span>
             ),
-            align: 'center',
             width: 'md',
             render: (item) => {
                 const dateStr = formatAddedDate(item);
@@ -253,7 +251,6 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
         cols.push({
             key: 'lastCall',
             header: 'Last Call',
-            align: 'center',
             width: 'xs',
             render: (item) => {
                 if (!item.lastCallOutcome) {
@@ -298,7 +295,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             key: 'actions',
             header: '',
             headerLabel: 'Actions',
-            align: 'center',
+            align: 'end',
             width: 'actions',
             stopPropagation: true,
             render: (item) => {

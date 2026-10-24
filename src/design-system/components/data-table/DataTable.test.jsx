@@ -22,7 +22,7 @@ const columns = defineTableColumns([
     key: 'status',
     header: 'Status',
     render: (row) => row.status,
-    align: 'center',
+    align: 'end',
     width: 'sm',
   },
 ]);
@@ -35,8 +35,8 @@ describe('DataTable', () => {
     const statusCell = screen.getByRole('cell', { name: 'Ready' });
     const nameCell = screen.getByRole('rowheader', { name: 'Alpha Driver' });
 
-    expect(statusHeader).toHaveAttribute('data-align', 'center');
-    expect(statusCell).toHaveAttribute('data-align', 'center');
+    expect(statusHeader).toHaveAttribute('data-align', 'end');
+    expect(statusCell).toHaveAttribute('data-align', 'end');
     expect(statusHeader).toHaveAttribute('data-width', 'sm');
     expect(statusCell).toHaveAttribute('data-width', 'sm');
     expect(nameCell).toHaveAttribute('data-width', 'lg');
@@ -163,6 +163,19 @@ describe('DataTable', () => {
     expect(screen.getByRole('navigation', { name: 'Example records pagination' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Previous page' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
+  });
+
+  it('takes a known minimum width, and refuses any other', () => {
+    const { rerender } = render(
+      <DataTable ariaLabel="Example records" columns={columns} data={rows} minWidth="none" />,
+    );
+    expect(screen.getByRole('table', { name: 'Example records' })).toHaveAttribute('data-min-width', 'none');
+
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => rerender(
+      <DataTable ariaLabel="Example records" columns={columns} data={rows} minWidth="lg" />,
+    )).toThrow('Unsupported DataTable minWidth "lg"');
+    quiet.mockRestore();
   });
 
   it('pins the first column by default, and the identifying column beside a selection checkbox', () => {
