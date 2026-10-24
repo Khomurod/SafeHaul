@@ -15,7 +15,7 @@ Create columns with `defineTableColumns`. A column supports:
 | `header` | Visible header content owned by the feature |
 | `headerLabel` | Accessible label when the visible header is intentionally empty |
 | `render(row)` | Feature-owned content and value formatting |
-| `align` | `start`, `center`, or `end`; applied to both header and cells |
+| `align` | `start` (default) for text or `end` for numbers, applied to both header and cells. Nothing is centred: a centred column has no edge to scan |
 | `width` | `auto`, `xs`, `sm`, `md`, `lg`, `xl`, or `actions` |
 | `rowHeader` | Uses `<th scope="row">` for the primary identifying cell |
 | `truncate` | Applies the approved single-line truncation behavior |
@@ -45,6 +45,11 @@ The component owns header height, row height, horizontal padding, density,
 column widths, sticky headers, alignment, focus treatment, and pagination
 targets through design-system tokens and component CSS.
 
+`minWidth` is the narrowest the table gets before its region scrolls sideways:
+`wide` (920px, the default), `standard` (760px), or `none` for a small table
+whose columns squeeze to fit their container. Any other value is a contract
+violation.
+
 Use `embedded` when a parent `Card` owns the surrounding border, radius, and
 elevation. The table retains its column, density, state, and interaction
 contracts without creating a second nested surface.
@@ -70,8 +75,8 @@ columns themselves are the signal that there is more.
 
 - **A table whose rows are compared keeps the table.** A labelled,
   keyboard-focusable horizontal-scroll region, a sticky header, and the first
-  column pinned. `DataTable` does all three by default — its narrowest contract
-  width is 760px, so it always scrolls on a phone — and `pinFirstColumn={false}`
+  column pinned. `DataTable` does all three by default — at `standard` or `wide`
+  it is wider than a phone, so it scrolls there — and `pinFirstColumn={false}`
   opts out for a table whose first column does not identify the row. With a
   selection, the checkbox column and the identifying column pin together. A
   native table opts in with `data-pin-first-column` on the `<table>`. The pin,

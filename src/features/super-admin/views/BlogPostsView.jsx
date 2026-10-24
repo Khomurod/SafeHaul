@@ -257,7 +257,7 @@ export function BlogPostsView() {
             <DataTable
                 ariaLabel="Published blog posts"
                 density="compact"
-                minWidth="md"
+                minWidth="none"
                 data={posts}
                 columns={columns}
                 isLoading={loading}

@@ -49,8 +49,8 @@ test.describe('Company candidate-list DataTable pilot', () => {
     const mariaRow = table.getByRole('row', { name: 'Open driver dossier for Maria Garcia' });
     const mariaStatus = mariaRow.getByRole('cell', { name: 'New Application' });
 
-    await expect(statusHeader).toHaveAttribute('data-align', 'center');
-    await expect(mariaStatus).toHaveAttribute('data-align', 'center');
+    await expect(statusHeader).toHaveAttribute('data-align', 'start');
+    await expect(mariaStatus).toHaveAttribute('data-align', 'start');
     await expect(statusHeader).toHaveAttribute('data-width', 'sm');
     await expect(mariaStatus).toHaveAttribute('data-width', 'sm');
 

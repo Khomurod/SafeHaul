@@ -186,7 +186,7 @@ export function WebsiteLeadsView() {
             <DataTable
                 ariaLabel="Leads captured from the retired marketing site"
                 density="compact"
-                minWidth="lg"
+                minWidth="none"
                 data={leads}
                 columns={columns}
                 isLoading={loading}

@@ -276,7 +276,7 @@ export function BulkUploadLayout({
                         columns={previewColumns}
                         getRowId={(entry) => entry.previewIndex}
                         density="compact"
-                        minWidth="auto"
+                        minWidth="none"
                         embedded
                         empty={{ title: 'No records to preview.' }}
                     />

@@ -89,7 +89,7 @@ function DeletionListPage({ data = ITEMS, isLoading = false, empty, dialog = nul
                     <DataTable
                         ariaLabel="Published items"
                         density="compact"
-                        minWidth="md"
+                        minWidth="none"
                         data={data}
                         columns={columns()}
                         isLoading={isLoading}

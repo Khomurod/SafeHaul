@@ -123,10 +123,6 @@
   text-align: left;
 }
 
-.ds-data-table [data-align='center'] {
-  text-align: center;
-}
-
 .ds-data-table [data-align='end'] {
   text-align: right;
 }

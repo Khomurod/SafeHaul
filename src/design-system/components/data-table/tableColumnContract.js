@@ -1,5 +1,5 @@
 import { contractViolation } from '../../contract';
-const ALIGNMENTS = new Set(['start', 'center', 'end']);
+const ALIGNMENTS = new Set(['start', 'end']);
 const WIDTHS = new Set(['auto', 'xs', 'sm', 'md', 'lg', 'xl', 'actions']);
 
 export const TABLE_COLUMN_ALIGNMENTS = Object.freeze([...ALIGNMENTS]);
@@ -9,8 +9,10 @@ export const TABLE_COLUMN_WIDTHS = Object.freeze([...WIDTHS]);
  * Defines the business-neutral column contract shared by every approved table.
  *
  * Alignment and width are single values on the column so headers and cells
- * cannot drift apart. Feature modules continue to own labels, cell content,
- * sorting callbacks, and which actions are available.
+ * cannot drift apart. Text reads from the start edge and numbers line up on the
+ * end edge; nothing is centred, because a centred column has no edge to scan.
+ * Feature modules continue to own labels, cell content, sorting callbacks, and
+ * which actions are available.
  */
 export function defineTableColumns(columns) {
   if (!Array.isArray(columns)) {

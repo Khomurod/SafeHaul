@@ -90,7 +90,7 @@ export function FeaturesOverview({ onOpenCompany }) {
             <DataTable
                 ariaLabel="Features of every company"
                 density="compact"
-                minWidth="lg"
+                minWidth="none"
                 mobilePresentation="cards"
                 data={companies}
                 columns={columns}
