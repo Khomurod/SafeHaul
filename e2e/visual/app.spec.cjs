@@ -172,6 +172,32 @@ const SCREENS = [
                 .or(page.getByRole('heading', { name: 'Activity could not be loaded' })),
         ],
     },
+    /*
+     * The Activity section's two performance tables, with made-up figures
+     * (`e2eAnalytics=mock`): without them the period has no calls and each
+     * table shows only its empty message. Waits on the platform totals for the
+     * reason given above. Pressing the tab scrolls the page to it, so the page
+     * goes back to the top first: a full-page shot of a scrolled page draws the
+     * sticky masthead where the viewport was, over the cards.
+     */
+    {
+        name: 'super-admin-activity-companies',
+        url: '/super-admin?e2eAuth=super_admin&e2eAnalytics=mock',
+        open: (page) => openActivityTab(page, 'Company Performance'),
+        ready: (page) => [
+            page.getByText(/^(Platform totals loaded\.|\d+ of \d+ platform totals failed to load: .+\.)$/),
+            page.getByRole('rowheader', { name: 'Sample Haulage' }),
+        ],
+    },
+    {
+        name: 'super-admin-activity-recruiters',
+        url: '/super-admin?e2eAuth=super_admin&e2eAnalytics=mock',
+        open: (page) => openActivityTab(page, 'Recruiter Stats'),
+        ready: (page) => [
+            page.getByText(/^(Platform totals loaded\.|\d+ of \d+ platform totals failed to load: .+\.)$/),
+            page.getByRole('rowheader', { name: 'Riley Sample' }),
+        ],
+    },
     {
         name: 'login',
         url: '/login',
@@ -244,6 +270,12 @@ const SCREENS = [
         ready: (page) => page.getByText('Okonkwo-Fairweather', { exact: true }),
     },
 ];
+
+/** Presses one of the Activity section's tabs, then puts the page back at the top. */
+async function openActivityTab(page, name) {
+    await page.getByRole('tab', { name }).click();
+    await page.evaluate(() => window.scrollTo(0, 0));
+}
 
 const WIDTHS = [
     { label: 'desktop', width: 1440, height: 900 },

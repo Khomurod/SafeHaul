@@ -1,6 +1,8 @@
 import { useCallback, useState, useEffect } from 'react';
 import { db } from '@lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { mockAnalyticsStats } from './analyticsMock';
 
 const CHICAGO_TZ = 'America/Chicago';
 
@@ -57,6 +59,11 @@ export function useAnalytics() {
         const fetchAnalytics = async () => {
             setLoading(true);
             setError(null);
+            if (isE2ETestMode && getE2EQueryParam('e2eAnalytics', '') === 'mock') {
+                setStats(mockAnalyticsStats());
+                setLoading(false);
+                return;
+            }
             try {
                 // 1. Calculate date range in Chicago timezone
                 const now = new Date();

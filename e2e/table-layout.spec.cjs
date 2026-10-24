@@ -130,6 +130,20 @@ const SCREENS = [
         callables: { listLandingLeads: WEBSITE_LEADS },
         row: 'Marisol Quintero-Abernathy',
     },
+    {
+        name: 'super admin activity companies',
+        url: '/super-admin?e2eAuth=super_admin&e2eAnalytics=mock',
+        open: (page) => page.getByRole('tab', { name: 'Company Performance' }).click(),
+        row: 'Northern Plains Refrigerated Transport Cooperative',
+        table: 'Company performance for the selected period',
+    },
+    {
+        name: 'super admin activity recruiters',
+        url: '/super-admin?e2eAuth=super_admin&e2eAnalytics=mock',
+        open: (page) => page.getByRole('tab', { name: 'Recruiter Stats' }).click(),
+        row: 'Alexandra Montgomery-Okonkwo',
+        table: 'Recruiter performance for the selected period',
+    },
 ];
 
 const WIDTHS = [
