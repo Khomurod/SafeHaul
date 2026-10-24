@@ -323,7 +323,7 @@ export function UnfinishedApplicationsPage() {
                     // The rows the filter and the search keep; none while the
                     // list loads or could not be read.
                     count={ready ? shown.length : undefined}
-                    countLabel="unfinished applications"
+                    countLabel={shown.length === 1 ? 'unfinished application' : 'unfinished applications'}
                     description={`Applications a driver or your team began and nobody has submitted yet. They are not in the applications pipeline: nothing has been signed and no consent given. Each is removed automatically after ${retentionDays} days without activity.`}
                     actions={(
                         <Inline gap="sm">

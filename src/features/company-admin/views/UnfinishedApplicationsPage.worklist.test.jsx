@@ -122,7 +122,7 @@ describe('the filters', () => {
         expect(shownNames()).toEqual(['Dana Whitfield']);
         expect(filter('Almost done 1')).toHaveAttribute('aria-pressed', 'true');
         expect(filter('All 6')).toHaveAttribute('aria-pressed', 'false');
-        expect(headingCount()).toHaveTextContent(/^1 unfinished applications$/);
+        expect(headingCount()).toHaveTextContent(/^1 unfinished application$/);
 
         fireEvent.click(filter('Prepared by us 3'));
         expect(shownNames()).toEqual(['Priya Raman', 'Marcus Iyer', 'Tomas Okafor']);
@@ -149,7 +149,7 @@ describe('the search', () => {
 
         fireEvent.change(search(), { target: { value: '(555) 010-44' } });
         expect(shownNames()).toEqual(['Marcus Iyer']);
-        expect(headingCount()).toHaveTextContent(/^1 unfinished applications$/);
+        expect(headingCount()).toHaveTextContent(/^1 unfinished application$/);
 
         // With the country code, as a driver says it on the phone.
         fireEvent.change(search(), { target: { value: '+1 (555) 010-44' } });
