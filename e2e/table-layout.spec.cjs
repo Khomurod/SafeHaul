@@ -16,10 +16,10 @@ const { freezeClock, settle } = require('./visual/settle.cjs');
  *
  * Each screen names the text it waits for inside a table body before it
  * measures: `row`, a record the fixture shows, or `empty`, the empty or error
- * state it shows instead. A table's loading state (a "Loading…" row, skeleton
- * rows) never counts as loaded. Each screen must also measure at least one
- * table. A column that clips on purpose declares `truncate`, which the
- * measurement exempts.
+ * state it shows instead (in the table named `table`, when one is given). A
+ * table's loading state (a "Loading…" row, skeleton rows) never counts as
+ * loaded. Each screen must also measure at least one table. A column that
+ * clips on purpose declares `truncate`, which the measurement exempts.
  *
  * Only the screens with a `row` have their cells measured on real records.
  * Those with `empty` have no records under the fixtures, so only their headers
@@ -79,6 +79,7 @@ const SCREENS = [
         name: 'super admin ai integrations',
         url: '/super-admin/ai-integrations?e2eAuth=super_admin',
         row: 'Google Gemini',
+        table: 'AI model versions',
         callables: { getAiModelVersions: AI_MODEL_VERSIONS },
     },
     { name: 'super admin blog posts', url: '/super-admin/blog-posts?e2eAuth=super_admin', empty: 'No articles have been published yet.' },
@@ -119,7 +120,10 @@ test.describe('@table-layout application tables', () => {
                 await freezeClock(page);
                 if (screen.callables) await serveCallables(page, screen.callables);
                 await page.goto(screen.url);
-                await expect(page.locator('table tbody').getByText(screen.row ?? screen.empty).first())
+                // `table` names the one table the text must be in, where another
+                // table on the screen could show the same text.
+                const tables = screen.table ? page.getByRole('table', { name: screen.table }) : page.locator('table');
+                await expect(tables.locator('tbody').getByText(screen.row ?? screen.empty).first())
                     .toBeAttached({ timeout: 30_000 });
                 await expect(page.locator(STILL_LOADING)).toHaveCount(0, { timeout: 30_000 });
                 await settle(page);
