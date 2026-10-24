@@ -13,7 +13,7 @@
  * after it), and one that claims `dropdown` wins outright.
  *
  * Both happened. The candidate/lead toolbar carried `z-ds-dropdown` and covered
- * the open notifications panel on Driver Applications, Company Leads and My
+ * the open notifications panel on Applications, Company Leads and My
  * Leads; `DataTable`'s sticky header carried `z-ds-sticky` and did the same
  * wherever a table did not pin its first column (pinning wraps the scroll region
  * in `isolation: isolate`, which had been hiding it). Measured in Chromium
@@ -68,13 +68,11 @@ describe('stacking layers — page content below application chrome', () => {
   });
 
   it('keeps the candidate/lead toolbar off every chrome rung', () => {
-    // Driver Applications, Company Leads and My Leads all render this one
-    // toolbar. It overlays nothing — its filter panel expands in flow — so it
-    // needs no stacking layer at all.
-    const toolbar = read('features/companies/components/DashboardToolbar.jsx');
-    const root = toolbar.match(/<div className="(relative[^"]*shrink-0 flex-col[^"]*)"/);
-    expect(root).not.toBeNull();
-    expect(root[1]).not.toMatch(/\bz-ds-/);
+    // Applications, Company Leads and My Leads all render this one toolbar, the
+    // list-page `ListToolbar`. It overlays nothing — its filter row expands in
+    // flow — so it needs no stacking layer at all.
+    expect(read('features/companies/components/DashboardToolbar.jsx')).not.toMatch(/\bz-ds-/);
+    expect(read('design-system/patterns/list-toolbar/ListToolbar.css')).not.toMatch(/z-index/);
   });
 
   it('keeps every sticky table header below the chrome rung', () => {

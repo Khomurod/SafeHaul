@@ -65,7 +65,7 @@ test.describe('Company workspace shell and dashboard', () => {
     // Hired: 'Hired' + legacy 'Approved', as the segment counts them.
     await expect(page.getByText('Aisha Robinson')).toBeVisible();
     await expect(page.getByText('Derek Nguyen')).toBeVisible();
-    await expect(page.getByText('Showing 2 of 2 records')).toBeVisible();
+    await expect(page.getByText('2 applications', { exact: true })).toBeVisible();
   });
 
   test('keeps laptop content usable without document-level horizontal overflow', async ({ page }, testInfo) => {
