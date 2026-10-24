@@ -274,10 +274,12 @@ export function AiModelVersionsCard({ runGuarded, onVersionsChanged }) {
                     </p>
                 )}
 
+                {/* `wide`: on a phone the table scrolls at 920px, so each version
+                    column keeps room for its one-line header. */}
                 <DataTable
                     ariaLabel="AI model versions"
                     density="compact"
-                    minWidth="standard"
+                    minWidth="wide"
                     embedded
                     data={rows}
                     columns={COLUMNS}

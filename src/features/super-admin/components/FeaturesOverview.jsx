@@ -47,7 +47,9 @@ export function FeaturesOverview({ onOpenCompany }) {
             key: 'company',
             header: 'Company',
             rowHeader: true,
-            width: 'lg',
+            // `md`, like the feature columns, so the table stretches each one far
+            // enough at 1440px for its one-line header ("Call Tracking").
+            width: 'md',
             render: (company) => (
                 <div className="flex flex-wrap items-center gap-ds-2">
                     <span className="font-semibold text-ds-content [overflow-wrap:anywhere]">{nameOf(company)}</span>
@@ -65,7 +67,7 @@ export function FeaturesOverview({ onOpenCompany }) {
         ...COMPANY_FEATURES.map(({ key, label }) => ({
             key,
             header: label,
-            width: 'sm',
+            width: 'md',
             render: (company) => {
                 const on = isFeatureOn(company, key);
                 const offFrom = on ? scheduledOff(company, key) : null;
