@@ -327,7 +327,6 @@ export default function DocumentsManager() {
                             below the design system's mobile breakpoint it already
                             stacks the actions under the title. */}
                         <PageHeader
-                            className="flex-wrap"
                             title="Documents"
                             description="Create, send, track and manage documents requiring completion or signature."
                             actions={

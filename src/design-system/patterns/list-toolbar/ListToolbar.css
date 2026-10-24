@@ -17,10 +17,15 @@
   padding-inline: var(--ds-space-2) var(--ds-space-4);
 }
 
-/* Scrolls sideways rather than wrapping when there are more segments than room. */
+/*
+ * Scrolls sideways rather than wrapping when there are more segments than room.
+ * Its own height, because once the tools wrap under it, as on a tablet, the row
+ * is no longer as tall as the search beside it, and the scrolling clips.
+ */
 .ds-list-toolbar__segments {
   display: flex;
   min-width: 0;
+  min-height: 48px;
   align-items: stretch;
   gap: var(--ds-space-1);
   overflow-x: auto;

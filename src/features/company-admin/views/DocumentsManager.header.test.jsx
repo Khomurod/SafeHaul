@@ -93,9 +93,10 @@ describe('DocumentsManager header', () => {
         expect(header.innerHTML).not.toMatch(/text-blue-600|text-purple-600|bg-blue-600/);
     });
 
+    // `PageHeader` itself moves its actions under the heading when they do not
+    // fit beside it; the three buttons wrap among themselves.
     it('lets the header actions wrap instead of overflowing', () => {
         const { container } = renderManager();
-        expect(container.querySelector('.ds-page-header')).toHaveClass('flex-wrap');
         expect(container.querySelector('.ds-page-header__actions .ds-inline')).toHaveAttribute('data-wrap', 'true');
     });
 
