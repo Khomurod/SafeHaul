@@ -180,7 +180,10 @@ describe('EnvelopeHistory — delivery method and fallbacks', () => {
 
     it('renders the date from createdAt.seconds', () => {
         renderHistory();
-        emit([makeDoc({ createdAt: { seconds: 1700000000 } })]);
+        // Noon on Nov 14 in the machine's own zone, so the day is the same
+        // wherever the test runs.
+        const seconds = new Date(2023, 10, 14, 12).getTime() / 1000;
+        emit([makeDoc({ createdAt: { seconds } })]);
         // The month spelled, as every list writes a date: "Nov 14, 2023".
         expect(screen.getByText('Nov 14, 2023')).toBeInTheDocument();
     });
