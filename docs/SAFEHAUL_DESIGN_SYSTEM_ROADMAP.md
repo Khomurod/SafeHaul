@@ -283,8 +283,9 @@ The reverse directions are prohibited — including any `@shared` import inside
   Links and Settings → API Keys (row actions in a last column; a settings tab
   with its own header is the page's one `<h1>`), and Super Admin's Website
   Leads, Blog Posts and Features (`PageHeader level={2}`, the masthead holding
-  the `<h1>`). Temporary exception: its segments are its own buttons
-  until `SegmentedControl` has an underlined, scrolling appearance with counts.
+  the `<h1>`). Temporary exception: `ListToolbar` draws its segments as its own
+  buttons until `SegmentedControl` has an underlined, scrolling appearance with
+  counts.
   Tablet widths, which the visual contract does not measure, are held by
   `e2e/list-page-tablet.spec.cjs`.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
