@@ -15,9 +15,9 @@
  * (`bg-ds-surface-subtle`, `text-ds-content-secondary`) are a coincidence, not a
  * contract, and a change to either role would break them silently. ("Eleven"
  * throughout this file is the count of approved *files* when this contract was
- * written. They move to `DataTable` one at a time: three files remain, one
- * `<table>` each — two visible, both on this contract, plus one `sr-only`
- * table that has no appearance and is exempt.
+ * written. They move to `DataTable` one at a time: two files remain, one
+ * `<table>` each — the SMS assignment matrix, on this contract, and one
+ * `sr-only` table that has no appearance and is exempt.
  * `ds/native-table` checks each table rather than each file, so a three-table
  * file cannot satisfy the rule with one class.)
  *

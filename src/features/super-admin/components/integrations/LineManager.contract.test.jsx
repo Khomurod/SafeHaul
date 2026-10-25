@@ -96,6 +96,15 @@ describe('LineManager — listener + rendering', () => {
         expect(within(pendingRow).queryByText('Default')).not.toBeInTheDocument();
     });
 
+    it('lists the lines in a named table, each row headed by its number', () => {
+        renderManager();
+        const table = screen.getByRole('table', { name: /Provisioned phone lines/ });
+        expect(within(table).getAllByRole('columnheader').map((th) => th.textContent))
+            .toEqual(['Phone Number', 'Label', 'Status', 'Default', 'Actions']);
+        expect(within(table).getAllByRole('rowheader').map((th) => th.textContent))
+            .toEqual(['+15550001111', '+15550002222']);
+    });
+
     it('shows the empty state when there are no lines', () => {
         snapState.data = { inventory: [] };
         renderManager();
