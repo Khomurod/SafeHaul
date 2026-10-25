@@ -1,6 +1,6 @@
 /**
  * Accessibility and defect-fix proof for the migrated `NumberAssignmentManager`
- * (and its DefaultLineSection / AssignmentTable / AssignmentRow subcomponents).
+ * (and its DefaultLineSection / AssignmentTable / assignmentColumns subcomponents).
  *
  * `NumberAssignmentManager.test.jsx` freezes the SMS/token business logic
  * (cases A–O). This file proves the presentation stays fixed: labelled per-row
@@ -139,22 +139,23 @@ describe('NumberAssignmentManager — 12px floor (defect: text-[9px]/text-[10px]
 });
 
 describe('NumberAssignmentManager — mobile overflow (defect: unlabelled/unbounded table)', () => {
-    it('wraps the assignment table in a labelled, focusable scroll region', async () => {
+    it('wraps the assignment table in a labelled, focusable region', async () => {
         await renderLoaded();
-        // The name no longer promises a horizontal scroll: under 768px the
+        // The shared table names its region after the table; under 768px the
         // matrix is one card per member and nothing scrolls sideways.
-        const region = screen.getByRole('region', { name: 'Recruiter assignments' });
+        const region = screen.getByRole('region', { name: /^Recruiter number assignments/ });
         expect(region).toHaveAttribute('tabindex', '0');
-        expect(within(region).getByRole('table')).toBeInTheDocument();
+        expect(within(region).getByRole('table', { name: 'Recruiter number assignments' })).toBeInTheDocument();
     });
 
     it('stacks into cards on a phone with its table semantics stated explicitly (audit step K)', async () => {
         await renderLoaded();
         const table = screen.getByRole('table', { name: 'Recruiter number assignments' });
-        // The attribute is the contract: nativeTable.css turns the rows into
-        // cards under 768px, and pinnedColumn.css pins the name column above it.
-        expect(table).toHaveAttribute('data-mobile-presentation', 'cards');
-        expect(table).toHaveAttribute('data-pin-first-column');
+        // The attributes are the contract: mobileCards.css turns the rows into
+        // cards under 768px, and pinnedColumn.css pins the member column above it.
+        const shell = table.closest('[data-mobile-presentation]');
+        expect(shell).toHaveAttribute('data-mobile-presentation', 'cards');
+        expect(shell).toHaveAttribute('data-pin-first-column');
         // `display: block` can drop implicit table roles, so every element
         // states its own — redundant as a table, load-bearing as cards.
         expect(table).toHaveAttribute('role', 'table');
@@ -167,7 +168,9 @@ describe('NumberAssignmentManager — mobile overflow (defect: unlabelled/unboun
         // Every value carries the label of its column, in the table's own words.
         const cells = within(row).getAllByRole('cell');
         expect(cells.map((cell) => cell.getAttribute('data-label')))
-            .toEqual(['Role', 'Assigned number', 'Connection', 'Status']);
+            .toEqual(['Assigned number', 'Connection', 'Status']);
+        // The role is a line under the member's name, named for a screen reader.
+        expect(within(row).getByRole('rowheader')).toHaveTextContent('Role: company admin');
     });
 
     it('marks every column header with scope="col"', async () => {

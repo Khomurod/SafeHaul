@@ -19,10 +19,6 @@
  * licence to style a table by hand.
  */
 
-const NATIVE_TABLE = 'roadmap §5 — approved native-table pattern for an editable matrix or per-row '
-    + 'interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* '
-    + 'roles.';
-
 const VOE_DOCUMENT = 'roadmap §5 — the generated 49 CFR §391.23 document is immutable legal content, not '
     + 'themeable app chrome. Both export paths resolve tokens (html2canvas rasterises computed style, and '
     + 'handlePrint inlines the application\'s stylesheets through collectPrintStyles), so the ground is not '
@@ -120,9 +116,6 @@ export const DS_EXCEPTIONS = {
             + 'A third-party mark is not a SafeHaul role and must not be re-tuned by a change to this '
             + 'product\'s palette, so it stays literal, the same way the SafeHaul mark\'s own colours are '
             + 'pinned rather than derived.',
-    },
-    'src/features/settings/components/number-assignment/AssignmentTable.jsx': {
-        'raw-table': NATIVE_TABLE,
     },
     'src/features/signing/EnvelopeCreator.aiAssistant.support.jsx': {
         'hand-rolled-current': 'A TEST DOUBLE. `EnvelopeCreator.aiAssistant.support.jsx` stands in for the '

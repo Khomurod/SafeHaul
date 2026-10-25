@@ -1,33 +1,24 @@
 import React from 'react';
 import { Icon, Users as UsersIcon } from '@design-system/icons';
-import { Card } from '@/design-system/components';
-import { AssignmentRow } from './AssignmentRow';
+import { Card, DataTable } from '@/design-system/components';
+import { assignmentColumns } from './assignmentColumns';
 
 /**
  * Recruiter assignment matrix.
  *
- * Presentation only — row data and callbacks pass straight through to
- * `AssignmentRow`, unchanged. This stays a real native table rather than the
- * approved `DataTable`: every cell here is an editable per-row form control
- * plus a verify action, which is outside `DataTable`'s proven display-table
- * contract (see `NumberAssignmentManager.jsx`). It carries `ds-native-table`,
- * so its header, divider, density and cell padding come from the same
- * `--ds-table-*` roles `DataTable` reads, not from hand-picked paddings.
- * Column headers carry `scope="col"`, a `<caption>` names the table
- * for assistive tech, and the table sits in a labelled, keyboard-focusable
- * scroll region.
+ * Presentation only — member data and callbacks pass straight through to the
+ * column renderers (`assignmentColumns`), unchanged. It is an embedded
+ * `DataTable`: the member heads each row, every other cell is a labelled
+ * control or status, and the table's region and caption carry one name.
  *
- * On a phone it is one card per team member. This
- * matrix is worked one member at a time — nothing in it is compared across
- * rows — so under 768px `data-mobile-presentation="cards"` stacks each row
- * with every value under the label of its column (`data-label`, written here in
- * the feature's own words), instead of putting a `<select>` and its verify
- * action 400px apart in a sideways-scrolling form. Above 768px the table is a
- * table, with its first column pinned (`data-pin-first-column`) for the widths
- * where it still scrolls. The table roles are stated explicitly on every
- * element because `display: block` can drop the implicit ones — redundant
- * while it is a table, load-bearing while it is cards. Same DOM at every width,
- * so the frozen 15-case suite and the a11y suite cover both.
+ * On a phone it is one card per team member. This matrix is worked one member
+ * at a time — nothing in it is compared across rows — so under 768px each row
+ * stacks with every value under the label of its column (in the feature's own
+ * words), instead of putting a `<select>` and its verify action 400px apart in
+ * a sideways-scrolling form. Above 768px it is a table with its member column
+ * pinned for the widths where it still scrolls. The table states its roles
+ * explicitly, because `display: block` can drop the implicit ones. Same DOM at
+ * every width, so the frozen 15-case suite and the a11y suite cover both.
  */
 export function AssignmentTable({ users, ...rowProps }) {
     return (
@@ -39,38 +30,17 @@ export function AssignmentTable({ users, ...rowProps }) {
                 <p className="mt-ds-1 text-ds-xs text-ds-content-muted">Assign strict 1:1 lines for your team members.</p>
             </div>
 
-            <div
-                role="region"
-                aria-label="Recruiter assignments"
-                tabIndex={0}
-                className="overflow-x-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
-            >
-                <table
-                    className="ds-native-table min-w-[720px]"
-                    role="table"
-                    data-pin-first-column
-                    data-mobile-presentation="cards"
-                >
-                    <caption className="sr-only">Recruiter number assignments</caption>
-                    <thead role="rowgroup" className="text-ds-content-muted">
-                        <tr role="row">
-                            <th scope="col" role="columnheader">Team Member</th>
-                            <th scope="col" role="columnheader">Role</th>
-                            <th scope="col" role="columnheader">Assigned Number</th>
-                            <th scope="col" role="columnheader">Connection</th>
-                            <th scope="col" role="columnheader" className="w-10 text-center">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody role="rowgroup">
-                        {users.map(user => (
-                            <AssignmentRow key={user.id} user={user} {...rowProps} />
-                        ))}
-                    </tbody>
-                </table>
-                {users.length === 0 && (
-                    <p className="p-ds-8 text-center text-ds-sm text-ds-content-muted">No team members found.</p>
-                )}
-            </div>
+            <DataTable
+                embedded
+                ariaLabel="Recruiter number assignments"
+                density="compact"
+                minWidth="standard"
+                mobilePresentation="cards"
+                data={users}
+                columns={assignmentColumns(rowProps)}
+                getRowId={(user) => user.id}
+                empty={{ title: 'No team members found.' }}
+            />
         </Card>
     );
 }
