@@ -78,6 +78,8 @@ export function mockCompanyApplications(companyId) {
  * The Unified Driver Database's first page as `loadRecentData` combines it:
  * leads and applications, newest first. Between them they hold every source,
  * a stale record, each documents state and the longest strings a row shows.
+ * The dates fall before the screenshots' frozen clock (15 June 2026), so each
+ * shows as time past.
  */
 export function mockDriverRecords() {
     const at = (iso) => ({ seconds: Date.parse(iso) / 1000 });
@@ -89,18 +91,18 @@ export function mockDriverRecords() {
             email: 'ana.ferreira-montgomery@example.test', phone: '5550100101',
             status: 'Contact Attempt 1', city: 'Sioux Falls', state: 'SD', driverType: ['Reefer', 'Flatbed'],
             positionApplyingTo: 'Owner Operator', yearsExperience: 12, uploadedDocuments: docs(4),
-            createdAt: at('2026-10-14T15:00:00Z'),
+            createdAt: at('2026-06-08T15:00:00Z'),
         },
         {
             id: 'e2e-drv-2', sourceType: 'Company Lead', companyId: 'e2e-co-1',
             firstName: 'Omar', lastName: 'Attempt', phone: '5550100102',
             status: 'New Lead', state: 'TX', driverType: 'Dry Van', uploadedDocuments: docs(2),
-            createdAt: at('2026-10-09T12:00:00Z'),
+            createdAt: at('2026-05-25T12:00:00Z'),
         },
         {
             id: 'e2e-drv-3', sourceType: 'Company App', companyId: 'e2e-co-1',
             firstName: 'Lena', lastName: 'Leadsen', email: 'lena@example.test',
-            status: 'Rejected', createdAt: at('2026-09-01T18:30:00Z'),
+            status: 'Rejected', createdAt: at('2026-04-01T18:30:00Z'),
         },
     ];
 }
