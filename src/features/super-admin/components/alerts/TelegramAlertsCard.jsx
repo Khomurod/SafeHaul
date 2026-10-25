@@ -212,6 +212,13 @@ export function TelegramAlertsCard() {
                         >
                             {!bot && 'Add the token first.'}
                             {bot && !pending && 'Press Connect chat for a one-time link to your bot.'}
+                            {bot && chat && !pending && (
+                                <p className="mt-1">
+                                    {state.approver
+                                        ? `Each new tested version is offered in this chat with a button to release it to app.safehaul.io. Only ${state.approver.name} can press it.`
+                                        : 'To get a button in this chat that releases each new tested version to app.safehaul.io, press Reconnect chat once and press Start.'}
+                                </p>
+                            )}
                             {bot && pending && (
                                 <>
                                     Press Open Telegram, then press Start in the chat with @{bot.username} that it

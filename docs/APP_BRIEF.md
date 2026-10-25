@@ -941,7 +941,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
 | **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (server only); password saved encrypted (`enc:v1:`), shown in the UI only by the vault's reveal. Company emails and campaigns share one reader (`functions/shared/smtpSettings.js`), with fallbacks for old tenants (`companies/{id}.emailSettings`, `integrations/email_settings`: keep until Data cleanup moves them) |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection (switched off; §12) | Per company |
-| **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
+| **AI providers** | CDL auto-fill, e-doc field placement, blog, an applicant's own PSP/MVR read into *suggestions* where enabled (`extractApplicationReport`), and a recruiter's attached paperwork (`extractCompanyApplicationDocuments`) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | **Operator alerts**: `watchAiAndBlog` messages the chat connected in Super Admin → System Health. The marketing-site bot is **retired** (`LD-R3`; rollback caveat: `docs/FIREBASE_HOSTING_RUNBOOK.md`) | Alert bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat, `approverId` (who pressed Start) and watcher state: `system_jobs/platformAlerts`; Starts via `telegramWebhook` (secret header = HMAC of the token) in `…Inbox` (1-day TTL). Server-only. Retired bot: rotate its token (runbook) |
 | **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
@@ -1004,8 +1004,9 @@ compared in constant time; SHA-1 alone is refused.
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
-| `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the connected Telegram chat when a check goes down and when it recovers, and runs with or without a chat |
-| `refreshAiModelLists` | hourly at :25, America/Chicago | Daily, and within the hour of a lane failure, re-tests each enabled provider's photo versions on a made-up licence, text ones on a short question; keeps those that pass, adds catalogue models that pass, never empties a lane; tells Telegram what changed or needs fixing |
+| `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the Telegram chat when a check goes down and recovers; runs without a chat too |
+| `refreshAiModelLists` | hourly at :25, America/Chicago | Daily and after a lane failure: re-tests enabled providers' versions (photos on a made-up licence, text on a question), keeps or adds those that pass, never empties a lane; tells Telegram what changed |
+| `offerProductionRelease` | every 10 min | Offers a new eligible Testing release in the alert chat, with a Release button |
 | Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is live and opens/closes a GitHub issue |
 
 The blog publishes one article a day; the hourly scheduler is idempotent,
@@ -1136,7 +1137,8 @@ else number and time, and fails an undelivered text (reason, totals).
   Only the frontend build served differs between channels.
 - **Production never deploys automatically.** Merging to `main` deploys Testing
   and the shared backend; Production is reached only by explicit promotion of an
-  already-tested Hosting version, through Super Admin → Releases. See
+  already-tested Hosting version: Super Admin → Releases, or the Telegram
+  button the approver confirms twice (`runPromotion`, same checks). See
   [`docs/FIREBASE_HOSTING_RUNBOOK.md`](./FIREBASE_HOSTING_RUNBOOK.md).
 - **`workers: 1` in the Playwright CI config is deliberate** (contention flakes);
   sharding across runners is the sanctioned speed-up, and a single green run is

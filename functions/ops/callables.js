@@ -199,6 +199,8 @@ exports.getPlatformAlerts = onCall({ cors: true }, async (request) => {
         return {
             bot: connection.botUsername ? { username: connection.botUsername } : null,
             chat: connectedChat(connection),
+            // Who may press the release button: their name only, never their id.
+            approver: connectedChat(connection) && connection.approverId ? { name: connection.approverName || 'Telegram user' } : null,
             pending: pending && connection.botUsername ? startLink(connection, pending) : null,
             watch: {
                 lastRunAt: watch.lastRunAt || null,

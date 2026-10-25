@@ -179,6 +179,43 @@ async function sendMessage(token, chatId, text, deps) {
 }
 
 /**
+ * A message with buttons under it, each `{ text, data }`, one row per array.
+ * Returns the message's id, which later edits name.
+ */
+async function sendButtons(token, chatId, text, rows, deps) {
+    const message = await callTelegram(token, 'sendMessage', {
+        chat_id: chatId,
+        text: String(text).slice(0, MAX_MESSAGE_CHARS),
+        disable_web_page_preview: true,
+        reply_markup: keyboard(rows),
+    }, deps);
+    return message?.message_id ?? null;
+}
+
+const keyboard = (rows) => ({
+    inline_keyboard: (rows || []).map((row) => row.map(({ text, data }) => ({ text, callback_data: data }))),
+});
+
+/** Replaces a message's text and buttons; no `rows` leaves it with none. */
+async function editMessage(token, chatId, messageId, text, rows, deps) {
+    await callTelegram(token, 'editMessageText', {
+        chat_id: chatId,
+        message_id: messageId,
+        text: String(text).slice(0, MAX_MESSAGE_CHARS),
+        disable_web_page_preview: true,
+        reply_markup: keyboard(rows),
+    }, deps);
+}
+
+/** Ends a button's spinner, with a short note the presser sees. */
+async function answerButton(token, callbackId, text, deps) {
+    await callTelegram(token, 'answerCallbackQuery', {
+        callback_query_id: callbackId,
+        ...(text ? { text: String(text).slice(0, 200) } : {}),
+    }, deps);
+}
+
+/**
  * Points the bot's updates at `url`, signed with `secret` in the
  * `X-Telegram-Bot-Api-Secret-Token` header. A bot whose webhook already goes
  * elsewhere belongs to another service and is left alone (`webhook_set`).
@@ -213,6 +250,9 @@ module.exports = {
     startsIn,
     startsOnLink,
     sendMessage,
+    sendButtons,
+    editMessage,
+    answerButton,
     setWebhook,
     deleteWebhook,
 };

@@ -47,12 +47,27 @@ function assertCredentialConfigured() {
  */
 async function startPromotion(request, { kind, action, resolveCandidate }) {
     await guardPrivileged(request, 'promote', action, { channel: 'production' }, 'release');
+    return runPromotion({
+        auth: request.auth,
+        kind,
+        action,
+        resolveCandidate,
+        expectedSha: request.data?.expectedSha,
+        reason: request.data?.reason,
+    });
+}
+
+/**
+ * The promotion itself, for a caller whose authority was already established:
+ * a callable after its guards, or the owner's confirmed press in Telegram
+ * (`ops/releaseButtons.js`). `auth` names the actor in the records.
+ */
+async function runPromotion({ auth, kind, action, resolveCandidate, expectedSha, reason: rawReason }) {
     assertCredentialConfigured();
+    const request = { auth };
 
     const api = createReleaseApi();
-    const reason = typeof request.data?.reason === 'string'
-        ? request.data.reason.slice(0, 300)
-        : undefined;
+    const reason = typeof rawReason === 'string' ? rawReason.slice(0, 300) : undefined;
 
     let state;
     try {
@@ -82,7 +97,6 @@ async function startPromotion(request, { kind, action, resolveCandidate }) {
     // they approved is no longer what would ship — so this refuses rather than
     // silently promoting something they never saw. The client's SHA is used ONLY
     // for this comparison; it is never what gets promoted.
-    const expectedSha = request.data?.expectedSha;
     if (typeof expectedSha === 'string' && expectedSha !== candidateSha) {
         await recordAuditEvent({
             auth: request.auth,
@@ -191,8 +205,8 @@ async function startPromotion(request, { kind, action, resolveCandidate }) {
         conclusion: null,
         runId: null,
         runUrl: null,
-        actorUid: request.auth.uid,
-        actorEmail: typeof request.auth.token?.email === 'string' ? request.auth.token.email : null,
+        actorUid: request.auth?.uid || null,
+        actorEmail: typeof request.auth?.token?.email === 'string' ? request.auth.token.email : null,
         reason: reason || null,
         startedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -245,5 +259,6 @@ async function startPromotion(request, { kind, action, resolveCandidate }) {
 
 module.exports = {
     assertCredentialConfigured,
+    runPromotion,
     startPromotion,
 };
