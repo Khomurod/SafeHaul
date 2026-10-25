@@ -30,6 +30,17 @@ function formatDay(ms) {
     });
 }
 
+/**
+ * The day the release was signed: the signer's own calendar day where the
+ * application records it, else the signing instant's day in UTC, said so.
+ */
+function signedDayText(release) {
+    const day = release.signedDay;
+    if (!day?.local) return `${formatDay(release.signedAt)} (UTC)`;
+    const [year, month, date] = day.iso.split('-');
+    return `${month}/${date}/${year}`;
+}
+
 function joinAddress(parts) {
     const line = parts.map(text).filter(Boolean).join(', ');
     return line || null;
@@ -112,7 +123,7 @@ async function drawSignature(doc, { release, applicantName, signedAs }) {
     doc.moveDown(4);
     doc.line(text(applicantName) || 'Applicant', { font: doc.font.bold });
     doc.paragraph(
-        `Signed electronically (${release.typedName ? 'typed name' : 'drawn'}) on ${formatDay(release.signedAt)} (UTC), `
+        `Signed electronically (${release.typedName ? 'typed name' : 'drawn'}) on ${signedDayText(release)}, `
             + `${signedAs}.`,
         { size: TYPE.SMALL, color: INK.MUTED },
     );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldCheck, AlertCircle, glyphComponent } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
-import { RELEASE_NOTES, RELEASE_PARAGRAPHS, RELEASE_RIGHTS, releaseOf } from '@shared/legal/previousEmployerRelease';
+import { RELEASE_NOTES, RELEASE_PARAGRAPHS, RELEASE_RIGHTS, releaseOf, signedDayOf } from '@shared/legal/previousEmployerRelease';
 
 /*
  * THE ONE FILE IN THE APPLICATION THAT OPENS GLYPH TOKENS BY HAND, and it is
@@ -27,20 +27,22 @@ const PrintAlertCircle = glyphComponent(AlertCircle);
 const utcDay = (date) => date.toLocaleDateString('en-US', { timeZone: 'UTC', month: '2-digit', day: '2-digit', year: 'numeric' });
 
 /**
- * The day the applicant signed. The wizard stamps `signatureDate`, an ISO time
- * (`Step9_Consent.jsx`); older applications carry the form builder's
- * `signature-date`, printed as written when it reads as a date; failing both,
- * the instant the release check dated the signature by (`signedAt`, its
- * submission). With none, the document says so:
- * printing today's date would certify an authorization that has no date.
- *
- * The instant is dated in UTC, as the e-signing "Date Signed" is
- * (`functions/shared/signedDate.js`), so every printout of one application
- * carries the same date, whoever prints it and wherever they are.
+ * The day the applicant signed. The wizard stamps `signatureDate`, an ISO time,
+ * and `signatureDay`, the signer's own calendar day (`Step9_Consent.jsx`), which
+ * `signedDayOf` prints; an application from before `signatureDay` is dated by
+ * its instant in UTC, as the server's request PDF does, so every printout of one
+ * application carries the same date. Older applications carry the form
+ * builder's `signature-date`, printed as written when it reads as a date;
+ * failing both, the instant the release check dated the signature by
+ * (`signedAt`, its submission). With none, the document says so: printing
+ * today's date would certify an authorization that has no date.
  */
 function authorizationDate(applicant, signedAt) {
     const stamped = applicant.signatureDate ? new Date(applicant.signatureDate) : null;
-    if (stamped && !Number.isNaN(stamped.getTime())) return utcDay(stamped);
+    if (stamped && !Number.isNaN(stamped.getTime())) {
+        const [year, month, day] = signedDayOf(applicant).iso.split('-');
+        return `${month}/${day}/${year}`;
+    }
     const legacy = applicant['signature-date'];
     if (legacy && !Number.isNaN(Date.parse(String(legacy)))) return legacy;
     return Number.isFinite(signedAt) ? utcDay(new Date(signedAt)) : 'Not signed';
