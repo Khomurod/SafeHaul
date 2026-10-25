@@ -95,6 +95,13 @@ const SCREENS = [
         url: '/company/referral-links?e2eAuth=company_admin&e2eReferrals=mock',
         ready: (page) => page.getByText('Rosa Delgado'),
     },
+    /* The application's standard questions, a row of switches per field. */
+    {
+        name: 'company-settings-questions',
+        url: '/company/settings?e2eAuth=company_admin',
+        open: (page) => page.getByRole('tab', { name: 'Application Form Questions' }).click(),
+        ready: (page) => page.getByRole('rowheader', { name: 'Signed MVR Authorization Form (upload)' }),
+    },
     {
         name: 'company-settings-api-keys',
         url: '/company/settings?section=api_keys&e2eAuth=company_admin',
