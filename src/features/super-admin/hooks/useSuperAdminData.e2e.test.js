@@ -1,5 +1,5 @@
 /**
- * The `e2eCompanies=mock` fixture: the companies and users lists show made-up records
+ * The `e2eCompanies=mock` fixture: the companies, users and driver lists show made-up records
  * without reading Firestore, and only in E2E test mode.
  *
  * All ids and names below are synthetic test fixtures.
@@ -32,7 +32,7 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({
 }));
 
 import { useSuperAdminData } from './useSuperAdminData';
-import { mockCompanies, mockUsers } from '../components/companiesMock';
+import { mockCompanies, mockDriverRecords, mockUsers } from '../components/companiesMock';
 
 async function mountLoaded() {
     const hook = renderHook(() => useSuperAdminData());
@@ -47,7 +47,7 @@ afterEach(() => {
 });
 
 describe('useSuperAdminData — the e2eCompanies fixture', () => {
-    it('lists the made-up companies, reading nothing, in E2E test mode with e2eCompanies=mock', async () => {
+    it('lists the made-up companies, users and drivers, reading nothing, in E2E test mode with e2eCompanies=mock', async () => {
         e2e.on = true;
         e2e.param = 'mock';
         const { result } = await mountLoaded();
@@ -55,6 +55,8 @@ describe('useSuperAdminData — the e2eCompanies fixture', () => {
         expect(result.current.hasMoreCompanies).toBe(false);
         expect(result.current.userList).toEqual(mockUsers());
         expect(result.current.hasMoreUsers).toBe(false);
+        expect(result.current.allApplications).toEqual(mockDriverRecords());
+        expect(result.current.hasMoreApps).toBe(false);
         expect(result.current.allCompaniesMap.get('e2e-co-1')).toBe('Artificial Freight Lines');
         expect(getDocs).not.toHaveBeenCalled();
         expect(getCountFromServer).not.toHaveBeenCalled();

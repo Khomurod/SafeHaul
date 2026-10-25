@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mockCompanies, mockCompanyApplications } from './companiesMock';
+import { mockCompanies, mockCompanyApplications, mockDriverRecords } from './companiesMock';
 
 describe('companies fixture', () => {
     it('gives applications only to the company they belong to', () => {
@@ -14,5 +14,18 @@ describe('companies fixture', () => {
         expect(new Set(apps.map((app) => app.id)).size).toBe(apps.length);
         apps.filter((app) => app.phone).forEach((app) => expect(app.phone).toMatch(/^\(555\) 010-01\d\d$/));
         mockCompanies().forEach((company) => expect(company.id).toMatch(/^e2e-co-/));
+    });
+
+    it('fills the driver database from the made-up companies, newest first', () => {
+        const companyIds = new Set(mockCompanies().map((company) => company.id));
+        const records = mockDriverRecords();
+        expect(new Set(records.map((record) => record.id)).size).toBe(records.length);
+        records.forEach((record) => {
+            expect(companyIds.has(record.companyId)).toBe(true);
+            expect(['Company App', 'Company Lead']).toContain(record.sourceType);
+            if (record.phone) expect(record.phone).toMatch(/^55501001\d\d$/);
+        });
+        const times = records.map((record) => record.createdAt.seconds);
+        expect(times).toEqual([...times].sort((a, b) => b - a));
     });
 });

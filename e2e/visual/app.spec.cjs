@@ -227,6 +227,12 @@ const SCREENS = [
         url: '/super-admin/users?e2eAuth=super_admin&e2eCompanies=mock',
         ready: (page) => page.getByRole('rowheader', { name: /^Alexandra Montgomery-Okonkwo/ }),
     },
+    /* The Unified Driver Database on three made-up drivers (`e2eCompanies=mock`). */
+    {
+        name: 'super-admin-driver-database',
+        url: '/super-admin/applications?e2eAuth=super_admin&e2eCompanies=mock',
+        ready: (page) => page.getByRole('rowheader', { name: /^Ana Lucia Ferreira-Montgomery/ }),
+    },
     /* A made-up company's Features tab, one switch-off scheduled (`e2eCompanies=mock`). */
     {
         name: 'super-admin-company-features',

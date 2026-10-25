@@ -1,8 +1,16 @@
 /**
- * The Unified Driver Database table's columns, extracted verbatim from
- * `views/UnifiedDriverList.jsx`. A builder rather than a component: the view
- * memoises the result with the same dependency list it always had, and the
- * handlers and state the cells use arrive through the one context argument.
+ * The Unified Driver Database table's columns. A builder rather than a
+ * component: the view memoises the result with the same dependency list it
+ * always had, and the handlers and state the cells use arrive through the one
+ * context argument.
+ *
+ * `DataTable` columns: the name is the row header, its contact the quiet second
+ * line under it, and the row's actions are always in view (never hover-only).
+ * The record's last activity sits under its status, the freight type under
+ * its location and the documents under the position, so the six columns fit
+ * the owner panel at 1440px without a sideways scroll.
+ * A two-line cell keeps its lines in one block, so on a phone card both sit
+ * beside the column's label.
  */
 
 import React from 'react';
@@ -11,6 +19,9 @@ import { formatPhoneNumber } from '@shared/utils/helpers';
 import { StatusBadge } from '@shared/components/badges';
 import { IconButton } from '@/design-system/components';
 import { SourceBadge } from './UnifiedDriverListParts';
+
+/** "First Last", or '' when the record has neither. */
+export const driverName = (item) => `${item.firstName || ''} ${item.lastName || ''}`.trim();
 
 export function buildDriverListColumns({
     deletingId,
@@ -21,118 +32,116 @@ export function buildDriverListColumns({
     getDocsStatus,
 }) {
     return [
-        // Identity: Name + Contact
         {
             key: 'identity',
             header: 'Driver',
-            render: (item) => (
-                <div className="min-w-[180px]">
-                    <p className="text-ds-body font-semibold text-ds-content">
-                        {item.firstName} {item.lastName}
-                    </p>
-                    <p className="text-ds-xs text-ds-content-muted truncate max-w-[200px] mt-0.5">
-                        {item.phone ? formatPhoneNumber(item.phone) : ''}
-                        {item.phone && item.email ? ' • ' : ''}
-                        {item.email || ''}
-                    </p>
-                </div>
-            ),
+            rowHeader: true,
+            width: 'lg',
+            render: (item) => {
+                const contact = [item.phone ? formatPhoneNumber(item.phone) : '', item.email || '']
+                    .filter(Boolean).join(' • ');
+                return (
+                    <>
+                        <span className="block font-semibold text-ds-content [overflow-wrap:anywhere]">
+                            {item.firstName} {item.lastName}
+                        </span>
+                        {contact && (
+                            <span className="block text-ds-xs font-normal text-ds-content-muted [overflow-wrap:anywhere]">
+                                {contact}
+                            </span>
+                        )}
+                    </>
+                );
+            },
         },
-        // Status + Stale
         {
             key: 'status',
             header: 'Status',
+            width: 'lg',
             render: (item) => {
-                const stale = isStale(item.createdAt);
+                const updated = getRelativeTime(item.updatedAt || item.createdAt);
                 return (
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col items-start gap-1">
                         <StatusBadge status={item.status || 'New'} />
-                        {stale && <StatusBadge status="Stale" />}
+                        {isStale(item.createdAt) && <StatusBadge status="Stale" />}
+                        {updated !== '--' && (
+                            <span className="inline-flex items-center gap-1 text-ds-xs text-ds-content-muted">
+                                <Icon icon={Clock} size="xs" />
+                                Updated {updated}
+                            </span>
+                        )}
                     </div>
                 );
             },
         },
-        // Source
         {
             key: 'source',
             header: 'Source',
+            width: 'md',
             render: (item) => <SourceBadge type={item.sourceType} />,
         },
-        // Context: Location + Driver Type
         {
             key: 'context',
-            header: 'Location / Type',
+            header: 'Location',
+            width: 'md',
             render: (item) => (
-                <div>
+                <div className="min-w-0">
                     {(item.city || item.state) ? (
-                        <p className="text-ds-body font-semibold text-ds-content flex items-center gap-1">
-                            <Icon icon={MapPin} size="xs" className="text-ds-content-muted" />
-                            {item.city}{item.city && item.state ? ', ' : ''}{item.state}
-                        </p>
+                        <span className="flex items-center gap-1 font-semibold text-ds-content">
+                            <Icon icon={MapPin} size="xs" className="shrink-0 text-ds-content-muted" />
+                            <span className="min-w-0 [overflow-wrap:anywhere]">
+                                {item.city}{item.city && item.state ? ', ' : ''}{item.state}
+                            </span>
+                        </span>
                     ) : (
-                        <p className="text-ds-body text-ds-content-muted">—</p>
+                        <span className="block text-ds-content-muted">—</span>
                     )}
-                    <p className="text-ds-xs text-ds-content-muted mt-0.5">
+                    <span className="block text-ds-xs text-ds-content-muted [overflow-wrap:anywhere]">
                         {Array.isArray(item.driverType)
                             ? item.driverType.join(', ')
                             : item.driverType || '—'}
-                    </p>
+                    </span>
                 </div>
             ),
         },
-        // Details: Position + Exp + Docs
         {
             key: 'details',
-            header: 'Position / Docs',
+            header: 'Position',
+            width: 'md',
             render: (item) => {
                 const docsStatus = getDocsStatus(item);
+                const docsTone = docsStatus === 'Complete' ? 'text-ds-status-success-fg'
+                    : docsStatus === 'Missing' ? 'text-ds-status-warning-fg' : 'text-ds-content-muted';
                 return (
-                    <div>
-                        <p className="text-ds-body text-ds-content-secondary font-medium">
+                    <div className="min-w-0">
+                        <span className="block font-medium text-ds-content-secondary [overflow-wrap:anywhere]">
                             {item.positionApplyingTo || 'Driver'}
                             {item.yearsExperience ? ` · ${item.yearsExperience}y exp` : ''}
-                        </p>
-                        <span className={`text-ds-xs font-medium mt-0.5 inline-block ${docsStatus === 'Complete' ? 'text-ds-status-success-fg' :
-                                docsStatus === 'Missing' ? 'text-ds-status-warning-fg' : 'text-ds-content-muted'
-                            }`}>
+                        </span>
+                        <span className={`block text-ds-xs font-medium ${docsTone}`}>
                             Docs: {docsStatus}
                         </span>
                     </div>
                 );
             },
         },
-        // Activity
-        {
-            key: 'activity',
-            header: 'Activity',
-            render: (item) => (
-                <span className="inline-flex items-center gap-1 text-ds-xs text-ds-content-muted">
-                    <Icon icon={Clock} size="xs" />
-                    {getRelativeTime(item.updatedAt || item.createdAt)}
-                </span>
-            ),
-        },
-        // Actions — hover-reveal
         {
             key: 'actions',
-            header: '',
-            headerClassName: 'w-[100px]',
-            cellClassName: 'w-[100px]',
+            header: 'Actions',
+            align: 'end',
+            width: 'sm',
             stopPropagation: true,
+            mobileLabel: '',
             render: (item) => {
-                const who = `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'this driver';
+                const who = driverName(item) || 'this driver';
                 return (
-                    // `focus-within` so keyboard users can see the actions at all —
-                    // they were hover-only and therefore unreachable without a mouse.
-                    <div className="flex items-center gap-1 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100">
+                    <div className="flex justify-end gap-1">
                         <IconButton
                             label={`View ${who}`}
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => { e.stopPropagation(); onAppClick(item); }}
+                            onClick={() => onAppClick(item)}
                         >
-                            {/* 15 -> `sm` (14): one pixel, following the same snap
-                                `candidateListColumns` took in the chip slice. */}
                             <Icon icon={Eye} size="sm" />
                         </IconButton>
                         <IconButton
@@ -140,7 +149,7 @@ export function buildDriverListColumns({
                             variant="ghost"
                             size="sm"
                             loading={deletingId === item.id}
-                            onClick={(e) => { e.stopPropagation(); setPendingDelete(item); }}
+                            onClick={() => setPendingDelete(item)}
                         >
                             <Icon icon={Trash2} size="sm" className="text-ds-status-danger-fg" />
                         </IconButton>
