@@ -11,7 +11,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { isFieldLocked } from '@features/signing/utils/prefillEngine';
 import { normalizeSignerField } from '@features/signing/utils/signerFieldStyle';
-import { rollSignedDateFields } from '@features/signing/utils/signedDate';
+import { browserTimeZone, rollSignedDateFields } from '@features/signing/utils/signedDate';
 import { readDraft } from '@features/signing/utils/signingDraft';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 
@@ -120,7 +120,9 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
                 const result = await getEnvelopeFn({
                     companyId,
                     requestId,
-                    accessToken
+                    accessToken,
+                    // The server stamps Date Signed in this zone, on its own clock.
+                    timeZone: browserTimeZone(),
                 });
 
                 const data = result.data;
@@ -152,7 +154,7 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
 
     /**
      * Bring the displayed Date Signed up to the server's current day, for the
-     * document that was opened before UTC midnight and is being submitted after
+     * document that was opened before midnight in the signer's zone and is submitted after
      * it. Returns the first field that moved — so the caller can stop, say so and
      * show the signer where — or null when the day has not changed, which is
      * every submission but the rare one that crosses the boundary.
@@ -160,7 +162,7 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
     const refreshSignedDate = useCallback(() => {
         if (!Array.isArray(request?.fields) || request.fields.length === 0) return null;
         const at = new Date(Date.now() + clockOffsetMs.current);
-        const rolled = rollSignedDateFields(request.fields, fieldValues, at);
+        const rolled = rollSignedDateFields(request.fields, fieldValues, at, request.timeZone || 'UTC');
         if (!rolled) return null;
         setRequest((prev) => (prev ? { ...prev, fields: rolled.fields } : prev));
         setFieldValues(rolled.fieldValues);

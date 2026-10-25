@@ -268,7 +268,10 @@ export default function SigningRoom() {
                 requestId,
                 accessToken,
                 fieldValues,
-                auditData
+                auditData,
+                // The zone the room showed Date Signed in, so the sealed date matches it;
+                // a room stamped without one was stamped in UTC.
+                timeZone: request?.timeZone || 'UTC',
             });
 
             clearSavedDraft();

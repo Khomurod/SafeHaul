@@ -146,6 +146,16 @@ describe('SigningRoom — the day rolls over mid-session', () => {
         expect(submitFn.mock.calls[0][0].fieldValues.date_signed).toBe('September 12, 2026');
     });
 
+    it('seals in the zone the server stamped the room in', async () => {
+        getEnvelopeFn.mockResolvedValue({ data: { ...envelopeStampedOnTheEleventh().data, timeZone: 'America/Los_Angeles' } });
+        vi.setSystemTime(new Date(OPENED_AT));
+        await openAndConsent();
+
+        fireEvent.click(screen.getAllByRole('button', { name: /Finish & Submit/ })[0]);
+        await waitFor(() => expect(submitFn).toHaveBeenCalledTimes(1));
+        expect(submitFn.mock.calls[0][0].timeZone).toBe('America/Los_Angeles');
+    });
+
     it('submits straight away on the same day, and ignores a wrong device clock', async () => {
         // The device is a day behind. The server said 11 September and still
         // says 11 September, so nothing moves and nothing interrupts the signer.
