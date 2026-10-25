@@ -37,8 +37,9 @@ const { uploadLeadFile } = require('./helpers/leadImport.cjs');
  * company's alert interactions (read from its `feature_alerts`) and the
  * dossier's own tables. The import-leads preview is covered: the screen picks
  * a made-up file, as a person would; so is the stats backfill preview, from a
- * dry run answered by `callables`, and a finished campaign's results and
- * report, from the `e2eCampaign=mock` seed.
+ * dry run answered by `callables`, a finished campaign's results and report,
+ * from the `e2eCampaign=mock` seed, and a company's applications dialog, from
+ * the `e2eCompanies=mock` seed.
  */
 
 // Two services as `getAiModelVersions` returns them (shape:
@@ -168,12 +169,29 @@ const SCREENS = [
         row: 'Carrier rejected the message.',
         table: 'Per-recipient delivery results',
     },
+    {
+        name: 'super admin company applications',
+        url: '/super-admin/companies?e2eAuth=super_admin&e2eCompanies=mock',
+        open: openCompanyApplications,
+        row: 'ana.ferreira-montgomery@example.test',
+        table: 'Driver applications for Artificial Freight Lines',
+    },
 ];
 
 /** Opens the seeded finished campaign's details or report, as a person would. */
 async function openFinishedCampaign(page, button) {
     await page.getByRole('tab', { name: /Past Sequences/i }).click();
     await page.getByRole('button', { name: button }).first().click();
+}
+
+/**
+ * Opens a made-up company's applications from the companies table. By keyboard:
+ * on a phone the table scrolls sideways under its pinned name column, so a
+ * pointer click at the scrolled-to spot lands on the name.
+ */
+async function openCompanyApplications(page) {
+    await page.getByRole('button', { name: 'View applications for Artificial Freight Lines' }).focus();
+    await page.keyboard.press('Enter');
 }
 
 /** Asks for a dry run of one made-up company, as an operator would. */

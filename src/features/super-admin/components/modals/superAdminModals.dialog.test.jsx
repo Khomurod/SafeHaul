@@ -355,6 +355,22 @@ describe('ViewCompanyAppsModal — frozen data contract', () => {
     expect(screen.getByText('--')).toBeInTheDocument();
   });
 
+  it('shows the records in the shared table, one fact per column, with the name as row header', async () => {
+    mockLoadApplications.mockResolvedValue([
+      { id: 'a1', firstName: 'Artificial', lastName: 'Driver', email: 'd1@example.test', phone: '555-0111', status: 'Hired' },
+    ]);
+
+    render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
+
+    const table = await screen.findByRole('table', { name: 'Driver applications for Artificial Freight Co' });
+    expect(table.closest('.ds-data-table')).toHaveAttribute('data-embedded', 'true');
+    expect(table.closest('.ds-data-table')).toHaveAttribute('data-max-height', 'md');
+    expect(within(table).getAllByRole('columnheader').map((th) => th.textContent))
+      .toEqual(['Driver Name', 'Email', 'Phone', 'Status', 'Date']);
+    expect(within(table).getByRole('rowheader')).toHaveTextContent('Artificial Driver');
+    expect(document.getElementById('view-apps-modal')).toContainElement(table);
+  });
+
   it('states the status as text, not colour alone', async () => {
     mockLoadApplications.mockResolvedValue([
       { id: 'a1', firstName: 'Artificial', lastName: 'Driver', status: 'Hired' },

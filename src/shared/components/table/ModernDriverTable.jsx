@@ -13,8 +13,7 @@ import { Checkbox, IconButton } from '@/design-system/components';
  *
  * `DataTable` is an approved *display*-table contract. This table combines three
  * things that sit outside it, and the same exception is already recorded for
- * `CampaignResultsTable`, `CompaniesView`, `UsersView`, `FeaturesView`,
- * `AssignmentTable` and `ViewCompanyAppsModal`:
+ * `CompaniesView`, `UsersView`, `FeaturesView` and `AssignmentTable`:
  *
  *  1. **Consumer-owned column rendering.** Columns are `{ key, header, render(item),
  *     headerClassName, cellClassName, stopPropagation }`. `render` returns

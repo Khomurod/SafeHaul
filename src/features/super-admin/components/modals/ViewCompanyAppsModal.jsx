@@ -1,10 +1,90 @@
 import React, { useId, useState, useEffect, useMemo } from 'react';
 import { loadApplications } from '@features/applications/services/applicationService';
 import { Icon, X, Search, FileText, Calendar, User } from '@design-system/icons';
-import { Badge, Button, IconButton, Input } from '@/design-system/components';
+import { Badge, Button, DataTable, IconButton, Input } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { EmptyState, ErrorState, Modal } from '@design-system/patterns';
+import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { applicationStatusTone } from '../applicationStatusTone';
+import { mockCompanyApplications } from '../companiesMock';
+
+// --- SMART NAME RESOLVER ---
+// Checks all possible locations where data might be saved
+const getDriverName = (app) => {
+  const fname =
+      app.firstName ||
+      app['first-name'] ||
+      app.personalInfo?.firstName ||
+      app.personalInfo?.['first-name'] ||
+      '';
+
+  const lname =
+      app.lastName ||
+      app['last-name'] ||
+      app.personalInfo?.lastName ||
+      app.personalInfo?.['last-name'] ||
+      '';
+
+  if (!fname && !lname) return 'Unknown Driver';
+  return `${fname} ${lname}`.trim();
+};
+
+const getDriverEmail = (app) => app.email || app.personalInfo?.email || 'No Email';
+
+const getDriverPhone = (app) => app.phone || app.personalInfo?.phone || 'No Phone';
+
+const getAppliedDate = (app) => {
+  const seconds = app.submittedAt?.seconds || app.createdAt?.seconds;
+  return seconds ? new Date(seconds * 1000).toLocaleDateString() : '--';
+};
+
+/** One fact per cell; the record id is the row header's quiet second line. */
+const APPLICATION_COLUMNS = [
+  {
+    key: 'driver',
+    header: 'Driver Name',
+    rowHeader: true,
+    width: 'lg',
+    render: (app) => (
+      <>
+        <span className="block font-bold text-ds-content [overflow-wrap:anywhere]">{getDriverName(app)}</span>
+        <span className="block font-mono text-ds-xs text-ds-content-muted [overflow-wrap:anywhere]">{app.id}</span>
+      </>
+    ),
+  },
+  {
+    key: 'email',
+    header: 'Email',
+    width: 'xl',
+    render: (app) => <span className="text-ds-sm [overflow-wrap:anywhere]">{getDriverEmail(app)}</span>,
+  },
+  {
+    key: 'phone',
+    header: 'Phone',
+    width: 'md',
+    render: (app) => <span className="text-ds-sm">{getDriverPhone(app)}</span>,
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    width: 'md',
+    render: (app) => (
+      <Badge tone={applicationStatusTone(app.status)}>{app.status || 'New Application'}</Badge>
+    ),
+  },
+  {
+    key: 'date',
+    header: 'Date',
+    align: 'end',
+    width: 'md',
+    render: (app) => (
+      <span className="inline-flex items-center gap-1 text-ds-sm text-ds-content-muted">
+        <Icon icon={Calendar} size="xs" />
+        {getAppliedDate(app)}
+      </span>
+    ),
+  },
+];
 
 /**
  * Read-only list of a company's driver applications, opened from the Super Admin
@@ -30,10 +110,11 @@ import { applicationStatusTone } from '../applicationStatusTone';
  *  - **Status is never colour alone.** It is an approved `Badge` whose text
  *    carries the meaning, with the domain→tone mapping owned by this feature.
  *
- * `DataTable` is deliberately not used: this is a display-only table nested
- * inside a dialog with its own scroll container and sticky header, and the
- * approved `DataTable` contract has not yet been proven inside a dialog. Recorded
- * in the roadmap's raw-table inventory rather than forcing the reuse.
+ *  - The list is an embedded `DataTable` with its own height limit, so its
+ *    header stays in view while the rows scroll inside the dialog. Email and
+ *    phone are separate columns; the record id stays under the name.
+ *
+ * Under `?e2eCompanies=mock` (E2E test mode only) it shows made-up records.
  */
 export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
   const [loading, setLoading] = useState(true);
@@ -48,6 +129,11 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
       if (!companyId) return;
       setLoading(true);
       setError('');
+      if (isE2ETestMode && getE2EQueryParam('e2eCompanies', '') === 'mock') {
+        setApplications(mockCompanyApplications(companyId));
+        setLoading(false);
+        return;
+      }
       try {
         const querySnapshot = await loadApplications(companyId);
 
@@ -65,35 +151,6 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
     }
     fetchApplications();
   }, [companyId]);
-
-  // --- SMART NAME RESOLVER ---
-  // Checks all possible locations where data might be saved
-  const getDriverName = (app) => {
-    const fname =
-        app.firstName ||
-        app['first-name'] ||
-        app.personalInfo?.firstName ||
-        app.personalInfo?.['first-name'] ||
-        '';
-
-    const lname =
-        app.lastName ||
-        app['last-name'] ||
-        app.personalInfo?.lastName ||
-        app.personalInfo?.['last-name'] ||
-        '';
-
-    if (!fname && !lname) return 'Unknown Driver';
-    return `${fname} ${lname}`.trim();
-  };
-
-  const getDriverEmail = (app) => {
-      return app.email || app.personalInfo?.email || 'No Email';
-  };
-
-  const getDriverPhone = (app) => {
-      return app.phone || app.personalInfo?.phone || 'No Phone';
-  };
 
   // Filter logic
   const filteredApplications = useMemo(() => {
@@ -178,50 +235,16 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
           )}
 
           {!loading && !error && filteredApplications.length > 0 && (
-              <table className="ds-native-table" data-density="compact" data-pin-first-column>
-                  <caption className="sr-only">
-                    Driver applications for {companyName}
-                  </caption>
-                  <thead className="sticky top-0 z-ds-raised bg-ds-table-header-bg text-ds-table-header-fg shadow-ds-xs">
-                      <tr>
-                          <th scope="col">Driver Name</th>
-                          <th scope="col">Contact</th>
-                          <th scope="col" className="text-center">Status</th>
-                          <th scope="col" className="text-right">Date</th>
-                      </tr>
-                  </thead>
-                  <tbody>
-                      {filteredApplications.map(app => (
-                        <tr key={app.id} className="transition-colors">
-                            <td>
-                                <span className="block font-bold text-ds-content">
-                                    {getDriverName(app)}
-                                </span>
-                                <span className="font-mono text-ds-xs text-ds-content-muted">{app.id}</span>
-                            </td>
-                            <td className="text-ds-sm">
-                                <div>{getDriverEmail(app)}</div>
-                                <div className="text-ds-xs text-ds-content-muted">{getDriverPhone(app)}</div>
-                            </td>
-                            <td className="text-center">
-                                <Badge tone={applicationStatusTone(app.status)}>
-                                    {app.status || 'New Application'}
-                                </Badge>
-                            </td>
-                            <td className="text-right text-ds-sm text-ds-content-muted">
-                                <div className="flex items-center justify-end gap-1">
-                                    <Icon icon={Calendar} size="xs" />
-                                    {app.submittedAt?.seconds
-                                        ? new Date(app.submittedAt.seconds * 1000).toLocaleDateString()
-                                        : (app.createdAt?.seconds
-                                            ? new Date(app.createdAt.seconds * 1000).toLocaleDateString()
-                                            : '--')}
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                  </tbody>
-              </table>
+              <DataTable
+                embedded
+                ariaLabel={`Driver applications for ${companyName}`}
+                density="compact"
+                minWidth="none"
+                maxHeight="md"
+                data={filteredApplications}
+                columns={APPLICATION_COLUMNS}
+                getRowId={(app) => app.id}
+              />
           )}
         </div>
 
