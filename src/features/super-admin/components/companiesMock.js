@@ -4,8 +4,9 @@
 /*
  * Fixture rows for the `?e2eCompanies=mock` harness, gated on
  * `VITE_E2E_TEST_MODE`, which a production build never sets. Without them the
- * harness reads no companies or users, so the companies and users tables and a
- * company's applications dialog could be measured and pictured only empty.
+ * harness reads no companies or users, so the companies and users tables, a
+ * company's own screen and its applications dialog could be measured and
+ * pictured only empty or failed.
  *
  * Every company and driver is made up; phones are 555-01xx numbers.
  */
@@ -13,12 +14,16 @@
 /** The companies as the console's first page reads them from `companies`. */
 export function mockCompanies() {
     return [
-        { id: 'e2e-co-1', companyName: 'Artificial Freight Lines', appSlug: 'artificial-freight', planType: 'paid' },
+        {
+            id: 'e2e-co-1', companyName: 'Artificial Freight Lines', appSlug: 'artificial-freight', planType: 'paid',
+            featureSchedules: { campaignsEnabled: '2026-10-30T15:00:00.000Z' },
+        },
         {
             id: 'e2e-co-2',
             companyName: 'Northern Plains Refrigerated Transport Cooperative',
             appSlug: 'northern-plains-refrigerated',
             planType: 'free',
+            features: { pev: false, callTracking: false },
         },
         { id: 'e2e-co-3', companyName: 'Sample Haulage', appSlug: 'sample-haulage', planType: 'free', isActive: false },
     ];

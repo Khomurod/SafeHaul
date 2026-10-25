@@ -159,6 +159,81 @@ export function FeaturesView({ company, onChanged }) {
         }
     };
 
+    // A row per feature: its switch, and its scheduled switch-off with what that
+    // offers. On a phone each feature is a card.
+    const columns = [
+        {
+            key: 'feature',
+            header: 'Feature',
+            rowHeader: true,
+            width: 'lg',
+            render: (f) => <span className="font-medium text-ds-content">{f.label}</span>,
+        },
+        {
+            key: 'on',
+            header: 'On',
+            width: 'sm',
+            render: (f) => {
+                // On unless switched off, as every screen that honours the flag
+                // reads it (`features.{key} === false` hides it).
+                const isEnabled = isFeatureOn(company, f.key);
+                return (
+                    <Switch
+                        label={`${f.label} for ${company.companyName}`}
+                        checked={isEnabled}
+                        disabled={busy}
+                        onChange={() => toggleFeature(f.key, isEnabled)}
+                    />
+                );
+            },
+        },
+        {
+            key: 'schedule',
+            header: 'Scheduled switch-off',
+            width: 'xl',
+            render: (f) => {
+                const isEnabled = isFeatureOn(company, f.key);
+                const schedule = company.featureSchedules?.[f.key];
+                return (
+                    <div className="flex flex-wrap items-center gap-ds-2">
+                        {isEnabled && (
+                            <IconButton
+                                label={`Schedule deactivation of ${f.label} for ${company.companyName}`}
+                                variant="ghost"
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => openScheduleModal(f.key)}
+                            >
+                                <Icon icon={Calendar} />
+                            </IconButton>
+                        )}
+                        {schedule && (
+                            <>
+                                <span className="flex items-center gap-1 rounded-ds-sm bg-ds-status-warning-bg px-1.5 py-1 text-ds-xs text-ds-status-warning-fg">
+                                    <Icon icon={Clock} size="xs" />
+                                    {new Date(schedule).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                    <IconButton
+                                        label={`Cancel scheduled deactivation of ${f.label} for ${company.companyName}`}
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={busy}
+                                        onClick={() => cancelSchedule(f.key)}
+                                    >
+                                        <Icon icon={X} size="xs" />
+                                    </IconButton>
+                                </span>
+                                <Button variant="ghost" size="sm" onClick={() => openStatsModal(f.key)}>
+                                    <Icon icon={BarChart2} size="xs" /> Alerts
+                                    <span className="sr-only">{` for ${f.label} at ${company.companyName}`}</span>
+                                </Button>
+                            </>
+                        )}
+                    </div>
+                );
+            },
+        },
+    ];
+
     return (
         <>
             <section aria-labelledby={titleId}>
@@ -166,81 +241,15 @@ export function FeaturesView({ company, onChanged }) {
                     <Icon icon={Zap} className="text-ds-status-accent-fg" />
                     Features
                 </h3>
-                <div
-                    role="region"
-                    aria-label="Features of this company"
-                    tabIndex={0}
-                    className="overflow-x-auto rounded-ds-lg border border-ds-border-subtle focus-visible:outline-none focus-visible:shadow-ds-focus"
-                >
-                    <table className="ds-native-table">
-                        <caption className="sr-only">Features of {company.companyName}</caption>
-                        <thead>
-                            <tr>
-                                <th scope="col">Feature</th>
-                                <th scope="col">On</th>
-                                <th scope="col">Scheduled switch-off</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {ALL_FEATURES.map(f => {
-                                // On unless switched off, as every screen that honours
-                                // the flag reads it (`features.{key} === false` hides it).
-                                const isEnabled = isFeatureOn(company, f.key);
-                                const schedule = company.featureSchedules?.[f.key];
-
-                                return (
-                                    <tr key={f.key}>
-                                        <th scope="row" className="font-medium text-ds-content">{f.label}</th>
-                                        <td>
-                                            <Switch
-                                                label={`${f.label} for ${company.companyName}`}
-                                                checked={isEnabled}
-                                                disabled={busy}
-                                                onChange={() => toggleFeature(f.key, isEnabled)}
-                                            />
-                                        </td>
-                                        <td>
-                                            <div className="flex flex-wrap items-center gap-ds-2">
-                                                {isEnabled && (
-                                                    <IconButton
-                                                        label={`Schedule deactivation of ${f.label} for ${company.companyName}`}
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        disabled={busy}
-                                                        onClick={() => openScheduleModal(f.key)}
-                                                    >
-                                                        <Icon icon={Calendar} />
-                                                    </IconButton>
-                                                )}
-                                                {schedule && (
-                                                    <>
-                                                        <span className="flex items-center gap-1 rounded-ds-sm bg-ds-status-warning-bg px-1.5 py-1 text-ds-xs text-ds-status-warning-fg">
-                                                            <Icon icon={Clock} size="xs" />
-                                                            {new Date(schedule).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                                                            <IconButton
-                                                                label={`Cancel scheduled deactivation of ${f.label} for ${company.companyName}`}
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                disabled={busy}
-                                                                onClick={() => cancelSchedule(f.key)}
-                                                            >
-                                                                <Icon icon={X} size="xs" />
-                                                            </IconButton>
-                                                        </span>
-                                                        <Button variant="ghost" size="sm" onClick={() => openStatsModal(f.key)}>
-                                                            <Icon icon={BarChart2} size="xs" /> Alerts
-                                                            <span className="sr-only">{` for ${f.label} at ${company.companyName}`}</span>
-                                                        </Button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    ariaLabel={`Features of ${company.companyName}`}
+                    density="compact"
+                    minWidth="none"
+                    mobilePresentation="cards"
+                    data={ALL_FEATURES}
+                    columns={columns}
+                    getRowId={(f) => f.key}
+                />
             </section>
 
             {scheduleModalOpen && (

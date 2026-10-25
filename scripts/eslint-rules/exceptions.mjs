@@ -174,9 +174,6 @@ export const DS_EXCEPTIONS = {
             + 'alignment with the PDF. Same constraint already recorded for the signature button in this '
             + 'file.',
     },
-    'src/features/super-admin/components/FeaturesView.jsx': {
-        'raw-table': NATIVE_TABLE,
-    },
     'src/features/super-admin/components/integrations/LineManager.jsx': {
         'raw-table': NATIVE_TABLE,
     },
