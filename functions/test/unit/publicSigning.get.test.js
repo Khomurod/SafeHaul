@@ -159,6 +159,32 @@ describe('getPublicEnvelope', () => {
     }
   });
 
+  it('reads the day in the zone the signer\'s browser names, on the server clock', async () => {
+    // 9:30 pm in Los Angeles on the 11th is already the 12th in UTC.
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-12T04:30:00Z'));
+    try {
+      mockGet.mockResolvedValue({
+        exists: true,
+        data: () => baseEnvelope({
+          expiresAt: { toMillis: () => Date.now() + 3600000 },
+          fields: [{ id: 'date_signed', type: 'date', pageNumber: 1, bindingKey: 'current_date', defaultValue: '{{current_date}}' }],
+        }),
+      });
+      const inLosAngeles = await getPublicEnvelope({ ...validRequest, data: { ...validRequest.data, timeZone: 'America/Los_Angeles' } });
+      expect(inLosAngeles.fields[0].defaultValue).toBe('September 11, 2026');
+      expect(inLosAngeles.timeZone).toBe('America/Los_Angeles');
+
+      // No zone, or one that is not a zone, reads the UTC day as before.
+      for (const timeZone of [undefined, 'Not/AZone', 'America/Los_Angeles; DROP', 42]) {
+        const result = await getPublicEnvelope({ ...validRequest, data: { ...validRequest.data, timeZone } });
+        expect(result.fields[0].defaultValue).toBe('September 12, 2026');
+        expect(result.timeZone).toBe('UTC');
+      }
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('reports the instant it stamped, so the room can see the day roll over', async () => {
     // Without it the room would have to ask the device clock whether the day has
     // changed before submitting, which is the clock this whole rule distrusts.

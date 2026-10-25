@@ -112,6 +112,29 @@ describe.each(ZONES)('parity with functions/shared/signedDate.js on a device in 
     });
 });
 
+describe('the signer\'s zone, on both sides', () => {
+    const at = new Date('2026-09-12T04:30:00.000Z');
+
+    it.each([
+        ['America/Los_Angeles', 'September 11, 2026'],
+        ['America/Chicago', 'September 11, 2026'],
+        ['UTC', 'September 12, 2026'],
+        ['Asia/Tokyo', 'September 12, 2026'],
+        ['Pacific/Kiritimati', 'September 12, 2026'],
+        [undefined, 'September 12, 2026'],
+        ['Not/AZone', 'September 12, 2026'],
+        ['America/Los_Angeles; DROP', 'September 12, 2026'],
+        [42, 'September 12, 2026'],
+    ])('reads %s as %s', (zone, day) => {
+        expect(site.formatSignedDate(at, zone)).toBe(day);
+        expect(server.formatSignedDate(at, zone)).toBe(day);
+        expect(site.signerTimeZone(zone)).toBe(server.signerTimeZone(zone));
+        const field = { bindingKey: 'current_date', defaultValue: 'Signed {{current_date}}' };
+        expect(site.resolveSignedDateValue(field, at, zone)).toBe(server.resolveSignedDateValue(field, at, zone));
+        expect(site.stampSignedDateFields([field], at, zone)).toEqual(server.stampSignedDateFields([field], at, zone));
+    });
+});
+
 describe('parity with functions/shared/signedDate.js', () => {
     it('names the same key and placeholder', () => {
         expect(site.SIGNING_DATE_KEY).toBe(server.SIGNING_DATE_KEY);

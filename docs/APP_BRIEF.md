@@ -296,13 +296,13 @@ server-side by `submitPublicEnvelope` — recruiter envelopes, templates and
 post-application documents (`functions/postApplicationEdocs.js`) alike,
 restamping a still-*bound* field even if an older send baked in a date.
 `getPublicEnvelope` stamps the same value for display and returns its instant
-(`serverTime`), so screen and sealed PDF share the server clock, in **UTC** (as
-`signedAt`); before submitting, the signing room re-checks it and, if the UTC
-day moved, updates any field declared a signing date (binding or unresolved
-token) and asks the signer to look again. A bare `{{current_date}}` typed into
-other **locked** text cannot be re-checked (string matching would rewrite a hire
-date that is today): it seals correctly, only its preview can lag a day. One
-definition in `src/features/signing/utils/signedDate.js` and
+(`serverTime`) and zone: screen and sealed PDF share the server clock, read in
+the zone the signer's browser names (`signerTimeZone`, else **UTC**; in
+`auditTrail`); before submitting, the room re-checks it and, if the day moved,
+updates any signing-date field and asks the signer to look again. A bare
+`{{current_date}}` in other **locked** text is not re-checked (matching would
+rewrite a hire date that is today): it seals correctly, only its preview can lag
+a day. One definition in `src/features/signing/utils/signedDate.js` and
 `functions/shared/signedDate.js`: change both.
 
 **Previous employment verification (PEV).** A company admin sends a request to a

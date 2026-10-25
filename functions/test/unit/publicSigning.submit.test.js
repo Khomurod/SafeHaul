@@ -287,6 +287,39 @@ describe('submitPublicEnvelope', () => {
       expect(update.fields[0].defaultValue).toBe('September 11, 2026');
     });
 
+    it('seals the day in the signer\'s zone and records the zone it used', async () => {
+      // 9:30 pm in Los Angeles on the 11th; already the 12th in UTC.
+      jest.setSystemTime(new Date('2026-09-12T04:30:00Z'));
+      mockTxnEnvelope({
+        expired: false,
+        fields: [{ id: 'date_signed', type: 'date', label: 'Date Signed', required: true, readOnly: true, prefillPolicy: 'locked', bindingKey: 'current_date', defaultValue: '{{current_date}}' }],
+      });
+
+      await submitPublicEnvelope({
+        ...baseReq,
+        data: { ...baseReq.data, timeZone: 'America/Los_Angeles', auditData: { timeZone: 'Europe/Paris' }, fieldValues: { date_signed: 'September 30, 2026' } },
+      });
+
+      const update = lastUpdate();
+      expect(update.fieldValues.date_signed).toBe('September 11, 2026');
+      expect(update.fields[0].defaultValue).toBe('September 11, 2026');
+      // The zone the server checked and used, never one the audit data claimed.
+      expect(update.auditTrail.timeZone).toBe('America/Los_Angeles');
+    });
+
+    it('seals the UTC day when the signer\'s page names no zone', async () => {
+      jest.setSystemTime(new Date('2026-09-12T04:30:00Z'));
+      mockTxnEnvelope({
+        expired: false,
+        fields: [{ id: 'date_signed', type: 'date', label: 'Date Signed', required: true, readOnly: true, prefillPolicy: 'locked', bindingKey: 'current_date', defaultValue: '{{current_date}}' }],
+      });
+
+      await submitPublicEnvelope({ ...baseReq, data: { ...baseReq.data, fieldValues: {} } });
+
+      expect(lastUpdate().fieldValues.date_signed).toBe('September 12, 2026');
+      expect(lastUpdate().auditTrail.timeZone).toBe('UTC');
+    });
+
     it('repairs a document that was already sent with the creation date baked in', async () => {
       mockTxnEnvelope({
         expired: false,

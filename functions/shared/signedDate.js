@@ -16,8 +16,9 @@
  * what is shown and `submitPublicEnvelope` stamps what is stored and sealed.
  * Keeping both on the server clock is the point — a device with a wrong date
  * cannot display one day and have the PDF print another. `getPublicEnvelope`
- * also reports the instant it stamped, so a room left open across UTC midnight
- * can re-check against this clock before it submits instead of the device's.
+ * also reports the instant it stamped, and the signer's zone it read it in, so a
+ * room left open across midnight can re-check against this clock before it
+ * submits instead of the device's.
  */
 
 /** Same grammar as the placeholder tokens the prefill engine resolves. */
@@ -38,14 +39,32 @@ function normalizeTokenKey(value) {
 }
 
 /**
- * Rendered in UTC on both sides of the wire so the value the signer read on
- * screen is character-for-character the value stored here and drawn into the
- * PDF. It also agrees with `signedAt`, which is a server timestamp, so the
- * audit trail and the printed date can never tell different stories.
+ * The time zone a Date Signed is read in: the one the signer's browser names, when
+ * it is a real IANA zone this runtime knows, else UTC (a caller that names none,
+ * such as a page from before zones were sent). The server's clock still decides
+ * the instant; the zone only says which calendar day that instant was where the
+ * signer sat, so a signer in Los Angeles at 9 pm reads today, not tomorrow. No
+ * zone is more than a day from UTC, so a forged one can move the date by a day
+ * at most, which an honest signer east or west of UTC would see anyway.
  */
-function formatSignedDate(date = new Date()) {
+function signerTimeZone(value) {
+  if (typeof value !== 'string' || value.length > 64 || !/^[A-Za-z][A-Za-z0-9_+\-/]*$/.test(value)) return 'UTC';
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: value }).resolvedOptions().timeZone;
+  } catch {
+    return 'UTC';
+  }
+}
+
+/**
+ * The same zone and format on both sides of the wire, so the value the signer
+ * read on screen is character-for-character the value stored here and drawn
+ * into the PDF. The instant is the server's, as `signedAt` is, so the audit
+ * trail and the printed date can never tell different stories.
+ */
+function formatSignedDate(date = new Date(), timeZone = 'UTC') {
   return date.toLocaleDateString('en-US', {
-    timeZone: 'UTC',
+    timeZone: signerTimeZone(timeZone),
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -69,9 +88,9 @@ function formatSignedDate(date = new Date()) {
  * A date of birth, a hire date or a licence expiry reaches neither arm: they
  * resolve from their own context keys and carry their own bindings.
  */
-function resolveSignedDateValue(field = {}, now = new Date()) {
+function resolveSignedDateValue(field = {}, now = new Date(), timeZone = 'UTC') {
   const text = normalizeString(field && field.defaultValue);
-  const stamped = formatSignedDate(now);
+  const stamped = formatSignedDate(now, timeZone);
 
   TOKEN_PATTERN.lastIndex = 0;
   if (TOKEN_PATTERN.test(text)) {
@@ -87,11 +106,11 @@ function resolveSignedDateValue(field = {}, now = new Date()) {
 }
 
 /** Stamp every signing-date field in a list; every other field is returned untouched. */
-function stampSignedDateFields(fields = [], now = new Date()) {
+function stampSignedDateFields(fields = [], now = new Date(), timeZone = 'UTC') {
   if (!Array.isArray(fields)) return [];
   return fields.map((field) => {
     if (!field || typeof field !== 'object') return field;
-    const value = resolveSignedDateValue(field, now);
+    const value = resolveSignedDateValue(field, now, timeZone);
     return value === null ? field : { ...field, defaultValue: value };
   });
 }
@@ -101,5 +120,6 @@ module.exports = {
   SIGNING_DATE_PLACEHOLDER,
   formatSignedDate,
   resolveSignedDateValue,
+  signerTimeZone,
   stampSignedDateFields,
 };

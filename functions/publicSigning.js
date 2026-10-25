@@ -6,6 +6,7 @@ const { trustedClientIp, forwardedChain } = require("./shared/clientIp");
 const {
     SIGNING_DATE_KEY,
     resolveSignedDateValue,
+    signerTimeZone,
     stampSignedDateFields,
 } = require("./shared/signedDate");
 
@@ -132,18 +133,21 @@ exports.getPublicEnvelope = onCall({ cors: true }, async (request) => {
             // and the sealed PDF still came from this machine — the same
             // screen-versus-PDF disagreement this whole rule exists to end.
             const viewedAt = new Date();
+            // Read in the signer's own zone, which their browser names; UTC when it names none.
+            const timeZone = signerTimeZone(request.data?.timeZone);
 
             return {
                 title: data.title,
                 recipientName: data.recipientName,
                 // recipientEmail intentionally omitted — never expose PII on public endpoint
-                fields: stampSignedDateFields(normalizePublicFields(data.fields), viewedAt),
+                fields: stampSignedDateFields(normalizePublicFields(data.fields), viewedAt, timeZone),
                 // The instant the line above was stamped. A document left open
                 // across UTC midnight would otherwise show the day it was opened
                 // while `submitPublicEnvelope` sealed the day it was submitted —
                 // so the room re-checks against THIS clock before it submits,
                 // rather than against a device clock it cannot trust.
                 serverTime: viewedAt.toISOString(),
+                timeZone,
                 pdfUrl: url,
                 status: data.status
             };
@@ -252,10 +256,11 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
         // BEFORE the required-field check so a locked Date Signed field delivered
         // as an unresolved placeholder can never read as missing.
         const signedOn = new Date();
+        const timeZone = signerTimeZone(request.data?.timeZone);
         let stampedAnySignedDate = false;
         const sealedFields = rawFields.map((field) => {
             if (!field || !field.id) return field;
-            const stamped = resolveSignedDateValue(field, signedOn);
+            const stamped = resolveSignedDateValue(field, signedOn, timeZone);
             if (stamped === null) return field;
             stampedAnySignedDate = true;
 
@@ -338,6 +343,8 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
                 // Every address Google's proxies saw, for whoever has to check the one above.
                 forwardedFor: forwardedChain(request.rawRequest),
                 timestamp: new Date().toISOString(),
+                // The zone the Date Signed was read in, as checked above, never as sent.
+                timeZone,
                 method: 'Public Secure Link'
             }
         });

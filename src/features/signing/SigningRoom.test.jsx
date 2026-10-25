@@ -150,6 +150,8 @@ describe('SigningRoom', () => {
       companyId: 'co1',
       requestId: 'req1',
       accessToken: 'valid-token',
+      // The server stamps Date Signed in this browser's zone.
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
   });
 

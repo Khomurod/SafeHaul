@@ -247,3 +247,24 @@ describe('a signing session that crosses UTC midnight', () => {
         expect(rollSignedDateFields(fields, {}, SUBMITTED_AT)).toBeNull();
     });
 });
+
+describe('a signing session that crosses midnight in the signer\'s zone', () => {
+    // 11:55 pm and 12:05 am in Los Angeles: the same UTC day, another local one.
+    const OPENED_AT = new Date('2026-09-12T06:55:00Z');
+    const SUBMITTED_AT = new Date('2026-09-12T07:05:00Z');
+    const ZONE = 'America/Los_Angeles';
+    const field = {
+        id: 'date_signed', type: 'date', required: true, prefillPolicy: 'locked',
+        bindingKey: SIGNING_DATE_KEY, defaultValue: SIGNING_DATE_PLACEHOLDER,
+    };
+
+    it('rolls in the zone the room was stamped in, where UTC would not move', () => {
+        const opened = stampSignedDateFields([field], OPENED_AT, ZONE);
+        expect(opened[0].defaultValue).toBe('September 11, 2026');
+
+        expect(rollSignedDateFields(stampSignedDateFields([field], OPENED_AT), {}, SUBMITTED_AT)).toBeNull();
+        const rolled = rollSignedDateFields(opened, { date_signed: 'September 11, 2026' }, SUBMITTED_AT, ZONE);
+        expect(rolled.fields[0].defaultValue).toBe('September 12, 2026');
+        expect(rolled.fieldValues.date_signed).toBe('September 12, 2026');
+    });
+});
