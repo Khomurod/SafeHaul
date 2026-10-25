@@ -7,7 +7,6 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { isFieldLocked } from '@features/signing/utils/prefillEngine';
-import { browserTimeZone } from '@features/signing/utils/signedDate';
 import { useSigningEnvelope } from '@features/signing/hooks/useSigningEnvelope';
 import {
     sortFieldsForFlow,
@@ -270,8 +269,9 @@ export default function SigningRoom() {
                 accessToken,
                 fieldValues,
                 auditData,
-                // The zone the room showed Date Signed in, so the sealed date matches it.
-                timeZone: request?.timeZone || browserTimeZone(),
+                // The zone the room showed Date Signed in, so the sealed date matches it;
+                // a room stamped without one was stamped in UTC.
+                timeZone: request?.timeZone || 'UTC',
             });
 
             clearSavedDraft();

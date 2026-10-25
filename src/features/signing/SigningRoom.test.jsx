@@ -151,7 +151,8 @@ describe('SigningRoom', () => {
       requestId: 'req1',
       accessToken: 'valid-token',
       // The server stamps Date Signed in this browser's zone.
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      // The envelope in this test names no zone, so it was stamped, and seals, in UTC.
+      timeZone: 'UTC',
     });
   });
 
