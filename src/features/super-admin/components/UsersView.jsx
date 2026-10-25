@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect, useId } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
-import { Icon, Users, Briefcase, Edit2, Trash2, Search, ChevronLeft, ChevronRight, ShieldCheck } from '@design-system/icons';
-import { Avatar, Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
-import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
+import { Icon, Users, Briefcase, Edit2, Trash2, Search, ShieldCheck } from '@design-system/icons';
+import { Avatar, Badge, Button, Card, DataTable, IconButton, Input } from '@/design-system/components';
 
 /**
  * Super Admin users table.
@@ -13,19 +12,17 @@ import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
  * rule, the `allCompaniesMap.get(...) || "Unknown"` fallback, the `{ id }` /
  * `{ id, name }` callback shapes and every frozen string.
  *
- * `DataTable` is not used yet: the list sits in a virtualised scroll region,
- * and `DataTable` owns its own scroll container (roadmap §5). The approved
- * native-table pattern is used instead.
+ * The list is a `DataTable`; rows per page and Previous / Next are the
+ * table's own pager, and "Load More from Database" stays below it.
  *
  * Defects fixed here:
  *  - Icon-only Edit/Delete actions carried only a `title`, so they had no
  *    accessible name and every row announced identically.
- *  - The Super Admin role and membership chips were legacy-palette pills; role
- *    is now a `Badge` whose text carries the meaning, never colour alone.
+ *  - The Super Admin role was a legacy-palette pill; it is now a `Badge` whose
+ *    text carries the meaning, never colour alone. Each membership is a line of
+ *    text ("Admin at …"), which wraps where a long company name needs it.
  *  - The search input had no label.
  *  - Loading and error states were not announced.
- *  - The loading spinner was a bare `Loader2`; it now uses the shared loader
- *    like the sibling companies table.
  *  - Legacy palette throughout, including the `bg-ds-status-accent-bg` avatar.
  */
 /**
@@ -36,6 +33,8 @@ import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
  */
 const isSuperAdmin = (user) => user.globalRole === 'super_admin'
     || (user.memberships || []).some((membership) => membership.role === 'super_admin');
+
+const PAGE_SIZES = [20, 50, 100];
 
 export function UsersView({
     listLoading,
@@ -52,7 +51,6 @@ export function UsersView({
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const searchId = useId();
-    const perPageId = useId();
 
     const filteredUserList = useMemo(() => {
         const searchTerm = userSearch.toLowerCase();
@@ -73,6 +71,83 @@ export function UsersView({
     useEffect(() => {
         setCurrentPage(1);
     }, [userSearch, itemsPerPage]);
+
+    const columns = [
+        {
+            key: 'user',
+            header: 'User',
+            rowHeader: true,
+            width: 'xl',
+            render: (user) => {
+                const userName = getFieldValue(user.name);
+                return (
+                    <div className="flex min-w-0 items-center gap-ds-3">
+                        <Avatar size="md" tone="accent">
+                            {userName.charAt(0).toUpperCase()}
+                        </Avatar>
+                        <span className="min-w-0">
+                            <span className="block text-ds-sm font-bold text-ds-content [overflow-wrap:anywhere]">{userName}</span>
+                            <span className="block text-ds-xs font-normal text-ds-content-muted [overflow-wrap:anywhere]">{getFieldValue(user.email)}</span>
+                        </span>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'access',
+            header: 'Role & Access',
+            width: 'xl',
+            // Super Admin is a status, so a badge; each membership names a
+            // company, which can be long, so it is a line that wraps.
+            render: (user) => {
+                if (isSuperAdmin(user)) return <Badge tone="danger" icon={ShieldCheck}>Super Admin</Badge>;
+                if (!(user.memberships?.length > 0)) {
+                    return <span className="text-ds-xs italic text-ds-content-muted">No active memberships</span>;
+                }
+                return (
+                    <ul className="flex flex-col gap-ds-1">
+                        {user.memberships.map(mem => (
+                            <li key={mem.companyId} className="flex items-start gap-ds-2 text-ds-sm text-ds-content">
+                                <Icon icon={Briefcase} size="sm" className="mt-0.5 shrink-0 text-ds-content-muted" />
+                                <span className="min-w-0 [overflow-wrap:anywhere]">
+                                    {mem.role === 'company_admin' ? 'Admin' : 'User'} at {allCompaniesMap.get(mem.companyId) || "Unknown"}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                );
+            },
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            align: 'end',
+            width: 'md',
+            render: (user) => {
+                const userName = getFieldValue(user.name);
+                return (
+                    <div className="flex justify-end gap-ds-2">
+                        <IconButton
+                            label={`Edit ${userName}`}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEdit({ id: user.id })}
+                        >
+                            <Icon icon={Edit2} size="lg" />
+                        </IconButton>
+                        <IconButton
+                            label={`Delete ${userName}`}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDelete({ id: user.id, name: user.name })}
+                        >
+                            <Icon icon={Trash2} size="lg" className="text-ds-status-danger-fg" />
+                        </IconButton>
+                    </div>
+                );
+            },
+        },
+    ];
 
     return (
         <Card padding="none" className="flex h-full flex-col overflow-hidden">
@@ -101,133 +176,34 @@ export function UsersView({
                 </div>
             </div>
 
-            {/* Keyboard-focusable, named scroll region: below `sm` the table
-                    scrolls horizontally, and in the empty state it holds no
-                    focusable children, so keyboard users could not scroll it at
-                    all (axe `scrollable-region-focusable`). Same pattern already
-                    used by `EnvelopeHistory` and `CampaignResultsTable`. */}
-                <div
-                    role="region"
-                    aria-label="Users table"
-                    tabIndex={0}
-                    className="min-h-0 flex-1 overflow-auto bg-ds-canvas focus-visible:outline-none focus-visible:shadow-ds-focus"
-                >
-                <table className="ds-native-table" data-row-hover data-pin-first-column>
-                    <caption className="sr-only">All platform users</caption>
-                    <thead className="sticky top-0 z-ds-raised bg-ds-table-header-bg shadow-ds-xs">
-                        <tr>
-                            <th scope="col">User</th>
-                            <th scope="col">Role &amp; Access</th>
-                            <th scope="col" className="text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {listLoading ? (
-                            <tr><td colSpan="3" className="text-center text-ds-content-muted"><div role="status"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading users...</div></td></tr>
-                        ) : statsError.users ? (
-                            <tr><td colSpan="3" className="text-center text-ds-status-danger-fg"><div role="alert">Error loading users.</div></td></tr>
-                        ) : filteredUserList.length === 0 ? (
-                            <tr><td colSpan="3" className="text-center text-ds-content-muted"><div role="status">No users found.</div></td></tr>
-                        ) : (
-                            paginatedData.map(user => {
-                                const userName = getFieldValue(user.name);
-                                return (
-                                    <tr key={user.id} className="transition-colors">
-                                        <th scope="row" className="font-normal">
-                                            <div className="flex items-center gap-ds-3">
-                                                <Avatar size="md" tone="accent">
-                                                    {userName.charAt(0).toUpperCase()}
-                                                </Avatar>
-                                                <span className="min-w-0">
-                                                    <span className="block truncate text-ds-sm font-bold text-ds-content">{userName}</span>
-                                                    <span className="block truncate text-ds-xs text-ds-content-muted">{getFieldValue(user.email)}</span>
-                                                </span>
-                                            </div>
-                                        </th>
-                                        <td>
-                                            <div className="flex flex-wrap gap-ds-2">
-                                                {isSuperAdmin(user) ? (
-                                                    <Badge tone="danger" icon={ShieldCheck}>Super Admin</Badge>
-                                                ) : (user.memberships?.length || 0) > 0 ? (
-                                                    user.memberships.map(mem => (
-                                                        <Badge key={mem.companyId} tone="info" icon={Briefcase}>
-                                                            {mem.role === 'company_admin' ? 'Admin' : 'User'} at {allCompaniesMap.get(mem.companyId) || "Unknown"}
-                                                        </Badge>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-ds-xs italic text-ds-content-muted">No active memberships</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="text-right">
-                                            <div className="flex justify-end gap-ds-2">
-                                                <IconButton
-                                                    label={`Edit ${userName}`}
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => onEdit({ id: user.id })}
-                                                >
-                                                    <Icon icon={Edit2} size="lg" />
-                                                </IconButton>
-                                                <IconButton
-                                                    label={`Delete ${userName}`}
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => onDelete({ id: user.id, name: user.name })}
-                                                >
-                                                    <Icon icon={Trash2} size="lg" className="text-ds-status-danger-fg" />
-                                                </IconButton>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            <div className="flex shrink-0 flex-col items-center justify-between gap-ds-4 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4 sm:flex-row">
-                <div className="flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary">
-                    <label htmlFor={perPageId}>Show</label>
-                    <Select
-                        id={perPageId}
-                        value={itemsPerPage}
-                        onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                        className="w-auto py-1.5"
-                    >
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                    </Select>
-                    <span>per page</span>
-                </div>
-
-                <div className="flex items-center gap-ds-4">
-                    <span className="text-ds-sm text-ds-content-secondary" role="status">
-                        Page <strong>{currentPage}</strong> of <strong>{totalPages || 1}</strong>
-                    </span>
-                    <div className="flex gap-1">
-                        <IconButton
-                            label="Previous page"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                        >
-                            <Icon icon={ChevronLeft} />
-                        </IconButton>
-                        <IconButton
-                            label="Next page"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage >= totalPages}
-                        >
-                            <Icon icon={ChevronRight} />
-                        </IconButton>
-                    </div>
-                </div>
+            {/* Fills the card below the toolbar; the table scrolls inside it,
+                under its sticky header, and sideways on a phone. */}
+            <div className="flex min-h-0 flex-1 flex-col">
+                <DataTable
+                    embedded
+                    ariaLabel="All platform users"
+                    density="compact"
+                    minWidth="standard"
+                    data={paginatedData}
+                    columns={columns}
+                    getRowId={(user) => user.id}
+                    isLoading={listLoading}
+                    loadingLabel="Loading users..."
+                    error={statsError.users ? 'Error loading users.' : undefined}
+                    empty={{ title: 'No users found.' }}
+                    pagination={{
+                        currentPage,
+                        totalPages: totalPages || 1,
+                        onNext: () => setCurrentPage((p) => Math.min(totalPages, p + 1)),
+                        onPrev: () => setCurrentPage((p) => Math.max(1, p - 1)),
+                        hasPrev: currentPage > 1,
+                        hasNext: currentPage < totalPages,
+                        label: `Showing ${paginatedData.length} of ${filteredUserList.length} users`,
+                        pageSize: itemsPerPage,
+                        pageSizes: PAGE_SIZES,
+                        onPageSizeChange: setItemsPerPage,
+                    }}
+                />
             </div>
 
             {/* Database Pagination (Load More): the list above is the users read so far, 50 at a time. */}

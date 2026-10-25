@@ -1,5 +1,5 @@
 /**
- * The `e2eCompanies=mock` fixture: the companies list shows made-up companies
+ * The `e2eCompanies=mock` fixture: the companies and users lists show made-up records
  * without reading Firestore, and only in E2E test mode.
  *
  * All ids and names below are synthetic test fixtures.
@@ -32,7 +32,7 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({
 }));
 
 import { useSuperAdminData } from './useSuperAdminData';
-import { mockCompanies } from '../components/companiesMock';
+import { mockCompanies, mockUsers } from '../components/companiesMock';
 
 async function mountLoaded() {
     const hook = renderHook(() => useSuperAdminData());
@@ -53,6 +53,8 @@ describe('useSuperAdminData — the e2eCompanies fixture', () => {
         const { result } = await mountLoaded();
         expect(result.current.companyList).toEqual(mockCompanies());
         expect(result.current.hasMoreCompanies).toBe(false);
+        expect(result.current.userList).toEqual(mockUsers());
+        expect(result.current.hasMoreUsers).toBe(false);
         expect(result.current.allCompaniesMap.get('e2e-co-1')).toBe('Artificial Freight Lines');
         expect(getDocs).not.toHaveBeenCalled();
         expect(getCountFromServer).not.toHaveBeenCalled();
