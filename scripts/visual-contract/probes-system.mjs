@@ -142,14 +142,11 @@ export const SYSTEM_PROBES = [
     },
     {
         /*
-         * The native-table contract, measured because the roadmap approves a
-         * native `<table>` for editable matrices and per-row interactive rows —
-         * and because, measured, seven of the eleven that use that permission
-         * referenced no `--ds-table-*` role at all, with three different inline
-         * cell paddings between them. These are the numbers that make the two
-         * kinds of table one table.
+         * The native-table contract, which the one native table left (the
+         * Analytics chart's `sr-only` text equivalent) carries: these are the
+         * numbers that make it the same table as `DataTable`.
          */
-        story: 'patterns-native-table--editable-matrix',
+        story: 'patterns-native-table--default',
         label: 'a native table is the same table as DataTable',
         selectors: {
             // The surface is on the ROW; a header cell is transparent, so
@@ -159,27 +156,6 @@ export const SYSTEM_PROBES = [
             'nativeTable.cell': '.ds-native-table tbody td',
         },
         properties: ['paddingLeft', 'paddingRight', 'paddingTop', 'paddingBottom', 'backgroundColor', 'height'],
-    },
-    {
-        /*
-         * The frozen first column, measured because it is the one cell in a native
-         * table that must NOT be transparent. The surface is painted on the row,
-         * so a `position: sticky` cell with no background of its own lets the
-         * scrolled columns paint straight through it. An `rgba(0, 0, 0, 0)` here
-         * is the regression.
-         *
-         * The frozen column is the contract's own `data-pin-first-column` rather
-         * than a hand-written `sticky` class, so the selectors read the
-         * attribute, and `zIndex` joins the reading: the pin is only a pin while
-         * the cell outranks the cells scrolling under it.
-         */
-        story: 'patterns-native-table--sticky-first-column',
-        label: 'a frozen column is opaque, pinned, and above what scrolls under it',
-        selectors: {
-            'stickyTable.headerCell': '.ds-native-table[data-pin-first-column] > thead > tr > th:first-child',
-            'stickyTable.rowHeader': '.ds-native-table[data-pin-first-column] > tbody > tr > th:first-child',
-        },
-        properties: ['backgroundColor', 'position', 'left', 'zIndex'],
     },
     {
         story: 'patterns-page-states--full-page-states',

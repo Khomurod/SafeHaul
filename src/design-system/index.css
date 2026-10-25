@@ -15,10 +15,9 @@
 @import './tokens/index.css';
 @import './utilities.css';
 /*
- * The approved native-table contract. Global rather than component-scoped
- * because its consumers are `<table>` elements in feature code, which import no
- * design-system component to bring a stylesheet with them — that is exactly why
- * seven of them had drifted to hand-picked padding and header colours.
+ * The native-table contract. Global rather than component-scoped because its
+ * one consumer is a `<table>` in feature code, which imports no design-system
+ * component to bring a stylesheet with it.
  */
 @import './components/data-table/nativeTable.css';
 @import './components/data-table/pinnedColumn.css';

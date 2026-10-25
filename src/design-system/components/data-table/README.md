@@ -114,35 +114,26 @@ columns themselves are the signal that there is more.
   column pinned. `DataTable` does all three by default — at `standard` or `wide`
   it is wider than a phone, so it scrolls there — and `pinFirstColumn={false}`
   opts out for a table whose first column does not identify the row. With a
-  selection, the checkbox column and the identifying column pin together. A
-  native table opts in with `data-pin-first-column` on the `<table>`. The pin,
-  its surface, hover tint, local stacking order and the 1px seam that appears
-  under 768px are one stylesheet, `pinnedColumn.css`, for both contracts; above
-  that width a table that fits its card looks exactly as it did.
-- **A matrix of per-row form controls worked one record at a time becomes one
-  card per row under 768px** — `data-mobile-presentation="cards"` on a native
-  table (`nativeTable.css`). Every `<td data-label="…">` shows its value under
-  the label of its column, in column order, nothing hidden; the caller states
-  the table roles explicitly because `display: block` can drop them. The SMS
-  recruiter-assignment matrix is the first: a `<select>` and its verify action
-  400px apart in a sideways-scrolling form was the worst case for a thumb, and
-  nothing in that matrix is read across rows.
-- **A `DataTable` of records worked one at a time becomes cards the same way**
-  — `mobilePresentation="cards"` (`mobileCards.css`). Under 768px each row is a
-  card: the row header is its title, and every other cell sits under its
-  column's label (its `mobileLabel`, else its text `header`, else its
-  `headerLabel`); `mobileLabel: ''` shows none, so an actions cell takes the
-  card's width. The table states its roles itself and takes no `selection`; a
+  selection, the checkbox column and the identifying column pin together. The
+  pin, its surface, hover tint, local stacking order and the 1px seam that
+  appears under 768px are one stylesheet, `pinnedColumn.css`; above that width
+  a table that fits its card looks exactly as it did.
+- **A list or matrix of per-row controls worked one record at a time becomes
+  one card per row under 768px** — `mobilePresentation="cards"`
+  (`mobileCards.css`). The SMS recruiter-assignment matrix is one: a `<select>`
+  and its verify action 400px apart in a sideways-scrolling form is the worst
+  case for a thumb. Under 768px each row is a card: the row header is its
+  title, and every other cell sits under its column's label (its
+  `mobileLabel`, else its text `header`, else its `headerLabel`);
+  `mobileLabel: ''` shows none, so an actions cell takes the card's width. The table states its roles itself and takes no `selection`; a
   card pins nothing. At 768px and up it is the table it always was: its first
   column pinned, its region named as one that scrolls (`useCardsLayout`). The
-  unfinished-applications list is the first; the `CardsOnMobile` story is the
-  shape to copy.
+  `CardsOnMobile` story is the shape to copy.
 
 `check:visual-contract` measures the pinned cell (`position`, `left`,
 `z-index`, background) and the card shape at 412px and 1440px;
 `check:table-layout` measures both stories for cell overflow; the catalog
-baselines hold the pictures (`pattern-native-table-sticky`,
-`pattern-native-table-cards`, every `data-table-*-mobile`).
+baselines hold the pictures (`data-table-cards`, every `data-table-*-mobile`).
 
 The feature toolbar remains outside `DataTable`. This prevents the design
 system from learning feature-specific filters, bulk operations, permissions,

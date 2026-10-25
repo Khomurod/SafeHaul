@@ -1,61 +1,23 @@
 /*
- * The approved NATIVE-table contract: `ds-native-table`.
+ * The NATIVE-table contract: `ds-native-table`.
  *
- * ## Why this exists
+ * Every table in the product is `DataTable` — display tables, editable
+ * matrices and rows of per-row controls alike (a list worked one record at a
+ * time takes `mobilePresentation="cards"` on a phone). One native `<table>`
+ * remains: the `sr-only` text equivalent of the Analytics activity chart, which
+ * has no appearance. `ds/native-table` refuses a `<table>` in any file roadmap
+ * §5 does not approve, and requires an approved one to carry this class on
+ * every branch of its class list — a hidden table included, because whether a
+ * class list is hidden at every breakpoint is not decidable.
  *
- * The roadmap approves a native `<table>` for an editable matrix or a grid with
- * per-row interactive controls, because `DataTable` is a display-table contract
- * and does not cover those. It has always been explicit about the other half of
- * that permission:
+ * So this file is only what keeps such a table the same table as `DataTable`
+ * should it ever be shown: header, divider, row surface, cell padding and row
+ * height from the same `--ds-table-*` roles. `check:visual-contract` measures
+ * it beside `DataTable`. Selection, sorting, pagination, states, a pinned
+ * column and cards on a phone are `DataTable`'s, and a new need for any of
+ * them is a reason to use `DataTable`, not to grow this file.
  *
- *     "A native table is not a licence to style a table by hand. Each of these
- *      uses --ds-table-header-bg, --ds-table-header-fg and the density roles."
- *
- * Hand-picked classes that happen to resolve to what the header roles do
- * (`bg-ds-surface-subtle`, `text-ds-content-secondary`) are a coincidence, not a
- * contract, and a change to either role would break them silently. ("Eleven"
- * throughout this file is the count of approved *files* when this contract was
- * written. They have all moved to `DataTable` but one: the `sr-only` table
- * that is a chart's text equivalent, which has no appearance and is exempt.
- * `ds/native-table` checks each table rather than each file, so a three-table
- * file cannot satisfy the rule with one class.)
- *
- * Cell padding had already drifted for the same reason: `px-ds-6` (24px) in
- * `CompaniesView`, `px-ds-5` (20px) and `px-ds-4` (16px) in the driver table,
- * against a `--ds-table-cell-padding-inline` of 20px. Three inline paddings for
- * one thing, in a product whose design system decides that once.
- *
- * ## What it is
- *
- * One class on the `<table>`. Header, divider, row background, hover, cell
- * padding and row height come from the same `--ds-table-*` roles `DataTable`
- * reads, so the two kinds of table are the same table visually and a re-tuned
- * role moves both. It deliberately does **not** supply selection, sorting,
- * pagination, empty/error states or a scroll container: those are what makes
- * `DataTable` a contract rather than a stylesheet, and a native table is chosen
- * precisely when the feature owns the row's interaction.
- *
- * `density="compact"` on the table element mirrors `DataTable`'s prop.
- *
- * `ds/native-table` requires every table in a file approved to keep one to
- * carry this class, so "we kept a native table" can no longer quietly mean
- * "we styled a table by hand".
- *
- * ## The state row
- *
- * A native table still owns its own loading/error/empty row. There is no styling
- * here for it, because it needs none — one `<td colSpan>` and the cell padding
- * above are enough — but there IS a rule, and three of the eleven broke it:
- *
- *     <tr><td colSpan={n}><div role="status">No companies found.</div></td></tr>
- *
- * The live-region role goes on a wrapper INSIDE the cell, never on the `<td>`.
- * `role="status"` on a cell replaces the cell role, and a row whose only child is
- * not a cell is a row assistive technology may drop from the table altogether.
- * `CompaniesView` and `UsersView` had it on the cell; `FeaturesView` had no role
- * at all, so filtering the matrix down to nothing was silent. `DataTable` and
- * the driver table had already been doing it correctly, which is what made the
- * other three visible as defects rather than as a choice.
+ * `data-density="compact"` on the table mirrors `DataTable`'s prop.
  */
 
 .ds-native-table {
@@ -89,13 +51,6 @@
   white-space: nowrap;
 }
 
-/*
- * A header cell may still say it is centred or end-aligned — a status column and
- * an actions column both do — so the utility wins over the default above.
- */
-.ds-native-table > thead > tr > th.text-center { text-align: center; }
-.ds-native-table > thead > tr > th.text-right { text-align: end; }
-
 .ds-native-table > tbody > tr {
   border-bottom: 1px solid var(--ds-table-divider);
   background: var(--ds-table-row-bg);
@@ -105,46 +60,16 @@
   border-bottom: 0;
 }
 
-/*
- * Hover only where a row is interactive. A matrix of form controls has no row
- * activation, and a hover tint on it suggests one that is not there.
- */
-.ds-native-table[data-row-hover] > tbody > tr:hover {
-  background: var(--ds-table-row-hover-bg);
-}
-
-/*
- * `th[scope="row"]` is a data cell too — a row header — and needs the same
- * padding as its siblings or the first column sits closer to the edge than the
- * rest. Most of these tables use one.
- */
+/* A row header (`th[scope="row"]`) is padded like the cells beside it. */
 .ds-native-table > tbody > tr > td,
 .ds-native-table > tbody > tr > th {
   /*
-   * `height`, not `min-height`, and the distinction is the whole rule.
-   *
-   * CSS 2.1 makes `min-height` on a `table-cell` box explicitly undefined, and
-   * browsers ignore it — while `height` on a table cell is treated as a MINIMUM,
-   * which is exactly the behaviour wanted here: a short row gets the contract's
-   * row height, and a row with two stacked lines still grows past it.
-   *
-   * So with `min-height` the density role would be a no-op on every body cell,
-   * and the rows would be whatever their content made them. The `thead` rule
-   * above uses `height` for the same reason, so headers and bodies both match
-   * `DataTable`.
-   *
-   * `visual-contract.snapshot.json` records `nativeTable.cell` beside
-   * `DataTable`'s body cell, in the same file, and the two must agree. A guard
-   * that captures a defect is only half of one; somebody has to read what it
-   * captured.
+   * `height`, not `min-height`: a table cell ignores `min-height` and treats
+   * `height` as a minimum, so a short row gets the contract's row height and a
+   * two-line row still grows.
    */
   height: var(--ds-native-table-row-height);
   padding: var(--ds-native-table-cell-padding-block) var(--ds-table-cell-padding-inline);
-  /*
-   * `vertical-align` is deliberately NOT set. A table cell defaults to `middle`
-   * anyway, and setting it here would out-specify an `align-top` utility on a
-   * cell whose content is two stacked lines — which four of these tables have.
-   */
 }
 
 .ds-native-table > tbody > tr > th {
@@ -152,182 +77,12 @@
   text-align: start;
 }
 
-/* A cell may still say it is centred or end-aligned. */
-.ds-native-table > tbody > tr > td.text-center,
-.ds-native-table > tbody > tr > th.text-center { text-align: center; }
-.ds-native-table > tbody > tr > td.text-right,
-.ds-native-table > tbody > tr > th.text-right { text-align: end; }
-
-/*
- * A STICKY cell needs its own background, and this is the one thing the contract
- * has to say that `DataTable` never had to.
- *
- * The row paints `--ds-table-row-bg`, not the cell. A `position: sticky` cell
- * stays put while the row scrolls horizontally underneath it — so with a
- * transparent background the other columns' text paints straight through the
- * frozen first column. `FeaturesView`'s feature matrix is 20+ columns wide and
- * freezes the company name, and relies on this rule rather than a hand-picked
- * background.
- *
- * The header and body take their own surfaces so a frozen column reads as part of
- * the row it belongs to, and the hover tint follows for a table that has one:
- * without that the frozen cell is the one part of a hovered row that does not
- * highlight.
- */
-.ds-native-table > thead > tr > th.sticky {
-  background: var(--ds-table-header-bg);
-}
-
-.ds-native-table > tbody > tr > th.sticky,
-.ds-native-table > tbody > tr > td.sticky {
-  background: var(--ds-table-row-bg);
-}
-
-.ds-native-table[data-row-hover] > tbody > tr:hover > th.sticky,
-.ds-native-table[data-row-hover] > tbody > tr:hover > td.sticky {
-  background: var(--ds-table-row-hover-bg);
-}
-
-/*
- * `tfoot` carries a pager or a totals row. Same divider, same padding, and the
- * header surface so it reads as chrome rather than as one more row of data.
- */
-.ds-native-table > tfoot > tr {
-  border-top: 1px solid var(--ds-table-divider);
-  background: var(--ds-table-header-bg);
-}
-
-.ds-native-table > tfoot > tr > td,
-.ds-native-table > tfoot > tr > th {
-  padding: var(--ds-native-table-cell-padding-block) var(--ds-table-cell-padding-inline);
-}
-
-/*
- * Narrower inline padding on a phone, matching `DataTable` exactly.
- *
- * `DataTable` has done this since it was written — 16px instead of 20px under
- * 768px — because 20px on each side of a cell is a lot of a 412px screen. The
- * whole point of this file is that the two contracts are one table, so a native
- * table that kept 20px here would diverge from `DataTable` on the width where it
- * matters most. `check:visual-contract` measures both at 412px and 1440px, which
- * is how this was noticed rather than assumed.
- */
+/* 16px instead of 20px under 768px, as `DataTable` does. */
 @media (max-width: 767px) {
   .ds-native-table > thead > tr > th,
   .ds-native-table > tbody > tr > td,
-  .ds-native-table > tbody > tr > th,
-  .ds-native-table > tfoot > tr > td,
-  .ds-native-table > tfoot > tr > th {
+  .ds-native-table > tbody > tr > th {
     padding-right: var(--ds-space-4);
     padding-left: var(--ds-space-4);
-  }
-}
-
-/*
- * CARDS ON A PHONE: `data-mobile-presentation="cards"`.
- *
- * ## The decision
- *
- * The rule for a table on a phone is in `pinnedColumn.css`: a table whose rows
- * are COMPARED keeps the table, scrolls sideways and pins its first column.
- * This is the other shape the roadmap left open — a matrix of per-row form
- * controls that is worked one record at a time, starting with the SMS
- * recruiter-assignment matrix. Nothing in that matrix is read across rows; an
- * operator finds one team member and changes that member's line. Under 768px
- * the shape that fits is one card per row, every value under the label of the
- * column it came from, in the column order the table already has. A `<select>`
- * and its verify action 400px apart inside a horizontally scrolling form is the
- * worst case for a thumb, and the sideways scroll would have been the only
- * thing the table gained by staying one.
- *
- * ## What it does, and what the caller must do
- *
- * One attribute on the `<table>`. Under 768px the table, its `tbody`, rows and
- * cells become blocks; the `thead` leaves the visual flow but stays in the tree;
- * a body row header (`<th scope="row">`) becomes the card's title; and every
- * `<td data-label="…">` is a two-column grid whose first column is the label —
- * `attr(data-label)`, written by the feature in the feature's own vocabulary,
- * because this file must never learn what a recruiter is. Above 768px nothing
- * here applies and the table is a table.
- *
- * `display: block` on table elements is known to make some browser and screen
- * reader pairs drop the table semantics, so a table that takes this attribute
- * states them explicitly — `role="table"` on the `<table>`, `rowgroup` on
- * `<thead>`/`<tbody>`, `row`, `columnheader`, `rowheader`, `cell` — which is
- * redundant while it is a table and load-bearing while it is cards. The
- * `CardsOnMobile` story is the shape to copy, and `check:table-layout` and
- * `check:visual-contract` measure it at 412px.
- */
-@media (max-width: 767px) {
-  .ds-native-table[data-mobile-presentation='cards'] {
-    display: block;
-    /* Beats a `min-w-[…]` utility the table carries for its desktop layout. */
-    min-width: 0;
-  }
-
-  .ds-native-table[data-mobile-presentation='cards'] > thead {
-    /*
-     * Present for assistive technology, out of the visual flow. The labels are
-     * repeated beside each value by the cells' own `data-label`.
-     */
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  .ds-native-table[data-mobile-presentation='cards'] > tbody,
-  .ds-native-table[data-mobile-presentation='cards'] > tfoot,
-  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr,
-  .ds-native-table[data-mobile-presentation='cards'] > tfoot > tr,
-  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > th,
-  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > td,
-  .ds-native-table[data-mobile-presentation='cards'] > tfoot > tr > th,
-  .ds-native-table[data-mobile-presentation='cards'] > tfoot > tr > td {
-    display: block;
-  }
-
-  /* One card per row; the row divider and surface it already has become the card's. */
-  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr {
-    padding: var(--ds-space-4);
-  }
-
-  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > th,
-  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > td {
-    height: auto;
-    padding: var(--ds-space-2) 0;
-    text-align: start;
-  }
-
-  /* The row header is the card's title. */
-  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > th[scope='row'] {
-    margin-bottom: var(--ds-space-1);
-    padding-top: 0;
-    padding-bottom: var(--ds-space-3);
-    border-bottom: 1px solid var(--ds-table-divider);
-    font-weight: var(--ds-font-weight-semibold);
-  }
-
-  /* A value, under the label of the column it came from. */
-  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > td[data-label] {
-    display: grid;
-    grid-template-columns: minmax(96px, 2fr) minmax(0, 3fr);
-    column-gap: var(--ds-space-3);
-    align-items: center;
-  }
-
-  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > td[data-label]::before {
-    content: attr(data-label);
-    color: var(--ds-table-header-fg);
-    font-size: var(--ds-font-size-xs);
-    font-weight: var(--ds-font-weight-bold);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
   }
 }
