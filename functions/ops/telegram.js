@@ -17,7 +17,7 @@ const TOKEN_PATTERN = /^\d{5,15}:[A-Za-z0-9_-]{30,64}$/;
 
 class TelegramError extends Error {
     /**
-     * @param {'token_invalid'|'token_rejected'|'blocked'|'bad_request'|'webhook_set'|'rate_limited'|'unreachable'|'unavailable'} code
+     * @param {'token_invalid'|'token_rejected'|'blocked'|'bad_request'|'not_modified'|'webhook_set'|'rate_limited'|'unreachable'|'unavailable'} code
      */
     constructor(code, message) {
         super(message);
@@ -26,7 +26,10 @@ class TelegramError extends Error {
     }
 }
 
-function codeForStatus(status) {
+/** An edit to the text and buttons a message already shows: harmless, so told apart. */
+const NOT_MODIFIED = /message is not modified/i;
+
+function codeForStatus(status, description) {
     // A token Telegram does not know answers 401, or 404 for a malformed one.
     if (status === 401 || status === 404) return 'token_rejected';
     // The person blocked the bot, or the bot was removed from the group.
@@ -34,7 +37,7 @@ function codeForStatus(status) {
     // `getUpdates` refuses while a webhook is set on the bot.
     if (status === 409) return 'webhook_set';
     if (status === 429) return 'rate_limited';
-    if (status === 400) return 'bad_request';
+    if (status === 400) return NOT_MODIFIED.test(String(description || '')) ? 'not_modified' : 'bad_request';
     return 'unavailable';
 }
 
@@ -70,7 +73,7 @@ async function callTelegram(token, method, body, { fetchImpl = fetch } = {}) {
         // Telegram can also answer 200 with `ok: false` and the real code inside;
         // a 200 that cannot be read has no code, and counts as Telegram being down.
         const status = response.ok ? Number(payload?.error_code) || 0 : response.status;
-        throw new TelegramError(codeForStatus(status), status
+        throw new TelegramError(codeForStatus(status, payload?.description), status
             ? `Telegram refused the request (${status}).`
             : 'Telegram sent an answer that could not be read.');
     }

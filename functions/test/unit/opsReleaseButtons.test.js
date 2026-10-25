@@ -106,6 +106,19 @@ describe('the two steps', () => {
         expect((await stored()).status).toBe('offered');
     });
 
+    it('answers a repeated press that would leave the message as it is', async () => {
+        // Telegram refuses an edit to the text and buttons already shown.
+        mockTelegram.editMessage.mockRejectedValue(Object.assign(new Error('refused'), { code: 'not_modified' }));
+        await expect(handleButton(press('ask'), TOKEN)).resolves.toBeUndefined();
+        await expect(handleButton(press('back'), TOKEN)).resolves.toBeUndefined();
+        expect(mockTelegram.answerButton).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not hide any other refused edit', async () => {
+        mockTelegram.editMessage.mockRejectedValue(Object.assign(new Error('refused'), { code: 'bad_request' }));
+        await expect(handleButton(press('ask'), TOKEN)).rejects.toMatchObject({ code: 'bad_request' });
+    });
+
     it('"Да, выпустить" releases the sha the message named, through the console\'s engine', async () => {
         await handleButton(press('yes'), TOKEN);
 

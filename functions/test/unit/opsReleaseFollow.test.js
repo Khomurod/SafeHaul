@@ -43,6 +43,7 @@ beforeEach(async () => {
     await offerRef.set({ ...OFFER });
     await mock.db.collection('release_promotions').doc('req-1').set({ sha: SHA, status: 'in_progress' });
     mockRuns.mockResolvedValue([]);
+    mockRefresh.mockResolvedValue({ status: 'in_progress' });
     mockSend.mockResolvedValue(undefined);
 });
 
@@ -89,6 +90,23 @@ it('gives up on a run that has not finished within the hour', async () => {
     const confirmedAt = new Date(NOW - RUN_LIMIT_MS - 1000).toISOString();
     await expect(follow({ offer: { confirmedAt } })).resolves.toBe('failed');
     expect(said()).toEqual([expect.stringMatching(/больше часа/)]);
+});
+
+it.each([
+    ['GitHub cannot be read', () => mockRuns.mockRejectedValue(new Error('unavailable'))],
+    ['the stored promotion cannot be read', () => mockRefresh.mockRejectedValue(new Error('unavailable'))],
+])('waits while %s, and still closes the offer at the hour', async (_label, fail) => {
+    fail();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(follow()).resolves.toBe('waiting');
+    expect(mockSend).not.toHaveBeenCalled();
+    expect((await stored()).status).toBe('releasing');
+
+    const confirmedAt = new Date(NOW - RUN_LIMIT_MS - 1000).toISOString();
+    await expect(follow({ offer: { confirmedAt } })).resolves.toBe('failed');
+    expect(said()).toEqual([expect.stringMatching(/больше часа/)]);
+    expect((await stored()).status).toBe('failed');
+    console.error.mockRestore();
 });
 
 it('says a press that never dispatched did not start a release, after a wait', async () => {

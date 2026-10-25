@@ -29,6 +29,11 @@ function refusalText(error) {
     return 'Сервис выпуска сейчас недоступен. Попробуйте ещё раз через несколько минут или выпустите в панели Super Admin → Releases.';
 }
 
+/** A second press of the same button asks for the message it already shows. */
+function unlessUnchanged(error) {
+    if (error?.code !== 'not_modified') throw error;
+}
+
 /**
  * Moves the offer from one status to another, only if it is still in the first
  * and still for `sha`: two presses, or Telegram sending one press twice,
@@ -112,11 +117,12 @@ async function handleButton(query, token) {
 
     if (step === 'ask') {
         await telegram.editMessage(token, chatId, messageId,
-            `${offer.text}\n\nТочно выпустить версию ${sha.slice(0, 7)} на ${offers.PRODUCTION_HOST}?`, offers.CONFIRM_ROWS(sha));
+            `${offer.text}\n\nТочно выпустить версию ${sha.slice(0, 7)} на ${offers.PRODUCTION_HOST}?`, offers.CONFIRM_ROWS(sha))
+            .catch(unlessUnchanged);
         return answer();
     }
     if (step === 'back') {
-        await telegram.editMessage(token, chatId, messageId, offer.text, offers.OFFER_ROWS(sha));
+        await telegram.editMessage(token, chatId, messageId, offer.text, offers.OFFER_ROWS(sha)).catch(unlessUnchanged);
         return answer();
     }
     if (step === 'no') {

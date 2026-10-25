@@ -42,6 +42,8 @@ describe('callTelegram', () => {
         [404, { ok: false, description: 'Not Found' }, 'token_rejected'],
         [409, { ok: false, description: 'Conflict: webhook is active' }, 'webhook_set'],
         [429, { ok: false, description: 'Too Many Requests' }, 'rate_limited'],
+        [400, { ok: false, description: 'Bad Request: message to edit not found' }, 'bad_request'],
+        [400, { ok: false, description: 'Bad Request: message is not modified: specified new message content and reply markup are exactly the same' }, 'not_modified'],
         [502, null, 'unavailable'],
         [200, { ok: false, error_code: 403, description: 'Forbidden: bot was blocked by the user' }, 'blocked'],
     ])('reads HTTP %p as %p, without Telegram\'s text', async (status, body, code) => {

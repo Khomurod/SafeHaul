@@ -70,7 +70,13 @@ async function followRelease({ token, offer, offerRef, now = Date.now(), fetchIm
             + 'Рабочий сайт не изменился. Выпустить можно в панели Super Admin → Releases.');
     }
 
-    const promotion = await refreshPromotion(await readPromotion(offer.requestId), await listPromotionRuns());
+    let promotion = null;
+    try {
+        promotion = await refreshPromotion(await readPromotion(offer.requestId), await listPromotionRuns());
+    } catch (error) {
+        // Unread this time: the next run tries again, and the hour below still closes the offer.
+        console.error(`[ops/releaseFollow] ${error?.name || 'Error'}${error?.code ? ` code=${error.code}` : ''}`);
+    }
     if (promotion?.status !== 'completed') {
         if (now - startedAt < RUN_LIMIT_MS) return 'waiting';
         return close('failed', `SafeHaul: выпуск версии ${shortSha(offer.sha)} идёт больше часа. `
