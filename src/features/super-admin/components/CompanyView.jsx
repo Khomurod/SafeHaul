@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useId, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { getFieldValue } from '@shared/utils/helpers.js';
+import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Icon, ArrowLeft, Building, Crown, Edit2, FileText, Layers, MessageSquare, Shield } from '@design-system/icons';
 import { Badge, Button, Card, TabList, TabPanel } from '@/design-system/components';
 import { ErrorState, LoadingState, PageState } from '@design-system/patterns';
 import { FeaturesView } from './FeaturesView.jsx';
 import { IntegrationManager } from './integrations/IntegrationManager';
+import { mockCompanies } from './companiesMock';
 
 const TABS = Object.freeze([
     { id: 'features', label: 'Features', icon: Layers },
@@ -34,6 +36,12 @@ export function CompanyView({ companyId, tab, onTabChange, onBack, onEdit, onVie
     useEffect(() => {
         if (!companyId) return undefined;
         let current = true;
+        // The `e2eCompanies=mock` harness (E2E test mode only): a made-up company, no Firestore.
+        if (isE2ETestMode && getE2EQueryParam('e2eCompanies', '') === 'mock') {
+            const company = mockCompanies().find((candidate) => candidate.id === companyId);
+            setLookup(company ? { companyId, company } : { companyId, missing: true });
+            return undefined;
+        }
         // Inside the promise chain, so an id Firestore refuses is a failed read too.
         Promise.resolve()
             .then(() => getDoc(doc(db, 'companies', companyId)))

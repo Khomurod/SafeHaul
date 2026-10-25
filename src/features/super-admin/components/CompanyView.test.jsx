@@ -14,6 +14,12 @@ import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fx = vi.hoisted(() => ({ reads: [], answers: [] }));
+const e2e = vi.hoisted(() => ({ on: false, param: '' }));
+
+vi.mock('@lib/runtime/e2eMode', () => ({
+    get isE2ETestMode() { return e2e.on; },
+    getE2EQueryParam: () => e2e.param,
+}));
 
 vi.mock('@lib/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
@@ -51,6 +57,8 @@ function renderView(props = {}) {
 beforeEach(() => {
     fx.reads = [];
     fx.answers = [];
+    e2e.on = false;
+    e2e.param = '';
     vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -173,5 +181,24 @@ describe("a company's screen", () => {
         const { container } = renderView();
         await screen.findByRole('heading', { name: 'Artificial Freight Co', level: 2 });
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe("a company's screen under the e2eCompanies fixture", () => {
+    it('shows a made-up company without reading Firestore, only in E2E test mode', async () => {
+        e2e.on = true;
+        e2e.param = 'mock';
+        renderView({ companyId: 'e2e-co-2' });
+        expect(await screen.findByText('PEV is off')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Northern Plains Refrigerated Transport Cooperative/ })).toBeInTheDocument();
+        expect(fx.reads).toEqual([]);
+    });
+
+    it('says a made-up id it does not know is missing', async () => {
+        e2e.on = true;
+        e2e.param = 'mock';
+        renderView({ companyId: 'e2e-co-404' });
+        expect(await screen.findByText(/No company has the ID/)).toBeInTheDocument();
+        expect(fx.reads).toEqual([]);
     });
 });

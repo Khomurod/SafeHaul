@@ -7,9 +7,7 @@ import { Modal } from '@design-system/patterns';
  * Schedule the automatic deactivation of one feature for one company: a date
  * and a time, confirmed from the company's Features tab.
  *
- * Kept apart from `FeaturesView.jsx` for the source-size limit. It holds no
- * table, so the two approved raw tables stay in `FeaturesView.jsx`, where the
- * allowlist records them.
+ * Kept apart from `FeaturesView.jsx` for the source-size limit.
  */
 export function ScheduleDeactivationDialog({ info, date, time, onDateChange, onTimeChange, loading, onCancel, onConfirm }) {
     const titleId = useId();

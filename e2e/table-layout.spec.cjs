@@ -180,6 +180,12 @@ const SCREENS = [
         table: 'Per-recipient delivery results',
     },
     {
+        name: 'super admin company features',
+        url: '/super-admin/companies/e2e-co-1?e2eAuth=super_admin&e2eCompanies=mock',
+        row: 'Import Leads',
+        table: 'Features of Artificial Freight Lines',
+    },
+    {
         name: 'super admin company applications',
         url: '/super-admin/companies?e2eAuth=super_admin&e2eCompanies=mock',
         open: openCompanyApplications,

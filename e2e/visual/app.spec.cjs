@@ -227,6 +227,12 @@ const SCREENS = [
         url: '/super-admin/users?e2eAuth=super_admin&e2eCompanies=mock',
         ready: (page) => page.getByRole('rowheader', { name: /^Alexandra Montgomery-Okonkwo/ }),
     },
+    /* A made-up company's Features tab, one switch-off scheduled (`e2eCompanies=mock`). */
+    {
+        name: 'super-admin-company-features',
+        url: '/super-admin/companies/e2e-co-1?e2eAuth=super_admin&e2eCompanies=mock',
+        ready: (page) => page.getByRole('rowheader', { name: 'Call Tracking' }),
+    },
     /*
      * A company's applications dialog, opened from the companies table on made-up
      * companies and drivers (`e2eCompanies=mock`). Opened by keyboard: on a phone
