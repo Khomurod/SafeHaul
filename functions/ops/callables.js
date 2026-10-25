@@ -3,10 +3,12 @@
  *
  * Connects the hourly watcher (`./watcher.js`) to the operator's Telegram:
  * save a bot token, connect a chat through a one-time Start link, send a test,
- * or remove it all. The environment vault's guards apply as everywhere else in
- * the console: the exact super-admin role, recent sign-in for changes, rate
- * limits, and a value-free audit record. No response carries the token or the
- * chat id.
+ * or remove it all. Saving a token or pressing Connect chat points the bot's
+ * updates at the webhook (`./telegramWebhook.js`); the person who presses Start
+ * on the link is kept as the one the bot trusts (`approverId`). The environment
+ * vault's guards apply as everywhere else in the console: the exact super-admin
+ * role, recent sign-in for changes, rate limits, and a value-free audit record.
+ * No response carries the token, the chat id or the approver's id.
  */
 
 const crypto = require('crypto');
@@ -16,6 +18,7 @@ const { guardPrivileged, assertSuperAdmin, assertWithinRateLimit } = require('..
 const { ACTIONS, RESULTS, recordAuditEvent } = require('../environmentVault/audit');
 const settings = require('./alertSettings');
 const telegram = require('./telegram');
+const inbox = require('./telegramInbox');
 
 const INTEGRATION = 'Telegram alerts';
 const CONNECTED_TEXT = 'SafeHaul: уведомления подключены. Сюда придёт сообщение, если ИИ или блог перестанут работать, и ещё одно, когда всё восстановится.';
@@ -126,7 +129,14 @@ async function connectChat(request, token, connection, chat, code) {
         const rest = { ...stored.telegram };
         delete rest.pendingStart;
         return {
-            telegram: { ...rest, chatId: chat.id, chatTitle: chat.title, connectedAt: new Date().toISOString() },
+            telegram: {
+                ...rest,
+                chatId: chat.id,
+                chatTitle: chat.title,
+                approverId: chat.by?.id ?? null,
+                approverName: chat.by?.name ?? null,
+                connectedAt: new Date().toISOString(),
+            },
             // A new destination starts from "all well", so it hears about anything already down.
             watch: {},
         };
@@ -143,6 +153,19 @@ async function connectChat(request, token, connection, chat, code) {
 /** Telegram will not let the bot write to that chat: blocked, or put out of a group. */
 const unreachableChat = (error) => error instanceof telegram.TelegramError
     && (error.code === 'blocked' || error.code === 'bad_request');
+
+/**
+ * Points the bot at the webhook, and notes that it was. A bot that is not yet
+ * pointed there still answers from its own queue, so a link handed out before
+ * keeps working.
+ */
+async function pointBotHere(token, connection) {
+    await inbox.ensureWebhook(token);
+    if (connection.webhookSetAt) return connection;
+    const updated = { ...connection, webhookSetAt: new Date().toISOString() };
+    await settings.replaceSettings({ telegram: updated });
+    return updated;
+}
 
 async function requireConnection() {
     const saved = await settings.readSettings();
@@ -186,16 +209,23 @@ exports.savePlatformAlertToken = onCall({ cors: true }, async (request) => {
         if (token.length > 200 || !telegram.TOKEN_PATTERN.test(token)) {
             throw telegramFailure(new telegram.TelegramError('token_invalid', 'invalid'));
         }
-        // Asked before it is stored: a token Telegram refuses is never saved.
+        // Asked before it is stored: a token Telegram refuses is never saved, and
+        // nor is a bot another service already receives (`webhook_set`).
         const bot = await telegram.getBot(token);
+        const previous = await settings.readBotToken().catch(() => null);
+        await inbox.ensureWebhook(token);
         const saved = await settings.writeBotToken(token);
         // The whole connection is replaced: a chat belongs to the bot it wrote to.
         // So is what the watcher last told it, so the next chat hears of anything
         // already down instead of a recovery it never heard begin.
+        const now = new Date().toISOString();
         await settings.replaceSettings({
-            telegram: { botUsername: bot.username, tokenSavedAt: new Date().toISOString() },
+            telegram: { botUsername: bot.username, tokenSavedAt: now, webhookSetAt: now },
             watch: {},
         });
+        await inbox.clearInbox();
+        // The bot it replaced stops posting here. Best effort: a revoked token cannot.
+        if (previous && previous !== token) await telegram.deleteWebhook(previous).catch(() => {});
         await audit(request, ACTIONS.UPDATE, {
             setting: 'bot-token', key: saved.secretId, valueLength: saved.valueLength, sensitivity: 'sensitive',
         });
@@ -224,12 +254,16 @@ exports.connectPlatformAlertChat = onCall({ cors: true }, async (request) => {
 
     try {
         const { saved, token } = await requireConnection();
-        const connection = saved.telegram || {};
+        // A press (re)points the bot here, so a webhook removed meanwhile is put back.
+        const connection = checkOnly ? saved.telegram || {} : await pointBotHere(token, saved.telegram || {});
         const lastLink = lastStartWindow(connection);
         const pending = pendingStart(connection);
         if (lastLink) {
             // A Start pressed while the link was valid counts whenever this is asked.
-            const { chat, strayStart } = await telegram.startsOnLink(token, lastLink);
+            // Once the bot is pointed here, the webhook's inbox holds what it received.
+            const { chat, strayStart } = connection.webhookSetAt
+                ? await telegram.startsOnLink(token, lastLink, { readInbox: inbox.readUpdates })
+                : await telegram.startsOnLink(token, lastLink);
             try {
                 // Awaited here, so a chat the bot cannot reach is refused in the operator's words.
                 if (chat) return await connectChat(request, token, connection, chat, lastLink.code);
@@ -290,6 +324,10 @@ exports.deletePlatformAlerts = onCall({ cors: true }, async (request) => {
     await guardPrivileged(request, 'mutate', ACTIONS.DELETE, { integration: INTEGRATION, setting: 'bot-token' });
 
     try {
+        // The bot stops posting here before its token goes. Best effort: Telegram may be down.
+        const token = await settings.readBotToken().catch(() => null);
+        if (token) await telegram.deleteWebhook(token).catch(() => {});
+        await inbox.clearInbox();
         const result = await settings.destroyBotToken();
         // The watcher's memory goes too: a later connection starts from "all well".
         await settings.replaceSettings({ telegram: {}, watch: {} });
