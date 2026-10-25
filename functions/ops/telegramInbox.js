@@ -87,14 +87,15 @@ const isRecent = (entry, now) => Number.isFinite(entry?.message?.date)
  */
 async function recordUpdate(update, now = Date.now()) {
     const kept = keptUpdate(update);
-    if (!kept) return false;
+    // One a day old already is never read, and must not push out one that will be.
+    if (!kept || !isRecent(kept, now)) return false;
     const ref = inboxRef();
     await db.runTransaction(async (transaction) => {
         const snapshot = await transaction.get(ref);
         const stored = Array.isArray(snapshot.data()?.updates) ? snapshot.data().updates : [];
         const recent = stored.filter((entry) => entry.update_id !== kept.update_id && isRecent(entry, now));
         const updates = [...recent, kept].slice(-INBOX_LIMIT);
-        const newest = Math.max(...updates.map((entry) => (entry.message.date ?? now / 1000) * 1000));
+        const newest = Math.max(...updates.map((entry) => entry.message.date * 1000));
         transaction.set(ref, { updates, inboxExpiresAt: admin.firestore.Timestamp.fromMillis(newest + INBOX_RETENTION_MS) });
     });
     return true;

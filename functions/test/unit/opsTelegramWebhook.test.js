@@ -137,6 +137,14 @@ describe('what is kept', () => {
         expect(kept.at(-1).update_id).toBe(159);
     });
 
+    it('refuses a Start already a day old, so it cannot push a usable one out of a full inbox', async () => {
+        for (let id = 100; id < 150; id += 1) await inbox.recordUpdate(START(id));
+        await expect(inbox.recordUpdate(START(99, { date: NOW_S - 25 * 60 * 60 }))).resolves.toBe(false);
+        const kept = await stored();
+        expect(kept).toHaveLength(50);
+        expect(kept[0].update_id).toBe(100);
+    });
+
     it('reads the inbox oldest first', async () => {
         await inbox.recordUpdate(START(30));
         await inbox.recordUpdate(START(20));

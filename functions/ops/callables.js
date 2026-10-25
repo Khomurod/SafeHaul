@@ -163,7 +163,14 @@ async function pointBotHere(token, connection) {
     await inbox.ensureWebhook(token);
     if (connection.webhookSetAt) return connection;
     const updated = { ...connection, webhookSetAt: new Date().toISOString() };
-    await settings.replaceSettings({ telegram: updated });
+    try {
+        await settings.replaceSettings({ telegram: updated });
+    } catch (error) {
+        // Unnoted, the console would keep asking the bot's own queue, which a
+        // webhook closes: undo it, keeping the Starts it holds.
+        await telegram.deleteWebhook(token, undefined, { keepPending: true }).catch(() => {});
+        throw error;
+    }
     return updated;
 }
 
@@ -219,13 +226,18 @@ exports.savePlatformAlertToken = onCall({ cors: true }, async (request) => {
         // So is what the watcher last told it, so the next chat hears of anything
         // already down instead of a recovery it never heard begin.
         const now = new Date().toISOString();
-        await settings.replaceSettings({
-            telegram: { botUsername: bot.username, tokenSavedAt: now, webhookSetAt: now },
-            watch: {},
-        });
-        await inbox.clearInbox();
-        // The bot it replaced stops posting here. Best effort: a revoked token cannot.
-        if (previous && previous !== token) await telegram.deleteWebhook(previous).catch(() => {});
+        try {
+            await settings.replaceSettings({
+                telegram: { botUsername: bot.username, tokenSavedAt: now, webhookSetAt: now },
+                watch: {},
+            });
+            await inbox.clearInbox();
+        } finally {
+            // The bot it replaced stops posting here, even if the rest failed: a
+            // retry reads the new token as the previous one. Best effort: a
+            // revoked token cannot.
+            if (previous && previous !== token) await telegram.deleteWebhook(previous).catch(() => {});
+        }
         await audit(request, ACTIONS.UPDATE, {
             setting: 'bot-token', key: saved.secretId, valueLength: saved.valueLength, sensitivity: 'sensitive',
         });

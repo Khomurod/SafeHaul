@@ -205,6 +205,14 @@ describe('a bot pointed at the webhook', () => {
         await telegram.setWebhook(TOKEN, 'https://example.invalid/telegramWebhook', 'f'.repeat(64), { fetchImpl });
         expect(fetchImpl.mock.calls.map(([url]) => url.split('/').pop())).toEqual(['getWebhookInfo', 'setWebhook']);
     });
+
+    it('removes the webhook dropping what it held, or keeping it when asked', async () => {
+        const fetchImpl = respond(200, { ok: true, result: true });
+        await telegram.deleteWebhook(TOKEN, { fetchImpl });
+        await telegram.deleteWebhook(TOKEN, { fetchImpl }, { keepPending: true });
+        expect(fetchImpl.mock.calls.map(([, options]) => JSON.parse(options.body)))
+            .toEqual([{ drop_pending_updates: true }, { drop_pending_updates: false }]);
+    });
 });
 
 describe('sendMessage', () => {

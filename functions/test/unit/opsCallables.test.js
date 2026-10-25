@@ -169,6 +169,15 @@ describe('pointing the bot at the webhook when the token is saved', () => {
         await callables.savePlatformAlertToken(REQUEST({ token: TOKEN }));
         expect(mockTelegram.deleteWebhook).not.toHaveBeenCalled();
     });
+
+    it('stops the replaced bot posting here even when saving the rest fails, as a retry could not', async () => {
+        const OLD = `${'2'.repeat(9)}:${'o'.repeat(35)}`;
+        mockSettings.readBotToken.mockResolvedValue(OLD);
+        mockSettings.replaceSettings.mockRejectedValue(Object.assign(new Error('unavailable'), { code: 14 }));
+
+        await expect(callables.savePlatformAlertToken(REQUEST({ token: TOKEN }))).rejects.toBeDefined();
+        expect(mockTelegram.deleteWebhook).toHaveBeenCalledWith(OLD);
+    });
 });
 
 describe('connecting the chat', () => {
@@ -327,6 +336,14 @@ describe('connecting the chat', () => {
 
             await callables.connectPlatformAlertChat(REQUEST());
             expect(mockTelegram.startsOnLink).toHaveBeenLastCalledWith(TOKEN, expect.objectContaining({ code: 'CODE123' }), FROM_INBOX);
+        });
+
+        it('points the bot back at its own queue, Starts kept, when the note cannot be saved', async () => {
+            mockSettings.readSettings.mockResolvedValue(BEFORE());
+            mockSettings.replaceSettings.mockRejectedValue(Object.assign(new Error('unavailable'), { code: 14 }));
+
+            await expect(callables.connectPlatformAlertChat(REQUEST())).rejects.toBeDefined();
+            expect(mockTelegram.deleteWebhook).toHaveBeenCalledWith(TOKEN, undefined, { keepPending: true });
         });
 
         it('refuses, in the operator\'s words, a bot another service receives', async () => {

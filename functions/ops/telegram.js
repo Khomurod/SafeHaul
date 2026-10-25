@@ -196,9 +196,12 @@ async function setWebhook(token, url, secret, deps) {
     }, deps);
 }
 
-/** Stops the bot sending its updates here. Pending ones are dropped: nobody will read them. */
-async function deleteWebhook(token, deps) {
-    await callTelegram(token, 'deleteWebhook', { drop_pending_updates: true }, deps);
+/**
+ * Stops the bot sending its updates here. Pending ones are dropped (nobody will
+ * read them), unless `keepPending`: then the bot's own queue still holds them.
+ */
+async function deleteWebhook(token, deps, { keepPending = false } = {}) {
+    await callTelegram(token, 'deleteWebhook', { drop_pending_updates: !keepPending }, deps);
 }
 
 module.exports = {
