@@ -20,17 +20,14 @@ import { AssignmentTable } from './number-assignment/AssignmentTable';
  * resolution, and the one-time legacy token backfill. Every select is labelled,
  * no status text is below 12px, and no status dot is colour-only.
  *
- * `DataTable` is deliberately NOT used for the assignment matrix: every cell
- * is an editable per-row `<select>` plus a verify action, which is outside
- * `DataTable`'s proven display-table contract. That finding is unchanged from
- * the deep-audit; only the raw, unlabelled, sub-12px markup around it is
- * fixed. See `AssignmentTable.jsx` for what was fixed there instead.
+ * The assignment matrix is a `DataTable` whose cells are the per-row
+ * `<select>` and verify action; see `AssignmentTable.jsx`.
  *
  * Split for readability (behavior unchanged):
  *  - ../hooks/useLineAssignments.js            — data/logic (listener, roster, backfill, verify, save)
  *  - ../utils/linePhone.js                     — sanitizePhone + stable line-token model
  *  - ./number-assignment/DefaultLineSection.jsx — default line card
- *  - ./number-assignment/AssignmentTable.jsx    — recruiter matrix (rows in AssignmentRow.jsx)
+ *  - ./number-assignment/AssignmentTable.jsx    — recruiter matrix (columns in assignmentColumns.jsx)
  */
 export function NumberAssignmentManager({ companyId }) {
     const {
