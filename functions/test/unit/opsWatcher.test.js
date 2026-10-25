@@ -12,8 +12,8 @@ jest.mock('firebase-functions/v2/scheduler', () => ({ onSchedule: jest.fn((_opts
 const mockRunAiTask = jest.fn();
 jest.mock('../../ai/router/router', () => ({ runAiTask: (...args) => mockRunAiTask(...args) }));
 
-const mockReadTelemetry = jest.fn();
-jest.mock('../../ai/telemetry/record', () => ({ readTelemetry: (...args) => mockReadTelemetry(...args) }));
+const mockReadFailures = jest.fn();
+jest.mock('../../ai/telemetry/record', () => ({ readFailures: (...args) => mockReadFailures(...args) }));
 
 const mockUnfilledSlots = jest.fn();
 jest.mock('../../blog/store', () => ({ unfilledSlots: (...args) => mockUnfilledSlots(...args) }));
@@ -61,7 +61,7 @@ beforeEach(() => {
     // Every day has its article.
     mockUnfilledSlots.mockImplementation(async (slots) => slots.slice(1));
     mockReadRecentSlotRuns.mockResolvedValue({ entries: [] });
-    mockReadTelemetry.mockResolvedValue({ entries: [] });
+    mockReadFailures.mockResolvedValue({ entries: [] });
     mockSendMessage.mockResolvedValue(undefined);
 });
 
@@ -130,11 +130,11 @@ describe('when it speaks', () => {
         { failureCategories: ['quota_exceeded', 'timeout'] },
     );
 
-    /** Answers as `readTelemetry` does: the failures of the asked task type, newest first, at most `limit`. */
-    const telemetryHolding = (rows, { truncated = false } = {}) => mockReadTelemetry.mockImplementation(async ({ taskType, limit }) => {
-        const matching = rows.filter((row) => !taskType || row.taskType === taskType);
-        return { entries: matching.slice(0, limit), truncated: truncated || matching.length >= limit };
-    });
+    /** Answers as `readFailures` does: the hour's failures of the asked task types. */
+    const telemetryHolding = (rows, { truncated = false } = {}) => mockReadFailures.mockImplementation(async ({ taskTypes }) => ({
+        entries: rows.filter((row) => taskTypes.includes(row.taskType)),
+        truncated,
+    }));
 
     it('says once that a lane went down, naming what failed and how many people felt it', async () => {
         mockRunAiTask.mockImplementation(async (task) => {
@@ -190,12 +190,11 @@ describe('when it speaks', () => {
         expect(mockSendMessage.mock.calls[0][2]).toContain('Ошибок у пользователей за последний час: 1+.');
     });
 
-    it('counts people\'s failures even when an hour of Test presses fills a read', async () => {
+    it('reads the hour\'s failures of the tasks people wait on, and none of the probes\' or Test presses\'', async () => {
         mockRunAiTask.mockImplementation(async (task) => {
             if (task.capabilities.includes('vision')) throw allProvidersFailed();
             return answer(task);
         });
-        // An operator pressing Test through the outage: newer than the drivers' failures, and more than one read holds.
         telemetryHolding([
             ...Array.from({ length: 300 }, () => ({ taskType: TASK_TYPES.HEALTH_CHECK, trigger: 'manual', capability: 'vision' })),
             { taskType: 'cdl_extraction', capability: 'vision' },
@@ -205,10 +204,10 @@ describe('when it speaks', () => {
         await runWatch({ now: NOW });
 
         expect(mockSendMessage.mock.calls[0][2]).toContain('Ошибок у пользователей за последний час: 2.');
-        for (const [filters] of mockReadTelemetry.mock.calls) {
-            expect(filters).toEqual(expect.objectContaining({ outcome: 'failure', taskType: expect.any(String) }));
-            expect(filters.taskType).not.toBe(TASK_TYPES.HEALTH_CHECK);
-        }
+        const [{ taskTypes, from, to }] = mockReadFailures.mock.calls[0];
+        expect(taskTypes).toHaveLength(6);
+        expect(taskTypes).not.toContain(TASK_TYPES.HEALTH_CHECK);
+        expect(Date.parse(to) - Date.parse(from)).toBe(60 * 60 * 1000);
     });
 
     it('stays quiet while a lane stays down, and keeps when it went down', async () => {

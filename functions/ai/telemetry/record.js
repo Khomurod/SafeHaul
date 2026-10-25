@@ -393,11 +393,49 @@ async function readTelemetry(filters = {}) {
     }
 }
 
+/**
+ * Every failure of `taskTypes` in [from, to), for counts. It pages through the
+ * `outcome` + `timestamp` index, so neither newer successes nor other tasks'
+ * failures can push these out of a page. After `maxScanned` failures it stops;
+ * `truncated` then says the count is a floor.
+ *
+ * @returns {Promise<{ entries: Array, truncated: boolean }>}
+ */
+async function readFailures({ taskTypes, from, to, pageSize = MAX_PAGE, maxScanned = 2000 }) {
+    const wanted = new Set(taskTypes);
+    const entries = [];
+    try {
+        let scanned = 0;
+        let last = null;
+        while (scanned < maxScanned) {
+            let query = db.collection(COLLECTION)
+                .where('outcome', '==', 'failure')
+                .where('timestamp', '>=', parseDate(from))
+                .where('timestamp', '<', parseDate(to))
+                .orderBy('timestamp', 'desc')
+                .limit(pageSize);
+            if (last) query = query.startAfter(last);
+            const { docs } = await query.get();
+            scanned += docs.length;
+            for (const row of docs.map(toRow)) {
+                if (wanted.has(row.taskType)) entries.push(row);
+            }
+            if (docs.length < pageSize) return { entries, truncated: false };
+            last = docs[docs.length - 1];
+        }
+        return { entries, truncated: true };
+    } catch (error) {
+        console.error(`[ai/telemetry] Could not read failures: ${error?.message}`);
+        return { entries, truncated: true };
+    }
+}
+
 module.exports = {
     COLLECTION,
     DEFAULT_PAGE,
     MAX_PAGE,
     readTelemetry,
+    readFailures,
     ALLOWED_FIELDS,
     ALLOWED_ATTEMPT_FIELDS,
     MAX_ATTEMPTS,
