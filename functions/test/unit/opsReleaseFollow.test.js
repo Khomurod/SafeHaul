@@ -94,7 +94,13 @@ it('gives up on a run that has not finished within the hour', async () => {
 
 it.each([
     ['GitHub cannot be read', () => mockRuns.mockRejectedValue(new Error('unavailable'))],
-    ['the stored promotion cannot be read', () => mockRefresh.mockRejectedValue(new Error('unavailable'))],
+    ['the promotion cannot be reconciled', () => mockRefresh.mockRejectedValue(new Error('unavailable'))],
+    ['the stored promotion cannot be read', () => {
+        const collection = mock.db.collection.bind(mock.db);
+        jest.spyOn(mock.db, 'collection').mockImplementation((name) => (name === 'release_promotions'
+            ? { doc: () => ({ get: async () => { throw new Error('unavailable'); } }) }
+            : collection(name)));
+    }],
 ])('waits while %s, and still closes the offer at the hour', async (_label, fail) => {
     fail();
     jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -106,7 +112,23 @@ it.each([
     await expect(follow({ offer: { confirmedAt } })).resolves.toBe('failed');
     expect(said()).toEqual([expect.stringMatching(/больше часа/)]);
     expect((await stored()).status).toBe('failed');
-    console.error.mockRestore();
+    jest.restoreAllMocks();
+});
+
+it('closes the offer when Telegram refuses that chat for good, so the next release can be offered', async () => {
+    mockRefresh.mockResolvedValue({ status: 'completed', conclusion: 'success' });
+    mockSend.mockRejectedValue(Object.assign(new Error('refused'), { code: 'blocked' }));
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    await expect(follow({ fetchImpl: live({ sha: SHA }) })).resolves.toBe('done');
+    expect((await stored()).status).toBe('done');
+    jest.restoreAllMocks();
+});
+
+it('keeps the offer open when Telegram is only down for now, so the next run says it', async () => {
+    mockRefresh.mockResolvedValue({ status: 'completed', conclusion: 'success' });
+    mockSend.mockRejectedValue(Object.assign(new Error('down'), { code: 'unavailable' }));
+    await expect(follow({ fetchImpl: live({ sha: SHA }) })).rejects.toMatchObject({ code: 'unavailable' });
+    expect((await stored()).status).toBe('releasing');
 });
 
 it('says a press that never dispatched did not start a release, after a wait', async () => {

@@ -25,6 +25,11 @@ const STALL_MS = 15 * 60 * 1000;
 const RUN_LIMIT_MS = 60 * 60 * 1000;
 
 const shortSha = (sha) => String(sha || '').slice(0, 7);
+/**
+ * Telegram refusing this chat for good (bot removed, chat gone, token replaced):
+ * the outcome cannot be said there, and must not hold back the next offer.
+ */
+const UNDELIVERABLE = new Set(['blocked', 'bad_request', 'token_rejected', 'token_invalid']);
 
 /** The commit app.safehaul.io serves now, or null when it cannot be read. */
 async function readLiveSha({ fetchImpl = fetch } = {}) {
@@ -58,8 +63,15 @@ async function readPromotion(requestId) {
  */
 async function followRelease({ token, offer, offerRef, now = Date.now(), fetchImpl }) {
     const startedAt = Date.parse(offer.confirmedAt) || now;
+    // Said before it is stored: a send Telegram may yet take leaves the offer
+    // open, and the next run says it again.
     const close = async (status, text) => {
-        await telegram.sendMessage(token, offer.chatId, text);
+        try {
+            await telegram.sendMessage(token, offer.chatId, text);
+        } catch (error) {
+            if (!UNDELIVERABLE.has(error?.code)) throw error;
+            console.error(`[ops/releaseFollow] outcome not delivered code=${error.code}`);
+        }
         await offerRef.set({ status, finishedAt: new Date(now).toISOString() }, { merge: true });
         return status;
     };
