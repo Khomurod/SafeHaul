@@ -10,7 +10,56 @@ const { callableOptions, onCall, requireRegisteredProvider, safeFailure } = requ
 
 const { assertSuperAdmin, assertWithinRateLimit } = require('../../environmentVault/guards');
 const { ACTIONS, RESULTS, recordAuditEvent } = require('../../environmentVault/audit');
-const { testProviderConnection } = require('../tasks/healthCheck');
+const { randomUUID } = require('node:crypto');
+const { testProviderConnection, PROBE_STATUS } = require('../tasks/healthCheck');
+const { recordAiTelemetry } = require('../telemetry/record');
+
+const TELEMETRY_WAIT_MS = 5000;
+
+/** Waits for `promise` (which never rejects) or `ms`, whichever comes first. */
+function waitAtMost(promise, ms) {
+    let timer;
+    return Promise.race([
+        promise,
+        new Promise((resolve) => { timer = setTimeout(resolve, ms); }),
+    ]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * The operator's Test, as one row of the Logs tab's Connection tests, marked
+ * `manual`. Only the log: provider health stays the router's, which counts real
+ * requests and the hourly watcher's probes, so a test run while diagnosing an
+ * outage is never itself counted as one. Each capability probe is one attempt.
+ */
+function recordManualTest(provider, result) {
+    const ran = (result.capabilities || []).filter((probe) => probe.status !== PROBE_STATUS.SKIPPED);
+    return recordAiTelemetry({
+        transactionId: randomUUID(),
+        taskType: 'health_check',
+        trigger: 'manual',
+        providerId: provider.id,
+        model: result.model || null,
+        outcome: result.success ? 'success' : 'failure',
+        // A test the vendor throttled has no headline category; its first probe's says why.
+        category: result.success ? null : (result.category || ran.find((probe) => probe.category)?.category || 'internal'),
+        latencyMs: result.latencyMs,
+        inputSummary: `${ran.length} capability probe${ran.length === 1 ? '' : 's'}`,
+        attempts: ran.map((probe, index) => ({
+            providerId: provider.id,
+            model: probe.model,
+            probe: probe.label || probe.id,
+            attemptNumber: index + 1,
+            status: probe.status === PROBE_STATUS.NOT_RUN ? 'skipped' : 'attempted',
+            skipReason: probe.status === PROBE_STATUS.NOT_RUN ? 'not_run' : null,
+            success: probe.status === PROBE_STATUS.PASSED,
+            category: probe.category,
+            vendorCode: probe.vendorCode,
+            httpStatus: probe.httpStatus,
+            latencyMs: probe.latencyMs,
+        })),
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Connection test
 // ---------------------------------------------------------------------------
@@ -32,6 +81,10 @@ exports.testAiProvider = onCall({
     try {
         const provider = requireRegisteredProvider(providerId, 'read');
         const result = await testProviderConnection(provider.id);
+        // Never throws: a log row that cannot be written does not fail the test,
+        // and one that stalls is not waited for past a few seconds, so the probes'
+        // budget (`HEALTH_TOTAL_BUDGET_MS`) still leaves room to answer.
+        await waitAtMost(recordManualTest(provider, result), TELEMETRY_WAIT_MS);
 
         await recordAuditEvent({
             auth: request.auth,

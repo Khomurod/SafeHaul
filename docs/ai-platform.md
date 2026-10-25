@@ -1111,7 +1111,10 @@ an injected `fetchImpl`; tasks are mocked at the task boundary in feature tests.
 The two live pathways are deliberately separate, operator-invoked and outside
 CI: **Test connection** (`testAiProvider`) and **Verify model pins**
 (`diagnoseAiModelPins`). Both run server-side with the managed credential and
-neither returns, logs or echoes it.
+neither returns, logs or echoes it. A test is written to the Logs tab as a
+connection test marked `trigger: 'manual'` ("Connection test (manual)"), one
+attempt per probe; like the watcher's rows it is not a user task, so the
+watcher never counts it as an outage.
 
 Two more run on a schedule, with or without a Telegram chat. The hourly watcher
 (`watchAiAndBlog`) sends one constant probe per lane through the router itself,

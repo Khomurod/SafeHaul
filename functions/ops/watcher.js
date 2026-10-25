@@ -37,7 +37,7 @@ const { TASK_TYPES, PRIVACY, defineTask } = require('../ai/tasks/contract');
 const { runAiTask } = require('../ai/router/router');
 const { ALL_CATEGORIES } = require('../ai/router/errors');
 const { RED_PNG } = require('../ai/tasks/healthProbes');
-const { readTelemetry } = require('../ai/telemetry/record');
+const { readFailures } = require('../ai/telemetry/record');
 const blogStore = require('../blog/store');
 const { TIMEZONE, allSlotsFor, publicationDateFor } = require('../blog/pipeline/themes');
 const runLedger = require('../blog/runLedger');
@@ -157,18 +157,19 @@ async function blogCheck(now) {
     return { ok: false, detail: reasons.join(', ') || 'нет записей о попытках' };
 }
 
-/** Failed user requests in the last hour, per lane: how many people felt it. */
+/**
+ * Failed user requests in the last hour, per lane: how many people felt it.
+ * Every failure of the hour is read, so neither successes nor the probes' and
+ * the Test button's own failures can hide them.
+ */
 async function userFailuresLastHour(now) {
-    const { entries, truncated } = await readTelemetry({
-        outcome: 'failure',
+    const { entries, truncated } = await readFailures({
+        taskTypes: [...USER_TASKS],
         from: new Date(now - HOUR_MS).toISOString(),
         to: new Date(now).toISOString(),
-        limit: 250,
     });
     const counts = { vision: 0, text: 0 };
-    for (const entry of entries) {
-        if (USER_TASKS.has(entry.taskType)) counts[laneForCapability(entry.capability)] += 1;
-    }
+    for (const entry of entries) counts[laneForCapability(entry.capability)] += 1;
     // A full page is a floor, not a count.
     const shown = (count) => (truncated ? `${count}+` : String(count));
     return { vision: shown(counts.vision), text: shown(counts.text) };

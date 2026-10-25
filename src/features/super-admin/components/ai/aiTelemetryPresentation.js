@@ -21,8 +21,13 @@ const TASK_LABELS = Object.freeze({
     health_check: 'Connection test',
 });
 
-export function describeTaskType(taskType) {
-    return TASK_LABELS[taskType] || taskType || 'Unknown task';
+/**
+ * The feature, and `(manual)` when an operator started it: a connection test from
+ * the Test button is a diagnostic, not the product failing on its own.
+ */
+export function describeTaskType(taskType, trigger) {
+    const label = TASK_LABELS[taskType] || taskType || 'Unknown task';
+    return trigger === 'manual' ? `${label} (manual)` : label;
 }
 
 /**

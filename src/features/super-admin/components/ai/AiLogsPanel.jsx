@@ -134,7 +134,7 @@ export function AiLogsPanel({ providers = [] }) {
             key: 'task',
             header: 'Feature',
             width: 'md',
-            render: (row) => describeTaskType(row.taskType),
+            render: (row) => describeTaskType(row.taskType, row.trigger),
         },
         {
             key: 'outcome',
@@ -262,7 +262,7 @@ export function AiLogsPanel({ providers = [] }) {
                 columns={columns}
                 getRowId={(row) => row.id}
                 getRowLabel={(row) => (
-                    `${describeTaskType(row.taskType)}, ${describeOutcome(row).label}, `
+                    `${describeTaskType(row.taskType, row.trigger)}, ${describeOutcome(row).label}, `
                     + `${row.timestamp ? new Date(row.timestamp).toLocaleString() : 'unknown time'}`
                 )}
                 onRowActivate={(row) => setSelected(row)}
