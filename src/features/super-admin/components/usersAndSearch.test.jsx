@@ -107,26 +107,48 @@ describe('UsersView — frozen role and membership mapping', () => {
     });
 
     /*
-     * Same pair of defects as `CompaniesView` — the live-region role was on the
-     * `<td>`, which replaces the cell role, and the empty row had no role at all.
-     * See the longer note there; this is the second of the three native tables
-     * that had it.
+     * A live-region role on a `<td>` replaces the cell role. Each state is
+     * announced by its own wrapper (the table's state panel), never by a cell,
+     * and the empty state is announced too.
      */
-    it('announces each state from inside the cell, never on the cell itself', () => {
+    it('announces each state from its own wrapper, never from a cell', () => {
         const { rerender } = renderUsers({ listLoading: true });
-        const loading = screen.getByText('Loading users...');
-        expect(loading).toHaveAttribute('role', 'status');
-        expect(loading.closest('td')).not.toHaveAttribute('role');
+        const loading = screen.getByText('Loading users...').closest('[role="status"]');
+        expect(loading).not.toBeNull();
+        expect(loading.tagName).not.toBe('TD');
 
         rerender(<UsersView listLoading={false} statsError={{ ...NO_ERRORS, users: true }} userList={[]} allCompaniesMap={COMPANIES_MAP} onEdit={vi.fn()} onDelete={vi.fn()} />);
-        const error = screen.getByText('Error loading users.');
-        expect(error).toHaveAttribute('role', 'alert');
-        expect(error.closest('td')).not.toHaveAttribute('role');
+        const error = screen.getByText('Error loading users.').closest('[role="alert"]');
+        expect(error).not.toBeNull();
+        expect(error.tagName).not.toBe('TD');
 
         rerender(<UsersView listLoading={false} statsError={NO_ERRORS} userList={[]} allCompaniesMap={COMPANIES_MAP} onEdit={vi.fn()} onDelete={vi.fn()} />);
-        const empty = screen.getByText('No users found.');
-        expect(empty).toHaveAttribute('role', 'status');
-        expect(empty.closest('td')).not.toHaveAttribute('role');
+        const empty = screen.getByText('No users found.').closest('[role="status"]');
+        expect(empty).not.toBeNull();
+        expect(empty.tagName).not.toBe('TD');
+    });
+});
+
+describe('UsersView — the shared table', () => {
+    it('is a DataTable with the user as each row header', () => {
+        renderUsers();
+        const table = screen.getByRole('table', { name: 'All platform users' });
+        expect(table.closest('.ds-data-table')).toHaveAttribute('data-embedded', 'true');
+        expect(within(table).getAllByRole('columnheader').map((th) => th.textContent))
+            .toEqual(['User', 'Role & Access', 'Actions']);
+        expect(within(table).getAllByRole('rowheader')[1]).toHaveTextContent('Artificial Recruiter');
+    });
+
+    it('pages the list with the table pager: 20, 50 or 100 rows', () => {
+        const many = Array.from({ length: 25 }, (_, i) => ({
+            id: `u-${i + 1}`, name: `Artificial Person ${i + 1}`, email: `p${i + 1}@example.test`, memberships: [],
+        }));
+        renderUsers({ userList: many });
+        expect(screen.getByText('Showing 20 of 25 users')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+        expect(screen.getByText('Showing 5 of 25 users')).toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText('Rows per page'), { target: { value: '50' } });
+        expect(screen.getByText('Showing 25 of 25 users')).toBeInTheDocument();
     });
 });
 

@@ -103,7 +103,12 @@ const SCREENS = [
         row: 'Northern Plains Refrigerated Transport Cooperative',
         table: 'Manage Companies',
     },
-    { name: 'super admin users', url: '/super-admin/users?e2eAuth=super_admin', empty: 'No users found.' },
+    {
+        name: 'super admin users',
+        url: '/super-admin/users?e2eAuth=super_admin&e2eCompanies=mock',
+        row: 'alexandra.montgomery-okonkwo@example.test',
+        table: 'All platform users',
+    },
     { name: 'super admin unified driver db', url: '/super-admin/applications?e2eAuth=super_admin', empty: 'No drivers match your filters.' },
     {
         name: 'super admin environment',

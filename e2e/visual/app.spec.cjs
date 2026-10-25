@@ -221,6 +221,12 @@ const SCREENS = [
         url: '/super-admin/companies?e2eAuth=super_admin&e2eCompanies=mock',
         ready: (page) => page.getByRole('rowheader', { name: 'Northern Plains Refrigerated Transport Cooperative' }),
     },
+    /* The users list on three made-up users and their companies (`e2eCompanies=mock`). */
+    {
+        name: 'super-admin-users',
+        url: '/super-admin/users?e2eAuth=super_admin&e2eCompanies=mock',
+        ready: (page) => page.getByRole('rowheader', { name: /^Alexandra Montgomery-Okonkwo/ }),
+    },
     /*
      * A company's applications dialog, opened from the companies table on made-up
      * companies and drivers (`e2eCompanies=mock`). Opened by keyboard: on a phone

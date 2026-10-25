@@ -177,11 +177,6 @@ export const DS_EXCEPTIONS = {
     'src/features/super-admin/components/FeaturesView.jsx': {
         'raw-table': NATIVE_TABLE,
     },
-    'src/features/super-admin/components/UsersView.jsx': {
-        'raw-table': 'roadmap §5 — a native table inside a virtualised scroll region. Uses the '
-            + '--ds-table-* roles. DataTable owns its own scroll container, so adopting it here would mean '
-            + 'nesting two, which is the defect that produces a dead scrollbar gutter.',
-    },
     'src/features/super-admin/components/integrations/LineManager.jsx': {
         'raw-table': NATIVE_TABLE,
     },

@@ -4,8 +4,8 @@
 /*
  * Fixture rows for the `?e2eCompanies=mock` harness, gated on
  * `VITE_E2E_TEST_MODE`, which a production build never sets. Without them the
- * harness reads no companies, so the companies table and a company's
- * applications dialog could be measured and pictured only empty.
+ * harness reads no companies or users, so the companies and users tables and a
+ * company's applications dialog could be measured and pictured only empty.
  *
  * Every company and driver is made up; phones are 555-01xx numbers.
  */
@@ -21,6 +21,25 @@ export function mockCompanies() {
             planType: 'free',
         },
         { id: 'e2e-co-3', companyName: 'Sample Haulage', appSlug: 'sample-haulage', planType: 'free', isActive: false },
+    ];
+}
+
+/**
+ * The console's first page of users, memberships attached: a Super Admin by
+ * membership, an admin of one company who is also a user of the long-named
+ * one, and someone with no company yet.
+ */
+export function mockUsers() {
+    return [
+        { id: 'e2e-user-1', name: 'Riley Sample', email: 'riley.sample@example.test', memberships: [{ companyId: 'e2e-co-1', role: 'super_admin' }] },
+        {
+            id: 'e2e-user-2', name: 'Alexandra Montgomery-Okonkwo', email: 'alexandra.montgomery-okonkwo@example.test',
+            memberships: [
+                { companyId: 'e2e-co-1', role: 'company_admin' },
+                { companyId: 'e2e-co-2', role: 'recruiter' },
+            ],
+        },
+        { id: 'e2e-user-3', name: 'Jordan Unassigned', email: 'jordan@example.test', memberships: [] },
     ];
 }
 
