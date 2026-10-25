@@ -12,12 +12,14 @@
  *
  * Only what the console needs is kept: Start commands, with the chat and the
  * person who sent them, for a day (as long as Telegram itself keeps an update),
- * in `system_jobs/platformAlertsInbox`, which no client rule reaches.
+ * in `system_jobs/platformAlertsInbox`, which no client rule reaches. Older
+ * entries are never read, and a TTL policy on `inboxExpiresAt` deletes the
+ * document once its newest entry is a day old.
  */
 
 const crypto = require('crypto');
 
-const { db } = require('../firebaseAdmin');
+const { admin, db } = require('../firebaseAdmin');
 const telegram = require('./telegram');
 
 const REGION = 'us-central1';
@@ -75,7 +77,14 @@ function keptUpdate(update) {
     };
 }
 
-/** Adds one kept update, once, dropping what Telegram itself would no longer hold. */
+const isRecent = (entry, now) => Number.isFinite(entry?.message?.date)
+    && now - entry.message.date * 1000 < INBOX_RETENTION_MS;
+
+/**
+ * Adds one kept update, once, dropping what Telegram itself would no longer
+ * hold. `inboxExpiresAt` is a day after the newest one: a Firestore TTL policy
+ * deletes the document then, when no later Start has rewritten it.
+ */
 async function recordUpdate(update, now = Date.now()) {
     const kept = keptUpdate(update);
     if (!kept) return false;
@@ -83,18 +92,20 @@ async function recordUpdate(update, now = Date.now()) {
     await db.runTransaction(async (transaction) => {
         const snapshot = await transaction.get(ref);
         const stored = Array.isArray(snapshot.data()?.updates) ? snapshot.data().updates : [];
-        const recent = stored.filter((entry) => entry.update_id !== kept.update_id
-            && Number.isFinite(entry.message?.date) && now - entry.message.date * 1000 < INBOX_RETENTION_MS);
-        transaction.set(ref, { updates: [...recent, kept].slice(-INBOX_LIMIT) });
+        const recent = stored.filter((entry) => entry.update_id !== kept.update_id && isRecent(entry, now));
+        const updates = [...recent, kept].slice(-INBOX_LIMIT);
+        const newest = Math.max(...updates.map((entry) => (entry.message.date ?? now / 1000) * 1000));
+        transaction.set(ref, { updates, inboxExpiresAt: admin.firestore.Timestamp.fromMillis(newest + INBOX_RETENTION_MS) });
     });
     return true;
 }
 
-/** The kept updates, oldest first. */
-async function readUpdates() {
+/** The kept updates of the last day, oldest first. */
+async function readUpdates(now = Date.now()) {
     const snapshot = await inboxRef().get();
     const updates = snapshot.exists ? snapshot.data()?.updates : null;
-    return Array.isArray(updates) ? [...updates].sort((a, b) => a.update_id - b.update_id) : [];
+    if (!Array.isArray(updates)) return [];
+    return updates.filter((entry) => isRecent(entry, now)).sort((a, b) => a.update_id - b.update_id);
 }
 
 async function clearInbox() {

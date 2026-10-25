@@ -3,7 +3,7 @@
  *
  * Pinned: a request without the bot's secret header is refused before anything
  * is written; only Start commands are kept, cut down to the chat and the person,
- * once each, for a day; and the bot is pointed at this function's own address
+ * once each, read for a day and then deleted by a TTL policy; and the bot is pointed at this function's own address
  * with a secret derived from its token. Ids, names and tokens are artificial.
  */
 
@@ -141,6 +141,23 @@ describe('what is kept', () => {
         await inbox.recordUpdate(START(30));
         await inbox.recordUpdate(START(20));
         expect((await inbox.readUpdates()).map((entry) => entry.update_id)).toEqual([20, 30]);
+    });
+
+    it('reads nothing older than a day, though no later Start has rewritten the inbox', async () => {
+        await inbox.recordUpdate(START(40));
+        const dayAndAMinuteLater = (NOW_S + 24 * 60 * 60 + 60) * 1000;
+        expect(await inbox.readUpdates(dayAndAMinuteLater)).toEqual([]);
+        expect(await stored()).toHaveLength(1);
+    });
+
+    it('marks the inbox to be deleted a day after its newest Start, by a TTL policy on that field', async () => {
+        await inbox.recordUpdate(START(50, { date: NOW_S - 60 }));
+        await inbox.recordUpdate(START(51));
+        const { inboxExpiresAt } = (await mock.db.collection('system_jobs').doc('platformAlertsInbox').get()).data();
+        expect(inboxExpiresAt.toMillis()).toBe((NOW_S + 24 * 60 * 60) * 1000);
+
+        const { fieldOverrides } = require('../../../firestore.indexes.json');
+        expect(fieldOverrides).toContainEqual({ collectionGroup: 'system_jobs', fieldPath: 'inboxExpiresAt', ttl: true, indexes: [] });
     });
 });
 

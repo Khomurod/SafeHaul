@@ -499,6 +499,12 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "system_jobs",
+      "fieldPath": "inboxExpiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "ai_telemetry",
       "fieldPath": "expiresAt",
       "ttl": true,
