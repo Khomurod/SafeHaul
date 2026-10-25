@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 import { StandardQuestionsConfig, STANDARD_FIELDS } from './StandardQuestionsConfig';
@@ -114,6 +114,18 @@ describe('StandardQuestionsConfig', () => {
             dob: { required: true, hidden: false },
             referralSource: { required: false, hidden: true },
         });
+    });
+
+    it('is a named table: a row per field, headed by its name, with Required and Hidden columns', () => {
+        render(<StandardQuestionsConfig config={{}} onChange={vi.fn()} />);
+        const table = screen.getByRole('table', { name: /Standard DOT questions/ });
+        expect(within(table).getAllByRole('columnheader').map((th) => th.textContent))
+            .toEqual(['Field Name', 'Required', 'Hidden']);
+        expect(within(table).getAllByRole('rowheader').map((th) => th.textContent))
+            .toEqual(STANDARD_FIELDS.map((field) => field.label));
+        const ssnRow = within(table).getByRole('rowheader', { name: 'Social Security Number' }).closest('tr');
+        expect(within(ssnRow).getByRole('switch', { name: 'Require Social Security Number' })).toBeInTheDocument();
+        expect(within(ssnRow).getByRole('switch', { name: 'Hide Social Security Number' })).toBeInTheDocument();
     });
 
     it('keeps the compliance note', () => {

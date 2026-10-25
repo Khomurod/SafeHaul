@@ -1,6 +1,6 @@
 import React, { useId } from 'react';
 import { Icon, Settings } from '@design-system/icons';
-import { Card, FieldMessage, Switch } from '@/design-system/components';
+import { Card, DataTable, FieldMessage, Switch } from '@/design-system/components';
 import { resolveApplicationGate } from '@/config/applicationGates';
 
 /**
@@ -12,6 +12,9 @@ import { resolveApplicationGate } from '@/config/applicationGates';
  * differ — this screen showed Medical Card Upload as optional and MVR Consent
  * as required while the application enforced the exact opposite — so the
  * toggles described a configuration that was not the one in force.
+ *
+ * The fields are a `DataTable` row each, the field's name heading the row and
+ * its two switches in their own columns; on a phone each field is a card.
  */
 export const STANDARD_FIELDS = [
     { id: 'ssn', label: 'Social Security Number' },
@@ -56,6 +59,42 @@ export function StandardQuestionsConfig({ config, onChange }) {
         });
     };
 
+    const columns = [
+        {
+            key: 'field',
+            header: 'Field Name',
+            rowHeader: true,
+            width: 'xl',
+            render: (field) => <span className="font-medium text-ds-content">{field.label}</span>,
+        },
+        {
+            key: 'required',
+            header: 'Required',
+            width: 'md',
+            render: (field) => (
+                <Switch
+                    checked={Boolean(resolveApplicationGate(safeConfig, field.id).required)}
+                    tone="success"
+                    label={`Require ${field.label}`}
+                    onChange={() => toggleField(field.id, 'required')}
+                />
+            ),
+        },
+        {
+            key: 'hidden',
+            header: 'Hidden',
+            width: 'md',
+            render: (field) => (
+                <Switch
+                    checked={Boolean(resolveApplicationGate(safeConfig, field.id).hidden)}
+                    tone="danger"
+                    label={`Hide ${field.label}`}
+                    onChange={() => toggleField(field.id, 'hidden')}
+                />
+            ),
+        },
+    ];
+
     return (
         <Card padding="none" className="mb-8 overflow-hidden" aria-labelledby={titleId}>
             <div className="flex items-center gap-ds-2 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
@@ -65,47 +104,16 @@ export function StandardQuestionsConfig({ config, onChange }) {
                 </h4>
             </div>
 
-            {/* Column headers (desktop); mobile rows carry inline captions instead. */}
-            <div className="hidden items-center gap-ds-4 border-b border-ds-border-subtle px-ds-4 py-ds-2 text-ds-xs font-bold uppercase text-ds-content-muted sm:flex">
-                <span className="flex-1">Field Name</span>
-                <span className="w-11 text-center">Required</span>
-                <span className="w-11 text-center">Hidden</span>
-            </div>
-
-            <ul className="divide-y divide-ds-border-subtle">
-                {STANDARD_FIELDS.map(field => {
-                    const setting = resolveApplicationGate(safeConfig, field.id);
-
-                    return (
-                        <li
-                            key={field.id}
-                            className="flex flex-col gap-ds-3 px-ds-4 py-ds-3 sm:flex-row sm:items-center sm:gap-ds-4"
-                        >
-                            <span className="min-w-0 flex-1 font-medium text-ds-content">{field.label}</span>
-                            <div className="flex items-center gap-ds-4 sm:gap-ds-4">
-                                <span className="flex items-center gap-ds-2">
-                                    <span className="text-ds-xs font-medium text-ds-content-muted sm:hidden">Required</span>
-                                    <Switch
-                                        checked={Boolean(setting.required)}
-                                        tone="success"
-                                        label={`Require ${field.label}`}
-                                        onChange={() => toggleField(field.id, 'required')}
-                                    />
-                                </span>
-                                <span className="flex items-center gap-ds-2">
-                                    <span className="text-ds-xs font-medium text-ds-content-muted sm:hidden">Hidden</span>
-                                    <Switch
-                                        checked={Boolean(setting.hidden)}
-                                        tone="danger"
-                                        label={`Hide ${field.label}`}
-                                        onChange={() => toggleField(field.id, 'hidden')}
-                                    />
-                                </span>
-                            </div>
-                        </li>
-                    );
-                })}
-            </ul>
+            <DataTable
+                embedded
+                ariaLabel="Standard DOT questions"
+                density="compact"
+                minWidth="none"
+                mobilePresentation="cards"
+                data={STANDARD_FIELDS}
+                columns={columns}
+                getRowId={(field) => field.id}
+            />
 
             <div className="border-t border-ds-border-subtle p-ds-4">
                 <FieldMessage tone="help">

@@ -96,6 +96,13 @@ const SCREENS = [
         callables: { listCompanyApiKeys: API_KEYS },
         row: 'Artificial TMS',
     },
+    {
+        name: 'company settings questions',
+        url: '/company/settings?e2eAuth=company_admin',
+        open: (page) => page.getByRole('tab', { name: 'Application Form Questions' }).click(),
+        row: 'Signed MVR Authorization Form (upload)',
+        table: 'Standard DOT questions',
+    },
     { name: 'super admin features', url: '/super-admin/features?e2eAuth=super_admin&e2eFeatures=mock', row: 'Northern Plains Refrigerated Transport Cooperative' },
     {
         name: 'super admin companies',
