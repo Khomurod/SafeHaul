@@ -130,20 +130,24 @@ describe('when it speaks', () => {
         { failureCategories: ['quota_exceeded', 'timeout'] },
     );
 
+    /** Answers as `readTelemetry` does: the failures of the asked task type, newest first, at most `limit`. */
+    const telemetryHolding = (rows, { truncated = false } = {}) => mockReadTelemetry.mockImplementation(async ({ taskType, limit }) => {
+        const matching = rows.filter((row) => !taskType || row.taskType === taskType);
+        return { entries: matching.slice(0, limit), truncated: truncated || matching.length >= limit };
+    });
+
     it('says once that a lane went down, naming what failed and how many people felt it', async () => {
         mockRunAiTask.mockImplementation(async (task) => {
             if (task.capabilities.includes('vision')) throw allProvidersFailed();
             return answer(task);
         });
-        mockReadTelemetry.mockResolvedValue({
-            entries: [
-                { taskType: 'cdl_extraction', capability: 'vision' },
-                { taskType: 'cdl_extraction', capability: 'vision' },
-                // The watcher's own probes are not people.
-                { taskType: TASK_TYPES.HEALTH_CHECK, capability: 'vision' },
-                { taskType: 'article_generation', capability: 'article_generation' },
-            ],
-        });
+        telemetryHolding([
+            { taskType: 'cdl_extraction', capability: 'vision' },
+            { taskType: 'cdl_extraction', capability: 'vision' },
+            // The watcher's own probes are not people.
+            { taskType: TASK_TYPES.HEALTH_CHECK, capability: 'vision' },
+            { taskType: 'article_generation', capability: 'article_generation' },
+        ]);
 
         await runWatch({ now: NOW });
 
@@ -161,15 +165,13 @@ describe('when it speaks', () => {
             if (task.capabilities.includes('text')) throw allProvidersFailed();
             return answer(task);
         });
-        mockReadTelemetry.mockResolvedValue({
-            entries: [
-                { taskType: 'application_document_extraction', capability: 'text' },
-                // The blog runs at :15 with nobody waiting on it.
-                { taskType: 'article_generation', capability: 'article_generation' },
-                { taskType: 'article_fact_check', capability: 'text' },
-                { taskType: 'topic_selection', capability: 'classification' },
-            ],
-        });
+        telemetryHolding([
+            { taskType: 'application_document_extraction', capability: 'text' },
+            // The blog runs at :15 with nobody waiting on it.
+            { taskType: 'article_generation', capability: 'article_generation' },
+            { taskType: 'article_fact_check', capability: 'text' },
+            { taskType: 'topic_selection', capability: 'classification' },
+        ]);
 
         await runWatch({ now: NOW });
 
@@ -181,14 +183,32 @@ describe('when it speaks', () => {
             if (task.capabilities.includes('text')) throw allProvidersFailed();
             return answer(task);
         });
-        mockReadTelemetry.mockResolvedValue({
-            entries: [{ taskType: 'application_document_extraction', capability: 'text' }],
-            truncated: true,
-        });
+        telemetryHolding([{ taskType: 'application_document_extraction', capability: 'text' }], { truncated: true });
 
         await runWatch({ now: NOW });
 
         expect(mockSendMessage.mock.calls[0][2]).toContain('Ошибок у пользователей за последний час: 1+.');
+    });
+
+    it('counts people\'s failures even when an hour of Test presses fills a read', async () => {
+        mockRunAiTask.mockImplementation(async (task) => {
+            if (task.capabilities.includes('vision')) throw allProvidersFailed();
+            return answer(task);
+        });
+        // An operator pressing Test through the outage: newer than the drivers' failures, and more than one read holds.
+        telemetryHolding([
+            ...Array.from({ length: 300 }, () => ({ taskType: TASK_TYPES.HEALTH_CHECK, trigger: 'manual', capability: 'vision' })),
+            { taskType: 'cdl_extraction', capability: 'vision' },
+            { taskType: 'medical_card_extraction', capability: 'vision' },
+        ]);
+
+        await runWatch({ now: NOW });
+
+        expect(mockSendMessage.mock.calls[0][2]).toContain('Ошибок у пользователей за последний час: 2.');
+        for (const [filters] of mockReadTelemetry.mock.calls) {
+            expect(filters).toEqual(expect.objectContaining({ outcome: 'failure', taskType: expect.any(String) }));
+            expect(filters.taskType).not.toBe(TASK_TYPES.HEALTH_CHECK);
+        }
     });
 
     it('stays quiet while a lane stays down, and keeps when it went down', async () => {

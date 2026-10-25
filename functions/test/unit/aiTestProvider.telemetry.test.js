@@ -117,13 +117,15 @@ describe('testAiProvider writes one manual Connection test row', () => {
 
     it('answers within a few seconds of the probes when the write stalls', async () => {
         jest.useFakeTimers();
+        let finishWrite;
         try {
-            mockRecord = () => new Promise(() => {});
+            mockRecord = () => new Promise((resolve) => { finishWrite = resolve; });
             const pending = testAiProvider(request({ providerId: 'gemini' }));
             await jest.advanceTimersByTimeAsync(5000);
             await expect(pending).resolves.toEqual(expect.objectContaining({ providerId: 'gemini', message: RESULT.message }));
             expect(mockAudit).toHaveBeenCalledTimes(1);
         } finally {
+            finishWrite?.();
             jest.useRealTimers();
         }
     });

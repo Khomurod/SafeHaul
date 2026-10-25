@@ -157,17 +157,24 @@ async function blogCheck(now) {
     return { ok: false, detail: reasons.join(', ') || 'нет записей о попытках' };
 }
 
-/** Failed user requests in the last hour, per lane: how many people felt it. */
+/**
+ * Failed user requests in the last hour, per lane: how many people felt it.
+ * One read per task a person waits on, so the probes' and the Test button's own
+ * failures in the same hour cannot fill the page and hide them.
+ */
 async function userFailuresLastHour(now) {
-    const { entries, truncated } = await readTelemetry({
+    const pages = await Promise.all([...USER_TASKS].map((taskType) => readTelemetry({
+        taskType,
         outcome: 'failure',
         from: new Date(now - HOUR_MS).toISOString(),
         to: new Date(now).toISOString(),
         limit: 250,
-    });
+    })));
     const counts = { vision: 0, text: 0 };
-    for (const entry of entries) {
-        if (USER_TASKS.has(entry.taskType)) counts[laneForCapability(entry.capability)] += 1;
+    let truncated = false;
+    for (const page of pages) {
+        truncated = truncated || Boolean(page.truncated);
+        for (const entry of page.entries) counts[laneForCapability(entry.capability)] += 1;
     }
     // A full page is a floor, not a count.
     const shown = (count) => (truncated ? `${count}+` : String(count));
