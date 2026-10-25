@@ -167,8 +167,12 @@ async function pointBotHere(token, connection) {
         await settings.replaceSettings({ telegram: updated });
     } catch (error) {
         // Unnoted, the console would keep asking the bot's own queue, which a
-        // webhook closes: undo it, keeping the Starts it holds.
-        await telegram.deleteWebhook(token, undefined, { keepPending: true }).catch(() => {});
+        // webhook closes: undo it, keeping the Starts it holds. Not when another
+        // press has noted it meanwhile, nor when that cannot be read.
+        const now = await settings.readSettings().catch(() => null);
+        if (now && !now.telegram?.webhookSetAt) {
+            await telegram.deleteWebhook(token, undefined, { keepPending: true }).catch(() => {});
+        }
         throw error;
     }
     return updated;

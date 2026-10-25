@@ -346,6 +346,21 @@ describe('connecting the chat', () => {
             expect(mockTelegram.deleteWebhook).toHaveBeenCalledWith(TOKEN, undefined, { keepPending: true });
         });
 
+        it('leaves the webhook alone when another press noted it meanwhile, or the note cannot be read', async () => {
+            mockSettings.readSettings
+                .mockResolvedValueOnce(BEFORE())
+                .mockResolvedValueOnce(BEFORE({ webhookSetAt: '2026-10-25T11:00:00.000Z' }));
+            mockSettings.replaceSettings.mockRejectedValue(Object.assign(new Error('aborted'), { code: 10 }));
+            await expect(callables.connectPlatformAlertChat(REQUEST())).rejects.toBeDefined();
+
+            mockSettings.readSettings
+                .mockResolvedValueOnce(BEFORE())
+                .mockRejectedValueOnce(Object.assign(new Error('unavailable'), { code: 14 }));
+            await expect(callables.connectPlatformAlertChat(REQUEST())).rejects.toBeDefined();
+
+            expect(mockTelegram.deleteWebhook).not.toHaveBeenCalled();
+        });
+
         it('refuses, in the operator\'s words, a bot another service receives', async () => {
             mockSettings.readSettings.mockResolvedValue(BEFORE());
             mockInbox.ensureWebhook.mockRejectedValue(new TelegramError('webhook_set', 'This bot sends its updates to another service.'));
