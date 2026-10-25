@@ -17,7 +17,7 @@ const TOKEN_PATTERN = /^\d{5,15}:[A-Za-z0-9_-]{30,64}$/;
 
 class TelegramError extends Error {
     /**
-     * @param {'token_invalid'|'token_rejected'|'blocked'|'bad_request'|'webhook_set'|'rate_limited'|'unreachable'|'unavailable'} code
+     * @param {'token_invalid'|'token_rejected'|'blocked'|'bad_request'|'not_modified'|'webhook_set'|'rate_limited'|'unreachable'|'unavailable'} code
      */
     constructor(code, message) {
         super(message);
@@ -26,7 +26,10 @@ class TelegramError extends Error {
     }
 }
 
-function codeForStatus(status) {
+/** An edit to the text and buttons a message already shows: harmless, so told apart. */
+const NOT_MODIFIED = /message is not modified/i;
+
+function codeForStatus(status, description) {
     // A token Telegram does not know answers 401, or 404 for a malformed one.
     if (status === 401 || status === 404) return 'token_rejected';
     // The person blocked the bot, or the bot was removed from the group.
@@ -34,7 +37,7 @@ function codeForStatus(status) {
     // `getUpdates` refuses while a webhook is set on the bot.
     if (status === 409) return 'webhook_set';
     if (status === 429) return 'rate_limited';
-    if (status === 400) return 'bad_request';
+    if (status === 400) return NOT_MODIFIED.test(String(description || '')) ? 'not_modified' : 'bad_request';
     return 'unavailable';
 }
 
@@ -70,7 +73,7 @@ async function callTelegram(token, method, body, { fetchImpl = fetch } = {}) {
         // Telegram can also answer 200 with `ok: false` and the real code inside;
         // a 200 that cannot be read has no code, and counts as Telegram being down.
         const status = response.ok ? Number(payload?.error_code) || 0 : response.status;
-        throw new TelegramError(codeForStatus(status), status
+        throw new TelegramError(codeForStatus(status, payload?.description), status
             ? `Telegram refused the request (${status}).`
             : 'Telegram sent an answer that could not be read.');
     }
@@ -179,6 +182,43 @@ async function sendMessage(token, chatId, text, deps) {
 }
 
 /**
+ * A message with buttons under it, each `{ text, data }`, one row per array.
+ * Returns the message's id, which later edits name.
+ */
+async function sendButtons(token, chatId, text, rows, deps) {
+    const message = await callTelegram(token, 'sendMessage', {
+        chat_id: chatId,
+        text: String(text).slice(0, MAX_MESSAGE_CHARS),
+        disable_web_page_preview: true,
+        reply_markup: keyboard(rows),
+    }, deps);
+    return message?.message_id ?? null;
+}
+
+const keyboard = (rows) => ({
+    inline_keyboard: (rows || []).map((row) => row.map(({ text, data }) => ({ text, callback_data: data }))),
+});
+
+/** Replaces a message's text and buttons; no `rows` leaves it with none. */
+async function editMessage(token, chatId, messageId, text, rows, deps) {
+    await callTelegram(token, 'editMessageText', {
+        chat_id: chatId,
+        message_id: messageId,
+        text: String(text).slice(0, MAX_MESSAGE_CHARS),
+        disable_web_page_preview: true,
+        reply_markup: keyboard(rows),
+    }, deps);
+}
+
+/** Ends a button's spinner, with a short note the presser sees. */
+async function answerButton(token, callbackId, text, deps) {
+    await callTelegram(token, 'answerCallbackQuery', {
+        callback_query_id: callbackId,
+        ...(text ? { text: String(text).slice(0, 200) } : {}),
+    }, deps);
+}
+
+/**
  * Points the bot's updates at `url`, signed with `secret` in the
  * `X-Telegram-Bot-Api-Secret-Token` header. A bot whose webhook already goes
  * elsewhere belongs to another service and is left alone (`webhook_set`).
@@ -213,6 +253,9 @@ module.exports = {
     startsIn,
     startsOnLink,
     sendMessage,
+    sendButtons,
+    editMessage,
+    answerButton,
     setWebhook,
     deleteWebhook,
 };

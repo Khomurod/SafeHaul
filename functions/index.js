@@ -336,6 +336,8 @@ function exportFunctions(wanted) {
   if (wanted('deletePlatformAlerts')) exports.deletePlatformAlerts = require('./ops/callables').deletePlatformAlerts;
   // Telegram posts the alert bot's updates here, signed with the bot's secret header.
   if (wanted('telegramWebhook')) exports.telegramWebhook = require('./ops/telegramWebhook').telegramWebhook;
+  // Every ten minutes: offers a new eligible Testing release in the alert chat, with a Release button.
+  if (wanted('offerProductionRelease')) exports.offerProductionRelease = require('./ops/releaseOffer').offerProductionRelease;
 
   // 25. Company API: a Company Admin's keys, and the read-only API another service calls with one.
   if (wanted('createCompanyApiKey')) exports.createCompanyApiKey = require('./companyApi/keyCallables').createCompanyApiKey;

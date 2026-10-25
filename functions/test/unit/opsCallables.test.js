@@ -565,6 +565,7 @@ describe('the test message and the status', () => {
         expect(response).toEqual({
             bot: { username: 'safehaul_alerts_bot' },
             chat: { title: 'Dana Alvarez' },
+            approver: null,
             pending: null,
             watch: {
                 lastRunAt: '2026-08-02T15:40:00.000Z',
@@ -573,6 +574,15 @@ describe('the test message and the status', () => {
             },
         });
         expect(JSON.stringify(response)).not.toContain('222');
+    });
+
+    it('names who may press the release button, never by id', async () => {
+        mockSettings.readSettings.mockResolvedValue({
+            telegram: { botUsername: 'safehaul_alerts_bot', chatId: 222, chatTitle: 'Dispatch', approverId: 9001, approverName: 'Dana Alvarez' },
+        });
+        const response = await callables.getPlatformAlerts(REQUEST());
+        expect(response.approver).toEqual({ name: 'Dana Alvarez' });
+        expect(JSON.stringify(response)).not.toMatch(/9001|222/);
     });
 
     it('keeps an unused Start link on screen until it expires', async () => {

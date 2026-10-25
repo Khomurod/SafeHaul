@@ -19,6 +19,9 @@ jest.mock('../../firebaseAdmin', () => ({ admin: mock.admin, db: mock.db }));
 const mockReadBotToken = jest.fn();
 jest.mock('../../ops/alertSettings', () => ({ readBotToken: (...args) => mockReadBotToken(...args) }));
 
+const mockHandleButton = jest.fn();
+jest.mock('../../ops/releaseButtons', () => ({ handleButton: (...args) => mockHandleButton(...args) }));
+
 const inbox = require('../../ops/telegramInbox');
 const { telegramWebhook } = require('../../ops/telegramWebhook');
 const { onRequest } = require('firebase-functions/v2/https');
@@ -79,6 +82,23 @@ describe('who may post', () => {
 
     it('is public, as Telegram signs in no other way, and small', () => {
         expect(DECLARED_OPTIONS).toEqual(expect.objectContaining({ invoker: 'public', region: 'us-central1', maxInstances: 2 }));
+    });
+
+    it('hands a button press to the release buttons, with the token it checked, and keeps nothing', async () => {
+        const query = { id: 'cb-1', data: `rel:ask:${'b'.repeat(40)}`, from: { id: 9001 } };
+        expect((await post({ update_id: 20, callback_query: query })).statusCode).toBe(200);
+        expect(mockHandleButton).toHaveBeenCalledWith(query, TOKEN);
+        expect(await stored()).toEqual([]);
+    });
+
+    it('reads no button press without the secret', async () => {
+        await post({ update_id: 21, callback_query: { id: 'cb-2', data: 'rel:yes:x' } }, 'f'.repeat(64));
+        expect(mockHandleButton).not.toHaveBeenCalled();
+    });
+
+    it('can start a release, so it carries the release credential and time for GitHub', () => {
+        expect(DECLARED_OPTIONS.secrets).toEqual(expect.arrayContaining(['RELEASE_GITHUB_APP_ID', 'RELEASE_GITHUB_PRIVATE_KEY']));
+        expect(DECLARED_OPTIONS.timeoutSeconds).toBeGreaterThanOrEqual(60);
     });
 
     it('answers 500 when it cannot write, so Telegram sends the update again', async () => {

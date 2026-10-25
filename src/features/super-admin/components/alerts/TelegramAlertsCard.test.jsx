@@ -385,6 +385,16 @@ describe('once it is connected', () => {
         expect(screen.getByText('2. Chat: Dana Alvarez')).toBeTruthy();
     });
 
+    it('says who can release from the chat, or how to set that up', async () => {
+        const { unmount } = render(<TelegramAlertsCard />);
+        expect(await screen.findByText(/press Reconnect chat once and press Start/)).toBeTruthy();
+        unmount();
+
+        services.getPlatformAlerts.mockResolvedValue({ ...CONNECTED, approver: { name: 'Dana Alvarez' } });
+        render(<TelegramAlertsCard />);
+        expect(await screen.findByText(/Only Dana Alvarez can press it\./)).toBeTruthy();
+    });
+
     it('asks for a new link on Reconnect chat, saying the page showed a chat', async () => {
         services.connectPlatformAlertChat.mockResolvedValue({ pending: { link: 'https://t.me/safehaul_alerts_bot?start=NEW789' } });
         render(<TelegramAlertsCard />);
