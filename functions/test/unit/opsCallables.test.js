@@ -36,7 +36,7 @@ const mockSettings = {
 };
 jest.mock('../../ops/alertSettings', () => mockSettings);
 
-const mockTelegram = { getBot: jest.fn(), startsOnLink: jest.fn(), sendMessage: jest.fn() };
+const mockTelegram = { getBot: jest.fn(), startsOnLink: jest.fn(), sendMessage: jest.fn(), deleteWebhook: jest.fn() };
 jest.mock('../../ops/telegram', () => {
     const actual = jest.requireActual('../../ops/telegram');
     return {
@@ -45,8 +45,12 @@ jest.mock('../../ops/telegram', () => {
         getBot: (...args) => mockTelegram.getBot(...args),
         startsOnLink: (...args) => mockTelegram.startsOnLink(...args),
         sendMessage: (...args) => mockTelegram.sendMessage(...args),
+        deleteWebhook: (...args) => mockTelegram.deleteWebhook(...args),
     };
 });
+
+const mockInbox = { ensureWebhook: jest.fn(), readUpdates: jest.fn(), clearInbox: jest.fn() };
+jest.mock('../../ops/telegramInbox', () => mockInbox);
 
 const { TelegramError } = jest.requireActual('../../ops/telegram');
 const callables = require('../../ops/callables');
@@ -77,6 +81,10 @@ beforeEach(() => {
     mockTelegram.getBot.mockResolvedValue({ username: 'safehaul_alerts_bot', id: 1 });
     mockTelegram.startsOnLink.mockResolvedValue({ chat: { id: 222, title: 'Dana Alvarez' }, strayStart: false });
     mockTelegram.sendMessage.mockResolvedValue(undefined);
+    mockTelegram.deleteWebhook.mockResolvedValue(undefined);
+    mockInbox.ensureWebhook.mockResolvedValue(undefined);
+    mockInbox.readUpdates.mockResolvedValue([]);
+    mockInbox.clearInbox.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -117,10 +125,58 @@ describe('saving the bot token', () => {
         expect(mockSettings.writeBotToken).toHaveBeenCalledWith(TOKEN);
         expect(response).toEqual({ bot: { username: 'safehaul_alerts_bot' } });
         const [patch] = mockSettings.replaceSettings.mock.calls[0];
-        expect(patch.telegram).toEqual({ botUsername: 'safehaul_alerts_bot', tokenSavedAt: expect.any(String) });
+        expect(patch.telegram).toEqual({
+            botUsername: 'safehaul_alerts_bot', tokenSavedAt: expect.any(String), webhookSetAt: patch.telegram.tokenSavedAt,
+        });
         // A check already down must reach the next chat as news, not as an unexplained recovery.
         expect(patch.watch).toEqual({});
         expect(everythingSaid(response)).not.toContain(TOKEN);
+    });
+});
+
+describe('pointing the bot at the webhook when the token is saved', () => {
+    it('points the bot here before the token is stored, and starts its inbox empty', async () => {
+        const order = [];
+        mockInbox.ensureWebhook.mockImplementation(async () => { order.push('webhook'); });
+        mockSettings.writeBotToken.mockImplementation(async () => { order.push('store'); return { secretId: 'S', valueLength: 1 }; });
+
+        await callables.savePlatformAlertToken(REQUEST({ token: TOKEN }));
+
+        expect(mockInbox.ensureWebhook).toHaveBeenCalledWith(TOKEN);
+        expect(order).toEqual(['webhook', 'store']);
+        expect(mockInbox.clearInbox).toHaveBeenCalled();
+    });
+
+    it('never stores a bot another service already receives', async () => {
+        mockInbox.ensureWebhook.mockRejectedValue(new TelegramError('webhook_set', 'This bot sends its updates to another service.'));
+
+        await expect(callables.savePlatformAlertToken(REQUEST({ token: TOKEN })))
+            .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringMatching(/connected to another service/) });
+        expect(mockSettings.writeBotToken).not.toHaveBeenCalled();
+    });
+
+    it('stops the replaced bot posting here, and a revoked old token does not fail the save', async () => {
+        const OLD = `${'2'.repeat(9)}:${'o'.repeat(35)}`;
+        mockSettings.readBotToken.mockResolvedValue(OLD);
+        mockTelegram.deleteWebhook.mockRejectedValue(new TelegramError('token_rejected', 'Telegram refused the request (401).'));
+
+        await expect(callables.savePlatformAlertToken(REQUEST({ token: TOKEN }))).resolves.toEqual({ bot: { username: 'safehaul_alerts_bot' } });
+        expect(mockTelegram.deleteWebhook).toHaveBeenCalledWith(OLD);
+
+        // Saving the same token again keeps its own webhook.
+        mockTelegram.deleteWebhook.mockClear();
+        mockSettings.readBotToken.mockResolvedValue(TOKEN);
+        await callables.savePlatformAlertToken(REQUEST({ token: TOKEN }));
+        expect(mockTelegram.deleteWebhook).not.toHaveBeenCalled();
+    });
+
+    it('stops the replaced bot posting here even when saving the rest fails, as a retry could not', async () => {
+        const OLD = `${'2'.repeat(9)}:${'o'.repeat(35)}`;
+        mockSettings.readBotToken.mockResolvedValue(OLD);
+        mockSettings.replaceSettings.mockRejectedValue(Object.assign(new Error('unavailable'), { code: 14 }));
+
+        await expect(callables.savePlatformAlertToken(REQUEST({ token: TOKEN }))).rejects.toBeDefined();
+        expect(mockTelegram.deleteWebhook).toHaveBeenCalledWith(OLD);
     });
 });
 
@@ -128,13 +184,16 @@ describe('connecting the chat', () => {
     const MINUTE = 60 * 1000;
     const LATER = new Date(Date.now() + 10 * MINUTE).toISOString();
     const EARLIER = new Date(Date.now() - MINUTE).toISOString();
-    const withPending = (pendingStart) => ({ telegram: { botUsername: 'safehaul_alerts_bot', pendingStart } });
+    // A connection whose bot is already pointed at the webhook, as every one is after its first press.
+    const HERE = { botUsername: 'safehaul_alerts_bot', webhookSetAt: '2026-10-25T09:00:00.000Z' };
+    const withPending = (pendingStart) => ({ telegram: { ...HERE, pendingStart } });
+    const FROM_INBOX = { readInbox: expect.any(Function) };
     const NOT_YET = { chat: null, strayStart: false };
     const CHECK = () => REQUEST({ checkOnly: true });
 
     beforeEach(() => {
         mockSettings.readBotToken.mockResolvedValue(TOKEN);
-        mockSettings.readSettings.mockResolvedValue({ telegram: { botUsername: 'safehaul_alerts_bot' } });
+        mockSettings.readSettings.mockResolvedValue({ telegram: HERE });
     });
 
     it('asks for the token first', async () => {
@@ -162,11 +221,11 @@ describe('connecting the chat', () => {
 
         expect(mockTelegram.startsOnLink).toHaveBeenCalledWith(TOKEN, {
             code: 'CODE123', createdAt: Date.parse(createdAt), expiresAt: Date.parse(LATER),
-        });
+        }, FROM_INBOX);
         expect(mockTelegram.sendMessage).toHaveBeenCalledWith(TOKEN, 222, expect.stringMatching(/уведомления подключены/));
         const [patch] = mockSettings.replaceSettings.mock.calls[0];
         expect(patch.telegram).toEqual({
-            botUsername: 'safehaul_alerts_bot', chatId: 222, chatTitle: 'Dana Alvarez', connectedAt: expect.any(String),
+            ...HERE, chatId: 222, chatTitle: 'Dana Alvarez', approverId: null, approverName: null, connectedAt: expect.any(String),
         });
         // A new destination starts from "all well", so it hears about anything already down.
         expect(patch.watch).toEqual({});
@@ -181,7 +240,7 @@ describe('connecting the chat', () => {
 
         expect(mockTelegram.startsOnLink).toHaveBeenCalledWith(TOKEN, {
             code: 'CODE123', createdAt: Date.parse(LATER) - 15 * MINUTE, expiresAt: Date.parse(LATER),
-        });
+        }, FROM_INBOX);
     });
 
     it('keeps the same link while nobody has pressed Start on it', async () => {
@@ -211,7 +270,7 @@ describe('connecting the chat', () => {
 
         const response = await callables.connectPlatformAlertChat(REQUEST());
 
-        expect(mockTelegram.startsOnLink).toHaveBeenCalledWith(TOKEN, expect.objectContaining({ code: 'CODE123' }));
+        expect(mockTelegram.startsOnLink).toHaveBeenCalledWith(TOKEN, expect.objectContaining({ code: 'CODE123' }), FROM_INBOX);
         expect(response).toEqual({ chat: { title: 'Dana Alvarez' } });
         expect(mockSettings.replaceSettings.mock.calls[0][0].telegram).not.toHaveProperty('pendingStart');
     });
@@ -234,6 +293,82 @@ describe('connecting the chat', () => {
 
         expect(mockTelegram.startsOnLink).not.toHaveBeenCalled();
         expect(response.pending.link).not.toContain('CODE123');
+    });
+
+    it('keeps the person who pressed Start as the one the bot trusts', async () => {
+        mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
+        mockTelegram.startsOnLink.mockResolvedValue({
+            chat: { id: 222, title: 'Dispatch', by: { id: 9001, name: 'Dana Alvarez' } }, strayStart: false,
+        });
+
+        const response = await callables.connectPlatformAlertChat(REQUEST());
+
+        expect(mockSettings.replaceSettings.mock.calls[0][0].telegram)
+            .toMatchObject({ chatId: 222, approverId: 9001, approverName: 'Dana Alvarez' });
+        // Neither id leaves the server.
+        expect(JSON.stringify(response)).not.toMatch(/9001|222/);
+    });
+
+    describe('for a connection made before the webhook', () => {
+        const BEFORE = (extra = {}) => ({ telegram: { botUsername: 'safehaul_alerts_bot', ...extra } });
+
+        it('a press points the bot here, notes it, then hands out the link', async () => {
+            mockSettings.readSettings.mockResolvedValue(BEFORE());
+
+            const response = await callables.connectPlatformAlertChat(REQUEST());
+
+            expect(mockInbox.ensureWebhook).toHaveBeenCalledWith(TOKEN);
+            expect(mockSettings.replaceSettings.mock.calls[0][0]).toEqual({
+                telegram: { botUsername: 'safehaul_alerts_bot', webhookSetAt: expect.any(String) },
+            });
+            const last = mockSettings.replaceSettings.mock.calls.at(-1)[0].telegram;
+            expect(last).toMatchObject({ webhookSetAt: expect.any(String), pendingStart: { code: expect.any(String) } });
+            expect(response.pending.link).toContain('?start=');
+        });
+
+        it('a link handed out before still connects: a press reads the inbox, the page\'s own check the bot\'s queue', async () => {
+            mockSettings.readSettings.mockResolvedValue(BEFORE({ pendingStart: { code: 'CODE123', expiresAt: LATER } }));
+            mockTelegram.startsOnLink.mockResolvedValue(NOT_YET);
+
+            await callables.connectPlatformAlertChat(CHECK());
+            expect(mockInbox.ensureWebhook).not.toHaveBeenCalled();
+            expect(mockTelegram.startsOnLink).toHaveBeenLastCalledWith(TOKEN, expect.objectContaining({ code: 'CODE123' }));
+
+            await callables.connectPlatformAlertChat(REQUEST());
+            expect(mockTelegram.startsOnLink).toHaveBeenLastCalledWith(TOKEN, expect.objectContaining({ code: 'CODE123' }), FROM_INBOX);
+        });
+
+        it('points the bot back at its own queue, Starts kept, when the note cannot be saved', async () => {
+            mockSettings.readSettings.mockResolvedValue(BEFORE());
+            mockSettings.replaceSettings.mockRejectedValue(Object.assign(new Error('unavailable'), { code: 14 }));
+
+            await expect(callables.connectPlatformAlertChat(REQUEST())).rejects.toBeDefined();
+            expect(mockTelegram.deleteWebhook).toHaveBeenCalledWith(TOKEN, undefined, { keepPending: true });
+        });
+
+        it('leaves the webhook alone when another press noted it meanwhile, or the note cannot be read', async () => {
+            mockSettings.readSettings
+                .mockResolvedValueOnce(BEFORE())
+                .mockResolvedValueOnce(BEFORE({ webhookSetAt: '2026-10-25T11:00:00.000Z' }));
+            mockSettings.replaceSettings.mockRejectedValue(Object.assign(new Error('aborted'), { code: 10 }));
+            await expect(callables.connectPlatformAlertChat(REQUEST())).rejects.toBeDefined();
+
+            mockSettings.readSettings
+                .mockResolvedValueOnce(BEFORE())
+                .mockRejectedValueOnce(Object.assign(new Error('unavailable'), { code: 14 }));
+            await expect(callables.connectPlatformAlertChat(REQUEST())).rejects.toBeDefined();
+
+            expect(mockTelegram.deleteWebhook).not.toHaveBeenCalled();
+        });
+
+        it('refuses, in the operator\'s words, a bot another service receives', async () => {
+            mockSettings.readSettings.mockResolvedValue(BEFORE());
+            mockInbox.ensureWebhook.mockRejectedValue(new TelegramError('webhook_set', 'This bot sends its updates to another service.'));
+
+            await expect(callables.connectPlatformAlertChat(REQUEST()))
+                .rejects.toMatchObject({ message: expect.stringMatching(/connected to another service/) });
+            expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
+        });
     });
 
     describe('when the page checks by itself', () => {
@@ -271,7 +406,7 @@ describe('connecting the chat', () => {
             mockTelegram.startsOnLink.mockResolvedValue(NOT_YET);
 
             await expect(callables.connectPlatformAlertChat(CHECK())).resolves.toEqual({ pending: null });
-            mockSettings.readSettings.mockResolvedValue({ telegram: { botUsername: 'safehaul_alerts_bot' } });
+            mockSettings.readSettings.mockResolvedValue({ telegram: HERE });
             await expect(callables.connectPlatformAlertChat(CHECK())).resolves.toEqual({ pending: null });
             expect(mockSettings.replaceSettings).not.toHaveBeenCalled();
         });
@@ -310,7 +445,7 @@ describe('connecting the chat', () => {
         it('builds the saved connection from what the transaction read', async () => {
             mockSettings.readSettings.mockResolvedValue(withPending({ code: 'CODE123', expiresAt: LATER }));
             mockSettings.replaceSettingsIf.mockImplementation(async (stillCurrent, buildPatch) => {
-                const stored = { telegram: { botUsername: 'safehaul_alerts_bot', tokenSavedAt: 'stored', pendingStart: { code: 'CODE123' } } };
+                const stored = { telegram: { ...HERE, tokenSavedAt: 'stored', pendingStart: { code: 'CODE123' } } };
                 if (!stillCurrent(stored)) return false;
                 await mockSettings.replaceSettings(buildPatch(stored));
                 return true;
@@ -319,7 +454,13 @@ describe('connecting the chat', () => {
             await callables.connectPlatformAlertChat(REQUEST());
 
             expect(mockSettings.replaceSettings.mock.calls[0][0].telegram).toEqual({
-                botUsername: 'safehaul_alerts_bot', tokenSavedAt: 'stored', chatId: 222, chatTitle: 'Dana Alvarez', connectedAt: expect.any(String),
+                ...HERE,
+                tokenSavedAt: 'stored',
+                chatId: 222,
+                chatTitle: 'Dana Alvarez',
+                approverId: null,
+                approverName: null,
+                connectedAt: expect.any(String),
             });
         });
     });
@@ -346,7 +487,7 @@ describe('connecting the chat', () => {
     });
 
     describe('when the page\'s check and a press find the same Start', () => {
-        const CONNECTED = { telegram: { botUsername: 'safehaul_alerts_bot', chatId: 222, chatTitle: 'Dana Alvarez' } };
+        const CONNECTED = { telegram: { ...HERE, chatId: 222, chatTitle: 'Dana Alvarez' } };
 
         it('answers connected to the one that comes second, with no second message', async () => {
             mockSettings.readSettings
@@ -446,11 +587,21 @@ describe('the test message and the status', () => {
 });
 
 describe('removing it all', () => {
+    it('stops the bot posting here first, and goes on if Telegram cannot be reached', async () => {
+        mockSettings.readBotToken.mockResolvedValue(TOKEN);
+        mockTelegram.deleteWebhook.mockRejectedValue(new TelegramError('unreachable', 'Telegram could not be reached.'));
+
+        await expect(callables.deletePlatformAlerts(REQUEST())).resolves.toEqual({ deleted: true });
+        expect(mockTelegram.deleteWebhook).toHaveBeenCalledWith(TOKEN);
+        expect(mockSettings.destroyBotToken).toHaveBeenCalled();
+    });
+
     it('destroys the token and forgets the chat and what the watcher saw', async () => {
         await expect(callables.deletePlatformAlerts(REQUEST())).resolves.toEqual({ deleted: true });
 
         expect(mockSettings.destroyBotToken).toHaveBeenCalled();
         expect(mockSettings.replaceSettings).toHaveBeenCalledWith({ telegram: {}, watch: {} });
+        expect(mockInbox.clearInbox).toHaveBeenCalled();
         expect(mockGuards.guardPrivileged).toHaveBeenCalledWith(expect.anything(), 'mutate', 'delete', expect.any(Object));
     });
 });

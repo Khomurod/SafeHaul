@@ -154,6 +154,67 @@ describe('finding the operator\'s chat', () => {
     });
 });
 
+describe('a bot pointed at the webhook', () => {
+    const LINK = { code: 'CODE123', createdAt: 0, expiresAt: Date.parse('2030-01-01T00:00:00Z') };
+    const start = (from) => ({
+        update_id: 7,
+        message: { date: 1000, text: '/start CODE123', chat: { id: 222, type: 'private', first_name: 'Dana' }, ...(from ? { from } : {}) },
+    });
+
+    it('reads the inbox instead of the bot\'s own queue, and never calls Telegram for it', async () => {
+        const fetchImpl = respond(200, { ok: true, result: [] });
+        const readInbox = jest.fn(async () => [start({ id: 9001, first_name: 'Dana', last_name: 'Alvarez' })]);
+
+        await expect(telegram.startsOnLink(TOKEN, LINK, { fetchImpl, readInbox })).resolves.toEqual({
+            chat: { id: 222, title: 'Dana', by: { id: 9001, name: 'Dana Alvarez' } }, strayStart: false,
+        });
+        expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it('names the person who pressed Start by username when that is all Telegram gives', () => {
+        expect(telegram.startsIn([start({ id: 9001, username: 'dana_dispatch' })], LINK).chat.by)
+            .toEqual({ id: 9001, name: '@dana_dispatch' });
+        expect(telegram.startsIn([start({ id: 'not-a-number' })], LINK).chat).not.toHaveProperty('by');
+    });
+
+    it('points the bot at the URL with the secret, for messages and button presses', async () => {
+        const fetchImpl = jest.fn(async (url) => ({
+            ok: true, status: 200, json: async () => ({ ok: true, result: url.endsWith('/getWebhookInfo') ? { url: '' } : true }),
+        }));
+        await telegram.setWebhook(TOKEN, 'https://example.invalid/telegramWebhook', 'f'.repeat(64), { fetchImpl });
+
+        const [url, options] = fetchImpl.mock.calls[1];
+        expect(url.endsWith('/setWebhook')).toBe(true);
+        expect(JSON.parse(options.body)).toEqual({
+            url: 'https://example.invalid/telegramWebhook',
+            secret_token: 'f'.repeat(64),
+            allowed_updates: ['message', 'callback_query'],
+            max_connections: 5,
+        });
+    });
+
+    it('leaves a bot another service receives alone', async () => {
+        const fetchImpl = respond(200, { ok: true, result: { url: 'https://other.invalid/hook' } });
+        await expect(telegram.setWebhook(TOKEN, 'https://example.invalid/telegramWebhook', 'f'.repeat(64), { fetchImpl }))
+            .rejects.toMatchObject({ code: 'webhook_set' });
+        expect(fetchImpl).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-points a bot already pointed here, which also renews the secret', async () => {
+        const fetchImpl = respond(200, { ok: true, result: { url: 'https://example.invalid/telegramWebhook' } });
+        await telegram.setWebhook(TOKEN, 'https://example.invalid/telegramWebhook', 'f'.repeat(64), { fetchImpl });
+        expect(fetchImpl.mock.calls.map(([url]) => url.split('/').pop())).toEqual(['getWebhookInfo', 'setWebhook']);
+    });
+
+    it('removes the webhook dropping what it held, or keeping it when asked', async () => {
+        const fetchImpl = respond(200, { ok: true, result: true });
+        await telegram.deleteWebhook(TOKEN, { fetchImpl });
+        await telegram.deleteWebhook(TOKEN, { fetchImpl }, { keepPending: true });
+        expect(fetchImpl.mock.calls.map(([, options]) => JSON.parse(options.body)))
+            .toEqual([{ drop_pending_updates: true }, { drop_pending_updates: false }]);
+    });
+});
+
 describe('sendMessage', () => {
     it('sends plain text within Telegram\'s limit, with no link previews', async () => {
         const fetchImpl = respond(200, { ok: true, result: {} });

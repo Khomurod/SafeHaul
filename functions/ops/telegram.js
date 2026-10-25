@@ -2,7 +2,7 @@
  * The Telegram Bot API, for SafeHaul's own alerts to its operator.
  *
  * Built fresh, as `functions/index.js` rules for anything Telegram: the bot the
- * retired landing page used is not restored. Three methods, a ten-second
+ * retired landing page used is not restored. A few methods, a ten-second
  * timeout, and one rule above the others. The bot token travels in the URL
  * path, and Node attaches the URL to a failed fetch's error, so nothing here
  * ever returns, throws or logs a URL, a fetch error or Telegram's own text.
@@ -111,6 +111,12 @@ async function latestUpdates(token, deps) {
     }
 }
 
+/** A person as Telegram names them, for the console. */
+function personName(user) {
+    const name = [user?.first_name, user?.last_name].filter(Boolean).join(' ');
+    return name || (user?.username ? `@${user.username}` : 'Telegram user');
+}
+
 /**
  * What the bot heard about a one-time Start link: the chat that pressed Start on
  * it while it was valid, and whether a Start without it arrived after it was
@@ -124,15 +130,18 @@ async function latestUpdates(token, deps) {
  * "/start" either way, so a Start without the code (the bot opened from search,
  * "/start" typed, an older link) is reported rather than silently ignored.
  *
- * @param {string} token
+ * The chat carries `by`, the person who pressed it, when Telegram names one:
+ * only they hold the console's link, so they are the one the console trusts.
+ *
+ * @param {Array<object>} updates Telegram updates, newest last
  * @param {{ code: string, createdAt: number, expiresAt: number }} link times in ms
- * @returns {Promise<{ chat: ({ id: (number|string), title: string }|null), strayStart: boolean }>}
+ * @returns {{ chat: ({ id: (number|string), title: string, by?: { id: number, name: string } }|null), strayStart: boolean }}
  */
-async function startsOnLink(token, link, deps) {
+function startsIn(updates, link) {
     if (!link?.code) return { chat: null, strayStart: false };
     let chat = null;
     let strayStart = false;
-    for (const update of await latestUpdates(token, deps)) {
+    for (const update of updates) {
         const message = update?.message;
         const [command, payload, extra] = String(message?.text || '').trim().split(/\s+/);
         if (!/^\/start(?:@\w+)?$/.test(command)) continue;
@@ -140,12 +149,25 @@ async function startsOnLink(token, link, deps) {
         const sentAt = Number.isFinite(message?.date) ? message.date * 1000 : Date.now();
         const chatId = message?.chat?.id;
         if (payload === link.code && extra === undefined && (typeof chatId === 'number' || typeof chatId === 'string')) {
-            if (sentAt <= link.expiresAt) chat = { id: chatId, title: chatTitle(message.chat) };
+            if (sentAt <= link.expiresAt) {
+                const by = Number.isSafeInteger(message.from?.id) ? { id: message.from.id, name: personName(message.from) } : null;
+                chat = { id: chatId, title: chatTitle(message.chat), ...(by ? { by } : {}) };
+            }
         } else if (sentAt >= link.createdAt) {
             strayStart = true;
         }
     }
     return { chat, strayStart };
+}
+
+/**
+ * `startsIn` over what the bot received: the webhook's inbox when
+ * `deps.readInbox` is given, else the bot's own queue (a bot no webhook takes).
+ */
+async function startsOnLink(token, link, deps) {
+    if (!link?.code) return { chat: null, strayStart: false };
+    const updates = deps?.readInbox ? await deps.readInbox() : await latestUpdates(token, deps);
+    return startsIn(updates, link);
 }
 
 async function sendMessage(token, chatId, text, deps) {
@@ -156,12 +178,41 @@ async function sendMessage(token, chatId, text, deps) {
     }, deps);
 }
 
+/**
+ * Points the bot's updates at `url`, signed with `secret` in the
+ * `X-Telegram-Bot-Api-Secret-Token` header. A bot whose webhook already goes
+ * elsewhere belongs to another service and is left alone (`webhook_set`).
+ */
+async function setWebhook(token, url, secret, deps) {
+    const current = await callTelegram(token, 'getWebhookInfo', {}, deps);
+    if (current?.url && current.url !== url) {
+        throw new TelegramError('webhook_set', 'This bot sends its updates to another service.');
+    }
+    await callTelegram(token, 'setWebhook', {
+        url,
+        secret_token: secret,
+        allowed_updates: ['message', 'callback_query'],
+        max_connections: 5,
+    }, deps);
+}
+
+/**
+ * Stops the bot sending its updates here. Pending ones are dropped (nobody will
+ * read them), unless `keepPending`: then the bot's own queue still holds them.
+ */
+async function deleteWebhook(token, deps, { keepPending = false } = {}) {
+    await callTelegram(token, 'deleteWebhook', { drop_pending_updates: !keepPending }, deps);
+}
+
 module.exports = {
     TOKEN_PATTERN,
     MAX_MESSAGE_CHARS,
     TelegramError,
     callTelegram,
     getBot,
+    startsIn,
     startsOnLink,
     sendMessage,
+    setWebhook,
+    deleteWebhook,
 };
