@@ -1004,9 +1004,9 @@ compared in constant time; SHA-1 alone is refused.
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
-| `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the Telegram chat when a check goes down and recovers; runs without a chat too |
+| `watchAiAndBlog` | hourly at :40, America/Chicago | Probes each AI lane (photos, text) through the router and checks the blog has an article from yesterday or today; tells the Telegram chat when a check goes down and recovers |
 | `refreshAiModelLists` | hourly at :25, America/Chicago | Daily and after a lane failure: re-tests enabled providers' versions (photos on a made-up licence, text on a question), keeps or adds those that pass, never empties a lane; tells Telegram what changed |
-| `offerProductionRelease` | every 10 min | Offers a new eligible Testing release in the alert chat, with a Release button |
+| `offerProductionRelease` | every 10 min | Offers a new eligible Testing release in the alert chat with a Release button; reports the outcome |
 | Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is live and opens/closes a GitHub issue |
 
 The blog publishes one article a day; the hourly scheduler is idempotent,

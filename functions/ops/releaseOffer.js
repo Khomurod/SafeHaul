@@ -8,7 +8,8 @@
  * for it: what changed since Production, the pre-release checklist, and two
  * buttons, "Выпустить на app.safehaul.io" and "Не сейчас". The presses are
  * handled by `./releaseButtons.js`. One message per release: a newer one takes
- * the older message's buttons away.
+ * the older message's buttons away. While a release the owner started runs,
+ * each run follows it instead and says how it ended (`./releaseFollow.js`).
  *
  * Nothing is offered until a chat is connected and the person who connected it
  * (`approverId`) is known, and none while the release credential is missing.
@@ -22,6 +23,7 @@ const { readReleaseStatus } = require('../releaseManagement/eligibility');
 const { SECRET_NAMES, createReleaseApi, isCredentialConfigured } = require('../releaseManagement/github');
 const settings = require('./alertSettings');
 const telegram = require('./telegram');
+const { followRelease } = require('./releaseFollow');
 
 const OFFER_PATH = Object.freeze(['system_jobs', 'releaseOffer']);
 const PRODUCTION_HOST = 'app.safehaul.io';
@@ -82,7 +84,7 @@ function offerText(sha, changes) {
 /**
  * Sends the offer for the release Testing serves, once, if there is one to make.
  *
- * @returns {Promise<{ offered?: string, skipped?: string }>}
+ * @returns {Promise<{ offered?: string, skipped?: string, followed?: string }>}
  */
 async function offerLatestRelease({ api }) {
     const { telegram: connection = {} } = await settings.readSettings();
@@ -92,14 +94,18 @@ async function offerLatestRelease({ api }) {
     const token = await settings.readBotToken();
     if (!token) return { skipped: 'no-token' };
 
+    const offer = await readOffer();
+    // A release in flight finishes, and is reported, before the next is offered.
+    if (offer?.status === 'releasing') {
+        const outcome = await followRelease({ token, offer, offerRef: offerRef() });
+        if (outcome === 'waiting') return { skipped: 'releasing' };
+        return { followed: outcome };
+    }
+
     const state = await readReleaseStatus({ api });
     const sha = state.testing?.eligible ? state.testing.sha : null;
     if (!SHA.test(String(sha || '')) || sha === state.production?.sha) return { skipped: 'nothing-new' };
-
-    const offer = await readOffer();
     if (offer?.sha === sha) return { skipped: 'offered' };
-    // A release in flight finishes before the next is offered.
-    if (offer?.status === 'releasing') return { skipped: 'releasing' };
 
     const changes = await changesSince(api, state.production?.sha, sha).catch(() => []);
     const text = offerText(sha, changes);
