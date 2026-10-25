@@ -12,6 +12,7 @@ import React, { useState } from 'react';
 import { Icon, User, MapPin, Phone, Mail, CreditCard, Truck, AlertTriangle, CheckCircle, Eye, EyeOff, PenTool } from '@design-system/icons';
 import { formatDate } from '@shared/utils/helpers';
 import { formatIsoDateUs, formatMonthYearUs } from '@shared/utils/dateFormHelpers';
+import { signedDayOf } from '@shared/legal/previousEmployerRelease';
 import { Badge, Card, IconButton, Link, Notice } from '@/design-system/components';
 
 /** Safely convert Firestore Timestamps, ISO strings, or epoch values to a Date (or null). */
@@ -416,7 +417,9 @@ function InfoRow({ label, value }) {
 
 function ConsentCard({ appData }) {
     const signature = appData.signature;
-    const signatureDate = appData.signatureDate || appData['signature-date'];
+    // The signer's own calendar day where recorded (`signedDayOf`), else the stored date.
+    const signedDay = appData.signatureDate ? signedDayOf(appData) : null;
+    const signatureDate = signedDay?.local ? signedDay.iso : (appData.signatureDate || appData['signature-date']);
     const agreements = [
         { key: 'agree-electronic', label: 'Electronic Transaction Consent' },
         { key: 'agree-background-check', label: 'Background Check Authorization' },

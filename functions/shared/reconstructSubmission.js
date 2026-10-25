@@ -57,7 +57,7 @@ const NON_ANSWER_KEYS = new Set([
     'id', 'applicantId', 'applicationId', 'driverId', 'userId', 'companyId', 'companyName',
     'applicantKey', 'applicantKeyFull', 'confirmationNumber', 'status', 'atsStatus',
     'createdAt', 'updatedAt', 'submittedAt', 'lastActivityAt', 'assignedTo',
-    'signature', 'signatureDate', 'signatureType', 'submissionRecord',
+    'signature', 'signatureDate', 'signatureDay', 'signatureType', 'submissionRecord',
     'hasPendingCompanyChanges', 'searchFields', 'source', 'sourceMeta',
     'agreementAcceptances', 'submissionAttemptId',
 ]);

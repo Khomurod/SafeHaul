@@ -266,6 +266,28 @@ describe('Step9_Consent', () => {
         expect(screen.queryByRole('button', { name: /Save Signature/ })).not.toBeInTheDocument();
     });
 
+    it('dates the signature with the instant and the signer\'s own calendar day', async () => {
+        const updates = [];
+        function Recording() {
+            const [formData, setFormData] = useState({});
+            return (
+                <Step9_Consent
+                    formData={formData}
+                    updateFormData={(key, value) => { updates.push([key, value]); setFormData((p) => ({ ...p, [key]: value })); }}
+                    onNavigate={vi.fn()} onFinalSubmit={vi.fn()} isSubmitting={false} isUploading={false}
+                />
+            );
+        }
+        render(<Recording />);
+        await acceptAll();
+        await endStroke();
+
+        const stamped = (key) => updates.filter(([k]) => k === key).at(-1)?.[1];
+        const at = new Date(stamped('signatureDate'));
+        const pad2 = (value) => String(value).padStart(2, '0');
+        expect(stamped('signatureDay')).toBe(`${at.getFullYear()}-${pad2(at.getMonth() + 1)}-${pad2(at.getDate())}`);
+    });
+
     it('does not take a stroke too small to read for a signature', async () => {
         render(<Harness />);
         await acceptAll();

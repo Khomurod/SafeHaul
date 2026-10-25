@@ -79,6 +79,11 @@ describe('VOEPreviewModal legal text and ordering', () => {
     expect(doc).not.toHaveTextContent('Signed electronically with the application');
   });
 
+  it('dates the authorization by the signer\'s own calendar day, not the UTC day', () => {
+    renderModal({ applicant: { ...APPLICANT, 'signature-date': undefined, signatureDate: '2026-08-04T03:00:00.000Z', signatureDay: '2026-08-03' } });
+    expect(authorizationDate()).toHaveTextContent('08/03/2026');
+  });
+
   it('dates the authorization from the submission when that is all that dates the signature', () => {
     renderModal({ applicant: { ...APPLICANT, 'signature-date': undefined, signatureDate: undefined, submittedAt: '2026-08-03T15:00:00.000Z' } });
     const doc = documentNode();

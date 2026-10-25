@@ -33,7 +33,8 @@ const E2E_SIGNATURE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAH
  *
  * PRESERVED DELIBERATELY: the full CERTIFICATION OF APPLICANT text including the
  * 49 CFR 391.23 rights list; the `final-certification` `'agreed'` / `''` values;
- * drawn vs typed `signatureType`; the `signatureDate` ISO stamp; the
+ * drawn vs typed `signatureType`; the `signatureDate` ISO stamp, now with
+ * `signatureDay`, the signer's own calendar day the documents print; the
  * `dataUrl.length < 100` blank-canvas guard; the `isE2ETestMode`-only
  * test-signature control; and the legacy `agree-*` keys, which the recruiter
  * dossier still reads to display authorization status.
@@ -78,6 +79,17 @@ const LEGACY_ACCEPTANCE_KEYS = {
  * 49 CFR 391.21(b)(12), word for word. The rule prescribes this sentence and puts
  * it, with the signature line, "at the end of the application form".
  */
+/**
+ * When the signature was given: the instant, and the day on the signer's own
+ * calendar (`signatureDay`, `YYYY-MM-DD`), which the documents print
+ * (`signedDayOf` in `@shared/legal/previousEmployerRelease`).
+ */
+function stampSignedAt(updateFormData, now = new Date()) {
+    const pad = (value) => String(value).padStart(2, '0');
+    updateFormData('signatureDate', now.toISOString());
+    updateFormData('signatureDay', `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`);
+}
+
 const CERTIFICATION_STATEMENT = 'This certifies that this application was completed by me, and that all entries on it and information in it are true and complete to the best of my knowledge.';
 
 const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, isSubmitting, isUploading }) => {
@@ -170,7 +182,7 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
         if (!dataUrl || dataUrl.length < 100) return;
         updateFormData('signature', dataUrl);
         updateFormData('signatureType', 'drawn');
-        updateFormData('signatureDate', new Date().toISOString());
+        stampSignedAt(updateFormData);
     };
     useEffect(() => {
         if (!onSignaturePage) return;
@@ -235,7 +247,7 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
         drawSignature(E2E_SIGNATURE_DATA_URL);
         updateFormData('signature', E2E_SIGNATURE_DATA_URL);
         updateFormData('signatureType', 'typed');
-        updateFormData('signatureDate', new Date().toISOString());
+        stampSignedAt(updateFormData);
     };
 
     // What still keeps Submit grey, in the order the page asks for it.

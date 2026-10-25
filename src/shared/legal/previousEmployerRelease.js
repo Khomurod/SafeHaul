@@ -47,11 +47,37 @@ function signedAtOf(application) {
     return null;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * The calendar day the applicant signed on, `YYYY-MM-DD`, and whether it is
+ * their own. The consent step records `signatureDay`, the day on the signer's
+ * device as they signed (`Step9_Consent.jsx`); no time zone puts it more than a
+ * day from the signing instant's UTC day, so one further away, or none (an
+ * application signed before it was recorded), is dated by the instant in UTC.
+ *
+ * @returns {{ iso: string, local: boolean } | null}
+ */
+export function signedDayOf(application) {
+    const signedAt = signedAtOf(application);
+    if (signedAt === null) return null;
+    const utc = new Date(signedAt).toISOString().slice(0, 10);
+    const match = ISO_DAY.exec(String(application?.signatureDay || ''));
+    if (match) {
+        const ms = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        const real = new Date(ms).toISOString().slice(0, 10) === match[0];
+        if (real && Math.abs(ms - Date.parse(`${utc}T00:00:00Z`)) <= DAY_MS) return { iso: match[0], local: true };
+    }
+    return { iso: utc, local: false };
+}
+
 /**
  * The applicant's release on this application.
  *
  * @returns {{ status: 'signed' | 'unsigned' | 'predates-wording' | 'undated',
- *   signedAt: number | null, drawnImage: string | null, typedName: string | null }}
+ *   signedAt: number | null, drawnImage: string | null, typedName: string | null,
+ *   signedDay?: { iso: string, local: boolean } }} `signedDay` when signed
  */
 export function releaseOf(application) {
     const raw = typeof application?.signature === 'string' ? application.signature.trim() : '';
@@ -63,7 +89,7 @@ export function releaseOf(application) {
     if (!typedName && !drawnImage) return { ...base, status: 'unsigned' };
     if (signedAt === null) return { ...base, status: 'undated' };
     if (signedAt < RELEASE_WORDING_SINCE) return { ...base, status: 'predates-wording' };
-    return { status: 'signed', signedAt, drawnImage, typedName };
+    return { status: 'signed', signedAt, signedDay: signedDayOf(application), drawnImage, typedName };
 }
 
 /** Why no signed release is shown, for each status that has none. */

@@ -70,6 +70,17 @@ describe('PEV request PDF', () => {
         expect(text).toContain('Signed electronically (drawn) on 09/01/2026 (UTC)');
     });
 
+    it('dates the signature by the applicant\'s own calendar day where the application records it', async () => {
+        await build({ signature: DRAWN, signatureDate: '2026-09-01T03:00:00Z', signatureDay: '2026-08-31' });
+        expect(printed()).toContain('Signed electronically (drawn) on 08/31/2026, ');
+        expect(printed()).not.toContain('(UTC)');
+    });
+
+    it('dates it by the instant in UTC, and says so, when the recorded day cannot be the signer\'s', async () => {
+        await build({ signature: DRAWN, signatureDate: '2026-09-01T03:00:00Z', signatureDay: '2026-08-20' });
+        expect(printed()).toContain('Signed electronically (drawn) on 09/01/2026 (UTC)');
+    });
+
     it('shows the SSN as its last four digits only, and never a portal link', async () => {
         await build({ ssn: '123-45-6789', signature: DRAWN, signatureDate: '2026-09-01T15:00:00Z' });
         const text = printed();

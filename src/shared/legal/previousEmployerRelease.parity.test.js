@@ -38,8 +38,24 @@ describe('previous-employer release parity', () => {
         ['undated', { signature: 'TEXT_SIGNATURE:Jane' }],
         ['created but not dated', { signature: 'TEXT_SIGNATURE:Jane', createdAt: '2026-09-01T00:00:00Z' }],
         ['unsigned', { signatureDate: '2026-09-01T00:00:00Z' }],
+        ['signed in the evening, west of UTC', { signature: 'TEXT_SIGNATURE:Jane', signatureDate: '2026-09-01T03:00:00Z', signatureDay: '2026-08-31' }],
+        ['a recorded day too far from the instant', { signature: 'TEXT_SIGNATURE:Jane', signatureDate: '2026-09-01T03:00:00Z', signatureDay: '2026-08-29' }],
+        ['a recorded day that is not a date', { signature: 'TEXT_SIGNATURE:Jane', signatureDate: '2026-09-01T03:00:00Z', signatureDay: '2026-02-30' }],
         ['a link, not a signature', { signature: 'https://example.test/s.png', signatureDate: '2026-09-01T00:00:00Z' }],
     ])('decides as the server does: %s', (_name, application) => {
         expect(site.releaseOf(application)).toEqual(server.releaseOf(application));
+        expect(site.signedDayOf(application)).toEqual(server.signedDayOf(application));
+    });
+
+    it.each([
+        ['the signer\'s own day', '2026-08-31', { iso: '2026-08-31', local: true }],
+        ['a day east of UTC', '2026-09-01', { iso: '2026-09-01', local: true }],
+        ['two days off, which no time zone is', '2026-08-30', { iso: '2026-09-01', local: false }],
+        ['not a calendar date', '2026-02-30', { iso: '2026-09-01', local: false }],
+        ['none recorded', undefined, { iso: '2026-09-01', local: false }],
+    ])('dates the signature by %s', (_name, signatureDay, expected) => {
+        const application = { signature: 'TEXT_SIGNATURE:Jane', signatureDate: '2026-09-01T03:00:00Z', signatureDay };
+        expect(site.signedDayOf(application)).toEqual(expected);
+        expect(site.releaseOf(application).signedDay).toEqual(expected);
     });
 });
