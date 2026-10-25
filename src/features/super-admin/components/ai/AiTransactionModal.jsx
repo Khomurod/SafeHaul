@@ -125,6 +125,7 @@ export function AiTransactionModal({ entry, onClose }) {
                                                 </div>
 
                                                 <dl className="mt-ds-2 flex flex-wrap gap-x-ds-4 gap-y-ds-1 text-ds-xs text-ds-content-secondary">
+                                                    {attempt.probe && <MetaItem term="Probe" value={attempt.probe} />}
                                                     {attempt.model && <MetaItem term="Model" value={attempt.model} />}
                                                     {Number.isFinite(attempt.latencyMs) && (
                                                         <MetaItem term="Took" value={formatDuration(attempt.latencyMs)} />

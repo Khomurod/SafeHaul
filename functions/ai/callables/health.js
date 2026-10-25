@@ -14,6 +14,17 @@ const { randomUUID } = require('node:crypto');
 const { testProviderConnection, PROBE_STATUS } = require('../tasks/healthCheck');
 const { recordAiTelemetry } = require('../telemetry/record');
 
+const TELEMETRY_WAIT_MS = 5000;
+
+/** Waits for `promise` (which never rejects) or `ms`, whichever comes first. */
+function waitAtMost(promise, ms) {
+    let timer;
+    return Promise.race([
+        promise,
+        new Promise((resolve) => { timer = setTimeout(resolve, ms); }),
+    ]).finally(() => clearTimeout(timer));
+}
+
 /**
  * The operator's Test, as one row of the Logs tab's Connection tests, marked
  * `manual`. Only the log: provider health stays the router's, which counts real
@@ -36,6 +47,7 @@ function recordManualTest(provider, result) {
         attempts: ran.map((probe, index) => ({
             providerId: provider.id,
             model: probe.model,
+            probe: probe.label || probe.id,
             attemptNumber: index + 1,
             status: probe.status === PROBE_STATUS.NOT_RUN ? 'skipped' : 'attempted',
             skipReason: probe.status === PROBE_STATUS.NOT_RUN ? 'not_run' : null,
@@ -69,8 +81,10 @@ exports.testAiProvider = onCall({
     try {
         const provider = requireRegisteredProvider(providerId, 'read');
         const result = await testProviderConnection(provider.id);
-        // Never throws: a log row that cannot be written does not fail the test.
-        await recordManualTest(provider, result);
+        // Never throws: a log row that cannot be written does not fail the test,
+        // and one that stalls is not waited for past a few seconds, so the probes'
+        // budget (`HEALTH_TOTAL_BUDGET_MS`) still leaves room to answer.
+        await waitAtMost(recordManualTest(provider, result), TELEMETRY_WAIT_MS);
 
         await recordAuditEvent({
             auth: request.auth,

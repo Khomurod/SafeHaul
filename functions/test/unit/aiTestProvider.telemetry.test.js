@@ -82,9 +82,9 @@ describe('testAiProvider writes one manual Connection test row', () => {
         // The skipped probe (a capability the provider does not offer) is not an
         // attempt; the one the time budget never reached is, as skipped.
         expect(row.attempts).toEqual([
-            expect.objectContaining({ attemptNumber: 1, status: 'attempted', success: true }),
+            expect.objectContaining({ attemptNumber: 1, probe: 'Text', status: 'attempted', success: true }),
             expect.objectContaining({
-                attemptNumber: 2, status: 'attempted', success: false,
+                attemptNumber: 2, probe: 'Single image', status: 'attempted', success: false,
                 category: 'model_unavailable', httpStatus: 404, vendorCode: 'model_not_found',
             }),
             expect.objectContaining({ attemptNumber: 3, status: 'skipped', skipReason: 'not_run', success: false }),
@@ -113,6 +113,19 @@ describe('testAiProvider writes one manual Connection test row', () => {
         await testAiProvider(request({ providerId: 'gemini' }));
 
         expect(mockAdd.mock.calls[0][0]).toEqual(expect.objectContaining({ outcome: 'failure', category: 'rate_limited' }));
+    });
+
+    it('answers within a few seconds of the probes when the write stalls', async () => {
+        jest.useFakeTimers();
+        try {
+            mockRecord = () => new Promise(() => {});
+            const pending = testAiProvider(request({ providerId: 'gemini' }));
+            await jest.advanceTimersByTimeAsync(5000);
+            await expect(pending).resolves.toEqual(expect.objectContaining({ providerId: 'gemini', message: RESULT.message }));
+            expect(mockAudit).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('returns the test result unchanged when the row cannot be written', async () => {

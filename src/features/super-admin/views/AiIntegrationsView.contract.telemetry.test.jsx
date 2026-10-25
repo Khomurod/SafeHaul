@@ -272,6 +272,7 @@ describe('Providers and Logs tabs', () => {
         const probe = {
             id: 't2', transactionId: '7a3b-2222', taskType: 'health_check', trigger: 'manual',
             providerId: 'gemini', outcome: 'success', latencyMs: 900, timestamp: '2026-08-17T09:20:00Z',
+            attempts: [{ providerId: 'gemini', probe: 'Single image', attemptNumber: 1, status: 'attempted', success: true }],
         };
         const watcher = { ...probe, id: 't3', transactionId: '8c4d-3333', trigger: undefined };
         stubWithLogs([probe, watcher]);
@@ -286,6 +287,8 @@ describe('Providers and Logs tabs', () => {
         fireEvent.click(within(table).getByText('Connection test (manual)'));
         const dialog = await screen.findByRole('dialog');
         expect(within(dialog).getByRole('heading', { name: 'Connection test (manual)' })).toBeTruthy();
+        // Each probe names itself: two can share a model.
+        expect(within(dialog).getByText('Single image')).toBeTruthy();
     });
 
     it('narrows by provider behind Filters, and Clear filters keeps the feature and the search', async () => {

@@ -92,6 +92,9 @@ const TRIGGERS = Object.freeze(['manual']);
 const ALLOWED_ATTEMPT_FIELDS = Object.freeze([
     'providerId',
     'model',
+    // A connection test's capability probe ("Single image"): two probes can use
+    // the same model, so provider and model alone do not say which one failed.
+    'probe',
     'attemptNumber',
     // 'attempted' | 'skipped'
     'status',
