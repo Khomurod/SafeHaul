@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, useId } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Icon, Phone, Plus, Trash2, AlertCircle, CheckCircle, User } from '@design-system/icons';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { Badge, Button, Card, IconButton } from '@/design-system/components';
+import { Badge, Button, Card, DataTable, IconButton } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { ConfirmDialog } from '@design-system/patterns';
 import { AddLineModal } from './AddLineModal';
@@ -25,8 +25,10 @@ import { AddLineModal } from './AddLineModal';
  * palette and the gradient header replaced with `--ds-*` tokens; colour-only
  * status/default pills replaced with `Badge`s carrying text + icon; the icon-only
  * remove control now has an accessible name; `text-[10px]` on the usage-type
- * chip and the security notice removed; the table sits in a named, focusable
- * scroll region so keyboard users can reach it on mobile.
+ * chip and the security notice removed.
+ *
+ * The lines are an embedded `DataTable`: the number heads each row, and on a
+ * phone each line is a card.
  */
 export function LineManager({ companyId, companyName }) {
     const { showSuccess, showError } = useToast();
@@ -39,7 +41,6 @@ export function LineManager({ companyId, companyName }) {
     // Replaces the blocking `window.confirm` on remove; holds the line awaiting
     // confirmation.
     const [pendingRemove, setPendingRemove] = useState(null);
-    const tableRegionId = useId();
 
     // Real-time listener for inventory changes
     useEffect(() => {
@@ -132,71 +133,16 @@ export function LineManager({ companyId, companyName }) {
                     </Button>
                 </div>
             ) : (
-                <div
-                    role="region"
-                    aria-labelledby={tableRegionId}
-                    tabIndex={0}
-                    className="overflow-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
-                >
-                    <table className="ds-native-table" data-pin-first-column>
-                        <caption id={tableRegionId} className="sr-only">Provisioned phone lines</caption>
-                        <thead>
-                            <tr>
-                                <th scope="col">Phone Number</th>
-                                <th scope="col">Label</th>
-                                <th scope="col" className="text-center">Status</th>
-                                <th scope="col" className="text-center">Default</th>
-                                <th scope="col" className="text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {inventory.map((line) => (
-                                <tr key={line.phoneNumber} className="transition-colors">
-                                    <th scope="row">
-                                        <span className="font-mono text-ds-sm font-medium text-ds-content">
-                                            {line.phoneNumber}
-                                        </span>
-                                    </th>
-                                    <td>
-                                        <span className="text-ds-sm text-ds-content-secondary">
-                                            {line.label || '-'}
-                                        </span>
-                                        {line.usageType && (
-                                            <span className="ml-ds-2 inline-flex align-middle">
-                                                <Badge tone="neutral">{line.usageType}</Badge>
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="text-center">
-                                        {line.status === 'active' ? (
-                                            <Badge tone="success" icon={CheckCircle}>Active</Badge>
-                                        ) : (
-                                            <Badge tone="warning" icon={AlertCircle}>{line.status || 'Unknown'}</Badge>
-                                        )}
-                                    </td>
-                                    <td className="text-center">
-                                        {line.phoneNumber === defaultNumber ? (
-                                            <Badge tone="info" icon={User}>Default</Badge>
-                                        ) : (
-                                            <span className="text-ds-content-muted" aria-hidden="true">—</span>
-                                        )}
-                                    </td>
-                                    <td className="text-right">
-                                        <IconButton
-                                            label={`Remove line ${line.phoneNumber}`}
-                                            variant="ghost"
-                                            size="sm"
-                                            loading={removingLine === line.phoneNumber}
-                                            onClick={() => setPendingRemove(line)}
-                                        >
-                                            <Icon icon={Trash2} className="text-ds-status-danger-fg" />
-                                        </IconButton>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    embedded
+                    ariaLabel="Provisioned phone lines"
+                    density="compact"
+                    minWidth="standard"
+                    mobilePresentation="cards"
+                    data={inventory}
+                    columns={lineColumns({ defaultNumber, removingLine, onRemove: setPendingRemove })}
+                    getRowId={(line) => line.phoneNumber}
+                />
             )}
 
             {/* Security Notice */}
@@ -228,6 +174,70 @@ export function LineManager({ companyId, companyName }) {
             )}
         </Card>
     );
+}
+
+/** The wallet's columns: number, label, status, default, and its remove action. */
+function lineColumns({ defaultNumber, removingLine, onRemove }) {
+    return [
+        {
+            key: 'phoneNumber',
+            header: 'Phone Number',
+            rowHeader: true,
+            width: 'lg',
+            render: (line) => (
+                <span className="font-mono text-ds-sm font-medium text-ds-content">{line.phoneNumber}</span>
+            ),
+        },
+        {
+            key: 'label',
+            header: 'Label',
+            width: 'lg',
+            render: (line) => (
+                <span className="flex flex-wrap items-center gap-ds-2">
+                    <span className="text-ds-sm text-ds-content-secondary [overflow-wrap:anywhere]">{line.label || '-'}</span>
+                    {line.usageType && <Badge tone="neutral">{line.usageType}</Badge>}
+                </span>
+            ),
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            width: 'md',
+            render: (line) => (line.status === 'active' ? (
+                <Badge tone="success" icon={CheckCircle}>Active</Badge>
+            ) : (
+                <Badge tone="warning" icon={AlertCircle}>{line.status || 'Unknown'}</Badge>
+            )),
+        },
+        {
+            key: 'default',
+            header: 'Default',
+            width: 'md',
+            render: (line) => (line.phoneNumber === defaultNumber ? (
+                <Badge tone="info" icon={User}>Default</Badge>
+            ) : (
+                <span className="text-ds-content-muted" aria-hidden="true">—</span>
+            )),
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            align: 'end',
+            width: 'actions',
+            mobileLabel: '',
+            render: (line) => (
+                <IconButton
+                    label={`Remove line ${line.phoneNumber}`}
+                    variant="ghost"
+                    size="sm"
+                    loading={removingLine === line.phoneNumber}
+                    onClick={() => onRemove(line)}
+                >
+                    <Icon icon={Trash2} className="text-ds-status-danger-fg" />
+                </IconButton>
+            ),
+        },
+    ];
 }
 
 /**
