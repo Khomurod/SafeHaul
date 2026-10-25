@@ -16,7 +16,7 @@ import {
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { loadCompanies } from '@features/companies/services/companyService';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { mockCompanies, mockUsers } from '../components/companiesMock';
+import { mockCompanies, mockDriverRecords, mockUsers } from '../components/companiesMock';
 import { USERS_PAGE_SIZE, usersPageQuery, withMemberships } from './superAdminUsers';
 
 const NO_STATS_ERRORS = Object.freeze({
@@ -75,13 +75,15 @@ export function useSuperAdminData() {
         setLoading(true);
         setStatsError(NO_STATS_ERRORS);
 
-        // The `e2eCompanies=mock` harness: made-up companies and users, no Firestore.
+        // The `e2eCompanies=mock` harness: made-up companies, users and drivers, no Firestore.
         if (isE2ETestMode && getE2EQueryParam('e2eCompanies', '') === 'mock') {
             const companies = mockCompanies();
             setCompanyList(companies);
             setHasMoreCompanies(false);
             setUserList(mockUsers());
             setHasMoreUsers(false);
+            setAllApplications(mockDriverRecords());
+            setHasMoreApps(false);
             setAllCompaniesMap(new Map(companies.map((company) => [company.id, company.companyName])));
             setLoading(false);
             return;

@@ -15,14 +15,14 @@
  * (`bg-ds-surface-subtle`, `text-ds-content-secondary`) are a coincidence, not a
  * contract, and a change to either role would break them silently. ("Eleven"
  * throughout this file is the count of approved *files* when this contract was
- * written. They move to `DataTable` one at a time: four files remain, one of
- * them holding two `<table>`s, for five in total — four visible, all on this
- * contract, plus one `sr-only` table that has no appearance and is exempt.
+ * written. They move to `DataTable` one at a time: three files remain, one
+ * `<table>` each — two visible, both on this contract, plus one `sr-only`
+ * table that has no appearance and is exempt.
  * `ds/native-table` checks each table rather than each file, so a three-table
  * file cannot satisfy the rule with one class.)
  *
  * Cell padding had already drifted for the same reason: `px-ds-6` (24px) in
- * `CompaniesView`, `px-ds-5` (20px) and `px-ds-4` (16px) in `ModernDriverTable`,
+ * `CompaniesView`, `px-ds-5` (20px) and `px-ds-4` (16px) in the driver table,
  * against a `--ds-table-cell-padding-inline` of 20px. Three inline paddings for
  * one thing, in a product whose design system decides that once.
  *
@@ -55,7 +55,7 @@
  * not a cell is a row assistive technology may drop from the table altogether.
  * `CompaniesView` and `UsersView` had it on the cell; `FeaturesView` had no role
  * at all, so filtering the matrix down to nothing was silent. `DataTable` and
- * `ModernDriverTable` had already been doing it correctly, which is what made the
+ * the driver table had already been doing it correctly, which is what made the
  * other three visible as defects rather than as a choice.
  */
 

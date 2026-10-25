@@ -200,9 +200,6 @@ export const DS_EXCEPTIONS = {
             + 're-theming the application can never be allowed to retint a signature somebody has already '
             + 'given. Same ground as SignatureSheet.jsx.',
     },
-    'src/shared/components/table/ModernDriverTable.jsx': {
-        'raw-table': NATIVE_TABLE,
-    },
     'src/shared/utils/printDocument.js': {
         'raw-hex-colour': 'roadmap §5 — `background: #ffffff` on html/body in PRINT_DOCUMENT_STYLES. Paper '
             + 'is white; that is a physical fact about the medium, not a surface role that a palette '

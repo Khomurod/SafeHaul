@@ -24,14 +24,18 @@
  *     `CompaniesView` already uses, so the presentation is consistent and no new
  *     workflow is invented.
  *  2. **Row actions were invisible until hover** (`opacity-0 group-hover:*`),
- *     so keyboard users could not see View/Delete at all. They now also appear
- *     on focus. The row's Message action had no handler and is gone.
+ *     so keyboard and touch users could not see View/Delete at all. They are
+ *     always in view now. The row's Message action had no handler and is gone.
  *  3. Icon-only actions carried only a `title`, so they had no accessible name.
  *  4. Blocking `window.confirm` on the destructive delete, replaced with an
  *     accessible dialog. The SUPER ADMIN WARNING wording is preserved verbatim.
  *  5. The search input and all four filter selects were unlabelled.
  *  6. `SourceBadge` and the docs-status text were legacy-palette pills.
  *  7. Dead `FilterChip` component removed (never rendered).
+ *
+ * The list is a `DataTable`: Previous / Next are the table's own pager, a row
+ * opens its record by click or Enter, and "Clear All" in the toolbar is the one
+ * way to clear the filters.
  *
  * Bulk actions — none, by owner decision, per the bulk-action UX guidance (never
  * show controls that do nothing): no bulk bar and no row-selection checkboxes. A
@@ -41,13 +45,11 @@
  */
 import React, { useId, useState, useMemo } from 'react';
 import { Icon, Search, Filter } from '@design-system/icons';
-import { ModernDriverTable } from '@shared/components/table';
 import { useApplicationDelete } from '@features/applications/hooks/useApplicationDelete';
-import { Button, Card, Input, Select } from '@/design-system/components';
+import { Button, Card, DataTable, Input, Select } from '@/design-system/components';
 
-// ========== SOURCE BADGE COMPONENT ==========
 import { FILTERS, DeleteRecordDialog } from '../components/driver-list/UnifiedDriverListParts';
-import { buildDriverListColumns } from '../components/driver-list/driverListColumns';
+import { buildDriverListColumns, driverName } from '../components/driver-list/driverListColumns';
 
 /**
  * The options of a filter that offers what the records hold: each value once,
@@ -223,7 +225,7 @@ export function UnifiedDriverList({
     }), [deletingId, onAppClick]);
 
     return (
-        <div className="space-y-4 h-full flex flex-col">
+        <div className="flex h-full flex-col gap-ds-4">
 
             {/* Header / Search / Filters */}
             <Card padding="md" className="shrink-0 space-y-ds-4">
@@ -278,25 +280,22 @@ export function UnifiedDriverList({
                 </div>
             </Card>
 
-            {/* Table Container */}
-            <div className="flex-1 overflow-hidden flex flex-col">
-
-                {/* Modern Driver Table */}
-                <ModernDriverTable
+            {/* The table fills the space below the toolbar and scrolls inside
+                it, under its sticky header; a phone shows one card per driver. */}
+            <Card padding="none" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <DataTable
+                    embedded
+                    ariaLabel="Unified driver database"
+                    density="compact"
+                    mobilePresentation="cards"
                     data={paginatedData}
                     columns={tableColumns}
-                    onRowClick={onAppClick}
+                    getRowId={(item) => item.id}
+                    getRowLabel={(item) => `Open record for ${driverName(item) || 'this driver'}`}
+                    onRowActivate={onAppClick}
                     isLoading={isLoading}
-                    emptyMessage="No drivers match your filters."
-                    emptyIcon={hasActiveFilters ? (
-                        <div className="text-center">
-                            <Icon icon={Search} size="3xl" className="mx-auto mb-ds-3 text-ds-content-secondary" />
-                            <Button variant="ghost" size="sm" onClick={clearAllFilters}>Clear Filters</Button>
-                        </div>
-                    ) : undefined}
-                    // Names the table, its caption, its scroll region and its pager.
-                    ariaLabel="Unified driver database"
-                    showCheckboxes={false}
+                    loadingLabel="Loading drivers..."
+                    empty={{ title: 'No drivers match your filters.' }}
                     pagination={{
                         currentPage,
                         totalPages: totalPages || 1,
@@ -327,7 +326,7 @@ export function UnifiedDriverList({
                         </Button>
                     </div>
                 )}
-            </div>
+            </Card>
 
             {pendingDelete && (
                 <DeleteRecordDialog

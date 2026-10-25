@@ -38,8 +38,8 @@ const { uploadLeadFile } = require('./helpers/leadImport.cjs');
  * dossier's own tables. The import-leads preview is covered: the screen picks
  * a made-up file, as a person would; so is the stats backfill preview, from a
  * dry run answered by `callables`, a finished campaign's results and report,
- * from the `e2eCampaign=mock` seed, and a company's applications dialog, from
- * the `e2eCompanies=mock` seed.
+ * from the `e2eCampaign=mock` seed, and a company's applications dialog and the
+ * Unified Driver Database, from the `e2eCompanies=mock` seed.
  */
 
 // Two services as `getAiModelVersions` returns them (shape:
@@ -109,7 +109,12 @@ const SCREENS = [
         row: 'alexandra.montgomery-okonkwo@example.test',
         table: 'All platform users',
     },
-    { name: 'super admin unified driver db', url: '/super-admin/applications?e2eAuth=super_admin', empty: 'No drivers match your filters.' },
+    {
+        name: 'super admin unified driver db',
+        url: '/super-admin/applications?e2eAuth=super_admin&e2eCompanies=mock',
+        row: 'ana.ferreira-montgomery@example.test',
+        table: 'Unified driver database',
+    },
     {
         name: 'super admin environment',
         url: '/super-admin/environment-integrations?e2eAuth=super_admin',

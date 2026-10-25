@@ -70,9 +70,10 @@ drop from the table altogether.
 </tr>
 ```
 
-`DataTable` and `ModernDriverTable` both already did it this way; the rule is
-written down here because two of the others had put the role on the cell and a
-third announced nothing at all, so filtering a table down to no rows was silent.
+`DataTable` already did it this way, as did a hand-built driver table since
+replaced by it; the rule is written down here because two of the others had put
+the role on the cell and a third announced nothing at all, so filtering a table
+down to no rows was silent.
 
 ## A state with no way forward is a wall
 

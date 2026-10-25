@@ -263,3 +263,59 @@ describe('UnifiedDriverList — naming and filters (defects)', () => {
         expect(onAppClick).toHaveBeenCalledWith(APPLICATIONS[0]);
     });
 });
+
+describe('UnifiedDriverList — the shared table', () => {
+    it('is a named table whose rows are headed by the driver', () => {
+        renderView();
+        const table = screen.getByRole('table', { name: /Unified driver database/ });
+        expect(within(table).getByRole('rowheader', { name: /^Artificial Driver/ })).toBeInTheDocument();
+        expect(within(table).getByRole('rowheader', { name: /^Second Lead/ })).toBeInTheDocument();
+    });
+
+    it('opens a record from its row by keyboard', () => {
+        const onAppClick = vi.fn();
+        renderView({ onAppClick });
+        const row = screen.getByRole('row', { name: 'Open record for Second Lead' });
+        fireEvent.keyDown(row, { key: 'Enter' });
+        expect(onAppClick).toHaveBeenCalledWith(APPLICATIONS[1]);
+    });
+
+    it('does not also open the record when Delete is pressed', () => {
+        const onAppClick = vi.fn();
+        renderView({ onAppClick });
+        fireEvent.click(screen.getByRole('button', { name: 'Delete Artificial Driver' }));
+        expect(onAppClick).not.toHaveBeenCalled();
+    });
+
+    // The actions were `opacity-0` until the row was hovered, out of reach of touch.
+    it('keeps the row actions in view, not behind a hover', () => {
+        renderView();
+        const view = screen.getByRole('button', { name: 'View Artificial Driver' });
+        expect(view.closest('[class*="opacity-0"]')).toBeNull();
+    });
+
+    it('says when nothing matches, and leaves clearing the filters to the toolbar', () => {
+        renderView();
+        fireEvent.change(screen.getByLabelText(/Search drivers by name, email, phone or company/), { target: { value: 'nobody-at-all' } });
+        expect(screen.getByText('No drivers match your filters.')).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /^Clear/ })).toHaveLength(1);
+        expect(screen.getByRole('button', { name: 'Clear All filters' })).toBeInTheDocument();
+    });
+
+    it('shows when each record last moved, under its status', () => {
+        renderView({ allApplications: [{ ...APPLICATIONS[0], createdAt: { seconds: Math.floor(Date.now() / 1000) } }] });
+        const row = screen.getByRole('row', { name: 'Open record for Artificial Driver' });
+        expect(within(row).getByText('Updated Today')).toBeInTheDocument();
+    });
+
+    it('announces loading', () => {
+        renderView({ isLoading: true });
+        expect(screen.getByText('Loading drivers...')).toBeInTheDocument();
+    });
+
+    it('pages through the records with the table pager', () => {
+        renderView();
+        expect(screen.getByText('Showing 2 of 2 records')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Previous/ })).toBeDisabled();
+    });
+});
