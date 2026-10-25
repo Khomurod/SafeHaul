@@ -1,5 +1,5 @@
 /*
- * The PINNED FIRST COLUMN — one rule for both table contracts.
+ * The PINNED FIRST COLUMN of a `DataTable`.
  *
  * ## The decision
  *
@@ -10,16 +10,13 @@
  * the necessary labels at all times", and sticky column headers "help users
  * know what they are looking at" (Amy Schade, *Mobile Tables: Comparisons and
  * Other Data Tables*, NN/g, 2017). Every `DataTable` scrolls horizontally on a
- * phone — its narrowest contract width is 760px — so it pins by default and
- * `pinFirstColumn={false}` opts out; a native table opts in with
- * `data-pin-first-column` on the `<table>`.
+ * phone unless it stacks into cards, so it pins by default and
+ * `pinFirstColumn={false}` opts out.
  *
  * ## What a pinned cell needs
  *
- * 1. Its own background. `DataTable` already paints every body cell; the native
- *    contract paints the ROW, so its pinned cells take the row surface here — and
- *    the hover tint follows, or the frozen cell is the one part of a hovered row
- *    that does not highlight.
+ * 1. Its own background, or the columns scrolling under it paint through it.
+ *    `DataTable` paints every body cell, the hover tint included.
  * 2. A stacking order that is local. Pinned body cells sit on `--ds-z-layer-1`,
  *    the pinned header corner on `--ds-z-layer-2` inside its `thead`, and the
  *    table (or the `DataTable` scroll region) is an `isolation: isolate`
@@ -44,12 +41,9 @@
  * a seam at its far edge would be a stray line on an empty table.
  *
  * `check:visual-contract` measures `position`, `left`, `z-index` and the
- * background of a pinned header and body cell at 412px and 1440px in both
- * contracts (`MobileViewport` and `StickyFirstColumn` are the shots), and
- * `check:table-layout` measures the same stories for cell overflow.
+ * background of a pinned header and body cell at 412px and 1440px (the
+ * `MobileViewport` story), and `check:table-layout` measures it for overflow.
  */
-
-/* ---- DataTable ------------------------------------------------------------ */
 
 .ds-data-table[data-pin-first-column] .ds-data-table__scroll-region {
   isolation: isolate;
@@ -87,60 +81,5 @@
     width: 1px;
     background: var(--ds-table-divider);
     pointer-events: none;
-  }
-}
-
-/* ---- ds-native-table ------------------------------------------------------ */
-
-.ds-native-table[data-pin-first-column] {
-  isolation: isolate;
-}
-
-.ds-native-table[data-pin-first-column] > thead > tr > th:first-child {
-  position: sticky;
-  left: 0;
-  z-index: var(--ds-z-layer-2);
-  background: var(--ds-table-header-bg);
-}
-
-.ds-native-table[data-pin-first-column] > tbody > tr > :first-child:not([colspan]) {
-  position: sticky;
-  left: 0;
-  z-index: var(--ds-z-layer-1);
-  background: var(--ds-table-row-bg);
-}
-
-.ds-native-table[data-pin-first-column][data-row-hover] > tbody > tr:hover > :first-child:not([colspan]) {
-  background: var(--ds-table-row-hover-bg);
-}
-
-@media (max-width: 767px) {
-  .ds-native-table[data-pin-first-column] > thead > tr > th:first-child::after,
-  .ds-native-table[data-pin-first-column] > tbody > tr > :first-child:not([colspan])::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 1px;
-    background: var(--ds-table-divider);
-    pointer-events: none;
-  }
-}
-
-/*
- * A native table stacked into cards on a phone (`data-mobile-presentation="cards"`,
- * see nativeTable.css) has no sideways scroll, so nothing to pin: the column
- * comes unstuck at the same width the cards take over.
- */
-@media (max-width: 767px) {
-  .ds-native-table[data-mobile-presentation='cards'][data-pin-first-column] > thead > tr > th:first-child,
-  .ds-native-table[data-mobile-presentation='cards'][data-pin-first-column] > tbody > tr > :first-child:not([colspan]) {
-    position: static;
-  }
-
-  .ds-native-table[data-mobile-presentation='cards'][data-pin-first-column] > thead > tr > th:first-child::after,
-  .ds-native-table[data-mobile-presentation='cards'][data-pin-first-column] > tbody > tr > :first-child:not([colspan])::after {
-    content: none;
   }
 }

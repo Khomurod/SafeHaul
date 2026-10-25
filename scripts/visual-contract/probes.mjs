@@ -425,12 +425,10 @@ const COMPONENT_PROBES = [
         properties: ['width', 'height', 'borderRadius'],
     },
     /*
-     * The pinned first column of a DataTable; the
-     * native contract's is measured beside its other numbers in
-     * probes-system.mjs. `position` and `left` are the pin; `z-index` is the local
-     * stacking order that keeps the frozen cell above the cells scrolling under
-     * it; the background is the rule the native contract has to state — a
-     * transparent frozen cell lets the other columns paint straight through it.
+     * The pinned first column of a DataTable. `position` and `left` are the pin;
+     * `z-index` is the local stacking order that keeps the frozen cell above the
+     * cells scrolling under it; a transparent background would let the other
+     * columns paint straight through it.
      * Measured at both widths: at 1440px nothing scrolls under the cell, and the
      * values must be identical anyway, because the pin is not a phone-only mode.
      */
@@ -446,29 +444,28 @@ const COMPONENT_PROBES = [
     /*
      * The cards presentation: a table at 1440px, one card per row at 412px. The
      * row's `display` is the switch; the cell's grid is the label/value shape;
-     * `textAlign` proves a centred status column reads start-aligned once it is
-     * a card; the header's `position` proves it left the flow and stayed in the
-     * tree. The two readings must differ between the widths — that is the
-     * feature — so a snapshot where they agree is the regression.
+     * the header's `position` proves it left the flow and stayed in the tree.
+     * The two readings must differ between the widths — that is the feature —
+     * so a snapshot where they agree is the regression.
      */
     {
-        story: 'patterns-native-table--cards-on-mobile',
-        label: 'the row and header of a native table that stacks into cards',
+        story: 'components-datatable--cards-on-mobile',
+        label: 'the row and header of a DataTable that stacks into cards',
         selectors: {
-            row: ".ds-native-table[data-mobile-presentation='cards'] > tbody > tr",
-            header: ".ds-native-table[data-mobile-presentation='cards'] > thead",
+            row: ".ds-data-table[data-mobile-presentation='cards'] tbody > tr",
+            header: ".ds-data-table[data-mobile-presentation='cards'] thead",
         },
-        properties: ['display', 'position', 'paddingTop'],
+        properties: ['display', 'position'],
     },
     {
-        story: 'patterns-native-table--cards-on-mobile',
-        label: 'the labelled value cell of a native table that stacks into cards',
+        story: 'components-datatable--cards-on-mobile',
+        label: 'the labelled value cell of a DataTable that stacks into cards',
         selectors: {
-            centredCell: ".ds-native-table[data-mobile-presentation='cards'] > tbody > tr > td[data-label='State']",
+            labelledCell: ".ds-data-table[data-mobile-presentation='cards'] tbody > tr > td[data-label='Status']",
         },
         // `gridTemplateColumns` is deliberately not read: the resolved track widths
         // are fractional pixels that a different Chromium build may round
-        // differently, and the shape is proven by `display` and `textAlign`.
+        // differently, and the shape is proven by `display`.
         properties: ['display', 'textAlign', 'paddingLeft'],
     },
 ];

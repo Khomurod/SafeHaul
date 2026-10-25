@@ -717,6 +717,19 @@ console.log('\nO. The design-system contract a strict theme cannot hold');
         [...unlistedFiles.map((file) => `${file} is not tracked`), ...stale.map((pair) => `${pair} no longer fires: delete it`)].join('; '));
 
     /*
+     * Every table is `DataTable`. Two files may hold a native `<table>`: the
+     * contract itself and the Analytics chart's `sr-only` text equivalent. A third
+     * is a roadmap §5 decision recorded here too, not an exception slipped in.
+     */
+    const nativeTableFiles = Object.keys(DS_EXCEPTIONS).filter((file) => DS_EXCEPTIONS[file]['raw-table']).sort();
+    const approvedNativeTables = [
+        'src/design-system/components/data-table/DataTable.jsx',
+        'src/features/super-admin/views/AnalyticsView.jsx',
+    ];
+    assert('O6c. only the table contract and the chart\'s hidden text equivalent may hold a native <table>',
+        JSON.stringify(nativeTableFiles) === JSON.stringify(approvedNativeTables), nativeTableFiles.join(', '));
+
+    /*
      * The checker these rules replace had no comment that could switch it off,
      * so neither do they: what a comment hides, a run with inline configuration
      * ignored still sees — an inline rule setting that adds an exception included.

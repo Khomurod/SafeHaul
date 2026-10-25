@@ -53,12 +53,12 @@ for any of them.
 | The slot | Use | Not this |
 |---|---|---|
 | A page, a dialog body, a tab body, a card's whole content area | **`PageState`** — medallion, heading, optional description, a way forward | A `<p>` with a centred icon above it, which is this pattern rebuilt by hand |
-| Inside a table, where the rows would be | The table's own state. `DataTable` takes `empty`/`error` props; a `ds-native-table` renders one `<td colSpan>` row — see the note below | A `PageState` inside a `<td>`: a card inside a table cell |
+| Inside a table, where the rows would be | The table's own state. `DataTable` takes `empty`/`error` props, and renders one `<td colSpan>` row — see the note below | A `PageState` inside a `<td>`: a card inside a table cell |
 | One line of copy in a list or scroller that already shows its count | A plain sentence | Nothing to add — a heading and a medallion for "0 of 12 selected" is noise |
 
-The middle row has one rule that is easy to get wrong and was, in three of this
-product's native tables: **the live-region role goes on a wrapper inside the
-cell, never on the `<td>` itself.** `role="status"` on a cell replaces the cell
+The middle row has one rule that is easy to get wrong, and `DataTable` follows
+it: **the live-region role goes on a wrapper inside the cell, never on the
+`<td>` itself.** `role="status"` on a cell replaces the cell
 role, and a row whose only child is not a cell is a row assistive technology may
 drop from the table altogether.
 
@@ -69,11 +69,6 @@ drop from the table altogether.
   </td>
 </tr>
 ```
-
-`DataTable` already did it this way, as did a hand-built driver table since
-replaced by it; the rule is written down here because two of the others had put
-the role on the cell and a third announced nothing at all, so filtering a table
-down to no rows was silent.
 
 ## A state with no way forward is a wall
 

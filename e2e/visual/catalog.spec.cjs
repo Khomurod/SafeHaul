@@ -150,27 +150,7 @@ const SUBJECTS = [
     ['patterns-page-states--error-with-stale-data', 'page-states-stale-error'],
     ['patterns-page-states--on-an-inverse-surface', 'page-states-inverse'],
     ['patterns-compact-data-table--density-comparison', 'pattern-table-density'],
-    ['patterns-native-table--editable-matrix', 'pattern-native-table'],
-    ['patterns-native-table--density-comparison', 'pattern-native-table-density'],
-    /*
-     * The native-table contract, which the feature files read, has a baseline
-     * for each state worth seeing, as `DataTable`'s empty state has.
-     *
-     * One honest limit on the frozen column. At 1440px the table fits, so nothing
-     * scrolls under the sticky cell and the desktop shot shows only its surfaces,
-     * divider and header corner. The 412px shot is the one that exercises the
-     * contract, because there the overflow comes from the viewport rather than
-     * from a scroll action — and a screenshot that depends on a scroll completing
-     * is the timing-dependent input `.storybook/preview.css` warns about. So the
-     * overlap is proven at one width deterministically instead of at two widths
-     * flakily, and `check:visual-contract` measures the cell's background,
-     * `position` and `left` at both.
-     */
-    ['patterns-native-table--empty-row', 'pattern-native-table-empty'],
-    ['patterns-native-table--sticky-first-column', 'pattern-native-table-sticky'],
-    // The same matrix as a table at 1440px and as one card per row at 412px, so
-    // both halves of the phone rule have a picture.
-    ['patterns-native-table--cards-on-mobile', 'pattern-native-table-cards'],
+    ['patterns-native-table--default', 'pattern-native-table'],
     // The list-page standard: heading with count, toolbar, table; filters open; nothing found.
     ['patterns-list-page--default', 'pattern-list-page'],
     ['patterns-list-page--filters-open', 'pattern-list-page-filters'],

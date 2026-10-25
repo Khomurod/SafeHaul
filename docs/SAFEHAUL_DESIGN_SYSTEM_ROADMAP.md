@@ -245,25 +245,20 @@ The reverse directions are prohibited — including any `@shared` import inside
   frozen `z-voe-watermark` (-10).
 
 **Tables**
-- **Display tables are `DataTable`.** A native `<table>` is approved only per
-  §5, and every one — a visually hidden one included — carries `ds-native-table`
-  and reads the `--ds-table-*` roles. A native table is not a licence to style a
-  table by hand: the contract (`pinnedColumn.css`) paints a frozen cell's
-  surface and hover tint, never a hand-picked `bg-*`.
+- **Every table is `DataTable`**, editable matrices and per-row controls
+  included. One native `<table>` remains (§5: the Analytics chart's `sr-only`
+  text equivalent); it carries `ds-native-table`, the `--ds-table-*` roles and
+  nothing more, and `test-lint-rules.mjs` O6c refuses a third file.
 - **Tables on phones follow one rule.** Rows that are *compared* keep the table:
   a labelled, focusable horizontal-scroll region, a sticky header, the first
   column pinned (`DataTable` by default — `pinFirstColumn={false}` opts out, and
-  with a selection the checkbox and identifying column pin together;
-  `data-pin-first-column` on a native table). A matrix of per-row controls
-  worked one record at a time becomes one card per row under 768px
-  (`data-mobile-presentation="cards"`, labels from `data-label`, the same DOM at
-  every width, and the table roles stated explicitly — `role="table"`,
-  `"rowgroup"`, `"row"`, `"columnheader"`, `"cell"` — because `display: block`
-  drops the implicit ones). `DataTable` does the same for a work list with
-  `mobilePresentation="cards"` (labels from each column's `mobileLabel` or
-  header; `mobileCards.css`). Source: `components/data-table/README.md`
-  ("Tables on phones"), `pinnedColumn.css`, the `Patterns/Native table` and
-  `DataTable/Cards on mobile` stories.
+  with a selection the checkbox and identifying column pin together). A list or
+  matrix of per-row controls worked one record at a time becomes one card per
+  row under 768px: `mobilePresentation="cards"` (labels from each column's
+  `mobileLabel` or header, the table roles stated explicitly because
+  `display: block` drops them; `mobileCards.css`). Source:
+  `components/data-table/README.md` ("Tables on phones"), `pinnedColumn.css`,
+  the `DataTable/Cards on mobile` story.
 - **The column contract holds only options the table acts on**
   (`components/data-table/README.md`): an option that changes no rendering or
   behaviour is removed, not kept for later. A column is `start` (text) or `end`
@@ -352,7 +347,7 @@ tolerated for one of them cites this section.
 
 | Exception | Where | Why it is allowed | Retires when |
 |---|---|---|---|
-| Native tables for editable matrices and per-row interactive rows | `AnalyticsView` (only the chart's `sr-only` text equivalent) | They move to `DataTable` one PR at a time (done: Analytics, backfill preview, alert stats, campaign results and report, company applications dialog, companies and users lists, feature switches, Unified Driver Database, phone line wallet, SMS assignment matrix; and the standard-questions list, which was rows of a list), which now has what they need: `maxHeight`, an error `title`, an empty-state `action`, rows per page. Every `<table>` applies `ds-native-table` (`components/data-table/nativeTable.css`) and so reads the `--ds-table-*` roles; `check:ui-contract` checks it per `<table>`, `check:table-layout` measures it | — |
+| One native table | `AnalyticsView` (only the chart's `sr-only` text equivalent) | Every other table is `DataTable`. It carries `ds-native-table` (`components/data-table/nativeTable.css`: the `--ds-table-*` roles and nothing more) because `ds/native-table` has no hidden-table exemption; O6c in `test-lint-rules.mjs` refuses a `raw-table` exception in any third file | — |
 | The generated 49 CFR §391.23 document | `VOEDocument.jsx`, shown by `VOEPreviewModal`: the frozen `voe-*` print values (`VOE_PRINT` in `tailwind.config.js`: Tailwind 3.4's palette, type sizes, radii, shadow and watermark layer as literals), sub-12px type, three glyphs opened through `glyphComponent` | Immutable legal content that must render the same next year: a `--ds-*` role is themeable by design, and a palette change must never restyle a signed, exported regulatory artefact. Its class list is the rasteriser's capture surface. (Not because tokens would fail to resolve — `html2canvas` reads computed style and `collectPrintStyles` inlines the app's stylesheets.) Its shades still meet AA, and the `voe-print-export` axe scan includes it. `VOEPreviewModal.export.test.jsx` enforces the boundary both ways | Export parity is re-proved — a real captured PDF and a real printed page, not a unit test. Treat any exported document as immutable content |
 | White paper | `printDocument.js` (`PRINT_DOCUMENT_STYLES`); `guestUploadImage.js` (`shrinkPhoto`) | Paper, not a surface role: print's `background: #ffffff`, a string for when `collectPrintStyles` cannot read a sheet; a shrunk photo on white, as a JPEG has no transparency | — |
 | Signature ink | `SignatureSheet.jsx`, `SignaturePad.jsx`, `lib/signature.js` (×2, which must agree) | The canvas is rasterised to a PNG stored in a signed document; re-theming must never retint a signature already given | Never |
@@ -501,8 +496,9 @@ read them.
   the AI Providers tab, the model versions table only); on the 3 marked `empty`
   the fixtures show none, so only headers and the empty state are measured.
   Tables no fixture renders are not measured at all (campaign results and
-  report, stats backfill preview); some screens have no baseline at all, e.g.
-  the campaign editor and the schema editors' edit mode.
+  report, stats backfill preview, the SMS line wallet and number matrix); some
+  screens have no baseline at all, e.g. the campaign editor and the schema
+  editors' edit mode.
 - `index.html` is pinned by tests (`pageShell.test.js`), not a rule.
 - Tailwind's extractor compiles class names found in prose (`.bg-gray-50` ships
   from comments that name it — the hazard `tailwind.config.js` documents for
@@ -525,7 +521,7 @@ it does:
 | Empty / error / loading state | `patterns/page-state` |
 | Stacking layers | `tokens/foundation.css` → `--ds-z-*`; entitlement in `tests/stackingLayers.test.js` |
 | Icons | `icons/` (`Icon` + glyph tokens); one recorded exception, `VOEDocument.jsx` (§5) |
-| Table (display and native) | `components/data-table` + `ds-native-table` |
+| Table | `components/data-table` (`ds-native-table` only for the one hidden table, §5) |
 | Pressed state; toned button; compact icon-button step | `components/button` → `pressed`, `tone`, `IconButton size="xs"` (pressed also `components/chip`) |
 | Navigation and external links; tab strip; single-select toggle group; file picker | `components/link`, `components/tabs`, `components/segmented`, `components/file-input` |
 | Interactive pill / chip; person or organisation disc; selectable record card | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |

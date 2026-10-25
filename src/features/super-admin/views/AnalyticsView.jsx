@@ -138,8 +138,8 @@ function ActivityTrendChart({ data }) {
             </div>
 
             {/* The same figures in a form assistive technology can actually read.
-                Carries `ds-native-table` like every other approved table: the
-                guard has no hidden-table exemption, because deciding whether a
+                The one native table in the app. It carries `ds-native-table`:
+                the guard has no hidden-table exemption, because deciding whether a
                 class list is hidden at *every* breakpoint is not decidable
                 (`sr-only xl:not-sr-only` is hidden on a phone and visible on a
                 desktop). Measured before doing it — `sr-only` keeps

@@ -3,9 +3,8 @@
  *
  * The rule for a table on a phone is in `pinnedColumn.css`, and the shape this
  * file draws is the one it allows besides the sideways scroll: a list worked one
- * record at a time becomes one card per row under 768px, as a native table does
- * with `data-mobile-presentation="cards"` (`nativeTable.css`). Nothing in such a
- * list is read across rows, so the scroll would be all the table gained.
+ * record at a time becomes one card per row under 768px. Nothing in such a list
+ * is read across rows, so the scroll would be all the table gained.
  *
  * Under 768px the table, its body, rows and cells become blocks; the header
  * leaves the visual flow but stays in the tree; the row header is the card's
