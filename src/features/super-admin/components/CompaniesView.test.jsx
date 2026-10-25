@@ -133,30 +133,57 @@ describe('CompaniesView — frozen callback contracts', () => {
     });
 
     /*
-     * A live-region role on the `<td>` REPLACES the cell role: a row whose only
-     * child is not a cell is a row assistive technology may drop from the table
-     * altogether. And the empty row needs a role too, or filtering the list down
-     * to nothing replaces the whole table and announces nothing.
-     *
-     * `ModernDriverTable` and `DataTable` both put the role in a wrapper inside
-     * the cell. This asserts the same shape here, in both directions — the role
-     * is on the wrapper, and it is not on the cell.
+     * A live-region role on a `<td>` replaces the cell role, and a row whose
+     * only child is not a cell may be dropped from the table. Each state is
+     * announced by its own wrapper (the table's state panel), never by a cell,
+     * and the empty state is announced too, so filtering to nothing is heard.
      */
-    it('announces each state from inside the cell, never on the cell itself', () => {
+    it('announces each state from its own wrapper, never from a cell', () => {
         const { rerender } = renderView({ listLoading: true });
-        const loading = screen.getByText('Loading companies...');
-        expect(loading).toHaveAttribute('role', 'status');
-        expect(loading.closest('td')).not.toHaveAttribute('role');
+        const loading = screen.getByText('Loading companies...').closest('[role="status"]');
+        expect(loading).not.toBeNull();
+        expect(loading.tagName).not.toBe('TD');
 
         rerender(<CompaniesView listLoading={false} statsError={{ ...NO_ERRORS, companies: true }} companyList={[]} onViewApps={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} loadMore={vi.fn()} hasMore={false} />);
-        const error = screen.getByText('Error loading companies.');
-        expect(error).toHaveAttribute('role', 'alert');
-        expect(error.closest('td')).not.toHaveAttribute('role');
+        const error = screen.getByText('Error loading companies.').closest('[role="alert"]');
+        expect(error).not.toBeNull();
+        expect(error.tagName).not.toBe('TD');
 
         rerender(<CompaniesView listLoading={false} statsError={NO_ERRORS} companyList={[]} onViewApps={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} loadMore={vi.fn()} hasMore={false} />);
-        const empty = screen.getByText('No companies found.');
-        expect(empty).toHaveAttribute('role', 'status');
-        expect(empty.closest('td')).not.toHaveAttribute('role');
+        const empty = screen.getByText('No companies found.').closest('[role="status"]');
+        expect(empty).not.toBeNull();
+        expect(empty.tagName).not.toBe('TD');
+        document.querySelectorAll('td').forEach((cell) => expect(cell).not.toHaveAttribute('role', 'status'));
+    });
+});
+
+describe('CompaniesView — the shared table', () => {
+    it('is a DataTable named after the page, with the company name as each row header', () => {
+        renderView();
+        const table = screen.getByRole('table', { name: 'Manage Companies' });
+        expect(table.closest('.ds-data-table')).toHaveAttribute('data-embedded', 'true');
+        expect(within(table).getAllByRole('rowheader').map((cell) => cell.textContent))
+            .toEqual(['AArtificial Freight Co', 'SSecond Artificial Carrier']);
+    });
+
+    it('opens a company from the keyboard on its row, as from a click', () => {
+        const onOpen = vi.fn();
+        renderView({ onOpen });
+        const row = screen.getByText('Second Artificial Carrier').closest('tr');
+        fireEvent.keyDown(row, { key: 'Enter' });
+        expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'co-2' }));
+    });
+
+    it('pages the list with the table pager: 20, 50 or 100 rows', () => {
+        const many = Array.from({ length: 25 }, (_, i) => ({
+            id: `co-${i + 1}`, companyName: `Artificial Carrier ${i + 1}`, appSlug: `carrier-${i + 1}`,
+        }));
+        renderView({ companyList: many });
+        expect(screen.getByText('Showing 20 of 25 companies')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+        expect(screen.getByText('Showing 5 of 25 companies')).toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText('Rows per page'), { target: { value: '50' } });
+        expect(screen.getByText('Showing 25 of 25 companies')).toBeInTheDocument();
     });
 });
 

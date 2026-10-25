@@ -97,7 +97,12 @@ const SCREENS = [
         row: 'Artificial TMS',
     },
     { name: 'super admin features', url: '/super-admin/features?e2eAuth=super_admin&e2eFeatures=mock', row: 'Northern Plains Refrigerated Transport Cooperative' },
-    { name: 'super admin companies', url: '/super-admin/companies?e2eAuth=super_admin', empty: 'No companies found.' },
+    {
+        name: 'super admin companies',
+        url: '/super-admin/companies?e2eAuth=super_admin&e2eCompanies=mock',
+        row: 'Northern Plains Refrigerated Transport Cooperative',
+        table: 'Manage Companies',
+    },
     { name: 'super admin users', url: '/super-admin/users?e2eAuth=super_admin', empty: 'No users found.' },
     { name: 'super admin unified driver db', url: '/super-admin/applications?e2eAuth=super_admin', empty: 'No drivers match your filters.' },
     {

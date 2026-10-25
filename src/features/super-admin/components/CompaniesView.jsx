@@ -1,10 +1,9 @@
 import React, { useState, useMemo, useEffect, useId } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
-import { Icon, Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Crown, Shield, CheckCircle, XCircle } from '@design-system/icons';
+import { Icon, Building, FileText, Edit2, Trash2, Search, Crown, Shield, CheckCircle, XCircle } from '@design-system/icons';
 import { db } from '@lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
-import { Badge, Button, Card, IconButton, Input, Notice, Select } from '@/design-system/components';
+import { Badge, Button, Card, DataTable, IconButton, Input, Notice } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 
 /**
@@ -16,12 +15,10 @@ import { ConfirmDialog } from '@design-system/patterns';
  * name/slug/id search, the client-side 20/50/100 pagination, the
  * `loadMore('companies')` database pagination, and every frozen string.
  *
- * `DataTable` is deliberately not used, matching the exception already recorded
- * for `AssignmentTable`: this
- * table carries per-row interactive controls (a status toggle and three actions)
- * plus a row-level click target, which is outside `DataTable`'s proven
- * display-table contract. The approved native-table pattern is used instead —
- * semantic markup, `--ds-*` tokens, `Badge`, `Button`/`IconButton`.
+ * The list is a `DataTable`: a row opens its company (pointer or keyboard),
+ * the name is also a button of its own, and the status toggle and the three
+ * actions never also open the row. Rows per page and Previous / Next are the
+ * table's own pager; "Load More from Database" stays below it.
  *
  * Defects fixed here:
  *  1. **Stale derived data.** `filteredCompanyList` depends on `displayList`
@@ -41,6 +38,8 @@ import { ConfirmDialog } from '@design-system/patterns';
  *  6. `text-[10px]` provider label (below the 12px floor) removed.
  *  7. Legacy palette throughout.
  */
+const PAGE_SIZES = [20, 50, 100];
+
 export function CompaniesView({
     listLoading,
     statsError,
@@ -61,7 +60,6 @@ export function CompaniesView({
     const [pendingToggle, setPendingToggle] = useState(null);
     const [toggleError, setToggleError] = useState('');
     const searchId = useId();
-    const perPageId = useId();
 
     // Toggle company active status
     const runToggleCompanyActive = async ({ companyId, action, currentStatus }) => {
@@ -127,6 +125,128 @@ export function CompaniesView({
 
     const title = "Manage Companies";
 
+    // Rebuilt with the handlers it closes over; the toggle shows its spinner
+    // only on the company being written.
+    const columns = [
+        {
+            key: 'company',
+            header: 'Company Name',
+            rowHeader: true,
+            width: 'xl',
+            render: (company) => {
+                const companyName = getFieldValue(company.companyName);
+                return (
+                    <div className="flex min-w-0 items-center gap-ds-3">
+                        <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-heading-md font-bold text-ds-content-muted">
+                            {company.companyLogoUrl ? (
+                                <img src={company.companyLogoUrl} alt="" loading="lazy" className="h-full w-full rounded-ds-md object-contain" />
+                            ) : (
+                                companyName.charAt(0)
+                            )}
+                        </span>
+                        {/* A real button, so the name is a named keyboard stop of its own. */}
+                        <Button
+                            variant="link"
+                            justify="start"
+                            className="min-w-0 text-left [overflow-wrap:anywhere]"
+                            onClick={rowAction(() => openCompany(company))}
+                        >
+                            {companyName}
+                        </Button>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'slug',
+            header: 'Slug / ID',
+            width: 'xl',
+            render: (company) => (
+                <span className="flex min-w-0 flex-col">
+                    <span className="w-fit max-w-full rounded-ds-sm bg-ds-status-info-bg px-2 py-0.5 font-mono text-ds-sm text-ds-status-info-fg [overflow-wrap:anywhere]">/{getFieldValue(company.appSlug)}</span>
+                    <span className="mt-1 font-mono text-ds-xs text-ds-content-muted [overflow-wrap:anywhere]">{company.id}</span>
+                </span>
+            ),
+        },
+        {
+            key: 'plan',
+            header: 'Plan',
+            width: 'md',
+            render: (company) => (company.planType === 'paid'
+                ? <Badge tone="warning" icon={Crown}>Pro Plan</Badge>
+                : <Badge tone="neutral" icon={Shield}>Free Plan</Badge>),
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            width: 'md',
+            render: (company) => {
+                const isActive = company.isActive !== false;
+                const companyName = getFieldValue(company.companyName);
+                return (
+                    // `relative` keeps the sr-only text inside the scrolling table:
+                    // without a positioned parent it sat past the right edge and
+                    // widened the whole page on a phone.
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="relative"
+                        loading={togglingCompany === company.id}
+                        onClick={rowAction(() => setPendingToggle({
+                            companyId: company.id,
+                            companyName: company.companyName,
+                            currentStatus: isActive,
+                        }))}
+                    >
+                        {isActive
+                            ? <><Icon icon={CheckCircle} size="xs" /> Active</>
+                            : <><Icon icon={XCircle} size="xs" /> Inactive</>}
+                        <span className="sr-only">
+                            {` — ${companyName}, click to ${isActive ? 'deactivate' : 'activate'}`}
+                        </span>
+                    </Button>
+                );
+            },
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            align: 'end',
+            width: 'md',
+            render: (company) => {
+                const companyName = getFieldValue(company.companyName);
+                return (
+                    <div className="flex justify-end gap-ds-2">
+                        <IconButton
+                            label={`View applications for ${companyName}`}
+                            variant="ghost"
+                            size="sm"
+                            onClick={rowAction(() => onViewApps({ id: company.id, name: company.companyName }))}
+                        >
+                            <Icon icon={FileText} size="lg" />
+                        </IconButton>
+                        <IconButton
+                            label={`Edit ${companyName}`}
+                            variant="ghost"
+                            size="sm"
+                            onClick={rowAction(() => onEdit(company.id))}
+                        >
+                            <Icon icon={Edit2} size="lg" />
+                        </IconButton>
+                        <IconButton
+                            label={`Delete ${companyName}`}
+                            variant="ghost"
+                            size="sm"
+                            onClick={rowAction(() => onDelete({ id: company.id, name: company.companyName }))}
+                        >
+                            <Icon icon={Trash2} size="lg" className="text-ds-status-danger-fg" />
+                        </IconButton>
+                    </div>
+                );
+            },
+        },
+    ];
+
     return (
         <Card padding="none" className="flex h-full flex-col overflow-hidden">
             <div className="shrink-0 border-b border-ds-border-subtle p-ds-5">
@@ -163,182 +283,36 @@ export function CompaniesView({
                 </Notice>
             )}
 
-            {/* Keyboard-focusable, named scroll region: below `sm` the table
-                    scrolls horizontally, and in the empty state it holds no
-                    focusable children, so keyboard users could not scroll it at
-                    all (axe `scrollable-region-focusable`). Same pattern already
-                    used by `EnvelopeHistory` and `CampaignResultsTable`. */}
-                <div
-                    role="region"
-                    aria-label="Companies table"
-                    tabIndex={0}
-                    className="min-h-0 flex-1 overflow-auto bg-ds-canvas focus-visible:outline-none focus-visible:shadow-ds-focus"
-                >
-                <table className="ds-native-table" data-row-hover data-pin-first-column>
-                    <caption className="sr-only">{title}</caption>
-                    <thead className="sticky top-0 z-ds-raised shadow-ds-xs">
-                        <tr>
-                            <th scope="col">Company Name</th>
-                            <th scope="col">Slug / ID</th>
-                            <th scope="col">Plan</th>
-                            <th scope="col" className="text-center">Status</th>
-                            <th scope="col" className="text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {listLoading ? (
-                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-content-muted"><div role="status"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading companies...</div></td></tr>
-                        ) : statsError.companies ? (
-                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-status-danger-fg"><div role="alert">Error loading companies.</div></td></tr>
-                        ) : filteredCompanyList.length === 0 ? (
-                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-content-muted"><div role="status">No companies found.</div></td></tr>
-                        ) : (
-                            paginatedData.map(company => {
-                                const isActive = company.isActive !== false;
-                                const companyName = getFieldValue(company.companyName);
-                                return (
-                                    <tr
-                                        key={company.id}
-                                        onClick={() => openCompany(company)}
-                                        className="cursor-pointer transition-colors"
-                                    >
-                                        <th scope="row">
-                                            <div className="flex items-center gap-ds-3">
-                                                <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-heading-md font-bold text-ds-content-muted">
-                                                    {company.companyLogoUrl ? (
-                                                        <img src={company.companyLogoUrl} alt="" loading="lazy" className="h-full w-full rounded-ds-md object-contain" />
-                                                    ) : (
-                                                        companyName.charAt(0)
-                                                    )}
-                                                </span>
-                                                {/*
-                                                  A real button so keyboard users can open a
-                                                  company at all — `Button variant="link"`, not
-                                                  a hand-written "action that reads as text".
-                                                */}
-                                                <Button
-                                                    variant="link"
-                                                    justify="start"
-                                                    className="truncate"
-                                                    onClick={rowAction(() => openCompany(company))}
-                                                >
-                                                    {companyName}
-                                                </Button>
-                                            </div>
-                                        </th>
-                                        <td>
-                                            <span className="flex flex-col">
-                                                <span className="w-fit rounded-ds-sm bg-ds-status-info-bg px-2 py-0.5 font-mono text-ds-sm text-ds-status-info-fg">/{getFieldValue(company.appSlug)}</span>
-                                                <span className="mt-1 font-mono text-ds-xs text-ds-content-muted">{company.id}</span>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            {company.planType === 'paid' ? (
-                                                <Badge tone="warning" icon={Crown}>Pro Plan</Badge>
-                                            ) : (
-                                                <Badge tone="neutral" icon={Shield}>Free Plan</Badge>
-                                            )}
-                                        </td>
-                                        <td className="text-center">
-                                            {/* `relative` keeps the sr-only text inside the scrolling table:
-                                                without a positioned parent it sat past the right edge and
-                                                widened the whole page on a phone. */}
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="relative"
-                                                loading={togglingCompany === company.id}
-                                                onClick={rowAction(() => setPendingToggle({
-                                                    companyId: company.id,
-                                                    companyName: company.companyName,
-                                                    currentStatus: isActive,
-                                                }))}
-                                            >
-                                                {isActive
-                                                    ? <><Icon icon={CheckCircle} size="xs" /> Active</>
-                                                    : <><Icon icon={XCircle} size="xs" /> Inactive</>}
-                                                <span className="sr-only">
-                                                    {` — ${companyName}, click to ${isActive ? 'deactivate' : 'activate'}`}
-                                                </span>
-                                            </Button>
-                                        </td>
-                                        <td className="text-right">
-                                            <div className="flex justify-end gap-ds-2">
-                                                <IconButton
-                                                    label={`View applications for ${companyName}`}
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={rowAction(() => onViewApps({ id: company.id, name: company.companyName }))}
-                                                >
-                                                    <Icon icon={FileText} size="lg" />
-                                                </IconButton>
-                                                <IconButton
-                                                    label={`Edit ${companyName}`}
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={rowAction(() => onEdit(company.id))}
-                                                >
-                                                    <Icon icon={Edit2} size="lg" />
-                                                </IconButton>
-                                                <IconButton
-                                                    label={`Delete ${companyName}`}
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={rowAction(() => onDelete({ id: company.id, name: company.companyName }))}
-                                                >
-                                                    <Icon icon={Trash2} size="lg" className="text-ds-status-danger-fg" />
-                                                </IconButton>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            <div className="flex shrink-0 flex-col items-center justify-between gap-ds-4 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4 sm:flex-row">
-                <div className="flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary">
-                    <label htmlFor={perPageId}>Show</label>
-                    <Select
-                        id={perPageId}
-                        value={itemsPerPage}
-                        onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                        className="w-auto py-1.5"
-                    >
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                    </Select>
-                    <span>per page</span>
-                </div>
-
-                <div className="flex items-center gap-ds-4">
-                    <span className="text-ds-sm text-ds-content-secondary" role="status">
-                        Page <strong>{currentPage}</strong> of <strong>{totalPages || 1}</strong>
-                    </span>
-                    <div className="flex gap-1">
-                        <IconButton
-                            label="Previous page"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                        >
-                            <Icon icon={ChevronLeft} />
-                        </IconButton>
-                        <IconButton
-                            label="Next page"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage >= totalPages}
-                        >
-                            <Icon icon={ChevronRight} />
-                        </IconButton>
-                    </div>
-                </div>
+            {/* Fills the card below the toolbar; the table scrolls inside it,
+                under its sticky header, and sideways on a phone. */}
+            <div className="flex min-h-0 flex-1 flex-col">
+                <DataTable
+                    embedded
+                    ariaLabel={title}
+                    density="compact"
+                    minWidth="standard"
+                    data={paginatedData}
+                    columns={columns}
+                    getRowId={(company) => company.id}
+                    getRowLabel={(company) => getFieldValue(company.companyName)}
+                    onRowActivate={openCompany}
+                    isLoading={listLoading}
+                    loadingLabel="Loading companies..."
+                    error={statsError.companies ? 'Error loading companies.' : undefined}
+                    empty={{ title: 'No companies found.' }}
+                    pagination={{
+                        currentPage,
+                        totalPages: totalPages || 1,
+                        onNext: () => setCurrentPage((p) => Math.min(totalPages, p + 1)),
+                        onPrev: () => setCurrentPage((p) => Math.max(1, p - 1)),
+                        hasPrev: currentPage > 1,
+                        hasNext: currentPage < totalPages,
+                        label: `Showing ${paginatedData.length} of ${filteredCompanyList.length} companies`,
+                        pageSize: itemsPerPage,
+                        pageSizes: PAGE_SIZES,
+                        onPageSizeChange: setItemsPerPage,
+                    }}
+                />
             </div>
 
             {/* Database Pagination (Load More) */}
