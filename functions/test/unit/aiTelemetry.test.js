@@ -25,6 +25,7 @@ const {
     ALLOWED_FIELDS,
     ALLOWED_ATTEMPT_FIELDS,
     MAX_ATTEMPTS,
+    TRIGGERS,
     VENDOR_CODE_PATTERN,
 } = require('../../ai/telemetry/record');
 
@@ -173,6 +174,13 @@ describe('what must never be recorded', () => {
         expect(sanitize({ verdict: 'unsupported' }).verdict).toBe('unsupported');
         expect(sanitize({ verdict: 'The rule takes effect in January 2027' }).verdict)
             .toBeUndefined();
+    });
+
+    it('keeps a trigger only when it is one of the known values', () => {
+        expect(TRIGGERS).toEqual(['manual']);
+        expect(sanitize({ trigger: 'manual' }).trigger).toBe('manual');
+        expect(sanitize({ trigger: 'operator Dana Reyes' }).trigger).toBeUndefined();
+        expect(sanitize({ trigger: ['manual'] }).trigger).toBeUndefined();
     });
 
     it('drops unlisted fields inside an attempt too', () => {

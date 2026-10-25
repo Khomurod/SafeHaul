@@ -953,12 +953,12 @@ projection, and `/apply/:slug` is not gated by any flag. See
 - **No feature may call an AI vendor directly.** Every request goes through
   `functions/ai/` (task interface → capability-aware router → provider adapter →
   schema-validated response); `npm run check:ai-boundary` fails CI otherwise.
-  Each request records a transaction id and a per-provider timeline in
-  `ai_telemetry` (Super Admin → AI Integrations → **Logs**). The connection test
-  probes every claimed capability, calls a throttled probe untested; a full
-  pass clears cooldowns. Health and cooldown are **per lane**
+  Each request logs a transaction id and a per-provider timeline in
+  `ai_telemetry` (Super Admin → AI Integrations → **Logs**). **Test** probes
+  each claimed capability (throttled = untested) and logs as `manual`, never an
+  outage; a full pass clears cooldowns. Health and cooldown are **per lane**
   (text / vision), each up to three versions, kept by `refreshAiModelLists`
-  (**Model versions**); a re-pin in code
+  (**Model versions**); a code re-pin
   wins. One gone, off the plan or rate-limited rests; the next is tried while two
   slices remain. Document reads cap each attempt and skip a vendor's pause over
   5 s while another can serve. See [`docs/ai-platform.md`](./ai-platform.md).
@@ -967,8 +967,8 @@ projection, and `/apply/:slug` is not gated by any flag. See
   Engine and Compute Engine), so `roles/secretmanager.secretAccessor` is needed
   on both or one AI entry point reads a credential the other cannot. Super Admin
   → AI Integrations → **Check credential access** asks both and names the
-  account in use; "the secret is missing" and "this runtime cannot read the
-  secret" are reported as different faults, since they need opposite actions.
+  account in use; "the secret is missing" and "this runtime cannot read it"
+  are reported as different faults, since they need opposite actions.
 - **SMS credentials are resolved by a factory, never inline.**
   `SMSAdapterFactory` fetches, decrypts and instantiates the right adapter. A
   *keychain* holds each line's JWT under its number (as typed with +, else US

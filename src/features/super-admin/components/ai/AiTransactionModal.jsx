@@ -58,7 +58,7 @@ export function AiTransactionModal({ entry, onClose }) {
             <div className="flex max-h-[85vh] flex-col">
                 <header className="border-b border-ds-border-subtle p-ds-5">
                     <h2 id={headingId} className="text-ds-heading-sm font-bold text-ds-content">
-                        {describeTaskType(entry.taskType)}
+                        {describeTaskType(entry.taskType, entry.trigger)}
                     </h2>
                     <p className="mt-ds-1 text-ds-sm text-ds-content-secondary">
                         {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : 'Time unknown'}

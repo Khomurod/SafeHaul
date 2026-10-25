@@ -73,7 +73,13 @@ const ALLOWED_FIELDS = Object.freeze([
     // success and the article is correctly refused. Without this the Logs tab
     // showed two green rows for a run that published nothing.
     'verdict',
+    // Who started it, when not the product itself: `manual`, an operator's Test
+    // button. One of `TRIGGERS`, or nothing.
+    'trigger',
 ]);
+
+/** The values `trigger` may take. */
+const TRIGGERS = Object.freeze(['manual']);
 
 /**
  * What may be kept about one provider's turn.
@@ -159,6 +165,10 @@ function sanitize(entry) {
     for (const key of ALLOWED_FIELDS) {
         const value = entry[key];
         if (value === undefined || value === null) continue;
+        if (key === 'trigger') {
+            if (TRIGGERS.includes(value)) clean[key] = value;
+            continue;
+        }
         if (key === 'verdict') {
             // Positively validated, not truncated — a truncated sentence is
             // still a sentence.
@@ -392,6 +402,7 @@ module.exports = {
     VENDOR_CODE_PATTERN,
     VERDICT_PATTERN,
     recordAiTelemetry,
+    TRIGGERS,
     readRecentTelemetry,
     describeTaskInput,
     sanitize,
