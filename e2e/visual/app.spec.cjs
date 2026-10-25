@@ -215,6 +215,12 @@ const SCREENS = [
         },
         ready: (page) => page.getByRole('rowheader', { name: '2026-10-01' }),
     },
+    /* The companies list on three made-up companies (`e2eCompanies=mock`). */
+    {
+        name: 'super-admin-companies',
+        url: '/super-admin/companies?e2eAuth=super_admin&e2eCompanies=mock',
+        ready: (page) => page.getByRole('rowheader', { name: 'Northern Plains Refrigerated Transport Cooperative' }),
+    },
     /*
      * A company's applications dialog, opened from the companies table on made-up
      * companies and drivers (`e2eCompanies=mock`). Opened by keyboard: on a phone

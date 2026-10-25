@@ -13,9 +13,9 @@ import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
  * rule, the `allCompaniesMap.get(...) || "Unknown"` fallback, the `{ id }` /
  * `{ id, name }` callback shapes and every frozen string.
  *
- * `DataTable` is deliberately not used, for the same reason recorded on
- * `CompaniesView`: per-row interactive actions sit outside its proven
- * display-table contract. The approved native-table pattern is used instead.
+ * `DataTable` is not used yet: the list sits in a virtualised scroll region,
+ * and `DataTable` owns its own scroll container (roadmap §5). The approved
+ * native-table pattern is used instead.
  *
  * Defects fixed here:
  *  - Icon-only Edit/Delete actions carried only a `title`, so they had no
