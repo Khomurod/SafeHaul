@@ -1,7 +1,7 @@
 /**
  * Splits the glyph registry into one module per glyph, in the production build.
  *
- * `glyphs.js` mints every token in one module, and Rollup puts a module whole
+ * `glyphs.js` mints every token in one module, and the bundler puts a module whole
  * into one chunk. The first screen draws a few glyphs, so that chunk was the
  * entry, and every glyph any screen draws rode in every page's first download:
  * 168 lucide icons, 12 kB gzip. Here each line of the registry becomes a

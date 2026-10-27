@@ -8,7 +8,7 @@ import viteConfig from '../../vite.config.js';
 import firebaseConfigSource from '../lib/firebase/config.js?raw';
 
 const plugins = viteConfig.plugins.flat();
-const chunkFor = viteConfig.build.rollupOptions.output.manualChunks;
+const chunkFor = viteConfig.build.rolldownOptions.output.codeSplitting.groups[0].name;
 const nm = (path) => `/home/app/node_modules/${path}`;
 
 describe('the production build', () => {
@@ -17,7 +17,6 @@ describe('the production build', () => {
             nm('react/cjs/react.production.js'), nm('react-dom/cjs/react-dom-client.production.js'),
             nm('scheduler/cjs/scheduler.production.js'), nm('react-router/dist/production/index.mjs'),
             nm('@firebase/auth/dist/esm2017/index-abc.js'), nm('@firebase/firestore/dist/index.esm2017.js'),
-            '\0commonjsHelpers.js',
         ]) expect(chunkFor(id), id).toBe('vendor');
     });
 
@@ -47,8 +46,11 @@ describe('the production build', () => {
 describe('the vendor chunk after a release', () => {
     // One library and an application whose chunks import its exports in two
     // orders, as any release that moves the application's code around does.
-    // Exports that share a first letter are the ones whose short names Rollup
-    // mints in the order the application's chunks import them.
+    // Under Rollup the vendor chunk's exports took short names in the order the
+    // application's chunks imported them, and a CommonJS default export took
+    // its last importer's local name, so the file was renamed; two build-only
+    // workarounds held it. Rolldown (Vite 8) names both the same either way,
+    // with its defaults: these builds prove it with the same split as the app.
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vendor-names-'));
     fs.mkdirSync(path.join(root, 'node_modules/examplelib'), { recursive: true });
     fs.writeFileSync(path.join(root, 'node_modules/examplelib/package.json'),
@@ -58,7 +60,7 @@ describe('the vendor chunk after a release', () => {
     afterAll(() => fs.rmSync(root, { recursive: true, force: true }));
 
     /** The vendor chunk of a build whose entry draws `first` and whose lazy screen draws `rest`. */
-    async function vendorChunk([first, ...rest], minifyInternalExports) {
+    async function vendorChunk([first, ...rest]) {
         const dir = fs.mkdtempSync(path.join(root, 'app-'));
         fs.writeFileSync(path.join(dir, 'entry.js'),
             `import { ${first} } from 'examplelib';\nconsole.log(${first}());\nimport('./screen.js');\n`);
@@ -68,11 +70,10 @@ describe('the vendor chunk after a release', () => {
             root, configFile: false, logLevel: 'silent',
             build: {
                 write: false,
-                rollupOptions: {
+                rolldownOptions: {
                     input: path.join(dir, 'entry.js'),
                     output: {
-                        manualChunks: (id) => (id.includes('/node_modules/examplelib/') ? 'vendor' : undefined),
-                        minifyInternalExports,
+                        codeSplitting: { groups: [{ name: (id) => (id.includes('/node_modules/examplelib/') ? 'vendor' : undefined) }] },
                     },
                 },
             },
@@ -81,21 +82,13 @@ describe('the vendor chunk after a release', () => {
         return chunks.find((chunk) => chunk.type === 'chunk' && chunk.name === 'vendor');
     }
 
-    const appBuild = viteConfig.build.rollupOptions.output.minifyInternalExports;
-
-    it('keeps its bytes and its name with the build’s export names', async () => {
-        const before = await vendorChunk(['getAlpha', 'getBeta', 'getGamma'], appBuild);
-        const after = await vendorChunk(['getGamma', 'getAlpha', 'getBeta'], appBuild);
+    it('keeps its bytes and its name whichever order the application imports its exports in', async () => {
+        expect(viteConfig.build.rolldownOptions.output.minifyInternalExports).toBeUndefined();
+        const before = await vendorChunk(['getAlpha', 'getBeta', 'getGamma']);
+        const after = await vendorChunk(['getGamma', 'getAlpha', 'getBeta']);
 
         expect(after.code).toBe(before.code);
         expect(after.fileName).toBe(before.fileName);
-    }, 60_000);
-
-    it('would be renamed with the short names Rollup mints by default', async () => {
-        const before = await vendorChunk(['getAlpha', 'getBeta', 'getGamma'], true);
-        const after = await vendorChunk(['getGamma', 'getAlpha', 'getBeta'], true);
-
-        expect(after.fileName).not.toBe(before.fileName);
     }, 60_000);
 
     // A CommonJS library, as React is, whose default export the application's
@@ -108,22 +101,20 @@ describe('the vendor chunk after a release', () => {
         "module.exports = { greet: function () { return 'hello'; } };\n");
 
     /** The vendor chunk of a build whose entry imports the library as `first` and whose lazy screen imports it as `second`. */
-    async function commonjsVendorChunk([first, second], buildPlugins) {
+    async function commonjsVendorChunk([first, second]) {
         const dir = fs.mkdtempSync(path.join(root, 'cjs-app-'));
         fs.writeFileSync(path.join(dir, 'entry.js'),
             `import ${first} from 'examplecjs';\nconsole.log(${first}.greet());\nimport('./screen.js');\n`);
         fs.writeFileSync(path.join(dir, 'screen.js'),
             `import ${second} from 'examplecjs';\nconsole.log(${second}.greet());\n`);
         const output = await build({
-            root, configFile: false, logLevel: 'silent', plugins: buildPlugins,
+            root, configFile: false, logLevel: 'silent',
             build: {
                 write: false,
-                rollupOptions: {
+                rolldownOptions: {
                     input: path.join(dir, 'entry.js'),
                     output: {
-                        manualChunks: (id) => (id.includes('/node_modules/examplecjs/') || id === '\0commonjsHelpers.js'
-                            ? 'vendor' : undefined),
-                        minifyInternalExports: appBuild,
+                        codeSplitting: { groups: [{ name: (id) => (id.includes('/node_modules/examplecjs/') ? 'vendor' : undefined) }] },
                     },
                 },
             },
@@ -132,21 +123,11 @@ describe('the vendor chunk after a release', () => {
         return chunks.find((chunk) => chunk.type === 'chunk' && chunk.name === 'vendor');
     }
 
-    const namedDefaults = plugins.filter((p) => p?.name === 'safehaul:name-commonjs-default-exports');
-
     it('keeps a CommonJS library’s default export under one name, whichever module imports it last', async () => {
-        expect(namedDefaults).toHaveLength(1);
-        const before = await commonjsVendorChunk(['Library', 'lib'], namedDefaults);
-        const after = await commonjsVendorChunk(['lib', 'Library'], namedDefaults);
+        const before = await commonjsVendorChunk(['Library', 'lib']);
+        const after = await commonjsVendorChunk(['lib', 'Library']);
 
         expect(after.code).toBe(before.code);
         expect(after.fileName).toBe(before.fileName);
-    }, 60_000);
-
-    it('would export it under the name its last importer gives it without the build’s plugin', async () => {
-        const before = await commonjsVendorChunk(['Library', 'lib'], []);
-        const after = await commonjsVendorChunk(['lib', 'Library'], []);
-
-        expect(after.fileName).not.toBe(before.fileName);
     }, 60_000);
 });

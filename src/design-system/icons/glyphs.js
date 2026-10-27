@@ -274,7 +274,7 @@ export const ZoomOut = /* #__PURE__ */ glyph(LucideZoomOut, 'ZoomOut');
  * do not re-derive it, and what a call site greps to find out whether a name is
  * already available.
  */
-export const GLYPH_NAMES = Object.freeze([
+export const GLYPH_NAMES = /* #__PURE__ */ Object.freeze([
     'Activity', 'AlertCircle', 'AlertTriangle', 'AlignCenter', 'AlignCenterVertical',
     'AlignEndVertical', 'AlignJustify', 'AlignLeft', 'AlignRight', 'AlignStartVertical',
     'Archive', 'ArrowDown', 'ArrowLeft', 'ArrowLeftRight', 'ArrowRight', 'ArrowRightCircle',

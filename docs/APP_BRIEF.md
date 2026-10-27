@@ -74,7 +74,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 
 | Part | Location | Notes |
 |---|---|---|
-| React SPA | `src/` | React 19 + Vite 7 + React Router 7 + Tailwind 3.4. Builds to `dist/` |
+| React SPA | `src/` | React 19 + Vite 8 (Rolldown) + React Router 7 + Tailwind 3.4. Builds to `dist/` |
 | Cloud Functions | `functions/` | Node 22, **mixed v1 and v2** |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |

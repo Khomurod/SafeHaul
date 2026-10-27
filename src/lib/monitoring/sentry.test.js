@@ -55,6 +55,13 @@ describe('attachDeferredIntegrations', () => {
         expect(sentryMock.addIntegration.mock.calls.map(([integration]) => integration.name)).toEqual(['BrowserTracing', 'Replay']);
     });
 
+    it('loads them through deferredIntegrations.js when no loader is given', async () => {
+        await expect(attachDeferredIntegrations()).resolves.toBe(true);
+        expect(sentryMock.browserTracingIntegration).toHaveBeenCalledTimes(1);
+        expect(sentryMock.replayIntegration).toHaveBeenCalledTimes(1);
+        expect(sentryMock.addIntegration.mock.calls.map(([integration]) => integration.name)).toEqual(['BrowserTracing', 'Replay']);
+    });
+
     it('swallows a failed chunk load instead of taking the app down', async () => {
         await expect(attachDeferredIntegrations({ load: async () => { throw new Error('offline'); } })).resolves.toBe(false);
         expect(sentryMock.addIntegration).not.toHaveBeenCalled();

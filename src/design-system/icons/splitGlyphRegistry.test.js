@@ -21,7 +21,7 @@ describe('splitting the glyph registry', () => {
         expect(reExported(facade).sort()).toEqual([...GLYPH_NAMES].sort());
         expect([...glyphs.keys()].sort()).toEqual([...GLYPH_NAMES].sort());
         expect(facade).not.toMatch(/from 'lucide-react'/);
-        expect(facade).toMatch(/^export const GLYPH_NAMES = Object\.freeze\(\[/m);
+        expect(facade).toMatch(/^export const GLYPH_NAMES = \/\* #__PURE__ \*\/ Object\.freeze\(\[/m);
     });
 
     it('mints each glyph from the lucide component the registry imported for it', () => {
@@ -71,7 +71,7 @@ describe('a production build with the split registry', () => {
             `import { ServerCog } from ${JSON.stringify(registryFile)};\nconsole.log(ServerCog);\n`);
         const output = await build({
             root, configFile: false, logLevel: 'silent', plugins,
-            build: { write: false, minify: false, rollupOptions: { input: path.join(root, 'entry.js') } },
+            build: { write: false, minify: false, rolldownOptions: { input: path.join(root, 'entry.js') } },
         });
         const chunks = (Array.isArray(output) ? output[0] : output).output.filter((file) => file.type === 'chunk');
         return {
