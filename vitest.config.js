@@ -13,6 +13,11 @@ export default defineConfig({
         environment: 'happy-dom',
         setupFiles: './src/tests/setup.js',
         css: true,
+        // Vitest 5 clears every mock's calls before each test by default. Kept off:
+        // suites assert calls a module makes as it loads (`storage.test.js`,
+        // `startupGuards.test.jsx`), and each file resets its own mocks
+        // (`.claude/rules/testing.md`, `mockResetHygiene.test.js`).
+        clearMocks: false,
         // Cloud Functions use Jest (`cd functions && npm test`). Do not pick up those files here.
         include: ['src/**/*.{test,spec}.{js,mjs,jsx,tsx}'],
         exclude: ['**/node_modules/**', 'e2e/**'],
