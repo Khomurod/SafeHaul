@@ -201,6 +201,20 @@ console.log('\nA. The application page');
         `${r.problems.join('; ')} ${files}`);
     removeTree(dir);
 }
+{
+    // Through a facade, the screen's own chunk is still held to readable imports:
+    // missing them would leave its dependencies out of the sum.
+    const dir = fakeDist({
+        chunks: {
+            'PublicApplyHandler-f1.js': 'export{PublicApplyHandler}from"./PublicApplyHandler-r1.js";',
+            'PublicApplyHandler-r1.js': 'export const PublicApplyHandler = 1;',
+        },
+    });
+    const r = measureApplyPage(dir, measureFirstDownload(dir));
+    assert('A6c. behind a facade, a screen chunk whose imports cannot be read is a refusal',
+        r.problems.some((p) => /no import of PublicApplyHandler-r1\.js could be read/.test(p)), r.problems.join('; '));
+    removeTree(dir);
+}
 for (const [label, chunks] of [['no chunk', {}], ['two chunks', { 'PublicApplyHandler-r1.js': '1', 'PublicApplyHandler-r2.js': '2' }],
     ['a facade of some other chunk', { 'PublicApplyHandler-f1.js': 'export{x}from"./other-O1.js";', 'PublicApplyHandler-r1.js': 'import{v}from"./vendor-V1.js";' }]]) {
     const dir = fakeDist({ chunks });

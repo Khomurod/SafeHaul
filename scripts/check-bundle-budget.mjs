@@ -210,7 +210,7 @@ export function measureApplyPage(distDir, firstDownload, { ceiling = APPLY_PAGE_
         const imports = staticImports(bytes.toString('utf8'));
         // The screen imports React from the first download at the least; finding
         // nothing means the imports could not be read, and the sum would be short.
-        if (file === routeChunk && !imports.length) problems.push(`no import of ${file} could be read; the application page cannot be measured`);
+        if (named.includes(file) && !imports.length) problems.push(`no import of ${file} could be read; the application page cannot be measured`);
         for (const next of imports) if (!seen.has(next)) { seen.add(next); queue.push(next); }
     }
     const css = firstDownload.assets.filter((a) => a.kind === 'stylesheet' && a.bytes !== undefined)
