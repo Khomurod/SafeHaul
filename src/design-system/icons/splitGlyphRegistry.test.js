@@ -21,7 +21,7 @@ describe('splitting the glyph registry', () => {
         expect(reExported(facade).sort()).toEqual([...GLYPH_NAMES].sort());
         expect([...glyphs.keys()].sort()).toEqual([...GLYPH_NAMES].sort());
         expect(facade).not.toMatch(/from 'lucide-react'/);
-        expect(facade).toMatch(/^export const GLYPH_NAMES = Object\.freeze\(\[/m);
+        expect(facade).toMatch(/^export const GLYPH_NAMES = \/\* #__PURE__ \*\/ Object\.freeze\(\[/m);
     });
 
     it('mints each glyph from the lucide component the registry imported for it', () => {
