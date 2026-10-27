@@ -9,11 +9,11 @@ const projectRoot = path.resolve(currentDir, '..');
 
 /**
  * The application build's own plugins: they shape the app's files (one module
- * per glyph, the Firebase config fetched early, dependencies' default exports
- * under fixed names), and the catalog has no Firebase config to fetch.
+ * per glyph, the Firebase config fetched early), and the catalog has no
+ * Firebase config to fetch.
  */
 const APP_BUILD_ONLY_PLUGINS = [
-  'safehaul:split-glyph-registry', 'safehaul:preload-firebase-config', 'safehaul:name-commonjs-default-exports',
+  'safehaul:split-glyph-registry', 'safehaul:preload-firebase-config',
 ];
 
 /**
@@ -62,17 +62,16 @@ const config = {
     // The application build pins a single `index.html` entry; Storybook
     // supplies its own, so that is dropped rather than inherited. Sourcemaps
     // stay off, as in the application build.
-    if (viteConfig.build?.rollupOptions?.input) {
-      delete viteConfig.build.rollupOptions.input;
+    if (viteConfig.build?.rolldownOptions?.input) {
+      delete viteConfig.build.rolldownOptions.input;
     }
     if (viteConfig.build) {
       viteConfig.build.sourcemap = false;
     }
-    // The application's chunking (the vendor chunk and its export names) and
-    // its build-only plugins are dropped too: the catalog keeps Rollup's defaults.
-    if (viteConfig.build?.rollupOptions?.output) {
-      delete viteConfig.build.rollupOptions.output.manualChunks;
-      delete viteConfig.build.rollupOptions.output.minifyInternalExports;
+    // The application's chunking (the vendor chunk) and its build-only plugins
+    // are dropped too: the catalog keeps the bundler's defaults.
+    if (viteConfig.build?.rolldownOptions?.output) {
+      delete viteConfig.build.rolldownOptions.output.codeSplitting;
     }
     viteConfig.plugins = (viteConfig.plugins || []).flat(Infinity)
       .filter((plugin) => !APP_BUILD_ONLY_PLUGINS.includes(plugin?.name));

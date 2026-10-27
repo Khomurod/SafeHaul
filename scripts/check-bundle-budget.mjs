@@ -64,8 +64,24 @@ export const FIRST_DOWNLOAD_MUST_CONTAIN = Object.freeze([
  */
 export const APPLY_PAGE_CEILING = 536_000;
 
-/** The chunk Rollup names after the route's screen (`featureRegistry.jsx`). */
+/** The chunk the bundler names after the route's screen (`featureRegistry.jsx`). */
 export const APPLY_ROUTE_CHUNK = /^PublicApplyHandler-[\w-]+\.js$/;
+
+/**
+ * The route's chunk among the files named like it. Rolldown (Vite 8) can emit a
+ * facade beside the screen's chunk, a file that only re-exports it; the facade is
+ * what the route loads, and measuring from it follows the re-export into the
+ * chunk. Any other pair is two screens, and cannot be measured as one.
+ */
+export function applyRouteChunk(files, read) {
+    if (files.length === 1) return files[0];
+    if (files.length !== 2) return null;
+    const isFacadeOf = (facade, real) => new RegExp(`^export\\s*{[^}]*}\\s*from\\s*["']\\./${real.replace(/[.-]/g, '\\$&')}["'];?\\s*$`).test(read(facade).trim());
+    const [a, b] = files;
+    if (isFacadeOf(a, b)) return a;
+    if (isFacadeOf(b, a)) return b;
+    return null;
+}
 
 /** Chunks the application page must not import before its first screen. */
 export const APPLY_MUST_NOT_LOAD = Object.freeze([
@@ -141,7 +157,7 @@ export function measureFirstDownload(distDir, { ceiling = FIRST_DOWNLOAD_GZIP_CE
     return { assets, gzipTotal, problems };
 }
 
-/** The chunks a script statically imports or re-exports from, as Rollup writes ES output. */
+/** The chunks a script statically imports or re-exports from, as the bundler writes ES output. */
 export function staticImports(code) {
     const found = new Set();
     const pattern = /(?:^|[;}\n])\s*(?:import|export)\s*(?:[^"';()]*?\bfrom\s*)?["']\.\/([\w.-]+\.js)["']/g;
@@ -175,13 +191,14 @@ export function englishTextFonts(css) {
 export function measureApplyPage(distDir, firstDownload, { ceiling = APPLY_PAGE_CEILING } = {}) {
     const problems = [];
     const assetsDir = join(distDir, 'assets');
-    const routeChunks = existsSync(assetsDir) ? readdirSync(assetsDir).filter((file) => APPLY_ROUTE_CHUNK.test(file)) : [];
-    if (routeChunks.length !== 1) {
-        return { route: [], fonts: [], total: 0, problems: [`expected one chunk named like ${APPLY_ROUTE_CHUNK}, found ${routeChunks.length}; the application page cannot be measured`] };
+    const named = existsSync(assetsDir) ? readdirSync(assetsDir).filter((file) => APPLY_ROUTE_CHUNK.test(file)) : [];
+    const routeChunk = applyRouteChunk(named, (file) => readFileSync(join(assetsDir, file), 'utf8'));
+    if (!routeChunk) {
+        return { route: [], fonts: [], total: 0, problems: [`expected one chunk named like ${APPLY_ROUTE_CHUNK} (or one and its re-exporting facade), found ${named.length}; the application page cannot be measured`] };
     }
     const firstFiles = new Set(firstDownload.assets.map((a) => a.href.split('/').pop()));
     const route = [];
-    const queue = [routeChunks[0]];
+    const queue = [routeChunk];
     const seen = new Set(queue);
     while (queue.length) {
         const file = queue.shift();
@@ -193,7 +210,7 @@ export function measureApplyPage(distDir, firstDownload, { ceiling = APPLY_PAGE_
         const imports = staticImports(bytes.toString('utf8'));
         // The screen imports React from the first download at the least; finding
         // nothing means the imports could not be read, and the sum would be short.
-        if (file === routeChunks[0] && !imports.length) problems.push(`no import of ${file} could be read; the application page cannot be measured`);
+        if (file === routeChunk && !imports.length) problems.push(`no import of ${file} could be read; the application page cannot be measured`);
         for (const next of imports) if (!seen.has(next)) { seen.add(next); queue.push(next); }
     }
     const css = firstDownload.assets.filter((a) => a.kind === 'stylesheet' && a.bytes !== undefined)

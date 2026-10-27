@@ -77,7 +77,7 @@ Brief §12) · payment processing · any named carrier endorsement.
 | Technology | Version | Purpose |
 |---|---|---|
 | React | 19 | UI framework |
-| Vite | 7 | Build tool & dev server |
+| Vite | 8 | Build tool & dev server (bundles with Rolldown) |
 | React Router | 7 | Client-side routing |
 | TailwindCSS | 3.4 | Utility-first styling |
 | Lucide React | 0.552 | Icon library |
