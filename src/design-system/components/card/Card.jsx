@@ -58,6 +58,9 @@ export const MetricCard = /* @__PURE__ */ forwardRef(function MetricCard({
     >
       <span className="ds-metric-card__content">
         <span className="ds-metric-card__label" title={label}>{label}</span>
+        {/* Both spans are blocks, so this space draws nothing; it keeps the
+            label and the value two words in the text a name is checked against. */}
+        {' '}
         <span className="ds-metric-card__value" title={String(value)}>{value}</span>
       </span>
       {icon && <span className="ds-metric-card__icon" aria-hidden="true">{icon}</span>}
