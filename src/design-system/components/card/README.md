@@ -27,3 +27,9 @@ one of them wrong. Cards that each picked their own `p-4` / `p-6` /
 `MetricCard`'s icon chip uses `--ds-metric-icon-size`, **not** the control
 height. It is an illustration inside a card, not something you press, and it
 silently grew when the control scale's `md` step moved from 40px to 44px.
+
+An interactive `MetricCard` is named `"<label>: <value>"`. Its visible text must
+stay those two words apart: the label and value spans are blocks, with a space
+between them that draws nothing. Without it the text reads `attention0`, which
+axe's `label-content-name-mismatch` (WCAG 2.5.3) refuses, since the name does not
+contain it.
