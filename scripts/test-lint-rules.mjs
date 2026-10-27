@@ -139,7 +139,7 @@ console.log('\nM. Lint refuses what would crash a screen');
 {
     const undefinedTag = await errorsFor('export const Row = () => <Icon />;\n', 'src/features/example/Row.jsx');
     assert('M1. a JSX tag whose component is not in scope is an error',
-        undefinedTag.includes('react/jsx-no-undef'), undefinedTag.join(', '));
+        undefinedTag.includes('no-undef'), undefinedTag.join(', '));
     const conditionalHook = await errorsFor(
         "import { useState } from 'react';\nexport function Row({ on }) {\n  if (on) useState(0);\n  return null;\n}\n",
         'src/features/example/Row.jsx',
