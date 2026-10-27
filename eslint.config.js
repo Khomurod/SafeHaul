@@ -1,6 +1,5 @@
 import js from '@eslint/js'
 import globals from 'globals'
-import react from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import ds from './scripts/eslint-rules/index.mjs'
@@ -20,14 +19,8 @@ export default [
   {
     files: ['**/*.{js,jsx,cjs,mjs}'],
     plugins: {
-      react,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
-    },
-    settings: {
-      react: {
-        version: 'detect',
-      },
     },
     languageOptions: {
       ecmaVersion: 2020,
@@ -52,8 +45,11 @@ export default [
       // migration of component code, not a linter bump, so the policy here stays
       // what it was and the compiler rules become a deliberate opt-in when that
       // migration is scheduled.
-      'react/jsx-uses-vars': 'warn',
-      'react/jsx-no-undef': 'error',
+      // No `eslint-plugin-react`: ESLint 10's scope analysis reads JSX, so the
+      // recommended `no-undef` refuses a component that is not in scope (what
+      // `react/jsx-no-undef` did) and `no-unused-vars` counts `<Foo />` as a use
+      // (what `react/jsx-uses-vars` did). The plugin's last release accepts
+      // ESLint 9 at most. `scripts/test-lint-rules.mjs` M1 pins the refusal.
       // An error, not a warning, since 2026-09-06: the three violations this
       // rule reported were all one early return in `DocumentsManager.jsx`, and it
       // crashed the screen when the E-Docs flag changed on a mounted view. A
@@ -70,6 +66,12 @@ export default [
       'no-prototype-builtins': 'warn',
       'no-constant-condition': 'warn',
       'no-empty': 'warn',
+      // New in ESLint 10's recommended set, as errors. Warnings here, as the rest
+      // of this list, so the upgrade changes no code: measured on 2026-10-27 at 9
+      // each, every one an unread initial value or a rethrow without `cause`, none
+      // a defect. Raise them when those sites are cleaned up.
+      'no-useless-assignment': 'warn',
+      'preserve-caught-error': 'warn',
       'no-restricted-imports': ['warn', {
         patterns: [
           {
