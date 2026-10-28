@@ -1,13 +1,13 @@
 /**
  * useLineAssignments
  * ==================
- * Data/logic layer for the SMS number-assignment settings screen.
- * Extracted verbatim from NumberAssignmentManager.jsx — behavior unchanged:
+ * Data/logic layer for Settings → Text messages (SMS) (`sms/SmsSettingsPage.jsx`):
  *  - live listener on the sms_provider integration doc
  *  - roster fetch (memberships -> users)
  *  - surfacing assignments whose owner is missing from the roster
  *  - one-time legacy line-token backfill
  *  - line verification + token-based save via saveSmsLineAssignments
+ *  - `hasChanges` (both sides canonical) and `discardChanges` for the page's save bar
  */
 import { useState, useEffect, useRef } from 'react';
 import { doc, onSnapshot, collection, getDocs, query, where, documentId } from 'firebase/firestore';
@@ -39,8 +39,11 @@ export function useLineAssignments(companyId) {
     const tokenBackfillAttempted = useRef({}); // companyId -> bool (one-time auto-heal guard)
 
     const hasTokenChanges = Object.keys(assignmentTokenOverrides).length > 0 || defaultTokenOverride !== null;
+    // The saved default in the same canonical form `defaultNumber` is held in: a
+    // default stored as "(555) 000-0001" is not a change the moment it loads.
+    const savedDefault = sanitizePhone(configDoc?.defaultPhoneNumber || configDoc?.config?.defaultPhoneNumber || '');
     const hasChanges = JSON.stringify(assignments) !== JSON.stringify(initialAssignments) ||
-        defaultNumber !== (configDoc?.defaultPhoneNumber || configDoc?.config?.defaultPhoneNumber || '') ||
+        defaultNumber !== savedDefault ||
         hasTokenChanges;
 
     useEffect(() => {
@@ -287,17 +290,14 @@ export function useLineAssignments(companyId) {
         }
     };
 
-    // Warn about unsaved changes
-    useEffect(() => {
-        const handleBeforeUnload = (e) => {
-            if (hasChanges) {
-                e.preventDefault();
-                e.returnValue = '';
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [hasChanges]);
+    // Puts every edit back to what is saved. (The page reports `hasChanges` to
+    // the unsaved-changes guard, which also asks before the tab closes.)
+    const discardChanges = () => {
+        setAssignments(JSON.parse(JSON.stringify(initialAssignments)));
+        setAssignmentTokenOverrides({});
+        setDefaultTokenOverride(null);
+        setDefaultNumber(savedDefault);
+    };
 
     return {
         loading,
@@ -318,6 +318,8 @@ export function useLineAssignments(companyId) {
         setDefaultTokenOverride,
         savedDefaultToken,
         hasChanges,
+        savedDefault,
+        discardChanges,
         handleVerifyLine,
         handleSave,
     };

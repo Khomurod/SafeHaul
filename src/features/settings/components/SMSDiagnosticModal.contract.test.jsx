@@ -1,7 +1,7 @@
 /**
  * Contract freeze for `SMSDiagnosticModal`, written before its design-system
  * migration. This component previously had zero test coverage (it is stubbed
- * out in `NumberAssignmentManager.test.jsx`), so this file is the first freeze
+ * out in `SmsSettingsPage.contract.test.jsx`), so this file is the first freeze
  * of its callable contracts and messages:
  *
  *  - `verifySmsConfig({ companyId })` -> `{ message }`

@@ -1,21 +1,11 @@
 import React from 'react';
-import { LineManager } from '@/features/super-admin/components/integrations/LineManager';
-import { NumberAssignmentManager } from './NumberAssignmentManager';
-import { PageHeader } from '@/design-system/layouts';
+import { SmsSettingsPage } from './sms/SmsSettingsPage';
 
 /**
- * Company-admin SMS configuration tab.
- *
- * Gives Company Admins the same self-service phone setup Super Admins have:
- *  - Phone Line Wallet (LineManager): add / remove provider lines, entering the
- *    RingCentral JWT + optional per-line client credentials. Those secrets are
- *    encrypted server-side by the `addPhoneLine` callable (which already authorizes
- *    company admins) and are never echoed back to the browser.
- *  - Number Assignments (NumberAssignmentManager): pick the default company line and
- *    assign 1:1 lines to recruiters.
- *
- * No plaintext credential handling on the client — the admin enters a secret once and
- * it is encrypted on save; reads only ever return the masked/non-secret fields.
+ * Settings → Text messages (SMS) for a company admin: the company's own lines,
+ * who texts from which, and the default (`sms/SmsSettingsPage.jsx`). Secrets are
+ * entered once in `AddLineModal`, encrypted server-side by `addPhoneLine`, and
+ * never read back. Super Admin keeps its own wallet, `LineManager`.
  */
 export function SmsSettingsTab({ currentCompanyProfile }) {
     const companyId = currentCompanyProfile?.id;
@@ -25,11 +15,5 @@ export function SmsSettingsTab({ currentCompanyProfile }) {
         return <div className="p-ds-8 text-center text-ds-sm text-ds-content-muted">Select a company to configure SMS.</div>;
     }
 
-    return (
-        <div className="space-y-ds-6">
-            <PageHeader title="Text messages (SMS)" description="The phone lines your team texts drivers from, and who texts from which." />
-            <LineManager companyId={companyId} companyName={companyName} />
-            <NumberAssignmentManager companyId={companyId} />
-        </div>
-    );
+    return <SmsSettingsPage companyId={companyId} companyName={companyName} />;
 }

@@ -61,13 +61,14 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `publishCompanyAgreementWording` | [`AgreementsPanel.jsx`](../src/features/settings/components/rules/AgreementsPanel.jsx) | **Super Admin only:** publish a new content-addressed (`c-…`) wording version for one agreement |
 | `revertCompanyAgreementWording` | [`AgreementsPanel.jsx`](../src/features/settings/components/rules/AgreementsPanel.jsx) | **Super Admin only:** return an agreement to the platform wording (published versions stay on record) |
 | `pauseBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Pause campaign |
-| `removePhoneLine` | [`LineManager.jsx`](../src/features/super-admin/components/integrations/LineManager.jsx) | Remove SMS line |
+| `removePhoneLine` | [`useRemovePhoneLine.js`](../src/features/super-admin/components/integrations/useRemovePhoneLine.js) | Remove SMS line (Super Admin wallet and company SMS settings) |
 | `resumeBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Resume campaign |
 | `retryFailedAttempts` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx), [`DetailedReportModal.jsx`](../src/features/campaigns/components/DetailedReportModal.jsx) | Retry failed bulk sends |
 | `revealEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: reveal exactly one value (recent auth required) |
 | `saveEmailSettings` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) | Persist SMTP config; `verified` says whether the server connected with it |
 | `saveIntegrationConfig` | [`IntegrationManager.jsx`](../src/features/super-admin/components/integrations/IntegrationManager.jsx) | Save encrypted SMS credentials |
 | `savePlatformAlertToken` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: store a Telegram bot token, once Telegram has accepted it |
+| `saveSmsLineAssignments` | [`useLineAssignments.js`](../src/features/settings/hooks/useLineAssignments.js) | Save who texts from which line and the default line, by line token |
 | `sendAutomatedEmail` | [`useCallOutcome.js`](../src/shared/hooks/useCallOutcome.js) | Template email from dossier/call flow |
 | `sendPlatformAlertTest` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: send a test alert to the connected chat |
 | `sendTestSMS` | [`SMSDiagnosticModal.jsx`](../src/features/settings/components/SMSDiagnosticModal.jsx), [`IntegrationManager.jsx`](../src/features/super-admin/components/integrations/IntegrationManager.jsx) | SMS connectivity test |
@@ -84,7 +85,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `transferSandboxApplication` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | Move sandbox app to prod tenant |
 | `updateEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: replace one editable configuration value |
 | `updatePortalUser` | [`userService.js`](../src/features/auth/services/userService.js) | Super Admin only: change a person's name or login email |
-| `verifyLineConnection` | [`NumberAssignmentManager.jsx`](../src/features/settings/components/NumberAssignmentManager.jsx) | Verify recruiter line assignment |
+| `verifyLineConnection` | [`useLineAssignments.js`](../src/features/settings/hooks/useLineAssignments.js) | Check that a line answers RingCentral |
 | `verifySmsConfig` | [`SMSDiagnosticModal.jsx`](../src/features/settings/components/SMSDiagnosticModal.jsx) | Verify company SMS config |
 
 ---

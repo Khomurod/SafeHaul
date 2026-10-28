@@ -1,94 +1,69 @@
 import React from 'react';
-import { Icon, AlertCircle, ShieldCheck, Activity } from '@design-system/icons';
-import { Badge, IconButton, Select } from '@/design-system/components';
+import { ShieldCheck } from '@design-system/icons';
+import { Badge, Select } from '@/design-system/components';
 import { MISSING_TOKEN, lineDisplay, sanitizePhone } from '../../utils/linePhone';
+import { memberLineToken, memberName } from '../sms/smsLineState';
 
-/**
- * The columns of the recruiter assignment matrix, one row per team member.
- * The member's role is a quiet line under their name, so the four columns fit
- * the settings page at 1440px.
- *
- * Presentation only — the token/select derivation, `setAssignments`/
- * `setAssignmentTokenOverrides` wiring, and `handleVerifyLine` are unchanged
- * from `NumberAssignmentManager.jsx`, where the row was originally inlined;
- * `rowState` derives them once per member for every cell that needs them.
- *
- * Defects fixed here:
- *  - the assignment `<select>` had no accessible name (now `aria-label`);
- *  - the verify button was icon-only with a `title` but no `aria-label`
- *    (now an `IconButton`);
- *  - the "Not in current team" / "Dedicated Credentials" badges used
- *    `text-[9px]`, below the 12 px floor (now `Badge`, which floors at
- *    `--ds-font-size-xs`);
- *  - the connection-status dot in the last column was colour-only, with only
- *    a `title` attribute — no visible or accessible text (now paired with a
- *    visually-hidden status string).
- */
-function rowState(user, {
-    inventory,
-    assignments,
-    assignmentTokenOverrides,
-    savedAssignmentTokens,
-    tokenForPhone,
-    resolveLineToken,
-    verifyingLine,
-    lineStatuses,
-}) {
-    const rawPhone = assignments[user.id] || '';
-    const currentPhone = sanitizePhone(rawPhone);
-    const selectedToken = assignmentTokenOverrides[user.id] ?? (tokenForPhone(currentPhone) || resolveLineToken(savedAssignmentTokens[user.id]) || (currentPhone ? MISSING_TOKEN : ''));
-    const isAssigned = !!currentPhone || !!assignmentTokenOverrides[user.id];
+const ROLE_LABELS = {
+    company_admin: 'Company admin',
+    hr_user: 'Recruiter',
+    external: 'Former member',
+    unassigned: 'Former member',
+};
 
-    // Match against sanitized inventory numbers
-    const invItem = inventory.find(i => sanitizePhone(i.phoneNumber) === currentPhone);
-    return {
-        currentPhone,
-        selectedToken,
-        isAssigned,
-        invItem,
-        hasDedicated: invItem?.hasDedicatedCredentials,
-        memberName: user.name || user.fullName || user.email,
-        isVerifyingRow: verifyingLine === currentPhone,
-        rowStatus: lineStatuses[currentPhone],
-    };
+/** A membership role in the page's words. */
+export function roleLabel(role) {
+    return ROLE_LABELS[role] || role || '—';
 }
 
+/**
+ * The columns of "Who texts from which line", one row per team member: who they
+ * are, their role ("Former member" for a line owner outside the roster), and the
+ * line they text from.
+ *
+ * The `<select>` keeps the frozen token model (`utils/linePhone.js`): option
+ * values are stable line tokens, never raw phone numbers; choosing a line
+ * records a token edit and the phone it stands for; a saved phone that is not
+ * among the synced lines stays selectable as "(Missing from sync)". Checking a
+ * line lives on the phone-lines table.
+ */
 export function assignmentColumns(rowProps) {
-    const { lines, setAssignments, setAssignmentTokenOverrides, phoneForToken, handleVerifyLine } = rowProps;
+    const { lines, inventory, assignments, assignmentTokenOverrides, setAssignments, setAssignmentTokenOverrides, phoneForToken } = rowProps;
     return [
         {
             key: 'member',
-            header: 'Team Member',
+            header: 'Team member',
             rowHeader: true,
             width: 'xl',
             render: (user) => (
-                <>
-                    <span className="block text-ds-sm font-medium text-ds-content [overflow-wrap:anywhere]">
-                        {rowState(user, rowProps).memberName}
-                    </span>
-                    <span className="block text-ds-xs font-normal text-ds-content-muted [overflow-wrap:anywhere]">{user.email}</span>
-                    {user.role && (
-                        <span className="block text-ds-xs font-normal uppercase tracking-wider text-ds-content-muted">
-                            <span className="sr-only">Role: </span>{user.role.replace('_', ' ')}
-                        </span>
+                <span className="flex min-w-0 flex-col items-start">
+                    <span className="max-w-full text-ds-sm font-medium text-ds-content [overflow-wrap:anywhere]">{memberName(user)}</span>
+                    {user.email && user.email !== memberName(user) && (
+                        <span className="max-w-full text-ds-xs font-normal text-ds-content-muted [overflow-wrap:anywhere]">{user.email}</span>
                     )}
-                    {user._unlinkedAssignment && (
-                        <Badge tone="warning" icon={AlertCircle}>Not in current team</Badge>
-                    )}
-                </>
+                </span>
             ),
         },
         {
-            key: 'number',
-            header: 'Assigned Number',
-            mobileLabel: 'Assigned number',
+            key: 'role',
+            header: 'Role',
+            width: 'lg',
+            truncate: true,
+            render: (user) => <span>{roleLabel(user.role)}</span>,
+        },
+        {
+            key: 'line',
+            header: 'Texts from',
             width: 'xl',
             render: (user) => {
-                const { currentPhone, selectedToken, isAssigned, invItem, hasDedicated, memberName } = rowState(user, rowProps);
+                const currentPhone = sanitizePhone(assignments[user.id] || '');
+                const selectedToken = memberLineToken(user.id, rowProps);
+                const isAssigned = !!currentPhone || !!assignmentTokenOverrides[user.id];
+                const invItem = inventory.find((item) => sanitizePhone(item.phoneNumber) === currentPhone);
                 return (
                     <div className="flex flex-col items-start gap-ds-1">
                         <Select
-                            aria-label={`Assigned number for ${memberName}`}
+                            aria-label={`Texts from, ${memberName(user)}`}
                             value={selectedToken}
                             onChange={(e) => {
                                 const t = e.target.value;
@@ -103,83 +78,25 @@ export function assignmentColumns(rowProps) {
                             }}
                             className="w-full"
                         >
-                            <option value="">No Direct Line</option>
-                            {/* 1. Show existing inventory (label-first so it stays readable even if a
-                                browser/DLP extension hides the raw digits) */}
+                            <option value="">Default line</option>
+                            {/* Label first, so a line stays readable when a browser
+                                extension hides the digits. */}
                             {lines.map((l, idx) => (
                                 <option key={l.token} value={l.token}>
                                     {lineDisplay(l.label, l.phone, idx)}
                                 </option>
                             ))}
-                            {/* 2. Resilience: If currently assigned number is MISSING from inventory, show it anyway */}
+                            {/* A saved line missing from the synced inventory stays visible. */}
                             {isAssigned && !invItem && (
                                 <option value={MISSING_TOKEN}>
                                     {currentPhone} (Missing from sync)
                                 </option>
                             )}
                         </Select>
-                        {isAssigned && hasDedicated && (
+                        {isAssigned && invItem?.hasDedicatedCredentials && (
                             <Badge tone="info" icon={ShieldCheck}>Dedicated Credentials</Badge>
                         )}
                     </div>
-                );
-            },
-        },
-        {
-            key: 'connection',
-            header: 'Connection',
-            width: 'lg',
-            render: (user) => {
-                const { currentPhone, isAssigned, invItem, memberName, isVerifyingRow, rowStatus } = rowState(user, rowProps);
-                if (!isAssigned) return <span className="text-ds-content-muted" aria-hidden="true">-</span>;
-                return (
-                    <div className="flex items-center gap-ds-2">
-                        <IconButton
-                            label={`Verify connection for ${memberName}`}
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleVerifyLine(currentPhone)}
-                            disabled={isVerifyingRow}
-                            loading={isVerifyingRow}
-                        >
-                            {!isVerifyingRow && (
-                                <Icon icon={Activity} size="sm" className={rowStatus ? 'text-ds-content-link' : 'text-ds-content-muted'} />
-                            )}
-                        </IconButton>
-                        {rowStatus ? (
-                            <Badge tone={rowStatus.success ? 'success' : 'danger'}>
-                                {rowStatus.success ? 'Connected' : 'Failed'}
-                            </Badge>
-                        ) : !invItem ? (
-                            <Badge tone="warning">Inventory Mismatch</Badge>
-                        ) : (
-                            <span className="text-ds-xs text-ds-content-muted">Untested</span>
-                        )}
-                    </div>
-                );
-            },
-        },
-        {
-            key: 'status',
-            header: 'Status',
-            width: 'sm',
-            render: (user) => {
-                const { isAssigned, invItem, rowStatus } = rowState(user, rowProps);
-                const dotClassName = !isAssigned
-                    ? 'bg-ds-border'
-                    : !rowStatus
-                        ? (invItem ? 'bg-ds-status-info-fg' : 'bg-ds-status-warning-fg')
-                        : rowStatus.success === false ? 'bg-ds-status-danger-fg' : 'bg-ds-status-success-fg';
-                const dotText = !isAssigned
-                    ? 'No assignment'
-                    : !rowStatus
-                        ? 'Untested'
-                        : rowStatus.success === false ? 'Connection error' : 'Active';
-                return (
-                    <>
-                        <span aria-hidden="true" className={`inline-block h-2 w-2 rounded-ds-full align-middle ${dotClassName}`} />
-                        <span className="sr-only">{dotText}</span>
-                    </>
                 );
             },
         },

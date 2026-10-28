@@ -2,11 +2,12 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 
+const toast = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
-    useToast: vi.fn(() => ({ showSuccess: vi.fn(), showError: vi.fn() }))
+    useToast: vi.fn(() => toast)
 }));
 vi.mock('@/context/DataContext', () => ({ useData: vi.fn(() => ({})) }));
-vi.mock('./SMSDiagnosticModal', () => ({ SMSDiagnosticModal: () => <div /> }));
+vi.mock('../SMSDiagnosticModal', () => ({ SMSDiagnosticModal: () => <div /> }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn()) }));
 vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
 
@@ -48,23 +49,25 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import { httpsCallable } from 'firebase/functions';
-import { NumberAssignmentManager } from './NumberAssignmentManager';
+import { SmsSettingsPage } from './SmsSettingsPage';
 
 beforeEach(() => {
     EXTERNAL_POOL = [];
     vi.clearAllMocks();
 });
 
-const userRowSelect = (name) => {
-    const row = screen.getByText(name).closest('tr');
-    return within(row).getByRole('combobox');
-};
+const userRowSelect = (name) => screen.getByRole('combobox', { name: `Texts from, ${name}` });
+const findMember = (name) => screen.findByRole('combobox', { name: `Texts from, ${name}` });
+// The phone-lines table marks the default line with a "Default" badge.
+const defaultRows = () => within(screen.getByRole('table', { name: 'Phone lines' }))
+    .getAllByRole('row')
+    .filter((row) => within(row).queryByText('Default', { exact: true }));
 // The dropdown's `value` is now a non-phone stable lineId; the visible number lives
 // in the selected option's text. Assert on the rendered text instead of the raw value.
 const selText = (select) => select.options[select.selectedIndex]?.textContent?.trim() || '';
 const rowSelText = (name) => selText(userRowSelect(name));
 
-describe('NumberAssignmentManager — linked-number display', () => {
+describe('SmsSettingsPage — linked-number display (frozen token model)', () => {
     it('CASE A: clean E.164 assignment shows the linked number', async () => {
         CONFIG_DATA = {
             isActive: true,
@@ -78,8 +81,8 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
         expect(rowSelText('Tom Robinson')).toContain('+15550000002');
     });
 
@@ -93,17 +96,16 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
 
-        const row = screen.getByText('Tom Robinson').closest('tr');
-        // Resolves to canonical E.164 and matches the inventory entry exactly.
-        expect(selText(within(row).getByRole('combobox'))).toContain('+15550000002');
+        // Resolves to canonical E.164 and matches the inventory entry exactly...
+        expect(rowSelText('Tom Robinson')).toContain('+15550000002');
         // ...so it must NOT be flagged as out-of-sync.
-        expect(within(row).queryByText('Inventory Mismatch')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Missing from sync/)).not.toBeInTheDocument();
     });
 
-    it('CASE C: configured default not in synced inventory is still shown selected', async () => {
+    it('CASE C: configured default not in synced inventory is still shown, as a warning', async () => {
         CONFIG_DATA = {
             isActive: true,
             inventory: [{ phoneNumber: '+15550000001', usageType: 'DirectNumber' }],
@@ -113,11 +115,10 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [];
         USERS = [];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Company Default Line')).toBeInTheDocument());
-        const defaultSelect = screen.getAllByRole('combobox')[0];
-        expect(selText(defaultSelect)).toContain('+15559999999');
-        expect(screen.getByText(/Missing from sync/)).toBeInTheDocument();
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await screen.findByRole('table', { name: 'Phone lines' });
+        expect(screen.getByText(/\+15559999999 is the default line, but it is missing from the synced lines/)).toBeInTheDocument();
+        expect(defaultRows()).toHaveLength(0);
     });
 
     it('CASE D: default stored in a different format matches inventory and shows selected', async () => {
@@ -130,12 +131,12 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [];
         USERS = [];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Company Default Line')).toBeInTheDocument());
-        const defaultSelect = screen.getAllByRole('combobox')[0];
-        expect(selText(defaultSelect)).toContain('+15550000001');
-        // matched inventory, so no stale-sync marker
-        expect(screen.queryByText(/Missing from sync/)).not.toBeInTheDocument();
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await screen.findByRole('table', { name: 'Phone lines' });
+        expect(defaultRows()).toHaveLength(1);
+        expect(defaultRows()[0]).toHaveTextContent('+15550000001');
+        // matched inventory, so no stale-sync warning
+        expect(screen.queryByText(/missing from the synced lines/)).not.toBeInTheDocument();
     });
 
     it('CASE F: a "+"-prefixed line without a country code is preserved exactly (keychain safety)', async () => {
@@ -151,11 +152,11 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
         expect(rowSelText('Tom Robinson')).toContain('+5550000002');
-        expect(selText(screen.getAllByRole('combobox')[0])).toContain('+5550000002');
-        expect(screen.queryByText(/Missing from sync/)).not.toBeInTheDocument();
+        expect(defaultRows()[0]).toHaveTextContent('+5550000002');
+        expect(screen.queryByText(/Missing from sync|missing from the synced lines/)).not.toBeInTheDocument();
     });
 
     it('CASE G: malformed/blank line ("+") resolves to empty (no false assignment)', async () => {
@@ -168,11 +169,11 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
-        expect(rowSelText('Tom Robinson')).toBe('No Direct Line');
-        expect(selText(screen.getAllByRole('combobox')[0])).toContain('Select Default Number');
-        expect(screen.queryByText(/Missing from sync/)).not.toBeInTheDocument();
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
+        expect(rowSelText('Tom Robinson')).toBe('Default line');
+        expect(defaultRows()).toHaveLength(0);
+        expect(screen.queryByText(/Missing from sync|missing from the synced lines/)).not.toBeInTheDocument();
     });
 
     it('CASE E: empty assignment correctly shows "No Direct Line"', async () => {
@@ -185,9 +186,9 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
-        expect(rowSelText('Tom Robinson')).toBe('No Direct Line');
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
+        expect(rowSelText('Tom Robinson')).toBe('Default line');
     });
 
     it('CASE H: a line assigned to a uid missing from the roster is still surfaced (resolved user doc)', async () => {
@@ -203,14 +204,14 @@ describe('NumberAssignmentManager — linked-number display', () => {
         USERS = [{ id: 'uidNova', name: 'Nova', email: 'nova@x.com' }];
         EXTERNAL_POOL = [{ id: '5921L1GIU7Z7O5dq22DuMZ0dzMY2', name: 'Tom Robinson', email: 'tom@raystarllc.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
         // The assigned line is now visible on Tom's appended row...
         expect(rowSelText('Tom Robinson')).toContain('+15550000002');
         // ...and flagged so the admin understands it's outside the current roster.
-        expect(screen.getByText('Not in current team')).toBeInTheDocument();
+        expect(userRowSelect('Tom Robinson').closest('tr')).toHaveTextContent('Former member');
         // The actual roster member with no line still reads empty.
-        expect(rowSelText('Nova')).toBe('No Direct Line');
+        expect(rowSelText('Nova')).toBe('Default line');
     });
 
     it('CASE I: a line assigned to a uid with no user doc shows a placeholder row (still manageable)', async () => {
@@ -224,10 +225,9 @@ describe('NumberAssignmentManager — linked-number display', () => {
         USERS = [{ id: 'uidNova', name: 'Nova', email: 'nova@x.com' }];
         EXTERNAL_POOL = []; // no user doc resolvable for the assigned uid
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Unknown / former user')).toBeInTheDocument());
-        const row = screen.getByText('Unknown / former user').closest('tr');
-        expect(selText(within(row).getByRole('combobox'))).toContain('+15550000003');
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Unknown / former user');
+        expect(rowSelText('Unknown / former user')).toContain('+15550000003');
     });
 
 
@@ -247,11 +247,11 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
 
         fireEvent.change(userRowSelect('Tom Robinson'), { target: { value: 'line_sofia' } });
-        fireEvent.click(screen.getByText('Save Changes Now'));
+        fireEvent.click(within(screen.getByRole('region', { name: 'Unsaved changes' })).getByRole('button', { name: 'Save' }));
 
         await waitFor(() => expect(callable).toHaveBeenCalledWith({
             companyId: 'c1',
@@ -276,10 +276,11 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
 
-        expect(selText(screen.getAllByRole('combobox')[0])).toContain('Sofia');
+        expect(defaultRows()).toHaveLength(1);
+        expect(within(defaultRows()[0]).getByRole('rowheader')).toHaveTextContent('Sofia');
         expect(rowSelText('Tom Robinson')).toContain('Sofia');
     });
 
@@ -299,10 +300,10 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
 
-        expect(screen.getAllByRole('combobox')[0].value).toBe('line_sofia');
+        expect(within(defaultRows()[0]).getByRole('rowheader')).toHaveTextContent('Sofia');
         expect(userRowSelect('Tom Robinson').value).toBe('line_sofia');
     });
 
@@ -323,10 +324,10 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
         // Must NOT collapse to the first line.
-        expect(rowSelText('Tom Robinson')).toBe('No Direct Line');
+        expect(rowSelText('Tom Robinson')).toBe('Default line');
         // Options remain selectable and distinguishable by label.
         const select = userRowSelect('Tom Robinson');
         const optionTexts = [...select.options].map(o => o.textContent);
@@ -346,7 +347,7 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
         // Auto-heal fires a non-destructive backfill (no assignment changes).
         await waitFor(() => expect(callable).toHaveBeenCalledWith({ companyId: 'c1', assignmentTokens: {} }));
         // ...and only once.
@@ -369,9 +370,174 @@ describe('NumberAssignmentManager — linked-number display', () => {
         MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'company_admin' }];
         USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
 
-        render(<NumberAssignmentManager companyId="c1" />);
-        await waitFor(() => expect(screen.getByText('Tom Robinson')).toBeInTheDocument());
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
         await Promise.resolve();
         expect(callable).not.toHaveBeenCalledWith({ companyId: 'c1', assignmentTokens: {} });
+    });
+});
+
+describe('SmsSettingsPage — default line, save bar and removal', () => {
+    const twoLines = () => ({
+        isActive: true,
+        inventory: [
+            { lineId: 'line_main', phoneNumber: '+15550000001', label: 'Main Number', usageType: 'DirectNumber' },
+            { lineId: 'line_sofia', phoneNumber: '+15550000002', label: 'Sofia', usageType: 'DirectNumber' },
+        ],
+        defaultPhoneNumber: '(555) 000-0001', // stored unformatted: still not a change
+        defaultLineToken: 'line_main',
+        assignments: { uidTom: '+15550000002' },
+        assignmentLineTokens: { uidTom: 'line_sofia' },
+    });
+    const saveBar = () => screen.queryByRole('region', { name: 'Unsaved changes' });
+
+    beforeEach(() => {
+        CONFIG_DATA = twoLines();
+        MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'hr_user' }];
+        USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
+    });
+
+    it('shows no save bar on load when the default is stored in another format', async () => {
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
+        expect(saveBar()).not.toBeInTheDocument();
+    });
+
+    it('says who texts from each line, the default line covering everyone else', async () => {
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
+        const table = screen.getByRole('table', { name: 'Phone lines' });
+        const row = (name) => within(table).getByRole('rowheader', { name: new RegExp(`^${name}`) }).closest('tr');
+        expect(row('Main Number')).toHaveTextContent('Everyone');
+        expect(row('Sofia')).toHaveTextContent('Tom Robinson');
+        expect(rowSelText('Tom Robinson')).toContain('Sofia');
+        expect(within(userRowSelect('Tom Robinson').closest('tr')).getByText('Recruiter')).toBeInTheDocument();
+    });
+
+    it('saves a new default line by its token', async () => {
+        const callable = vi.fn(() => Promise.resolve({ data: { success: true } }));
+        vi.mocked(httpsCallable).mockReturnValue(callable);
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Set Sofia as default' }));
+        expect(saveBar()).toHaveTextContent('Default line changed');
+        expect(defaultRows()[0]).toHaveTextContent('Sofia');
+        fireEvent.click(within(saveBar()).getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => expect(callable).toHaveBeenCalledWith({
+            companyId: 'c1', assignmentTokens: {}, defaultToken: 'line_sofia',
+        }));
+    });
+
+    it('saves "no default line" as an empty token', async () => {
+        const callable = vi.fn(() => Promise.resolve({ data: { success: true } }));
+        vi.mocked(httpsCallable).mockReturnValue(callable);
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Unset Main Number as default' }));
+        expect(defaultRows()).toHaveLength(0);
+        fireEvent.click(within(saveBar()).getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => expect(callable).toHaveBeenCalledWith({
+            companyId: 'c1', assignmentTokens: {}, defaultToken: '',
+        }));
+    });
+
+    it('names the member who changed and puts every edit back on Discard', async () => {
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
+
+        fireEvent.change(userRowSelect('Tom Robinson'), { target: { value: '' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Set Sofia as default' }));
+        expect(saveBar()).toHaveTextContent('1 change · Tom Robinson · Default line changed');
+
+        fireEvent.click(within(saveBar()).getByRole('button', { name: 'Discard' }));
+        expect(saveBar()).not.toBeInTheDocument();
+        expect(rowSelText('Tom Robinson')).toContain('Sofia');
+        expect(within(defaultRows()[0]).getByRole('rowheader')).toHaveTextContent('Main Number');
+    });
+
+    it('asks before removing a line and removes it by the number as stored', async () => {
+        const callable = vi.fn(() => Promise.resolve({ data: { success: true, message: 'Removed.' } }));
+        vi.mocked(httpsCallable).mockReturnValue(callable);
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Remove line Sofia' }));
+        const dialog = screen.getByRole('dialog', { name: 'Remove phone line?' });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Remove line' }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(httpsCallable).toHaveBeenCalledWith({}, 'removePhoneLine');
+        expect(callable).toHaveBeenCalledWith({ companyId: 'c1', phoneNumber: '+15550000002' });
+    });
+
+    it('checks a line through verifyLineConnection and shows the result in words', async () => {
+        const callable = vi.fn(() => Promise.resolve({ data: { identity: 'artificial-identity', timestamp: '2026-07-27T00:00:00.000Z' } }));
+        vi.mocked(httpsCallable).mockReturnValue(callable);
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Check line Sofia' }));
+        await waitFor(() => expect(screen.getByText('Working')).toBeInTheDocument());
+        expect(callable).toHaveBeenCalledWith({ companyId: 'c1', phoneNumber: '+15550000002' });
+    });
+});
+
+describe('SmsSettingsPage — one removal at a time, and the support request', () => {
+    beforeEach(() => {
+        MEMBERSHIPS = [];
+        USERS = [];
+    });
+
+    it('ignores a second removal while the first is still running', async () => {
+        CONFIG_DATA = {
+            isActive: true,
+            inventory: [
+                { lineId: 'line_main', phoneNumber: '+15550000001', label: 'Main Number' },
+                { lineId: 'line_sofia', phoneNumber: '+15550000002', label: 'Sofia' },
+            ],
+            defaultPhoneNumber: '+15550000001',
+            defaultLineToken: 'line_main', // already tokenised, so no backfill call
+            assignments: {},
+        };
+        let finish;
+        const callable = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
+        vi.mocked(httpsCallable).mockReturnValue(callable);
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await screen.findByRole('table', { name: 'Phone lines' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Remove line Sofia' }));
+        fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove line' }));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Remove line Main Number' })).toBeDisabled());
+        expect(callable).toHaveBeenCalledTimes(1);
+
+        finish({ data: { success: true } });
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Remove line Main Number' })).toBeEnabled());
+    });
+
+    it('says the support request was copied only when it was', async () => {
+        CONFIG_DATA = null;
+        const writeText = vi.fn(() => Promise.resolve());
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Copy request for support' }));
+        await waitFor(() => expect(toast.showSuccess).toHaveBeenCalledWith('Request copied. Send it to SafeHaul support.'));
+        expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Artificial Co (company id c1)'));
+    });
+
+    it('says what to ask for when the browser refuses the clipboard', async () => {
+        CONFIG_DATA = null;
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(() => Promise.reject(new Error('denied'))) } });
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Copy request for support' }));
+        await waitFor(() => expect(toast.showError).toHaveBeenCalledWith(
+            'Could not copy the request. Ask SafeHaul support to set up text messaging for your company.',
+        ));
+        expect(toast.showSuccess).not.toHaveBeenCalled();
     });
 });

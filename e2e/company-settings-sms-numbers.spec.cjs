@@ -1,14 +1,11 @@
-// E2E coverage for the Company Settings "SMS Settings" tab's migrated
-// Number Assignments surface (NumberAssignmentManager + DefaultLineSection +
-// AssignmentTable + AssignmentRow + SMSDiagnosticModal). Firestore is
-// deliberately unreachable under VITE_E2E_TEST_MODE=1, so the E2E-reachable
-// state is the frozen "SMS Integration Not Active" branch (no
-// `sms_provider` doc exists for the mock company) — the full assignment
-// matrix, verify/save flows, and the diagnostic modal are covered by the
-// focused unit suites (NumberAssignmentManager.test.jsx's frozen 15-case
-// suite, NumberAssignmentManager.a11y.test.jsx, SMSDiagnosticModal.contract/
-// a11y.test.jsx). This spec proves the reachable state renders, is
-// accessible, and does not overflow.
+// E2E coverage for Company Settings → Text messages (SMS). Firestore is
+// deliberately unreachable under VITE_E2E_TEST_MODE=1 and no `sms_provider` doc
+// exists for the mock company, so the reachable state is the setup checklist.
+// The configured page (phone lines, who texts from which line, the save bar,
+// check/remove/default actions) is covered by the focused unit suites:
+// sms/SmsSettingsPage.contract.test.jsx (the frozen 15-case token suite and
+// more), sms/SmsSettingsPage.a11y.test.jsx, and SMSDiagnosticModal.*.test.jsx.
+// This spec proves the reachable state renders, is accessible, and fits.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 
@@ -17,7 +14,7 @@ const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 async function openSmsTab(page) {
   await page.goto(`${SETTINGS_URL}&section=sms`);
   await expect(page.getByRole('heading', { level: 1, name: 'Text messages (SMS)' })).toBeVisible();
-  await expect(page.getByText('SMS Integration Not Active')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { level: 2, name: /^Connect RingCentral/ })).toBeVisible({ timeout: 20_000 });
 }
 
 async function expectNoHorizontalOverflow(page, label) {
@@ -28,28 +25,27 @@ async function expectNoHorizontalOverflow(page, label) {
   expect(scrollWidth, `${label}: horizontal overflow`).toBeLessThanOrEqual(clientWidth + 1);
 }
 
-test.describe('Company Settings SMS Settings — Number Assignments', () => {
+test.describe('Company Settings → Text messages (SMS)', () => {
   test.describe.configure({ timeout: 90_000 });
 
-  test('shows the frozen not-active message with an accessible status medallion', async ({ page }) => {
+  test('shows the four setup steps with a way to add the first line', async ({ page }) => {
     await openSmsTab(page);
-    await expect(page.getByText('Please contact a Super Admin to enable SMS for your company.'))
-      .toBeVisible();
+    const steps = page.getByRole('list', { name: 'Setup steps' });
+    await expect(steps.getByRole('listitem')).toHaveCount(4);
+    await expect(page.getByRole('button', { name: 'Add line' })).toBeVisible();
   });
 
-  test('keeps the Phone Line Wallet (out of scope) reachable alongside it', async ({ page }) => {
+  test('copies a request for SafeHaul support', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
     await openSmsTab(page);
-    await expect(page.getByText('Phone Line Wallet')).toBeVisible();
+    await page.getByRole('button', { name: 'Copy request for support' }).click();
+    await expect(page.getByText('Request copied. Send it to SafeHaul support.')).toBeVisible();
   });
 
-  test('has no serious or critical accessibility violations in the migrated Number Assignments surface', async ({ page }) => {
+  test('has no serious or critical accessibility violations', async ({ page }) => {
     await openSmsTab(page);
-    // Scoped to the migrated `NumberAssignmentManager`, not the whole tab: the
-    // Phone Line Wallet (`LineManager`) above it is a separate, out-of-scope,
-    // unmigrated component with its own pre-existing defects (recorded in the
-    // roadmap) that this campaign does not touch or claim to have fixed.
     const { violations } = await new AxeBuilder({ page })
-      .include('[data-testid="number-assignment-manager"]')
+      .include('[data-testid="sms-settings"]')
       .analyze();
     const severe = violations
       .filter((v) => v.impact === 'serious' || v.impact === 'critical')
@@ -74,5 +70,6 @@ test.describe('Company Settings SMS Settings — Number Assignments', () => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
     await openSmsTab(page);
     await expectNoHorizontalOverflow(page, 'mobile SMS settings');
+    await expect(page.getByRole('button', { name: 'Add line' })).toBeVisible();
   });
 });
