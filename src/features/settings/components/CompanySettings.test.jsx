@@ -13,6 +13,9 @@ vi.mock('@/context/DataContext', () => ({
 vi.mock('./CompanyProfileTab', () => ({
     CompanyProfileTab: () => <h1>Company Profile Content</h1>,
 }));
+vi.mock('./ApplicationFormTab', () => ({
+    ApplicationFormTab: () => <h1>Application Form Content</h1>,
+}));
 vi.mock('./TeamManagementTab', () => ({
     TeamManagementTab: () => <h1>Team Content</h1>,
 }));
@@ -119,7 +122,7 @@ describe('CompanySettings shell', () => {
         const overview = screen.getByRole('button', { name: 'Overview' });
         expect(overview).toHaveAttribute('aria-current', 'page');
         expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
-        for (const label of ['Company profile', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile']) {
+        for (const label of ['Company profile', 'Application form', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile']) {
             expect(screen.getByRole('button', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')} `) })).toBeInTheDocument();
         }
     });
@@ -178,14 +181,14 @@ describe('CompanySettings shell', () => {
         renderSettings();
 
         const companyProfile = screen.getByRole('button', { name: 'Company profile' });
-        const team = screen.getByRole('button', { name: 'Team' });
+        const application = screen.getByRole('button', { name: 'Application form' });
         const myProfile = screen.getByRole('button', { name: 'My profile' });
 
         companyProfile.focus();
         fireEvent.keyDown(companyProfile, { key: 'ArrowDown' });
-        expect(team).toHaveFocus();
+        expect(application).toHaveFocus();
 
-        fireEvent.keyDown(team, { key: 'End' });
+        fireEvent.keyDown(application, { key: 'End' });
         expect(myProfile).toHaveFocus();
     });
 

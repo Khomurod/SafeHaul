@@ -141,8 +141,6 @@ describe('CompanyProfileTab information compatibility slice', () => {
                         mcNumber: 'MC123456',
                         dotNumber: 'DOT654321',
                     },
-                    applicationConfig: company.applicationConfig,
-                    customQuestions: company.customQuestions,
                     companyLogoUrl: company.companyLogoUrl,
                 },
             );
@@ -268,19 +266,6 @@ describe('CompanyProfileTab information compatibility slice', () => {
         finishSave();
         await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Company settings saved successfully.'));
         expect(screen.getByText('Fort Worth')).toBeInTheDocument();
-    });
-
-    it('saves no answer option whose text was cleared, so a driver\'s page can draw the question', async () => {
-        const endorsement = { id: 'question-2', type: 'multipleChoice', label: 'Endorsement', options: ['Hazmat', '', 'Tanker'] };
-        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } } });
-        render(<CompanyProfileTab currentCompanyProfile={{ ...company, customQuestions: [endorsement] }} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-        await waitFor(() => expect(serviceMocks.saveCompanySettings).toHaveBeenCalledTimes(1));
-        expect(serviceMocks.saveCompanySettings.mock.calls[0][1].customQuestions).toEqual([
-            { ...endorsement, options: ['Hazmat', 'Tanker'] },
-        ]);
     });
 
     it('preserves save errors and re-enables the save action', async () => {

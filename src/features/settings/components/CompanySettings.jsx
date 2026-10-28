@@ -3,11 +3,13 @@ import { useSearchParams, useNavigationType, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import {
     Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, LayoutDashboard,
+    ClipboardList,
 } from '@design-system/icons';
 
 import { SmsSettingsTab } from './SmsSettingsTab';
 import { AutomatedSmsTab } from './AutomatedSmsTab';
 import { CompanyProfileTab } from './CompanyProfileTab';
+import { ApplicationFormTab } from './ApplicationFormTab';
 import { TeamManagementTab } from './TeamManagementTab';
 import { EmailSettingsTab } from './EmailSettingsTab';
 import { PersonalProfileTab } from './PersonalProfileTab';
@@ -34,6 +36,7 @@ function settingsGroups(profile) {
             label: 'Company',
             items: [
                 { id: 'company', label: 'Company profile', icon: Building },
+                { id: 'application', label: 'Application form', icon: ClipboardList },
                 { id: 'team', label: 'Team', icon: Users },
             ],
         },
@@ -140,6 +143,8 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
                 return <OverviewWithStatuses profile={currentCompanyProfile} groups={groups} onSelect={selectSection} />;
             case 'company':
                 return <CompanyProfileTab currentCompanyProfile={currentCompanyProfile} />;
+            case 'application':
+                return <ApplicationFormTab currentCompanyProfile={currentCompanyProfile} />;
             case 'team':
                 return (
                     <TeamManagementTab

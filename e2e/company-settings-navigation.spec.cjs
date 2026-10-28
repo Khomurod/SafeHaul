@@ -20,18 +20,18 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
 
     const overview = page.getByRole('button', { name: 'Overview', exact: true });
     const company = page.getByRole('button', { name: 'Company profile', exact: true });
-    const team = page.getByRole('button', { name: 'Team', exact: true });
+    const application = page.getByRole('button', { name: 'Application form', exact: true });
 
     await expect(overview).toHaveAttribute('aria-current', 'page');
     await expect(company).toHaveAttribute('aria-controls', 'company-settings-content');
 
     await company.focus();
     await page.keyboard.press('ArrowDown');
-    await expect(team).toBeFocused();
+    await expect(application).toBeFocused();
     await page.keyboard.press('Enter');
 
-    await expect(team).toBeFocused();
-    await expect(team).toHaveAttribute('aria-current', 'page');
+    await expect(application).toBeFocused();
+    await expect(application).toHaveAttribute('aria-current', 'page');
     await expect(overview).not.toHaveAttribute('aria-current');
   });
 
@@ -107,7 +107,7 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
 
     await expect(page.getByRole('navigation', { name: 'Company settings sections' })).toHaveCount(0);
     const sections = [
-      'Company profile', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts',
+      'Company profile', 'Application form', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts',
       'API keys', 'Facebook leads', 'Plan', 'My profile',
     ];
     for (const label of sections) {

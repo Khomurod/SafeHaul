@@ -104,8 +104,8 @@ const SCREENS = [
     },
     {
         name: 'company settings questions',
-        url: '/company/settings?section=company&e2eAuth=company_admin',
-        open: (page) => page.getByRole('tab', { name: 'Application Form Questions' }).click(),
+        url: '/company/settings?section=application&e2eAuth=company_admin',
+        open: (page) => page.getByRole('tab', { name: 'Questions' }).click(),
         row: 'Signed MVR Authorization Form (upload)',
         table: 'Standard DOT questions',
     },

@@ -42,9 +42,10 @@ beforeEach(() => {
 describe('useSettingsOverview', () => {
     it('reads where every section stands', async () => {
         const { result } = renderHook(() => useSettingsOverview(profile({ planType: 'paid' })));
-        await waitFor(() => expect(Object.keys(result.current)).toHaveLength(6));
+        await waitFor(() => expect(Object.keys(result.current)).toHaveLength(7));
         expect(result.current).toEqual({
             company: { label: 'Complete', tone: 'success' },
+            application: { label: '0 custom questions', tone: 'neutral' },
             billing: { label: 'Pro plan', tone: 'success' },
             team: { label: '3 people', tone: 'neutral' },
             api_keys: { label: '1 key on', tone: 'neutral' },
@@ -57,10 +58,11 @@ describe('useSettingsOverview', () => {
         fake.docs = {};
         fake.callables.listCompanyTeam = { members: [{ id: 'a' }] };
         fake.callables.listCompanyApiKeys = { keys: [] };
-        const { result } = renderHook(() => useSettingsOverview(profile({ contact: { phone: '', email: '' } })));
-        await waitFor(() => expect(Object.keys(result.current)).toHaveLength(6));
+        const { result } = renderHook(() => useSettingsOverview(profile({ contact: { phone: '', email: '' }, customQuestions: [{ id: 'q1' }] })));
+        await waitFor(() => expect(Object.keys(result.current)).toHaveLength(7));
         expect(result.current).toMatchObject({
             company: { label: 'Incomplete', tone: 'warning' },
+            application: { label: '1 custom question' },
             billing: { label: 'Free plan', tone: 'neutral' },
             team: { label: '1 person' },
             api_keys: { label: '0 keys on' },
@@ -88,6 +90,7 @@ describe('useSettingsOverview', () => {
         const { result } = renderHook(() => useSettingsOverview(null));
         expect(result.current).toEqual({
             company: { label: 'Incomplete', tone: 'warning' },
+            application: { label: '0 custom questions', tone: 'neutral' },
             billing: { label: 'Free plan', tone: 'neutral' },
         });
     });

@@ -530,6 +530,7 @@ it does:
 | Interactive pill / chip; person or organisation disc; selectable record card | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |
 | Editable-in-place value; collapsible section | `components/form` → `Input variant="inline"`; `components/disclosure` (rail and `variant="card"`) |
 | Section rail (page and step); status notice / callout | `components/section-navigation`; `components/notice` |
+| Unsaved-changes bar and dirty guard | `patterns/save-bar` → `SaveBar`, `useUnsavedChanges`, `useUnsavedChangesGuard` (Settings SMS and Application form; Company profile keeps Edit/Save by decision) |
 | Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
 
 Families still in progress — inputs, select/textarea, loading primitives beyond

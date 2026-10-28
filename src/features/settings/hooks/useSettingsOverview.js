@@ -15,6 +15,7 @@ function profileStatuses(profile) {
     const complete = !!profile?.companyName && !!details.phone && !!details.email;
     return {
         company: complete ? { label: 'Complete', tone: 'success' } : { label: 'Incomplete', tone: 'warning' },
+        application: { label: plural((profile?.customQuestions || []).length, 'custom question', 'custom questions'), tone: 'neutral' },
         billing: profile?.planType === 'paid' ? { label: 'Pro plan', tone: 'success' } : { label: 'Free plan', tone: 'neutral' },
     };
 }
@@ -50,9 +51,9 @@ const REMOTE = {
 
 /**
  * Where each Settings section stands, for the badges on Overview:
- * `{ [sectionId]: { label, tone } }`. Company profile and Plan come from the
- * profile; Team, API keys, SMS and Automated texts from one read each, made
- * when Overview opens. A read that fails leaves its section without a badge:
+ * `{ [sectionId]: { label, tone } }`. Company profile, Application form and
+ * Plan come from the profile; Team, API keys, SMS and Automated texts from one
+ * read each, made when Overview opens. A read that fails leaves its section without a badge:
  * Overview never guesses.
  */
 export function useSettingsOverview(profile) {

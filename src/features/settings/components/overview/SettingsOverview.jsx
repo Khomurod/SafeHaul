@@ -5,7 +5,8 @@ import { Icon, ChevronRight } from '@design-system/icons';
 
 /** One line under each section's name: what it holds. */
 const SECTION_SUMMARIES = {
-    company: 'Name, logo, contact details and the application form',
+    company: 'Name, logo, contact details and address',
+    application: 'Questions, rules, agreements and imports',
     team: 'Who recruits for you',
     email: 'Sending from your own mailbox',
     sms: 'Phone lines and who texts from them',
