@@ -54,7 +54,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
  */
 export function ApplicationFormTab({ currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
-    const { currentUserClaims } = useData();
+    const { currentUserClaims, applyCompanyChanges } = useData();
     const isSuperAdmin = isSuperAdminClaims(currentUserClaims);
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
 
@@ -100,6 +100,8 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
         try {
             // A cleared answer option alone changes nothing once dropped.
             if (Object.keys(changes).length > 0) await saveCompanySettings(currentCompanyProfile.id, changes);
+            // The company in use takes the save, so a return to this section shows it.
+            applyCompanyChanges(currentCompanyProfile.id, changes);
             // What the company now holds: a newer copy that waited during the
             // edit, with what was just saved here on top.
             const base = heldProfile ? { ...formOf(heldProfile), ...changes } : next;

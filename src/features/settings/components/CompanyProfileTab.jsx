@@ -22,7 +22,7 @@ const INFO_FIELDS = ['companyName', ...Object.keys(companyDetailsOf({}))];
  */
 export function CompanyProfileTab({ currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
-    const { currentUserClaims } = useData();
+    const { currentUserClaims, applyCompanyChanges } = useData();
 
     const [compData, setCompData] = useState({});
     const [loading, setLoading] = useState(false);
@@ -37,8 +37,9 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
 
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
 
+    // The company as saved; while the fields are open, what is typed stays.
     useEffect(() => {
-        if (currentCompanyProfile) {
+        if (currentCompanyProfile && !isEditing) {
             setCompData({
                 companyName: currentCompanyProfile.companyName || '',
                 // Either shape: a company the older Create screen made holds flat details.
@@ -46,6 +47,8 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 companyLogoUrl: currentCompanyProfile.companyLogoUrl || '',
             });
         }
+        // Only a new copy of the company re-syncs; closing the fields keeps what they hold.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentCompanyProfile]);
 
     useEffect(() => {
@@ -64,6 +67,8 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 companyLogoUrl: compData.companyLogoUrl,
             };
             await saveCompanySettings(currentCompanyProfile.id, payload);
+            // The company in use takes the save (the header's name, a return here).
+            applyCompanyChanges(currentCompanyProfile.id, payload);
             showSuccess('Company settings saved successfully.');
             setIsEditing(false);
         } catch (error) {
@@ -81,6 +86,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
         try {
             const downloadURL = await uploadCompanyLogo(currentCompanyProfile.id, file);
             await saveCompanySettings(currentCompanyProfile.id, { companyLogoUrl: downloadURL });
+            applyCompanyChanges(currentCompanyProfile.id, { companyLogoUrl: downloadURL });
             setCompData(prev => ({ ...prev, companyLogoUrl: downloadURL }));
             showSuccess("Logo uploaded successfully!");
         } catch (error) {

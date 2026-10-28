@@ -14,6 +14,7 @@ const toastMocks = vi.hoisted(() => ({
 }));
 
 const useDataMock = vi.hoisted(() => vi.fn());
+const applyCompanyChanges = vi.hoisted(() => vi.fn());
 
 vi.mock('@features/companies', () => ({
     saveCompanySettings: serviceMocks.saveCompanySettings,
@@ -61,7 +62,7 @@ const company = {
 function renderProfile({
     claims = { roles: { 'company-1': 'company_admin' } },
 } = {}) {
-    useDataMock.mockReturnValue({ currentUserClaims: claims });
+    useDataMock.mockReturnValue({ currentUserClaims: claims, applyCompanyChanges });
     return render(<CompanyProfileTab currentCompanyProfile={company} />);
 }
 
@@ -72,6 +73,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
         toastMocks.showError.mockReset();
         toastMocks.showSuccess.mockReset();
         useDataMock.mockReset();
+        applyCompanyChanges.mockReset();
         serviceMocks.saveCompanySettings.mockResolvedValue();
     });
 
@@ -108,6 +110,16 @@ describe('CompanyProfileTab information compatibility slice', () => {
             .toHaveAttribute('type', 'email');
         expect(screen.getByRole('textbox', { name: 'State' }))
             .toHaveAttribute('maxlength', '2');
+    });
+
+    it('keeps what is typed when the company changes while the fields are open', () => {
+        const { rerender } = renderProfile();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'Company Name' }), { target: { value: 'Typed name' } });
+
+        // A logo upload updates the company in use while the fields are open.
+        rerender(<CompanyProfileTab currentCompanyProfile={{ ...company, companyLogoUrl: 'https://example.test/new.png' }} />);
+        expect(screen.getByRole('textbox', { name: 'Company Name' })).toHaveValue('Typed name');
     });
 
     it('preserves the exact nested save payload and success behavior', async () => {
@@ -149,6 +161,8 @@ describe('CompanyProfileTab information compatibility slice', () => {
             .toHaveBeenCalledWith('Company settings saved successfully.');
         expect(screen.getByRole('button', { name: 'Edit Profile' }))
             .toBeInTheDocument();
+        // The company in use takes the save, so the header and a return here show it.
+        expect(applyCompanyChanges).toHaveBeenCalledWith('company-1', serviceMocks.saveCompanySettings.mock.calls[0][1]);
     });
 
     // The older Create screen saved flat details, `address` the street line.
@@ -166,7 +180,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
     };
 
     it('shows a company created with flat details, and its first save keeps them, street included', async () => {
-        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } } });
+        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } }, applyCompanyChanges });
         render(<CompanyProfileTab currentCompanyProfile={FLAT_COMPANY} />);
 
         expect(screen.getByText('DOT654321')).toBeInTheDocument();
@@ -183,7 +197,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
     });
 
     it('clears a detail of a company created with flat details for good', async () => {
-        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } } });
+        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } }, applyCompanyChanges });
         render(<CompanyProfileTab currentCompanyProfile={FLAT_COMPANY} />);
         fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
         fireEvent.change(screen.getByRole('textbox', { name: 'MC Number' }), { target: { value: '' } });
@@ -324,6 +338,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
                 companyLogoUrl: NEW_LOGO_URL,
             });
             expect(toastMocks.showSuccess).toHaveBeenCalledWith('Logo uploaded successfully!');
+            expect(applyCompanyChanges).toHaveBeenCalledWith('company-1', { companyLogoUrl: NEW_LOGO_URL });
             await waitFor(() => {
                 expect(screen.getByRole('img', { name: 'Company logo' }))
                     .toHaveAttribute('src', NEW_LOGO_URL);

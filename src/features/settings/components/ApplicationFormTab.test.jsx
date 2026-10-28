@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     showSuccess: vi.fn(),
     showError: vi.fn(),
     useData: vi.fn(),
+    applyCompanyChanges: vi.fn(),
 }));
 
 vi.mock('@features/companies', () => ({ saveCompanySettings: mocks.saveCompanySettings }));
@@ -53,7 +54,7 @@ const company = {
 const ADMIN = { roles: { 'company-1': 'company_admin' } };
 
 function renderForm({ profile = company, claims = ADMIN } = {}) {
-    mocks.useData.mockReturnValue({ currentUserClaims: claims });
+    mocks.useData.mockReturnValue({ currentUserClaims: claims, applyCompanyChanges: mocks.applyCompanyChanges });
     return render(<ApplicationFormTab currentCompanyProfile={profile} />);
 }
 
@@ -66,6 +67,7 @@ beforeEach(() => {
     mocks.showSuccess.mockReset();
     mocks.showError.mockReset();
     mocks.useData.mockReset();
+    mocks.applyCompanyChanges.mockReset();
 });
 
 describe('ApplicationFormTab', () => {
@@ -96,13 +98,16 @@ describe('ApplicationFormTab', () => {
         expect(mocks.showSuccess).toHaveBeenCalledWith('Company settings saved successfully.');
         // Standard questions and rules were not touched, so another admin's
         // change to them is not overwritten with this page's copy.
-        expect(mocks.saveCompanySettings).toHaveBeenCalledWith('company-1', {
+        const written = {
             customQuestions: [
                 { id: 'q1', type: 'text', label: 'Nights?' },
                 { id: 'q2', type: 'multipleChoice', label: 'Endorsement', options: ['Hazmat', 'Tanker'] },
             ],
             applicationIntegrations: { psp: { enabled: true } },
-        });
+        };
+        expect(mocks.saveCompanySettings).toHaveBeenCalledWith('company-1', written);
+        // The company in use takes the same parts, so a return to this section shows them.
+        expect(mocks.applyCompanyChanges).toHaveBeenCalledWith('company-1', written);
     });
 
     it('keeps an edit made while the save is on its way, still unsaved', async () => {
@@ -200,7 +205,7 @@ describe('ApplicationFormTab', () => {
     });
 
     it('tells the leave guard while it holds unsaved edits', () => {
-        mocks.useData.mockReturnValue({ currentUserClaims: ADMIN });
+        mocks.useData.mockReturnValue({ currentUserClaims: ADMIN, applyCompanyChanges: mocks.applyCompanyChanges });
         let guard;
         function Probe() { guard = useUnsavedChangesGuard(); return null; }
         render(
