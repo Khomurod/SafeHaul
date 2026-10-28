@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigationType, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import {
-    Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, LayoutDashboard,
-    ClipboardList,
+    Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, ClipboardList,
 } from '@design-system/icons';
 
 import { SmsSettingsTab } from './SmsSettingsTab';
@@ -16,8 +15,7 @@ import { PersonalProfileTab } from './PersonalProfileTab';
 import { IntegrationsTab } from './IntegrationsTab';
 import { BillingTab } from './BillingTab';
 import { ApiKeysTab } from './api-keys/ApiKeysTab';
-import { SettingsOverview } from './overview/SettingsOverview';
-import { useSettingsOverview } from '../hooks/useSettingsOverview';
+import { SettingsMenu } from './SettingsMenu';
 import { ButtonLink, SectionNavigation } from '@/design-system/components';
 import { ConfirmDialog, UnsavedChangesProvider, useUnsavedChangesGuard } from '@/design-system/patterns';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
@@ -25,12 +23,10 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 /**
  * The sections, grouped. Every id is also its `?section=` value, so a link to a
- * section keeps working when its label changes. Overview has no group label: it
- * is the way in, not a group.
+ * section keeps working when its label changes.
  */
 function settingsGroups(profile) {
     return [
-        { id: 'overview', items: [{ id: 'overview', label: 'Overview', icon: LayoutDashboard }] },
         {
             id: 'company',
             label: 'Company',
@@ -71,6 +67,9 @@ function settingsGroups(profile) {
     ];
 }
 
+/** The phone's menu of sections: shown when the address names no section. */
+const MENU = 'menu';
+
 export function CompanySettings() {
     const { currentCompanyProfile, currentUser, currentUserClaims } = useData();
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
@@ -99,14 +98,15 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
 
     const groups = settingsGroups(currentCompanyProfile);
     // The section is in the address (`?section=team`), so a reload, Back and a
-    // shared link keep it; Overview, the first, needs none. A section this
-    // company does not show opens Overview.
+    // shared link keep it. With none, or one this company does not show, a
+    // phone opens its menu of sections and a wider screen opens Company profile.
+    const home = isPhone ? MENU : 'company';
     const sectionIds = groups.flatMap((group) => group.items.map((item) => item.id));
     const requestedSection = searchParams.get('section');
-    const addressedSection = sectionIds.includes(requestedSection) ? requestedSection : 'overview';
+    const addressedSection = sectionIds.includes(requestedSection) ? requestedSection : home;
     const setActiveTab = (section) => setSearchParams((params) => {
         const next = new URLSearchParams(params);
-        if (section === 'overview') next.delete('section');
+        if (section === MENU) next.delete('section');
         else next.set('section', section);
         return next;
     });
@@ -131,16 +131,16 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
         guard.cancel();
     };
 
-    // The phone's way back to Overview keeps every other parameter (`e2eAuth`).
-    const overviewParams = new URLSearchParams(searchParams);
-    overviewParams.delete('section');
-    const overviewQuery = overviewParams.toString();
-    const overviewHref = `/company/settings${overviewQuery ? `?${overviewQuery}` : ''}`;
+    // The phone's way back to its menu keeps every other parameter (`e2eAuth`).
+    const menuParams = new URLSearchParams(searchParams);
+    menuParams.delete('section');
+    const menuQuery = menuParams.toString();
+    const menuHref = `/company/settings${menuQuery ? `?${menuQuery}` : ''}`;
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'overview':
-                return <OverviewWithStatuses profile={currentCompanyProfile} groups={groups} onSelect={selectSection} />;
+            case MENU:
+                return <SettingsMenu groups={groups} onSelect={selectSection} />;
             case 'company':
                 return <CompanyProfileTab currentCompanyProfile={currentCompanyProfile} />;
             case 'application':
@@ -177,7 +177,7 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
             <div className="mx-auto max-w-7xl p-3 sm:p-6">
                 <div className="flex min-w-0 flex-col gap-ds-6 xl:flex-row xl:gap-ds-8">
                     {/* A phone has no room for the rail beside the content or above
-                        it: Overview is its way to every section. */}
+                        it: its menu of sections is the way to every section. */}
                     {!isPhone && (
                         <aside className="w-full min-w-0 flex-shrink-0 xl:w-64">
                             <SectionNavigation
@@ -197,15 +197,15 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
                         className="flex min-w-0 flex-1 flex-col gap-ds-4"
                         aria-label="Company settings content"
                     >
-                        {isPhone && activeTab !== 'overview' && (
+                        {isPhone && activeTab !== MENU && (
                             <div>
                                 <ButtonLink
-                                    href={overviewHref}
+                                    href={menuHref}
                                     variant="ghost"
                                     size="sm"
                                     onClick={(event) => {
                                         event.preventDefault();
-                                        selectSection('overview');
+                                        selectSection(MENU);
                                     }}
                                 >
                                     <Icon icon={ArrowLeft} />
@@ -230,10 +230,4 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
             />
         </div>
     );
-}
-
-/** Overview with each section's state; its reads run only while Overview is shown. */
-function OverviewWithStatuses({ profile, groups, onSelect }) {
-    const statuses = useSettingsOverview(profile);
-    return <SettingsOverview groups={groups} onSelect={onSelect} statuses={statuses} />;
 }
