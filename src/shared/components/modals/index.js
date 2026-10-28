@@ -6,4 +6,3 @@
  * deliberately does not re-export them, so there is one place to import each.
  */
 export { CompanyChooserModal } from './CompanyChooserModal';
-export { ManageTeamModal } from './ManageTeamModal';

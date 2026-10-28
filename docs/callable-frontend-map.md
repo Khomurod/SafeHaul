@@ -22,7 +22,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `checkImportPhones` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | CSV import phone dedup check |
 | `connectFacebookPage` | [`IntegrationsTab.jsx`](../src/features/settings/components/IntegrationsTab.jsx) | Facebook Lead Ads OAuth |
 | `connectPlatformAlertChat` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: a one-time Start link to the alert bot, then the Telegram chat that used it; the page asks by itself (`checkOnly`) while the link waits, and a press says whether the page showed a chat (`chatShown`) |
-| `createPortalUser` | [`CreateView.jsx`](../src/features/super-admin/components/CreateView.jsx), [`TeamManagementTab.jsx`](../src/features/settings/components/TeamManagementTab.jsx) | Provision HR/recruiter/company user |
+| `createPortalUser` | [`CreateView.jsx`](../src/features/super-admin/components/CreateView.jsx), [`AddPersonDialog.jsx`](../src/features/settings/components/team/AddPersonDialog.jsx) | Provision HR/recruiter/company user |
 | `createPostApplicationSigningRequest` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Post-submit e-doc envelope |
 | `createCompanyApiKey`, `listCompanyApiKeys`, `revokeCompanyApiKey` | [`apiKeysService.js`](../src/features/settings/components/api-keys/apiKeysService.js) | Settings → API Keys: make a key (returned once, stored as a hash), list them, turn one off ([`companyApi/keyCallables.js`](../functions/companyApi/keyCallables.js)) |
 | `createChangeReview` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Mint a token link for the driver to review company edits |
@@ -32,7 +32,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `getPlatformAlerts` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: the alert connection and what the hourly watcher last saw |
 | `proposeApplicationChanges` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Company edits saved as pending driver-approval changes |
 | `deleteCompany` | [`DeleteCompanyModal.jsx`](../src/features/super-admin/components/modals/DeleteCompanyModal.jsx) | Remove tenant |
-| `deletePortalUser` | [`DeleteUserModal.jsx`](../src/features/super-admin/components/modals/DeleteUserModal.jsx), [`ManageTeamModal.jsx`](../src/shared/components/modals/ManageTeamModal.jsx), [`EditUserNameForm.jsx`](../src/features/super-admin/components/users/EditUserNameForm.jsx) | Company admin: remove from the team (login kept) · Super Admin: also delete the login |
+| `deletePortalUser` | [`DeleteUserModal.jsx`](../src/features/super-admin/components/modals/DeleteUserModal.jsx), [`TeamManagementTab.jsx`](../src/features/settings/components/TeamManagementTab.jsx), [`EditUserNameForm.jsx`](../src/features/super-admin/components/users/EditUserNameForm.jsx) | Company admin: remove from the team (login kept) · Super Admin: also delete the login |
 | `deleteEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: delete one configuration field after typed confirmation |
 | `deleteSandboxApplication` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | Sandbox cleanup |
 | `getEmailSettingsMeta` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) | Load SMTP meta (no password) |
@@ -47,7 +47,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `getSigningLink` | [`EnvelopeHistory.jsx`](../src/features/signing/components/EnvelopeHistory.jsx) | Resolve link with secret token; a link a correction left with an old email or phone is replaced first |
 | `getVerificationRequest` | [`VerificationPortal.jsx`](../src/features/verification/VerificationPortal.jsx) | PEV portal load |
 | `initBulkSession` | [`LaunchPad.jsx`](../src/features/campaigns/components/LaunchPad.jsx) | Start bulk SMS/email session |
-| `listCompanyTeam` | [`ManageTeamModal.jsx`](../src/shared/components/modals/ManageTeamModal.jsx) | Authoritative team roster: resolves each membership to a real name/email (Admin SDK, Firebase Auth fallback) and reports missing/stale/orphaned/duplicate records explicitly |
+| `listCompanyTeam` | [`useTeamRoster.js`](../src/features/settings/hooks/useTeamRoster.js) | Authoritative team roster: resolves each membership to a real name/email (Admin SDK, Firebase Auth fallback) and reports missing/stale/orphaned/duplicate records explicitly |
 | `listEnvironmentAndIntegrations` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: full configuration inventory, every value masked |
 | `listSandboxTenantCompanies` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | List sandbox tenants |
 | `parseCdlWithGroq` | [`useCdlAutoFill.js`](../src/features/driver-app/hooks/useCdlAutoFill.js) | CDL image OCR. Routed through the shared AI platform; the vendor name is a retained compatibility alias |

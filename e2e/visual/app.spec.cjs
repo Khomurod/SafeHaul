@@ -45,7 +45,7 @@
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
 const {
-    AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS, serveCallables,
+    AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, TEAM_ROSTER, WEBSITE_LEADS, serveCallables,
 } = require('../helpers/callables.cjs');
 const { uploadLeadFile } = require('../helpers/leadImport.cjs');
 
@@ -108,6 +108,13 @@ const SCREENS = [
         // The keys come from a callable, answered here as the server would.
         callables: { listCompanyApiKeys: API_KEYS },
         ready: (page) => page.getByText('Artificial TMS'),
+    },
+    {
+        name: 'company-settings-team',
+        url: '/company/settings?section=team&e2eAuth=company_admin',
+        // The roster comes from a callable, answered here as the server would.
+        callables: { listCompanyTeam: TEAM_ROSTER },
+        ready: (page) => page.getByText('Maria-Annunziata Delacroix-Whitfield'),
     },
     /* SMS before it is set up: the checklist (Firestore is unreachable here). */
     {
