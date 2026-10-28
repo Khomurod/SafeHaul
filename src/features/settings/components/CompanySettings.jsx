@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useSearchParams, Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams, useNavigationType, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import {
     Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, LayoutDashboard,
@@ -90,6 +90,7 @@ export function CompanySettings() {
 
 function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigationType = useNavigationType();
     const [showManageTeam, setShowManageTeam] = useState(false);
     const isPhone = useIsMobile();
     const guard = useUnsavedChangesGuard();
@@ -100,15 +101,32 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     // company does not show opens Overview.
     const sectionIds = groups.flatMap((group) => group.items.map((item) => item.id));
     const requestedSection = searchParams.get('section');
-    const activeTab = sectionIds.includes(requestedSection) ? requestedSection : 'overview';
-    const setActiveTab = (section) => setSearchParams((params) => {
+    const addressedSection = sectionIds.includes(requestedSection) ? requestedSection : 'overview';
+    const setActiveTab = (section, options) => setSearchParams((params) => {
         const next = new URLSearchParams(params);
         if (section === 'overview') next.delete('section');
         else next.set('section', section);
         return next;
-    });
+    }, options);
     // Every move between sections asks first while one holds unsaved changes.
     const selectSection = (section) => guard.request(() => setActiveTab(section));
+
+    // The browser's Back and Forward change the address before anything can ask,
+    // so while a section holds unsaved changes the page keeps showing it and asks
+    // then: Discard follows the address, Keep editing puts the address back.
+    const [shownSection, setShownSection] = useState(addressedSection);
+    const heldByHistory = addressedSection !== shownSection && guard.dirty && navigationType === 'POP';
+    if (addressedSection !== shownSection && !heldByHistory) setShownSection(addressedSection);
+    useEffect(() => {
+        if (heldByHistory) guard.request(() => setShownSection(addressedSection));
+        // `guard.request` changes with the dirty flag, which `heldByHistory` already follows.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [heldByHistory, addressedSection]);
+    const activeTab = heldByHistory ? shownSection : addressedSection;
+    const keepEditing = () => {
+        if (heldByHistory) setActiveTab(shownSection, { replace: true });
+        guard.cancel();
+    };
 
     // The phone's way back to Overview keeps every other parameter (`e2eAuth`).
     const overviewParams = new URLSearchParams(searchParams);
@@ -203,7 +221,7 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
                 confirmLabel="Discard changes"
                 cancelLabel="Keep editing"
                 onConfirm={guard.confirm}
-                onCancel={guard.cancel}
+                onCancel={keepEditing}
             />
 
             {showManageTeam && (

@@ -251,6 +251,46 @@ describe('leaving a section with unsaved changes', () => {
         expect(screen.getByRole('heading', { name: 'Email Content' })).toBeInTheDocument();
         expect(screen.getByTestId('address')).toHaveTextContent('section=email');
     });
+
+    /** Overview first, then Plan with an edit, so the browser's Back leads to Overview. */
+    function openDirtyPlanFromOverview() {
+        renderSettings();
+        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Unsaved edit' }));
+    }
+
+    it('asks before the browser Back button leaves the edit, and keeps it on Keep editing', () => {
+        openDirtyPlanFromOverview();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
+        const dialog = screen.getByRole('dialog', { name: 'Leave without saving?' });
+        expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
+
+        expect(screen.getByRole('heading', { name: 'Plan Content' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
+        expect(screen.getByTestId('address')).toHaveTextContent('section=billing');
+    });
+
+    it('follows the browser Back button once the person discards the changes', () => {
+        openDirtyPlanFromOverview();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings$/);
+    });
+
+    it('follows the browser Back button at once when nothing is changed', () => {
+        renderSettings();
+        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
 });
 
 describe('Settings on a phone', () => {
