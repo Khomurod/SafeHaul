@@ -210,6 +210,8 @@ function lineColumns({ defaultNumber, removingLine, onRemove }) {
                     variant="ghost"
                     size="sm"
                     loading={removingLine === line.phoneNumber}
+                    // One removal at a time (see `useRemovePhoneLine`).
+                    disabled={!!removingLine && removingLine !== line.phoneNumber}
                     onClick={() => onRemove(line)}
                 >
                     <Icon icon={Trash2} className="text-ds-status-danger-fg" />
