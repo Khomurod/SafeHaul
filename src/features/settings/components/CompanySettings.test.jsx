@@ -10,9 +10,25 @@ vi.mock('@/context/DataContext', () => ({
     useData: () => useDataMock(),
 }));
 
-vi.mock('./CompanyProfileTab', () => ({
-    CompanyProfileTab: () => <h1>Company Profile Content</h1>,
-}));
+/** Company profile holds an unsaved edit while its box is ticked. */
+vi.mock('./CompanyProfileTab', async () => {
+    const ReactModule = await import('react');
+    const { useUnsavedChanges } = await import('@/design-system/patterns');
+    function CompanyProfileTab() {
+        const [dirty, setDirty] = ReactModule.useState(false);
+        useUnsavedChanges(dirty);
+        return (
+            <>
+                <h1>Company Profile Content</h1>
+                <label>
+                    <input type="checkbox" checked={dirty} onChange={(event) => setDirty(event.target.checked)} />
+                    Unsaved profile edit
+                </label>
+            </>
+        );
+    }
+    return { CompanyProfileTab };
+});
 vi.mock('./ApplicationFormTab', () => ({
     ApplicationFormTab: () => <h1>Application Form Content</h1>,
 }));
@@ -70,7 +86,7 @@ const company = {
     features: { callTracking: true },
 };
 
-/** The address the settings page is at, and the browser's Back. */
+/** The address the settings page is at, the browser's Back, and the app menu's Settings link. */
 function AddressProbe() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -78,6 +94,7 @@ function AddressProbe() {
         <>
             <output data-testid="address">{`${location.pathname}${location.search}`}</output>
             <button type="button" onClick={() => navigate(-1)}>Browser back</button>
+            <button type="button" onClick={() => navigate('/company/settings')}>App menu Settings</button>
         </>
     );
 }
@@ -113,13 +130,27 @@ describe('CompanySettings shell', () => {
         isMobileMock.mockImplementation(() => false);
     });
 
-    it('opens on Company profile, with no Overview page', () => {
+    it('opens on Company profile, with no Overview page, and names it in the address', () => {
         renderSettings();
 
         expect(screen.getByRole('button', { name: 'Company profile' })).toHaveAttribute('aria-current', 'page');
         expect(screen.getByRole('heading', { level: 1, name: 'Company Profile Content' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Overview/ })).toBeNull();
-        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings$/);
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings\?section=company$/);
+    });
+
+    it('keeps Company profile and its edit when the window narrows to phone width', () => {
+        renderSettings({ path: '/company/dashboard' });
+        fireEvent.click(screen.getByRole('button', { name: 'App menu Settings' }));
+        // The edit re-renders the page at the narrower width.
+        isMobileMock.mockImplementation(() => true);
+
+        fireEvent.click(screen.getByRole('checkbox', { name: 'Unsaved profile edit' }));
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Company Profile Content' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'Unsaved profile edit' })).toBeChecked();
+        expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('identifies the current section and keeps focus on the rail', () => {
@@ -264,7 +295,7 @@ describe('leaving a section with unsaved changes', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
         fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
         expect(screen.getByRole('heading', { level: 1, name: 'Company Profile Content' })).toBeInTheDocument();
-        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings$/);
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings\?section=company$/);
     });
 
     it('follows the browser Back button once the person discards the changes', () => {
@@ -274,7 +305,7 @@ describe('leaving a section with unsaved changes', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
 
         expect(screen.getByRole('heading', { level: 1, name: 'Company Profile Content' })).toBeInTheDocument();
-        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings$/);
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings\?section=company$/);
     });
 
     it('follows the browser Back button at once when nothing is changed', () => {

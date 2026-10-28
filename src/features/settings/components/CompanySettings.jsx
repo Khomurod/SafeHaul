@@ -125,6 +125,19 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [heldByHistory, addressedSection]);
     const activeTab = heldByHistory ? shownSection : addressedSection;
+
+    // A wide screen names Company profile in the address (replacing the entry), so
+    // narrowing the window or turning a phone keeps it, edits and all, rather than
+    // swapping it for the phone's menu.
+    const namesHome = !isPhone && !sectionIds.includes(requestedSection) && !heldByHistory;
+    useEffect(() => {
+        if (!namesHome) return;
+        setSearchParams((params) => {
+            const next = new URLSearchParams(params);
+            next.set('section', 'company');
+            return next;
+        }, { replace: true });
+    }, [namesHome, setSearchParams]);
     const keepEditing = () => {
         // A new entry, so the next Back still reaches the page the person came from.
         if (heldByHistory) setActiveTab(shownSection);
