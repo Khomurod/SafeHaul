@@ -48,4 +48,10 @@ describe('saveCompanySettings', () => {
 
         expect(mocks.updateDoc.mock.calls[0][1]).toEqual({ companyLogoUrl: 'https://storage.example.test/logo.png' });
     });
+
+    it('returns exactly what it wrote, so the screen can show it', async () => {
+        const written = await saveCompanySettings('company-1', { companyName: '', companyLogoUrl: 'https://storage.example.test/logo.png' });
+        expect(written).toEqual(mocks.updateDoc.mock.calls[0][1]);
+        expect(written).toEqual({ companyLogoUrl: 'https://storage.example.test/logo.png' });
+    });
 });

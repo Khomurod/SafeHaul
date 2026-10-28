@@ -101,8 +101,8 @@ const SCREENS = [
     /* The application's standard questions, a row of switches per field. */
     {
         name: 'company-settings-questions',
-        url: '/company/settings?section=company&e2eAuth=company_admin',
-        open: (page) => page.getByRole('tab', { name: 'Application Form Questions' }).click(),
+        url: '/company/settings?section=application&e2eAuth=company_admin',
+        open: (page) => page.getByRole('tab', { name: 'Questions' }).click(),
         ready: (page) => page.getByRole('rowheader', { name: 'Signed MVR Authorization Form (upload)' }),
     },
     {

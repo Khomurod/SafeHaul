@@ -143,9 +143,9 @@ read, not stored); the AI fills only empty fields. Edit on Review, then Continue
 returns to Review; the submission pre-flight and the server still check it all.
 
 **The company shapes what the wizard asks, without code.** Company Settings →
-Company Profile has five tabs: *Standard Questions* (show / hide / require the
-DOT questions), *Application Rules* (§5), *Custom Questions*, *Agreements*
-(versioned legal wording) and *Integrations* (optional PSP-report and MVR
+Application form has four tabs: *Questions* (show / hide / require the DOT
+questions, plus custom ones), *Rules* (§5), *Agreements* (versioned legal
+wording, saved on their own) and *Integrations* (optional PSP-report and MVR
 import). Qualifications asks 49 CFR 40.25(j)'s drug and alcohol question
 (pre-employment, past two years), kept apart from the broader one it replaced;
 a draft lacking its answer goes back there.

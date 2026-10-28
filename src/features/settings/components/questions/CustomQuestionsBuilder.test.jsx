@@ -5,15 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CustomQuestionsBuilder } from './CustomQuestionsBuilder';
 import { INITIAL_QUESTION_STATE } from './QuestionConfig';
 
-// Controlled harness mirroring how CompanyProfileTab owns the questions array.
-function Harness({ initial = [], onChangeSpy, onSave, loading }) {
+// Controlled harness mirroring how ApplicationFormTab owns the questions array.
+function Harness({ initial = [], onChangeSpy }) {
     const [questions, setQuestions] = useState(initial);
     return (
         <CustomQuestionsBuilder
             questions={questions}
             onChange={(next) => { onChangeSpy?.(next); setQuestions(next); }}
-            onSave={onSave ?? vi.fn()}
-            loading={loading}
         />
     );
 }
@@ -172,16 +170,9 @@ describe('CustomQuestionsBuilder', () => {
         expect(onChangeSpy.mock.calls.at(-1)[0].map((q) => q.id)).toEqual(['b', 'a']);
     });
 
-    it('calls onSave and disables the save button while loading', () => {
-        const onSave = vi.fn();
-        const { rerender } = render(<Harness initial={[]} onSave={onSave} loading={false} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-        expect(onSave).toHaveBeenCalledTimes(1);
-
-        rerender(
-            <CustomQuestionsBuilder questions={[]} onChange={vi.fn()} onSave={onSave} loading />,
-        );
-        expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+    it('has no save of its own: the page saves the questions with the rest of the form', () => {
+        render(<Harness initial={[]} />);
+        expect(screen.queryByRole('button', { name: /Save/ })).toBeNull();
     });
 
     it('has no accessibility violations in edit and preview modes', async () => {

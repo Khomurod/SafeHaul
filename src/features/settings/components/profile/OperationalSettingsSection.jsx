@@ -10,8 +10,6 @@ export function QuestionsTabContent({
     isCompanyAdmin,
     onConfigChange,
     onQuestionsChange,
-    onSave,
-    loading
 }) {
     return (
         <div className="space-y-ds-8">
@@ -51,8 +49,6 @@ export function QuestionsTabContent({
                     <CustomQuestionsBuilder
                         questions={compData.customQuestions || []}
                         onChange={onQuestionsChange}
-                        onSave={onSave}
-                        loading={loading}
                     />
                 ) : (
                     <Card className="text-center text-ds-content-muted">

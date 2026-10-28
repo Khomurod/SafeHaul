@@ -14,6 +14,7 @@ const toastMocks = vi.hoisted(() => ({
 }));
 
 const useDataMock = vi.hoisted(() => vi.fn());
+const applyCompanyChanges = vi.hoisted(() => vi.fn());
 
 vi.mock('@features/companies', () => ({
     saveCompanySettings: serviceMocks.saveCompanySettings,
@@ -61,7 +62,7 @@ const company = {
 function renderProfile({
     claims = { roles: { 'company-1': 'company_admin' } },
 } = {}) {
-    useDataMock.mockReturnValue({ currentUserClaims: claims });
+    useDataMock.mockReturnValue({ currentUserClaims: claims, applyCompanyChanges });
     return render(<CompanyProfileTab currentCompanyProfile={company} />);
 }
 
@@ -72,7 +73,9 @@ describe('CompanyProfileTab information compatibility slice', () => {
         toastMocks.showError.mockReset();
         toastMocks.showSuccess.mockReset();
         useDataMock.mockReset();
-        serviceMocks.saveCompanySettings.mockResolvedValue();
+        applyCompanyChanges.mockReset();
+        // The service returns what it wrote; here, what it was given.
+        serviceMocks.saveCompanySettings.mockImplementation(async (_id, data) => data);
     });
 
     it('loads every company information value into labelled display fields', () => {
@@ -110,6 +113,34 @@ describe('CompanyProfileTab information compatibility slice', () => {
             .toHaveAttribute('maxlength', '2');
     });
 
+    it('holds the fields still while a save is on its way, so what is shown is what was saved', async () => {
+        let finishSave;
+        serviceMocks.saveCompanySettings.mockImplementation((_id, data) => new Promise((resolve) => { finishSave = () => resolve(data); }));
+        renderProfile();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'City' }), { target: { value: 'Austin' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+        await waitFor(() => expect(serviceMocks.saveCompanySettings).toHaveBeenCalledTimes(1));
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'City' }), { target: { value: 'Fort Worth' } });
+        expect(screen.getByRole('textbox', { name: 'City' })).toHaveValue('Austin');
+
+        finishSave();
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Profile' })).toBeInTheDocument());
+        expect(screen.getByText('Austin')).toBeInTheDocument();
+        expect(screen.queryByText('Fort Worth')).toBeNull();
+    });
+
+    it('keeps what is typed when the company changes while the fields are open', () => {
+        const { rerender } = renderProfile();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'Company Name' }), { target: { value: 'Typed name' } });
+
+        // A logo upload updates the company in use while the fields are open.
+        rerender(<CompanyProfileTab currentCompanyProfile={{ ...company, companyLogoUrl: 'https://example.test/new.png' }} />);
+        expect(screen.getByRole('textbox', { name: 'Company Name' })).toHaveValue('Typed name');
+    });
+
     it('preserves the exact nested save payload and success behavior', async () => {
         renderProfile();
         fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
@@ -141,8 +172,6 @@ describe('CompanyProfileTab information compatibility slice', () => {
                         mcNumber: 'MC123456',
                         dotNumber: 'DOT654321',
                     },
-                    applicationConfig: company.applicationConfig,
-                    customQuestions: company.customQuestions,
                     companyLogoUrl: company.companyLogoUrl,
                 },
             );
@@ -151,6 +180,8 @@ describe('CompanyProfileTab information compatibility slice', () => {
             .toHaveBeenCalledWith('Company settings saved successfully.');
         expect(screen.getByRole('button', { name: 'Edit Profile' }))
             .toBeInTheDocument();
+        // The company in use takes the save, so the header and a return here show it.
+        expect(applyCompanyChanges).toHaveBeenCalledWith('company-1', serviceMocks.saveCompanySettings.mock.calls[0][1]);
     });
 
     // The older Create screen saved flat details, `address` the street line.
@@ -168,7 +199,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
     };
 
     it('shows a company created with flat details, and its first save keeps them, street included', async () => {
-        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } } });
+        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } }, applyCompanyChanges });
         render(<CompanyProfileTab currentCompanyProfile={FLAT_COMPANY} />);
 
         expect(screen.getByText('DOT654321')).toBeInTheDocument();
@@ -185,7 +216,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
     });
 
     it('clears a detail of a company created with flat details for good', async () => {
-        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } } });
+        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } }, applyCompanyChanges });
         render(<CompanyProfileTab currentCompanyProfile={FLAT_COMPANY} />);
         fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
         fireEvent.change(screen.getByRole('textbox', { name: 'MC Number' }), { target: { value: '' } });
@@ -270,19 +301,6 @@ describe('CompanyProfileTab information compatibility slice', () => {
         expect(screen.getByText('Fort Worth')).toBeInTheDocument();
     });
 
-    it('saves no answer option whose text was cleared, so a driver\'s page can draw the question', async () => {
-        const endorsement = { id: 'question-2', type: 'multipleChoice', label: 'Endorsement', options: ['Hazmat', '', 'Tanker'] };
-        useDataMock.mockReturnValue({ currentUserClaims: { roles: { 'company-1': 'company_admin' } } });
-        render(<CompanyProfileTab currentCompanyProfile={{ ...company, customQuestions: [endorsement] }} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-        await waitFor(() => expect(serviceMocks.saveCompanySettings).toHaveBeenCalledTimes(1));
-        expect(serviceMocks.saveCompanySettings.mock.calls[0][1].customQuestions).toEqual([
-            { ...endorsement, options: ['Hazmat', 'Tanker'] },
-        ]);
-    });
-
     it('preserves save errors and re-enables the save action', async () => {
         serviceMocks.saveCompanySettings.mockRejectedValueOnce(new Error('offline'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -343,6 +361,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
                 expect(screen.getByRole('img', { name: 'Company logo' }))
                     .toHaveAttribute('src', NEW_LOGO_URL);
             });
+            expect(applyCompanyChanges).toHaveBeenCalledWith('company-1', { companyLogoUrl: NEW_LOGO_URL });
         });
 
         it('ignores a change event with no selected file', () => {

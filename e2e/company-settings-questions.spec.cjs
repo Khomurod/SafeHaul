@@ -1,4 +1,4 @@
-// E2E coverage for the Company Profile "Application Form Questions" design-system
+// E2E coverage for Settings → Application form → "Questions", the design-system
 // slice. Verifies the accessible standard-field switches, the custom-question
 // editor (labelled fields, keyboard reorder controls, no nested interactives),
 // responsive overflow at 1440/1024/412, and a scoped axe pass. Data-shape and
@@ -9,15 +9,15 @@ const AxeBuilder = require('@axe-core/playwright').default;
 const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openQuestions(page) {
-  await page.goto(`${SETTINGS_URL}&section=company`);
-  await expect(page.getByTestId('company-information')).toBeVisible();
+  await page.goto(`${SETTINGS_URL}&section=application`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Application form' })).toBeVisible();
   /*
    * A `tab`, not a `button`: this strip is the approved `TabList`, so the
    * control announces as a tab in a tablist and the panel it shows is a
    * `tabpanel`. Tab *behaviour* with no ARIA tells assistive technology nothing
    * about the relationship this test is here to check.
    */
-  await page.getByRole('tab', { name: 'Application Form Questions' }).click();
+  await page.getByRole('tab', { name: 'Questions' }).click();
   await expect(page.getByRole('heading', { name: 'Standard DOT Questions', exact: true })).toBeVisible();
 }
 

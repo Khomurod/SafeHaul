@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Icon, Plus, Eye, EyeOff, HelpCircle, Save, Shield } from '@design-system/icons';
+import { Icon, Plus, Eye, EyeOff, HelpCircle, Shield } from '@design-system/icons';
 import {
     Badge, Button, Card, FieldMessage, Input, Select, Textarea,
 } from '@/design-system/components';
@@ -7,7 +7,7 @@ import { EmptyState } from '@design-system/patterns';
 import { QuestionEditor } from './QuestionEditor';
 import { INITIAL_QUESTION_STATE } from './QuestionConfig';
 
-export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loading }) {
+export function CustomQuestionsBuilder({ questions = [], onChange }) {
     const [previewMode, setPreviewMode] = useState(false);
     /**
      * Replaces a blocking `alert()` with an inline, non-blocking message,
@@ -152,15 +152,7 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
                         {previewMode ? <Icon icon={EyeOff} size="lg" /> : <Icon icon={Eye} size="lg" />}
                         {previewMode ? 'Edit Mode' : 'Preview'}
                     </Button>
-                    <Button
-                        variant="primary"
-                        size="md"
-                        onClick={onSave}
-                        loading={loading}
-                    >
-                        {!loading && <Icon icon={Save} size="lg" />}
-                        Save Changes
-                    </Button>
+
                 </div>
             </Card>
 

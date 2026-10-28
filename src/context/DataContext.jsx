@@ -78,6 +78,19 @@ export function DataProvider({ children }) {
     return false;
   }, []);
 
+  /**
+   * A save just wrote `changes` to company `companyId`: the company in use and
+   * the short cache take them, so every screen reading it (and the next visit
+   * to one) shows what was saved without another read.
+   */
+  const applyCompanyChanges = useCallback((companyId, changes) => {
+    setCurrentCompanyProfile((prev) => (prev?.id === companyId ? { ...prev, ...changes } : prev));
+    const cache = companyProfileCacheRef.current;
+    if (cache.companyId === companyId && cache.data) {
+      companyProfileCacheRef.current = { ...cache, data: { ...cache.data, ...changes } };
+    }
+  }, []);
+
   useEffect(() => {
     if (isE2ETestMode) {
       const e2eAuthMode = getE2EQueryParam('e2eAuth', 'none');
@@ -224,11 +237,12 @@ export function DataProvider({ children }) {
     userRole,
     currentCompanyProfile,
     loginToCompany,
+    applyCompanyChanges,
     handleLogout,
     returnToCompanyChooser,
   }), [
     currentUser, currentUserClaims, userRole, currentCompanyProfile, loginToCompany,
-    handleLogout, returnToCompanyChooser,
+    applyCompanyChanges, handleLogout, returnToCompanyChooser,
   ]);
 
   // All hooks are declared above this point — the loading early-return must come
