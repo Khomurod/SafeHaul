@@ -58,9 +58,6 @@ vi.mock('./BillingTab', async () => {
     }
     return { BillingTab };
 });
-vi.mock('@shared/components/modals', () => ({
-    ManageTeamModal: () => <div>Manage Team Modal</div>,
-}));
 
 import { CompanySettings } from './CompanySettings';
 

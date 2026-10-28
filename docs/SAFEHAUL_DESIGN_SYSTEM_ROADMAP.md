@@ -414,7 +414,7 @@ are fully approved, §7 is permanent.
 | AI Integrations → Logs (`AiLogsPanel.jsx`) | A list page in its tab: `ListToolbar` (feature segments, "Errors only", search, Filters for provider and dates), `DataTable embedded` at `density="compact"`, cards on a phone; full detail in a dialog reached by activating the row; status column `xl` (a non-wrapping `Badge` plus detail text) |
 | Guided tour removed (owner) | A reintroduced tour must first answer the dialog question — a blocking backdrop needs `role="dialog"`, a focus move and Escape — starting from a named close control and step progress announced in text |
 | Facebook Integrations flag stays off (owner) | The visible "not production-ready" notice stays with it; `scripts/audit-facebook-lead-tenancy.mjs` is a read-only report |
-| `Modal` and `ConfirmDialog` live in `design-system/patterns/modal` | Import them from `@design-system/patterns`; the `shared` barrel does not re-export them. The domain modals (`CallOutcomeModal`, `CompanyChooserModal`, `FeatureLockedModal`, `ManageTeamModal`) stay in `shared` |
+| `Modal` and `ConfirmDialog` live in `design-system/patterns/modal` | Import them from `@design-system/patterns`; the `shared` barrel does not re-export them. The domain modals (`CallOutcomeModal`, `CompanyChooserModal`, `FeatureLockedModal`) stay in `shared` |
 
 ## 7. Permanent automated guardrails
 

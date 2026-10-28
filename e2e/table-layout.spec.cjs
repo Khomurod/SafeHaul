@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { measureTables } = require('../scripts/table-layout/measureTables.cjs');
 const { freezeClock, settle } = require('./visual/settle.cjs');
 const {
-    AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS, serveCallables,
+    AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, TEAM_ROSTER, WEBSITE_LEADS, serveCallables,
 } = require('./helpers/callables.cjs');
 const { uploadLeadFile } = require('./helpers/leadImport.cjs');
 
@@ -95,6 +95,12 @@ const SCREENS = [
         url: '/company/settings?section=api_keys&e2eAuth=company_admin',
         callables: { listCompanyApiKeys: API_KEYS },
         row: 'Artificial TMS',
+    },
+    {
+        name: 'settings team',
+        url: '/company/settings?section=team&e2eAuth=company_admin',
+        callables: { listCompanyTeam: TEAM_ROSTER },
+        row: 'Maria-Annunziata Delacroix-Whitfield',
     },
     {
         name: 'company settings questions',

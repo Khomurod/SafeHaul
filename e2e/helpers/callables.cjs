@@ -37,6 +37,25 @@ const API_KEYS = Object.freeze({
 });
 
 /**
+ * A company team as `listCompanyTeam` returns it: an admin, a recruiter with a
+ * long name, and a membership whose sign-in account is gone. Made up.
+ */
+const teamMember = (over) => ({
+  role: 'hr_user', status: 'active', profileMissing: false, repaired: false,
+  duplicateMembershipCount: 0, ...over,
+});
+const TEAM_ROSTER = Object.freeze({
+  companyId: 'e2e-company',
+  members: [
+    teamMember({ id: 'e2e-admin', name: 'Artificial Admin', email: 'admin@example.test', role: 'company_admin', membershipIds: ['m1'] }),
+    teamMember({ id: 'e2e-recruiter', name: 'Maria-Annunziata Delacroix-Whitfield', email: 'maria.delacroix-whitfield@example.test', membershipIds: ['m2'] }),
+    teamMember({ id: 'e2e-gone', name: 'Former Recruiter', email: 'former@example.test', status: 'auth_missing', membershipIds: ['m3'] }),
+  ],
+  invalidMemberships: [],
+  repairedCount: 0,
+});
+
+/**
  * The website-lead archive as `listLandingLeads` returns it: a qualified lead
  * with long names, a contact-only lead whose delivery failed, and one never
  * sent. Every person, company and address is made up.
@@ -169,6 +188,6 @@ const BACKFILL_PREVIEW = Object.freeze({
 });
 
 module.exports = {
-  AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, WEBSITE_LEADS,
+  AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, TEAM_ROSTER, WEBSITE_LEADS,
   serveCallables,
 };

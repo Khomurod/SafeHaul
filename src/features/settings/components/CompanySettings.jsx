@@ -15,7 +15,6 @@ import { IntegrationsTab } from './IntegrationsTab';
 import { BillingTab } from './BillingTab';
 import { ApiKeysTab } from './api-keys/ApiKeysTab';
 import { SettingsOverview } from './overview/SettingsOverview';
-import { ManageTeamModal } from '@shared/components/modals';
 import { ButtonLink, SectionNavigation } from '@/design-system/components';
 import { ConfirmDialog, UnsavedChangesProvider, useUnsavedChangesGuard } from '@/design-system/patterns';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
@@ -91,7 +90,6 @@ export function CompanySettings() {
 function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigationType = useNavigationType();
-    const [showManageTeam, setShowManageTeam] = useState(false);
     const isPhone = useIsMobile();
     const guard = useUnsavedChangesGuard();
 
@@ -145,8 +143,8 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
                 return (
                     <TeamManagementTab
                         currentCompanyProfile={currentCompanyProfile}
+                        currentUserId={currentUser?.uid}
                         isCompanyAdmin={isCompanyAdmin}
-                        onShowManageTeam={() => setShowManageTeam(true)}
                     />
                 );
             case 'personal':
@@ -224,13 +222,6 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
                 onConfirm={guard.confirm}
                 onCancel={keepEditing}
             />
-
-            {showManageTeam && (
-                <ManageTeamModal
-                    companyId={currentCompanyProfile.id}
-                    onClose={() => setShowManageTeam(false)}
-                />
-            )}
         </div>
     );
 }
