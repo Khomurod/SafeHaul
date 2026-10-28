@@ -8,17 +8,35 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({
 }));
 vi.mock('@/context/DataContext', () => ({ useData: vi.fn(() => ({})) }));
 vi.mock('../SMSDiagnosticModal', () => ({ SMSDiagnosticModal: () => <div /> }));
-vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn()) }));
+vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
 vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
 
 let CONFIG_DATA;
 let MEMBERSHIPS;       // [{ userId, role }] -> company roster
 let USERS;             // roster user docs [{ id, name, email }]
 let EXTERNAL_POOL;     // resolvable user docs NOT in the roster [{ id, name, email }]
+let ROSTER_FAILURES;   // how many `listCompanyTeam` calls fail before one answers
+let HOLD_USERS_LOOKUP; // when set, the missing-owner `users` lookup answers only once it settles
 
-// Query-aware Firestore mock: resolves the `memberships` query and any `users`
-// query (filtered by the documentId() `in` list) from the fixture pools, so it
-// handles both the roster fetch and the "resolve missing assignment owner" fetch.
+// The roster as `listCompanyTeam` answers it: each membership with its profile.
+const listCompanyTeam = vi.fn(async () => {
+    if (ROSTER_FAILURES > 0) {
+        ROSTER_FAILURES -= 1;
+        throw new Error('unavailable');
+    }
+    return {
+        data: {
+            members: MEMBERSHIPS.map((m) => {
+                const user = USERS.find((u) => u.id === m.userId) || {};
+                return { id: m.userId, role: m.role, name: user.name || '', email: user.email || '' };
+            }),
+        },
+    };
+});
+
+// Query-aware Firestore mock: resolves any `users` query (filtered by the
+// documentId() `in` list) from the fixture pools, for the "resolve missing
+// assignment owner" fetch. The roster itself comes from `listCompanyTeam`.
 vi.mock('firebase/firestore', () => ({
     doc: vi.fn((...args) => ({ __type: 'doc', path: args.slice(1).join('/') })),
     collection: vi.fn((_db, name) => ({ __col: name })),
@@ -44,16 +62,23 @@ vi.mock('firebase/firestore', () => ({
         const docs = pool
             .filter(u => ids.includes(u.id))
             .map(u => ({ id: u.id, data: () => ({ name: u.name, email: u.email }) }));
-        return Promise.resolve({ docs });
+        return HOLD_USERS_LOOKUP ? HOLD_USERS_LOOKUP.then(() => ({ docs })) : Promise.resolve({ docs });
     }),
 }));
 
 import { httpsCallable } from 'firebase/functions';
 import { SmsSettingsPage } from './SmsSettingsPage';
 
+// Every callable but the roster answers with `callable`.
+const serve = (callable = vi.fn()) => vi.mocked(httpsCallable)
+    .mockImplementation((_functions, name) => (name === 'listCompanyTeam' ? listCompanyTeam : callable));
+
 beforeEach(() => {
     EXTERNAL_POOL = [];
+    ROSTER_FAILURES = 0;
+    HOLD_USERS_LOOKUP = null;
     vi.clearAllMocks();
+    serve();
 });
 
 const userRowSelect = (name) => screen.getByRole('combobox', { name: `Texts from, ${name}` });
@@ -230,11 +255,62 @@ describe('SmsSettingsPage — linked-number display (frozen token model)', () =>
         expect(rowSelText('Unknown / former user')).toContain('+15550000003');
     });
 
+    it('lists the team as the server resolves it, never reading memberships from the browser', async () => {
+        CONFIG_DATA = {
+            isActive: true,
+            inventory: [{ phoneNumber: '+15550000002', usageType: 'DirectNumber' }],
+            assignments: { uidTom: '+15550000002' },
+        };
+        MEMBERSHIPS = [
+            { userId: 'uidTom', companyId: 'c1', role: 'hr_user' },
+            { userId: 'uidNova', companyId: 'c1', role: 'company_admin' },
+        ];
+        USERS = [
+            { id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' },
+            { id: 'uidNova', name: 'Nova', email: 'nova@x.com' },
+        ];
+        const { getDocs } = await import('firebase/firestore');
+
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Tom Robinson');
+        expect(rowSelText('Tom Robinson')).toContain('+15550000002');
+        expect(rowSelText('Nova')).toBe('Default line');
+        expect(listCompanyTeam).toHaveBeenCalledWith({ companyId: 'c1' });
+        expect(vi.mocked(getDocs)).not.toHaveBeenCalled();
+        expect(screen.queryByText('Former member')).not.toBeInTheDocument();
+    });
+
+    it('says when the team could not load, marks nobody as a former member, and retries', async () => {
+        CONFIG_DATA = {
+            isActive: true,
+            inventory: [{ phoneNumber: '+15550000002', usageType: 'DirectNumber' }],
+            assignments: { uidTom: '+15550000002' },
+        };
+        MEMBERSHIPS = [{ userId: 'uidTom', companyId: 'c1', role: 'hr_user' }];
+        USERS = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
+        ROSTER_FAILURES = 1;
+
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        expect(await screen.findByText("Couldn't load your team")).toBeInTheDocument();
+        expect(screen.queryByText(/Unknown \/ former user|Former member/)).not.toBeInTheDocument();
+
+        // Who uses each line is not known either: no line reads "Nobody".
+        const lines = screen.getByRole('table', { name: 'Phone lines' });
+        expect(within(lines).getByText('Not known')).toBeInTheDocument();
+        expect(within(lines).queryByText('Nobody')).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        await findMember('Tom Robinson');
+        expect(within(lines).queryByText('Not known')).toBeNull();
+        expect(rowSelText('Tom Robinson')).toContain('+15550000002');
+        expect(screen.queryByText("Couldn't load your team")).not.toBeInTheDocument();
+    });
+
 
 
     it('CASE K: saves redacted selections by token through the backend callable', async () => {
         const callable = vi.fn(() => Promise.resolve({ data: { success: true } }));
-        vi.mocked(httpsCallable).mockReturnValue(callable);
+        serve(callable);
         CONFIG_DATA = {
             isActive: true,
             inventory: [
@@ -337,7 +413,7 @@ describe('SmsSettingsPage — linked-number display (frozen token model)', () =>
 
     it('CASE N: auto-heals legacy assignments (no line tokens) by calling the backfill once', async () => {
         const callable = vi.fn(() => Promise.resolve({ data: { success: true } }));
-        vi.mocked(httpsCallable).mockReturnValue(callable);
+        serve(callable);
         CONFIG_DATA = {
             isActive: true,
             inventory: [{ lineId: 'line_sofia', phoneNumber: '+15550000002', label: 'Sofia', usageType: 'DirectNumber' }],
@@ -359,7 +435,7 @@ describe('SmsSettingsPage — linked-number display (frozen token model)', () =>
 
     it('CASE O: does NOT auto-heal when line tokens already exist', async () => {
         const callable = vi.fn(() => Promise.resolve({ data: { success: true } }));
-        vi.mocked(httpsCallable).mockReturnValue(callable);
+        serve(callable);
         CONFIG_DATA = {
             isActive: true,
             inventory: [{ lineId: 'line_sofia', phoneNumber: '', label: 'Sofia', usageType: 'DirectNumber' }],
@@ -414,9 +490,29 @@ describe('SmsSettingsPage — default line, save bar and removal', () => {
         expect(within(userRowSelect('Tom Robinson').closest('tr')).getByText('Recruiter')).toBeInTheDocument();
     });
 
+    it('says who uses a line is not known until an owner missing from the team is found', async () => {
+        MEMBERSHIPS = [{ userId: 'uidNova', companyId: 'c1', role: 'hr_user' }];
+        USERS = [{ id: 'uidNova', name: 'Nova', email: 'nova@x.com' }];
+        EXTERNAL_POOL = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
+        let release;
+        HOLD_USERS_LOOKUP = new Promise((resolve) => { release = resolve; });
+
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Nova');
+        const table = screen.getByRole('table', { name: 'Phone lines' });
+        const sofia = () => within(table).getByRole('rowheader', { name: /^Sofia/ }).closest('tr');
+        expect(sofia()).toHaveTextContent('Loading…');
+        expect(within(table).queryByText('Nobody')).not.toBeInTheDocument();
+
+        release();
+        await waitFor(() => expect(sofia()).toHaveTextContent('Tom Robinson (former member)'));
+        expect(within(table).queryByText('Loading…')).not.toBeInTheDocument();
+        expect(within(table).queryByText('Nobody')).not.toBeInTheDocument();
+    });
+
     it('saves a new default line by its token', async () => {
         const callable = vi.fn(() => Promise.resolve({ data: { success: true } }));
-        vi.mocked(httpsCallable).mockReturnValue(callable);
+        serve(callable);
         render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
         await findMember('Tom Robinson');
 
@@ -432,7 +528,7 @@ describe('SmsSettingsPage — default line, save bar and removal', () => {
 
     it('saves "no default line" as an empty token', async () => {
         const callable = vi.fn(() => Promise.resolve({ data: { success: true } }));
-        vi.mocked(httpsCallable).mockReturnValue(callable);
+        serve(callable);
         render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
         await findMember('Tom Robinson');
 
@@ -461,7 +557,7 @@ describe('SmsSettingsPage — default line, save bar and removal', () => {
 
     it('asks before removing a line and removes it by the number as stored', async () => {
         const callable = vi.fn(() => Promise.resolve({ data: { success: true, message: 'Removed.' } }));
-        vi.mocked(httpsCallable).mockReturnValue(callable);
+        serve(callable);
         render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
         await findMember('Tom Robinson');
 
@@ -476,7 +572,7 @@ describe('SmsSettingsPage — default line, save bar and removal', () => {
 
     it('checks a line through verifyLineConnection and shows the result in words', async () => {
         const callable = vi.fn(() => Promise.resolve({ data: { identity: 'artificial-identity', timestamp: '2026-07-27T00:00:00.000Z' } }));
-        vi.mocked(httpsCallable).mockReturnValue(callable);
+        serve(callable);
         render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
         await findMember('Tom Robinson');
 
@@ -505,7 +601,7 @@ describe('SmsSettingsPage — one removal at a time, and the support request', (
         };
         let finish;
         const callable = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
-        vi.mocked(httpsCallable).mockReturnValue(callable);
+        serve(callable);
         render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
         await screen.findByRole('table', { name: 'Phone lines' });
 

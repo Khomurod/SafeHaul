@@ -3,7 +3,7 @@
  * ==================
  * Data/logic layer for Settings → Text messages (SMS) (`sms/SmsSettingsPage.jsx`):
  *  - live listener on the sms_provider integration doc
- *  - roster fetch (memberships -> users)
+ *  - the roster from `listCompanyTeam` (the Team page's source), with a retry
  *  - surfacing assignments whose owner is missing from the roster
  *  - one-time legacy line-token backfill
  *  - line verification + token-based save via saveSmsLineAssignments
@@ -21,6 +21,8 @@ export function useLineAssignments(companyId) {
     const [configDoc, setConfigDoc] = useState(null);
     const [configError, setConfigError] = useState(null);
     const [users, setUsers] = useState([]);
+    const [rosterStatus, setRosterStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
+    const [rosterRequest, setRosterRequest] = useState(0);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -86,59 +88,42 @@ export function useLineAssignments(companyId) {
             setLoading(false);
         });
 
-        // 2. Fetch Users (Recruiters/Admins)
-        const fetchUsers = async () => {
-            try {
-                // Get memberships
-                const q = query(collection(db, 'memberships'), where('companyId', '==', companyId));
-                const memberSnap = await getDocs(q);
-
-                const membershipMap = {};
-                const memberUserIds = [];
-
-                memberSnap.docs.forEach(d => {
-                    const data = d.data();
-                    if (data.userId) {
-                        memberUserIds.push(data.userId);
-                        membershipMap[data.userId] = data.role;
-                    }
-                });
-
-                if (memberUserIds.length === 0) {
-                    setUsers([]);
-                    return;
-                }
-
-                // Batch fetch users
-                const batchSize = 30;
-                const fetchedUsers = [];
-
-                for (let i = 0; i < memberUserIds.length; i += batchSize) {
-                    const batchIds = memberUserIds.slice(i, i + batchSize);
-                    const userQ = query(
-                        collection(db, 'users'),
-                        where(documentId(), 'in', batchIds)
-                    );
-                    const userSnap = await getDocs(userQ);
-                    userSnap.docs.forEach(d => {
-                        fetchedUsers.push({
-                            id: d.id,
-                            ...d.data(),
-                            role: membershipMap[d.id]
-                        });
-                    });
-                }
-
-                setUsers(fetchedUsers);
-            } catch (e) {
-                console.error("Error fetching users for assignment", e);
-            }
-        };
-
-        fetchUsers();
-
         return () => unsub();
     }, [companyId]);
+
+    // 2. The roster, resolved on the server like the Team page's. Reading
+    // `memberships` then `users` from the browser failed whole whenever one
+    // profile lacked `companyIds` (the `users` rule), which left only the line
+    // owners, each shown as an unknown former user.
+    useEffect(() => {
+        if (!companyId) return undefined;
+        let cancelled = false;
+        (async () => {
+            try {
+                const { data } = await httpsCallable(functions, 'listCompanyTeam')({ companyId });
+                if (cancelled) return;
+                setUsers((data?.members || []).map((m) => ({
+                    id: m.id,
+                    name: m.name || m.email || 'Unnamed member',
+                    email: m.email,
+                    role: m.role,
+                })));
+                setRosterStatus('ready');
+            } catch (e) {
+                if (cancelled) return;
+                console.error('[SMS Config] Could not load the team', e);
+                setRosterStatus('error');
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [companyId, rosterRequest]);
+
+    const reloadRoster = () => {
+        setRosterStatus('loading');
+        setRosterRequest((n) => n + 1);
+    };
 
     // One-time auto-heal for LEGACY assignments. If a company already had line
     // assignments / a default line saved as raw phone numbers (before stable line
@@ -170,16 +155,17 @@ export function useLineAssignments(companyId) {
         })();
     }, [companyId, configDoc]);
 
-    // Surface EVERY user that has a line assigned, even when the company
-    // memberships -> users join did not return them. A number can be linked and
-    // actively sending while its owner is missing from the roster (a former
-    // member, a missing/!companyId membership record, or an account whose
-    // users-doc id differs from the uid the assignment was keyed by). Without
-    // this, that assignment is invisible: the matrix only renders rows built
-    // from memberships, so the linked number silently shows as unassigned for
-    // everyone. We resolve any assignment-key uid that isn't already listed and
-    // append it (flagged), so the assignment is always visible and manageable.
+    // Surface EVERY user that has a line assigned, even when the roster did not
+    // return them. A number can be linked and actively sending while its owner is
+    // missing from the roster (a former member, or an account whose id differs
+    // from the uid the assignment was keyed by). Without this, that assignment is
+    // invisible: the matrix only renders roster rows, so the linked number
+    // silently shows as unassigned for everyone. We resolve any assignment-key
+    // uid that isn't already listed and append it (flagged), so the assignment
+    // is always visible and manageable. Only once the roster has loaded: before
+    // that, or when it failed, every owner would wrongly read as a former member.
     useEffect(() => {
+        if (rosterStatus !== 'ready') return;
         const assignedUids = Object.keys(assignments || {}).filter(
             (uid) => uid && sanitizePhone(assignments[uid])
         );
@@ -225,7 +211,7 @@ export function useLineAssignments(companyId) {
         return () => {
             cancelled = true;
         };
-    }, [assignments, users]);
+    }, [assignments, users, rosterStatus]);
 
     const handleVerifyLine = async (phoneNumber) => {
         // Guard against malformed/blank numbers (the bare "+") reaching the backend.
@@ -299,11 +285,21 @@ export function useLineAssignments(companyId) {
         setDefaultNumber(savedDefault);
     };
 
+    // Owners missing from the team are looked up once it has loaded; until each
+    // has a row, who uses their line is not known yet.
+    const ownersLoading = rosterStatus === 'ready' && Object.keys(assignments || {}).some(
+        (uid) => uid && sanitizePhone(assignments[uid]) && !users.some((u) => u.id === uid)
+    );
+
     return {
         loading,
         configDoc,
         configError,
         users,
+        rosterLoading: rosterStatus === 'loading',
+        rosterFailed: rosterStatus === 'error',
+        ownersLoading,
+        reloadRoster,
         saving,
         verifyingLine,
         lineStatuses,

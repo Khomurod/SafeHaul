@@ -47,7 +47,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `getSigningLink` | [`EnvelopeHistory.jsx`](../src/features/signing/components/EnvelopeHistory.jsx) | Resolve link with secret token; a link a correction left with an old email or phone is replaced first |
 | `getVerificationRequest` | [`VerificationPortal.jsx`](../src/features/verification/VerificationPortal.jsx) | PEV portal load |
 | `initBulkSession` | [`LaunchPad.jsx`](../src/features/campaigns/components/LaunchPad.jsx) | Start bulk SMS/email session |
-| `listCompanyTeam` | [`useTeamRoster.js`](../src/features/settings/hooks/useTeamRoster.js) | Authoritative team roster: resolves each membership to a real name/email (Admin SDK, Firebase Auth fallback) and reports missing/stale/orphaned/duplicate records explicitly |
+| `listCompanyTeam` | [`useTeamRoster.js`](../src/features/settings/hooks/useTeamRoster.js), [`useLineAssignments.js`](../src/features/settings/hooks/useLineAssignments.js) | Authoritative team roster: resolves each membership to a real name/email (Admin SDK, Firebase Auth fallback) and reports missing/stale/orphaned/duplicate records explicitly |
 | `listEnvironmentAndIntegrations` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: full configuration inventory, every value masked |
 | `listSandboxTenantCompanies` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | List sandbox tenants |
 | `parseCdlWithGroq` | [`useCdlAutoFill.js`](../src/features/driver-app/hooks/useCdlAutoFill.js) | CDL image OCR. Routed through the shared AI platform; the vendor name is a retained compatibility alias |

@@ -161,6 +161,7 @@ export function SmsSettingsPage({ companyId, companyName }) {
     const columns = phoneLineColumns({
         defaultToken,
         membersByToken: membersByLine(la.users, lineState),
+        usage: la.rosterLoading || la.ownersLoading ? 'loading' : la.rosterFailed ? 'failed' : 'ready',
         lineStatuses: la.lineStatuses,
         verifyingLine: la.verifyingLine,
         removingLine,
@@ -196,6 +197,8 @@ export function SmsSettingsPage({ companyId, companyName }) {
             </Card>
             <AssignmentTable
                 users={la.users}
+                loading={la.rosterLoading}
+                onRetry={la.rosterFailed ? la.reloadRoster : undefined}
                 inventory={inventory}
                 lines={lines}
                 assignments={la.assignments}
