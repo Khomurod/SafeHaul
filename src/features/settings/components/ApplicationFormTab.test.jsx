@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -84,24 +84,51 @@ describe('ApplicationFormTab', () => {
         expect(saveBar()).toHaveTextContent('Questions, Rules changed');
     });
 
-    it('saves only the four application fields, dropping blank answer options', async () => {
+    it('saves only the parts changed here, dropping blank answer options', async () => {
         renderForm();
         fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
         openTab('Integrations');
         fireEvent.click(screen.getByRole('button', { name: 'Turn on PSP' }));
         fireEvent.click(within(saveBar()).getByRole('button', { name: 'Save' }));
 
-        await waitFor(() => expect(mocks.showSuccess).toHaveBeenCalledWith('Company settings saved successfully.'));
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(mocks.showSuccess).toHaveBeenCalledWith('Company settings saved successfully.');
+        // Standard questions and rules were not touched, so another admin's
+        // change to them is not overwritten with this page's copy.
         expect(mocks.saveCompanySettings).toHaveBeenCalledWith('company-1', {
-            applicationConfig: { ssnRequired: true },
             customQuestions: [
                 { id: 'q1', type: 'text', label: 'Nights?' },
                 { id: 'q2', type: 'multipleChoice', label: 'Endorsement', options: ['Hazmat', 'Tanker'] },
             ],
-            applicationRules: undefined,
             applicationIntegrations: { psp: { enabled: true } },
         });
-        expect(saveBar()).toBeNull();
+    });
+
+    it('keeps an edit made while the save is on its way, still unsaved', async () => {
+        let finish;
+        mocks.saveCompanySettings.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+        renderForm();
+        fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
+        fireEvent.click(within(saveBar()).getByRole('button', { name: 'Save' }));
+        openTab('Rules');
+        fireEvent.click(screen.getByRole('button', { name: 'Change a rule' }));
+
+        await act(async () => finish());
+
+        await waitFor(() => expect(saveBar()).toHaveTextContent('Rules changed'));
+        expect(saveBar()).not.toHaveTextContent('Questions');
+        expect(mocks.saveCompanySettings).toHaveBeenCalledTimes(1);
+    });
+
+    it('goes back to what was saved here on Discard, not to the older copy it opened with', async () => {
+        renderForm();
+        fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
+        fireEvent.click(within(saveBar()).getByRole('button', { name: 'Save' }));
+        await waitFor(() => expect(saveBar()).toBeNull());
+
+        fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
+        fireEvent.click(within(saveBar()).getByRole('button', { name: 'Discard' }));
+        expect(screen.getByText('Questions: 2')).toBeInTheDocument();
     });
 
     it('keeps the edits and the bar when saving fails', async () => {
@@ -135,6 +162,24 @@ describe('ApplicationFormTab', () => {
         rerender(<ApplicationFormTab currentCompanyProfile={{ ...company, customQuestions: [{ id: 'x' }, { id: 'y' }, { id: 'z' }] }} />);
         expect(screen.getByText('Questions: 1')).toBeInTheDocument();
         expect(saveBar()).toBeInTheDocument();
+
+        // Discarding the edit shows the copy that arrived meanwhile.
+        fireEvent.click(within(saveBar()).getByRole('button', { name: 'Discard' }));
+        expect(screen.getByText('Questions: 3')).toBeInTheDocument();
+        expect(saveBar()).toBeNull();
+    });
+
+    it('keeps what was saved here when Discard later shows a copy that arrived meanwhile', async () => {
+        const { rerender } = renderForm();
+        fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
+        rerender(<ApplicationFormTab currentCompanyProfile={{ ...company, customQuestions: [] }} />);
+        fireEvent.click(within(saveBar()).getByRole('button', { name: 'Save' }));
+        await waitFor(() => expect(saveBar()).toBeNull());
+
+        fireEvent.click(screen.getByRole('button', { name: 'Change a standard question' }));
+        fireEvent.click(within(saveBar()).getByRole('button', { name: 'Discard' }));
+        expect(screen.getByText('Questions: 2')).toBeInTheDocument();
+        expect(saveBar()).toBeNull();
     });
 
     it('tells the leave guard while it holds unsaved edits', () => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { saveCompanySettings } from '@features/companies';
 import { ListChecks, SlidersHorizontal, Blocks, FileSignature } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
@@ -42,13 +42,14 @@ function formOf(profile) {
     };
 }
 
+const FIELDS = ['applicationConfig', 'customQuestions', 'applicationRules', 'applicationIntegrations'];
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * Settings → Application form: what drivers are asked, what happens to their
  * answers, the agreements they sign, and optional imports. Questions, Rules and
  * Integrations are edited together and saved with one `SaveBar` through
- * `saveCompanySettings`, which writes only these keys. Agreements save
+ * `saveCompanySettings`, which writes only the parts changed here. Agreements save
  * themselves (their own callables; publishing is Super Admin only).
  */
 export function ApplicationFormTab({ currentCompanyProfile }) {
@@ -64,15 +65,26 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
     const dirty = !same(form, saved);
     useUnsavedChanges(dirty);
 
-    // A newer copy of the company (after a save here, or elsewhere) replaces
-    // what is shown, but never under someone's unsaved edits.
-    useEffect(() => {
-        if (dirty) return;
-        const next = formOf(currentCompanyProfile);
-        setSaved(next);
-        setForm(next);
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new profile re-syncs
-    }, [currentCompanyProfile]);
+    // A newer copy of the company replaces what is shown, but never under
+    // someone's unsaved edits: then it waits, and Discard shows it.
+    const [seenProfile, setSeenProfile] = useState(currentCompanyProfile);
+    const [heldProfile, setHeldProfile] = useState(null);
+    if (currentCompanyProfile !== seenProfile) {
+        setSeenProfile(currentCompanyProfile);
+        if (dirty) {
+            setHeldProfile(currentCompanyProfile);
+        } else {
+            const next = formOf(currentCompanyProfile);
+            setSaved(next);
+            setForm(next);
+        }
+    }
+    const discard = () => {
+        const base = heldProfile ? formOf(heldProfile) : saved;
+        setHeldProfile(null);
+        setSaved(base);
+        setForm(base);
+    };
 
     const setField = (field) => (value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -80,10 +92,20 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
         setSaving(true);
         // An option whose text was cleared is no choice: a driver's page cannot draw it.
         const next = { ...form, customQuestions: withoutBlankOptions(form.customQuestions) };
+        // Only the parts changed here: another admin's change to a part left
+        // alone here is not overwritten with this page's older copy of it.
+        const changes = Object.fromEntries(FIELDS.filter((field) => !same(next[field], saved[field]))
+            .map((field) => [field, next[field]]));
         try {
-            await saveCompanySettings(currentCompanyProfile.id, next);
+            // A cleared answer option alone changes nothing once dropped.
+            if (Object.keys(changes).length > 0) await saveCompanySettings(currentCompanyProfile.id, changes);
             setSaved(next);
-            setForm(next);
+            // A copy that arrived meanwhile keeps what was just saved here.
+            setHeldProfile((held) => (held ? { ...held, ...changes } : held));
+            // A part edited while the save was on its way keeps that edit, still
+            // unsaved; every other part shows what was saved.
+            setForm((current) => Object.fromEntries(FIELDS.map((field) => (
+                [field, current[field] === form[field] ? next[field] : current[field]]))));
             showSuccess('Company settings saved successfully.');
         } catch (error) {
             console.error('Save failed', error);
@@ -140,7 +162,7 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
                     summary={`${changedParts.join(', ') || 'Application form'} changed`}
                     saving={saving}
                     onSave={handleSave}
-                    onDiscard={() => setForm(saved)}
+                    onDiscard={discard}
                 />
             )}
         </Stack>
