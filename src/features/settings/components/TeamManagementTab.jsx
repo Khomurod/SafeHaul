@@ -4,6 +4,7 @@ import { functions } from '@lib/firebase';
 import { Icon, Plus } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { Button, FormField, FormSection, Input, Select } from '@/design-system/components';
+import { PageHeader } from '@/design-system/layouts';
 
 export function TeamManagementTab({ currentCompanyProfile, isCompanyAdmin, onShowManageTeam }) {
     const { showSuccess, showError } = useToast();
@@ -45,13 +46,8 @@ export function TeamManagementTab({ currentCompanyProfile, isCompanyAdmin, onSho
     }
 
     return (
-        <div className="max-w-3xl animate-in fade-in space-y-ds-8" data-testid="team-management">
-            <header className="border-b border-ds-border-subtle pb-ds-4">
-                <h2 className="text-ds-heading-lg font-bold text-ds-content">Team Management</h2>
-                <p className="mt-ds-1 text-ds-sm text-ds-content-muted">
-                    Add new recruiters or admins to your company dashboard.
-                </p>
-            </header>
+        <div className="space-y-ds-6" data-testid="team-management">
+            <PageHeader title="Team" description="Add new recruiters or admins to your company dashboard." />
 
             <FormSection title="Add New User">
                 <form onSubmit={handleCreateUser} className="space-y-ds-4">

@@ -8,10 +8,8 @@ const AxeBuilder = require('@axe-core/playwright').default;
 const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openTeamTab(page) {
-  await page.goto(SETTINGS_URL);
-  await expect(page.getByRole('button', { name: 'Team & Users' })).toBeVisible();
-  await page.getByRole('button', { name: 'Team & Users' }).click();
-  await expect(page.getByRole('heading', { name: 'Team Management' })).toBeVisible();
+  await page.goto(`${SETTINGS_URL}&section=team`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Team' })).toBeVisible();
 }
 
 test.describe('Company Settings Team & Users', () => {

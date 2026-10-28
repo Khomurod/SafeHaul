@@ -6,19 +6,18 @@ import { describe, expect, it } from 'vitest';
 import { BillingTab } from './BillingTab';
 
 describe('Company Settings Billing informational card', () => {
-    it('renders the billing heading and subscription subtitle', () => {
+    it('names the page Plan, with the subscription section under it', () => {
         render(<BillingTab currentCompanyProfile={{ planType: 'paid' }} />);
 
-        expect(
-            screen.getByRole('heading', { level: 2, name: 'Billing & Plan' }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'Plan' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 2, name: 'Subscription' })).toBeInTheDocument();
         expect(screen.getByText('Manage your subscription.')).toBeInTheDocument();
     });
 
     it('labels the plan value and shows the Pro plan for paid companies', () => {
         render(<BillingTab currentCompanyProfile={{ planType: 'paid' }} />);
 
-        const region = screen.getByRole('region', { name: 'Billing & Plan' });
+        const region = screen.getByRole('region', { name: 'Subscription' });
         expect(within(region).getByText('Current Plan')).toBeInTheDocument();
         expect(within(region).getByText('Pro Plan')).toBeInTheDocument();
         expect(within(region).queryByText('Free Plan')).not.toBeInTheDocument();

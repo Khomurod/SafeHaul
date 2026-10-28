@@ -5,6 +5,8 @@ import { Icon, Save, Edit2, Info, ListChecks, SlidersHorizontal, Blocks, FileSig
 import { useToast } from '@shared/components/feedback';
 import { useData } from '@/context/DataContext';
 import { Button, TabList, TabPanel } from '@/design-system/components';
+import { PageHeader } from '@/design-system/layouts';
+import { useUnsavedChanges } from '@/design-system/patterns';
 import { CompanyInfoSection, QuestionsTabContent } from './profile';
 import { ApplicationRulesPanel } from './rules/ApplicationRulesPanel';
 import { ApplicationIntegrationsPanel } from './rules/ApplicationIntegrationsPanel';
@@ -25,6 +27,8 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
     const [loading, setLoading] = useState(false);
     const [logoUploading, setLogoUploading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    // An open edit is unsaved work: leaving asks first.
+    useUnsavedChanges(isEditing);
     const editButtonRef = useRef(null);
     const wasEditingRef = useRef(false);
     // The information as it was when editing began.
@@ -128,12 +132,11 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
     ];
 
     return (
-        <div className="space-y-6 max-w-6xl animate-in fade-in">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-ds-border-subtle pb-4 gap-4">
-                <div>
-                    <h2 className="text-ds-heading-lg font-bold text-ds-content">Company Profile</h2>
-                    <p className="mt-ds-1 text-ds-body text-ds-content-muted">Manage your public presence and application settings.</p>
-                </div>
+        <div className="space-y-ds-6">
+            <PageHeader
+                title="Company profile"
+                description="Manage your public presence and application settings."
+                actions={(isCompanyAdmin || isEditing) && (<>
                 {isCompanyAdmin && !isEditing && (
                     <Button
                         variant="secondary"
@@ -165,7 +168,8 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                         </Button>
                     </div>
                 )}
-            </div>
+                </>)}
+            />
 
             {/*
               This was a row of plain `<button>`s with `activeTab` state and a

@@ -4,10 +4,8 @@ const AxeBuilder = require('@axe-core/playwright').default;
 const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openPersonalProfile(page) {
-  await page.goto(SETTINGS_URL);
-  await expect(page.getByRole('button', { name: 'Company Profile' })).toBeVisible();
-  await page.getByRole('button', { name: 'Security Profile' }).click();
-  await expect(page.getByRole('heading', { name: 'Personal Profile', exact: true }))
+  await page.goto(`${SETTINGS_URL}&section=personal`);
+  await expect(page.getByRole('heading', { name: 'My profile', exact: true }))
     .toBeVisible();
 }
 

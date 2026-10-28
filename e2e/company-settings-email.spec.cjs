@@ -10,8 +10,7 @@ const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 const FORM_TIMEOUT = 90_000;
 
 async function selectEmail(page) {
-  await page.goto(SETTINGS_URL);
-  await page.getByRole('button', { name: 'Email Settings' }).click();
+  await page.goto(`${SETTINGS_URL}&section=email`);
   await expect(page.getByTestId('email-settings')).toBeVisible();
 }
 
@@ -25,6 +24,9 @@ test.describe('Company Settings Email Settings compatibility slice', () => {
   test.describe.configure({ timeout: 120_000 });
 
   test('announces an accessible loading status while settings load', async ({ page }) => {
+    // Hold the settings call open, so the page is still loading when it is read
+    // (the placeholder project answers it at once with an error).
+    await page.route('**/getEmailSettingsMeta', () => {});
     await selectEmail(page);
     await expect(page.getByRole('status')).toContainText('Loading');
   });

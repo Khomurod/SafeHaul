@@ -15,9 +15,8 @@ const AxeBuilder = require('@axe-core/playwright').default;
 const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openSmsTab(page) {
-  await page.goto(SETTINGS_URL);
-  await expect(page.getByRole('button', { name: 'SMS Settings' })).toBeVisible();
-  await page.getByRole('button', { name: 'SMS Settings' }).click();
+  await page.goto(`${SETTINGS_URL}&section=sms`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Text messages (SMS)' })).toBeVisible();
   await expect(page.getByText('SMS Integration Not Active')).toBeVisible({ timeout: 20_000 });
 }
 

@@ -148,8 +148,8 @@ export function IntegrationsTab({ companyId }) {
     return (
         <Stack gap="lg">
             <PageHeader
-                title="Integrations"
-                description="Manage connections with third-party platforms."
+                title="Facebook leads"
+                description="Bring in leads from your Facebook Lead Ads forms."
             />
 
             <ResponsiveGrid minItemWidth="320px">

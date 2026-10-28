@@ -34,11 +34,9 @@ async function openIntegrationsTab(page) {
   await page.route('https://connect.facebook.net/**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/javascript', body: FB_SDK_STUB }),
   );
-  await page.goto(SETTINGS_URL);
-  await expect(page.getByRole('button', { name: 'Integrations' })).toBeVisible();
-  await page.getByRole('button', { name: 'Integrations' }).click();
+  await page.goto(`${SETTINGS_URL}&section=integrations`);
   // The tab's own header names the page; the settings shell's is left out there.
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(['Integrations']);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(['Facebook leads']);
   await expect(page.getByRole('heading', { level: 2, name: 'Facebook Lead Ads' })).toBeVisible();
 }
 

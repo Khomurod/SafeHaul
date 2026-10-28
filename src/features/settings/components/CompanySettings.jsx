@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams, useNavigationType, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
-import { Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound } from '@design-system/icons';
+import {
+    Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send, KeyRound, LayoutDashboard,
+} from '@design-system/icons';
 
 import { SmsSettingsTab } from './SmsSettingsTab';
-
 import { AutomatedSmsTab } from './AutomatedSmsTab';
 import { CompanyProfileTab } from './CompanyProfileTab';
 import { TeamManagementTab } from './TeamManagementTab';
@@ -13,87 +14,133 @@ import { PersonalProfileTab } from './PersonalProfileTab';
 import { IntegrationsTab } from './IntegrationsTab';
 import { BillingTab } from './BillingTab';
 import { ApiKeysTab } from './api-keys/ApiKeysTab';
+import { SettingsOverview } from './overview/SettingsOverview';
 import { ManageTeamModal } from '@shared/components/modals';
-import { Button, SectionNavigation } from '@/design-system/components';
-import { PageHeader } from '@/design-system/layouts';
+import { ButtonLink, SectionNavigation } from '@/design-system/components';
+import { ConfirmDialog, UnsavedChangesProvider, useUnsavedChangesGuard } from '@/design-system/patterns';
+import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 
-/** The sections whose own `PageHeader` names the page: one `<h1>` there, theirs. */
-const TABS_WITH_OWN_HEADING = new Set(['personal', 'integrations', 'api_keys']);
-
-export function CompanySettings() {
-    const { currentCompanyProfile, currentUser, currentUserClaims } = useData();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const [showManageTeam, setShowManageTeam] = useState(false);
-    const navigate = useNavigate();
-
-    const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
-    const navigationGroups = [
+/**
+ * The sections, grouped. Every id is also its `?section=` value, so a link to a
+ * section keeps working when its label changes. Overview has no group label: it
+ * is the way in, not a group.
+ */
+function settingsGroups(profile) {
+    return [
+        { id: 'overview', items: [{ id: 'overview', label: 'Overview', icon: LayoutDashboard }] },
         {
-            id: 'organization',
-            label: 'Organization',
+            id: 'company',
+            label: 'Company',
             items: [
-                { id: 'company', label: 'Company Profile', icon: Building },
-                { id: 'team', label: 'Team & Users', icon: Users },
-                // Every company may make keys, so not under Integrations, which
-                // is hidden with call tracking.
-                { id: 'api_keys', label: 'API Keys', icon: KeyRound },
+                { id: 'company', label: 'Company profile', icon: Building },
+                { id: 'team', label: 'Team', icon: Users },
             ],
         },
         {
-            id: 'communication',
-            label: 'Communication',
+            id: 'messaging',
+            label: 'Messaging',
             items: [
-                { id: 'email', label: 'Email Settings', icon: Mail },
-                { id: 'sms', label: 'SMS Settings', icon: MessageSquare },
-                { id: 'automated_sms', label: 'Automated SMS', icon: Send },
+                { id: 'email', label: 'Email', icon: Mail },
+                { id: 'sms', label: 'Text messages (SMS)', icon: MessageSquare },
+                { id: 'automated_sms', label: 'Automated texts', icon: Send },
             ],
         },
-        ...(currentCompanyProfile?.features?.callTracking !== false
-            ? [{
-                id: 'revenue',
-                label: 'Revenue & Reach',
-                items: [
-                    { id: 'integrations', label: 'Integrations', icon: Blocks },
-                ],
-            }]
-            : []),
+        {
+            id: 'connections',
+            label: 'Connections',
+            items: [
+                // Every company may make keys; Facebook leads is hidden with call tracking.
+                { id: 'api_keys', label: 'API keys', icon: KeyRound },
+                ...(profile?.features?.callTracking !== false
+                    ? [{ id: 'integrations', label: 'Facebook leads', icon: Blocks }]
+                    : []),
+            ],
+        },
         {
             id: 'account',
-            label: 'Account Control',
+            label: 'Account',
             items: [
-                { id: 'billing', label: 'Billing & Plan', icon: CreditCard },
-                { id: 'personal', label: 'Security Profile', icon: User },
+                { id: 'billing', label: 'Plan', icon: CreditCard },
+                { id: 'personal', label: 'My profile', icon: User },
             ],
         },
     ];
+}
 
-    // The section is in the address (`?section=team`), so a reload, Back and a
-    // shared link keep it; Company Profile, the first, needs none. A section this
-    // company does not show opens Company Profile.
-    const sectionIds = navigationGroups.flatMap((group) => group.items.map((item) => item.id));
-    const requestedSection = searchParams.get('section');
-    const activeTab = sectionIds.includes(requestedSection) ? requestedSection : 'company';
-    const setActiveTab = (section) => setSearchParams((params) => {
-        const next = new URLSearchParams(params);
-        if (section === 'company') next.delete('section');
-        else next.set('section', section);
-        return next;
-    });
+export function CompanySettings() {
+    const { currentCompanyProfile, currentUser, currentUserClaims } = useData();
+    const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
 
-    // Redirect non-admins back to dashboard
     if (!isCompanyAdmin && currentCompanyProfile) {
         return <Navigate to="/company/dashboard" replace />;
     }
+    if (!currentCompanyProfile) return null;
+
+    return (
+        <UnsavedChangesProvider>
+            <SettingsShell
+                currentCompanyProfile={currentCompanyProfile}
+                currentUser={currentUser}
+                isCompanyAdmin={isCompanyAdmin}
+            />
+        </UnsavedChangesProvider>
+    );
+}
+
+function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const navigationType = useNavigationType();
+    const [showManageTeam, setShowManageTeam] = useState(false);
+    const isPhone = useIsMobile();
+    const guard = useUnsavedChangesGuard();
+
+    const groups = settingsGroups(currentCompanyProfile);
+    // The section is in the address (`?section=team`), so a reload, Back and a
+    // shared link keep it; Overview, the first, needs none. A section this
+    // company does not show opens Overview.
+    const sectionIds = groups.flatMap((group) => group.items.map((item) => item.id));
+    const requestedSection = searchParams.get('section');
+    const addressedSection = sectionIds.includes(requestedSection) ? requestedSection : 'overview';
+    const setActiveTab = (section) => setSearchParams((params) => {
+        const next = new URLSearchParams(params);
+        if (section === 'overview') next.delete('section');
+        else next.set('section', section);
+        return next;
+    });
+    // Every move between sections asks first while one holds unsaved changes.
+    const selectSection = (section) => guard.request(() => setActiveTab(section));
+
+    // The browser's Back and Forward change the address before anything can ask,
+    // so while a section holds unsaved changes the page keeps showing it and asks
+    // then: Discard follows the address, Keep editing puts the address back.
+    const [shownSection, setShownSection] = useState(addressedSection);
+    const heldByHistory = addressedSection !== shownSection && guard.dirty && navigationType === 'POP';
+    if (addressedSection !== shownSection && !heldByHistory) setShownSection(addressedSection);
+    useEffect(() => {
+        if (heldByHistory) guard.request(() => setShownSection(addressedSection));
+        // `guard.request` changes with the dirty flag, which `heldByHistory` already follows.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [heldByHistory, addressedSection]);
+    const activeTab = heldByHistory ? shownSection : addressedSection;
+    const keepEditing = () => {
+        // A new entry, so the next Back still reaches the page the person came from.
+        if (heldByHistory) setActiveTab(shownSection);
+        guard.cancel();
+    };
+
+    // The phone's way back to Overview keeps every other parameter (`e2eAuth`).
+    const overviewParams = new URLSearchParams(searchParams);
+    overviewParams.delete('section');
+    const overviewQuery = overviewParams.toString();
+    const overviewHref = `/company/settings${overviewQuery ? `?${overviewQuery}` : ''}`;
 
     const renderContent = () => {
         switch (activeTab) {
+            case 'overview':
+                return <SettingsOverview groups={groups} onSelect={selectSection} />;
             case 'company':
-                return (
-                    <CompanyProfileTab
-                        currentCompanyProfile={currentCompanyProfile}
-                    />
-                );
+                return <CompanyProfileTab currentCompanyProfile={currentCompanyProfile} />;
             case 'team':
                 return (
                     <TeamManagementTab
@@ -103,100 +150,80 @@ export function CompanySettings() {
                     />
                 );
             case 'personal':
-                return (
-                    <PersonalProfileTab
-                        currentUser={currentUser}
-                        currentCompanyProfile={currentCompanyProfile}
-                    />
-                );
+                return <PersonalProfileTab currentUser={currentUser} currentCompanyProfile={currentCompanyProfile} />;
             case 'email':
-                return (
-                    <EmailSettingsTab
-                        currentCompanyProfile={currentCompanyProfile}
-                    />
-                );
+                return <EmailSettingsTab currentCompanyProfile={currentCompanyProfile} />;
             case 'sms':
-                return (
-                    <SmsSettingsTab currentCompanyProfile={currentCompanyProfile} />
-                );
+                return <SmsSettingsTab currentCompanyProfile={currentCompanyProfile} />;
             case 'automated_sms':
-                return (
-                    <AutomatedSmsTab companyId={currentCompanyProfile?.id} />
-                );
+                return <AutomatedSmsTab companyId={currentCompanyProfile.id} />;
             case 'integrations':
-                return <IntegrationsTab companyId={currentCompanyProfile?.id} />;
+                return <IntegrationsTab companyId={currentCompanyProfile.id} />;
             case 'api_keys':
-                return <ApiKeysTab companyId={currentCompanyProfile?.id} />;
+                return <ApiKeysTab companyId={currentCompanyProfile.id} />;
             case 'billing':
                 return <BillingTab currentCompanyProfile={currentCompanyProfile} />;
             default:
-                return <div className="p-ds-10 text-center text-ds-content-muted">Select a tab to view settings.</div>;
+                return null;
         }
     };
 
-    if (!currentCompanyProfile) return null;
-
     return (
-        <div
-            className="min-h-screen min-w-0 bg-ds-canvas text-ds-content"
-            data-testid="company-settings-shell"
-        >
-            {/*
-              * `raised`, not `sticky`, and the difference is worth recording.
-              *
-              * This is a page-level sticky header nested UNDER the workspace
-              * topbar, which is itself on the sticky layer
-              * (`WorkspaceFrame.css`). Putting this one there too made the two
-              * tie, and being later in the DOM this one won — covering the
-              * topbar's drop shadow. CI's visual lane caught it as a two-pixel
-              * band under the topbar, at both widths.
-              *
-              * `raised` is 10, exactly what this wrote as `z-10`, so the
-              * rendering is unchanged — and it says the truer thing: lifted
-              * above the page content, below the application chrome.
-              */}
-            <div className="min-h-16 bg-ds-surface border-b border-ds-border-subtle mb-ds-8 flex items-center px-ds-4 sm:px-ds-6 lg:px-ds-8 sticky top-0 z-ds-raised">
-                <Button
-                    variant="ghost"
-                    justify="start"
-                    onClick={() => navigate('/company/dashboard')}
-                >
-                    <Icon icon={ArrowLeft} size="xl" />
-                    Back to Dashboard
-                </Button>
-            </div>
-            <div className="max-w-7xl mx-auto px-ds-4 sm:px-ds-6 lg:px-ds-8 pb-20">
-                {/*
-                  Most tabs render no top-level heading (several use a bare
-                  `<h2>`, several none), so this one names the page. A tab with
-                  a `PageHeader` of its own already renders the page's `<h1>`,
-                  so this is left out there rather than standing above it.
-                */}
-                {!TABS_WITH_OWN_HEADING.has(activeTab) && (
-                    <PageHeader title="Company Settings" className="mb-ds-6" />
-                )}
-                <div className="flex min-w-0 flex-col xl:flex-row gap-ds-8">
-                    <aside className="w-full min-w-0 xl:w-64 flex-shrink-0">
-                        <SectionNavigation
-                            label="Company settings sections"
-                            groups={navigationGroups}
-                            currentId={activeTab}
-                            onSelect={setActiveTab}
-                            controlsId="company-settings-content"
-                            mobileLayout="grid"
-                            className="xl:sticky xl:top-24"
-                        />
-                    </aside>
+        <div className="min-h-full min-w-0 bg-ds-canvas text-ds-content" data-testid="company-settings-shell">
+            <div className="mx-auto max-w-7xl p-3 sm:p-6">
+                <div className="flex min-w-0 flex-col gap-ds-6 xl:flex-row xl:gap-ds-8">
+                    {/* A phone has no room for the rail beside the content or above
+                        it: Overview is its way to every section. */}
+                    {!isPhone && (
+                        <aside className="w-full min-w-0 flex-shrink-0 xl:w-64">
+                            <SectionNavigation
+                                label="Company settings sections"
+                                groups={groups}
+                                currentId={activeTab}
+                                onSelect={selectSection}
+                                controlsId="company-settings-content"
+                                mobileLayout="grid"
+                                className="xl:sticky xl:top-6"
+                            />
+                        </aside>
+                    )}
 
                     <section
                         id="company-settings-content"
-                        className="flex-1 min-w-0 min-h-[600px] relative"
+                        className="flex min-w-0 flex-1 flex-col gap-ds-4"
                         aria-label="Company settings content"
                     >
+                        {isPhone && activeTab !== 'overview' && (
+                            <div>
+                                <ButtonLink
+                                    href={overviewHref}
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        selectSection('overview');
+                                    }}
+                                >
+                                    <Icon icon={ArrowLeft} />
+                                    Settings
+                                </ButtonLink>
+                            </div>
+                        )}
                         {renderContent()}
                     </section>
                 </div>
             </div>
+
+            <ConfirmDialog
+                isOpen={guard.pending}
+                tone="warning"
+                title="Leave without saving?"
+                description="This section has changes that have not been saved. Leaving now discards them."
+                confirmLabel="Discard changes"
+                cancelLabel="Keep editing"
+                onConfirm={guard.confirm}
+                onCancel={keepEditing}
+            />
 
             {showManageTeam && (
                 <ManageTeamModal

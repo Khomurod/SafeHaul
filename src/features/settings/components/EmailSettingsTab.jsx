@@ -15,6 +15,7 @@ import {
     Notice,
     Textarea,
 } from '@/design-system/components';
+import { PageHeader } from '@/design-system/layouts';
 import { PevCopiesSection } from './PevCopiesSection';
 
 export function EmailSettingsTab({ currentCompanyProfile }) {
@@ -194,11 +195,8 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
     // Show loading state while callable fetches settings
     if (settingsLoading) {
         return (
-            <div className="max-w-4xl animate-in fade-in" data-testid="email-settings">
-                <header className="border-b border-ds-border-subtle pb-ds-4">
-                    <h2 className="text-ds-heading-lg font-bold text-ds-content">Email Integration</h2>
-                    <p className="mt-ds-1 text-ds-sm text-ds-content-muted">Loading email settings…</p>
-                </header>
+            <div className="space-y-ds-6" data-testid="email-settings">
+                <PageHeader title="Email" description="Loading email settings…" />
                 <p
                     role="status"
                     className="flex items-center justify-center gap-ds-2 py-24 text-ds-content-muted"
@@ -213,13 +211,11 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
     const isConnected = emailSettings.isVerified && emailSettings.smtpUser;
 
     return (
-        <div className="max-w-4xl animate-in fade-in space-y-ds-8 pb-12" data-testid="email-settings">
-            <header className="border-b border-ds-border-subtle pb-ds-4">
-                <h2 className="text-ds-heading-lg font-bold text-ds-content">Email Integration</h2>
-                <p className="mt-ds-1 text-ds-sm text-ds-content-muted">
-                    Configure your company&apos;s email server to send automated messages directly from your domain.
-                </p>
-            </header>
+        <div className="space-y-ds-6" data-testid="email-settings">
+            <PageHeader
+                title="Email"
+                description="Configure your company's email server to send automated messages directly from your domain."
+            />
 
             {/* Connection Status Banner */}
             <Card padding="md" aria-label="Email connection status">

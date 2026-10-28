@@ -13,8 +13,7 @@ const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 const FORM_TIMEOUT = 90_000;
 
 async function selectAutomatedSms(page) {
-  await page.goto(SETTINGS_URL);
-  await page.getByRole('button', { name: 'Automated SMS' }).click();
+  await page.goto(`${SETTINGS_URL}&section=automated_sms`);
   await expect(page.getByTestId('automated-sms-settings')).toBeVisible();
 }
 
@@ -48,8 +47,9 @@ test.describe('Company Settings Automated SMS compatibility slice', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openLoadedForm(page);
 
-    const region = page.getByRole('region', { name: 'Automated SMS' });
-    await expect(region.getByRole('heading', { level: 2, name: 'Automated SMS' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Automated texts' })).toBeVisible();
+    const region = page.getByRole('region', { name: 'Contact-attempt messages' });
+    await expect(region.getByRole('heading', { level: 2, name: 'Contact-attempt messages' })).toBeVisible();
 
     const one = region.getByRole('textbox', { name: 'Contact Attempt 1' });
     const two = region.getByRole('textbox', { name: 'Contact Attempt 2' });
