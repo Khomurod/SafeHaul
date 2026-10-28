@@ -284,6 +284,9 @@ The reverse directions are prohibited — including any `@shared` import inside
   has an underlined, scrolling appearance with counts.
   Tablet widths, which the visual contract does not measure, are held by
   `e2e/list-page-tablet.spec.cjs`.
+- **A page that saves on a button shows `SaveBar` only while it is dirty**
+  (`patterns/save-bar/README.md`); `useUnsavedChanges` guards reload, and a
+  shell asks "Leave without saving?" through `useUnsavedChangesGuard`.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
   record-specific accessible name. Prefer deciding which actions a row offers in
   a pure, tested module (as `unfinishedRowActions.js` does) over a `render`
@@ -527,6 +530,7 @@ it does:
 | Interactive pill / chip; person or organisation disc; selectable record card | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |
 | Editable-in-place value; collapsible section | `components/form` → `Input variant="inline"`; `components/disclosure` (rail and `variant="card"`) |
 | Section rail (page and step); status notice / callout | `components/section-navigation`; `components/notice` |
+| Unsaved-changes bar and dirty guard | `patterns/save-bar` → `SaveBar`, `useUnsavedChanges`, `useUnsavedChangesGuard` |
 | Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
 
 Families still in progress — inputs, select/textarea, loading primitives beyond

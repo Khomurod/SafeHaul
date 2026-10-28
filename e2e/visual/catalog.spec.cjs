@@ -155,6 +155,9 @@ const SUBJECTS = [
     ['patterns-list-page--default', 'pattern-list-page'],
     ['patterns-list-page--filters-open', 'pattern-list-page-filters'],
     ['patterns-list-page--no-matching-results', 'pattern-list-page-no-results'],
+    // The unsaved-changes bar under a form, and with a failed save.
+    ['patterns-save-bar--default', 'pattern-save-bar'],
+    ['patterns-save-bar--with-error', 'pattern-save-bar-error'],
     ['patterns-title-deletion-list--default', 'pattern-deletion-list'],
     ['patterns-modal-form--field-validation-error', 'pattern-modal-form-error'],
     ['patterns-back-navigation-and-page-header--with-status', 'pattern-page-header'],
