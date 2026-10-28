@@ -10,6 +10,7 @@ import {
     FormSection,
     Textarea,
 } from '@/design-system/components';
+import { PageHeader } from '@/design-system/layouts';
 
 export function AutomatedSmsTab({ companyId }) {
     const { showSuccess, showError } = useToast();
@@ -69,7 +70,8 @@ export function AutomatedSmsTab({ companyId }) {
 
     if (loading) {
         return (
-            <div className="max-w-4xl animate-in fade-in" data-testid="automated-sms-settings">
+            <div className="space-y-ds-6" data-testid="automated-sms-settings">
+                <PageHeader title="Automated texts" description="Messages sent when a lead or application moves into each contact-attempt stage." />
                 <p
                     role="status"
                     className="flex items-center justify-center gap-ds-2 py-24 text-ds-content-muted"
@@ -105,13 +107,13 @@ export function AutomatedSmsTab({ companyId }) {
     ];
 
     return (
-        <div className="max-w-4xl animate-in fade-in pb-12" data-testid="automated-sms-settings">
+        <div className="space-y-ds-6" data-testid="automated-sms-settings">
+            <PageHeader title="Automated texts" description="Messages sent when a lead or application moves into each contact-attempt stage." />
             <FormSection
-                title="Automated SMS"
+                title="Contact-attempt messages"
                 description={(
                     <>
-                        Messages sent when a lead or application moves into each
-                        contact-attempt stage. Use{' '}
+                        Use{' '}
                         <code className="rounded-ds-sm bg-ds-surface-subtle px-ds-1 text-ds-content">
                             {`{driver name}`}
                         </code>{' '}

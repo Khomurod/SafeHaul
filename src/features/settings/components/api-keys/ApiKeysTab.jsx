@@ -46,7 +46,7 @@ export function ApiKeysTab({ companyId }) {
     return (
         <Stack gap="lg">
             <PageHeader
-                title="API Keys"
+                title="API keys"
                 description="Let another service, such as your TMS, read the applications drivers submit to you."
                 actions={(
                     <Button variant="primary" onClick={() => setCreating(true)} disabled={loading || atLimit}>

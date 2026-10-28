@@ -10,8 +10,7 @@ const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 const FORM_TIMEOUT = 90_000;
 
 async function selectEmail(page) {
-  await page.goto(SETTINGS_URL);
-  await page.getByRole('button', { name: 'Email Settings' }).click();
+  await page.goto(`${SETTINGS_URL}&section=email`);
   await expect(page.getByTestId('email-settings')).toBeVisible();
 }
 

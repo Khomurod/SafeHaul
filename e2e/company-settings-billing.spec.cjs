@@ -4,8 +4,7 @@ const AxeBuilder = require('@axe-core/playwright').default;
 const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openBilling(page) {
-  await page.goto(SETTINGS_URL);
-  await page.getByRole('button', { name: 'Billing & Plan' }).click();
+  await page.goto(`${SETTINGS_URL}&section=billing`);
   await expect(page.getByTestId('billing-settings')).toBeVisible();
 }
 
@@ -17,9 +16,10 @@ test.describe('Company Settings Billing informational card compatibility slice',
     await page.setViewportSize({ width: 1440, height: 900 });
     await openBilling(page);
 
-    const region = page.getByRole('region', { name: 'Billing & Plan' });
-    await expect(region.getByRole('heading', { level: 2, name: 'Billing & Plan' })).toBeVisible();
-    await expect(region.getByText('Manage your subscription.')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Plan' })).toBeVisible();
+    await expect(page.getByText('Manage your subscription.')).toBeVisible();
+    const region = page.getByRole('region', { name: 'Subscription' });
+    await expect(region.getByRole('heading', { level: 2, name: 'Subscription' })).toBeVisible();
     await expect(region.getByText('Current Plan')).toBeVisible();
     // The E2E company fixture carries no paid plan, so it resolves to Free Plan.
     await expect(region.getByText('Free Plan')).toBeVisible();

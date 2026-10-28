@@ -275,8 +275,8 @@ The reverse directions are prohibited — including any `@shared` import inside
   Unfinished applications and E-Docs Sent Documents (its count in the
   workspace heading) do not sort from headers. Short lists
   with no toolbar or sorting take the heading, the rows and the cards: Referral
-  Links and Settings → API Keys (row actions in a last column; a settings tab
-  with its own header is the page's one `<h1>`), and Super Admin's Website
+  Links and Settings → API Keys (row actions in a last column; every settings
+  section's `PageHeader` is the page's one `<h1>`), and Super Admin's Website
   Leads, Blog Posts and Features (`PageHeader level={2}`, the masthead holding
   the `<h1>`). AI Logs and Environment & Integrations have the toolbar, rows
   and cards; no count, as their consoles show totals. Temporary exception:

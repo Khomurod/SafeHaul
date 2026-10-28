@@ -47,6 +47,12 @@ describe('TeamManagementTab — Add New User', () => {
         mocks.createFn.mockResolvedValue({ data: { success: true } });
     });
 
+    it('names the page Team, as its one level-1 heading', () => {
+        renderTab();
+
+        expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent)).toEqual(['Team']);
+    });
+
     it('denies non-admins without rendering the form', () => {
         renderTab({ isCompanyAdmin: false });
         expect(screen.getByText('Access Denied. Only Admins can manage the team.')).toBeInTheDocument();

@@ -5,6 +5,7 @@ import {
     FieldMessage,
     FormSection,
 } from '@/design-system/components';
+import { PageHeader } from '@/design-system/layouts';
 
 /**
  * Company Settings Billing tab.
@@ -19,8 +20,9 @@ export function BillingTab({ currentCompanyProfile }) {
     const planName = isPaidPlan ? 'Pro Plan' : 'Free Plan';
 
     return (
-        <div className="max-w-4xl animate-in fade-in" data-testid="billing-settings">
-            <FormSection title="Billing & Plan" description="Manage your subscription.">
+        <div className="space-y-ds-6" data-testid="billing-settings">
+            <PageHeader title="Plan" description="Manage your subscription." />
+            <FormSection title="Subscription">
                 <FieldDisplay label="Current Plan">
                     <Badge tone={isPaidPlan ? 'success' : 'neutral'}>{planName}</Badge>
                 </FieldDisplay>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { LineManager } from '@/features/super-admin/components/integrations/LineManager';
 import { NumberAssignmentManager } from './NumberAssignmentManager';
+import { PageHeader } from '@/design-system/layouts';
 
 /**
  * Company-admin SMS configuration tab.
@@ -25,7 +26,8 @@ export function SmsSettingsTab({ currentCompanyProfile }) {
     }
 
     return (
-        <div className="space-y-8 max-w-5xl animate-in fade-in">
+        <div className="space-y-ds-6">
+            <PageHeader title="Text messages (SMS)" description="The phone lines your team texts drivers from, and who texts from which." />
             <LineManager companyId={companyId} companyName={companyName} />
             <NumberAssignmentManager companyId={companyId} />
         </div>

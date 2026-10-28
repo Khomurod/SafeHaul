@@ -23,6 +23,11 @@ describe('SmsSettingsTab (company-admin SMS configuration)', () => {
         expect(screen.getByTestId('assignments')).toHaveTextContent('assign:co1');
     });
 
+    it('names the page Text messages (SMS)', () => {
+        render(<SmsSettingsTab currentCompanyProfile={{ id: 'co1', companyName: 'Wenze Investment' }} />);
+        expect(screen.getByRole('heading', { level: 1, name: 'Text messages (SMS)' })).toBeInTheDocument();
+    });
+
     it('falls back to the name field when companyName is absent', () => {
         render(<SmsSettingsTab currentCompanyProfile={{ id: 'co1', name: 'Acme' }} />);
         expect(screen.getByTestId('line-manager')).toHaveTextContent('wallet:co1:Acme');

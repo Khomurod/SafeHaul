@@ -9,7 +9,7 @@ const AxeBuilder = require('@axe-core/playwright').default;
 const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openQuestions(page) {
-  await page.goto(SETTINGS_URL);
+  await page.goto(`${SETTINGS_URL}&section=company`);
   await expect(page.getByTestId('company-information')).toBeVisible();
   /*
    * A `tab`, not a `button`: this strip is the approved `TabList`, so the

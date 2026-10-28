@@ -39,9 +39,8 @@ async function answerCallables(page) {
 
 async function openApiKeys(page) {
   await answerCallables(page);
-  await page.goto(SETTINGS_URL);
-  await page.getByRole('button', { name: 'API Keys' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'API Keys' })).toBeVisible();
+  await page.goto(`${SETTINGS_URL}&section=api_keys`);
+  await expect(page.getByRole('heading', { level: 1, name: 'API keys' })).toBeVisible();
   await expect(page.getByRole('table', { name: 'API keys' }).getByText('Artificial TMS')).toBeVisible();
 }
 

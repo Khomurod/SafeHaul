@@ -10,6 +10,8 @@ import {
     FormField,
     FormSection,
     Input,
+    Link,
+    Notice,
 } from '@/design-system/components';
 import { PageHeader, Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
@@ -100,12 +102,17 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
     };
 
     return (
-        <div className="max-w-4xl animate-in fade-in">
+        <div>
             <Stack gap="lg">
                 <PageHeader
-                    title="Personal Profile"
+                    title="My profile"
                     description="Update your personal details and access your recruiting tools."
                 />
+
+                <Notice tone="info">
+                    Change your password or sign-in email on{' '}
+                    <Link href="/company/profile">your profile page</Link>.
+                </Notice>
 
                 <Card
                     className="border-ds-status-info-border bg-ds-status-info-bg"

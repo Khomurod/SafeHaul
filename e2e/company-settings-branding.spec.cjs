@@ -17,7 +17,7 @@ const AxeBuilder = require('@axe-core/playwright').default;
 const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openBrandingEditing(page) {
-  await page.goto(SETTINGS_URL);
+  await page.goto(`${SETTINGS_URL}&section=company`);
   await expect(page.getByTestId('company-information')).toBeVisible();
   await page.getByRole('button', { name: 'Edit Profile' }).click();
   // The picker is the field, named "Company logo"; its visible text is the

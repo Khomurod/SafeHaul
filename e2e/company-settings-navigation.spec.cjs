@@ -5,9 +5,9 @@ const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openSettings(page) {
   await page.goto(SETTINGS_URL);
-  await expect(
-    page.getByRole('navigation', { name: 'Company settings sections' }),
-  ).toBeVisible();
+  // Overview is the first page, on every width; the rail is beside it only
+  // from 768px up.
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
 }
 
 test.describe('Company Settings shell and navigation compatibility slice', () => {
@@ -18,10 +18,11 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await page.setViewportSize({ width: 1440, height: 900 });
     await openSettings(page);
 
-    const company = page.getByRole('button', { name: 'Company Profile' });
-    const team = page.getByRole('button', { name: 'Team & Users' });
+    const overview = page.getByRole('button', { name: 'Overview', exact: true });
+    const company = page.getByRole('button', { name: 'Company profile', exact: true });
+    const team = page.getByRole('button', { name: 'Team', exact: true });
 
-    await expect(company).toHaveAttribute('aria-current', 'page');
+    await expect(overview).toHaveAttribute('aria-current', 'page');
     await expect(company).toHaveAttribute('aria-controls', 'company-settings-content');
 
     await company.focus();
@@ -31,12 +32,12 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
 
     await expect(team).toBeFocused();
     await expect(team).toHaveAttribute('aria-current', 'page');
-    await expect(company).not.toHaveAttribute('aria-current');
+    await expect(overview).not.toHaveAttribute('aria-current');
   });
 
   test('keeps the open section in the address, through a reload', async ({ page }) => {
     await openSettings(page);
-    const email = page.getByRole('button', { name: 'Email Settings' });
+    const email = page.getByRole('button', { name: 'Email', exact: true });
 
     await email.click();
     await expect(page).toHaveURL(/\/company\/settings\?e2eAuth=company_admin&section=email$/);
@@ -99,64 +100,51 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     expect(geometry.itemHeight).toBeGreaterThanOrEqual(44);
   });
 
-  test('keeps every section reachable in a mobile grid without horizontal overflow @mobile', async ({ page }, testInfo) => {
+  test('opens on Overview with no rail, and reaches every section from it @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openSettings(page);
 
-    const navigation = page.getByRole('navigation', { name: 'Company settings sections' });
-    const expectedItems = [
-      'Company Profile',
-      'Team & Users',
-      'Email Settings',
-      'SMS Settings',
-      'Automated SMS',
-      'Integrations',
-      'Billing & Plan',
-      'Security Profile',
+    await expect(page.getByRole('navigation', { name: 'Company settings sections' })).toHaveCount(0);
+    const sections = [
+      'Company profile', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts',
+      'API keys', 'Facebook leads', 'Plan', 'My profile',
     ];
-
-    for (const label of expectedItems) {
-      await expect(page.getByRole('button', { name: label })).toBeAttached();
+    for (const label of sections) {
+      await expect(page.getByRole('button', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')} `) })).toBeAttached();
     }
 
-    const geometry = await navigation.evaluate((element) => {
-      const groupBoxes = [...element.querySelectorAll('.ds-section-navigation__group')]
-        .map((group) => group.getBoundingClientRect());
-      const itemBoxes = [...element.querySelectorAll('.ds-section-navigation__item')]
-        .map((item) => item.getBoundingClientRect());
+    const geometry = await page.evaluate(() => {
       const shell = document.querySelector('[data-testid="company-settings-shell"]');
+      const rows = [...(shell?.querySelectorAll('.ds-selectable-card') || [])].map((row) => row.getBoundingClientRect());
       const nestedHorizontalScrollers = [...(shell?.querySelectorAll('*') || [])]
         .filter((candidate) => {
           const overflowX = getComputedStyle(candidate).overflowX;
           return ['auto', 'scroll'].includes(overflowX)
             && candidate.scrollWidth > candidate.clientWidth + 1;
         });
-
       return {
         viewportWidth: window.innerWidth,
         documentWidth: document.documentElement.scrollWidth,
-        navigationWidth: element.getBoundingClientRect().width,
-        distinctGroupColumns: new Set(groupBoxes.map((box) => Math.round(box.x))).size,
-        minimumItemHeight: Math.min(...itemBoxes.map((box) => box.height)),
-        itemRightEdge: Math.max(...itemBoxes.map((box) => box.right)),
+        minimumRowHeight: Math.min(...rows.map((box) => box.height)),
+        rowRightEdge: Math.max(...rows.map((box) => box.right)),
         nestedHorizontalScrollerCount: nestedHorizontalScrollers.length,
       };
     });
-
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
-    expect(geometry.navigationWidth).toBeLessThanOrEqual(geometry.viewportWidth);
-    expect(geometry.distinctGroupColumns).toBe(2);
-    expect(geometry.minimumItemHeight).toBeGreaterThanOrEqual(44);
-    expect(geometry.itemRightEdge).toBeLessThanOrEqual(geometry.viewportWidth);
+    expect(geometry.minimumRowHeight).toBeGreaterThanOrEqual(44);
+    expect(geometry.rowRightEdge).toBeLessThanOrEqual(geometry.viewportWidth);
     expect(geometry.nestedHorizontalScrollerCount).toBe(0);
 
-    const security = page.getByRole('button', { name: 'Security Profile' });
-    await security.scrollIntoViewIfNeeded();
-    await security.click();
-    await expect(security).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByRole('heading', { name: 'Personal Profile', exact: true }))
-      .toBeVisible();
+    const plan = page.getByRole('button', { name: /^Plan / });
+    await plan.scrollIntoViewIfNeeded();
+    await plan.click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Plan' })).toBeVisible();
+    await expect(page).toHaveURL(/section=billing/);
+
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    await expect(page).toHaveURL(/\/company\/settings\?e2eAuth=company_admin$/);
   });
 
   test('has no serious or critical accessibility violations', async ({ page }) => {
