@@ -24,6 +24,9 @@ test.describe('Company Settings Email Settings compatibility slice', () => {
   test.describe.configure({ timeout: 120_000 });
 
   test('announces an accessible loading status while settings load', async ({ page }) => {
+    // Hold the settings call open, so the page is still loading when it is read
+    // (the placeholder project answers it at once with an error).
+    await page.route('**/getEmailSettingsMeta', () => {});
     await selectEmail(page);
     await expect(page.getByRole('status')).toContainText('Loading');
   });
