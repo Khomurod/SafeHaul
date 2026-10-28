@@ -9,6 +9,7 @@ import { useCompanyDeactivated } from '../hooks/useCompanyDeactivated';
 import { CompanyDeactivatedScreen } from './CompanyDeactivatedScreen';
 import { useData } from '@/context/DataContext';
 import { DriverDossier } from '../components/modals/driver-dossier/DriverDossier';
+import { UnsavedChangesBoundary } from './UnsavedChangesBoundary';
 
 const SIDEBAR_STORAGE_KEY = 'companySidebarMode';
 
@@ -40,7 +41,7 @@ export const CompanyAppShell = () => {
     if (deactivated) return <CompanyDeactivatedScreen />;
 
     return (
-        <>
+        <UnsavedChangesBoundary>
             <WorkspaceFrame
                 navigation={(
                     <CompanySidebar
@@ -81,6 +82,6 @@ export const CompanyAppShell = () => {
                     onDeleted={() => setOpenRecordId(null)}
                 />
             )}
-        </>
+        </UnsavedChangesBoundary>
     );
 };

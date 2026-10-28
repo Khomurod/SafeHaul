@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { Icon, LogOut, ArrowLeftRight, Menu } from '@design-system/icons';
 import { Avatar, IconButton } from '@/design-system/components';
+import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { getPortalUser } from '@features/auth';
 import { isSuperAdminClaims } from '@app/auth/roles';
@@ -22,6 +23,8 @@ export const CompanyTopbar = ({
     onOpenRecord,
 }) => {
     const { currentUser, handleLogout, currentCompanyProfile, currentUserClaims, returnToCompanyChooser } = useData();
+    // Switching company and logging out both leave the page: unsaved changes ask first.
+    const guard = useUnsavedChangesGuard();
     const companyId = currentCompanyProfile?.id;
 
     const [displayName, setDisplayName] = useState(currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User');
@@ -44,11 +47,14 @@ export const CompanyTopbar = ({
         fetchUserName();
     }, [currentUser]);
 
+    // `false` when the person is still signed in, so the unsaved-changes
+    // guard keeps protecting the page.
     const onLogout = async () => {
         try {
-            await handleLogout();
+            return await handleLogout();
         } catch (error) {
             console.error('Logout failed', error);
+            return false;
         }
     };
 
@@ -108,7 +114,7 @@ export const CompanyTopbar = ({
                 <IconButton
                     label="Switch company"
                     variant="ghost"
-                    onClick={returnToCompanyChooser}
+                    onClick={() => guard.request(returnToCompanyChooser)}
                     title="Switch Company"
                 >
                     <Icon icon={ArrowLeftRight} size="lg" />
@@ -118,7 +124,7 @@ export const CompanyTopbar = ({
                 <IconButton
                     label="Log out"
                     variant="ghost"
-                    onClick={onLogout}
+                    onClick={() => guard.request(onLogout)}
                     title="Logout"
                 >
                     <Icon icon={LogOut} size="lg" />

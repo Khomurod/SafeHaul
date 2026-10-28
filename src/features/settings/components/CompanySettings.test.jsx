@@ -79,6 +79,7 @@ vi.mock('./BillingTab', async () => {
 });
 
 import { CompanySettings } from './CompanySettings';
+import { UnsavedChangesBoundary } from '@features/company-admin/layout/UnsavedChangesBoundary';
 
 const company = {
     id: 'company-1',
@@ -114,10 +115,12 @@ function renderSettings({
 
     return render(
         <MemoryRouter initialEntries={[path]}>
-            <Routes>
-                <Route path="/company/settings" element={<CompanySettings />} />
-                <Route path="/company/dashboard" element={<p>Company dashboard</p>} />
-            </Routes>
+            <UnsavedChangesBoundary>
+                <Routes>
+                    <Route path="/company/settings" element={<CompanySettings />} />
+                    <Route path="/company/dashboard" element={<p>Company dashboard</p>} />
+                </Routes>
+            </UnsavedChangesBoundary>
             <AddressProbe />
         </MemoryRouter>,
     );
@@ -259,6 +262,15 @@ describe('leaving a section with unsaved changes', () => {
         fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
 
         expect(screen.getByRole('heading', { name: 'Plan Content' })).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
+    });
+
+    it('does not ask when the section already shown is chosen again', () => {
+        openDirtyPlan();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+
+        expect(screen.queryByRole('dialog')).toBeNull();
         expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
     });
 

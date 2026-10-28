@@ -219,8 +219,10 @@ export function DataProvider({ children }) {
       await auth.signOut();
       localStorage.removeItem(SESSION_KEYS.SELECTED_COMPANY_ID);
       window.location.href = '/login';
+      return true;
     } catch (e) {
       console.error('Logout failed', e);
+      return false;
     }
   }, []);
 

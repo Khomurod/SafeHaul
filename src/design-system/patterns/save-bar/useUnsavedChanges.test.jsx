@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UnsavedChangesProvider, useUnsavedChanges, useUnsavedChangesGuard } from './useUnsavedChanges';
 
@@ -19,12 +19,12 @@ function Editor({ name }) {
 }
 
 /** A shell that moves between sections through the guard. */
-function Shell({ children, onMove }) {
+function Shell({ children, onMove, onCancelMove }) {
   const guard = useUnsavedChangesGuard();
   return (
     <>
       <p>{guard.dirty ? 'Dirty' : 'Clean'}</p>
-      <button type="button" onClick={() => guard.request(onMove)}>Move</button>
+      <button type="button" onClick={() => guard.request(onMove, { onCancel: onCancelMove })}>Move</button>
       {guard.pending && (
         <div role="dialog" aria-label="Leave without saving?">
           <button type="button" onClick={guard.confirm}>Discard changes</button>
@@ -36,17 +36,18 @@ function Shell({ children, onMove }) {
   );
 }
 
-function renderShell() {
-  const onMove = vi.fn();
+function renderShell({ move } = {}) {
+  const onMove = vi.fn(move);
+  const onCancelMove = vi.fn();
   render(
     <UnsavedChangesProvider>
-      <Shell onMove={onMove}>
+      <Shell onMove={onMove} onCancelMove={onCancelMove}>
         <Editor name="first" />
         <Editor name="second" />
       </Shell>
     </UnsavedChangesProvider>,
   );
-  return { onMove };
+  return { onMove, onCancelMove };
 }
 
 describe('useUnsavedChanges', () => {
@@ -140,19 +141,20 @@ describe('useUnsavedChangesGuard', () => {
     expect(screen.getByRole('dialog', { name: 'Leave without saving?' })).toBeInTheDocument();
   });
 
-  it('drops the move when the person keeps editing', () => {
-    const { onMove } = renderShell();
+  it('drops the move when the person keeps editing, and tells the mover', () => {
+    const { onMove, onCancelMove } = renderShell();
     fireEvent.click(screen.getByRole('button', { name: 'Change first' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
 
     expect(onMove).not.toHaveBeenCalled();
+    expect(onCancelMove).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('makes the move when the person discards', () => {
-    const { onMove } = renderShell();
+    const { onMove, onCancelMove } = renderShell();
     fireEvent.click(screen.getByRole('button', { name: 'Change first' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move' }));
 
@@ -161,7 +163,43 @@ describe('useUnsavedChangesGuard', () => {
     });
 
     expect(onMove).toHaveBeenCalledTimes(1);
+    expect(onCancelMove).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('lets the page unload without the browser asking again once the person discards', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'Change first' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move' }));
+    // The move here leaves the editor in place, as a move that reloads the page does.
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+
+    const unload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(false);
+
+    // A new change after the page is clean is guarded again.
+    fireEvent.click(screen.getByRole('button', { name: 'Undo first' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change first' }));
+    const next = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(next);
+    expect(next.defaultPrevented).toBe(true);
+  });
+
+  it.each([
+    ['resolves to false', async () => false],
+    ['rejects', async () => { throw new Error('offline'); }],
+  ])('guards the page again when the discarded move %s', async (_label, move) => {
+    renderShell({ move });
+    fireEvent.click(screen.getByRole('button', { name: 'Change first' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+
+    await waitFor(() => {
+      const unload = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(unload);
+      expect(unload.defaultPrevented).toBe(true);
+    });
   });
 
   it('needs a provider above it', () => {

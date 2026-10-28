@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { Button, IconButton } from '@/design-system/components';
 import { Icon, LayoutDashboard, Users, Building2, User, Search, FileText, Megaphone, Upload, PlusCircle, Settings, ChevronRight, ChevronsLeft, ChevronsRight, GitBranch, Hourglass, Share2, X } from '@design-system/icons';
 import { useData } from '@/context/DataContext';
@@ -46,10 +47,33 @@ function stripEdgeDividers(entries) {
  * collapse), and the link a keyboard user had just followed lost focus.
  */
 function NavItem({ item, isChild = false, isExpanded, onNavigate }) {
+  const guard = useUnsavedChangesGuard();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  // While a page holds unsaved changes, following a link asks first. A link
+  // opened in another tab or window leaves the page as it is, and so does a
+  // link to the page already shown.
+  const follow = (event) => {
+    const elsewhere = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0;
+    if (guard.dirty && !elsewhere && pathname === item.path) {
+      event.preventDefault();
+      onNavigate?.();
+      return;
+    }
+    if (guard.dirty && !elsewhere) {
+      event.preventDefault();
+      guard.request(() => {
+        navigate(item.path);
+        onNavigate?.();
+      });
+      return;
+    }
+    onNavigate?.();
+  };
   return (
     <NavLink
       to={item.path}
-      onClick={onNavigate}
+      onClick={follow}
       /*
         `focus-visible:outline-none focus-visible:shadow-ds-focus` — the
         product's focus ring.
