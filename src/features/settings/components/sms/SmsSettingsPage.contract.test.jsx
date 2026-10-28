@@ -16,6 +16,7 @@ let MEMBERSHIPS;       // [{ userId, role }] -> company roster
 let USERS;             // roster user docs [{ id, name, email }]
 let EXTERNAL_POOL;     // resolvable user docs NOT in the roster [{ id, name, email }]
 let ROSTER_FAILURES;   // how many `listCompanyTeam` calls fail before one answers
+let HOLD_USERS_LOOKUP; // when set, the missing-owner `users` lookup answers only once it settles
 
 // The roster as `listCompanyTeam` answers it: each membership with its profile.
 const listCompanyTeam = vi.fn(async () => {
@@ -61,7 +62,7 @@ vi.mock('firebase/firestore', () => ({
         const docs = pool
             .filter(u => ids.includes(u.id))
             .map(u => ({ id: u.id, data: () => ({ name: u.name, email: u.email }) }));
-        return Promise.resolve({ docs });
+        return HOLD_USERS_LOOKUP ? HOLD_USERS_LOOKUP.then(() => ({ docs })) : Promise.resolve({ docs });
     }),
 }));
 
@@ -75,6 +76,7 @@ const serve = (callable = vi.fn()) => vi.mocked(httpsCallable)
 beforeEach(() => {
     EXTERNAL_POOL = [];
     ROSTER_FAILURES = 0;
+    HOLD_USERS_LOOKUP = null;
     vi.clearAllMocks();
     serve();
 });
@@ -486,6 +488,26 @@ describe('SmsSettingsPage — default line, save bar and removal', () => {
         expect(row('Sofia')).toHaveTextContent('Tom Robinson');
         expect(rowSelText('Tom Robinson')).toContain('Sofia');
         expect(within(userRowSelect('Tom Robinson').closest('tr')).getByText('Recruiter')).toBeInTheDocument();
+    });
+
+    it('says who uses a line is not known until an owner missing from the team is found', async () => {
+        MEMBERSHIPS = [{ userId: 'uidNova', companyId: 'c1', role: 'hr_user' }];
+        USERS = [{ id: 'uidNova', name: 'Nova', email: 'nova@x.com' }];
+        EXTERNAL_POOL = [{ id: 'uidTom', name: 'Tom Robinson', email: 'tom@x.com' }];
+        let release;
+        HOLD_USERS_LOOKUP = new Promise((resolve) => { release = resolve; });
+
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await findMember('Nova');
+        const table = screen.getByRole('table', { name: 'Phone lines' });
+        const sofia = () => within(table).getByRole('rowheader', { name: /^Sofia/ }).closest('tr');
+        expect(sofia()).toHaveTextContent('Loading…');
+        expect(within(table).queryByText('Nobody')).not.toBeInTheDocument();
+
+        release();
+        await waitFor(() => expect(sofia()).toHaveTextContent('Tom Robinson (former member)'));
+        expect(within(table).queryByText('Loading…')).not.toBeInTheDocument();
+        expect(within(table).queryByText('Nobody')).not.toBeInTheDocument();
     });
 
     it('saves a new default line by its token', async () => {

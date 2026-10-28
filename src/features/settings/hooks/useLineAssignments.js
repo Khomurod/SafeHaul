@@ -285,6 +285,12 @@ export function useLineAssignments(companyId) {
         setDefaultNumber(savedDefault);
     };
 
+    // Owners missing from the team are looked up once it has loaded; until each
+    // has a row, who uses their line is not known yet.
+    const ownersLoading = rosterStatus === 'ready' && Object.keys(assignments || {}).some(
+        (uid) => uid && sanitizePhone(assignments[uid]) && !users.some((u) => u.id === uid)
+    );
+
     return {
         loading,
         configDoc,
@@ -292,6 +298,7 @@ export function useLineAssignments(companyId) {
         users,
         rosterLoading: rosterStatus === 'loading',
         rosterFailed: rosterStatus === 'error',
+        ownersLoading,
         reloadRoster,
         saving,
         verifyingLine,
