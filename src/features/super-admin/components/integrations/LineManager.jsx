@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon, Phone, Plus, Trash2, AlertCircle, CheckCircle, User } from '@design-system/icons';
-import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '@lib/firebase';
+import { db } from '@lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Badge, Button, Card, DataTable, IconButton } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
-import { ConfirmDialog } from '@design-system/patterns';
 import { AddLineModal } from './AddLineModal';
+import { RemoveLineDialog } from './RemoveLineDialog';
+import { useRemovePhoneLine } from './useRemovePhoneLine';
 
 /**
  * Line Manager — Super Admin interface for the RingCentral "Digital Wallet":
@@ -31,11 +30,10 @@ import { AddLineModal } from './AddLineModal';
  * phone each line is a card.
  */
 export function LineManager({ companyId, companyName }) {
-    const { showSuccess, showError } = useToast();
     const [inventory, setInventory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [hasCredentials, setHasCredentials] = useState(false);
-    const [removingLine, setRemovingLine] = useState(null);
+    const { removingLine, removeLine } = useRemovePhoneLine(companyId);
     const [showAddModal, setShowAddModal] = useState(false);
     const [defaultNumber, setDefaultNumber] = useState(null);
     // Replaces the blocking `window.confirm` on remove; holds the line awaiting
@@ -65,29 +63,6 @@ export function LineManager({ companyId, companyName }) {
 
         return () => unsubscribe();
     }, [companyId]);
-
-    // The blocking `window.confirm` guard now lives in `<RemoveLineDialog>`; the
-    // callable, payload and toasts below are unchanged.
-    const confirmRemoveLine = useCallback(async (phoneNumber) => {
-        setPendingRemove(null);
-        setRemovingLine(phoneNumber);
-        try {
-            const removeLineFn = httpsCallable(functions, 'removePhoneLine');
-            const result = await removeLineFn({ companyId, phoneNumber });
-
-            if (result.data.success) {
-                showSuccess(result.data.message || `Line ${phoneNumber} removed.`);
-                if (result.data.clearedAssignments > 0) {
-                    showSuccess(`${result.data.clearedAssignments} assignment(s) cleared.`);
-                }
-            }
-        } catch (error) {
-            console.error('Remove Line Error:', error);
-            showError(error.message || 'Failed to remove line.');
-        } finally {
-            setRemovingLine(null);
-        }
-    }, [companyId, showSuccess, showError]);
 
     if (loading) {
         return (
@@ -169,7 +144,11 @@ export function LineManager({ companyId, companyName }) {
                 <RemoveLineDialog
                     line={pendingRemove}
                     onCancel={() => setPendingRemove(null)}
-                    onConfirm={() => confirmRemoveLine(pendingRemove.phoneNumber)}
+                    onConfirm={() => {
+                        // The callable, payload and toasts live in `useRemovePhoneLine`.
+                        setPendingRemove(null);
+                        removeLine(pendingRemove.phoneNumber);
+                    }}
                 />
             )}
         </Card>
@@ -238,31 +217,6 @@ function lineColumns({ defaultNumber, removingLine, onRemove }) {
             ),
         },
     ];
-}
-
-/**
- * Replaces the blocking `window.confirm` that guarded line removal. The warning
- * wording is preserved verbatim.
- *
- * The approved `ConfirmDialog`, so this destructive question looks like every
- * other one; the pattern puts initial focus on Cancel rather than on "Remove
- * line" and guards `onConfirm` against a double activation.
- */
-function RemoveLineDialog({ line, onCancel, onConfirm }) {
-    return (
-        <ConfirmDialog
-            tone="danger"
-            title="Remove phone line?"
-            description={(
-                <>
-                    Are you sure you want to remove <strong className="font-mono text-ds-content">{line.phoneNumber}</strong>? Any users assigned to this line will be unassigned.
-                </>
-            )}
-            confirmLabel="Remove line"
-            onCancel={onCancel}
-            onConfirm={onConfirm}
-        />
-    );
 }
 
 export default LineManager;

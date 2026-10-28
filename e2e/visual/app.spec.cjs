@@ -109,6 +109,12 @@ const SCREENS = [
         callables: { listCompanyApiKeys: API_KEYS },
         ready: (page) => page.getByText('Artificial TMS'),
     },
+    /* SMS before it is set up: the checklist (Firestore is unreachable here). */
+    {
+        name: 'company-settings-sms',
+        url: '/company/settings?section=sms&e2eAuth=company_admin',
+        ready: (page) => page.getByRole('heading', { level: 2, name: /^Connect RingCentral/ }),
+    },
     {
         name: 'company-campaigns',
         url: '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock',

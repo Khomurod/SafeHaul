@@ -400,7 +400,7 @@ are fully approved, §7 is permanent.
 | `[ ]` A semantic scrim role, retiring the audience preview's `bg-black/20` (§5) | Naming a new role is a design-system decision, not a mechanical swap | Design-system decision |
 | `[ ]` Whether `Notice` may carry positioning and elevation, so `QueueStatusIndicator`'s fixed floating banner (`fixed bottom-4 right-4 z-ds-toast`, `shadow-ds-lg`, its local `QueueNotice`) can be absorbed | `Notice`'s `className` contract is margin and width only, so this is a component change, not a migration | Design-system decision |
 | `[ ]` `rem` instead of `px` for the `--ds-*` contract | Zoom scales both (WCAG 2.2 SC 1.4.4 is met), but `px` ignores a user's default font-size preference; it would be its own campaign with its own visual review | Recorded, not scheduled |
-| `[!]` **NO-GO beyond presentation:** Company Settings → SMS. Number assignment is migrated for presentation only (its matrix is a `DataTable`), and its contracts are frozen: the `saveSmsLineAssignments` and `verifyLineConnection` payloads, the line-token model, the `sms_provider` document. `LineManager` (the Phone Line Wallet) is migrated for presentation only too: its lines are a `DataTable`, while its listener, `removePhoneLine` and the secret entry in `AddLineModal` stay frozen | Entanglement with `LineManager` | Owner |
+| `[!]` **NO-GO beyond presentation:** Company Settings → SMS. The settings page (`sms/SmsSettingsPage.jsx`) is rebuilt for presentation only (lines and assignments as two `DataTable`s, one `SaveBar`), and its contracts are frozen: the `saveSmsLineAssignments` and `verifyLineConnection` payloads, the line-token model, the `sms_provider` document. `LineManager` (Super Admin's Phone Line Wallet) is migrated for presentation only too: its lines are a `DataTable`, while its listener, `removePhoneLine` (shared through `useRemovePhoneLine`) and the secret entry in `AddLineModal` stay frozen | Entanglement with `LineManager` | Owner |
 
 | Settled ruling that still binds | What it requires |
 |---|---|
@@ -461,7 +461,7 @@ Search by shape, not by word: a confirmation is often named after what it
 deletes. Known-good hits: `StatusMedallion` in `StatusScreens`
 (`EsignConsentScreen`), `FeatureLockedModal` (a marketing interstitial),
 `FeatureDeactivationWarning` (a notice with one action) and inside ordinary
-content in `SandboxActionPanel`, `NumberAssignmentManager`, `DQFileTab`,
+content in `SandboxActionPanel`, `SmsSetupChecklist`, `DQFileTab`,
 `BulkUploadLayout`; `*Dialog` wrappers around `ConfirmDialog`
 (`ReleaseConfirmDialog`, `RemoveMembershipDialog`, `RunAllConfirmDialog`). Each
 tinted block `hand-composed-notice` tolerates is a judgement that can be wrong —
