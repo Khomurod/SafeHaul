@@ -20,6 +20,7 @@ vi.mock('./profile', () => ({
     QuestionsTabContent: ({ compData, onConfigChange, onQuestionsChange }) => (
         <div>
             <p>Questions: {compData.customQuestions.length}</p>
+            <p>SSN required: {String(compData.applicationConfig.ssnRequired)}</p>
             <button type="button" onClick={() => onConfigChange({ ...compData.applicationConfig, ssnRequired: false })}>Change a standard question</button>
             <button type="button" onClick={() => onQuestionsChange([...compData.customQuestions, { id: 'q2', type: 'multipleChoice', label: 'Endorsement', options: ['Hazmat', '', 'Tanker'] }])}>Add a question</button>
         </div>
@@ -180,6 +181,22 @@ describe('ApplicationFormTab', () => {
         fireEvent.click(within(saveBar()).getByRole('button', { name: 'Discard' }));
         expect(screen.getByText('Questions: 2')).toBeInTheDocument();
         expect(saveBar()).toBeNull();
+    });
+
+    it('shows a newer copy that arrived during the edit once the edit is saved', async () => {
+        const { rerender } = renderForm();
+        fireEvent.click(screen.getByRole('button', { name: 'Add a question' }));
+        // Another admin turned the SSN question optional meanwhile.
+        rerender(<ApplicationFormTab currentCompanyProfile={{ ...company, applicationConfig: { ssnRequired: false } }} />);
+        expect(screen.getByText('SSN required: true')).toBeInTheDocument();
+
+        fireEvent.click(within(saveBar()).getByRole('button', { name: 'Save' }));
+        await waitFor(() => expect(saveBar()).toBeNull());
+        expect(screen.getByText('SSN required: false')).toBeInTheDocument();
+        expect(screen.getByText('Questions: 2')).toBeInTheDocument();
+        expect(mocks.saveCompanySettings).toHaveBeenCalledWith('company-1', {
+            customQuestions: expect.any(Array),
+        });
     });
 
     it('tells the leave guard while it holds unsaved edits', () => {

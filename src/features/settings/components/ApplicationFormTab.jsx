@@ -75,6 +75,7 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
             setHeldProfile(currentCompanyProfile);
         } else {
             const next = formOf(currentCompanyProfile);
+            setHeldProfile(null);
             setSaved(next);
             setForm(next);
         }
@@ -99,13 +100,16 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
         try {
             // A cleared answer option alone changes nothing once dropped.
             if (Object.keys(changes).length > 0) await saveCompanySettings(currentCompanyProfile.id, changes);
-            setSaved(next);
-            // A copy that arrived meanwhile keeps what was just saved here.
-            setHeldProfile((held) => (held ? { ...held, ...changes } : held));
+            // What the company now holds: a newer copy that waited during the
+            // edit, with what was just saved here on top.
+            const base = heldProfile ? { ...formOf(heldProfile), ...changes } : next;
+            setSaved(base);
+            // Cleared, unless an even newer copy arrived while saving.
+            setHeldProfile((held) => (held === heldProfile ? null : held));
             // A part edited while the save was on its way keeps that edit, still
-            // unsaved; every other part shows what was saved.
+            // unsaved; every other part shows the company as it now is.
             setForm((current) => Object.fromEntries(FIELDS.map((field) => (
-                [field, current[field] === form[field] ? next[field] : current[field]]))));
+                [field, current[field] === form[field] ? base[field] : current[field]]))));
             showSuccess('Company settings saved successfully.');
         } catch (error) {
             console.error('Save failed', error);
