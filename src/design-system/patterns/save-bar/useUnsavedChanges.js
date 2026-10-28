@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useId, useMemo, useState } from 'react';
 import { contractViolation } from '../../contract';
 
 /**
@@ -68,17 +68,16 @@ export function useUnsavedChangesGuard() {
     contractViolation('useUnsavedChangesGuard needs an UnsavedChangesProvider above it.');
   }
   const { dirty = false, pending = null, setPending } = context ?? {};
-  // The latest `dirty`, so a request made in the same event as a save sees it.
-  const dirtyRef = useRef(dirty);
-  dirtyRef.current = dirty;
 
+  // `dirty` as the committed render saw it: an edit and a move are separate
+  // events, and an edit's report commits before the next one arrives.
   const request = useCallback((action) => {
-    if (!dirtyRef.current || !setPending) {
+    if (!dirty || !setPending) {
       action();
       return;
     }
     setPending(() => action);
-  }, [setPending]);
+  }, [dirty, setPending]);
 
   const confirm = useCallback(() => {
     const action = pending;

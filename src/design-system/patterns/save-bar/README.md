@@ -79,5 +79,8 @@ the provider (`contractViolation` without one).
 - **It does not block the router.** The application's router has no blocking
   API, so the browser's Back button and links outside the shell are not
   guarded; reload and close are, through `beforeunload`.
+- **It guards a move made after the edit, not in the same handler.** An edit
+  and a section switch are separate clicks or keystrokes; a handler that both
+  changes a value and moves away is not asked about.
 - **It does not decide what changed or how to save.** The page owns the
   summary, the saved state and the save.

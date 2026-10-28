@@ -4,15 +4,19 @@ import { FormField, FormSection, Input } from '@design-system/components';
 import { PageContainer, PageHeader, Stack } from '@design-system/layouts';
 import { SaveBar } from '@design-system/patterns';
 
-const SAVED = { name: 'North depot', region: 'North' };
+const INITIALLY_SAVED = { name: 'North depot', region: 'North' };
+
+/** Records what Save sent, in the Actions panel. */
+const recordSave = fn();
 
 /**
  * A settings page as the pattern composes it: the form, and the bar under it
  * while something is changed. The story owns the values, as a page would.
  */
 function SettingsExample({ initial = { name: 'North depot', region: 'South' }, saving = false, error }) {
+  const [saved, setSaved] = useState(INITIALLY_SAVED);
   const [form, setForm] = useState(initial);
-  const changed = Object.keys(SAVED).filter((key) => form[key] !== SAVED[key]);
+  const changed = Object.keys(saved).filter((key) => form[key] !== saved[key]);
   const summary = `${changed.length} ${changed.length === 1 ? 'change' : 'changes'} · ${changed.map((key) => (key === 'name' ? 'Name' : 'Region')).join(', ')}`;
 
   return (
@@ -35,8 +39,8 @@ function SettingsExample({ initial = { name: 'North depot', region: 'South' }, s
               summary={summary}
               saving={saving}
               error={error}
-              onSave={fn()}
-              onDiscard={() => setForm(SAVED)}
+              onSave={() => { recordSave(form); setSaved(form); }}
+              onDiscard={() => setForm(saved)}
             />
           )}
         </Stack>
