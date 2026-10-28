@@ -7,12 +7,15 @@ import { assignmentColumns } from './assignmentColumns';
  * text from. Presentation only — member data and callbacks pass straight
  * through to the column renderers (`assignmentColumns`).
  *
+ * `onRetry` is passed only when the team could not be loaded: the table then
+ * says so instead of listing anyone.
+ *
  * On a phone it is one card per member: nothing here is compared across rows,
  * so each row stacks with every value under its column's label instead of
  * scrolling sideways. The table states its roles itself, because
  * `display: block` can drop the implicit ones.
  */
-export function AssignmentTable({ users, ...rowProps }) {
+export function AssignmentTable({ users, loading = false, onRetry, ...rowProps }) {
     return (
         <Card padding="none" className="overflow-hidden">
             <div className="border-b border-ds-border-subtle px-ds-4 py-ds-3">
@@ -28,6 +31,9 @@ export function AssignmentTable({ users, ...rowProps }) {
                 data={users}
                 columns={assignmentColumns(rowProps)}
                 getRowId={(user) => user.id}
+                isLoading={loading}
+                loadingLabel="Loading team"
+                error={onRetry ? { title: "Couldn't load your team", message: "We couldn't load your team. Try again.", onRetry } : undefined}
                 empty={{ title: 'No team members found.' }}
             />
         </Card>

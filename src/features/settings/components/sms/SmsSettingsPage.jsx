@@ -196,6 +196,8 @@ export function SmsSettingsPage({ companyId, companyName }) {
             </Card>
             <AssignmentTable
                 users={la.users}
+                loading={la.rosterLoading}
+                onRetry={la.rosterFailed ? la.reloadRoster : undefined}
                 inventory={inventory}
                 lines={lines}
                 assignments={la.assignments}

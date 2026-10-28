@@ -19,12 +19,22 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({
 }));
 vi.mock('@/context/DataContext', () => ({ useData: vi.fn(() => ({})) }));
 vi.mock('../SMSDiagnosticModal', () => ({ SMSDiagnosticModal: () => <div /> }));
-vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn()) }));
+vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
 vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
 
 let CONFIG_DATA;
 let MEMBERSHIPS;
 let USERS;
+
+// The roster as `listCompanyTeam` answers it: each membership with its profile.
+const listCompanyTeam = vi.fn(async () => ({
+    data: {
+        members: MEMBERSHIPS.map((m) => {
+            const user = USERS.find((u) => u.id === m.userId) || {};
+            return { id: m.userId, role: m.role, name: user.name || '', email: user.email || '' };
+        }),
+    },
+}));
 // When true, `onSnapshot` withholds its callback so the component stays on
 // its initial `loading: true` state until the test fires it manually.
 let deferSnapshot = false;
@@ -47,10 +57,6 @@ vi.mock('firebase/firestore', () => ({
         return vi.fn();
     },
     getDocs: vi.fn((q) => {
-        const colName = q?.col?.__col;
-        if (colName === 'memberships') {
-            return Promise.resolve({ docs: MEMBERSHIPS.map((m) => ({ id: 'mem_' + m.userId, data: () => m })) });
-        }
         const inC = (q?.constraints || []).find((c) => c.op === 'in');
         const ids = inC?.value || [];
         const docs = USERS
@@ -60,10 +66,16 @@ vi.mock('firebase/firestore', () => ({
     }),
 }));
 
+import { httpsCallable } from 'firebase/functions';
 import { SmsSettingsPage } from './SmsSettingsPage';
+
+// Every callable but the roster answers with `callable`.
+const serve = (callable = vi.fn()) => vi.mocked(httpsCallable)
+    .mockImplementation((_functions, name) => (name === 'listCompanyTeam' ? listCompanyTeam : callable));
 
 beforeEach(() => {
     vi.clearAllMocks();
+    serve();
     deferSnapshot = false;
     pendingSnapshotCallback = null;
     CONFIG_DATA = {
@@ -112,8 +124,7 @@ describe('SmsSettingsPage — status is words, not colour', () => {
         const verifyFn = vi.fn(async () => ({
             data: { identity: 'artificial-identity', timestamp: '2026-07-27T00:00:00.000Z' },
         }));
-        const { httpsCallable } = await import('firebase/functions');
-        vi.mocked(httpsCallable).mockReturnValue(verifyFn);
+        serve(verifyFn);
 
         await renderLoaded();
         expect(screen.getAllByText('Not checked')).toHaveLength(2);
@@ -195,8 +206,7 @@ describe('SmsSettingsPage — axe', () => {
         const verifyFn = vi.fn(async () => ({
             data: { identity: 'artificial-identity', timestamp: '2026-07-27T00:00:00.000Z' },
         }));
-        const { httpsCallable } = await import('firebase/functions');
-        vi.mocked(httpsCallable).mockReturnValue(verifyFn);
+        serve(verifyFn);
 
         const { container } = await renderLoaded();
         fireEvent.click(screen.getByRole('button', { name: 'Check line Main Number' }));

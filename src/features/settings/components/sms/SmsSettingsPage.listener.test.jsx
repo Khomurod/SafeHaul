@@ -29,7 +29,10 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({
 }));
 vi.mock('@/context/DataContext', () => ({ useData: vi.fn(() => ({})) }));
 vi.mock('../SMSDiagnosticModal', () => ({ SMSDiagnosticModal: () => <div /> }));
-vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn(() => vi.fn()) }));
+// The roster loads (empty); these tests are about the config listener.
+vi.mock('firebase/functions', () => ({
+    httpsCallable: vi.fn(() => vi.fn(async () => ({ data: { members: [] } }))),
+}));
 vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
 
 let CONFIG_DATA;
