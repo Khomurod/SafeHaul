@@ -5,9 +5,9 @@ const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openSettings(page) {
   await page.goto(SETTINGS_URL);
-  // Overview is the first page, on every width; the rail is beside it only
-  // from 768px up.
-  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  // From 768px up Company profile opens beside the rail; a phone opens its
+  // menu of sections instead.
+  await expect(page.getByRole('heading', { level: 1, name: /^(Company profile|Settings)$/ })).toBeVisible();
 }
 
 test.describe('Company Settings shell and navigation compatibility slice', () => {
@@ -18,11 +18,11 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await page.setViewportSize({ width: 1440, height: 900 });
     await openSettings(page);
 
-    const overview = page.getByRole('button', { name: 'Overview', exact: true });
     const company = page.getByRole('button', { name: 'Company profile', exact: true });
     const application = page.getByRole('button', { name: 'Application form', exact: true });
 
-    await expect(overview).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('button', { name: 'Overview', exact: true })).toHaveCount(0);
+    await expect(company).toHaveAttribute('aria-current', 'page');
     await expect(company).toHaveAttribute('aria-controls', 'company-settings-content');
 
     await company.focus();
@@ -32,7 +32,7 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
 
     await expect(application).toBeFocused();
     await expect(application).toHaveAttribute('aria-current', 'page');
-    await expect(overview).not.toHaveAttribute('aria-current');
+    await expect(company).not.toHaveAttribute('aria-current');
   });
 
   test('keeps the open section in the address, through a reload', async ({ page }) => {
@@ -100,7 +100,7 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     expect(geometry.itemHeight).toBeGreaterThanOrEqual(44);
   });
 
-  test('opens on Overview with no rail, and reaches every section from it @mobile', async ({ page }, testInfo) => {
+  test('opens on a menu of sections with no rail, and reaches every section from it @mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
     await page.setViewportSize({ width: 412, height: 915 });
     await openSettings(page);

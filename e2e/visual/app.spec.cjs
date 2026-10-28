@@ -71,10 +71,8 @@ const SCREENS = [
     {
         name: 'company-settings',
         url: '/company/settings?e2eAuth=company_admin',
-        // Overview's badges: two answered here; the Firestore-backed ones never
-        // arrive in this build, so they are absent whatever the timing.
-        callables: { listCompanyTeam: TEAM_ROSTER, listCompanyApiKeys: API_KEYS },
-        ready: (page) => [page.getByText('3 people'), page.getByText('1 key on')],
+        // Company profile beside the rail; on a phone, the menu of sections.
+        ready: (page) => page.getByRole('heading', { level: 1, name: /^(Company profile|Settings)$/ }),
     },
     {
         name: 'company-profile',
