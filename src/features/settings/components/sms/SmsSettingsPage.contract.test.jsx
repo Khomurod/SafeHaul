@@ -292,8 +292,14 @@ describe('SmsSettingsPage — linked-number display (frozen token model)', () =>
         expect(await screen.findByText("Couldn't load your team")).toBeInTheDocument();
         expect(screen.queryByText(/Unknown \/ former user|Former member/)).not.toBeInTheDocument();
 
+        // Who uses each line is not known either: no line reads "Nobody".
+        const lines = screen.getByRole('table', { name: 'Phone lines' });
+        expect(within(lines).getByText('Not known')).toBeInTheDocument();
+        expect(within(lines).queryByText('Nobody')).toBeNull();
+
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         await findMember('Tom Robinson');
+        expect(within(lines).queryByText('Not known')).toBeNull();
         expect(rowSelText('Tom Robinson')).toContain('+15550000002');
         expect(screen.queryByText("Couldn't load your team")).not.toBeInTheDocument();
     });

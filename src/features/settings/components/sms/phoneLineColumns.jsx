@@ -35,11 +35,12 @@ function lineStatus(line, lineStatuses) {
  * inventory, its number under its name. `line` is `{ token, phone, label, raw,
  * index }`; the row actions check the line (`verifyLineConnection`), make it
  * the default or stop it being the default (saved with the page), and remove it
- * (`removePhoneLine`, by the number exactly as stored).
+ * (`removePhoneLine`, by the number exactly as stored). `usage` is the team's
+ * load state: until it is `ready`, "Used by" says so instead of guessing.
  */
 export function phoneLineColumns({
     defaultToken, membersByToken, lineStatuses, verifyingLine, removingLine,
-    onVerify, onSetDefault, onUnsetDefault, onRemove,
+    onVerify, onSetDefault, onUnsetDefault, onRemove, usage = 'ready',
 }) {
     const nameOf = (line) => lineDisplay(line.label, '', line.index);
     return [
@@ -66,6 +67,9 @@ export function phoneLineColumns({
             width: 'xl',
             truncate: true,
             render: (line) => {
+                // Until the team has loaded, who uses a line is not known: never "Nobody".
+                if (usage === 'loading') return <span className="text-ds-content-muted">Loading…</span>;
+                if (usage === 'failed') return <span className="text-ds-content-muted">Not known</span>;
                 const text = usedByText(membersByToken[line.token] || [], line.token === defaultToken);
                 return text ? <span>{text}</span> : <span className="text-ds-content-muted">Nobody</span>;
             },

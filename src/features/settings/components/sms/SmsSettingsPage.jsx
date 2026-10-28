@@ -161,6 +161,7 @@ export function SmsSettingsPage({ companyId, companyName }) {
     const columns = phoneLineColumns({
         defaultToken,
         membersByToken: membersByLine(la.users, lineState),
+        usage: la.rosterLoading ? 'loading' : la.rosterFailed ? 'failed' : 'ready',
         lineStatuses: la.lineStatuses,
         verifyingLine: la.verifyingLine,
         removingLine,
