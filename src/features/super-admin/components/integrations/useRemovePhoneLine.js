@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -10,13 +10,18 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
  *
  * Frozen in `LineManager.contract.test.jsx`: the `{ companyId, phoneNumber }`
  * payload and the success / cleared-assignments / failure toast wording.
- * `removingLine` is the number being removed, for a row's loading state.
+ * `removingLine` is the number being removed, for a row's loading state. One
+ * removal at a time: a second request while one is in flight is ignored, since
+ * the server rewrites the whole inventory on each removal.
  */
 export function useRemovePhoneLine(companyId) {
     const { showSuccess, showError } = useToast();
     const [removingLine, setRemovingLine] = useState(null);
+    const inFlight = useRef(false);
 
     const removeLine = useCallback(async (phoneNumber) => {
+        if (inFlight.current) return;
+        inFlight.current = true;
         setRemovingLine(phoneNumber);
         try {
             const removeLineFn = httpsCallable(functions, 'removePhoneLine');
@@ -32,6 +37,7 @@ export function useRemovePhoneLine(companyId) {
             console.error('Remove Line Error:', error);
             showError(error.message || 'Failed to remove line.');
         } finally {
+            inFlight.current = false;
             setRemovingLine(null);
         }
     }, [companyId, showSuccess, showError]);

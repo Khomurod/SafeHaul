@@ -2,8 +2,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 
+const toast = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }));
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
-    useToast: vi.fn(() => ({ showSuccess: vi.fn(), showError: vi.fn() }))
+    useToast: vi.fn(() => toast)
 }));
 vi.mock('@/context/DataContext', () => ({ useData: vi.fn(() => ({})) }));
 vi.mock('../SMSDiagnosticModal', () => ({ SMSDiagnosticModal: () => <div /> }));
@@ -482,5 +483,61 @@ describe('SmsSettingsPage — default line, save bar and removal', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Check line Sofia' }));
         await waitFor(() => expect(screen.getByText('Working')).toBeInTheDocument());
         expect(callable).toHaveBeenCalledWith({ companyId: 'c1', phoneNumber: '+15550000002' });
+    });
+});
+
+describe('SmsSettingsPage — one removal at a time, and the support request', () => {
+    beforeEach(() => {
+        MEMBERSHIPS = [];
+        USERS = [];
+    });
+
+    it('ignores a second removal while the first is still running', async () => {
+        CONFIG_DATA = {
+            isActive: true,
+            inventory: [
+                { lineId: 'line_main', phoneNumber: '+15550000001', label: 'Main Number' },
+                { lineId: 'line_sofia', phoneNumber: '+15550000002', label: 'Sofia' },
+            ],
+            defaultPhoneNumber: '+15550000001',
+            defaultLineToken: 'line_main', // already tokenised, so no backfill call
+            assignments: {},
+        };
+        let finish;
+        const callable = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
+        vi.mocked(httpsCallable).mockReturnValue(callable);
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+        await screen.findByRole('table', { name: 'Phone lines' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Remove line Sofia' }));
+        fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove line' }));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Remove line Main Number' })).toBeDisabled());
+        expect(callable).toHaveBeenCalledTimes(1);
+
+        finish({ data: { success: true } });
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Remove line Main Number' })).toBeEnabled());
+    });
+
+    it('says the support request was copied only when it was', async () => {
+        CONFIG_DATA = null;
+        const writeText = vi.fn(() => Promise.resolve());
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Copy request for support' }));
+        await waitFor(() => expect(toast.showSuccess).toHaveBeenCalledWith('Request copied. Send it to SafeHaul support.'));
+        expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Artificial Co (company id c1)'));
+    });
+
+    it('says what to ask for when the browser refuses the clipboard', async () => {
+        CONFIG_DATA = null;
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn(() => Promise.reject(new Error('denied'))) } });
+        render(<SmsSettingsPage companyId="c1" companyName="Artificial Co" />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Copy request for support' }));
+        await waitFor(() => expect(toast.showError).toHaveBeenCalledWith(
+            'Could not copy the request. Ask SafeHaul support to set up text messaging for your company.',
+        ));
+        expect(toast.showSuccess).not.toHaveBeenCalled();
     });
 });

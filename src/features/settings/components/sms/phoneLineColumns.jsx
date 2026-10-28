@@ -113,7 +113,8 @@ export function phoneLineColumns({
                             label={`Remove line ${name}`}
                             variant="ghost"
                             size="sm"
-                            disabled={!rawPhone}
+                            // One removal at a time (see `useRemovePhoneLine`).
+                            disabled={!rawPhone || (!!removingLine && removingLine !== rawPhone)}
                             loading={!!rawPhone && removingLine === rawPhone}
                             onClick={() => onRemove(line)}
                         >

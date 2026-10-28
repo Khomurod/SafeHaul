@@ -32,7 +32,7 @@ import { supportRequestText } from './smsSupportRequest';
 export function SmsSettingsPage({ companyId, companyName }) {
     const la = useLineAssignments(companyId);
     const { removingLine, removeLine } = useRemovePhoneLine(companyId);
-    const { showSuccess } = useToast();
+    const { showSuccess, showError } = useToast();
     const [showAdd, setShowAdd] = useState(false);
     const [showTest, setShowTest] = useState(false);
     const [pendingRemove, setPendingRemove] = useState(null);
@@ -93,10 +93,11 @@ export function SmsSettingsPage({ companyId, companyName }) {
         const copySupportRequest = async () => {
             try {
                 await navigator.clipboard.writeText(supportRequestText({ companyName, companyId }));
+                showSuccess('Request copied. Send it to SafeHaul support.');
             } catch {
-                // The words are in the toast's instruction either way.
+                // Nothing reached the clipboard, so say what to ask for instead.
+                showError('Could not copy the request. Ask SafeHaul support to set up text messaging for your company.');
             }
-            showSuccess('Request copied. Send it to SafeHaul support.');
         };
         return (
             <Stack gap="lg" data-testid="sms-settings">
