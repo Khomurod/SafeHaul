@@ -270,6 +270,12 @@ describe('leaving a section with unsaved changes', () => {
         expect(screen.getByRole('heading', { name: 'Plan Content' })).toBeInTheDocument();
         expect(screen.getByRole('checkbox', { name: 'Unsaved edit' })).toBeChecked();
         expect(screen.getByTestId('address')).toHaveTextContent('section=billing');
+
+        // The page the person came from is still one Back away.
+        fireEvent.click(screen.getByRole('button', { name: 'Browser back' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+        expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+        expect(screen.getByTestId('address')).toHaveTextContent(/^\/company\/settings$/);
     });
 
     it('follows the browser Back button once the person discards the changes', () => {

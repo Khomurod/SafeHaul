@@ -102,12 +102,12 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     const sectionIds = groups.flatMap((group) => group.items.map((item) => item.id));
     const requestedSection = searchParams.get('section');
     const addressedSection = sectionIds.includes(requestedSection) ? requestedSection : 'overview';
-    const setActiveTab = (section, options) => setSearchParams((params) => {
+    const setActiveTab = (section) => setSearchParams((params) => {
         const next = new URLSearchParams(params);
         if (section === 'overview') next.delete('section');
         else next.set('section', section);
         return next;
-    }, options);
+    });
     // Every move between sections asks first while one holds unsaved changes.
     const selectSection = (section) => guard.request(() => setActiveTab(section));
 
@@ -124,7 +124,8 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     }, [heldByHistory, addressedSection]);
     const activeTab = heldByHistory ? shownSection : addressedSection;
     const keepEditing = () => {
-        if (heldByHistory) setActiveTab(shownSection, { replace: true });
+        // A new entry, so the next Back still reaches the page the person came from.
+        if (heldByHistory) setActiveTab(shownSection);
         guard.cancel();
     };
 
