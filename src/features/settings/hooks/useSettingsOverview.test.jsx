@@ -69,6 +69,11 @@ describe('useSettingsOverview', () => {
         });
     });
 
+    it('calls a profile incomplete when Company profile would show no Company Name', () => {
+        const { result } = renderHook(() => useSettingsOverview(profile({ companyName: '', name: 'Legacy Co' })));
+        expect(result.current.company).toEqual({ label: 'Incomplete', tone: 'warning' });
+    });
+
     it('leaves a section without a badge when its read fails', async () => {
         fake.callables.listCompanyTeam = new Error('permission-denied');
         fake.docs['companies/c1/integrations/sms_provider'] = new Error('offline');

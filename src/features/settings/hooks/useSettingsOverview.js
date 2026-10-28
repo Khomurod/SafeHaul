@@ -11,7 +11,8 @@ const AUTOMATED_FIELDS = ['templateContactAttempt1', 'templateContactAttempt2', 
 /** What the company profile itself says, with no request. */
 function profileStatuses(profile) {
     const details = companyDetailsOf(profile);
-    const complete = !!(profile?.companyName || profile?.name) && !!details.phone && !!details.email;
+    // The fields Company profile shows: its Company Name is `companyName` alone.
+    const complete = !!profile?.companyName && !!details.phone && !!details.email;
     return {
         company: complete ? { label: 'Complete', tone: 'success' } : { label: 'Incomplete', tone: 'warning' },
         billing: profile?.planType === 'paid' ? { label: 'Pro plan', tone: 'success' } : { label: 'Free plan', tone: 'neutral' },
