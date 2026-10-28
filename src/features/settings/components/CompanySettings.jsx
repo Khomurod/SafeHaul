@@ -15,6 +15,7 @@ import { IntegrationsTab } from './IntegrationsTab';
 import { BillingTab } from './BillingTab';
 import { ApiKeysTab } from './api-keys/ApiKeysTab';
 import { SettingsOverview } from './overview/SettingsOverview';
+import { useSettingsOverview } from '../hooks/useSettingsOverview';
 import { ButtonLink, SectionNavigation } from '@/design-system/components';
 import { ConfirmDialog, UnsavedChangesProvider, useUnsavedChangesGuard } from '@/design-system/patterns';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
@@ -136,7 +137,7 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     const renderContent = () => {
         switch (activeTab) {
             case 'overview':
-                return <SettingsOverview groups={groups} onSelect={selectSection} />;
+                return <OverviewWithStatuses profile={currentCompanyProfile} groups={groups} onSelect={selectSection} />;
             case 'company':
                 return <CompanyProfileTab currentCompanyProfile={currentCompanyProfile} />;
             case 'team':
@@ -224,4 +225,10 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
             />
         </div>
     );
+}
+
+/** Overview with each section's state; its reads run only while Overview is shown. */
+function OverviewWithStatuses({ profile, groups, onSelect }) {
+    const statuses = useSettingsOverview(profile);
+    return <SettingsOverview groups={groups} onSelect={onSelect} statuses={statuses} />;
 }

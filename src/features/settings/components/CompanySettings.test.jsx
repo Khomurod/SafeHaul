@@ -34,6 +34,9 @@ vi.mock('./IntegrationsTab', () => ({
 vi.mock('./api-keys/ApiKeysTab', () => ({
     ApiKeysTab: () => <h1>API Keys Content</h1>,
 }));
+vi.mock('../hooks/useSettingsOverview', () => ({
+    useSettingsOverview: () => ({ team: { label: '3 people', tone: 'neutral' } }),
+}));
 const isMobileMock = vi.hoisted(() => vi.fn(() => false));
 vi.mock('@shared/hooks/useIsMobile', () => ({
     useIsMobile: () => isMobileMock(),
@@ -119,6 +122,13 @@ describe('CompanySettings shell', () => {
         for (const label of ['Company profile', 'Team', 'Email', 'Text messages (SMS)', 'Automated texts', 'API keys', 'Facebook leads', 'Plan', 'My profile']) {
             expect(screen.getByRole('button', { name: new RegExp(`^${label.replace(/[()]/g, '\\$&')} `) })).toBeInTheDocument();
         }
+    });
+
+    it('shows where a section stands on its Overview row', () => {
+        renderSettings();
+
+        expect(screen.getByRole('button', { name: /^Team / })).toHaveTextContent('3 people');
+        expect(screen.getByRole('button', { name: /^Email / })).not.toHaveTextContent(/people/);
     });
 
     it('opens a section from an Overview row', () => {
