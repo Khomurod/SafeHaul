@@ -1,0 +1,60 @@
+/*
+ * The unsaved-changes bar. It sticks to the bottom of the scrolling page, a
+ * little above the edge, on the page-content layer: above the content it
+ * floats over, below the application chrome and every dialog.
+ *
+ * One row at every width: what changed takes the room left and is cut short
+ * with an ellipsis (the whole of it is the `title`), so Discard and Save keep
+ * their place even on a phone. An error takes a row of its own under them.
+ */
+.ds-save-bar {
+  position: sticky;
+  bottom: var(--ds-space-3);
+  z-index: var(--ds-z-raised);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+  margin-top: var(--ds-space-2);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-lg);
+}
+
+.ds-save-bar__summary {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  align-items: center;
+  gap: var(--ds-space-2);
+  margin: 0;
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-sm);
+}
+
+.ds-save-bar__icon {
+  flex: 0 0 auto;
+  color: var(--ds-color-status-warning-fg);
+}
+
+.ds-save-bar__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-save-bar__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--ds-space-2);
+}
+
+.ds-save-bar__error {
+  flex: 1 0 100%;
+  margin: 0;
+  color: var(--ds-color-content-danger);
+  font-size: var(--ds-font-size-sm);
+}

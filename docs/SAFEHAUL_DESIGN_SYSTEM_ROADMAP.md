@@ -284,6 +284,9 @@ The reverse directions are prohibited — including any `@shared` import inside
   has an underlined, scrolling appearance with counts.
   Tablet widths, which the visual contract does not measure, are held by
   `e2e/list-page-tablet.spec.cjs`.
+- **A page that saves on a button shows `SaveBar` only while it is dirty**
+  (`patterns/save-bar/README.md`); `useUnsavedChanges` guards reload, and a
+  shell asks "Leave without saving?" through `useUnsavedChangesGuard`.
 - **Scroll regions are keyboard-reachable and named**; every row action has a
   record-specific accessible name. Prefer deciding which actions a row offers in
   a pure, tested module (as `unfinishedRowActions.js` does) over a `render`
