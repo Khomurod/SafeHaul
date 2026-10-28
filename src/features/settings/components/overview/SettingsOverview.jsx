@@ -46,7 +46,7 @@ export function SettingsOverview({ groups, onSelect, statuses = {} }) {
                             return (
                                 <li key={item.id}>
                                     <SelectableCard onSelect={() => onSelect(item.id)} className="w-full">
-                                        <span className="flex min-w-0 items-center gap-ds-3 text-left">
+                                        <span className="flex w-full min-w-0 items-center gap-ds-3 text-left">
                                             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-ds-md bg-ds-surface-subtle text-ds-content-secondary">
                                                 <Icon icon={item.icon} size="lg" />
                                             </span>
