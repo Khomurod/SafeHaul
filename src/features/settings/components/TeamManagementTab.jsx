@@ -36,12 +36,16 @@ export function TeamManagementTab({ currentCompanyProfile, currentUserId, isComp
         );
     }
 
-    const copyLink = (member) => {
+    const copyLink = async (member) => {
         const base = (import.meta.env.VITE_DRIVER_APP_URL || window.location.origin).replace(/\/$/, '');
         const link = `${base}/apply/${currentCompanyProfile.appSlug || companyId}?recruiter=${member.id}`;
-        // The toast follows the click even if the browser refuses the clipboard.
-        Promise.resolve(navigator.clipboard?.writeText(link)).catch(() => {});
-        showSuccess('Custom recruiter link copied!');
+        try {
+            await navigator.clipboard.writeText(link);
+            showSuccess('Custom recruiter link copied!');
+        } catch {
+            // Nothing reached the clipboard: give the link itself.
+            showError(`Could not copy the link. Copy it by hand: ${link}`);
+        }
     };
 
     const removeMember = async () => {
@@ -51,6 +55,8 @@ export function TeamManagementTab({ currentCompanyProfile, currentUserId, isComp
         try {
             await httpsCallable(functions, 'deletePortalUser')({ userId: id, companyId });
             showSuccess(`${name || 'User'} has been removed from the team.`);
+            // The membership listener may be denied; the roster must not show them still.
+            roster.reload();
         } catch (error) {
             console.error('Error deleting user:', error);
             showError('Failed to remove user: ' + (error.message || 'Unknown error'));

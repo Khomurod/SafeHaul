@@ -269,7 +269,7 @@ describe('TeamManagementTab — row actions', () => {
         await renderLoaded();
         fireEvent.click(screen.getByRole('button', { name: 'Copy recruiting link for Artificial One' }));
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://drive.example.test/apply/artificial-co?recruiter=u1');
-        expect(fn.showSuccess).toHaveBeenCalledWith('Custom recruiter link copied!');
+        await waitFor(() => expect(fn.showSuccess).toHaveBeenCalledWith('Custom recruiter link copied!'));
     });
 
     it('falls back to window origin and the company id when there is no slug', async () => {
@@ -279,11 +279,15 @@ describe('TeamManagementTab — row actions', () => {
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/apply/company-1?recruiter=u1`);
     });
 
-    it('still toasts success even when the clipboard write rejects', async () => {
+    it('shows the link to copy by hand when the browser refuses the clipboard', async () => {
+        vi.stubEnv('VITE_DRIVER_APP_URL', 'https://drive.example.test');
         navigator.clipboard.writeText.mockRejectedValue(new Error('denied'));
         await renderLoaded();
         fireEvent.click(screen.getByRole('button', { name: 'Copy recruiting link for Artificial One' }));
-        expect(fn.showSuccess).toHaveBeenCalledWith('Custom recruiter link copied!');
+        await waitFor(() => expect(fn.showError).toHaveBeenCalledWith(
+            'Could not copy the link. Copy it by hand: https://drive.example.test/apply/artificial-co?recruiter=u1',
+        ));
+        expect(fn.showSuccess).not.toHaveBeenCalled();
     });
 
     it('saves daily goals with the exact path, numeric payload and merge, and shows them', async () => {
@@ -334,6 +338,16 @@ describe('TeamManagementTab — row actions', () => {
 
         await waitFor(() => expect(fn.showSuccess).toHaveBeenCalledWith('Artificial One has been removed from the team.'));
         expect(fn.deleteFn).toHaveBeenCalledWith({ userId: 'u1', companyId: 'company-1' });
+    });
+
+    it('reloads the team after a removal, even with no membership listener', async () => {
+        await renderLoaded();
+        respondWith([member({ id: 'u2', name: 'Artificial Two', email: 'two@example.test', role: 'company_admin' })]);
+        fireEvent.click(screen.getByRole('button', { name: 'Remove Artificial One from the team' }));
+        fireEvent.click(within(screen.getByRole('dialog', { name: 'Remove team member' })).getByRole('button', { name: 'Remove' }));
+
+        await waitFor(() => expect(screen.queryByRole('button', { name: 'Daily goals for Artificial One' })).toBeNull());
+        expect(fn.listTeamFn).toHaveBeenCalledTimes(2);
     });
 
     it('surfaces a remove failure and keeps other rows operable', async () => {
