@@ -72,8 +72,9 @@ const select = (id) => guard.request(() => setSection(id));
 
 `request(action, { onCancel })` runs the move at once when nothing is dirty;
 otherwise it holds it (`pending`) until `confirm()` runs it or `cancel()` drops
-it, calling `onCancel` for a move already under way (the browser's Back). The
-guard needs the provider (`contractViolation` without one). One provider and one
+it, calling `onCancel` for a move already under way (the browser's Back). After
+`confirm()` the browser's question stays quiet until the page is clean again, so
+a move that reloads the page (log out) asks once. The guard needs the provider (`contractViolation` without one). One provider and one
 dialog serve a whole application area, so its menu asks too.
 
 ## What it does not do

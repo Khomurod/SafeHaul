@@ -109,8 +109,12 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
         else next.set('section', section);
         return next;
     });
-    // Every move between sections asks first while one holds unsaved changes.
-    const selectSection = (section) => guard.request(() => setActiveTab(section));
+    // Every move between sections asks first while one holds unsaved changes;
+    // choosing the section already shown is no move.
+    const selectSection = (section) => {
+        if (section === activeTab) return;
+        guard.request(() => setActiveTab(section));
+    };
 
     // The browser's Back and Forward change the address before anything can ask,
     // so while a section holds unsaved changes the page keeps showing it and asks

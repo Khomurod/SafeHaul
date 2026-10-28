@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useId, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { contractViolation } from '../../contract';
 
 /**
@@ -13,6 +13,8 @@ import { contractViolation } from '../../contract';
  *   dirty; otherwise it holds it as `pending`, one dialog asks (a
  *   `ConfirmDialog`), and `confirm()` runs it or `cancel()` drops it, calling
  *   `onCancel` if the move was already under way (the browser's Back).
+ *   Once the person has chosen to discard, a move that reloads the page (log
+ *   out) is not asked about again by the browser.
  *
  * Router-free on purpose: the application's router has no blocking API, so
  * the moves an application makes itself go through `request`.
@@ -22,6 +24,8 @@ const UnsavedChangesContext = createContext(null);
 export function UnsavedChangesProvider({ children }) {
   const [reports, setReports] = useState(() => new Map());
   const [pending, setPending] = useState(null);
+  // Set when the person chooses to discard; read only when the page unloads.
+  const discarded = useRef(false);
 
   const setDirty = useCallback((id, dirty) => {
     setReports((current) => {
@@ -34,13 +38,17 @@ export function UnsavedChangesProvider({ children }) {
   }, []);
 
   const dirty = reports.size > 0;
-  const value = useMemo(() => ({ dirty, setDirty, pending, setPending }), [dirty, setDirty, pending]);
+  useEffect(() => {
+    if (!dirty) discarded.current = false;
+  }, [dirty]);
+  const value = useMemo(() => ({ dirty, setDirty, pending, setPending, discarded }), [dirty, setDirty, pending]);
   return React.createElement(UnsavedChangesContext.Provider, { value }, children);
 }
 
 export function useUnsavedChanges(dirty) {
   const context = useContext(UnsavedChangesContext);
   const setDirty = context?.setDirty;
+  const discarded = context?.discarded;
   const id = useId();
   const isDirty = Boolean(dirty);
 
@@ -53,13 +61,14 @@ export function useUnsavedChanges(dirty) {
   useEffect(() => {
     if (!isDirty) return undefined;
     const warn = (event) => {
+      if (discarded?.current) return;
       event.preventDefault();
       // Older browsers still read this to show their question.
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [isDirty]);
+  }, [isDirty, discarded]);
 }
 
 export function useUnsavedChangesGuard() {
@@ -67,7 +76,7 @@ export function useUnsavedChangesGuard() {
   if (!context) {
     contractViolation('useUnsavedChangesGuard needs an UnsavedChangesProvider above it.');
   }
-  const { dirty = false, pending = null, setPending } = context ?? {};
+  const { dirty = false, pending = null, setPending, discarded } = context ?? {};
 
   // `dirty` as the committed render saw it: an edit and a move are separate
   // events, and an edit's report commits before the next one arrives.
@@ -82,8 +91,9 @@ export function useUnsavedChangesGuard() {
   const confirm = useCallback(() => {
     const held = pending;
     setPending?.(null);
+    if (discarded) discarded.current = true;
     held?.action();
-  }, [pending, setPending]);
+  }, [pending, setPending, discarded]);
 
   const cancel = useCallback(() => {
     const held = pending;

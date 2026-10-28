@@ -49,10 +49,17 @@ function stripEdgeDividers(entries) {
 function NavItem({ item, isChild = false, isExpanded, onNavigate }) {
   const guard = useUnsavedChangesGuard();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   // While a page holds unsaved changes, following a link asks first. A link
-  // opened in another tab or window leaves the page as it is.
+  // opened in another tab or window leaves the page as it is, and so does a
+  // link to the page already shown.
   const follow = (event) => {
     const elsewhere = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0;
+    if (guard.dirty && !elsewhere && pathname === item.path) {
+      event.preventDefault();
+      onNavigate?.();
+      return;
+    }
     if (guard.dirty && !elsewhere) {
       event.preventDefault();
       guard.request(() => {

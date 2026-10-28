@@ -167,6 +167,25 @@ describe('useUnsavedChangesGuard', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('lets the page unload without the browser asking again once the person discards', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'Change first' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move' }));
+    // The move here leaves the editor in place, as a move that reloads the page does.
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+
+    const unload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(false);
+
+    // A new change after the page is clean is guarded again.
+    fireEvent.click(screen.getByRole('button', { name: 'Undo first' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change first' }));
+    const next = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(next);
+    expect(next.defaultPrevented).toBe(true);
+  });
+
   it('needs a provider above it', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
 

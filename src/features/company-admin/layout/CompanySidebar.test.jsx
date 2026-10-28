@@ -16,7 +16,8 @@ function UnsavedEdit() {
 
 /** Where the menu has taken the person. */
 function Where() {
-    return <output data-testid="where">{useLocation().pathname}</output>;
+    const { pathname, search } = useLocation();
+    return <output data-testid="where">{`${pathname}${search}`}</output>;
 }
 
 function renderSidebar({
@@ -26,12 +27,13 @@ function renderSidebar({
     onExpandedChange = vi.fn(),
     onNavigate = vi.fn(),
     unsaved = false,
+    path = '/company/dashboard',
 } = {}) {
     const company = { id: 'company-1', companyName: 'Test Logistics', features };
     const claims = { roles: { [company.id]: role } };
 
     const result = render(
-        <MemoryRouter initialEntries={['/company/dashboard']}>
+        <MemoryRouter initialEntries={[path]}>
             <DataContext.Provider
                 value={{
                     currentCompanyProfile: company,
@@ -139,6 +141,16 @@ describe('CompanySidebar while a page holds unsaved changes', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
 
         expect(screen.getByTestId('where')).toHaveTextContent('/company/settings');
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+    });
+
+    it('neither asks nor moves for a link to the page already shown', () => {
+        const { onNavigate } = renderSidebar({ unsaved: true, path: '/company/settings?section=company' });
+        fireEvent.click(screen.getByRole('link', { name: 'Settings' }));
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.getByTestId('where')).toHaveTextContent(/^\/company\/settings\?section=company$/);
+        // The phone drawer still closes.
         expect(onNavigate).toHaveBeenCalledTimes(1);
     });
 
