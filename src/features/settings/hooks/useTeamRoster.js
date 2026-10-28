@@ -12,8 +12,9 @@ async function fetchGoals(companyId, userId) {
         if (!settingsSnap.exists()) return DEFAULT_GOALS;
         const data = settingsSnap.data();
         return {
-            callGoal: data.callGoal || DEFAULT_GOALS.callGoal,
-            contactGoal: data.contactGoal || DEFAULT_GOALS.contactGoal,
+            // A goal saved as 0 is a goal of 0, not a missing one.
+            callGoal: data.callGoal ?? DEFAULT_GOALS.callGoal,
+            contactGoal: data.contactGoal ?? DEFAULT_GOALS.contactGoal,
         };
     } catch (e) {
         console.warn('Error fetching goals:', e);

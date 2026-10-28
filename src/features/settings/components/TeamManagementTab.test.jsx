@@ -131,6 +131,12 @@ describe('TeamManagementTab — the page', () => {
         expect(await findRow('Artificial Two')).toHaveTextContent('Goals: 150 dials, 50 contacts');
     });
 
+    it('keeps a goal saved as zero', async () => {
+        fs.goals = { u1: { callGoal: 0, contactGoal: 0 } };
+        await renderLoaded();
+        expect(await findRow('Artificial One')).toHaveTextContent('Goals: 0 dials, 0 contacts');
+    });
+
     it('marks the signed-in admin and offers no Remove on their own row', async () => {
         await renderLoaded({ currentUserId: 'u2' });
         expect(screen.getByText('Artificial Two (you)')).toBeInTheDocument();
