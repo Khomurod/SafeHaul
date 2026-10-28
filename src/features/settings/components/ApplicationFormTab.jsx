@@ -99,9 +99,11 @@ export function ApplicationFormTab({ currentCompanyProfile }) {
             .map((field) => [field, next[field]]));
         try {
             // A cleared answer option alone changes nothing once dropped.
-            if (Object.keys(changes).length > 0) await saveCompanySettings(currentCompanyProfile.id, changes);
-            // The company in use takes the save, so a return to this section shows it.
-            applyCompanyChanges(currentCompanyProfile.id, changes);
+            const written = Object.keys(changes).length > 0
+                ? await saveCompanySettings(currentCompanyProfile.id, changes)
+                : {};
+            // The company in use takes what was written, so a return to this section shows it.
+            applyCompanyChanges(currentCompanyProfile.id, written);
             // What the company now holds: a newer copy that waited during the
             // edit, with what was just saved here on top.
             const base = heldProfile ? { ...formOf(heldProfile), ...changes } : next;

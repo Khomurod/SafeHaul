@@ -66,9 +66,9 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 ...companyDetailsFields(compData, currentCompanyProfile),
                 companyLogoUrl: compData.companyLogoUrl,
             };
-            await saveCompanySettings(currentCompanyProfile.id, payload);
-            // The company in use takes the save (the header's name, a return here).
-            applyCompanyChanges(currentCompanyProfile.id, payload);
+            const written = await saveCompanySettings(currentCompanyProfile.id, payload);
+            // The company in use takes what was written (the header's name, a return here).
+            applyCompanyChanges(currentCompanyProfile.id, written);
             showSuccess('Company settings saved successfully.');
             setIsEditing(false);
         } catch (error) {
@@ -85,8 +85,8 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
         setLogoUploading(true);
         try {
             const downloadURL = await uploadCompanyLogo(currentCompanyProfile.id, file);
-            await saveCompanySettings(currentCompanyProfile.id, { companyLogoUrl: downloadURL });
-            applyCompanyChanges(currentCompanyProfile.id, { companyLogoUrl: downloadURL });
+            const written = await saveCompanySettings(currentCompanyProfile.id, { companyLogoUrl: downloadURL });
+            applyCompanyChanges(currentCompanyProfile.id, written);
             setCompData(prev => ({ ...prev, companyLogoUrl: downloadURL }));
             showSuccess("Logo uploaded successfully!");
         } catch (error) {
@@ -97,7 +97,10 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
         }
     };
 
+    // While a save is on its way the fields hold still: what is typed then
+    // would be neither saved nor kept once the save closes them.
     const handleFieldChange = (field, value) => {
+        if (loading) return;
         setCompData(prev => ({ ...prev, [field]: value }));
     };
 

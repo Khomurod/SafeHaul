@@ -74,7 +74,8 @@ describe('CompanyProfileTab information compatibility slice', () => {
         toastMocks.showSuccess.mockReset();
         useDataMock.mockReset();
         applyCompanyChanges.mockReset();
-        serviceMocks.saveCompanySettings.mockResolvedValue();
+        // The service returns what it wrote; here, what it was given.
+        serviceMocks.saveCompanySettings.mockImplementation(async (_id, data) => data);
     });
 
     it('loads every company information value into labelled display fields', () => {
@@ -110,6 +111,24 @@ describe('CompanyProfileTab information compatibility slice', () => {
             .toHaveAttribute('type', 'email');
         expect(screen.getByRole('textbox', { name: 'State' }))
             .toHaveAttribute('maxlength', '2');
+    });
+
+    it('holds the fields still while a save is on its way, so what is shown is what was saved', async () => {
+        let finishSave;
+        serviceMocks.saveCompanySettings.mockImplementation((_id, data) => new Promise((resolve) => { finishSave = () => resolve(data); }));
+        renderProfile();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Profile' }));
+        fireEvent.change(screen.getByRole('textbox', { name: 'City' }), { target: { value: 'Austin' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+        await waitFor(() => expect(serviceMocks.saveCompanySettings).toHaveBeenCalledTimes(1));
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'City' }), { target: { value: 'Fort Worth' } });
+        expect(screen.getByRole('textbox', { name: 'City' })).toHaveValue('Austin');
+
+        finishSave();
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Profile' })).toBeInTheDocument());
+        expect(screen.getByText('Austin')).toBeInTheDocument();
+        expect(screen.queryByText('Fort Worth')).toBeNull();
     });
 
     it('keeps what is typed when the company changes while the fields are open', () => {
@@ -338,11 +357,11 @@ describe('CompanyProfileTab information compatibility slice', () => {
                 companyLogoUrl: NEW_LOGO_URL,
             });
             expect(toastMocks.showSuccess).toHaveBeenCalledWith('Logo uploaded successfully!');
-            expect(applyCompanyChanges).toHaveBeenCalledWith('company-1', { companyLogoUrl: NEW_LOGO_URL });
             await waitFor(() => {
                 expect(screen.getByRole('img', { name: 'Company logo' }))
                     .toHaveAttribute('src', NEW_LOGO_URL);
             });
+            expect(applyCompanyChanges).toHaveBeenCalledWith('company-1', { companyLogoUrl: NEW_LOGO_URL });
         });
 
         it('ignores a change event with no selected file', () => {

@@ -63,7 +63,8 @@ const openTab = (name) => fireEvent.click(screen.getByRole('tab', { name }));
 
 beforeEach(() => {
     mocks.saveCompanySettings.mockReset();
-    mocks.saveCompanySettings.mockResolvedValue(undefined);
+    // The service returns what it wrote; here, what it was given.
+    mocks.saveCompanySettings.mockImplementation(async (_id, data) => data);
     mocks.showSuccess.mockReset();
     mocks.showError.mockReset();
     mocks.useData.mockReset();

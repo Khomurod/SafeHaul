@@ -106,5 +106,7 @@ export async function saveCompanySettings(companyId, settingsData) {
     payload.applicationIntegrations = settingsData.applicationIntegrations;
   }
 
-  return await updateDoc(companyRef, payload);
+  await updateDoc(companyRef, payload);
+  // What was written, so a caller can show exactly that (cleaned, blanks left out).
+  return payload;
 }
