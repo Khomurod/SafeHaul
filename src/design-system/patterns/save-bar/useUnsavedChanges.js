@@ -14,7 +14,9 @@ import { contractViolation } from '../../contract';
  *   `ConfirmDialog`), and `confirm()` runs it or `cancel()` drops it, calling
  *   `onCancel` if the move was already under way (the browser's Back).
  *   Once the person has chosen to discard, a move that reloads the page (log
- *   out) is not asked about again by the browser.
+ *   out) is not asked about again by the browser. A move that reports it did
+ *   not happen (its promise rejects or resolves to `false`) guards the page
+ *   again.
  *
  * Router-free on purpose: the application's router has no blocking API, so
  * the moves an application makes itself go through `request`.
@@ -92,7 +94,13 @@ export function useUnsavedChangesGuard() {
     const held = pending;
     setPending?.(null);
     if (discarded) discarded.current = true;
-    held?.action();
+    const outcome = held?.action();
+    if (discarded && typeof outcome?.then === 'function') {
+      outcome.then(
+        (made) => { if (made === false) discarded.current = false; },
+        () => { discarded.current = false; },
+      );
+    }
   }, [pending, setPending, discarded]);
 
   const cancel = useCallback(() => {

@@ -14,7 +14,8 @@ vi.mock('../components/NotificationDropdown', () => ({ NotificationDropdown: () 
 
 import { CompanyTopbar } from './CompanyTopbar';
 
-const handleLogout = vi.fn(async () => {});
+let logoutWorks;
+const handleLogout = vi.fn(async () => logoutWorks);
 const returnToCompanyChooser = vi.fn();
 
 function UnsavedEdit() {
@@ -42,6 +43,7 @@ function renderTopbar({ unsaved = false } = {}) {
 }
 
 beforeEach(() => {
+    logoutWorks = true;
     handleLogout.mockClear();
     returnToCompanyChooser.mockClear();
 });
@@ -72,5 +74,20 @@ describe('CompanyTopbar leaving the page', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
         await waitFor(() => expect(handleLogout).toHaveBeenCalledTimes(1));
+    });
+
+    it('guards the page again when logging out fails', async () => {
+        logoutWorks = false;
+        renderTopbar({ unsaved: true });
+        fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+        await waitFor(() => expect(handleLogout).toHaveBeenCalledTimes(1));
+
+        // The page is still here with its edit, so closing the tab asks again.
+        await waitFor(() => {
+            const unload = new Event('beforeunload', { cancelable: true });
+            window.dispatchEvent(unload);
+            expect(unload.defaultPrevented).toBe(true);
+        });
     });
 });

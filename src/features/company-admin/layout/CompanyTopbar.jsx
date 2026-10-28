@@ -47,11 +47,14 @@ export const CompanyTopbar = ({
         fetchUserName();
     }, [currentUser]);
 
+    // `false` when the person is still signed in, so the unsaved-changes
+    // guard keeps protecting the page.
     const onLogout = async () => {
         try {
-            await handleLogout();
+            return await handleLogout();
         } catch (error) {
             console.error('Logout failed', error);
+            return false;
         }
     };
 

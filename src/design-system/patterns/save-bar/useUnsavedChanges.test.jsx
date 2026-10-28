@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UnsavedChangesProvider, useUnsavedChanges, useUnsavedChangesGuard } from './useUnsavedChanges';
 
@@ -36,8 +36,8 @@ function Shell({ children, onMove, onCancelMove }) {
   );
 }
 
-function renderShell() {
-  const onMove = vi.fn();
+function renderShell({ move } = {}) {
+  const onMove = vi.fn(move);
   const onCancelMove = vi.fn();
   render(
     <UnsavedChangesProvider>
@@ -184,6 +184,22 @@ describe('useUnsavedChangesGuard', () => {
     const next = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(next);
     expect(next.defaultPrevented).toBe(true);
+  });
+
+  it.each([
+    ['resolves to false', async () => false],
+    ['rejects', async () => { throw new Error('offline'); }],
+  ])('guards the page again when the discarded move %s', async (_label, move) => {
+    renderShell({ move });
+    fireEvent.click(screen.getByRole('button', { name: 'Change first' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+
+    await waitFor(() => {
+      const unload = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(unload);
+      expect(unload.defaultPrevented).toBe(true);
+    });
   });
 
   it('needs a provider above it', () => {
