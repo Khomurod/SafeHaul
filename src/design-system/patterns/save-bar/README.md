@@ -62,7 +62,7 @@ const select = (id) => guard.request(() => setSection(id));
   isOpen={guard.pending}
   tone="warning"
   title="Leave without saving?"
-  description="This section has changes that have not been saved. Leaving now discards them."
+  description="This page has changes that have not been saved. Leaving now discards them."
   confirmLabel="Discard changes"
   cancelLabel="Keep editing"
   onConfirm={guard.confirm}
@@ -70,15 +70,17 @@ const select = (id) => guard.request(() => setSection(id));
 />
 ```
 
-`request(action)` runs the move at once when nothing is dirty; otherwise it holds
-it (`pending`) until `confirm()` runs it or `cancel()` drops it. The guard needs
-the provider (`contractViolation` without one).
+`request(action, { onCancel })` runs the move at once when nothing is dirty;
+otherwise it holds it (`pending`) until `confirm()` runs it or `cancel()` drops
+it, calling `onCancel` for a move already under way (the browser's Back). The
+guard needs the provider (`contractViolation` without one). One provider and one
+dialog serve a whole application area, so its menu asks too.
 
 ## What it does not do
 
 - **It does not block the router.** The application's router has no blocking
-  API, so the browser's Back button and links outside the shell are not
-  guarded; reload and close are, through `beforeunload`.
+  API, so only moves made through `request` ask (a typed address does not);
+  reload and close are covered by `beforeunload`.
 - **It guards a move made after the edit, not in the same handler.** An edit
   and a section switch are separate clicks or keystrokes; a handler that both
   changes a value and moves away is not asked about.

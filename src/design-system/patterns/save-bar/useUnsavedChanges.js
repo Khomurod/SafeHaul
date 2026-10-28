@@ -8,14 +8,14 @@ import { contractViolation } from '../../contract';
  * - `useUnsavedChanges(dirty)` is called by whatever holds an edit. While
  *   `dirty`, closing or reloading the tab asks the browser's own "Leave site?"
  *   question, and an `UnsavedChangesProvider` above it hears that it is dirty.
- * - `useUnsavedChangesGuard()` is called by the shell that moves between
- *   sections. `request(action)` runs the move at once when nothing is dirty;
- *   otherwise it holds it as `pending`, the shell asks (a `ConfirmDialog`), and
- *   `confirm()` runs it or `cancel()` drops it.
+ * - `useUnsavedChangesGuard()` is called by whatever moves the person away.
+ *   `request(action, { onCancel })` runs the move at once when nothing is
+ *   dirty; otherwise it holds it as `pending`, one dialog asks (a
+ *   `ConfirmDialog`), and `confirm()` runs it or `cancel()` drops it, calling
+ *   `onCancel` if the move was already under way (the browser's Back).
  *
- * Router-free on purpose: the application's router has no blocking API, so a
- * shell guards the moves it makes itself. The browser's Back button is not
- * guarded.
+ * Router-free on purpose: the application's router has no blocking API, so
+ * the moves an application makes itself go through `request`.
  */
 const UnsavedChangesContext = createContext(null);
 
@@ -71,21 +71,25 @@ export function useUnsavedChangesGuard() {
 
   // `dirty` as the committed render saw it: an edit and a move are separate
   // events, and an edit's report commits before the next one arrives.
-  const request = useCallback((action) => {
+  const request = useCallback((action, { onCancel } = {}) => {
     if (!dirty || !setPending) {
       action();
       return;
     }
-    setPending(() => action);
+    setPending({ action, onCancel });
   }, [dirty, setPending]);
 
   const confirm = useCallback(() => {
-    const action = pending;
+    const held = pending;
     setPending?.(null);
-    action?.();
+    held?.action();
   }, [pending, setPending]);
 
-  const cancel = useCallback(() => setPending?.(null), [setPending]);
+  const cancel = useCallback(() => {
+    const held = pending;
+    setPending?.(null);
+    held?.onCancel?.();
+  }, [pending, setPending]);
 
   return { dirty, pending: Boolean(pending), request, confirm, cancel };
 }

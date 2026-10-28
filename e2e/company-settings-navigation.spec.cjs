@@ -147,6 +147,26 @@ test.describe('Company Settings shell and navigation compatibility slice', () =>
     await expect(page).toHaveURL(/\/company\/settings\?e2eAuth=company_admin$/);
   });
 
+  test('asks before the company menu leaves unsaved changes', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'The company menu is beside the page from 768px up.');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${SETTINGS_URL}&section=application`);
+    await page.getByRole('tab', { name: 'Questions' }).click();
+    await page.getByRole('switch', { name: 'Require Social Security Number' }).click();
+    await expect(page.getByRole('region', { name: 'Unsaved changes' })).toBeVisible();
+
+    const companyMenu = page.getByRole('navigation', { name: 'Company sections' });
+    await companyMenu.getByRole('link', { name: 'Dashboard' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Leave without saving?' });
+    await dialog.getByRole('button', { name: 'Keep editing' }).click();
+    await expect(page).toHaveURL(/section=application/);
+    await expect(page.getByRole('region', { name: 'Unsaved changes' })).toBeVisible();
+
+    await companyMenu.getByRole('link', { name: 'Dashboard' }).click();
+    await page.getByRole('dialog', { name: 'Leave without saving?' }).getByRole('button', { name: 'Discard changes' }).click();
+    await expect(page).toHaveURL(/\/company\/dashboard/);
+  });
+
   test('has no serious or critical accessibility violations', async ({ page }) => {
     await openSettings(page);
 

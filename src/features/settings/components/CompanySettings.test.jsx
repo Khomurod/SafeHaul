@@ -79,6 +79,7 @@ vi.mock('./BillingTab', async () => {
 });
 
 import { CompanySettings } from './CompanySettings';
+import { UnsavedChangesBoundary } from '@features/company-admin/layout/UnsavedChangesBoundary';
 
 const company = {
     id: 'company-1',
@@ -114,10 +115,12 @@ function renderSettings({
 
     return render(
         <MemoryRouter initialEntries={[path]}>
-            <Routes>
-                <Route path="/company/settings" element={<CompanySettings />} />
-                <Route path="/company/dashboard" element={<p>Company dashboard</p>} />
-            </Routes>
+            <UnsavedChangesBoundary>
+                <Routes>
+                    <Route path="/company/settings" element={<CompanySettings />} />
+                    <Route path="/company/dashboard" element={<p>Company dashboard</p>} />
+                </Routes>
+            </UnsavedChangesBoundary>
             <AddressProbe />
         </MemoryRouter>,
     );

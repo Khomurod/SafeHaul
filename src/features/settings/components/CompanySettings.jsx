@@ -17,7 +17,7 @@ import { BillingTab } from './BillingTab';
 import { ApiKeysTab } from './api-keys/ApiKeysTab';
 import { SettingsMenu } from './SettingsMenu';
 import { ButtonLink, SectionNavigation } from '@/design-system/components';
-import { ConfirmDialog, UnsavedChangesProvider, useUnsavedChangesGuard } from '@/design-system/patterns';
+import { useUnsavedChangesGuard } from '@/design-system/patterns';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 
@@ -79,14 +79,13 @@ export function CompanySettings() {
     }
     if (!currentCompanyProfile) return null;
 
+    // The company shell's `UnsavedChangesBoundary` asks before any move leaves unsaved changes.
     return (
-        <UnsavedChangesProvider>
-            <SettingsShell
-                currentCompanyProfile={currentCompanyProfile}
-                currentUser={currentUser}
-                isCompanyAdmin={isCompanyAdmin}
-            />
-        </UnsavedChangesProvider>
+        <SettingsShell
+            currentCompanyProfile={currentCompanyProfile}
+            currentUser={currentUser}
+            isCompanyAdmin={isCompanyAdmin}
+        />
     );
 }
 
@@ -120,7 +119,11 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
     const heldByHistory = addressedSection !== shownSection && guard.dirty && navigationType === 'POP';
     if (addressedSection !== shownSection && !heldByHistory) setShownSection(addressedSection);
     useEffect(() => {
-        if (heldByHistory) guard.request(() => setShownSection(addressedSection));
+        if (!heldByHistory) return;
+        guard.request(() => setShownSection(addressedSection), {
+            // A new entry, so the next Back still reaches the page the person came from.
+            onCancel: () => setActiveTab(shownSection),
+        });
         // `guard.request` changes with the dirty flag, which `heldByHistory` already follows.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [heldByHistory, addressedSection]);
@@ -138,11 +141,6 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
             return next;
         }, { replace: true });
     }, [namesHome, setSearchParams]);
-    const keepEditing = () => {
-        // A new entry, so the next Back still reaches the page the person came from.
-        if (heldByHistory) setActiveTab(shownSection);
-        guard.cancel();
-    };
 
     // The phone's way back to its menu keeps every other parameter (`e2eAuth`).
     const menuParams = new URLSearchParams(searchParams);
@@ -230,17 +228,6 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
                     </section>
                 </div>
             </div>
-
-            <ConfirmDialog
-                isOpen={guard.pending}
-                tone="warning"
-                title="Leave without saving?"
-                description="This section has changes that have not been saved. Leaving now discards them."
-                confirmLabel="Discard changes"
-                cancelLabel="Keep editing"
-                onConfirm={guard.confirm}
-                onCancel={keepEditing}
-            />
         </div>
     );
 }

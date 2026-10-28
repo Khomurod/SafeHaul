@@ -19,12 +19,12 @@ function Editor({ name }) {
 }
 
 /** A shell that moves between sections through the guard. */
-function Shell({ children, onMove }) {
+function Shell({ children, onMove, onCancelMove }) {
   const guard = useUnsavedChangesGuard();
   return (
     <>
       <p>{guard.dirty ? 'Dirty' : 'Clean'}</p>
-      <button type="button" onClick={() => guard.request(onMove)}>Move</button>
+      <button type="button" onClick={() => guard.request(onMove, { onCancel: onCancelMove })}>Move</button>
       {guard.pending && (
         <div role="dialog" aria-label="Leave without saving?">
           <button type="button" onClick={guard.confirm}>Discard changes</button>
@@ -38,15 +38,16 @@ function Shell({ children, onMove }) {
 
 function renderShell() {
   const onMove = vi.fn();
+  const onCancelMove = vi.fn();
   render(
     <UnsavedChangesProvider>
-      <Shell onMove={onMove}>
+      <Shell onMove={onMove} onCancelMove={onCancelMove}>
         <Editor name="first" />
         <Editor name="second" />
       </Shell>
     </UnsavedChangesProvider>,
   );
-  return { onMove };
+  return { onMove, onCancelMove };
 }
 
 describe('useUnsavedChanges', () => {
@@ -140,19 +141,20 @@ describe('useUnsavedChangesGuard', () => {
     expect(screen.getByRole('dialog', { name: 'Leave without saving?' })).toBeInTheDocument();
   });
 
-  it('drops the move when the person keeps editing', () => {
-    const { onMove } = renderShell();
+  it('drops the move when the person keeps editing, and tells the mover', () => {
+    const { onMove, onCancelMove } = renderShell();
     fireEvent.click(screen.getByRole('button', { name: 'Change first' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
 
     expect(onMove).not.toHaveBeenCalled();
+    expect(onCancelMove).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('makes the move when the person discards', () => {
-    const { onMove } = renderShell();
+    const { onMove, onCancelMove } = renderShell();
     fireEvent.click(screen.getByRole('button', { name: 'Change first' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move' }));
 
@@ -161,6 +163,7 @@ describe('useUnsavedChangesGuard', () => {
     });
 
     expect(onMove).toHaveBeenCalledTimes(1);
+    expect(onCancelMove).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 

@@ -1,10 +1,23 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 import { DataContext } from '@/context/DataContext';
+import { useUnsavedChanges } from '@/design-system/patterns';
 import { CompanySidebar } from './CompanySidebar';
+import { UnsavedChangesBoundary } from './UnsavedChangesBoundary';
+
+/** A page that holds an unsaved edit, as a Settings section does. */
+function UnsavedEdit() {
+    useUnsavedChanges(true);
+    return null;
+}
+
+/** Where the menu has taken the person. */
+function Where() {
+    return <output data-testid="where">{useLocation().pathname}</output>;
+}
 
 function renderSidebar({
     role = 'company_admin',
@@ -12,6 +25,7 @@ function renderSidebar({
     expanded = true,
     onExpandedChange = vi.fn(),
     onNavigate = vi.fn(),
+    unsaved = false,
 } = {}) {
     const company = { id: 'company-1', companyName: 'Test Logistics', features };
     const claims = { roles: { [company.id]: role } };
@@ -24,11 +38,15 @@ function renderSidebar({
                     currentUserClaims: claims,
                 }}
             >
-                <CompanySidebar
-                    isExpanded={expanded}
-                    onExpandedChange={onExpandedChange}
-                    onNavigate={onNavigate}
-                />
+                <UnsavedChangesBoundary>
+                    <CompanySidebar
+                        isExpanded={expanded}
+                        onExpandedChange={onExpandedChange}
+                        onNavigate={onNavigate}
+                    />
+                    {unsaved && <UnsavedEdit />}
+                    <Where />
+                </UnsavedChangesBoundary>
             </DataContext.Provider>
         </MemoryRouter>,
     );
@@ -93,5 +111,40 @@ describe('CompanySidebar', () => {
     it('has no structural accessibility violations', async () => {
         const { container } = renderSidebar();
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe('CompanySidebar while a page holds unsaved changes', () => {
+    it('follows a link at once when nothing is unsaved', () => {
+        const { onNavigate } = renderSidebar();
+        fireEvent.click(screen.getByRole('link', { name: 'Settings' }));
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.getByTestId('where')).toHaveTextContent('/company/settings');
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks first, and stays when the person keeps editing', () => {
+        const { onNavigate } = renderSidebar({ unsaved: true });
+        fireEvent.click(screen.getByRole('link', { name: 'Settings' }));
+
+        const dialog = screen.getByRole('dialog', { name: 'Leave without saving?' });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
+        expect(screen.getByTestId('where')).toHaveTextContent('/company/dashboard');
+        expect(onNavigate).not.toHaveBeenCalled();
+    });
+
+    it('follows the link when the person discards the changes', () => {
+        const { onNavigate } = renderSidebar({ unsaved: true });
+        fireEvent.click(screen.getByRole('link', { name: 'Settings' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+
+        expect(screen.getByTestId('where')).toHaveTextContent('/company/settings');
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets a link open in a new tab without asking', () => {
+        renderSidebar({ unsaved: true });
+        fireEvent.click(screen.getByRole('link', { name: 'Settings' }), { ctrlKey: true });
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 });
