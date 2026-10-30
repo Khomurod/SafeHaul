@@ -16,9 +16,11 @@ const mocks = vi.hoisted(() => ({
   captureException: vi.fn(),
   installStaleBuildReload: vi.fn(),
   reportCspViolations: vi.fn(),
+  keepNonCanonicalHostsOutOfSearch: vi.fn(),
 }));
 vi.mock('@lib/monitoring/sentry', () => ({ initSentry: mocks.initSentry }));
 vi.mock('@lib/monitoring/cspViolations', () => ({ reportCspViolations: mocks.reportCspViolations }));
+vi.mock('./searchIndexing', () => ({ keepNonCanonicalHostsOutOfSearch: mocks.keepNonCanonicalHostsOutOfSearch }));
 vi.mock('@sentry/react', () => ({ captureException: mocks.captureException }));
 vi.mock('./staleBuildReload', () => ({ installStaleBuildReload: mocks.installStaleBuildReload }));
 
@@ -29,6 +31,10 @@ describe('startup guards', () => {
 
   it('installs the stale-release reload as soon as it loads', () => {
     expect(mocks.installStaleBuildReload).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks non-production hosts noindex from the first module, the startup error screen included', () => {
+    expect(mocks.keepNonCanonicalHostsOutOfSearch).toHaveBeenCalledTimes(1);
   });
 
   it('reports CSP violations from the first module, so the startup error screen is covered', () => {

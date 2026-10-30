@@ -47,6 +47,8 @@ describe('keeping non-production hosts out of search', () => {
                 .flatMap((entry) => entry.headers.map((header) => header.key));
             expect(keys).not.toContain('X-Robots-Tag');
         }
-        expect(readFileSync(resolve(root, 'src/main.jsx'), 'utf8')).toContain('keepNonCanonicalHostsOutOfSearch();');
+        // Called from the startup guards, so the startup error screen is covered.
+        expect(readFileSync(resolve(root, 'src/app/startup/startupGuards.jsx'), 'utf8')).toContain('keepNonCanonicalHostsOutOfSearch();');
+        expect(readFileSync(resolve(root, 'src/main.jsx'), 'utf8')).not.toContain('keepNonCanonicalHostsOutOfSearch');
     });
 });
