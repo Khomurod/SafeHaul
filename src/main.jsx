@@ -7,6 +7,7 @@ import App from './App.jsx';
 import './index.css';
 import { attachDeferredIntegrations, initSentry, whenIdle } from '@lib/monitoring/sentry';
 import { capZoomOnIOS } from '@app/startup/viewportZoom';
+import { keepNonCanonicalHostsOutOfSearch } from '@app/startup/searchIndexing';
 
 // The pdf.js worker wiring lives in `@lib/pdf/pdfWorker`, imported by the PDF
 // features themselves, so the pdfjs chunk does not ship to every route.
@@ -20,6 +21,7 @@ whenIdle(() => { attachDeferredIntegrations(); });
 // -------------------------------
 
 capZoomOnIOS();
+keepNonCanonicalHostsOutOfSearch();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

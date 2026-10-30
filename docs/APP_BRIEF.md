@@ -1133,7 +1133,10 @@ else number and time, and fails an undelivered text (reason, totals).
 - **Testing is not a sandbox.** `truckerapp-system.web.app` runs against the
   **same real** Firestore, Auth, Storage, Functions and integrations as
   production; a driver opening a Testing apply link files a real application.
-  Only the frontend build served differs between channels.
+  Only the frontend build served differs between channels. So that no driver
+  finds Testing in a search, the app marks itself `noindex, nofollow` on every
+  host but `app.safehaul.io` (`src/app/startup/searchIndexing.js`). This cannot be
+  a Hosting header, because promotion clones Testing's headers onto Production.
 - **Production never deploys automatically.** Merging to `main` deploys Testing
   and the shared backend; Production is reached only by explicit promotion of an
   already-tested Hosting version: Super Admin → Releases, or the Telegram
