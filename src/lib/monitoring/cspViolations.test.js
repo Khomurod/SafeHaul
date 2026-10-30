@@ -32,7 +32,7 @@ describe('reportCspViolations', () => {
             level: 'warning',
             fingerprint: ['csp-violation', 'report', 'script-src-elem', 'https://evil.example'],
             tags: { csp_disposition: 'report', csp_directive: 'script-src-elem', csp_blocked: 'https://evil.example' },
-            extra: { sourceFile: 'https://app.safehaul.io/assets/main-abc.js', lineNumber: 7 },
+            extra: { sourceOrigin: 'https://app.safehaul.io', lineNumber: 7 },
         });
     });
 
@@ -49,7 +49,7 @@ describe('reportCspViolations', () => {
         expect(sent).not.toContain('TOKEN123');
         expect(sent).not.toContain('/me/accounts');
         expect(capture.mock.calls[0][1].tags.csp_blocked).toBe('https://graph.example');
-        expect(capture.mock.calls[0][1].extra.sourceFile).toBe('https://app.safehaul.io');
+        expect(capture.mock.calls[0][1].extra.sourceOrigin).toBe('https://app.safehaul.io');
     });
 
     it('reports CSP keywords such as inline and eval as they are', () => {

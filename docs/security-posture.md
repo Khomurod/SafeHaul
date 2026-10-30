@@ -236,7 +236,9 @@ same headers; `src/tests/hostingConfig.test.js` pins them.
   legitimate frames the app from outside: there is no embed code for carriers,
   and sign-in is email and password only, so Firebase's `/__/auth/iframe` is
   never loaded. A future need to embed (a carrier's site showing `/apply`) means
-  naming that origin in both headers, not removing them.
+  adding that origin to `frame-ancestors` for those routes and deciding there
+  about `X-Frame-Options`, which can only say `SAMEORIGIN` or `DENY`: browsers
+  that read `frame-ancestors` ignore it, older ones would still refuse the frame.
 - **The full policy is report-only.** `Content-Security-Policy-Report-Only`
   allows scripts only from the site itself and `connect.facebook.net`, and lists
   every service the app calls (Firebase, Cloud Functions, Sentry, Facebook,

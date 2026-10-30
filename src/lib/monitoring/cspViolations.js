@@ -10,9 +10,8 @@
  *
  * Only an origin or a CSP keyword ever leaves the browser. Blocked and source
  * URLs can carry tokens (`/verify/:token`, a Graph API `access_token`, a signed
- * Storage URL), so paths and queries are dropped — except a script file's path,
- * which names a build asset, not a person. Each distinct violation is sent once
- * per page load, and at most `limit` in total.
+ * Storage URL), so paths and queries are always dropped. Each distinct violation
+ * is sent once per page load, and at most `limit` in total.
  */
 import * as Sentry from '@sentry/react';
 
@@ -29,16 +28,6 @@ function originOf(value) {
     } catch {
         // `inline`, `eval`, `data`, `blob`, `wasm-eval`, `trusted-types-…`.
         return String(value).split(':')[0];
-    }
-}
-
-function scriptFileOf(value) {
-    if (!value) return '';
-    try {
-        const url = new URL(value);
-        return /\.m?js$/.test(url.pathname) ? `${url.origin}${url.pathname}` : url.origin;
-    } catch {
-        return originOf(value);
     }
 }
 
@@ -67,7 +56,7 @@ export function reportCspViolations({ win = globalThis, capture = defaultCapture
             level: 'warning',
             fingerprint: ['csp-violation', disposition, directive, blocked],
             tags: { csp_disposition: disposition, csp_directive: directive, csp_blocked: blocked },
-            extra: { sourceFile: scriptFileOf(event.sourceFile), lineNumber: event.lineNumber || 0 },
+            extra: { sourceOrigin: originOf(event.sourceFile), lineNumber: event.lineNumber || 0 },
         });
     };
 
