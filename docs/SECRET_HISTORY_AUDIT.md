@@ -134,7 +134,14 @@ reason to take the disruption — and it is deliberately not automated.
 
 | Credential | Rotated? |
 | --- | --- |
-| `FACEBOOK_APP_SECRET` | **Not yet — owner action** |
-| `VITE_FACEBOOK_ACCESS_TOKEN` | **Not yet — owner action** |
-| `BULK_WORKER_SECRET` | **Not yet — owner action** |
-| `FACEBOOK_VERIFY_TOKEN` | **Not yet — owner action** |
+| `FACEBOOK_APP_SECRET` | **Reported by the owner on 2026-10-30; not yet confirmed** |
+| `VITE_FACEBOOK_ACCESS_TOKEN` | **Reported by the owner on 2026-10-30; not yet confirmed** |
+| `BULK_WORKER_SECRET` | **Reported by the owner on 2026-10-30; not yet confirmed** |
+| `FACEBOOK_VERIFY_TOKEN` | **Reported by the owner on 2026-10-30; not yet confirmed** |
+
+"Confirmed" needs evidence that never touches a value, the old one included:
+for the three server secrets, Secret Manager (project `truckerapp-system`) shows
+a version created after the leak dates and the older versions disabled or
+destroyed; for the Facebook app secret and access token, the Meta app dashboard
+shows the reset and the revoked token. Nobody tests an old credential to see
+whether it still works. Replace a row with the date once that is seen.
