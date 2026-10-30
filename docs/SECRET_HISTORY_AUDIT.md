@@ -63,7 +63,9 @@ disclosed and rotate them.
 1. **Rotate the Facebook app secret** in the Meta app dashboard, then update the
    Secret Manager / Functions configuration that consumes it.
 2. **Invalidate the Facebook access token** (revoke it in the Meta app dashboard;
-   long-lived tokens do not expire usefully on their own) and issue a new one.
+   long-lived tokens do not expire usefully on their own). No replacement is
+   needed: nothing reads this variable any more, and the Integrations tab gets a
+   fresh user token from the Facebook login each time.
 3. **Regenerate `BULK_WORKER_SECRET`** and redeploy both bulk functions together —
    they must carry the same value, per `functions/.env.example`.
 4. **Change `FACEBOOK_VERIFY_TOKEN`** and update the webhook subscription.
