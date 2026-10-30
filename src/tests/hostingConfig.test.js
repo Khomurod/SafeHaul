@@ -322,6 +322,38 @@ describe('firebase.json — application sites: framing and Content Security Poli
     });
 });
 
+describe('firebase.json — application sites: nosniff, and no long cache', () => {
+    const APP_TARGETS = ['testing', 'production'];
+
+    function headerIn(name, source, key) {
+        const block = target(name).headers?.find((entry) => entry.source === source);
+        return block?.headers?.find((header) => header.key === key)?.value;
+    }
+
+    it.each(APP_TARGETS)('%s tells browsers not to guess content types', (name) => {
+        // Hosting already serves every built type correctly (`.js`, `.mjs`, `.css`,
+        // `.woff2`, `.json`, `.ico`, `.svg`, checked on Testing), so nothing the
+        // app loads can be refused for its type.
+        expect(headerIn(name, '**', 'X-Content-Type-Options')).toBe('nosniff');
+    });
+
+    it.each(APP_TARGETS)('%s keeps every file on Hosting\'s one-hour cache', (name) => {
+        // A long cache on /assets/** looks safe because the names are content
+        // hashes, but Hosting attaches header rules to the response for a missing
+        // file too: a release removes a chunk an open tab still asks for, the 404
+        // (or the SPA fallback's index.html) is stored for the long lifetime, and
+        // after a rollback that tab's browser keeps failing on that chunk.
+        // Checked on the Hosting emulator.
+        for (const entry of target(name).headers) {
+            expect(entry.headers.map((header) => header.key)).not.toContain('Cache-Control');
+        }
+    });
+
+    it('applies the same rules to testing and production', () => {
+        expect(target('testing').headers).toEqual(target('production').headers);
+    });
+});
+
 describe('firebase.json — Firestore rules and indexes stay wired', () => {
     it('points at the committed rules and index files', () => {
         expect(config.firestore.rules).toBe('src/firestore.rules');

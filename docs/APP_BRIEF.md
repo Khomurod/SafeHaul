@@ -1170,6 +1170,11 @@ else number and time, and fails an undelivered text (reason, totals).
   page, is a deliberate later change; a new external service must be added to
   the policy when it is introduced. See
   [`docs/security-posture.md`](./security-posture.md).
+- **No long cache on the app's files, `/assets/**` included.** Hosting attaches
+  header rules to the response for a missing file as well, so a long-lived
+  `Cache-Control` would store the 404 (or the SPA fallback's HTML) an open tab
+  gets for a chunk a release removed; after a rollback that browser would keep
+  failing on it. Everything stays on Hosting's one-hour default.
 - **The public site stays dependency-free**: no framework, no build step, no
   application or design-system imports. `web/privacy.html` ships no `<script>`
   at all, asserted by `src/tests/hostingConfig.test.js`.
