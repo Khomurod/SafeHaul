@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const sentryMock = vi.hoisted(() => ({ captureMessage: vi.fn() }));
+const sentryMock = vi.hoisted(() => ({ captureMessage: vi.fn(), getClient: vi.fn(() => ({})) }));
 vi.mock('@sentry/react', () => sentryMock);
 
 import { reportCspViolations } from './cspViolations';
@@ -79,6 +79,18 @@ describe('reportCspViolations', () => {
             document.dispatchEvent(violation({ blockedURI: origin }));
         });
         expect(capture).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps a violation seen before Sentry starts, so its repeat is sent once Sentry runs', () => {
+        // The listener starts in the startup guards, before `main.jsx` calls initSentry.
+        sentryMock.getClient.mockReturnValueOnce(undefined);
+        stop = reportCspViolations({ limit: 1 });
+        document.dispatchEvent(violation({ blockedURI: 'https://early.example/x.js' }));
+        expect(sentryMock.captureMessage).not.toHaveBeenCalled();
+        // Neither marked seen nor counted against the limit.
+        document.dispatchEvent(violation({ blockedURI: 'https://early.example/x.js' }));
+        expect(sentryMock.captureMessage).toHaveBeenCalledTimes(1);
+        expect(sentryMock.captureMessage.mock.calls[0][0]).toBe('CSP report: script-src-elem https://early.example');
     });
 
     it("ignores a browser extension's own violations", () => {

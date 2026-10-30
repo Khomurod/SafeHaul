@@ -31,8 +31,14 @@ function originOf(value) {
     }
 }
 
+/**
+ * Sends one message, or returns false when Sentry has no client yet: the
+ * listener starts in the startup guards, before `main.jsx` calls `initSentry`.
+ */
 function defaultCapture(message, context) {
+    if (!Sentry.getClient()) return false;
     Sentry.captureMessage(message, context);
+    return true;
 }
 
 /**
@@ -51,13 +57,15 @@ export function reportCspViolations({ win = globalThis, capture = defaultCapture
         if (EXTENSION_SCHEMES.has(blocked) || EXTENSION_SCHEMES.has(originOf(event.sourceFile))) return;
         const key = `${disposition}|${directive}|${blocked}`;
         if (seen.has(key)) return;
-        seen.add(key);
-        capture(`CSP ${disposition}: ${directive} ${blocked}`, {
+        const sent = capture(`CSP ${disposition}: ${directive} ${blocked}`, {
             level: 'warning',
             fingerprint: ['csp-violation', disposition, directive, blocked],
             tags: { csp_disposition: disposition, csp_directive: directive, csp_blocked: blocked },
             extra: { sourceOrigin: originOf(event.sourceFile), lineNumber: event.lineNumber || 0 },
         });
+        // Not sent (no client yet): leave it unseen, so a repeat once Sentry runs
+        // is reported, and spend none of the limit on it.
+        if (sent !== false) seen.add(key);
     };
 
     target.addEventListener('securitypolicyviolation', onViolation);
