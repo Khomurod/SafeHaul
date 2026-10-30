@@ -32,12 +32,28 @@ function originOf(value) {
 }
 
 /**
+ * What Sentry adds to every event by itself, cut down for a CSP report. The
+ * page URL and Referer (HttpContext), the breadcrumbs (navigation and request
+ * URLs) and the transaction name can all carry a path such as
+ * `/verify/:token`; a CSP report needs none of them.
+ */
+function stripPageContext(event) {
+    if (event.request) event.request = { url: originOf(event.request.url) };
+    delete event.breadcrumbs;
+    delete event.transaction;
+    return event;
+}
+
+/**
  * Sends one message, or returns false when Sentry has no client yet: the
  * listener starts in the startup guards, before `main.jsx` calls `initSentry`.
  */
 function defaultCapture(message, context) {
     if (!Sentry.getClient()) return false;
-    Sentry.captureMessage(message, context);
+    Sentry.withScope((scope) => {
+        scope.addEventProcessor(stripPageContext);
+        Sentry.captureMessage(message, context);
+    });
     return true;
 }
 

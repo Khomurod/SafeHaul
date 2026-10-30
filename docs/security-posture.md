@@ -247,7 +247,10 @@ same headers; `src/tests/hostingConfig.test.js` pins them.
   `src/lib/monitoring/cspViolations.js` sends to Sentry as a warning tagged
   `csp_directive` / `csp_blocked` (origin only, never a path or query, once per
   distinct violation, at most 20 per page load; browser extensions' own
-  violations are dropped).
+  violations are dropped). What Sentry adds on its own is cut from these
+  reports too: the page URL is reduced to its origin, and the Referer,
+  breadcrumbs and transaction name are removed, because on `/verify/:token` or
+  `/review-change/:token` they carry the token.
 - **Enforcing it is a separate, later change:** after it has run on Testing and
   Production through normal use (sign-in, applications, uploads, E-Docs signing,
   the Facebook connection, sheet imports), move the policy from

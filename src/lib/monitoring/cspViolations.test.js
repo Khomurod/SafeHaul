@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const sentryMock = vi.hoisted(() => ({ captureMessage: vi.fn(), getClient: vi.fn(() => ({})) }));
+const sentryMock = vi.hoisted(() => ({
+    captureMessage: vi.fn(),
+    getClient: vi.fn(() => ({})),
+    withScope: vi.fn((callback) => callback({ addEventProcessor: vi.fn() })),
+}));
 vi.mock('@sentry/react', () => sentryMock);
 
 import { reportCspViolations } from './cspViolations';
