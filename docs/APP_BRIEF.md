@@ -945,7 +945,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Telegram** | Operator alerts (`watchAiAndBlog`) and release offers (`offerProductionRelease`) in the chat connected in Super Admin → System Health. Marketing-site bot **retired** (`LD-R3`; rollback caveat, token rotation: `docs/FIREBASE_HOSTING_RUNBOOK.md`) | Bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat, `approverId` (pressed Start; only their release press counts), watcher state: `system_jobs/platformAlerts`. `telegramWebhook` (header = token HMAC; release secrets; 120 s) keeps Starts in `…Inbox` (1-day TTL), runs release presses. Server-only |
 | **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
-| **Sentry** | Error monitoring for the browser app (`@sentry/react`); Cloud Functions log to Cloud Logging only | DSN |
+| **Sentry** | Error monitoring for the browser app (`@sentry/react`), and its Content Security Policy violations (report-only, §10); Cloud Functions log to Cloud Logging only | DSN |
 | **GitHub API** | Promotion from Super Admin → Releases or the Telegram button (`runPromotion`) | GitHub App credential, server-only |
 
 **Hard boundaries:**
@@ -1163,6 +1163,13 @@ else number and time, and fails an undelivered text (reason, totals).
   from FMCSA by that exact number — **PSP data is never employment dates or
   convictions**: the UI says so, and violations come from the MVR alone. Neither
   document is stored or logged; its pages live in memory for one request.
+- **The application sites refuse to be framed by other sites**
+  (`frame-ancestors 'self'`, `X-Frame-Options: SAMEORIGIN` in `firebase.json`),
+  and their full Content Security Policy is **report-only**: violations go to
+  Sentry, nothing is blocked. Enforcing it, or letting an outside site embed a
+  page, is a deliberate later change; a new external service must be added to
+  the policy when it is introduced. See
+  [`docs/security-posture.md`](./security-posture.md).
 - **The public site stays dependency-free**: no framework, no build step, no
   application or design-system imports. `web/privacy.html` ships no `<script>`
   at all, asserted by `src/tests/hostingConfig.test.js`.

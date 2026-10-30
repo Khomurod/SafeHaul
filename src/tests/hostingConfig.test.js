@@ -207,6 +207,121 @@ describe('firebase.json — the testing landing site must not be indexed', () =>
     });
 });
 
+describe('firebase.json — application sites: framing and Content Security Policy', () => {
+    const APP_TARGETS = ['testing', 'production'];
+
+    function appHeader(name, key) {
+        const block = target(name).headers?.find((entry) => entry.source === '**');
+        return block?.headers?.find((header) => header.key === key)?.value;
+    }
+
+    function directives(policy) {
+        return Object.fromEntries(policy.split(';').map((part) => part.trim()).filter(Boolean)
+            .map((part) => {
+                const [name, ...values] = part.split(/\s+/);
+                return [name, values];
+            }));
+    }
+
+    // A CSP host source: `https://host`, or `https://*.domain` for subdomains.
+    function allows(sources, url) {
+        const { protocol, host } = new URL(url);
+        return sources.some((source) => {
+            if (source === `${protocol}`) return true;
+            const match = /^(https?:)\/\/(\*\.)?(.+)$/.exec(source);
+            if (!match || match[1] !== protocol) return false;
+            return match[2] ? host.endsWith(`.${match[3]}`) : host === match[3];
+        });
+    }
+
+    const reportOnly = directives(appHeader('production', 'Content-Security-Policy-Report-Only') ?? '');
+
+    it.each(APP_TARGETS)('%s refuses to be framed by any other site', (name) => {
+        // `frame-ancestors` is ignored in a report-only policy, so the framing rule
+        // is enforced on its own; X-Frame-Options covers browsers without CSP 2.
+        // SAMEORIGIN, not DENY: nothing frames the app from outside (it signs in
+        // with email and password, so Firebase's auth iframe is never used), and
+        // the app's own pages stay free to frame each other.
+        expect(appHeader(name, 'X-Frame-Options')).toBe('SAMEORIGIN');
+        expect(appHeader(name, 'Content-Security-Policy')).toBe("frame-ancestors 'self'");
+    });
+
+    it.each(APP_TARGETS)('%s enforces nothing but the framing rule', (name) => {
+        // The full policy has not been proven against real traffic yet. Until it
+        // has, an enforced directive other than frame-ancestors could break sign-in,
+        // uploads, E-Docs or the Facebook integration for real users.
+        expect(Object.keys(directives(appHeader(name, 'Content-Security-Policy')))).toEqual(['frame-ancestors']);
+    });
+
+    it('ships the same policy to testing and production', () => {
+        // Production is a promoted Testing version and both use one backend, so a
+        // difference here could only mean one site was edited and the other forgotten.
+        for (const key of ['X-Frame-Options', 'Content-Security-Policy', 'Content-Security-Policy-Report-Only']) {
+            expect(appHeader('testing', key)).toBe(appHeader('production', key));
+        }
+    });
+
+    it('monitors a policy that allows no inline or evaluated script', () => {
+        expect(reportOnly['default-src']).toEqual(["'self'"]);
+        expect(reportOnly['script-src']).toContain("'self'");
+        expect(reportOnly['script-src']).not.toContain("'unsafe-inline'");
+        expect(reportOnly['script-src']).not.toContain("'unsafe-eval'");
+        expect(reportOnly['object-src']).toEqual(["'none'"]);
+        expect(reportOnly['base-uri']).toEqual(["'self'"]);
+        // Ignored in report-only mode; it is enforced in its own header instead.
+        expect(reportOnly['frame-ancestors']).toBeUndefined();
+    });
+
+    it('allows the Firebase services the app talks to', () => {
+        for (const url of [
+            'https://firestore.googleapis.com',
+            'https://identitytoolkit.googleapis.com',
+            'https://securetoken.googleapis.com',
+            'https://firebasestorage.googleapis.com',
+            'https://storage.googleapis.com',
+            'https://us-central1-truckerapp-system.cloudfunctions.net',
+            'https://o1.ingest.us.sentry.io',
+            // Firestore's WebChannel loads //www.google.com/images/cleardot.gif to
+            // tell a dead network from a failed request; seen on the E2E run.
+            'https://www.google.com',
+        ]) {
+            expect(allows(reportOnly['connect-src'], url), url).toBe(true);
+        }
+        // Uploaded documents are previewed in an iframe straight from Storage, or
+        // from an object URL when only `getBlob` can read them (`useAppFetch`).
+        expect(allows(reportOnly['frame-src'], 'https://firebasestorage.googleapis.com')).toBe(true);
+        expect(reportOnly['frame-src']).toContain('blob:');
+        expect(reportOnly['connect-src']).toContain('blob:');
+        // pdf.js runs from /pdf.worker.min.mjs; Sentry Replay compresses in a blob worker.
+        expect(reportOnly['worker-src']).toEqual(["'self'", 'blob:']);
+    });
+
+    it('allows every external address the app hardcodes', () => {
+        // Read from the code that makes the requests, so a new or moved
+        // integration fails here instead of in a user's browser once enforced.
+        const read = (file) => readFileSync(resolve(root, file), 'utf8');
+        const hostsIn = (file) => [...read(file).matchAll(/https:\/\/[a-z0-9.-]+\.[a-z]{2,}/g)].map(([url]) => url);
+        const expectations = [
+            ['src/shared/services/fmcsaEmployerSocrata.js', 'connect-src'],
+            ['src/shared/hooks/useBulkImport.js', 'connect-src'],
+            ['src/features/settings/components/IntegrationsTab.jsx', null],
+        ];
+        for (const [file, directive] of expectations) {
+            const urls = hostsIn(file);
+            expect(urls.length, `${file} names no external address`).toBeGreaterThan(0);
+            for (const url of urls) {
+                const sources = directive
+                    ? reportOnly[directive]
+                    : [...reportOnly['script-src'], ...reportOnly['connect-src']];
+                expect(allows(sources, url), `${url} from ${file}`).toBe(true);
+            }
+        }
+        expect(read('src/features/api-guide/apiGuideContent.js'))
+            .toContain('https://us-central1-truckerapp-system.cloudfunctions.net/');
+        expect(read('src/lib/firebase/config.js')).toMatch(/getFunctions\(app\)/);
+    });
+});
+
 describe('firebase.json — Firestore rules and indexes stay wired', () => {
     it('points at the committed rules and index files', () => {
         expect(config.firestore.rules).toBe('src/firestore.rules');

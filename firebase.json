@@ -26,6 +26,25 @@
         "**/.*",
         "**/node_modules/**"
       ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "X-Frame-Options",
+              "value": "SAMEORIGIN"
+            },
+            {
+              "key": "Content-Security-Policy",
+              "value": "frame-ancestors 'self'"
+            },
+            {
+              "key": "Content-Security-Policy-Report-Only",
+              "value": "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' blob: https://firestore.googleapis.com https://www.google.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com https://storage.googleapis.com https://us-central1-truckerapp-system.cloudfunctions.net https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://graph.facebook.com https://www.facebook.com https://docs.google.com https://*.googleusercontent.com https://data.transportation.gov; frame-src 'self' blob: https://firebasestorage.googleapis.com https://storage.googleapis.com https://www.facebook.com https://web.facebook.com https://staticxx.facebook.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"
+            }
+          ]
+        }
+      ],
       "rewrites": [
         {
           "source": "**",
@@ -40,6 +59,25 @@
         "firebase.json",
         "**/.*",
         "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "X-Frame-Options",
+              "value": "SAMEORIGIN"
+            },
+            {
+              "key": "Content-Security-Policy",
+              "value": "frame-ancestors 'self'"
+            },
+            {
+              "key": "Content-Security-Policy-Report-Only",
+              "value": "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' blob: https://firestore.googleapis.com https://www.google.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com https://storage.googleapis.com https://us-central1-truckerapp-system.cloudfunctions.net https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://graph.facebook.com https://www.facebook.com https://docs.google.com https://*.googleusercontent.com https://data.transportation.gov; frame-src 'self' blob: https://firebasestorage.googleapis.com https://storage.googleapis.com https://www.facebook.com https://web.facebook.com https://staticxx.facebook.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"
+            }
+          ]
+        }
       ],
       "rewrites": [
         {

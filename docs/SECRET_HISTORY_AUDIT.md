@@ -63,7 +63,9 @@ disclosed and rotate them.
 1. **Rotate the Facebook app secret** in the Meta app dashboard, then update the
    Secret Manager / Functions configuration that consumes it.
 2. **Invalidate the Facebook access token** (revoke it in the Meta app dashboard;
-   long-lived tokens do not expire usefully on their own) and issue a new one.
+   long-lived tokens do not expire usefully on their own). No replacement is
+   needed: nothing reads this variable any more, and the Integrations tab gets a
+   fresh user token from the Facebook login each time.
 3. **Regenerate `BULK_WORKER_SECRET`** and redeploy both bulk functions together —
    they must carry the same value, per `functions/.env.example`.
 4. **Change `FACEBOOK_VERIFY_TOKEN`** and update the webhook subscription.
@@ -134,7 +136,21 @@ reason to take the disruption — and it is deliberately not automated.
 
 | Credential | Rotated? |
 | --- | --- |
-| `FACEBOOK_APP_SECRET` | **Not yet — owner action** |
-| `VITE_FACEBOOK_ACCESS_TOKEN` | **Not yet — owner action** |
-| `BULK_WORKER_SECRET` | **Not yet — owner action** |
-| `FACEBOOK_VERIFY_TOKEN` | **Not yet — owner action** |
+| `FACEBOOK_APP_SECRET` | **Reported by the owner on 2026-10-30; not yet confirmed** |
+| `VITE_FACEBOOK_ACCESS_TOKEN` | **Reported by the owner on 2026-10-30; not yet confirmed** |
+| `BULK_WORKER_SECRET` | **Reported by the owner on 2026-10-30; not yet confirmed** |
+| `FACEBOOK_VERIFY_TOKEN` | **Reported by the owner on 2026-10-30; not yet confirmed** |
+
+"Confirmed" needs evidence that never touches a value, the old one included.
+Nobody tests an old credential to see whether it still works.
+
+- `FACEBOOK_APP_SECRET`: both the Meta app dashboard showing the reset and a
+  Secret Manager version (project `truckerapp-system`) created after it.
+- `VITE_FACEBOOK_ACCESS_TOKEN`: the Meta app dashboard showing the token revoked.
+- `BULK_WORKER_SECRET`, `FACEBOOK_VERIFY_TOKEN`: a Secret Manager version
+  created after the leak dates, with the older versions disabled or destroyed.
+- For every Secret Manager row, the Functions deploy that loaded the new
+  version (both bulk functions together; the Facebook functions), and for
+  `FACEBOOK_VERIFY_TOKEN` the updated webhook subscription in Meta.
+
+Replace a row with the date only once all of its evidence is seen.

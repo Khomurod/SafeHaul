@@ -225,6 +225,40 @@ The cleanup procedure is in [`docs/ai-platform.md`](./ai-platform.md).
 | Images are licensed or ours | Every stored image carries full licence metadata; anything incomplete is refused in favour of a SafeHaul-owned fallback |
 | Unsupported claims are refused | A deterministic prohibited-claim check plus a separate AI verification step; if verification cannot run, nothing is published |
 
+## Browser headers on the application sites
+
+`firebase.json` gives both application targets (`testing`, `production`) the
+same headers; `src/tests/hostingConfig.test.js` pins them.
+
+- **Framing is enforced.** `Content-Security-Policy: frame-ancestors 'self'` and
+  `X-Frame-Options: SAMEORIGIN`: no other site can show the app in a frame
+  (clickjacking), while the app's own pages may still frame each other. Nothing
+  legitimate frames the app from outside: there is no embed code for carriers,
+  and sign-in is email and password only, so Firebase's `/__/auth/iframe` is
+  never loaded. A future need to embed (a carrier's site showing `/apply`) means
+  adding that origin to `frame-ancestors` for those routes and deciding there
+  about `X-Frame-Options`, which can only say `SAMEORIGIN` or `DENY`: browsers
+  that read `frame-ancestors` ignore it, older ones would still refuse the frame.
+- **The full policy is report-only.** `Content-Security-Policy-Report-Only`
+  allows scripts only from the site itself and `connect.facebook.net`, and lists
+  every service the app calls (Firebase, Cloud Functions, Sentry, Facebook,
+  Google Sheets export, FMCSA Socrata). The browser blocks nothing; each
+  violation fires a `securitypolicyviolation` event, which
+  `src/lib/monitoring/cspViolations.js` sends to Sentry as a warning tagged
+  `csp_directive` / `csp_blocked` (origin only, never a path or query, once per
+  distinct violation, at most 20 per page load; browser extensions' own
+  violations are dropped). What Sentry adds on its own is cut from these
+  reports too: the page URL is reduced to its origin, and the Referer,
+  breadcrumbs and transaction name are removed, because on `/verify/:token` or
+  `/review-change/:token` they carry the token.
+- **Enforcing it is a separate, later change:** after it has run on Testing and
+  Production through normal use (sign-in, applications, uploads, E-Docs signing,
+  the Facebook connection, sheet imports), move the policy from
+  `Content-Security-Policy-Report-Only` into `Content-Security-Policy` only if
+  Sentry shows no `csp_disposition:report` events other than browser extensions.
+  A new external service must be added to the policy in the same change that
+  calls it; the hosting test reads the hardcoded addresses and fails otherwise.
+
 ## Related files
 
 - [`functions/environmentVault/`](../functions/environmentVault/) — configuration registry, guards, retrieval and audit
