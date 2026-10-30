@@ -15,8 +15,10 @@ const mocks = vi.hoisted(() => ({
   initSentry: vi.fn(),
   captureException: vi.fn(),
   installStaleBuildReload: vi.fn(),
+  reportCspViolations: vi.fn(),
 }));
 vi.mock('@lib/monitoring/sentry', () => ({ initSentry: mocks.initSentry }));
+vi.mock('@lib/monitoring/cspViolations', () => ({ reportCspViolations: mocks.reportCspViolations }));
 vi.mock('@sentry/react', () => ({ captureException: mocks.captureException }));
 vi.mock('./staleBuildReload', () => ({ installStaleBuildReload: mocks.installStaleBuildReload }));
 
@@ -27,6 +29,13 @@ describe('startup guards', () => {
 
   it('installs the stale-release reload as soon as it loads', () => {
     expect(mocks.installStaleBuildReload).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports CSP violations from the first module, so the startup error screen is covered', () => {
+    expect(mocks.reportCspViolations).toHaveBeenCalledTimes(1);
+    // One listener only: a second registration would send every violation twice.
+    const main = readFileSync(resolve(process.cwd(), 'src/main.jsx'), 'utf8');
+    expect(main).not.toContain('reportCspViolations');
   });
 
   it('shows the startup error screen, and reports the failure, when the config loader announces one', async () => {

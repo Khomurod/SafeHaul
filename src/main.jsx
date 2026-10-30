@@ -6,7 +6,6 @@ import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
 import { attachDeferredIntegrations, initSentry, whenIdle } from '@lib/monitoring/sentry';
-import { reportCspViolations } from '@lib/monitoring/cspViolations';
 import { capZoomOnIOS } from '@app/startup/viewportZoom';
 
 // The pdf.js worker wiring lives in `@lib/pdf/pdfWorker`, imported by the PDF
@@ -17,9 +16,6 @@ import { capZoomOnIOS } from '@app/startup/viewportZoom';
 // after the page has loaded and the browser is idle, so they stay out of the
 // first download (`src/lib/monitoring/sentry.js` explains and tests why).
 initSentry();
-// The Content Security Policy is report-only for now; its violations go to Sentry
-// so the policy can be proven before it is enforced (`cspViolations.js`).
-reportCspViolations();
 whenIdle(() => { attachDeferredIntegrations(); });
 // -------------------------------
 

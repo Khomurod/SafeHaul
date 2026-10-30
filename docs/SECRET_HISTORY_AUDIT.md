@@ -139,9 +139,16 @@ reason to take the disruption — and it is deliberately not automated.
 | `BULK_WORKER_SECRET` | **Reported by the owner on 2026-10-30; not yet confirmed** |
 | `FACEBOOK_VERIFY_TOKEN` | **Reported by the owner on 2026-10-30; not yet confirmed** |
 
-"Confirmed" needs evidence that never touches a value, the old one included:
-for the three server secrets, Secret Manager (project `truckerapp-system`) shows
-a version created after the leak dates and the older versions disabled or
-destroyed; for the Facebook app secret and access token, the Meta app dashboard
-shows the reset and the revoked token. Nobody tests an old credential to see
-whether it still works. Replace a row with the date once that is seen.
+"Confirmed" needs evidence that never touches a value, the old one included.
+Nobody tests an old credential to see whether it still works.
+
+- `FACEBOOK_APP_SECRET`: both the Meta app dashboard showing the reset and a
+  Secret Manager version (project `truckerapp-system`) created after it.
+- `VITE_FACEBOOK_ACCESS_TOKEN`: the Meta app dashboard showing the token revoked.
+- `BULK_WORKER_SECRET`, `FACEBOOK_VERIFY_TOKEN`: a Secret Manager version
+  created after the leak dates, with the older versions disabled or destroyed.
+- For every Secret Manager row, the Functions deploy that loaded the new
+  version (both bulk functions together; the Facebook functions), and for
+  `FACEBOOK_VERIFY_TOKEN` the updated webhook subscription in Meta.
+
+Replace a row with the date only once all of its evidence is seen.
