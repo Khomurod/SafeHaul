@@ -1170,6 +1170,12 @@ else number and time, and fails an undelivered text (reason, totals).
   page, is a deliberate later change; a new external service must be added to
   the policy when it is introduced. See
   [`docs/security-posture.md`](./security-posture.md).
+- **Only `/assets/**` is cached for long** (`Cache-Control: public,
+  max-age=31536000, immutable`): Vite names every file there by its content hash,
+  so a release changes the name. `index.html`, `/release.json` and
+  `/pdf.worker.min.mjs` keep their names and stay on Hosting's one-hour default,
+  since a long cache on them would hold browsers on an old build; nothing with a
+  fixed name goes under `/assets/`.
 - **The public site stays dependency-free**: no framework, no build step, no
   application or design-system imports. `web/privacy.html` ships no `<script>`
   at all, asserted by `src/tests/hostingConfig.test.js`.

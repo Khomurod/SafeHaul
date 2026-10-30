@@ -322,6 +322,60 @@ describe('firebase.json — application sites: framing and Content Security Poli
     });
 });
 
+describe('firebase.json — application sites: nosniff and long-lived build assets', () => {
+    const APP_TARGETS = ['testing', 'production'];
+    const IMMUTABLE = 'public, max-age=31536000, immutable';
+
+    function block(name, source) {
+        return target(name).headers?.find((entry) => entry.source === source);
+    }
+
+    function headerIn(name, source, key) {
+        return block(name, source)?.headers?.find((header) => header.key === key)?.value;
+    }
+
+    it.each(APP_TARGETS)('%s tells browsers not to guess content types', (name) => {
+        // Hosting already serves every built type correctly (`.js`, `.mjs`, `.css`,
+        // `.woff2`, `.json`, `.ico`, `.svg`, checked on Testing), so nothing the
+        // app loads can be refused for its type.
+        expect(headerIn(name, '**', 'X-Content-Type-Options')).toBe('nosniff');
+    });
+
+    it.each(APP_TARGETS)('%s lets browsers keep /assets/ files until a release replaces them', (name) => {
+        expect(headerIn(name, '/assets/**', 'Cache-Control')).toBe(IMMUTABLE);
+        // Its own rule, with nothing else in it, so it cannot change any other header.
+        expect(block(name, '/assets/**').headers).toHaveLength(1);
+    });
+
+    it.each(APP_TARGETS)('%s caches nothing else for long', (name) => {
+        // index.html, /release.json and /pdf.worker.min.mjs keep their names across
+        // releases, so they must stay on Hosting's one-hour default: a long cache
+        // on them would hold browsers on an old build.
+        for (const entry of target(name).headers) {
+            if (entry.source === '/assets/**') continue;
+            expect(entry.headers.map((header) => header.key)).not.toContain('Cache-Control');
+        }
+    });
+
+    it('applies the same rules to testing and production', () => {
+        expect(target('testing').headers).toEqual(target('production').headers);
+    });
+
+    it('puts only content-hashed files under /assets/', () => {
+        // The long cache is safe only because every file there changes its name
+        // when its content changes. Vite names them `[name]-[hash]` by default;
+        // a custom naming pattern must keep the hash, and nothing in public/ may
+        // land in /assets/ under a fixed name.
+        expect(existsSync(resolve(root, 'public/assets'))).toBe(false);
+        const vite = readFileSync(resolve(root, 'vite.config.js'), 'utf8');
+        for (const option of ['assetFileNames', 'chunkFileNames', 'entryFileNames']) {
+            const match = new RegExp(`${option}\\s*:\\s*['"\`]([^'"\`]+)`).exec(vite);
+            if (match) expect(match[1], option).toContain('[hash]');
+        }
+        expect(vite).not.toMatch(/assetsDir\s*:/);
+    });
+});
+
 describe('firebase.json — Firestore rules and indexes stay wired', () => {
     it('points at the committed rules and index files', () => {
         expect(config.firestore.rules).toBe('src/firestore.rules');

@@ -230,6 +230,10 @@ The cleanup procedure is in [`docs/ai-platform.md`](./ai-platform.md).
 `firebase.json` gives both application targets (`testing`, `production`) the
 same headers; `src/tests/hostingConfig.test.js` pins them.
 
+- **`X-Content-Type-Options: nosniff`** on every response: browsers use the
+  type Hosting declares instead of guessing one. Hosting declares every built
+  type correctly, `.mjs` included.
+
 - **Framing is enforced.** `Content-Security-Policy: frame-ancestors 'self'` and
   `X-Frame-Options: SAMEORIGIN`: no other site can show the app in a frame
   (clickjacking), while the app's own pages may still frame each other. Nothing
