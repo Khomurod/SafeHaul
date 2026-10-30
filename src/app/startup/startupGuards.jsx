@@ -11,6 +11,8 @@
  *   `main.jsx` never runs: show a screen instead of a blank page.
  * - Content Security Policy violations go to Sentry (`cspViolations.js`), on
  *   that screen too, which is why the one listener is registered here.
+ * - Every host but app.safehaul.io is marked noindex (`searchIndexing.js`),
+ *   that screen included.
  */
 import React from 'react';
 import { createRoot } from 'react-dom/client';
@@ -19,6 +21,7 @@ import { initSentry } from '@lib/monitoring/sentry';
 import { reportCspViolations } from '@lib/monitoring/cspViolations';
 import { STARTUP_FAILED_EVENT } from '@lib/runtime/startupFailure';
 import { installStaleBuildReload } from './staleBuildReload';
+import { keepNonCanonicalHostsOutOfSearch } from './searchIndexing';
 import { StartupErrorScreen } from './StartupErrorScreen';
 
 export function showStartupError(error, { root = document.getElementById('root') } = {}) {
@@ -28,6 +31,7 @@ export function showStartupError(error, { root = document.getElementById('root')
   createRoot(root).render(<StartupErrorScreen />);
 }
 
+keepNonCanonicalHostsOutOfSearch();
 reportCspViolations();
 installStaleBuildReload();
 window.addEventListener(STARTUP_FAILED_EVENT, (event) => showStartupError(event.detail?.error), { once: true });

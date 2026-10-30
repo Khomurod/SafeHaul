@@ -297,6 +297,13 @@ results. Cloning it onto `safehaul.io` would carry that header across and
 de-index the live site. `web/` is static, so deploying from the pinned commit is
 still exactly reproducible.
 
+The **application is cloned, so its two targets keep identical Hosting config**,
+headers included. Testing's own `noindex` therefore lives in the bundle: on any
+host but `app.safehaul.io` the app adds `<meta name="robots" content="noindex,
+nofollow">` (`src/app/startup/searchIndexing.js`). Never add an `X-Robots-Tag`
+header to the `testing` app target; the next promotion would de-index
+`app.safehaul.io`.
+
 ## Rolling back Production
 
 Rollback restores an exact previous release. Firebase keeps prior Hosting
