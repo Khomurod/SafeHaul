@@ -381,6 +381,7 @@ CI additionally runs `check:callable-contract`, `check:ai-boundary`,
 | Historical record reconstruction | [docs/application-record-reconstruction-runbook.md](docs/application-record-reconstruction-runbook.md) |
 | Design-system standard and open decisions | [docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md](docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md) · [src/design-system/README.md](src/design-system/README.md) |
 | Manual signing-room device QA | [docs/qa/edoc-mobile-document-first-qa.md](docs/qa/edoc-mobile-document-first-qa.md) |
+| Performance plan: tasks, progress checklist and owner decisions | [docs/performance-plan/README.md](docs/performance-plan/README.md) |
 
 ---
 
