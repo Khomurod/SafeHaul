@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useId } from 'react';
-import { collection, query, limit, getDocs, orderBy } from 'firebase/firestore';
-import { db } from '@lib/firebase';
+import React, { useState, useId } from 'react';
 import { Icon, CheckCircle2, AlertCircle, Clock, Search } from '@design-system/icons';
-import { Card, Badge, DataTable, Input, Label } from '@/design-system/components';
-import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { Card, Badge, Button, DataTable, Input, Label, Notice } from '@/design-system/components';
+import { useLoadMoreFocus } from '@shared/hooks/useLoadMoreFocus';
 import { sendResultOf } from '../constants/campaignConstants';
-import { E2E_SEED_LOGS } from './campaignLogsMock';
+import { useCampaignLogs } from '../hooks/useCampaignLogs';
 
 // An icon beside each result, so the status does not rest on colour alone.
 const RESULT_ICON = { success: CheckCircle2, danger: AlertCircle, warning: AlertCircle, info: Clock, neutral: Clock };
@@ -64,45 +62,30 @@ const RESULT_COLUMNS = [
     },
 ];
 
+const logError = (err) => console.error('Failed to fetch logs:', err);
+
 /** `refreshKey` reloads the log, as after a delivery check. */
 export function CampaignResultsTable({ companyId, campaignId, refreshKey = 0 }) {
-    const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const searchId = useId();
-    const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
+    const { logs, loading, total, hasMore, loadMore, loadingMore, loadMoreFailed } = useCampaignLogs({
+        companyId,
+        sessionId: campaignId,
+        refreshKey,
+        onError: logError,
+    });
+    const { buttonRef, doneRef, showDone, press } = useLoadMoreFocus({
+        resetKey: campaignId,
+        hasMore,
+        isLoadingMore: loadingMore,
+        loadMoreFailed,
+        loadedCount: logs.length,
+    });
 
-    useEffect(() => {
-        // A reload (refreshKey) can finish before the read it replaced: only the newest answer is shown.
-        let current = true;
-        const fetchLogs = async () => {
-            if (!companyId || !campaignId) {
-                setLoading(false);
-                return;
-            }
-            if (isE2ECampaignMock) {
-                setLogs(E2E_SEED_LOGS);
-                setLoading(false);
-                return;
-            }
-            try {
-                // Fetch last 100 logs
-                const q = query(
-                    collection(db, 'companies', companyId, 'bulk_sessions', campaignId, 'logs'),
-                    orderBy('timestamp', 'desc'),
-                    limit(200)
-                );
-                const snap = await getDocs(q);
-                if (current) setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-            } catch (err) {
-                console.error("Failed to fetch logs:", err);
-            } finally {
-                if (current) setLoading(false);
-            }
-        };
-        fetchLogs();
-        return () => { current = false; };
-    }, [companyId, campaignId, isE2ECampaignMock, refreshKey]);
+    const shown = logs.length.toLocaleString('en-US');
+    const shownLine = total === null
+        ? `Showing the newest ${shown} recipients.`
+        : `Showing the newest ${shown} of ${total.toLocaleString('en-US')} recipients.`;
 
     const filteredLogs = logs.filter(log =>
         log.recipientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -159,6 +142,32 @@ export function CampaignResultsTable({ companyId, campaignId, refreshKey = 0 }) 
                 getRowId={(log) => log.id}
                 empty={{ title: 'No recipients match your search.' }}
             />
+
+            {(hasMore || showDone) && (
+                <div className="flex flex-col gap-ds-2 border-t border-ds-border-subtle p-ds-4">
+                    {hasMore && (
+                        <Notice
+                            tone="info"
+                            size="sm"
+                            actions={(
+                                <Button ref={buttonRef} variant="secondary" size="sm" loading={loadingMore} onClick={press(loadMore)}>
+                                    Load more recipients
+                                </Button>
+                            )}
+                        >
+                            {`${shownLine}${searchTerm ? ' Search looks at these only.' : ''}`}
+                        </Notice>
+                    )}
+                    {hasMore && loadMoreFailed && (
+                        <p role="alert" className="text-ds-sm text-ds-status-danger-fg">More recipients could not be loaded.</p>
+                    )}
+                    {showDone && (
+                        <Notice ref={doneRef} tabIndex={-1} tone="info" size="sm">
+                            {`All ${(total ?? logs.length).toLocaleString('en-US')} recipients are shown.`}
+                        </Notice>
+                    )}
+                </div>
+            )}
         </Card>
     );
 }

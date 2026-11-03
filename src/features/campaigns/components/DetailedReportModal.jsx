@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import React, { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Icon, X, RotateCcw } from '@design-system/icons';
-import { db, functions } from '@lib/firebase';
+import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback';
+import { useLoadMoreFocus } from '@shared/hooks/useLoadMoreFocus';
 import { ConfirmDialog, Modal } from '@design-system/patterns';
-import { Badge, Button, DataTable, IconButton } from '@/design-system/components';
-import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { Badge, Button, DataTable, IconButton, Notice } from '@/design-system/components';
 import { sendResultOf } from '../constants/campaignConstants';
-import { E2E_SEED_LOGS } from './campaignLogsMock';
+import { useCampaignLogs } from '../hooks/useCampaignLogs';
 
 /** One row per recipient; the error detail wraps rather than widening the dialog. */
 const REPORT_COLUMNS = [
@@ -52,43 +51,28 @@ const REPORT_COLUMNS = [
 ];
 
 export default function DetailedReportModal({ companyId, sessionId, isOpen, onClose }) {
-    const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [retrying, setRetrying] = useState(false);
     // Replaces the blocking `window.confirm` on the retry action.
     const [pendingRetry, setPendingRetry] = useState(false);
     const { showSuccess, showError } = useToast();
-
-    useEffect(() => {
-        if (!isOpen || !companyId || !sessionId) return;
-
-        const fetchLogs = async () => {
-            if (isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock') {
-                setLogs(E2E_SEED_LOGS);
-                setLoading(false);
-                return;
-            }
-            try {
-                setLoading(true);
-                const logsRef = collection(db, 'companies', companyId, 'bulk_sessions', sessionId, 'logs');
-                const q = query(logsRef, orderBy('timestamp', 'desc'), limit(200));
-                const snapshot = await getDocs(q);
-
-                const fetchedLogs = snapshot.docs.map((docSnap) => ({
-                    id: docSnap.id,
-                    ...docSnap.data(),
-                }));
-                setLogs(fetchedLogs);
-            } catch (error) {
-                console.error('Error fetching logs:', error);
-                showError('Failed to load delivery details. Check permissions.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchLogs();
-    }, [isOpen, companyId, sessionId, showError]);
+    const { logs, loading, total, failedTotal, hasMore, loadMore, loadingMore, loadMoreFailed } = useCampaignLogs({
+        companyId,
+        sessionId,
+        enabled: isOpen,
+        countFailed: true,
+        onError: (err) => {
+            console.error('Error fetching logs:', err);
+            showError('Failed to load delivery details. Check permissions.');
+        },
+    });
+    const { buttonRef, doneRef, showDone, press } = useLoadMoreFocus({
+        // Closing the report starts it afresh, even when it reopens on the same session.
+        resetKey: isOpen ? sessionId : null,
+        hasMore,
+        isLoadingMore: loadingMore,
+        loadMoreFailed,
+        loadedCount: logs.length,
+    });
 
     /**
      * Retry used to be guarded by a blocking `window.confirm`. It now opens the
@@ -125,15 +109,21 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
         }
     };
 
-    const hasFailures = logs.some((log) => log.status === 'failed' || log.isSuccess === false);
+    // The server count covers failures beyond the rows shown; the rows are the
+    // fallback when the count fails.
+    const hasFailures = (failedTotal ?? 0) > 0 || logs.some((log) => log.status === 'failed' || log.isSuccess === false);
 
     if (!isOpen) return null;
 
+    const shown = logs.length.toLocaleString('en-US');
     // The table announces its loading and empty states; this announces the count
     // once the records are in, without reading out any recipient's data.
-    const loadedAnnouncement = !loading && logs.length > 0
-        ? `${logs.length} delivery ${logs.length === 1 ? 'record' : 'records'} loaded`
-        : '';
+    let loadedAnnouncement = '';
+    if (!loading && logs.length > 0) {
+        loadedAnnouncement = total > logs.length
+            ? `${shown} of ${total.toLocaleString('en-US')} delivery records loaded`
+            : `${shown} delivery ${logs.length === 1 ? 'record' : 'records'} loaded`;
+    }
 
     return (
         <Modal
@@ -178,6 +168,30 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
                     loadingLabel="Loading delivery details"
                     empty={{ title: 'No activity logs found. Ensure permissions are set.' }}
                 />
+
+                {hasMore && (
+                    <Notice
+                        tone="info"
+                        size="sm"
+                        actions={(
+                            <Button ref={buttonRef} variant="secondary" size="sm" loading={loadingMore} onClick={press(loadMore)}>
+                                Load more records
+                            </Button>
+                        )}
+                    >
+                        {total === null
+                            ? `Showing the newest ${shown} delivery records.`
+                            : `Showing the newest ${shown} of ${total.toLocaleString('en-US')} delivery records.`}
+                    </Notice>
+                )}
+                {hasMore && loadMoreFailed && (
+                    <p role="alert" className="text-ds-sm text-ds-status-danger-fg">More delivery records could not be loaded.</p>
+                )}
+                {showDone && (
+                    <Notice ref={doneRef} tabIndex={-1} tone="info" size="sm">
+                        {`All ${(total ?? logs.length).toLocaleString('en-US')} delivery records are shown.`}
+                    </Notice>
+                )}
 
                 <div className="flex justify-end">
                     <Button variant="primary" size="md" onClick={onClose}>

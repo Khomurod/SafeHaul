@@ -13,7 +13,10 @@ const fs = vi.hoisted(() => ({
     query: vi.fn((ref, ...constraints) => ({ ref, constraints })),
     orderBy: vi.fn((field, direction) => ({ __orderBy: [field, direction] })),
     limit: vi.fn((n) => ({ __limit: n })),
+    startAfter: vi.fn((cursor) => ({ __startAfter: cursor })),
+    where: vi.fn((field, op, value) => ({ __where: [field, op, value] })),
     getDocs: vi.fn(),
+    getCountFromServer: vi.fn(async () => ({ data: () => ({ count: 0 }) })),
 }));
 
 vi.mock('firebase/firestore', () => fs);

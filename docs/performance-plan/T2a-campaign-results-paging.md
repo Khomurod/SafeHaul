@@ -106,12 +106,18 @@
 
 ## Done when (acceptance criteria)
 
-- [ ] Both screens show "Showing the newest N of M …" whenever M > N, nothing extra when everything fits in the first read, and "All M … are shown." (focused) only after the user loaded the last page.
-- [ ] Load more appends the next 200 (5 in the paged fixture) with no duplicates; a reload after Check delivery keeps the rows already shown and shows neither the loading nor the empty state.
-- [ ] Opening the report never shows its empty message before the first read settles.
-- [ ] Retry appears whenever the server count of failed logs is above 0, even when the 200 shown all succeeded.
-- [ ] Load more never drops keyboard focus to `<body>` (browser tests).
-- [ ] The stale "last 100" comment is gone.
-- [ ] New and updated unit tests pass; the two "fails before" tests were seen failing first.
+- [x] Both screens show "Showing the newest N of M …" whenever M > N, nothing extra when everything fits in the first read, and "All M … are shown." (focused) only after the user loaded the last page.
+- [x] Load more appends the next 200 (5 in the paged fixture) with no duplicates; a reload after Check delivery keeps the rows already shown and shows neither the loading nor the empty state.
+- [x] Opening the report never shows its empty message before the first read settles.
+- [x] Retry appears whenever the server count of failed logs is above 0, even when the 200 shown all succeeded.
+- [x] Load more never drops keyboard focus to `<body>` (browser tests).
+- [x] The stale "last 100" comment is gone.
+- [x] New and updated unit tests pass; the two "fails before" tests were seen failing first.
 - [ ] The listed Playwright suites pass (chromium, and mobile-chrome for `@mobile` tests); visual baselines unchanged.
 - [ ] APP_BRIEF §8 updated; the PR starts with Кратко and states "no index, rules or CSP change".
+
+As done (2026-11-03, batch B). Every file:line above was re-checked at `64c2695`: the code and test lines have not moved since `11626a6`. Only the docs moved: in `e2e/visual/app.spec.cjs` the two screens are now at `:300` and `:317`, and in the brief §4 "Bulk SMS / email campaigns" is at 327-329, §8 "Bulk campaigns" at 1053-1066 and the §12 Unfinished line at 1300-1303. Context7 answered (`/firebase/firebase-js-sdk`): `startAfter(snapshot)` continues after that exact document (its key is part of the cursor), and `getCountFromServer` counts on the server without reading the documents. Adapted:
+- `useCampaignLogs` keeps the Firestore reads and the E2E fixture behind one small "source" (`readPage`, `countAll`, `countFailed`), so the paging logic is the same in both. The report's `useLoadMoreFocus` takes `resetKey: isOpen ? sessionId : null`, not `sessionId`: reopening the same session then starts without a stale "All … shown" line. The failure line sits beside the Notice, on the card or dialog surface (as in `ActivityHistoryTab`), not inside the info tint. Both components grew a little (164 → 173 and 208 → 222 lines): the notices outweigh the read code they lost.
+- Before the change, the two "fails before" tests failed for the stated reason: no "Showing the newest 200 of 450 recipients." text, and no "Retry Failed Requests" button. "The first render after it opens" failed too: the empty message was painted on reopening. Mutations were tried and undone: with the read counter, the dedupe and the reload size removed together, four hook and table tests fail; without the render-time `loading`, both first-render tests fail; without the focus move, both browser focus tests fail at the "All 12 … are shown." line.
+- Checks: `test:coverage` passed (517 files, 7578 passed, 83 skipped). Lint (0 errors, no warning in a changed file), typecheck, build, bundle budget, `check:source-size`, `test:stories` (555), `check:agent-docs`, `check:ci-plan`, `check:public-claims`, `check:ai-boundary`, `check:function-exports` and the callable contract passed. Playwright on `chromium`: `campaign-results-table` 6 passed (2 `@mobile` skipped), `campaign-report-modal` 7 passed (1 skipped), `campaign-details` 4, `campaigns-dashboard` 5 (1 skipped), `table-layout` 54, `a11y` 12; on `mobile-chrome`: 2 and 2. Desktop 1440 and phone 412 were looked at on the paged fixture: no horizontal overflow, Tab reaches Load more with a visible ring, focus returns to it after a page and lands on "All … shown" after the last one. Not run: `test:visual`, because the pinned browser (revision 1248) is not on this machine; the default fixture shows 12 of 12, so no notice and no baseline change is expected, and CI's `app-visual` lane decides. `check:visual-contract` and `check:table-layout` measure design-system stories, which this task does not change. `test:rules` and the `functions/` tests: no rules or backend change.
+- Open boxes: the visual baselines wait for CI's `app-visual` lane; the PR text (Кратко, "no index, rules or CSP change") belongs to the batch PR's description. The brief was already over its size warning before this change (1,518 lines, 97,763 bytes); the new sentence adds three lines.

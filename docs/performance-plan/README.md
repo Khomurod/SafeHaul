@@ -61,7 +61,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [x] **T1-F** · Запрашивать код анкеты сразу при запуске (итог T1: GO, около 0,7 с) · *Request the `/apply` route code during start-up* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
    - [x] **T3-static** · Нейтральная заставка в `index.html` вместо белого экрана (итог T1: GO; Р7: да) · *Neutral static placeholder in `index.html`* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
 2. **Постраничная загрузка / Paginate results (#5)**
-   - [ ] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: — · Дата: —
+   - [x] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: пакет B · Дата: 2026-11-03
    - [ ] **T2b** · E-Docs: грузить только последние конверты, счётчики с сервера · *Load only recent envelopes in E-Docs* → [T2b](T2b-edocs-recent-envelopes.md) · PR: — · Дата: —
    - [ ] **T2c** · Ограничить списки кампаний, итоги остаются верными · *Limit the Campaigns lists* → [T2c](T2c-campaigns-lists-limit.md) · PR: — · Дата: —
    - [ ] **T2d** · (необязательно) Свои напоминания не пропадают из колокольчика · *(optional) Keep own reminders in the notification bell* → [T2d](T2d-notification-bell-reminders.md) · PR: — · Дата: —

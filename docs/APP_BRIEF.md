@@ -1064,6 +1064,9 @@ closed on a bad number) and every email with a usable one; no reply fills them (
 An SMS logs as sent once RingCentral accepts it; a check (also
 `checkCampaignDelivery`) reads the line's message store (Read Messages) by id,
 else number and time, and fails an undelivered text (reason, totals).
+The recipient log and the Delivery Report read 200 logs at a time, newest first,
+and say how many exist (a server count); Retry Failed is offered when any log
+failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 
 ---
 
