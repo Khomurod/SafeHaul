@@ -652,6 +652,6 @@
 - [x] §5 gives T3, earlier `/apply` code download, M4 and M5 each a verdict, the measured value and the rule applied, with borderline cases marked.
 - [x] No `/sign`, `/verify`, `/review-change` or invite/recruiter/referral URL was loaded on a live site. At most 27 Lighthouse loads of Testing and 5 PSI calls were made.
 - [x] The harness was stopped (port check prints `000`) and `key.pem` deleted.
-- [x] The scrub greps pass. No screenshots, raw JSON, slugs, company names, driver data or tokens are in the repository.
+- [x] The scrub greps pass. No real screenshots, raw JSON, slugs, company names, driver data or tokens are in the repository; synthetic E2E fixture data and mock tokens such as `e2e-token` may appear.
 - [x] `README.md` has the new row. `git status` showed only the two docs files.
 - [x] One PR is open, starting with "Кратко", with an honest Evidence table. The owner received the verdicts in Russian.

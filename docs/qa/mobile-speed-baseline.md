@@ -202,7 +202,9 @@ folder `PERF`, never in the repository, and every command starts with `source <P
    `curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1:4320` prints `000`.
 2. **Static bytes.** Run `npm run build > "$PERF/build.log" 2>&1`, then
    `npm run check:bundle-budget | tee "$PERF/budget.txt"`, then `gzip -c dist/pdf.worker.min.mjs | wc -c`.
-   If `git status --short` shows `public/pdf.worker.min.mjs`, run `git checkout -- public/pdf.worker.min.mjs`.
+   Before the build, `git status --short -- public/pdf.worker.min.mjs` must print nothing; if it does, stop
+   and keep your own edit. Only a change the build itself made may be undone afterwards, with
+   `git checkout -- public/pdf.worker.min.mjs`.
 3. **E2E-mode build into the scratchpad.** Run
    `env VITE_E2E_TEST_MODE=1 VITE_FIREBASE_API_KEY= VITE_FIREBASE_AUTH_DOMAIN= VITE_FIREBASE_PROJECT_ID= VITE_FIREBASE_STORAGE_BUCKET= VITE_FIREBASE_MESSAGING_SENDER_ID= VITE_FIREBASE_APP_ID= VITE_FACEBOOK_APP_ID= VITE_SENTRY_DSN= VITE_SUPER_ADMIN_EMAIL= VITE_DRIVER_APP_URL= VITE_SOCRATA_APP_TOKEN= npx vite build --outDir "$PERF/dist-e2e" --emptyOutDir`.
 4. **Harness.** Create a throwaway EC P-256 certificate for `IP:127.0.0.1` with `openssl req -x509 …`,
@@ -320,6 +322,7 @@ lhrun() {
   "${LH[@]}" "$url" "${COMMON[@]}" --throttling-method="$method" "$@" --output-path="$PERF/raw/$group$SUFFIX-$n.json"
   local rc=$?
   echo "$(date -u +%FT%TZ) $group$SUFFIX-$n rc=$rc"
+  return "$rc"
 }
 ```
 
@@ -328,7 +331,7 @@ lhrun() {
 ```bash
 #!/usr/bin/env bash
 # Local harness only. Usage: bash run-local.sh <PERF dir>
-set -u
+set -eu  # a failed Lighthouse run (lhrun returns its status) stops the series
 source "$1/env.sh"; source "$PERF/lh.sh"
 [[ -n "${SPKI:-}" ]] || { echo "SPKI missing from env.sh"; exit 2; }
 curl -sk -o /dev/null "$L/login" || { echo "harness not running"; exit 2; }
@@ -349,7 +352,7 @@ echo DONE
 ```bash
 #!/usr/bin/env bash
 # Testing, read-only pages only. Usage: bash run-testing.sh <PERF dir> [sim-runs] [dt-runs] [first-run-number]
-set -u
+set -eu  # a failed Lighthouse run (lhrun returns its status) stops the series
 source "$1/env.sh"; source "$PERF/lh.sh"
 SIM="${2:-5}"; DT="${3:-3}"; FROM="${4:-1}"
 [[ "$T" == "https://truckerapp-system.web.app" ]] || { echo "T must be Testing"; exit 2; }
@@ -378,7 +381,8 @@ const spread = (xs) => Math.max(...xs) - Math.min(...xs);
 const groups = new Map();
 for (const file of readdirSync(dir).filter((f) => /-\d+\.json$/.test(f) && !f.startsWith('psi-'))) {
   const lhr = JSON.parse(readFileSync(join(dir, file), 'utf8'));
-  if (lhr.runtimeError) { console.log(`${file}: runtimeError ${lhr.runtimeError.code}`); continue; }
+  // A failed run makes the whole sample invalid: stop instead of taking a median of fewer runs.
+  if (lhr.runtimeError) { console.error(`${file}: runtimeError ${lhr.runtimeError.code}`); process.exit(1); }
   const a = lhr.audits;
   const num = (id) => a[id]?.numericValue;
   const rs = Object.fromEntries(a['resource-summary'].details.items.map((i) => [i.resourceType, i]));
@@ -453,9 +457,12 @@ const j = JSON.parse(require('node:fs').readFileSync(process.argv[2], 'utf8'));
 if (j.error) { console.log('error', j.error.code, j.error.message); process.exit(0); }
 const l = j.lighthouseResult;
 const v = (id) => Math.round(l.audits[id].numericValue * 1000) / 1000;
-const field = j.originLoadingExperience?.metrics
-  ? Object.fromEntries(Object.entries(j.originLoadingExperience.metrics).map(([k, m]) => [k, m.percentile]))
-  : 'no field data';
+// URL-level field data first; the origin aggregate only when the URL has none, and labelled so.
+const pick = (exp) => (exp?.metrics
+  ? Object.fromEntries(Object.entries(exp.metrics).map(([k, m]) => [k, m.percentile]))
+  : null);
+const field = pick(j.loadingExperience)
+  ?? (pick(j.originLoadingExperience) ? { origin: pick(j.originLoadingExperience) } : 'no field data');
 console.log(JSON.stringify({
   lighthouse: l.lighthouseVersion, bench: l.environment.benchmarkIndex,
   fcp: v('first-contentful-paint'), lcp: v('largest-contentful-paint'),
