@@ -343,3 +343,12 @@ Not part of any task above. Each needs its own task if the owner wants it.
     refuse to save for a deleted or deleting application, for example through a
     deletion marker that `preserveApplicationPdf` checks. M7b's own check-back
     narrows its part of the window only.
+12. **A failed Firebase config leaves a blank page in the built app**, not the
+    "This page could not load" screen `docs/APP_BRIEF.md` promises. The build
+    inlines `src/app/startup/startupGuards.jsx` into the entry chunk, and
+    `src/lib/firebase/config.js` (top-level await on `/__/firebase/init.json`)
+    is a separate chunk the entry imports, so it runs first; when it rejects,
+    the guard's listener is never registered. Reproduced on `e3ec172` with
+    `vite preview` and a 503 for `init.json` (found during T1-F).
+    `startupGuards.test.jsx` checks source order, not the bundled order.
+    *Recommended:* a separate small task with a built-app test.
