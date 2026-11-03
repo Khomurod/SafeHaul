@@ -88,7 +88,7 @@ Each can be done on its own, or when someone next changes that part of the app.
   - [ ] **M1a** · Кэш команды: имена по общему правилу, одно чтение · *Team cache: shared naming rule, one read* → [M1a](M1a-team-cache-names.md) · PR: — · Дата: —
   - [ ] **M1b** · Assign Leads и Import Leads: команда одним запросом · *Assign/Import Leads read the team in one request* → [M1b](M1b-assign-import-team-read.md) · PR: — · Дата: —
   - [ ] **M1c** · Настройки команды: все дневные цели одним запросом · *Team settings: every daily goal in one request* → [M1c](M1c-team-goals-read.md) · PR: — · Дата: —
-  - [ ] **M2a** · Заметки в досье: история из уже загруженной записи · *Dossier Notes reuse the loaded record* → [M2a](M2a-notes-shared-history.md) · PR: — · Дата: —
+  - [x] **M2a** · Заметки в досье: история из уже загруженной записи · *Dossier Notes reuse the loaded record* → [M2a](M2a-notes-shared-history.md) · PR: #557 · Дата: 2026-11-03
   - [ ] **M2b** · Файлы досье: подписанная ссылка живёт 10 минут · *Dossier files reuse a signed link for ten minutes* → [M2b](M2b-signed-link-reuse.md) · PR: — · Дата: —
   - [ ] **M3a** · Комната подписи: независимые шаги сервера параллельно · *Signing room: independent server steps in parallel* → [M3a](M3a-signing-room-parallel.md) · PR: — · Дата: —
   - [ ] **M3b** · Запуск кампании: проверки параллельно · *Campaign launch checks in parallel* → [M3b](M3b-campaign-launch-parallel.md) · PR: — · Дата: —

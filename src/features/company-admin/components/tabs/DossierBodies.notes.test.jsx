@@ -1,5 +1,7 @@
 // Dossier tab bodies contract, part 3 of 4: `NotesTab` — the read contract
 // (paths, anonymisation, sanitisation, merge-and-sort) and the write contract.
+// The shared history arrives as a prop, from the record the dossier has
+// already read; the tab never reads that record itself.
 // The shared harness — mock state, factories, fixtures and render builders —
 // lives in `DossierBodies.contract.support.jsx`; the registrations below
 // delegate to it. See that file's header for the scope of this freeze.
@@ -26,7 +28,12 @@ import {
 
 const renderNotes = makeRenderNotes(NotesTab);
 
-beforeEach(resetHarness);
+// This file queues `*Once` values, so it resets rather than only clearing
+// (`.claude/rules/testing.md`); the harness then puts every default back.
+beforeEach(() => {
+    vi.resetAllMocks();
+    resetHarness();
+});
 
 describe('NotesTab — read contract', () => {
     it('reads internal notes from the frozen sub-collection path', async () => {
@@ -59,47 +66,76 @@ describe('NotesTab — read contract', () => {
     });
 
     it('anonymises shared history and marks it as such', async () => {
-        fs.getDoc.mockResolvedValue({
-            exists: () => true,
-            data: () => ({ sharedHistory: [{ text: 'Prior note', date: '2026-01-01T00:00:00.000Z' }] }),
-        });
-        renderNotes();
+        renderNotes({ sharedHistory: [{ text: 'Prior note', date: '2026-01-01T00:00:00.000Z' }] });
 
         expect(await screen.findByText('Previous Recruiter')).toBeInTheDocument();
         expect(screen.getByText('Shared History')).toBeInTheDocument();
         expect(screen.getByText('Prior note')).toBeInTheDocument();
     });
 
+    it('sanitises shared history before showing it', async () => {
+        renderNotes({ sharedHistory: [{ text: '<script>alert(1)</script>Prior note', date: '2026-01-01T00:00:00.000Z' }] });
+
+        expect(await screen.findByText('Prior note')).toBeInTheDocument();
+        expect(screen.queryByText(/alert\(1\)/)).not.toBeInTheDocument();
+    });
+
     it('sorts local and shared notes newest first', async () => {
         fs.getDocs.mockResolvedValue(snap([
             ['n1', { text: 'older local', author: 'A', createdAt: { seconds: 1000 } }],
         ]));
-        fs.getDoc.mockResolvedValue({
-            exists: () => true,
-            data: () => ({ sharedHistory: [{ text: 'newer shared', date: new Date(5_000_000).toISOString() }] }),
-        });
-        renderNotes();
+        renderNotes({ sharedHistory: [{ text: 'newer shared', date: new Date(5_000_000).toISOString() }] });
 
         await screen.findByText('newer shared');
         const rendered = screen.getAllByText(/older local|newer shared/).map((n) => n.textContent);
         expect(rendered).toEqual(['newer shared', 'older local']);
+    });
+
+    it.each([
+        ['an object', { text: 'not a list' }],
+        ['a string', 'not a list'],
+    ])('ignores a shared history that is %s and still shows the local notes', async (_kind, sharedHistory) => {
+        fs.getDocs.mockResolvedValue(snap([
+            ['n1', { text: 'local note', author: 'A', createdAt: { seconds: 1000 } }],
+        ]));
+        renderNotes({ sharedHistory });
+
+        expect(await screen.findByText('local note')).toBeInTheDocument();
+        expect(screen.queryByText('Previous Recruiter')).not.toBeInTheDocument();
+        expect(screen.queryByText('Shared History')).not.toBeInTheDocument();
     });
 });
 
 describe('NotesTab — reads', () => {
     const NOTE = ['n1', { text: 'Called back about the start date', author: 'Test Recruiter', createdAt: { seconds: 1_800_000_000 } }];
 
-    it('reads the notes, the shared history and the writer’s name side by side', async () => {
+    it('reads the notes and the writer’s name side by side, and not the record again', async () => {
         let releaseNotes;
         fs.getDocs.mockImplementation(() => new Promise((resolve) => { releaseNotes = resolve; }));
         renderNotes();
 
         await waitFor(() => expect(fs.getDocs).toHaveBeenCalledTimes(1));
-        expect(fs.getDoc).toHaveBeenCalledTimes(1);
         expect(getPortalUser).toHaveBeenCalledWith('user-1');
 
         releaseNotes(snap([NOTE]));
         expect(await screen.findByText('Called back about the start date')).toBeInTheDocument();
+        // The dossier has already read the record and hands its shared history
+        // in; the notes are read once, not again when the tab re-renders.
+        expect(fs.getDoc).not.toHaveBeenCalled();
+        expect(fs.getDocs).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not read the notes again when the dossier re-renders with the same history', async () => {
+        const sharedHistory = [{ text: 'Prior note', date: '2026-01-01T00:00:00.000Z' }];
+        fs.getDocs.mockResolvedValue(snap([NOTE]));
+        const { rerender } = renderNotes({ sharedHistory });
+        expect(await screen.findByText('Prior note')).toBeInTheDocument();
+
+        rerender(<NotesTab companyId="co-1" applicationId="app-1" sharedHistory={sharedHistory} />);
+
+        expect(await screen.findByText('Called back about the start date')).toBeInTheDocument();
+        expect(fs.getDocs).toHaveBeenCalledTimes(1);
+        expect(fs.getDoc).not.toHaveBeenCalled();
     });
 
     it('shows the notes when the writer’s name cannot be read', async () => {

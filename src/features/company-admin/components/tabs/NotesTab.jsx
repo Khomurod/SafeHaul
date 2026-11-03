@@ -1,6 +1,6 @@
 import React, { useId, useRef, useState, useEffect } from 'react';
 import { db, auth } from '@lib/firebase';
-import { collection, query, orderBy, getDocs, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { getPortalUser } from '@features/auth/services/userService';
 import { Icon, Send, MessageSquare, Clock, History } from '@design-system/icons';
 import { logActivity } from '@shared/utils/activityLogger';
@@ -17,8 +17,9 @@ import { EmptyState, LoadingState } from '@design-system/patterns';
  *
  * Presentation only. Frozen and unchanged: the
  * `companies/{companyId}/{collectionName}/{applicationId}/internal_notes` path and
- * its `orderBy('createdAt', 'desc')`; the parent-document `sharedHistory` read and
- * its anonymisation to `"Previous Recruiter"`; `sanitizeUserContent` on every
+ * its `orderBy('createdAt', 'desc')`; the record's `sharedHistory`, passed in from
+ * the dossier's own read (the tab does not read the record again), and its
+ * anonymisation to `"Previous Recruiter"`; `sanitizeUserContent` on every
  * stored and displayed note; the merge-and-sort rule and its three timestamp
  * shapes (Firestore `seconds`, `Date`, ISO string); the written note shape
  * (`text`, `author`, `serverTimestamp()`, `type: 'note'`); the
@@ -49,7 +50,7 @@ import { EmptyState, LoadingState } from '@design-system/patterns';
  *     slot look alike, and the empty one is announced when the notes finish
  *     loading instead of appearing silently.
  */
-export function NotesTab({ companyId, applicationId, collectionName = 'applications' }) {
+export function NotesTab({ companyId, applicationId, collectionName = 'applications', sharedHistory }) {
     const [notes, setNotes] = useState([]);
     const [newNote, setNewNote] = useState('');
     const [loading, setLoading] = useState(true);
@@ -68,9 +69,9 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
     useEffect(() => {
         async function init() {
             setLoading(true);
-            // The notes, the shared history and the writer's name are read side
-            // by side. The name settles on its own, so failing to read it leaves
-            // the notes on screen, as when it was read after them.
+            // The notes and the writer's name are read side by side. The name
+            // settles on its own, so failing to read it leaves the notes on
+            // screen, as when it was read after them.
             const writerRead = auth.currentUser
                 ? getPortalUser(auth.currentUser.uid).then((profile) => ({ profile }), (error) => ({ error }))
                 : null;
@@ -78,10 +79,7 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                 // 1. Fetch Local Internal Notes (Your company's private notes)
                 const notesRef = collection(db, "companies", companyId, collectionName, applicationId, "internal_notes");
                 const q = query(notesRef, orderBy("createdAt", "desc"));
-                // 2. Fetch Shared History (Anonymized notes from previous companies)
-                // These live on the parent document in the 'sharedHistory' array
-                const parentDocRef = doc(db, "companies", companyId, collectionName, applicationId);
-                const [snapshot, parentSnap] = await Promise.all([getDocs(q), getDoc(parentDocRef)]);
+                const snapshot = await getDocs(q);
 
                 const localNotes = snapshot.docs.map(doc => ({
                     id: doc.id,
@@ -90,19 +88,19 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                     isLocal: true
                 }));
 
-                let sharedNotes = [];
-                if (parentSnap.exists() && parentSnap.data().sharedHistory) {
-                    const history = parentSnap.data().sharedHistory || [];
-                    sharedNotes = history.map((item, index) => ({
-                        id: `shared_${index}`,
-                        text: sanitizeUserContent(item.text || ''),
-                        author: "Previous Recruiter", // Anonymized
-                        createdAt: item.date, // Timestamp from backend
-                        type: 'note',
-                        isLocal: false, // Mark as shared/imported
-                        isShared: true
-                    }));
-                }
+                // 2. Shared History (Anonymized notes from previous companies).
+                // They live on the record in its 'sharedHistory' array, which the
+                // dossier has already read and passes in.
+                const history = Array.isArray(sharedHistory) ? sharedHistory : [];
+                const sharedNotes = history.map((item, index) => ({
+                    id: `shared_${index}`,
+                    text: sanitizeUserContent(item.text || ''),
+                    author: "Previous Recruiter", // Anonymized
+                    createdAt: item.date, // Timestamp from backend
+                    type: 'note',
+                    isLocal: false, // Mark as shared/imported
+                    isShared: true
+                }));
 
                 // 3. Merge and Sort by Date (Newest First)
                 const allNotes = [...localNotes, ...sharedNotes].sort((a, b) => {
@@ -130,7 +128,7 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
             }
         }
         init();
-    }, [companyId, applicationId, collectionName]);
+    }, [companyId, applicationId, collectionName, sharedHistory]);
 
     const handleSend = async (e) => {
         e.preventDefault();

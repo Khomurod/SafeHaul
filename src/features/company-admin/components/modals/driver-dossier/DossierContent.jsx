@@ -15,7 +15,8 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
  *
  * Presentation uses `--ds-*` tokens. Frozen contracts: every prop handed to
  * every tab, the lazy-loading split, and the `'application' | 'documents' | 'dq'
- * | 'pev' | 'activity' | 'notes'` routing values.
+ * | 'pev' | 'activity' | 'notes'` routing values. Notes also receives the
+ * record's `sharedHistory` from `appData`, so it does not read the record again.
  *
  * The lazy-tab loading fallback is a `role="status"` region, so switching to
  * Previous Employment, Activity or Notes is announced while the chunk
@@ -95,6 +96,7 @@ export function DossierContent({
                             companyId={companyId}
                             applicationId={driverId}
                             collectionName={collectionName}
+                            sharedHistory={appData?.sharedHistory}
                         />
                     </Suspense>
                 );

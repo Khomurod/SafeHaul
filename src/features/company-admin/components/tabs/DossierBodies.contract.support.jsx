@@ -13,7 +13,8 @@
  *  - Activity: the `leads`/`applications` collection normalisation, the
  *    `activity_logs` path and ordering, the five filter rules, and the
  *    Today/Yesterday/Recent grouping.
- *  - Notes: the `internal_notes` path, the `sharedHistory` anonymisation,
+ *  - Notes: the `internal_notes` path, the anonymisation of the `sharedHistory`
+ *    it is given (the dossier passes the record's own; the tab never reads it),
  *    `sanitizeUserContent` on read and write, the merge-and-sort rule, the written
  *    note shape and the `logActivity` truncation rule.
  *
