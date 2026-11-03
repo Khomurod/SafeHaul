@@ -9,9 +9,9 @@ const meta = {
     docs: {
       description: {
         component: [
-          '**Status: Needs review.** Added for the company dashboard\'s counts (through',
-          '`MetricCard loading`). It stays **Needs review** until its pixel baselines are',
-          'taken from CI and looked at on a desktop (1440) and a phone (412).',
+          '**Status: Approved.** Added for the company dashboard\'s counts (through',
+          '`MetricCard loading`). Its pixel baselines came from CI (run 41659416292) and',
+          'were looked at on a desktop (1440) and a phone (412) on 2026-11-03.',
           '',
           '### Intended use',
           '',
