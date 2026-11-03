@@ -112,6 +112,12 @@ PR 1 — `Skeleton`, `MetricCard loading`, company dashboard
     - От вас: после слияния откройте главную страницу компании на Testing и посмотрите, что «0» больше не мелькает.
     In "What it touches": None. Name the remaining old approach: Super Admin `DashboardView.jsx:56` `'...'`, `DataTable`'s private skeleton rows, and the spinner loaders elsewhere.
 
+PR 1 as done (2026-11-03, batch PR #557). Every file:line above was re-checked at `6118b20`: only docs changed since `11626a6`. Adapted:
+- Step 3: measured choice buttons 103.5px and 123px at 412×915, 145.5px (both) at 1440×900, so `block` `lg` is 152px.
+- Step 10: the roadmap had one line to spare (559 of 560), so the §3 bullet names the card-group announcement only; the page example (a hidden `<h1>` in a polite status) is in `skeleton/README.md`, and PR 2 adds it to §3 with its consumer. §3 dropped the `(@design-system/patterns)` import path to fit.
+- The story status is **Needs review** until CI's baselines are pulled and looked at.
+- Step 11, pixel lane: run locally under the pinned Chromium (1248) with `--update-snapshots=none`, 280 of 300 baseline shots also differ on the unmodified tree, so this machine cannot judge baselines. Comparing the branch's renders with the base's in the same environment, only `company-dashboard-{desktop,mobile}` differ, and only in the greeting line. The four new and two changed PNGs must still come from CI (`screenshots:pull`); that Done-when box stays open. `check:visual-contract` passed unchanged locally under 1248.
+
 PR 2 — one placeholder for the driver apply page
 
 13. Branch from the updated `main`. Tell the owner in at most three Russian lines: «Водитель, открывший ссылку на анкету, увидит одну серую заготовку страницы вместо трёх надписей «Loading». Сама анкета, данные и другие страницы не меняются. Самое первое мгновение, пока скачивается код, останется как есть.»
@@ -224,13 +230,13 @@ PR 2 — one placeholder for the driver apply page
 
 ## Done when (acceptance criteria)
 
-- [ ] PR 1: `Skeleton` exists in `src/design-system/components/skeleton/` with README, unit + axe tests, a production-fallback case and a catalog story; it is always `aria-hidden`, has only the widths and heights its consumers use, and stops pulsing under reduced motion.
-- [ ] PR 1: `MetricCard loading` keeps the card's height and its button, is named by its label, carries `aria-busy="true"`, and renders exactly as before when not loading.
-- [ ] PR 1: `useDashboardCounts` returns `loading`, never another company's numbers, and `counts === null` until read; the dashboard shows placeholders while loading and "—" after a failed first load — no "0" that was not read (proved by the new tests, which failed before the change).
-- [ ] PR 1: the greeting never shows "Admin User"; a failed name lookup leaves "Welcome back" with no unhandled rejection.
-- [ ] PR 1: `CompanyAdminDashboard.reads.test.jsx` unchanged and green (no new read); no Firestore index, rules, Functions, CSP or flag change.
+- [x] PR 1: `Skeleton` exists in `src/design-system/components/skeleton/` with README, unit + axe tests, a production-fallback case and a catalog story; it is always `aria-hidden`, has only the widths and heights its consumers use, and stops pulsing under reduced motion.
+- [x] PR 1: `MetricCard loading` keeps the card's height and its button, is named by its label, carries `aria-busy="true"`, and renders exactly as before when not loading.
+- [x] PR 1: `useDashboardCounts` returns `loading`, never another company's numbers, and `counts === null` until read; the dashboard shows placeholders while loading and "—" after a failed first load — no "0" that was not read (proved by the new tests, which failed before the change).
+- [x] PR 1: the greeting never shows "Admin User"; a failed name lookup leaves "Welcome back" with no unhandled rejection.
+- [x] PR 1: `CompanyAdminDashboard.reads.test.jsx` unchanged and green (no new read); no Firestore index, rules, Functions, CSP or flag change.
 - [ ] PR 1: new catalog baselines `skeleton-shapes-*` and `card-metric-loading-*` and the updated `company-dashboard-*` come from CI and were looked at at 1440 and 412; no other baseline changed; `check:visual-contract` passes unchanged (in CI, or locally under the pinned Chromium).
-- [ ] PR 1: roadmap §3 and §8, DS README, card README, components README and the two "172" sentences updated; roadmap ≤ 560 lines, DS README ≤ 14,336 bytes; the story's status is honest.
+- [x] PR 1: roadmap §3 and §8, DS README, card README, components README and the two "172" sentences updated; roadmap ≤ 560 lines, DS README ≤ 14,336 bytes; the story's status is honest.
 - [ ] PR 2: on `/apply/:slug`, `/interest/:slug` and `/sandbox/apply` the auth gate, the route-code wait and the company load all render the same `ApplyPagePlaceholder` (one named `main`, `aria-busy`, one hidden `<h1>` "Loading Application..." in a polite status); other pages keep "Loading Platform..."/"Loading…" (unit-tested).
 - [ ] PR 2: `e2e/apply-loading-placeholder.spec.cjs` passes on `chromium` and `mobile-chrome` and failed before the change; axe clean; reduced motion verified.
 - [ ] PR 2: `ApplyLoadingScreen` is removed with no remaining reference (`grep -rn ApplyLoadingScreen src e2e` is empty); the stale comment is corrected; `index.html` is unchanged; no new lint warning.

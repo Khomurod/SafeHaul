@@ -57,7 +57,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
 ### Пять задач / The five tasks
 
 1. **Скорость на медленном телефоне / Test on slow phones and networks (#31)**
-   - [x] **T1** · Замерить скорость страниц водителя на телефоне · *Measure the driver pages on a phone* → [T1](T1-driver-pages-on-phone.md) · PR: пакет A · Дата: 2026-11-03
+   - [x] **T1** · Замерить скорость страниц водителя на телефоне · *Measure the driver pages on a phone* → [T1](T1-driver-pages-on-phone.md) · PR: #557 · Дата: 2026-11-03
    - [ ] **T1-F** · Запрашивать код анкеты сразу при запуске (итог T1: GO, около 0,7 с) · *Request the `/apply` route code during start-up* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: — · Дата: —
    - [ ] **T3-static** · Нейтральная заставка в `index.html` вместо белого экрана (итог T1: GO; ждёт ответа на Р7) · *Neutral static placeholder in `index.html`* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: — · Дата: —
 2. **Постраничная загрузка / Paginate results (#5)**
@@ -66,7 +66,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [ ] **T2c** · Ограничить списки кампаний, итоги остаются верными · *Limit the Campaigns lists* → [T2c](T2c-campaigns-lists-limit.md) · PR: — · Дата: —
    - [ ] **T2d** · (необязательно) Свои напоминания не пропадают из колокольчика · *(optional) Keep own reminders in the notification bell* → [T2d](T2d-notification-bell-reminders.md) · PR: — · Дата: —
 3. **Заглушки вместо нулей / Skeleton loading screens (#1)**
-   - [ ] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: — · Дата: —
+   - [x] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
    - [ ] **T3 PR 2** · Заглушка страницы заявки водителя · *Driver apply-page placeholder* → [T3](T3-loading-placeholders.md) · PR: — · Дата: —
 4. **Лимиты времени для внешних сервисов / Timeouts for external calls (#12)**
    - [ ] **T4.1** · RingCentral: лимит 20 секунд, без повторной отправки SMS · *RingCentral 20-second limit, no resend* → [T4.1](T4.1-ringcentral-timeout.md) · PR: — · Дата: —

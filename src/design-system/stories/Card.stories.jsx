@@ -36,6 +36,8 @@ const meta = {
           '- `Card` renders `<section>` by default; use `as` for a different element when the',
           '  document outline needs it (`as="article"`, `as="div"`).',
           '- `MetricCard` tones: `neutral`, `info`, `success`, `warning`, `danger`, `accent`.',
+          '- `MetricCard loading` draws a placeholder in place of the value and ignores',
+          '  `value`; the card keeps its height and, with `onActivate`, stays a button.',
           '',
           '### Accessibility expectations',
           '',
@@ -47,6 +49,9 @@ const meta = {
           '- `MetricCard` becomes a real `<button>` only when `onActivate` is supplied, and',
           '  it then carries `aria-label="{label}: {value}"` plus `aria-pressed` when active.',
           '  A non-interactive metric renders a plain `div` with no misleading role.',
+          '- A loading `MetricCard` carries `aria-busy="true"` and an interactive one is named',
+          '  by its label alone. `aria-busy` announces nothing: the caller says once, in a',
+          '  polite `role="status"`, that the group is loading and when it has loaded.',
           '- Tone on a `MetricCard` is decoration. The label and value carry the meaning.',
           '',
           '### Common mistakes',
@@ -134,6 +139,25 @@ export const MetricCardTones = {
       <MetricCard label="Blocked" value="4" tone="danger" icon={<Icon icon={Inbox} size="xl" />} />
       <MetricCard label="Priority" value="7" tone="accent" icon={<Icon icon={Activity} size="xl" />} />
     </ResponsiveGrid>
+  ),
+};
+
+/**
+ * `loading` holds the value's place with a placeholder half the text column
+ * wide, so a loading card is as tall as a loaded one. An interactive card stays
+ * a button named by its label; the status sentence announces the group once.
+ */
+export const MetricCardLoading = {
+  render: () => (
+    <>
+      <p role="status" className="sr-only">Loading two totals.</p>
+      <ResponsiveGrid minItemWidth="200px">
+        <MetricCard label="Records" value="1,284" tone="info" loading onActivate={fn()} icon={<Icon icon={FileText} size="xl" />} />
+        <MetricCard label="Owners" value="36" tone="neutral" loading icon={<Icon icon={Activity} size="xl" />} />
+        <MetricCard label="Records" value="1,284" tone="info" onActivate={fn()} icon={<Icon icon={FileText} size="xl" />} />
+        <MetricCard label="Owners" value="36" tone="neutral" icon={<Icon icon={Activity} size="xl" />} />
+      </ResponsiveGrid>
+    </>
   ),
 };
 

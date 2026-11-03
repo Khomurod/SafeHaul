@@ -654,4 +654,4 @@
 - [x] The harness was stopped (port check prints `000`) and `key.pem` deleted.
 - [x] The scrub greps pass. No screenshots, raw JSON, slugs, company names, driver data or tokens are in the repository.
 - [x] `README.md` has the new row. `git status` showed only the two docs files.
-- [ ] One PR is open, starting with "Кратко", with an honest Evidence table. The owner received the verdicts in Russian.
+- [x] One PR is open, starting with "Кратко", with an honest Evidence table. The owner received the verdicts in Russian.

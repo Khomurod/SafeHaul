@@ -1,0 +1,57 @@
+/*
+ * The pulse has the timing of `DataTable`'s skeleton rows (`ds-table-pulse` in
+ * `data-table/DataTable.css`: 1.5s, half opacity at the midpoint) and the same
+ * surface and radius roles, so a table loading beside a card reads as one
+ * family. The table keeps its own rows and keyframes.
+ */
+.ds-skeleton {
+  display: block;
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-color-surface-subtle);
+  animation: ds-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/*
+ * A line sits inside the element whose text it replaces, so that element's
+ * line box — and the layout around it — keeps the height it will have once the
+ * text arrives. The bar is the height of a capital, centred on the line.
+ */
+.ds-skeleton[data-shape='line'] {
+  display: inline-block;
+  height: 0.8em;
+  vertical-align: middle;
+}
+
+.ds-skeleton[data-width='half'] {
+  width: 50%;
+}
+
+.ds-skeleton[data-width='three-quarters'] {
+  width: 75%;
+}
+
+.ds-skeleton[data-width='full'] {
+  width: 100%;
+}
+
+/*
+ * The height of a tall choice button on the driver application's start
+ * screen, measured in the dev server: 103.5px and 123px at 412×915, 145.5px
+ * (both) at 1440×900. The largest, rounded up to a multiple of 8, is 152px.
+ */
+.ds-skeleton[data-shape='block'][data-height='lg'] {
+  height: 152px;
+  border-radius: var(--ds-radius-md);
+}
+
+@keyframes ds-skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-skeleton {
+    animation: none;
+  }
+}

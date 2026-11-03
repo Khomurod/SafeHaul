@@ -60,7 +60,12 @@ const SCREENS = [
     {
         name: 'company-dashboard',
         url: '/company/dashboard?e2eAuth=company_admin',
-        ready: (page) => page.getByRole('heading', { name: /Welcome back/ }),
+        // The counts and the leaderboard load on their own, after the greeting.
+        ready: (page) => [
+            page.getByRole('heading', { name: 'Welcome back', exact: true }),
+            page.getByRole('button', { name: 'Hired: 2' }),
+            page.getByRole('rowheader', { name: /Jordan Recruiter/ }),
+        ],
     },
     {
         name: 'company-candidate-list',

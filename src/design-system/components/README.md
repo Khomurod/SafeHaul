@@ -12,7 +12,7 @@ is the Company candidate-list pilot.
 implementations, with APIs, unit/axe tests and usage documentation.
 
 **The catalog and the baselines those families were waiting on both exist.** The
-catalog is Storybook (`src/design-system/stories/`, `npm run storybook`), and 172
+catalog is Storybook (`src/design-system/stories/`, `npm run storybook`), and its
 pixel baselines are committed under `e2e/visual/__screenshots__/`. `npm run
 test:visual` is **blocking**, and the font is served from the repository, so a
 moved baseline means the pixels moved.
@@ -44,6 +44,8 @@ the current set. `link/` is worth calling out because its absence used to be
 cited as an open gap: it exports `Link`, `ButtonLink` and `IconButtonLink`, so a
 navigation that needs to look like a button has an approved anchor to use.
 `status-medallion/` is the one family here with no README of its own.
+`skeleton/` holds `Skeleton`, an `aria-hidden` placeholder of a known shape whose
+caller announces; `MetricCard loading` uses it.
 
 **Dialog is not a remaining candidate.** It lives in `../patterns/modal/` —
 `Modal`, `ConfirmDialog` and their

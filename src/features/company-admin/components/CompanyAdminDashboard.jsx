@@ -27,18 +27,29 @@ export function CompanyAdminDashboard() {
     const companyName = currentCompanyProfile?.companyName;
 
     // The four counts only: the dashboard shows no list, so it reads no records.
-    const { counts, statsFetchError, refresh } = useDashboardCounts(companyId);
+    const { counts, loading: countsLoading, statsFetchError, refresh } = useDashboardCounts(companyId);
+    // A count not yet read is a placeholder while loading and a dash after a failure, never 0.
+    const countOf = (key) => (counts ? counts[key] : '—');
 
-    const [userName, setUserName] = useState('Admin User');
+    // No invented name: until the profile's name arrives (or if it never does)
+    // the greeting is just "Welcome back".
+    const [userName, setUserName] = useState('');
 
     useEffect(() => {
+        let active = true;
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
-            if (user) {
+            if (!user) return;
+            try {
                 const portalUserDoc = await getPortalUser(user.uid);
-                if (portalUserDoc && portalUserDoc.name) setUserName(portalUserDoc.name);
+                if (active && portalUserDoc && portalUserDoc.name) setUserName(portalUserDoc.name);
+            } catch (error) {
+                console.warn('Could not read the name for the dashboard greeting:', error);
             }
         });
-        return () => unsubscribe();
+        return () => {
+            active = false;
+            unsubscribe();
+        };
     }, []);
 
     return (
@@ -46,11 +57,15 @@ export function CompanyAdminDashboard() {
             <PageContainer>
                 <Stack gap="lg">
                     <PageHeader
-                        title={`Welcome back, ${userName}`}
+                        title={userName ? `Welcome back, ${userName}` : 'Welcome back'}
                         description={`Here's what's happening at ${companyName} today.`}
                     />
 
                     <Section aria-label="Company activity summary">
+                    {/* One polite sentence for the four cards, always present so it can fill. */}
+                    <p role="status" className="sr-only">
+                        {countsLoading ? 'Loading dashboard counts.' : statsFetchError ? '' : 'Dashboard counts loaded.'}
+                    </p>
                     {statsFetchError && (
                         <Notice
                             announce="polite"
@@ -72,7 +87,8 @@ export function CompanyAdminDashboard() {
                         <ResponsiveGrid minItemWidth="210px">
                             <MetricCard
                                 label="Applications"
-                                value={counts.applications || 0}
+                                value={countOf('applications')}
+                                loading={countsLoading}
                                 icon={<Icon icon={FileText} size="xl" />}
                                 tone="info"
                                 onActivate={() => navigate('/company/drivers/applications')}
@@ -80,7 +96,8 @@ export function CompanyAdminDashboard() {
 
                             <MetricCard
                                 label="Company Leads"
-                                value={counts.companyLeads || 0}
+                                value={countOf('companyLeads')}
+                                loading={countsLoading}
                                 icon={<Icon icon={Briefcase} size="xl" />}
                                 tone="warning"
                                 onActivate={() => navigate('/company/drivers/leads/company')}
@@ -88,7 +105,8 @@ export function CompanyAdminDashboard() {
                             <MetricCard
                                 id="stat-card-my_leads"
                                 label="My Leads"
-                                value={counts.myLeads || 0}
+                                value={countOf('myLeads')}
+                                loading={countsLoading}
                                 icon={<Icon icon={User} size="xl" />}
                                 tone="accent"
                                 onActivate={() => navigate('/company/drivers/leads/my')}
@@ -96,7 +114,8 @@ export function CompanyAdminDashboard() {
                             <MetricCard
                                 id="stat-card-hired"
                                 label="Hired"
-                                value={counts.hired || 0}
+                                value={countOf('hired')}
+                                loading={countsLoading}
                                 icon={<Icon icon={CheckCircle} size="xl" />}
                                 tone="success"
                                 onActivate={() => navigate('/company/drivers/applications', { state: { segment: 'hired' } })}

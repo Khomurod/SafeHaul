@@ -11,6 +11,7 @@ const dashboardState = vi.hoisted(() => ({
         myLeads: 1,
         hired: 2,
     },
+    loading: false,
     statsFetchError: '',
     refresh: vi.fn(),
 }));
@@ -148,7 +149,7 @@ describe('CompanyAdminDashboard Smoke Tests', () => {
             </BrowserRouter>
         );
 
-        expect(screen.getByRole('heading', { name: 'Welcome back, Admin User' }))
+        expect(screen.getByRole('heading', { name: 'Welcome back' }))
             .toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Applications: 8' }))
             .toBeInTheDocument();

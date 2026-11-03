@@ -75,6 +75,15 @@
   min-width: 0;
 }
 
+/*
+ * The content is otherwise only as wide as its label, so the placeholder's 50%
+ * would be half the label. Loading, it takes the text column, and the bar is
+ * half of that.
+ */
+.ds-metric-card[data-loading='true'] .ds-metric-card__content {
+  flex: 1 1 auto;
+}
+
 .ds-metric-card__label {
   display: block;
   overflow: hidden;
