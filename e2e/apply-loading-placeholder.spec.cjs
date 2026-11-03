@@ -20,7 +20,8 @@ test.describe('driver application loading placeholder', () => {
 
         const placeholder = page.getByRole('main', { name: 'Loading Application...' });
         await expect(placeholder).toBeVisible();
-        await expect(placeholder).toHaveAttribute('aria-busy', 'true');
+        // Not busy: a busy region may hold back its own status announcement.
+        await expect(placeholder).not.toHaveAttribute('aria-busy');
         expect(hold.matched()).toBeGreaterThan(0);
 
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);

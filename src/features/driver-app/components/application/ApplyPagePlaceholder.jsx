@@ -16,7 +16,11 @@ import { Card, Skeleton } from '@/design-system/components';
  * are separate elements (as on the other apply status screens), and the heading
  * is visually hidden: the outline draws no words. "Loading Application..." is
  * frozen copy, asserted by `ApplyPagePlaceholder.test.jsx` and
- * `e2e/apply-loading-placeholder.spec.cjs`.
+ * `e2e/apply-loading-placeholder.spec.cjs`. The `<main>` is not `aria-busy`:
+ * assistive technology may hold back a busy region's content, status included,
+ * until it stops being busy, and this one is removed while still busy. The
+ * status is the announcement (as on the company dashboard, whose status sits
+ * outside its busy cards).
  *
  * A feature composition of approved primitives, not a `PageState` look-alike: it
  * draws no medallion, heading or actions. It ships in the first download, so it
@@ -27,7 +31,6 @@ export function ApplyPagePlaceholder() {
   return (
     <main
       aria-labelledby={headingId}
-      aria-busy="true"
       className="flex min-h-screen items-center justify-center bg-ds-canvas p-ds-4"
     >
       <div role="status">
