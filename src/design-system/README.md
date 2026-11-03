@@ -97,8 +97,9 @@ barrels: `@design-system/components`, `/patterns`, `/layouts` and `/icons`.
 | `Badge` | `components/badge` | A status chip; it sizes a glyph passed through its `icon` prop only |
 | `StatusMedallion` | `components/status-medallion` | A status-tinted circle around a glyph; it holds 24px at `md` and 32px at `lg` |
 | `Avatar` | `components/avatar` | A person's or organisation's initial, on five fixed steps (a responsive size is allowed); `circle` for a person, `square` for an organisation; always `aria-hidden`, with no prop to un-hide it |
-| `Card`, `MetricCard` | `components/card` | `MetricCard`'s icon chip reads `--ds-metric-icon-size`, not a control height |
+| `Card`, `MetricCard` | `components/card` | `MetricCard`'s icon chip reads `--ds-metric-icon-size`, not a control height; `loading` keeps the card's height and its button, named by its label |
 | `ProgressBar` | `components/progress` | |
+| `Skeleton` | `components/skeleton` | A placeholder of a known shape, always `aria-hidden`: its caller announces. A `line` (`half` / `three-quarters` / `full`) takes its text's height; a `block` is `lg` only |
 | `DataTable` and `ds-native-table` | `components/data-table` | `DataTable` for every table, first column pinned by default; `ds-native-table` (`nativeTable.css`) only for the one native table left, a hidden chart text equivalent. Phones: "Tables on phones" in its README |
 | `Modal`, `ConfirmDialog` | `patterns/modal` | Chrome is props only (`patterns/modal/README.md`); `className` / `overlayClassName` throw. `ConfirmDialog` puts initial focus on Cancel, guards against double activation, and disables Escape / backdrop dismissal while `loading`; Escape routes to `onCancel` |
 | `ListToolbar` | `patterns/list-toolbar` | Segments, switch, search, Filters and the page's actions above a list; not `role="toolbar"`. The list-page standard is its README |

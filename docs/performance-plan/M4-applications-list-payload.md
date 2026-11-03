@@ -239,7 +239,7 @@ Recommend C. It is the only option with no data change, no migration, no rules o
 
 ## Done when (acceptance criteria)
 
-- [ ] M4-1 merged. A one-letter name search sends no query in the lists and only the newest-20 read in the picker; email, phone, confirmation and id searches are unchanged. The four new tests failed before and pass after. APP_BRIEF §4 is updated.
+- [x] M4-1 merged. A one-letter name search sends no query in the lists and only the newest-20 read in the picker; email, phone, confirmation and id searches are unchanged. The four new tests failed before and pass after. APP_BRIEF §4 is updated.
 - [ ] M4-2: the four numbers, the date, the company size and the verdict (OPEN or CLOSED) are in the plan's progress section. An E-Docs number over 1 MB is handed to checklist #5.
 - [ ] If the gate is CLOSED: the item is marked closed with its numbers, and no further code was written.
 - [ ] If the gate is OPEN and the owner said yes:
@@ -247,4 +247,9 @@ Recommend C. It is the only option with no data change, no migration, no rules o
   - On Testing, a Next page transfers 20% or less of its M4-2 size, and a 3-letter search transfers less than before.
   - `firestore.indexes.json` and `src/firestore.rules` are unchanged.
   - The callable map, APP_BRIEF and RELEASE_CHECKLIST are updated, and the owner has noted the cold-start delay.
-- [ ] M4-4 is merged, or marked "done under #3".
+- [x] M4-4 is merged, or marked "done under #3". Marked: M2a (#557, commit `22f8e80`) made NotesTab take `sharedHistory` from the dossier's record, which is M4-4's whole change.
+
+M4-1 as done (2026-11-03, batch PR #557; the box counts as met when that PR merges). Every file:line in M4-1 was re-checked at `639a483`: none moved since `11626a6` except the brief's Recruiter pipeline paragraph, now 276-286. Done as written; Р20 took its recommended answer. Notes:
+- `searchableTerm` also turns a box of spaces into `''`, so it shows the whole list instead of "No records found".
+- Tests: `searchableTerm` (3 cases, the listed terms plus an application id), `useCompanyDashboard.search.test.jsx` (2: one letter reads nothing and the second letter sends 5 bounded prefix reads; cutting back to one letter reads the browse page), the picker case, and the E2E test. Before the change all 6 unit tests failed and the E2E test failed at the `'r'` step. No file queues a `*Once`.
+- Checks: `test:coverage` (7525 passed), lint, typecheck, build, bundle budget, `test:stories`, `check:source-size`, `check:agent-docs` (the brief's line and byte warnings, already there; one line more), `check:ci-plan`, `check:public-claims`, `check:ai-boundary` and the callable contract passed. On `chromium`, `applications-search-filters.spec.cjs` (7), `edoc-send-template-wizard.spec.cjs` (10, the `@mobile` case skipped) and `company-candidate-table.spec.cjs` (5, three `@mobile` cases skipped) passed; on `mobile-chrome` the last two passed (1 and 3). The search suite has no `@mobile` test. No component, token or table changed, so no visual or table-layout lane ran.

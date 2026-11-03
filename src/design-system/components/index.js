@@ -9,6 +9,7 @@ export { ButtonLink, IconButtonLink, Link } from './link';
 export { Notice } from './notice';
 export { SegmentedControl } from './segmented';
 export { SelectableCard } from './selectable-card';
+export { Skeleton } from './skeleton';
 export { Switch } from './switch';
 export { TabList, TabPanel, tabIds } from './tabs';
 export { ProgressBar } from './progress';

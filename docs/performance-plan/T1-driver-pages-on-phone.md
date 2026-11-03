@@ -642,16 +642,16 @@
 
 ## Done when (acceptance criteria)
 
-- [ ] The owner received the three-line Russian notice and the three requests before measuring started.
-- [ ] `docs/qa/mobile-speed-baseline.md` has every section from step 13. Its Run facts name both SHAs, Lighthouse 13.6.0, the Chromium and Playwright versions, B, the benchmarkIndex range and the throttling settings.
-- [ ] Table A has medians with min–max for Testing `/login` (5 runs) and Testing `/apply/<test company>` or `/sandbox/apply` (5 or 9), and says which path was used.
-- [ ] Table B has 5-run medians for local `/login`, `/apply/e2e-company`, the `/sign` mock and the `/verify` mock. Every local run had an empty `leaked` list.
-- [ ] §2 has devtools medians (3 or 5 runs) for Testing `/apply`: `blank`, `gap`, `routeDownload`, `potentialSaving`, `routeChunks`, and the font and Firestore start times.
-- [ ] §3 has S1 and S2 at 1x, 4x and 10x (plus R/R_LOW if calibrated), 3 runs each.
-- [ ] §4 has the owner's deltas, or says "not measured" with M4 left open.
-- [ ] §5 gives T3, earlier `/apply` code download, M4 and M5 each a verdict, the measured value and the rule applied, with borderline cases marked.
-- [ ] No `/sign`, `/verify`, `/review-change` or invite/recruiter/referral URL was loaded on a live site. At most 27 Lighthouse loads of Testing and 5 PSI calls were made.
-- [ ] The harness was stopped (port check prints `000`) and `key.pem` deleted.
-- [ ] The scrub greps pass. No screenshots, raw JSON, slugs, company names, driver data or tokens are in the repository.
-- [ ] `README.md` has the new row. `git status` showed only the two docs files.
-- [ ] One PR is open, starting with "Кратко", with an honest Evidence table. The owner received the verdicts in Russian.
+- [x] The owner received the three-line Russian notice and the three requests before measuring started.
+- [x] `docs/qa/mobile-speed-baseline.md` has every section from step 13. Its Run facts name both SHAs, Lighthouse 13.6.0, the Chromium and Playwright versions, B, the benchmarkIndex range and the throttling settings.
+- [x] Table A has medians with min–max for Testing `/login` (5 runs) and Testing `/apply/<test company>` or `/sandbox/apply` (5 or 9), and says which path was used.
+- [x] Table B has 5-run medians for local `/login`, `/apply/e2e-company`, the `/sign` mock and the `/verify` mock. Every local run had an empty `leaked` list.
+- [x] §2 has devtools medians (3 or 5 runs) for Testing `/apply`: `blank`, `gap`, `routeDownload`, `potentialSaving`, `routeChunks`, and the font and Firestore start times.
+- [x] §3 has S1 and S2 at 1x, 4x and 10x (plus R/R_LOW if calibrated), 3 runs each.
+- [x] §4 has the owner's deltas, or says "not measured" with M4 left open.
+- [x] §5 gives T3, earlier `/apply` code download, M4 and M5 each a verdict, the measured value and the rule applied, with borderline cases marked.
+- [x] No `/sign`, `/verify`, `/review-change` or invite/recruiter/referral URL was loaded on a live site. At most 27 Lighthouse loads of Testing and 5 PSI calls were made.
+- [x] The harness was stopped (port check prints `000`) and `key.pem` deleted.
+- [x] The scrub greps pass. No real screenshots, raw JSON, slugs, company names, driver data or tokens are in the repository; synthetic E2E fixture data and mock tokens such as `e2e-token` may appear.
+- [x] `README.md` has the new row. `git status` showed only the two docs files.
+- [x] One PR is open, starting with "Кратко", with an honest Evidence table. The owner received the verdicts in Russian.

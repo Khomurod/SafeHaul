@@ -7,7 +7,6 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import {
-  ApplyLoadingScreen,
   ApplyLinkErrorScreen,
   ParsingCdlScreen,
   SubmissionSuccessScreen,
@@ -36,14 +35,6 @@ const expectSingleH1 = (text) => {
   expect(headings).toHaveLength(1);
   expect(headings[0]).toHaveTextContent(text);
 };
-
-describe('ApplyLoadingScreen', () => {
-  it('announces itself and keeps the frozen copy', () => {
-    render(<ApplyLoadingScreen />);
-    expect(screen.getByRole('status')).toHaveTextContent('Loading Application...');
-    expect(screen.getByRole('main')).toBeInTheDocument();
-  });
-});
 
 describe('ApplyLinkErrorScreen', () => {
   it('is a labelled main landmark with one h1 and an alert body', () => {

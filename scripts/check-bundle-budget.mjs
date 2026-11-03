@@ -64,7 +64,7 @@ export const FIRST_DOWNLOAD_MUST_CONTAIN = Object.freeze([
  */
 export const APPLY_PAGE_CEILING = 536_000;
 
-/** The chunk the bundler names after the route's screen (`featureRegistry.jsx`). */
+/** The chunk the bundler names after the route's screen (`src/app/routes/applyScreenLoader.js`). */
 export const APPLY_ROUTE_CHUNK = /^PublicApplyHandler-[\w-]+\.js$/;
 
 /**

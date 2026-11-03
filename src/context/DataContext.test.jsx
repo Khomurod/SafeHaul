@@ -83,4 +83,24 @@ describe('DataContext', () => {
         expect(await screen.findByTestId('data-keys')).toBeInTheDocument();
         expect(screen.queryByText('Loading Platform...')).toBeNull();
     });
+
+    it('renders what the app asks for while the session settles', async () => {
+        authState.settle = false;
+        render(<DataProvider renderLoading={() => <p>Placeholder</p>}><Probe /></DataProvider>);
+        expect(screen.getByText('Placeholder')).toBeInTheDocument();
+        expect(screen.queryByText('Loading Platform...')).toBeNull();
+
+        await act(async () => { authState.callback(null); });
+        expect(await screen.findByTestId('data-keys')).toBeInTheDocument();
+        expect(screen.queryByText('Placeholder')).toBeNull();
+    });
+
+    it('hands the app its own loader to fall back to', async () => {
+        authState.settle = false;
+        render(<DataProvider renderLoading={(platformLoader) => platformLoader}><Probe /></DataProvider>);
+        expect(screen.getByText('Loading Platform...')).toBeInTheDocument();
+
+        await act(async () => { authState.callback(null); });
+        expect(await screen.findByTestId('data-keys')).toBeInTheDocument();
+    });
 });

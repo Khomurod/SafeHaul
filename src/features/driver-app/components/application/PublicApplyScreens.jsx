@@ -4,6 +4,7 @@ import { Button } from '@/design-system/components';
 import { ErrorState, LoadingState, PageState } from '@design-system/patterns';
 import { SandboxActionPanel } from '@features/sandbox/SandboxActionPanel';
 import { ApplyIdentityCheckScreen } from './ApplyIdentityCheckScreen';
+import { ApplyPagePlaceholder } from './ApplyPagePlaceholder';
 import { IntakeChooser } from './IntakeChooser';
 import { ReferralIntake } from './ReferralIntake';
 import { RequiredDocumentsChecklist } from './RequiredDocumentsChecklist';
@@ -14,15 +15,16 @@ import { DOC_STATUS } from './postApplyDocsStorage';
  *
  * Presentation is migrated to the approved `Card` / `Button` / `StatusMedallion`
  * primitives and `--ds-*` tokens, matching the public signing room's status
- * screens. Every user-facing string is frozen — "Loading Application...",
- * "Link Error", "Reading your CDL...", "Application Submitted!", "Confirmation
- * Number", "Not sent yet", "Go to home" and "Start a new application" are
- * asserted by `e2e/public-application.spec.cjs`,
- * `e2e/guest-offline-queue.spec.cjs` and
+ * screens. Every user-facing string is frozen — "Link Error", "Reading your
+ * CDL...", "Application Submitted!", "Confirmation Number", "Not sent yet", "Go
+ * to home" and "Start a new application" are asserted by
+ * `e2e/public-application.spec.cjs`, `e2e/guest-offline-queue.spec.cjs` and
  * `e2e/guest-post-application-edoc.spec.cjs` — as are the
  * `sessionStorage.lastConfirmationNumber` fallback, the
  * `postApplicationTemplates.length > 0 && submittedApplicationId` checklist
- * gate, and the pending-required-document message switch.
+ * gate, and the pending-required-document message switch. The company-loading
+ * wait is `ApplyPagePlaceholder`, which keeps "Loading Application..." (asserted
+ * by its unit test and `e2e/apply-loading-placeholder.spec.cjs`).
  *
  * Every screen is a `<main>` landmark labelled by its `<h1>`, so an applicant
  * landing on one hears which page it is; the loading and queued states are
@@ -51,23 +53,6 @@ function StatusPage({ children, labelledBy }) {
     >
       {children}
     </main>
-  );
-}
-
-export function ApplyLoadingScreen() {
-  const headingId = `apply-loading-${useId().replace(/:/g, '')}`;
-  return (
-    <StatusPage labelledBy={headingId}>
-      {/* `role="status"` is not valid on `<main>`, so the landmark and the
-          announcement are separate elements — which is why the state's heading
-          needs an id for the landmark to point at. */}
-      <LoadingState
-        surface="bare"
-        headingLevel={1}
-        titleId={headingId}
-        title="Loading Application..."
-      />
-    </StatusPage>
   );
 }
 
@@ -324,7 +309,7 @@ export function resolveApplyStatusScreen({
   intakeMode, companyId, companyName, referralCode, handleChooseAutoFill, handleChooseManual,
   cdlAutoFillInputRef, handleCdlAutoFillFileChange,
 }) {
-  if (loading) return <ApplyLoadingScreen />;
+  if (loading) return <ApplyPagePlaceholder />;
   if (error) return <ApplyLinkErrorScreen error={error} />;
   if (isParsingCdl) return <ParsingCdlScreen onCancel={cancelCdlAutoFill} />;
 

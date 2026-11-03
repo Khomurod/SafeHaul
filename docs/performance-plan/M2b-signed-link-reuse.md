@@ -115,8 +115,16 @@
 
 ## Done when (acceptance criteria)
 
-- [ ] Reopening a dossier within ten minutes, in the same tab and sign-in, makes no new `getSignedApplicationFileUrl` request; after ten minutes it does.
-- [ ] Failed signings are not kept; press-to-open (`openApplicationFile`) is unchanged.
-- [ ] `readFrontendCallables()` still lists `getSignedApplicationFileUrl`.
-- [ ] The brief, the callable map and the `applicationFileLink.js` docblock are updated; the tests reset the cache.
+- [x] Reopening a dossier within ten minutes, in the same tab and sign-in, makes no new `getSignedApplicationFileUrl` request; after ten minutes it does.
+- [x] Failed signings are not kept; press-to-open (`openApplicationFile`) is unchanged.
+- [x] `readFrontendCallables()` still lists `getSignedApplicationFileUrl`.
+- [x] The brief, the callable map and the `applicationFileLink.js` docblock are updated; the tests reset the cache.
 - [ ] Coverage, lint, typecheck, build, the callable contract and `driver-dossier.spec.cjs` passed; the PR starts with Кратко.
+
+As done (2026-11-03, batch PR #557). Every file:line above was re-checked at `22f8e80`: none moved since `11626a6` except the brief's Uploads paragraph, now 224-231. Adapted:
+- A change of `auth.currentUser` (another sign-in or a sign-out) empties the whole cache instead of each entry carrying its session, so one sign-in's links do not stay in memory once anyone asks again. A late failure from an earlier sign-in leaves the current link alone.
+- `useAppFetch` now reaches the callable through `signedApplicationFileUrl`, so an answer without a link warns before the same fallbacks, where it used to fall back silently.
+- Tests beyond the list: separate files keep separate links, the late failure above, and a press signing on every call after the dossier kept a link. `applicationFileLink.test.js` now uses `vi.resetAllMocks()` because it queues `*Once` values. `useAppFetch.team.test.jsx` keeps its mock without `auth`: it has no file paths and never signs. Before the fix the service tests failed (no such export) and the hook's reopen case failed (it signed again).
+- The callable map also lists `applicationFileLink.js` under `getSignedPevUrl`, now literal there. `readFrontendCallables()` lists 116 names, as before. The brief's sentence was rewritten in place: still 1517 lines, 6 bytes shorter.
+- Checks: `test:coverage` (7504 passed), lint, typecheck, build, bundle budget, the callable contract and the guards passed. `driver-dossier.spec.cjs` passed on `chromium` (10, the `@mobile` case skipped) and on `mobile-chrome` (1); its Firestore is unreachable, so the reuse is covered by the unit tests only.
+- Open box: the PR text (Кратко) belongs to the batch PR's description. Every check in that box passed.

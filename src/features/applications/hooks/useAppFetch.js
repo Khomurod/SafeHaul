@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { doc, getDoc } from "firebase/firestore";
 import { ref, getDownloadURL } from "firebase/storage";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from '@lib/firebase';
+import { db } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
 import { getCompanyProfile } from '@features/companies';
+import { reusableApplicationFileUrl } from '@features/applications/services/applicationFileLink';
 import { useCompanyTeam } from '@shared/hooks/useCompanyTeam';
 
 const simpleRetry = async (fn, retries = 3, delay = 1000) => {
@@ -79,12 +79,11 @@ export function useAppFetch(companyId, applicationId) {
               // expired by dossier-view time, and the client Storage SDK read is gated
               // by the narrow companyTeamIds claim (no super-admin bypass). Re-sign
               // server-side FIRST via the callable (RBAC'd by roles[companyId]/super_admin),
-              // then fall back to the client SDK / stored url only if that fails.
+              // reusing this sign-in's link for ten minutes, then fall back to the
+              // client SDK / stored url only if that fails.
               if (fileData.storagePath.includes('guest_uploads')) {
                 try {
-                  const resign = httpsCallable(functions, 'getSignedApplicationFileUrl');
-                  const res = await resign({ storagePath: fileData.storagePath });
-                  if (res?.data?.url) return res.data.url;
+                  return await reusableApplicationFileUrl(fileData.storagePath);
                 } catch (resignErr) {
                   console.warn(`[useAppFetch] Server re-sign failed for ${fileData.storagePath}. Falling back to client SDK.`, resignErr.message);
                 }

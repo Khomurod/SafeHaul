@@ -1,15 +1,20 @@
+import { useRef } from 'react';
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from '@lib/firebase';
 import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback';
 
-const simpleRetry = async (fn, retries = 3, delay = 1000) => {
+// What `simpleRetry` returns when `shouldRetry` stopped it before a retry.
+const STOPPED = Symbol('stopped');
+
+const simpleRetry = async (fn, shouldRetry = () => true, retries = 3, delay = 1000) => {
   for (let i = 0; i < retries; i++) {
     try {
       return await fn();
     } catch (error) {
       if (i === retries - 1) throw error;
       await new Promise(resolve => setTimeout(resolve, delay));
+      if (!shouldRetry()) return STOPPED;
     }
   }
 };
@@ -27,6 +32,9 @@ export function useAppActions({
   onStatusUpdate
 }) {
   const { showSuccess, showError } = useToast();
+  // While a save of Assign To is open the picker shows the newest pick; once
+  // none is open it shows what the record holds. `latest` numbers the picks.
+  const assignSaves = useRef({ open: 0, saved: '', latest: 0 });
 
   const getDocRef = () => {
     return doc(db, "companies", companyId, collectionName, applicationId);
@@ -42,14 +50,22 @@ export function useAppActions({
       auth.currentUser?.displayName ||
       auth.currentUser?.email ||
       'Team member';
+    const saves = assignSaves.current;
+    if (saves.open === 0) saves.saved = appData?.assignedTo || '';
+    saves.open += 1;
+    const pick = ++saves.latest;
     setAssignedTo(newUserId);
 
     try {
       const docRef = getDocRef();
-      await simpleRetry(() => updateDoc(docRef, {
+      const outcome = await simpleRetry(() => updateDoc(docRef, {
         assignedTo: newUserId,
         assignedToName: newOwnerName
-      }));
+      }), () => pick === saves.latest);
+      // A later pick was made before this one could retry: only a retry could
+      // land after it (one client's writes stay in order), so this one ends here.
+      if (outcome === STOPPED) return;
+      saves.saved = newUserId;
       // The next change in this dossier is logged as from this one.
       setAppData((prev) => (prev ? { ...prev, assignedTo: newUserId, assignedToName: newOwnerName } : prev));
 
@@ -64,7 +80,10 @@ export function useAppActions({
       if (onStatusUpdate) onStatusUpdate();
     } catch (error) {
       console.error("Error assigning:", error);
-      showError("Failed to update assignment.");
+      showError("Failed to update assignment. Please try again.");
+    } finally {
+      saves.open -= 1;
+      if (saves.open === 0) setAssignedTo(saves.saved);
     }
   };
 

@@ -20,7 +20,26 @@
  * The language data is the one thing fetched from the pinned CDN path tesseract
  * defaults to: it is 11MB, it never changes for a given version, and the library
  * caches it in IndexedDB after the first document.
+ *
+ * ## A start that never finishes
+ *
+ * tesseract.js 7 settles `createWorker` only when its worker script fails
+ * (`createWorker.js:44,47`) or its `load` job does (`:213`). A failed language
+ * download or engine initialisation rejects only its own job, and the start-up
+ * chain ends in `.catch(() => {})` (`:239-243`), so the promise never settles; a
+ * WebAssembly compile the page refuses never answers at all. `startWorker` gives
+ * up on the first error `errorHandler` reports, or after `OCR_START_TIMEOUT_MS`,
+ * and the pipeline sends the page images to the vision AI instead. In both
+ * never-settling cases tesseract.js returns no handle to terminate, so its worker
+ * stays alive until the tab closes; that happens only when the engine cannot start.
+ *
+ * `errorHandler` also stops the library throwing uncaught errors for pages that
+ * fail after the start. Those still reject `recognize`, and the fallback is the
+ * vision route, as before.
  */
+
+// A first OCR in a browser downloads about 4.5MB before the engine can start.
+export const OCR_START_TIMEOUT_MS = 60_000;
 
 /**
  * Recognise text in already-rendered page images.
@@ -34,7 +53,7 @@ export async function recognizePages(imageDataUrls, deps = {}) {
     if (pages.length === 0) return { text: '', pages: 0 };
 
     const createWorker = deps.createWorker || (await loadTesseract()).createWorker;
-    const worker = await createWorker('eng');
+    const worker = await startWorker(createWorker);
     try {
         const recognised = [];
         for (const page of pages) {
@@ -46,6 +65,38 @@ export async function recognizePages(imageDataUrls, deps = {}) {
         // Frees the WebAssembly heap. A worker left running holds tens of
         // megabytes for as long as the tab is open.
         await worker.terminate?.();
+    }
+}
+
+/**
+ * `createWorker('eng')`, bounded: rejects on the first start error tesseract
+ * reports or after `OCR_START_TIMEOUT_MS`, and logs that failure once.
+ */
+async function startWorker(createWorker) {
+    let started = false;
+    let giveUp;
+    const failed = new Promise((_, reject) => { giveUp = reject; });
+    const pending = createWorker('eng', undefined, {
+        // tesseract.js 7 settles createWorker only when its worker script or core
+        // fails to load; a failed language download or engine start arrives here,
+        // and without this option it is thrown as an uncaught error instead.
+        errorHandler: (reason) => { if (!started) giveUp(new Error(`OCR could not start: ${reason}`)); },
+    });
+    const timer = setTimeout(() => giveUp(new Error('OCR did not start in time')), OCR_START_TIMEOUT_MS);
+    try {
+        const worker = await Promise.race([pending, failed]);
+        started = true;
+        return worker;
+    } catch (reason) {
+        started = true;
+        const error = reason instanceof Error ? reason : new Error(`OCR could not start: ${reason}`);
+        // A start that completes after we gave up still holds the WebAssembly heap.
+        pending.then((late) => late?.terminate?.(), () => {});
+        // The engine's status only: never page text.
+        console.error('[document reader] OCR could not start', error, { flow: 'document_reader', stage: 'ocr_start' });
+        throw error;
+    } finally {
+        clearTimeout(timer);
     }
 }
 

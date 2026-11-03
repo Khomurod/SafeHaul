@@ -123,7 +123,54 @@ describe('the dashboard counts', () => {
     it('wait for a company', () => {
         const { result } = renderHook(() => useDashboardCounts(undefined));
 
-        expect(result.current.counts).toEqual({ applications: 0, companyLeads: 0, myLeads: 0, hired: 0 });
+        expect(result.current.counts).toBeNull();
+        expect(result.current.loading).toBe(false);
         expect(fx.reads).toEqual([]);
+    });
+
+    it('say they are loading until the first answer, and offer no number before it', async () => {
+        let release;
+        fx.gate = { companyPath: 'companies/co-1', promise: new Promise((resolve) => { release = resolve; }) };
+        const { result } = renderHook(() => useDashboardCounts('co-1'));
+
+        expect(result.current.loading).toBe(true);
+        expect(result.current.counts).toBeNull();
+        await act(async () => { release(); });
+
+        await waitFor(() => expect(result.current.counts).toEqual({ applications: 7, companyLeads: 7, myLeads: 7, hired: 7 }));
+        expect(result.current.loading).toBe(false);
+    });
+
+    it('show no other company’s numbers after a switch', async () => {
+        const { result, rerender } = renderHook(({ companyId }) => useDashboardCounts(companyId), { initialProps: { companyId: 'co-1' } });
+        await waitFor(() => expect(result.current.counts).toEqual({ applications: 7, companyLeads: 7, myLeads: 7, hired: 7 }));
+
+        let release;
+        fx.gate = { companyPath: 'companies/co-2', promise: new Promise((resolve) => { release = resolve; }) };
+        rerender({ companyId: 'co-2' });
+
+        expect(result.current.counts).toBeNull();
+        expect(result.current.loading).toBe(true);
+        await act(async () => { release(); });
+        await waitFor(() => expect(result.current.counts).toEqual({ applications: 2, companyLeads: 2, myLeads: 2, hired: 2 }));
+    });
+
+    it('after a failed first load: no numbers, not loading; Retry loads again', async () => {
+        fx.countsFail = true;
+        const { result } = renderHook(() => useDashboardCounts('co-1'));
+
+        await waitFor(() => expect(result.current.statsFetchError).toBe('Quota exceeded.'));
+        expect(result.current.counts).toBeNull();
+        expect(result.current.loading).toBe(false);
+
+        fx.countsFail = false;
+        let release;
+        fx.gate = { companyPath: 'companies/co-1', promise: new Promise((resolve) => { release = resolve; }) };
+        act(() => { void result.current.refresh(); });
+
+        expect(result.current.loading).toBe(true);
+        await act(async () => { release(); });
+        await waitFor(() => expect(result.current.counts).toEqual({ applications: 7, companyLeads: 7, myLeads: 7, hired: 7 }));
+        expect(result.current.statsFetchError).toBe('');
     });
 });

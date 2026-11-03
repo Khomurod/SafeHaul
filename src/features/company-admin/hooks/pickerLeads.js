@@ -1,8 +1,8 @@
 /**
  * The leads the template wizard's picker offers: the newest ones, or the
  * matches for a search, found the way the leads list finds them (a name from
- * its start, an exact email or phone). The picker shows 20, and never reads
- * every lead of the company to do it.
+ * its start, two letters at least, or an exact email or phone). The picker
+ * shows 20, and never reads every lead of the company to do it.
  *
  * `useTemplateSendFlow` loads this module when the picker opens, so the
  * Documents workspace does not carry the list's search code.
@@ -10,12 +10,13 @@
 import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { runDashboardSearch } from '@features/companies/hooks/dashboardQueries';
-import { classifySearchTerm, recordMatchesSearch } from '@features/companies/hooks/dashboardSearch';
+import { classifySearchTerm, recordMatchesSearch, searchableTerm } from '@features/companies/hooks/dashboardSearch';
 
 export const PICKER_LEADS = 20;
 
 export async function findPickerLeads(companyId, term) {
-    if (!String(term ?? '').trim()) {
+    // An empty box, or one letter of a name: the newest leads.
+    if (!searchableTerm(term)) {
         const { docs } = await getDocs(query(
             collection(db, 'companies', companyId, 'leads'),
             orderBy('createdAt', 'desc'),
@@ -29,6 +30,6 @@ export async function findPickerLeads(companyId, term) {
 
 /** The same matching over leads already in hand: the browser tests' fixture. */
 export function matchPickerLeads(leads, term) {
-    const classified = classifySearchTerm(term);
+    const classified = classifySearchTerm(searchableTerm(term));
     return leads.filter((lead) => recordMatchesSearch(lead, classified)).slice(0, PICKER_LEADS);
 }

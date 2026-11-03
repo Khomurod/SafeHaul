@@ -5,10 +5,11 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 /**
- * The SafeHaul mark is drawn in three places, and they must stay one mark.
+ * The SafeHaul mark is drawn in four places, and they must stay one mark.
  *
- * `Logo.jsx` and `SafeHaulLoader.jsx` render it as JSX and read their colours
- * from `--ds-color-brand-*`. The favicon in `index.html` cannot: a `data:` URI
+ * `Logo.jsx` and `SafeHaulLoader.jsx` render it as JSX, and the start-up splash
+ * in `index.html` as markup; all three read their colours from
+ * `--ds-color-brand-*`. The favicon in `index.html` cannot: a `data:` URI
  * has no document to resolve a custom property against, so it carries the four
  * values literally. That literal copy is the whole reason this file exists —
  * **it had already drifted.** The favicon's leading facet was a flat
@@ -41,6 +42,9 @@ const brandTokens = Object.fromEntries(
 const faviconSvg = decodeURIComponent(
   html.match(/href="(data:image\/svg\+xml,[^"]+)"/)[1].split(',').slice(1).join(','),
 );
+
+/** The start-up splash's mark in `index.html`, which paints before the app's code runs. */
+const splashSvg = html.match(/<div id="startup-splash"[\s\S]*?<\/svg>/)?.[0] ?? '';
 
 /*
  * `(?<![\w-])` matters: without it, `d="…"` also matches the `d` at the end of
@@ -107,6 +111,22 @@ describe('the brand mark is one mark', () => {
     const fromFavicon = pathData(faviconSvg, "'");
     expect(fromLogo).toHaveLength(4);
     expect(fromFavicon).toEqual(fromLogo);
+    expect(pathData(splashSvg, '"')).toEqual(fromLogo);
+  });
+
+  /*
+   * The splash is in a document, so unlike the favicon it can read the tokens:
+   * the fills through their Tailwind roles, the gradient stops through `var()`.
+   * Before any stylesheet applies, those fills are absent and the stops fall
+   * back to `transparent`, so the mark shows whole or not at all.
+   */
+  it('colours the start-up splash from the brand tokens, not literals', () => {
+    expect(splashSvg).not.toBe('');
+    expect(splashSvg.match(/#[0-9A-Fa-f]{3,8}\b/g)).toBeNull();
+    expect(splashSvg).toContain('fill-ds-brand-primary');
+    expect(splashSvg).toContain('fill-ds-brand-accent');
+    expect(splashSvg).toContain('var(--ds-color-brand-mint-gradient-start, transparent)');
+    expect(splashSvg).toContain('var(--ds-color-brand-mint-gradient-end, transparent)');
   });
 
   /*
@@ -132,7 +152,7 @@ describe('the brand mark is one mark', () => {
    * light differently at 16px than it does at 150px.
    */
   it('uses the same gradient geometry everywhere', () => {
-    for (const source of [logo, loader, faviconSvg]) {
+    for (const source of [logo, loader, faviconSvg, splashSvg]) {
       expect(source).toMatch(/x1=['"]42\.5['"]/);
       expect(source).toMatch(/y1=['"]55['"]/);
       expect(source).toMatch(/x2=['"]83['"]/);

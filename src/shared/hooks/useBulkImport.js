@@ -1,6 +1,15 @@
 import { useState } from 'react';
 
 /**
+ * How long the Google Sheet request and download may take together. A
+ * recruiter's export is small, so this is far beyond a normal answer. The parse
+ * that follows has no limit.
+ */
+const SHEET_TIMEOUT_MS = 60000;
+const SHEET_TIMEOUT_MESSAGE = `Google Sheets did not answer within ${SHEET_TIMEOUT_MS / 1000} seconds. `
+    + 'Try again, or download the sheet and upload the file.';
+
+/**
  * Shared spreadsheet/Google-Sheet import state machine.
  *
  * @param {object} [options]
@@ -87,15 +96,19 @@ export function useBulkImport(options = {}) {
         const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
 
         setProcessingSheet(true);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), SHEET_TIMEOUT_MS);
         try {
-            const response = await fetch(exportUrl);
+            const response = await fetch(exportUrl, { signal: controller.signal });
             if (!response.ok) throw new Error("Failed to fetch sheet. Make sure the sheet has 'Anyone with the link' access enabled in Google Sheets sharing settings.");
             const arrayBuffer = await response.arrayBuffer();
+            clearTimeout(timer);
             await parseBuffer(arrayBuffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'GoogleSheet.xlsx');
         } catch (error) {
             console.error("Sheet Error:", error);
-            notifyError("Error importing sheet: " + error.message);
+            notifyError("Error importing sheet: " + (controller.signal.aborted ? SHEET_TIMEOUT_MESSAGE : error.message));
         } finally {
+            clearTimeout(timer);
             setProcessingSheet(false);
         }
     };

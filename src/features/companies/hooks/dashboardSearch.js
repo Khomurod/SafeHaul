@@ -32,6 +32,8 @@ export const PREFIX_END = '';
 /** Per-plan fetch cap. Merged, deduped, verified results are capped separately. */
 export const SEARCH_PLAN_LIMIT = 30;
 export const SEARCH_RESULT_LIMIT = 50;
+/** The shortest name a search sends: `searchableTerm`. */
+export const MIN_NAME_SEARCH_LENGTH = 2;
 
 const titleCase = (value) =>
     value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
@@ -61,6 +63,22 @@ export function classifySearchTerm(rawTerm) {
         }
     }
     return { type: 'name', value: normalizeSearchText(raw), raw };
+}
+
+/**
+ * The term a list or the template picker should search for: `''` (no search,
+ * the list as it is) for an empty box or a name shorter than
+ * `MIN_NAME_SEARCH_LENGTH`. One letter would run five prefix queries of up to
+ * `SEARCH_PLAN_LIMIT` whole documents each, up to 150 downloaded to show at
+ * most `SEARCH_RESULT_LIMIT`. An email, phone, confirmation number or
+ * application id is never cut.
+ * @returns {string} `rawTerm` unchanged, or `''`
+ */
+export function searchableTerm(rawTerm) {
+    const classified = classifySearchTerm(rawTerm);
+    if (!classified) return '';
+    if (classified.type === 'name' && classified.value.length < MIN_NAME_SEARCH_LENGTH) return '';
+    return String(rawTerm);
 }
 
 /**

@@ -85,7 +85,16 @@
 
 ## Done when (acceptance criteria)
 
-- [ ] `NotesTab` makes no `getDoc` of the record; shared history comes from the prop.
-- [ ] The display, anonymisation, sorting, sanitising and every string are unchanged.
+- [x] `NotesTab` makes no `getDoc` of the record; shared history comes from the prop.
+- [x] The display, anonymisation, sorting, sanitising and every string are unchanged.
 - [ ] The docblocks and tests describe the new source; the DQ-tab decision and its SDK evidence are written in the PR.
 - [ ] Unit tests, lint, typecheck, build and `driver-dossier.spec.cjs` passed; the PR starts with Кратко.
+
+As done (2026-11-03, batch PR #557). Every file:line above was re-checked at `dd5866a`: none moved since `11626a6`. Adapted:
+- `sharedHistory` has no default in the signature. It is now an effect dependency, so a `= []` default would be a new array on every render and re-read the notes each time. A test pins one notes read with no history passed; it fails with that default.
+- Tests beyond the list: shared history is sanitised before it shows (nothing covered that path), and a re-render with the same array does not re-read the notes. The non-array case runs for an object and a string; each fails without the `Array.isArray` guard.
+- Two improvements, both intended: a failed record read can no longer hide the notes (there is no second read), and a non-array `sharedHistory`, which used to throw inside the read and hide every note, is now ignored.
+- `DossierBodies.notes.test.jsx` calls `vi.resetAllMocks()` before the harness puts its defaults back, because it queues `*Once` values. The shared harness keeps `vi.clearAllMocks()`; `DossierBodies.dqfile.test.jsx` queues `*Once` values on it too and is left for its own change.
+- `driver-dossier.spec.cjs` passed on `chromium` (10, the `@mobile` case skipped) and on `mobile-chrome` (1). Its Firestore is unreachable, so the dossier shows its error state and the Notes body never renders there; the new path is covered by the unit tests only.
+- Open boxes: the PR text (Кратко, the DQ-tab decision and its SDK evidence) belongs to the batch PR's description. Every check in the last box passed.
+- No brief, owner-guide or roadmap change: none describes the Notes tab's reads. M4-4 is not ticked here.

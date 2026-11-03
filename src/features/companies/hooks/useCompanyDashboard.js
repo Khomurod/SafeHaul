@@ -18,6 +18,7 @@ import {
     createdAtMillis,
     dateFilterRange,
     sortByAddedDate,
+    searchableTerm,
 } from './dashboardSearch';
 // The Firestore side — constraint planning and the parallel search execution —
 // lives in `dashboardQueries.js`, for the source-size standard. This
@@ -76,7 +77,8 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            setDebouncedSearch(searchQuery);
+            // One letter of a name searches nothing: the list stays as it is.
+            setDebouncedSearch(searchableTerm(searchQuery));
         }, 400);
         return () => clearTimeout(timer);
     }, [searchQuery]);

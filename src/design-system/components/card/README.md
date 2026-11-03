@@ -33,3 +33,17 @@ stay those two words apart: the label and value spans are blocks, with a space
 between them that draws nothing. Without it the text reads `attention0`, which
 axe's `label-content-name-mismatch` (WCAG 2.5.3) refuses, since the name does not
 contain it.
+
+## Loading
+
+`MetricCard loading` draws a `Skeleton` line half the text column wide where the
+value goes and ignores `value`, so a card that has not read its number never
+shows one (no `0` that was not read), and the card keeps the height it will have
+once the number arrives. The card carries `aria-busy="true"`; an interactive card
+stays a `<button>` — it still navigates — and is named by its label alone, the
+visible text, so WCAG 2.5.3 still holds. Not loading, it renders exactly as it
+did before the prop existed.
+
+`aria-busy` announces nothing. The caller says once, in a polite `role="status"`
+beside the group (never inside a `Notice`), that the group is loading and when it
+has loaded, as the company dashboard does.

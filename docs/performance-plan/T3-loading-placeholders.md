@@ -3,7 +3,7 @@
 [← Plan, progress and owner decisions](README.md) · Checked at commit `11626a6` on 2026-11-03; re-check line numbers against the current `main` before you start.
 
 - **Checklist item(s):** #1 — Add skeleton loading screens
-- **Size:** M · **Pull requests:** 2 (PR 1: design-system `Skeleton` + `MetricCard loading` + the company dashboard; PR 2: the driver apply-page placeholder. Open PR 2 only after PR 1 is merged, because it uses `Skeleton`) · **Depends on:** none · **Owner decision needed:** none to start. The optional question "should `index.html` carry a static placeholder for the moment before the app's code arrives?" is answered **no, not in T3** (reasons under Scope → Out) and repeated in the open questions; the work does not wait for it.
+- **Size:** M · **Pull requests:** 2 (PR 1: design-system `Skeleton` + `MetricCard loading` + the company dashboard; PR 2: the driver apply-page placeholder. Open PR 2 only after PR 1 is merged, because it uses `Skeleton`) · **Depends on:** none · **Owner decision needed:** none to start. The optional question "should `index.html` carry a static placeholder for the moment before the app's code arrives?" was answered **no, not in T3's two PRs** (reasons under Scope → Out); after T1 measured the white screen, the owner answered Р7 **yes** (2026-11-03), done as T3-static (note after PR 2).
 - **Why it matters for users:** A recruiter opening the company dashboard briefly sees "0 applications", "0 hired" and the invented name "Admin User", which reads as missing data. A driver opening an apply link on a phone sees a blank page and then three different "Loading" screens in a row. After T3 the recruiter sees grey bars where the numbers are coming, and the driver sees one calm grey outline of the page until it is ready. This changes how the app feels while it loads, not how fast it loads.
 
 ## Current behaviour (verified at 11626a6)
@@ -50,7 +50,7 @@ Budgets, limits and guards
   - PR 1: a new business-neutral primitive `Skeleton` (`src/design-system/components/skeleton/`); a `loading` prop on `MetricCard`; catalog stories and two new catalog baselines; `useDashboardCounts` gains `loading` and keys its answer and failure by company; the dashboard cards show a placeholder while loading and "—" after a failed first load (never a 0 that was not read); the greeting never shows an invented name; one polite status sentence for the counts (Super Admin precedent); docs.
   - PR 2: a feature-owned `ApplyPagePlaceholder` shaped like the intake chooser, used by all three waits on `/apply/:slug`, `/interest/:slug` and `/sandbox/apply` (auth gate, route-code Suspense, company load); a small route-aware fallback in `src/app/routes/`; an optional `renderLoading` prop on `DataProvider`; a functional e2e spec and one new app baseline; brief update.
 - Out (do not do in this task):
-  - No markup in `index.html`. It serves every route and cannot run an inline script, so it cannot pick the apply shape; it would add a mismatched screen on every staff page or a second visual on the apply page. The config file is already preloaded (`vite.config.js:45-62`). Recorded as an open question.
+  - No markup in `index.html` in PR 1 or PR 2. It serves every route and cannot run an inline script, so it cannot pick the apply shape. The owner has since answered Р7 yes (2026-11-03): T3-static added one neutral splash, the same on every route (note after PR 2).
   - No other screen changes its loader: login, company workspace routes, `/sign`, `/verify`, `/review-change`, the dossier (`DriverDossier.jsx:20-29`), E-Docs (`TemplateLibraryPanel.jsx:80`), settings, `DocumentsManager.jsx:299`. Super Admin `DashboardView.jsx:56` keeps its `'...'` (recorded in the roadmap and PR as the remaining old approach). No app-wide skeleton rollout.
   - `DataTable` keeps its private skeleton rows and keyframes (refactoring them would move table baselines for no user gain).
   - No change to what is read or when: no new Firestore query, no index, no rules, no Cloud Functions, no callable, no CSP origin, no feature flag, no route, no data. The auth gate stays for public routes. No change to which screen follows the loading state.
@@ -112,7 +112,15 @@ PR 1 — `Skeleton`, `MetricCard loading`, company dashboard
     - От вас: после слияния откройте главную страницу компании на Testing и посмотрите, что «0» больше не мелькает.
     In "What it touches": None. Name the remaining old approach: Super Admin `DashboardView.jsx:56` `'...'`, `DataTable`'s private skeleton rows, and the spinner loaders elsewhere.
 
+PR 1 as done (2026-11-03, batch PR #557). Every file:line above was re-checked at `6118b20`: only docs changed since `11626a6`. Adapted:
+- Step 3: measured choice buttons 103.5px and 123px at 412×915, 145.5px (both) at 1440×900, so `block` `lg` is 152px.
+- Step 10: the roadmap had one line to spare (559 of 560), so the §3 bullet names the card-group announcement only; the page example (a hidden `<h1>` in a polite status) is in `skeleton/README.md`, and PR 2 adds it to §3 with its consumer. §3 dropped the `(@design-system/patterns)` import path to fit.
+- The story status was **Needs review** until CI's baselines were pulled and looked at; it is **Approved** since `a612964`.
+- Step 11, pixel lane: run locally under the pinned Chromium (1248) with `--update-snapshots=none`, 280 of 300 baseline shots also differ on the unmodified tree, so this machine cannot judge baselines. Comparing the branch's renders with the base's in the same environment, only `company-dashboard-{desktop,mobile}` differ, and only in the greeting line. The four new and two changed PNGs therefore came from CI: `screenshots:pull` from run 41659416292, each looked at at 1440 and 412 (`a612964`), which closed that Done-when box. `check:visual-contract` passed unchanged locally under 1248.
+
 PR 2 — one placeholder for the driver apply page
+
+> Superseded in two places, kept as planned: the placeholder's `<main>` is **not** `aria-busy` (steps 14–15 and their sample markup say it is; see "PR 2 as done"), and the first code-download moment is no longer blank, because T3-static put `#startup-splash` in `index.html` (see "T3-static as done").
 
 13. Branch from the updated `main`. Tell the owner in at most three Russian lines: «Водитель, открывший ссылку на анкету, увидит одну серую заготовку страницы вместо трёх надписей «Loading». Сама анкета, данные и другие страницы не меняются. Самое первое мгновение, пока скачивается код, останется как есть.»
 14. **Write the failing tests first:**
@@ -157,6 +165,24 @@ PR 2 — one placeholder for the driver apply page
     - От вас: после слияния откройте на телефоне `truckerapp-system.web.app/sandbox/apply` (как в чек-листе релиза) и посмотрите, как она загружается.
     In "What it touches": None (no route, guard or data change; `DataProvider` gains an optional display prop). Name what still uses the old loaders: every non-apply route, by scope, and `DocumentsManager`'s own Suspense.
 
+PR 2 as done (2026-11-03, batch PR #557). Every file:line PR 2 cites was re-checked at `becf0e7` (PR 1 and the T1 docs on top of `11626a6`): only `e2e/visual/app.spec.cjs` moved (`SCREENS` comment `:53-58`, `public-application` `:323-327`, `callables` line `:412`). Adapted:
+- The e2e spec also checks that the pulse runs before reduced motion is emulated, so `animationName === 'none'` cannot pass vacuously.
+- `RouteLoadingFallback.jsx` imports `GlobalLoadingState` from its own file, not the `@shared/components/feedback` barrel.
+- Roadmap §3 carries the page example PR 1 deferred (a hidden `<h1>`) in the same bullet, and §8 names the apply page; still 560 lines.
+- Brief §3: the same paragraph is tightened, but the sentence still adds 2 lines and 149 B (now 1,516 lines, 97,576 B; warn-only, already over at 1,514 / 97,427). Cutting more would drop existing facts.
+- The auth-gate wait is not held in a browser (as planned); `RouteLoadingFallback.test.jsx` (`BootLoadingFallback`) and `DataContext.test.jsx` cover it. `App.jsx`'s two-line wiring has no unit test of its own.
+- `mobile-chrome` finds no test in `public-application-responsive.spec.cjs` (no `@mobile` tag); its 412px cases run on `chromium`.
+- Manual review (dev server, held module, local Chromium 1243): card 672×333 against the chooser's 672×326.5 at 1440; 380×501 against 380×447.5 at 412, because `block` `lg` (152px, from the 1440 buttons) is taller than the phone's buttons (103.5 / 123px). Accepted; a phone height would be a new `Skeleton` value.
+- Bundle: first download 304,119 B gzip (303,492 before, +627); apply page 513,938 B (513,376 before, +562).
+- Review (CodeRabbit on #557): the `<main>` is no longer `aria-busy`, unlike steps 14–15 above. Assistive technology may hold back a busy region's content, the polite status included, until it stops being busy, and the placeholder is removed while still busy. The status announces the wait, as the company dashboard's status does outside its busy cards. The unit test and the e2e spec assert that nothing around the status is busy.
+- Pixel lane: the pinned Chromium (1248) is not installed here, so `test:visual` and `check:visual-contract` were not run locally (this PR changes no design-system file). The two new `public-application-loading-*` PNGs therefore came from CI: `screenshots:pull` from run 41664668111, each looked at at 1440 and 412 against the chooser's layout (title, one line, two choices side by side at 1440 and stacked at 412, footnote; no text, spinner or error), which closed that Done-when box. That run moved no other app baseline.
+
+T3-static as done (2026-11-03, batch PR #557, after the owner answered Р7 yes):
+- `index.html`'s `#root` holds one splash, `#startup-splash`: the mark, 80px, centred on the page ground, the same on every route. It is `aria-hidden` with no words, heading, live region, script or pulse (if the code never arrives, nothing pretends to load). Fills are `fill-ds-brand-*` and the gradient stops `var(--ds-color-brand-mint-gradient-*, transparent)`; `width`/`height` attributes size it, so before styles apply (the dev server injects them from script) it is invisible, not page-wide. 1,967 B of markup (1,031 B gzip).
+- React's first commit and `showStartupError` both set the root's `textContent` to '', so the splash leaves without a layout shift.
+- Tests: `pageShell.test.js` pins it inside `#root`, alone, hidden and wordless, one non-inline script, no robots meta, no raw value, ≤ 2 KB, gone after a React render (the new cases failed before the markup); `brandAssets.test.jsx` holds its paths and gradient to the logo's and its colours to tokens; `startupGuards.test.jsx` shows the error screen replaces it; `apply-loading-placeholder.spec.cjs` that it is gone once the app renders. New pixel shot `page-shell` (entry module refused, stylesheet linked as the build links it); its baselines came from CI run 41708319457 with `screenshots:pull`, each looked at at 1440 and 412: the brand mark centred on the canvas, no text. They were that run's only failures.
+- Measured: [T3-static result](../qa/mobile-speed-baseline.md#t3-static-result-local) (white screen on `/apply` about 4.8 s → 1.4 s on the local harness, CLS 0).
+
 ## Tests
 
 - PR 1
@@ -169,7 +195,7 @@ PR 2 — one placeholder for the driver apply page
   - `e2e/company-shell-dashboard.spec.cjs` → exact `Welcome back`, card navigation unchanged.
   - Pixel lane → new `skeleton-shapes-{desktop,mobile}.png`, `card-metric-loading-{desktop,mobile}.png`; changed `company-dashboard-{desktop,mobile}.png` (greeting only); every other baseline unchanged.
 - PR 2
-  - `e2e/apply-loading-placeholder.spec.cjs` (new, `@mobile`) → the held route shows only the placeholder (named main, busy, one `h1`, no "Loading…"/"Loading Platform...", axe clean, pulse off under reduced motion), then the chooser replaces it. Fails before the change.
+  - `e2e/apply-loading-placeholder.spec.cjs` (new, `@mobile`) → the held route shows only the placeholder (named main, not busy, one `h1`, no "Loading…"/"Loading Platform...", axe clean, pulse off under reduced motion), then the chooser replaces it. Fails before the change.
   - `ApplyPagePlaceholder.test.jsx` (new) → landmark, heading, status, hidden skeletons, axe; carries the frozen copy.
   - `src/app/routes/applyPagePaths.test.js` (new) → path matching against neighbours.
   - `src/app/routes/RouteLoadingFallback.test.jsx` (new) → the fallback choice inside and outside the router.
@@ -224,15 +250,15 @@ PR 2 — one placeholder for the driver apply page
 
 ## Done when (acceptance criteria)
 
-- [ ] PR 1: `Skeleton` exists in `src/design-system/components/skeleton/` with README, unit + axe tests, a production-fallback case and a catalog story; it is always `aria-hidden`, has only the widths and heights its consumers use, and stops pulsing under reduced motion.
-- [ ] PR 1: `MetricCard loading` keeps the card's height and its button, is named by its label, carries `aria-busy="true"`, and renders exactly as before when not loading.
-- [ ] PR 1: `useDashboardCounts` returns `loading`, never another company's numbers, and `counts === null` until read; the dashboard shows placeholders while loading and "—" after a failed first load — no "0" that was not read (proved by the new tests, which failed before the change).
-- [ ] PR 1: the greeting never shows "Admin User"; a failed name lookup leaves "Welcome back" with no unhandled rejection.
-- [ ] PR 1: `CompanyAdminDashboard.reads.test.jsx` unchanged and green (no new read); no Firestore index, rules, Functions, CSP or flag change.
-- [ ] PR 1: new catalog baselines `skeleton-shapes-*` and `card-metric-loading-*` and the updated `company-dashboard-*` come from CI and were looked at at 1440 and 412; no other baseline changed; `check:visual-contract` passes unchanged (in CI, or locally under the pinned Chromium).
-- [ ] PR 1: roadmap §3 and §8, DS README, card README, components README and the two "172" sentences updated; roadmap ≤ 560 lines, DS README ≤ 14,336 bytes; the story's status is honest.
-- [ ] PR 2: on `/apply/:slug`, `/interest/:slug` and `/sandbox/apply` the auth gate, the route-code wait and the company load all render the same `ApplyPagePlaceholder` (one named `main`, `aria-busy`, one hidden `<h1>` "Loading Application..." in a polite status); other pages keep "Loading Platform..."/"Loading…" (unit-tested).
-- [ ] PR 2: `e2e/apply-loading-placeholder.spec.cjs` passes on `chromium` and `mobile-chrome` and failed before the change; axe clean; reduced motion verified.
-- [ ] PR 2: `ApplyLoadingScreen` is removed with no remaining reference (`grep -rn ApplyLoadingScreen src e2e` is empty); the stale comment is corrected; `index.html` is unchanged; no new lint warning.
-- [ ] PR 2: `public-application-loading-*` baselines come from CI and match the chooser's layout at 1440 and 412; `public-application-*` unchanged.
+- [x] PR 1: `Skeleton` exists in `src/design-system/components/skeleton/` with README, unit + axe tests, a production-fallback case and a catalog story; it is always `aria-hidden`, has only the widths and heights its consumers use, and stops pulsing under reduced motion.
+- [x] PR 1: `MetricCard loading` keeps the card's height and its button, is named by its label, carries `aria-busy="true"`, and renders exactly as before when not loading.
+- [x] PR 1: `useDashboardCounts` returns `loading`, never another company's numbers, and `counts === null` until read; the dashboard shows placeholders while loading and "—" after a failed first load — no "0" that was not read (proved by the new tests, which failed before the change).
+- [x] PR 1: the greeting never shows "Admin User"; a failed name lookup leaves "Welcome back" with no unhandled rejection.
+- [x] PR 1: `CompanyAdminDashboard.reads.test.jsx` unchanged and green (no new read); no Firestore index, rules, Functions, CSP or flag change.
+- [x] PR 1: new catalog baselines `skeleton-shapes-*` and `card-metric-loading-*` and the updated `company-dashboard-*` come from CI and were looked at at 1440 and 412; no other baseline changed; `check:visual-contract` passes unchanged (in CI, or locally under the pinned Chromium).
+- [x] PR 1: roadmap §3 and §8, DS README, card README, components README and the two "172" sentences updated; roadmap ≤ 560 lines, DS README ≤ 14,336 bytes; the story's status is honest.
+- [x] PR 2: on `/apply/:slug`, `/interest/:slug` and `/sandbox/apply` the auth gate, the route-code wait and the company load all render the same `ApplyPagePlaceholder` (one named `main`, not `aria-busy`, one hidden `<h1>` "Loading Application..." in a polite status); other pages keep "Loading Platform..."/"Loading…" (unit-tested).
+- [x] PR 2: `e2e/apply-loading-placeholder.spec.cjs` passes on `chromium` and `mobile-chrome` and failed before the change; axe clean; reduced motion verified.
+- [x] PR 2: `ApplyLoadingScreen` is removed with no remaining reference (`grep -rn ApplyLoadingScreen src e2e` is empty); the stale comment is corrected; `index.html` is unchanged; no new lint warning.
+- [x] PR 2: `public-application-loading-*` baselines come from CI and match the chooser's layout at 1440 and 412; `public-application-*` unchanged.
 - [ ] Both PRs: `check:bundle-budget` passes with the measured numbers in the PR; brief §3 (PR 2) updated without growing the file; each PR starts with **Кратко**; every check listed was run and reported honestly (anything not run is named).

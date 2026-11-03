@@ -95,12 +95,15 @@ Routing is **manifest-driven**, not hand-edited JSX:
 `App.jsx`.
 
 **Startup** (`src/app/startup/`): an unloadable Hosting config
-(`/__/firebase/init.json`) shows a reload screen, not a blank page; a tab whose
-files a release removed reloads once, only when `/release.json` names a SHA
-other than its `VITE_RELEASE_SHA`. Sign-in returns to the page asked for, else
-sends a Super Admin (by the token's role, as routes and rules read it) to the
-owner panel and a company member to the dashboard; an account in no company (a
-removed member keeps the login) gets a no-access screen with Sign out.
+(`/__/firebase/init.json`) shows a reload screen; a tab whose files a release
+removed reloads once, only when `/release.json` names a SHA other than its
+`VITE_RELEASE_SHA`. Sign-in returns to the page asked for, else sends a
+Super Admin (by the token's role) to the owner panel and a company member to
+the dashboard; an account in no company (a removed member keeps the login)
+gets a no-access screen with Sign out. The driver application (routes below)
+waits behind one start-screen placeholder, `ApplyPagePlaceholder`, and asks for
+its screen's code before React renders (`warmApplyScreen.js`); other pages
+keep the branded loader; before that `index.html` shows the mark (all routes).
 
 ### Public (unauthenticated) routes
 
@@ -192,15 +195,15 @@ uploads, the signature and the applicant's certification are display-only and
 `proposeApplicationChanges` skips them.
 
 **The document reader** extracts text in the recruiter's browser — a PDF's text
-layer, else Tesseract OCR, else page images (a photo re-encoded like a page) for
-the vision AI — and only that text or those images leave the browser. Any subset
-of the four documents is valid; the text task shares 16,000 characters among
-them and the summary names one read only in part. A read is up to two minutes
-per pass, twice; a failed second pass falls back to the first, and the second
-wins where it succeeds. `useApplicationPrepDraft.applyExtraction` merges into
-the answers *as they are then*, so anything typed meanwhile is kept (and
-reported). The applicant and document set are captured before the call and
-compared after it; a result for another driver or document set is not applied.
+layer, else Tesseract OCR (skipped if it cannot start within a minute), else
+page images (a photo re-encoded like a page) for the vision AI — and only that
+text or those images leave the browser. Any subset of the four documents is
+valid; the text task shares 16,000 characters among them and the summary names
+one read only in part. A read is up to two minutes per pass, twice; a failed
+second pass falls back to the first, and the second wins where it succeeds.
+`useApplicationPrepDraft.applyExtraction` merges into the answers *as they are
+then*, so anything typed meanwhile is kept (and reported). A result is not
+applied if the applicant or document set changed during the call.
 
 **A control that cannot be pressed cannot explain itself.** Save and "Create the
 driver's link" stay clickable and validate on press: `prepActionPreflight`
@@ -222,9 +225,9 @@ on-screen link. Pinned by
 the wizard and the carrier's form (`useGuestFileUpload`) are kept as
 `{ name, storagePath }`, never with a URL. Records from before 2026-09-08 may
 still hold an expired one, and the dossier's own admin upload stores a Storage
-download URL; views re-sign from `storagePath`. `useSignedUploadPreview` mints a
-15-minute URL through `getSignedGuestUploadUrl` (which authorizes it) when
-someone looks, reused for 10 minutes. `not-found` says the file is gone; any
+download URL; views re-sign from `storagePath`, and the dossier and
+`useSignedUploadPreview` (a 15-minute URL from `getSignedGuestUploadUrl`, which
+authorizes it) reuse a link 10 minutes. `not-found` says the file is gone; any
 other error offers a retry, the row still attached (gates key on presence).
 
 **A custom "file upload" answer is the file:** `{ name, storagePath }` in
@@ -280,7 +283,8 @@ offers, in the intake chooser's place, the quick form (names, phone, email,
 required contact consent) or the full application. A quick-form lead
 (`submitReferralInterest`) or an application with `referralCode` carries
 `referral` (shown in the dossier) and goes to the link's creator while on the
-team, who is notified.
+team, who is notified. Name search starts at two letters, in the lists and the
+template picker; email, phone, confirmation number and id search stay exact.
 
 **E-documents and signing.** Recruiters build envelopes with placed signer
 fields (optionally AI-suggested); recipients sign **with no account** at

@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { contractViolation } from '../../contract';
+import { Skeleton } from '../skeleton';
 import './Card.css';
 
 const TONES = new Set(['neutral', 'info', 'success', 'warning', 'danger', 'accent']);
@@ -35,6 +36,7 @@ export const MetricCard = /* @__PURE__ */ forwardRef(function MetricCard({
   icon,
   tone = 'neutral',
   active = false,
+  loading = false,
   onActivate,
 }, ref) {
   if (!TONES.has(tone)) {
@@ -42,6 +44,10 @@ export const MetricCard = /* @__PURE__ */ forwardRef(function MetricCard({
   }
 
   const Element = onActivate ? 'button' : 'div';
+  // While loading, `value` is ignored: a placeholder holds its place, and a card
+  // that navigates stays a button, named by its label alone (the visible text).
+  let name;
+  if (onActivate) name = loading ? label : `${label}: ${value}`;
 
   return (
     <Element
@@ -52,16 +58,22 @@ export const MetricCard = /* @__PURE__ */ forwardRef(function MetricCard({
       data-tone={tone}
       data-interactive={Boolean(onActivate)}
       data-active={active || undefined}
+      data-loading={loading || undefined}
       onClick={onActivate}
-      aria-label={onActivate ? `${label}: ${value}` : undefined}
+      aria-label={name}
       aria-pressed={onActivate && active ? true : undefined}
+      aria-busy={loading || undefined}
     >
       <span className="ds-metric-card__content">
         <span className="ds-metric-card__label" title={label}>{label}</span>
         {/* Both spans are blocks, so this space draws nothing; it keeps the
             label and the value two words in the text a name is checked against. */}
         {' '}
-        <span className="ds-metric-card__value" title={String(value)}>{value}</span>
+        {loading ? (
+          <span className="ds-metric-card__value"><Skeleton width="half" /></span>
+        ) : (
+          <span className="ds-metric-card__value" title={String(value)}>{value}</span>
+        )}
       </span>
       {icon && <span className="ds-metric-card__icon" aria-hidden="true">{icon}</span>}
     </Element>

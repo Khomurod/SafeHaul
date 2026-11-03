@@ -5,7 +5,7 @@ const DASHBOARD_URL = '/company/dashboard?e2eAuth=company_admin';
 
 async function openDashboard(page) {
   await page.goto(DASHBOARD_URL);
-  await expect(page.getByRole('heading', { name: 'Welcome back, Admin User' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible();
   await expect(page.getByRole('table', { name: 'Team leaderboard' })).toBeVisible();
 }
 

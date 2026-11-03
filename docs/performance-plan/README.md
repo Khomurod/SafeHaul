@@ -57,21 +57,23 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
 ### Пять задач / The five tasks
 
 1. **Скорость на медленном телефоне / Test on slow phones and networks (#31)**
-   - [ ] **T1** · Замерить скорость страниц водителя на телефоне · *Measure the driver pages on a phone* → [T1](T1-driver-pages-on-phone.md) · PR: — · Дата: —
+   - [x] **T1** · Замерить скорость страниц водителя на телефоне · *Measure the driver pages on a phone* → [T1](T1-driver-pages-on-phone.md) · PR: #557 · Дата: 2026-11-03
+   - [x] **T1-F** · Запрашивать код анкеты сразу при запуске (итог T1: GO, около 0,7 с) · *Request the `/apply` route code during start-up* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
+   - [x] **T3-static** · Нейтральная заставка в `index.html` вместо белого экрана (итог T1: GO; Р7: да) · *Neutral static placeholder in `index.html`* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
 2. **Постраничная загрузка / Paginate results (#5)**
    - [ ] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: — · Дата: —
    - [ ] **T2b** · E-Docs: грузить только последние конверты, счётчики с сервера · *Load only recent envelopes in E-Docs* → [T2b](T2b-edocs-recent-envelopes.md) · PR: — · Дата: —
    - [ ] **T2c** · Ограничить списки кампаний, итоги остаются верными · *Limit the Campaigns lists* → [T2c](T2c-campaigns-lists-limit.md) · PR: — · Дата: —
    - [ ] **T2d** · (необязательно) Свои напоминания не пропадают из колокольчика · *(optional) Keep own reminders in the notification bell* → [T2d](T2d-notification-bell-reminders.md) · PR: — · Дата: —
 3. **Заглушки вместо нулей / Skeleton loading screens (#1)**
-   - [ ] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: — · Дата: —
-   - [ ] **T3 PR 2** · Заглушка страницы заявки водителя · *Driver apply-page placeholder* → [T3](T3-loading-placeholders.md) · PR: — · Дата: —
+   - [x] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
+   - [x] **T3 PR 2** · Заглушка страницы заявки водителя · *Driver apply-page placeholder* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
 4. **Лимиты времени для внешних сервисов / Timeouts for external calls (#12)**
    - [ ] **T4.1** · RingCentral: лимит 20 секунд, без повторной отправки SMS · *RingCentral 20-second limit, no resend* → [T4.1](T4.1-ringcentral-timeout.md) · PR: — · Дата: —
    - [ ] **T4.2** · Кампании: «возможно отправлено», без авто-повтора · *Campaigns safe when the SMS provider does not answer* → [T4.2](T4.2-campaign-send-unconfirmed.md) · PR: — · Дата: —
    - [ ] **T4.3** · Лимиты для 8x8 SMS и Facebook · *Time limits for 8x8 SMS and Facebook Graph* → [T4.3](T4.3-8x8-facebook-timeouts.md) · PR: — · Дата: —
    - [ ] **T4.4** · Лимит 15 секунд для чтений GitHub в Releases · *15-second limit on GitHub reads behind Releases* → [T4.4](T4.4-github-release-timeouts.md) · PR: — · Дата: —
-   - [ ] **T4.5** · Импорт Google Sheet и скачивание PDF не крутятся вечно · *Sheet import and envelope PDF download stop spinning forever* → [T4.5](T4.5-browser-fetch-timeouts.md) · PR: — · Дата: —
+   - [x] **T4.5** · Импорт Google Sheet и скачивание PDF не крутятся вечно · *Sheet import and envelope PDF download stop spinning forever* → [T4.5](T4.5-browser-fetch-timeouts.md) · PR: #557 · Дата: 2026-11-03
 5. **Скорость у реальных пользователей / Real-user speed monitoring (#30)**
    - [ ] **T5** · Вариант A: Firebase Performance Monitoring · *Option A: Firebase Performance Monitoring* → [T5](T5-firebase-performance.md) · PR: — · Дата: —
    - [x] **T5-alt** · Вариант B: оставить Sentry (вместо T5 и T5b) · *Option B: keep Sentry as the speed tool* → [T5-alt](T5-alt-sentry-speed.md) · не понадобилось: владелец выбрал A (Р13) · Дата: 2026-11-03
@@ -86,22 +88,22 @@ Each can be done on its own, or when someone next changes that part of the app.
   - [ ] **M1a** · Кэш команды: имена по общему правилу, одно чтение · *Team cache: shared naming rule, one read* → [M1a](M1a-team-cache-names.md) · PR: — · Дата: —
   - [ ] **M1b** · Assign Leads и Import Leads: команда одним запросом · *Assign/Import Leads read the team in one request* → [M1b](M1b-assign-import-team-read.md) · PR: — · Дата: —
   - [ ] **M1c** · Настройки команды: все дневные цели одним запросом · *Team settings: every daily goal in one request* → [M1c](M1c-team-goals-read.md) · PR: — · Дата: —
-  - [ ] **M2a** · Заметки в досье: история из уже загруженной записи · *Dossier Notes reuse the loaded record* → [M2a](M2a-notes-shared-history.md) · PR: — · Дата: —
-  - [ ] **M2b** · Файлы досье: подписанная ссылка живёт 10 минут · *Dossier files reuse a signed link for ten minutes* → [M2b](M2b-signed-link-reuse.md) · PR: — · Дата: —
+  - [x] **M2a** · Заметки в досье: история из уже загруженной записи · *Dossier Notes reuse the loaded record* → [M2a](M2a-notes-shared-history.md) · PR: #557 · Дата: 2026-11-03
+  - [x] **M2b** · Файлы досье: подписанная ссылка живёт 10 минут · *Dossier files reuse a signed link for ten minutes* → [M2b](M2b-signed-link-reuse.md) · PR: #557 · Дата: 2026-11-03
   - [ ] **M3a** · Комната подписи: независимые шаги сервера параллельно · *Signing room: independent server steps in parallel* → [M3a](M3a-signing-room-parallel.md) · PR: — · Дата: —
   - [ ] **M3b** · Запуск кампании: проверки параллельно · *Campaign launch checks in parallel* → [M3b](M3b-campaign-launch-parallel.md) · PR: — · Дата: —
-  - [ ] **M-SA** · Поиск Super Admin: показывать только самый свежий ответ · *Super Admin search shows only the newest answer* → [M-SA](M-SA-super-admin-search.md) · PR: — · Дата: —
+  - [x] **M-SA** · Поиск Super Admin: показывать только самый свежий ответ · *Super Admin search shows only the newest answer* → [M-SA](M-SA-super-admin-search.md) · PR: #557 · Дата: 2026-11-03
 - **Меньше данных в списке заявок / Select only the columns you need (#24)**: после T1
-  - [ ] **M4-1** · Поиск по имени с двух букв · *Two-letter minimum for name search* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
+  - [x] **M4-1** · Поиск по имени с двух букв · *Two-letter minimum for name search* → [M4](M4-applications-list-payload.md) · PR: #557 · Дата: 2026-11-03
   - [ ] **M4-2** · Записать замер и решение («ворота» открыты или закрыты) · *Record the measurement and the gate verdict* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
   - [ ] **M4-3a / 3b / 3c** · Только если ворота открыты и вы согласны: серверная функция для списка · *Only if the gate opens and the owner agrees* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
-  - [ ] **M4-4** · (необязательно) То же, что M2a: если M2a сделана, отметить «не понадобилось» · *(optional) Same as M2a* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
+  - [x] **M4-4** · (необязательно) То же, что M2a: если M2a сделана, отметить «не понадобилось» — не понадобилось, сделано в M2a · *(optional) Same as M2a: not needed, done under M2a* → [M4](M4-applications-list-payload.md) · PR: #557 · Дата: 2026-11-03
 - **Меньше лишних перерисовок / Prevent unnecessary re-renders (#26)**: после T1
   - [ ] **M5-1** · Записать замер и решение · *Record the measurement and the verdict* → [M5](M5-re-renders.md) · PR: — · Дата: —
   - [ ] **M5-2** · Список кандидатов: стабильные свойства · *Stable props for the candidate list* → [M5](M5-re-renders.md) · PR: — · Дата: —
   - [ ] **M5-3** · Анкета водителя: одна правка, только если замер покажет · *One wizard fix, only if its gate opens* → [M5](M5-re-renders.md) · PR: — · Дата: —
 - **Обновление экрана до ответа сервера / Optimistic UI (#14)**
-  - [ ] **M6** · Assign To возвращается к сохранённому, если сохранение не удалось · *Put the Assign To picker back when the save fails* → [M6](M6-assign-picker-rollback.md) · PR: — · Дата: —
+  - [x] **M6** · Assign To возвращается к сохранённому, если сохранение не удалось · *Put the Assign To picker back when the save fails* → [M6](M6-assign-picker-rollback.md) · PR: #557 · Дата: 2026-11-03
   - [ ] **M6-opt** · (необязательно) Новая заметка сразу, с пометкой «Saving…» · *(optional) Show a new note at once, marked "Saving…"* → [M6-opt](M6-opt-note-saving-mark.md) · PR: — · Дата: —
 - **Медленная работа в фоне / Background jobs (#7)**
   - [ ] **M7a** · Замер: ожидание при отправке заявки и заявки без PDF (владелец, только чтение) · *Measure the submit wait and count missing PDFs* → [M7a](M7a-submit-wait-and-pdf-counts.md) · PR: — · Дата: —
@@ -112,15 +114,30 @@ Each can be done on its own, or when someone next changes that part of the app.
 ### Дополнительно / Extra (outside the list)
 
 - **OCR и политика безопасности CSP / OCR and the security policy**
-  - [ ] **X1a** · OCR не ждёт вечно, если движок не запустился · *OCR stops waiting forever when its engine cannot start* → [X1a](X1a-ocr-start-timeout.md) · PR: — · Дата: —
+  - [x] **X1a** · OCR не ждёт вечно, если движок не запустился · *OCR stops waiting forever when its engine cannot start* → [X1a](X1a-ocr-start-timeout.md) · PR: #557 · Дата: 2026-11-03
   - [ ] **X1b** · Движок OCR и английские данные с нашего сайта (до включения CSP) · *Serve the OCR engine from our own site* → [X1b](X1b-ocr-self-hosted.md) · PR: — · Дата: —
 
 ## Журнал измерений и решений / Measurements and decisions
 
 Agents fill this in. Numbers and verdicts only, never personal data.
 
-- **T1, phone baseline:** the report goes to `docs/qa/mobile-speed-baseline.md`
-  (T1 creates it). Here: date, commit, and one line per page. — *not measured yet*
+- **T1, phone baseline:** [docs/qa/mobile-speed-baseline.md](../qa/mobile-speed-baseline.md),
+  2026-11-03, app code `11626a6`, 4x CPU and slow 4G, medians:
+  - Testing `/login`: FCP 1,065 ms, LCP 1,065 ms, TBT 309 ms.
+  - Testing `/apply/<owner company>`: FCP 1,076 ms, LCP 4,203 ms (8,372 ms with real throttling),
+    white screen 2,841 ms.
+  - Local `/sign` mock: LCP 3,596 ms. Local `/verify` mock: LCP 3,069 ms.
+  - Typing at 4x: 88 ms and 128 ms. At 10x: 240 ms and 408 ms.
+  - Verdicts: T3 static placeholder GO; earlier `/apply` code download GO (saves about 738 ms);
+    M5 typing NO-GO; M4 awaits the owner's numbers. PageSpeed refused with its daily quota, so
+    there are no real-user numbers yet.
+- **T1-F, earlier `/apply` code download:** 2026-11-03, local harness only, devtools, 3 runs each,
+  base `e3ec172`: route code requested 3,503 → 3,134 ms, `gap` 686 → 327 ms, LCP 5,573 → 5,232 ms
+  ([T1-F result](../qa/mobile-speed-baseline.md#t1-f-result-local-harness-devtools)).
+- **T3-static, start-up splash:** 2026-11-03, local harness only, base `b32fd47`: `/apply` devtools
+  (3 runs) FCP 5,425 → 2,021 ms, white screen 4,833 → 1,436 ms, LCP 5,425 → 5,044 ms, CLS 0 → 0;
+  `/login` simulate (5 runs) FCP 917 → 930 ms, CLS 0
+  ([T3-static result](../qa/mobile-speed-baseline.md#t3-static-result-local)).
 - **M4-2, Applications list (owner's DevTools numbers):** date; company size;
   (a) first page, (b) Next page, (c) 3-letter name search, (d) E-Docs; verdict
   OPEN or CLOSED. — *not measured yet*
@@ -154,7 +171,7 @@ answer, and the batch PR says so.
 
 | Batch PR | What it changes | Items, in order |
 |---|---|---|
-| **A — Экраны / Screens** | browser only | T1 (measured first, as the baseline), T3 (both parts), T4.5, M2a, M2b, M-SA, M4-1, M6, X1a (without Sentry: the owner is removing it) |
+| **A — Экраны / Screens** | browser only | T1 (measured first, as the baseline), T3 (both parts), T1-F, T3-static (only if Р7 is yes), T4.5, M2a, M2b, M-SA, M4-1, M6, X1a (without Sentry: the owner is removing it) |
 | **B — Списки / Lists** | browser and Firestore indexes | T2a, T2b, T2c, T2d, M5 (only where T1's numbers call for it) |
 | **C — Сервер / Server** | Cloud Functions | T4.1, T4.2, T4.3, T4.4, M1a, M1b, M1c, M3a, M3b, M7b PR 1, then M7c (only if M7a's numbers call for it), then M7b PR 2. Without M7a's numbers, M7b PR 2 waits, because it needs M7c merged or ticked "not needed" |
 | **D — Мониторинг / Monitoring** | browser, CI and docs | T5, T5b (both parts), X1b. T5b's wait for Production speed data is waived: the owner asked to remove Sentry outright (Р13), and Sentry's page-load data today is one undifferentiated "Pageload" group |
@@ -193,8 +210,10 @@ task that waits for it.
   Indexes, что новые индексы в статусе «Enabled». — Сделано: — · Дата: —
 
 **T3: заглушки**
-- **Р7 (T3).** Статичная заглушка прямо в `index.html` (видна долю секунды до
-  загрузки кода). *Рекомендую:* не сейчас. — Ответ: — · Дата: —
+- **Р7 (T3).** Статичная заглушка прямо в `index.html`. Замер T1 показал, что на
+  среднем телефоне экран анкеты остаётся белым около 2,8 с, пока загружается код.
+  *Рекомендую теперь:* да, нейтральная заставка (фон и логотип, без скриптов) на
+  всех страницах. Её видно только эти первые секунды. — Ответ: да (владелец, 2026-11-03) · Дата: 2026-11-03
 - **Р8 (T3).** После T3 перевести «...» в итогах Super Admin на такие же
   серые заглушки, отдельным маленьким PR? *Рекомендую:* да. — Ответ: — · Дата: —
 - **Р9 (T3).** Если первая загрузка не удалась, четыре карточки панели компании
@@ -243,7 +262,7 @@ task that waits for it.
   список обновится сам при следующем изменении команды? *Рекомендую:* ждать:
   сотрудников без поля имени мало. — Ответ: — · Дата: —
 - **Р20 (M4-1).** Одна буква в поиске по имени оставляет полный список, поиск
-  начинается с двух букв. Устраивает? *Рекомендую:* да. — Ответ: — · Дата: —
+  начинается с двух букв. Устраивает? *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р21 (M4-2).** Если замер покажет больше 300 KB на страницу или больше 1 MB
   на поиск из 3 букв: добавить серверную функцию, которая отдаёт списку только
   нужные колонки? Данные, правила и индексы она не меняет. Первая страница после
@@ -279,7 +298,7 @@ task that waits for it.
 
 **Дополнительно**
 - **Р32 (X1).** Делать X1 вообще? *Рекомендую:* да, двумя маленькими PR.
-  — Ответ: — · Дата: —
+  — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р33 (X1b).** Языковой файл OCR (2.9 MB, скачивается браузером один раз)
   тоже отдавать с нашего сайта, а не с бесплатного CDN jsDelivr?
   *Рекомендую:* да. — Ответ: — · Дата: —
@@ -328,3 +347,12 @@ Not part of any task above. Each needs its own task if the owner wants it.
     refuse to save for a deleted or deleting application, for example through a
     deletion marker that `preserveApplicationPdf` checks. M7b's own check-back
     narrows its part of the window only.
+12. **A failed Firebase config leaves a blank page in the built app**, not the
+    "This page could not load" screen `docs/APP_BRIEF.md` promises. The build
+    inlines `src/app/startup/startupGuards.jsx` into the entry chunk, and
+    `src/lib/firebase/config.js` (top-level await on `/__/firebase/init.json`)
+    is a separate chunk the entry imports, so it runs first; when it rejects,
+    the guard's listener is never registered. Reproduced on `e3ec172` with
+    `vite preview` and a 503 for `init.json` (found during T1-F).
+    `startupGuards.test.jsx` checks source order, not the bundled order.
+    *Recommended:* a separate small task with a built-app test.

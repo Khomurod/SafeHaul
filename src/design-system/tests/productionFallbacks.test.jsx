@@ -23,6 +23,7 @@ import { ProgressBar } from '../components/progress/ProgressBar';
 import { SectionNavigation } from '../components/section-navigation/SectionNavigation';
 import { SegmentedControl } from '../components/segmented/SegmentedControl';
 import { SelectableCard } from '../components/selectable-card/SelectableCard';
+import { Skeleton } from '../components/skeleton/Skeleton';
 import { TabList } from '../components/tabs/Tabs';
 import { Icon } from '../icons';
 import { ConfirmDialog } from '../patterns/modal/ConfirmDialog';
@@ -143,6 +144,16 @@ describe('a production build draws the default after a misused prop', () => {
         expect(panel).toHaveAttribute('data-scroll', 'panel');
         expect(panel).toHaveAttribute('data-size', 'lg');
         expect(screen.getByRole('button', { name: 'Inside' })).toBeInTheDocument();
+    });
+
+    it('Skeleton: an unsupported shape or width draws a full-width line', () => {
+        const { container } = render(<Skeleton shape="circle" width="wide" />);
+        expect(container.firstChild).toHaveAttribute('data-shape', 'line');
+        expect(container.firstChild).toHaveAttribute('data-width', 'full');
+        expect(reported()).toEqual(expect.arrayContaining([
+            expect.stringContaining('Unsupported Skeleton shape: circle'),
+            expect.stringContaining('Unsupported Skeleton width: wide'),
+        ]));
     });
 
     it('TabList: tabs that are not a list draw none; an unknown orientation is horizontal', () => {

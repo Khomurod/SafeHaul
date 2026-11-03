@@ -49,7 +49,7 @@ approved design decision — nothing in the product may consume those classes.
 
 ## Status
 
-**Baselines exist, and the lane blocks.** 172 pixel baselines are committed under
+**Baselines exist, and the lane blocks.** Pixel baselines are committed under
 `e2e/visual/__screenshots__/`, and `npm run test:visual` fails the build
 (`scripts/test-ci-plan.mjs` K1 asserts the step carries no `continue-on-error`,
 so it cannot quietly go back to advisory).

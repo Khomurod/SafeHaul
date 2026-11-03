@@ -73,11 +73,7 @@ describe('Dossier bodies — accessibility', () => {
 
     it('NotesTab has no jsdom axe violations with local and shared notes', async () => {
         fs.getDocs.mockResolvedValue(snap([['n1', { text: 'local note', author: 'A', createdAt: { seconds: 1000 } }]]));
-        fs.getDoc.mockResolvedValue({
-            exists: () => true,
-            data: () => ({ sharedHistory: [{ text: 'shared note', date: '2026-01-01T00:00:00.000Z' }] }),
-        });
-        const { container } = renderNotes();
+        const { container } = renderNotes({ sharedHistory: [{ text: 'shared note', date: '2026-01-01T00:00:00.000Z' }] });
         await screen.findByText('shared note');
         expect((await axe(container)).violations).toEqual([]);
     });
