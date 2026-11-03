@@ -297,7 +297,10 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
         fetchData();
     }, [companyId, activeTab, currentPage, debouncedSearch, filters, pipelineSegment, dateOrder, fetchData]);
 
-    const handleSetFilters = (keyOrObjOrFn, value) => {
+    // The functions the page hands its memoized table and toolbar keep their
+    // identity from one render to the next, so typing in the search does not
+    // redraw rows that have not changed.
+    const handleSetFilters = useCallback((keyOrObjOrFn, value) => {
         if (typeof keyOrObjOrFn === 'function') {
             setFilters(keyOrObjOrFn);
         } else if (typeof keyOrObjOrFn === 'object' && keyOrObjOrFn !== null) {
@@ -305,7 +308,16 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
         } else {
             setFilters(prev => ({ ...prev, [keyOrObjOrFn]: value }));
         }
-    };
+    }, []);
+
+    const refreshData = useCallback(() => {
+        setListCountError('');
+        fetchListTotalCount();
+        fetchData();
+    }, [fetchListTotalCount, fetchData]);
+
+    const nextPage = useCallback(() => setCurrentPage(p => p + 1), []);
+    const prevPage = useCallback(() => setCurrentPage(p => Math.max(1, p - 1)), []);
 
     const headerTotalCount = debouncedSearch
         ? data.length
@@ -317,11 +329,7 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
         loading,
         error,
 
-        refreshData: () => {
-            setListCountError('');
-            fetchListTotalCount();
-            fetchData();
-        },
+        refreshData,
 
         listCountError,
 
@@ -330,8 +338,8 @@ export function useCompanyDashboard(companyId, { initialTab = 'applications', in
         totalCount: headerTotalCount,
         undatedCount: debouncedSearch ? 0 : undatedCount,
 
-        nextPage: () => setCurrentPage(p => p + 1),
-        prevPage: () => setCurrentPage(p => Math.max(1, p - 1)),
+        nextPage,
+        prevPage,
 
         activeTab,
         setActiveTab,
