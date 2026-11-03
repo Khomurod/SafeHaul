@@ -109,6 +109,21 @@ test.describe('Applications search and pipeline filters', () => {
     await expect(listCount(page, 8)).toBeVisible();
   });
 
+  test('a one-letter name search keeps the whole list', async ({ page }) => {
+    await openApplications(page);
+
+    // Two letters narrow the list to the names that start with them.
+    await searchFor(page, 'ro');
+    await expect(page.getByText('Rosa Rejectova')).toBeVisible();
+    await expect(page.getByText('Aisha Robinson')).toBeVisible();
+    await expect(page.getByText('James McDonald')).toHaveCount(0);
+
+    // One letter searches nothing: the whole list is back.
+    await searchFor(page, 'r');
+    await expect(page.getByText('James McDonald')).toBeVisible();
+    await expect(listCount(page, 8)).toBeVisible();
+  });
+
   test('search combines with the New filter', async ({ page }) => {
     await openApplications(page);
     await page.getByRole('button', { name: 'New', exact: true }).click();

@@ -94,7 +94,7 @@ Each can be done on its own, or when someone next changes that part of the app.
   - [ ] **M3b** · Запуск кампании: проверки параллельно · *Campaign launch checks in parallel* → [M3b](M3b-campaign-launch-parallel.md) · PR: — · Дата: —
   - [x] **M-SA** · Поиск Super Admin: показывать только самый свежий ответ · *Super Admin search shows only the newest answer* → [M-SA](M-SA-super-admin-search.md) · PR: #557 · Дата: 2026-11-03
 - **Меньше данных в списке заявок / Select only the columns you need (#24)**: после T1
-  - [ ] **M4-1** · Поиск по имени с двух букв · *Two-letter minimum for name search* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
+  - [x] **M4-1** · Поиск по имени с двух букв · *Two-letter minimum for name search* → [M4](M4-applications-list-payload.md) · PR: #557 · Дата: 2026-11-03
   - [ ] **M4-2** · Записать замер и решение («ворота» открыты или закрыты) · *Record the measurement and the gate verdict* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
   - [ ] **M4-3a / 3b / 3c** · Только если ворота открыты и вы согласны: серверная функция для списка · *Only if the gate opens and the owner agrees* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
   - [ ] **M4-4** · (необязательно) То же, что M2a: если M2a сделана, отметить «не понадобилось» · *(optional) Same as M2a* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
@@ -258,7 +258,7 @@ task that waits for it.
   список обновится сам при следующем изменении команды? *Рекомендую:* ждать:
   сотрудников без поля имени мало. — Ответ: — · Дата: —
 - **Р20 (M4-1).** Одна буква в поиске по имени оставляет полный список, поиск
-  начинается с двух букв. Устраивает? *Рекомендую:* да. — Ответ: — · Дата: —
+  начинается с двух букв. Устраивает? *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р21 (M4-2).** Если замер покажет больше 300 KB на страницу или больше 1 MB
   на поиск из 3 букв: добавить серверную функцию, которая отдаёт списку только
   нужные колонки? Данные, правила и индексы она не меняет. Первая страница после

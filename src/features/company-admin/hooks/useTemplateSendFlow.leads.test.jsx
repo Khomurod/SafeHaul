@@ -93,6 +93,22 @@ describe("the template wizard's lead picker", () => {
         expect(fx.reads.map((read) => read.clauses[0].where)).toContainEqual(['firstNameNormalized', '>=', 'dana']);
     });
 
+    it('keeps the 20 newest leads for a one-letter name, and searches nothing', async () => {
+        const { result } = openPicker();
+        await waitFor(() => expect(result.current.driversStatus).toBe('ready'));
+        fx.reads = [];
+        fx.answer = async () => ({ docs: [lead('lead-1', DANA)] });
+
+        act(() => result.current.setSearchQuery('d'));
+        await waitFor(() => expect(result.current.drivers.map((found) => found.id)).toEqual(['lead-1']));
+        await waitFor(() => expect(result.current.driversStatus).toBe('ready'));
+
+        expect(fx.reads).toEqual([{
+            path: 'companies/co-1/leads',
+            clauses: [{ orderBy: ['createdAt', 'desc'] }, { limit: 20 }],
+        }]);
+    });
+
     it('says when the leads could not be read', async () => {
         vi.spyOn(console, 'error').mockImplementation(() => {});
         fx.answer = async () => { throw Object.assign(new Error('denied'), { code: 'permission-denied' }); };

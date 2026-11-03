@@ -9,6 +9,7 @@ import {
     stateFilterValues,
     dateFilterRange,
     sortByAddedDate,
+    searchableTerm,
     PREFIX_END,
 } from './dashboardSearch';
 
@@ -52,6 +53,27 @@ describe('classifySearchTerm', () => {
         });
         // Too few digits for a phone
         expect(classifySearchTerm('123-45').type).toBe('name');
+    });
+});
+
+describe('searchableTerm', () => {
+    it('sends no search for an empty box or a one-character name', () => {
+        expect(searchableTerm('')).toBe('');
+        expect(searchableTerm('a')).toBe('');
+        expect(searchableTerm(' a ')).toBe('');
+        expect(searchableTerm('1')).toBe('');
+    });
+
+    it('keeps a name of two characters or more, in any alphabet', () => {
+        expect(searchableTerm('ab')).toBe('ab');
+        expect(searchableTerm('Ли')).toBe('Ли');
+    });
+
+    it('never cuts an email, phone, confirmation number or application id', () => {
+        expect(searchableTerm('a@x')).toBe('a@x');
+        expect(searchableTerm('(312) 555-0188')).toBe('(312) 555-0188');
+        expect(searchableTerm('saf-2026-mar1a')).toBe('saf-2026-mar1a');
+        expect(searchableTerm('3a7f2b9c8d1e4f5a6b7c')).toBe('3a7f2b9c8d1e4f5a6b7c');
     });
 });
 

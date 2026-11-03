@@ -283,7 +283,8 @@ offers, in the intake chooser's place, the quick form (names, phone, email,
 required contact consent) or the full application. A quick-form lead
 (`submitReferralInterest`) or an application with `referralCode` carries
 `referral` (shown in the dossier) and goes to the link's creator while on the
-team, who is notified.
+team, who is notified. Name search starts at two letters, in the lists and the
+template picker; email, phone, confirmation number and id search stay exact.
 
 **E-documents and signing.** Recruiters build envelopes with placed signer
 fields (optionally AI-suggested); recipients sign **with no account** at
