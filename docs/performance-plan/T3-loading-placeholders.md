@@ -120,6 +120,8 @@ PR 1 as done (2026-11-03, batch PR #557). Every file:line above was re-checked a
 
 PR 2 — one placeholder for the driver apply page
 
+> Superseded in two places, kept as planned: the placeholder's `<main>` is **not** `aria-busy` (steps 14–15 and their sample markup say it is; see "PR 2 as done"), and the first code-download moment is no longer blank, because T3-static put `#startup-splash` in `index.html` (see "T3-static as done").
+
 13. Branch from the updated `main`. Tell the owner in at most three Russian lines: «Водитель, открывший ссылку на анкету, увидит одну серую заготовку страницы вместо трёх надписей «Loading». Сама анкета, данные и другие страницы не меняются. Самое первое мгновение, пока скачивается код, останется как есть.»
 14. **Write the failing tests first:**
     - New `e2e/helpers/holdRequest.cjs`: `holdRequests(page, pattern)` creates `let release; const gate = new Promise((r) => { release = r; })`, registers `page.route(pattern, async (route) => { matched += 1; await gate; await route.continue().catch(() => {}); })` and returns `{ release, matched: () => matched }`; also export `APPLY_SCREEN_CODE = /\/PublicApplyHandler\.jsx(\?.*)?$/` (the dev server's module URL for the lazy screen; the functional and pixel lanes both run on `npm run dev`, `playwright.config.cjs:96-104`).

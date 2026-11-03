@@ -535,8 +535,8 @@ it does:
 | Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
 
 Still in progress: inputs, select/textarea (held by §7's guardrails; shapes, §5)
-and loading — `Skeleton` (`MetricCard loading`) serves the company dashboard and
-the apply page; elsewhere `LoadingState`, Super Admin's `'...'`, `DataTable`'s rows.
+and loading shapes (the states are done, `patterns/page-state`) — `Skeleton` serves the
+company dashboard and the apply page; elsewhere `LoadingState`, Super Admin's `'...'`, `DataTable`'s rows.
 
 ### Catalog
 

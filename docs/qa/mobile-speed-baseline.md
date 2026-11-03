@@ -2,7 +2,7 @@
 
 > **Кратко**
 > 1. Замерили, как быстро открываются страницы водителя (вход, анкета, подпись, проверка работодателя) на «телефоне среднего уровня» с медленным 4G и как быстро отзывается ввод текста в анкете. В приложении ничего не менялось.
-> 2. Анкета вашей компании на Testing полностью появляется примерно через 4,2 с по методу Google и через 8,4 с при честном замедлении сети, причём первые ~2,8 с экран белый. Ввод текста отзывается быстро: до 0,13 с на среднем телефоне и до 0,41 с на слабом.
+> 2. Анкета вашей компании на Testing полностью появляется примерно через 4,2 с в симуляции Lighthouse и через 8,4 с при честном замедлении сети; первые ~2,8 с экран остаётся белым. Ввод текста отзывается быстро: до 0,13 с на телефоне среднего уровня и до 0,41 с на слабом телефоне.
 > 3. Стоит делать: T3 (заставка вместо белого экрана) и раннюю загрузку кода анкеты. Не стоит: M5 (ввод и так быстрый). M4 не решён: ждём ваш замер списка заявок. Данные Google о реальных пользователях получить не удалось (лимит сервиса).
 
 Task: [T1 in the performance plan](../performance-plan/T1-driver-pages-on-phone.md). This page holds
@@ -265,9 +265,11 @@ folder `PERF`, never in the repository, and every command starts with `source <P
    and save the PID. Check three things: `$L/apply/e2e-company` answers `2 200` over `--http2`,
    `init.json` shows `perf-only`, and the vendor chunk with `Accept-Encoding: br` is 152,000–168,000 B.
 5. **Local Lighthouse.** Run `bash "$PERF/run-local.sh" "$PERF"` (23 runs), then
-   `node "$PERF/summarize-lhr.mjs" "$PERF/raw"`. Every run needs an empty `leaked` list, no
+   `EXPECT=local-login-sim,local-apply-sim,local-sign-sim,local-verify-sim,local-apply-dt node "$PERF/summarize-lhr.mjs" "$PERF/raw"`. Every run needs an empty `leaked` list, no
    `runtimeError` and the expected screen.
-6. **Testing Lighthouse.** Run `bash "$PERF/run-testing.sh" "$PERF"` (13 loads, 5 s apart) and summarise.
+6. **Testing Lighthouse.** Run `bash "$PERF/run-testing.sh" "$PERF"` (13 loads, 5 s apart) and summarise with
+   `EXPECT=testing-login-sim,testing-apply-sim,testing-apply-dt` (without `testing-login-sim` under `SKIP_LOGIN=1`; step 9's
+   calibrated runs add `testing-apply-sim-cal,testing-apply-dt-cal`).
    No `runtimeError`, no error or loading screen, and on `/apply` `routeChunks` > 0 and a `firestoreStart`.
 7. **PSI.** Make one call per Testing URL, at least 60 s apart, and read each reply with `read-psi.cjs`.
    If PSI's `/apply` LCP differs from the simulate median by more than 30%, make two more `/apply` calls.
@@ -410,7 +412,11 @@ SIM="${2:-5}"; DT="${3:-3}"; FROM="${4:-1}"
 [[ "$T" == "https://truckerapp-system.web.app" ]] || { echo "T must be Testing"; exit 2; }
 [[ "$APPLY_PATH" =~ ^/(apply/[a-z0-9][a-z0-9_-]*|sandbox/apply)$ ]] || { echo "bad APPLY_PATH"; exit 2; }
 for ((i = FROM; i < FROM + SIM; i++)); do
-  [[ "${SKIP_LOGIN:-}" == 1 ]] || { lhrun testing-login-sim "$i" "$T/login" simulate "${TEST_CHROME[@]}"; sleep 5; }
+  # An `if`, not `|| { …; }`: errexit does not stop a command inside an `||` list.
+  if [[ "${SKIP_LOGIN:-}" != 1 ]]; then
+    lhrun testing-login-sim "$i" "$T/login" simulate "${TEST_CHROME[@]}"
+    sleep 5
+  fi
   lhrun testing-apply-sim "$i" "$T$APPLY_PATH" simulate "${TEST_CHROME[@]}"; sleep 5
 done
 for ((i = FROM; i < FROM + DT; i++)); do
@@ -440,6 +446,10 @@ for (const f of files) {
   runsOf.get(g).push(Number(f.match(/-(\d+)\.json$/)[1]));
 }
 if (runsOf.size === 0) { console.error(`${dir}: no Lighthouse run files`); process.exit(1); }
+// EXPECT names the groups the step must have produced, so a series that stopped before a group
+// cannot pass with the groups it did produce.
+const missing = (process.env.EXPECT || '').split(',').map((g) => g.trim()).filter((g) => g && !runsOf.has(g));
+if (missing.length) { console.error(`missing groups: ${missing.join(', ')}`); process.exit(1); }
 for (const [g, ns] of runsOf) {
   const need = g.includes('-dt') ? 3 : 5;
   ns.sort((x, y) => x - y);
