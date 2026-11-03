@@ -57,7 +57,9 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
 ### Пять задач / The five tasks
 
 1. **Скорость на медленном телефоне / Test on slow phones and networks (#31)**
-   - [ ] **T1** · Замерить скорость страниц водителя на телефоне · *Measure the driver pages on a phone* → [T1](T1-driver-pages-on-phone.md) · PR: — · Дата: —
+   - [x] **T1** · Замерить скорость страниц водителя на телефоне · *Measure the driver pages on a phone* → [T1](T1-driver-pages-on-phone.md) · PR: пакет A · Дата: 2026-11-03
+   - [ ] **T1-F** · Запрашивать код анкеты сразу при запуске (итог T1: GO, около 0,7 с) · *Request the `/apply` route code during start-up* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: — · Дата: —
+   - [ ] **T3-static** · Нейтральная заставка в `index.html` вместо белого экрана (итог T1: GO; ждёт ответа на Р7) · *Neutral static placeholder in `index.html`* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: — · Дата: —
 2. **Постраничная загрузка / Paginate results (#5)**
    - [ ] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: — · Дата: —
    - [ ] **T2b** · E-Docs: грузить только последние конверты, счётчики с сервера · *Load only recent envelopes in E-Docs* → [T2b](T2b-edocs-recent-envelopes.md) · PR: — · Дата: —
@@ -119,8 +121,16 @@ Each can be done on its own, or when someone next changes that part of the app.
 
 Agents fill this in. Numbers and verdicts only, never personal data.
 
-- **T1, phone baseline:** the report goes to `docs/qa/mobile-speed-baseline.md`
-  (T1 creates it). Here: date, commit, and one line per page. — *not measured yet*
+- **T1, phone baseline:** [docs/qa/mobile-speed-baseline.md](../qa/mobile-speed-baseline.md),
+  2026-11-03, app code `11626a6`, 4x CPU and slow 4G, medians:
+  - Testing `/login`: FCP 1,065 ms, LCP 1,065 ms, TBT 309 ms.
+  - Testing `/apply/<owner company>`: FCP 1,076 ms, LCP 4,203 ms (8,372 ms with real throttling),
+    white screen 2,841 ms.
+  - Local `/sign` mock: LCP 3,596 ms. Local `/verify` mock: LCP 3,069 ms.
+  - Typing at 4x: 88 ms and 128 ms. At 10x: 240 ms and 408 ms.
+  - Verdicts: T3 static placeholder GO; earlier `/apply` code download GO (saves about 738 ms);
+    M5 typing NO-GO; M4 awaits the owner's numbers. PageSpeed refused with its daily quota, so
+    there are no real-user numbers yet.
 - **M4-2, Applications list (owner's DevTools numbers):** date; company size;
   (a) first page, (b) Next page, (c) 3-letter name search, (d) E-Docs; verdict
   OPEN or CLOSED. — *not measured yet*
@@ -154,7 +164,7 @@ answer, and the batch PR says so.
 
 | Batch PR | What it changes | Items, in order |
 |---|---|---|
-| **A — Экраны / Screens** | browser only | T1 (measured first, as the baseline), T3 (both parts), T4.5, M2a, M2b, M-SA, M4-1, M6, X1a (without Sentry: the owner is removing it) |
+| **A — Экраны / Screens** | browser only | T1 (measured first, as the baseline), T3 (both parts), T1-F, T3-static (only if Р7 is yes), T4.5, M2a, M2b, M-SA, M4-1, M6, X1a (without Sentry: the owner is removing it) |
 | **B — Списки / Lists** | browser and Firestore indexes | T2a, T2b, T2c, T2d, M5 (only where T1's numbers call for it) |
 | **C — Сервер / Server** | Cloud Functions | T4.1, T4.2, T4.3, T4.4, M1a, M1b, M1c, M3a, M3b, M7b PR 1, then M7c (only if M7a's numbers call for it), then M7b PR 2. Without M7a's numbers, M7b PR 2 waits, because it needs M7c merged or ticked "not needed" |
 | **D — Мониторинг / Monitoring** | browser, CI and docs | T5, T5b (both parts), X1b. T5b's wait for Production speed data is waived: the owner asked to remove Sentry outright (Р13), and Sentry's page-load data today is one undifferentiated "Pageload" group |
@@ -193,8 +203,10 @@ task that waits for it.
   Indexes, что новые индексы в статусе «Enabled». — Сделано: — · Дата: —
 
 **T3: заглушки**
-- **Р7 (T3).** Статичная заглушка прямо в `index.html` (видна долю секунды до
-  загрузки кода). *Рекомендую:* не сейчас. — Ответ: — · Дата: —
+- **Р7 (T3).** Статичная заглушка прямо в `index.html`. Замер T1 показал, что на
+  среднем телефоне анкета 2,8 с остаётся белым экраном до загрузки кода.
+  *Рекомендую теперь:* да, нейтральная заставка (фон и логотип, без скриптов) на
+  всех страницах. Её видно только эти первые секунды. — Ответ: — · Дата: —
 - **Р8 (T3).** После T3 перевести «...» в итогах Super Admin на такие же
   серые заглушки, отдельным маленьким PR? *Рекомендую:* да. — Ответ: — · Дата: —
 - **Р9 (T3).** Если первая загрузка не удалась, четыре карточки панели компании
