@@ -128,6 +128,75 @@ describe('needs attention', () => {
     });
 });
 
+describe('server totals and a separate attention list', () => {
+    const failed = (n) => Array.from({ length: n }, (_, index) =>
+        doc({ id: `f-${index}`, title: `Failed ${index}`, emailStatus: 'failed' }));
+
+    it('shows the given totals and attention list instead of counting the loaded documents', () => {
+        renderOverview({
+            documents: [doc({ id: 'a', status: 'sent' })],
+            summary: { total: 412, awaitingSignature: 53, completed: 300, needsAttention: 19 },
+            attention: { documents: failed(8), isLoading: false, error: null, retry: vi.fn() },
+        });
+
+        expect(metric('Awaiting signature')).toHaveAccessibleName('Awaiting signature: 53');
+        expect(within(screen.getByTitle('Completed').closest('.ds-metric-card')).getByTitle('300')).toBeInTheDocument();
+        expect(metric('Needs attention')).toHaveAccessibleName('Needs attention: 19');
+        const section = screen.getByRole('region', { name: 'Needs attention' });
+        // Still at most five, from the attention list.
+        expect(within(section).getAllByRole('listitem')).toHaveLength(5);
+        expect(within(section).getByText('Failed 0')).toBeInTheDocument();
+        expect(within(section).getByRole('button', { name: 'Review all 19' })).toBeInTheDocument();
+        // Recent stays the newest loaded documents.
+        expect(within(screen.getByRole('region', { name: 'Recent documents' })).getAllByRole('listitem')).toHaveLength(1);
+    });
+
+    it('shows dashes and says the totals could not be loaded, never a zero', () => {
+        const onRetryCounts = vi.fn();
+        renderOverview({
+            documents: [doc({ id: 'a', status: 'sent' })],
+            summary: null,
+            countsError: new Error('unavailable'),
+            onRetryCounts,
+            attention: { documents: failed(2), isLoading: false, error: null, retry: vi.fn() },
+        });
+
+        expect(metric('Awaiting signature')).toHaveAccessibleName('Awaiting signature: —');
+        expect(metric('Needs attention')).toHaveAccessibleName('Needs attention: —');
+        expect(within(screen.getByTitle('Completed').closest('.ds-metric-card')).getByTitle('—')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Review all' })).toBeInTheDocument();
+
+        const glance = screen.getByRole('region', { name: 'At a glance' });
+        expect(within(glance).getByText('Totals could not be loaded.')).toBeInTheDocument();
+        fireEvent.click(within(glance).getByRole('button', { name: 'Try again' }));
+        expect(onRetryCounts).toHaveBeenCalledTimes(1);
+    });
+
+    it('says the attention list is loading instead of saying nothing failed', () => {
+        renderOverview({
+            summary: { total: 412, awaitingSignature: 53, completed: 300, needsAttention: 19 },
+            attention: { documents: [], isLoading: true, error: null, retry: vi.fn() },
+        });
+        const section = screen.getByRole('region', { name: 'Needs attention' });
+        expect(within(section).getByRole('status')).toHaveTextContent('Loading documents that need attention');
+        expect(within(section).queryByText(/No delivery or sealing failures/)).not.toBeInTheDocument();
+    });
+
+    it("shows that the attention list could not be loaded instead of 'No delivery or sealing failures.'", () => {
+        const retry = vi.fn();
+        renderOverview({
+            documents: [doc({ id: 'a', status: 'sent' })],
+            attention: { documents: [], isLoading: false, error: 'Documents that need attention could not be loaded.', retry },
+        });
+
+        const section = screen.getByRole('region', { name: 'Needs attention' });
+        expect(within(section).getByText('Documents that need attention could not be loaded.')).toBeInTheDocument();
+        expect(within(section).queryByText(/No delivery or sealing failures/)).not.toBeInTheDocument();
+        fireEvent.click(within(section).getByRole('button', { name: 'Try again' }));
+        expect(retry).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('recent documents', () => {
     it('keeps the live query order and caps the list at five', () => {
         renderOverview({
@@ -160,6 +229,17 @@ describe('states', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
         expect(props.onRetry).toHaveBeenCalled();
+    });
+
+    it('has no accessibility violations when the totals and the attention list failed', async () => {
+        const { container } = renderOverview({
+            documents: [doc({ id: 'a' })],
+            summary: null,
+            countsError: new Error('unavailable'),
+            onRetryCounts: vi.fn(),
+            attention: { documents: [], isLoading: false, error: 'Documents that need attention could not be loaded.', retry: vi.fn() },
+        });
+        expect((await axe(container)).violations).toEqual([]);
     });
 
     it('has no accessibility violations', async () => {

@@ -60,6 +60,11 @@ export const firebaseFirestoreMock = () => ({
     collection: vi.fn(() => ({})),
     query: vi.fn(() => ({})),
     orderBy: vi.fn(() => ({})),
+    limit: vi.fn(() => ({})),
+    where: vi.fn(() => ({})),
+    or: vi.fn(() => ({})),
+    and: vi.fn(() => ({})),
+    getCountFromServer: vi.fn(async () => ({ data: () => ({ count: 0 }) })),
     onSnapshot: vi.fn(() => () => {}),
     doc: vi.fn(() => ({})),
     Timestamp: { fromMillis: vi.fn(() => ({})) },
@@ -67,6 +72,7 @@ export const firebaseFirestoreMock = () => ({
     ...firestoreMocks,
 });
 export const useSigningRequestsMock = () => ({
+    SIGNING_REQUESTS_PAGE_SIZE: 100,
     useSigningRequests: () => signingRequestsMock.current,
 });
 export const envelopeCreatorMock = () => ({

@@ -16,6 +16,7 @@ import {
     needsAttention,
     recentDocuments,
     searchTemplates,
+    sentHeaderCount,
     sortTemplates,
     summarizeDocuments,
     supportsDateFilter,
@@ -215,5 +216,50 @@ describe('formatTimestamp', () => {
         expect(formatTimestamp(null)).toBe('—');
         expect(formatTimestamp(undefined)).toBe('—');
         expect(formatTimestamp({})).toBe('—');
+    });
+});
+
+describe('sentHeaderCount', () => {
+    const loaded = [
+        doc({ id: 'a', title: 'Offer Letter' }),
+        doc({ id: 'b', title: 'W-9', status: 'signed' }),
+        doc({ id: 'c', emailStatus: 'failed' }),
+    ];
+    const attentionRows = [doc({ id: 'c', emailStatus: 'failed' })];
+    const summary = { total: 412, awaitingSignature: 53, completed: 300, needsAttention: 19 };
+    const partial = { complete: false };
+    const filters = (patch = {}) => ({ ...DEFAULT_FILTERS, ...patch });
+
+    it('counts the loaded rows while every document is loaded', () => {
+        expect(sentHeaderCount({ filters: filters(), documents: loaded, list: { complete: true }, summary })).toBe(3);
+    });
+
+    it('treats a missing list or attention as complete', () => {
+        expect(sentHeaderCount({ filters: filters(), documents: loaded })).toBe(3);
+        expect(sentHeaderCount({ filters: filters({ needsAttention: true }), documents: loaded })).toBe(1);
+    });
+
+    it('gives the server total while the list is not complete', () => {
+        expect(sentHeaderCount({ filters: filters(), documents: loaded, list: partial, summary })).toBe(412);
+    });
+
+    it('gives the needs-attention total while that list is not complete', () => {
+        const attention = { documents: attentionRows, complete: false, isLoading: false, error: null };
+        expect(sentHeaderCount({ filters: filters({ needsAttention: true }), documents: loaded, list: partial, attention, summary })).toBe(19);
+        const complete = { ...attention, complete: true };
+        expect(sentHeaderCount({ filters: filters({ needsAttention: true }), documents: loaded, list: partial, attention: complete, summary })).toBe(1);
+    });
+
+    it('counts the loaded rows that match once a search or filter narrows a partial list', () => {
+        expect(sentHeaderCount({ filters: filters({ search: 'w-9' }), documents: loaded, list: partial, summary })).toBe(1);
+        expect(sentHeaderCount({ filters: filters({ status: 'signed' }), documents: loaded, list: partial, summary })).toBe(1);
+        expect(sentHeaderCount({ filters: filters({ delivery: 'sms' }), documents: loaded, list: partial, summary })).toBe(0);
+    });
+
+    it('shows no count while the total is unknown or the attention list is loading or failed', () => {
+        expect(sentHeaderCount({ filters: filters(), documents: loaded, list: partial, summary: null })).toBeUndefined();
+        const attention = { documents: [], complete: true, total: null };
+        expect(sentHeaderCount({ filters: filters({ needsAttention: true }), documents: loaded, attention: { ...attention, isLoading: true } })).toBeUndefined();
+        expect(sentHeaderCount({ filters: filters({ needsAttention: true }), documents: loaded, attention: { ...attention, error: 'failed' } })).toBeUndefined();
     });
 });

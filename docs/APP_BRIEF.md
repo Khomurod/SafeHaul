@@ -291,7 +291,10 @@ fields (optionally AI-suggested); recipients sign **with no account** at
 `/sign/:companyId/:requestId`; typed values (no drawn signature) wait in a
 local draft. The server sends the link; a corrected email or phone gets a new
 one, voiding the old. Signed envelopes are sealed into tamper-evident PDFs.
-Signing is unlimited and not billed per envelope.
+Signing is unlimited and not billed per envelope. The Documents workspace keeps
+the newest 100 signing requests live and loads older ones on request. When there
+are more, its numbers are server counts and a second live list holds every
+document that needs attention (indexes in `firestore.indexes.json`).
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
@@ -1300,6 +1303,10 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 
 **Current limitations:**
 
+- **Sent Documents search and filters cover the loaded documents** (newest 100,
+  more on request), and say so; the server totals refresh when a loaded
+  document changes or the page reopens, so a change to an older document shows
+  on the next one.
 - **The unfinished-applications workspace shows the 200 most recently active
   drafts** (`listApplicationDrafts`, by `updatedAt`), and says when there are
   more (`truncated`). No pagination — a second list would break one-query,

@@ -53,6 +53,26 @@ describe('DocumentsManager view contracts', () => {
         expect(sentProps.current.documents).toBe(documents);
     });
 
+    it('passes Overview the numbers and the attention list, and Sent Documents how much is loaded', () => {
+        const documents = [
+            { id: 'req-1', title: 'Artificial Form', status: 'sent' },
+            { id: 'req-2', title: 'Artificial Seal', status: 'error_sealing' },
+        ];
+        signingRequestsMock.current = { documents, isLoading: false, loadError: null, retry: vi.fn() };
+
+        renderManager();
+        // Every document is loaded, so both come from the loaded rows.
+        expect(overviewProps.current.summary).toMatchObject({ total: 2, needsAttention: 1 });
+        expect(overviewProps.current.attention).toMatchObject({ complete: true, isLoading: false, error: null, total: 1 });
+        expect(overviewProps.current.attention.documents.map((d) => d.id)).toEqual(['req-2']);
+        expect(overviewProps.current.countsError).toBe(null);
+        expect(typeof overviewProps.current.onRetryCounts).toBe('function');
+
+        fireEvent.click(tabs().sent);
+        expect(sentProps.current.list).toMatchObject({ complete: true, hasMore: false, total: 2 });
+        expect(sentProps.current.attention).toBe(overviewProps.current.attention);
+    });
+
     it('passes Sent Documents its company, retry and correction handler', () => {
         renderManager();
         fireEvent.click(tabs().sent);

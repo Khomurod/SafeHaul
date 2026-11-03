@@ -1,6 +1,6 @@
 import React, { useId, useMemo } from 'react';
 import { Icon, AlertCircle, CheckCircle, Clock, FileText, Loader2, MailWarning } from '@design-system/icons';
-import { Badge, Button, Card, MetricCard } from '@/design-system/components';
+import { Badge, Button, Card, MetricCard, Notice } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import {
     attentionDocuments,
@@ -17,12 +17,22 @@ import {
  * estimated, projected or inferred from a rule the app does not enforce. When
  * the live query fails, the failure is shown rather than a plausible-looking
  * zero.
+ *
+ * Without `summary` and `attention` everything comes from `documents`. With
+ * them (a company with more documents than are loaded) the numbers are
+ * `summary` (null while unknown: '—', and `countsError` says why) and the
+ * Needs attention list is `attention.documents`, with its own loading line and
+ * failure; Recent stays the newest of `documents`.
  */
 export function DocumentsOverview({
     documents,
     isLoading,
     loadError,
     onRetry,
+    summary: summaryProp,
+    attention: attentionProp,
+    countsError,
+    onRetryCounts,
     templates,
     templatesLoading,
     onViewSentDocuments,
@@ -34,9 +44,14 @@ export function DocumentsOverview({
     const recentHeadingId = `documents-overview-recent-${rawId}`;
     const attentionHeadingId = `documents-overview-attention-${rawId}`;
 
-    const summary = useMemo(() => summarizeDocuments(documents), [documents]);
+    const summary = useMemo(
+        () => (summaryProp !== undefined ? summaryProp : summarizeDocuments(documents)),
+        [summaryProp, documents],
+    );
     const recent = useMemo(() => recentDocuments(documents), [documents]);
-    const attention = useMemo(() => attentionDocuments(documents), [documents]);
+    const attentionSource = attentionProp ? attentionProp.documents : documents;
+    const attention = useMemo(() => attentionDocuments(attentionSource), [attentionSource]);
+    const count = (key) => (summary ? summary[key] : '—');
 
     if (loadError) {
         return (
@@ -67,25 +82,35 @@ export function DocumentsOverview({
                 <h2 id={metricsHeadingId} className="mb-ds-3 text-ds-body font-bold text-ds-content">
                     At a glance
                 </h2>
+                {countsError && (
+                    <Notice
+                        tone="warning"
+                        size="sm"
+                        className="mb-ds-3"
+                        actions={<Button variant="secondary" size="sm" onClick={onRetryCounts}>Try again</Button>}
+                    >
+                        Totals could not be loaded.
+                    </Notice>
+                )}
                 <ResponsiveGrid minItemWidth="220px">
                     <MetricCard
                         label="Awaiting signature"
-                        value={summary.awaitingSignature}
+                        value={count('awaitingSignature')}
                         icon={<Icon icon={Clock} size="xl" />}
                         tone="info"
                         onActivate={onViewSentDocuments}
                     />
                     <MetricCard
                         label="Completed"
-                        value={summary.completed}
+                        value={count('completed')}
                         icon={<Icon icon={CheckCircle} size="xl" />}
                         tone="success"
                     />
                     <MetricCard
                         label="Needs attention"
-                        value={summary.needsAttention}
+                        value={count('needsAttention')}
                         icon={<Icon icon={AlertCircle} size="xl" />}
-                        tone={summary.needsAttention > 0 ? 'danger' : 'neutral'}
+                        tone={summary?.needsAttention > 0 ? 'danger' : 'neutral'}
                         onActivate={onViewNeedsAttention}
                     />
                     <MetricCard
@@ -113,7 +138,20 @@ export function DocumentsOverview({
                 <h2 id={attentionHeadingId} className="mb-ds-3 text-ds-body font-bold text-ds-content">
                     Needs attention
                 </h2>
-                {attention.length === 0 ? (
+                {attentionProp?.isLoading ? (
+                    <div role="status" className="flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary">
+                        <Icon icon={Loader2} size="lg" className="animate-spin" />
+                        Loading documents that need attention
+                    </div>
+                ) : attentionProp?.error ? (
+                    <Notice
+                        tone="warning"
+                        size="sm"
+                        actions={<Button variant="secondary" size="sm" onClick={attentionProp.retry}>Try again</Button>}
+                    >
+                        {attentionProp.error}
+                    </Notice>
+                ) : attention.length === 0 ? (
                     <Card>
                         <p className="text-ds-sm text-ds-content-secondary">
                             No delivery or sealing failures. Documents still waiting on a signature are not
@@ -147,7 +185,7 @@ export function DocumentsOverview({
                                 ))}
                             </ul>
                             <Button variant="secondary" className="self-start" onClick={onViewNeedsAttention}>
-                                Review all {summary.needsAttention}
+                                {summary ? `Review all ${summary.needsAttention}` : 'Review all'}
                             </Button>
                         </Stack>
                     </Card>

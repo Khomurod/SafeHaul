@@ -154,6 +154,110 @@ describe('filter controls', () => {
     });
 });
 
+/** `n` loaded documents, newest first. */
+const docs = (n, overrides = {}) => Array.from({ length: n }, (_, i) => doc({ id: `req-${i}`, title: `Document ${i}`, ...overrides }));
+
+const partialList = (overrides = {}) => ({
+    complete: false, hasMore: true, loadMore: vi.fn(), isLoadingMore: false, loadMoreFailed: false, total: 1234, ...overrides,
+});
+const attentionList = (overrides = {}) => ({
+    documents: docs(3, { emailStatus: 'failed' }),
+    complete: true,
+    isLoading: false,
+    error: null,
+    retry: vi.fn(),
+    hasMore: false,
+    loadMore: vi.fn(),
+    isLoadingMore: false,
+    loadMoreFailed: false,
+    total: 3,
+    ...overrides,
+});
+
+describe('a partly loaded list', () => {
+    it('says the list is the newest 100 and offers Load older documents', () => {
+        const loadMore = vi.fn();
+        renderPanel({
+            documents: docs(100),
+            list: { complete: false, hasMore: true, loadMore, isLoadingMore: false, loadMoreFailed: false, total: 1234 },
+        });
+
+        expect(screen.getByText('Showing the newest 100 of 1,234 sent documents. Search and filters look at these 100.')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Load older documents' }));
+        expect(loadMore).toHaveBeenCalledTimes(1);
+    });
+
+    it('says so without a number while the total is unknown', () => {
+        renderPanel({ documents: docs(100), list: partialList({ total: null }) });
+        expect(screen.getByText('Showing the newest 100 sent documents. Search and filters look at these only.')).toBeInTheDocument();
+    });
+
+    it('says nothing extra when every document is loaded', () => {
+        renderPanel({ documents: docs(100), list: partialList({ complete: true, total: 100 }) });
+        expect(screen.queryByText(/Showing the newest/)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Load older documents' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the rows and says so when older documents could not be loaded', () => {
+        renderPanel({ documents: docs(100), list: partialList({ loadMoreFailed: true }) });
+        expect(screen.getByRole('alert')).toHaveTextContent('Older documents could not be loaded.');
+        expect(screen.getByRole('button', { name: 'Load older documents' })).toBeEnabled();
+        expect(historyProps.current.documents).toHaveLength(100);
+    });
+
+    it('says all are loaded, and moves focus there, after the last page', () => {
+        const list = partialList({ total: 150 });
+        const view = renderPanel({ documents: docs(100), list });
+        fireEvent.click(screen.getByRole('button', { name: 'Load older documents' }));
+        view.rerender(<Harness documents={docs(150)} list={{ ...list, complete: true }} />);
+
+        const done = screen.getByText('All 150 sent documents are loaded.').closest('.ds-notice');
+        expect(done).toHaveFocus();
+        expect(screen.queryByRole('button', { name: 'Load older documents' })).not.toBeInTheDocument();
+    });
+
+    it('lists the documents that need attention from their own read', () => {
+        const attention = attentionList({ documents: [doc({ id: 'old-failure', emailStatus: 'failed' })] });
+        renderPanel({ documents: docs(100), list: partialList(), attention });
+        fireEvent.click(screen.getByRole('switch', { name: 'Needs attention only' }));
+
+        expect(historyProps.current.documents.map((d) => d.id)).toEqual(['old-failure']);
+        // That list is complete: no notice about the 100 loaded documents.
+        expect(screen.queryByText(/Showing the newest/)).not.toBeInTheDocument();
+    });
+
+    it('passes the attention read’s loading and failure to the table', () => {
+        const retry = vi.fn();
+        const initialFilters = { ...DEFAULT_FILTERS, needsAttention: true };
+        const view = renderPanel({ documents: docs(100), list: partialList(), attention: attentionList({ documents: [], isLoading: true }), initialFilters });
+        expect(historyProps.current.isLoading).toBe(true);
+
+        view.rerender(<Harness documents={docs(100)} list={partialList()} attention={attentionList({ documents: [], error: 'Documents that need attention could not be loaded.', retry })} initialFilters={initialFilters} />);
+        expect(historyProps.current.isLoading).toBe(false);
+        expect(historyProps.current.loadError).toBe('Documents that need attention could not be loaded.');
+        expect(historyProps.current.onRetry).toBe(retry);
+    });
+
+    it('offers more of the documents that need attention while that list is not complete', () => {
+        const loadMore = vi.fn();
+        renderPanel({
+            documents: docs(100),
+            list: partialList(),
+            attention: attentionList({ documents: docs(100, { emailStatus: 'failed' }), complete: false, hasMore: true, total: 140, loadMore }),
+            initialFilters: { ...DEFAULT_FILTERS, needsAttention: true },
+        });
+        expect(screen.getByText('Showing the newest 100 of 140 documents that need attention.')).toBeInTheDocument();
+        expect(screen.queryByText(/sent documents/)).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+        expect(loadMore).toHaveBeenCalledTimes(1);
+    });
+
+    it('has no accessibility violations with the notice', async () => {
+        const { container } = renderPanel({ documents: docs(100), list: partialList({ loadMoreFailed: true }) });
+        expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
 describe('states passed to the table', () => {
     it('forwards loading, error and retry unchanged', () => {
         const onRetry = vi.fn();

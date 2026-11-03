@@ -170,6 +170,66 @@ test.describe('E-Doc Documents workspace', () => {
     await expect(table.getByText('Lease Agreement')).toBeVisible();
   });
 
+  // More made-up sent documents than one window (`e2eEdocSent=many`): 230 rows,
+  // 100 loaded at a time; 39 awaiting a signature, 77 completed, 76 that need
+  // attention. The fixture stands in for the server counts and the attention list.
+  test('loads the newest 100 and older ones on request, with complete numbers', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop keyboard behavior.');
+    await page.goto(`${URL}&e2eEdocSent=many`);
+    await expect(page.getByRole('button', { name: 'Awaiting signature: 39' })).toBeVisible({ timeout: 20_000 });
+    const completed = page.locator('.ds-metric-card').filter({ has: page.getByTitle('Completed', { exact: true }) });
+    await expect(completed.locator('.ds-metric-card__value')).toHaveText('77');
+    await expect(page.getByRole('button', { name: 'Needs attention: 76' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Review all 76' })).toBeVisible();
+
+    await tab(page, 'Sent Documents').click();
+    const count = page.locator('header [role="status"]');
+    await expect(count).toHaveText(/^230\s*sent documents$/);
+    await expect(page.getByText('Showing the newest 100 of 230 sent documents. Search and filters look at these 100.')).toBeVisible();
+    const table = page.getByRole('table', { name: /^Document history/ });
+    await expect(page.getByText('Showing 1–25 of 100 documents')).toBeVisible();
+
+    const loadOlder = page.getByRole('button', { name: 'Load older documents' });
+    await loadOlder.press('Enter');
+    await expect(page.getByText('Showing the newest 200 of 230 sent documents. Search and filters look at these 200.')).toBeVisible();
+    await expect(loadOlder).toBeFocused();
+
+    await loadOlder.press('Enter');
+    await expect(loadOlder).toHaveCount(0);
+    const done = page.locator('.ds-notice', { hasText: 'All 230 sent documents are loaded.' });
+    await expect(done).toBeVisible();
+    await expect(done).toBeFocused();
+    await expect(page.getByText('Showing 1–25 of 230 documents')).toBeVisible();
+
+    await page.getByRole('switch', { name: 'Needs attention only' }).click();
+    await expect(count).toHaveText(/^76\s*sent documents$/);
+    await expect(page.getByText('Showing 1–25 of 76 documents')).toBeVisible();
+    await expect(page.getByText(/^Showing the newest/)).toHaveCount(0);
+    await expect(table.getByText('Lease Agreement').first()).toBeVisible();
+
+    const { violations } = await new AxeBuilder({ page }).include('[role="tabpanel"]').analyze();
+    const serious = violations
+      .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+      .map((v) => `${v.id} [${v.impact}] x${v.nodes.length}`);
+    expect(serious).toEqual([]);
+    expect(violations.filter((v) => v.id === 'color-contrast')).toEqual([]);
+  });
+
+  test('keeps the partly loaded list within a phone viewport @mobile', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
+    await page.setViewportSize({ width: 412, height: 915 });
+    await page.goto(`${URL}&e2eEdocSent=many`);
+    await expect(page.getByRole('tablist', { name: 'Documents workspace views' })).toBeVisible({ timeout: 20_000 });
+    await tab(page, 'Sent Documents').click();
+    await expect(page.getByText('Showing the newest 100 of 230 sent documents. Search and filters look at these 100.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Load older documents' })).toBeVisible();
+    const geometry = await page.evaluate(() => ({
+      viewport: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+    }));
+    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
+  });
+
   test('keeps Application Forms configuration in its own view', async ({ page }) => {
     await openDocuments(page);
     await tab(page, 'Application Forms').click();
