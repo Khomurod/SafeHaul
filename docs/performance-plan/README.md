@@ -59,7 +59,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
 1. **Скорость на медленном телефоне / Test on slow phones and networks (#31)**
    - [x] **T1** · Замерить скорость страниц водителя на телефоне · *Measure the driver pages on a phone* → [T1](T1-driver-pages-on-phone.md) · PR: #557 · Дата: 2026-11-03
    - [x] **T1-F** · Запрашивать код анкеты сразу при запуске (итог T1: GO, около 0,7 с) · *Request the `/apply` route code during start-up* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
-   - [ ] **T3-static** · Нейтральная заставка в `index.html` вместо белого экрана (итог T1: GO; ждёт ответа на Р7) · *Neutral static placeholder in `index.html`* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: — · Дата: —
+   - [x] **T3-static** · Нейтральная заставка в `index.html` вместо белого экрана (итог T1: GO; Р7: да) · *Neutral static placeholder in `index.html`* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
 2. **Постраничная загрузка / Paginate results (#5)**
    - [ ] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: — · Дата: —
    - [ ] **T2b** · E-Docs: грузить только последние конверты, счётчики с сервера · *Load only recent envelopes in E-Docs* → [T2b](T2b-edocs-recent-envelopes.md) · PR: — · Дата: —
@@ -134,6 +134,10 @@ Agents fill this in. Numbers and verdicts only, never personal data.
 - **T1-F, earlier `/apply` code download:** 2026-11-03, local harness only, devtools, 3 runs each,
   base `e3ec172`: route code requested 3,503 → 3,134 ms, `gap` 686 → 327 ms, LCP 5,573 → 5,232 ms
   ([T1-F result](../qa/mobile-speed-baseline.md#t1-f-result-local-harness-devtools)).
+- **T3-static, start-up splash:** 2026-11-03, local harness only, base `b32fd47`: `/apply` devtools
+  (3 runs) FCP 5,425 → 2,021 ms, white screen 4,833 → 1,436 ms, LCP 5,425 → 5,044 ms, CLS 0 → 0;
+  `/login` simulate (5 runs) FCP 917 → 930 ms, CLS 0
+  ([T3-static result](../qa/mobile-speed-baseline.md#t3-static-result-local)).
 - **M4-2, Applications list (owner's DevTools numbers):** date; company size;
   (a) first page, (b) Next page, (c) 3-letter name search, (d) E-Docs; verdict
   OPEN or CLOSED. — *not measured yet*
@@ -209,7 +213,7 @@ task that waits for it.
 - **Р7 (T3).** Статичная заглушка прямо в `index.html`. Замер T1 показал, что на
   среднем телефоне экран анкеты остаётся белым около 2,8 с, пока загружается код.
   *Рекомендую теперь:* да, нейтральная заставка (фон и логотип, без скриптов) на
-  всех страницах. Её видно только эти первые секунды. — Ответ: — · Дата: —
+  всех страницах. Её видно только эти первые секунды. — Ответ: да (владелец, 2026-11-03) · Дата: 2026-11-03
 - **Р8 (T3).** После T3 перевести «...» в итогах Super Admin на такие же
   серые заглушки, отдельным маленьким PR? *Рекомендую:* да. — Ответ: — · Дата: —
 - **Р9 (T3).** Если первая загрузка не удалась, четыре карточки панели компании

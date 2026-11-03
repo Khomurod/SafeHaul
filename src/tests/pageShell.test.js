@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { act } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { rawValuesIn } from '../../scripts/eslint-rules/raw-values.mjs';
 
@@ -73,5 +76,71 @@ describe('the application page shell', () => {
     expect(rawValuesIn(shell).map((found) => found.match)).toEqual([]);
     const broken = shell.replace('class="bg-ds-canvas"', `class="bg-ds-canvas ${['text', '[10px]'].join('-')}"`);
     expect(rawValuesIn(broken).map((found) => found.check)).toEqual(['sub-12px-type']);
+  });
+});
+
+/*
+ * The start-up splash: the mark on the page ground, painted from the HTML and
+ * its stylesheet while the app's code downloads (T1 measured about 2.8 s of
+ * white on a phone). This file serves every route and the CSP refuses an
+ * inline script, so it is one neutral picture for every page: no words, no
+ * heading, no announcement. The app's own loaders announce. The mark is sized
+ * by its `width`/`height` attributes, not utilities, so it stays 80px before
+ * any stylesheet applies (the dev server injects styles from script), and it
+ * stays invisible until then (`brandAssets.test.jsx`).
+ */
+const doc = new DOMParser().parseFromString(html, 'text/html');
+const root = doc.getElementById('root');
+const splash = doc.getElementById('startup-splash');
+// What ships: the source from `#root` to the entry script.
+const rootSource = html.slice(html.indexOf('<div id="root">'), html.indexOf('<script type="module"'));
+
+describe('the start-up splash', () => {
+  it('sits alone inside #root, which the first render empties', () => {
+    expect(splash?.parentElement).toBe(root);
+    expect(root.children).toHaveLength(1);
+  });
+
+  it('is decorative: hidden, with no words, heading, live region or control', () => {
+    expect(splash.getAttribute('aria-hidden')).toBe('true');
+    expect(splash.textContent.trim()).toBe('');
+    const announcing = 'h1, h2, h3, h4, h5, h6, [role], [aria-live], [tabindex], a, button, input, select, textarea';
+    expect(splash.querySelectorAll(announcing)).toHaveLength(0);
+  });
+
+  it('runs no script: the page has one, the module entry, and it is not inline', () => {
+    expect(splash.querySelector('script')).toBeNull();
+    const scripts = [...doc.querySelectorAll('script')].map((node) => [node.getAttribute('type'), node.getAttribute('src')]);
+    expect(scripts).toEqual([['module', '/src/main.jsx']]);
+  });
+
+  /* `searchIndexing.js` marks Testing noindex only when the page has no robots meta of its own. */
+  it('brings no robots meta', () => {
+    expect(html).not.toMatch(/<meta[^>]*name=["']?robots/i);
+  });
+
+  it('holds no raw value of its own and stays small', () => {
+    expect(rawValuesIn(rootSource.replace(/<!--[\s\S]*?-->/g, ''))).toEqual([]);
+    expect(Buffer.byteLength(rootSource, 'utf8')).toBeLessThanOrEqual(2048);
+  });
+
+  /*
+   * React 19 sets the root's `textContent` to '' on its first commit. Were that
+   * to change, the splash would stay above the app, a screen tall.
+   */
+  it('is gone after the app’s first render', async () => {
+    const container = document.createElement('div');
+    container.innerHTML = root.innerHTML;
+    document.body.appendChild(container);
+    expect(container.querySelector('#startup-splash')).not.toBeNull();
+    const app = createRoot(container);
+    try {
+      await act(async () => { app.render(React.createElement('p', null, 'App')); });
+      expect(container.querySelector('#startup-splash')).toBeNull();
+      expect(container.textContent).toBe('App');
+    } finally {
+      act(() => { app.unmount(); });
+      container.remove();
+    }
   });
 });

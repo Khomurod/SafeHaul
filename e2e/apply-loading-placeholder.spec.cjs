@@ -23,6 +23,8 @@ test.describe('driver application loading placeholder', () => {
         // Not busy: a busy region may hold back its own status announcement.
         await expect(placeholder).not.toHaveAttribute('aria-busy');
         expect(hold.matched()).toBeGreaterThan(0);
+        // React's first render replaced `index.html`'s start-up splash: one picture, not two.
+        await expect(page.locator('#startup-splash')).toHaveCount(0);
 
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
         await expect(page.getByText('Loading…', { exact: true })).toHaveCount(0);

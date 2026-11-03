@@ -192,6 +192,34 @@ change. Median (min–max) in ms. B was 1,697.5 for the base runs and 1,812.5 fo
   first text painted is the step title. These rows are therefore not comparable with Table B's FCP.
 - Bundle budget: first download 304,119 → 304,183 B gzip, application page 513,938 → 514,003 B.
 
+### T3-static result (local)
+
+`index.html` now paints the SafeHaul mark on the page ground from the HTML and its stylesheets, before
+the app's code runs. Measured 2026-11-03 on the **local harness only**, §7 steps 3–5 unchanged: base
+`b32fd47` against the T3-static change. Median (min–max) in ms. B was 1,852 and 1,675.5 for the base
+`local-apply-dt` and `local-login-sim` runs, 1,813 and 1,996.5 for T3-static.
+
+| Group (method, runs) | Point | Base `b32fd47` | With T3-static |
+|---|---|---|---|
+| `local-apply-dt` (devtools, 3) | FCP | 5,425 (4,940–5,915) | 2,021 (1,997–2,184) |
+| | `blank` | 4,833 (4,350–5,319) | 1,436 (1,411–1,597) |
+| | LCP | 5,425 (4,940–5,915) | 5,044 (4,897–5,182) |
+| | CLS | 0 (0–0) | 0 (0–0) |
+| `local-login-sim` (simulate, 5) | FCP | 917 (907–1,741) | 930 (911–1,556) |
+| | LCP | 2,566 (1,741–2,568) | 2,570 (1,556–2,582) |
+| | CLS | 0 (0–0) | 0 (0–0) |
+
+- On `/apply` the first paint is now the mark, about 1.4 s after the HTML ends instead of the step
+  title about 4.8 s after it. The filmstrip shows the mark, then the placeholder, then step 1. The
+  rest of that wait is the four render-blocking stylesheets: the last arrives 46–58 ms before the
+  paint in each run. LCP is still the step title; its change is inside the base runs' spread.
+- `/login` simulate does not move. In the unthrottled trace Lantern simulates from, the entry script
+  had loaded (55–73 ms) before the first paint (110–152 ms), so the simulation counts it as blocking.
+  Its `blank` (910 → 919) uses unthrottled request times (§2) and is not a result.
+- CLS stays 0: React's first commit removes the splash, and a removed element does not shift.
+- Bundle budget: first download 304,178 → 304,201 B gzip, application page 513,994 → 514,017 B (the
+  two `fill-ds-brand-*` utilities). `index.html` itself grows 2,063 B raw, 370 B gzip.
+
 ## 6. Other observations
 
 - Lighthouse warned "The page loaded too slowly to finish within the time limit. Results may be

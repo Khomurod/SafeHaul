@@ -103,7 +103,7 @@ the dashboard; an account in no company (a removed member keeps the login)
 gets a no-access screen with Sign out. The driver application (routes below)
 waits behind one start-screen placeholder, `ApplyPagePlaceholder`, and asks for
 its screen's code before React renders (`warmApplyScreen.js`); other pages
-keep the branded loader, and `index.html` stays empty (it serves every route).
+keep the branded loader; before that `index.html` shows the mark (all routes).
 
 ### Public (unauthenticated) routes
 

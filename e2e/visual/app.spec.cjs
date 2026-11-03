@@ -50,6 +50,9 @@ const {
 const { uploadLeadFile } = require('../helpers/leadImport.cjs');
 const { APPLY_SCREEN_CODE, holdRequests } = require('../helpers/holdRequest.cjs');
 
+/** The dev server's URL for the app's entry module, the one script `index.html` loads. */
+const APP_ENTRY = /\/src\/main\.jsx(\?.*)?$/;
+
 /**
  * A screen is listed with the thing that must be on it before a screenshot is
  * meaningful — or, when parts of it load independently, every such thing.
@@ -338,6 +341,20 @@ const SCREENS = [
         url: '/apply/e2e-company?e2eIntake=choice',
         before: (page) => holdRequests(page, APPLY_SCREEN_CODE),
         ready: (page) => page.getByRole('main', { name: 'Loading Application...' }),
+    },
+    {
+        /*
+         * `index.html` alone, as a phone paints it while the app's code
+         * downloads: the start-up splash, the same on every route. The entry is
+         * refused, not held, because a held module script holds the page's
+         * `load` and `goto` with it. The dev server injects styles from that
+         * script, so the stylesheet is linked as the build links it in `<head>`.
+         */
+        name: 'page-shell',
+        url: '/apply/e2e-company',
+        before: (page) => page.route(APP_ENTRY, (route) => route.abort()),
+        open: (page) => page.addStyleTag({ url: '/src/index.css' }),
+        ready: (page) => page.locator('#startup-splash'),
     },
     {
         name: 'verification-portal',
