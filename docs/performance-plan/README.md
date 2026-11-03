@@ -58,7 +58,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
 
 1. **Скорость на медленном телефоне / Test on slow phones and networks (#31)**
    - [x] **T1** · Замерить скорость страниц водителя на телефоне · *Measure the driver pages on a phone* → [T1](T1-driver-pages-on-phone.md) · PR: #557 · Дата: 2026-11-03
-   - [ ] **T1-F** · Запрашивать код анкеты сразу при запуске (итог T1: GO, около 0,7 с) · *Request the `/apply` route code during start-up* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: — · Дата: —
+   - [x] **T1-F** · Запрашивать код анкеты сразу при запуске (итог T1: GO, около 0,7 с) · *Request the `/apply` route code during start-up* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
    - [ ] **T3-static** · Нейтральная заставка в `index.html` вместо белого экрана (итог T1: GO; ждёт ответа на Р7) · *Neutral static placeholder in `index.html`* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: — · Дата: —
 2. **Постраничная загрузка / Paginate results (#5)**
    - [ ] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: — · Дата: —
@@ -131,6 +131,9 @@ Agents fill this in. Numbers and verdicts only, never personal data.
   - Verdicts: T3 static placeholder GO; earlier `/apply` code download GO (saves about 738 ms);
     M5 typing NO-GO; M4 awaits the owner's numbers. PageSpeed refused with its daily quota, so
     there are no real-user numbers yet.
+- **T1-F, earlier `/apply` code download:** 2026-11-03, local harness only, devtools, 3 runs each,
+  base `e3ec172`: route code requested 3,503 → 3,134 ms, `gap` 686 → 327 ms, LCP 5,573 → 5,232 ms
+  ([T1-F result](../qa/mobile-speed-baseline.md#t1-f-result-local-harness-devtools)).
 - **M4-2, Applications list (owner's DevTools numbers):** date; company size;
   (a) first page, (b) Next page, (c) 3-letter name search, (d) E-Docs; verdict
   OPEN or CLOSED. — *not measured yet*

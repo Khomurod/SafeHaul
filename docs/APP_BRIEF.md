@@ -101,7 +101,8 @@ removed reloads once, only when `/release.json` names a SHA other than its
 Super Admin (by the token's role) to the owner panel and a company member to
 the dashboard; an account in no company (a removed member keeps the login)
 gets a no-access screen with Sign out. The driver application (routes below)
-waits behind one start-screen placeholder, `ApplyPagePlaceholder`; other pages
+waits behind one start-screen placeholder, `ApplyPagePlaceholder`, and asks for
+its screen's code before React renders (`warmApplyScreen.js`); other pages
 keep the branded loader, and `index.html` stays empty (it serves every route).
 
 ### Public (unauthenticated) routes

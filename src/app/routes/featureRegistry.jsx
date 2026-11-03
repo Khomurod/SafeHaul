@@ -1,4 +1,5 @@
 import React from 'react';
+import { loadPublicApplyHandler } from './applyScreenLoader';
 import { COMPANY_ROUTE_MANIFEST } from './companyRouteManifest';
 import { LegacyInterestRedirect } from './LegacyInterestRedirect';
 import { StartApplicationRedirect } from './StartApplicationRedirect';
@@ -60,10 +61,9 @@ export const featureScreens = Object.freeze({
     () => import('@features/settings/components/CompanySettings'),
     'CompanySettings',
   ),
-  publicApplyHandler: lazyNamed(
-    () => import('@features/driver-app/components/application/PublicApplyHandler'),
-    'PublicApplyHandler',
-  ),
+  // The start-up warm-up asks for this screen first on an apply page; both
+  // share one request (`applyScreenLoader.js`).
+  publicApplyHandler: lazyNamed(loadPublicApplyHandler, 'PublicApplyHandler'),
   // Tiny synchronous redirect — not worth a lazy chunk.
   legacyInterestRedirect: LegacyInterestRedirect,
   signingRoom: lazyDefault(() => import('@features/signing/SigningRoom')),

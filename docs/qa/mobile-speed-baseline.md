@@ -168,6 +168,30 @@ Approximate company size: awaiting owner. M4-2's (d), opening E-Docs, is not mea
   - `fontStart` against FCP: the font is requested at 3,730 ms on Testing (devtools), 7 ms before FCP at
     3,737 ms and 2,831 ms after the HTML response ends. Locally it is 3,380 ms against FCP 3,388 ms.
 
+### T1-F result (local harness, devtools)
+
+The apply screen's code is now requested by `src/app/startup/warmApplyScreen.js` as the entry's own
+code starts, before React renders. Measured 2026-11-03 on the **local harness only**, `local-apply-dt`
+(devtools throttling, 3 runs each), with §7 steps 3–5 unchanged: base `e3ec172` against the T1-F
+change. Median (min–max) in ms. B was 1,697.5 for the base runs and 1,812.5 for the T1-F runs.
+
+| Point | Base `e3ec172` | With T1-F |
+|---|---|---|
+| Route code requested | 3,503 (3,369–3,518) | 3,134 (3,071–3,383) |
+| `gap` | 686 (576–702) | 327 (288–590) |
+| `routeDownload` | 1,713 (1,469–1,714) | 1,445 (1,398–1,637) |
+| `potentialSaving` | 686 | 327 |
+| FCP | 5,573 (5,478–5,684) | 5,232 (4,969–5,240) |
+| LCP | 5,573 (5,478–5,684) | 5,232 (4,969–5,240) |
+
+- The request moved about 370 ms earlier and LCP about 340 ms. The rest of the `gap` comes before the
+  entry's own code runs: in the build that code starts only after every chunk it imports has run,
+  Firebase's config and SDK set-up included. Moving the request earlier still would mean changing
+  `index.html` or the chunk layout.
+- FCP equals LCP in every run of both columns: since T3 PR 2 the placeholder draws no words, so the
+  first text painted is the step title. These rows are therefore not comparable with Table B's FCP.
+- Bundle budget: first download 304,119 → 304,183 B gzip, application page 513,938 → 514,003 B.
+
 ## 6. Other observations
 
 - Lighthouse warned "The page loaded too slowly to finish within the time limit. Results may be

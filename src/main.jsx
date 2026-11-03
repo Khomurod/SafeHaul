@@ -1,6 +1,9 @@
 // First, before anything that loads Firebase: the stale-release reload and the
 // startup error screen (`src/app/startup/startupGuards.jsx` says why).
 import '@app/startup/startupGuards';
+// Second, with the reload listening: on the driver application's pages, ask for
+// the screen's code before React renders (`src/app/startup/warmApplyScreen.js`).
+import '@app/startup/warmApplyScreen';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
