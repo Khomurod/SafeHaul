@@ -63,7 +63,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
 2. **Постраничная загрузка / Paginate results (#5)**
    - [x] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: пакет B · Дата: 2026-11-03
    - [x] **T2b** · E-Docs: грузить только последние конверты, счётчики с сервера · *Load only recent envelopes in E-Docs* → [T2b](T2b-edocs-recent-envelopes.md) · PR: пакет B · Дата: 2026-11-03
-   - [ ] **T2c** · Ограничить списки кампаний, итоги остаются верными · *Limit the Campaigns lists* → [T2c](T2c-campaigns-lists-limit.md) · PR: — · Дата: —
+   - [x] **T2c** · Ограничить списки кампаний, итоги остаются верными · *Limit the Campaigns lists* → [T2c](T2c-campaigns-lists-limit.md) · PR: пакет B · Дата: 2026-11-03
    - [ ] **T2d** · (необязательно) Свои напоминания не пропадают из колокольчика · *(optional) Keep own reminders in the notification bell* → [T2d](T2d-notification-bell-reminders.md) · PR: — · Дата: —
 3. **Заглушки вместо нулей / Skeleton loading screens (#1)**
    - [x] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03

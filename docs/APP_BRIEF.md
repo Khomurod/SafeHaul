@@ -329,7 +329,10 @@ submitted application (§5).
 
 **Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
 worker (§8); the carrier connects and pays its own messaging provider. No
-two-way threads or drips.
+two-way threads or drips. The Campaigns page lists the newest 50 drafts and
+campaigns (more on request) plus every live one (active, queued, scheduled,
+paused); when the list is incomplete, Total Outreach is a server sum refreshed
+shortly after a change.
 
 **Super admin operations.** Dashboard, companies (features, SMS), features
 overview, users, unified driver DB, environment vault, AI providers, blog,

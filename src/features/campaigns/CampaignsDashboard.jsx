@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Icon, Plus, Rocket, History, LayoutGrid, Users, Zap, Loader2 } from '@design-system/icons';
-import { collection, query, orderBy, onSnapshot, doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { isCancellableSessionStatus } from './constants/campaignConstants';
 import { CampaignCard } from './components/CampaignCard';
+import { CampaignListMore } from './components/CampaignListMore';
 import { CampaignEditor } from './CampaignEditor';
 import { CampaignDetails } from './components/CampaignDetails';
 import DetailedReportModal from './components/DetailedReportModal';
+import { useCampaignLists } from './hooks/useCampaignLists';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { useLoadMoreFocus } from '@shared/hooks/useLoadMoreFocus';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Button, MetricCard, TabList, TabPanel } from '@/design-system/components';
+import { Button, MetricCard, Notice, TabList, TabPanel } from '@/design-system/components';
 import { PageContainer, PageHeader, ResponsiveGrid, Section, Stack } from '@/design-system/layouts';
 
 // The ids are the frozen `activeTab` contract ('drafts' | 'history'); labels and
@@ -25,12 +28,18 @@ const CAMPAIGN_TABS = [
     { id: 'history', label: 'Past Sequences', icon: History },
 ];
 
+// One `useLoadMoreFocus` per tab, so a tab switch keeps each list's focus state.
+const focusOptions = (list, resetKey) => ({
+    resetKey,
+    hasMore: list.hasMore,
+    isLoadingMore: list.isLoadingMore,
+    loadMoreFailed: list.loadMoreFailed,
+    loadedCount: list.items.length,
+});
+
 export function CampaignsDashboard({ companyId }) {
     const { currentCompanyProfile } = useData();
     const isCampaignsEnabled = currentCompanyProfile?.features?.campaignsEnabled !== false;
-    const [campaigns, setCampaigns] = useState([]);
-    const [sessions, setSessions] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('drafts'); // 'drafts' | 'history'
     const [selectedCampaignId, setSelectedCampaignId] = useState(null);
     const [viewingSessionId, setViewingSessionId] = useState(null);
@@ -44,80 +53,10 @@ export function CampaignsDashboard({ companyId }) {
     const [deleting, setDeleting] = useState(false);
     const { showSuccess, showError } = useToast();
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
-    const e2eNow = {
-        toDate: () => new Date(),
-        toMillis: () => Date.now(),
-    };
-
-    // 1. Fetch Drafts
-    useEffect(() => {
-        if (!companyId || !isCampaignsEnabled) return;
-        if (isE2ECampaignMock) {
-            setCampaigns([
-                {
-                    id: 'camp_e2e_seed',
-                    name: 'E2E Seed Campaign',
-                    status: 'draft',
-                    updatedAt: e2eNow,
-                    matchCount: 6,
-                    messageConfig: { method: 'sms', message: 'E2E seeded outreach message.' },
-                },
-            ]);
-            setLoading(false);
-            return () => {};
-        }
-        const q = query(
-            collection(db, 'companies', companyId, 'campaign_drafts'),
-            orderBy('updatedAt', 'desc')
-        );
-        const unsub = onSnapshot(q, (snap) => {
-            setCampaigns(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-            setLoading(false);
-        });
-        return () => unsub();
-    }, [companyId, isCampaignsEnabled, isE2ECampaignMock]);
-
-    // 1b. Fetch Live/Past Sessions
-    useEffect(() => {
-        if (!companyId || !isCampaignsEnabled) return;
-        if (isE2ECampaignMock) {
-            setSessions([
-                {
-                    id: 'session_e2e_seed',
-                    name: 'E2E Completed Session',
-                    status: 'completed',
-                    progress: { processedCount: 12, totalCount: 12 },
-                    config: { method: 'sms', message: 'Completed seed campaign' },
-                    messageConfig: { method: 'sms', message: 'Completed seed campaign' },
-                    createdAt: e2eNow,
-                    updatedAt: e2eNow,
-                    matchCount: 12,
-                },
-            ]);
-            return () => {};
-        }
-        const q = query(
-            collection(db, 'companies', companyId, 'bulk_sessions'),
-            orderBy('createdAt', 'desc')
-        );
-        const unsub = onSnapshot(q, (snap) => {
-            setSessions(snap.docs.map(d => {
-                const data = d.data();
-                return {
-                    id: d.id,
-                    name: data.name,
-                    status: data.status,
-                    createdAt: data.createdAt,
-                    updatedAt: data.lastUpdateAt || data.createdAt, // Map for CampaignCard
-                    messageConfig: data.config, // Map for CampaignCard
-                    matchCount: data.progress?.totalCount || data.targetIds?.length || 0,
-                    progress: data.progress, // Pass full progress for bar
-                    ...data
-                };
-            }));
-        });
-        return () => unsub();
-    }, [companyId, isCampaignsEnabled, isE2ECampaignMock]);
+    // The newest 50 of each list (more on request) and every live campaign; the two numbers stay exact.
+    const { drafts, sessions, liveCount, totalOutreach } = useCampaignLists({ companyId, enabled: isCampaignsEnabled });
+    const draftsFocus = useLoadMoreFocus(focusOptions(drafts, companyId));
+    const sessionsFocus = useLoadMoreFocus(focusOptions(sessions, companyId));
 
     if (!isCampaignsEnabled) {
         return (
@@ -130,12 +69,11 @@ export function CampaignsDashboard({ companyId }) {
         );
     }
 
-    // Stats Calculation
-    const liveCount = sessions.filter(s => ['active', 'queued', 'scheduled'].includes(s.status)).length;
-    const totalOutreach = sessions.reduce((acc, s) => acc + (s.progress?.processedCount || 0), 0);
-
-    // The active tab decides which frozen list feeds the card grid.
-    const visibleCampaigns = activeTab === 'drafts' ? campaigns : sessions;
+    // The active tab decides which frozen list feeds the card grid. The spinner
+    // follows the drafts, as it always has.
+    const activeList = activeTab === 'drafts' ? drafts : sessions;
+    const visibleCampaigns = activeList.items;
+    const loading = drafts.isLoading;
 
     // 2. Create New Campaign Draft
     const handleNewCampaign = async () => {
@@ -248,7 +186,7 @@ export function CampaignsDashboard({ companyId }) {
     // The details follow the live session, not the copy the card was clicked
     // with, so progress and status update while they are open; a deleted
     // session takes them back to the list.
-    const viewingSession = viewingSessionId ? sessions.find((session) => session.id === viewingSessionId) : null;
+    const viewingSession = viewingSessionId ? sessions.items.find((session) => session.id === viewingSessionId) : null;
     if (viewingSession) {
         return (
             <CampaignDetails
@@ -278,14 +216,14 @@ export function CampaignsDashboard({ companyId }) {
                             <MetricCard
                                 id="campaigns-stat-live"
                                 label="Live Campaigns"
-                                value={liveCount}
+                                value={liveCount ?? '—'}
                                 icon={<Icon icon={Zap} size="xl" />}
                                 tone="info"
                             />
                             <MetricCard
                                 id="campaigns-stat-outreach"
                                 label="Total Outreach"
-                                value={totalOutreach}
+                                value={totalOutreach ?? '—'}
                                 icon={<Icon icon={Users} size="xl" />}
                                 tone="success"
                             />
@@ -313,6 +251,13 @@ export function CampaignsDashboard({ companyId }) {
                                     <Icon icon={Loader2} size="3xl" className="animate-spin" />
                                     <span className="text-ds-sm font-semibold uppercase tracking-wide">Synchronizing…</span>
                                 </div>
+                            ) : activeList.error ? (
+                                <Notice
+                                    tone="danger"
+                                    actions={<Button variant="secondary" size="sm" onClick={activeList.retry}>Try again</Button>}
+                                >
+                                    {activeList.error}
+                                </Notice>
                             ) : visibleCampaigns.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center gap-ds-4 rounded-ds-lg border-2 border-dashed border-ds-border bg-ds-surface px-ds-6 py-ds-12 text-center">
                                     <span
@@ -332,18 +277,25 @@ export function CampaignsDashboard({ companyId }) {
                                     </Button>
                                 </div>
                             ) : (
-                                <ResponsiveGrid minItemWidth="280px">
-                                    {visibleCampaigns.map(campaign => (
-                                        <CampaignCard
-                                            key={campaign.id}
-                                            campaign={campaign}
-                                            onClick={() => activeTab === 'drafts' ? setSelectedCampaignId(campaign.id) : setViewingSessionId(campaign.id)}
-                                            onDelete={requestDeleteCampaign}
-                                            onCancel={activeTab === 'drafts' ? undefined : requestCancelCampaign}
-                                            onViewReport={() => setSelectedReportSessionId(campaign.id)}
-                                        />
-                                    ))}
-                                </ResponsiveGrid>
+                                <>
+                                    <ResponsiveGrid minItemWidth="280px">
+                                        {visibleCampaigns.map(campaign => (
+                                            <CampaignCard
+                                                key={campaign.id}
+                                                campaign={campaign}
+                                                onClick={() => activeTab === 'drafts' ? setSelectedCampaignId(campaign.id) : setViewingSessionId(campaign.id)}
+                                                onDelete={requestDeleteCampaign}
+                                                onCancel={activeTab === 'drafts' ? undefined : requestCancelCampaign}
+                                                onViewReport={() => setSelectedReportSessionId(campaign.id)}
+                                            />
+                                        ))}
+                                    </ResponsiveGrid>
+                                    <CampaignListMore
+                                        tab={activeTab}
+                                        list={activeList}
+                                        focus={activeTab === 'drafts' ? draftsFocus : sessionsFocus}
+                                    />
+                                </>
                             )}
                         </TabPanel>
                     </Section>

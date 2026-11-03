@@ -3,13 +3,17 @@
 // verify the migrated header, primary action, MetricCard stats, the accessible
 // WAI-ARIA tablist (selection + keyboard), responsive overflow at 1440/1024/412,
 // and an axe pass scoped to the migrated dashboard shell (the previous 10px stat
-// labels and their contrast are the defect this slice fixes). The CampaignCard
-// internals and destructive actions are covered by campaign-card.spec.cjs and
-// the vitest suite.
+// labels and their contrast are the defect this slice fixes). Adding
+// e2eCampaignList=many covers the lists shown 50 at a time (notice, Load more,
+// focus). The CampaignCard internals and destructive actions are covered by
+// campaign-card.spec.cjs and the vitest suite.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 
 const URL = '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock';
+// More made-up drafts and finished campaigns than one window: 60 of each, 50
+// listed at a time. The fixture stands in for the server counts and the sum.
+const MANY_URL = `${URL}&e2eCampaignList=many`;
 
 async function openCampaigns(page) {
   await page.goto(URL);
@@ -90,6 +94,80 @@ test.describe('Campaigns dashboard shell slice', () => {
       viewport: window.innerWidth,
       documentWidth: document.documentElement.scrollWidth,
     }));
+    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
+  });
+
+  test('lists the newest 50 drafts and campaigns and loads the rest on request', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop keyboard behavior.');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(MANY_URL);
+    await expect(page.getByRole('heading', { level: 1, name: 'Campaigns' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('#campaigns-stat-live')).toContainText('0');
+    await expect(page.locator('#campaigns-stat-outreach')).toContainText('600');
+
+    const cards = page.getByRole('tabpanel').getByRole('article');
+    await expect(page.getByText('Showing the newest 50 of 60 drafts.')).toBeVisible();
+    await expect(cards).toHaveCount(50);
+
+    // The keyboard reaches Load more right after the last card, with a visible ring.
+    const loadDrafts = page.getByRole('button', { name: 'Load more drafts' });
+    await cards.last().getByRole('button').last().focus();
+    await page.keyboard.press('Tab');
+    await expect(loadDrafts).toBeFocused();
+    const ring = await loadDrafts.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { boxShadow: s.boxShadow, outline: s.outlineStyle };
+    });
+    expect(ring.boxShadow !== 'none' || ring.outline !== 'none').toBe(true);
+
+    await loadDrafts.press('Enter');
+    await expect(cards).toHaveCount(60);
+    await expect(loadDrafts).toHaveCount(0);
+    const draftsDone = page.locator('.ds-notice', { hasText: 'All 60 drafts are shown.' });
+    await expect(draftsDone).toBeVisible();
+    await expect(draftsDone).toBeFocused();
+
+    await page.getByRole('tab', { name: /Past Sequences/i }).click();
+    await expect(page.getByText('Showing 50 of 60 campaigns, newest first. Live campaigns are always listed.')).toBeVisible();
+    await expect(cards).toHaveCount(50);
+    const loadOlder = page.getByRole('button', { name: 'Load older campaigns' });
+    await loadOlder.press('Enter');
+    await expect(cards).toHaveCount(60);
+    await expect(loadOlder).toHaveCount(0);
+    const sessionsDone = page.locator('.ds-notice', { hasText: 'All 60 campaigns are shown.' });
+    await expect(sessionsDone).toBeFocused();
+
+    // Each tab keeps what the user loaded.
+    await page.getByRole('tab', { name: /Drafts/i }).click();
+    await expect(cards).toHaveCount(60);
+    await expect(page.getByText('All 60 drafts are shown.')).toBeVisible();
+
+    const { violations } = await new AxeBuilder({ page }).include('[role="tabpanel"]').analyze();
+    const serious = violations
+      .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+      .map((v) => `${v.id} [${v.impact}] x${v.nodes.length}`);
+    expect(serious).toEqual([]);
+    expect(violations.filter((v) => v.id === 'color-contrast')).toEqual([]);
+  });
+
+  test('keeps the partly loaded lists within a phone viewport @mobile', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
+    await page.setViewportSize({ width: 412, height: 915 });
+    await page.goto(MANY_URL);
+    await expect(page.getByText('Showing the newest 50 of 60 drafts.')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole('button', { name: 'Load more drafts' })).toBeVisible();
+    const widths = () => page.evaluate(() => ({
+      viewport: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+    }));
+    let geometry = await widths();
+    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
+
+    await page.getByRole('tab', { name: /Past Sequences/i }).click();
+    await expect(page.getByText('Showing 50 of 60 campaigns, newest first. Live campaigns are always listed.')).toBeVisible();
+    await page.getByRole('button', { name: 'Load older campaigns' }).click();
+    await expect(page.locator('.ds-notice', { hasText: 'All 60 campaigns are shown.' })).toBeVisible();
+    geometry = await widths();
     expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
   });
 
