@@ -156,8 +156,8 @@ answer, and the batch PR says so.
 |---|---|---|
 | **A — Экраны / Screens** | browser only | T1 (measured first, as the baseline), T3 (both parts), T4.5, M2a, M2b, M-SA, M4-1, M6, X1a (without Sentry: the owner is removing it) |
 | **B — Списки / Lists** | browser and Firestore indexes | T2a, T2b, T2c, T2d, M5 (only where T1's numbers call for it) |
-| **C — Сервер / Server** | Cloud Functions | T4.1, T4.2, T4.3, T4.4, M1a, M1b, M1c, M3a, M3b, M7b (both parts); M7c only if M7a's numbers call for it |
-| **D — Мониторинг / Monitoring** | browser, CI and docs | T5, T5b (both parts), X1b |
+| **C — Сервер / Server** | Cloud Functions | T4.1, T4.2, T4.3, T4.4, M1a, M1b, M1c, M3a, M3b, M7b PR 1, then M7c (only if M7a's numbers call for it), then M7b PR 2. Without M7a's numbers, M7b PR 2 waits, because it needs M7c merged or ticked "not needed" |
+| **D — Мониторинг / Monitoring** | browser, CI and docs | T5, T5b (both parts), X1b. T5b's wait for Production speed data is waived: the owner asked to remove Sentry outright (Р13), and Sentry's page-load data today is one undifferentiated "Pageload" group |
 | Waits for the owner's numbers | — | M4-2 and M4-3 (Р2), M7a and M7c (Р24) |
 | Not done | — | T5-alt (the owner chose A), M6-opt (recommended no), M4-4 (the same change as M2a) |
 
@@ -323,5 +323,8 @@ Not part of any task above. Each needs its own task if the owner wants it.
     (`functions/deleteApplication.js:49-66`), and nothing marks a deletion in
     progress. A PDF written in between (a late original render today, or M7b's
     repair later) can be left behind, and a re-application by the same driver
-    gets the same application id. A second sweep after `recursiveDelete` would
-    close it. M7b's own check-back narrows its part of the window only.
+    gets the same application id. A second sweep after `recursiveDelete`
+    narrows the window but does not close it. Closing it needs every writer to
+    refuse to save for a deleted or deleting application, for example through a
+    deletion marker that `preserveApplicationPdf` checks. M7b's own check-back
+    narrows its part of the window only.

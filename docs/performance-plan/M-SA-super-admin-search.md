@@ -47,8 +47,9 @@
    - After the type checks (247-252): `if (loading) return;` (a read in flight is about to replace the lists and cursors this page would extend; add `loading` to the dependencies at 363), then `const version = readVersion.current; const current = () => version === readVersion.current;`.
    - `if (!current()) return;` after each await, before any set: after `getDocs` at 266 and 285, after `withMemberships` at 290, and after the `Promise.all` at 310. A dropped page changes no list, cursor, `hasMore` or company map.
    - In `catch` (355), show the toast only when current. `finally` (358-362) stays as it is, so the in-flight guard and `loadingMore` are always released.
-7. The file stays under 500 lines (471 now).
-8. Open the PR with **Кратко**. Suggested text: «Поиск в Super Admin показывает результаты именно последнего запроса: запоздавший старый ответ больше не подменяет список. Проверено: юнит‑тесты и браузерные тесты консоли. Риск очень низкий. От вас ничего не нужно.» State in the PR why the duplicate company reads stay.
+7. In the effect that reacts to `searchQuery` (`useSuperAdminData.js:430-444`), add `readVersion.current += 1;` as its first line. Every change of the input then invalidates a read still in flight, even during the 600 ms wait before the next `performClientSearch` starts. A pending `Ab` answer that lands while the box already reads `Abc`, or is empty, is dropped.
+8. The file stays under 500 lines (471 now).
+9. Open the PR with **Кратко**. Suggested text: «Поиск в Super Admin показывает результаты именно последнего запроса: запоздавший старый ответ больше не подменяет список. Проверено: юнит‑тесты и браузерные тесты консоли. Риск очень низкий. От вас ничего не нужно.» State in the PR why the duplicate company reads stay.
 
 ## Tests
 
@@ -57,6 +58,7 @@
   - Shows the recent data after the search is cleared, even when the search answers later. Fails before.
   - Stays loading until the newest read answers. Fails before, because the older read's `finally` clears `loading`.
   - Drops a Load More page that answers after a newer search: hold the `startAfter` read of `loadMore('companies')` open, type `Ab`, wait 600 ms, resolve `Ab`, then the page. `companyList` holds only `Ab`'s companies, and `loadingMore.companies` is false again. Fails before.
+  - Drops an answer for text no longer in the box: type `Ab`, wait 600 ms (the `Ab` read starts and is held), type `Abc`, resolve `Ab` within the next 600 ms. `companyList` does not show `Ab`'s companies. Fails before.
   - Load More does nothing while a read is loading: call `refreshData()`, then `loadMore('companies')` before it answers. No `startAfter` read is made. Fails before.
 - The existing `.counts`, `.loadMore`, `.pages` and `.e2e` suites pass.
 
@@ -83,6 +85,6 @@
 
 ## Done when (acceptance criteria)
 
-- [ ] An older search or recent-data answer never overwrites a newer one, a Load More page is appended only to the lists it was read for, and `loading` follows the newest read.
+- [ ] An older search or recent-data answer never overwrites a newer one or shows results for text no longer in the box, a Load More page is appended only to the lists it was read for, and `loading` follows the newest read.
 - [ ] The duplicate company reads and the other Out items are left as they are, and the PR states why.
 - [ ] The new tests fail on the old code; coverage, lint, typecheck, build and both super-admin Playwright suites passed; the PR starts with Кратко.
