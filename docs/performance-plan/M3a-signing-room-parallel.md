@@ -25,7 +25,7 @@
 
 - In:
   - `getPublicEnvelope`: the two limits run together (both must pass, with the same refusal messages and precedence), then the envelope and token reads run together, before any check.
-  - `submitPublicEnvelope`: every submitted id is checked first, then the images are saved together.
+  - `submitPublicEnvelope`: every submitted id is checked first, then the images are saved side by side, at most 4 at a time.
 - Out (do not do in this task):
   - The limits, keys, windows and fail-closed behaviour.
   - The token check, the status, expiry and signed-URL steps, and their order.
@@ -62,17 +62,21 @@
    for (const [key] of submitted) {
      if (!allowedFieldIds.has(key)) throw new HttpsError('invalid-argument', `Invalid field id submitted: ${key}`);
    }
-   // Each image is its own object, so they are saved side by side.
-   const saved = await Promise.all(submitted.map(async ([key, value]) => {
+   // Each image is its own object, so they are saved side by side, a few at a
+   // time: nothing caps how many fields an envelope has or how large an image is.
+   const saveValue = async ([key, value]) => {
      if (typeof value !== 'string' || !value.startsWith('data:image')) return [key, value];
      const buffer = Buffer.from(value.split(';base64,').pop(), 'base64');
      const filePath = `secure_documents/${companyId}/signatures/${requestId}_${key}.png`;
      await bucket.file(filePath).save(buffer, { metadata: { contentType: 'image/png' } });
      return [key, filePath];
-   }));
-   saved.forEach(([key, value]) => { finalValues[key] = value; });
+   };
+   for (let i = 0; i < submitted.length; i += SAVES_AT_ONCE) {
+     const wave = await Promise.all(submitted.slice(i, i + SAVES_AT_ONCE).map(saveValue));
+     wave.forEach(([key, value]) => { finalValues[key] = value; });
+   }
    ```
-   The number of images is bounded by the envelope's own fields, and the payload is already in memory, so no concurrency cap is needed. `finalValues` keeps the submitted order. Object names are unchanged, so a retry overwrites. A failed save still reaches the existing `catch` and its rollback to `'sent'`.
+   Add `const SAVES_AT_ONCE = 4;` at module scope. No limit bounds the saves today: the callable is `onCall({ cors: true })` (170), with the default memory and no size check of its own; an envelope's `fields` have no cap (the `signing_requests` create rule, `src/firestore.rules:354`, checks only the team, and the envelope creator sets none); and every allowed field id accepts a `data:image` value, not only signature fields (237). So the saves go in waves of 4, as `functions/bulkActions/helpers/recentlyMessaged.js:65-67` reads in waves, which also keeps at most 4 decoded buffers in memory at once. `finalValues` keeps the submitted order. Object names are unchanged, so a retry overwrites. A failed save still reaches the existing `catch` and its rollback to `'sent'`, and later waves do not start.
 6. `publicSigning.js` is 378 lines and must stay under 500.
 7. Open the PR with **Кратко**. Suggested text: «Страница подписи открывается немного быстрее: проверки лимитов и чтения на сервере идут одновременно. Рисованные подписи сохраняются одновременно, и ни одна не сохраняется, если в отправке есть неизвестное поле. Проверено: серверные тесты. Риск средний: это общий сервер Testing и Production, лимиты остаются строгими. От вас ничего не нужно.» Under what it touches: Cloud Functions `getPublicEnvelope` and `submitPublicEnvelope`; no callable contract, data shape, rules or CSP change. Record the counting decision under what changed and why.
 
@@ -89,6 +93,7 @@
 - `functions/test/unit/publicSigning.submit.test.js`:
   - Give each new case its own recording `file(path).save` double through `firebaseAdmin.storage.bucket.mockImplementation(...)`, and put the default bucket implementation back in `beforeEach`; `clearAllMocks` does not, so a per-test implementation would leak. Do not queue `*Once` values; if one is needed, switch the file to `jest.resetAllMocks()` and restore every default it relies on (update, delete, save, bucket, `checkRateLimit`).
   - Saves every drawn signature side by side: two `data:image` fields with deferred saves, both started before either resolves. Fails before.
+  - Saves at most 4 at a time: six `data:image` fields with deferred saves; exactly 4 saves start before any resolves, the other 2 only after the first 4 settle, and the update stores all six paths in submitted order.
   - Saves nothing when any submitted id is unknown: `{ sig1: 'data:image/png;base64,…', bogus: 'x' }` is rejected with `invalid-argument` and no save. Fails before, because `sig1` was saved first.
   - Stores each image's path as its value (`secure_documents/c1/signatures/r1_sig1.png`, with the file's own ids).
   - Rolls back to `'sent'` when a save fails.
@@ -113,13 +118,13 @@
 
 - This is a public, unauthenticated path. Safeguards: both limits must pass and fail closed; the refusal messages and their precedence are unchanged; the reads happen only after both limits pass; nothing is returned before the token compare. The tests pin each of these.
 - Counting: the network counter now rises even on a per-envelope refusal. That is stricter, never looser. Someone hammering one envelope can now use up a shared network's 100 reads in 5 minutes, but varying the request id already allowed that, and a normal signer is far below the limits.
-- If one image save fails, the others may finish after the rollback to `'sent'`. Today the images saved before a failure also stay. A retry overwrites the same names, and nothing cleans up an abandoned failed submission today either.
+- If one image save fails, the others in its wave of 4 may finish after the rollback to `'sent'`; later waves do not start. Today the images saved before a failure also stay. A retry overwrites the same names, and nothing cleans up an abandoned failed submission today either.
 - Rollback: revert the PR; the functions redeploy on merge.
 
 ## Done when (acceptance criteria)
 
 - [ ] The two read limits run together; a request passes only when both allow it, with the same messages and precedence.
 - [ ] The envelope and token reads run together after the limits; the decision order and the token-before-data rule are unchanged.
-- [ ] Submit checks every id before saving, then saves the images together; a refused submission saves nothing.
+- [ ] Submit checks every id before saving, then saves the images side by side, at most 4 at a time, in submitted order; a refused submission saves nothing.
 - [ ] The new tests fail on the old code and pass now; the functions tests, lint and guards pass.
 - [ ] The `main` run's functions deploy succeeded; the PR starts with Кратко and records the counting decision.

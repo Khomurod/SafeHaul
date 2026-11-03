@@ -42,7 +42,8 @@
 6. Agent: record them under M7a in the plan's Progress section in the next PR that touches the plan (M7b PR 1, M7c, or a docs-only PR if neither follows). Then apply the decision rule:
    - **M7c is needed** if p95 > 8 s, or p99 > 12 s, or (b) > 0, or (d) > 0, or memory p99 ≥ 200 MB (about 80% of 256). Otherwise tick M7c "not needed" and quote the numbers.
    - **M7b**: go ahead if (a) > 0. If (a) = 0, ask the owner the M7b decision question.
-   - If (c) > 0 or (d) > 0: tell the owner those submissions cannot be repaired by M7b (they never reached the queue); they need the existing Maintenance action, and a record rebuilt for (c) is labelled "Reconstructed".
+   - If (c) > 0: tell the owner those submissions cannot be repaired by M7b (a failed record is never queued); they need the existing Maintenance action, and a record rebuilt for them is labelled "Reconstructed".
+   - If (d) > 0: a whole-call time-out proves only that the call ran past its limit, not where it stopped. The ones counted now predate M7b, so none is queued; whatever they left missing needs the Maintenance action, as today. After M7b ships, a cut-off call may already have queued its repair, because the queue write comes after the stamp and before the answer. So for a later time-out, ask the owner to take the ids from that execution's own `[submitGuestApplication]` log lines and to look (view only, Firestore console) for `system_jobs/applicationPdfRepair/pdfRepairs/{companyId}__{applicationId}__{snapshotId}`, or `submissionRecord.pdfPreserved: true` on the application. Only when neither is there, point the owner to the Maintenance action.
    - If Missing official PDFs > 0: ask the owner the open question about repairing older applications. Do not run anything.
 
 ## Tests

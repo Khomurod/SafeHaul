@@ -4,7 +4,7 @@
 
 - **Checklist item(s):** #8 — Fix N+1 queries (`LeadAssignmentModal` reads one profile per member, one after another); #3 — Prevent duplicate API calls (both screens re-read a team the app already keeps); #16 — Run independent requests in parallel (the serial awaits in the modal).
 - **Size:** M · **Pull requests:** 1 · **Depends on:** M1a (merged, and the owner's answer on the refresh recorded) · **Owner decision needed:** none
-- **Why it matters for users:** When an admin presses Assign on Company Leads, the window waits for one database trip per team member, one after another, before it shows the list. After this change it shows the list after a single read. The change also fixes a real defect: with Round Robin, a team member whose profile has no `name` field makes the whole assignment fail with the message `Failed to assign leads.`
+- **Why it matters for users:** When an admin presses Assign on Company Leads, the window waits for one database trip per team member, one after another, before it shows the list. After this change it shows the list after a single read for every company whose saved team list (`teamMembers`) exists; a company without one still reads the memberships and one profile per member, but side by side instead of one after another. The change also fixes a real defect: with Round Robin, a team member whose profile has no `name` field makes the whole assignment fail with the message `Failed to assign leads.`
 
 ## Current behaviour (verified at 11626a6)
 
@@ -50,7 +50,7 @@
 
 ## Implementation steps
 
-1. Tell the owner, in Russian, in three lines at most. Suggested text: «Окно Assign Leads и выбор получателей при импорте будут загружать команду одним запросом. Исправлю ошибку Round Robin для сотрудников без имени в профиле. Права, записи лидов и тексты не меняю.»
+1. Tell the owner, in Russian, in three lines at most. Suggested text: «Окно Assign Leads и выбор получателей при импорте будут загружать команду одним запросом (если у компании есть сохранённый список команды). Исправлю ошибку Round Robin для сотрудников без имени в профиле. Права, записи лидов и тексты не меняю.»
 2. Write the failing tests first, in a new file `src/features/company-admin/components/LeadAssignmentModal.test.jsx`:
    - Mock `@/context/DataContext` so that `useData` returns `{ currentCompanyProfile: { id: 'co-1', teamMembers: [...] }, currentUserClaims: { roles: { 'co-1': 'company_admin' } } }`.
    - Mock `@features/companies/services/companyService` (`getCompanyProfile`), `@lib/firebase` (`{ db: {} }`), `@shared/utils/activityLogger`, and `firebase/firestore`, with `writeBatch` recording `update` payloads.
@@ -68,8 +68,10 @@
     *  (companies/{id}.teamMembers, kept by functions/hrAdmin/membership.js),
     *  read fresh once when the screen opens so someone added since the company
     *  was entered is offered. One document read instead of the memberships and
-    *  one profile per member. If the read fails, the copy read on entering the
-    *  company is used (useCompanyTeam). */
+    *  one profile per member, when the document carries the cache. If the read
+    *  fails, the copy read on entering the company is used; with no cache in
+    *  either, useCompanyTeam lists an admin's memberships (one profile read per
+    *  member, in parallel). */
    export function useAssignableTeam(companyId) {
      const [fresh, setFresh] = useState({ companyId: null, profile: null });
      useEffect(() => {
@@ -87,7 +89,7 @@
      return { team: settled ? team : NO_TEAM, isLoading: !settled || isLoading };
    }
    ```
-   `getCompanyProfile` resolves `null` on any error and never rejects (`src/features/companies/services/companyService.js:18-31`). `useCompanyTeam(companyId, null)` then uses the copy from company entry, or, for an admin, the memberships when there is no cache. A fresh document without `teamMembers` takes precedence over the context copy (`useCompanyTeam.js:26`), so an admin gets the memberships fallback.
+   `getCompanyProfile` resolves `null` on any error and never rejects (`src/features/companies/services/companyService.js:18-31`). `useCompanyTeam(companyId, null)` then uses the copy from company entry, or, for an admin, the memberships when there is no cache. A fresh document without `teamMembers` takes precedence over the context copy (`useCompanyTeam.js:26`), so an admin gets the memberships fallback: one `memberships` query plus one `users/{uid}` read per member, in parallel (`useCompanyTeam.js:38-69`). The same happens when the read fails and the copy from company entry has no `teamMembers` either. So the one-read claim holds only where the cache exists (`functions/hrAdmin/membership.js:41-81` writes it on every membership change, so a company whose team has not changed since that trigger shipped has none); elsewhere the N reads remain, though no longer one after another, until the company's next team change writes the cache. Accepted: this task writes no cache itself; a one-time refresh of every company's list is M1a's owner decision.
 4. In `LeadAssignmentModal.jsx`:
    - Line 2: add `useMemo` to the React import. Line 5: keep only `doc, writeBatch, serverTimestamp`. Add `import { useAssignableTeam } from '../hooks/useAssignableTeam';`.
    - Delete the `team` / `loadingTeam` state (59-60) and the `fetchTeam` effect (82-111).
@@ -113,24 +115,24 @@
    - In `teamNames.test.js`, the per-field naming now belongs to M1a's trigger test and `useCompanyTeam.test.jsx`. Remove the `it.each` (30-46) and `profilesWith`, and update the header (1-5). Keep the Round Robin case: set `team.members` so that member a's name is an email, and assert defined `assignedTo` / `assignedToName` in every lead payload.
 7. Write a new `src/features/company-admin/hooks/useAssignableTeam.test.jsx`, mocking the same way as `useCompanyTeam.test.jsx:13-34` plus `getCompanyProfile`.
 8. Add the brief line (see Documentation).
-9. Open the PR with **Кратко**. Suggested text: «Окна Assign Leads и Import Leads загружают команду одним чтением, а не по одному сотруднику. Исправлена ошибка: Round Robin падал с «Failed to assign leads», если у сотрудника не было имени в профиле. Проверено: юнит‑тесты и браузерные тесты списка лидов и импорта. От вас ничего не нужно.» Under what it touches, write: no rules, indexes, callables or CSP. A membership whose profile cannot be read now appears as `Unknown` or by email, as it already does in the dossier's Assign To; before, these two screens left it out.
+9. Open the PR with **Кратко**. Suggested text: «Окна Assign Leads и Import Leads загружают команду одним чтением, а не по одному сотруднику, если у компании есть сохранённый список команды (иначе — по одному, но параллельно). Исправлена ошибка: Round Robin падал с «Failed to assign leads», если у сотрудника не было имени в профиле. Проверено: юнит‑тесты и браузерные тесты списка лидов и импорта. От вас ничего не нужно.» Under what it touches, write: no rules, indexes, callables or CSP. A membership whose profile cannot be read now appears as `Unknown` or by email, as it already does in the dossier's Assign To; before, these two screens left it out.
 
 ## Tests
 
 - `src/features/company-admin/components/LeadAssignmentModal.test.jsx` (new):
   - In Round Robin, a member whose cache name resolves to their email gets that email in `assignedToName`, and no payload value is `undefined`. Fails before.
-  - Opening calls `getCompanyProfile('co-1')` once and never queries `memberships` or reads `users/*`. Fails before.
+  - With `teamMembers` in the fresh document, opening calls `getCompanyProfile('co-1')` once and never queries `memberships` or reads `users/*`. Fails before.
   - Shows `Loading team...` and keeps Confirm disabled until the read settles.
   - Lists the fresh document's team, including a member missing from the copy in `useData`.
   - Round Robin starts with everyone ticked and distributes in name order. Manual mode writes the chosen member and keeps the `"Unknown"` fallback.
   - When the read gives `null`, the modal uses the `useData` copy.
   - Leaves `logActivity`, `onSuccess` and `onClose` in that order.
 - `src/features/company-admin/hooks/useAssignableTeam.test.jsx` (new):
-  - One company read, no memberships or users reads, the cache's order kept.
+  - With `teamMembers` in the fresh document: one company read, no memberships or users reads, the cache's order kept.
   - `isLoading` stays true until the read settles.
   - Uses the context copy when the read gives `null`.
   - No `companyId` gives an empty team, not loading.
-  - A fresh document without `teamMembers` lets an admin's memberships fallback run.
+  - A fresh document without `teamMembers` lets an admin's memberships fallback run (one `memberships` query, then the profile reads), and so does a `null` read with no `teamMembers` in the context copy.
 - The `useCompanyLeadUpload.*.test.js` suites, adjusted as in step 6, and `CompanyBulkUpload.*.test.jsx` (unchanged; they mock the hook) all pass.
 
 ## Documentation to update in the same PR
@@ -155,6 +157,7 @@
 ## Risks and safeguards
 
 - The fresh read may fail. The hook then uses the copy from company entry, which can miss someone added in this session, the same as every other team picker.
+- A company with no team cache yet: the hook falls back, through `useCompanyTeam`, to the memberships and one profile read per member, in parallel. There the N reads remain until the company's next team change; only the one-after-another wait is gone. Say so in the PR instead of claiming one read everywhere.
 - Names now come from the cache. A nameless member is shown and assigned by email instead of crashing Round Robin or showing a blank, and the sort stays deterministic.
 - In a company whose cache has not been rewritten since M1a, a member whose profile keeps the name only as `fullName` or as first + last name appears in Import Leads by email until the next team change (today, by name). This follows from the owner's answer in M1a; say it in the PR.
 - A membership whose profile is missing now appears instead of being left out. This matches the dossier picker and the list filter, and Settings → Team flags such members for removal. Noted in the PR.
@@ -162,7 +165,7 @@
 
 ## Done when (acceptance criteria)
 
-- [ ] Opening Assign Leads or Import Leads reads one company document; neither file contains a `memberships` query or a `users/*` read.
+- [ ] With the team cache present, opening Assign Leads or Import Leads reads one company document and nothing else; without it, the only extra reads are `useCompanyTeam`'s memberships fallback. Neither file contains a `memberships` query or a `users/*` read.
 - [ ] Round Robin never writes an undefined `assignedToName`, pinned by a test that failed before.
 - [ ] The modal's name sort and select-all default, the upload's `{ id, name }` shape and order, and every write payload are unchanged.
 - [ ] The docblock and the harness header no longer describe the old read; the APP_BRIEF §8 line is added and `check:agent-docs` shows no growth in lines.

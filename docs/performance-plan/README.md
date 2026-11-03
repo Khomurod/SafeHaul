@@ -319,3 +319,9 @@ Not part of any task above. Each needs its own task if the owner wants it.
 10. Correction to the 2026-11-03 analysis: Sentry 11.8.0 names every page load
     "Pageload" rather than the raw path. The scope's transaction name still
     carries the raw path, which is how item 1 happens.
+11. `deleteApplication` sweeps Storage before `recursiveDelete`
+    (`functions/deleteApplication.js:49-66`), and nothing marks a deletion in
+    progress. A PDF written in between (a late original render today, or M7b's
+    repair later) can be left behind, and a re-application by the same driver
+    gets the same application id. A second sweep after `recursiveDelete` would
+    close it. M7b's own check-back narrows its part of the window only.
