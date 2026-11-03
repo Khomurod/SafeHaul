@@ -115,8 +115,8 @@ PR 1 — `Skeleton`, `MetricCard loading`, company dashboard
 PR 1 as done (2026-11-03, batch PR #557). Every file:line above was re-checked at `6118b20`: only docs changed since `11626a6`. Adapted:
 - Step 3: measured choice buttons 103.5px and 123px at 412×915, 145.5px (both) at 1440×900, so `block` `lg` is 152px.
 - Step 10: the roadmap had one line to spare (559 of 560), so the §3 bullet names the card-group announcement only; the page example (a hidden `<h1>` in a polite status) is in `skeleton/README.md`, and PR 2 adds it to §3 with its consumer. §3 dropped the `(@design-system/patterns)` import path to fit.
-- The story status is **Needs review** until CI's baselines are pulled and looked at.
-- Step 11, pixel lane: run locally under the pinned Chromium (1248) with `--update-snapshots=none`, 280 of 300 baseline shots also differ on the unmodified tree, so this machine cannot judge baselines. Comparing the branch's renders with the base's in the same environment, only `company-dashboard-{desktop,mobile}` differ, and only in the greeting line. The four new and two changed PNGs must still come from CI (`screenshots:pull`); that Done-when box stays open. `check:visual-contract` passed unchanged locally under 1248.
+- The story status was **Needs review** until CI's baselines were pulled and looked at; it is **Approved** since `a612964`.
+- Step 11, pixel lane: run locally under the pinned Chromium (1248) with `--update-snapshots=none`, 280 of 300 baseline shots also differ on the unmodified tree, so this machine cannot judge baselines. Comparing the branch's renders with the base's in the same environment, only `company-dashboard-{desktop,mobile}` differ, and only in the greeting line. The four new and two changed PNGs therefore came from CI: `screenshots:pull` from run 41659416292, each looked at at 1440 and 412 (`a612964`), which closed that Done-when box. `check:visual-contract` passed unchanged locally under 1248.
 
 PR 2 — one placeholder for the driver apply page
 

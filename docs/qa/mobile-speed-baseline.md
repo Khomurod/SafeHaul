@@ -387,6 +387,7 @@ for (const f of files) {
   if (!runsOf.has(g)) runsOf.set(g, []);
   runsOf.get(g).push(Number(f.match(/-(\d+)\.json$/)[1]));
 }
+if (runsOf.size === 0) { console.error(`${dir}: no Lighthouse run files`); process.exit(1); }
 for (const [g, ns] of runsOf) {
   const need = g.includes('-dt') ? 3 : 5;
   ns.sort((x, y) => x - y);
