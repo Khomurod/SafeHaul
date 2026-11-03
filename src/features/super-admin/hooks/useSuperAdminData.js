@@ -56,6 +56,14 @@ export function useSuperAdminData() {
     const loadMoreInFlight = useRef({ companies: false, users: false, applications: false });
     const [loadingMore, setLoadingMore] = useState({ companies: false, users: false, applications: false });
 
+    // Each read that replaces the lists (recent data or a search), and each change
+    // of the search box, moves the version on: an answer that is no longer the
+    // newest changes nothing, so an older read never shows over a newer one.
+    const readVersion = useRef(0);
+    // From the start of such a read until the newest one answers: Load More waits
+    // for it (`loading` still reads false until React's next render).
+    const readInFlight = useRef(false);
+
     // Whether each list failed to load (`companies`, `users`, `apps`), and each
     // dashboard count, by its stat's name (`companyCount` …): a count that fails
     // says so instead of reading 0.
@@ -72,6 +80,9 @@ export function useSuperAdminData() {
 
     // --- 1. LOAD RECENT DATA (Initial Paginated Fetch) ---
     const loadRecentData = useCallback(async () => {
+        const version = ++readVersion.current;
+        const current = () => version === readVersion.current;
+        readInFlight.current = true;
         setLoading(true);
         setStatsError(NO_STATS_ERRORS);
 
@@ -85,6 +96,7 @@ export function useSuperAdminData() {
             setAllApplications(mockDriverRecords());
             setHasMoreApps(false);
             setAllCompaniesMap(new Map(companies.map((company) => [company.id, company.companyName])));
+            readInFlight.current = false;
             setLoading(false);
             return;
         }
@@ -132,6 +144,7 @@ export function useSuperAdminData() {
                 safeFetch(getCountFromServer(collectionGroup(db, "applications")), "Count Applications", { data: () => ({ count: 0 }) }),
                 safeFetch(getCountFromServer(collectionGroup(db, "leads")), "Count Leads", { data: () => ({ count: 0 }) })
             ]);
+            if (!current()) return;
 
             // C. Handle Errors Flags
             setStatsError({
@@ -161,7 +174,9 @@ export function useSuperAdminData() {
             // E. Process Users
             if (userResult.success) {
                 const { docs } = userResult.data;
-                setUserList(await withMemberships(docs.map((doc) => ({ id: doc.id, ...doc.data() }))));
+                const users = await withMemberships(docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+                if (!current()) return;
+                setUserList(users);
                 setLastUserDoc(docs[docs.length - 1] || null);
                 setHasMoreUsers(docs.length === USERS_PAGE_SIZE);
             }
@@ -235,10 +250,14 @@ export function useSuperAdminData() {
 
         } catch (e) {
             console.error("🔥 Fatal Error loading recent data:", e);
+            if (!current()) return;
             setStatsError(Object.fromEntries(Object.keys(NO_STATS_ERRORS).map((key) => [key, true])));
             showError("Failed to load dashboard data.");
         } finally {
-            setLoading(false);
+            if (current()) {
+                readInFlight.current = false;
+                setLoading(false);
+            }
         }
     }, [showError]);
 
@@ -250,7 +269,11 @@ export function useSuperAdminData() {
         if (type === 'companies' && (!lastCompanyDoc || !hasMoreCompanies)) return;
         if (type === 'users' && (!lastUserDoc || !hasMoreUsers)) return;
         if (type === 'applications' && (!lastAppDoc && !lastLeadDoc && !hasMoreApps)) return;
-
+        // A read in flight is about to replace the lists and cursors this page would
+        // extend, and a page that answers after a newer read began changes nothing.
+        if (readInFlight.current) return;
+        const version = readVersion.current;
+        const current = () => version === readVersion.current;
 
         loadMoreInFlight.current[type] = true;
         setLoadingMore(prev => ({ ...prev, [type]: true }));
@@ -264,6 +287,7 @@ export function useSuperAdminData() {
                     limit(20)
                 );
                 const snap = await getDocs(q);
+                if (!current()) return;
 
                 if (snap.empty) {
                     setHasMoreCompanies(false);
@@ -283,11 +307,13 @@ export function useSuperAdminData() {
                 });
             } else if (type === 'users') {
                 const snap = await getDocs(usersPageQuery(lastUserDoc));
+                if (!current()) return;
                 if (snap.empty) {
                     setHasMoreUsers(false);
                     return;
                 }
                 const newUsers = await withMemberships(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+                if (!current()) return;
                 setUserList((prev) => [...prev, ...newUsers]);
                 setLastUserDoc(snap.docs[snap.docs.length - 1]);
                 setHasMoreUsers(snap.docs.length === USERS_PAGE_SIZE);
@@ -308,6 +334,7 @@ export function useSuperAdminData() {
                 )) : Promise.resolve({ docs: [] });
 
                 const [leadsSnap, appsSnap] = await Promise.all([leadsPromise, appsPromise]);
+                if (!current()) return;
 
                 if (leadsSnap.docs.length === 0 && appsSnap.docs.length === 0) {
                     setHasMoreApps(false);
@@ -354,7 +381,7 @@ export function useSuperAdminData() {
             }
         } catch (err) {
             console.error(`Error loading more ${type}:`, err);
-            showError(`Failed to load more ${type}.`);
+            if (current()) showError(`Failed to load more ${type}.`);
         } finally {
             // Always release the guard so a retry is allowed after a failure.
             loadMoreInFlight.current[type] = false;
@@ -364,6 +391,9 @@ export function useSuperAdminData() {
 
     // --- 3. CLIENT-SIDE SEARCH (Direct Firestore) ---
     const performClientSearch = useCallback(async (term) => {
+        const version = ++readVersion.current;
+        const current = () => version === readVersion.current;
+        readInFlight.current = true;
         setLoading(true);
 
         try {
@@ -398,6 +428,7 @@ export function useSuperAdminData() {
                 getDocs(usersQuery),
                 getDocs(leadsQuery)
             ]);
+            if (!current()) return;
 
             setCompanyList(compSnap.docs.map(d => ({ id: d.id, ...d.data() })));
             setUserList(userSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -416,17 +447,24 @@ export function useSuperAdminData() {
 
         } catch (e) {
             console.error("Search failed:", e);
-            showError("Search failed. Please try again.");
+            if (current()) showError("Search failed. Please try again.");
         } finally {
-            setLoading(false);
+            if (current()) {
+                readInFlight.current = false;
+                setLoading(false);
+            }
         }
     }, [showError]);
 
     // --- 4. CONTROLLER ---
-    // The search text the lists were last read for: null until the first read.
+    // The search text the lists were last read for: null until the first read,
+    // undefined once a change of the box dropped the read in flight, so that
+    // going back to its text reads it again.
     const readFor = useRef(null);
     useEffect(() => {
         if (searchQuery === readFor.current) return undefined;
+        readVersion.current += 1;
+        if (readInFlight.current) readFor.current = undefined;
         const read = () => {
             readFor.current = searchQuery;
             const term = searchQuery.trim();

@@ -85,6 +85,14 @@
 
 ## Done when (acceptance criteria)
 
-- [ ] An older search or recent-data answer never overwrites a newer one or shows results for text no longer in the box, a Load More page is appended only to the lists it was read for, and `loading` follows the newest read.
+- [x] An older search or recent-data answer never overwrites a newer one or shows results for text no longer in the box, a Load More page is appended only to the lists it was read for, and `loading` follows the newest read.
 - [ ] The duplicate company reads and the other Out items are left as they are, and the PR states why.
 - [ ] The new tests fail on the old code; coverage, lint, typecheck, build and both super-admin Playwright suites passed; the PR starts with Кратко.
+
+As done (2026-11-03, batch PR #557). Every file:line above was re-checked at `92ae1a0`. None of the super-admin lines moved since `11626a6`; `useAppFetch.js`'s counter is now 36-41, and the brief's §4 paragraph is now at 330. Adapted:
+- Step 7 alone left a hole. If the box changed and came back within the 600 ms pause (typed and cleared, or a typo undone), no new read started, but the read in flight was dropped, so the console stayed on loading with old lists. Now a change that drops a read in flight also forgets which text the lists were read for, so coming back to that text reads it again. This adds a read only in that case, which is rare. A change made while nothing is loading invalidates nothing, so undoing a typo still reads nothing.
+- `readInFlight` is released when the newest read ends, including in the E2E mock branch. A one-character box still starts no read; if it drops a read in flight, `loading` stays on until the next read, which only the search results view sees, and that view does not show `loading`.
+- Tests: `useSuperAdminData.search.test.js` (15). Before the fix, 13 failed. The two "back to the text" cases passed on the old code, failed with step 7 alone, and pass now. Beyond the list: `loadRecentData`'s catch and finally, a users page that drops after its memberships, an applications page, and no toast for a stale page. The file queues no `*Once` and resets with `vi.resetAllMocks()`.
+- `useSuperAdminData.js` is now 510 lines by `check:source-size` (warned, under 700): 38 more lines of guard, its shape unchanged. The version has to be shared by the two reads that replace the lists, by Load More and by the controller, so splitting the hook would spread one guard over several files.
+- Checks: `test:coverage` (7519 passed), lint, typecheck, build, bundle budget, `check:source-size` (the warning above), `check:agent-docs`, `check:ci-plan`, `check:public-claims`, `check:ai-boundary`, `check:function-exports` and the callable contract passed. `super-admin-shell.spec.cjs` passed on `chromium` (18, the `@mobile` case skipped) and on `mobile-chrome` (1), and so did `super-admin-views.spec.cjs` (35 and 1). Their Firestore is unreachable, so the unit tests are the only cover for the ordering.
+- Open boxes: the PR text (why the Out items stay, and Кратко) belongs to the batch PR's description. The Out items are untouched, and every check passed.
