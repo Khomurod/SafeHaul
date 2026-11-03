@@ -352,7 +352,8 @@ const SCREENS = [
          */
         name: 'page-shell',
         url: '/apply/e2e-company',
-        before: (page) => page.route(APP_ENTRY, (route) => route.abort()),
+        // Returns nothing: `page.route` resolves to a Disposable, not a hold.
+        before: async (page) => { await page.route(APP_ENTRY, (route) => route.abort()); },
         open: (page) => page.addStyleTag({ url: '/src/index.css' }),
         ready: (page) => page.locator('#startup-splash'),
     },
@@ -457,7 +458,8 @@ test.describe('@visual application screens', () => {
                     });
                 } finally {
                     // A held request must never outlive its test.
-                    await hold?.release();
+                    // Only a hold (`helpers/holdRequest.cjs`) has `release`.
+                    if (typeof hold?.release === 'function') await hold.release();
                     await page.unrouteAll({ behavior: 'ignoreErrors' });
                 }
             });
