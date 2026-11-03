@@ -114,7 +114,7 @@ Each can be done on its own, or when someone next changes that part of the app.
 ### Дополнительно / Extra (outside the list)
 
 - **OCR и политика безопасности CSP / OCR and the security policy**
-  - [ ] **X1a** · OCR не ждёт вечно, если движок не запустился · *OCR stops waiting forever when its engine cannot start* → [X1a](X1a-ocr-start-timeout.md) · PR: — · Дата: —
+  - [x] **X1a** · OCR не ждёт вечно, если движок не запустился · *OCR stops waiting forever when its engine cannot start* → [X1a](X1a-ocr-start-timeout.md) · PR: #557 · Дата: 2026-11-03
   - [ ] **X1b** · Движок OCR и английские данные с нашего сайта (до включения CSP) · *Serve the OCR engine from our own site* → [X1b](X1b-ocr-self-hosted.md) · PR: — · Дата: —
 
 ## Журнал измерений и решений / Measurements and decisions
@@ -294,7 +294,7 @@ task that waits for it.
 
 **Дополнительно**
 - **Р32 (X1).** Делать X1 вообще? *Рекомендую:* да, двумя маленькими PR.
-  — Ответ: — · Дата: —
+  — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р33 (X1b).** Языковой файл OCR (2.9 MB, скачивается браузером один раз)
   тоже отдавать с нашего сайта, а не с бесплатного CDN jsDelivr?
   *Рекомендую:* да. — Ответ: — · Дата: —

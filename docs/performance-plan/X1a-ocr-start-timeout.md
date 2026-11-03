@@ -141,9 +141,18 @@
 
 ## Done when (acceptance criteria)
 
-- [ ] The new `ocrFallback.test.js` cases failed on unchanged `main` (recorded in the PR) and pass now.
-- [ ] `recognizePages` rejects as soon as tesseract reports a failed start, and after at most `OCR_START_TIMEOUT_MS` when it never answers.
-- [ ] Every started worker is terminated, including one that starts after the wait ended.
-- [ ] One Sentry warning per failed start, tagged `flow: document_reader`, `stage: ocr_start`, with no document content.
-- [ ] The brief's §4 sentence matches the behaviour, and the brief grew in neither lines nor bytes.
-- [ ] Lint, unit tests, build, bundle budget, source-size and agent-docs pass. The PR description starts with **Кратко**.
+- [x] The new `ocrFallback.test.js` cases failed on unchanged `main` (recorded in the PR) and pass now.
+- [x] `recognizePages` rejects as soon as tesseract reports a failed start, and after at most `OCR_START_TIMEOUT_MS` when it never answers.
+- [x] Every started worker is terminated, including one that starts after the wait ended.
+- [x] One `console.error('[document reader] OCR could not start', error, { flow: 'document_reader', stage: 'ocr_start' })` per failed start, with only the engine's status and no document content (in place of the Sentry warning: Sentry is being removed, Р13).
+- [x] The brief's §4 sentence matches the behaviour, and the brief grew in neither lines nor bytes.
+- [x] Lint, unit tests, build, bundle budget, source-size and agent-docs pass.
+- [ ] The PR description starts with **Кратко**.
+
+As done (2026-11-03, batch PR #557). Built with the console pattern of step 3's last bullet, not Sentry, because the owner is removing Sentry completely (Р13). T5b's items marked (X1a) therefore have nothing left to do in `ocrFallback.js` or its test. Every file:line above was re-checked at `1a487f1`: none of the code lines moved since `11626a6`, including `node_modules/tesseract.js` 7.0.0; the brief's document-reader paragraph is now at 197-206 and §9's line at 1084-1087. Adapted:
+- The steps were followed as written, with the console line in place of `Sentry.captureException` and no `@sentry/react` import in `ocrFallback.js` or its test. The test spies on `console.error` in `beforeEach` and restores it in `afterEach`. Case (b) also checks that the timeout path logs once, and case (d) that the logged error carries only `OCR could not start: initialization failed`.
+- Before the fix, 6 of 10 tests failed: the updated argument assertion, cases (a) to (d) by their 2 s timeout, and case (e), because unchanged code passes no options (`Cannot read properties of undefined (reading 'errorHandler')`).
+- A Node probe outside the repo ran the real tesseract.js 7.0.0 against a local server answering 404 for `eng.traineddata.gz`: with the fix `recognizePages` rejected after 174 ms with one log line naming only that URL and status; the unchanged file threw the uncaught `Error(data)` from `createWorker.js:217` and never settled.
+- The brief's paragraph shrank by 16 bytes at the same line count, by tightening its last sentence. `OWNER_GUIDE.md`, `RELEASE_CHECKLIST.md` and `security-posture.md` say nothing about OCR start-up, so they are unchanged.
+- Checks: the ten `ocrFallback.test.js` tests pass, and so does everything under `applicationPrep/` with `mockResetHygiene.test.js` (202 tests). `test:coverage` passed (7533 passed, 83 skipped). Lint (0 errors), typecheck, build, bundle budget (application page 513,994 of 536,000 bytes; tesseract stays a lazy chunk), `check:source-size`, `check:agent-docs` (the brief's existing size warning only), `check:ci-plan`, `check:public-claims`, `check:ai-boundary`, `check:function-exports` and the callable contract passed too. `company-prepared-application.spec.cjs` passed on `chromium` (14); it renders the reader panel and does not run OCR.
+- Open box: the PR text (Кратко) belongs to the batch PR's description.
