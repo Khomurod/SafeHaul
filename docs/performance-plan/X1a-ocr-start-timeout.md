@@ -3,7 +3,7 @@
 [← Plan, progress and owner decisions](README.md) · Checked at commit `11626a6` on 2026-11-03; re-check line numbers against the current `main` before you start.
 
 - **Checklist item(s):** Extra task X1, outside the owner's list, first of two PRs. It came up while verifying #6 "Serve static files through a CDN" and #21 "Load third-party scripts after the page".
-- **Size:** S · **Pull requests:** 1 · **Depends on:** none · **Owner decision needed:** Do the extra task X1 at all? It is outside your list. Recommended: yes. This half is a small fix for a "Reading…" button that can spin forever, and it is the safety net for X1b.
+- **Size:** S · **Pull requests:** 1 · **Depends on:** none. No fixed order with T5b, which switches Sentry off: see the last bullet of step 3 · **Owner decision needed:** Do the extra task X1 at all? It is outside your list. Recommended: yes. This half is a small fix for a "Reading…" button that can spin forever, and it is the safety net for X1b.
 - **Why it matters for users:** When a recruiter presses "Read the documents" for a scan or a photo, the browser runs OCR first. If the engine's English data cannot be downloaded, or the engine cannot start (jsDelivr is down, an office firewall blocks it, or a stricter security policy arrives later), the read never ends: the button stays on "Reading…" and the pages never reach the AI that reads images. After this change OCR gives up, within seconds when the engine reports an error and after one minute at most otherwise, and the read continues with the image-reading AI.
 
 ## Current behaviour (verified at 11626a6)
@@ -53,7 +53,7 @@
 2. Write the failing tests first, in `src/features/company-admin/applicationPrep/extraction/ocrFallback.test.js`:
    - Imports: `afterEach` added to the `vitest` import; `import { captureException } from '@sentry/react';`; `import { OCR_START_TIMEOUT_MS, recognizePages } from './ocrFallback';`.
    - Add `vi.mock('@sentry/react', () => ({ captureException: vi.fn() }));`.
-   - Start `beforeEach` with `vi.resetAllMocks()`, then rebuild the doubles with defaults given at creation: `worker = { recognize: vi.fn(async (page) => ({ data: { text: `text of ${page}` } })), terminate: vi.fn(async () => undefined) }` and `createWorker = vi.fn(async () => worker)`.
+   - Start `beforeEach` with `vi.resetAllMocks()`, then rebuild the doubles with defaults given at creation: `` worker = { recognize: vi.fn(async (page) => ({ data: { text: `text of ${page}` } })), terminate: vi.fn(async () => undefined) } `` and `createWorker = vi.fn(async () => worker)`.
    - Add `afterEach(() => vi.useRealTimers())`. Queue no `*Once` values.
    - The new cases are:
    a. **'gives up when the engine reports that it cannot start'.** `createWorker = vi.fn((lang, oem, options) => { setTimeout(() => options?.errorHandler?.('initialization failed'), 0); return new Promise(() => {}); })`, then `await expect(recognizePages(['page-1'], { createWorker })).rejects.toThrow(/could not start/)`. Give the case a per-test timeout of `2_000`, so on unchanged code it fails quickly instead of hanging.
@@ -95,6 +95,7 @@
    }
    ```
    - Leave the second argument `undefined`: tesseract's default engine mode, LSTM only (`createWorker.js:19`); X1b makes it explicit. The `try/finally` that terminates a started worker (`:38-49`) stays unchanged.
+   - If T5b PR 1 has merged (`package.json` has no `@sentry/react`; check again before you merge), import no Sentry here or in the test: T5b's `src/tests/noSentry.test.js` would fail, and the app has no other error reporter (`src/lib/monitoring/` holds only Sentry code). Use T5b's console pattern instead. Replace the `Sentry.captureException(...)` line with `console.error('[document reader] OCR could not start', error, { flow: 'document_reader', stage: 'ocr_start' })`. In the test, drop the `@sentry/react` import and mock, add `vi.spyOn(console, 'error').mockImplementation(() => {})` to `beforeEach`, and assert on that spy instead of `captureException`: (d) one call with `('[document reader] OCR could not start', expect.any(Error), { flow: 'document_reader', stage: 'ocr_start' })`, (e) none. Read "Sentry warning" in the rest of this file as that one log line.
 4. Extend the header comment with a short "## A start that never finishes" section:
    - the cases in which tesseract.js 7 never settles, with the `createWorker.js` line references above
    - the known residue: in both never-settling cases tesseract.js returns no handle, so its worker stays alive until the tab closes; this happens only when the engine cannot start

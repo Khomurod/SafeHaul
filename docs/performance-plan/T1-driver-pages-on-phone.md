@@ -123,7 +123,7 @@
    - Request (2): send this text verbatim:
    ```text
    Замер списка заявок на Testing (около 10 минут, на компьютере, в Google Chrome)
-   1. Откройте в Chrome https://truckerapp-system.web.app и войдите как обычно. Откройте компанию, в которой больше всего заявок (лучше не меньше 60).
+   1. Откройте в Chrome https://truckerapp-system.web.app и войдите как обычно. Откройте компанию, в которой больше всего заявок (нужно больше 60: замер E открывает четвёртую страницу, строки 61–80).
    2. Откройте главную страницу компании (Dashboard). Список заявок пока не открывайте.
    3. Нажмите F12 (на Mac: Cmd+Option+I). Откроется панель разработчика. Вверху панели выберите вкладку «Network» («Сеть»).
    4. В поле «Filter» («Фильтр») вверху панели вставьте: firestore.googleapis.com
@@ -131,8 +131,8 @@
    6. В самом низу панели есть строка вида «12 / 80 requests | 35.2 kB / 900 kB transferred | 40 kB / 2.1 MB resources». Запишите первое число перед «transferred» (здесь 35.2 kB) и первое число перед «resources» (здесь 40 kB). Это замер A.
    7. В меню слева откройте раздел «Driver Applications & Leads» и нажмите «Applications». Дождитесь таблицы и подождите ещё 5 секунд, пока числа внизу перестанут меняться. Запишите оба числа — замер B — и сколько строк в таблице.
    8. Нажмите стрелку «>» (кнопка Next page) под таблицей, подождите 5 секунд — замер C. Ещё раз «>» — замер D. Ещё раз — замер E.
-   9. Нажмите в поле поиска «Search name, phone, email...» и введите одну латинскую букву a. Подождите 5 секунд — замер F и сколько строк нашлось.
-   10. Сотрите букву, подождите 5 секунд — замер G. Скопируйте частую фамилию из ваших заявок и вставьте её в поиск целиком (Ctrl+V, на Mac Cmd+V), подождите 5 секунд — замер H и сколько строк нашлось. Саму фамилию не присылайте.
+   9. Нажмите в поле поиска «Search name, phone, email...» и быстро, без пауз, введите три первые буквы фамилии любого водителя из таблицы. Подождите 5 секунд — замер F и сколько строк нашлось. Сами буквы не присылайте.
+   10. Сотрите буквы, подождите 5 секунд — замер G. Введите одну латинскую букву a, подождите 5 секунд — замер H и сколько строк нашлось.
    11. Пришлите только числа A–H (с единицами kB или MB, как на экране), число строк и примерное общее число заявок в компании. Снимки экрана не присылайте: на них видны имена водителей.
    ```
    While waiting for answers, do steps 1–5 and 8, in order.
@@ -152,7 +152,7 @@
    - Read the deployed Testing SHA with one static GET: `curl -sS https://truckerapp-system.web.app/release.json`. If it differs from HEAD, measure anyway and record both.
    - Check the port is free: `curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1:4320` must print `000`.
 2. **Static bytes at this commit**, so the report ties timings to sizes.
-   - `cd "$REPO" && npm run build > "$PERF/build.log" 2>&1; echo "exit=$?"`, then `npm run check:bundle-budget | tee "$PERF/budget.txt"`. Copy its `first download:` and `application page:` lines into the report.
+   - `source <PERF>/env.sh && cd "$REPO" && npm run build > "$PERF/build.log" 2>&1; echo "exit=$?"`, then `source <PERF>/env.sh && cd "$REPO" && npm run check:bundle-budget | tee "$PERF/budget.txt"`. Copy its `first download:` and `application page:` lines into the report.
    - Record `gzip -c dist/pdf.worker.min.mjs | wc -c` (288,718 B at 11626a6). The real `/sign` downloads this, plus the PDF, after "I Agree"; the mock never does.
    - If `git status --short` now shows `public/pdf.worker.min.mjs` (the `prebuild` copy), restore it with `git checkout -- public/pdf.worker.min.mjs` and note it.
 3. **E2E-mode production build into the scratchpad**, never into `dist/`. The variables are blanked as CI's `app-visual` job does (`.github/workflows/main.yml:459-469`), so no `.env` value reaches the bundle (Sentry DSN included):
@@ -175,7 +175,7 @@
    // Usage: node serve-dist-h2.mjs <distDir> <port> <repoRoot> <cert.pem> <key.pem>
    import http2 from 'node:http2';
    import { readFileSync, statSync } from 'node:fs';
-   import { join, extname, normalize, resolve } from 'node:path';
+   import { join, extname, normalize, resolve, sep } from 'node:path';
    import zlib from 'node:zlib';
 
    const [distArg, portArg, repoArg, certFile, keyFile] = process.argv.slice(2);
@@ -199,7 +199,8 @@
 
    function fileFor(urlPath) {
      const candidate = normalize(join(dist, decodeURIComponent(urlPath)));
-     if (candidate.startsWith(dist)) {
+     // `dist + sep`, so a sibling such as `dist-e2e-x/` (reachable via `..%2f`) is not served.
+     if (candidate.startsWith(dist + sep)) {
        try { if (statSync(candidate).isFile()) return candidate; } catch { /* fall through */ }
      }
      return join(dist, 'index.html'); // the `**` -> /index.html rewrite
@@ -237,9 +238,9 @@
    source <PERF>/env.sh && (nohup node "$PERF/serve-dist-h2.mjs" "$PERF/dist-e2e" 4320 "$REPO" "$PERF/cert.pem" "$PERF/key.pem" > "$PERF/server.log" 2>&1 & echo $! > "$PERF/server.pid")
    ```
    - Sanity checks:
-     - `curl -sk --http2 -o /dev/null -w "%{http_version} %{http_code}" "$L/apply/e2e-company"` prints `2 200`.
-     - `curl -sk "$L/__/firebase/init.json"` shows `perf-only`.
-     - `V=$(ls "$PERF/dist-e2e/assets" | grep '^vendor-.*\.js$'); curl -sk --http2 -H 'Accept-Encoding: br' -o /dev/null -w '%{size_download}' "$L/assets/$V"` prints 152,000–168,000. It was 159,880 at 11626a6.
+     - `source <PERF>/env.sh && curl -sk --http2 -o /dev/null -w "%{http_version} %{http_code}" "$L/apply/e2e-company"` prints `2 200`.
+     - `source <PERF>/env.sh && curl -sk "$L/__/firebase/init.json"` shows `perf-only`.
+     - `source <PERF>/env.sh && V=$(ls "$PERF/dist-e2e/assets" | grep '^vendor-.*\.js$'); curl -sk --http2 -H 'Accept-Encoding: br' -o /dev/null -w '%{size_download}' "$L/assets/$V"` prints 152,000–168,000. It was 159,880 at 11626a6.
 5. **Lighthouse on the local harness: 5 simulate runs per page and 3 devtools runs for `/apply`.** Pin Lighthouse 13.6.0, the 2026-10-30 audit's version (on npm; needs Node ≥ 22.19).
    - Write `$PERF/lh.sh`:
    ```bash
@@ -280,7 +281,7 @@
    done
    echo DONE
    ```
-   - Run `bash "$PERF/run-local.sh" "$PERF" > "$PERF/run-local.log" 2>&1` in the background (about 15 min). It is done when the log ends with `DONE` and holds 23 `rc=0` lines.
+   - Run `source <PERF>/env.sh && bash "$PERF/run-local.sh" "$PERF" > "$PERF/run-local.log" 2>&1` in the background (about 15 min). It is done when the log ends with `DONE` and holds 23 `rc=0` lines.
    - Write the summariser `$PERF/summarize-lhr.mjs`. It was tested on the dry-run files and is used again in steps 6 and 9:
    ```js
    // Medians per page/condition from Lighthouse 13 JSON files named <group>-<run>.json.
@@ -305,7 +306,13 @@
      const reqs = a['network-requests'].details.items;
      const local = (u) => /^https?:\/\/127\.0\.0\.1[:/]/.test(u) || u.startsWith('data:') || u.startsWith('blob:');
      const isLocalRun = reqs.some((r) => /^https?:\/\/127\.0\.0\.1[:/]/.test(r.url));
-     const leaked = isLocalRun ? reqs.filter((r) => !local(r.url) && r.finished && r.statusCode > 0).map((r) => new URL(r.url).host) : [];
+     // The run's own --blocked-url-patterns, as Chrome matches them ('*' = anything, whole URL).
+     const esc = (s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+     const blocked = (lhr.configSettings.blockedUrlPatterns || []).map((p) => new RegExp(`^${p.split('*').map(esc).join('.*')}$`));
+     // Lighthouse marks a failed request finished with statusCode -1, so neither field proves it stayed local.
+     // A leak is any non-local request off the block list, and any blocked one that still got an answer.
+     const leaked = isLocalRun ? reqs.filter((r) => !local(r.url)
+       && (!blocked.some((re) => re.test(r.url)) || r.statusCode > 0)).map((r) => new URL(r.url).host) : [];
      const first = (re) => reqs.filter((r) => re.test(r.url)).sort((x, y) => x.networkRequestTime - y.networkRequestTime)[0];
      // The route's code: its screen chunk (/apply or /sandbox/apply) and the chunks requested with it.
      const route = first(/\/assets\/(PublicApplyHandler|SandboxApplyHandler)-/);
@@ -353,7 +360,7 @@
      console.log(group, JSON.stringify(out));
    }
    ```
-   - Run `node "$PERF/summarize-lhr.mjs" "$PERF/raw"`. Every `local-*` group must show:
+   - Run `source <PERF>/env.sh && node "$PERF/summarize-lhr.mjs" "$PERF/raw"`. Every `local-*` group must show:
      - `leaked` empty;
      - no `runtimeError` line;
      - the expected screen as `lcpLabel`: "Step 1 of 9: Personal Information" for `/apply`, "Contact our administration team…" for `/login`, the "By clicking \"I Agree - Proceed to Sign\"…" consent text for `/sign`, and "Under FMCSA 49 CFR Part 391.23…" for `/verify`.
@@ -377,7 +384,7 @@
    done
    echo DONE
    ```
-   - Run `bash "$PERF/run-testing.sh" "$PERF" > "$PERF/run-testing.log" 2>&1` in the background. That is 13 page loads, 5 s apart.
+   - Run `source <PERF>/env.sh && bash "$PERF/run-testing.sh" "$PERF" > "$PERF/run-testing.log" 2>&1` in the background. That is 13 page loads, 5 s apart.
    - Each Lighthouse CLI run starts a fresh Chrome profile, so no stored draft or resume token can trigger a callable.
    - Summarise again. Each `testing-*` run must have:
      - no `runtimeError`;
@@ -406,7 +413,8 @@
    source <PERF>/env.sh
    curl -sS --max-time 120 --get https://www.googleapis.com/pagespeedonline/v5/runPagespeed --data-urlencode "url=$T/login" \
      --data-urlencode strategy=mobile --data-urlencode category=performance -o "$PERF/raw/psi-testing-login.json"
-   # wait 60 s, then:
+   # wait 60 s, then, in the new shell:
+   source <PERF>/env.sh
    curl -sS --max-time 120 --get https://www.googleapis.com/pagespeedonline/v5/runPagespeed --data-urlencode "url=$T$APPLY_PATH" \
      --data-urlencode strategy=mobile --data-urlencode category=performance -o "$PERF/raw/psi-testing-apply-1.json"
    node "$PERF/read-psi.cjs" "$PERF/raw/psi-testing-login.json"; node "$PERF/read-psi.cjs" "$PERF/raw/psi-testing-apply-1.json"
@@ -504,23 +512,23 @@
 9. **Calibrate and extend**, while the harness still runs.
    - Let B be the median `bench` over all CLI runs of the session.
      - If 1,000 ≤ B ≤ 2,500, the standard 4x runs stand. The lower bound is Lighthouse's own slow-host line. Record B, and note the docs' reading: 1,000–1,500 is a low-end desktop, where 4x lands a little below a mid-tier phone; 1,500–2,000 is the docs' own 4x bracket.
-     - Otherwise compute R = clamp(round(4 × B / 1,750), 2, 10) and R_LOW = clamp(round(10 × B / 1,750), 3, 20). Run `CPU=<R> SUFFIX=-cal SKIP_LOGIN=1 bash "$PERF/run-testing.sh" "$PERF" 5 3` (8 loads) and the probe with `RATES=1,<R>,<R_LOW>` into `typing-cal.json`. Decide on those rows and show both.
+     - Otherwise compute R = clamp(round(4 × B / 1,750), 2, 10) and R_LOW = clamp(round(10 × B / 1,750), 3, 20). Run `source <PERF>/env.sh && CPU=<R> SUFFIX=-cal SKIP_LOGIN=1 bash "$PERF/run-testing.sh" "$PERF" 5 3` (8 loads) and the probe with `RATES=1,<R>,<R_LOW>` into `typing-cal.json`. Decide on those rows and show both.
    - Spread rule, for decision rows only:
-     - If `testing-apply-sim`'s `lcpSpread` is above 30% of its LCP median, run `SKIP_LOGIN=1 bash "$PERF/run-testing.sh" "$PERF" 4 0 6` (runs 6–9).
-     - If `testing-apply-dt`'s is, run `SKIP_LOGIN=1 bash "$PERF/run-testing.sh" "$PERF" 0 2 4` (runs 4–5).
+     - If `testing-apply-sim`'s `lcpSpread` is above 30% of its LCP median, run `source <PERF>/env.sh && SKIP_LOGIN=1 bash "$PERF/run-testing.sh" "$PERF" 4 0 6` (runs 6–9).
+     - If `testing-apply-dt`'s is, run `source <PERF>/env.sh && SKIP_LOGIN=1 bash "$PERF/run-testing.sh" "$PERF" 0 2 4` (runs 4–5).
    - Hard cap: 27 Lighthouse loads of Testing in total (13 base + 4 + 2 + 8).
 10. **Stop and clean up.**
-   - `kill $(cat "$PERF/server.pid")`, then confirm `curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1:4320` prints `000`.
-   - Delete `$PERF/key.pem`.
+   - `source <PERF>/env.sh && kill $(cat "$PERF/server.pid")`, then confirm `curl -sk -o /dev/null -w "%{http_code}" https://127.0.0.1:4320` prints `000`.
+   - Delete the key: `source <PERF>/env.sh && rm "$PERF/key.pem"`.
    - `git status --short` must be empty before the docs edit: `dist/` is ignored, and `dist-e2e` lives in the scratchpad.
 11. **Turn the owner's numbers into M4 figures.** From A–H compute:
-   - first page = B−A;
-   - next pages = C−B, D−C, E−D (all three, and their median);
-   - one-letter search = F−E;
+   - first page = B−A (M4-2's (a));
+   - next pages = C−B, D−C, E−D (all three, and their median: M4-2's (b));
+   - three-letter search = F−E (M4-2's (c));
    - clear search = G−F (should be close to a first page);
-   - surname search = H−G.
+   - one-letter search = H−G. Record it on its own; it never enters the M4 gate. Once M4-1 (two-letter minimum) is merged, a single letter sends no query, so a delta near 0 is then expected.
 
-   Record each as "transferred" (compressed: what a slow phone downloads) and "resources" (uncompressed), in kB. The first-page delta also includes the list's count queries.
+   Record each as "transferred" (compressed: what a slow phone downloads) and "resources" (uncompressed), in kB; convert MB as 1 MB = 1,000 kB. The first-page delta also includes the list's count queries. T1 does not measure M4-2's (d), opening E-Docs.
    - If a delta is 0 although new rows appeared, ask the owner to repeat steps 6–8 once, waiting 10 s per step.
    - With no answer, record M4 as "not measured" and leave its verdict open.
 12. **Decide.** All values are medians, from the `-cal` rows when step 9 calibrated.
@@ -529,7 +537,7 @@
    |---|---|---|---|---|
    | **T3** static loading placeholder in `index.html` for `/apply` | `testing-apply-dt` `blank` (FCP − end of the HTML response, the white-screen time) and `testing-apply-sim` FCP | `blank` ≥ 1,000 ms **or** FCP > 1,800 ms | `blank` < 500 ms **and** FCP ≤ 1,800 ms | OWNER (recommend NO-GO) |
    | **Earlier code download for `/apply`** (route code requested during start-up) | `testing-apply-dt` `potentialSaving` = min(`gap`, `routeDownload`); LCP of `testing-apply-sim` and `-dt` | `potentialSaving` ≥ 300 ms **and** either LCP > 2,500 ms | `potentialSaving` < 150 ms, **or** both LCPs ≤ 2,500 ms | OWNER (recommend NO-GO) |
-   | **M4** lighter Applications list (#24) | owner deltas, compressed: median next-page delta and the one-letter search delta | page ≥ 200 kB **or** search ≥ 1,000 kB (200 kB ≈ 1 s on slow 4G) | page < 100 kB **and** search < 500 kB | PARK: record, revisit on a recruiter complaint |
+   | **M4** lighter Applications list (#24) | owner deltas, compressed: median next-page delta (b) and the three-letter search delta (c); never the one-letter delta | M4-2's gate OPEN: next page > 300 kB **or** three-letter search > 1,000 kB (300 kB ≈ 1.5 s on slow 4G) | gate CLOSED: next page ≤ 300 kB **and** three-letter search ≤ 1,000 kB | none: the gate is OPEN or CLOSED |
    | **M5** fewer re-renders while typing (#26) | typing `inpLike`, median of 3 runs | > 200 ms at 4x (or R) in S1 **or** S2 (Google's "good" INP line) | ≤ 200 ms at 4x (or R) in both **and** ≤ 500 ms at 10x (or R_LOW) | OWNER (recommend NO-GO) |
 
    - Mark a verdict "(borderline)" when its deciding value is within ±15% of a threshold.
@@ -554,7 +562,7 @@
     - `## 2. /apply start-up waterfall`: median `-dt-` values for HTML end, start-up end, route start and end, `routeChunks`, font start, first Firestore request, FCP, LCP, `blank`, `gap` and `potentialSaving`.
     - `## 3. Typing in the application`: scenario × CPU table of interactions, `inpLike`, worst and median.
     - `## 4. Recruiter Applications list — Firestore download`: action × compressed kB × uncompressed kB × rows, plus the approximate company size.
-    - `## 5. Decisions`: step 12's table with the measured values, the rule applied and a verdict (GO / NO-GO / PARK / OWNER / not measured). T3, M4 and M5 read this section.
+    - `## 5. Decisions`: step 12's table with the measured values, the rule applied and a verdict (GO / NO-GO / OWNER / not measured). T3, M4 and M5 read this section.
     - `## 6. Other observations`: facts only, no plans.
     - `## 7. How to repeat`: steps 1–12 condensed, with `serve-dist-h2.mjs`, `lh.sh`, `run-local.sh`, `run-testing.sh`, `summarize-lhr.mjs`, `read-psi.cjs` and `typing-probe.cjs` verbatim in fenced blocks. No tooling is added to the repository.
 

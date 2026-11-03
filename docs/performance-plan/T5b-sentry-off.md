@@ -3,7 +3,7 @@
 [← Plan, progress and owner decisions](README.md) · Checked at commit `11626a6` on 2026-11-03; re-check line numbers against the current `main` before you start.
 
 - **Checklist item(s):** #30 — Track real-user speed with a performance monitoring tool (follow-up: removing the old tool once T5 replaces its speed data).
-- **Size:** L · **Pull requests:** 2 (PR 1: the app; PR 2: CI, the configuration registry and the configuration docs) · **Depends on:** T5, merged and showing `page_load` on Production · **Owner decision needed:**
+- **Size:** L · **Pull requests:** 2 (PR 1: the app; PR 2: CI, the configuration registry and the configuration docs) · **Depends on:** T5, merged and showing `page_load` on Production. No fixed order with X1a or X1b: the items marked (X1a) or (X1b) apply only if that task merged first · **Owner decision needed:**
   1. "Switching Sentry off also stops error reports from users' browsers: crashes, an application that failed to send after all retries, design-system misuse, and CSP warnings. Nothing in Firebase replaces them for a web app. Switch it off anyway?" Recommended: **only if you accept learning about browser errors from users.** Otherwise keep Sentry for errors only (a separate small task: remove tracing and Replay, keep `captureException`).
   2. "The report-only CSP will have no collector. Drop it now and plan a report endpoint only when you decide to enforce the policy?" Recommended: **yes.**
   3. Do not delete the Secret Manager secret `VITE_SENTRY_DSN` or the Sentry project until PR 2 is merged and Production has been promoted.
@@ -19,7 +19,8 @@
   - `src/hooks/useSubmissionQueue.js`: import :15; breadcrumbs :96-101, :157-162, :188-193; `captureMessage` :231-233; `captureException` :240 (the `console.error` at :238 stays);
   - `src/design-system/contract.js`: header :5-10, import :14, capture :24-28 (the `console.error` at :23 stays);
   - `src/features/driver-app/components/application/publicApplySubmit.js`: import :12; breadcrumbs :208-215, :339-346; final capture :406-409;
-  - `src/main.jsx:8,14-19`.
+  - `src/main.jsx:8,14-19`;
+  - (X1a) `src/features/company-admin/applicationPrep/extraction/ocrFallback.js`: the import and the `Sentry.captureException` warning in `startWorker` (tags `flow: document_reader`, `stage: ocr_start`). Its test `ocrFallback.test.js` mocks `@sentry/react` and asserts that call in cases (d) and (e), so 19 files keep a mock, not 18.
 - `whenIdle` lives in `sentry.js:62-68` and is used by:
   - `main.jsx` (the T5 call included);
   - `src/features/company-admin/views/CompanyCandidatesListPage.jsx:8,39`;
@@ -35,7 +36,7 @@
   - `scripts/check-bundle-budget.mjs:5-8,43-45` (markers `rrweb`, `auto.pageload.browser`, `Sentry Logger`);
   - `scripts/test-bundle-budget.mjs:86-90` (B5 uses the literal `rrweb`);
   - `src/tests/viteBuildConfig.test.js:24-27`.
-- CSP: `firebase.json:47,85` list `https://*.ingest.sentry.io https://*.ingest.us.sentry.io`; `src/tests/hostingConfig.test.js:283` expects a Sentry host. The comment at `:295` credits `worker-src blob:` to Replay, but tesseract.js also uses a blob worker by default (`node_modules/tesseract.js/src/constants/defaultOptions.js:9`; `src/features/company-admin/applicationPrep/extraction/ocrFallback.js:36-37`), so `blob:` must stay.
+- CSP: `firebase.json:47,85` list `https://*.ingest.sentry.io https://*.ingest.us.sentry.io`; `src/tests/hostingConfig.test.js:283` expects a Sentry host. The comment at `:295` credits `worker-src blob:` to Replay, but tesseract.js also uses a blob worker by default (`node_modules/tesseract.js/src/constants/defaultOptions.js:9`; `src/features/company-admin/applicationPrep/extraction/ocrFallback.js:36-37`), so `blob:` must stay. (X1b) Its new `'wasm-unsafe-eval'` case in `hostingConfig.test.js` has a comment naming `cspViolations.js`.
 - CI: `.github/workflows/main.yml:948` loads `VITE_SENTRY_DSN` from Secret Manager and `:958` passes it to the build; `:466` and `:549` set it empty for test jobs. Deleting the secret before PR 2 would fail the deploy step at `:941-948`.
 - Registry and Super Admin:
   - `functions/environmentVault/registry/entries-browser.js:41-58` (DSN and sample-rate entries);
@@ -44,7 +45,7 @@
   - `functions/test/unit/environmentRegistry.inventory.test.js:132-153` checks both directions: every referenced key is registered, and every registered key is mentioned somewhere.
 - Documents and config text that rely on Sentry:
   - `docs/APP_BRIEF.md:948` (§7 row), `:1169-1175` (§10: CSP violations go to Sentry), `:1240` (§11: contract misuse reported to Sentry), `:1469` (§13 list);
-  - `docs/security-posture.md:245-263`;
+  - `docs/security-posture.md:245-263`. (X1b) This section then also says that `script-src` allows `'wasm-unsafe-eval'` for OCR, that violations reach Sentry only when raised on the page, and that the Web Worker flows (Session Replay's compressor among them) must run once with the policy enforced because their violations never reach `cspViolations.js`;
   - `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md:429`; `src/design-system/README.md:165`; `src/design-system/patterns/modal/README.md:37`;
   - `docs/environment-and-integrations-runbook.md:44-45` (counts 54 and 16), `:67`, `:99-101`;
   - `README.md:91,112,222-223,229`; `.env.example:23-26`.
@@ -78,7 +79,8 @@ PR 1 — the app:
 4. Update the tests first:
    - `contract.test.js:34-61` and `productionFallbacks.test.jsx:37-48`: assert `console.error` once per message (spy) instead of `captureException`.
    - `startupGuards.test.jsx`: remove the `initSentry`, `captureException` and `reportCspViolations` mocks and their `vi.mock` lines (:14-25). Delete the CSP listener test (:39-45, decision 2). In :47-70, assert that the startup screen renders and that `console.error` receives the failure once.
-   - Delete the `vi.mock('@sentry/react', …)` lines from the 18 files, and `sentryMock` from `PublicApplyHandler.contract.support.jsx:210`.
+   - Delete the `vi.mock('@sentry/react', …)` lines from the 18 files (19 with X1a), and `sentryMock` from `PublicApplyHandler.contract.support.jsx:210`.
+   - (X1a) `ocrFallback.test.js`: also drop the `@sentry/react` import, add `vi.spyOn(console, 'error').mockImplementation(() => {})` to `beforeEach`, and assert on that spy instead of `captureException`: (d) one call with `('[document reader] OCR could not start', expect.any(Error), { flow: 'document_reader', stage: 'ocr_start' })`, (e) none.
    - Delete `sentry.test.js`, `cspViolations.test.js` and `cspViolations.sentry.test.js` (decision 2), and `src/tests/scrub.test.js` with `scrub.js` (step 5).
    - Add `src/tests/noSentry.test.js`. It asserts that no file under `src/` other than itself contains `from '@sentry/`, `import('@sentry/` or `vi.mock('@sentry/`, and that `package.json` has no `@sentry/` dependency. It fails until steps 5-6 are complete.
 5. Runtime edits:
@@ -88,6 +90,7 @@ PR 1 — the app:
    - `useSubmissionQueue.js`: remove the import, the three breadcrumbs and the `captureMessage` block; remove the `captureException` at :240 (the `console.error` at :238 already logs it).
    - `publicApplySubmit.js`: remove the import and both breadcrumbs, and turn the final capture (:406-409) into `console.error('[guest application] submission failed', lastError, { stage: 'submission_failed', applicationId, companyId: company.id, queueId })`.
    - `startupGuards.jsx`: remove `initSentry`, `Sentry`, `reportCspViolations` and their header bullets. `showStartupError` logs the error with `console.error` and renders the screen.
+   - (X1a) `ocrFallback.js`: remove the import and turn the capture in `startWorker` into `console.error('[document reader] OCR could not start', error, { flow: 'document_reader', stage: 'ocr_start' })`, the line X1a uses when T5b merged first.
    - Delete `src/lib/monitoring/sentry.js`, `deferredIntegrations.js`, `cspViolations.js` and `src/shared/utils/scrub.js`. In `main.jsx`, keep only `whenIdle(() => { startSpeedMonitoring(); });` and fix the comment.
 6. `npm uninstall @sentry/react`; confirm `package-lock.json` holds no `@sentry/` package, and that the top-level `node_modules/web-vitals` stays 4.2.4.
 7. `vite.config.js`: remove the `define` at :69-72 and fix the comments at :21-22 and :106-107.
@@ -96,7 +99,7 @@ PR 1 — the app:
    - `test-bundle-budget.mjs:86-90`: point B5 at a marker that still exists (`fireperf`), or delete it, since the B5b loop covers every marker.
    - Run `npm run build`, then lower `FIRST_DOWNLOAD_GZIP_CEILING` (:31-32) and `APPLY_PAGE_CEILING` (:65) to the new measurements +3%, updating the "measured" numbers in their comments. The rule is "move it DOWN".
    - `viteBuildConfig.test.js:24-27`: drop the `@sentry/core` id and update the comment.
-9. `firebase.json:47,85`: remove both Sentry origins, byte-identically in both targets; keep `worker-src 'self' blob:`. In `hostingConfig.test.js`, remove the Sentry URL (:283), add an assertion that `connect-src` names no `sentry.io` host, and change the comment at :295 to "tesseract.js runs in a blob worker".
+9. `firebase.json:47,85`: remove both Sentry origins, byte-identically in both targets; keep `worker-src 'self' blob:`. In `hostingConfig.test.js`, remove the Sentry URL (:283), add an assertion that `connect-src` names no `sentry.io` host, and change the comment at :295 to "tesseract.js runs in a blob worker". (X1b) Keep X1b's `'wasm-unsafe-eval'` case, and cut `cspViolations.js` from that case's comment.
 10. Docs for PR 1 (below), including `README.md:91,112`. Then open PR 1. It must say that Production keeps the old Sentry bundle until it is promoted (AGENTS.md §3). Draft **Кратко**: "Sentry отключён в приложении; ошибки у пользователей больше никуда не отправляются. Скорость по-прежнему видна в Firebase. Проверено: тесты, сборка, первая загрузка стала меньше. От вас: ничего до выпуска; ключ и проект Sentry не удаляйте до второго изменения и выпуска."
 
 PR 2 — CI, registry and configuration docs, after PR 1 is merged:
@@ -110,8 +113,8 @@ PR 2 — CI, registry and configuration docs, after PR 1 is merged:
 
 - `src/tests/noSentry.test.js`, new: **fails before** PR 1's removal, passes after.
 - `src/lib/runtime/whenIdle.test.js`: the moved cases (`sentry.test.js:71-103`) pass unchanged.
-- `contract.test.js`, `productionFallbacks.test.jsx`, `startupGuards.test.jsx`: the new console-based assertions.
-- All 18 previously mocking files and `CompanyCandidatesListPage.dossier.test.jsx` pass without the Sentry mocks.
+- `contract.test.js`, `productionFallbacks.test.jsx`, `startupGuards.test.jsx` and (X1a) `ocrFallback.test.js`: the new console-based assertions.
+- All 18 (19 with X1a) previously mocking files and `CompanyCandidatesListPage.dossier.test.jsx` pass without the Sentry mocks.
 - `hostingConfig.test.js`: no Sentry host allowed; both targets identical.
 - `test-bundle-budget.mjs` passes with the new ceilings and markers.
 - PR 2: `functions` unit tests (`environmentRegistry.inventory.test.js` included), `browserVisibleEnvironment.test.js`, `npm run check:ci-plan`.
@@ -125,7 +128,7 @@ PR 2 — CI, registry and configuration docs, after PR 1 is merged:
   - §13 (:1469-1473): drop "tracing, Replay" and update the kB figures.
   - §12: one line, "Browser errors are not collected; users must report them."
 - PR 1, other docs:
-  - `docs/security-posture.md:245-263`: collector removed, enforcement criterion rewritten, Sentry dropped from the service list.
+  - `docs/security-posture.md:245-263`: collector removed, enforcement criterion rewritten, Sentry dropped from the service list. (X1b) Keep X1b's `'wasm-unsafe-eval'` sentence and its advice to run the Web Worker flows (OCR, pdf.js, bulk import) once with the policy enforced before enforcing it; drop X1b's Sentry sentence and its mentions of Session Replay and `cspViolations.js`.
   - `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md:429`, `src/design-system/README.md:165` and `src/design-system/patterns/modal/README.md:37`: "to the console" (ui.md rule 4).
   - `README.md:91,112`.
 - PR 2: `docs/environment-and-integrations-runbook.md`, `README.md:222-223,229` and `.env.example`, as in step 14.

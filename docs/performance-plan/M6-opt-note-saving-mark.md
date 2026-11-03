@@ -30,7 +30,7 @@
 1. Get the owner's "yes" first. Then tell them the three Russian lines (AGENTS §1).
 2. Write the new tests first (see **Tests**); confirm the first fails at 11626a6.
 3. In `handleSend`, after the guards (:137-142): declare `let pending = null; let saved = false;` before the `try`. Inside the `try`, after `sanitizedNote` (:144):
-   - `pending = { id: `pending-${Date.now()}`, text: sanitizedNote, author: currentUser, createdAt: { seconds: Date.now() / 1000 }, type: 'note', isLocal: true, pending: true };` then `setNotes((prev) => [pending, ...prev]);`. Keep the text in the box.
+   - `` pending = { id: `pending-${Date.now()}`, text: sanitizedNote, author: currentUser, createdAt: { seconds: Date.now() / 1000 }, type: 'note', isLocal: true, pending: true }; `` then `setNotes((prev) => [pending, ...prev]);`. Keep the text in the box.
    - `const ref = await addDoc(notesRef, { …exactly :147-150… });` then `saved = true;`.
    - `setNotes((prev) => prev.map((n) => (n.id === pending.id ? { ...n, id: ref.id, pending: false } : n)));` then `setNewNote('');`.
    - `await logActivity(...)` with the arguments of :154 unchanged.

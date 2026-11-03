@@ -3,10 +3,11 @@
 ## Кратко
 
 - План по пяти задачам на скорость и надёжность и по «мелочам», которые выбрал
-  анализ от 2026-11-03. Одна строка в разделе «Прогресс» — один небольшой PR.
+  анализ от 2026-11-03. По вашей просьбе задачи собраны в четыре PR по частям
+  приложения (раздел «Пакеты»), у каждой строки «Прогресса» своя галочка.
 - Агент, закончив задачу, ставит в «Прогрессе» галочку, ссылку на PR и дату.
-- Сам план ничего в приложении не меняет. Работа над задачей начинается только
-  по вашей команде, например: «Сделай задачу T4.1 из docs/performance-plan».
+- Сам план ничего в приложении не меняет. По вашему поручению агент делает
+  пакеты по одному и сам сливает каждый PR.
 - Для части задач сначала нужны ваши ответы из раздела «Решения владельца».
   У каждого вопроса указан рекомендуемый ответ.
 
@@ -23,13 +24,17 @@
    checked at commit `11626a6` on 2026-11-03, so line numbers will drift. If
    the code changed so much that a step no longer fits, correct the task file in
    the same PR and say so in the PR description.
-4. **One task (or one listed sub-PR), one pull request.** Do not combine tasks.
-   T5 and T5-alt exclude each other: the owner picks one.
-5. **Tick the box in the task's own PR**, as part of its last commit: change
-   `[ ]` to `[x]` and fill in `PR:` and `Дата:`. The tick reaches `main` only when
-   the PR merges. Tick the task file's own "Done when" boxes in the same commit.
-   If "Verify after merge" then fails on Testing, the fix PR removes the tick and
-   records why on the same line.
+4. **Work in the batch PRs listed under [Batches](#пакеты--batches).** The owner
+   asked for as few pull requests as possible (2026-11-03), which lifts the
+   one-task-one-PR rule for this plan. Inside a batch, do the items one at a
+   time, in the listed order, with one commit per item, so any item can be
+   reverted on its own. Where a task file says "PR 1" and "PR 2", make them two
+   commits in the same batch. The agent merges each batch itself, one at a time.
+5. **Tick each item in its own commit**: change `[ ]` to `[x]` and fill in
+   `PR:` and `Дата:`. The tick reaches `main` only when the batch PR merges.
+   Tick the task file's own "Done when" boxes in the same commit. If "Verify
+   after merge" then fails on Testing, the fix removes the tick and records why
+   on the same line.
 6. **A task that turns out not to be needed** (a measurement gate stays closed,
    or the owner says no) is ticked as well. Replace `PR: —` with
    `не понадобилось: <reason>` and add the date.
@@ -69,7 +74,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [ ] **T4.5** · Импорт Google Sheet и скачивание PDF не крутятся вечно · *Sheet import and envelope PDF download stop spinning forever* → [T4.5](T4.5-browser-fetch-timeouts.md) · PR: — · Дата: —
 5. **Скорость у реальных пользователей / Real-user speed monitoring (#30)**
    - [ ] **T5** · Вариант A: Firebase Performance Monitoring · *Option A: Firebase Performance Monitoring* → [T5](T5-firebase-performance.md) · PR: — · Дата: —
-   - [ ] **T5-alt** · Вариант B: оставить Sentry (вместо T5 и T5b) · *Option B: keep Sentry as the speed tool* → [T5-alt](T5-alt-sentry-speed.md) · PR: — · Дата: —
+   - [x] **T5-alt** · Вариант B: оставить Sentry (вместо T5 и T5b) · *Option B: keep Sentry as the speed tool* → [T5-alt](T5-alt-sentry-speed.md) · не понадобилось: владелец выбрал A (Р13) · Дата: 2026-11-03
    - [ ] **T5b PR 1** · (необязательно) Отключить Sentry: приложение · *(optional) Switch Sentry off: the app* → [T5b](T5b-sentry-off.md) · PR: — · Дата: —
    - [ ] **T5b PR 2** · (необязательно) Отключить Sentry: CI и настройки · *(optional) Switch Sentry off: CI and configuration* → [T5b](T5b-sentry-off.md) · PR: — · Дата: —
 
@@ -138,9 +143,23 @@ Agents fill this in. Numbers and verdicts only, never personal data.
 | M4-2, M5-1 | T1 | M4-1 can go any time |
 | M7a → M7c → M7b PR 2 | M7a's numbers | M7b PR 1 needs only M7a |
 | X1a → X1b | X1a | X1b before anyone enforces the CSP |
+| X1a, X1b and T5b | no fixed order | Whichever merges second adapts its Sentry parts: the (X1a) and (X1b) items in T5b, or X1a step 3's last bullet and the (T5b) items in X1b |
 
-Suggested start: T1, T4.1, T3 PR 1 and T2a, one PR at a time. The minor items
-fill gaps, or go with other work in the same part of the app.
+## Пакеты / Batches
+
+The owner asked for as few PRs as possible. Each batch is one PR, grouped by the
+part of the app it changes, so a rollback touches one area only. Work the
+batches in this order. Unanswered owner decisions take their recommended
+answer, and the batch PR says so.
+
+| Batch PR | What it changes | Items, in order |
+|---|---|---|
+| **A — Экраны / Screens** | browser only | T1 (measured first, as the baseline), T3 (both parts), T4.5, M2a, M2b, M-SA, M4-1, M6, X1a (without Sentry: the owner is removing it) |
+| **B — Списки / Lists** | browser and Firestore indexes | T2a, T2b, T2c, T2d, M5 (only where T1's numbers call for it) |
+| **C — Сервер / Server** | Cloud Functions | T4.1, T4.2, T4.3, T4.4, M1a, M1b, M1c, M3a, M3b, M7b (both parts); M7c only if M7a's numbers call for it |
+| **D — Мониторинг / Monitoring** | browser, CI and docs | T5, T5b (both parts), X1b |
+| Waits for the owner's numbers | — | M4-2 and M4-3 (Р2), M7a and M7c (Р24) |
+| Not done | — | T5-alt (the owner chose A), M6-opt (recommended no), M4-4 (the same change as M2a) |
 
 ## Решения владельца / Owner decisions
 
@@ -152,13 +171,13 @@ task that waits for it.
   замера? Сама страница только читает публичный профиль и ничего не создаёт.
   *Рекомендую:* вашу тестовую компанию. Ссылка: Settings → My profile → «Your
   Short Recruiting Link»; пришлите только часть между `/apply/` и `?`. Без
-  ответа агент замерит `/sandbox/apply`. — Ответ: — · Дата: —
+  ответа агент замерит `/sandbox/apply`. — Ответ: страница заявки вашей компании, открывать без `?r=` · Дата: 2026-11-03
 - **Р2 (T1, M4).** Потратите около 10 минут на замер списка Applications в
   Chrome на своём компьютере? Пошаговая инструкция на русском есть в T1, шаг 0.
   Без этих чисел M4 решить нельзя. *Рекомендую:* да. — Ответ: — · Дата: —
 - **Р3 (T1).** Можно ли один раз запросить Google PageSpeed Insights для
   `https://app.safehaul.io/login`, чтобы прочитать скорость у реальных
-  пользователей? Это ничего не меняет. *Рекомендую:* да. — Ответ: — · Дата: —
+  пользователей? Это ничего не меняет. *Рекомендую:* да. — Ответ: да · Дата: 2026-11-03
 
 **T2: постраничная загрузка**
 - **Р4 (T2b).** У перевозчика больше 100 отправленных документов. Тогда поиск и
@@ -197,7 +216,7 @@ task that waits for it.
 - **Р13 (T5).** Чем измерять скорость у реальных пользователей? A — Firebase
   Performance Monitoring (T5, позже T5b). B — оставить Sentry (только T5-alt).
   *Рекомендую:* A: вы планируете отключить Sentry, а Firebase Performance
-  бесплатен и уже входит в проект. — Ответ: — · Дата: —
+  бесплатен и уже входит в проект. — Ответ: A, и Sentry удалить полностью · Дата: 2026-11-03
 - **Р14 (T5).** Можно ли замерять страницу подписи `/sign/...`? Firebase
   сохранит адрес страницы с двумя внутренними номерами документа; ключ доступа
   (`?token=`) не отправляется никогда. *Рекомендую:* да. — Ответ: — · Дата: —
@@ -210,13 +229,13 @@ task that waits for it.
   полностью или оставить только для ошибок (отдельная маленькая задача)?
   *Рекомендую:* решать по причине. Если причина — цена или лишний поставщик,
   отключайте. Если важны отчёты об ошибках, оставьте Sentry только для ошибок.
-  — Ответ: — · Дата: —
+  — Ответ: отключить полностью (из ответа на Р13) · Дата: 2026-11-03
 - **Р17 (T5b).** После Sentry отчётам report-only CSP некуда приходить. Убрать
   их сейчас, а сборщик сделать, когда решите включать политику всерьёз?
-  *Рекомендую:* да. — Ответ: — · Дата: —
+  *Рекомендую:* да. — Ответ: да (Sentry удаляется полностью) · Дата: 2026-11-03
 - **Р18 (только T5-alt, если выбран B).** Session Replay записывает полный адрес
   страницы, в том числе с токеном. Переписывать адрес перед отправкой или не
-  записывать повторы на таких страницах? — Ответ: — · Дата: —
+  записывать повторы на таких страницах? — Не нужен: выбран вариант A · Дата: 2026-11-03
 
 **Мелочи**
 - **Р19 (M1a).** Обновить сохранённые списки команды у всех компаний сразу:
