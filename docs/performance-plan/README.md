@@ -61,10 +61,10 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [x] **T1-F** · Запрашивать код анкеты сразу при запуске (итог T1: GO, около 0,7 с) · *Request the `/apply` route code during start-up* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
    - [x] **T3-static** · Нейтральная заставка в `index.html` вместо белого экрана (итог T1: GO; Р7: да) · *Neutral static placeholder in `index.html`* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
 2. **Постраничная загрузка / Paginate results (#5)**
-   - [x] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: пакет B · Дата: 2026-11-03
-   - [x] **T2b** · E-Docs: грузить только последние конверты, счётчики с сервера · *Load only recent envelopes in E-Docs* → [T2b](T2b-edocs-recent-envelopes.md) · PR: пакет B · Дата: 2026-11-03
-   - [x] **T2c** · Ограничить списки кампаний, итоги остаются верными · *Limit the Campaigns lists* → [T2c](T2c-campaigns-lists-limit.md) · PR: пакет B · Дата: 2026-11-03
-   - [x] **T2d** · (необязательно) Свои напоминания не пропадают из колокольчика · *(optional) Keep own reminders in the notification bell* → [T2d](T2d-notification-bell-reminders.md) · PR: пакет B · Дата: 2026-11-03
+   - [x] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: #558 · Дата: 2026-11-03
+   - [x] **T2b** · E-Docs: грузить только последние конверты, счётчики с сервера · *Load only recent envelopes in E-Docs* → [T2b](T2b-edocs-recent-envelopes.md) · PR: #558 · Дата: 2026-11-03
+   - [x] **T2c** · Ограничить списки кампаний, итоги остаются верными · *Limit the Campaigns lists* → [T2c](T2c-campaigns-lists-limit.md) · PR: #558 · Дата: 2026-11-03
+   - [x] **T2d** · (необязательно) Свои напоминания не пропадают из колокольчика · *(optional) Keep own reminders in the notification bell* → [T2d](T2d-notification-bell-reminders.md) · PR: #558 · Дата: 2026-11-03
 3. **Заглушки вместо нулей / Skeleton loading screens (#1)**
    - [x] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
    - [x] **T3 PR 2** · Заглушка страницы заявки водителя · *Driver apply-page placeholder* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
@@ -99,8 +99,8 @@ Each can be done on its own, or when someone next changes that part of the app.
   - [ ] **M4-3a / 3b / 3c** · Только если ворота открыты и вы согласны: серверная функция для списка · *Only if the gate opens and the owner agrees* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
   - [x] **M4-4** · (необязательно) То же, что M2a: если M2a сделана, отметить «не понадобилось» — не понадобилось, сделано в M2a · *(optional) Same as M2a: not needed, done under M2a* → [M4](M4-applications-list-payload.md) · PR: #557 · Дата: 2026-11-03
 - **Меньше лишних перерисовок / Prevent unnecessary re-renders (#26)**: после T1
-  - [x] **M5-1** · Записать замер и решение (при 4x: анкета W1 88 мс — закрыто, W2 128 мс — наблюдать; список L1 112 мс — делать M5-2) · *Record the measurement and the verdict* → [M5](M5-re-renders.md) · PR: пакет B · Дата: 2026-11-03
-  - [x] **M5-2** · Список кандидатов: стабильные свойства (L1 при 4x: 112 → 72 мс) · *Stable props for the candidate list* → [M5](M5-re-renders.md) · PR: пакет B · Дата: 2026-11-03
+  - [x] **M5-1** · Записать замер и решение (при 4x: анкета W1 88 мс — закрыто, W2 128 мс — наблюдать; список L1 112 мс — делать M5-2) · *Record the measurement and the verdict* → [M5](M5-re-renders.md) · PR: #558 · Дата: 2026-11-03
+  - [x] **M5-2** · Список кандидатов: стабильные свойства (L1 при 4x: 112 → 72 мс) · *Stable props for the candidate list* → [M5](M5-re-renders.md) · PR: #558 · Дата: 2026-11-03
   - [x] **M5-3** · Анкета водителя: одна правка, только если замер покажет · *One wizard fix, only if its gate opens* → [M5](M5-re-renders.md) · не понадобилось: W2 128 мс при 4x — «наблюдать», а W-a и W-b не S-правки · Дата: 2026-11-03
 - **Обновление экрана до ответа сервера / Optimistic UI (#14)**
   - [x] **M6** · Assign To возвращается к сохранённому, если сохранение не удалось · *Put the Assign To picker back when the save fails* → [M6](M6-assign-picker-rollback.md) · PR: #557 · Дата: 2026-11-03
