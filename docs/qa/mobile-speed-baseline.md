@@ -378,8 +378,25 @@ import { join } from 'node:path';
 const dir = process.argv[2];
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
 const spread = (xs) => Math.max(...xs) - Math.min(...xs);
+const files = readdirSync(dir).filter((f) => /-\d+\.json$/.test(f) && !f.startsWith('psi-'));
+// A missing run makes the sample invalid too: each group must hold runs 1..N with no gap, and at least
+// the planned 5 simulate or 3 devtools runs.
+const runsOf = new Map();
+for (const f of files) {
+  const g = f.replace(/-\d+\.json$/, '');
+  if (!runsOf.has(g)) runsOf.set(g, []);
+  runsOf.get(g).push(Number(f.match(/-(\d+)\.json$/)[1]));
+}
+for (const [g, ns] of runsOf) {
+  const need = g.includes('-dt') ? 3 : 5;
+  ns.sort((x, y) => x - y);
+  if (ns[0] !== 1 || ns.length !== ns.at(-1) || ns.length < need) {
+    console.error(`${g}: runs ${ns.join(',')}; expected 1..${Math.max(ns.at(-1), need)}`);
+    process.exit(1);
+  }
+}
 const groups = new Map();
-for (const file of readdirSync(dir).filter((f) => /-\d+\.json$/.test(f) && !f.startsWith('psi-'))) {
+for (const file of files) {
   const lhr = JSON.parse(readFileSync(join(dir, file), 'utf8'));
   // A failed run makes the whole sample invalid: stop instead of taking a median of fewer runs.
   if (lhr.runtimeError) { console.error(`${file}: runtimeError ${lhr.runtimeError.code}`); process.exit(1); }
