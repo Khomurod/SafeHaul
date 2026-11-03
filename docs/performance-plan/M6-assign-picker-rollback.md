@@ -77,9 +77,16 @@
 
 ## Done when (acceptance criteria)
 
-- [ ] The "puts the picker back" test failed before the fix and passes after it; the other three new or extended assertions pass.
-- [ ] After a failed save the picker shows the assignee the record holds, and the toast reads "Failed to update assignment. Please try again."
-- [ ] No success toast and no activity log entry for a failed save.
-- [ ] The diff touches no line of `handleStatusUpdate` (:71-89) and no file outside `useAppActions.js` and its test.
-- [ ] All commands above ran and passed, or the PR names what was skipped and why.
+- [x] The "puts the picker back" test failed before the fix and passes after it; the other three new or extended assertions pass.
+- [x] After a failed save the picker shows the assignee the record holds, and the toast reads "Failed to update assignment. Please try again."
+- [x] No success toast and no activity log entry for a failed save.
+- [x] The diff touches no line of `handleStatusUpdate` (:71-89) and no file outside `useAppActions.js` and its test.
+- [x] All commands above ran and passed, or the PR names what was skipped and why.
 - [ ] The PR starts with **Кратко** and follows `.github/pull_request_template.md`.
+
+As done (2026-11-03, batch PR #557). Every file:line above was re-checked at `fe7dd37`: none of the code lines moved since `11626a6`. The brief moved: §4 "Pipeline, documents and operations" is now at 274, "Automated contact SMS" at 1039-1042, and the unassigned-lead line at 1308. Adapted:
+- The steps were followed as written. The tests switch back to real timers after the `act` and wait for the picker's text with `waitFor`. The three failure tests silence `console.error` with a spy that `afterEach` restores.
+- Before the fix, "puts the picker back" failed with `recruiter-2` on screen. "A later pick that saved wins" passed its picker check and failed only on the new toast text. The other new and extended checks passed. Two mutations were tried and undone: restoring `appData.assignedTo` in the `catch` fails the overlap test, and dropping `saves.saved = newUserId` fails three tests.
+- Outside the hook and its test, only this file and the plan's Progress line changed. The brief, `OWNER_GUIDE.md` and the roadmap say nothing about how the picker reacts to a failed save, so they are unchanged.
+- Checks: the six tests pass, and so do the 21 dossier and hook files around them (213 tests). `test:coverage` passed (7528 passed, 83 skipped). Lint (0 errors), typecheck, build, bundle budget, `check:source-size` (no warning for these files), `check:agent-docs`, `check:ci-plan`, `check:public-claims`, `check:ai-boundary`, `check:function-exports` and the callable contract passed too. `driver-dossier.spec.cjs` passed on `chromium` (10 passed, the `@mobile` case skipped) and on `mobile-chrome` (1). Its Firestore is unreachable, so the save path is covered by the unit tests only. `test:stories` did not run: nothing here renders.
+- Open box: the PR text (Кратко) belongs to the batch PR's description.

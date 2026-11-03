@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from '@lib/firebase';
 import { logActivity } from '@shared/utils/activityLogger';
@@ -27,6 +28,9 @@ export function useAppActions({
   onStatusUpdate
 }) {
   const { showSuccess, showError } = useToast();
+  // While a save of Assign To is open the picker shows the newest pick; once
+  // none is open it shows what the record holds.
+  const assignSaves = useRef({ open: 0, saved: '' });
 
   const getDocRef = () => {
     return doc(db, "companies", companyId, collectionName, applicationId);
@@ -42,6 +46,9 @@ export function useAppActions({
       auth.currentUser?.displayName ||
       auth.currentUser?.email ||
       'Team member';
+    const saves = assignSaves.current;
+    if (saves.open === 0) saves.saved = appData?.assignedTo || '';
+    saves.open += 1;
     setAssignedTo(newUserId);
 
     try {
@@ -50,6 +57,7 @@ export function useAppActions({
         assignedTo: newUserId,
         assignedToName: newOwnerName
       }));
+      saves.saved = newUserId;
       // The next change in this dossier is logged as from this one.
       setAppData((prev) => (prev ? { ...prev, assignedTo: newUserId, assignedToName: newOwnerName } : prev));
 
@@ -64,7 +72,10 @@ export function useAppActions({
       if (onStatusUpdate) onStatusUpdate();
     } catch (error) {
       console.error("Error assigning:", error);
-      showError("Failed to update assignment.");
+      showError("Failed to update assignment. Please try again.");
+    } finally {
+      saves.open -= 1;
+      if (saves.open === 0) setAssignedTo(saves.saved);
     }
   };
 

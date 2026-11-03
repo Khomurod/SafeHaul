@@ -103,7 +103,7 @@ Each can be done on its own, or when someone next changes that part of the app.
   - [ ] **M5-2** · Список кандидатов: стабильные свойства · *Stable props for the candidate list* → [M5](M5-re-renders.md) · PR: — · Дата: —
   - [ ] **M5-3** · Анкета водителя: одна правка, только если замер покажет · *One wizard fix, only if its gate opens* → [M5](M5-re-renders.md) · PR: — · Дата: —
 - **Обновление экрана до ответа сервера / Optimistic UI (#14)**
-  - [ ] **M6** · Assign To возвращается к сохранённому, если сохранение не удалось · *Put the Assign To picker back when the save fails* → [M6](M6-assign-picker-rollback.md) · PR: — · Дата: —
+  - [x] **M6** · Assign To возвращается к сохранённому, если сохранение не удалось · *Put the Assign To picker back when the save fails* → [M6](M6-assign-picker-rollback.md) · PR: #557 · Дата: 2026-11-03
   - [ ] **M6-opt** · (необязательно) Новая заметка сразу, с пометкой «Saving…» · *(optional) Show a new note at once, marked "Saving…"* → [M6-opt](M6-opt-note-saving-mark.md) · PR: — · Дата: —
 - **Медленная работа в фоне / Background jobs (#7)**
   - [ ] **M7a** · Замер: ожидание при отправке заявки и заявки без PDF (владелец, только чтение) · *Measure the submit wait and count missing PDFs* → [M7a](M7a-submit-wait-and-pdf-counts.md) · PR: — · Дата: —
