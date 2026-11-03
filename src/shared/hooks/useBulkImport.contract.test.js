@@ -134,7 +134,9 @@ describe('useBulkImport — preserved contracts', () => {
         act(() => result.current.setSheetUrl(SHEET_URL));
         act(() => { result.current.handleSheetImport(); });
 
-        await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(EXPORT_URL));
+        // The export URL is frozen; the signal is the time limit (below).
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(EXPORT_URL, { signal: expect.any(AbortSignal) }));
+        expect(fetchMock).toHaveBeenCalledTimes(1);
         await waitFor(() => expect(workerInstances).toHaveLength(1));
         expect(workerInstances[0].posted[0]).toMatchObject({
             fileType: XLSX_MIME,
@@ -235,5 +237,86 @@ describe('useBulkImport — preserved contracts', () => {
         });
         expect(result.current.csvData).toEqual(rows);
         expect(result.current.step).toBe('preview');
+    });
+});
+
+/**
+ * A stalled Google Sheets answer ends in a message after 60 seconds instead of
+ * a spinner that never stops. The limit covers the request and the download;
+ * the parse that follows has no limit. A fake `fetch` rejects when its signal
+ * aborts, as the browser's does, for the request and for the body.
+ */
+describe('useBulkImport — the Google Sheet time limit', () => {
+    const SHEET_TIMEOUT_MS = 60000;
+    const TIMEOUT_MESSAGE = 'Error importing sheet: Google Sheets did not answer within 60 seconds. '
+        + 'Try again, or download the sheet and upload the file.';
+
+    const rejectOnAbort = (signal) => new Promise((_, reject) => {
+        signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    });
+
+    async function startImport(fetchMock) {
+        vi.stubGlobal('fetch', fetchMock);
+        const hook = renderHook(() => useBulkImport({ onError }));
+        act(() => hook.result.current.setSheetUrl(SHEET_URL));
+        let run;
+        await act(async () => {
+            run = hook.result.current.handleSheetImport();
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        return { ...hook, run };
+    }
+
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it.each([
+        ['the request', (url, init) => rejectOnAbort(init.signal)],
+        ['the download', async (url, init) => ({ ok: true, arrayBuffer: () => rejectOnAbort(init.signal) })],
+    ])('gives up on %s after 60 seconds with the timeout message', async (_stage, fetchImpl) => {
+        const { result, run } = await startImport(vi.fn(fetchImpl));
+
+        await act(async () => { await vi.advanceTimersByTimeAsync(SHEET_TIMEOUT_MS - 1); });
+        expect(onError).not.toHaveBeenCalled();
+        expect(result.current.processingSheet).toBe(true);
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1);
+            await run;
+        });
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(TIMEOUT_MESSAGE);
+        expect(result.current.processingSheet).toBe(false);
+        expect(workerInstances).toHaveLength(0);
+    });
+
+    it('stops the clock once the sheet is downloaded, so a slow parse is not cut off', async () => {
+        const rows = [{ firstName: 'Artificial' }];
+        const fetchMock = vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
+        const { result, run } = await startImport(fetchMock);
+        expect(workerInstances).toHaveLength(1);
+        expect(vi.getTimerCount()).toBe(0);
+
+        await act(async () => { await vi.advanceTimersByTimeAsync(SHEET_TIMEOUT_MS * 2); });
+        expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(false);
+        expect(result.current.processingSheet).toBe(true);
+
+        await act(async () => {
+            workerInstances[0].onmessage({ data: { success: true, data: rows } });
+            await run;
+        });
+        expect(onError).not.toHaveBeenCalled();
+        expect(result.current.csvData).toEqual(rows);
+        expect(result.current.step).toBe('preview');
+        expect(result.current.processingSheet).toBe(false);
+    });
+
+    it('stops the clock when Google refuses the sheet', async () => {
+        const { result, run } = await startImport(vi.fn(async () => ({ ok: false })));
+        await act(async () => { await run; });
+
+        expect(vi.getTimerCount()).toBe(0);
+        expect(onError).toHaveBeenCalledWith(expect.stringContaining("'Anyone with the link' access"));
+        expect(result.current.processingSheet).toBe(false);
     });
 });

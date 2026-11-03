@@ -26,6 +26,9 @@ import { SAVE_STATES } from '@features/signing/utils/editorSaveState';
 import { deliveryFields, createSigningRequest, announceSigningRequest } from '@features/signing/utils/signingRequestWrite';
 import { normalizePhone } from '@shared/utils/helpers';
 
+/** How long the PDF download for "Correct" / "Edit Template" may take: 20 MB at about 1.4 Mbit/s. */
+const PDF_DOWNLOAD_TIMEOUT_MS = 120000;
+
 /** PHASE 4: Hydrate from existing document for "Correct" / "Edit Template" flows */
 export async function hydrateEnvelopeForEdit({
     companyId,
@@ -75,8 +78,16 @@ export async function hydrateEnvelopeForEdit({
             setNumPages(null); // RACE FIX: Reset before fetching new blob
             const fileRef = ref(storage, data.storagePath);
             const url = await getDownloadURL(fileRef);
-            const response = await fetch(url);
-            const blob = await response.blob();
+            // A stalled download ends in the load error below, not an endless spinner.
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), PDF_DOWNLOAD_TIMEOUT_MS);
+            let blob;
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                blob = await response.blob();
+            } finally {
+                clearTimeout(timer);
+            }
             const pdfFile = new File([blob], `${data.title || 'document'}.pdf`, { type: 'application/pdf' });
             setFile(pdfFile);
         }
