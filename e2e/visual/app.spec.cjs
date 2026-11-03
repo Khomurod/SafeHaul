@@ -48,6 +48,7 @@ const {
     AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, TEAM_ROSTER, WEBSITE_LEADS, serveCallables,
 } = require('../helpers/callables.cjs');
 const { uploadLeadFile } = require('../helpers/leadImport.cjs');
+const { APPLY_SCREEN_CODE, holdRequests } = require('../helpers/holdRequest.cjs');
 
 /**
  * A screen is listed with the thing that must be on it before a screenshot is
@@ -55,6 +56,10 @@ const { uploadLeadFile } = require('../helpers/leadImport.cjs');
  * Waiting on a real element rather than a network idle is what stops a baseline
  * capturing a half-rendered page — and what makes a genuine regression fail here
  * rather than produce a confusing diff.
+ *
+ * `before(page)`, optional, runs before the page opens and may return a hold
+ * (`helpers/holdRequest.cjs`) that keeps a loading state on screen; the runner
+ * releases it, and removes every route, when the test ends, even on a failure.
  */
 const SCREENS = [
     {
@@ -323,7 +328,16 @@ const SCREENS = [
     {
         name: 'public-application',
         url: '/apply/e2e-company',
-        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+        // The wizard's own heading, never the loading placeholder's hidden one.
+        ready: (page) => page.getByRole('heading', { level: 1, name: /^Step 1 of \d+:/ }),
+    },
+    {
+        // The screen's code is held, so the placeholder stays; the screenshot's
+        // `animations: 'disabled'` stops its pulse on the first frame.
+        name: 'public-application-loading',
+        url: '/apply/e2e-company?e2eIntake=choice',
+        before: (page) => holdRequests(page, APPLY_SCREEN_CODE),
+        ready: (page) => page.getByRole('main', { name: 'Loading Application...' }),
     },
     {
         name: 'verification-portal',
@@ -410,18 +424,25 @@ test.describe('@visual application screens', () => {
                 // re-baseline itself every day.
                 await freezeClock(page);
                 if (screen.callables) await serveCallables(page, screen.callables);
-                await page.goto(screen.url);
-                if (screen.open) await screen.open(page);
-                // A real element, not `networkidle`: this app keeps Firestore
-                // listeners open, so "idle" is a moving target.
-                for (const ready of [screen.ready(page)].flat()) {
-                    await expect(ready).toBeVisible({ timeout: 30_000 });
+                const hold = screen.before ? await screen.before(page) : null;
+                try {
+                    await page.goto(screen.url);
+                    if (screen.open) await screen.open(page);
+                    // A real element, not `networkidle`: this app keeps Firestore
+                    // listeners open, so "idle" is a moving target.
+                    for (const ready of [screen.ready(page)].flat()) {
+                        await expect(ready).toBeVisible({ timeout: 30_000 });
+                    }
+                    await settle(page);
+                    await expect(page).toHaveScreenshot(`${screen.name}-${label}.png`, {
+                        ...SHOT,
+                        fullPage: true,
+                    });
+                } finally {
+                    // A held request must never outlive its test.
+                    await hold?.release();
+                    await page.unrouteAll({ behavior: 'ignoreErrors' });
                 }
-                await settle(page);
-                await expect(page).toHaveScreenshot(`${screen.name}-${label}.png`, {
-                    ...SHOT,
-                    fullPage: true,
-                });
             });
         }
     }

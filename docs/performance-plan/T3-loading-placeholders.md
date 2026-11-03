@@ -163,6 +163,17 @@ PR 2 — one placeholder for the driver apply page
     - От вас: после слияния откройте на телефоне `truckerapp-system.web.app/sandbox/apply` (как в чек-листе релиза) и посмотрите, как она загружается.
     In "What it touches": None (no route, guard or data change; `DataProvider` gains an optional display prop). Name what still uses the old loaders: every non-apply route, by scope, and `DocumentsManager`'s own Suspense.
 
+PR 2 as done (2026-11-03, batch PR #557). Every file:line PR 2 cites was re-checked at `becf0e7` (PR 1 and the T1 docs on top of `11626a6`): only `e2e/visual/app.spec.cjs` moved (`SCREENS` comment `:53-58`, `public-application` `:323-327`, `callables` line `:412`). Adapted:
+- The e2e spec also checks that the pulse runs before reduced motion is emulated, so `animationName === 'none'` cannot pass vacuously.
+- `RouteLoadingFallback.jsx` imports `GlobalLoadingState` from its own file, not the `@shared/components/feedback` barrel.
+- Roadmap §3 carries the page example PR 1 deferred (a hidden `<h1>`) in the same bullet, and §8 names the apply page; still 560 lines.
+- Brief §3: the same paragraph is tightened, but the sentence still adds 2 lines and 149 B (now 1,516 lines, 97,576 B; warn-only, already over at 1,514 / 97,427). Cutting more would drop existing facts.
+- The auth-gate wait is not held in a browser (as planned); `RouteLoadingFallback.test.jsx` (`BootLoadingFallback`) and `DataContext.test.jsx` cover it. `App.jsx`'s two-line wiring has no unit test of its own.
+- `mobile-chrome` finds no test in `public-application-responsive.spec.cjs` (no `@mobile` tag); its 412px cases run on `chromium`.
+- Manual review (dev server, held module, local Chromium 1243): card 672×333 against the chooser's 672×326.5 at 1440; 380×501 against 380×447.5 at 412, because `block` `lg` (152px, from the 1440 buttons) is taller than the phone's buttons (103.5 / 123px). Accepted; a phone height would be a new `Skeleton` value.
+- Bundle: first download 304,119 B gzip (303,492 before, +627); apply page 513,938 B (513,376 before, +562).
+- Pixel lane: the pinned Chromium (1248) is not installed here, so `test:visual` and `check:visual-contract` were not run locally (this PR changes no design-system file). The two new `public-application-loading-*` PNGs must come from CI (`screenshots:pull`), so that Done-when box stays open.
+
 ## Tests
 
 - PR 1
@@ -237,8 +248,8 @@ PR 2 — one placeholder for the driver apply page
 - [x] PR 1: `CompanyAdminDashboard.reads.test.jsx` unchanged and green (no new read); no Firestore index, rules, Functions, CSP or flag change.
 - [x] PR 1: new catalog baselines `skeleton-shapes-*` and `card-metric-loading-*` and the updated `company-dashboard-*` come from CI and were looked at at 1440 and 412; no other baseline changed; `check:visual-contract` passes unchanged (in CI, or locally under the pinned Chromium).
 - [x] PR 1: roadmap §3 and §8, DS README, card README, components README and the two "172" sentences updated; roadmap ≤ 560 lines, DS README ≤ 14,336 bytes; the story's status is honest.
-- [ ] PR 2: on `/apply/:slug`, `/interest/:slug` and `/sandbox/apply` the auth gate, the route-code wait and the company load all render the same `ApplyPagePlaceholder` (one named `main`, `aria-busy`, one hidden `<h1>` "Loading Application..." in a polite status); other pages keep "Loading Platform..."/"Loading…" (unit-tested).
-- [ ] PR 2: `e2e/apply-loading-placeholder.spec.cjs` passes on `chromium` and `mobile-chrome` and failed before the change; axe clean; reduced motion verified.
-- [ ] PR 2: `ApplyLoadingScreen` is removed with no remaining reference (`grep -rn ApplyLoadingScreen src e2e` is empty); the stale comment is corrected; `index.html` is unchanged; no new lint warning.
+- [x] PR 2: on `/apply/:slug`, `/interest/:slug` and `/sandbox/apply` the auth gate, the route-code wait and the company load all render the same `ApplyPagePlaceholder` (one named `main`, `aria-busy`, one hidden `<h1>` "Loading Application..." in a polite status); other pages keep "Loading Platform..."/"Loading…" (unit-tested).
+- [x] PR 2: `e2e/apply-loading-placeholder.spec.cjs` passes on `chromium` and `mobile-chrome` and failed before the change; axe clean; reduced motion verified.
+- [x] PR 2: `ApplyLoadingScreen` is removed with no remaining reference (`grep -rn ApplyLoadingScreen src e2e` is empty); the stale comment is corrected; `index.html` is unchanged; no new lint warning.
 - [ ] PR 2: `public-application-loading-*` baselines come from CI and match the chooser's layout at 1440 and 412; `public-application-*` unchanged.
 - [ ] Both PRs: `check:bundle-budget` passes with the measured numbers in the PR; brief §3 (PR 2) updated without growing the file; each PR starts with **Кратко**; every check listed was run and reported honestly (anything not run is named).

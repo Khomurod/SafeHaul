@@ -20,7 +20,12 @@ export const useData = () => {
   return context;
 };
 
-export function DataProvider({ children }) {
+/**
+ * `renderLoading(platformLoader)`, optional, returns what shows while the session
+ * settles; it is handed the provider's own loader to fall back to. The app picks
+ * the loader by page (the driver application has its own); context knows no routes.
+ */
+export function DataProvider({ children, renderLoading }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentUserClaims, setCurrentUserClaims] = useState(null);
   const [userRole, setUserRole] = useState(null);
@@ -250,7 +255,7 @@ export function DataProvider({ children }) {
   // All hooks are declared above this point — the loading early-return must come
   // after them to satisfy the rules of hooks.
   if (loading) {
-    return (
+    const platformLoader = (
       <div role="status" className="flex h-screen items-center justify-center bg-ds-canvas">
         <div className="text-center">
           <SafeHaulLoader size="h-20 w-20" className="mx-auto mb-ds-4" />
@@ -258,6 +263,7 @@ export function DataProvider({ children }) {
         </div>
       </div>
     );
+    return renderLoading ? renderLoading(platformLoader) : platformLoader;
   }
 
   return (

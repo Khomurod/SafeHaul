@@ -95,12 +95,14 @@ Routing is **manifest-driven**, not hand-edited JSX:
 `App.jsx`.
 
 **Startup** (`src/app/startup/`): an unloadable Hosting config
-(`/__/firebase/init.json`) shows a reload screen, not a blank page; a tab whose
-files a release removed reloads once, only when `/release.json` names a SHA
-other than its `VITE_RELEASE_SHA`. Sign-in returns to the page asked for, else
-sends a Super Admin (by the token's role, as routes and rules read it) to the
-owner panel and a company member to the dashboard; an account in no company (a
-removed member keeps the login) gets a no-access screen with Sign out.
+(`/__/firebase/init.json`) shows a reload screen; a tab whose files a release
+removed reloads once, only when `/release.json` names a SHA other than its
+`VITE_RELEASE_SHA`. Sign-in returns to the page asked for, else sends a
+Super Admin (by the token's role) to the owner panel and a company member to
+the dashboard; an account in no company (a removed member keeps the login)
+gets a no-access screen with Sign out. The driver application (routes below)
+waits behind one start-screen placeholder, `ApplyPagePlaceholder`; other pages
+keep the branded loader, and `index.html` stays empty (it serves every route).
 
 ### Public (unauthenticated) routes
 

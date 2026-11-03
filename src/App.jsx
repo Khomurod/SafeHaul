@@ -6,10 +6,10 @@ import {
   ToastProvider,
   ErrorBoundary,
   FeatureErrorBoundary,
-  GlobalLoadingState,
 } from '@shared/components/feedback';
 import { QueueStatusIndicator } from '@shared/components/feedback/QueueStatusIndicator';
 import { featureScreens, companyChildRouteDefs } from '@app/routes/featureRegistry';
+import { BootLoadingFallback, RouteLoadingFallback } from '@app/routes/RouteLoadingFallback';
 import { CompanyAdminRoute } from '@app/routes/CompanyAdminRoute';
 import { AuthGuardedLogin, ProtectedRoute, RootRedirect } from '@app/routes/authRouteGuards';
 import {
@@ -45,7 +45,7 @@ function AppRoutes() {
   const CompanyWorkspaceLayout = featureScreens[COMPANY_WORKSPACE_ROUTE.screen];
 
   return (
-    <Suspense fallback={<GlobalLoadingState />}>
+    <Suspense fallback={<RouteLoadingFallback />}>
       <Routes>
         {/* --- PUBLIC ROUTES (No Login Required) --- */}
         {/* P3-12 FIX: Redirect authenticated users away from login */}
@@ -158,7 +158,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ToastProvider>
-        <DataProvider>
+        <DataProvider renderLoading={(platformLoader) => <BootLoadingFallback platformLoader={platformLoader} />}>
           <Router>
             <AppRoutes />
             {/* Shows the offline queue and also sends it (useSubmissionQueue), so it

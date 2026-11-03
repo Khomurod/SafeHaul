@@ -2,7 +2,10 @@ import React from 'react';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 
 /**
- * The full-screen loading state shown while the application boots.
+ * The full-screen loading state shown while a screen's code downloads
+ * (`RouteLoadingFallback`, and `DocumentsManager`'s own Suspense). The driver
+ * application shows its own placeholder, shaped like its first screen, instead
+ * (`ApplyPagePlaceholder`).
  *
  * Deliberately **not** `LoadingState`: this is the one loading state that shows
  * the SafeHaul mark, because it is the first thing a user sees and the branded

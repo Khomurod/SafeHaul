@@ -194,8 +194,8 @@ The reverse directions are prohibited — including any `@shared` import inside
 **States, announcements and focus**
 - **A state must announce itself.** Loading and empty are `role="status"`
   (polite), errors `role="alert"`: `EmptyState` / `ErrorState` / `LoadingState`
-  (`DataTable` draws its own). A known shape loads as `Skeleton` (a number:
-  `MetricCard loading`), always `aria-hidden`: its caller announces, once per group.
+  (`DataTable` its own). A known shape loads as `Skeleton`, `aria-hidden`; the
+  caller announces once (`MetricCard loading` per group; a page, a hidden `<h1>`).
 - **Never nest live regions.** Inside a caller's always-mounted
   `role="status"`/`role="alert"` wrapper a `Notice` takes `announce="off"` (two
   regions announce twice; moving the role onto a conditional child silences it);
@@ -535,8 +535,8 @@ it does:
 | Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
 
 Still in progress: inputs, select/textarea (held by §7's guardrails; shapes, §5)
-and loading — `Skeleton` and `MetricCard loading` serve the company dashboard;
-elsewhere `LoadingState`'s spinner, Super Admin's `'...'`, `DataTable`'s own rows.
+and loading — `Skeleton` (`MetricCard loading`) serves the company dashboard and
+the apply page; elsewhere `LoadingState`, Super Admin's `'...'`, `DataTable`'s rows.
 
 ### Catalog
 
