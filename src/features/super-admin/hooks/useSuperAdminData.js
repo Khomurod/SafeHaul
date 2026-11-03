@@ -470,6 +470,10 @@ export function useSuperAdminData() {
             const term = searchQuery.trim();
             if (term.length >= 2) performClientSearch(searchQuery);
             else if (term.length === 0) loadRecentData();
+            else { // One character reads nothing, so it ends the wait of a read it dropped.
+                readInFlight.current = false;
+                setLoading(false);
+            }
         };
         // The console reads the platform the moment it opens; a change to the
         // search text waits for a pause in typing.

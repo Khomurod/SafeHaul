@@ -6,7 +6,7 @@
 // lives in `DossierBodies.contract.support.jsx`; the registrations below
 // delegate to it. See that file's header for the scope of this freeze.
 import React from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@lib/firebase', async () => (await import('./DossierBodies.contract.support')).libFirebaseMock());
@@ -136,6 +136,53 @@ describe('NotesTab — reads', () => {
         expect(await screen.findByText('Called back about the start date')).toBeInTheDocument();
         expect(fs.getDocs).toHaveBeenCalledTimes(1);
         expect(fs.getDoc).not.toHaveBeenCalled();
+    });
+
+    describe('when the history changes while the notes are read', () => {
+        const OLDER = ['n-old', { text: 'Note from the older read', author: 'Test Recruiter', createdAt: { seconds: 1_700_000_000 } }];
+        const NEWER = ['n-new', { text: 'Note from the newer read', author: 'Test Recruiter', createdAt: { seconds: 1_800_000_000 } }];
+        const held = () => {
+            let release;
+            fs.getDocs.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+            return (docs) => release(snap(docs));
+        };
+        /** Lets a released read run to its last state update. */
+        const answer = (release, docs) => act(async () => {
+            release(docs);
+            await new Promise((resolve) => { setTimeout(resolve, 0); });
+        });
+        const rerenderWith = (rerender, sharedHistory) =>
+            rerender(<NotesTab companyId="co-1" applicationId="app-1" sharedHistory={sharedHistory} />);
+
+        it('keeps the newer read’s notes when the older read answers last', async () => {
+            const releaseOlder = held();
+            fs.getDocs.mockResolvedValueOnce(snap([NEWER]));
+            const { rerender } = renderNotes({ sharedHistory: [] });
+            rerenderWith(rerender, []);
+            expect(await screen.findByText('Note from the newer read')).toBeInTheDocument();
+
+            await answer(releaseOlder, [OLDER]);
+
+            expect(screen.getByText('Note from the newer read')).toBeInTheDocument();
+            expect(screen.queryByText('Note from the older read')).not.toBeInTheDocument();
+            expect(fs.getDocs).toHaveBeenCalledTimes(2);
+        });
+
+        it('stays loading until the newer read answers', async () => {
+            const releaseOlder = held();
+            const releaseNewer = held();
+            const { rerender } = renderNotes({ sharedHistory: [] });
+            rerenderWith(rerender, []);
+            await waitFor(() => expect(fs.getDocs).toHaveBeenCalledTimes(2));
+
+            await answer(releaseOlder, [OLDER]);
+            expect(screen.getByRole('heading', { name: 'Loading notes...' })).toBeInTheDocument();
+            expect(screen.queryByText('Note from the older read')).not.toBeInTheDocument();
+
+            await answer(releaseNewer, [NEWER]);
+            expect(screen.getByText('Note from the newer read')).toBeInTheDocument();
+            expect(screen.queryByRole('heading', { name: 'Loading notes...' })).not.toBeInTheDocument();
+        });
     });
 
     it('shows the notes when the writer’s name cannot be read', async () => {

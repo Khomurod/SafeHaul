@@ -67,6 +67,8 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
     const submittingRef = useRef(false);
 
     useEffect(() => {
+        // A read that a newer one replaced (new props) changes nothing when it answers.
+        let active = true;
         async function init() {
             setLoading(true);
             // The notes and the writer's name are read side by side. The name
@@ -113,21 +115,22 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                     return getTime(b.createdAt) - getTime(a.createdAt);
                 });
 
-                setNotes(allNotes);
+                if (active) setNotes(allNotes);
 
                 // 4. Get Current User Name for the input form
                 if (writerRead) {
                     const writer = await writerRead;
                     if (writer.error) throw writer.error;
-                    setCurrentUser(writer.profile ? writer.profile.name : 'Admin');
+                    if (active) setCurrentUser(writer.profile ? writer.profile.name : 'Admin');
                 }
             } catch (e) {
                 console.error("Error loading notes:", e);
             } finally {
-                setLoading(false);
+                if (active) setLoading(false);
             }
         }
         init();
+        return () => { active = false; };
     }, [companyId, applicationId, collectionName, sharedHistory]);
 
     const handleSend = async (e) => {

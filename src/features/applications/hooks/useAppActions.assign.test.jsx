@@ -50,16 +50,36 @@ function Harness({ record }) {
         teamMembers: TEAM,
         onStatusUpdate: vi.fn(),
     });
-    return <output aria-label="Assigned to">{assignedTo || '(none)'}</output>;
+    return (
+        <>
+            <output aria-label="Assigned to">{assignedTo || '(none)'}</output>
+            <output aria-label="Record holds">{appData.assignedTo || '(none)'}</output>
+        </>
+    );
 }
 
 const written = () => fs.updateDoc.mock.calls.map(([, data]) => data);
 const logged = () => logActivity.mock.calls.map((call) => call[4]);
 const picker = () => screen.getByLabelText('Assigned to');
+const recordHolds = () => screen.getByLabelText('Record holds');
 /** A save of this assignee is refused on every try. */
 const refuse = (refused) => async (_ref, data) => {
     if (data.assignedTo === refused) throw new Error('permission-denied');
 };
+/** A save of this assignee fails on its first try only. */
+const failOnce = (flaky) => {
+    let failed = false;
+    return async (_ref, data) => {
+        if (data.assignedTo !== flaky || failed) return;
+        failed = true;
+        throw new Error('unavailable');
+    };
+};
+function deferred() {
+    let resolve;
+    const promise = new Promise((res) => { resolve = res; });
+    return { promise, resolve };
+}
 
 beforeEach(() => {
     vi.resetAllMocks();
@@ -128,15 +148,30 @@ describe("the dossier's Assign To", () => {
         expect(logActivity).not.toHaveBeenCalled();
     });
 
+    // The later pick comes while the earlier one's last try is already on its
+    // way, so that try still runs, fails and says so.
     it('a later pick that saved wins over an earlier one that failed', async () => {
-        fs.updateDoc.mockImplementation(refuse('recruiter-2'));
+        const lastTry = deferred();
+        let tries = 0;
+        fs.updateDoc.mockImplementation(async (_ref, data) => {
+            if (data.assignedTo !== 'recruiter-2') return;
+            tries += 1;
+            if (tries === 3) await lastTry.promise;
+            throw new Error('permission-denied');
+        });
         vi.spyOn(console, 'error').mockImplementation(() => {});
         vi.useFakeTimers();
         render(<Harness record={{ assignedTo: '', assignedToName: '' }} />);
 
+        let failed;
         await act(async () => {
-            const failed = api.handleAssignChange('recruiter-2');
+            failed = api.handleAssignChange('recruiter-2');
+            await vi.advanceTimersByTimeAsync(2000);
+        });
+        expect(fs.updateDoc).toHaveBeenCalledTimes(3);
+        await act(async () => {
             const saved = api.handleAssignChange('recruiter-1');
+            lastTry.resolve();
             await vi.runAllTimersAsync();
             await Promise.all([failed, saved]);
         });
@@ -145,6 +180,57 @@ describe("the dossier's Assign To", () => {
         await waitFor(() => expect(picker()).toHaveTextContent('recruiter-1'));
         expect(toast.showSuccess).toHaveBeenCalledWith('Assigned to Ann Baker');
         expect(toast.showError).toHaveBeenCalledWith('Failed to update assignment. Please try again.');
+    });
+
+    // Firestore keeps one client's writes in order, so only a retry can land an
+    // earlier pick after a later one.
+    it("an earlier pick's retry does not write over a later pick that saved", async () => {
+        fs.updateDoc.mockImplementation(failOnce('recruiter-2'));
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.useFakeTimers();
+        render(<Harness record={{ assignedTo: '', assignedToName: '' }} />);
+
+        let earlier;
+        await act(async () => {
+            earlier = api.handleAssignChange('recruiter-2');
+            await api.handleAssignChange('recruiter-1');
+        });
+        expect(toast.showSuccess).toHaveBeenCalledWith('Assigned to Ann Baker');
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1000);
+            await earlier;
+        });
+        vi.useRealTimers();
+
+        await waitFor(() => expect(picker()).toHaveTextContent('recruiter-1'));
+        expect(recordHolds()).toHaveTextContent('recruiter-1');
+        expect(written()).toEqual([
+            { assignedTo: 'recruiter-2', assignedToName: 'Lee Chen' },
+            { assignedTo: 'recruiter-1', assignedToName: 'Ann Baker' },
+        ]);
+        expect(toast.showError).not.toHaveBeenCalled();
+        expect(toast.showSuccess).toHaveBeenCalledTimes(1);
+        expect(logged()).toEqual(['Rita Admin reassigned this from Unassigned to Ann Baker']);
+    });
+
+    it('retries a single pick whose first try fails, and saves it', async () => {
+        fs.updateDoc.mockImplementation(failOnce('recruiter-2'));
+        vi.useFakeTimers();
+        render(<Harness record={{ assignedTo: '', assignedToName: '' }} />);
+
+        await act(async () => {
+            const p = api.handleAssignChange('recruiter-2');
+            await vi.advanceTimersByTimeAsync(1000);
+            await p;
+        });
+        vi.useRealTimers();
+
+        await waitFor(() => expect(picker()).toHaveTextContent('recruiter-2'));
+        expect(recordHolds()).toHaveTextContent('recruiter-2');
+        expect(fs.updateDoc).toHaveBeenCalledTimes(2);
+        expect(toast.showSuccess).toHaveBeenCalledWith('Assigned to Lee Chen');
+        expect(toast.showError).not.toHaveBeenCalled();
+        expect(logged()).toEqual(['Rita Admin reassigned this from Unassigned to Lee Chen']);
     });
 
     it('a failed pick leaves the next change logged from the saved assignee', async () => {

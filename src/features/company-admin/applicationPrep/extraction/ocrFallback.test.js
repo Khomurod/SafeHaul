@@ -28,13 +28,26 @@ afterEach(() => {
     consoleError.mockRestore();
 });
 
+function deferred() {
+    let resolve;
+    const promise = new Promise((res) => { resolve = res; });
+    return { promise, resolve };
+}
+
 // tesseract.js 7 reports a failed language download or engine start only through
-// `errorHandler`; the promise `createWorker` returned never settles.
-function engineThatReportsItCannotStart() {
+// `errorHandler`; the promise `createWorker` returned does not settle then. Each
+// test settles `start` itself once the reader has given up, so nothing is left open.
+function engineThatReportsItCannotStart(start) {
     return vi.fn((lang, oem, options) => {
         setTimeout(() => options?.errorHandler?.('initialization failed'), 0);
-        return new Promise(() => {});
+        return start.promise;
     });
+}
+
+/** The start the reader gave up on finishes now, with the fake worker. */
+async function startsLate(start) {
+    start.resolve(worker);
+    await start.promise;
 }
 
 describe('recognising pages', () => {
@@ -75,20 +88,28 @@ describe('recognising pages', () => {
 
 describe('an engine that cannot start', () => {
     it('gives up when the engine reports that it cannot start', async () => {
-        createWorker = engineThatReportsItCannotStart();
+        const start = deferred();
+        createWorker = engineThatReportsItCannotStart(start);
 
         await expect(recognizePages(['page-1'], { createWorker })).rejects.toThrow(/could not start/);
+
+        await startsLate(start);
+        expect(worker.terminate).toHaveBeenCalledTimes(1);
+        expect(worker.recognize).not.toHaveBeenCalled();
     }, 2_000);
 
     it('gives up after OCR_START_TIMEOUT_MS when the engine never answers', async () => {
         vi.useFakeTimers();
-        createWorker = vi.fn(() => new Promise(() => {}));
+        const start = deferred();
+        createWorker = vi.fn(() => start.promise);
 
         const reading = expect(recognizePages(['page-1'], { createWorker })).rejects.toThrow(/did not start in time/);
         await vi.advanceTimersByTimeAsync(OCR_START_TIMEOUT_MS);
         await reading;
 
         expect(consoleError).toHaveBeenCalledTimes(1);
+        await startsLate(start);
+        expect(worker.terminate).toHaveBeenCalledTimes(1);
     }, 2_000);
 
     it('shuts down an engine that finishes starting after it was given up on', async () => {
@@ -108,7 +129,8 @@ describe('an engine that cannot start', () => {
     }, 2_000);
 
     it('logs a failed start once, with the engine status and no document text', async () => {
-        createWorker = engineThatReportsItCannotStart();
+        const start = deferred();
+        createWorker = engineThatReportsItCannotStart(start);
 
         await expect(recognizePages(['text of a licence'], { createWorker })).rejects.toThrow(/could not start/);
 
@@ -119,6 +141,9 @@ describe('an engine that cannot start', () => {
             { flow: 'document_reader', stage: 'ocr_start' },
         );
         expect(consoleError.mock.calls[0][1].message).toBe('OCR could not start: initialization failed');
+        await startsLate(start);
+        expect(worker.terminate).toHaveBeenCalledTimes(1);
+        expect(consoleError).toHaveBeenCalledTimes(1);
     }, 2_000);
 
     it('a page that fails after the start still rejects, and is not a failed start', async () => {

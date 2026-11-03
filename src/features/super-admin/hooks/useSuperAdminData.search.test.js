@@ -255,6 +255,32 @@ describe('useSuperAdminData — the box changed and cleared within the pause', (
     });
 });
 
+describe('useSuperAdminData — a one-character box', () => {
+    // One character starts no read, so the read it dropped must not leave the
+    // console loading, or Load More waiting for an answer that changes nothing.
+    it('ends loading and frees Load More when it drops a search in flight', async () => {
+        const { result } = await mountLoaded();
+        vi.useFakeTimers();
+        hold('ab');
+        type(result, 'Ab');
+        await pause(600);
+        type(result, 'A');
+        await pause(600);
+
+        expect(result.current.loading).toBe(false);
+        await act(async () => { await result.current.loadMore('companies'); });
+        expect(pageReads()).toHaveLength(1);
+        expect(result.current.companyList).toHaveLength(40);
+        const lists = () => [result.current.companyList, result.current.userList, result.current.allApplications].map(ids);
+        const shown = lists();
+
+        await answer('ab');
+
+        expect(lists()).toEqual(shown);
+        expect(result.current.loading).toBe(false);
+    });
+});
+
 describe('useSuperAdminData — an older recent-data read', () => {
     it('keeps an older read\'s answer out when it answers after the newest', async () => {
         const { result } = await mountLoaded();
