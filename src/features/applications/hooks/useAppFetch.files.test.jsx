@@ -2,7 +2,8 @@
  * The dossier opens on the record. The company profile and the record are read
  * at the same time, and the driver's files are signed once the record shows:
  * `filesPending` says so until their links have arrived. A late answer for a
- * record the dossier no longer shows changes nothing.
+ * record the dossier no longer shows changes nothing. A file's link is reused
+ * when the same record opens again within ten minutes.
  *
  * All names, paths and ids below are artificial.
  */
@@ -16,7 +17,7 @@ const UPLOAD = 'companies/co-1/applications/guest_uploads/app-1/cdl-front.jpg';
 vi.mock('@/context/DataContext', () => ({
     useData: () => ({ currentCompanyProfile: { id: 'co-1', teamMembers: [] }, currentUserClaims: { roles: { 'co-1': 'recruiter' } } }),
 }));
-vi.mock('@lib/firebase', () => ({ db: {}, functions: {} }));
+vi.mock('@lib/firebase', () => ({ db: {}, functions: {}, auth: { currentUser: null } }));
 vi.mock('@lib/firebase/storage', () => ({ storage: {} }));
 vi.mock('@features/companies', () => ({
     getCompanyProfile: (companyId) => {
@@ -51,8 +52,10 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import { useAppFetch } from './useAppFetch';
+import { forgetApplicationFileLinks } from '@features/applications/services/applicationFileLink';
 
 afterEach(() => {
+    forgetApplicationFileLinks();
     Object.assign(fx, { reads: [], company: null, signs: [] });
 });
 
@@ -102,5 +105,19 @@ describe('the dossier record', () => {
         expect(result.current.appData.firstName).toBe('Ben');
         expect(result.current.fileUrls['cdl-front']).toBe(signedUrl('app-2'));
         expect(result.current.filesPending).toBe(false);
+    });
+
+    it('reopened within ten minutes, shows the link it already has without signing again', async () => {
+        const first = renderHook(() => useAppFetch('co-1', 'app-1'));
+        await waitFor(() => expect(fx.signs).toHaveLength(1));
+        await act(async () => fx.signs[0].resolve({ data: { url: signedUrl('app-1') } }));
+        expect(first.result.current.fileUrls['cdl-front']).toBe(signedUrl('app-1'));
+        first.unmount();
+
+        const { result } = renderHook(() => useAppFetch('co-1', 'app-1'));
+        await waitFor(() => expect(result.current.fileUrls['cdl-front']).toBe(signedUrl('app-1')));
+        expect(result.current.filesPending).toBe(false);
+        expect(fx.signs).toHaveLength(1);
+        expect(fx.reads.filter((read) => read === 'doc companies/co-1/applications/app-1')).toHaveLength(2);
     });
 });

@@ -225,9 +225,9 @@ on-screen link. Pinned by
 the wizard and the carrier's form (`useGuestFileUpload`) are kept as
 `{ name, storagePath }`, never with a URL. Records from before 2026-09-08 may
 still hold an expired one, and the dossier's own admin upload stores a Storage
-download URL; views re-sign from `storagePath`. `useSignedUploadPreview` mints a
-15-minute URL through `getSignedGuestUploadUrl` (which authorizes it) when
-someone looks, reused for 10 minutes. `not-found` says the file is gone; any
+download URL; views re-sign from `storagePath`, and the dossier and
+`useSignedUploadPreview` (a 15-minute URL from `getSignedGuestUploadUrl`, which
+authorizes it) reuse a link 10 minutes. `not-found` says the file is gone; any
 other error offers a retry, the row still attached (gates key on presence).
 
 **A custom "file upload" answer is the file:** `{ name, storagePath }` in
