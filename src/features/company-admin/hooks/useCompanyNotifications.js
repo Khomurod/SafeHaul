@@ -1,10 +1,41 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { auth, db } from '@lib/firebase';
+
+const BELL_SIZE = 20;
+
+// The server writes `createdAt` as a Timestamp; fixtures may hold plain
+// `seconds` or a Date.
+const millisOf = (value) => {
+    if (typeof value?.toMillis === 'function') return value.toMillis();
+    if (value instanceof Date) return value.getTime();
+    if (typeof value?.seconds === 'number') return value.seconds * 1000;
+    return 0;
+};
+
+/** Both reads as one list: each notification once, the newest 20. */
+const newestOfBoth = (team, own) => {
+    const byId = new Map();
+    [...team, ...own].forEach((item) => byId.set(item.id, item));
+    return [...byId.values()]
+        .sort((a, b) => millisOf(b.createdAt) - millisOf(a.createdAt))
+        .slice(0, BELL_SIZE);
+};
+
+const rowsOf = (snapshot) => snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
 /**
  * Hook to manage company notifications. A notification with a `recipientId` (a
  * callback reminder) is shown only to that person.
+ *
+ * Two live reads, merged: the company's newest 20 (the team's notifications and
+ * everyone's reminders, filtered here to the team's and the reader's own), and
+ * the reader's own newest 20 reminders (`recipientId == uid`, which has its own
+ * index). The second exists because other people's reminders take slots in the
+ * first: in a busy team they would push a recruiter's own "Call back …" out of
+ * the bell. The bell shows the newest 20 of both. If the own read fails (say,
+ * its index is still building) that is only logged, and the bell shows the
+ * first read alone.
  * @param {string} companyId - The ID of the company
  * @returns {Object} Notifications data and management functions
  */
@@ -21,27 +52,52 @@ export function useCompanyNotifications(companyId) {
 
         setLoading(true);
         const notificationsRef = collection(db, 'companies', companyId, 'notifications');
+        const uid = auth.currentUser?.uid;
+        const rows = { team: [], own: [] };
+        // Without a uid there is no own read to wait for.
+        const settled = { team: false, own: !uid };
+        const show = () => {
+            setNotifications(newestOfBoth(rows.team, rows.own));
+            if (settled.team && settled.own) setLoading(false);
+        };
+
         const q = query(
             notificationsRef,
             orderBy('createdAt', 'desc'),
-            limit(20)
+            limit(BELL_SIZE)
         );
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const uid = auth.currentUser?.uid;
-            const items = snapshot.docs
-                .map(doc => ({ id: doc.id, ...doc.data() }))
+        const unsubscribeTeam = onSnapshot(q, (snapshot) => {
+            rows.team = rowsOf(snapshot)
                 .filter(item => !item.recipientId || item.recipientId === uid);
-            setNotifications(items);
-            setLoading(false);
+            settled.team = true;
             setError(null);
+            show();
         }, (err) => {
             console.error('Error fetching notifications:', err);
             setError('Failed to load notifications');
-            setLoading(false);
+            settled.team = true;
+            show();
         });
 
-        return () => unsubscribe();
+        const unsubscribeOwn = uid ? onSnapshot(
+            query(notificationsRef, where('recipientId', '==', uid), orderBy('createdAt', 'desc'), limit(BELL_SIZE)),
+            (snapshot) => {
+                rows.own = rowsOf(snapshot);
+                settled.own = true;
+                show();
+            },
+            (err) => {
+                console.error('Error fetching own reminders:', err);
+                settled.own = true;
+                show();
+            },
+        ) : null;
+
+        return () => {
+            unsubscribeTeam();
+            unsubscribeOwn?.();
+        };
     }, [companyId]);
 
     const unreadCount = notifications.filter(n => !n.read).length;

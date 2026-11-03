@@ -1041,7 +1041,9 @@ the daily count**; refusing is a recorded outcome.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
 - **Notifications** — status changes, lead assignment, new applications, an
   applicant confirmation email. A call with a callback time (or "Remind me in 1
-  Hour", still No Answer) reminds only its recruiter (`recipientId`).
+  Hour", still No Answer) reminds only its recruiter (`recipientId`). The bell
+  reads the team's newest 20 and the reader's own newest 20 reminders (index in
+  `firestore.indexes.json`), and shows the newest 20 of both.
 - **Automated contact SMS** — moving an application or lead *into*
   `Contact Attempt 1/2/3` sends the matching template from
   `companies/{id}/settings/automated_sms`. Transition-only, so idempotent; no

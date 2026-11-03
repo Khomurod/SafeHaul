@@ -64,7 +64,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [x] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: пакет B · Дата: 2026-11-03
    - [x] **T2b** · E-Docs: грузить только последние конверты, счётчики с сервера · *Load only recent envelopes in E-Docs* → [T2b](T2b-edocs-recent-envelopes.md) · PR: пакет B · Дата: 2026-11-03
    - [x] **T2c** · Ограничить списки кампаний, итоги остаются верными · *Limit the Campaigns lists* → [T2c](T2c-campaigns-lists-limit.md) · PR: пакет B · Дата: 2026-11-03
-   - [ ] **T2d** · (необязательно) Свои напоминания не пропадают из колокольчика · *(optional) Keep own reminders in the notification bell* → [T2d](T2d-notification-bell-reminders.md) · PR: — · Дата: —
+   - [x] **T2d** · (необязательно) Свои напоминания не пропадают из колокольчика · *(optional) Keep own reminders in the notification bell* → [T2d](T2d-notification-bell-reminders.md) · PR: пакет B · Дата: 2026-11-03
 3. **Заглушки вместо нулей / Skeleton loading screens (#1)**
    - [x] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
    - [x] **T3 PR 2** · Заглушка страницы заявки водителя · *Driver apply-page placeholder* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
@@ -204,7 +204,7 @@ task that waits for it.
   по всей истории можно сделать отдельной задачей позже. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р5 (T2d).** Сделать небольшой необязательный фикс: свои напоминания
   рекрутёра не пропадают из колокольчика, даже когда у коллег их много?
-  *Рекомендую:* да. — Ответ: — · Дата: —
+  *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р6 (T2b, T2d). Шаг для вас.** T2b и T2d добавляют индексы Firestore. Перед
   продвижением такого релиза проверьте в Firebase console → Firestore →
   Indexes, что новые индексы в статусе «Enabled». — Сделано: — · Дата: —
