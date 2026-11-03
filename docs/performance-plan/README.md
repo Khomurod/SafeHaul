@@ -97,7 +97,7 @@ Each can be done on its own, or when someone next changes that part of the app.
   - [x] **M4-1** · Поиск по имени с двух букв · *Two-letter minimum for name search* → [M4](M4-applications-list-payload.md) · PR: #557 · Дата: 2026-11-03
   - [ ] **M4-2** · Записать замер и решение («ворота» открыты или закрыты) · *Record the measurement and the gate verdict* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
   - [ ] **M4-3a / 3b / 3c** · Только если ворота открыты и вы согласны: серверная функция для списка · *Only if the gate opens and the owner agrees* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
-  - [ ] **M4-4** · (необязательно) То же, что M2a: если M2a сделана, отметить «не понадобилось» · *(optional) Same as M2a* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
+  - [x] **M4-4** · (необязательно) То же, что M2a: если M2a сделана, отметить «не понадобилось» — не понадобилось, сделано в M2a · *(optional) Same as M2a: not needed, done under M2a* → [M4](M4-applications-list-payload.md) · PR: #557 · Дата: 2026-11-03
 - **Меньше лишних перерисовок / Prevent unnecessary re-renders (#26)**: после T1
   - [ ] **M5-1** · Записать замер и решение · *Record the measurement and the verdict* → [M5](M5-re-renders.md) · PR: — · Дата: —
   - [ ] **M5-2** · Список кандидатов: стабильные свойства · *Stable props for the candidate list* → [M5](M5-re-renders.md) · PR: — · Дата: —

@@ -247,7 +247,7 @@ Recommend C. It is the only option with no data change, no migration, no rules o
   - On Testing, a Next page transfers 20% or less of its M4-2 size, and a 3-letter search transfers less than before.
   - `firestore.indexes.json` and `src/firestore.rules` are unchanged.
   - The callable map, APP_BRIEF and RELEASE_CHECKLIST are updated, and the owner has noted the cold-start delay.
-- [ ] M4-4 is merged, or marked "done under #3".
+- [x] M4-4 is merged, or marked "done under #3". Marked: M2a (#557, commit `22f8e80`) made NotesTab take `sharedHistory` from the dossier's record, which is M4-4's whole change.
 
 M4-1 as done (2026-11-03, batch PR #557; the box counts as met when that PR merges). Every file:line in M4-1 was re-checked at `639a483`: none moved since `11626a6` except the brief's Recruiter pipeline paragraph, now 276-286. Done as written; Р20 took its recommended answer. Notes:
 - `searchableTerm` also turns a box of spaces into `''`, so it shows the whole list instead of "No records found".
