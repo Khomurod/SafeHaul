@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Icon, Bell, Check, Clock, User, Briefcase, FileText } from '@design-system/icons';
+import { Icon, Bell, Check, Clock, User, Briefcase, FileText, FileCheck, AlertTriangle } from '@design-system/icons';
 import { Badge, Button, IconButton } from '@/design-system/components';
 import { useCompanyNotifications } from '../hooks/useCompanyNotifications';
 
@@ -9,6 +9,8 @@ const getNotificationIcon = (type) => {
         case 'lead_assigned': return <Icon icon={Briefcase} className="text-ds-status-info-fg" />;
         case 'status_change': return <Icon icon={FileText} className="text-ds-status-success-fg" />;
         case 'team_activity': return <Icon icon={User} className="text-ds-status-accent-fg" />;
+        case 'document_signed': return <Icon icon={FileCheck} className="text-ds-status-success-fg" />;
+        case 'document_seal_failed': return <Icon icon={AlertTriangle} className="text-ds-status-danger-fg" />;
         default: return <Icon icon={Bell} className="text-ds-content-muted" />;
     }
 };
@@ -26,15 +28,21 @@ const timeAgo = (date) => {
     return `${Math.floor(diff / 86400)}d ago`;
 };
 
-// The server's notifications name the record they are about, and the dossier
-// finds an application or a lead by its id.
-const recordIdOf = (notif) =>
-    notif.relatedId && (notif.relatedType === 'application' || notif.relatedType === 'lead')
-        ? notif.relatedId
-        : null;
+// The server's notifications name the record they are about: the dossier
+// finds an application or a lead by its id, and E-Docs lists a signing request.
+const openerOf = (notif, onOpenRecord, onOpenDocuments) => {
+    if (!notif.relatedId) return null;
+    if (onOpenRecord && (notif.relatedType === 'application' || notif.relatedType === 'lead')) {
+        return () => onOpenRecord(notif.relatedId);
+    }
+    return onOpenDocuments && notif.relatedType === 'signing_request' ? onOpenDocuments : null;
+};
 
-/** `onOpenRecord(id)` opens a record's dossier; the shell renders it. */
-export function NotificationDropdown({ companyId, onOpenRecord }) {
+/**
+ * `onOpenRecord(id)` opens a record's dossier; the shell renders it.
+ * `onOpenDocuments()` opens E-Docs.
+ */
+export function NotificationDropdown({ companyId, onOpenRecord, onOpenDocuments }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
     const bellRef = useRef(null);
@@ -47,14 +55,14 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
         markAllAsRead
     } = useCompanyNotifications(companyId);
 
-    const openNotification = (notif, recordId) => {
+    const openNotification = (notif, open) => {
         // A failed write is logged by the hook; the record opens either way.
         if (!notif.read) markAsRead(notif.id).catch(() => {});
         // The row goes with the panel, so the dossier, which returns focus to
         // where it found it, returns it to the bell.
         bellRef.current?.focus();
         setIsOpen(false);
-        onOpenRecord(recordId);
+        open();
     };
 
     // Close dropdown on outside click
@@ -129,7 +137,7 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
                             </div>
                         ) : (
                             notifications.map((notif) => {
-                                const recordId = onOpenRecord ? recordIdOf(notif) : null;
+                                const open = openerOf(notif, onOpenRecord, onOpenDocuments);
                                 const content = (
                                     <>
                                         <span className={`w-8 h-8 rounded-ds-md flex items-center justify-center ${!notif.read ? 'bg-ds-surface shadow-ds-sm' : 'bg-ds-surface-subtle'}`}>
@@ -143,6 +151,9 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
                                             <span className="block text-ds-xs text-ds-content-muted mt-0.5 truncate">
                                                 {notif.message}
                                             </span>
+                                            {open && notif.relatedType === 'signing_request' && (
+                                                <span className="block text-ds-xs text-ds-content-link mt-0.5">Open E-Docs</span>
+                                            )}
                                             <span className="text-ds-xs text-ds-content-muted mt-1 flex items-center gap-1">
                                                 <Icon icon={Clock} size="xs" />
                                                 {timeAgo(notif.createdAt)}
@@ -156,17 +167,18 @@ export function NotificationDropdown({ companyId, onOpenRecord }) {
                                 return (
                                     <div
                                         key={notif.id}
-                                        className={`px-4 py-3 border-b border-ds-border-subtle transition-colors ${recordId ? 'hover:bg-ds-surface-hover' : ''} ${!notif.read ? 'bg-ds-status-info-bg' : ''}`}
+                                        className={`px-4 py-3 border-b border-ds-border-subtle transition-colors ${open ? 'hover:bg-ds-surface-hover' : ''} ${!notif.read ? 'bg-ds-status-info-bg' : ''}`}
                                     >
                                         {/* A notification about a record is the row's own
                                             button, unstyled: the row draws it. It opens the
-                                            record, from the keyboard too. One about no record
-                                            has nothing to open, so it is plain text, and
-                                            "Mark all read" clears it. */}
-                                        {recordId ? (
+                                            record (a signing request, in E-Docs), from the
+                                            keyboard too. One about no record has nothing to
+                                            open, so it is plain text, and "Mark all read"
+                                            clears it. */}
+                                        {open ? (
                                             <button
                                                 type="button"
-                                                onClick={() => openNotification(notif, recordId)}
+                                                onClick={() => openNotification(notif, open)}
                                                 className="flex w-full gap-3 text-left focus-visible:shadow-ds-focus"
                                             >
                                                 {content}

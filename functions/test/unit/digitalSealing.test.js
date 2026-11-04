@@ -48,6 +48,9 @@ jest.mock('../../firebaseAdmin', () => ({
   },
 }));
 
+// The bell's notification has its own suite (digitalSealing.notifications.test.js).
+jest.mock('../../sealNotifications', () => ({ notifySealOutcome: jest.fn() }));
+
 require('../../digitalSealing');
 
 async function createMinimalPdf(destPath) {

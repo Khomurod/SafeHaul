@@ -17,6 +17,7 @@ const {
     embedImageByBytes,
     isCompanySignatureField,
 } = require('./shared/companySignature');
+const { notifySealOutcome } = require('./sealNotifications');
 
 /** Where `field` sits on its page, in points (it is stored in percent of the page), or null past the last page. */
 function fieldBox(pdfDoc, field) {
@@ -236,6 +237,7 @@ exports.sealDocument = functions.runWith({
                     errorLog: problems,
                     missingFields: [...missingRequiredFields, ...missingCompanySignatures],
                 });
+                await notifySealOutcome(db, companyId, requestId, newData, 'error_sealing');
                 return;
             }
 
@@ -317,9 +319,13 @@ exports.sealDocument = functions.runWith({
                 }
             }
 
+            // Last, once the seal is complete; it never throws.
+            await notifySealOutcome(db, companyId, requestId, newData, 'signed');
+
         } catch (err) {
             console.error("Sealing Failed:", err);
             await change.after.ref.update({ status: 'error_sealing', errorLog: err.message });
+            await notifySealOutcome(db, companyId, requestId, newData, 'error_sealing');
         } finally {
             console.log(`[sealDocument] wall_ms=${Date.now() - sealStartedAt} companyId=${context.params.companyId} requestId=${context.params.requestId}`);
             try {
