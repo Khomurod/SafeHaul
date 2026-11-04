@@ -1,26 +1,27 @@
 import React, { useId, useRef, useState, useEffect, useMemo } from 'react';
 import { db } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
-import { collection, addDoc, getDoc, getDocs, deleteDoc, doc, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, deleteField, getDoc, getDocs, deleteDoc, doc, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Icon, Upload, Trash2, FileText, Download } from '@design-system/icons';
+import { Icon, Upload } from '@design-system/icons';
 import { logActivity } from '@shared/utils/activityLogger';
 import {
-  Badge, Button, Card, FieldMessage, FileInput, FormField, IconButton, IconButtonLink,
-  Notice, Select,
+  Button, Card, FieldMessage, FileInput, FormField, Input, Notice, Select,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { DeleteFileDialog } from './DeleteFileDialog';
-import { OriginalApplicationConsents } from './OriginalApplicationConsents';
+import { DQChecklist } from './DQChecklist';
+import { DQFileRow } from './DQFileRow';
 import {
   NoPreservedPdfError,
   downloadPreservedApplicationPdf,
 } from '@features/applications/services/applicationPdfService';
 import {
   BLOCKED_TAB_MESSAGE,
-  opensFromSignedLink,
   openApplicationFile,
 } from '@features/applications/services/openApplicationFile';
+import { DATED_FILE_TYPES, DQ_FILE_TYPES } from '../../utils/dqFileTypes';
+import { calendarDay } from '../../utils/dqExpiry';
 import { fileDriverUploads } from './dqFileSync';
 
 /**
@@ -28,8 +29,9 @@ import { fileDriverUploads } from './dqFileSync';
  *
  * Built on the design system's components and `--ds-*` tokens.
  *
- * Presentation only. Frozen and unchanged: the eleven `DQ_FILE_TYPES` and their
- * order (with `[0]` as the initial and post-upload reset value); the
+ * Presentation only. Frozen and unchanged: the `DQ_FILE_TYPES` and their order
+ * (`utils/dqFileTypes.js`, with `[0]` as the initial and post-upload reset value;
+ * "CDL" joined them after "Medical Card"); the
  * `companies/{companyId}/{collectionName}/{applicationId}/dq_files` sub-collection
  * and its `orderBy('createdAt', 'desc')`; the Storage path
  * `companies/{companyId}/applications/{applicationId}/dq_files/{ms}_{type-with-non-alphanumerics-as-underscores}_{name}`
@@ -38,9 +40,18 @@ import { fileDriverUploads } from './dqFileSync';
  * and one name does not replace the first; the manual-upload document shape; both
  * `logActivity(..., 'dq_file_uploaded' | 'dq_file_deleted', ...)` calls and their
  * exact detail strings; the delete-from-Storage-then-Firestore order for a file
- * the DQ tab uploaded; the expiration thresholds (`< 0` expired, `< 30` expiring)
- * and their label text; the 2-second upload-message reset; and every user-facing
- * string.
+ * the DQ tab uploaded; the expiration thresholds (`< 0` expired, `< 30` expiring,
+ * now by the UTC day in `utils/dqExpiry.js`); the 2-second upload-message reset;
+ * and every user-facing string but the dates' badges, which now say "Expired on
+ * …", "Expires on …, in N days" or "Valid until …".
+ *
+ * Above the list, "What's in the file" (`DQChecklist`) shows each item of the
+ * file and whether it holds it, from the entries read and the record's employers
+ * (`appData`, as the dossier read it). A team upload of a CDL, medical card or
+ * MVR may carry an optional valid-until date (`expirationDate`, `YYYY-MM-DD`),
+ * and a record of those kinds or a TWIC card can have its date set or cleared
+ * (`DQFileRow`), logged as `dq_file_updated`. The server keeps the record's
+ * `dqExpiresNext` from these dates.
  *
  * A synced record (`isSynced`) files the application's own upload, and only the
  * server writes one (`functions/shared/dqUploads.js`): when the application
@@ -83,24 +94,13 @@ import { fileDriverUploads } from './dqFileSync';
  * public application's two upload compositions and the PEV result upload.
  */
 
-const DQ_FILE_TYPES = [
-  "Application for Employment",
-  "Previous Employer Inquiry (3yr)",
-  "MVR (Annual)",
-  "Medical Card",
-  "Road Test Certificate",
-  "PSP Report",
-  "Clearinghouse Report (Full)",
-  "Clearinghouse Report (Annual)",
-  "Certificate of Violations (Annual)",
-  "Annual Review",
-  "Other"
-];
-
-export function DQFileTab({ companyId, applicationId, collectionName = 'applications' }) {
+export function DQFileTab({ companyId, applicationId, collectionName = 'applications', appData = null }) {
 
   const [dqFiles, setDqFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Whether the entries were read at least once: the checklist waits for them.
+  const [loaded, setLoaded] = useState(false);
+  const [validUntil, setValidUntil] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [error, setError] = useState('');
@@ -144,6 +144,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
   };
 
   const fileTypeFieldId = useId();
+  const validUntilFieldId = useId();
   const fileInputId = useId();
   // Replaces `document.getElementById('dq-file-input')`.
   const fileInputRef = useRef(null);
@@ -155,32 +156,21 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
     return collection(appRef, "dq_files");
   }, [companyId, applicationId, collectionName]);
 
-  // --- Helper: Get Expiration Status ---
-  // The thresholds and labels are unchanged; only the colour decision moved from
-  // a locally-picked palette trio to an approved semantic tone.
-  const getExpirationStatus = (dateString) => {
-    if (!dateString) return null;
-    const today = new Date();
-    const expDate = new Date(dateString);
-    const diffTime = expDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) return { label: 'EXPIRED', tone: 'danger' };
-    if (diffDays < 30) return { label: `Expiring in ${diffDays} days`, tone: 'warning' };
-    return { label: 'Active', tone: 'success' };
-  };
-
   // --- 2. Read the DQ files ---
   // Only the latest read shows: the one after the server files uploads can
-  // overtake the first.
+  // overtake the first. A `quiet` read keeps the list on screen, so a row keeps
+  // its focus while its date is saved.
   const readCount = useRef(0);
-  const loadFiles = async () => {
+  const loadFiles = async ({ quiet = false } = {}) => {
     const read = ++readCount.current;
-    setLoading(true);
+    if (!quiet) setLoading(true);
     setError('');
     try {
       const snapshot = await getDocs(query(dqFilesCollectionRef, orderBy("createdAt", "desc")));
-      if (read === readCount.current) setDqFiles(snapshot.docs.map((file) => ({ id: file.id, ...file.data() })));
+      if (read === readCount.current) {
+        setDqFiles(snapshot.docs.map((file) => ({ id: file.id, ...file.data() })));
+        setLoaded(true);
+      }
     } catch (err) {
       console.error("Error fetching DQ files:", err);
       if (read === readCount.current) setError("Could not load DQ files. Check permissions.");
@@ -193,6 +183,8 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
   // and the list is read again when it filed any.
   useEffect(() => {
     let current = true;
+    // Another record's entries are not this one's checklist.
+    setLoaded(false);
     loadFiles();
     fileDriverUploads({ companyId, collectionName, applicationId }).then(
       (filed) => { if (current && filed > 0) loadFiles(); },
@@ -229,17 +221,20 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
       // Create Firestore document in the sub-collection
       const appRef = doc(db, "companies", companyId, collectionName, applicationId);
       const appSnap = await getDoc(appRef);
-      const appData = appSnap.exists() ? appSnap.data() : {};
+      const owner = appSnap.exists() ? appSnap.data() : {};
+      const expirationDate = DATED_FILE_TYPES.includes(selectedFileType) ? calendarDay(validUntil) : null;
       const newDoc = {
         fileType: selectedFileType,
         fileName: fileToUpload.name,
         url: downloadURL,
         storagePath: storagePath,
-        applicantId: appData.applicantId || null,
-        driverId: appData.driverId || null,
-        userId: appData.userId || null,
-        ownerUserIds: [appData.driverId || appData.userId || appData.applicantId || applicationId],
-        createdAt: new Date()
+        applicantId: owner.applicantId || null,
+        driverId: owner.driverId || null,
+        userId: owner.userId || null,
+        ownerUserIds: [owner.driverId || owner.userId || owner.applicantId || applicationId],
+        createdAt: new Date(),
+        // Only when one was given: the date printed on a CDL, medical card or MVR.
+        ...(expirationDate ? { expirationDate } : {}),
       };
 
       await addDoc(dqFilesCollectionRef, newDoc);
@@ -257,6 +252,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
       setUploadMessage('Upload Complete!');
       setFileToUpload(null);
       setSelectedFileType(DQ_FILE_TYPES[0]);
+      setValidUntil('');
       if (fileInputRef.current) fileInputRef.current.value = null;
 
       await loadFiles();
@@ -311,11 +307,32 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
     }
   };
 
+  // --- 5. Set or clear a record's valid-until date ---
+  // Throws for `DQFileRow`'s editor to show; the record's own date, never the application's.
+  const saveExpiration = async (file, value) => {
+    const day = calendarDay(value);
+    if (value && !day) throw new Error('Enter a date, or leave it empty to clear it.');
+    await updateDoc(doc(dqFilesCollectionRef, file.id), { expirationDate: day || deleteField() });
+    await logActivity(
+      companyId,
+      collectionName,
+      applicationId,
+      'dq_file_updated',
+      day
+        ? `Set the valid-until date of DQ file: ${file.fileType} - ${file.fileName} to ${day}`
+        : `Cleared the valid-until date of DQ file: ${file.fileType} - ${file.fileName}`,
+      'user'
+    );
+    await loadFiles({ quiet: true });
+  };
+
   // A synced record marked removed is kept for the server's matching, never shown.
   const shownFiles = dqFiles.filter((file) => !file.removedAt);
 
   return (
     <Stack gap="lg">
+      {loaded && <DQChecklist files={shownFiles} record={appData} />}
+
       <Card padding="lg">
         <h3 className="mb-ds-4 border-b border-ds-border-subtle pb-ds-2 text-ds-heading-sm font-bold text-ds-content">
           Add New DQ File
@@ -332,6 +349,17 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
               ))}
             </Select>
           </FormField>
+
+          {DATED_FILE_TYPES.includes(selectedFileType) && (
+            <FormField id={validUntilFieldId} label="Valid until (optional)" description="The date printed on the document, if it has one.">
+              <Input
+                type="date"
+                value={validUntil}
+                onChange={(e) => setValidUntil(e.target.value)}
+                disabled={isUploading}
+              />
+            </FormField>
+          )}
 
           {/*
             `FileInput`: the picker's keyboard path and accessible name are the
@@ -392,91 +420,18 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
               No DQ files have been uploaded for this driver.
             </p>
           )}
-          {!loading && shownFiles.map(file => {
-            const status = getExpirationStatus(file.expirationDate);
-            return (
-              <div
-                key={file.id}
-                className="flex flex-wrap items-center justify-between gap-ds-3 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-3"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-ds-3">
-                  <Icon icon={FileText} size="xl" className="shrink-0 text-ds-content-link" />
-                  <div className="min-w-0">
-                    <p className="truncate text-ds-sm font-medium text-ds-content">{file.fileType}</p>
-                    <div className="flex flex-wrap items-center gap-ds-2">
-                      <p className="truncate text-ds-xs text-ds-content-secondary">{file.fileName}</p>
-                      {status && (
-                        <Badge tone={status.tone}>
-                          {status.label} ({file.expirationDate})
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-ds-2">
-                  {file.requiresAuditedAccess ? (
-                    /*
-                      The preserved application original. It has no durable link
-                      on purpose: it may carry the applicant's full Social
-                      Security Number, so it is fetched through a callable that
-                      authorizes the caller and writes an audit record first. An
-                      `<a href>` here would be an unaudited way in.
-                    */
-                    <IconButton
-                      label={`Download ${file.fileType}: ${file.fileName}`}
-                      variant="ghost"
-                      onClick={() => handleAuditedDownload(file)}
-                    >
-                      <Icon icon={Download} size="lg" className="text-ds-status-info-fg" />
-                    </IconButton>
-                  ) : opensFromSignedLink(file.storagePath) ? (
-                    <IconButton
-                      label={`Download ${file.fileType}: ${file.fileName} (opens in a new tab)`}
-                      variant="ghost"
-                      onClick={() => openDriverUpload(file)}
-                    >
-                      <Icon icon={Download} size="lg" className="text-ds-status-info-fg" />
-                    </IconButton>
-                  ) : (
-                    /*
-                      Feature-owned exception: a real navigation to a signed Storage
-                      URL, so it is a navigation and must be a link. It is now
-                      `IconButtonLink` at the 36px step, so it matches every
-                      other row action rather than being a bespoke tinted square,
-                      and `external` announces the tab it opens. It previously
-                      had `title` as its only name.
-                    */
-                    <IconButtonLink
-                      href={file.url}
-                      external
-                      size="sm"
-                      variant="secondary"
-                      label={`Download ${file.fileType}: ${file.fileName}`}
-                    >
-                      <Icon icon={Download} />
-                    </IconButtonLink>
-                  )}
-                  {/*
-                    The preserved original carries no delete control. It is the
-                    evidentiary record of what the applicant submitted, kept for
-                    the three years 49 CFR 391.51 requires; deleting the
-                    application removes it, and nothing else may.
-                  */}
-                  {!file.requiresAuditedAccess && (
-                    <IconButton
-                      label={`Delete ${file.fileType}: ${file.fileName}`}
-                      variant="ghost"
-                      onClick={() => setPendingDelete(file)}
-                    >
-                      <Icon icon={Trash2} size="lg" className="text-ds-status-danger-fg" />
-                    </IconButton>
-                  )}
-                </div>
-                {/* The original's consents: a full-width second line, hence `flex-wrap` above and `flex-1` on the name. */}
-                <OriginalApplicationConsents companyId={companyId} applicationId={applicationId} file={file} />
-              </div>
-            );
-          })}
+          {!loading && shownFiles.map(file => (
+            <DQFileRow
+              key={file.id}
+              file={file}
+              companyId={companyId}
+              applicationId={applicationId}
+              onAuditedDownload={handleAuditedDownload}
+              onOpenDriverUpload={openDriverUpload}
+              onDelete={setPendingDelete}
+              onSaveExpiration={saveExpiration}
+            />
+          ))}
         </Stack>
       </Card>
 

@@ -41,7 +41,19 @@ describe('Dossier bodies — accessibility', () => {
     it('DQFileTab has no jsdom axe violations with files listed', async () => {
         fs.getDocs.mockResolvedValue(snap([['f1', { ...DQ_FILE, expirationDate: '2999-01-01' }]]));
         const { container } = renderDq();
-        await screen.findByText(/Active \(2999-01-01\)/);
+        // The checklist above the list says it of the medical card too.
+        await screen.findByRole('button', { name: /^Delete Medical Card/ });
+        expect(screen.getAllByText('Valid until Jan 1, 2999')).toHaveLength(2);
+        expect((await axe(container)).violations).toEqual([]);
+    });
+
+    it('DQFileTab has no jsdom axe violations with a valid-until date being set', async () => {
+        fs.getDocs.mockResolvedValue(snap([['f1', { ...DQ_FILE, expirationDate: '2999-01-01' }]]));
+        const { container } = renderDq({
+            appData: { employers: [{ companyName: 'Prairie Line Freight', endDate: '', verification: { status: 'Sent' } }] },
+        });
+        fireEvent.click(await screen.findByRole('button', { name: /^Set the valid-until date of Medical Card/ }));
+        await screen.findByLabelText('Valid until');
         expect((await axe(container)).violations).toEqual([]);
     });
 

@@ -41,12 +41,15 @@ beforeEach(resetHarness);
 
 
 describe('DQFileTab — file listing and expiration status', () => {
-    it('offers the eleven frozen DQ file types with the first as default', async () => {
+    // Twelve since "CDL" joined after "Medical Card", so a renewed licence copy
+    // can be filed with its valid-until date; the first is still the default.
+    it('offers the twelve DQ file types with the first as default', async () => {
         renderDq();
         const select = await screen.findByLabelText('File Type');
         expect(select).toHaveValue('Application for Employment');
-        expect([...select.options]).toHaveLength(11);
+        expect([...select.options]).toHaveLength(12);
         expect([...select.options].map((o) => o.value)).toContain('Clearinghouse Report (Annual)');
+        expect([...select.options].map((o) => o.value).slice(3, 5)).toEqual(['Medical Card', 'CDL']);
     });
 
     it('shows the frozen empty state', async () => {
@@ -54,13 +57,18 @@ describe('DQFileTab — file listing and expiration status', () => {
         expect(await screen.findByText('No DQ files have been uploaded for this driver.')).toBeInTheDocument();
     });
 
+    // The words name the date and what it means ("EXPIRED (2020-01-01)" and
+    // "Active (2999-01-01)" before); the thresholds are unchanged. The checklist
+    // above says it of the medical card too, so the row is found in the list.
     it.each([
-        ['an already-past date', '2020-01-01', 'EXPIRED'],
-        ['a far-future date', '2999-01-01', 'Active'],
+        ['an already-past date', '2020-01-01', 'Expired on Jan 1, 2020'],
+        ['a far-future date', '2999-01-01', 'Valid until Jan 1, 2999'],
     ])('renders %s as text, never colour alone', async (_name, expirationDate, label) => {
         fs.getDocs.mockResolvedValue(snap([['f1', { ...DQ_FILE, expirationDate }]]));
         renderDq();
-        expect(await screen.findByText(`${label} (${expirationDate})`)).toBeInTheDocument();
+        await screen.findByRole('button', { name: 'Delete Medical Card: medcard.pdf' });
+        const list = screen.getByRole('heading', { name: 'Current DQ Files' }).parentElement;
+        expect(within(list).getByText(label)).toBeInTheDocument();
     });
 
     it('announces a load failure with the frozen message', async () => {

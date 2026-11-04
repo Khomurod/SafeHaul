@@ -78,6 +78,7 @@ export const firebaseFirestoreMock = () => ({
     deleteDoc: (...a) => fs.deleteDoc(...a),
     updateDoc: (...a) => fs.updateDoc(...a),
     serverTimestamp: () => 'SERVER_TIMESTAMP',
+    deleteField: () => 'DELETE_FIELD',
 });
 export const firebaseStorageMock = () => ({
     ref: (...a) => storageMocks.ref(...a),

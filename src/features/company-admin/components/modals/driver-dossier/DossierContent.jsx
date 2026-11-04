@@ -24,7 +24,8 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
  * downloads.
  *
  * Documents shows the driver's signing documents (`SigningDocumentsSection`)
- * above the uploaded-document gallery.
+ * above the uploaded-document gallery. The DQ File tab also takes the record
+ * (`appData`): its checklist reads the employers' verifications from it.
  */
 export function DossierContent({
     activeTab,
@@ -77,6 +78,7 @@ export function DossierContent({
                     companyId={companyId}
                     applicationId={driverId}
                     collectionName={collectionName}
+                    appData={appData}
                 />;
 
             case 'pev':

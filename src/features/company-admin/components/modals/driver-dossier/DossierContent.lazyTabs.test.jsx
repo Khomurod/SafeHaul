@@ -11,7 +11,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 
-const fx = vi.hoisted(() => ({ loaded: [], notesProps: null, signingProps: null }));
+const fx = vi.hoisted(() => ({ loaded: [], notesProps: null, signingProps: null, dqProps: null }));
 
 vi.mock('@features/company-admin/components/tabs/PEVTab', () => {
     fx.loaded.push('PEVTab');
@@ -24,7 +24,12 @@ vi.mock('@features/company-admin/components/tabs/NotesTab', () => ({
         return <p>Notes</p>;
     },
 }));
-vi.mock('@features/company-admin/components/tabs/DQFileTab', () => ({ DQFileTab: () => null }));
+vi.mock('@features/company-admin/components/tabs/DQFileTab', () => ({
+    DQFileTab: (props) => {
+        fx.dqProps = props;
+        return null;
+    },
+}));
 vi.mock('./tabs/ApplicationTab', () => ({ ApplicationTab: () => null }));
 vi.mock('./tabs/DocumentsTab', () => ({ DocumentsTab: () => <p>Uploaded documents</p> }));
 vi.mock('./tabs/SigningDocumentsSection', () => ({
@@ -40,6 +45,7 @@ afterEach(() => {
     cleanup();
     fx.notesProps = null;
     fx.signingProps = null;
+    fx.dqProps = null;
 });
 
 describe('the dossier tabs that load later', () => {
@@ -84,5 +90,15 @@ describe('the Documents tab', () => {
         const texts = [...document.querySelectorAll('p')].map((p) => p.textContent);
         expect(texts).toEqual(['Signing documents', 'Uploaded documents']);
         expect(fx.signingProps).toEqual({ companyId: 'co-1', recordId: 'lead-1', collectionName: 'leads' });
+    });
+});
+
+describe('the DQ File tab', () => {
+    it('takes the record already loaded, for its checklist\'s employers', () => {
+        const appData = { employers: [{ companyName: 'Prairie Line Freight' }] };
+        render(<DossierContent activeTab="dq" appData={appData} driverId="app-1" companyId="co-1" collectionName="applications" />);
+
+        expect(fx.dqProps).toEqual({ companyId: 'co-1', applicationId: 'app-1', collectionName: 'applications', appData });
+        expect(fx.dqProps.appData).toBe(appData);
     });
 });
