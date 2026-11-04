@@ -40,6 +40,8 @@ function exportFunctions(wanted) {
   if (wanted('getSigningLink')) exports.getSigningLink = require('./getSigningLink').getSigningLink;
   // A company user's approval emails the signer their sealed copy, once
   if (wanted('sendSignedDocumentCopy')) exports.sendSignedDocumentCopy = require('./signedCopyDelivery').sendSignedDocumentCopy;
+  // "Retry seal": a failed or unfinished seal is sealed again, from what the signer submitted
+  if (wanted('retrySealDocument')) exports.retrySealDocument = require('./sealRetry').retrySealDocument;
 
   // 2. Auth & User Management
   if (wanted('createPortalUser')) exports.createPortalUser = require('./hrAdmin').createPortalUser;
@@ -125,6 +127,8 @@ function exportFunctions(wanted) {
   if (wanted('exchangeApplicationInvite')) exports.exchangeApplicationInvite = require('./companyApplications').exchangeApplicationInvite;
   if (wanted('extractCompanyApplicationDocuments')) exports.extractCompanyApplicationDocuments = require('./companyApplications').extractCompanyApplicationDocuments;
   if (wanted('createPostApplicationSigningRequest')) exports.createPostApplicationSigningRequest = require('./postApplicationEdocs').createPostApplicationSigningRequest;
+  // Send to driver: a team member sends a post-application form from the dossier (the same document).
+  if (wanted('sendPostApplicationDocument')) exports.sendPostApplicationDocument = require('./sendPostApplicationDocument').sendPostApplicationDocument;
   // AI Field Assistant: authenticated, company-scoped PDF field-placement suggestions.
   // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).
   if (wanted('analyzeEdocFieldPlacement')) exports.analyzeEdocFieldPlacement = require('./edocFieldPlacement').analyzeEdocFieldPlacement;
@@ -220,6 +224,7 @@ function exportFunctions(wanted) {
   if (wanted('submitVerificationResponse')) exports.submitVerificationResponse = require('./employmentVerification').submitVerificationResponse;
   if (wanted('processVerificationReminders')) exports.processVerificationReminders = require('./employmentVerification').processVerificationReminders;
   if (wanted('recordManualVerificationResult')) exports.recordManualVerificationResult = require('./employmentVerification').recordManualVerificationResult;
+  if (wanted('recordVerificationAttempt')) exports.recordVerificationAttempt = require('./employmentVerification').recordVerificationAttempt;
   // PEV-BRK-3 companion: On-demand signed URL generation for PEV result PDFs
   if (wanted('getSignedPevUrl')) exports.getSignedPevUrl = require('./getSignedPevUrl').getSignedPevUrl;
   // Signed download URLs for secure_documents (e-signature envelopes)

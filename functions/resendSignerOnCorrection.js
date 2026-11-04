@@ -2,8 +2,9 @@
  * resendSignerOnCorrection.js — a corrected signing request goes out again.
  *
  * A request is sent once, when it is created (`notifySigner`, `notifySignerSMS`).
- * When Correct Document changes its email, phone or channels, the link is settled
- * again (`shared/signingLink.js`): a link that went to an email or phone the
+ * When Correct Document changes its email, phone or channels, or Send to driver
+ * turns a post-application form's channels on (`sendPostApplicationDocument.js`),
+ * the link is settled again (`shared/signingLink.js`): a link that went to an email or phone the
  * request no longer has is replaced, so the old link stops working, and the link
  * goes out on every channel whose contact it has not reached. Only an unsigned
  * request (`sent`) is sent again.
@@ -12,16 +13,8 @@ const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { admin } = require('./firebaseAdmin');
 const { emailSigningLink } = require('./notifySigner');
 const { textSigningLink } = require('./notifySignerSMS');
-const { emailOf, phoneOf, settleSigningLink } = require('./shared/signingLink');
+const { routeChanged, settleSigningLink } = require('./shared/signingLink');
 const db = admin.firestore();
-
-/** Whether a change touched where a request's link goes. */
-function routeChanged(before, after) {
-    return emailOf(before) !== emailOf(after)
-        || phoneOf(before) !== phoneOf(after)
-        || (before.sendEmail !== false) !== (after.sendEmail !== false)
-        || Boolean(before.sendSms) !== Boolean(after.sendSms);
-}
 
 exports.resendSignerOnCorrection = onDocumentUpdated(
     {

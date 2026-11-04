@@ -1,6 +1,7 @@
 /**
- * PEV — the request PDF as a stored file and as an email attachment, and both
- * the request and its result filed in the driver's DQ file.
+ * PEV — the request PDF as a stored file and as an email attachment, and the
+ * request, its result and its day-30 record of attempts filed in the driver's
+ * DQ file.
  *
  * Built once, when the request is sent, and kept at
  * `companies/{companyId}/{collection}/{recordId}/pev_requests/...`: the team can
@@ -135,6 +136,38 @@ async function fileResultInDq(recordRef, { path, employerName, fileName, uploade
     }
 }
 
+/**
+ * File the day-30 record of attempts (./attemptRecord.js) in the DQ file, as a
+ * result is filed: one record per request (`pev_attempts_<requestId>`), created
+ * once, so a second filing or one the team removed changes nothing.
+ *
+ * @returns {Promise<boolean>} whether the DQ file holds it
+ */
+async function fileAttemptRecordInDq(recordRef, { requestId, path, employerName, fileName }) {
+    const { FieldValue } = admin.firestore;
+    try {
+        await recordRef.collection('dq_files').doc(`pev_attempts_${requestId}`).create({
+            type: 'pev_attempts',
+            fileType: `PEV Attempt Record – ${employerName || 'Employer'}`,
+            label: 'PEV Attempt Record',
+            fileName,
+            storagePath: path,
+            url: null,
+            source: 'pev_attempts',
+            isSynced: true,
+            uploadedBy: 'pev_attempts',
+            uploadedAt: FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
+        });
+        return true;
+    } catch (error) {
+        if (isAlreadyExists(error)) return true;
+        logger.error('[PEV] The record of attempts could not be filed in the DQ file.', error);
+        return false;
+    }
+}
+
 module.exports = {
-    fileRequestInDq, fileResultInDq, requestPdfPath, resultPdfFilename, storeRequestPdf, reminderAttachments,
+    fileAttemptRecordInDq, fileRequestInDq, fileResultInDq, requestPdfPath, resultPdfFilename, storeRequestPdf,
+    reminderAttachments,
 };

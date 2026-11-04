@@ -59,7 +59,7 @@ erDiagram
 | `users` | `userId` | **read:** owner, super, staff · **create:** self · **update:** owner (no role/companyId) or super | HR/admin portal user profile |
 | `memberships` | auto | **read:** self, super, company admin of tenant · **create/update:** super only (company admins go through `createPortalUser`) · **delete:** super or company admin of tenant | Links `userId` ↔ `companyId` + role |
 | `notifications` | auto | **read/update/delete:** recipient · **create:** denied (server-only) | Unused: nothing writes or reads it |
-| `verification_requests` | token | **read:** super only · **write:** denied | PEV; all portal access via callables |
+| `verification_requests` | token | **read:** super only · **write:** denied | PEV; all portal access via callables. `attempts[]` is the authoritative log of every attempt (`{ kind, at, ok, by?, step?, method?, note?, recordedAt?, error? }`: sent, send_failed, reminder, opened, response, manual_result, no_response, and the call / fax / note `recordVerificationAttempt` adds, at most 50 of those), appended with `arrayUnion`; `attemptRecordPath` is the day-30 PDF of it (`…/pev_requests/PEV_ATTEMPTS_…`, also `dq_files/pev_attempts_<requestId>`). The employer row's `verification.history` mirrors a short entry (`attempt`, `ok`, `note`, `recordedBy`), never `error`, the token or an address |
 | `verification_requests/{token}/responses` | `responseId` | same as parent | PEV responses |
 | `analytics` | `docId` | **read:** super · **write:** denied | Platform analytics |
 | `system_settings` | `settingId` | **read, write:** super | Global settings |
@@ -126,6 +126,20 @@ A `fields` entry of `type: 'company_signature'` places the company's own signatu
 |-------|-------|
 | `companySignaturePath` | Storage path of the image, `secure_documents/{companyId}/originals/company-signatures/<name>.png\|.jpg\|.jpeg`, uploaded by the team. May be empty on a template (set per document); a sent request needs one, and a template auto-sent after an application is refused without one. Sealing draws it from here only (PNG or JPEG by its bytes) and fails `error_sealing` without a readable image of this company; it never deletes it. `getPublicEnvelope` replaces it with a one-hour `companySignatureUrl`; the path never reaches the signer, and a signer's value for the field is refused |
 | `signedCopy` | Server-written by `sendSignedDocumentCopy`, the team's approval to email the signer the sealed PDF: `{ state: 'sending' \| 'sent' \| 'failed', approvedBy, approvedByName, approvedAt, sentTo, sentAt?, messageId?, error? }` (`approvedAt`, `sentAt`: timestamps). Claimed in a transaction before the one send: `sent` refuses another, `sending` under ten minutes old refuses another, `failed` may be approved again. The record of who approved it; documents have no activity log |
+
+### A driver record's documents (`signing_requests`, `dq_files`)
+
+The dossier's Documents tab lists the requests linked to the record it shows, by one equality query on its link field (no composite index):
+
+| Field | Notes |
+|-------|-------|
+| `sourceApplicationId` | The application a request is for. Post-application forms write it, both from the thank-you page and from Send to driver; the template wizard writes it when the recruiter picked an applicant (while the recipient is still that applicant) |
+| `sourceLeadId` | The lead a request is for, when the recruiter picked a lead in the template wizard. A request carries one of the two at most; neither is a security boundary (the team may write any request field) |
+| `templateId` | The template it was made from; a required post-application form with no linked request carrying its template (but for someone's voided copy) shows as *Not started* |
+| id `postapp_<applicationId>_<templateId>` | A post-application form: one document per application and form, whoever makes it first (`functions/shared/postApplicationRequest.js`). `source`: `post_application_success` (thank-you page: `sendEmail`/`sendSms` false, `deliveryMethod: 'in_app_post_submit'`, `senderId: null`) or `post_application_team` (Send to driver: the flags, `deliveryMethod` and `senderId`/`senderName` of the team member). Send to driver on one made by the page turns the flags on and sets `deliveryMethod` and the sender |
+| `expiresAt` | When the link stops working. "Link expired" is derived in the browser (`status: 'sent'` and `expiresAt` past), never stored |
+| `sealAttempts` | Server-written by `retrySealDocument` ("Retry seal"), one entry per retry: `{ at, by, previousStatus: 'error_sealing' \| 'pending_seal', previousError }` (`at`: timestamp; `previousError`: the `errorLog` it cleared, or null). `sealDocument` seals when a request enters `pending_seal`, or when a new entry is added while it is there (a seal left unfinished), and only while the stored request is on that attempt. `errorLog` and `missingFields` are what the last failed seal wrote; a retry clears them |
+| `dq_files/signed_{requestId}` | Under the linked application or lead, written by `sealDocument` once the request is `signed` (`functions/sealedDocumentDq.js`): `{ type: 'signed_document', fileType, label, fileName, storagePath: 'secure_documents/{companyId}/completed/{requestId}_signed.pdf', url: null, source: 'signed_document', isSynced: true, signingRequestId, sha256Checksum, uploadedBy: 'e_docs', uploadedAt, createdAt, applicationId, applicantId, driverId, userId, ownerUserIds }`. The path of the one sealed PDF, never a copy. Created once (a repeat or a removed entry changes nothing); removing it on the DQ tab sets `removedAt`. Nothing is filed for a record missing in this company |
 
 ---
 

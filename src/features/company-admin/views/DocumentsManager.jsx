@@ -111,11 +111,10 @@ export default function DocumentsManager() {
         });
     }, [currentCompanyProfile?.id, isE2EEdocMock]);
 
-    // The template-send flow (wizard state, driver picker, prefill,
-    // executeTemplateSend) and the post-application forms configuration each
-    // moved to a feature hook. Both are called here, in this component, so
-    // every piece of state keeps exactly the lifetime it had when it was
-    // declared inline.
+    // The template-send flow (wizard state, the applicant and lead picker,
+    // prefill, executeTemplateSend) and the post-application forms configuration
+    // each moved to a feature hook, called here so every piece of state keeps
+    // exactly the lifetime it had when it was declared inline.
     const {
         showDriverPicker,
         setShowDriverPicker,
@@ -139,6 +138,7 @@ export default function DocumentsManager() {
         setPrefillValuesByGroupKey,
         editablePrefillPartition,
         companySignature,
+        linkedRecord,
         handleUseTemplate,
         handleQuickSelect,
         executeTemplateSend,
@@ -473,6 +473,7 @@ export default function DocumentsManager() {
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                     handleQuickSelect={handleQuickSelect}
+                    linkedRecord={linkedRecord}
                 />
             )}
 

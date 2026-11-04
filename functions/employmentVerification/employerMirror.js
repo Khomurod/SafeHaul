@@ -30,23 +30,30 @@ function recordRefOf(request) {
  *   null when the record or the employer could not be found
  */
 async function mirrorOntoEmployer(recordRef, identity, apply) {
-    return db.runTransaction(async (tx) => {
-        const snap = await tx.get(recordRef);
-        if (!snap.exists) return null;
-        const employers = [...(snap.data()?.employers || [])];
-        const target = resolveEmployerTarget(employers, identity);
-        const row = target ? employers[target.index] : null;
-        if (!row) return null;
-
-        const verification = { ...(row.verification || {}) };
-        verification.history = [...(verification.history || [])];
-        if (apply(verification, row) === false) {
-            return { index: target.index, employers, verification: row.verification || {}, written: false };
-        }
-        employers[target.index] = { ...row, verification };
-        tx.update(recordRef, { employers });
-        return { index: target.index, employers, verification, written: true };
-    });
+    return db.runTransaction((tx) => mirrorInTransaction(tx, recordRef, identity, apply));
 }
 
-module.exports = { mirrorOntoEmployer, recordRefOf };
+/**
+ * `mirrorOntoEmployer` inside a transaction the caller runs, for a caller that
+ * writes another document in the same commit. It reads the record and then
+ * writes it, so the caller's own reads come first.
+ */
+async function mirrorInTransaction(tx, recordRef, identity, apply) {
+    const snap = await tx.get(recordRef);
+    if (!snap.exists) return null;
+    const employers = [...(snap.data()?.employers || [])];
+    const target = resolveEmployerTarget(employers, identity);
+    const row = target ? employers[target.index] : null;
+    if (!row) return null;
+
+    const verification = { ...(row.verification || {}) };
+    verification.history = [...(verification.history || [])];
+    if (apply(verification, row) === false) {
+        return { index: target.index, employers, verification: row.verification || {}, written: false };
+    }
+    employers[target.index] = { ...row, verification };
+    tx.update(recordRef, { employers });
+    return { index: target.index, employers, verification, written: true };
+}
+
+module.exports = { mirrorInTransaction, mirrorOntoEmployer, recordRefOf };

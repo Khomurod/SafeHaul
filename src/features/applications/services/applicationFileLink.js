@@ -11,17 +11,20 @@
 import { httpsCallable } from 'firebase/functions';
 import { auth, functions } from '@lib/firebase';
 import { isPevFilePath } from './pevFilePath';
+import { isSealedDocumentPath } from './sealedDocumentPath';
 
 /**
  * @param {string} storagePath e.g. `companies/{id}/applications/guest_uploads/…`
  * @returns {Promise<string>} a URL that opens the file
  */
 export async function signedApplicationFileUrl(storagePath) {
-    // A verification's request PDF and its result live in the PEV folders, which `getSignedPevUrl` signs.
-    // Both names stay literal: `scripts/check-callable-contract.mjs` finds callables by them.
-    const resign = isPevFilePath(storagePath)
-        ? httpsCallable(functions, 'getSignedPevUrl')
-        : httpsCallable(functions, 'getSignedApplicationFileUrl');
+    // A verification's request PDF and its result live in the PEV folders, which `getSignedPevUrl` signs;
+    // a sealed e-document filed in the DQ file, in `secure_documents/`, which `getSignedDocumentUrl` signs.
+    // Every name stays literal: `scripts/check-callable-contract.mjs` finds callables by them.
+    let resign;
+    if (isPevFilePath(storagePath)) resign = httpsCallable(functions, 'getSignedPevUrl');
+    else if (isSealedDocumentPath(storagePath)) resign = httpsCallable(functions, 'getSignedDocumentUrl');
+    else resign = httpsCallable(functions, 'getSignedApplicationFileUrl');
     const { data } = await resign({ storagePath });
     if (!data?.url) throw new Error('No link was returned for this file.');
     return data.url;

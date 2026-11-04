@@ -17,6 +17,8 @@
  *  - ./employmentVerification/responses.js      — verification response processing
  *  - ./employmentVerification/reminders.js      — scheduled reminders / 30-day no-response
  *  - ./employmentVerification/manualResult.js   — a result the company uploaded ("Upload Result")
+ *  - ./employmentVerification/manualAttempt.js  — a call, fax or note the company recorded ("Record attempt")
+ *  - ./employmentVerification/attemptLog.js     — the request's log of every attempt, and its row entries
  *  - ./employmentVerification/requestLifecycle.js — which requests are live, and closing them
  *  - ./employmentVerification/employerMirror.js — the employer row's copy of a verification
  *  - ./employmentVerification/emailTemplates.js — email HTML builders
@@ -29,3 +31,4 @@ exports.getVerificationRequest = require('./employmentVerification/portal').getV
 exports.submitVerificationResponse = require('./employmentVerification/responses').submitVerificationResponse;
 exports.processVerificationReminders = require('./employmentVerification/reminders').processVerificationReminders;
 exports.recordManualVerificationResult = require('./employmentVerification/manualResult').recordManualVerificationResult;
+exports.recordVerificationAttempt = require('./employmentVerification/manualAttempt').recordVerificationAttempt;

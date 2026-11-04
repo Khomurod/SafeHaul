@@ -16,6 +16,7 @@ const { employerNameOf } = require("../shared/employerIdentity");
 const { mirrorOntoEmployer } = require("./employerMirror");
 const { fileResultInDq } = require("./requestAttachment");
 const { LIVE_STATUSES, closeRequests, requestsForEmployer } = require("./requestLifecycle");
+const { attemptEntry, withAttempt } = require("./attemptLog");
 
 const ALLOWED_COLLECTIONS = ['applications', 'leads'];
 
@@ -83,13 +84,13 @@ exports.recordManualVerificationResult = onCall({ cors: true }, async (request) 
     let closedRequests = 0;
     try {
         const requests = await requestsForEmployer(record, mirrored.employers, mirrored.index);
-        closedRequests = await closeRequests(requests, [...LIVE_STATUSES, 'no_response'], {
+        closedRequests = await closeRequests(requests, [...LIVE_STATUSES, 'no_response'], withAttempt({
             status: 'completed',
             completedAt: now,
             completedBy: 'manual_result',
             manualResultPath: storagePath,
             manualResultBy: request.auth.uid,
-        });
+        }, attemptEntry('manual_result', { at: now, by: request.auth.uid })));
     } catch (error) {
         logger.error('[PEV] The uploaded result was recorded, but its request could not be closed.', error);
     }

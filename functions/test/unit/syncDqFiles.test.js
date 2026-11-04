@@ -17,6 +17,11 @@ jest.mock('../../shared/companyAccess', () => ({
     assertCompanyAccessForRequest: (...args) => mockAssertCompanyAccessForRequest(...args),
 }));
 
+const mockFileSealed = jest.fn();
+jest.mock('../../sealedDocumentDq', () => ({
+    fileSealedDocumentInDq: (...args) => mockFileSealed(...args),
+}));
+
 // `mock`-prefixed so the jest.mock factory may reference them (jest hoisting rule).
 const mockDocs = new Map();
 const mockWrites = [];
@@ -27,12 +32,14 @@ jest.mock('../../firebaseAdmin', () => {
         get: async () => ({ exists: mockDocs.has(path), data: () => mockDocs.get(path) }),
         set: async (data, options) => { mockWrites.push({ path, data, options }); },
     });
+    const docsUnder = (path) => [...mockDocs.entries()]
+        .filter(([key]) => key.startsWith(`${path}/`) && !key.slice(path.length + 1).includes('/'))
+        .map(([key, data]) => ({ id: key.slice(path.length + 1), data: () => data }));
     const colRef = (path) => ({
         doc: (id) => docRef(`${path}/${id}`),
-        get: async () => ({
-            docs: [...mockDocs.entries()]
-                .filter(([key]) => key.startsWith(`${path}/`) && !key.slice(path.length + 1).includes('/'))
-                .map(([key, data]) => ({ id: key.slice(path.length + 1), data: () => data })),
+        get: async () => ({ docs: docsUnder(path) }),
+        where: (field, op, value) => ({
+            get: async () => ({ docs: docsUnder(path).filter((doc) => op === '==' && doc.data()?.[field] === value) }),
         }),
     });
     return {
@@ -54,6 +61,7 @@ beforeEach(() => {
     mockAssertCompanyAccessForRequest.mockResolvedValue(undefined);
     mockDocs.clear();
     mockWrites.length = 0;
+    mockFileSealed.mockResolvedValue(true);
 });
 
 it('requires a signed-in caller of the company, and names no other collection', async () => {
@@ -147,4 +155,64 @@ it('matches a record that holds only the link of an upload that has its path too
 
     await expect(ask()).resolves.toEqual({ filed: 0 });
     expect(mockWrites).toEqual([]);
+});
+
+// A sealed document is filed by `sealDocument` once it is signed; one whose
+// filing failed, or that was sealed before documents were filed, is filed when
+// the DQ tab opens. A removed entry stays removed.
+describe('sealed documents linked to the record', () => {
+    const SIGNING = 'companies/co1/signing_requests';
+    const signed = (id, extra = {}) => mockDocs.set(`${SIGNING}/${id}`, {
+        status: 'signed',
+        sourceApplicationId: 'app1',
+        signedPdfUrl: `secure_documents/co1/completed/${id}_signed.pdf`,
+        sha256Checksum: `sum-${id}`,
+        title: 'W-9',
+        ...extra,
+    });
+
+    it('files a signed one the DQ file lacks, at the sealed PDF, and counts it', async () => {
+        mockDocs.set(APP, { driverId: 'driver-9' });
+        signed('req-1');
+
+        await expect(ask()).resolves.toEqual({ filed: 1 });
+        expect(mockFileSealed).toHaveBeenCalledWith('co1', 'req-1', expect.objectContaining({ sourceApplicationId: 'app1' }), {
+            storagePath: 'secure_documents/co1/completed/req-1_signed.pdf',
+            sha256Checksum: 'sum-req-1',
+        });
+    });
+
+    it('leaves one already filed, kept or removed, one not signed, and one whose stored path is not its sealed PDF', async () => {
+        mockDocs.set(APP, { driverId: 'driver-9' });
+        signed('kept');
+        mockDocs.set(`${APP}/dq_files/signed_kept`, { storagePath: 'secure_documents/co1/completed/kept_signed.pdf' });
+        signed('removed');
+        mockDocs.set(`${APP}/dq_files/signed_removed`, { removedAt: 'then' });
+        signed('waiting', { status: 'sent' });
+        signed('elsewhere', { signedPdfUrl: 'secure_documents/co2/completed/elsewhere_signed.pdf' });
+        signed('other-record', { sourceApplicationId: 'app2' });
+
+        await expect(ask()).resolves.toEqual({ filed: 0 });
+        expect(mockFileSealed).not.toHaveBeenCalled();
+    });
+
+    it("files a lead's by its lead link", async () => {
+        mockDocs.set('companies/co1/leads/app1', {});
+        signed('lead-doc', { sourceApplicationId: undefined, sourceLeadId: 'app1' });
+
+        await expect(ask({ collectionName: 'leads' })).resolves.toEqual({ filed: 1 });
+        expect(mockFileSealed).toHaveBeenCalledWith('co1', 'lead-doc', expect.anything(), expect.anything());
+    });
+
+    it('still answers for the uploads when the signing requests cannot be read', async () => {
+        mockDocs.set(APP, { 'cdl-front': CDL });
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockFileSealed.mockRejectedValue(new Error('unavailable'));
+        signed('req-1');
+        try {
+            await expect(ask()).resolves.toEqual({ filed: 1 });
+        } finally {
+            errors.mockRestore();
+        }
+    });
 });

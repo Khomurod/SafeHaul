@@ -9,10 +9,11 @@ import { ConfirmDialog } from '@design-system/patterns';
 import { Badge, Button, DataTable, defineTableColumns } from '@/design-system/components';
 import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { SentDocumentDetailsDialog } from '@features/company-admin/components/documents/SentDocumentDetailsDialog';
-import { deliveryFailure, hasDeliveryFailure } from '@features/company-admin/utils/documentsWorkspace';
+import { deliveryFailure, formatSentDate, hasDeliveryFailure } from '@features/company-admin/utils/documentsWorkspace';
 import { copySigningLink } from '@features/signing/utils/copySigningLink';
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { useSignedCopySend } from '@features/signing/hooks/useSignedCopySend';
+import { useSealRetry } from '@features/signing/hooks/useSealRetry';
 import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
 import { SignedCopyButton, SignedCopyDialog, SignedCopyStatus } from './SignedCopy';
 
@@ -42,13 +43,6 @@ const STATUS_PRESENTATION = {
  */
 const PAGE_SIZE = 25;
 
-/** "Oct 23, 2026", the date the request was sent, or null without one. */
-function formatSentDate(createdAt) {
-    if (typeof createdAt?.seconds !== 'number') return null;
-    return new Date(createdAt.seconds * 1000)
-        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 /**
  * Company-side sent-documents table.
  *
@@ -63,9 +57,9 @@ function formatSentDate(createdAt) {
  * when signed, Copy Link when sent, Review/View details otherwise; a signed
  * document with a company signature offers Send signed copy instead until its
  * copy is sent (`useSignedCopySend`), and says under its status where the copy
- * stands. Correct and Void live in the details dialog, not in the rows, with
- * their callable/Firestore contracts, confirmation dialog, toasts and
- * per-document busy states.
+ * stands. Correct, Void and Retry seal (`useSealRetry`, after the failure's
+ * reason) live in the details dialog, with their callable/Firestore contracts,
+ * confirmation dialog, toasts and per-document busy states.
  */
 export default function EnvelopeHistory({
     companyId,
@@ -90,6 +84,7 @@ export default function EnvelopeHistory({
     const isMobile = useIsMobile();
     const quickActionSize = isMobile ? 'lg' : 'sm';
     const signedCopy = useSignedCopySend({ companyId, showSuccess });
+    const sealRetry = useSealRetry({ companyId, showSuccess, showError });
 
     // Only subscribes when the parent is not already supplying the data.
     const ownSubscription = useSigningRequests(documents ? null : companyId);
@@ -467,6 +462,7 @@ export default function EnvelopeHistory({
                 onDownload={(path) => { setDetailsDocument(null); handleDownload(path); }}
                 signedCopyRecord={detailsDocument ? signedCopy.recordFor(detailsDocument) : null}
                 onSendSignedCopy={(docItem) => { setDetailsDocument(null); signedCopy.request(docItem); }}
+                {...sealRetry.dialogProps(detailsDocument, () => setDetailsDocument(null))}
             />
 
             <SignedCopyDialog

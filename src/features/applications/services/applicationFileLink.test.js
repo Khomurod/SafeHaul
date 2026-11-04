@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const callables = vi.hoisted(() => ({ getSignedApplicationFileUrl: vi.fn(), getSignedPevUrl: vi.fn() }));
+const callables = vi.hoisted(() => ({
+    getSignedApplicationFileUrl: vi.fn(),
+    getSignedPevUrl: vi.fn(),
+    getSignedDocumentUrl: vi.fn(),
+}));
 const session = vi.hoisted(() => ({ auth: { currentUser: null } }));
 
 vi.mock('firebase/functions', () => ({ httpsCallable: (_functions, name) => callables[name] }));
@@ -19,6 +23,7 @@ beforeEach(() => {
     vi.resetAllMocks();
     callables.getSignedApplicationFileUrl.mockResolvedValue({ data: { url: 'https://signed.test/upload' } });
     callables.getSignedPevUrl.mockResolvedValue({ data: { url: 'https://signed.test/pev' } });
+    callables.getSignedDocumentUrl.mockResolvedValue({ data: { success: true, url: 'https://signed.test/sealed' } });
     session.auth.currentUser = null;
 });
 
@@ -43,6 +48,24 @@ describe('signedApplicationFileUrl', () => {
         await expect(signedApplicationFileUrl(path)).resolves.toBe('https://signed.test/pev');
         expect(callables.getSignedPevUrl).toHaveBeenCalledWith({ storagePath: path });
         expect(callables.getSignedApplicationFileUrl).not.toHaveBeenCalled();
+    });
+
+    it('asks the e-documents signer for a sealed document filed in the DQ file', async () => {
+        const sealed = 'secure_documents/co-1/completed/req-1_signed.pdf';
+        await expect(signedApplicationFileUrl(sealed)).resolves.toBe('https://signed.test/sealed');
+        expect(callables.getSignedDocumentUrl).toHaveBeenCalledWith({ storagePath: sealed });
+        expect(callables.getSignedApplicationFileUrl).not.toHaveBeenCalled();
+        expect(callables.getSignedPevUrl).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        'secure_documents/co-1/originals/offer.pdf',
+        'secure_documents/co-1/signatures/req-1_sig.png',
+        'secure_documents/co-1/completed/nested/req-1_signed.pdf',
+    ])('sends any other e-documents path nowhere special: %s', async (path) => {
+        await signedApplicationFileUrl(path);
+        expect(callables.getSignedDocumentUrl).not.toHaveBeenCalled();
+        expect(callables.getSignedApplicationFileUrl).toHaveBeenCalledWith({ storagePath: path });
     });
 
     it('fails when no link comes back', async () => {

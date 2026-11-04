@@ -69,10 +69,10 @@ vi.mock('uuid', () => ({
         return `token-${fx.tokens}`;
     },
 }));
-// The wizard's lead picker opens with it; here it finds nobody.
-vi.mock('@features/company-admin/hooks/pickerLeads', () => ({
-    findPickerLeads: async () => [],
-    matchPickerLeads: () => [],
+// The wizard's applicant and lead picker opens with it; here it finds nobody.
+vi.mock('@features/company-admin/hooks/pickerRecords', () => ({
+    findPickerRecords: async () => [],
+    matchPickerRecords: () => [],
 }));
 
 import { useTemplateSendFlow } from '@features/company-admin/hooks/useTemplateSendFlow';

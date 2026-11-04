@@ -125,16 +125,16 @@ test.describe('E-Doc guided send flow', () => {
     await expect(dialog.getByRole('button', { name: /Send Document/ })).toHaveCount(0);
   });
 
-  test('searches and quick-selects a lead on the recipient step', async ({ page }) => {
+  test('searches applicants and leads on the recipient step', async ({ page }) => {
     await openWizard(page);
 
     const dialog = wizard(page);
-    await expect(dialog.getByText('Or choose an existing driver or lead')).toBeVisible();
-    const search = dialog.getByLabel('Search leads');
-    await expect(search).toHaveAttribute('placeholder', 'Search leads...');
+    await expect(dialog.getByText('Or choose an existing applicant or lead')).toBeVisible();
+    const search = dialog.getByLabel('Search applicants and leads');
+    await expect(search).toHaveAttribute('placeholder', 'Search applicants and leads...');
 
     await search.fill('zzz-no-such-lead');
-    await expect(dialog.getByText('No leads found.')).toBeVisible();
+    await expect(dialog.getByText('No applicants or leads found.')).toBeVisible();
   });
 
   test('keeps the dialog keyboard navigable and closes on Escape', async ({ page }, testInfo) => {

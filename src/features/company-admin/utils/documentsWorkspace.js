@@ -259,3 +259,10 @@ export function formatTimestamp(value) {
     if (millis === null) return '—';
     return new Date(millis).toLocaleDateString();
 }
+
+/** "Oct 23, 2026", the date a request was sent (the history table's Date sent), or null without one. */
+export function formatSentDate(createdAt) {
+    if (typeof createdAt?.seconds !== 'number') return null;
+    return new Date(createdAt.seconds * 1000)
+        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}

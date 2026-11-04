@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { Icon, Loader2 } from '@design-system/icons';
 import { ApplicationTab } from './tabs/ApplicationTab';
 import { DocumentsTab } from './tabs/DocumentsTab';
+import { SigningDocumentsSection } from './tabs/SigningDocumentsSection';
 import { DQFileTab } from '@features/company-admin/components/tabs/DQFileTab';
 
 // The tabs that load when opened, each from its own file: through a shared
@@ -21,6 +22,9 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
  * The lazy-tab loading fallback is a `role="status"` region, so switching to
  * Previous Employment, Activity or Notes is announced while the chunk
  * downloads.
+ *
+ * Documents shows the driver's signing documents (`SigningDocumentsSection`)
+ * above the uploaded-document gallery.
  */
 export function DossierContent({
     activeTab,
@@ -53,11 +57,20 @@ export function DossierContent({
                 />;
 
             case 'documents':
-                return <DocumentsTab
-                    appData={appData}
-                    fileUrls={fileUrls}
-                    filesPending={filesPending}
-                />;
+                return (
+                    <div className="space-y-ds-8">
+                        <SigningDocumentsSection
+                            companyId={companyId}
+                            recordId={driverId}
+                            collectionName={collectionName}
+                        />
+                        <DocumentsTab
+                            appData={appData}
+                            fileUrls={fileUrls}
+                            filesPending={filesPending}
+                        />
+                    </div>
+                );
 
             case 'dq':
                 return <DQFileTab

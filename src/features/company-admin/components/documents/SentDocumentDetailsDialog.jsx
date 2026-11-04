@@ -1,5 +1,5 @@
 import React, { useId, useRef } from 'react';
-import { Icon, Ban, Copy, Download, Edit3, X } from '@design-system/icons';
+import { Icon, Ban, Copy, Download, Edit3, RefreshCw, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -7,6 +7,8 @@ import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { SignedCopyButton, SignedCopyStatus } from '@features/signing/components/SignedCopy';
 import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
+import { canRetrySeal, sealLeftUnfinished, sealStuckAt } from '@features/signing/utils/sealRetry';
+import { useRerenderAt } from '@shared/hooks/useRerenderAt';
 
 /**
  * Sent-document details.
@@ -14,7 +16,10 @@ import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerender
  * Read-only summary plus the same four actions the table row offers, so the
  * dialog never becomes a second source of truth for what can be done. A
  * document with a company signature also says where its signed copy stands
- * (`signedCopyRecord`) and offers Send signed copy where the row does.
+ * (`signedCopyRecord`) and offers Send signed copy where the row does. A
+ * document whose seal failed, or was left unfinished for ten minutes, offers
+ * Retry seal (`onRetrySeal`, busy while `retryingSeal`): the row's Review opens
+ * this dialog, where the reason it failed is shown first.
  *
  * SECURITY: the signing token is never rendered here. "Copy Link" calls the
  * authenticated `getSigningLink` callable exactly as the row action does; the
@@ -50,12 +55,16 @@ export function SentDocumentDetailsDialog({
     copying = false,
     signedCopyRecord = null,
     onSendSignedCopy,
+    onRetrySeal,
+    retryingSeal = false,
 }) {
     const rawId = useId().replace(/:/g, '');
     const titleId = `sent-document-title-${rawId}`;
     const closeRef = useRef(null);
     // A copy still being sent turns into Try again when its claim lapses.
     useRerenderWhenClaimsExpire([signedCopyRecord]);
+    // A seal still running when the dialog opened offers Retry seal once it counts as unfinished.
+    useRerenderAt(sealStuckAt(document));
 
     if (!document) return null;
 
@@ -65,6 +74,7 @@ export function SentDocumentDetailsDialog({
     const deliveryFailed = failure !== null;
     const sealFailed = status === 'error_sealing';
     const offersSignedCopy = Boolean(onSendSignedCopy) && canSendSignedCopy(document, signedCopyRecord);
+    const offersSealRetry = Boolean(onRetrySeal) && canRetrySeal(document);
 
     return (
         <Modal
@@ -116,6 +126,12 @@ export function SentDocumentDetailsDialog({
                                 || 'No further detail was recorded.'}
                         </Notice>
                     )}
+                    {offersSealRetry && sealLeftUnfinished(document) && (
+                        <Notice announce="polite" tone="warning" size="sm" title="Sealing did not finish" titleAs="h3">
+                            This document was signed more than ten minutes ago and is still not sealed. Seal it
+                            again: the signer&apos;s answers stay exactly as they submitted them.
+                        </Notice>
+                    )}
                 </Stack>
             </div>
 
@@ -150,6 +166,11 @@ export function SentDocumentDetailsDialog({
                         {status === 'sent' && (
                             <Button variant="danger" onClick={() => onVoid(document)}>
                                 <Icon icon={Ban} size="sm" /> Void
+                            </Button>
+                        )}
+                        {offersSealRetry && (
+                            <Button variant="primary" loading={retryingSeal} onClick={() => onRetrySeal(document)}>
+                                {!retryingSeal && <Icon icon={RefreshCw} size="sm" />} Retry seal
                             </Button>
                         )}
                     </>

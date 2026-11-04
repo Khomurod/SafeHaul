@@ -1,0 +1,18 @@
+{
+  "first_name": "firstName",
+  "middle_name": "middleName",
+  "last_name": "lastName",
+  "suffix": "suffix",
+  "email": "email",
+  "address": "street",
+  "street": "street",
+  "city": "city",
+  "state": "state",
+  "zip": "zip",
+  "dob": "dob",
+  "cdl_number": "cdlNumber",
+  "cdl_state": "cdlState",
+  "cdl_class": "cdlClass",
+  "cdl_expiration": "cdlExpiration",
+  "med_card_expiration": "medCardExpiration"
+}

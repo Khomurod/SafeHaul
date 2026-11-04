@@ -66,6 +66,12 @@ const renderTab = (employers = EMPLOYERS()) => render(
   />,
 );
 
+/** The employer list's own items; a row with history also holds a short list of its attempts. */
+const employerRows = () => {
+  const [employerList] = screen.getAllByRole('list');
+  return within(employerList).getAllByRole('listitem').filter((item) => item.parentElement === employerList);
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   dataMock.value = { currentCompanyProfile: {} };
@@ -101,7 +107,7 @@ describe('PEVTab structure and naming', () => {
     renderTab();
     // A bare <div> grid never told assistive technology how many employers
     // there were.
-    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(employerRows()).toHaveLength(3);
   });
 
   it('keeps heading order without skipping a level', () => {
@@ -127,7 +133,7 @@ describe('PEVTab structure and naming', () => {
     renderTab();
     // Status must never be carried by colour alone. Scoped to the employer
     // list, because "Completed" is also a summary-card label.
-    const rows = screen.getAllByRole('listitem');
+    const rows = employerRows();
     expect(within(rows[0]).getByText('Not Started')).toBeInTheDocument();
     expect(within(rows[1]).getByText('Sent')).toBeInTheDocument();
     expect(within(rows[2]).getByText('Completed')).toBeInTheDocument();

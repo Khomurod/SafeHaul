@@ -3,7 +3,7 @@
  * suites.
  *
  * It implements only what the vault actually uses — document get/update with dot
- * paths and `FieldValue.delete()`, `create` (refused when the document exists),
+ * paths, `FieldValue.delete()` and `arrayUnion`, `create` (refused when the document exists),
  * collection and collection-group reads,
  * `add`, `orderBy(...).limit(...)`, `select(...)`, and the transaction shape the
  * shared rate limiter needs. Everything else is deliberately absent so a test
@@ -11,6 +11,7 @@
  * than passing against a fiction.
  */
 
+const { isDeepStrictEqual } = require('util');
 const { assertStorableValue } = require('./firestoreValueRules');
 
 const DELETE_SENTINEL = { __delete: true };
@@ -40,6 +41,13 @@ function setPath(target, dotted, value) {
     // mock that stored the sentinel verbatim would silently never rate-limit.
     if (value && typeof value === 'object' && typeof value.__increment === 'number') {
         cursor[last] = (typeof cursor[last] === 'number' ? cursor[last] : 0) + value.__increment;
+        return;
+    }
+    // `FieldValue.arrayUnion` adds the elements the array does not already hold.
+    if (value && typeof value === 'object' && Array.isArray(value.__arrayUnion)) {
+        const current = Array.isArray(cursor[last]) ? cursor[last] : [];
+        const added = value.__arrayUnion.filter((item) => !current.some((held) => isDeepStrictEqual(held, item)));
+        cursor[last] = [...current, ...added];
         return;
     }
     cursor[last] = value;
@@ -197,6 +205,7 @@ function createFirestoreMock(seed = {}, options = {}) {
                 serverTimestamp: () => '__server_timestamp__',
                 delete: () => DELETE_SENTINEL,
                 increment: (amount) => ({ __increment: amount }),
+                arrayUnion: (...items) => ({ __arrayUnion: items }),
             },
             Timestamp: {
                 now: () => ({ toMillis: () => Date.now() }),

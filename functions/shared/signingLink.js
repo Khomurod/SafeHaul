@@ -34,6 +34,18 @@ function linkSentTo(data, sentAs = data) {
 }
 
 /**
+ * Whether a change from `before` to `after` touched where a request's link goes:
+ * its email, its phone or its channels. Only such a change makes
+ * `resendSignerOnCorrection` settle the link again.
+ */
+function routeChanged(before, after) {
+    return emailOf(before) !== emailOf(after)
+        || phoneOf(before) !== phoneOf(after)
+        || (before.sendEmail !== false) !== (after.sendEmail !== false)
+        || Boolean(before.sendSms) !== Boolean(after.sendSms);
+}
+
+/**
  * What request `data` needs, given where its link went (`sentTo`): `replace`
  * when that was an email or phone the request no longer has, and the channels
  * whose contact the link has not reached.
@@ -83,4 +95,4 @@ async function settleSigningLink(tx, ref, data, { send = false, sentAs = data } 
     return { accessToken, email, sms, emailHeldOldLink: work.replace && sentTo.email === emailOf(data) };
 }
 
-module.exports = { emailOf, phoneOf, linkSentTo, linkWork, settleSigningLink };
+module.exports = { emailOf, phoneOf, linkSentTo, linkWork, routeChanged, settleSigningLink };

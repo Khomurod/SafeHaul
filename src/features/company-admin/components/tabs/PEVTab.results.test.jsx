@@ -253,9 +253,10 @@ describe('PEVTab verification history', () => {
     renderTab();
     fireEvent.click(screen.getByRole('button', { name: /View History/i }));
 
-    expect(screen.getByText('Verification History')).toBeInTheDocument();
-    expect(screen.getByText('Sent via Portal')).toBeInTheDocument();
-    expect(screen.getByText(/Sent to: hr@legacy\.test \(Email\)/)).toBeInTheDocument();
+    // Scoped to the dialog: the card's short attempt list names the entry too.
+    const dialog = screen.getByRole('dialog', { name: 'Verification History' });
+    expect(within(dialog).getByText('Sent via Portal')).toBeInTheDocument();
+    expect(within(dialog).getByText(/Sent to: hr@legacy\.test \(Email\)/)).toBeInTheDocument();
   });
 
   it('shows the frozen empty copy when there is no history', () => {

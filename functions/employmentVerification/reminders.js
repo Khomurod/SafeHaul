@@ -7,6 +7,11 @@
  * failed, that a newer request replaced, or whose result is in is never
  * reminded or marked. Each status write moves only a request that is still
  * live, so an answer that lands while a reminder is being sent stays completed.
+ *
+ * Every reminder, sent or not, and the mark go into the request's attempt log
+ * (./attemptLog.js); a reminder also onto the employer row. A reminder that did
+ * not go out leaves the count where it was, so the next run tries again. The
+ * mark also prints the log as a PDF filed in the DQ file (./attemptRecord.js).
  */
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db } = require("../firebaseAdmin");
@@ -18,6 +23,38 @@ const {
 } = require("./notifications");
 const { LIVE_STATUSES, requestIdOf, updateWhileStatus } = require("./requestLifecycle");
 const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
+const { attemptEntry, mirrorAttempt, recordAttempt, withAttempt } = require("./attemptLog");
+const { fileAttemptRecord } = require("./attemptRecord");
+
+/** The row status day 30 writes. */
+const NO_RESPONSE_STATUS = 'No Response (Good Faith Documented)';
+
+/**
+ * Emails one reminder and records it, whether it went out or not.
+ *
+ * @returns {Promise<boolean>} whether it went out
+ */
+async function sendReminder(ref, v, reminder, emailParams) {
+    try {
+        await sendReminderEmail(v.companyId, v.employerEmail, emailParams, reminder.type, v.applicantName, v.requestPdfPath);
+    } catch (error) {
+        logger.error(`[PEV Reminders] A ${reminder.type} did not go out; the next run tries again.`, error?.message);
+        const failed = attemptEntry('reminder', { ok: false, step: reminder.count, error });
+        await recordAttempt(ref, failed);
+        await mirrorAttempt(v, failed);
+        return false;
+    }
+    const sent = attemptEntry('reminder', { step: reminder.count });
+    const moved = await updateWhileStatus(ref, LIVE_STATUSES, withAttempt({
+        reminderCount: reminder.count,
+        lastReminderAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: 'reminder_sent',
+    }, sent));
+    // Answered while the email went out: the request stays as it is, the email is still on the record.
+    if (!moved) await recordAttempt(ref, sent);
+    await mirrorAttempt(v, sent);
+    return true;
+}
 
 // ============================================================
 // 5. AUTOMATED REMINDERS (Scheduled — runs every 24 hours)
@@ -45,14 +82,13 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
             const daysSinceSent = Math.floor((Date.now() - v.createdAt.toMillis()) / (1000 * 60 * 60 * 24));
             const token = doc.id;
 
-            // Determine base URL
-            let baseUrl = 'https://app.safehaul.io';
+            // The company: its app URL for the links, its team for the record of attempts.
+            let company = {};
             try {
                 const companyDoc = await db.collection('companies').doc(v.companyId).get();
-                if (companyDoc.exists) {
-                    baseUrl = companyDoc.data().appUrl || baseUrl;
-                }
+                if (companyDoc.exists) company = companyDoc.data() || {};
             } catch (e) { /* use default */ }
+            const baseUrl = company.appUrl || 'https://app.safehaul.io';
 
             const deadlineDate = v.expiresAt ? new Date(v.expiresAt.toMillis()).toISOString().split('T')[0] : 'N/A';
             const emailParams = {
@@ -68,20 +104,22 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
             try {
                 if (daysSinceSent >= 30) {
                     // Mark as no_response — document good-faith effort
-                    const marked = await updateWhileStatus(doc.ref, LIVE_STATUSES, {
+                    const marked = await updateWhileStatus(doc.ref, LIVE_STATUSES, withAttempt({
                         status: 'no_response',
                         markedNoResponseAt: admin.firestore.FieldValue.serverTimestamp(),
-                    });
+                    }, attemptEntry('no_response')));
                     if (!marked) continue;
 
                     // Update application record; a result already on the row stays.
-                    const mirrored = await updateApplicationVerificationStatus(v, 'No Response (Good Faith Documented)', token);
+                    const mirrored = await updateApplicationVerificationStatus(v, NO_RESPONSE_STATUS, token);
 
-                    // Notify the sender in the bell, then the carrier by email, unless
-                    // the row holds the result. The bell first: it needs no email set up.
+                    // Notify the sender in the bell, file the record of attempts, then
+                    // tell the carrier by email, unless the row holds the result. The
+                    // bell and the record first: neither needs email set up.
                     if (mirrored !== 'kept_completed') {
                         await notifyRequestSender(v, token, 'no_response')
                             .catch((error) => logger.error(`[PEV Reminders] The sender was not notified for request ${requestIdOf(v, token)}:`, error));
+                        await fileAttemptRecord(doc.ref, token, company, NO_RESPONSE_STATUS);
                         await notifyCarrierNoResponse(v);
                     }
 
@@ -93,13 +131,7 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
                     : daysSinceSent >= 15 && v.reminderCount < 2 ? { type: 'second_reminder', count: 2 }
                         : daysSinceSent >= 5 && v.reminderCount < 1 ? { type: 'first_reminder', count: 1 }
                             : null;
-                if (reminder && v.employerEmail) {
-                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, reminder.type, v.applicantName, v.requestPdfPath);
-                    await updateWhileStatus(doc.ref, LIVE_STATUSES, {
-                        reminderCount: reminder.count,
-                        lastReminderAt: admin.firestore.FieldValue.serverTimestamp(),
-                        status: 'reminder_sent',
-                    });
+                if (reminder && v.employerEmail && await sendReminder(doc.ref, v, reminder, emailParams)) {
                     remindersProcessed++;
                 }
             } catch (reminderError) {
