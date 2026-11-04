@@ -157,4 +157,30 @@ describe('the history dialog', () => {
     const day = new Date('2026-10-05T12:00:00.000Z').toLocaleDateString();
     expect(within(dialog).getByText(`${day} · recorded by Rita Recruiter`)).toBeInTheDocument();
   });
+
+  it('opens day 30\'s record of attempts from the no-response entry, signed on the press', async () => {
+    const tab = { opener: 'the dossier', location: { href: '' }, close: vi.fn() };
+    const openSpy = vi.fn(() => tab);
+    vi.stubGlobal('open', openSpy);
+    fnMocks.callable.mockResolvedValue({ data: { url: 'https://signed.test/attempts.pdf' } });
+    const attemptRecordPath = 'companies/co-1/applications/app-1/pev_requests/PEV_ATTEMPTS_Legacy_Hauling_req-1234.pdf';
+    renderTab({
+      employers: [legacyRow({
+        status: 'No Response (Good Faith Documented)',
+        history: [
+          ...HISTORY,
+          { action: 'No Response (Good Faith Documented)', attemptRecordPath, timestamp: '2026-11-01T06:00:00.000Z' },
+        ],
+      })],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /View History/i }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'View Attempt Record' }));
+
+    expect(openSpy).toHaveBeenCalledWith('', '_blank');
+    await waitFor(() => expect(tab.location.href).toBe('https://signed.test/attempts.pdf'));
+    expect(fnMocks.callable).toHaveBeenCalledWith({ storagePath: attemptRecordPath });
+    expect(fnMocks.httpsCallable).toHaveBeenCalledWith(expect.anything(), 'getSignedPevUrl');
+    vi.unstubAllGlobals();
+  });
 });

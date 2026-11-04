@@ -270,6 +270,12 @@ export function PEVHistoryModal({
                                         View Request PDF
                                     </Button>
                                 )}
+                                {/* Day 30's record of attempts, beside the request PDF (`pev_requests/`). */}
+                                {log.attemptRecordPath && (
+                                    <Button variant="ghost" size="sm" onClick={() => openRequestPdf(log.attemptRecordPath)}>
+                                        View Attempt Record
+                                    </Button>
+                                )}
                                 {log.url && (
                                     <Button
                                         variant="ghost"
