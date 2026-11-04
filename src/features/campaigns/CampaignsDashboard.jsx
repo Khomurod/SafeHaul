@@ -71,10 +71,11 @@ export function CampaignsDashboard({ companyId }) {
 
     // The active tab decides which frozen list feeds the card grid, and the
     // spinner follows that list: Past Sequences waits for its history and live
-    // listeners rather than showing "No Campaigns Found" first.
+    // listeners rather than showing "No Campaigns Found" first. A failure shows
+    // at once, even while the other listener is still pending.
     const activeList = activeTab === 'drafts' ? drafts : sessions;
     const visibleCampaigns = activeList.items;
-    const loading = activeList.isLoading;
+    const loading = activeList.isLoading && !activeList.error;
 
     // 2. Create New Campaign Draft
     const handleNewCampaign = async () => {

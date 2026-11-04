@@ -570,6 +570,25 @@ describe('CampaignsDashboard shell', () => {
         expect(screen.getByRole('heading', { name: 'No Campaigns Found' })).toBeInTheDocument();
     });
 
+    it('shows a failed Past Sequences listener at once, even while the other is pending', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const callbacks = {};
+        const failures = {};
+        mockOnSnapshot.mockImplementation((q, cb, fail) => {
+            callbacks[listenerKind(q)] = cb;
+            failures[listenerKind(q)] = fail;
+        });
+        render(<CampaignsDashboard companyId="co-1" />);
+        await act(async () => { callbacks.drafts({ docs: [] }); });
+        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+
+        await act(async () => { failures.history(new Error('unavailable')); });
+        expect(screen.queryByText(/Synchronizing/i)).not.toBeInTheDocument();
+        expect(screen.getByText('Campaigns could not be loaded.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+        consoleError.mockRestore();
+    });
+
     it('renders empty-state headings and a create action per tab', async () => {
         await renderReady({ drafts: [], sessions: [] });
 
