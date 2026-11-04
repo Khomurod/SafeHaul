@@ -54,6 +54,18 @@ function isLockedFieldForSubmit(field) {
     return field.prefillPolicy === 'locked' || field.readOnly === true;
 }
 
+// At most this many images of one submission (drawn signatures, initials) are saved to Storage at once.
+const SAVES_AT_ONCE = 4;
+
+/**
+ * One `Promise.allSettled` outcome: its value, or its error thrown. Steps that
+ * run side by side are still decided one by one, in their fixed order.
+ */
+function settledValue(outcome) {
+    if (outcome.status === 'rejected') throw outcome.reason;
+    return outcome.value;
+}
+
 // 1. GET PUBLIC DOCUMENT (Read Only)
 exports.getPublicEnvelope = onCall({ cors: true }, async (request) => {
     if (!request.data) throw new HttpsError('invalid-argument', 'Missing data payload.');
@@ -66,23 +78,31 @@ exports.getPublicEnvelope = onCall({ cors: true }, async (request) => {
     // A2 FIX: Rate-limit the unauthenticated read path (it mints a signed Storage URL per call).
     // Layered, defense-in-depth limits keyed by the most specific stable identifiers, both
     // 'closed' (a security path must not fail open). Limits are well above real signer behavior.
-    const okEnvelope = await checkRateLimit(`envelope_read_${requestId}`, 30, 300, 'closed');
-    if (!okEnvelope) throw new HttpsError('resource-exhausted', 'Too many requests. Please wait and retry.');
-
+    // Both count this request and both must allow it. Each is its own transaction on its
+    // own document, so they run side by side, as in `drafts/save.js`; the envelope
+    // refusal still wins. A request the envelope limit refuses still counts toward its
+    // network's limit, which only makes the pair stricter.
     const ip = request.rawRequest?.ip || 'unknown';
-    const okIp = await checkRateLimit(`envelope_read_ip_${ip}`, 100, 300, 'closed');
-    if (!okIp) throw new HttpsError('resource-exhausted', 'Too many requests from this network.');
+    const [envelopeLimit, ipLimit] = await Promise.allSettled([
+        checkRateLimit(`envelope_read_${requestId}`, 30, 300, 'closed'),
+        checkRateLimit(`envelope_read_ip_${ip}`, 100, 300, 'closed'),
+    ]);
+    if (!settledValue(envelopeLimit)) throw new HttpsError('resource-exhausted', 'Too many requests. Please wait and retry.');
+    if (!settledValue(ipLimit)) throw new HttpsError('resource-exhausted', 'Too many requests from this network.');
 
     try {
         const docRef = db.collection('companies').doc(companyId).collection('signing_requests').doc(requestId);
-        const docSnap = await docRef.get();
+        // BUG-2 FIX: Read accessToken from secrets subcollection (not parent doc).
+        // Read beside the envelope, but a missing envelope is still answered first.
+        const secretRef = docRef.collection('secrets').doc('token');
+        const [envelopeRead, tokenRead] = await Promise.allSettled([docRef.get(), secretRef.get()]);
+        const docSnap = settledValue(envelopeRead);
 
         if (!docSnap.exists) throw new HttpsError('not-found', 'Document not found.');
 
         const data = docSnap.data();
 
-        // BUG-2 FIX: Read accessToken from secrets subcollection (not parent doc)
-        const secretSnap = await docRef.collection('secrets').doc('token').get();
+        const secretSnap = settledValue(tokenRead);
         // ADV-4 FIX: Fallback to parent doc for pre-migration signing requests
         const storedToken = secretSnap.exists ? secretSnap.data().accessToken : (data.accessToken || null);
 
@@ -228,23 +248,31 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
 
         const bucket = storage.bucket();
         const finalValues = {};
+        const submitted = Object.entries(normalizedFieldValues);
 
-        for (const [key, value] of Object.entries(normalizedFieldValues)) {
+        // Every id is checked before anything is saved, so a refused submission leaves no image behind.
+        for (const [key, value] of submitted) {
             if (!allowedFieldIds.has(key)) {
                 throw new HttpsError('invalid-argument', `Invalid field id submitted: ${key}`);
             }
+            finalValues[key] = value;
+        }
 
-            if (typeof value === 'string' && value.startsWith('data:image')) {
-                const base64Image = value.split(';base64,').pop();
-                const buffer = Buffer.from(base64Image, 'base64');
+        // Each image is its own object, so they are saved side by side, a few at a
+        // time: nothing caps how many fields an envelope has or how large an image is.
+        // A wave with a failed save throws only once all its saves have settled, so
+        // none can land after the rollback below and overwrite a retry's image; later
+        // waves never start. Each path replaces its data URL in place, in submitted order.
+        const images = submitted.filter(([, value]) => typeof value === 'string' && value.startsWith('data:image'));
+        for (let i = 0; i < images.length; i += SAVES_AT_ONCE) {
+            const wave = images.slice(i, i + SAVES_AT_ONCE).map(async ([key, value]) => {
+                const buffer = Buffer.from(value.split(';base64,').pop(), 'base64');
                 const filePath = `secure_documents/${companyId}/signatures/${requestId}_${key}.png`;
-
-                await bucket.file(filePath).save(buffer, {
-                    metadata: { contentType: 'image/png' }
-                });
+                await bucket.file(filePath).save(buffer, { metadata: { contentType: 'image/png' } });
+                return [key, filePath];
+            });
+            for (const [key, filePath] of (await Promise.allSettled(wave)).map(settledValue)) {
                 finalValues[key] = filePath;
-            } else {
-                finalValues[key] = value;
             }
         }
 

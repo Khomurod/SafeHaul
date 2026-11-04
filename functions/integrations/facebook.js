@@ -12,6 +12,12 @@ const FACEBOOK_APP_ID = defineSecret("FACEBOOK_APP_ID");
 const FACEBOOK_APP_SECRET = defineSecret("FACEBOOK_APP_SECRET");
 const FACEBOOK_VERIFY_TOKEN = defineSecret("FACEBOOK_VERIFY_TOKEN");
 
+// Every Graph call gives up after 15 s: three in a row still leave the 60 s connect time to release its claim.
+const GRAPH_TIMEOUT_MS = 15000;
+// axios's `timeout` covers the wait for an answer and then each pause while it
+// is read; the signal also ends an answer that keeps trickling in, at 15 s in all.
+const graphLimits = () => ({ timeout: GRAPH_TIMEOUT_MS, signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS) });
+
 const db = admin.firestore();
 
 /**
@@ -115,6 +121,7 @@ exports.connectFacebookPage = onCall(
          * from the company that owns it.
          */
         const indexRef = db.collection('integrations_index').doc(pageId);
+        const claimId = crypto.randomUUID();
         const claim = await db.runTransaction(async (transaction) => {
             const snapshot = await transaction.get(indexRef);
             const previous = snapshot.exists ? snapshot.data() : null;
@@ -146,6 +153,9 @@ exports.connectFacebookPage = onCall(
                 pageName: pageName || 'Unknown Page',
                 platform: 'facebook',
                 claimPending: true,
+                // This attempt's own mark: every later write, and the rollback,
+                // touch the claim only while it is still this one.
+                claimId,
             };
             if (isRebind) {
                 // The previous holder's page token goes with the previous
@@ -184,7 +194,8 @@ exports.connectFacebookPage = onCall(
                     client_id: FACEBOOK_APP_ID.value(),
                     client_secret: FACEBOOK_APP_SECRET.value(),
                     fb_exchange_token: shortLivedUserToken
-                }
+                },
+                ...graphLimits()
             });
 
             const longLivedUserToken = exchangeResponse.data.access_token;
@@ -198,7 +209,8 @@ exports.connectFacebookPage = onCall(
                 params: {
                     fields: 'access_token',
                     access_token: longLivedUserToken
-                }
+                },
+                ...graphLimits()
             });
 
             const pageAccessToken = response.data.access_token;
@@ -206,27 +218,37 @@ exports.connectFacebookPage = onCall(
                 throw new Error("Failed to retrieve Page Access Token.");
             }
 
-            // 3. Complete the claim made above: same document, now with the
+            // 3. Subscribe App to Page Webhooks (leadgen)
+            // POST /{page-id}/subscribed_apps
+            // Before the claim is completed, so a failed or timed-out subscription
+            // still finds the claim pending and the catch below can roll it back.
+            // The page token goes under the pending claim first: a lead Meta sends
+            // while the subscription is answered is then fetched, not dropped.
+            await writeOwnClaim(indexRef, companyId, claimId, (transaction) => {
+                transaction.set(indexRef, { accessToken: pageAccessToken }, { merge: true });
+            });
+            await axios.post(`https://graph.facebook.com/v19.0/${pageId}/subscribed_apps`, null, {
+                params: {
+                    subscribed_fields: 'leadgen',
+                    access_token: pageAccessToken
+                },
+                ...graphLimits()
+            });
+
+            // 4. Complete the claim made above: same document, now with the
             //    token. A plain `.set()` (no merge) clears `claimPending` and
             //    leaves exactly the shape this document has always had. Nothing
             //    can have taken the page in between — the claim refuses every
             //    other company for as long as it stands.
             //    integrations_index/{pageId}
-            await indexRef.set({
-                companyId: companyId,
-                pageName: pageName || 'Unknown Page',
-                accessToken: pageAccessToken, // Stored securely
-                connectedAt: admin.firestore.FieldValue.serverTimestamp(),
-                platform: 'facebook'
-            });
-
-            // 4. Subscribe App to Page Webhooks (leadgen)
-            // POST /{page-id}/subscribed_apps
-            await axios.post(`https://graph.facebook.com/v19.0/${pageId}/subscribed_apps`, null, {
-                params: {
-                    subscribed_fields: 'leadgen',
-                    access_token: pageAccessToken
-                }
+            await writeOwnClaim(indexRef, companyId, claimId, (transaction) => {
+                transaction.set(indexRef, {
+                    companyId: companyId,
+                    pageName: pageName || 'Unknown Page',
+                    accessToken: pageAccessToken, // Stored securely
+                    connectedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    platform: 'facebook'
+                });
             });
 
             return { success: true, message: `Connected ${pageName} successfully.` };
@@ -236,7 +258,7 @@ exports.connectFacebookPage = onCall(
             // here would otherwise leave the page locked to a company that is
             // not connected to it — and, on a rebind, would have thrown away the
             // previous holder's token for nothing.
-            await releaseIncompleteClaim(indexRef, companyId, claim.previous);
+            await releaseIncompleteClaim(indexRef, companyId, claimId, claim.previous);
 
             // A deliberate HttpsError carries a message the admin can act on.
             // Flattening it into the generic one below loses exactly the part
@@ -247,12 +269,37 @@ exports.connectFacebookPage = onCall(
         }
     });
 
+/** The page still holds this attempt's own pending claim (same company, same claim id). */
+function isOwnClaim(current, companyId, claimId) {
+    return current?.claimPending === true && current.companyId === companyId && current.claimId === claimId;
+}
+
+/**
+ * Writes to the page's document only while it still holds this attempt's own
+ * pending claim, in one transaction. Meanwhile a later attempt of the same
+ * company may have claimed it, or a failed attempt may have released it and
+ * another company claimed the page; a plain write would then put this
+ * attempt's token, or its finished binding, on a claim that is not its own.
+ * Throws instead, so the caller's rollback runs, and it too leaves the other
+ * claim alone.
+ */
+async function writeOwnClaim(indexRef, companyId, claimId, write) {
+    await db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(indexRef);
+        if (!snapshot.exists || !isOwnClaim(snapshot.data(), companyId, claimId)) {
+            throw new Error('The page claim changed hands before this connection finished.');
+        }
+        write(transaction);
+    });
+}
+
 /**
  * Undo a claim that never became a connection.
  *
  * Only ever touches a document that is still the claim this call wrote:
- * `claimPending` set and `companyId` ours. If the connection completed, or
- * another attempt has since taken over, this leaves it alone.
+ * `claimPending` set, `companyId` ours and `claimId` this attempt's. If the
+ * connection completed, or another attempt (of this company or another) has
+ * since taken over, this leaves it alone.
  *
  * Restoring `previous` verbatim matters for the token-refresh path — a failed
  * refresh must give the company back the working connection it already had,
@@ -261,13 +308,13 @@ exports.connectFacebookPage = onCall(
  * Its own failure is logged and swallowed: the caller is already throwing, and
  * replacing the real reason with a cleanup error would help nobody.
  */
-async function releaseIncompleteClaim(indexRef, companyId, previous) {
+async function releaseIncompleteClaim(indexRef, companyId, claimId, previous) {
     try {
         await db.runTransaction(async (transaction) => {
             const snapshot = await transaction.get(indexRef);
             if (!snapshot.exists) return;
             const current = snapshot.data();
-            if (current.claimPending !== true || current.companyId !== companyId) return;
+            if (!isOwnClaim(current, companyId, claimId)) return;
             if (previous) {
                 transaction.set(indexRef, previous);
             } else {
@@ -378,7 +425,8 @@ async function processLead(value) {
     const leadResponse = await axios.get(`https://graph.facebook.com/v19.0/${leadgen_id}`, {
         params: {
             access_token: accessToken
-        }
+        },
+        ...graphLimits()
     });
 
     const leadData = leadResponse.data;

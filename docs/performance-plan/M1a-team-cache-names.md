@@ -96,9 +96,14 @@
 
 ## Done when (acceptance criteria)
 
-- [ ] The trigger writes names with `nameFromProfile` and emails with `emailFromProfile`, and `'Unknown'` / `''` when there is none.
-- [ ] One `db.getAll` per company, none for an empty team, and no per-user `get`.
-- [ ] Entry order, fields and `teamUpdatedAt` are unchanged; lines 19-39 (claims and `companyIds`) have no diff.
-- [ ] The new test file fails on the old code and passes now; the full functions `npm test` and `npm run lint` pass.
+- [x] The trigger writes names with `nameFromProfile` and emails with `emailFromProfile`, and `'Unknown'` / `''` when there is none.
+- [x] One `db.getAll` per company, none for an empty team, and no per-user `get`.
+- [x] Entry order, fields and `teamUpdatedAt` are unchanged; lines 19-39 (claims and `companyIds`) have no diff.
+- [x] The new test file fails on the old code and passes now; the full functions `npm test` and `npm run lint` pass.
 - [ ] The PR starts with Кратко and records the owner's answer on the refresh.
 - [ ] The `main` run's functions deploy succeeded.
+
+As done (2026-11-04, batch C, on top of `62d76e1`). Every file:line in "Current behaviour" was re-checked: no commit since `11626a6` touched `membership.js`, `userIdentity.js`, `team.js`, `createUser.js`, the two trigger test files, `recentlyMessaged.js` or `publicProfileSync.js`; `useCompanyTeam.js` (M5) and `batchWorker.js` (T4.2) changed, but the cited lines stand. One reference was off from the start: the fallback `doc()` of `companyActivationClaims.test.js` is line 134, not 128. The installed `@google-cloud/firestore` 9.3.1 refuses `getAll()` with no reference ("requires at least 1 argument", tried offline). Р19 took its recommended answer, wait: no list is refreshed, and nothing was written to do it. Implemented as the steps say. Notes:
+- **What else the shared rule changes**, both pinned by tests: an email is trimmed, and a name of only spaces falls through to the next field (it was written as is). The old per-member log line is gone; a failed `getAll` logs the existing "Failed to update team cache" line.
+- **Tests:** 12 cases in the new file. 7 fail on the old code, each on its assertion: `fullName`, first + last trimmed, a name of only spaces, one `getAll` and no `get`, a membership without `userId` not read, a membership moved between companies (one `getAll` each), and a failed `getAll` that leaves the list alone. 5 pass before and after: `displayName`, `name` first, the none values, order and fields and `teamUpdatedAt` with the answers in another order, and an empty team without `getAll`. Two memberships of one user in one company are read once and listed twice. Without step 7's doubles the two older suites still passed but logged `TypeError: db.getAll is not a function` from the team step; with them it completes.
+- **Not guarded:** a `userId` that is a string but not a document id (one `/`) makes `doc()` throw (tried offline), so that company's rewrite is skipped where the old code wrote `'Unknown'` for that one entry. Memberships are written by `createPortalUser` (an Auth uid from `getUserByEmail` or `createUser`) and by the Super Admin memberships manager (`addMembership`, the edited user's `users/{uid}` id, which cannot hold a `/`), so this was left as the steps say.

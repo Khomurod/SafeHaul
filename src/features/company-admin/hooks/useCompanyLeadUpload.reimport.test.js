@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@lib/firebase', async () => (await import('./useCompanyLeadUpload.contract.support')).libFirebaseMock());
 vi.mock('firebase/firestore', async () => (await import('./useCompanyLeadUpload.contract.support')).firebaseFirestoreMock());
+vi.mock('./useAssignableTeam', async () => (await import('./useCompanyLeadUpload.contract.support')).assignableTeamMock());
 
 import { useCompanyLeadUpload } from './useCompanyLeadUpload';
 import {

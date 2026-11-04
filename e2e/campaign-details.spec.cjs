@@ -24,11 +24,11 @@ test.describe('CampaignDetails compatibility slice', () => {
     await openDetails(page);
     await expect(page.getByText('Completed', { exact: true })).toBeVisible();
     // Scope to the stat cards by their exact label ("Sent" and "Not sent" also
-    // appear as per-row result badges).
+    // appear as per-row result badges; the card counts unanswered texts too).
     const statCard = (label) => page.locator('.ds-card').filter({ has: page.getByText(label, { exact: true }) }).first();
     await expect(statCard('Audience')).toBeVisible();
     await expect(statCard('Sent')).toBeVisible();
-    await expect(statCard('Not sent')).toBeVisible();
+    await expect(statCard('Not sent or unconfirmed')).toBeVisible();
     await expect(page.getByRole('progressbar', { name: 'Campaign progress' })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Message Content/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Details', exact: true })).toBeVisible();

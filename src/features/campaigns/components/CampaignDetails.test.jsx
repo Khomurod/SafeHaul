@@ -106,7 +106,7 @@ describe('CampaignDetails — rendering', () => {
         renderDetails();
         expect(screen.getByText('Audience').closest('.ds-card')).toHaveTextContent('100');
         expect(screen.getByText('Sent').closest('.ds-card')).toHaveTextContent('45');
-        expect(screen.getByText('Not sent').closest('.ds-card')).toHaveTextContent('5');
+        expect(screen.getByText('Not sent or unconfirmed').closest('.ds-card')).toHaveTextContent('5');
     });
 
     it('falls back to matchCount / zeros when there is no progress', () => {
@@ -235,6 +235,8 @@ describe('CampaignDetails — callables & outcomes', () => {
         renderDetails(failedCampaign());
         fireEvent.click(screen.getByRole('button', { name: 'Retry Failed' }));
         const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
+        // Retry Failed never texts a driver whose text may already have arrived.
+        expect(dialog).toHaveTextContent('Texts the SMS provider never answered are left out, as they may already have been delivered.');
         fireEvent.click(within(dialog).getByRole('button', { name: "Don't retry" }));
         expect(callables.retryFailedAttempts).not.toHaveBeenCalled();
     });

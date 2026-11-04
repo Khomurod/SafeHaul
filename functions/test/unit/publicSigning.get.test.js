@@ -242,8 +242,10 @@ describe('getPublicEnvelope', () => {
     checkRateLimit.mockResolvedValueOnce(false); // first (per-requestId) check fails
     await expect(getPublicEnvelope(validRequest)).rejects.toMatchObject({
       code: 'resource-exhausted',
+      message: 'Too many requests. Please wait and retry.',
     });
     expect(mockGet).not.toHaveBeenCalled();
+    expect(mockSecretGet).not.toHaveBeenCalled();
   });
 
   it('rejects when the per-IP read rate limit is exceeded', async () => {
@@ -252,13 +254,189 @@ describe('getPublicEnvelope', () => {
       .mockResolvedValueOnce(false); // per-IP fails
     await expect(getPublicEnvelope(validRequest)).rejects.toMatchObject({
       code: 'resource-exhausted',
+      message: 'Too many requests from this network.',
     });
     expect(mockGet).not.toHaveBeenCalled();
+    expect(mockSecretGet).not.toHaveBeenCalled();
   });
 
   it('keys the per-IP limit on the server-observed IP', async () => {
     await getPublicEnvelope({ ...validRequest, rawRequest: { ip: '203.0.113.7' } });
     expect(checkRateLimit).toHaveBeenCalledWith('envelope_read_req1', 30, 300, 'closed');
     expect(checkRateLimit).toHaveBeenCalledWith('envelope_read_ip_203.0.113.7', 100, 300, 'closed');
+  });
+
+  // The limits run side by side, then the two reads do; every decision is still
+  // taken in the order it always was, and nothing leaves before the token compare.
+  describe('independent steps side by side', () => {
+    const flush = () => new Promise((resolve) => setImmediate(resolve));
+    function deferred() {
+      let resolve;
+      let reject;
+      const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+      return { promise, resolve, reject };
+    }
+
+    it('starts both read limits before either answers', async () => {
+      const limits = deferred();
+      checkRateLimit.mockImplementation(() => limits.promise);
+      const call = getPublicEnvelope(validRequest);
+      try {
+        await flush();
+        expect(checkRateLimit).toHaveBeenCalledTimes(2);
+        expect(mockGet).not.toHaveBeenCalled();
+        expect(mockSecretGet).not.toHaveBeenCalled();
+      } finally {
+        limits.resolve(true);
+        await call.catch(() => {});
+      }
+      await expect(call).resolves.toMatchObject({ pdfUrl: 'https://signed.example/doc.pdf' });
+    });
+
+    it('refuses with the per-envelope message when both limits refuse', async () => {
+      checkRateLimit.mockResolvedValue(false);
+      await expect(getPublicEnvelope(validRequest)).rejects.toMatchObject({
+        code: 'resource-exhausted',
+        message: 'Too many requests. Please wait and retry.',
+      });
+      expect(mockGet).not.toHaveBeenCalled();
+      expect(mockSecretGet).not.toHaveBeenCalled();
+    });
+
+    it('counts the network limit even when the envelope limit refuses', async () => {
+      checkRateLimit.mockResolvedValueOnce(false);
+      await expect(
+        getPublicEnvelope({ ...validRequest, rawRequest: { ip: '203.0.113.7' } }),
+      ).rejects.toMatchObject({ code: 'resource-exhausted', message: 'Too many requests. Please wait and retry.' });
+      expect(checkRateLimit).toHaveBeenCalledTimes(2);
+      expect(checkRateLimit).toHaveBeenNthCalledWith(1, 'envelope_read_req1', 30, 300, 'closed');
+      expect(checkRateLimit).toHaveBeenNthCalledWith(2, 'envelope_read_ip_203.0.113.7', 100, 300, 'closed');
+    });
+
+    it('still refuses per envelope when the network limit fails outright', async () => {
+      // The network limit is asked even when the envelope limit refuses. If it
+      // throws (an invalid key, say), that must not replace the envelope refusal.
+      checkRateLimit
+        .mockResolvedValueOnce(false)
+        .mockRejectedValueOnce(new Error('documentPath must point to a document'));
+      await expect(getPublicEnvelope(validRequest)).rejects.toMatchObject({
+        code: 'resource-exhausted',
+        message: 'Too many requests. Please wait and retry.',
+      });
+      expect(mockGet).not.toHaveBeenCalled();
+    });
+
+    it('passes on an error from the envelope limit as before, reading nothing', async () => {
+      const limiterError = new Error('documentPath must point to a document');
+      checkRateLimit.mockRejectedValueOnce(limiterError);
+      await expect(getPublicEnvelope(validRequest)).rejects.toBe(limiterError);
+      expect(mockGet).not.toHaveBeenCalled();
+      expect(mockSecretGet).not.toHaveBeenCalled();
+    });
+
+    it('reads the envelope and its token side by side, only after both limits pass', async () => {
+      const limits = deferred();
+      const envelope = deferred();
+      checkRateLimit.mockImplementation(() => limits.promise);
+      mockGet.mockImplementation(() => envelope.promise);
+      const call = getPublicEnvelope(validRequest);
+      try {
+        await flush();
+        expect(mockGet).not.toHaveBeenCalled();
+        expect(mockSecretGet).not.toHaveBeenCalled();
+        limits.resolve(true);
+        await flush();
+        expect(mockGet).toHaveBeenCalledTimes(1);
+        expect(mockSecretGet).toHaveBeenCalledTimes(1);
+        expect(mockGetSignedUrl).not.toHaveBeenCalled();
+      } finally {
+        limits.resolve(true);
+        envelope.resolve({ exists: true, data: () => baseEnvelope() });
+        await call.catch(() => {});
+      }
+      await expect(call).resolves.toMatchObject({ pdfUrl: 'https://signed.example/doc.pdf' });
+    });
+
+    it('answers not-found for a missing envelope, with the token read made', async () => {
+      mockGet.mockResolvedValue({ exists: false, data: () => undefined });
+      mockSecretGet.mockResolvedValue({ exists: false, data: () => undefined });
+      await expect(
+        getPublicEnvelope({ data: { ...validRequest.data, accessToken: 'wrong-token' } }),
+      ).rejects.toMatchObject({ code: 'not-found' });
+      expect(mockSecretGet).toHaveBeenCalledTimes(1);
+      expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it('answers not-found for a missing envelope even when the token read fails', async () => {
+      mockGet.mockResolvedValue({ exists: false, data: () => undefined });
+      mockSecretGet.mockRejectedValue(new Error('UNAVAILABLE'));
+      await expect(getPublicEnvelope(validRequest)).rejects.toMatchObject({ code: 'not-found' });
+    });
+
+    it('answers internal, signing nothing, when the token read fails', async () => {
+      mockSecretGet.mockRejectedValue(new Error('UNAVAILABLE'));
+      await expect(getPublicEnvelope(validRequest)).rejects.toMatchObject({
+        code: 'internal',
+        message: 'An unexpected error occurred. Please try again.',
+      });
+      expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it('never signs a URL or reports a status for a wrong token', async () => {
+      for (const status of ['sent', 'signed', 'voided']) {
+        mockGet.mockResolvedValue({ exists: true, data: () => baseEnvelope({ status }) });
+        await expect(
+          getPublicEnvelope({ data: { ...validRequest.data, accessToken: 'wrong-token' } }),
+        ).rejects.toMatchObject({ code: 'permission-denied' });
+      }
+      expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it('still accepts the token kept on the envelope itself when it has no token document', async () => {
+      mockSecretGet.mockResolvedValue({ exists: false, data: () => undefined });
+      mockGet.mockResolvedValue({ exists: true, data: () => baseEnvelope({ accessToken: 'secret-token' }) });
+      await expect(getPublicEnvelope(validRequest)).resolves.toMatchObject({
+        pdfUrl: 'https://signed.example/doc.pdf',
+      });
+    });
+
+    it('refuses a request missing its data or a parameter before counting either limit', async () => {
+      await expect(getPublicEnvelope({})).rejects.toMatchObject({
+        code: 'invalid-argument',
+        message: 'Missing data payload.',
+      });
+      await expect(
+        getPublicEnvelope({ data: { companyId: 'co1', requestId: 'req1' } }),
+      ).rejects.toMatchObject({ code: 'invalid-argument', message: 'Missing parameters.' });
+      expect(checkRateLimit).not.toHaveBeenCalled();
+      expect(mockGet).not.toHaveBeenCalled();
+      expect(mockSecretGet).not.toHaveBeenCalled();
+    });
+
+    it('answers internal, signing nothing, when the envelope read fails', async () => {
+      mockGet.mockRejectedValue(new Error('UNAVAILABLE'));
+      await expect(getPublicEnvelope(validRequest)).rejects.toMatchObject({
+        code: 'internal',
+        message: 'An unexpected error occurred. Please try again.',
+      });
+      expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it('refuses an envelope with no file, signing nothing', async () => {
+      mockGet.mockResolvedValue({ exists: true, data: () => baseEnvelope({ storagePath: undefined }) });
+      await expect(getPublicEnvelope(validRequest)).rejects.toMatchObject({
+        code: 'failed-precondition',
+        message: 'Document file reference is missing.',
+      });
+      expect(mockGetSignedUrl).not.toHaveBeenCalled();
+    });
+
+    it('answers internal when the document link cannot be signed', async () => {
+      mockGetSignedUrl.mockRejectedValue(new Error('iam.serviceAccounts.signBlob denied'));
+      await expect(getPublicEnvelope(validRequest)).rejects.toMatchObject({
+        code: 'internal',
+        message: 'Server permission error: Cannot sign URL.',
+      });
+    });
   });
 });

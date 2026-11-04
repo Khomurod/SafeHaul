@@ -1,6 +1,11 @@
 const BaseAdapter = require('./BaseAdapter');
 const axios = require('axios');
 
+// Every 8x8 request gives up after 20 s, so a signer or contact SMS (60 s) can still record the result.
+const EIGHT_BY_EIGHT_TIMEOUT_MS = 20000;
+// axios's time-out codes. Only `code` is read; an aborted request counts too, which can only stop a resend.
+const isAxiosTimeout = (error) => error?.code === 'ECONNABORTED' || error?.code === 'ETIMEDOUT';
+
 class EightByEightAdapter extends BaseAdapter {
     constructor(config) {
         super(config);
@@ -78,7 +83,8 @@ class EightByEightAdapter extends BaseAdapter {
                     headers: {
                         'Authorization': `Bearer ${apiKey}`,
                         'Content-Type': 'application/json'
-                    }
+                    },
+                    timeout: EIGHT_BY_EIGHT_TIMEOUT_MS
                 }
             );
 
@@ -95,6 +101,12 @@ class EightByEightAdapter extends BaseAdapter {
             throw new Error(`Unexpected Status: ${response.status}`);
 
         } catch (error) {
+            // 8x8 may have taken a send it never answered, or accepted it (2xx) before the
+            // answer stalled or broke off, so it is never sent again.
+            const status = error?.response?.status;
+            if (isAxiosTimeout(error) || (status >= 200 && status < 300)) {
+                throw BaseAdapter.sendUnconfirmedError('8x8', EIGHT_BY_EIGHT_TIMEOUT_MS / 1000);
+            }
             console.error("8x8 Send Error:", error.response?.data || error.message);
             throw new Error(`8x8 Error: ${error.response?.data?.message || error.message}`);
         }
@@ -137,10 +149,13 @@ class EightByEightAdapter extends BaseAdapter {
                         headers: {
                             'Authorization': `Bearer ${apiKey}`,
                             'Content-Type': 'application/json'
-                        }
+                        },
+                        timeout: EIGHT_BY_EIGHT_TIMEOUT_MS
                     }
                 );
             } catch (error) {
+                // No answer is not a working connection.
+                if (isAxiosTimeout(error)) throw new Error(`8x8 did not answer within ${EIGHT_BY_EIGHT_TIMEOUT_MS / 1000} seconds. Try again later.`);
                 // 404 = valid auth but maybe wrong subaccount
                 // 401/403 = invalid API key
                 if (error.response?.status === 401 || error.response?.status === 403) {

@@ -21,10 +21,12 @@ const mockGetUser = jest.fn().mockResolvedValue({ uid: 'u1' });
 jest.mock('../../firebaseAdmin', () => ({
   admin: { firestore: { FieldValue: { serverTimestamp: () => '__ts' } } },
   db: {
+    getAll: async (...refs) => refs.map((ref) => ({ id: ref.id, exists: false, data: () => undefined })),
     collection: (name) => {
       if (name === 'users') {
         return {
           doc: (uid) => ({
+            id: uid,
             set: (...a) => mockUserSet(uid, ...a),
             get: async () => ({ exists: false }),
           }),

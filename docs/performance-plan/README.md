@@ -69,10 +69,10 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [x] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
    - [x] **T3 PR 2** · Заглушка страницы заявки водителя · *Driver apply-page placeholder* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
 4. **Лимиты времени для внешних сервисов / Timeouts for external calls (#12)**
-   - [ ] **T4.1** · RingCentral: лимит 20 секунд, без повторной отправки SMS · *RingCentral 20-second limit, no resend* → [T4.1](T4.1-ringcentral-timeout.md) · PR: — · Дата: —
-   - [ ] **T4.2** · Кампании: «возможно отправлено», без авто-повтора · *Campaigns safe when the SMS provider does not answer* → [T4.2](T4.2-campaign-send-unconfirmed.md) · PR: — · Дата: —
-   - [ ] **T4.3** · Лимиты для 8x8 SMS и Facebook · *Time limits for 8x8 SMS and Facebook Graph* → [T4.3](T4.3-8x8-facebook-timeouts.md) · PR: — · Дата: —
-   - [ ] **T4.4** · Лимит 15 секунд для чтений GitHub в Releases · *15-second limit on GitHub reads behind Releases* → [T4.4](T4.4-github-release-timeouts.md) · PR: — · Дата: —
+   - [x] **T4.1** · RingCentral: лимит 20 секунд, без повторной отправки SMS · *RingCentral 20-second limit, no resend* → [T4.1](T4.1-ringcentral-timeout.md) · PR: #559 · Дата: 2026-11-04
+   - [x] **T4.2** · Кампании: «возможно отправлено», без авто-повтора · *Campaigns safe when the SMS provider does not answer* → [T4.2](T4.2-campaign-send-unconfirmed.md) · PR: #559 · Дата: 2026-11-04
+   - [x] **T4.3** · Лимиты для 8x8 SMS и Facebook · *Time limits for 8x8 SMS and Facebook Graph* → [T4.3](T4.3-8x8-facebook-timeouts.md) · PR: #559 · Дата: 2026-11-04
+   - [x] **T4.4** · Лимит 15 секунд для чтений GitHub в Releases · *15-second limit on GitHub reads behind Releases* → [T4.4](T4.4-github-release-timeouts.md) · PR: #559 · Дата: 2026-11-04
    - [x] **T4.5** · Импорт Google Sheet и скачивание PDF не крутятся вечно · *Sheet import and envelope PDF download stop spinning forever* → [T4.5](T4.5-browser-fetch-timeouts.md) · PR: #557 · Дата: 2026-11-03
 5. **Скорость у реальных пользователей / Real-user speed monitoring (#30)**
    - [ ] **T5** · Вариант A: Firebase Performance Monitoring · *Option A: Firebase Performance Monitoring* → [T5](T5-firebase-performance.md) · PR: — · Дата: —
@@ -85,13 +85,13 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
 Each can be done on its own, or when someone next changes that part of the app.
 
 - **Лишние и последовательные запросы / Duplicate calls, N+1, parallel requests (#3, #8, #16)**
-  - [ ] **M1a** · Кэш команды: имена по общему правилу, одно чтение · *Team cache: shared naming rule, one read* → [M1a](M1a-team-cache-names.md) · PR: — · Дата: —
-  - [ ] **M1b** · Assign Leads и Import Leads: команда одним запросом · *Assign/Import Leads read the team in one request* → [M1b](M1b-assign-import-team-read.md) · PR: — · Дата: —
-  - [ ] **M1c** · Настройки команды: все дневные цели одним запросом · *Team settings: every daily goal in one request* → [M1c](M1c-team-goals-read.md) · PR: — · Дата: —
+  - [x] **M1a** · Кэш команды: имена по общему правилу, одно чтение · *Team cache: shared naming rule, one read* → [M1a](M1a-team-cache-names.md) · PR: #559 · Дата: 2026-11-04
+  - [x] **M1b** · Assign Leads и Import Leads: команда одним запросом · *Assign/Import Leads read the team in one request* → [M1b](M1b-assign-import-team-read.md) · PR: #559 · Дата: 2026-11-04
+  - [x] **M1c** · Настройки команды: все дневные цели одним запросом · *Team settings: every daily goal in one request* → [M1c](M1c-team-goals-read.md) · PR: #559 · Дата: 2026-11-04
   - [x] **M2a** · Заметки в досье: история из уже загруженной записи · *Dossier Notes reuse the loaded record* → [M2a](M2a-notes-shared-history.md) · PR: #557 · Дата: 2026-11-03
   - [x] **M2b** · Файлы досье: подписанная ссылка живёт 10 минут · *Dossier files reuse a signed link for ten minutes* → [M2b](M2b-signed-link-reuse.md) · PR: #557 · Дата: 2026-11-03
-  - [ ] **M3a** · Комната подписи: независимые шаги сервера параллельно · *Signing room: independent server steps in parallel* → [M3a](M3a-signing-room-parallel.md) · PR: — · Дата: —
-  - [ ] **M3b** · Запуск кампании: проверки параллельно · *Campaign launch checks in parallel* → [M3b](M3b-campaign-launch-parallel.md) · PR: — · Дата: —
+  - [x] **M3a** · Комната подписи: независимые шаги сервера параллельно · *Signing room: independent server steps in parallel* → [M3a](M3a-signing-room-parallel.md) · PR: #559 · Дата: 2026-11-04
+  - [x] **M3b** · Запуск кампании: проверки параллельно · *Campaign launch checks in parallel* → [M3b](M3b-campaign-launch-parallel.md) · PR: #559 · Дата: 2026-11-04
   - [x] **M-SA** · Поиск Super Admin: показывать только самый свежий ответ · *Super Admin search shows only the newest answer* → [M-SA](M-SA-super-admin-search.md) · PR: #557 · Дата: 2026-11-03
 - **Меньше данных в списке заявок / Select only the columns you need (#24)**: после T1
   - [x] **M4-1** · Поиск по имени с двух букв · *Two-letter minimum for name search* → [M4](M4-applications-list-payload.md) · PR: #557 · Дата: 2026-11-03
@@ -237,10 +237,10 @@ task that waits for it.
 **T4: лимиты времени**
 - **Р10 (T4.2).** SMS-провайдер не ответил вовремя: сообщение могло дойти, а
   могло и нет. Должна ли «Retry Failed» пропускать таких получателей, чтобы
-  водитель не получил одно SMS дважды? *Рекомендую:* да. — Ответ: — · Дата: —
+  водитель не получил одно SMS дважды? *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-04
 - **Р11 (T4.2).** Ставить кампанию на паузу после 3 подряд SMS без ответа
   провайдера? Рекрутёр нажмёт Resume, когда провайдер заработает.
-  *Рекомендую:* да. — Ответ: — · Дата: —
+  *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-04
 - **Р12 (T4.2). По желанию, только чтение.** Посмотрите в Google Cloud console →
   Cloud Tasks → `bulk-actions-queue` значение «Max attempts» и пришлите агенту.
   — Значение: — · Дата: —
@@ -274,7 +274,7 @@ task that waits for it.
 - **Р19 (M1a).** Обновить сохранённые списки команды у всех компаний сразу:
   одна запись поля `teamMembers` в каждой компании? Или ждать, пока каждый
   список обновится сам при следующем изменении команды? *Рекомендую:* ждать:
-  сотрудников без поля имени мало. — Ответ: — · Дата: —
+  сотрудников без поля имени мало. — Ответ: ждать (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-04
 - **Р20 (M4-1).** Одна буква в поиске по имени оставляет полный список, поиск
   начинается с двух букв. Устраивает? *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р21 (M4-2).** Если замер покажет больше 300 KB на страницу или больше 1 MB
@@ -329,9 +329,9 @@ Not part of any task above. Each needs its own task if the owner wants it.
    event was inspected. With option A this stays until T5b. *Recommended:* a
    separate small task soon, independent of this plan.
 2. "Retry Failed" with nothing left to retry shows "Retry session started with
-   undefined targets." (`functions/bulkActions/controllers/sessionController.js:221`).
+   undefined targets." (`functions/bulkActions/controllers/sessionController.js:228`).
 3. The 8x8 connection check reports success on any network error other than
-   401/403 (`functions/integrations/adapters/eightbyeight.js:143-151`). T4.3 fixes
+   401/403 (`functions/integrations/adapters/eightbyeight.js:152-162`). T4.3 fixed
    only the timeout case.
 4. The envelope PDF download does not check `response.ok`
    (`src/features/signing/utils/envelopePersistence.js:78-79`).
@@ -370,3 +370,32 @@ Not part of any task above. Each needs its own task if the owner wants it.
     `vite preview` and a 503 for `init.json` (found during T1-F).
     `startupGuards.test.jsx` checks source order, not the bundled order.
     *Recommended:* a separate small task with a built-app test.
+13. **Every RingCentral SDK in one function instance shared one session store**
+    (found during T4.1; fixed in batch C). Under Node, `@ringcentral/sdk`
+    5.0.11 keeps every instance's tokens in one module-wide store
+    (`lib/index.js:36`) under the same key, so a second SDK alive in the same
+    instance (another line or company) would read, refresh or erase the first
+    one's session, and a text could go out under the other account. Today every
+    SMS path builds one adapter per call and logs in first, and no function
+    handles two calls at once (all run below 1 CPU), so it did not happen in
+    practice. `createRingCentralSdk` now gives each SDK a store of its own;
+    `ringcentralSdk.tokenStore.test.js` failed before the change.
+14. **A Pause and a Resume between two of a worker's status checks can leave
+    two workers sending one campaign** (found during T4.2; checked by reading the
+    code only). Before each recipient the send loop re-reads only the session's
+    status (`sendLoop.js`, the mid-batch check), not its `workerGeneration`, and
+    the checks are 3 s apart, longer while the provider is slow. A worker that
+    missed the Pause keeps sending while the Resume's new worker starts at the
+    stored pointer, which moves only once the first worker logs the text in
+    flight, so both can text that recipient.
+    *Recommended:* a separate small task: the mid-batch check also stops when
+    the session's `workerGeneration` is no longer the task's.
+15. **A Facebook lead can be saved twice when Meta resends a webhook batch**
+    (found in review of batch C; not changed there). `processLead` saves each
+    lead with `.add()` (`functions/integrations/facebook.js`), and a batch that
+    fails part-way answers 500, so Meta resends it and the leads already saved
+    are added again. This was so before T4.3 too: any failed Graph read, or a
+    read that hung until the function was killed, ended the same way.
+    *Recommended:* a separate small task: save each lead under a document id
+    derived from `leadgen_id` with `create()`, and treat "already exists" as done,
+    so a resend never duplicates and never overwrites a lead a recruiter edited.

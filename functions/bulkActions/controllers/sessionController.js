@@ -216,8 +216,15 @@ exports.retryFailedAttempts = onCall(
     // Identify failed IDs
     // We can query the 'logs' subcollection for status: 'failed'
     const logsSnap = await sessionRef.collection('logs').where('status', '==', 'failed').get();
-    const failedIds = logsSnap.docs.map(d => d.id);
+    // A text the SMS provider never answered may have reached the driver, so it is
+    // never sent again. Filtered here, not in the query, which would need an index.
+    const mayHaveArrived = (d) => d.data().sendUnconfirmed === true;
+    const leftOut = logsSnap.docs.filter(mayHaveArrived).length;
+    const failedIds = logsSnap.docs.filter((d) => !mayHaveArrived(d)).map((d) => d.id);
 
+    if (failedIds.length === 0 && leftOut > 0) {
+        return { success: false, message: `Nothing to retry: the ${leftOut} failed text(s) may already have reached the driver, so they are not sent again.` };
+    }
     if (failedIds.length === 0) return { success: true, message: "No failed items to retry." };
     // A retry messages them all again, so it is held to the launch limit too.
     assertWithinLaunchLimit(failedIds.length, { source: 'retry' });

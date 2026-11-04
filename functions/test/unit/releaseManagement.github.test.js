@@ -15,7 +15,11 @@
  *    single most common way this credential is broken in practice;
  *  - a failed token exchange never echoes the response body, which can contain
  *    the JWT that was rejected;
- *  - installation tokens are cached in memory and never persisted.
+ *  - installation tokens are cached in memory and never persisted;
+ *  - token minting and every GET give up after 15 s, but the dispatch that
+ *    starts a release has no limit: a dispatch whose answer was lost may
+ *    already have started one, and `promote.js` treats a failed dispatch as
+ *    never started.
  *
  * The key pair below is generated at test time. No real credential is used.
  */
@@ -23,7 +27,10 @@
 const { createVerify, generateKeyPairSync } = require('node:crypto');
 
 const {
+    GithubRequestError,
     createAppJwt,
+    createReleaseApi,
+    dispatchPromotion,
     getInstallationToken,
     isCredentialConfigured,
     readCredential,
@@ -119,13 +126,13 @@ describe('the App JWT', () => {
     });
 });
 
-describe('installation tokens', () => {
-    const okResponse = (token, expiresInMs = 3600000) => ({
-        ok: true,
-        status: 201,
-        json: async () => ({ token, expires_at: new Date(Date.now() + expiresInMs).toISOString() }),
-    });
+const okResponse = (token, expiresInMs = 3600000) => ({
+    ok: true,
+    status: 201,
+    json: async () => ({ token, expires_at: new Date(Date.now() + expiresInMs).toISOString() }),
+});
 
+describe('installation tokens', () => {
     it('exchanges the JWT for an installation token', async () => {
         const fetchImpl = jest.fn().mockResolvedValue(okResponse('ghs-artificial-token'));
 
@@ -165,5 +172,84 @@ describe('installation tokens', () => {
 
         await expect(getInstallationToken({ fetchImpl, env: configuredEnv() }))
             .rejects.toMatchObject({ message: expect.not.stringContaining('ARTIFICIAL') });
+    });
+});
+
+describe('time limits', () => {
+    const isMint = (url) => url.endsWith('/access_tokens');
+
+    // Rejects only when the request is aborted, as the built-in fetch does.
+    const untilAborted = (signal) => new Promise((_, reject) => {
+        signal.addEventListener('abort', () => reject(new Error('aborted')));
+    });
+
+    /** Records how a call ended, so a test can look just before the limit and at it. */
+    const settleInto = (promise, seen = {}) => [
+        seen,
+        promise.then((value) => { seen.value = value; }, (error) => { seen.error = error; }),
+    ];
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it.each([
+        ['the answer never starts', (init) => untilAborted(init.signal)],
+        ['the body never finishes', async (init) => ({ ok: true, status: 200, json: () => untilAborted(init.signal) })],
+    ])('a GET gives up after 15 s when %s', async (_, slowRead) => {
+        const fetchImpl = jest.fn((url, init) => (isMint(url) ? Promise.resolve(okResponse('ghs-artificial-token')) : slowRead(init)));
+        const [seen, done] = settleInto(createReleaseApi({ fetchImpl, env: configuredEnv() })('/commits/x'));
+
+        await jest.advanceTimersByTimeAsync(14999);
+        expect(seen).toStrictEqual({});
+
+        await jest.advanceTimersByTimeAsync(1);
+        await done;
+        expect(seen.error).toBeInstanceOf(GithubRequestError);
+        expect(seen.error).toMatchObject({ status: 504, message: 'GitHub did not answer within 15 seconds.' });
+        expect(fetchImpl).toHaveBeenLastCalledWith('https://api.github.com/repos/Khomurod/SafeHaul/commits/x', expect.anything());
+    });
+
+    it('gives up on a token mint after 15 s, before any dispatch is sent, and caches nothing', async () => {
+        const fetchImpl = jest.fn((url, init) => untilAborted(init.signal));
+        const [seen, done] = settleInto(
+            dispatchPromotion({ sha: 'a'.repeat(40), requestId: 'r1' }, { fetchImpl, env: configuredEnv() }),
+        );
+
+        await jest.advanceTimersByTimeAsync(14999);
+        expect(seen).toStrictEqual({});
+
+        await jest.advanceTimersByTimeAsync(1);
+        await done;
+        expect(seen.error).toBeInstanceOf(GithubRequestError);
+        expect(seen.error).toMatchObject({ status: 504 });
+        expect(fetchImpl).toHaveBeenCalledTimes(1);
+        expect(isMint(fetchImpl.mock.calls[0][0])).toBe(true);
+
+        const answering = jest.fn(async () => okResponse('ghs-after-timeout'));
+        await expect(getInstallationToken({ fetchImpl: answering, env: configuredEnv() })).resolves.toBe('ghs-after-timeout');
+    });
+
+    it('never limits the dispatch that starts a release: no signal, and a late answer still counts', async () => {
+        const fetchImpl = jest.fn((url) => (isMint(url)
+            ? Promise.resolve(okResponse('ghs-artificial-token'))
+            : new Promise((resolve) => setTimeout(() => resolve({ ok: true, status: 204 }), 20000))));
+        const [seen, done] = settleInto(
+            dispatchPromotion({ sha: 'a'.repeat(40), requestId: 'r1' }, { fetchImpl, env: configuredEnv() }),
+        );
+
+        await jest.advanceTimersByTimeAsync(20000);
+        await done;
+        expect(seen).toStrictEqual({ value: null });
+
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+        const [url, init] = fetchImpl.mock.calls[1];
+        expect(url).toBe('https://api.github.com/repos/Khomurod/SafeHaul/actions/workflows/promote-production.yml/dispatches');
+        expect(Object.keys(init).sort()).toEqual(['body', 'headers', 'method']);
+        expect(init.signal).toBeUndefined();
     });
 });

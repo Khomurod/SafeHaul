@@ -6,6 +6,32 @@
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { admin, db } = require("./../firebaseAdmin");
 const { syncClaimsAndSessions } = require("./claims");
+const { nameFromProfile, emailFromProfile } = require("../shared/userIdentity");
+
+/**
+ * The saved team list for one company's memberships: one entry per membership,
+ * in their order, named by the rule Settings → Team uses (`userIdentity.js`).
+ * `'Unknown'` and `''` stay the none values the screens read as "no name". All
+ * profiles come from one `getAll` (it refuses zero references); a membership
+ * without a usable `userId` is not read. If that read fails, this throws and the
+ * company's rewrite is skipped and logged, rather than writing `'Unknown'` over
+ * a good list; the next membership write rewrites it.
+ */
+async function teamOf(memberDocs) {
+    const memberships = memberDocs.map((d) => d.data() || {});
+    const uids = [...new Set(memberships.map((m) => m.userId).filter((id) => typeof id === 'string' && id))];
+    const snaps = uids.length ? await db.getAll(...uids.map((id) => db.collection('users').doc(id))) : [];
+    const profiles = new Map(snaps.map((s) => [s.id, s.exists ? s.data() : null]));
+    return memberships.map((m) => {
+        const p = profiles.get(m.userId) || null;
+        return {
+            userId: m.userId,
+            role: m.role,
+            name: nameFromProfile(p) || 'Unknown',
+            email: emailFromProfile(p) || ''
+        };
+    });
+}
 
 
 // --- 2. SYNC CLAIMS TRIGGER (The Critical Fix) ---
@@ -49,26 +75,7 @@ exports.onMembershipWrite = onDocumentWritten({
     for (const cid of validCompanyIds) {
         try {
             const teamSnap = await db.collection('memberships').where('companyId', '==', cid).get();
-
-            // Parallel fetch of user profiles
-            const userPromises = teamSnap.docs.map(async (doc) => {
-                const m = doc.data();
-                try {
-                    const uSnap = await db.collection('users').doc(m.userId).get();
-                    const uData = uSnap.exists ? uSnap.data() : {};
-                    return {
-                        userId: m.userId,
-                        role: m.role,
-                        name: uData.name || uData.displayName || 'Unknown',
-                        email: uData.email || ''
-                    };
-                } catch (e) {
-                    console.error(`Error fetching user ${m.userId} for company ${cid}:`, e);
-                    return { userId: m.userId, role: m.role, name: 'Unknown', email: '' };
-                }
-            });
-
-            const resolvedTeam = await Promise.all(userPromises);
+            const resolvedTeam = await teamOf(teamSnap.docs);
 
             await db.collection('companies').doc(cid).update({
                 teamMembers: resolvedTeam,

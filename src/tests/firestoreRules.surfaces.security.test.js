@@ -11,7 +11,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { describeFirestore, createRulesTestEnv } from './firestoreRules.support.js';
 
 let testEnv;
@@ -141,6 +141,9 @@ describeFirestore('firestore.rules security regressions', () => {
     await assertFails(setDoc(doc(teamOf('company-a'), 'companies', 'company-a', 'team', 'user-1'), { role: 'company_admin' }));
     await assertSucceeds(setDoc(doc(teamOf('company-a', 'company_admin'), 'companies', 'company-a', 'team', 'user-1'), { role: 'recruiter' }));
     await assertFails(getDoc(doc(teamOf('company-b'), 'companies', 'company-a', 'team', 'user-1')));
+    // Settings → Team lists every member's goals in one read.
+    await assertSucceeds(getDocs(collection(teamOf('company-a', 'company_admin'), 'companies', 'company-a', 'team')));
+    await assertFails(getDocs(collection(teamOf('company-b', 'company_admin'), 'companies', 'company-a', 'team')));
   });
 
   it('SURFACE: integrations are admin read/update, but create and delete stay super-admin-only', async () => {

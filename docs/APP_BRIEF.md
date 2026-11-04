@@ -956,7 +956,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
 | **Sentry** | Error monitoring for the browser app (`@sentry/react`), and its Content Security Policy violations (report-only, §10); Cloud Functions log to Cloud Logging only | DSN |
-| **GitHub API** | Promotion from Super Admin → Releases or the Telegram button (`runPromotion`) | GitHub App credential, server-only |
+| **GitHub API** | Promotion from Super Admin → Releases or the Telegram button (`runPromotion`). Reads and token minting give up after 15 s (shown as GitHub unreachable); the dispatch that starts a release has no limit of its own | GitHub App credential, server-only |
 
 **Hard boundaries:**
 
@@ -978,10 +978,11 @@ projection, and `/apply/:slug` is not gated by any flag. See
   on both or one AI entry point reads a credential the other cannot. Super Admin
   → AI Integrations → **Check credential access** asks both, names the account
   in use, and reports a missing secret apart from an unreadable one.
-- **SMS credentials are resolved by a factory, never inline.**
-  `SMSAdapterFactory` fetches, decrypts and instantiates the right adapter. A
-  *keychain* holds each line's JWT under its number (as typed with +, else US
-  +1); `assignments` give recruiters a "From" line, else the main line.
+- **SMS credentials are resolved by a factory, never inline.** `SMSAdapterFactory` fetches, decrypts and
+  instantiates the right adapter. A *keychain* holds each line's JWT under its number (as typed with +, else US +1);
+  `assignments` give recruiters a "From" line, else the main line. Every RingCentral request gives up after 20 s
+  (`ringcentralSdk.js`, which also gives each SDK its own session), 8x8 the same; a send it never answered may have
+  gone out, so it says so and is never resent automatically.
 - **The company API reads only its key's company and logs each answer.** It
   serves the frozen record, not the live one; files need `documents:read`, the
   full SSN `ssn:read`, the PDF both (it shows the SSN). Each answer is logged in
@@ -995,8 +996,8 @@ company from the client and authorizes it against the caller's per-company role.
 A page bound to a user id (an old defect) is reclaimed when its admin reconnects
 it; one held by another company is refused. The claim is a Firestore transaction taken *before*
 the Facebook OAuth exchange (two simultaneous connects cannot both pass),
-released if the connect then fails. An event needs Meta's `X-Hub-Signature-256`,
-compared in constant time; SHA-1 alone is refused.
+released if the connect then fails. Graph calls give up after 15 s. An event needs
+Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 
 ---
 
@@ -1039,15 +1040,15 @@ the daily count**; refusing is a recorded outcome.
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
+- **Team cache** — a membership write rewrites `companies/{id}.teamMembers` (uid, role, name by `nameFromProfile`
+  else `'Unknown'`, email). Team pickers and filters read it; Assign Leads and Import Leads read it fresh on opening.
 - **Notifications** — status changes, lead assignment, new applications, an
   applicant confirmation email. A call with a callback time (or "Remind me in 1
   Hour", still No Answer) reminds only its recruiter (`recipientId`). The bell
   reads the team's newest 20 and the reader's own newest 20 reminders (index in
   `firestore.indexes.json`), and shows the newest 20 of both.
-- **Automated contact SMS** — moving an application or lead *into*
-  `Contact Attempt 1/2/3` sends the matching template from
-  `companies/{id}/settings/automated_sms`. Transition-only, so idempotent; no
-  template, no message.
+- **Automated contact SMS** — moving an application or lead *into* `Contact Attempt 1/2/3` sends the
+  matching template from `companies/{id}/settings/automated_sms`; transition-only, so idempotent; no template, no message.
 - **Retention** — TTL overrides in `firestore.indexes.json` delete `blog_runs`,
   `application_drafts`, `application_draft_audit` and `rate_limits` at
   `expiresAt` (activity logs carry one). An unfinished application expires
@@ -1061,20 +1062,20 @@ The submit trigger records each event once in `processing_status` (30-day
 ### Bulk campaigns
 
 A launch or retry sends at most **2,000** (`launchLimit.js`), refused before
-writing. A worker sends **50 per batch**, re-checking the session: a cancel
-stops at once. One rule (`recentlyMessaged.js`) leaves out of count, preview
+writing. A worker sends **50 per batch**, re-checking the session: a cancel stops at once, and a batch starts no
+send after 4.5 min (the next carries on). One rule (`recentlyMessaged.js`) leaves out of count, preview
 and launch whom a same-channel campaign reached (its ledger; a call is not a
 message): **7 days** by default for uploads, none for CRM. Limit Volume
 keeps the newest N. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
 and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
 closed on a bad number) and every email with a usable one; no reply fills them (§12).
-An SMS logs as sent once RingCentral accepts it; a check (also
-`checkCampaignDelivery`) reads the line's message store (Read Messages) by id,
-else number and time, and fails an undelivered text (reason, totals).
-The recipient log and the Delivery Report read 200 logs at a time, newest first,
-and say how many exist (a server count); Retry Failed is offered when any log
-failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
+An SMS logs as sent once RingCentral accepts it; a check (also `checkCampaignDelivery`) reads the line's message
+store (Read Messages) by id, else number and time, and fails an undelivered text (reason, totals). A text the
+provider never answered logs `sendUnconfirmed` ("May have been sent"): Retry Failed leaves it out; three with
+no sent text between them, also across batches, pause the campaign. The recipient log and the Delivery Report
+read 200 logs at a time, newest first, and say how many exist (a server count); Retry Failed is offered when any
+log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 
 ---
 

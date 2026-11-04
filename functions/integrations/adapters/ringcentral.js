@@ -1,5 +1,6 @@
 const BaseAdapter = require('./BaseAdapter');
 const RC = require('@ringcentral/sdk').SDK;
+const { RINGCENTRAL_TIMEOUT_MS, createRingCentralSdk, isRingCentralTimeout } = require('./ringcentralSdk');
 const { isLikelyValidPhone, normalizePhoneForKeychain } = require('../../utils/phoneUtils');
 
 const SENT_SMS_PAGE_SIZE = 1000;
@@ -24,11 +25,7 @@ class RingCentralAdapter extends BaseAdapter {
             serverUrl = isSandbox ? RC.server.sandbox : RC.server.production;
         }
 
-        this.rc = new RC({
-            server: serverUrl,
-            clientId: config.clientId,
-            clientSecret: config.clientSecret
-        });
+        this.rc = createRingCentralSdk({ server: serverUrl, clientId: config.clientId, clientSecret: config.clientSecret });
 
         this._loggedIn = false; // Track login state for session caching
     }
@@ -168,6 +165,9 @@ class RingCentralAdapter extends BaseAdapter {
     }
 
     _normalizeError(error) {
+        // A send RingCentral never answered keeps its own error and code.
+        if (error?.code === BaseAdapter.SEND_UNCONFIRMED) return error;
+        if (isRingCentralTimeout(error)) return new Error(`RingCentral Error [Timeout]: RingCentral did not answer within ${RINGCENTRAL_TIMEOUT_MS / 1000} seconds. Nothing was sent; try again later.`);
         const responseData = error.response?.data;
         const errorCode = responseData?.errorCode || 'Unknown';
         const errorMsg = responseData?.message || error.message;
@@ -206,6 +206,9 @@ class RingCentralAdapter extends BaseAdapter {
                 // The message record; a body that cannot be read does not undo the send.
                 return typeof response?.json === 'function' ? await response.json().catch(() => null) : null;
             } catch (err) {
+                // RingCentral may have taken a send it never answered, so it is
+                // never sent again: no rate-limit retry and no fallback line.
+                if (isRingCentralTimeout(err)) throw BaseAdapter.sendUnconfirmedError('RingCentral', RINGCENTRAL_TIMEOUT_MS / 1000);
                 const msg = err.response?.data?.message || err.message || '';
                 const isRateLimit = msg.toLowerCase().includes('rate') ||
                     err.response?.status === 429;

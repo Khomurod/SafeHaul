@@ -38,14 +38,21 @@ const verifyDirectSelection = async ({ companyId, targetIds }) => {
 
         // Determine which collections to check based on leadSourceType
         const collections = ['applications', 'leads'];
+        const CHUNK = 30; // Firestore 'in' queries support max 30 values — batch if necessary
+        const QUERIES_AT_ONCE = 10; // lookups in flight at once, as recentlyMessaged.js
+        // Each collection's reference is built before any lookup, outside the try,
+        // so a company path that cannot be built throws as it is, not as a failed lookup.
+        const lookups = [];
+        for (const name of collections) {
+            const collectionRef = db.collection('companies').doc(companyId).collection(name);
+            for (let i = 0; i < targetIds.length; i += CHUNK) {
+                lookups.push({ name, collectionRef, chunk: targetIds.slice(i, i + CHUNK) });
+            }
+        }
         const verifiedIds = new Set();
-
-        for (const collection of collections) {
-            const collectionRef = db.collection('companies').doc(companyId).collection(collection);
-            // Firestore 'in' queries support max 30 values — batch if necessary
-            const chunkSize = 30;
-            for (let i = 0; i < targetIds.length; i += chunkSize) {
-                const chunk = targetIds.slice(i, i + chunkSize);
+        for (let i = 0; i < lookups.length; i += QUERIES_AT_ONCE) {
+            const wave = lookups.slice(i, i + QUERIES_AT_ONCE);
+            await Promise.all(wave.map(async ({ name, collectionRef, chunk }) => {
                 try {
                     const snap = await collectionRef
                         .where(admin.firestore.FieldPath.documentId(), 'in', chunk)
@@ -53,9 +60,9 @@ const verifyDirectSelection = async ({ companyId, targetIds }) => {
                         .get();
                     snap.forEach(doc => verifiedIds.add(doc.id));
                 } catch (queryErr) {
-                    console.warn(`[BULK-2] Ownership check query failed for ${collection}:`, queryErr.message);
+                    console.warn(`[BULK-2] Ownership check query failed for ${name}:`, queryErr.message);
                 }
-            }
+            }));
         }
 
         // Filter to only IDs that actually belong to this company
@@ -85,18 +92,21 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
     const selectQueries = queries.map(q => typeof q.select === 'function' ? q.select(...fieldsNeeded) : q);
 
     try {
-        // Execute sequentially to identify which one fails
-        const snapshots = [];
-        for (let i = 0; i < selectQueries.length; i++) {
-            try {
-                const snap = await selectQueries[i].get();
-                snapshots.push(snap);
-                console.log(`[BulkSession] Query #${i} returned ${snap.size} docs.`);
-            } catch (innerErr) {
-                console.error(`[BulkSession] Query #${i} failed:`, innerErr.message);
-                throw innerErr;
+        // Run the queries together and log each by its number. The lowest-numbered
+        // failure is the one reported, as when they ran one after another, and the
+        // snapshots keep the queries' order. A query that throws as it starts is
+        // its own failure.
+        const settled = await Promise.allSettled(selectQueries.map(async (q) => q.get()));
+        settled.forEach((result, i) => {
+            if (result.status === 'fulfilled') {
+                console.log(`[BulkSession] Query #${i} returned ${result.value.size} docs.`);
+            } else {
+                console.error(`[BulkSession] Query #${i} failed:`, result.reason.message);
             }
-        }
+        });
+        const failed = settled.find((r) => r.status === 'rejected');
+        if (failed) throw failed.reason;
+        const snapshots = settled.map((r) => r.value);
 
         // The channel's ledger first; the recruiter's un-ticked leads come off last.
         const window = excludeWindow(filters.excludeRecentDays);

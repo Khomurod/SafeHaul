@@ -79,9 +79,10 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
      * approved accessible `ConfirmDialog`, nested inside this report dialog.
      *
      * This is a *costly* action — it creates a whole new campaign and re-sends to
-     * every failed recipient, including permanent errors — so the dialog is
-     * explicitly destructive-toned and spells that out rather than reading as an
-     * informational modal.
+     * every failed recipient, including permanent errors, except a text the SMS
+     * provider never answered (the server leaves those out) — so the
+     * dialog is explicitly destructive-toned and spells that out rather than
+     * reading as an informational modal.
      */
     const confirmRetry = async () => {
         try {
@@ -210,7 +211,7 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
                 isOpen={pendingRetry}
                 tone="danger"
                 title="Start a new campaign for failed recipients?"
-                description="This creates a new campaign and messages every failed recipient from this run again, including those that failed with permanent errors."
+                description="This creates a new campaign and messages every failed recipient from this run again, including those that failed with permanent errors. Texts the SMS provider never answered are left out, as they may already have been delivered."
                 confirmLabel="Start retry campaign"
                 cancelLabel="Don't retry"
                 loading={retrying}

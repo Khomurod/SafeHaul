@@ -4,11 +4,12 @@
 // The shared harness — mock state, factories, fixtures and helpers — lives in
 // `useCompanyLeadUpload.contract.support.js`; the registrations below delegate
 // to it. See that file's header for the scope of this contract freeze.
-import { act } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@lib/firebase', async () => (await import('./useCompanyLeadUpload.contract.support')).libFirebaseMock());
 vi.mock('firebase/firestore', async () => (await import('./useCompanyLeadUpload.contract.support')).firebaseFirestoreMock());
+vi.mock('./useAssignableTeam', async () => (await import('./useCompanyLeadUpload.contract.support')).assignableTeamMock());
 
 import { LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
 import { useCompanyLeadUpload } from './useCompanyLeadUpload';
@@ -20,6 +21,7 @@ import {
     snapshot,
     fs,
     firebaseMock,
+    team,
     COMPANY_ID,
     LEADS_PATH,
 } from './useCompanyLeadUpload.contract.support';
@@ -59,7 +61,7 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
         expect(result.current.assignmentMode).toBe('unassigned');
     });
 
-    it('loads team members from memberships + users and preselects all of them', async () => {
+    it('lists the team useAssignableTeam gives, as { id, name }, and preselects all of them', async () => {
         const { result } = await mountHook();
 
         expect(result.current.teamMembers).toEqual([
@@ -68,6 +70,24 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
         ]);
         expect(result.current.selectedUserIds)
             .toEqual(['artificial-user-a', 'artificial-user-b']);
+    });
+
+    it('preselects the team once it is in, and keeps a selection made after that', async () => {
+        const members = team.members;
+        team.members = [];
+        team.isLoading = true;
+        const { result, rerender } = renderHook(() => useCompanyLeadUpload(COMPANY_ID, vi.fn(), {}));
+        expect(result.current.selectedUserIds).toEqual([]);
+
+        team.members = members;
+        team.isLoading = false;
+        rerender();
+        await waitFor(() => expect(result.current.selectedUserIds)
+            .toEqual(['artificial-user-a', 'artificial-user-b']));
+
+        act(() => result.current.setSelectedUserIds(['artificial-user-b']));
+        rerender();
+        expect(result.current.selectedUserIds).toEqual(['artificial-user-b']);
     });
 
     it('rejects round-robin with no recipients using the frozen message', async () => {

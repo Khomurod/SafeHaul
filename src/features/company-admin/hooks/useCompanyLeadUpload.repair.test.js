@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@lib/firebase', async () => (await import('./useCompanyLeadUpload.contract.support')).libFirebaseMock());
 vi.mock('firebase/firestore', async () => (await import('./useCompanyLeadUpload.contract.support')).firebaseFirestoreMock());
+vi.mock('./useAssignableTeam', async () => (await import('./useCompanyLeadUpload.contract.support')).assignableTeamMock());
 
 import { PLACEHOLDER_DOMAIN } from '@/config/placeholderDomains';
 import { useCompanyLeadUpload } from './useCompanyLeadUpload';
@@ -18,7 +19,6 @@ import {
     restoreHarness,
     snapshot,
     fs,
-    MEMBERSHIPS,
     LEADS_PATH,
 } from './useCompanyLeadUpload.contract.support';
 
@@ -30,11 +30,7 @@ afterEach(restoreHarness);
 
 describe('useCompanyLeadUpload — preserved contracts', () => {
     it('leaves the numeric progress count at zero for the repair scan', async () => {
-        fs.getDocs.mockImplementation(async (target) => {
-            const path = target?.path ?? target?.ref?.path;
-            if (path === 'memberships') return snapshot(MEMBERSHIPS);
-            return snapshot([]);
-        });
+        fs.getDocs.mockImplementation(async () => snapshot([]));
         const { result } = await mountHook();
         await act(async () => { await result.current.runDataRepair(); });
         expect(result.current.progressCount).toEqual({ current: 0, total: 0 });
@@ -54,7 +50,6 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         fs.getDocs.mockImplementation(async (target) => {
             const path = target?.path ?? target?.ref?.path;
-            if (path === 'memberships') return snapshot(MEMBERSHIPS);
             if (path === LEADS_PATH) {
                 return snapshot([
                     {
@@ -100,7 +95,6 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
     it('reports a clean repair scan and returns to the upload step', async () => {
         fs.getDocs.mockImplementation(async (target) => {
             const path = target?.path ?? target?.ref?.path;
-            if (path === 'memberships') return snapshot(MEMBERSHIPS);
             if (path === LEADS_PATH) {
                 return snapshot([{
                     id: 'lead-ok',
@@ -131,7 +125,6 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
     it('does not treat a real email or an existing placeholder as a phone number', async () => {
         fs.getDocs.mockImplementation(async (target) => {
             const path = target?.path ?? target?.ref?.path;
-            if (path === 'memberships') return snapshot(MEMBERSHIPS);
             if (path === LEADS_PATH) {
                 return snapshot([
                     { id: 'a', ref: { path: 'a' }, data: () => ({ email: 'x@example.test' }) },
