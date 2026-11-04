@@ -1585,8 +1585,10 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   fields. Remind's cooldown guards against mistakes, not a team member editing the
   database; a reminder whose every send failed does not count. Company setup reads once
   per dashboard visit.
-- **Batch 4 limits (2026-11):** the DQ checklist reads the employers as the dossier
-  loaded them (reopen it after a PEV change); `dqExpiresNext` reaches older records on a
+- **Batch 4 limits (2026-11):** the DQ checklist reads the DQ list when the tab opens or
+  after a change made there, and the employers as the dossier loaded them (reopen it after
+  another person's change or a PEV change), while the sidebar's marker follows the DQ list
+  live; `dqExpiresNext` reaches older records on a
   DQ write, when their DQ tab opens, or through Data cleanup → DQ valid-until dates; an
   old card left in the file keeps the record's earliest date until it is removed; a date
   the team set on a synced record gives way to the application's next change of that

@@ -92,6 +92,22 @@ describe("useApplicationView's DQ status", () => {
         expect(ALL_REQUIRED.map((entry) => entry.fileType)).not.toContain('PSP Report');
     });
 
+    it('turns incomplete on the day after the medical card runs out, without a new entry', () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+            vi.setSystemTime(new Date('2026-11-04T12:00:00Z'));
+            const { result, rerender } = mount();
+            deliver(ALL_REQUIRED.map((entry) => (entry.fileType === 'Medical Card' ? { ...entry, expirationDate: '2026-11-04' } : entry)));
+            expect(result.current.dqStatus).toBe('complete');
+
+            vi.setSystemTime(new Date('2026-11-05T00:30:00Z'));
+            rerender();
+            expect(result.current.dqStatus).toBe('incomplete');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('is incomplete while the medical card on file has expired', () => {
         const { result } = mount();
         deliver(ALL_REQUIRED.map((entry) => (entry.fileType === 'Medical Card' ? { ...entry, expirationDate: '2020-01-01' } : entry)));

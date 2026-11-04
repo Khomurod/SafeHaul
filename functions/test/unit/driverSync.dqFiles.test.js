@@ -221,8 +221,22 @@ describe('the valid-until dates the application\'s answers give its synced recor
         expect(mockUpdates).toEqual([]);
     });
 
-    it('changes nothing when no answer it copies changed', async () => {
-        mockDocs.set(`${DQ}/license_front`, { isSynced: true, expirationDate: '2026-03-01' });
+    it('still moves a later type after a type with no record', async () => {
+        mockDocs.set(`${DQ}/medical_card`, { isSynced: true, expirationDate: '2026-05-01' });
+
+        await update(
+            { cdlExpiration: '2026-03-01', medCardExpiration: '2026-05-01' },
+            { cdlExpiration: '2030-03-01', medCardExpiration: '2028-05-01' },
+        );
+
+        expect(mockUpdates).toEqual([
+            { path: `${DQ}/medical_card`, data: { expirationDate: '2028-05-01' } },
+        ]);
+    });
+
+    it('changes nothing when no answer it copies changed, even where the record holds another date', async () => {
+        // A date the team set on the DQ tab stays until the answer itself changes.
+        mockDocs.set(`${DQ}/license_front`, { isSynced: true, expirationDate: '2027-01-01' });
 
         await update({ cdlExpiration: '2026-03-01', status: 'New Application' }, { cdlExpiration: '2026-03-01', status: 'Hired' });
 

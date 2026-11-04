@@ -62,6 +62,20 @@ describe('data cleanup — DQ valid-until dates', () => {
         expect(world.writes).toBe(3);
     });
 
+    it('writes from the DQ file as it is at the write, not as it was at the check', async () => {
+        // A team member files a card that runs out sooner just after the check read app1's file.
+        let filed = false;
+        world.afterQuery = (snaps) => {
+            if (filed || !snaps.some((snap) => snap.ref.path === `${APPS}/app1/dq_files/medical_card`)) return;
+            filed = true;
+            world.docs.set(`${APPS}/app1/dq_files/medical_card_2`, { type: 'Medical Card', expirationDate: '2026-11-20' });
+        };
+
+        await run();
+
+        expect(world.doc(`${APPS}/app1`).dqExpiresNext).toBe('2026-11-20');
+    });
+
     it('changes nothing on a second run', async () => {
         await run();
         world.writes = 0;

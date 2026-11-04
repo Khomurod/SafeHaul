@@ -80,10 +80,27 @@ describe('DQFileTab — what the file holds and what it does not', () => {
         });
 
         const pev = await waitFor(() => row('Previous employers, last 3 years'));
-        expect(within(pev).getByText('Missing')).toBeInTheDocument();
+        // Employers are verified, not filed: the badge says how far that went.
+        expect(within(pev).getByText('Not all done')).toBeInTheDocument();
         expect(within(pev).getByText('Prairie Line Freight: answered')).toBeInTheDocument();
         expect(within(pev).getByText('Lakeshore Hauling: request sent, no answer yet')).toBeInTheDocument();
         expect(within(pev).queryByText(/Old Mesa Carriers/)).toBeNull();
+    });
+
+    it('says every employer of the three years is done (answered or no answer after the attempts), not "in file"', async () => {
+        renderDq({
+            appData: {
+                lifecycle: { submittedAt: '2026-10-01T12:00:00.000Z' },
+                employers: [
+                    { companyName: 'Prairie Line Freight', endDate: '', verification: { status: 'Completed' } },
+                    { companyName: 'Lakeshore Hauling', endDate: '2024-05', verification: { status: 'No Response' } },
+                ],
+            },
+        });
+
+        const pev = await waitFor(() => row('Previous employers, last 3 years'));
+        expect(within(pev).getByText('All done')).toBeInTheDocument();
+        expect(within(pev).queryByText('In file')).toBeNull();
     });
 
     it('waits for the files before it says anything is missing', async () => {
@@ -184,14 +201,23 @@ describe('DQFileTab — the date on a record', () => {
     });
 
     it('clears it when the field is left empty', async () => {
-        fs.getDocs.mockResolvedValue(snap([['f1', MEDICAL]]));
+        // The list is read again after the save, and shows what was stored.
+        let rows = [['f1', MEDICAL]];
+        fs.getDocs.mockImplementation(async () => snap(rows));
+        fs.updateDoc.mockImplementation(async (ref, data) => {
+            rows = rows.map(([id, record]) => [id, id === ref.id
+                ? { ...record, expirationDate: data.expirationDate === 'DELETE_FIELD' ? undefined : data.expirationDate }
+                : record]);
+        });
         renderDq();
 
         fireEvent.click(await screen.findByRole('button', { name: /^Set the valid-until date of Medical Card/ }));
         fireEvent.change(screen.getByLabelText('Valid until'), { target: { value: '' } });
         fireEvent.click(screen.getByRole('button', { name: 'Save date' }));
 
-        await waitFor(() => expect(fs.updateDoc).toHaveBeenCalledWith(expect.objectContaining({ id: 'f1' }), { expirationDate: 'DELETE_FIELD' }));
+        await waitFor(() => expect(within(fileList()).queryByText('Valid until Jan 31, 2027')).toBeNull());
+        expect(screen.queryByLabelText('Valid until')).toBeNull();
+        expect(fs.updateDoc).toHaveBeenCalledWith(expect.objectContaining({ id: 'f1' }), { expirationDate: 'DELETE_FIELD' });
         expect(logActivity).toHaveBeenCalledWith(
             'co-1', 'applications', 'app-1', 'dq_file_updated',
             'Cleared the valid-until date of DQ file: Medical Card - medcard.pdf', 'user',

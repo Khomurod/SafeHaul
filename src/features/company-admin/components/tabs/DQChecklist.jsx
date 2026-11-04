@@ -17,6 +17,12 @@ import { describeExpiry } from '../../utils/dqExpiry';
 function presentationOf(item) {
     if (item.state === 'expired') return { tone: 'danger', icon: AlertCircle, label: 'Expired' };
     if (item.state === 'none') return { tone: 'neutral', icon: MinusCircle, label: 'None listed' };
+    // Employers are verified, not filed: the badge says how far that went.
+    if (item.employers) {
+        return item.state === 'present'
+            ? { tone: 'success', icon: CheckCircle, label: 'All done' }
+            : { tone: 'warning', icon: AlertTriangle, label: 'Not all done' };
+    }
     if (item.state === 'missing') {
         return item.optional
             ? { tone: 'neutral', icon: Circle, label: 'Not in file' }

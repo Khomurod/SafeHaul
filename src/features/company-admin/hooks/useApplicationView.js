@@ -8,6 +8,7 @@ import {
 import { useApplicationDetails } from '@features/applications/hooks/useApplicationDetails';
 import { useToast } from '@shared/components/feedback';
 import { buildDqChecklist } from '../utils/dqChecklist';
+import { todayUtc } from '../utils/dqExpiry';
 
 export function useApplicationView(companyId, applicationId, onStatusUpdate) {
     const { showError } = useToast();
@@ -43,11 +44,13 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate) {
     // It is the DQ tab's checklist: incomplete while an item that is not
     // optional is missing or expired (`dqChecklist.js`), so the marker and the
     // list never disagree.
+    // Expiry is judged by the UTC day, so a new day rebuilds it on its first render.
+    const today = todayUtc();
     const dqStatus = useMemo(() => {
         if (!dqFiles) return null;
-        const { missing, expired } = buildDqChecklist({ files: dqFiles, record: appData });
+        const { missing, expired } = buildDqChecklist({ files: dqFiles, record: appData, now: new Date(`${today}T12:00:00Z`) });
         return missing + expired > 0 ? 'incomplete' : 'complete';
-    }, [dqFiles, appData]);
+    }, [dqFiles, appData, today]);
 
     /**
      * Download the PRESERVED original application document.

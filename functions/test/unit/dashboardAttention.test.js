@@ -413,7 +413,8 @@ describe('every query', () => {
             const order = q.orderBy[0]?.dir === 'desc' ? 'DESCENDING' : 'ASCENDING';
             const served = composites.some((index) => index.collectionGroup === group
                 && index.fields.length === equality.length + 1
-                && equality.every((field) => index.fields.slice(0, -1).some((f) => f.fieldPath === field))
+                // A scalar order, not `arrayConfig`: these filter a value, not array members.
+                && equality.every((field) => index.fields.slice(0, -1).some((f) => f.fieldPath === field && f.order !== undefined))
                 && index.fields.at(-1).fieldPath === ranged[0]
                 && index.fields.at(-1).order === order);
             expect({ query: `${group}: ${equality.join(', ')} + ${ranged[0]}`, served }).toEqual(expect.objectContaining({ served: true }));

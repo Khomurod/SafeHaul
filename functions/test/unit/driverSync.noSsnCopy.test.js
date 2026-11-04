@@ -18,6 +18,7 @@ jest.mock('firebase-functions/v2/firestore', () => ({
 
 // `mock`-prefixed so the jest.mock factories may reference them (jest hoisting rule).
 const mockWrites = [];
+const mockQueries = [];
 const mockState = { authUid: null, phoneMatch: null, missingProfiles: [] };
 jest.mock('../../firebaseAdmin', () => {
     const docRef = (path) => ({
@@ -32,13 +33,16 @@ jest.mock('../../firebaseAdmin', () => {
     });
     const colRef = (path) => ({
         doc: (id) => docRef(`${path}/${id}`),
-        where: () => ({
-            limit: () => ({
-                get: async () => (mockState.phoneMatch
-                    ? { empty: false, docs: [{ id: mockState.phoneMatch }] }
-                    : { empty: true, docs: [] }),
-            }),
-        }),
+        where: (field, op, value) => {
+            mockQueries.push({ path, field, op, value });
+            return {
+                limit: () => ({
+                    get: async () => (mockState.phoneMatch
+                        ? { empty: false, docs: [{ id: mockState.phoneMatch }] }
+                        : { empty: true, docs: [] }),
+                }),
+            };
+        },
         add: async (data) => { mockWrites.push({ kind: 'add', path, data }); },
     });
     return {
@@ -93,6 +97,7 @@ const stamp = (path) => ({ kind: 'update', path, data: { companyIds: { arrayUnio
 
 beforeEach(() => {
     mockWrites.length = 0;
+    mockQueries.length = 0;
     mockState.authUid = null;
     mockState.phoneMatch = null;
     mockState.missingProfiles = [];
@@ -118,6 +123,7 @@ it('stamps the profile a phone-only lead’s number already has', async () => {
 
     await submitLead({ ...PERSON, email: 'dana@placeholder.safehaulapp.com' });
 
+    expect(mockQueries).toEqual([{ path: 'drivers', field: 'personalInfo.phone', op: '==', value: PERSON.phone }]);
     expect(profileWrites()).toEqual([stamp('drivers/driver-by-phone')]);
 });
 

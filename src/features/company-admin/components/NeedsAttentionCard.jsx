@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, ButtonLink, Card, StatusMedallion } from '@/design-system/components';
 import { Icon, AlertCircle, ArrowRight, CheckCircle, Info } from '@design-system/icons';
 import { DriverDossier } from './modals/driver-dossier/DriverDossier';
-import { useDashboardAttention } from '../hooks/useDashboardAttention';
+import { forgetDashboardAttention, useDashboardAttention } from '../hooks/useDashboardAttention';
 import { attentionItems, localDay } from '../utils/dashboardAttention';
 
 /**
@@ -129,7 +129,12 @@ export function NeedsAttentionCard({ companyId }) {
                     driverId={openDriverId}
                     isOpen
                     onClose={() => setOpenDriverId(null)}
-                    onDeleted={() => setOpenDriverId(null)}
+                    onDeleted={() => {
+                        // The deleted driver leaves the counts: read them anew, not the kept answer.
+                        setOpenDriverId(null);
+                        forgetDashboardAttention();
+                        retry();
+                    }}
                 />
             )}
         </>

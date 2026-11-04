@@ -15,8 +15,9 @@ const EDITABLE = new Set(EDITABLE_FIELD_KEYS);
 const SECTION_LABELS = new Map(STANDARD_SECTIONS.flatMap((section) => section.fields.map((field) => [field.id, field.label])));
 
 /** Why a field has no box while the application is edited. */
-export const DISPLAY_ONLY_REASON = "Fields without a box are display only: they are the driver's own answers, "
-    + "documents and signature, which the company can't change.";
+export const DISPLAY_ONLY_REASON = "Fields without a box are display only: the driver's own answers, documents and "
+    + "signature, which the company can't change, and previous addresses, violations and accidents, which this "
+    + 'screen cannot edit yet.';
 
 /** The fields of an `APPLICATION_SCHEMA` section that stay display-only while editing. */
 export function displayOnlyKeys(section) {

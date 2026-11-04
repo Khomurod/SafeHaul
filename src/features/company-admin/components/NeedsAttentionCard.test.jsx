@@ -48,9 +48,10 @@ vi.mock('@lib/firebase', () => ({
 vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
 // The dossier has suites of its own; here it only says which record it opened.
 vi.mock('./modals/driver-dossier/DriverDossier', () => ({
-    DriverDossier: ({ driverId, companyId, onClose }) => (
+    DriverDossier: ({ driverId, companyId, onClose, onDeleted }) => (
         <div role="dialog" aria-label={`Driver file ${driverId} of ${companyId}`}>
             <button type="button" onClick={onClose}>Close the driver file</button>
+            <button type="button" onClick={onDeleted}>Delete the driver</button>
         </div>
     ),
 }));
@@ -133,7 +134,8 @@ describe('reading', () => {
 
         fx.user = { uid: 'uid-2' };
         renderCard();
-        await waitFor(() => expect(fx.calls).toHaveLength(2));
+        expect(await screen.findByText('Nothing needs attention right now.')).toBeInTheDocument();
+        expect(fx.calls).toHaveLength(2);
     });
 });
 
@@ -205,6 +207,21 @@ describe('the rows', () => {
 
         fireEvent.click(screen.getByRole('link', { name: 'Open hired drivers' }));
         expect(screen.getByTestId('where')).toHaveTextContent('/company/drivers/applications [hired]');
+    });
+
+    it('reads again after a driver is deleted from the file it opened, so the row no longer names them', async () => {
+        fx.answer = withRows({
+            dqExpiring: { status: 'ok', count: 1, drivers: [{ id: 'app-1', name: 'Ann Driver', date: '2999-02-01' }] },
+        });
+        renderCard();
+        fireEvent.click(await screen.findByRole('button', { name: 'Ann Driver' }));
+
+        fx.answer = structuredClone(QUIET);
+        fireEvent.click(screen.getByRole('button', { name: 'Delete the driver' }));
+
+        expect(await screen.findByText('Nothing needs attention right now.')).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(fx.calls).toHaveLength(2);
     });
 
     it('has no accessibility violations', async () => {

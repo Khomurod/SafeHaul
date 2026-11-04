@@ -542,9 +542,10 @@ describe('ApplicationTab — Edit Application edits only what the server changes
 
     cleanup();
     startEditing();
-    expect(screen.getByText(/Fields without a box are display only/)).toHaveTextContent(
-      "the driver's own answers, documents and signature, which the company can't change",
-    );
+    const reason = screen.getByText(/Fields without a box are display only/);
+    expect(reason).toHaveTextContent("the driver's own answers, documents and signature, which the company can't change");
+    // On the server's list, but this screen has no editor for them: not "can't change".
+    expect(reason).toHaveTextContent('previous addresses, violations and accidents, which this screen cannot edit yet');
   });
 
   it('marks a section with nothing to edit as display only, and no other', () => {
