@@ -75,10 +75,10 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [x] **T4.4** · Лимит 15 секунд для чтений GitHub в Releases · *15-second limit on GitHub reads behind Releases* → [T4.4](T4.4-github-release-timeouts.md) · PR: #559 · Дата: 2026-11-04
    - [x] **T4.5** · Импорт Google Sheet и скачивание PDF не крутятся вечно · *Sheet import and envelope PDF download stop spinning forever* → [T4.5](T4.5-browser-fetch-timeouts.md) · PR: #557 · Дата: 2026-11-03
 5. **Скорость у реальных пользователей / Real-user speed monitoring (#30)**
-   - [ ] **T5** · Вариант A: Firebase Performance Monitoring · *Option A: Firebase Performance Monitoring* → [T5](T5-firebase-performance.md) · PR: — · Дата: —
+   - [x] **T5** · Вариант A: Firebase Performance Monitoring · *Option A: Firebase Performance Monitoring* → [T5](T5-firebase-performance.md) · PR: #560 · Дата: 2026-11-04
    - [x] **T5-alt** · Вариант B: оставить Sentry (вместо T5 и T5b) · *Option B: keep Sentry as the speed tool* → [T5-alt](T5-alt-sentry-speed.md) · не понадобилось: владелец выбрал A (Р13) · Дата: 2026-11-03
-   - [ ] **T5b PR 1** · (необязательно) Отключить Sentry: приложение · *(optional) Switch Sentry off: the app* → [T5b](T5b-sentry-off.md) · PR: — · Дата: —
-   - [ ] **T5b PR 2** · (необязательно) Отключить Sentry: CI и настройки · *(optional) Switch Sentry off: CI and configuration* → [T5b](T5b-sentry-off.md) · PR: — · Дата: —
+   - [x] **T5b PR 1** · (необязательно) Отключить Sentry: приложение · *(optional) Switch Sentry off: the app* → [T5b](T5b-sentry-off.md) · PR: #560 · Дата: 2026-11-04
+   - [x] **T5b PR 2** · (необязательно) Отключить Sentry: CI и настройки · *(optional) Switch Sentry off: CI and configuration* → [T5b](T5b-sentry-off.md) · PR: #560 · Дата: 2026-11-04
 
 ### Мелочи / Minor items
 
@@ -115,7 +115,7 @@ Each can be done on its own, or when someone next changes that part of the app.
 
 - **OCR и политика безопасности CSP / OCR and the security policy**
   - [x] **X1a** · OCR не ждёт вечно, если движок не запустился · *OCR stops waiting forever when its engine cannot start* → [X1a](X1a-ocr-start-timeout.md) · PR: #557 · Дата: 2026-11-03
-  - [ ] **X1b** · Движок OCR и английские данные с нашего сайта (до включения CSP) · *Serve the OCR engine from our own site* → [X1b](X1b-ocr-self-hosted.md) · PR: — · Дата: —
+  - [x] **X1b** · Движок OCR и английские данные с нашего сайта (до включения CSP) · *Serve the OCR engine from our own site* → [X1b](X1b-ocr-self-hosted.md) · PR: #560 · Дата: 2026-11-04
 
 ## Журнал измерений и решений / Measurements and decisions
 
@@ -404,3 +404,12 @@ Not part of any task above. Each needs its own task if the owner wants it.
     *Recommended:* a separate small task: save each lead under a document id
     derived from `leadgen_id` with `create()`, and treat "already exists" as done,
     so a resend never duplicates and never overwrites a lead a recruiter edited.
+16. **In development the document reader's button stays on "Reading…" after a
+    read** (found while writing X1b's browser test; not changed there).
+    `ApplicationAiPrepPanel.jsx` clears its `mounted` ref in an effect cleanup and
+    never sets it back, and React's StrictMode (`main.jsx`) runs that cleanup once
+    on mount in development, so every later state update is skipped. Production
+    builds run effects once, so users are not affected; the dev server and the
+    E2E run are. *Recommended:* a separate small task: set `mounted.current = true`
+    in the same effect, and add the "read button is enabled again" assertion to
+    `e2e/application-prep-ocr.spec.cjs`.
