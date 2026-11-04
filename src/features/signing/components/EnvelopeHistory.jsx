@@ -11,6 +11,9 @@ import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { SentDocumentDetailsDialog } from '@features/company-admin/components/documents/SentDocumentDetailsDialog';
 import { deliveryFailure, hasDeliveryFailure } from '@features/company-admin/utils/documentsWorkspace';
 import { copySigningLink } from '@features/signing/utils/copySigningLink';
+import { canSendSignedCopy, hasCompanySignature } from '@features/signing/utils/signedCopy';
+import { useSignedCopySend } from '@features/signing/hooks/useSignedCopySend';
+import { SignedCopyButton, SignedCopyDialog, SignedCopyStatus } from './SignedCopy';
 
 /**
  * Feature-owned domain → visual mapping for a signing-request status.
@@ -56,9 +59,12 @@ function formatSentDate(createdAt) {
  *
  * Action hierarchy: every row is activatable and opens the details dialog, and
  * the Actions column holds exactly one status-specific quick action — Download
- * when signed, Copy Link when sent, Review/View details otherwise. Correct and
- * Void live in the details dialog, not in the rows, with their callable/Firestore
- * contracts, confirmation dialog, toasts and per-document busy states.
+ * when signed, Copy Link when sent, Review/View details otherwise; a signed
+ * document with a company signature offers Send signed copy instead until its
+ * copy is sent (`useSignedCopySend`), and says under its status where the copy
+ * stands. Correct and Void live in the details dialog, not in the rows, with
+ * their callable/Firestore contracts, confirmation dialog, toasts and
+ * per-document busy states.
  */
 export default function EnvelopeHistory({
     companyId,
@@ -82,6 +88,7 @@ export default function EnvelopeHistory({
     // too small.
     const isMobile = useIsMobile();
     const quickActionSize = isMobile ? 'lg' : 'sm';
+    const signedCopy = useSignedCopySend({ companyId, showSuccess });
 
     // Only subscribes when the parent is not already supplying the data.
     const ownSubscription = useSigningRequests(documents ? null : companyId);
@@ -239,6 +246,7 @@ export default function EnvelopeHistory({
         const title = docItem.title || 'Untitled';
 
         let action;
+        const copyRecord = signedCopy.recordFor(docItem);
         if (hasDeliveryFailure(docItem) || docItem.status === 'error_sealing') {
             action = (
                 <Button
@@ -250,6 +258,15 @@ export default function EnvelopeHistory({
                 >
                     <Icon icon={AlertCircle} size="sm" /> Review
                 </Button>
+            );
+        } else if (canSendSignedCopy(docItem, copyRecord)) {
+            action = (
+                <SignedCopyButton
+                    title={title}
+                    retry={copyRecord?.state === 'failed'}
+                    size={quickActionSize}
+                    onClick={() => signedCopy.request(docItem)}
+                />
             );
         } else if (docItem.status === 'signed') {
             action = (
@@ -354,7 +371,12 @@ export default function EnvelopeHistory({
             key: 'status',
             header: 'Status',
             width: 'md',
-            render: renderStatus,
+            render: (docItem) => (hasCompanySignature(docItem) && signedCopy.recordFor(docItem) ? (
+                <div className="flex flex-col items-start gap-ds-1">
+                    {renderStatus(docItem)}
+                    <SignedCopyStatus record={signedCopy.recordFor(docItem)} />
+                </div>
+            ) : renderStatus(docItem)),
         },
         {
             key: 'createdAt',
@@ -440,6 +462,17 @@ export default function EnvelopeHistory({
                 onCorrect={onCorrect ? (docItem) => { setDetailsDocument(null); onCorrect(docItem); } : undefined}
                 onVoid={(docItem) => { setDetailsDocument(null); requestVoid(docItem); }}
                 onDownload={(path) => { setDetailsDocument(null); handleDownload(path); }}
+                signedCopyRecord={detailsDocument ? signedCopy.recordFor(detailsDocument) : null}
+                onSendSignedCopy={(docItem) => { setDetailsDocument(null); signedCopy.request(docItem); }}
+            />
+
+            <SignedCopyDialog
+                pending={signedCopy.pending}
+                sending={signedCopy.sending}
+                error={signedCopy.error}
+                onApprove={signedCopy.approve}
+                onCancel={signedCopy.cancel}
+                onViewPdf={handleDownload}
             />
 
             {/*

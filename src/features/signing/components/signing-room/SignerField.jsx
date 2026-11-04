@@ -4,7 +4,9 @@ import { isFieldLocked } from '@features/signing/utils/prefillEngine';
 import { SignerFieldOverlay } from '@features/signing/components/SignerFieldOverlay';
 
 /**
- * Renders one signer-facing field overlay (text/date/checkbox/signature/initial).
+ * Renders one signer-facing field overlay (text/date/checkbox/signature/initial,
+ * and the company signature: the company's image, fixed, from the short-lived
+ * `companySignatureUrl` the envelope carries, and nothing at all without one).
  *
  * Presentation only: the locked-field rule (`isFieldLocked`), every change/focus/
  * Enter-advance handler, the signature-tap flow, the rendered ink `img`, and the
@@ -177,6 +179,18 @@ export function SignerField({
                 </SignerFieldOverlay>
             );
         }
+        case 'company_signature':
+            if (!field.companySignatureUrl) return null;
+            return (
+                <SignerFieldOverlay field={field} interactive={false}>
+                    <img
+                        src={field.companySignatureUrl}
+                        alt="Company signature"
+                        className="pointer-events-none h-full w-full object-contain"
+                        draggable={false}
+                    />
+                </SignerFieldOverlay>
+            );
         default:
             return null;
     }

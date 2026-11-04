@@ -89,6 +89,14 @@ const SCREENS = [
         open: (page) => page.getByRole('tab', { name: /^Sent Documents/ }).click(),
         row: 'Ana Lucia Ferreira-Montgomery',
     },
+    {
+        // Signed documents with a company signature: Send signed copy, Try again,
+        // and the copy's line under each status.
+        name: 'e-docs signed copies',
+        url: '/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock&e2eEdocSent=signedCopy',
+        open: (page) => page.getByRole('tab', { name: /^Sent Documents/ }).click(),
+        row: 'Independent Contractor Agreement',
+    },
     { name: 'referral links', url: '/company/referral-links?e2eAuth=company_admin&e2eReferrals=mock', row: 'Jean-Baptiste Okonkwo-Fairweather' },
     {
         name: 'settings api keys',

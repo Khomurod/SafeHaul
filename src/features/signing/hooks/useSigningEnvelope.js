@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { isFieldLocked } from '@features/signing/utils/prefillEngine';
+import { isCompanySignatureField } from '@features/signing/utils/companySignature';
 import { normalizeSignerField } from '@features/signing/utils/signerFieldStyle';
 import { browserTimeZone, rollSignedDateFields } from '@features/signing/utils/signedDate';
 import { readDraft } from '@features/signing/utils/signingDraft';
@@ -56,6 +57,8 @@ function buildE2EMockEnvelope() {
 function initializeFieldValues(fields, companyId, requestId) {
     const initial = {};
     fields.forEach(f => {
+        // The company's image: shown, never filled, so it has no value.
+        if (isCompanySignatureField(f)) return;
         if (f.type === 'checkbox') {
             initial[f.id] = false;
             return;

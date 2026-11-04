@@ -99,6 +99,52 @@ export function mockSigningRequests(now = Date.now()) {
     ];
 }
 
+/*
+ * `?e2eEdoc=mock&e2eEdocSent=signedCopy`: signed documents carrying a company
+ * signature, one for each thing their signed copy can say — waiting for
+ * approval, sent, on its way, not sent — and one signed without a company
+ * signature, which behaves as every other document. Made up, as above.
+ */
+export function mockSignedCopyRequests(now = Date.now()) {
+    const sentAgo = sentAgoFrom(now);
+    const fields = [
+        { id: 'sig1', type: 'signature', label: 'Signature', pageNumber: 1, xPosition: 10, yPosition: 80, width: 30, height: 6 },
+        {
+            id: 'cs1', type: 'company_signature', label: 'Company Signature', pageNumber: 1, xPosition: 60, yPosition: 80,
+            width: 25, height: 8, required: false, readOnly: true, prefillPolicy: 'locked',
+            companySignaturePath: 'secure_documents/e2e-company/originals/company-signatures/e2e-stamp.png',
+        },
+    ];
+    const signed = (id, title, recipientName, recipientEmail, extra = {}) => ({
+        id,
+        title,
+        recipientName,
+        recipientEmail,
+        sendEmail: true,
+        sendSms: false,
+        deliveryMethod: 'email',
+        status: 'signed',
+        signedPdfUrl: `secure_documents/e2e-company/signed/${id}.pdf`,
+        fields,
+        createdAt: sentAgo(2),
+        ...extra,
+    });
+    const approval = { approvedBy: 'e2e-company_admin', approvedByName: 'E2E Admin', approvedAt: sentAgo(1) };
+    return [
+        signed('e2e-copy-ready', 'Independent Contractor Agreement', 'Rosa Delgado', 'rosa.delgado@example.test'),
+        signed('e2e-copy-sent', 'Equipment Lease', 'Omar Haddad', 'omar.haddad@example.test', {
+            signedCopy: { state: 'sent', ...approval, sentTo: 'omar.haddad@example.test', sentAt: sentAgo(1) },
+        }),
+        signed('e2e-copy-sending', 'Fuel Card Agreement', 'Kim Novak', 'kim.novak@example.test', {
+            signedCopy: { state: 'sending', ...approval, sentTo: 'kim.novak@example.test' },
+        }),
+        signed('e2e-copy-failed', 'Escrow Agreement', 'Ade Bello', 'ade.bello@example.test', {
+            signedCopy: { state: 'failed', ...approval, sentTo: 'ade.bello@example.test', error: 'Mailbox unavailable' },
+        }),
+        signed('e2e-copy-plain', 'Safety Handbook Receipt', 'Lee Chan', 'lee.chan@example.test', { fields: [fields[0]] }),
+    ];
+}
+
 /** How many rows `?e2eEdocSent=many` serves: more than one window of 100. */
 export const MANY_MOCK_SIGNING_REQUESTS = 230;
 

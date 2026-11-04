@@ -1,6 +1,8 @@
 import React from 'react';
 import { Icon, Lock } from '@design-system/icons';
 import { Checkbox, FormField, Input, Select, Textarea } from '@/design-system/components';
+import { isCompanySignatureField } from '@features/signing/utils/companySignature';
+import { CompanySignatureUpload } from '@features/signing/components/CompanySignatureUpload';
 
 /** Field types that carry no text content, so they expose no prefill/default/format options. */
 const CONTENT_LESS_TYPES = new Set(['signature', 'initial', 'checkbox']);
@@ -18,11 +20,17 @@ const CONTENT_LESS_TYPES = new Set(['signature', 'initial', 'checkbox']);
  * inside a label. They are now native checkboxes with visible associated labels
  * — keyboard-operable by construction, and state is conveyed by the control
  * itself rather than icon colour.
+ *
+ * A company signature has none of the signer's options — it is the company's
+ * image, fixed — so its panel holds the image and its upload instead
+ * (`CompanySignatureUpload`, which needs `companyId`). A template may leave the
+ * image for each document (`isTemplate`).
  */
-export const FieldPropertiesPanel = React.memo(({ activeField, updateActiveField, getIcon }) => {
+export const FieldPropertiesPanel = React.memo(({ activeField, updateActiveField, getIcon, companyId, isTemplate = false }) => {
     if (!activeField) return null;
 
-    const hasTextOptions = !CONTENT_LESS_TYPES.has(activeField.type);
+    const isCompanySignature = isCompanySignatureField(activeField);
+    const hasTextOptions = !CONTENT_LESS_TYPES.has(activeField.type) && !isCompanySignature;
 
     return (
         <div className="flex h-full flex-col">
@@ -32,7 +40,9 @@ export const FieldPropertiesPanel = React.memo(({ activeField, updateActiveField
                     <span aria-hidden="true" className="rounded-ds-md border border-ds-border-subtle bg-ds-surface p-1.5 shadow-ds-xs">
                         {getIcon(activeField.type)}
                     </span>
-                    <span className="text-ds-xs font-bold uppercase text-ds-content-secondary">{activeField.type} Field</span>
+                    <span className="text-ds-xs font-bold uppercase text-ds-content-secondary">
+                        {isCompanySignature ? 'Company signature' : activeField.type} Field
+                    </span>
                 </div>
                 <FormField label="Field Label">
                     <Input
@@ -44,43 +54,57 @@ export const FieldPropertiesPanel = React.memo(({ activeField, updateActiveField
                 </FormField>
             </div>
 
-            {/* Toggles */}
-            <div className="flex flex-col gap-ds-3 border-b border-ds-border-subtle p-ds-4">
-                <h4 className="text-ds-xs font-bold uppercase tracking-wide text-ds-content-secondary">Options</h4>
-                <Checkbox
-                    id="field-properties-required"
-                    label="Required Field"
-                    checked={Boolean(activeField.required)}
-                    onChange={() => updateActiveField('required', !activeField.required)}
-                />
-                <div className="flex items-center gap-ds-2">
-                    <Checkbox
-                        id="field-properties-read-only"
-                        label="Read Only"
-                        checked={Boolean(activeField.readOnly)}
-                        onChange={() => {
-                            const nextReadOnly = !activeField.readOnly;
-                            updateActiveField({ readOnly: nextReadOnly, prefillPolicy: nextReadOnly ? 'locked' : 'editable' });
-                        }}
+            {isCompanySignature && (
+                <div className="flex flex-col gap-ds-2 p-ds-4">
+                    <h4 className="text-ds-xs font-bold uppercase tracking-wide text-ds-content-secondary">Signature image</h4>
+                    <CompanySignatureUpload
+                        companyId={companyId}
+                        path={activeField.companySignaturePath}
+                        onUploaded={(path) => updateActiveField('companySignaturePath', path)}
+                        hint={isTemplate ? 'Upload the signature here, or for each document.' : undefined}
                     />
-                    <Icon icon={Lock} size="xs" className="text-ds-content-muted" />
                 </div>
+            )}
 
-                {hasTextOptions && (
-                    <FormField label="Prefill Behavior">
-                        <Select
-                            value={activeField.prefillPolicy || (activeField.readOnly ? 'locked' : 'editable')}
-                            onChange={(e) => {
-                                const mode = e.target.value;
-                                updateActiveField({ prefillPolicy: mode, readOnly: mode === 'locked' });
+            {/* Toggles */}
+            {!isCompanySignature && (
+                <div className="flex flex-col gap-ds-3 border-b border-ds-border-subtle p-ds-4">
+                    <h4 className="text-ds-xs font-bold uppercase tracking-wide text-ds-content-secondary">Options</h4>
+                    <Checkbox
+                        id="field-properties-required"
+                        label="Required Field"
+                        checked={Boolean(activeField.required)}
+                        onChange={() => updateActiveField('required', !activeField.required)}
+                    />
+                    <div className="flex items-center gap-ds-2">
+                        <Checkbox
+                            id="field-properties-read-only"
+                            label="Read Only"
+                            checked={Boolean(activeField.readOnly)}
+                            onChange={() => {
+                                const nextReadOnly = !activeField.readOnly;
+                                updateActiveField({ readOnly: nextReadOnly, prefillPolicy: nextReadOnly ? 'locked' : 'editable' });
                             }}
-                        >
-                            <option value="editable">Editable when prefilled</option>
-                            <option value="locked">Locked after prefill</option>
-                        </Select>
-                    </FormField>
-                )}
-            </div>
+                        />
+                        <Icon icon={Lock} size="xs" className="text-ds-content-muted" />
+                    </div>
+
+                    {hasTextOptions && (
+                        <FormField label="Prefill Behavior">
+                            <Select
+                                value={activeField.prefillPolicy || (activeField.readOnly ? 'locked' : 'editable')}
+                                onChange={(e) => {
+                                    const mode = e.target.value;
+                                    updateActiveField({ prefillPolicy: mode, readOnly: mode === 'locked' });
+                                }}
+                            >
+                                <option value="editable">Editable when prefilled</option>
+                                <option value="locked">Locked after prefill</option>
+                            </Select>
+                        </FormField>
+                    )}
+                </div>
+            )}
 
             {/* Default Value */}
             {hasTextOptions && (

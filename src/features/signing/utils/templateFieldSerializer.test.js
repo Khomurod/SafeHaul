@@ -156,3 +156,40 @@ describe('deserializeTemplateField — a stored field back in the editor', () =>
         expect(serializeTemplateField(deserializeTemplateField(stored))).toEqual(stored);
     });
 });
+
+describe('a company signature field', () => {
+    const PATH = 'secure_documents/co-1/originals/company-signatures/a1b2.png';
+
+    it('is stored in the shape the server reads, with its image path', () => {
+        expect(serializeTemplateField({
+            id: 'cs1', type: 'company_signature', label: 'Company Signature', page: 2,
+            x: 60, y: 85, width: 25, height: 8, required: true, readOnly: false,
+            prefillPolicy: 'editable', bindingKey: 'full_name', defaultValue: '{{full_name}}',
+            companySignaturePath: PATH,
+        })).toEqual({
+            id: 'cs1', type: 'company_signature', label: 'Company Signature', pageNumber: 2,
+            xPosition: 60, yPosition: 85, width: 25, height: 8,
+            required: false, readOnly: true, prefillPolicy: 'locked', bindingKey: '',
+            prefillGroupKey: '', defaultValue: '', fontSize: 'Auto',
+            companySignaturePath: PATH,
+        });
+    });
+
+    it('is stored with an empty path while it has no image', () => {
+        const out = serializeTemplateField({ id: 'cs2', type: 'company_signature' });
+        expect(out).toMatchObject({ label: 'Company Signature', companySignaturePath: '' });
+        assertNoUndefined(out);
+    });
+
+    it('keeps its image through a round trip', () => {
+        const stored = serializeTemplateField({ id: 'cs3', type: 'company_signature', page: 1, x: 5, y: 6, width: 20, height: 7, companySignaturePath: PATH });
+        const field = deserializeTemplateField(stored);
+        expect(field.companySignaturePath).toBe(PATH);
+        expect(serializeTemplateField(field)).toEqual(stored);
+    });
+
+    it('leaves every other field without the key', () => {
+        expect(serializeTemplateField({ id: 's', type: 'signature', companySignaturePath: PATH })).not.toHaveProperty('companySignaturePath');
+        expect(deserializeTemplateField({ id: 's', type: 'signature' })).not.toHaveProperty('companySignaturePath');
+    });
+});

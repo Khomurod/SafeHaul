@@ -5,7 +5,8 @@
 // covered by the workspace spec, the table-layout guard and the screenshots): the
 // labelled keyboard-reachable scroll region, the column contract, the
 // announced loading/empty/error state, responsive overflow at 1440/1024/412
-// and a scoped real-browser axe pass.
+// and a scoped real-browser axe pass. One test uses `e2eEdocSent=signedCopy`
+// for the approved signed copy, answering its callable here.
 //
 // Row rendering, status/delivery badges, the void / copy-link / correct /
 // download actions and their error paths are covered by the vitest suite in
@@ -16,9 +17,10 @@ const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 
 const URL = '/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock';
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
 
-async function openHistory(page) {
-  await page.goto(URL);
+async function openHistory(page, url = URL) {
+  await page.goto(url);
   await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible({ timeout: 20_000 });
   // The workspace opens on Overview; the history table lives in Sent Documents.
   // On a phone the rows are cards, and the region drops "Scroll horizontally".
@@ -83,6 +85,51 @@ test.describe('E-Doc envelope history slice', () => {
       }));
       expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
     }
+  });
+
+  test('a signed document with a company signature is approved and its copy sent once', async ({ page }) => {
+    // E2E mode has no Functions: the callable is answered here, and what it
+    // receives is asserted. The rows are the made-up `e2eEdocSent=signedCopy` set.
+    const sent = [];
+    await page.route('**/sendSignedDocumentCopy', (route) => {
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+      sent.push(route.request().postDataJSON()?.data);
+      return route.fulfill({
+        status: 200,
+        headers: CORS,
+        contentType: 'application/json',
+        body: JSON.stringify({ result: { success: true, sentTo: 'rosa.delgado@example.test', sentAt: new Date().toISOString() } }),
+      });
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openHistory(page, `${URL}&e2eEdocSent=signedCopy`);
+
+    // What each row says about its copy.
+    await expect(page.getByText(/^Copy sent to omar\.haddad@example\.test on /)).toBeVisible();
+    await expect(page.getByText('Sending copy…')).toBeVisible();
+    await expect(page.getByText('Copy not sent')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Try again: send signed copy of Escrow Agreement' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Download Fuel Card Agreement' })).toBeVisible();
+    // Without a company signature, a signed document is as it always was.
+    await expect(page.getByRole('button', { name: 'Download Safety Handbook Receipt' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /signed copy of Safety Handbook Receipt/ })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Send signed copy of Independent Contractor Agreement' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Send the signed copy?' });
+    await expect(dialog).toContainText('Independent Contractor Agreement');
+    await expect(dialog).toContainText('rosa.delgado@example.test');
+    await expect(dialog).toContainText('The driver gets the signed PDF, with your company signature, at this address. This is sent once.');
+    await expect(dialog.getByRole('button', { name: 'View signed PDF' })).toBeVisible();
+    expect(sent).toEqual([]);
+
+    // A double click is still one send.
+    await dialog.getByRole('button', { name: 'Approve and send' }).dblclick();
+    await expect(dialog).toBeHidden({ timeout: 10_000 });
+    await expect(page.getByText('Signed copy sent to rosa.delgado@example.test')).toBeVisible();
+    await expect(page.getByText(/^Copy sent to rosa\.delgado@example\.test on /)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Send signed copy of Independent Contractor Agreement' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Download Independent Contractor Agreement' })).toBeVisible();
+    expect(sent).toEqual([{ companyId: 'e2e-company', requestId: 'e2e-copy-ready' }]);
   });
 
   test('has no serious/critical or contrast violations in the history table', async ({ page }) => {
