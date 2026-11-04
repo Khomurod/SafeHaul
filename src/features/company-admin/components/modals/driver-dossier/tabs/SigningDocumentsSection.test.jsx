@@ -1,7 +1,8 @@
 /**
  * The dossier's signing documents (Documents tab): each document's title, state
- * and dates; Send to driver on a required form nobody sent, with what the server
- * answered beside it; a signed copy opened through `getSignedDocumentUrl`. The
+ * and dates; Send to driver on a required form nobody sent, and Remind on one sent
+ * by email or text, with what the server answered beside it; a signed copy
+ * opened through `getSignedDocumentUrl`. The
  * data hook is replaced by rows built with the real rules; the callables are
  * fakes. All names, ids and dates are artificial.
  */
@@ -183,6 +184,63 @@ describe('Send to driver', () => {
     });
 });
 
+describe('Remind', () => {
+    const LEASE = {
+        id: 'r-lease', templateId: 'tpl-lease', title: 'Lease', status: 'sent', sendEmail: true, recipientEmail: 'dana@example.test',
+        createdAt: at(-8), expiresAt: at(-1),
+    };
+    const SENT_FORM = {
+        id: 'postapp_app-1_tpl-w9', templateId: 'tpl-w9', title: 'W-9', status: 'sent', sendEmail: true, recipientEmail: 'dana@example.test',
+        createdAt: at(-3), expiresAt: at(4),
+    };
+
+    it('is offered on a document sent by email or text, its link expired or not, named after it, and on nothing else', () => {
+        withRows({ requests: [...REQUESTS, LEASE, SENT_FORM] });
+        renderSection();
+
+        expect(screen.getAllByRole('button', { name: /^Remind/ }).map((b) => b.textContent))
+            .toEqual(['Remind — W-9', 'Remind — Lease']);
+        // The thank-you page's form nobody sent keeps Send to driver; a signed one has neither.
+        expect(within(rowOf('Handbook')).queryByRole('button', { name: /Remind/ })).toBeNull();
+        expect(within(rowOf('Offer Letter')).queryByRole('button', { name: /Remind/ })).toBeNull();
+        expect(within(rowOf('Lease')).queryByRole('button', { name: /Send to driver/ })).toBeNull();
+    });
+
+    it('asks the server to remind that document, and says how it went beside it', async () => {
+        withRows({ requests: [...REQUESTS, LEASE] });
+        fx.answers.remindSigner = () => ({ data: { success: true, requestId: 'r-lease', channels: { email: true, sms: false } } });
+        renderSection();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Remind — Lease' }));
+
+        await waitFor(() => expect(within(rowOf('Lease')).getByRole('status'))
+            .toHaveTextContent('Reminder sent by email. The link works for seven more days.'));
+        expect(fx.calls).toEqual([['remindSigner', { companyId: 'co-1', requestId: 'r-lease' }]]);
+    });
+
+    it('shows the server\'s reason beside the document when nothing was sent', async () => {
+        withRows({ requests: [...REQUESTS, LEASE] });
+        fx.answers.remindSigner = () => {
+            throw Object.assign(new Error('A reminder was sent less than ten minutes ago. You can send another in 8 minutes.'), {
+                code: 'functions/failed-precondition',
+            });
+        };
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        renderSection();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Remind — Lease' }));
+
+        await waitFor(() => expect(within(rowOf('Lease')).getByRole('status'))
+            .toHaveTextContent('You can send another in 8 minutes.'));
+    });
+
+    it('is offered on a lead\'s document too', () => {
+        withRows({ forms: [], applicationId: null, requests: [LEASE] });
+        renderSection('leads', 'lead-1');
+        expect(screen.getByRole('button', { name: 'Remind — Lease' })).toBeInTheDocument();
+    });
+});
+
 describe('a signed copy', () => {
     it('opens in a tab opened by the press, at a link signed for its stored file', async () => {
         withRows();
@@ -213,7 +271,10 @@ describe('a signed copy', () => {
 
 describe('accessibility', () => {
     it('has no axe violations with every kind of row and a message shown', async () => {
-        withRows();
+        withRows({ requests: [...REQUESTS, {
+            id: 'r-lease', templateId: 'tpl-lease', title: 'Lease', status: 'sent', sendEmail: true,
+            recipientEmail: 'dana@example.test', createdAt: at(-8), expiresAt: at(-1),
+        }] });
         vi.spyOn(window, 'open').mockReturnValue(null);
         const { container } = renderSection();
         fireEvent.click(screen.getByRole('button', { name: /Open signed copy of Offer Letter/ }));

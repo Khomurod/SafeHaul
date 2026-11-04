@@ -21,7 +21,8 @@ const makeDoc = (overrides = {}) => ({
     deliveryMethod: 'email',
     status: 'sent',
     createdAt: { seconds: 1700000000 },
-    expiresAt: { seconds: 1702592000 },
+    // A link that still works (2100-01-01), so the default document is one waiting for its signer.
+    expiresAt: { seconds: 4102444800 },
     // Fields a stored request may carry that must never reach the DOM.
     signingToken: SECRET_TOKEN,
     signingLink: `https://sign.example.test/${SECRET_TOKEN}`,
@@ -196,6 +197,81 @@ describe('SentDocumentDetailsDialog — dialog behaviour', () => {
             emailError: 'SMTP 550 (artificial)',
         }));
         expect((await axe(failed.container)).violations).toEqual([]);
+    });
+});
+
+describe('SentDocumentDetailsDialog — a link that ran out, and Remind', () => {
+    const EXPIRED_AT = { seconds: 1702592000 };
+    const expired = (overrides = {}) => makeDoc({ sendEmail: true, expiresAt: EXPIRED_AT, ...overrides });
+    const statusRow = (dialog) => within(dialog).getByText('Status').closest('div');
+
+    it('says the link expired, when, and that Remind sends it again', () => {
+        renderDialog(expired(), { onRemind: vi.fn() });
+        const dialog = screen.getByRole('dialog');
+
+        expect(statusRow(dialog)).toHaveTextContent('Link expired');
+        const notice = within(dialog).getByRole('status');
+        expect(notice).toHaveTextContent('Link expired');
+        expect(notice).toHaveTextContent(`stopped working on ${new Date(EXPIRED_AT.seconds * 1000).toLocaleDateString()}`);
+        expect(notice).toHaveTextContent('Remind sends it again with seven more days.');
+    });
+
+    it('offers Remind, which asks for this document', () => {
+        const onRemind = vi.fn();
+        const document = expired();
+        renderDialog(document, { onRemind });
+
+        fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remind' }));
+        expect(onRemind).toHaveBeenCalledWith(document);
+    });
+
+    it('is busy, and cannot be pressed again, while the reminder is on its way', () => {
+        renderDialog(expired(), { onRemind: vi.fn(), reminding: true });
+        expect(screen.getByRole('button', { name: /Remind/ })).toBeDisabled();
+    });
+
+    it('offers Remind on a document whose link still works, and calls it neither expired nor anything new', () => {
+        renderDialog(makeDoc({ sendEmail: true }), { onRemind: vi.fn() });
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByRole('button', { name: 'Remind' })).toBeInTheDocument();
+        expect(statusRow(dialog)).toHaveTextContent(/^Statussent$/);
+        expect(within(dialog).queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    it('says what to do about an expired document shared by a copied link, and offers no Remind', () => {
+        renderDialog(expired({ sendEmail: false, sendSms: false, deliveryMethod: 'copy' }), { onRemind: vi.fn() });
+        const dialog = screen.getByRole('dialog');
+
+        expect(within(dialog).queryByRole('button', { name: /Remind/ })).not.toBeInTheDocument();
+        expect(within(dialog).getByRole('status')).toHaveTextContent('shared by a copied link');
+        expect(within(dialog).getByRole('status')).toHaveTextContent('Correct it to add an email address or a phone number');
+    });
+
+    it.each(['signed', 'voided', 'processing', 'error_sealing'])('offers no Remind on a %s document', (status) => {
+        renderDialog(expired({ status }), { onRemind: vi.fn() });
+        expect(screen.queryByRole('button', { name: /Remind/ })).not.toBeInTheDocument();
+        expect(statusRow(screen.getByRole('dialog'))).not.toHaveTextContent('Link expired');
+    });
+
+    it('offers no Remind where no handler is given', () => {
+        renderDialog(expired());
+        expect(screen.queryByRole('button', { name: /Remind/ })).not.toBeInTheDocument();
+    });
+
+    it('shows how many reminders went, and when the last did', () => {
+        renderDialog(makeDoc({ sendEmail: true, reminders: { count: 2, lastAt: { seconds: 1700500000 }, lastBy: 'user-1' } }));
+        const row = within(screen.getByRole('dialog')).getByText('Reminders').closest('div');
+        expect(row).toHaveTextContent(`2 sent, the last on ${new Date(1700500000 * 1000).toLocaleDateString()}`);
+    });
+
+    it('shows no reminders row before the first', () => {
+        renderDialog(makeDoc());
+        expect(screen.queryByText('Reminders')).not.toBeInTheDocument();
+    });
+
+    it('has no accessibility violations with an expired link and Remind offered', async () => {
+        const view = renderDialog(expired(), { onRemind: vi.fn() });
+        expect((await axe(view.container)).violations).toEqual([]);
     });
 });
 

@@ -12,6 +12,7 @@ import {
     isAwaitingSignature,
     isCompleted,
     isDefaultFilters,
+    isLinkExpired,
     isTemplateDuplicable,
     needsAttention,
     recentDocuments,
@@ -66,6 +67,36 @@ describe('status predicates', () => {
         expect(deliveryFailure(doc({ emailStatus: 'failed', emailError: 'SMTP 550', smsStatus: 'failed' })))
             .toEqual({ channel: 'Email', error: 'SMTP 550' });
         expect(deliveryFailure(doc({ status: 'sent', emailStatus: 'sent', smsStatus: 'sent' }))).toBeNull();
+    });
+});
+
+describe('a link that ran out', () => {
+    const NOW = Date.UTC(2026, 10, 4, 12);
+    const day = (days) => ({ toMillis: () => NOW + days * 24 * 60 * 60 * 1000 });
+
+    it('is an unsigned document whose expiresAt has passed, derived and never stored', () => {
+        expect(isLinkExpired(doc({ status: 'sent', expiresAt: day(-0.01) }), NOW)).toBe(true);
+        expect(isLinkExpired(doc({ status: 'sent', expiresAt: { seconds: (NOW - 1000) / 1000 } }), NOW)).toBe(true);
+        expect(isLinkExpired(doc({ status: 'sent', expiresAt: day(1) }), NOW)).toBe(false);
+        expect(isLinkExpired(doc({ status: 'sent', expiresAt: null }), NOW)).toBe(false);
+        expect(isLinkExpired(doc({ status: 'sent' }), NOW)).toBe(false);
+    });
+
+    it.each(['signed', 'pending_seal', 'error_sealing', 'voided', 'processing'])('is never a %s document', (status) => {
+        expect(isLinkExpired(doc({ status, expiresAt: day(-3) }), NOW)).toBe(false);
+    });
+
+    it('is found by the Link expired filter, and stays among those awaiting a signature', () => {
+        const documents = [
+            doc({ id: 'live', expiresAt: day(2) }),
+            doc({ id: 'expired', expiresAt: day(-2) }),
+            doc({ id: 'signed', status: 'signed', expiresAt: day(-2) }),
+        ];
+        expect(filterDocuments(documents, { ...DEFAULT_FILTERS, status: 'expired' }, NOW).map((d) => d.id)).toEqual(['expired']);
+        expect(filterDocuments(documents, { ...DEFAULT_FILTERS, status: 'sent' }, NOW).map((d) => d.id)).toEqual(['live', 'expired']);
+        // The server's counts cannot tell an expired link without an index, so
+        // the browser's numbers count it as awaiting too, and the two agree.
+        expect(summarizeDocuments(documents)).toMatchObject({ awaitingSignature: 2, needsAttention: 0 });
     });
 });
 

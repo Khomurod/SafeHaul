@@ -10,6 +10,11 @@ import { AWAITING_STATUSES, COMPLETED_STATUSES } from './documentsWorkspace';
  * disjunctions in normal form: needs attention is 3, awaiting with a failed
  * delivery 3 statuses x 2 channels = 6. Statuses are matched exactly, and every
  * writer stores them lowercase.
+ *
+ * "Link expired" (`isLinkExpired`) has no server filter on purpose: `status`
+ * with an `expiresAt` range needs a composite index. The counts take an expired
+ * link as awaiting a signature, as `summarizeDocuments` does, and the Link
+ * expired filter looks at the loaded documents only, like every other filter.
  */
 
 /** A send that failed on either channel (`deliveryFailure`). */
