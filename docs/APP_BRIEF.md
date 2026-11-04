@@ -323,7 +323,9 @@ A post-application form is one document per application and form
 page (it opens the form, never emails or texts it) or a team member's **Send to
 driver** (`sendPostApplicationDocument`). That emails a usable address and texts only
 after the driver's explicit "Yes" (`sms-consent`; the opt-out list as for every
-signing text); with neither it says why and sends nothing. One transaction decides:
+signing text, and an opted-out number is not reported as texted); with neither it says why
+and sends nothing. A link the server builds goes only to one of the app's own sites
+(`shared/appOrigin.js`), whatever base URL a browser sent. One transaction decides:
 a new request is sent by the creation triggers, one never sent gets its flags turned
 on and the correction trigger sends it with seven more days. A link already sent is
 not sent again, a signed form is reported, a voided one refused. Nothing sends these
@@ -1119,7 +1121,8 @@ the daily count**; refusing is a recorded outcome.
   removed entry stays removed. PEV request PDFs, results and day-30 records of
   attempts are filed by the PEV callables and job, one record each (`pev_request_<id>`,
   `pev_result_<hash of path>`, `pev_attempts_<requestId>`); a sealed signing request
-  linked to an application or lead by `sealDocument` (`signed_<requestId>`).
+  linked to an application or lead by `sealDocument` (`signed_<requestId>`), and by
+  `syncDqFiles` when the tab opens if it is missing (a failed filing, an older seal).
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request entering `pending_seal`, or a Retry seal recording a
@@ -1491,8 +1494,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   reminding until day 30 (their mark no longer overwrites a Completed row).
 - **Batch 2 limits (2026-11):** requests sent before the PEV attempt log show only later
   attempts (their day-30 record notes the gap), and an attempt recorded after day 30 is not
-  in the already-filed record. Sealed documents from before then, or whose DQ filing failed
-  (logged), are not in the DQ file. Send to driver does not resend a form already sent, even
+  in the already-filed record; a day-30 record that failed to file is not made again
+  (logged). A sealed document missing from the DQ file is filed when its DQ tab opens. Send to driver does not resend a form already sent, even
   after its link expired; an optional post-application form is listed only once a request
   for it exists. A retried document's certificate prints the retry time as COMPLETED AT.
   Retry seal and the record link guard against mistakes, not a team member: the rules let

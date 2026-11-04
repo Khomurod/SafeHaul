@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     isLinkExpired,
+    nextLinkExpiry,
     postApplicationRequestId,
     recordDocumentRows,
     recordLinkField,
@@ -168,5 +169,21 @@ describe('what a press of Send to driver says', () => {
             .toBe('You do not have access to send documents for this company.');
         expect(sendErrorMessage(Object.assign(new Error('internal'), { code: 'functions/internal' })))
             .toBe('Could not send the form. Please try again.');
+    });
+});
+
+describe('the next link to run out', () => {
+    it('is the soonest unsigned link still running', () => {
+        expect(nextLinkExpiry([
+            postapp('a', { expiresAt: at(5) }),
+            postapp('b', { status: 'opened', expiresAt: at(2) }),
+            postapp('c', { status: 'signed', expiresAt: at(1) }),
+            postapp('d', { expiresAt: at(-1) }),
+        ], NOW)).toBe(at(2).toMillis());
+    });
+
+    it('is none when no unsigned link is still running', () => {
+        expect(nextLinkExpiry([postapp('d', { expiresAt: at(-1) }), postapp('e', { status: 'voided' })], NOW)).toBeNull();
+        expect(nextLinkExpiry([], NOW)).toBeNull();
     });
 });

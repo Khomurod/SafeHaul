@@ -39,6 +39,18 @@ export function isLinkExpired(request, now = Date.now()) {
     return expires !== null && expires < now;
 }
 
+/** The soonest moment one of `requests` runs out while unsigned, or null. */
+export function nextLinkExpiry(requests, now = Date.now()) {
+    let soonest = null;
+    for (const request of requests || []) {
+        const status = statusOf(request);
+        if (status !== 'sent' && status !== 'opened') continue;
+        const expires = millisOf(request?.expiresAt);
+        if (expires !== null && expires >= now && (soonest === null || expires < soonest)) soonest = expires;
+    }
+    return soonest;
+}
+
 const STATES = {
     sent: 'awaiting',
     opened: 'awaiting',

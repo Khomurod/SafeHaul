@@ -23,7 +23,7 @@ jest.mock('pdf-lib', () => require('./employmentVerification.support').pdfLibMoc
 jest.mock('../../firebaseAdmin', () => require('./employmentVerification.support').firebaseAdminMock());
 
 const {
-  appKey, applicationDocs, createTs, uploadedObjects, verificationDocs, mockSendDynamicEmail, resetPevState,
+  appKey, applicationDocs, createTs, failNextAttemptLogs, uploadedObjects, verificationDocs, mockSendDynamicEmail, resetPevState,
 } = require('./employmentVerification.support');
 
 const {
@@ -100,6 +100,31 @@ describe('the request going out', () => {
     expect(attempts(SENT_TOKEN)).toEqual([
       { kind: 'sent', at: expect.anything(), ok: true, by: 'recruiter-1', method: 'email' },
     ]);
+  });
+
+  // The email has gone out by then: the log write is tried once more, and a
+  // second failure leaves the send a success (a retry would email again).
+  it('tries the "sent" entry once more when its first write fails, and the send still succeeds', async () => {
+    seedApplication({ status: 'Not Started', history: [] });
+    failNextAttemptLogs(1);
+
+    await expect(sendTo()).resolves.toMatchObject({ success: true });
+
+    expect(attempts(SENT_TOKEN)).toEqual([
+      { kind: 'sent', at: expect.anything(), ok: true, by: 'recruiter-1', method: 'email' },
+    ]);
+  });
+
+  it('keeps the send a success when the "sent" entry cannot be written twice', async () => {
+    seedApplication({ status: 'Not Started', history: [] });
+    failNextAttemptLogs(2);
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(sendTo()).resolves.toMatchObject({ success: true });
+    } finally {
+      errors.mockRestore();
+    }
+    expect(mockSendDynamicEmail).toHaveBeenCalledTimes(1);
   });
 
   it('records a request handed over by fax as issued for fax', async () => {

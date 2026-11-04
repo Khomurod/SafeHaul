@@ -7,7 +7,8 @@ import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { SignedCopyButton, SignedCopyStatus } from '@features/signing/components/SignedCopy';
 import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
-import { canRetrySeal, sealLeftUnfinished } from '@features/signing/utils/sealRetry';
+import { canRetrySeal, sealLeftUnfinished, sealStuckAt } from '@features/signing/utils/sealRetry';
+import { useRerenderAt } from '@shared/hooks/useRerenderAt';
 
 /**
  * Sent-document details.
@@ -62,6 +63,8 @@ export function SentDocumentDetailsDialog({
     const closeRef = useRef(null);
     // A copy still being sent turns into Try again when its claim lapses.
     useRerenderWhenClaimsExpire([signedCopyRecord]);
+    // A seal still running when the dialog opened offers Retry seal once it counts as unfinished.
+    useRerenderAt(sealStuckAt(document));
 
     if (!document) return null;
 

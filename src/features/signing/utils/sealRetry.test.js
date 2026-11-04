@@ -5,7 +5,7 @@
  * has the last word; this only chooses whether to show the button.
  */
 import { describe, expect, it } from 'vitest';
-import { canRetrySeal, sealLeftUnfinished } from './sealRetry';
+import { canRetrySeal, sealLeftUnfinished, sealStuckAt } from './sealRetry';
 
 const NOW = Date.UTC(2026, 10, 4, 15, 0, 0);
 const MINUTE = 60 * 1000;
@@ -36,5 +36,21 @@ describe('canRetrySeal', () => {
 
     it('offers none without a document', () => {
         expect(canRetrySeal(null, NOW)).toBe(false);
+    });
+});
+
+describe('sealStuckAt', () => {
+    it('is ten minutes after the later of the signing and the last retry', () => {
+        expect(sealStuckAt({ status: 'pending_seal', signedAt: timestamp(3) }, NOW)).toBe(NOW - 3 * MINUTE + 10 * MINUTE);
+        expect(sealStuckAt({ status: 'pending_seal', signedAt: timestamp(90), sealAttempts: [{ at: firestoreTimestamp(4) }] }))
+            .toBe(NOW - 4 * MINUTE + 10 * MINUTE);
+    });
+
+    it.each([
+        ['a failed seal', { status: 'error_sealing', signedAt: timestamp(3) }],
+        ['a signed document', { status: 'signed', signedAt: timestamp(3) }],
+        ['a seal with no time', { status: 'pending_seal' }],
+    ])('is none for %s', (_label, document) => {
+        expect(sealStuckAt(document)).toBeNull();
     });
 });

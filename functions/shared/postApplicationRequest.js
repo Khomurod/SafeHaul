@@ -9,6 +9,7 @@
  * whichever comes first, the other finds it and none is made twice. Who sends
  * it and how (`build(delivery)`) is each caller's.
  */
+const { trustedAppBaseUrl } = require('./appOrigin');
 const { HttpsError } = require('firebase-functions/v2/https');
 const { admin } = require('../firebaseAdmin');
 const {
@@ -343,7 +344,8 @@ async function preparePostApplicationRequest(db, {
     recipientName: recipientName || null,
     recipientEmail: normalizeString(application.email).trim() || null,
     recipientPhone: normalizeString(application.phone || application.phoneNumber).trim() || null,
-    appBaseUrl: normalizeString(appBaseUrl).trim() || 'https://app.safehaul.io',
+    // The link carries the token: only on the app's own sites (`appOrigin.js`).
+    appBaseUrl: trustedAppBaseUrl(appBaseUrl),
     createdAt: now,
     updatedAt: now,
     expiresAt: linkExpiry(),

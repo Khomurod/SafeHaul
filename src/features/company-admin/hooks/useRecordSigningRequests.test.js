@@ -4,8 +4,8 @@
  * application merges in the company's required post-application forms. All ids
  * and titles are artificial.
  */
-import { renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fb = vi.hoisted(() => ({ listeners: [], company: null, companyError: null, getDocCalls: [] }));
 
@@ -106,5 +106,30 @@ describe('a lead\'s signing documents', () => {
         expect(fb.getDocCalls).toEqual([]);
         expect(result.current.rows).toHaveLength(1);
         expect(result.current.rows[0]).toMatchObject({ kind: 'request', canSend: false });
+    });
+});
+
+// The rows read the clock when they are built: a link that runs out while the
+// tab is open turns to "Link expired" then, not at the next unrelated update.
+describe('a link that runs out while the tab is open', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('turns to expired at that moment', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        const start = Date.UTC(2026, 10, 4, 12);
+        vi.setSystemTime(start);
+        fb.company = { postApplicationTemplates: [] };
+        const { result } = renderHook(() => useRecordSigningRequests({ companyId: 'co-1', recordId: 'app-1', collectionName: 'applications' }));
+        act(() => {
+            fb.listeners[0].answer([
+                { id: 'r-1', templateId: 'tpl-x', title: 'Offer', status: 'sent', createdAt: seconds(100), expiresAt: { toMillis: () => start + 60_000 } },
+            ]);
+        });
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.rows[0]).toMatchObject({ key: 'r-1', state: 'awaiting' });
+
+        await act(async () => { vi.advanceTimersByTime(62_000); });
+
+        expect(result.current.rows[0]).toMatchObject({ key: 'r-1', state: 'link_expired' });
     });
 });

@@ -27,7 +27,8 @@ const { admin, db } = require('./firebaseAdmin');
 const { assertCompanyAccessForRequest } = require('./shared/companyAccess');
 const { isValidEmail } = require('./shared/isValidEmail');
 const { isPlaceholderEmail } = require('./shared/placeholderDomains');
-const { agreedToSms } = require('./shared/smsPermission');
+const { trustedAppBaseUrl } = require('./shared/appOrigin');
+const { agreedToSms, onOptOutList } = require('./shared/smsPermission');
 const { linkSentTo, linkWork, phoneOf, routeChanged } = require('./shared/signingLink');
 const {
   COMPLETED_REQUEST_STATUSES,
@@ -39,6 +40,8 @@ const {
 
 const NO_CHANNEL = 'Not sent: this application has no email address we can use, '
   + 'and the driver did not answer Yes to text messages.';
+const NO_CHANNEL_OPTED_OUT = 'Not sent: this application has no email address we can use, '
+  + 'and the driver\'s number opted out of text messages.';
 const REFUSALS = {
   voided: 'This form was voided, so it is not sent again.',
   submitting: 'The driver is submitting this form right now.',
@@ -110,6 +113,9 @@ async function decide(txn, { requestRef, tokenRef, prepared, reach, sender, appl
   if (!tokenSnap.exists && !data.accessToken) txn.set(tokenRef, { accessToken: mintAccessToken() });
   txn.update(requestRef, {
     ...route,
+    // A form the thank-you page made stored the browser's base URL: the link
+    // goes out on one of the app's own sites only.
+    appBaseUrl: trustedAppBaseUrl(data.appBaseUrl),
     deliveryMethod: deliveryMethodOf(after),
     ...sender,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -141,13 +147,18 @@ exports.sendPostApplicationDocument = onCall({ cors: true }, async (request) => 
   }
   const application = appSnap.data() || {};
   const reach = reachableAt(application);
+  // A number on the opt-out list is not texted (`notifySignerSMS` would skip
+  // it), so it is not reported as texted either.
+  const optedOut = Boolean(reach.phone) && await onOptOutList(companyId, reach.phone);
+  if (optedOut) reach.phone = '';
+  const noChannel = optedOut ? NO_CHANNEL_OPTED_OUT : NO_CHANNEL;
 
   const { requestRef, tokenRef } = postApplicationRequestRefs(db, companyId, applicationId, templateId);
   // The template is filled only for a request that does not exist yet: one that
   // does keeps what it holds.
   const exists = (await requestRef.get()).exists;
   if (!exists && !reach.email && !reach.phone) {
-    throw new HttpsError('failed-precondition', NO_CHANNEL, { reason: 'no-channel' });
+    throw new HttpsError('failed-precondition', noChannel, { reason: 'no-channel' });
   }
   const prepared = exists ? null : await preparePostApplicationRequest(db, {
     companyId,
@@ -174,7 +185,7 @@ exports.sendPostApplicationDocument = onCall({ cors: true }, async (request) => 
   );
 
   if (outcome.kind === 'no-channel') {
-    throw new HttpsError('failed-precondition', NO_CHANNEL, { reason: 'no-channel' });
+    throw new HttpsError('failed-precondition', noChannel, { reason: 'no-channel' });
   }
   if (outcome.kind === 'retry') throw new HttpsError('aborted', REFUSALS.retry);
   if (REFUSALS[outcome.kind]) throw new HttpsError('failed-precondition', REFUSALS[outcome.kind]);

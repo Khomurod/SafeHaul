@@ -13,14 +13,23 @@ function millisOf(value) {
     return null;
 }
 
-/** Whether a `pending_seal` document is past the time any seal of it could still be running. */
-export function sealLeftUnfinished(document, now = Date.now()) {
-    if (document?.status !== 'pending_seal') return false;
+/**
+ * When a `pending_seal` document counts as unfinished: ten minutes after it was
+ * signed or last retried. Null for any other document, or one with no time.
+ */
+export function sealStuckAt(document) {
+    if (document?.status !== 'pending_seal') return null;
     const attempts = Array.isArray(document.sealAttempts) ? document.sealAttempts : [];
     const times = [document.signedAt, ...attempts.map((attempt) => attempt?.at)]
         .map(millisOf)
         .filter((millis) => typeof millis === 'number' && Number.isFinite(millis));
-    return times.length > 0 && now - Math.max(...times) > SEAL_STUCK_AFTER_MS;
+    return times.length > 0 ? Math.max(...times) + SEAL_STUCK_AFTER_MS : null;
+}
+
+/** Whether a `pending_seal` document is past the time any seal of it could still be running. */
+export function sealLeftUnfinished(document, now = Date.now()) {
+    const stuckAt = sealStuckAt(document);
+    return stuckAt !== null && now > stuckAt;
 }
 
 export function canRetrySeal(document, now = Date.now()) {

@@ -301,7 +301,10 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
                 await mirrorAttempt(verificationData, failed);
                 return { success: false, error: 'the email to the employer could not be sent' };
             }
-            await recordAttempt(verificationRef, attemptEntry('sent', { by: request.auth.uid, method: 'email' }));
+            // The email went out: a failed log write is tried once more, never by
+            // sending again (a caller retry would email the employer twice).
+            const sent = attemptEntry('sent', { by: request.auth.uid, method: 'email' });
+            if (!(await recordAttempt(verificationRef, sent))) await recordAttempt(verificationRef, sent);
         }
 
         // The employer's earlier live requests stop here: they would keep

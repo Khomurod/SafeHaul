@@ -94,6 +94,11 @@ exports.recordVerificationAttempt = onCall({ cors: true }, async (request) => {
 
     const verification = await db.runTransaction(async (tx) => {
         const stored = (await tx.get(chosen.ref)).data() || {};
+        // A resend replaced it since it was picked: its day-30 record is never
+        // made, so the attempt would be lost from the good-faith record.
+        if (stored.status === 'superseded') {
+            throw new HttpsError('failed-precondition', 'This request was replaced by a newer one. Refresh and try again.');
+        }
         const held = (stored.attempts || []).filter((attempt) => Object.hasOwn(MANUAL_KINDS, attempt?.kind)).length;
         if (held >= MAX_RECORDED) {
             throw new HttpsError('resource-exhausted', `This request already holds ${MAX_RECORDED} recorded attempts.`);

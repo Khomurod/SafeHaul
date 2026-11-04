@@ -10,11 +10,12 @@
  * started" (`recordDocumentRows`); the list shows once both are read. A failed
  * read of the forms still lists the requests and says so (`formsError`).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { normalizePostApplicationTemplates } from '@features/driver-app/components/application/publicApplyHelpers';
-import { recordDocumentRows, recordLinkField } from '../utils/recordSigningDocuments';
+import { useRerenderAt } from '@shared/hooks/useRerenderAt';
+import { nextLinkExpiry, recordDocumentRows, recordLinkField } from '../utils/recordSigningDocuments';
 
 export function useRecordSigningRequests({ companyId, recordId, collectionName }) {
     const isApplication = collectionName !== 'leads';
@@ -54,12 +55,15 @@ export function useRecordSigningRequests({ companyId, recordId, collectionName }
         return () => { current = false; };
     }, [companyId, isApplication]);
 
-    const rows = useMemo(() => recordDocumentRows({
+    // Built on every render, from the clock then: a link that runs out while the
+    // tab is open turns to "Link expired" at that moment.
+    useRerenderAt(nextLinkExpiry(requests.rows));
+    const rows = recordDocumentRows({
         requests: requests.rows,
         forms: forms.list,
         applicationId: isApplication ? recordId : null,
         now: Date.now(),
-    }), [requests.rows, forms.list, isApplication, recordId]);
+    });
 
     return {
         rows,

@@ -192,6 +192,25 @@ describe('what it refuses', () => {
     await expect(record({}, null)).rejects.toMatchObject({ code: 'unauthenticated' });
   });
 
+  // A resend can replace the request between the lookup and the write; the
+  // attempt would then sit on a request whose day-30 record is never made.
+  it('refuses when a resend replaced the request while the attempt was being written', async () => {
+    seedRequest('live-token');
+    const { db } = require('../../firebaseAdmin');
+    const real = db.runTransaction.getMockImplementation();
+    db.runTransaction.mockImplementation(async (fn) => {
+      verificationDocs.set('live-token', { ...verificationDocs.get('live-token'), status: 'superseded' });
+      return real(fn);
+    });
+    try {
+      await expect(record()).rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringContaining('replaced') });
+    } finally {
+      db.runTransaction.mockImplementation(real);
+    }
+    expect(recorded('live-token')).toEqual([]);
+    expect(row().history).toEqual([{ action: 'Sent via Portal' }]);
+  });
+
   it('stops at 50 recorded attempts on one request', async () => {
     const full = Array.from({ length: 50 }, (_, i) => ({ kind: 'note', at: createTs(i), ok: true, note: `n${i}` }));
     seedRequest('live-token', { attempts: full });

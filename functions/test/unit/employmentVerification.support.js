@@ -116,6 +116,10 @@ function verificationDocRef(token) {
         completionFailure = false;
         throw new Error('firestore unavailable');
       }
+      if (attemptLogFailures > 0 && Object.keys(updates).length === 1 && 'attempts' in updates) {
+        attemptLogFailures -= 1;
+        throw new Error('firestore unavailable');
+      }
       const current = verificationDocs.get(token) || {};
       verificationDocs.set(token, applyUpdate(current, updates));
     }),
@@ -173,6 +177,10 @@ const failNextSubmissionRead = () => { submissionReadFailure = true; };
  */
 let completionFailure = false;
 const failNextCompletion = () => { completionFailure = true; };
+
+/** The next `count` writes that only append to a request's attempt log fail. */
+let attemptLogFailures = 0;
+const failNextAttemptLogs = (count = 1) => { attemptLogFailures = count; };
 
 /** A write from outside any transaction, as a competing request would make it. */
 const writeApplicationOutOfBand = (key, data) => {
@@ -414,6 +422,7 @@ function resetPevState() {
   interference = null;
   storageFailure = null;
   completionFailure = false;
+  attemptLogFailures = 0;
   savedStoragePaths.length = 0;
   dqFileDocs.clear();
   dqFilingFailure = false;
@@ -461,6 +470,7 @@ module.exports = {
   failNextStorageSave,
   failNextDqFiling,
   failNextCompletion,
+  failNextAttemptLogs,
   setTransactionInterference,
   writeApplicationOutOfBand,
 };

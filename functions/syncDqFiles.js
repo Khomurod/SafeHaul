@@ -8,6 +8,12 @@
  * Any member of the company's team may call it, as anyone of the team may open
  * the tab; it files only the record's own answers.
  *
+ * It also files the record's sealed documents that no DQ record holds
+ * (`signed_<requestId>`): `sealDocument` files each one when it is sealed, so
+ * this brings in one whose filing failed, or that was sealed before documents
+ * were filed. Only a request linked to this record, signed, whose sealed PDF is
+ * where the seal puts it; a removed entry stays removed.
+ *
  * Answers `{ filed }`: how many records it wrote. A missing record files nothing.
  */
 
@@ -15,6 +21,33 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { db } = require('./firebaseAdmin');
 const { assertCompanyAccessForRequest } = require('./shared/companyAccess');
 const { fileDqUploads, uploadKeys } = require('./shared/dqUploads');
+const { fileSealedDocumentInDq } = require('./sealedDocumentDq');
+
+const LINK_FIELDS = Object.freeze({ applications: 'sourceApplicationId', leads: 'sourceLeadId' });
+
+/** Files this record's signed documents that its DQ file lacks; never throws. */
+async function fileMissingSealedDocuments(companyId, collectionName, recordId, filedIds) {
+    try {
+        const requests = await db.collection('companies').doc(companyId).collection('signing_requests')
+            .where(LINK_FIELDS[collectionName], '==', recordId).get();
+        let filed = 0;
+        for (const doc of requests.docs) {
+            const request = doc.data() || {};
+            const storagePath = `secure_documents/${companyId}/completed/${doc.id}_signed.pdf`;
+            if (request.status !== 'signed' || request.signedPdfUrl !== storagePath) continue;
+            if (filedIds.has(`signed_${doc.id}`)) continue;
+            const ok = await fileSealedDocumentInDq(companyId, doc.id, request, {
+                storagePath,
+                sha256Checksum: request.sha256Checksum || null,
+            });
+            if (ok) filed += 1;
+        }
+        return filed;
+    } catch (err) {
+        console.error('[syncDqFiles] Could not file the record\'s sealed documents:', err.message);
+        return 0;
+    }
+}
 
 const COLLECTIONS = Object.freeze(['applications', 'leads']);
 const isId = (value) => typeof value === 'string' && value.length > 0 && value.length <= 200 && !value.includes('/');
@@ -38,5 +71,7 @@ exports.syncDqFiles = onCall({ cors: true }, async (request) => {
         isNew: (keys) => !keys.some((key) => known.has(key)),
         label: 'syncDqFiles',
     });
-    return { filed };
+    const filedIds = new Set(filedRecords.docs.map((doc) => doc.id));
+    const sealed = await fileMissingSealedDocuments(companyId, collectionName, applicationId, filedIds);
+    return { filed: filed + sealed };
 });

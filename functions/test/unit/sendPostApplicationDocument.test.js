@@ -141,7 +141,7 @@ function seed({ application = APP, forms = FORMS, template = TEMPLATE } = {}) {
 
 const send = (data = {}, auth = { uid: 'user-1', token: { name: 'Rita Recruiter' } }) => sendPostApplicationDocument({
     auth,
-    data: { companyId: 'co-1', applicationId: 'app-1', templateId: 'tpl-1', appBaseUrl: 'https://app.example.test', ...data },
+    data: { companyId: 'co-1', applicationId: 'app-1', templateId: 'tpl-1', appBaseUrl: 'https://truckerapp-system.web.app', ...data },
 });
 
 /** The driver opening the form on the thank-you page. */
@@ -151,7 +151,7 @@ const openOnThankYouPage = () => createPostApplicationSigningRequest({
         applicationId: 'app-1',
         confirmationNumber: APP.confirmationNumber,
         templateId: 'tpl-1',
-        appBaseUrl: 'https://app.example.test',
+        appBaseUrl: 'https://truckerapp-system.web.app',
     },
     rawRequest: { ip: '203.0.113.10' },
 });
@@ -206,7 +206,7 @@ describe('a form nobody has opened yet', () => {
             deliveryMethod: 'email',
             senderId: 'user-1',
             senderName: 'Rita Recruiter',
-            appBaseUrl: 'https://app.example.test',
+            appBaseUrl: 'https://truckerapp-system.web.app',
         });
         // Filled only from the listed application fields; the token only in secrets.
         expect(current().fields.find((f) => f.id === 'name')).toMatchObject({ defaultValue: 'Dana Driver', readOnly: true });
@@ -218,7 +218,7 @@ describe('a form nobody has opened yet', () => {
 
         await deliverCreate();
         expect(emailedTo()).toEqual(['dana@example.test']);
-        expect(mockSendEmail.mock.calls[0][3]).toContain(`https://app.example.test/sign/co-1/${REQUEST_ID}?token=${token()}`);
+        expect(mockSendEmail.mock.calls[0][3]).toContain(`https://truckerapp-system.web.app/sign/co-1/${REQUEST_ID}?token=${token()}`);
         expect(mockSendSms).not.toHaveBeenCalled();
         expect(current().linkSentTo).toEqual({ email: 'dana@example.test' });
     });
@@ -338,6 +338,71 @@ describe('a form the driver opened on the thank-you page', () => {
         const before = [...mockDocs.entries()];
 
         await expect(send()).rejects.toMatchObject({ code: 'failed-precondition', details: { reason: 'no-channel' } });
+        expectNothingWritten(before);
+    });
+});
+
+// The link carries the form's token, so it is built on the app's own sites
+// only, whatever base URL a browser sent: the team member's, or the guest's on
+// the thank-you page, which Send to driver later emails.
+describe('the site the link is built on', () => {
+    it("is the app's own when the team member's browser sent another", async () => {
+        seed();
+        await send({ appBaseUrl: 'https://evil.example' });
+        await deliverCreate();
+
+        expect(current().appBaseUrl).toBe('https://app.safehaul.io');
+        expect(mockSendEmail.mock.calls[0][3]).toContain(`https://app.safehaul.io/sign/co-1/${REQUEST_ID}?token=`);
+        expect(mockSendEmail.mock.calls[0][3]).not.toContain('evil.example');
+    });
+
+    it("is the app's own when the thank-you page sent another, once Send to driver emails it", async () => {
+        seed();
+        await createPostApplicationSigningRequest({
+            data: {
+                companyId: 'co-1', applicationId: 'app-1', confirmationNumber: APP.confirmationNumber,
+                templateId: 'tpl-1', appBaseUrl: 'https://evil.example',
+            },
+            rawRequest: { ip: '203.0.113.10' },
+        });
+        expect(current().appBaseUrl).toBe('https://app.safehaul.io');
+
+        // A form made before this rule may still hold another site: sending fixes it.
+        mockUpdate(REQUEST, { appBaseUrl: 'https://evil.example' });
+        const { event } = await updateEvent(() => send());
+        expect(current().appBaseUrl).toBe('https://app.safehaul.io');
+        await resendSignerOnCorrection(event);
+        expect(mockSendEmail.mock.calls[0][3]).toContain('https://app.safehaul.io/sign/');
+        expect(mockSendEmail.mock.calls[0][3]).not.toContain('evil.example');
+    });
+});
+
+// `notifySignerSMS` skips a number on the opt-out list, so the press does not
+// report a text that never goes.
+describe('a driver whose number opted out of texts', () => {
+    it('is emailed only, and the press says so', async () => {
+        seed({ application: { ...APP, 'sms-consent': 'yes' } });
+        mockDocs.set(`${COMPANY}/blacklist/+15555550100`, { reason: 'STOP keyword' });
+
+        const result = await send();
+        await deliverCreate();
+
+        expect(result.channels).toEqual({ email: true, sms: false });
+        expect(current()).toMatchObject({ sendEmail: true, sendSms: false, deliveryMethod: 'email' });
+        expect(emailedTo()).toEqual(['dana@example.test']);
+        expect(mockSendSms).not.toHaveBeenCalled();
+    });
+
+    it('is refused, saying the number opted out, when there is no email either', async () => {
+        seed({ application: { ...APP, email: '', 'sms-consent': 'yes' } });
+        mockDocs.set('blacklist/+15555550100', { reason: 'STOP keyword' });
+        const before = [...mockDocs.entries()];
+
+        await expect(send()).rejects.toMatchObject({
+            code: 'failed-precondition',
+            details: { reason: 'no-channel' },
+            message: expect.stringContaining('opted out'),
+        });
         expectNothingWritten(before);
     });
 });
