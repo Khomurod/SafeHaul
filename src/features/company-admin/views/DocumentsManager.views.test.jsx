@@ -4,7 +4,7 @@
 // The shared harness — mock state, factories, fixtures and helpers — lives in
 // `DocumentsManager.support.jsx`; the registrations below delegate to it.
 import React from 'react';
-import { screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,6 +45,32 @@ describe('DocumentsManager views', () => {
         expect(tabs().overview).toHaveAttribute('aria-selected', 'true');
         expect(screen.getByTestId('documents-overview')).toBeInTheDocument();
         expect(screen.queryByTestId('sent-documents')).not.toBeInTheDocument();
+    });
+
+    // A link from elsewhere in the app (the dashboard's Company setup) opens the view it names.
+    it.each([
+        ['sent', 'sent-documents'],
+        ['templates', 'template-library'],
+        ['forms', 'application-forms'],
+    ])('opens on the %s view when the address names it', (tabKey, testId) => {
+        useDataMock.mockReturnValue({ currentCompanyProfile: company, loading: false });
+        render(
+            <MemoryRouter initialEntries={[`/company/e-docs?view=${tabKey}`]}>
+                <DocumentsManager />
+            </MemoryRouter>,
+        );
+        expect(tabs()[tabKey]).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+    });
+
+    it('opens on Overview when the address names a view it does not have', () => {
+        useDataMock.mockReturnValue({ currentCompanyProfile: company, loading: false });
+        render(
+            <MemoryRouter initialEntries={['/company/e-docs?view=settings']}>
+                <DocumentsManager />
+            </MemoryRouter>,
+        );
+        expect(tabs().overview).toHaveAttribute('aria-selected', 'true');
     });
 
     it.each([
