@@ -35,3 +35,21 @@ describe('trustedAppBaseUrl', () => {
         expect(trustedAppBaseUrl(candidate)).toBe('https://truckerapp-system.web.app');
     });
 });
+
+// The browser names the same sites (`src/app/startup/site.js`, speed data): a
+// site added to one list and not the other would get its links built on
+// Production, or count as no site.
+describe('the list of app sites', () => {
+    it("is the browser's list of sites", () => {
+        const fs = require('fs');
+        const path = require('path');
+        const root = path.join(__dirname, '..', '..', '..', 'src', 'app', 'startup');
+        const site = fs.readFileSync(path.join(root, 'site.js'), 'utf8');
+        const indexing = fs.readFileSync(path.join(root, 'searchIndexing.js'), 'utf8');
+        const canonical = indexing.match(/CANONICAL_APP_HOST\s*=\s*['"]([^'"]+)['"]/)[1];
+        const listed = [...site.matchAll(/\[\s*['"]([a-z0-9.-]+)['"]\s*,\s*['"](?:production|testing)['"]\s*\]/g)].map((m) => m[1]);
+        const { APP_HOSTS } = require('../../shared/appOrigin');
+
+        expect([...APP_HOSTS].sort()).toEqual([canonical, ...listed].sort());
+    });
+});

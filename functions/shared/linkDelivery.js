@@ -26,6 +26,7 @@
  * company's own account, its mailbox may keep the sent email, link included,
  * as it does for every signing email.
  */
+const { trustedAppBaseUrl } = require('./appOrigin');
 const crypto = require('crypto');
 const { HttpsError } = require('firebase-functions/v2/https');
 const { db } = require('../firebaseAdmin');
@@ -46,31 +47,13 @@ const EMAIL_LIMITS = Object.freeze({
 });
 
 /**
- * The sites the app is served from: Production and Testing, each at its own
- * domain and Hosting's two (`src/app/startup/site.js`). Testing and Production
- * share this backend, so the press says which one the driver should open.
+ * The origin the emailed link uses: the caller's, when it is one of the app's
+ * sites (Testing and Production share this backend, so the press says which one
+ * the driver should open), else the configured base (`shared/appOrigin.js`, the
+ * one list of the app's sites the server keeps).
  */
-const APP_HOSTS = new Set([
-    'app.safehaul.io',
-    'safehaul-app-production.web.app',
-    'safehaul-app-production.firebaseapp.com',
-    'truckerapp-system.web.app',
-    'truckerapp-system.firebaseapp.com',
-]);
-const CANONICAL_APP_ORIGIN = 'https://app.safehaul.io';
-
-/** The origin the emailed link uses: the caller's, when it is one of the app's sites, else Production. */
 function appOriginFor(candidate) {
-    if (typeof candidate !== 'string') return CANONICAL_APP_ORIGIN;
-    try {
-        const url = new URL(candidate);
-        if (url.protocol === 'https:' && !url.port && APP_HOSTS.has(url.hostname.toLowerCase())) {
-            return `https://${url.hostname.toLowerCase()}`;
-        }
-    } catch {
-        // Not a URL: the canonical site.
-    }
-    return CANONICAL_APP_ORIGIN;
+    return trustedAppBaseUrl(candidate);
 }
 
 /** The address to email, or '' when the record has none we may use. */
