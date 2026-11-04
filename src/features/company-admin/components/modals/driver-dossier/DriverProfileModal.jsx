@@ -123,8 +123,8 @@ export function DriverProfileModal({
                  * sm:max-w-7xl` already resolved to; `fill` is the `sm:h-[90vh]`.
                  * The `z-[60]` that used to sit here was compensating for the
                  * mobile drawer, which now sits a layer below every dialog — and
-                 * the document preview inside this one is a DOM descendant, so
-                 * it paints above regardless of the number.
+                 * the dialogs opened inside this one are DOM descendants, so
+                 * they paint above regardless of the number.
                  */
                 size="7xl"
                 scroll="body"

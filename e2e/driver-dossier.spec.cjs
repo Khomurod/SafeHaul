@@ -13,10 +13,10 @@ const AxeBuilder = require('@axe-core/playwright').default;
  * `useAppFetch` resolves to the dossier's **error** state. That is genuinely
  * useful here (the loading → error page-state transition is real, and the shell,
  * navigation, header actions and responsive layout all render regardless), but
- * it means the application summary, the document gallery and the document
- * preview cannot be exercised end-to-end. Those surfaces are covered by the
- * focused contract tests in
- * `src/features/company-admin/components/modals/driver-dossier/`.
+ * it means the application summary, the signing documents and the DQ file
+ * cannot be exercised end-to-end. Those surfaces are covered by the focused
+ * contract tests in `src/features/company-admin/components/modals/driver-dossier/`
+ * and `src/features/company-admin/components/tabs/`.
  */
 
 const AUTH = '?e2eAuth=company_admin';

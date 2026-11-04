@@ -10,7 +10,9 @@ import { useCompactViewport } from './useCompactViewport';
  * Presentation uses the approved `Button` and `--ds-*` tokens.
  * Frozen contracts: the six navigation ids
  * (`application`, `documents`, `dq`, `pev`, `activity`, `notes`) in that order,
- * their visible labels, the exact `setActiveTab(id)` values, the
+ * their visible labels (`documents` reads "Documents to sign": it holds only the
+ * driver's signing documents, the uploads being in the DQ File tab), the exact
+ * `setActiveTab(id)` values, the
  * `tel:` / `mailto:` href schemes, and the `dqStatus === 'incomplete'` rule.
  *
  * The strip is the design system's `TabList`. This is the split-across-components
@@ -39,7 +41,7 @@ import { useCompactViewport } from './useCompactViewport';
 
 const NAV_ITEMS = [
     { id: 'application', label: 'Application', icon: LayoutDashboard },
-    { id: 'documents', label: 'Documents', icon: FileText },
+    { id: 'documents', label: 'Documents to sign', icon: FileText },
     { id: 'dq', label: 'DQ File', icon: ShieldCheck },
     { id: 'pev', label: 'Previous Employment', icon: History },
     { id: 'activity', label: 'Activity', icon: Activity },

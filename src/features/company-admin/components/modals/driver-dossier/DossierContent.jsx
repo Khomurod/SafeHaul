@@ -1,7 +1,6 @@
 import React, { Suspense } from 'react';
 import { Icon, Loader2 } from '@design-system/icons';
 import { ApplicationTab } from './tabs/ApplicationTab';
-import { DocumentsTab } from './tabs/DocumentsTab';
 import { SigningDocumentsSection } from './tabs/SigningDocumentsSection';
 import { DQFileTab } from '@features/company-admin/components/tabs/DQFileTab';
 
@@ -23,8 +22,10 @@ const PEVTab = React.lazy(() => import('@features/company-admin/components/tabs/
  * Previous Employment, Activity or Notes is announced while the chunk
  * downloads.
  *
- * Documents shows the driver's signing documents (`SigningDocumentsSection`)
- * above the uploaded-document gallery. The DQ File tab also takes the record
+ * Documents (shown as "Documents to sign") holds the driver's signing documents
+ * (`SigningDocumentsSection`) only. The driver's uploads have one place, the DQ
+ * File tab, which lists and opens them; the gallery that repeated them here is
+ * gone, and the tab says where they are. The DQ File tab also takes the record
  * (`appData`): its checklist reads the employers' verifications from it.
  */
 export function DossierContent({
@@ -59,17 +60,15 @@ export function DossierContent({
 
             case 'documents':
                 return (
-                    <div className="space-y-ds-8">
+                    <div className="space-y-ds-6">
                         <SigningDocumentsSection
                             companyId={companyId}
                             recordId={driverId}
                             collectionName={collectionName}
                         />
-                        <DocumentsTab
-                            appData={appData}
-                            fileUrls={fileUrls}
-                            filesPending={filesPending}
-                        />
+                        <p className="px-ds-1 text-ds-sm text-ds-content-secondary">
+                            The driver&apos;s uploads, such as the CDL and the medical card, are in the DQ File tab.
+                        </p>
                     </div>
                 );
 

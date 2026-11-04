@@ -32,7 +32,8 @@ const renderSidebar = (overrides = {}) => {
 
 const TAB_ORDER = [
   ['application', 'Application'],
-  ['documents', 'Documents'],
+  // "Documents" until the tab held only the driver's signing documents; the id stays.
+  ['documents', 'Documents to sign'],
   ['dq', 'DQ File'],
   ['pev', 'Previous Employment'],
   ['activity', 'Activity'],
