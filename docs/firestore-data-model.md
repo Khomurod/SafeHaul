@@ -96,7 +96,7 @@ Used by Cloud Functions with Admin SDK:
 | `segments/{id}/members/{id}` | read: team · write: admin | Segment membership |
 | `stats_daily/{dateId}` | read: team | Aggregated daily stats (server-written) |
 | `internal_stats/{docId}` | read: team · write: **denied** | Dashboard KPI rollups (server-only writes) |
-| `notifications/{id}` | read: team · create: admin · update: team · delete: admin | The bell; one with `recipientId` (a callback reminder; a document's sender told it was signed or failed to seal; the recruiter who prepared an application told it was submitted; a lead's recruiter told the lead applied, `lead_applied_<applicationId>`) is shown to that person only |
+| `notifications/{id}` | read: team · create: admin · update: team · delete: admin | The bell; who sees it and who has read it below |
 | `feature_alerts/{id}` | read/write: team or super | Scheduled deactivation warning analytics |
 | `system_settings/email_config` | server only | SMTP credentials; the password encrypted (`enc:v1:`) |
 | `settings/{docId}` | read: team · write: admin | Custom questions, ATS SMS templates, etc. |
@@ -127,6 +127,19 @@ A `fields` entry of `type: 'company_signature'` places the company's own signatu
 |-------|-------|
 | `companySignaturePath` | Storage path of the image, `secure_documents/{companyId}/originals/company-signatures/<name>.png\|.jpg\|.jpeg`, uploaded by the team. May be empty on a template (set per document); a sent request needs one, and a template auto-sent after an application is refused without one. Sealing draws it from here only (PNG or JPEG by its bytes) and fails `error_sealing` without a readable image of this company; it never deletes it. `getPublicEnvelope` replaces it with a one-hour `companySignatureUrl`; the path never reaches the signer, and a signer's value for the field is refused |
 | `signedCopy` | Server-written by `sendSignedDocumentCopy`, the team's approval to email the signer the sealed PDF: `{ state: 'sending' \| 'sent' \| 'failed', approvedBy, approvedByName, approvedAt, sentTo, sentAt?, messageId?, error? }` (`approvedAt`, `sentAt`: timestamps). Claimed in a transaction before the one send: `sent` refuses another, `sending` under ten minutes old refuses another, `failed` may be approved again. The record of who approved it; documents have no activity log |
+
+### The bell (`notifications`) and who changed a record
+
+The rules let the whole team read and update every notification, so the fields below only decide what each person's bell shows: a notification holds names, stages and counts, never contact details or anything private.
+
+| Field | Notes |
+|-------|-------|
+| `recipientId` | Shown to that person only: a callback reminder; a status change on their assigned application (`onApplicationStatusChanged`); an application or lead assigned to them (`onApplicationAssigned`, `onLeadAssigned`); their import summary (`leads_assigned`, `count`, written by the importing admin's browser); a document's sender told it was signed or failed to seal; a PEV request's sender; the recruiter who prepared an application; a lead's recruiter told the lead applied (`lead_applied_<applicationId>`). Index `recipientId` + `createdAt` serves the bell's own read |
+| `actorId` | The person whose action it reports. A notification without `recipientId` is not shown to them; one that has it is never written for its actor (a callback reminder is for the recruiter who logged it, by design) |
+| `readBy` | The uids who have read it (`arrayUnion` of the reader's uid; "Mark all read" adds only the reader). Unread for a reader means not in `readBy` |
+| `read` | Written `false` at creation for older screens. `true` is from before read state was per person (or an older screen) and counts as read for everyone |
+
+On `applications` and `leads`, the dossier and the call result write `statusChangedBy` (uid) and `statusChangedAt` (server time) with every status they set; the dossier and Assign Leads write `assignmentChangedBy` and `assignmentChangedAt` with every assignment (`src/shared/utils/changeStamps.js`). The triggers trust a stamp only when its time changed in the same write (`functions/shared/notificationAudience.js`), so a later change by a screen or server path that stamps nothing names nobody. Team members may write these fields (the rules check only `status` and `companyId`), so they decide whom the bell tells, never who may do what.
 
 ### A driver record's documents (`signing_requests`, `dq_files`)
 
