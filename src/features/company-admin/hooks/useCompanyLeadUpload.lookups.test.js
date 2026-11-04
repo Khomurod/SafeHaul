@@ -6,11 +6,12 @@
 // the contract's (`useCompanyLeadUpload.contract.support.js`).
 //
 // All names, emails and phone numbers below are artificial.
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@lib/firebase', async () => (await import('./useCompanyLeadUpload.contract.support')).libFirebaseMock());
 vi.mock('firebase/firestore', async () => (await import('./useCompanyLeadUpload.contract.support')).firebaseFirestoreMock());
+vi.mock('./useAssignableTeam', async () => (await import('./useCompanyLeadUpload.contract.support')).assignableTeamMock());
 
 import { useCompanyLeadUpload } from './useCompanyLeadUpload';
 import {
@@ -20,9 +21,7 @@ import {
     primeQueries,
     snapshot,
     fs,
-    COMPANY_ID,
     LEADS_PATH,
-    MEMBERSHIPS,
 } from './useCompanyLeadUpload.contract.support';
 
 const mountHook = makeMountHook(useCompanyLeadUpload);
@@ -168,23 +167,5 @@ describe('useCompanyLeadUpload — one person in one file', () => {
             `${LEADS_PATH}/existing-1`,
         ]);
         expect(result.current.stats).toEqual({ created: 0, updated: 2 });
-    });
-});
-
-describe('useCompanyLeadUpload — the team', () => {
-    it("reads the team's profiles side by side", async () => {
-        const releases = [];
-        fs.getDocs.mockImplementation(async () => snapshot(MEMBERSHIPS));
-        fs.getDoc.mockImplementation((ref) => new Promise((resolve) => {
-            const id = ref.path.split('/').pop();
-            releases.push(() => resolve({ exists: () => true, id, data: () => ({ name: `Name ${id}` }) }));
-        }));
-
-        const { result } = renderHook(() => useCompanyLeadUpload(COMPANY_ID, vi.fn(), {}));
-        await waitFor(() => expect(fs.getDoc).toHaveBeenCalledTimes(2));
-
-        releases.forEach((release) => release());
-        await waitFor(() => expect(result.current.teamMembers.map((member) => member.id))
-            .toEqual(['artificial-user-a', 'artificial-user-b']));
     });
 });

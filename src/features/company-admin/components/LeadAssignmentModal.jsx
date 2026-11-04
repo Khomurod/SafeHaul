@@ -1,22 +1,23 @@
 // src/features/company-admin/components/LeadAssignmentModal.jsx
-import React, { useId, useRef, useState, useEffect } from 'react';
+import React, { useId, useMemo, useRef, useState, useEffect } from 'react';
 import { Icon, X, Users, User, CheckCircle } from '@design-system/icons';
 import { db } from '@lib/firebase';
-import { collection, query, where, getDocs, doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { logActivity } from '@shared/utils/activityLogger';
 import {
     Button, Checkbox, FieldMessage, FormField, IconButton, Select,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
+import { useAssignableTeam } from '../hooks/useAssignableTeam';
 
 /**
  * Bulk lead assignment — manual pick or round-robin distribution.
  *
  * Launched from the company candidate list, in the approved accessible `Modal`.
  *
- * Presentation only. Frozen and unchanged: the `memberships` query by
- * `companyId` and the per-member `users/{userId}` read; the deterministic
+ * The team comes from `useAssignableTeam` (the company's team cache, read
+ * fresh when the modal opens). Frozen and unchanged: the deterministic
  * `localeCompare` sort by name that keeps round-robin from drifting; the
  * default-select-all round-robin pool; the `'manual'` / `'round_robin'` mode
  * values with `'manual'` initial; the `writeBatch` update payload
@@ -51,13 +52,16 @@ import { Modal } from '@design-system/patterns';
  *  9. **Duplicate submission was possible** — `processing` is React state.
  * 10. `bg-black/50`, `text-gray-400` on the unchecked box, and the rest of the
  *     legacy palette replaced with `--ds-*` tokens.
+ * 11. **Round Robin wrote an undefined `assignedToName`** for a member whose
+ *     profile had no `name`, and the batch refused the whole assignment.
  *
  * Also removed: a dead `currentUserName` local that was computed from
  * `auth.currentUser` on every assignment and never used.
  */
 export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuccess }) {
-    const [team, setTeam] = useState([]);
-    const [loadingTeam, setLoadingTeam] = useState(true);
+    const { team: assignable, isLoading: loadingTeam } = useAssignableTeam(companyId);
+    // Deterministic sort by name, so round-robin does not drift.
+    const team = useMemo(() => [...assignable].sort((a, b) => (a.name || '').localeCompare(b.name || '')), [assignable]);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState('');
 
@@ -79,36 +83,13 @@ export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuc
      */
     const submittingRef = useRef(false);
 
+    // Round Robin starts with the whole team ticked, once the team is in.
+    const seeded = useRef(false);
     useEffect(() => {
-        const fetchTeam = async () => {
-            try {
-                const q = query(collection(db, "memberships"), where("companyId", "==", companyId));
-                const snap = await getDocs(q);
-                const members = [];
-
-                for (const m of snap.docs) {
-                    try {
-                        const uSnap = await getDoc(doc(db, "users", m.data().userId));
-                        if (uSnap.exists()) {
-                            members.push({ id: uSnap.id, name: uSnap.data().name });
-                        }
-                    } catch (e) { console.error(e); }
-                }
-
-                // FIX: Deterministic Sort by Name (or ID) to prevent round-robin drift
-                members.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-
-                setTeam(members);
-                // Default select all for RR
-                setRrUserIds(members.map(m => m.id));
-            } catch (e) {
-                console.error("Error loading team:", e);
-            } finally {
-                setLoadingTeam(false);
-            }
-        };
-        fetchTeam();
-    }, [companyId]);
+        if (loadingTeam || seeded.current) return;
+        seeded.current = true;
+        setRrUserIds(team.map(m => m.id));
+    }, [loadingTeam, team]);
 
     const handleAssign = async () => {
         if (mode === 'manual' && !selectedUserId) {
@@ -129,7 +110,7 @@ export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuc
 
             let rrIndex = 0;
 
-            // Pool is already sorted from useEffect, filter it by selection
+            // Pool is already sorted above, filter it by selection
             const distributionPool = mode === 'round_robin'
                 ? team.filter(m => rrUserIds.includes(m.id))
                 : [];

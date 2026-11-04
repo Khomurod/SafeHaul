@@ -7,7 +7,8 @@
  * here before the presentation layer changes.
  *
  * Frozen:
- *  - team-member load from `memberships` + `users`, and select-all default,
+ *  - the team from `useAssignableTeam` (its own test pins the read), and the
+ *    select-all default,
  *  - the round-robin and specific-user guard messages,
  *  - the created / updated lead payloads, the tenant-binding `companyId`,
  *    `LEAD_DEFAULT_STATUS`, and the `Company Import (File|Sheet)` source values,
@@ -82,30 +83,23 @@ export const firebaseFirestoreMock = () => ({
 export const COMPANY_ID = 'artificial-company-1';
 export const LEADS_PATH = `companies/${COMPANY_ID}/leads`;
 
-export const MEMBERSHIPS = [
-    { data: () => ({ userId: 'artificial-user-a' }) },
-    { data: () => ({ userId: 'artificial-user-b' }) },
-];
+/** The two members of the company's team, held in one array so it stays stable. */
+const member = (id) => ({ id, name: `Name ${id}`, email: '', role: 'recruiter' });
+const TEAM = [member('artificial-user-a'), member('artificial-user-b')];
+
+/** What `useAssignableTeam` gives; a suite may swap `members` before mounting. */
+export const team = { members: TEAM, isLoading: false };
+export const assignableTeamMock = () => ({
+    useAssignableTeam: () => ({ team: team.members, isLoading: team.isLoading }),
+});
 
 export function snapshot(docs) {
     return { docs, empty: docs.length === 0 };
 }
 
-/** Default query answers: memberships resolve, dedupe lookups find nothing. */
+/** Default query answers: dedupe lookups find nothing. */
 export function primeQueries({ dedupe = () => snapshot([]) } = {}) {
-    fs.getDocs.mockImplementation(async (target) => {
-        const path = target?.path ?? target?.ref?.path;
-        if (path === 'memberships') return snapshot(MEMBERSHIPS);
-        return dedupe(target);
-    });
-    fs.getDoc.mockImplementation(async (ref) => {
-        const id = ref.path.split('/').pop();
-        return {
-            exists: () => true,
-            id,
-            data: () => ({ name: `Name ${id}` }),
-        };
-    });
+    fs.getDocs.mockImplementation(async (target) => dedupe(target));
 }
 
 /**
@@ -125,6 +119,8 @@ export function resetHarness() {
     vi.clearAllMocks();
     fs.batches = [];
     fs.docCounter = 0;
+    team.members = TEAM;
+    team.isLoading = false;
     firebaseMock.auth.currentUser = {
         uid: 'artificial-admin-1',
         displayName: 'Artificial Admin',

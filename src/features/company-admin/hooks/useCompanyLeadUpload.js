@@ -1,24 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { db, auth } from '@lib/firebase';
-import { writeBatch, collection, doc, serverTimestamp, query, where, getDocs, getDoc } from 'firebase/firestore';
+import { writeBatch, collection, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { formatPhoneNumber, normalizePhone } from '@shared/utils/helpers';
 import { LEAD_IMPORT_PLACEHOLDERS } from '@/config/leadImportPlaceholders';
 import { PLACEHOLDER_DOMAIN } from '@/config/placeholderDomains';
 import { LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
 import { matchExistingLeads } from './leadImportMatches';
-
-const cleanText = (value) => (typeof value === 'string' ? value.trim() : '');
-
-/**
- * A member's name under whichever field their profile keeps it
- * (`nameFromProfile` in functions/shared/userIdentity.js), else the email: the
- * batch that writes an assigned lead refuses an undefined `assignedToName`.
- */
-function memberName(profile) {
-    const firstLast = [cleanText(profile.firstName), cleanText(profile.lastName)].filter(Boolean).join(' ');
-    return cleanText(profile.name) || cleanText(profile.fullName) || cleanText(profile.displayName)
-        || firstLast || cleanText(profile.email) || 'Unknown';
-}
+import { useAssignableTeam } from './useAssignableTeam';
 
 /**
  * Firestore-backed bulk lead import for a company.
@@ -55,26 +43,20 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
     const [step, setStep] = useState('upload');
 
     const [assignmentMode, setAssignmentMode] = useState('unassigned');
-    const [teamMembers, setTeamMembers] = useState([]);
     const [selectedUserIds, setSelectedUserIds] = useState([]);
 
+    // The team cache keeps the memberships' order; each member has a name (the
+    // email, else 'Unknown', when the profile gives none).
+    const { team, isLoading: teamLoading } = useAssignableTeam(companyId);
+    const teamMembers = useMemo(() => team.map(({ id, name }) => ({ id, name })), [team]);
+
+    // Everyone is selected once the company's team is in.
+    const seededFor = useRef(null);
     useEffect(() => {
-        if (!companyId) return;
-        const fetchTeam = async () => {
-            try {
-                const q = query(collection(db, "memberships"), where("companyId", "==", companyId));
-                const snap = await getDocs(q);
-                // Every member's profile at once, kept in the memberships' order.
-                const profiles = await Promise.all(snap.docs.map((m) => getDoc(doc(db, "users", m.data().userId))));
-                const members = profiles
-                    .filter((userSnap) => userSnap.exists())
-                    .map((userSnap) => ({ id: userSnap.id, name: memberName(userSnap.data() || {}) }));
-                setTeamMembers(members);
-                setSelectedUserIds(members.map(m => m.id));
-            } catch (e) { console.error("Error fetching team:", e); }
-        };
-        fetchTeam();
-    }, [companyId]);
+        if (!companyId || teamLoading || seededFor.current === companyId) return;
+        seededFor.current = companyId;
+        setSelectedUserIds(teamMembers.map(m => m.id));
+    }, [companyId, teamLoading, teamMembers]);
 
     const runDataRepair = async () => {
         if (!companyId) return;
