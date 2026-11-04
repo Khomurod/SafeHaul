@@ -7,12 +7,16 @@ const functions = require('firebase-functions/v1');
 const { sendDynamicEmail } = require('./emailService');
 const { escapeHtml } = require('./shared/plainText');
 const { emailOf } = require('./shared/signingLink');
+const { trustedAppBaseUrl } = require('./shared/appOrigin');
 
-/** The link a signer opens, on the domain the request was sent from. */
+/**
+ * The link a signer opens, on the site the request was sent from: the base URL
+ * the sender's browser stored, only when it is one of the app's own sites
+ * (`shared/appOrigin.js`), since the link carries the token; else the
+ * configured base, as for a request made before the base was stored.
+ */
 function signingLinkFor(companyId, requestId, data, accessToken) {
-    // DOMAIN FIX: Use the sender's origin domain stored at creation time,
-    // falling back to env var, then hardcoded default for pre-migration docs.
-    const baseUrl = data.appBaseUrl || process.env.APP_BASE_URL || 'https://app.safehaul.io';
+    const baseUrl = trustedAppBaseUrl(data.appBaseUrl);
     return `${baseUrl}/sign/${companyId}/${requestId}?token=${accessToken}`;
 }
 

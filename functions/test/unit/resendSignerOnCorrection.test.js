@@ -82,7 +82,7 @@ const SENT = {
     recipientPhone: '+1 (555) 555-0100',
     sendEmail: true,
     sendSms: false,
-    appBaseUrl: 'https://app.example.test',
+    appBaseUrl: 'https://truckerapp-system.web.app',
     expiresAt: { ms: 0 },
     linkSentTo: { email: 'dana@wrong.example.test' },
 };
@@ -101,7 +101,7 @@ function refAt(path) {
 }
 const current = () => mockDocs.get(REQUEST);
 const token = () => mockDocs.get(TOKEN)?.accessToken;
-const linkWith = (accessToken) => `https://app.example.test/sign/co-1/req-1?token=${accessToken}`;
+const linkWith = (accessToken) => `https://truckerapp-system.web.app/sign/co-1/req-1?token=${accessToken}`;
 const emailedTo = () => mockSendEmail.mock.calls.map(([, to]) => to);
 
 function store(request, accessToken = 'old-token') {

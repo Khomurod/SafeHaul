@@ -115,7 +115,7 @@ const REQUEST_ID = 'req-1';
 const REQUEST = `${COMPANY}/signing_requests/${REQUEST_ID}`;
 const TOKEN = `${REQUEST}/secrets/token`;
 const APPLICATION = `${COMPANY}/applications/app-1`;
-const LINK = `https://app.example.test/sign/co-1/${REQUEST_ID}?token=token-1`;
+const LINK = `https://truckerapp-system.web.app/sign/co-1/${REQUEST_ID}?token=token-1`;
 
 /** A document a recruiter emailed eight days ago, whose link ran out yesterday. */
 const EMAILED = {
@@ -130,7 +130,7 @@ const EMAILED = {
     deliveryMethod: 'email',
     senderId: 'user-2',
     senderName: 'Rita Recruiter',
-    appBaseUrl: 'https://app.example.test',
+    appBaseUrl: 'https://truckerapp-system.web.app',
     linkSentTo: { email: 'dana@example.test' },
     emailStatus: 'sent',
     expiresAt: { ms: Date.now() - DAY },
@@ -433,7 +433,7 @@ describe('a post-application form sent with Send to driver', () => {
             storagePath: 'secure_documents/co-1/templates/w9.pdf',
             fields: [{ id: 'sig', type: 'signature', required: true, defaultValue: '' }],
         });
-        const sendData = { companyId: 'co-1', applicationId: 'app-1', templateId: 'tpl-1', appBaseUrl: 'https://app.example.test' };
+        const sendData = { companyId: 'co-1', applicationId: 'app-1', templateId: 'tpl-1', appBaseUrl: 'https://truckerapp-system.web.app' };
         const auth = { uid: 'user-1', token: { name: 'Rita Recruiter' } };
         await sendPostApplicationDocument({ auth, data: sendData });
         const created = mockRevive(structuredClone(mockDocs.get(FORM)));

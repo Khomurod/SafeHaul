@@ -51,7 +51,7 @@ describe('getSigningLink', () => {
       exists: true,
       data: () => ({
         status: 'sent',
-        appBaseUrl: 'https://app.test',
+        appBaseUrl: 'https://truckerapp-system.web.app',
       }),
     });
     mockSecretGet.mockResolvedValue({
@@ -76,7 +76,7 @@ describe('getSigningLink', () => {
       'co1',
       'getSigningLink',
     );
-    expect(result.signingLink).toBe('https://app.test/sign/co1/req1?token=tok-abc');
+    expect(result.signingLink).toBe('https://truckerapp-system.web.app/sign/co1/req1?token=tok-abc');
   });
 
   it('replaces a link a correction left with the old address, so the copied link is the one the correction sends', async () => {
@@ -84,7 +84,7 @@ describe('getSigningLink', () => {
       exists: true,
       data: () => ({
         status: 'sent',
-        appBaseUrl: 'https://app.test',
+        appBaseUrl: 'https://truckerapp-system.web.app',
         recipientEmail: 'dana@example.test',
         sendEmail: true,
         linkSentTo: { email: 'dana@wrong.example.test' },
@@ -97,7 +97,7 @@ describe('getSigningLink', () => {
 
     const [, written] = mockTx.set.mock.calls[0];
     expect(written.accessToken).toMatch(/^[0-9a-f-]{36}$/);
-    expect(result.signingLink).toBe(`https://app.test/sign/co1/req1?token=${written.accessToken}`);
+    expect(result.signingLink).toBe(`https://truckerapp-system.web.app/sign/co1/req1?token=${written.accessToken}`);
     // The new link has reached no one yet, so the correction's trigger sends this one.
     expect(mockTx.update).toHaveBeenCalledWith(mockSigningRequestRef, {
       linkSentTo: {},
@@ -110,7 +110,7 @@ describe('getSigningLink', () => {
       exists: true,
       data: () => ({
         status: 'sent',
-        appBaseUrl: 'https://app.test',
+        appBaseUrl: 'https://truckerapp-system.web.app',
         recipientEmail: 'Dana@Example.test',
         linkSentTo: { email: 'dana@example.test' },
       }),
@@ -120,9 +120,29 @@ describe('getSigningLink', () => {
       data: { companyId: 'co1', requestId: 'req1' },
     });
 
-    expect(result.signingLink).toBe('https://app.test/sign/co1/req1?token=tok-abc');
+    expect(result.signingLink).toBe('https://truckerapp-system.web.app/sign/co1/req1?token=tok-abc');
     expect(mockTx.set).not.toHaveBeenCalled();
     expect(mockTx.update).not.toHaveBeenCalled();
+  });
+
+  // The link carries the token: a base URL stored by a browser is used only
+  // when it is one of the app's own sites.
+  it('builds the link on the app\'s own site when the stored base URL names another', async () => {
+    mockRequestGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        status: 'sent',
+        appBaseUrl: 'https://evil.example.test',
+        recipientEmail: 'dana@example.test',
+        linkSentTo: { email: 'dana@example.test' },
+      }),
+    });
+    const result = await getSigningLink({
+      auth: { uid: 'admin-1' },
+      data: { companyId: 'co1', requestId: 'req1' },
+    });
+
+    expect(result.signingLink).toBe('https://app.safehaul.io/sign/co1/req1?token=tok-abc');
   });
 
   it('rejects when document is already signed', async () => {
