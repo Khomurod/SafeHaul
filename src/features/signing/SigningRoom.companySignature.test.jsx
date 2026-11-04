@@ -1,6 +1,7 @@
 // The company signature in the signing room: a fixed image the signer sees and
 // never fills, outside the progress count and the "next field" path, and never
-// part of what is submitted. Every value below is artificial.
+// part of what is submitted. Without its image (no link, or one that fails to
+// load) its place is still marked. Every value below is artificial.
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
@@ -152,13 +153,37 @@ describe('SigningRoom — the company signature', () => {
         expect(callables.submitPublicEnvelope).toHaveBeenCalledTimes(1);
     });
 
-    it('shows nothing, and no error, when its image link is missing', async () => {
+    it('marks its place, with no error, when its image link is missing, and the signer still submits', async () => {
         callables.getPublicEnvelope.mockResolvedValue(envelope({ companySignatureUrl: undefined }));
         const { container } = await openRoom();
 
+        const overlay = container.querySelector('[data-field-id="cs1"]');
+        expect(overlay).not.toBeNull();
+        expect(overlay).toHaveTextContent('Company signature');
         expect(screen.queryByRole('img', { name: 'Company signature' })).not.toBeInTheDocument();
-        expect(container.querySelector('[data-field-id="cs1"]')).toBeNull();
+        expect(overlay.querySelector('button, input, img, [tabindex]')).toBeNull();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(progress()).toHaveTextContent('2');
+
+        fireEvent.change(container.querySelector('[data-signer-input="text1"]'), { target: { value: 'Ann' } });
+        fireEvent.click(screen.getByRole('button', { name: /Tap to sign/i }));
+        await screen.findByRole('dialog', { name: /Draw your signature/i });
+        fireEvent.click(screen.getByRole('button', { name: /Adopt & continue/i }));
+        fireEvent.click(screen.getAllByRole('button', { name: /Finish & Submit/i })[0]);
+
+        await waitFor(() => expect(screen.getByText('Document Signed!')).toBeInTheDocument());
+        expect(callables.submitPublicEnvelope).toHaveBeenCalledTimes(1);
+        expect(callables.submitPublicEnvelope.mock.calls[0][0].fieldValues).toEqual({ text1: 'Ann', sig1: 'data:image/png;base64,mock-ink' });
+    });
+
+    it('marks its place when its image fails to load', async () => {
+        const { container } = await openRoom();
+        fireEvent.error(screen.getByRole('img', { name: 'Company signature' }));
+
+        const overlay = container.querySelector('[data-field-id="cs1"]');
+        await waitFor(() => expect(overlay).toHaveTextContent('Company signature'));
+        expect(screen.queryByRole('img', { name: 'Company signature' })).not.toBeInTheDocument();
+        expect(overlay.querySelector('button, input, img, [tabindex]')).toBeNull();
         expect(progress()).toHaveTextContent('2');
     });
 });

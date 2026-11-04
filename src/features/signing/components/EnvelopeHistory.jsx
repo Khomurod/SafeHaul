@@ -13,6 +13,7 @@ import { deliveryFailure, hasDeliveryFailure } from '@features/company-admin/uti
 import { copySigningLink } from '@features/signing/utils/copySigningLink';
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { useSignedCopySend } from '@features/signing/hooks/useSignedCopySend';
+import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
 import { SignedCopyButton, SignedCopyDialog, SignedCopyStatus } from './SignedCopy';
 
 /**
@@ -97,6 +98,8 @@ export default function EnvelopeHistory({
     const loading = documents ? Boolean(isLoading) : ownSubscription.isLoading;
     const loadError = documents ? loadErrorProp : ownSubscription.loadError;
     const retry = documents ? onRetry : ownSubscription.retry;
+    // A copy still being sent turns into Try again when its claim lapses.
+    useRerenderWhenClaimsExpire(docs.map(signedCopy.recordFor));
 
     // PHASE 4: Void a signing request
     /**

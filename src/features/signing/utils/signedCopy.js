@@ -61,6 +61,16 @@ export function isStaleSendingClaim(record, now = Date.now()) {
     return approvedAt === null || now - approvedAt >= CLAIM_LIFETIME_MS;
 }
 
+/**
+ * When a `sending` claim that still holds lapses (`approvedAt` plus
+ * `CLAIM_LIFETIME_MS`), or null for any other record: one that has lapsed
+ * already, or is not being sent.
+ */
+export function sendingClaimExpiresAt(record, now = Date.now()) {
+    if (record?.state !== 'sending' || isStaleSendingClaim(record, now)) return null;
+    return toMillis(record.approvedAt) + CLAIM_LIFETIME_MS;
+}
+
 /** Whether the action reads "Try again": after a failed copy, or one whose send never finished. */
 export function isSignedCopyRetry(record, now = Date.now()) {
     return record?.state === 'failed' || isStaleSendingClaim(record, now);

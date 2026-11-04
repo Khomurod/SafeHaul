@@ -4,7 +4,8 @@
  * approve; the document must be signed, carry the company's signature and the
  * signer's, have an address to send to, and its sealed PDF must be the one the
  * seal recorded. The `signedCopy` record is claimed in a transaction before the
- * one send, so a second press, tab or person cannot send it again.
+ * one send, so a second press, tab or person cannot send it again, and it goes
+ * only to the address the approver saw.
  *
  * The real access checks run against an in-memory Firestore; only the email
  * sender is a double. Every value is artificial.
@@ -68,7 +69,8 @@ function signedRequest(overrides = {}) {
 }
 
 const record = () => mock.docs.get(REQUEST_PATH);
-const call = (uid, data = { companyId: COMPANY, requestId: REQUEST }, token = {}) =>
+const APPROVAL = { companyId: COMPANY, requestId: REQUEST, recipientEmail: DRIVER_EMAIL };
+const call = (uid, data = APPROVAL, token = {}) =>
     sendSignedDocumentCopy({ auth: uid ? { uid, token } : undefined, data });
 
 beforeEach(() => {
@@ -114,7 +116,7 @@ describe('sendSignedDocumentCopy — who may approve', () => {
     it('refuses the staff of a deactivated company', async () => {
         mock.docs.set('companies/co-off/signing_requests/req-1', signedRequest({ companyId: 'co-off' }));
         mockStorage.files.set('secure_documents/co-off/completed/req-1_signed.pdf', SEALED);
-        await expect(call('closed-admin', { companyId: 'co-off', requestId: REQUEST })).rejects.toMatchObject({
+        await expect(call('closed-admin', { ...APPROVAL, companyId: 'co-off' })).rejects.toMatchObject({
             code: 'permission-denied',
             message: expect.stringMatching(/deactivated/i),
         });
@@ -122,17 +124,21 @@ describe('sendSignedDocumentCopy — who may approve', () => {
     });
 
     it.each([
-        ['no companyId', { requestId: REQUEST }],
-        ['no requestId', { companyId: COMPANY }],
-        ['a requestId that is not text', { companyId: COMPANY, requestId: 7 }],
-        ['a requestId with a slash', { companyId: COMPANY, requestId: 'a/b' }],
+        ['no companyId', { requestId: REQUEST, recipientEmail: DRIVER_EMAIL }],
+        ['no requestId', { companyId: COMPANY, recipientEmail: DRIVER_EMAIL }],
+        ['a requestId that is not text', { ...APPROVAL, requestId: 7 }],
+        ['a requestId with a slash', { ...APPROVAL, requestId: 'a/b' }],
+        ['no recipientEmail', { companyId: COMPANY, requestId: REQUEST }],
+        ['a blank recipientEmail', { ...APPROVAL, recipientEmail: '  ' }],
+        ['a recipientEmail that is not text', { ...APPROVAL, recipientEmail: ['jane.driver@example.test'] }],
     ])('refuses a call with %s', async (_label, data) => {
         await expect(call('recruiter-1', data)).rejects.toMatchObject({ code: 'invalid-argument' });
         expect(mockSend).not.toHaveBeenCalled();
+        expect(record().signedCopy).toBeUndefined();
     });
 
     it('answers not-found for a document that does not exist', async () => {
-        await expect(call('recruiter-1', { companyId: COMPANY, requestId: 'missing' })).rejects.toMatchObject({ code: 'not-found' });
+        await expect(call('recruiter-1', { ...APPROVAL, requestId: 'missing' })).rejects.toMatchObject({ code: 'not-found' });
     });
 
     it.each([['an HR user', 'hr-1'], ['a Super Admin', 'super-1']])('lets %s approve', async (_label, uid) => {
@@ -312,5 +318,43 @@ describe('sendSignedDocumentCopy — sending', () => {
         mock.docs.set(REQUEST_PATH, signedRequest({ recipientEmail: '  Jane.Driver@Example.test ' }));
         await expect(call('recruiter-1')).resolves.toMatchObject({ sentTo: 'Jane.Driver@Example.test' });
         expect(mockSend.mock.calls[0][1]).toBe('Jane.Driver@Example.test');
+    });
+});
+
+describe('sendSignedDocumentCopy — only to the address the approver saw', () => {
+    const CHANGED = /^The signer's email changed after you opened this\. Close it and review the document again\.$/;
+    const NEW_EMAIL = 'jane.new@example.test';
+    const FAILED_COPY = { state: 'failed', approvedBy: 'hr-1', approvedByName: 'Hana HR', approvedAt: Timestamp.fromMillis(Date.now() - 60 * 60 * 1000), sentTo: DRIVER_EMAIL, error: 'Mailbox unavailable' };
+
+    it('refuses when a correction changed the address before the approval, sending nothing', async () => {
+        mock.docs.set(REQUEST_PATH, signedRequest({ recipientEmail: NEW_EMAIL, signedCopy: FAILED_COPY }));
+        await expect(call('recruiter-1')).rejects.toMatchObject({ code: 'aborted', message: expect.stringMatching(CHANGED) });
+        expect(mockSend).not.toHaveBeenCalled();
+        expect(mockStorage.calls.downloads).toEqual([]);
+        expect(record().signedCopy).toEqual(FAILED_COPY);
+    });
+
+    it('refuses when the address changes while the approval is checked, claiming nothing', async () => {
+        mock.docs.set(REQUEST_PATH, signedRequest({ signedCopy: FAILED_COPY }));
+        const runTransaction = mock.db.runTransaction;
+        // The correction lands after the first read and before the transaction's.
+        mock.db.runTransaction = async (handler) => {
+            mock.docs.set(REQUEST_PATH, signedRequest({ recipientEmail: NEW_EMAIL, signedCopy: FAILED_COPY }));
+            return runTransaction(handler);
+        };
+        try {
+            await expect(call('recruiter-1')).rejects.toMatchObject({ code: 'aborted', message: expect.stringMatching(CHANGED) });
+        } finally {
+            mock.db.runTransaction = runTransaction;
+        }
+        expect(mockSend).not.toHaveBeenCalled();
+        expect(record().signedCopy).toEqual(FAILED_COPY);
+        expect(record().recipientEmail).toBe(NEW_EMAIL);
+    });
+
+    it('sends when the address differs only in case and spaces', async () => {
+        await expect(call('recruiter-1', { ...APPROVAL, recipientEmail: '  JANE.Driver@EXAMPLE.test ' })).resolves.toMatchObject({ sentTo: DRIVER_EMAIL });
+        expect(mockSend).toHaveBeenCalledTimes(1);
+        expect(mockSend.mock.calls[0][1]).toBe(DRIVER_EMAIL);
     });
 });

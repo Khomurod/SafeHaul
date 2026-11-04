@@ -151,7 +151,7 @@ describe('a document with a company signature, from the driver signing to the si
 
         const result = await sendSignedDocumentCopy({
             auth: { uid: 'recruiter-1', token: { email: 'rita@example.test' } },
-            data: { companyId: 'co-1', requestId: 'req-1' },
+            data: { companyId: 'co-1', requestId: 'req-1', recipientEmail: 'jane.driver@example.test' },
         });
         expect(result).toMatchObject({ success: true, sentTo: 'jane.driver@example.test' });
 
@@ -186,7 +186,7 @@ describe('a document with a company signature, from the driver signing to the si
         // A second press sends nothing.
         await expect(sendSignedDocumentCopy({
             auth: { uid: 'recruiter-1', token: {} },
-            data: { companyId: 'co-1', requestId: 'req-1' },
+            data: { companyId: 'co-1', requestId: 'req-1', recipientEmail: 'jane.driver@example.test' },
         })).rejects.toMatchObject({ code: 'already-exists' });
         expect(mockMail).toHaveLength(1);
     });

@@ -294,11 +294,13 @@ one, voiding the old. Signed envelopes are sealed into tamper-evident PDFs.
 A **company signature** (`company_signature`) is an image the team uploads to
 `secure_documents/{companyId}/originals/company-signatures/` and places on a
 template or one document (each may replace its template's); the signer sees it
-fixed, the seal draws it from that file (missing → `error_sealing`) and keeps
-it. Nothing emails a signed PDF by itself: for a signed document with one, a
-team member reviews and approves **Send signed copy** (`sendSignedDocumentCopy`,
-claimed once in `signedCopy`; checksum-checked; company SMTP; a failure may be
-approved again). Signing is unlimited and not billed per envelope. The Documents workspace keeps
+fixed (its box reads "Company signature" when the image cannot load, and never
+blocks signing), the seal draws it from that file (missing → `error_sealing`)
+and keeps it. Nothing emails a signed PDF by itself: for a signed document with
+one, a team member reviews and approves **Send signed copy**
+(`sendSignedDocumentCopy`, claimed once in `signedCopy`; only to the address the
+approval showed, refused if a correction changed it; checksum-checked; company
+SMTP; a failure, or a send unfinished after ten minutes, may be approved again). Signing is unlimited and not billed per envelope. The Documents workspace keeps
 the newest 100 signing requests live and loads older ones on request. When there
 are more, its numbers are server counts and a second live list holds every
 document that needs attention (indexes in `firestore.indexes.json`).

@@ -4,11 +4,13 @@
  * `request(document)` opens the approval for that document, captured as it was
  * when it opened: the list is live, and re-reading the row on approval could
  * send a different document's copy if the order shifted. `approve()` calls
- * `sendSignedDocumentCopy({ companyId, requestId })` once — a second press,
- * however quick, finds the first in flight — and the server decides whether it
- * may (`utils/signedCopy.js`). Its refusal is shown as it worded it, in the
- * dialog, which stays open; a success is said in a toast and remembered here
- * until the request's own `signedCopy` record arrives (`recordFor`).
+ * `sendSignedDocumentCopy({ companyId, requestId, recipientEmail })` once — a
+ * second press, however quick, finds the first in flight — with the address the
+ * dialog showed, which the server refuses if a correction has changed it since.
+ * The server decides whether it may (`utils/signedCopy.js`). Its refusal is
+ * shown as it worded it, in the dialog, which stays open; a success is said in a
+ * toast and remembered here until the request's own `signedCopy` record arrives
+ * (`recordFor`).
  */
 import { useCallback, useRef, useState } from 'react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -48,7 +50,7 @@ export function useSignedCopySend({ companyId, showSuccess }) {
         try {
             const functions = getFunctions();
             const sendSignedDocumentCopy = httpsCallable(functions, 'sendSignedDocumentCopy');
-            const { data } = await sendSignedDocumentCopy({ companyId, requestId: pending.id });
+            const { data } = await sendSignedDocumentCopy({ companyId, requestId: pending.id, recipientEmail: pending.email });
             const sentTo = data?.sentTo || pending.email;
             setSentHere((previous) => ({ ...previous, [pending.id]: { state: 'sent', sentTo, sentAt: data?.sentAt || null } }));
             showSuccess(`Signed copy sent to ${sentTo}`);

@@ -5,7 +5,7 @@
 // recorded (`signedCopy`). All fixtures are artificial (see the support's
 // PRIVACY note).
 import React from 'react';
-import { screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('firebase/firestore', async () => (await import('./EnvelopeHistory.support')).firebaseFirestoreMock());
@@ -101,6 +101,44 @@ describe('EnvelopeHistory — what the row says about the copy', () => {
         expect(screen.getByRole('button', { name: 'Try again: send signed copy of Offer Letter' })).toHaveTextContent('Try again');
     });
 
+    it('turns "Sending copy…" into Try again by itself when the claim lapses', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+        try {
+            // Approved five seconds short of ten minutes ago.
+            const approvedAt = new Date(Date.now() - (10 * 60 * 1000 - 5000));
+            const { unmount } = renderHistory();
+            emit([signed({ signedCopy: { state: 'sending', sentTo: 'pat@example.test', approvedAt } })]);
+            expect(screen.getByText('Sending copy…')).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Try again/ })).not.toBeInTheDocument();
+
+            act(() => { vi.advanceTimersByTime(4000); });
+            expect(screen.getByText('Sending copy…')).toBeInTheDocument();
+
+            act(() => { vi.advanceTimersByTime(3000); });
+            expect(screen.getByText('Copy may not have been sent')).toBeInTheDocument();
+            expect(screen.queryByText('Sending copy…')).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Try again: send signed copy of Offer Letter' })).toHaveTextContent('Try again');
+
+            unmount();
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('clears the claim\'s timer when the table unmounts before it lapses', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+        try {
+            const { unmount } = renderHistory();
+            emit([signed({ signedCopy: { state: 'sending', sentTo: 'pat@example.test', approvedAt: new Date() } })]);
+            expect(vi.getTimerCount()).toBeGreaterThan(0);
+            unmount();
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('says a copy was not sent, and offers to try again', () => {
         renderHistory();
         emit([signed({ signedCopy: { state: 'failed', sentTo: 'pat@example.test', error: 'Mailbox unavailable' } })]);
@@ -161,7 +199,7 @@ describe('EnvelopeHistory — approving the send', () => {
 
         expect(fnMocks.httpsCallable).toHaveBeenCalledWith({}, 'sendSignedDocumentCopy');
         expect(callables.sendSignedDocumentCopy).toHaveBeenCalledTimes(1);
-        expect(callables.sendSignedDocumentCopy).toHaveBeenCalledWith({ companyId: 'co-1', requestId: 'req-1' });
+        expect(callables.sendSignedDocumentCopy).toHaveBeenCalledWith({ companyId: 'co-1', requestId: 'req-1', recipientEmail: 'pat@example.test' });
 
         finish({ data: { success: true, sentTo: 'pat@example.test', sentAt: '2026-11-04T15:00:00.000Z' } });
 
@@ -186,6 +224,27 @@ describe('EnvelopeHistory — approving the send', () => {
         await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent('Only a company admin or HR user can approve this.'));
         expect(toast.showSuccess).not.toHaveBeenCalled();
         expect(within(dialog).getByRole('button', { name: 'Approve and send' })).not.toBeDisabled();
+        consoleError.mockRestore();
+    });
+
+    it('approves the address it showed, even after a correction changes it, and shows the server\'s refusal', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const changed = 'The signer\'s email changed after you opened this. Close it and review the document again.';
+        callables.sendSignedDocumentCopy.mockImplementation(async () => {
+            throw Object.assign(new Error(changed), { code: 'functions/aborted' });
+        });
+        renderHistory();
+        emit([signed()]);
+        fireEvent.click(sendAction());
+        const dialog = await approvalDialog();
+        // A correction saved while the approval is open.
+        emit([signed({ recipientEmail: 'pat.new@example.test' })]);
+        expect(within(dialog).getByText('pat@example.test')).toBeInTheDocument();
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Approve and send' }));
+
+        await waitFor(() => expect(within(dialog).getByRole('alert')).toHaveTextContent(changed));
+        expect(callables.sendSignedDocumentCopy).toHaveBeenCalledWith({ companyId: 'co-1', requestId: 'req-1', recipientEmail: 'pat@example.test' });
+        expect(toast.showSuccess).not.toHaveBeenCalled();
         consoleError.mockRestore();
     });
 

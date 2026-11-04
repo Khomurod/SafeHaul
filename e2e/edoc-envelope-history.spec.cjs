@@ -129,7 +129,7 @@ test.describe('E-Doc envelope history slice', () => {
     await expect(page.getByText(/^Copy sent to rosa\.delgado@example\.test on /)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Send signed copy of Independent Contractor Agreement' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Download Independent Contractor Agreement' })).toBeVisible();
-    expect(sent).toEqual([{ companyId: 'e2e-company', requestId: 'e2e-copy-ready' }]);
+    expect(sent).toEqual([{ companyId: 'e2e-company', requestId: 'e2e-copy-ready', recipientEmail: 'rosa.delgado@example.test' }]);
   });
 
   test('has no serious/critical or contrast violations in the history table', async ({ page }) => {

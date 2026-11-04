@@ -4,7 +4,7 @@
 // own coverage. All fixtures are artificial (RFC 2606 domains, reserved
 // 555-01xx numbers); no real signing token or link is ever rendered.
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -196,5 +196,36 @@ describe('SentDocumentDetailsDialog — dialog behaviour', () => {
             emailError: 'SMTP 550 (artificial)',
         }));
         expect((await axe(failed.container)).violations).toEqual([]);
+    });
+});
+
+describe('SentDocumentDetailsDialog — a signed copy whose send never finished', () => {
+    const FIELDS = [
+        { id: 'sig1', type: 'signature', pageNumber: 1 },
+        { id: 'cs1', type: 'company_signature', pageNumber: 1, companySignaturePath: 'secure_documents/co-1/originals/company-signatures/a.png' },
+    ];
+
+    it('turns "Sending copy…" into Try again by itself when the claim lapses, and clears its timer', () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+        try {
+            // Approved five seconds short of ten minutes ago.
+            const record = { state: 'sending', sentTo: 'pat@example.test', approvedAt: new Date(Date.now() - (10 * 60 * 1000 - 5000)) };
+            const { unmount } = renderDialog(makeDoc({ status: 'signed', fields: FIELDS, signedCopy: record }), {
+                signedCopyRecord: record,
+                onSendSignedCopy: vi.fn(),
+            });
+            const dialog = screen.getByRole('dialog');
+            expect(within(dialog).getByText('Sending copy…')).toBeInTheDocument();
+            expect(within(dialog).queryByRole('button', { name: /Try again/ })).not.toBeInTheDocument();
+
+            act(() => { vi.advanceTimersByTime(7000); });
+            expect(within(dialog).getByText('Copy may not have been sent')).toBeInTheDocument();
+            expect(within(dialog).getByRole('button', { name: /Try again/ })).toHaveTextContent('Try again');
+
+            unmount();
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

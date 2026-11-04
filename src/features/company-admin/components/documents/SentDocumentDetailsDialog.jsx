@@ -6,6 +6,7 @@ import { Stack } from '@/design-system/layouts';
 import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { SignedCopyButton, SignedCopyStatus } from '@features/signing/components/SignedCopy';
+import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
 
 /**
  * Sent-document details.
@@ -53,6 +54,8 @@ export function SentDocumentDetailsDialog({
     const rawId = useId().replace(/:/g, '');
     const titleId = `sent-document-title-${rawId}`;
     const closeRef = useRef(null);
+    // A copy still being sent turns into Try again when its claim lapses.
+    useRerenderWhenClaimsExpire([signedCopyRecord]);
 
     if (!document) return null;
 

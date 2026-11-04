@@ -8,6 +8,10 @@
  * signature. The PDF is read from the path the seal writes, never the request's
  * client-writable `signedPdfUrl`, and must match the checksum the seal recorded.
  *
+ * It goes only to the address the approval showed (`recipientEmail`): if a
+ * correction has changed it since, the call is refused before the claim, so a
+ * new address is reviewed again instead of being sent to unseen.
+ *
  * One email per document: `signedCopy` on the request is claimed in a
  * transaction before the one send, so a second press, tab or person is refused.
  * A claim left at `sending` for ten minutes (a crashed attempt) may be taken
@@ -36,6 +40,21 @@ function documentId(value, name) {
         throw new HttpsError('invalid-argument', `${name} is required.`);
     }
     return value;
+}
+
+/** The address the approval showed, which the document must still carry. */
+function approvedAddress(value) {
+    if (typeof value !== 'string' || !value.trim()) {
+        throw new HttpsError('invalid-argument', 'recipientEmail is required.');
+    }
+    return value.trim();
+}
+
+/** Refuses unless the document's address is the one the approver saw, in any case. */
+function refuseChangedAddress(address, approved) {
+    if (address.toLowerCase() !== approved.toLowerCase()) {
+        throw new HttpsError('aborted', 'The signer\'s email changed after you opened this. Close it and review the document again.');
+    }
 }
 
 function millisOf(value) {
@@ -147,13 +166,14 @@ exports.sendSignedDocumentCopy = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_
     if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Sign in to send a signed copy.');
     const companyId = documentId(request.data?.companyId, 'companyId');
     const requestId = documentId(request.data?.requestId, 'requestId');
+    const approved = approvedAddress(request.data?.recipientEmail);
     await assertCompanyAccessForRequest(request, companyId, 'sendSignedDocumentCopy');
 
     const ref = db.collection('companies').doc(companyId).collection('signing_requests').doc(requestId);
     const snap = await ref.get();
     if (!snap.exists) throw new HttpsError('not-found', 'Document not found.');
     const data = snap.data() || {};
-    addressReadyToSend(data);
+    refuseChangedAddress(addressReadyToSend(data), approved);
     refuseClaimed(data.signedCopy);
 
     const pdf = await readSealedPdf(companyId, requestId, data.sha256Checksum);
@@ -165,6 +185,7 @@ exports.sendSignedDocumentCopy = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_
         if (!current.exists) throw new HttpsError('not-found', 'Document not found.');
         const now = current.data() || {};
         const address = addressReadyToSend(now);
+        refuseChangedAddress(address, approved);
         if (now.sha256Checksum !== data.sha256Checksum) {
             throw new HttpsError('aborted', 'This document changed while it was being sent. Try again.');
         }
