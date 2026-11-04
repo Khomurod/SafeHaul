@@ -303,6 +303,20 @@ describe('PEVTab initiation flow and callable payload', () => {
     expect(screen.queryByRole('button', { name: /Copy Link/i })).toBeNull();
   });
 
+  it('drops the previous request\'s opened date when a new request is sent for that employer', async () => {
+    fnMocks.callable.mockResolvedValue({ data: { success: true } });
+    renderTab();
+    storedDoc.employers[1].verification.openedAt = '2026-07-02T15:00:00.000Z';
+    fireEvent.click(screen.getByRole('button', { name: 'Resend verification request to Legacy Hauling' }));
+    fireEvent.click(screen.getByText('proceed-email'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalled());
+    // The new request has not been opened; the server records its first open.
+    expect(fsMocks.updateDoc.mock.calls[0][1].employers[1].verification).not.toHaveProperty('openedAt');
+    expect(screen.queryByText(/Employer opened the link/)).toBeNull();
+  });
+
   it('offers the new link, not the stored one, when a new request is sent by hand for that employer', async () => {
     renderTab();
     fireEvent.click(screen.getByRole('button', { name: 'Resend verification request to Legacy Hauling' }));

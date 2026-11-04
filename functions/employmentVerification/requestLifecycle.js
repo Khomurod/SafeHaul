@@ -6,7 +6,8 @@
  * Every other status is closed for that cycle:
  * - `completed` — the employer answered in the portal, or the company uploaded
  *   the result (./manualResult.js);
- * - `no_response` — day 30 passed with no answer;
+ * - `no_response` — day 30 passed with no answer (an uploaded late result can
+ *   still complete it);
  * - `send_failed` — the first email never went out, so nothing was attempted;
  * - `superseded` — a newer request for the same employer replaced it;
  * - `processing` — a portal answer in flight, left to finish (./responses.js).

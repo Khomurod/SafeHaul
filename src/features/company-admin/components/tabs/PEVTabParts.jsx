@@ -86,6 +86,11 @@ export function PEVEmployerCard({
                                             <Icon icon={Send} size="xs" /> Sent via {vStatus.method}
                                         </span>
                                     )}
+                                    {vStatus.openedAt && (
+                                        <span className="flex items-center gap-ds-1 text-ds-xs font-medium text-ds-content-secondary">
+                                            <Icon icon={ExternalLink} size="xs" /> Employer opened the link ({new Date(vStatus.openedAt).toLocaleDateString()})
+                                        </span>
+                                    )}
                                     {vStatus.respondentName && (
                                         <span className="flex items-center gap-ds-1 text-ds-xs font-semibold text-ds-status-success-fg">
                                             <Icon icon={CheckCircle2} size="xs" /> Responded by: {vStatus.respondentName}
@@ -130,7 +135,8 @@ export function PEVEmployerCard({
                                             <Icon icon={ExternalLink} size="sm" /> Copy Link
                                         </Button>
                                     )}
-                                    {vStatus.status === 'Sent' && (
+                                    {/* Any status short of Completed, "no response" too: a late answer still counts. */}
+                                    {vStatus.status !== 'Completed' && (
                                         <Button
                                             variant="secondary"
                                             size="sm"

@@ -77,10 +77,12 @@ exports.recordManualVerificationResult = onCall({ cors: true }, async (request) 
 
     // The row already shows the result, and day 30 never overwrites a
     // Completed row (./reminders.js), so a failure here costs reminders only.
+    // A late result completes a request already marked "no response"; the
+    // mark stays in the row's history.
     let closedRequests = 0;
     try {
         const requests = await requestsForEmployer(record, mirrored.employers, mirrored.index);
-        closedRequests = await closeRequests(requests, LIVE_STATUSES, {
+        closedRequests = await closeRequests(requests, [...LIVE_STATUSES, 'no_response'], {
             status: 'completed',
             completedAt: now,
             completedBy: 'manual_result',

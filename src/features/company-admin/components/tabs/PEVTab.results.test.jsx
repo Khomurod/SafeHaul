@@ -101,6 +101,19 @@ describe('PEVTab result viewing', () => {
   });
 });
 
+describe('PEVTab employer opened the link', () => {
+  it('shows the date the server recorded the first open', () => {
+    const openedAt = '2026-07-02T15:00:00.000Z';
+    renderTab({ employers: [{ companyName: 'A', verification: { status: 'Sent', openedAt, history: [] } }] });
+    expect(screen.getByText(`Employer opened the link (${new Date(openedAt).toLocaleDateString()})`)).toBeInTheDocument();
+  });
+
+  it('says nothing before the employer opens it', () => {
+    renderTab();
+    expect(screen.queryByText(/Employer opened the link/)).toBeNull();
+  });
+});
+
 describe('PEVTab copy link', () => {
   it('copies the verification URL and confirms with the frozen toast', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
@@ -193,6 +206,23 @@ describe('PEVTab result upload', () => {
 
     await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith('Failed to upload verification result.'));
     expect(toastMocks.showSuccess).not.toHaveBeenCalled();
+  });
+
+  it('is offered after "no response" too: a late answer still counts', () => {
+    renderTab({
+      employers: [{
+        companyName: 'A',
+        verification: { status: 'No Response (Good Faith Documented)', history: [{ action: 'No Response (Good Faith Documented)' }] },
+      }],
+    });
+    expect(screen.getByRole('button', { name: /Upload Result/i })).toBeInTheDocument();
+  });
+
+  it('is not offered once the result is in', () => {
+    renderTab({
+      employers: [{ companyName: 'A', verification: { status: 'Completed', resultUrl: 'companies/co-1/applications/app-1/pev_results/x.pdf', history: [] } }],
+    });
+    expect(screen.queryByRole('button', { name: /Upload Result/i })).toBeNull();
   });
 
   it('accepts pdf and image files only', () => {
