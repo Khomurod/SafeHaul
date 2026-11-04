@@ -63,4 +63,11 @@ describe('envelopeFieldClipboard', () => {
     expect(isEditableKeyboardTarget({ tagName: 'DIV', isContentEditable: true })).toBe(true);
     expect(isEditableKeyboardTarget({ tagName: 'DIV' })).toBe(false);
   });
+
+  it('a copied company signature keeps the image of the field it was copied from', () => {
+    const path = 'secure_documents/co-1/originals/company-signatures/a1b2.png';
+    const clone = cloneFieldWithoutId({ id: 'cs', type: 'company_signature', page: 1, x: 1, y: 2, width: 20, height: 8, companySignaturePath: path });
+    expect(clone).toMatchObject({ type: 'company_signature', companySignaturePath: path });
+    expect(clone.id).toBeUndefined();
+  });
 });

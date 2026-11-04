@@ -38,6 +38,8 @@ function exportFunctions(wanted) {
   if (wanted('resendSignerOnCorrection')) exports.resendSignerOnCorrection = require('./resendSignerOnCorrection').resendSignerOnCorrection;
   // ADV-1 FIX: Secure callable to retrieve full signing link (with token from secrets)
   if (wanted('getSigningLink')) exports.getSigningLink = require('./getSigningLink').getSigningLink;
+  // A company user's approval emails the signer their sealed copy, once
+  if (wanted('sendSignedDocumentCopy')) exports.sendSignedDocumentCopy = require('./signedCopyDelivery').sendSignedDocumentCopy;
 
   // 2. Auth & User Management
   if (wanted('createPortalUser')) exports.createPortalUser = require('./hrAdmin').createPortalUser;

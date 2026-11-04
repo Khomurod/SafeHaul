@@ -211,3 +211,24 @@ describe('previewFieldValues', () => {
         expect(previewFieldValues(null)).toEqual({});
     });
 });
+
+describe('a company signature in the preview', () => {
+    const PATH = 'secure_documents/co-1/originals/company-signatures/a1b2.png';
+    const companySignature = field('cs', {
+        type: 'company_signature',
+        label: 'Company Signature',
+        required: false,
+        readOnly: true,
+        prefillPolicy: 'locked',
+        companySignaturePath: PATH,
+    });
+
+    it('is fixed: shown with its image, never something the recipient fills', () => {
+        const preview = buildSignerPreview({ fields: [companySignature, field('b', { type: 'signature' })], now: NOW });
+        const shown = preview.fields.find((f) => f.id === 'cs');
+        expect(shown).toMatchObject({ type: 'company_signature', readOnly: true, companySignaturePath: PATH });
+        expect(preview.signerCompletes.map((f) => f.id)).toEqual(['b']);
+        expect(preview.missingLockedRequired).toEqual([]);
+        expect(previewFieldValues(preview.fields)).toEqual({});
+    });
+});

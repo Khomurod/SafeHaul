@@ -242,7 +242,7 @@ export function searchTemplates(templates = [], search = '') {
  * a template with no `storagePath` would create a template that can never be
  * sent, and duplicating unknown field shapes would persist them unchanged.
  */
-export const DUPLICABLE_FIELD_TYPES = Object.freeze(['signature', 'initial', 'date', 'text', 'checkbox']);
+export const DUPLICABLE_FIELD_TYPES = Object.freeze(['signature', 'initial', 'date', 'text', 'checkbox', 'company_signature']);
 
 export function isTemplateDuplicable(template) {
     if (!template) return false;

@@ -22,6 +22,7 @@ import {
     resolveFieldsForSend,
 } from '@features/signing/utils/prefillEngine';
 import { deserializeTemplateField, serializeTemplateFields } from '@features/signing/utils/templateFieldSerializer';
+import { COMPANY_SIGNATURE_MISSING_MESSAGE, fieldsMissingCompanySignature } from '@features/signing/utils/companySignature';
 import { SAVE_STATES } from '@features/signing/utils/editorSaveState';
 import { deliveryFields, createSigningRequest, announceSigningRequest } from '@features/signing/utils/signingRequestWrite';
 import { normalizePhone } from '@shared/utils/helpers';
@@ -180,6 +181,12 @@ export async function saveEnvelope({
     }
 
     const shouldResolveForDelivery = creatorMode === 'request' || isEditingRequest;
+    // A document never goes out without its company signature; a template may
+    // leave the image for each document.
+    if (shouldResolveForDelivery && fieldsMissingCompanySignature(fields).length > 0) {
+        showError(COMPANY_SIGNATURE_MISSING_MESSAGE);
+        return;
+    }
     const prefillContext = buildPrefillContext({
         recipientName,
         recipientEmail,

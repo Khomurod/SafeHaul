@@ -138,6 +138,7 @@ export default function DocumentsManager() {
         prefillValuesByGroupKey,
         setPrefillValuesByGroupKey,
         editablePrefillPartition,
+        companySignature,
         handleUseTemplate,
         handleQuickSelect,
         executeTemplateSend,
@@ -464,6 +465,7 @@ export default function DocumentsManager() {
                     setPrefillValues={setPrefillValues}
                     prefillValuesByGroupKey={prefillValuesByGroupKey}
                     setPrefillValuesByGroupKey={setPrefillValuesByGroupKey}
+                    companySignature={companySignature}
                     sending={sending}
                     executeTemplateSend={executeTemplateSend}
                     filteredDrivers={drivers}

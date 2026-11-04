@@ -205,6 +205,8 @@ describe('template library helpers', () => {
         expect(isTemplateDuplicable(template({ storagePath: '' }))).toBe(false);
         expect(isTemplateDuplicable(template({ fields: [] }))).toBe(false);
         expect(isTemplateDuplicable(template({ fields: [{ type: 'radio_group' }] }))).toBe(false);
+        // The copy keeps the company signature's image path, as it keeps the PDF's.
+        expect(isTemplateDuplicable(template({ fields: [{ type: 'signature' }, { type: 'company_signature' }] }))).toBe(true);
         expect(isTemplateDuplicable(template({ fields: [null] }))).toBe(false);
         expect(isTemplateDuplicable(null)).toBe(false);
     });

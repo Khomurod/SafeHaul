@@ -4,12 +4,17 @@ import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
+import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
+import { SignedCopyButton, SignedCopyStatus } from '@features/signing/components/SignedCopy';
+import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
 
 /**
  * Sent-document details.
  *
  * Read-only summary plus the same four actions the table row offers, so the
- * dialog never becomes a second source of truth for what can be done.
+ * dialog never becomes a second source of truth for what can be done. A
+ * document with a company signature also says where its signed copy stands
+ * (`signedCopyRecord`) and offers Send signed copy where the row does.
  *
  * SECURITY: the signing token is never rendered here. "Copy Link" calls the
  * authenticated `getSigningLink` callable exactly as the row action does; the
@@ -43,10 +48,14 @@ export function SentDocumentDetailsDialog({
     onVoid,
     onDownload,
     copying = false,
+    signedCopyRecord = null,
+    onSendSignedCopy,
 }) {
     const rawId = useId().replace(/:/g, '');
     const titleId = `sent-document-title-${rawId}`;
     const closeRef = useRef(null);
+    // A copy still being sent turns into Try again when its claim lapses.
+    useRerenderWhenClaimsExpire([signedCopyRecord]);
 
     if (!document) return null;
 
@@ -55,6 +64,7 @@ export function SentDocumentDetailsDialog({
     const failure = deliveryFailure(document);
     const deliveryFailed = failure !== null;
     const sealFailed = status === 'error_sealing';
+    const offersSignedCopy = Boolean(onSendSignedCopy) && canSendSignedCopy(document, signedCopyRecord);
 
     return (
         <Modal
@@ -87,6 +97,11 @@ export function SentDocumentDetailsDialog({
                         <DetailRow label="Status">
                             <Badge tone={deliveryFailed || sealFailed ? 'danger' : 'neutral'}>{status}</Badge>
                         </DetailRow>
+                        {hasCompanySignature(document) && (status === 'signed' || signedCopyRecord) && (
+                            <DetailRow label="Signed copy">
+                                {signedCopyRecord ? <SignedCopyStatus record={signedCopyRecord} /> : 'Not sent yet'}
+                            </DetailRow>
+                        )}
                     </dl>
 
                     {(deliveryFailed || sealFailed) && (
@@ -107,12 +122,21 @@ export function SentDocumentDetailsDialog({
             <div className="flex flex-wrap justify-end gap-ds-2 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
                 <Button ref={closeRef} variant="ghost" onClick={onClose}>Close</Button>
                 {status === 'signed' ? (
-                    <Button
-                        variant="secondary"
-                        onClick={() => onDownload(document.signedPdfUrl || document.storagePath)}
-                    >
-                        <Icon icon={Download} size="sm" /> Download
-                    </Button>
+                    <>
+                        <Button
+                            variant="secondary"
+                            onClick={() => onDownload(document.signedPdfUrl || document.storagePath)}
+                        >
+                            <Icon icon={Download} size="sm" /> Download
+                        </Button>
+                        {offersSignedCopy && (
+                            <SignedCopyButton
+                                variant="primary"
+                                retry={isSignedCopyRetry(signedCopyRecord)}
+                                onClick={() => onSendSignedCopy(document)}
+                            />
+                        )}
+                    </>
                 ) : status === 'voided' ? null : (
                     <>
                         <Button variant="secondary" loading={copying} onClick={() => onCopyLink(document)}>

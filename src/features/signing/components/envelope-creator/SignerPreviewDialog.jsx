@@ -12,6 +12,18 @@ import {
     previewFieldValues,
     previewFieldsForPage,
 } from '@features/signing/utils/signerPreview';
+import { isCompanySignatureField } from '@features/signing/utils/companySignature';
+import { useCompanySignatureUrl } from '@features/signing/hooks/useCompanySignatureUrl';
+
+/**
+ * One field as the signer gets it. The signing room is handed a link to a
+ * company signature's image; here the editor makes one from its path, so the
+ * preview shows the image as the signer will — fixed, nothing to fill.
+ */
+function PreviewField({ field, ...props }) {
+    const url = useCompanySignatureUrl(isCompanySignatureField(field) ? field.companySignaturePath : '');
+    return <SignerField field={url ? { ...field, companySignatureUrl: url } : field} {...props} />;
+}
 
 /**
  * "Preview as signer" — a read-only view of the document as the recipient will
@@ -146,7 +158,7 @@ export function SignerPreviewDialog({
                                         className="absolute inset-0"
                                     >
                                         {pageFields.map((field, index) => (
-                                            <SignerField
+                                            <PreviewField
                                                 key={field.id}
                                                 field={field}
                                                 signed={false}
@@ -225,7 +237,7 @@ export function SignerPreviewDialog({
                                                 {field.label}
                                             </span>
                                             <span className="mt-ds-1 flex flex-wrap items-center gap-ds-1">
-                                                <Badge tone="neutral">{field.type}</Badge>
+                                                <Badge tone="neutral">{field.type.replace(/_/g, ' ')}</Badge>
                                                 <Badge tone="neutral">Page {field.pageNumber}</Badge>
                                                 {field.readOnly && <Badge tone="info">Locked</Badge>}
                                                 {mustComplete && <Badge tone="warning">Recipient completes</Badge>}
@@ -233,6 +245,13 @@ export function SignerPreviewDialog({
                                             {value && (
                                                 <span className="mt-ds-1 block text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
                                                     Shows: {value}
+                                                </span>
+                                            )}
+                                            {isCompanySignatureField(field) && (
+                                                <span className="mt-ds-1 block text-ds-xs text-ds-content-secondary">
+                                                    {field.companySignaturePath
+                                                        ? 'Shows: your company signature, fixed.'
+                                                        : 'No image yet. Upload it before sending.'}
                                                 </span>
                                             )}
                                         </li>

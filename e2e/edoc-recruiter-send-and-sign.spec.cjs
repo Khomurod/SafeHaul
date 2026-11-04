@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { openCreator } = require('./helpers/edocHelpers.cjs');
 
 /**
  * Reads the geometry of a field overlay relative to its page container.
@@ -279,5 +280,162 @@ test.describe('Signature pad', () => {
     await expect(sheet.getByRole('status')).toHaveText('Draw your signature before adopting it.');
     await expect(sheet).toBeVisible();
     expect(await page.locator('[data-field-id="sig1"] img').getAttribute('src')).toBe(before);
+  });
+});
+
+// --- The company signature ------------------------------------------------
+//
+// E2E mode has no Storage or Functions: the image upload, the PDF upload and
+// the short-lived image link are answered here at the network edge, and what
+// they receive is asserted. Nobody is signed in to Firebase there, so the
+// request write after the PDF upload cannot happen: the send is proved to have
+// passed its checks by the PDF upload it starts, and the request it writes is
+// pinned by `envelopePersistence.companySignature.test.js`. Every name, address
+// and image is made up.
+
+
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': '*',
+  'access-control-allow-methods': 'GET, POST, OPTIONS',
+};
+const STAMP_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+const STAMP_URL = `data:image/png;base64,${STAMP_PNG_BASE64}`;
+const MISSING_IMAGE = 'Upload the company signature image before sending. A company signature on this document has no image yet.';
+
+/** Minimal single-page PDF, generated inline so no fixture file is needed. */
+const ONE_PAGE_PDF = [
+  '%PDF-1.4',
+  '1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj',
+  '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj',
+  '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj',
+  'trailer<</Root 1 0 R>>',
+].join('\n');
+
+/** Answers the named callable with `answer(data)`, recording what it was sent. */
+async function answerCallable(page, name, answer) {
+  const received = [];
+  await page.route(`**/${name}`, (route) => {
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+    const data = route.request().postDataJSON()?.data;
+    received.push(data);
+    return route.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: JSON.stringify({ result: answer(data) }) });
+  });
+  return received;
+}
+
+/** Answers Storage uploads as the bucket would, recording each object's path. */
+async function answerStorageUploads(page) {
+  const uploaded = [];
+  await page.route(/firebasestorage\.googleapis\.com\/v0\/b\/[^/]+\/o/, (route) => {
+    const request = route.request();
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+    const name = new URL(request.url()).searchParams.get('name');
+    uploaded.push(name);
+    const at = new Date().toISOString();
+    return route.fulfill({
+      status: 200,
+      headers: CORS,
+      contentType: 'application/json',
+      body: JSON.stringify({ name, bucket: 'safehaul-e2e.appspot.com', generation: '1', metageneration: '1', size: '68', timeCreated: at, updated: at }),
+    });
+  });
+  return uploaded;
+}
+
+test.describe('Company signature in the editor', () => {
+  test.describe.configure({ timeout: 90_000 });
+
+  test('is placed, refuses to send without an image, takes an uploaded image and sends', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const uploaded = await answerStorageUploads(page);
+    const links = await answerCallable(page, 'getSignedDocumentUrl', () => ({ success: true, url: STAMP_URL }));
+
+    await openCreator(page, 'request');
+    await expect(page.getByLabel('Document title')).toBeVisible({ timeout: 15_000 });
+    await page.setInputFiles('#pdf-upload', { name: 'artificial-agreement.pdf', mimeType: 'application/pdf', buffer: Buffer.from(ONE_PAGE_PDF, 'utf8') });
+    await page.getByRole('button', { name: 'Add Company Signature field', exact: true }).click();
+    await expect(page.locator('[data-page-num="1"]').first()).toBeVisible({ timeout: 20_000 });
+
+    const placed = page.getByRole('group', { name: /company signature field on page 1/ });
+    await expect(placed).toContainText('No image yet');
+
+    const setup = page.getByRole('complementary', { name: 'Envelope setup' });
+    await setup.getByLabel(/^Name/).fill('Pat Example');
+    await setup.getByRole('textbox', { name: 'Email' }).fill('pat@example.test');
+
+    // Without its image the document is not sent, and nothing is uploaded.
+    await page.getByRole('button', { name: 'Send Document' }).click();
+    await expect(page.getByText(MISSING_IMAGE)).toBeVisible();
+    expect(uploaded).toEqual([]);
+
+    await page.getByRole('list', { name: /^Placed/ }).getByRole('button', { name: /Company Signature.*P1/ }).click();
+    const inspector = page.getByRole('complementary', { name: 'Document inspector' });
+    await inspector.getByLabel('Company signature image').setInputFiles({
+      name: 'stamp.png', mimeType: 'image/png', buffer: Buffer.from(STAMP_PNG_BASE64, 'base64'),
+    });
+
+    await expect(inspector.getByRole('img', { name: 'Company signature' })).toBeVisible({ timeout: 15_000 });
+    await expect(placed.getByRole('img', { name: 'Company signature' })).toBeVisible();
+    await expect(inspector.getByText('Replace image')).toBeVisible();
+    expect(uploaded).toEqual([
+      expect.stringMatching(/^secure_documents\/e2e-company\/originals\/company-signatures\/[0-9a-f-]{36}\.png$/),
+    ]);
+    expect(links).toEqual([{ storagePath: uploaded[0] }]);
+
+    // With it, the send goes on to upload the document itself.
+    await page.getByRole('button', { name: 'Send Document' }).click();
+    await expect.poll(() => uploaded.length, { timeout: 15_000 }).toBe(2);
+    expect(uploaded[1]).toMatch(/^secure_documents\/e2e-company\/originals\/\d+_artificial-agreement\.pdf$/);
+  });
+});
+
+test.describe('Company signature in the signing room', () => {
+  test.describe.configure({ timeout: 90_000 });
+
+  const ENVELOPE = {
+    title: 'Artificial Lease Agreement',
+    recipientName: 'Pat Example',
+    status: 'sent',
+    pdfUrl: `data:application/pdf;base64,${Buffer.from(ONE_PAGE_PDF, 'utf8').toString('base64')}`,
+    fields: [
+      { id: 'text1', type: 'text', label: 'Printed name', pageNumber: 1, required: true, xPosition: 10, yPosition: 10, width: 30, height: 5 },
+      {
+        id: 'cs1', type: 'company_signature', label: 'Company Signature', pageNumber: 1, xPosition: 10, yPosition: 30,
+        width: 25, height: 8, required: false, readOnly: true, prefillPolicy: 'locked', defaultValue: '', companySignatureUrl: STAMP_URL,
+      },
+      { id: 'sig1', type: 'signature', label: 'Signature', pageNumber: 1, required: true, xPosition: 10, yPosition: 60, width: 30, height: 8 },
+    ],
+  };
+
+  test('shows the fixed company signature, and the driver signs without it @mobile', async ({ page }) => {
+    await answerCallable(page, 'getPublicEnvelope', () => ENVELOPE);
+    const submitted = await answerCallable(page, 'submitPublicEnvelope', () => ({ success: true }));
+
+    await page.goto('/sign/e2e-company/e2e-company-signature?token=e2e-token');
+    await expect(page.getByText('Artificial Lease Agreement').first()).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('button', { name: /I Agree - Proceed to Sign/i }).click();
+
+    const stamp = page.locator('[data-field-id="cs1"]');
+    await expect(stamp.getByRole('img', { name: 'Company signature' })).toBeVisible({ timeout: 20_000 });
+    await expect(stamp.locator('button, input, [tabindex]')).toHaveCount(0);
+    // The printed name and the signature are left; the company signature is not counted.
+    await expect(page.getByRole('status').filter({ hasText: /remaining|left/ })).toContainText('2');
+
+    await page.locator('[data-signer-input="text1"]').fill('Pat Example');
+    const sheet = page.getByRole('dialog', { name: /Draw your signature/i });
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Tap to sign' }).click();
+      await expect(sheet).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 10_000 });
+    await drawStroke(page, sheet.getByTestId('signature-sheet-canvas'));
+    await sheet.getByRole('button', { name: /Adopt & continue/i }).click();
+    await expect(sheet).toBeHidden();
+
+    await page.getByRole('button', { name: /Finish & Submit/i }).click();
+    await expect(page.getByText('Document Signed!')).toBeVisible({ timeout: 15_000 });
+    expect(submitted).toHaveLength(1);
+    expect(submitted[0]).toMatchObject({ companyId: 'e2e-company', requestId: 'e2e-company-signature', accessToken: 'e2e-token' });
+    expect(Object.keys(submitted[0].fieldValues).sort()).toEqual(['sig1', 'text1']);
   });
 });

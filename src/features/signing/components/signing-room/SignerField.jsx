@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Icon, PenTool, Fingerprint } from '@design-system/icons';
 import { isFieldLocked } from '@features/signing/utils/prefillEngine';
 import { SignerFieldOverlay } from '@features/signing/components/SignerFieldOverlay';
 
 /**
- * Renders one signer-facing field overlay (text/date/checkbox/signature/initial).
+ * Renders one signer-facing field overlay (text/date/checkbox/signature/initial,
+ * and the company signature: the company's image, fixed, from the short-lived
+ * `companySignatureUrl` the envelope carries). Without that link, or when the
+ * image fails to load, the field's box still says "Company signature", so the
+ * signer always sees where it goes on the sealed PDF; the seal draws it from
+ * the company's stored file either way, and the signer never fills it.
  *
  * Presentation only: the locked-field rule (`isFieldLocked`), every change/focus/
  * Enter-advance handler, the signature-tap flow, the rendered ink `img`, and the
@@ -54,6 +59,9 @@ export function SignerField({
     fieldPosition,
     fieldTotal,
 }) {
+    // The company signature link whose image failed to load: that link only, so
+    // a fresh link is tried again.
+    const [failedImageUrl, setFailedImageUrl] = useState(null);
     if (signed) return null;
 
     switch (field.type) {
@@ -174,6 +182,26 @@ export function SignerField({
                             </span>
                         )}
                     </button>
+                </SignerFieldOverlay>
+            );
+        }
+        case 'company_signature': {
+            const url = field.companySignatureUrl;
+            return (
+                <SignerFieldOverlay field={field} interactive={false}>
+                    {url && url !== failedImageUrl ? (
+                        <img
+                            src={url}
+                            alt="Company signature"
+                            className="pointer-events-none h-full w-full object-contain"
+                            draggable={false}
+                            onError={() => setFailedImageUrl(url)}
+                        />
+                    ) : (
+                        <div className={`${fillClass} flex items-center justify-center overflow-hidden rounded-ds-sm border-2 border-dashed border-ds-status-neutral-border bg-ds-status-neutral-bg px-1 text-center text-ds-xs font-medium leading-tight text-ds-status-neutral-fg`}>
+                            Company signature
+                        </div>
+                    )}
                 </SignerFieldOverlay>
             );
         }

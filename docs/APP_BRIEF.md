@@ -291,7 +291,16 @@ fields (optionally AI-suggested); recipients sign **with no account** at
 `/sign/:companyId/:requestId`; typed values (no drawn signature) wait in a
 local draft. The server sends the link; a corrected email or phone gets a new
 one, voiding the old. Signed envelopes are sealed into tamper-evident PDFs.
-Signing is unlimited and not billed per envelope. The Documents workspace keeps
+A **company signature** (`company_signature`) is an image the team uploads to
+`secure_documents/{companyId}/originals/company-signatures/` and places on a
+template or one document (each may replace its template's); the signer sees it
+fixed (its box reads "Company signature" when the image cannot load, and never
+blocks signing), the seal draws it from that file (missing → `error_sealing`)
+and keeps it. Nothing emails a signed PDF by itself: for a signed document with
+one, a team member reviews and approves **Send signed copy**
+(`sendSignedDocumentCopy`, claimed once in `signedCopy`; only to the address the
+approval showed, refused if a correction changed it; checksum-checked; company
+SMTP; a failure, or a send unfinished after ten minutes, may be approved again). Signing is unlimited and not billed per envelope. The Documents workspace keeps
 the newest 100 signing requests live and loads older ones on request. When there
 are more, its numbers are server counts and a second live list holds every
 document that needs attention (indexes in `firestore.indexes.json`).
@@ -1390,6 +1399,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   accepted gap; see `docs/security-posture.md`. Client writes are named per
   folder in `src/storage.rules`: a PEV result is add-only; PEV signatures,
   request PDFs and sealed copies are server-only.
+- **`signedCopy` stops accidental and concurrent resends, not a team member
+  editing the database:** the rules let the team write any signing-request
+  field, so clearing it directly would allow a second approved send.
 - **Historical reconstruction is an ongoing migration.** Applications submitted
   before snapshot preservation get a record and PDF rebuilt only from surviving
   evidence and **marked as reconstructed** (`reconstructHistoricalApplications`);

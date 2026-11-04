@@ -9,6 +9,9 @@ const {
     signerTimeZone,
     stampSignedDateFields,
 } = require("./shared/signedDate");
+const { isCompanySignatureField, withCompanySignatureUrls } = require("./shared/companySignature");
+
+const isBlank = (value) => value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
 
 // ESIGN-5 FIX: Constant-time token comparison to eliminate timing side-channel attacks.
 // JavaScript's !== operator short-circuits on the first differing character, leaking token length
@@ -141,10 +144,8 @@ exports.getPublicEnvelope = onCall({ cors: true }, async (request) => {
         const fileRef = bucket.file(filePath);
 
         try {
-            const [url] = await fileRef.getSignedUrl({
-                action: 'read',
-                expires: Date.now() + 60 * 60 * 1000
-            });
+            const expires = Date.now() + 60 * 60 * 1000;
+            const [url] = await fileRef.getSignedUrl({ action: 'read', expires });
 
             // A Date Signed field is delivered unresolved and stamped HERE,
             // from the server clock, so the signer reads the day they are
@@ -155,12 +156,18 @@ exports.getPublicEnvelope = onCall({ cors: true }, async (request) => {
             const viewedAt = new Date();
             // Read in the signer's own zone, which their browser names; UTC when it names none.
             const timeZone = signerTimeZone(request.data?.timeZone);
+            // The company's signature is shown through a link like the PDF's; its Storage path stays here.
+            const fields = await withCompanySignatureUrls(
+                stampSignedDateFields(normalizePublicFields(data.fields), viewedAt, timeZone),
+                companyId,
+                async (imagePath) => (await bucket.file(imagePath).getSignedUrl({ action: 'read', expires }))[0],
+            );
 
             return {
                 title: data.title,
                 recipientName: data.recipientName,
                 // recipientEmail intentionally omitted — never expose PII on public endpoint
-                fields: stampSignedDateFields(normalizePublicFields(data.fields), viewedAt, timeZone),
+                fields,
                 // The instant the line above was stamped. A document left open
                 // across UTC midnight would otherwise show the day it was opened
                 // while `submitPublicEnvelope` sealed the day it was submitted —
@@ -245,6 +252,9 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
         const allowedFieldIds = new Set(
             rawFields.filter((f) => f && f.id).map((f) => String(f.id)),
         );
+        const companySignatureIds = new Set(
+            rawFields.filter((f) => isCompanySignatureField(f) && f.id).map((f) => String(f.id)),
+        );
 
         const bucket = storage.bucket();
         const finalValues = {};
@@ -254,6 +264,11 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
         for (const [key, value] of submitted) {
             if (!allowedFieldIds.has(key)) {
                 throw new HttpsError('invalid-argument', `Invalid field id submitted: ${key}`);
+            }
+            // The seal draws the company's own image there; the signing room sends it blank.
+            if (companySignatureIds.has(key)) {
+                if (isBlank(value)) continue;
+                throw new HttpsError('invalid-argument', `Field ${key} is the company's signature and cannot be filled in by the signer.`);
             }
             finalValues[key] = value;
         }
@@ -313,7 +328,8 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
 
         const missingRequired = [];
         for (const field of fields) {
-            if (!field.required) continue;
+            // A company signature is the seal's to check (`digitalSealing.js`): the signer cannot supply it.
+            if (!field.required || isCompanySignatureField(field)) continue;
 
             let submitted = Object.prototype.hasOwnProperty.call(finalValues, field.id)
                 ? finalValues[field.id]

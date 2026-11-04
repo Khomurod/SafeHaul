@@ -7,6 +7,7 @@ const {
   SIGNING_DATE_PLACEHOLDER,
   resolveSignedDateValue,
 } = require('./shared/signedDate');
+const { companySignatureImagePath, isCompanySignatureField } = require('./shared/companySignature');
 
 const DOUBLE_TOKEN_PATTERN = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
 const SINGLE_TOKEN_PATTERN = /\{([a-zA-Z0-9_]+)\}/g;
@@ -288,7 +289,16 @@ exports.createPostApplicationSigningRequest = onCall({ cors: true }, async (requ
   );
 
   const missingLockedRequired = [];
+  const missingCompanySignatures = [];
   const resolvedFields = templateFields.map((field) => {
+    // The company's image as placed on the template: nothing to prefill, and no
+    // later step where someone could add it to this document.
+    if (isCompanySignatureField(field)) {
+      if (!companySignatureImagePath(companyId, field)) {
+        missingCompanySignatures.push(field.label || field.id || 'Company Signature');
+      }
+      return { ...field };
+    }
     const resolved = resolveFieldForPostSubmit(field, prefillContext);
     if (resolved.meta.shouldBlockMissingLockedRequired) {
       missingLockedRequired.push(field.label || field.id || 'Unnamed field');
@@ -300,6 +310,12 @@ exports.createPostApplicationSigningRequest = onCall({ cors: true }, async (requ
     throw new HttpsError(
       'failed-precondition',
       `Template has locked required fields missing prefill values: ${missingLockedRequired.join(', ')}`
+    );
+  }
+  if (missingCompanySignatures.length > 0) {
+    throw new HttpsError(
+      'failed-precondition',
+      `Template has a company signature with no image: ${missingCompanySignatures.join(', ')}`
     );
   }
 
@@ -376,7 +392,7 @@ exports.createPostApplicationSigningRequest = onCall({ cors: true }, async (requ
       // submits — so it is deliberately absent here rather than seeded with its
       // own unresolved placeholder.
       fieldValues: resolvedFields.reduce((acc, field) => {
-        if (isPresent(field.defaultValue) && resolveSignedDateValue(field) === null) {
+        if (!isCompanySignatureField(field) && isPresent(field.defaultValue) && resolveSignedDateValue(field) === null) {
           acc[field.id] = field.defaultValue;
         }
         return acc;

@@ -7,6 +7,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { isFieldLocked } from '@features/signing/utils/prefillEngine';
+import { isCompanySignatureField, withoutCompanySignatureValues } from '@features/signing/utils/companySignature';
 import { useSigningEnvelope } from '@features/signing/hooks/useSigningEnvelope';
 import {
     sortFieldsForFlow,
@@ -131,7 +132,8 @@ export default function SigningRoom() {
 
     const lockedRequiredMissing = useMemo(() => {
         return (request?.fields || []).filter((field) => {
-            if (!field || !field.required || !isFieldLocked(field)) return false;
+            // A company signature carries an image, not a value: never "missing" here.
+            if (!field || !field.required || !isFieldLocked(field) || isCompanySignatureField(field)) return false;
             return String(field.defaultValue || '').trim() === '';
         });
     }, [request?.fields]);
@@ -267,7 +269,8 @@ export default function SigningRoom() {
                 companyId,
                 requestId,
                 accessToken,
-                fieldValues,
+                // A company signature is the company's, never the signer's to submit.
+                fieldValues: withoutCompanySignatureValues(request?.fields, fieldValues),
                 auditData,
                 // The zone the room showed Date Signed in, so the sealed date matches it;
                 // a room stamped without one was stamped in UTC.

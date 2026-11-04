@@ -2,13 +2,15 @@
  * The Documents workspace's template-send flow: everything between "Use
  * template" and the signing request existing — the wizard's recipient and
  * delivery state, the driver picker's data, the prefill state and partition,
+ * this document's own company signature image (`companySignature`: the
+ * template keeps its own, and nothing is sent while one has no image),
  * and `executeTemplateSend` itself, which builds the signing request from the
  * template and sends it by email, SMS or copied link (`signingRequestWrite.js`
  * writes it). `views/DocumentsManager.jsx` wires the returned state into
  * `SendTemplateWizard` and the panels.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     buildPrefillContext,
     buildEditablePrefillGroups,
@@ -19,6 +21,12 @@ import {
 } from '@features/signing/utils/prefillEngine';
 import { resolveSignedDateValue } from '@features/signing/utils/signedDate';
 import { createSigningRequest, announceSigningRequest } from '@features/signing/utils/signingRequestWrite';
+import {
+    COMPANY_SIGNATURE_MISSING_MESSAGE,
+    fieldsMissingCompanySignature,
+    isCompanySignatureField,
+    withCompanySignaturePaths,
+} from '@features/signing/utils/companySignature';
 
 // The picker's leads load when it opens (`pickerLeads.js`), never the whole list.
 const loadPickerLeads = () => import('./pickerLeads');
@@ -63,6 +71,9 @@ export function useTemplateSendFlow({
     // Template pre-fill: grouped keys share one control; plain text fields stay per-slot
     const [prefillValues, setPrefillValues] = useState({});
     const [prefillValuesByGroupKey, setPrefillValuesByGroupKey] = useState({});
+    // This document's own company signature images, by field id. The template
+    // keeps its own: what is sent is the template's fields with these in place.
+    const [companySignaturePaths, setCompanySignaturePaths] = useState({});
 
     // The picker's leads: the newest 20, or the matches for what is typed,
     // found on the server the way the leads list finds them.
@@ -103,8 +114,23 @@ export function useTemplateSendFlow({
         const { groups, plainFields } = buildEditablePrefillGroups(template.fields || []);
         setPrefillValuesByGroupKey(initialGroupedPrefillState(groups));
         setPrefillValues(initialPlainPrefillState(plainFields));
+        setCompanySignaturePaths({});
         setShowDriverPicker(true);
     };
+
+    const documentFields = useMemo(
+        () => withCompanySignaturePaths(selectedTemplate?.fields || [], companySignaturePaths),
+        [selectedTemplate, companySignaturePaths],
+    );
+    const replaceCompanySignature = useCallback((fieldId, path) => {
+        setCompanySignaturePaths((previous) => ({ ...previous, [fieldId]: path }));
+    }, []);
+    // What the wizard shows and uploads for the company signature.
+    const companySignature = useMemo(() => ({
+        companyId: currentCompanyProfile?.id,
+        fields: documentFields.filter(isCompanySignatureField),
+        replace: replaceCompanySignature,
+    }), [currentCompanyProfile?.id, documentFields, replaceCompanySignature]);
 
     const editablePrefillPartition = useMemo(() => {
         if (!selectedTemplate?.fields) return { groups: [], plainFields: [] };
@@ -135,6 +161,10 @@ export function useTemplateSendFlow({
             showError('Phone number is required for SMS delivery.');
             return;
         }
+        if (fieldsMissingCompanySignature(documentFields).length > 0) {
+            showError(COMPANY_SIGNATURE_MISSING_MESSAGE);
+            return;
+        }
 
         setSending(true);
         try {
@@ -156,13 +186,13 @@ export function useTemplateSendFlow({
                 companyName: currentCompanyProfile?.companyName || currentCompanyProfile?.name || '',
             });
 
-            const overridesByFieldId = buildPrefillOverridesForSend(selectedTemplate.fields || [], {
+            const overridesByFieldId = buildPrefillOverridesForSend(documentFields, {
                 prefillValues,
                 prefillValuesByGroupKey,
             });
 
             const { fields: autoFilledFields, missingLockedRequired } = resolveFieldsForSend(
-                selectedTemplate.fields || [],
+                documentFields,
                 prefillContext,
                 { overridesByFieldId },
             );
@@ -226,6 +256,7 @@ export function useTemplateSendFlow({
         prefillValuesByGroupKey,
         setPrefillValuesByGroupKey,
         editablePrefillPartition,
+        companySignature,
         handleUseTemplate,
         handleQuickSelect,
         executeTemplateSend,

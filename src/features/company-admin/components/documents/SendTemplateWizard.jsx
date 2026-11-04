@@ -4,6 +4,7 @@ import { Icon, Check, Copy, Mail, MessageSquare, Send, User, X } from '@design-s
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, FormField, IconButton, Input, Label } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
+import { WizardCompanySignature } from './WizardCompanySignature';
 
 const slugPrefillGroupId = (groupKey) =>
     String(groupKey).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 96);
@@ -56,6 +57,8 @@ export function SendTemplateWizard({
     setPrefillValues,
     prefillValuesByGroupKey,
     setPrefillValuesByGroupKey,
+    // The template's company signature, and this document's own image for it.
+    companySignature = null,
     sending,
     executeTemplateSend,
     filteredDrivers,
@@ -245,6 +248,8 @@ export function SendTemplateWizard({
                                 <Badge tone="neutral">{selectedTemplate?.fields?.length || 0} fields</Badge>
                             </p>
                         </div>
+
+                        {companySignature && <WizardCompanySignature companySignature={companySignature} />}
 
                         {hasPrefill ? (
                             <div>

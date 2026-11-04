@@ -361,4 +361,17 @@ describe('E-Doc grouped template prefills', () => {
   it('getCanonicalPrefillLabel returns empty for singleton keys', () => {
     expect(getCanonicalPrefillLabel('singleton:abc')).toBe('');
   });
+
+  it('sends a company signature as it is: fixed, with its image and no value', () => {
+    const path = 'secure_documents/co-1/originals/company-signatures/a1b2.png';
+    const field = {
+      id: 'cs', type: 'company_signature', required: false, readOnly: true, prefillPolicy: 'locked',
+      defaultValue: '', bindingKey: '', companySignaturePath: path,
+    };
+    const resolved = resolveFieldForSend(field, buildPrefillContext({ recipientName: 'Pat Example' }));
+    expect(resolved.field).toEqual(field);
+    expect(resolved.meta.shouldBlockMissingLockedRequired).toBe(false);
+    // Whatever a stored copy says, the signer never fills it.
+    expect(isFieldLocked({ type: 'company_signature', prefillPolicy: 'editable' })).toBe(true);
+  });
 });

@@ -6,7 +6,7 @@ import { useLiveQueryWindow } from '@shared/hooks/useLiveQueryWindow';
 import { SIGNING_REQUESTS_PAGE_SIZE, useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { needsAttention, summarizeDocuments } from '../utils/documentsWorkspace';
 import { needsAttentionListQuery } from '../utils/signingRequestQueries';
-import { manyMockSigningRequests, mockSigningRequests } from '../views/documentsMock';
+import { manyMockSigningRequests, mockSignedCopyRequests, mockSigningRequests } from '../views/documentsMock';
 import { useSigningRequestCounts } from './useSigningRequestCounts';
 
 const noop = () => {};
@@ -23,12 +23,14 @@ function everythingLoaded(documents) {
 
 /**
  * `?e2eEdocSent=` (E2E test mode only, never a live read): `mock` serves the six
- * fixture rows, all loaded; `many` serves 230, 100 at a time, with the numbers
- * and the attention list over all 230, standing in for the server.
+ * fixture rows, all loaded; `signedCopy` the five signed ones whose signed copy
+ * is tested; `many` serves 230, 100 at a time, with the numbers and the
+ * attention list over all 230, standing in for the server.
  */
 function useSentFixture(mode) {
     const all = useMemo(() => {
         if (mode === 'mock') return mockSigningRequests();
+        if (mode === 'signedCopy') return mockSignedCopyRequests();
         if (mode === 'many') return manyMockSigningRequests();
         return null;
     }, [mode]);

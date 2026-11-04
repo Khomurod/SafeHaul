@@ -1,5 +1,6 @@
 import { parseIsoDateParts } from '@shared/utils/dateFormHelpers';
 import { SIGNING_DATE_KEY, SIGNING_DATE_PLACEHOLDER } from './signedDate';
+import { isCompanySignatureField } from './companySignature';
 
 const TOKEN_PATTERN = /{{\s*([a-zA-Z0-9_]+)\s*}}/g;
 
@@ -111,17 +112,27 @@ export function normalizePrefillPolicy(field = {}) {
 }
 
 /**
- * Whether the signer can change the field: not when its prefill is locked, and
- * not when it is bound to the signing date, which the server stamps at submit
- * whatever the signer entered (`submitPublicEnvelope`). The signing room shows
- * such a field, restores no draft over it and never asks for it.
+ * Whether the signer can change the field: not when its prefill is locked, not
+ * when it is bound to the signing date, which the server stamps at submit
+ * whatever the signer entered (`submitPublicEnvelope`), and never a company
+ * signature, the company's own image. The signing room shows such a field,
+ * restores no draft over it and never asks for it.
  */
 export function isFieldLocked(field = {}) {
   return normalizePrefillPolicy(field) === 'locked'
-    || normalizeTokenKey(field.bindingKey) === SIGNING_DATE_KEY;
+    || normalizeTokenKey(field.bindingKey) === SIGNING_DATE_KEY
+    || isCompanySignatureField(field);
 }
 
 export function resolveFieldForSend(field = {}, context = {}, options = {}) {
+  // A company signature carries an image, not text: nothing to resolve, and it
+  // stays fixed (a locked field without a value would otherwise lose readOnly).
+  if (isCompanySignatureField(field)) {
+    return {
+      field,
+      meta: { policy: 'locked', tokens: [], unresolvedTokens: [], hasResolvedValue: false, shouldBlockMissingLockedRequired: false },
+    };
+  }
   const policy = normalizePrefillPolicy(field);
   const overrideMap = options.overridesByFieldId || {};
 
