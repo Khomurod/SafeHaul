@@ -203,6 +203,7 @@ const REPO_ENTRIES = [
             'functions/notifySigner.js',
             'functions/notifySignerSMS.js',
             'functions/postApplicationEdocs.js',
+            'functions/sendPostApplicationDocument.js',
         ],
         ...PROTECTED,
         unavailableReason: 'Per-envelope runtime tokens are not a single configuration value.',
