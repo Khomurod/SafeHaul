@@ -136,7 +136,8 @@ export function mockSignedCopyRequests(now = Date.now()) {
             signedCopy: { state: 'sent', ...approval, sentTo: 'omar.haddad@example.test', sentAt: sentAgo(1) },
         }),
         signed('e2e-copy-sending', 'Fuel Card Agreement', 'Kim Novak', 'kim.novak@example.test', {
-            signedCopy: { state: 'sending', ...approval, sentTo: 'kim.novak@example.test' },
+            // Approved just now: a claim older than ten minutes reads as a send that never finished.
+            signedCopy: { state: 'sending', ...approval, approvedAt: sentAgo(0), sentTo: 'kim.novak@example.test' },
         }),
         signed('e2e-copy-failed', 'Escrow Agreement', 'Ade Bello', 'ade.bello@example.test', {
             signedCopy: { state: 'failed', ...approval, sentTo: 'ade.bello@example.test', error: 'Mailbox unavailable' },
