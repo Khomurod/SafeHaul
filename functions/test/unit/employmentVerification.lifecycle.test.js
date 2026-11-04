@@ -229,6 +229,15 @@ describe('Upload Result', () => {
     expect(row().verification.status).toBe('Sent');
   });
 
+  it('records a file whose name holds two dots, which cannot leave the folder', async () => {
+    seedApplication();
+    const storagePath = 'companies/co-1/applications/app-1/pev_results/1700000000000_Smith v1..2.pdf';
+    uploadedObjects.add(storagePath);
+
+    await expect(uploadResult({ storagePath, fileName: 'Smith v1..2.pdf' })).resolves.toMatchObject({ success: true });
+    expect(row().verification).toMatchObject({ status: 'Completed', resultUrl: storagePath });
+  });
+
   it('refuses a file that was never uploaded', async () => {
     seedApplication();
     uploadedObjects.clear();

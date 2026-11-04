@@ -142,6 +142,19 @@ describe('a call result and the pipeline stage', () => {
         },
     );
 
+    // A declined record is archived; moving it to Interested would leave an
+    // archived Interested record. The recruiter changes the stage by hand.
+    it.each(['Declined', 'Rejected'])(
+        'keeps a record in %s, and archived, when the call says Interested', async (status) => {
+            const { data } = await logCall('interested', { record: APPLICATION, status });
+
+            expect(data).not.toHaveProperty('status');
+            expect(data).not.toHaveProperty('statusEnteredAt');
+            expect(data).not.toHaveProperty('archived');
+            expect(data).toMatchObject({ lastCallOutcome: 'Connected / Interested' });
+        },
+    );
+
     it.each([
         ['not_interested', true],
         ['wrong_number', true],

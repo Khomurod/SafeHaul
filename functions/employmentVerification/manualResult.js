@@ -24,7 +24,8 @@ function resultFileName(storagePath, { companyId, collectionName, applicationId 
     const folder = `companies/${companyId}/${collectionName}/${applicationId}/pev_results/`;
     if (typeof storagePath !== 'string' || !storagePath.startsWith(folder)) return null;
     const name = storagePath.slice(folder.length);
-    return name && !name.includes('/') && !name.includes('..') ? name : null;
+    // A name holds no '/', so two dots inside one cannot leave the folder.
+    return name && !name.includes('/') && name !== '.' && name !== '..' ? name : null;
 }
 
 exports.recordManualVerificationResult = onCall({ cors: true }, async (request) => {

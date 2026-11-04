@@ -12,7 +12,7 @@ const { logger } = require("firebase-functions");
 const { generateVerificationPDF } = require("./pdf");
 const { notifyCarrierVerificationComplete, notifyRequestSender } = require("./notifications");
 const { normaliseSignature } = require("./signature");
-const { SUPERSEDED_MESSAGE } = require("./requestLifecycle");
+const { SUPERSEDED_MESSAGE, requestIdOf } = require("./requestLifecycle");
 const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
 const { fileResultInDq, resultPdfFilename } = require("./requestAttachment");
 
@@ -291,7 +291,7 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
             logger.error('[PEV] Failed to notify the sender (non-blocking):', notifyError);
         }
 
-        logger.info(`[PEV] Verification completed. Token: ${token}, Respondent: ${formResponse.respondentName}`);
+        logger.info(`[PEV] Verification completed for request ${requestIdOf(verificationData, token)}.`);
 
         return {
             success: true,

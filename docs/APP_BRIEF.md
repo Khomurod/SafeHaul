@@ -1092,6 +1092,8 @@ the daily count**; refusing is a recorded outcome.
   An application is texted only after the driver's explicit "Yes" to the optional SMS question (`sms-consent`);
   leads were never asked and are texted; no number on an opt-out list is texted. Each automatic text (sent, not
   sent and why, failed) leaves one `Automated SMS` Activity entry, without the message or number (`shared/smsPermission.js`).
+  The entry is written before the provider is called, so a repeated delivery of the same change finds it and sends
+  nothing, even when the first run stopped before recording a result; an entry that cannot be written sends nothing.
 - **Retention** — TTL overrides in `firestore.indexes.json` delete `blog_runs`,
   `application_drafts`, `application_draft_audit` and `rate_limits` at
   `expiresAt` (activity logs carry one). An unfinished application expires

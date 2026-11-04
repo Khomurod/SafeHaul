@@ -20,8 +20,8 @@ implementer needs) · **Wrong** · **Already fixed**.
   features below need **no** rules change. Two consequences:
   - **Any server write of a `status` outside that list makes every later client update of that record fail**,
     because the rule checks `request.resource.data.status`, unchanged or not (`applicationCompanyTeamUpdateAllowed`,
-    `leadCompanyTeamWriteAllowed`). New server-written statuses (items 10, 11) must be in the list, which means a
-    rules change.
+    `leadCompanyTeamWriteAllowed`). A rules change is needed only if an implementation writes a status outside
+    `allowedRecruiterPipelineStatus()`; items 10 and 11 as planned below use allowed values or leave the status alone.
   - A callable added for "integrity" on `signing_requests` (items 14, 23) is not a security boundary while the team
     can write the same fields directly (already recorded for `signedCopy` in APP_BRIEF §12). It is still the right
     place for audit data, idempotency and rate limits.
@@ -242,8 +242,8 @@ a prefill unit test for the denylist; `functions/test/unit/postApplicationEdocs.
 
 **Where to change.** Portal: in `responses.js` after `generateVerificationPDF`, call a new
 `fileResultInDq(appRef, { token, path, employerName, applicantName })` beside `fileRequestInDq` in
-`requestAttachment.js`, with id `pev_result_${token.slice(0,8)}` or a requestId (the token must not appear in team-readable
-docs: PEV-SEC-3), `isSynced: true`, `url: null`. Manual upload: move it to a **callable** (e.g.
+`requestAttachment.js`, with an id that holds no token material, such as the requestId or a hash of the stored path
+(the token must not appear in team-readable docs: PEV-SEC-3), `isSynced: true`, `url: null`. Manual upload: move it to a **callable** (e.g.
 `recordManualVerificationResult`) that marks the matching request `completed`, so reminders stop. That fixes Defect B.
 It mirrors the row (`resolveEmployerTarget`), files the DQ entry and stores `storagePath`, not a download URL. The client
 still uploads the file (`pev_results` create-only rule, `storage.rules:100-102`). Client: `opensFromSignedLink` must
@@ -389,7 +389,7 @@ filter (`queryBuilder.js:46-150`). **A better server pattern than the one the au
 
 **Where to change.** In `onApplicationSubmitted`, after the attribution block (the idempotency guard
 `processing_status/app_…` already holds): query this company's leads by `normalizedPhone == data.phoneNormalized` and by
-`email` (see §8.1: lead emails are not normalised). Skip placeholder emails (`isPlaceholderEmail`). On a match: in a
+a normalised email on both sides (see §8.1: lead emails are not normalised today). Skip placeholder emails (`isPlaceholderEmail`). On a match: in a
 transaction, set on the lead `{ applicationId, appliedAt }` (**do not change its `status`**, or use an allowed value,
 §0); add a lead `activity_logs` entry (`type: 'system'`); if the application is still unassigned and the lead's
 `assignedTo` is a current member (`teamMemberName` in `shared/recruiterAssignment.js:44-62`), set `assignedTo/Name`;
@@ -786,9 +786,10 @@ Update APP_BRIEF §12.
 
 Leads have **no** `emailNormalized` / `phoneNormalized`, and applications have no `normalizedPhone`. The two phone
 normalisations are the same rule, so `applications.phoneNormalized == leads.normalizedPhone` matches. Email matching is
-case-sensitive in Firestore and lead emails are not normalised (except referral). Match on
-`leads.email == app.emailNormalized`, then also on the raw `app.email` as typed, or start writing `emailNormalized` on
-leads (+ a Data cleanup backfill). Exclude placeholder emails (`isPlaceholderEmail`). `existingRecord()` in
+case-sensitive in Firestore and lead emails are not normalised (except referral), while an application keeps only the
+lowercased form (`email` and `emailNormalized` alike), so `leads.email == app.emailNormalized` misses a lead typed in
+another case. Compare canonical values on both sides: start writing `emailNormalized` (trimmed, lowercased) on leads,
+with a Data cleanup backfill for existing leads, and match on it; phone matching works without that. Exclude placeholder emails (`isPlaceholderEmail`). `existingRecord()` in
 `submitReferralInterest.js:55-63` is the server-side precedent.
 
 ### 8.3 Is re-running a failed seal safe? (item 23)

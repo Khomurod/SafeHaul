@@ -26,6 +26,10 @@ function mockRef(path) {
             if (mockDocs.has(path)) throw Object.assign(new Error('6 ALREADY_EXISTS: Document already exists'), { code: 6 });
             mockDocs.set(path, data);
         },
+        update: async (data) => {
+            if (!mockDocs.has(path)) throw Object.assign(new Error('5 NOT_FOUND: No document to update'), { code: 5 });
+            mockDocs.set(path, { ...mockDocs.get(path), ...data });
+        },
     };
 }
 jest.mock('../../firebaseAdmin', () => ({
@@ -129,6 +133,51 @@ describe('an application', () => {
 
         expect(applicationEntries()).toHaveLength(1);
         expect(mockDocs.has(`${COMPANY}/applications/app-1/activity_logs/auto_sms_event-7`)).toBe(true);
+    });
+
+    // Firestore may run the trigger twice for one change, even at the same time.
+    // The event's entry is claimed before the provider is called, so the second
+    // run finds it and sends nothing.
+    it('is texted once when the same change is delivered twice, even at the same time', async () => {
+        await Promise.all([
+            application({ 'sms-consent': 'yes' }, 'event-8'),
+            application({ 'sms-consent': 'yes' }, 'event-8'),
+        ]);
+        await application({ 'sms-consent': 'yes' }, 'event-8');
+
+        expect(mockSendSMS).toHaveBeenCalledTimes(1);
+        expect(applicationEntries()).toEqual([expect.objectContaining({
+            details: 'Automatic Contact Attempt 1 text sent.',
+            smsOutcome: 'sent',
+        })]);
+    });
+
+    it('is not texted again when an earlier run of the same change stopped before it recorded a result', async () => {
+        mockDocs.set(`${COMPANY}/applications/app-1/activity_logs/auto_sms_event-9`, {
+            action: 'Automated SMS', smsOutcome: 'sending',
+        });
+
+        await application({ 'sms-consent': 'yes' }, 'event-9');
+
+        expect(mockSendSMS).not.toHaveBeenCalled();
+    });
+
+    it('is not texted when its history entry cannot be written, so a repeat cannot text twice', async () => {
+        const failing = mockRef(`${COMPANY}/applications/app-1`);
+        const event = moved('applications', 'app-1', { 'sms-consent': 'yes' }, 'event-10');
+        event.data.after.ref = {
+            ...failing,
+            collection: () => ({
+                doc: () => ({
+                    create: async () => { throw Object.assign(new Error('14 UNAVAILABLE'), { code: 14 }); },
+                    update: async () => {},
+                }),
+            }),
+        };
+
+        await onApplicationAtsContactSms(event);
+
+        expect(mockSendSMS).not.toHaveBeenCalled();
     });
 });
 

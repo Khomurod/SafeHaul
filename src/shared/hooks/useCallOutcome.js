@@ -27,13 +27,17 @@ const OUTCOMES = [
     { id: 'wrong_number', isContact: false, label: 'Wrong Number', stage: DECLINED }
 ];
 
-/** A hired or terminated record keeps its stage whatever a call says: a call does not undo a hire. */
-const STAGES_A_CALL_KEEPS = new Set(['hired', 'terminated']);
+/**
+ * A hired, terminated or declined record keeps its stage whatever a call says: a
+ * call does not undo a hire, and a declined record is archived, so a call does
+ * not reopen it (the recruiter changes the stage by hand).
+ */
+const STAGES_A_CALL_KEEPS = new Set(['hired', 'terminated', 'declined']);
 
 /**
  * The stage a call moves a record to, or null to leave it: for a result that
- * keeps the stage, a hired or terminated record, or one already there in any
- * spelling (`Rejected` is Declined). Writing no change sends no "status
+ * keeps the stage, a hired, terminated or declined record (`Rejected` is
+ * Declined), or one already there in any spelling. Writing no change sends no "status
  * changed" notice (`functions/notificationTriggers.js`).
  */
 function stageAfterCall(target, currentStatus) {

@@ -16,7 +16,7 @@ const {
     notifyCarrierNoResponse,
     notifyRequestSender,
 } = require("./notifications");
-const { LIVE_STATUSES, updateWhileStatus } = require("./requestLifecycle");
+const { LIVE_STATUSES, requestIdOf, updateWhileStatus } = require("./requestLifecycle");
 const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
 
 // ============================================================
@@ -81,7 +81,7 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
                     // the row holds the result. The bell first: it needs no email set up.
                     if (mirrored !== 'kept_completed') {
                         await notifyRequestSender(v, token, 'no_response')
-                            .catch((error) => logger.error(`[PEV Reminders] The sender was not notified for ${token}:`, error));
+                            .catch((error) => logger.error(`[PEV Reminders] The sender was not notified for request ${requestIdOf(v, token)}:`, error));
                         await notifyCarrierNoResponse(v);
                     }
 
@@ -103,7 +103,7 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
                     remindersProcessed++;
                 }
             } catch (reminderError) {
-                logger.error(`[PEV Reminders] Error processing token ${token}:`, reminderError.message);
+                logger.error(`[PEV Reminders] Error processing request ${requestIdOf(v, token)}:`, reminderError.message);
             }
         }
 
