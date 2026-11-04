@@ -88,7 +88,6 @@ Brief §12) · payment processing · any named carrier endorsement.
 | React Signature Canvas | 1.1 | Signature capture |
 | React Virtuoso | 4.18 | Virtualized lists |
 | DOMPurify | 3.4 | HTML sanitization |
-| Sentry | 10.32 | Error monitoring (browser) |
 
 ### Backend (Firebase)
 
@@ -109,8 +108,9 @@ Cloud Functions run on **Node 22** (moved from Node 20 on 2026-09-06, ahead of G
 | @google-cloud/secret-manager | 6.1 | AI and integration credentials |
 | @google-cloud/tasks | 6.2 | Bulk campaign worker queue |
 
-> There is **no server-side Sentry**. Only the browser DSN (`VITE_SENTRY_DSN`)
-> is consumed; source maps are neither built nor uploaded.
+> **No error collector runs**, in the browser or on the server: the browser app
+> logs errors to its console, Cloud Functions to Cloud Logging. Source maps are
+> neither built nor uploaded.
 
 ### Testing
 
@@ -219,14 +219,12 @@ Production reads the six Firebase values from Firebase Hosting's reserved
 | `VITE_FIREBASE_STORAGE_BUCKET` | Cloud Storage bucket |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | FCM sender ID |
 | `VITE_FIREBASE_APP_ID` | Firebase app ID |
-| `VITE_SENTRY_DSN` | Sentry error tracking DSN |
-| `VITE_SENTRY_TRACES_SAMPLE_RATE` | Sentry performance sampling, 0–1 (optional) |
 | `VITE_DRIVER_APP_URL` | Base URL written into driver invite links; defaults to the current origin |
 | `VITE_FACEBOOK_APP_ID` | Facebook Lead Ads integration |
 | `VITE_SOCRATA_APP_TOKEN` | FMCSA carrier autocomplete |
 | `VITE_SUPER_ADMIN_EMAIL` | Super admin fallback email |
 
-The deploy workflow reads the Facebook, Sentry and Socrata browser settings from
+The deploy workflow reads the Facebook and Socrata browser settings from
 Google Secret Manager; they are shared by the test and production builds.
 
 #### Cloud Functions (Google Secret Manager)

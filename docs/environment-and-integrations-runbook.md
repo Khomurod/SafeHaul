@@ -41,15 +41,15 @@ browser map cannot resolve fails there.
 
 | Area | Rows |
 | --- | --- |
-| Global registry entries | **54** |
-| — browser / build (`vite-build`) | 16 |
-| — Cloud Functions env (`functions-env`) | 9 |
-| — Secret Manager (`secret-manager`) | 7 |
+| Global registry entries | **70** |
+| — browser / build (`vite-build`) | 14 |
+| — Cloud Functions env (`functions-env`) | 4 |
+| — Secret Manager (`secret-manager`) | 19 |
 | — GitHub automatic token (`github-actions-secret`) | 1 |
-| — Firebase runtime (`firebase-runtime`) | 4 |
+| — Firebase runtime (`firebase-runtime`) | 5 |
 | — workflow variable (`github-actions-variable`) | 1 |
 | — repository config (`repo-config`) | 1 |
-| — deployment / operations tooling (`local-tooling`) | 14 |
+| — deployment / operations tooling (`local-tooling`) | 24 |
 | — other infrastructure stores | 1 |
 | Per-company credential **field templates** | **20** |
 | — SMS provider configuration | 11 |
@@ -64,7 +64,7 @@ on screen is `fields × configured integrations`, not a fixed number.
 
 SafeHaul stores no application or deployment secret in GitHub. Firebase browser
 configuration comes from Firebase Hosting at runtime. Browser integration settings
-such as Facebook, Sentry, and Socrata, plus backend credentials, come from Google
+such as Facebook and Socrata, plus backend credentials, come from Google
 Secret Manager. `GITHUB_TOKEN` is the only GitHub row because
 GitHub creates that short-lived token automatically for each workflow run.
 
@@ -96,9 +96,7 @@ Value availability values:
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase | public | `browser-visible` | reveal / — / — | Yes |
 | `VITE_FIREBASE_PROJECT_ID` | Firebase | public | `browser-visible` | reveal / — / — | Yes |
 | `VITE_FIREBASE_STORAGE_BUCKET` | Firebase | public | `browser-visible` | reveal / — / — | Yes |
-| `VITE_RELEASE_SHA` | Sentry | public | `browser-visible` | reveal / — / — | Yes |
-| `VITE_SENTRY_DSN` | Sentry | public | `browser-visible` | reveal / — / — | Yes |
-| `VITE_SENTRY_TRACES_SAMPLE_RATE` | Sentry | public | `browser-visible` | reveal / — / — | Yes |
+| `VITE_RELEASE_SHA` | SafeHaul platform | public | `browser-visible` | reveal / — / — | Yes |
 | `VITE_SOCRATA_APP_TOKEN` | Socrata (FMCSA) | internal | `browser-visible` | reveal / — / — | Yes |
 | `VITE_SUPER_ADMIN_EMAIL` | SafeHaul platform | internal | `browser-visible` | reveal / — / — | Yes |
 | `VITE_USE_DASHBOARD_SUMMARY` | SafeHaul platform | public | `browser-visible` | reveal / — / — | Yes |

@@ -75,10 +75,10 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [x] **T4.4** · Лимит 15 секунд для чтений GitHub в Releases · *15-second limit on GitHub reads behind Releases* → [T4.4](T4.4-github-release-timeouts.md) · PR: #559 · Дата: 2026-11-04
    - [x] **T4.5** · Импорт Google Sheet и скачивание PDF не крутятся вечно · *Sheet import and envelope PDF download stop spinning forever* → [T4.5](T4.5-browser-fetch-timeouts.md) · PR: #557 · Дата: 2026-11-03
 5. **Скорость у реальных пользователей / Real-user speed monitoring (#30)**
-   - [ ] **T5** · Вариант A: Firebase Performance Monitoring · *Option A: Firebase Performance Monitoring* → [T5](T5-firebase-performance.md) · PR: — · Дата: —
+   - [x] **T5** · Вариант A: Firebase Performance Monitoring · *Option A: Firebase Performance Monitoring* → [T5](T5-firebase-performance.md) · PR: #560 · Дата: 2026-11-04
    - [x] **T5-alt** · Вариант B: оставить Sentry (вместо T5 и T5b) · *Option B: keep Sentry as the speed tool* → [T5-alt](T5-alt-sentry-speed.md) · не понадобилось: владелец выбрал A (Р13) · Дата: 2026-11-03
-   - [ ] **T5b PR 1** · (необязательно) Отключить Sentry: приложение · *(optional) Switch Sentry off: the app* → [T5b](T5b-sentry-off.md) · PR: — · Дата: —
-   - [ ] **T5b PR 2** · (необязательно) Отключить Sentry: CI и настройки · *(optional) Switch Sentry off: CI and configuration* → [T5b](T5b-sentry-off.md) · PR: — · Дата: —
+   - [x] **T5b PR 1** · (необязательно) Отключить Sentry: приложение · *(optional) Switch Sentry off: the app* → [T5b](T5b-sentry-off.md) · PR: #560 · Дата: 2026-11-04
+   - [x] **T5b PR 2** · (необязательно) Отключить Sentry: CI и настройки · *(optional) Switch Sentry off: CI and configuration* → [T5b](T5b-sentry-off.md) · PR: #560 · Дата: 2026-11-04
 
 ### Мелочи / Minor items
 
@@ -115,7 +115,7 @@ Each can be done on its own, or when someone next changes that part of the app.
 
 - **OCR и политика безопасности CSP / OCR and the security policy**
   - [x] **X1a** · OCR не ждёт вечно, если движок не запустился · *OCR stops waiting forever when its engine cannot start* → [X1a](X1a-ocr-start-timeout.md) · PR: #557 · Дата: 2026-11-03
-  - [ ] **X1b** · Движок OCR и английские данные с нашего сайта (до включения CSP) · *Serve the OCR engine from our own site* → [X1b](X1b-ocr-self-hosted.md) · PR: — · Дата: —
+  - [x] **X1b** · Движок OCR и английские данные с нашего сайта (до включения CSP) · *Serve the OCR engine from our own site* → [X1b](X1b-ocr-self-hosted.md) · PR: #560 · Дата: 2026-11-04
 
 ## Журнал измерений и решений / Measurements and decisions
 
@@ -252,7 +252,7 @@ task that waits for it.
   бесплатен и уже входит в проект. — Ответ: A, и Sentry удалить полностью · Дата: 2026-11-03
 - **Р14 (T5).** Можно ли замерять страницу подписи `/sign/...`? Firebase
   сохранит адрес страницы с двумя внутренними номерами документа; ключ доступа
-  (`?token=`) не отправляется никогда. *Рекомендую:* да. — Ответ: — · Дата: —
+  (`?token=`) не отправляется никогда. *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-04
 - **Р15 (T5). Шаги для вас.** Включите Performance в Firebase console. Проверьте,
   что включены «Firebase Installations API» и «Firebase Remote Config API». Если
   браузерный API-ключ ограничен списком API, добавьте эти два. Без этого данные
@@ -266,6 +266,9 @@ task that waits for it.
 - **Р17 (T5b).** После Sentry отчётам report-only CSP некуда приходить. Убрать
   их сейчас, а сборщик сделать, когда решите включать политику всерьёз?
   *Рекомендую:* да. — Ответ: да (Sentry удаляется полностью) · Дата: 2026-11-03
+- **Решение 3 (T5b).** Секрет `VITE_SENTRY_DSN` в Google Secret Manager и проект
+  в Sentry агент не удаляет. Их удаляете вы, после второго изменения T5b и
+  выпуска на настоящий сайт. — Ответ: да (удалит владелец) · Дата: 2026-11-04
 - **Р18 (только T5-alt, если выбран B).** Session Replay записывает полный адрес
   страницы, в том числе с токеном. Переписывать адрес перед отправкой или не
   записывать повторы на таких страницах? — Не нужен: выбран вариант A · Дата: 2026-11-03
@@ -315,7 +318,7 @@ task that waits for it.
   — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р33 (X1b).** Языковой файл OCR (2.9 MB, скачивается браузером один раз)
   тоже отдавать с нашего сайта, а не с бесплатного CDN jsDelivr?
-  *Рекомендую:* да. — Ответ: — · Дата: —
+  *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-04
 
 ## Найдено попутно (вне плана) / Found along the way
 
@@ -327,7 +330,10 @@ Not part of any task above. Each needs its own task if the owner wants it.
    redacts sensitive key names and masks SSN, e-mail and phone values, but not
    URL paths or query strings. Checked by reading the code only; no live Sentry
    event was inspected. With option A this stays until T5b. *Recommended:* a
-   separate small task soon, independent of this plan.
+   separate small task soon, independent of this plan. T5b removes Sentry from
+   the app, so this is closed once Production is promoted; until then
+   Production keeps serving the old bundle, which still sends to Sentry, and so
+   does a tab opened before the promotion until it is reloaded.
 2. "Retry Failed" with nothing left to retry shows "Retry session started with
    undefined targets." (`functions/bulkActions/controllers/sessionController.js:228`).
 3. The 8x8 connection check reports success on any network error other than
@@ -399,3 +405,12 @@ Not part of any task above. Each needs its own task if the owner wants it.
     *Recommended:* a separate small task: save each lead under a document id
     derived from `leadgen_id` with `create()`, and treat "already exists" as done,
     so a resend never duplicates and never overwrites a lead a recruiter edited.
+16. **In development the document reader's button stays on "Reading…" after a
+    read** (found while writing X1b's browser test; not changed there).
+    `ApplicationAiPrepPanel.jsx` clears its `mounted` ref in an effect cleanup and
+    never sets it back, and React's StrictMode (`main.jsx`) runs that cleanup once
+    on mount in development, so every later state update is skipped. Production
+    builds run effects once, so users are not affected; the dev server and the
+    E2E run are. *Recommended:* a separate small task: set `mounted.current = true`
+    in the same effect, and add the "read button is enabled again" assertion to
+    `e2e/application-prep-ocr.spec.cjs`.

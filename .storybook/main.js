@@ -9,11 +9,11 @@ const projectRoot = path.resolve(currentDir, '..');
 
 /**
  * The application build's own plugins: they shape the app's files (one module
- * per glyph, the Firebase config fetched early), and the catalog has no
- * Firebase config to fetch.
+ * per glyph, the Firebase config fetched early, the OCR engine's files under
+ * `/ocr/`), and the catalog has no Firebase config to fetch and ships no OCR.
  */
 const APP_BUILD_ONLY_PLUGINS = [
-  'safehaul:split-glyph-registry', 'safehaul:preload-firebase-config',
+  'safehaul:split-glyph-registry', 'safehaul:preload-firebase-config', 'safehaul:ocr-assets',
 ];
 
 /**
@@ -69,7 +69,8 @@ const config = {
       viteConfig.build.sourcemap = false;
     }
     // The application's chunking (the vendor chunk) and its build-only plugins
-    // are dropped too: the catalog keeps the bundler's defaults.
+    // are dropped too: the catalog keeps the bundler's defaults, and does not
+    // carry the OCR engine's files.
     if (viteConfig.build?.rolldownOptions?.output) {
       delete viteConfig.build.rolldownOptions.output.codeSplitting;
     }

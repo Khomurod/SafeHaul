@@ -458,6 +458,19 @@ not enough unless the token itself is newly generated.
   reaching the browser.
 - Google Secret Manager owns runtime secrets.
 - Firebase Hosting serves the four sites and certificates.
+- Firebase Performance Monitoring holds real-user speed data: one custom trace,
+  `page_load`, per page load on Testing and Production, with the attributes
+  `route` (pattern, never the address), `site`, `release` and `nav`
+  (`src/lib/monitoring/pageLoadTrace.js`). Read it in Firebase console →
+  Performance → Custom traces → `page_load`, filtered by `site`; if the console
+  lists more than one web app, check each, since Production's Hosting config
+  may name another. It needs, once per project: Performance enabled in the
+  console; the Firebase Installations API and the Firebase Remote Config API
+  enabled in Google Cloud (APIs & Services); and the browser API key, where it
+  is restricted to a list of APIs, allowed both. Without them the SDK sends
+  nothing and reports no error. Accepted loss: a page closed within seconds of
+  becoming idle, hidden before the SDK is ready, or opened in a background tab
+  does not report. `/verify/:token` and `/review-change/:token` never record.
 - Dynadot owns only domain registration and DNS.
 - Vercel is not part of the active SafeHaul architecture after migration.
 

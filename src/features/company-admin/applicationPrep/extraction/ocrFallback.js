@@ -9,17 +9,16 @@
  *
  * ## Everything about it is lazy, deliberately
  *
- * The engine is ~2MB and the English language data larger still. Neither is
- * fetched until a document actually needs recognising, which for a carrier
- * uploading generated PDFs is never. The dynamic `import()` is what makes that
- * true — a static import would put it in the company workspace's bundle for
- * everybody, including the recruiters who only ever attach real PDFs.
+ * Nothing is fetched until a document actually needs recognising, which for a
+ * carrier uploading generated PDFs is never. tesseract's own code is a 17 kB
+ * chunk the dynamic `import()` loads; a static import would put it in the company
+ * workspace's bundle for everybody. Its worker (111 kB) then fetches one
+ * WebAssembly core, about 1.5 MB compressed, picked for what this browser
+ * supports, and the English data for the LSTM-only engine, about 3 MB, which the
+ * library caches in IndexedDB after the first document.
  *
- * The worker and the WebAssembly core are resolved from `node_modules` through
- * Vite, so they are versioned with the dependency and served from this origin.
- * The language data is the one thing fetched from the pinned CDN path tesseract
- * defaults to: it is 11MB, it never changes for a given version, and the library
- * caches it in IndexedDB after the first document.
+ * All of it is served by this site under `OCR_ASSET_BASE` (`ocrAssets.js`),
+ * never a CDN: the pdf.js worker's rule (`src/lib/pdf/pdfWorker.js`).
  *
  * ## A start that never finishes
  *
@@ -37,6 +36,8 @@
  * fail after the start. Those still reject `recognize`, and the fallback is the
  * vision route, as before.
  */
+
+import { OCR_CORE_PATH, OCR_ENGINE_MODE, OCR_LANG_PATH, OCR_WORKER_PATH } from './ocrAssets';
 
 // A first OCR in a browser downloads about 4.5MB before the engine can start.
 export const OCR_START_TIMEOUT_MS = 60_000;
@@ -69,14 +70,18 @@ export async function recognizePages(imageDataUrls, deps = {}) {
 }
 
 /**
- * `createWorker('eng')`, bounded: rejects on the first start error tesseract
- * reports or after `OCR_START_TIMEOUT_MS`, and logs that failure once.
+ * `createWorker('eng', …)` from this site's files, bounded: rejects on the first
+ * start error tesseract reports or after `OCR_START_TIMEOUT_MS`, and logs that
+ * failure once.
  */
 async function startWorker(createWorker) {
     let started = false;
     let giveUp;
     const failed = new Promise((_, reject) => { giveUp = reject; });
-    const pending = createWorker('eng', undefined, {
+    const pending = createWorker('eng', OCR_ENGINE_MODE, {
+        workerPath: OCR_WORKER_PATH,
+        corePath: OCR_CORE_PATH,
+        langPath: OCR_LANG_PATH,
         // tesseract.js 7 settles createWorker only when its worker script or core
         // fails to load; a failed language download or engine start arrives here,
         // and without this option it is thrown as an uncaught error instead.

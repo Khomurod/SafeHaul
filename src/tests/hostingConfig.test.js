@@ -272,6 +272,16 @@ describe('firebase.json — application sites: framing and Content Security Poli
         expect(reportOnly['frame-ancestors']).toBeUndefined();
     });
 
+    it('lets the OCR engine compile WebAssembly, from this site only', () => {
+        // The OCR blob worker inherits this policy and compiles WebAssembly.
+        // Its files come from /ocr/ on the site itself (`ocrAssets.js`), so no
+        // CDN is allowed to serve scripts or data.
+        expect(reportOnly['script-src']).toContain("'wasm-unsafe-eval'");
+        for (const directive of ['script-src', 'connect-src']) {
+            expect(allows(reportOnly[directive], 'https://cdn.jsdelivr.net'), directive).toBe(false);
+        }
+    });
+
     it('allows the Firebase services the app talks to', () => {
         for (const url of [
             'https://firestore.googleapis.com',
@@ -280,19 +290,25 @@ describe('firebase.json — application sites: framing and Content Security Poli
             'https://firebasestorage.googleapis.com',
             'https://storage.googleapis.com',
             'https://us-central1-truckerapp-system.cloudfunctions.net',
-            'https://o1.ingest.us.sentry.io',
+            // Performance Monitoring: its installation, its settings, and the
+            // log it sends (`src/lib/monitoring/pageLoadTrace.js`).
+            'https://firebaseinstallations.googleapis.com',
+            'https://firebaseremoteconfig.googleapis.com',
+            'https://firebaselogging-pa.googleapis.com',
             // Firestore's WebChannel loads //www.google.com/images/cleardot.gif to
             // tell a dead network from a failed request; seen on the E2E run.
             'https://www.google.com',
         ]) {
             expect(allows(reportOnly['connect-src'], url), url).toBe(true);
         }
+        // Sentry is switched off, so nothing may send to it.
+        expect(reportOnly['connect-src'].filter((source) => /sentry\.io/i.test(source))).toEqual([]);
         // Uploaded documents are previewed in an iframe straight from Storage, or
         // from an object URL when only `getBlob` can read them (`useAppFetch`).
         expect(allows(reportOnly['frame-src'], 'https://firebasestorage.googleapis.com')).toBe(true);
         expect(reportOnly['frame-src']).toContain('blob:');
         expect(reportOnly['connect-src']).toContain('blob:');
-        // pdf.js runs from /pdf.worker.min.mjs; Sentry Replay compresses in a blob worker.
+        // pdf.js runs from /pdf.worker.min.mjs; tesseract.js runs in a blob worker.
         expect(reportOnly['worker-src']).toEqual(["'self'", 'blob:']);
     });
 

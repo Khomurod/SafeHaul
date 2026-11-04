@@ -43,7 +43,7 @@ vi.mock('@shared/components/feedback/ToastProvider', () => ({ useToast: () => ({
 vi.mock('@shared/components/modals/CallOutcomeModal', () => ({ CallOutcomeModal: () => null }));
 vi.mock('../components/LeadAssignmentModal', () => ({ LeadAssignmentModal: () => null }));
 // The idle prefetch waits for a later moment than this test looks at.
-vi.mock('@lib/monitoring/sentry', () => ({ whenIdle: () => {} }));
+vi.mock('@lib/runtime/whenIdle', () => ({ whenIdle: () => {} }));
 vi.mock('../components/modals/driver-dossier/DriverProfileModal', async () => {
     fixture.loaded = true;
     await fixture.dossierCode;

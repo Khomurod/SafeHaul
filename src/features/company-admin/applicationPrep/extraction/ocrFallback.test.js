@@ -7,6 +7,7 @@
  * happens — a worker left running holds tens of megabytes for the life of the tab.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { OCR_CORE_PATH, OCR_ENGINE_MODE, OCR_LANG_PATH, OCR_WORKER_PATH } from './ocrAssets';
 import { OCR_START_TIMEOUT_MS, recognizePages } from './ocrFallback';
 
 let worker;
@@ -55,7 +56,14 @@ describe('recognising pages', () => {
         const result = await recognizePages(['page-1', 'page-2'], { createWorker });
 
         expect(createWorker).toHaveBeenCalledTimes(1);
-        expect(createWorker).toHaveBeenCalledWith('eng', undefined, expect.objectContaining({ errorHandler: expect.any(Function) }));
+        // The engine's files come from this site (`ocrAssets.js`), never the CDN
+        // tesseract.js would otherwise reach for.
+        expect(createWorker).toHaveBeenCalledWith('eng', OCR_ENGINE_MODE, expect.objectContaining({
+            workerPath: OCR_WORKER_PATH,
+            corePath: OCR_CORE_PATH,
+            langPath: OCR_LANG_PATH,
+            errorHandler: expect.any(Function),
+        }));
         expect(worker.recognize).toHaveBeenCalledTimes(2);
         expect(result).toEqual({ text: 'text of page-1\ntext of page-2', pages: 2 });
     });

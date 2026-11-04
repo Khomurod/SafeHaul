@@ -2,10 +2,14 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { afterAll, describe, expect, it } from 'vitest';
 import { build } from 'vite';
 import viteConfig from '../../vite.config.js';
 import firebaseConfigSource from '../lib/firebase/config.js?raw';
+import {
+    OCR_ASSET_BASE, OCR_ASSET_FILES, OCR_WORKER_PATH,
+} from '../features/company-admin/applicationPrep/extraction/ocrAssets.js';
 
 const plugins = viteConfig.plugins.flat();
 const chunkFor = viteConfig.build.rolldownOptions.output.codeSplitting.groups[0].name;
@@ -21,10 +25,12 @@ describe('the production build', () => {
     });
 
     it('leaves out what loads later, and the application', () => {
-        // Sentry's tracing and Replay, Storage and the icons load after the first
-        // screen from these packages; in the vendor chunk they would load with it.
+        // Storage, speed monitoring and the icons load after the first screen from
+        // these packages; in the vendor chunk they would load with it.
         for (const id of [
-            nm('@sentry/core/build/esm/index.js'), nm('@firebase/storage/dist/index.esm2017.js'),
+            nm('@firebase/storage/dist/index.esm2017.js'),
+            nm('@firebase/performance/dist/esm/index.esm2017.js'), nm('@firebase/installations/dist/esm/index.esm2017.js'),
+            nm('web-vitals/dist/web-vitals.attribution.js'),
             nm('lucide-react/dist/esm/icons/trash-2.js'), nm('firebase/storage/dist/esm/index.esm.js'),
             '/home/app/src/App.jsx', '\0virtual:safehaul-glyph/Trash2',
         ]) expect(chunkFor(id), id).toBeUndefined();
@@ -40,6 +46,44 @@ describe('the production build', () => {
             injectTo: 'head',
         }]);
         expect(firebaseConfigSource).toContain("fetch('/__/firebase/init.json'");
+    });
+
+    it('serves the OCR engine from this site, in the build and on the dev server', async () => {
+        const require = createRequire(import.meta.url);
+        const ocr = plugins.find((p) => p?.name === 'safehaul:ocr-assets');
+        expect(ocr, 'the safehaul:ocr-assets plugin').toBeDefined();
+        expect(ocr.apply).toBeUndefined();
+
+        // The build: each file at its URL, byte for byte the installed one.
+        const emitted = [];
+        ocr.generateBundle.call({ emitFile: (file) => emitted.push(file) });
+        expect(emitted.map((file) => file.fileName).sort())
+            .toEqual(Object.keys(OCR_ASSET_FILES).map((served) => `${OCR_ASSET_BASE.slice(1)}/${served}`).sort());
+        for (const file of emitted) {
+            expect(file.type, file.fileName).toBe('asset');
+            const source = OCR_ASSET_FILES[file.fileName.slice(OCR_ASSET_BASE.length)];
+            expect(Buffer.compare(Buffer.from(file.source), fs.readFileSync(require.resolve(source))), file.fileName).toBe(0);
+        }
+
+        // The dev server, and so the E2E run: the same URLs, as JavaScript where
+        // `importScripts` needs it; anything else goes on to Vite.
+        let handler;
+        ocr.configureServer({ middlewares: { use: (fn) => { handler = fn; } } });
+        const serve = (url) => new Promise((done) => {
+            const headers = {};
+            const res = {
+                setHeader: (name, value) => { headers[name.toLowerCase()] = value; },
+                end: (body) => done({ headers, body }),
+            };
+            handler({ url }, res, () => done('next'));
+        });
+        const worker = await serve(`${OCR_WORKER_PATH}?v=1`);
+        expect(worker.headers['content-type']).toBe('text/javascript; charset=utf-8');
+        expect(worker.body.length).toBeGreaterThan(0);
+        expect(await serve('/src/main.jsx')).toBe('next');
+
+        // The installed tesseract.js is the version the URLs name.
+        expect(() => ocr.buildStart.call({ error: (message) => { throw new Error(message); } })).not.toThrow();
     });
 });
 

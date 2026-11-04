@@ -26,7 +26,6 @@ vi.mock('@lib/applicationId', async () => (await import('./PublicApplyHandler.co
 vi.mock('../../services/publicProfileService', async () => (await import('./PublicApplyHandler.contract.support')).publicProfileServiceMock());
 vi.mock('./postApplyDocsStorage', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).postApplyDocsStorageMock(await importOriginal()));
 vi.mock('./submitRetry', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).submitRetryMock(await importOriginal()));
-vi.mock('@sentry/react', async () => (await import('./PublicApplyHandler.contract.support')).sentryMock());
 vi.mock('react-router-dom', async (importOriginal) => (await import('./PublicApplyHandler.contract.support')).reactRouterDomMock(await importOriginal()));
 // The shared probe, plus what these cases read: the answers the carrier edits,
 // the notice, whether the copy is signed, and a way to sign it again.

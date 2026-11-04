@@ -1,6 +1,5 @@
 import React from 'react';
 import { Icon, Home, RefreshCw } from '@design-system/icons';
-import * as Sentry from '@sentry/react';
 import { Button } from '@design-system/components';
 import { PageState } from '@design-system/patterns';
 
@@ -10,8 +9,9 @@ import { PageState } from '@design-system/patterns';
  * Keeps the rest of the app usable when one feature crashes by containing
  * failures to the current route or view only.
  *
- * Presentation is `PageState`; the Sentry tags, the retry that clears the
- * boundary's own state, and the go-home navigation are unchanged.
+ * Presentation is `PageState`; the retry that clears the boundary's own state
+ * and the go-home navigation are unchanged. A caught error is logged to the
+ * console with the feature's name.
  *
  * It uses `PageState` with `tone="warning"` rather than `ErrorState`, and the
  * distinction is the point: the *page* has not failed. One section has, the rest
@@ -31,13 +31,7 @@ class FeatureErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    Sentry.captureException(error, {
-      tags: {
-        boundary: 'feature',
-        feature: this.props.featureName || 'unknown',
-      },
-      extra: errorInfo,
-    });
+    console.error('[feature boundary]', this.props.featureName || 'unknown', error, errorInfo);
   }
 
   handleRetry = () => {

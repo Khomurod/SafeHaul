@@ -51,12 +51,6 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: firestoreMocks.serverTimestamp,
 }));
 
-vi.mock('@sentry/react', () => ({
-  addBreadcrumb: vi.fn(),
-  captureException: vi.fn(),
-  captureMessage: vi.fn(),
-}));
-
 describe('useSubmissionQueue frontend-backend alignment', () => {
   beforeEach(() => {
     vi.resetAllMocks();

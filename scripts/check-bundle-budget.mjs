@@ -3,15 +3,16 @@
  * The first download a driver's phone makes, held to a budget.
  *
  * What keeps it small: the pdf.js worker wiring lives outside the entry and no
- * preload names the pdf.js chunk; Session Replay and tracing attach after load;
- * Storage and DOMPurify load on demand; Auth starts without its popup resolver;
- * each glyph loads with the screens that draw it; and the libraries ride in a
- * chunk of their own. This check keeps it there: it reads `dist/index.html`,
- * sums the gzip size of the entry script, every `modulepreload` and every
- * stylesheet — exactly what the browser must fetch before the first screen —
- * and refuses the build when the sum passes the ceiling, when a preload names
- * the pdf.js chunk, when a script of that set carries one of the pieces that
- * load later, or when none carries one that must not.
+ * preload names the pdf.js chunk; speed monitoring starts after load; Storage
+ * and DOMPurify load on demand; Auth starts without its popup resolver; each
+ * glyph loads with the screens that draw it; and the libraries ride in a chunk
+ * of their own. This check keeps it there: it reads
+ * `dist/index.html`, sums the gzip size of the entry script, every
+ * `modulepreload` and every stylesheet — exactly what the browser must fetch
+ * before the first screen — and refuses the build when the sum passes the
+ * ceiling, when a preload names the pdf.js chunk, when a script of that set
+ * carries one of the pieces that load later, or when none carries one that must
+ * not.
  *
  * It measures the driver's application page the same way (`measureApplyPage`):
  * the first download, the route's chunk with everything it imports, and the
@@ -28,8 +29,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
-/** Bytes, gzip. 309,382 measured; the headroom is 3%. Move it DOWN, never up, without a measurement. */
-export const FIRST_DOWNLOAD_GZIP_CEILING = 319_000;
+/** Bytes, gzip. 267,920 measured; the headroom is 3%. Move it DOWN, never up, without a measurement. */
+export const FIRST_DOWNLOAD_GZIP_CEILING = 276_000;
 
 /** A preload of any of these is the regression this check was written for. */
 export const MUST_NOT_PRELOAD = Object.freeze([{ pattern: /pdfjs/i, why: 'the pdf.js chunk belongs to the PDF features, not to every route' }]);
@@ -40,12 +41,11 @@ export const MUST_NOT_PRELOAD = Object.freeze([{ pattern: /pdfjs/i, why: 'the pd
  * module preload is fetched before the first screen as surely as the entry.
  */
 export const FIRST_DOWNLOAD_MUST_NOT_CONTAIN = Object.freeze([
-    { marker: 'rrweb', why: 'Session Replay is attached after load; its recorder must not ride in the first download' },
-    { marker: 'auto.pageload.browser', why: 'Sentry tracing is attached with Replay after load (src/lib/monitoring/sentry.js)' },
-    { marker: 'Sentry Logger', why: "Sentry's debug logging is compiled out (__SENTRY_DEBUG__ in vite.config.js)" },
     { marker: 'firebasestorage.googleapis.com', why: 'Storage loads with the features that handle files (@lib/firebase/storage), not through @lib/firebase' },
     { marker: '__/auth/handler', why: 'Auth starts without the popup/redirect resolver (initializeAuth in src/lib/firebase/config.js)' },
     { marker: 'DOMPurify', why: 'the sanitizer loads when custom questions are saved, not with the company chooser' },
+    { marker: 'fireperf', why: 'Firebase Performance Monitoring loads once the page is idle (src/app/startup/speedMonitoring.js)' },
+    { marker: 'firebaseinstallations.googleapis.com', why: 'Firebase Installations loads only with Performance Monitoring, after the first screen' },
 ]);
 
 /**
@@ -59,10 +59,10 @@ export const FIRST_DOWNLOAD_MUST_CONTAIN = Object.freeze([
 
 /**
  * Bytes over the wire for `/apply/:slug` before its first screen: scripts and
- * stylesheets gzip, the font as served (WOFF2 is compressed already). 520,577
+ * stylesheets gzip, the font as served (WOFF2 is compressed already). 477,651
  * measured; the headroom is 3%. Move it DOWN, never up, without a measurement.
  */
-export const APPLY_PAGE_CEILING = 536_000;
+export const APPLY_PAGE_CEILING = 492_000;
 
 /** The chunk the bundler names after the route's screen (`src/app/routes/applyScreenLoader.js`). */
 export const APPLY_ROUTE_CHUNK = /^PublicApplyHandler-[\w-]+\.js$/;

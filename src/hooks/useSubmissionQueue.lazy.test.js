@@ -24,7 +24,6 @@ vi.mock('firebase/functions', () => ({
     httpsCallable: () => async () => ({ data: { applicationId: 'app-9', confirmationNumber: 'CONF-9' } }),
 }));
 vi.mock('firebase/firestore', () => ({ doc: () => ({}), setDoc: async () => undefined, getDoc: async () => ({ exists: () => false }) }));
-vi.mock('@sentry/react', () => ({ addBreadcrumb: () => {}, captureException: () => {}, captureMessage: () => {} }));
 // Neither part can be loaded, as for a tab still running the release before.
 vi.mock('../features/driver-app/services/applicationDraftService', () => { throw new Error('Failed to fetch dynamically imported module'); });
 vi.mock('../features/driver-app/components/application/queuedApplicationOutcome', () => { throw new Error('Failed to fetch dynamically imported module'); });

@@ -18,8 +18,6 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@sentry/react', () => ({ captureException: vi.fn() }));
-
 const queueState = vi.hoisted(() => ({ current: {} }));
 vi.mock('@/hooks/useSubmissionQueue', () => ({
     useSubmissionQueue: () => queueState.current,
@@ -69,6 +67,14 @@ describe('ErrorBoundary — the top-level crash screen', () => {
         expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Go home' })).toBeInTheDocument();
         expect(screen.getByText('Error Code: UI_CRASH_HANDLER')).toBeInTheDocument();
+    });
+
+    it('does not claim anyone was notified: browser errors are only logged to the console', () => {
+        render(<ErrorBoundary><Exploding /></ErrorBoundary>);
+
+        const alert = screen.getByRole('alert');
+        expect(alert).not.toHaveTextContent(/notified/i);
+        expect(alert).toHaveTextContent('contact support and mention the error code below');
     });
 
     it('renders its children untouched when nothing throws', () => {
