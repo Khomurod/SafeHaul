@@ -37,7 +37,7 @@ const EMPLOYER_STATES = Object.freeze({
 function detailsOf(item) {
     if (item.employers) {
         const lines = item.employers.length === 0
-            ? ['No employers listed for the three years before the application.']
+            ? ['No employers listed for the last three years.']
             : [];
         if (item.handInquiries > 0) {
             lines.push(`${item.handInquiries} ${item.handInquiries === 1 ? 'inquiry' : 'inquiries'} uploaded by hand, not matched to an employer.`);

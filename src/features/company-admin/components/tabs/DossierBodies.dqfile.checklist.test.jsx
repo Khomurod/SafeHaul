@@ -53,6 +53,9 @@ describe('DQFileTab — what the file holds and what it does not', () => {
         expect(within(row('Medical card')).getByText('Expired')).toBeInTheDocument();
         expect(within(row('Medical card')).getByText('Expired on Oct 1, 2026')).toBeInTheDocument();
         expect(within(row('MVR')).getByText('Missing')).toBeInTheDocument();
+        // No employers on the record: nothing to verify, and not counted as missing.
+        expect(within(row('Previous employers, last 3 years')).getByText('None listed')).toBeInTheDocument();
+        expect(within(row('Previous employers, last 3 years')).getByText('No employers listed for the last three years.')).toBeInTheDocument();
         // Optional, and only shown: never counted as missing.
         expect(within(row('PSP report')).getByText('Optional')).toBeInTheDocument();
         expect(within(row('PSP report')).getByText('Not in file')).toBeInTheDocument();
