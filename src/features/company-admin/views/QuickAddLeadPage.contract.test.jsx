@@ -117,7 +117,7 @@ describe('Quick Add Lead — preserved contracts', () => {
         render(<QuickAddLeadPage />);
 
         fillRequired();
-        setField('email', /email/i, 'artificial@example.test');
+        setField('email', /email/i, 'Artificial@Example.test');
         setField('city', /city/i, 'Artificial City');
         setField('state', /state/i, 'TX');
         setField('yearsExperience', /years of experience/i, '5');
@@ -137,7 +137,7 @@ describe('Quick Add Lead — preserved contracts', () => {
             firstName: 'Artificial',
             lastName: 'Applicant',
             phone: '(555) 000-0000',
-            email: 'artificial@example.test',
+            email: 'Artificial@Example.test',
             city: 'Artificial City',
             state: 'TX',
             yearsExperience: '5',
@@ -155,6 +155,8 @@ describe('Quick Add Lead — preserved contracts', () => {
             assignedTo: '',
             assignedToName: '',
             normalizedPhone: '5550000000',
+            // The email as typed, and the copy an application is matched by.
+            emailNormalized: 'artificial@example.test',
         });
 
         await waitFor(() => expect(toastMocks.showSuccess)
@@ -226,7 +228,7 @@ describe('Quick Add Lead — preserved contracts', () => {
 
         await waitFor(() => expect(fsMocks.addDoc).toHaveBeenCalledTimes(1));
         expect(fsMocks.addDoc.mock.calls[0][1]).toMatchObject({
-            email: '', city: '', state: '', yearsExperience: '', notes: '',
+            email: '', emailNormalized: '', city: '', state: '', yearsExperience: '', notes: '',
         });
     });
 

@@ -122,6 +122,9 @@ exports.submitReferralInterest = functions
                 phone: answers.phone,
                 normalizedPhone: answers.normalizedPhone,
                 email: answers.email,
+                // Already trimmed and lowercased: the copy an application is
+                // matched to its lead by (shared/leadApplicationLink.js).
+                emailNormalized: answers.email,
                 source: 'Driver Referral',
                 status: 'New Lead',
                 assignedTo: link?.assignedTo || '',

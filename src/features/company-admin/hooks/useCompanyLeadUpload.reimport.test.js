@@ -81,7 +81,7 @@ describe('useCompanyLeadUpload — re-importing a lead it already has', () => {
                 ...PHONE_ONLY_ROW,
                 firstName: 'Ann',
                 lastName: 'Baker',
-                email: 'ann@example.com',
+                email: 'Ann@Example.com',
                 isEmailPlaceholder: false,
                 city: 'Austin',
             }], 'file');
@@ -90,7 +90,8 @@ describe('useCompanyLeadUpload — re-importing a lead it already has', () => {
         expect(fs.update.mock.calls[0][1]).toEqual({
             firstName: 'Ann',
             lastName: 'Baker',
-            email: 'ann@example.com',
+            email: 'Ann@Example.com',
+            emailNormalized: 'ann@example.com',
             isEmailPlaceholder: false,
             phone: '(555) 123-4567',
             normalizedPhone: '5551234567',

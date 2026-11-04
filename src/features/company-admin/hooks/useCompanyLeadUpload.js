@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { db, auth } from '@lib/firebase';
 import { writeBatch, collection, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { formatPhoneNumber, normalizePhone } from '@shared/utils/helpers';
+import { normalizeSearchEmail } from '@shared/utils/searchNormalization';
 import { LEAD_IMPORT_PLACEHOLDERS } from '@/config/leadImportPlaceholders';
 import { PLACEHOLDER_DOMAIN } from '@/config/placeholderDomains';
 import { LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
@@ -194,6 +195,9 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                     firstName: data.firstName || '',
                     lastName: data.lastName || '',
                     email: data.email || '',
+                    // The copy an application is matched to its lead by
+                    // (functions/shared/leadApplicationLink.js).
+                    emailNormalized: normalizeSearchEmail(data.email),
                     phone: data.phone || '',
                     normalizedPhone: data.normalizedPhone || '',
                     experience: data.experience || '',
@@ -229,6 +233,7 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                         .forEach((key) => { updates[key] = leadPayload[key]; });
                     if (leadPayload.email && !leadPayload.isEmailPlaceholder) {
                         updates.email = leadPayload.email;
+                        updates.emailNormalized = leadPayload.emailNormalized;
                         updates.isEmailPlaceholder = false;
                     }
                     currentBatch.update(existingDoc.ref, updates);

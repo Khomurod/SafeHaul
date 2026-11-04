@@ -68,6 +68,7 @@ describe('submitReferralInterest', () => {
             phone: '+15550102030',
             normalizedPhone: '5550102030',
             email: 'dana.driver@example.test',
+            emailNormalized: 'dana.driver@example.test',
             source: 'Driver Referral',
             status: 'New Lead',
             assignedTo: 'rec-1',
