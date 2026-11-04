@@ -156,6 +156,26 @@ describe('dates', () => {
         expect(formatDay('2026-12-31')).toBe('Dec 31, 2026');
     });
 
+    it('rejects a day that does not exist, and names no driver with one', () => {
+        // The field is server-maintained, but the rules let the team write an application's fields.
+        expect(formatDay('2026-02-30')).toBe('');
+        expect(formatDay('2026-13-01')).toBe('');
+        const [item] = attentionItems({
+            windows: { awaitingDays: 7, draftDays: 5, dqDays: 30 },
+            rows: {
+                dqExpiring: {
+                    status: 'ok',
+                    count: 2,
+                    drivers: [
+                        { id: 'a1', name: 'Ann Driver', date: '2026-02-30' },
+                        { id: 'a2', name: 'Ben Hauler', date: '2026-03-02' },
+                    ],
+                },
+            },
+        }, { today: '2026-03-01' });
+        expect(item.drivers.map((driver) => driver.id)).toEqual(['a2']);
+    });
+
     it('reads today in the reader\'s own calendar', () => {
         expect(localDay(new Date(2026, 10, 4, 23, 30))).toBe('2026-11-04');
         expect(localDay(new Date(2026, 0, 9, 0, 5))).toBe('2026-01-09');

@@ -83,6 +83,8 @@ export function formatDay(day) {
     const match = DAY.exec(String(day || ''));
     if (!match) return '';
     const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+    // A day that does not exist (Feb 30) would roll over to another: show none.
+    if (date.getUTCMonth() !== Number(match[2]) - 1 || date.getUTCDate() !== Number(match[3])) return '';
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
@@ -99,7 +101,7 @@ function when(date, today) {
 
 function driversOf(row, today) {
     const drivers = (Array.isArray(row.drivers) ? row.drivers : [])
-        .filter((driver) => driver && typeof driver.id === 'string' && DAY.test(driver.date))
+        .filter((driver) => driver && typeof driver.id === 'string' && formatDay(driver.date) !== '')
         .map((driver) => ({ id: driver.id, name: String(driver.name || 'Unnamed driver'), when: when(driver.date, today) }));
     const rest = row.count - drivers.length;
     return { drivers, others: rest > 0 ? `${rest} more` : null };
