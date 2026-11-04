@@ -40,6 +40,8 @@ function exportFunctions(wanted) {
   if (wanted('getSigningLink')) exports.getSigningLink = require('./getSigningLink').getSigningLink;
   // A company user's approval emails the signer their sealed copy, once
   if (wanted('sendSignedDocumentCopy')) exports.sendSignedDocumentCopy = require('./signedCopyDelivery').sendSignedDocumentCopy;
+  // "Retry seal": a failed or unfinished seal is sealed again, from what the signer submitted
+  if (wanted('retrySealDocument')) exports.retrySealDocument = require('./sealRetry').retrySealDocument;
 
   // 2. Auth & User Management
   if (wanted('createPortalUser')) exports.createPortalUser = require('./hrAdmin').createPortalUser;

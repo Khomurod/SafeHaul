@@ -19,6 +19,7 @@ const {
 } = require('./shared/companySignature');
 const { notifySealOutcome } = require('./sealNotifications');
 const { fileSealedDocumentInDq } = require('./sealedDocumentDq');
+const { asksForSeal, sealAttemptCount } = require('./shared/sealAttempts');
 
 /** Where `field` sits on its page, in points (it is stored in percent of the page), or null past the last page. */
 function fieldBox(pdfDoc, field) {
@@ -71,10 +72,15 @@ async function drawCompanySignature(bucket, companyId, pdfDoc, field) {
     }
 }
 
-/** Whether the signing request, as stored now, still waits to be sealed. */
-async function stillAwaitingSeal(ref) {
+/**
+ * Whether the signing request, as stored now, still waits to be sealed, on the
+ * attempt this delivery is for: a retry recorded since (`sealAttempts`) makes an
+ * older delivery stale.
+ */
+async function stillAwaitingSeal(ref, delivered) {
     const live = await ref.get();
-    return live.exists && live.data()?.status === 'pending_seal';
+    const stored = live.exists ? live.data() : null;
+    return stored?.status === 'pending_seal' && sealAttemptCount(stored) === sealAttemptCount(delivered);
 }
 
 exports.sealDocument = functions.runWith({
@@ -86,8 +92,9 @@ exports.sealDocument = functions.runWith({
         const newData = change.after.data();
         const previousData = change.before.data();
 
-        // 1. Only run if status changed to 'pending_seal'
-        if (newData.status !== 'pending_seal' || previousData.status === 'pending_seal') {
+        // 1. Only run when the request enters 'pending_seal', or "Retry seal"
+        // records a new attempt while it is there (`retrySealDocument`).
+        if (!asksForSeal(previousData, newData)) {
             return null;
         }
 
@@ -95,7 +102,7 @@ exports.sealDocument = functions.runWith({
         // signer's images are deleted once it is sealed, so a second run would
         // find them missing and mark a signed document as failed: seal only
         // while the document itself still waits for it.
-        if (!(await stillAwaitingSeal(change.after.ref))) {
+        if (!(await stillAwaitingSeal(change.after.ref, newData))) {
             console.log(`[sealDocument] ${context.params.requestId} no longer awaits sealing; this delivery changes nothing.`);
             return null;
         }

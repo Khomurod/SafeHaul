@@ -29,7 +29,12 @@ export const fs = {
     updateDoc: vi.fn(),
     serverTimestamp: vi.fn(() => '__serverTimestamp__'),
 };
-export const callables = { getSigningLink: vi.fn(), getSignedDocumentUrl: vi.fn(), sendSignedDocumentCopy: vi.fn() };
+export const callables = {
+    getSigningLink: vi.fn(),
+    getSignedDocumentUrl: vi.fn(),
+    sendSignedDocumentCopy: vi.fn(),
+    retrySealDocument: vi.fn(),
+};
 export const fnMocks = {
     getFunctions: vi.fn(() => ({})),
     httpsCallable: vi.fn((_fns, name) => callables[name]),
@@ -113,6 +118,7 @@ export function resetHarness() {
     callables.sendSignedDocumentCopy.mockResolvedValue({
         data: { success: true, sentTo: 'pat@example.test', sentAt: '2026-11-04T15:00:00.000Z' },
     });
+    callables.retrySealDocument.mockResolvedValue({ data: { success: true, status: 'pending_seal', attempt: 1 } });
     Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: { writeText: vi.fn().mockResolvedValue() },

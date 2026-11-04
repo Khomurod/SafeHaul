@@ -229,3 +229,58 @@ describe('SentDocumentDetailsDialog — a signed copy whose send never finished'
         }
     });
 });
+
+describe('SentDocumentDetailsDialog — Retry seal', () => {
+    const MINUTE = 60 * 1000;
+    const signedAgo = (minutes) => ({ seconds: Math.floor((Date.now() - minutes * MINUTE) / 1000), nanoseconds: 0 });
+
+    it('offers Retry seal under the sealing error, and asks for this document', () => {
+        const failed = makeDoc({ status: 'error_sealing', errorLog: 'Company signature image missing or unreadable: cs1' });
+        const onRetrySeal = vi.fn();
+        renderDialog(failed, { onRetrySeal });
+
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByRole('alert')).toHaveTextContent('Company signature image missing or unreadable: cs1');
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Retry seal' }));
+        expect(onRetrySeal).toHaveBeenCalledWith(failed);
+    });
+
+    it('is busy, and cannot be pressed again, while the retry is asked for', () => {
+        renderDialog(makeDoc({ status: 'error_sealing' }), { onRetrySeal: vi.fn(), retryingSeal: true });
+        expect(screen.getByRole('button', { name: /Retry seal/ })).toBeDisabled();
+    });
+
+    it('says a seal left unfinished did not finish, and offers to seal it again', () => {
+        const onRetrySeal = vi.fn();
+        renderDialog(makeDoc({ status: 'pending_seal', signedAt: signedAgo(11) }), { onRetrySeal });
+
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByRole('status')).toHaveTextContent('Sealing did not finish');
+        expect(within(dialog).getByRole('button', { name: 'Retry seal' })).toBeEnabled();
+    });
+
+    it.each([
+        ['a document still sealing', { status: 'pending_seal', signedAt: signedAgo(2) }],
+        ['a signed document', { status: 'signed', signedPdfUrl: 'secure_documents/co-1/completed/req-1_signed.pdf' }],
+        ['a sent document', { status: 'sent' }],
+        ['a voided document', { status: 'voided' }],
+    ])('offers no retry for %s', (_label, overrides) => {
+        renderDialog(makeDoc(overrides), { onRetrySeal: vi.fn() });
+        expect(screen.queryByRole('button', { name: /Retry seal/ })).not.toBeInTheDocument();
+        expect(screen.queryByText('Sealing did not finish')).not.toBeInTheDocument();
+    });
+
+    it('offers no retry where no handler is given', () => {
+        renderDialog(makeDoc({ status: 'error_sealing' }));
+        expect(screen.queryByRole('button', { name: /Retry seal/ })).not.toBeInTheDocument();
+    });
+
+    it('has no accessibility violations with the retry offered', async () => {
+        const failed = renderDialog(makeDoc({ status: 'error_sealing', errorLog: 'Failed (artificial)' }), { onRetrySeal: vi.fn() });
+        expect((await axe(failed.container)).violations).toEqual([]);
+        failed.unmount();
+
+        const unfinished = renderDialog(makeDoc({ status: 'pending_seal', signedAt: signedAgo(30) }), { onRetrySeal: vi.fn() });
+        expect((await axe(unfinished.container)).violations).toEqual([]);
+    });
+});

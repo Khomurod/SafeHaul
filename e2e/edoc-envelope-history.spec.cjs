@@ -132,6 +132,35 @@ test.describe('E-Doc envelope history slice', () => {
     expect(sent).toEqual([{ companyId: 'e2e-company', requestId: 'e2e-copy-ready', recipientEmail: 'rosa.delgado@example.test' }]);
   });
 
+  test('a document whose seal failed is sealed again from its details, once', async ({ page }) => {
+    // E2E mode has no Functions: the callable is answered here, and what it
+    // receives is asserted. The rows are the made-up `e2eEdocSent=mock` set.
+    const asked = [];
+    await page.route('**/retrySealDocument', (route) => {
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+      asked.push(route.request().postDataJSON()?.data);
+      return route.fulfill({
+        status: 200,
+        headers: CORS,
+        contentType: 'application/json',
+        body: JSON.stringify({ result: { success: true, status: 'pending_seal', attempt: 1 } }),
+      });
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openHistory(page, `${URL}&e2eEdocSent=mock`);
+
+    // The row keeps Review; the reason and Retry seal are in its details.
+    await expect(page.getByRole('button', { name: /^Retry seal/ })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Review details for Lease Agreement' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Lease Agreement' });
+    await expect(dialog).toContainText('The signed pages could not be sealed.');
+
+    await dialog.getByRole('button', { name: 'Retry seal' }).dblclick();
+    await expect(dialog).toBeHidden({ timeout: 10_000 });
+    await expect(page.getByText('Sealing again. The status here changes when it finishes.')).toBeVisible();
+    expect(asked).toEqual([{ companyId: 'e2e-company', requestId: 'e2e-req-lease' }]);
+  });
+
   test('has no serious/critical or contrast violations in the history table', async ({ page }) => {
     await openHistory(page);
 
