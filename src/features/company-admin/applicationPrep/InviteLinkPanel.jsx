@@ -1,6 +1,7 @@
 import React from 'react';
-import { Icon, Copy, Link2, RefreshCw } from '@design-system/icons';
+import { Icon, Copy, Link2, Mail, RefreshCw } from '@design-system/icons';
 import { Button, Card, FieldMessage } from '@/design-system/components';
+import { canEmailLinkTo } from '@shared/utils/linkEmail';
 
 /**
  * The link, and the one thing worth saying about it.
@@ -28,8 +29,25 @@ import { Button, Card, FieldMessage } from '@/design-system/components';
  *
  * **That last sentence is a claim about the server too**, so the sentence below
  * names all four things the confirmation screen asks for, not two of them.
+ *
+ * ## Email first, Copy as the fallback
+ *
+ * "Email it to the driver" has the server email the link to the application's
+ * own address (`functions/companyApplications/inviteDelivery.js`); this screen
+ * learns only the address, masked (`delivered`), and never holds the link.
+ * Without a usable address (`email`) it is not offered, and the panel says why.
+ * Either press makes the newest link, which retires the one before it.
  */
-export function InviteLinkPanel({ link, busy, error, copied, copyFailed, driverStarted, onMint, onCopy }) {
+export function InviteLinkPanel({
+    link, busy, error, copied, copyFailed, driverStarted, onMint, onCopy,
+    email = '', delivered = null, emailing = false, onEmail,
+}) {
+    const canEmail = Boolean(onEmail) && canEmailLinkTo(email);
+    const emailButton = canEmail && (
+        <Button variant={link ? 'secondary' : 'primary'} onClick={onEmail} loading={emailing} disabled={busy}>
+            <Icon icon={Mail} size="sm" /> {delivered ? 'Email it again' : 'Email it to the driver'}
+        </Button>
+    );
     return (
         <Card padding="md">
             <div className="space-y-ds-3">
@@ -41,13 +59,21 @@ export function InviteLinkPanel({ link, busy, error, copied, copyFailed, driverS
                               + 'them to confirm their last name, date of birth, Social Security Number and one of '
                               + 'their contact details first, so only they can open it. If they saved before '
                               + 'entering their Social Security Number, it cannot confirm them, and they continue '
-                              + 'on the phone or computer where they started. Send it however you normally reach them.'
-                            : 'They open the link, complete what only they can answer, review it and sign. Send it '
-                              + 'however you normally reach them.'}
+                              + 'on the phone or computer where they started. We can email it to them, or you can '
+                              + 'copy it and send it however you normally reach them.'
+                            : 'They open the link, complete what only they can answer, review it and sign. We can '
+                              + 'email it to them, or you can copy it and send it however you normally reach them.'}
                     </p>
                 </div>
 
                 {error && <FieldMessage tone="error">{error}</FieldMessage>}
+
+                {delivered && (
+                    <p className="text-ds-sm text-ds-content" role="status">
+                        {`Emailed to ${delivered.to}. It works for ${delivered.expiresInDays} days. Sending another `
+                            + 'link, by email or to copy, retires this one about ten minutes later.'}
+                    </p>
+                )}
 
                 {link ? (
                     <div className="space-y-ds-2">
@@ -61,7 +87,8 @@ export function InviteLinkPanel({ link, busy, error, copied, copyFailed, driverS
                             <Button variant="primary" size="sm" onClick={onCopy}>
                                 <Icon icon={Copy} size="sm" /> {copied ? 'Copied' : 'Copy link'}
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={onMint} loading={busy}>
+                            {emailButton}
+                            <Button variant="ghost" size="sm" onClick={onMint} loading={busy} disabled={emailing}>
                                 <Icon icon={RefreshCw} size="sm" /> Create a new link
                             </Button>
                         </div>
@@ -86,9 +113,19 @@ export function InviteLinkPanel({ link, busy, error, copied, copyFailed, driverS
                     /* Clickable with nothing saved yet: the press explains that a
                        link addresses a saved application, and offers to save. The
                        precondition used to be an undocumented `disabled`. */
-                    <Button variant="primary" onClick={onMint} loading={busy}>
-                        <Icon icon={Link2} size="sm" /> {driverStarted ? 'Create a replacement link' : "Create the driver's link"}
-                    </Button>
+                    <div className="flex flex-wrap gap-ds-2">
+                        {emailButton}
+                        <Button variant={canEmail ? 'secondary' : 'primary'} onClick={onMint} loading={busy} disabled={emailing}>
+                            <Icon icon={Link2} size="sm" />{' '}
+                            {delivered ? 'Create a link to copy' : (driverStarted ? 'Create a replacement link' : "Create the driver's link")}
+                        </Button>
+                    </div>
+                )}
+
+                {onEmail && !canEmail && (
+                    <p className="text-ds-xs text-ds-content-muted">
+                        No email address on this application, so the link can only be copied and sent another way.
+                    </p>
                 )}
             </div>
         </Card>

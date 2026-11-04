@@ -43,14 +43,16 @@ export function UnfinishedWorklistTable({
     empty,
 }) {
     const {
-        linkFor, busyKey, copied, copyFailed, error: mintError, failedKey, onCreate, onCopy,
+        linkFor, deliveredFor, busyKey, emailKey, copied, copyFailed, error: mintError, failedKey,
+        onCreate, onEmail, onCopy,
     } = link;
     // One object per role, so the columns below are rebuilt when it changes and
     // not on every render.
     const viewer = useMemo(() => ({ isCompanyAdmin }), [isCompanyAdmin]);
     const linkState = useMemo(() => ({
-        linkFor, busyKey, copied, copyFailed, error: mintError, failedKey, onCreate, onCopy,
-    }), [linkFor, busyKey, copied, copyFailed, mintError, failedKey, onCreate, onCopy]);
+        linkFor, deliveredFor, busyKey, emailKey, copied, copyFailed, error: mintError, failedKey,
+        onCreate, onEmail, onCopy,
+    }), [linkFor, deliveredFor, busyKey, emailKey, copied, copyFailed, mintError, failedKey, onCreate, onEmail, onCopy]);
 
     const columns = useMemo(() => [
         {
