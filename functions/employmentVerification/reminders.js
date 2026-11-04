@@ -26,7 +26,7 @@ const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
 const { attemptEntry, mirrorAttempt, recordAttempt, withAttempt } = require("./attemptLog");
 const { fileAttemptRecord } = require("./attemptRecord");
 
-/** The row status day 30 writes. The wording awaits the owner's compliance review; unchanged here. */
+/** The row status day 30 writes. */
 const NO_RESPONSE_STATUS = 'No Response (Good Faith Documented)';
 
 /**

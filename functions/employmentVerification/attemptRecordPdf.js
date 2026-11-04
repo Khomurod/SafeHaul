@@ -38,7 +38,7 @@ function formatUtc(ms, { time = false } = {}) {
 }
 
 /** What one entry was, how it ended, and who made it. */
-function describe(entry, request, company) {
+function describeAttempt(entry, request, company) {
     const team = (uid) => teamMemberName(company, uid) || 'Team member';
     const by = entry.by ? team(entry.by) : 'Automatic';
     switch (entry.kind) {
@@ -103,7 +103,7 @@ function drawAttempts(doc, request, company) {
                 outcome: 'Not logged',
                 by: teamMemberName(company, request.createdBy) || 'Team member',
             }
-            : describe(entry, request, company);
+            : describeAttempt(entry, request, company);
         drawRow(doc, [formatUtc(ms, { time: !manual }), attempt, outcome, by]);
         if (text(entry.note)) {
             doc.paragraph(`Note: ${entry.note}`, {

@@ -5,6 +5,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, fireEvent, cleanup, within } from '@testing-library/react';
+import { axe } from 'vitest-axe';
 
 vi.mock('@shared/components/feedback/ToastProvider', async () => (await import('./PEVTab.contract.support')).toastProviderMock());
 vi.mock('@/context/DataContext', async () => (await import('./PEVTab.contract.support')).dataContextMock());
@@ -107,6 +108,18 @@ describe('Record attempt', () => {
     });
     expect(toastMocks.showSuccess).toHaveBeenCalledWith('Attempt recorded.');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('opens a named dialog with labelled fields and no axe violations', async () => {
+    renderTab({ employers: [legacyRow({ status: 'Sent', method: 'Email', history: HISTORY })] });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Record attempt for Legacy Hauling' }));
+    const dialog = screen.getByRole('dialog', { name: 'Record an attempt — Legacy Hauling' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    // The safe action takes focus first, as in every ConfirmDialog.
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    expect(within(dialog).getByRole('combobox', { name: /^Attempt/ })).toBeInTheDocument();
+    expect((await axe(dialog)).violations).toEqual([]);
   });
 
   it('asks for the text of a note before calling the server', async () => {
