@@ -72,6 +72,13 @@ it('stays a team notification for a callback logged without a time', async () =>
     await onCallbackScheduled(logEvent({ appId: 'app1' }, { outcome: 'callback', performedBy: 'recruiter-1' }));
     expect(notifications()[0].data).toMatchObject({ message: 'Call back Ivan Petrov', title: 'Call back' });
     expect(notifications()[0].data).not.toHaveProperty('recipientId');
+    // Nobody is told about their own action: the bell hides it from who logged it.
+    expect(notifications()[0].data).toMatchObject({ actorId: 'recruiter-1' });
+});
+
+it('names nobody as the actor of a reminder, which is for the recruiter who logged it', async () => {
+    await onCallbackScheduled(logEvent({ appId: 'app1' }, NEW_LOG));
+    expect(notifications()[0].data).not.toHaveProperty('actorId');
 });
 
 it('writes nothing for a call without a callback', async () => {

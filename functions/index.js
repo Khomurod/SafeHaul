@@ -212,6 +212,7 @@ function exportFunctions(wanted) {
   // 15. In-App Notifications
   if (wanted('onApplicationStatusChanged')) exports.onApplicationStatusChanged = require('./notificationTriggers').onApplicationStatusChanged;
   if (wanted('onLeadAssigned')) exports.onLeadAssigned = require('./notificationTriggers').onLeadAssigned;
+  if (wanted('onApplicationAssigned')) exports.onApplicationAssigned = require('./notificationTriggers').onApplicationAssigned;
   if (wanted('onNewApplicationNotification')) exports.onNewApplicationNotification = require('./notificationTriggers').onNewApplicationNotification;
   if (wanted('onCallbackScheduled')) exports.onCallbackScheduled = require('./notificationTriggers').onCallbackScheduled;
   if (wanted('onLeadCallbackScheduled')) exports.onLeadCallbackScheduled = require('./notificationTriggers').onLeadCallbackScheduled;

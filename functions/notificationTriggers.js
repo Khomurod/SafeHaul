@@ -7,8 +7,14 @@ const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/
 const { db } = require("./firebaseAdmin");
 const { escapeHtml, plainGuestText } = require("./shared/plainText");
 const { createNotification } = require("./shared/createNotification");
+const {
+    ASSIGNMENT_STAMP, STATUS_STAMP, actorOf, assigneeOnTeam, eventNotificationId,
+} = require("./shared/notificationAudience");
 
 // --- TRIGGER 1: Application Status Changed ---
+// An assigned application's change goes to its assignee only, and to nobody
+// when they made it; an unassigned one's (or one whose assignee left the team)
+// to the team, hidden from who made it (shared/notificationAudience.js).
 exports.onApplicationStatusChanged = onDocumentUpdated(
     {
         document: 'companies/{companyId}/applications/{appId}',
@@ -23,49 +29,72 @@ exports.onApplicationStatusChanged = onDocumentUpdated(
         // Only trigger if status actually changed
         if (before.status === after.status) return;
 
-        const applicantName = `${after.firstName || ''} ${after.lastName || ''}`.trim() || 'Applicant';
+        const { companyId, appId } = event.params;
+        const actorId = actorOf(before, after, STATUS_STAMP);
+        const recipientId = await assigneeOnTeam(db, companyId, after.assignedTo);
+        if (recipientId && recipientId === actorId) return;
 
-        await createNotification(db, event.params.companyId, {
+        const applicantName = plainGuestText(`${after.firstName || ''} ${after.lastName || ''}`.trim(), 80) || 'Applicant';
+
+        await createNotification(db, companyId, {
             type: 'status_change',
             title: 'Status Updated',
             message: `${applicantName} moved from "${before.status}" to "${after.status}"`,
-            relatedId: event.params.appId,
+            relatedId: appId,
             relatedType: 'application',
             oldStatus: before.status,
-            newStatus: after.status
-        });
+            newStatus: after.status,
+            ...(recipientId && { recipientId }),
+            ...(actorId && { actorId }),
+        }, { id: eventNotificationId('status', event) });
     }
 );
 
-// --- TRIGGER 2: Lead Assigned to Recruiter ---
+// --- TRIGGER 2: an application or a lead assigned ---
+// The new owner is told, unless they assigned it to themselves. An assignment
+// nobody stamped (the server's, an older screen's) is still told.
+async function notifyAssignment(event, relatedType, recordId) {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after || before.assignedTo === after.assignedTo) return;
+
+    const ownerId = typeof after.assignedTo === 'string' ? after.assignedTo : '';
+    if (!ownerId) return; // Unassigned
+    const actorId = actorOf(before, after, ASSIGNMENT_STAMP);
+    if (actorId === ownerId) return;
+
+    const isLead = relatedType === 'lead';
+    const name = plainGuestText(
+        after.fullName || `${after.firstName || ''} ${after.lastName || ''}`.trim(), 80,
+    ) || (isLead ? 'Lead' : 'Applicant');
+
+    await createNotification(db, event.params.companyId, {
+        type: `${relatedType}_assigned`,
+        title: isLead ? 'Lead Assigned' : 'Application Assigned',
+        message: `${name} was assigned to you`,
+        relatedId: recordId,
+        relatedType,
+        recipientId: ownerId,
+        assignedTo: ownerId,
+        assignedToName: typeof after.assignedToName === 'string' ? after.assignedToName : '',
+        ...(actorId && { actorId }),
+    }, { id: eventNotificationId(`${relatedType}_assigned`, event) });
+}
+
 exports.onLeadAssigned = onDocumentUpdated(
     {
         document: 'companies/{companyId}/leads/{leadId}',
         region: 'us-central1'
     },
-    async (event) => {
+    (event) => notifyAssignment(event, 'lead', event.params.leadId)
+);
 
-        const before = event.data?.before?.data();
-        const after = event.data?.after?.data();
-
-        if (!before || !after) return;
-
-        // Only trigger if assignedTo changed
-        if (before.assignedTo === after.assignedTo) return;
-        if (!after.assignedTo) return; // Skip unassignment
-
-        const leadName = after.fullName || `${after.firstName || ''} ${after.lastName || ''}`.trim() || 'Lead';
-
-        await createNotification(db, event.params.companyId, {
-            type: 'lead_assigned',
-            title: 'Lead Assigned',
-            message: `${leadName} was assigned to ${after.assignedToName || 'a recruiter'}`,
-            relatedId: event.params.leadId,
-            relatedType: 'lead',
-            assignedTo: after.assignedTo,
-            assignedToName: after.assignedToName
-        });
-    }
+exports.onApplicationAssigned = onDocumentUpdated(
+    {
+        document: 'companies/{companyId}/applications/{appId}',
+        region: 'us-central1'
+    },
+    (event) => notifyAssignment(event, 'application', event.params.appId)
 );
 
 // --- TRIGGER 3: New Application Submitted ---
@@ -98,7 +127,8 @@ exports.onNewApplicationNotification = onDocumentCreated(
 // reminds the recruiter who logged it: the bell shows a notification with a
 // `recipientId` to that person only. `callbackLabel` is the time as the
 // recruiter chose it, in their own clock ("Oct 22 at 3:00 PM"). A callback
-// logged without a time stays a notification for the team.
+// logged without a time stays a notification for the team, hidden from the
+// recruiter who logged it (`actorId`).
 async function notifyCallback(event, collectionName, recordId, relatedType) {
     const data = event.data?.data();
     if (!data || !(data.callbackAt || data.outcome === 'callback')) return;
@@ -119,6 +149,7 @@ async function notifyCallback(event, collectionName, recordId, relatedType) {
         relatedId: recordId,
         relatedType,
         ...(recipientId && { recipientId, callbackAt: data.callbackAt }),
+        ...(!recipientId && typeof data.performedBy === 'string' && data.performedBy && { actorId: data.performedBy }),
         performedBy: data.performedBy || null,
         performedByName: data.performedByName || null,
     });
