@@ -8,8 +8,9 @@
  * however often the trigger delivers the event; a later successful seal of a
  * failed request still says "signed". It holds the document's title and the
  * signer's name only, since the whole team may read every notification. A
- * post-application document opens its application in the bell; any other
- * names its request, which the bell opens in E-Docs.
+ * document linked to an application (`sourceApplicationId`: a post-application
+ * document, or a template sent to a picked applicant) opens that application in
+ * the bell; any other names its request, which the bell opens in E-Docs.
  *
  * Never throws: a notification that cannot be written is logged, and the seal
  * stays exactly as it was.
