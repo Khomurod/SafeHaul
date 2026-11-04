@@ -191,6 +191,23 @@ describe("the lead's recruiter", () => {
         expect(doc(APP_PATH).fromLeadId).toBe('L1');
         expect(notifications()).toEqual([]);
     });
+
+    it('cannot stop the link when the team cannot be read: nobody is assigned or told', async () => {
+        seed(ASSIGNED_LEAD);
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        const collection = mock.db.collection;
+        jest.spyOn(mock.db, 'collection').mockImplementation((name) => {
+            if (name === 'memberships') throw new Error('memberships unavailable');
+            return collection(name);
+        });
+
+        await expect(link()).resolves.toMatchObject({ leadId: 'L1', assigned: false, recruiterId: null });
+
+        expect(doc(APP_PATH).fromLeadId).toBe('L1');
+        expect(doc(APP_PATH).assignedTo).toBeUndefined();
+        expect(notifications()).toEqual([]);
+        expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Could not check'), 'memberships unavailable');
+    });
 });
 
 describe('a repeated delivery', () => {

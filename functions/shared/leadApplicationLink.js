@@ -73,6 +73,17 @@ async function findApplicantLead(leads, application) {
     return null;
 }
 
+/** The lead's recruiter's name while on the team, else null; a failed check is null too. */
+async function recruiterOnTeam(companyId, owner) {
+    if (typeof owner !== 'string' || !owner) return null;
+    try {
+        return await teamMemberName(db, companyId, owner);
+    } catch (err) {
+        console.error(`[leadApplicationLink] Could not check the lead's recruiter in ${companyId}; nobody is assigned:`, err.message);
+        return null;
+    }
+}
+
 async function notifyRecruiter({ companyId, applicationId, recruiterId, assigned, application }) {
     try {
         const driver = clipText(`${application.firstName || ''} ${application.lastName || ''}`, 80) || 'Your lead';
@@ -105,7 +116,7 @@ async function linkApplicantLead({ companyId, applicationId, application }) {
 
     const leadRef = match.doc.ref;
     const owner = match.doc.data()?.assignedTo;
-    const ownerName = typeof owner === 'string' && owner ? await teamMemberName(db, companyId, owner) : null;
+    const ownerName = await recruiterOnTeam(companyId, owner);
     const logRef = leadRef.collection('activity_logs').doc(`applied_${applicationId}`);
 
     const linked = await db.runTransaction(async (transaction) => {
