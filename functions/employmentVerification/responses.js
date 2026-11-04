@@ -12,6 +12,7 @@ const { resolveEmployerTarget } = require("../shared/employerIdentity");
 const { generateVerificationPDF } = require("./pdf");
 const { notifyCarrierVerificationComplete } = require("./notifications");
 const { normaliseSignature } = require("./signature");
+const { SUPERSEDED_MESSAGE } = require("./requestLifecycle");
 
 /** The free-text answers, each limited to 2,000 characters. */
 const TEXT_ANSWERS = [
@@ -126,6 +127,7 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
                 if (data.expiresAt && data.expiresAt.toMillis() < Date.now()) {
                     throw new HttpsError('deadline-exceeded', 'This verification request has expired.');
                 }
+                if (data.status === 'superseded') throw new HttpsError('not-found', SUPERSEDED_MESSAGE);
                 if (data.status === 'completed') {
                     throw new HttpsError('already-exists', 'This verification has already been completed.');
                 }

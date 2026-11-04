@@ -62,6 +62,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `publishCompanyAgreementWording` | [`AgreementsPanel.jsx`](../src/features/settings/components/rules/AgreementsPanel.jsx) | **Super Admin only:** publish a new content-addressed (`c-…`) wording version for one agreement |
 | `revertCompanyAgreementWording` | [`AgreementsPanel.jsx`](../src/features/settings/components/rules/AgreementsPanel.jsx) | **Super Admin only:** return an agreement to the platform wording (published versions stay on record) |
 | `pauseBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Pause campaign |
+| `recordManualVerificationResult` | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) | PEV "Upload Result": records a result the team uploaded to `pev_results/` on the employer row (by identity) and completes that employer's live request, so reminders stop and day 30 leaves it Completed |
 | `removePhoneLine` | [`useRemovePhoneLine.js`](../src/features/super-admin/components/integrations/useRemovePhoneLine.js) | Remove SMS line (Super Admin wallet and company SMS settings) |
 | `resumeBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Resume campaign |
 | `retryFailedAttempts` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx), [`DetailedReportModal.jsx`](../src/features/campaigns/components/DetailedReportModal.jsx) | Retry failed bulk sends |

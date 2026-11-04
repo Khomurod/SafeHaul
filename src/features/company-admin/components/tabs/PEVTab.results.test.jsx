@@ -126,10 +126,17 @@ describe('PEVTab copy link', () => {
 });
 
 describe('PEVTab result upload', () => {
-  it('uploads to the frozen storage path and records the result', async () => {
+  const UPLOADED = 'companies/co-1/applications/app-1/pev_results/1700000000000_result.pdf';
+
+  it('uploads to the frozen storage path and has the server record it, completing the request', async () => {
     storageMocks.uploadBytes.mockResolvedValue(undefined);
-    storageMocks.getDownloadURL.mockResolvedValue('https://files.test/uploaded.pdf');
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
+    const recorded = {
+      status: 'Completed',
+      resultUrl: UPLOADED,
+      history: [{ action: 'Result Uploaded', fileName: 'result.pdf', url: UPLOADED, timestamp: '2026-07-03T10:00:00.000Z' }],
+    };
+    fnMocks.callable.mockResolvedValue({ data: { success: true, verification: recorded } });
 
     const { container } = renderTab();
     fireEvent.click(screen.getByRole('button', { name: /Upload Result/i }));
@@ -138,22 +145,39 @@ describe('PEVTab result upload', () => {
     const file = new File(['x'], 'result.pdf', { type: 'application/pdf' });
     fireEvent.change(input, { target: { files: [file] } });
 
-    await waitFor(() => expect(storageMocks.uploadBytes).toHaveBeenCalled());
-    expect(storageMocks.uploadBytes.mock.calls[0][0]).toBe(
-      'companies/co-1/applications/app-1/pev_results/1700000000000_result.pdf',
-    );
-
-    await waitFor(() => expect(fsMocks.updateDoc).toHaveBeenCalled());
-    const written = fsMocks.updateDoc.mock.calls[0][1].employers[1].verification;
-    expect(written.status).toBe('Completed');
-    expect(written.resultUrl).toBe('https://files.test/uploaded.pdf');
-    expect(written.history.at(-1)).toMatchObject({
-      action: 'Result Uploaded',
+    await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith('Verification result uploaded successfully.'));
+    expect(storageMocks.uploadBytes.mock.calls[0][0]).toBe(UPLOADED);
+    expect(fnMocks.httpsCallable).toHaveBeenCalledWith(expect.anything(), 'recordManualVerificationResult');
+    expect(fnMocks.callable).toHaveBeenCalledWith({
+      companyId: 'co-1',
+      applicationId: 'app-1',
+      collectionName: 'applications',
+      storagePath: UPLOADED,
       fileName: 'result.pdf',
-      url: 'https://files.test/uploaded.pdf',
+      employerIndex: 1,
+      employerId: null,
+      employerName: 'Legacy Hauling',
     });
-    expect(toastMocks.showSuccess).toHaveBeenCalledWith('Verification result uploaded successfully.');
+    // The team cannot write the request, so the browser writes neither it nor the row.
+    expect(fsMocks.updateDoc).not.toHaveBeenCalled();
+    expect(storageMocks.getDownloadURL).not.toHaveBeenCalled();
+    // The row shows what the server recorded: its result, and no upload any more.
+    expect(await screen.findByRole('button', { name: /View Result/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Upload Result/i })).toBeNull();
     Date.now.mockRestore();
+  });
+
+  it('reports a result the server could not record', async () => {
+    storageMocks.uploadBytes.mockResolvedValue(undefined);
+    fnMocks.callable.mockRejectedValue(Object.assign(new Error('gone'), { code: 'functions/not-found' }));
+    const { container } = renderTab();
+    fireEvent.click(screen.getByRole('button', { name: /Upload Result/i }));
+    fireEvent.change(container.querySelector('input[type="file"]'), {
+      target: { files: [new File(['x'], 'r.pdf', { type: 'application/pdf' })] },
+    });
+
+    await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith('Failed to upload verification result.'));
+    expect(toastMocks.showSuccess).not.toHaveBeenCalled();
   });
 
   it('accepts pdf and image files only', () => {

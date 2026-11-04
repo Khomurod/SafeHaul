@@ -2,15 +2,21 @@
  * PEV — scheduled reminders.
  * Every 24h: sends 5/15/20-day reminder emails and, at 30 days, documents the
  * good-faith effort by marking no_response and notifying the carrier.
+ *
+ * Only live requests take part (./requestLifecycle.js): one whose first email
+ * failed, that a newer request replaced, or whose result is in is never
+ * reminded or marked. Each status write moves only a request that is still
+ * live, so an answer that lands while a reminder is being sent stays completed.
  */
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db } = require("../firebaseAdmin");
-const { resolveEmployerTarget } = require("../shared/employerIdentity");
 const { logger } = require("firebase-functions");
 const {
     sendReminderEmail,
     notifyCarrierNoResponse,
 } = require("./notifications");
+const { LIVE_STATUSES, updateWhileStatus } = require("./requestLifecycle");
+const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
 
 // ============================================================
 // 5. AUTOMATED REMINDERS (Scheduled — runs every 24 hours)
@@ -22,7 +28,7 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
     try {
         // Query all non-completed verification requests
         const snapshot = await db.collection('verification_requests')
-            .where('status', 'in', ['sent', 'opened', 'reminder_sent'])
+            .where('status', 'in', LIVE_STATUSES)
             .get();
 
         if (snapshot.empty) {
@@ -61,32 +67,33 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
             try {
                 if (daysSinceSent >= 30) {
                     // Mark as no_response — document good-faith effort
-                    await doc.ref.update({
+                    const marked = await updateWhileStatus(doc.ref, LIVE_STATUSES, {
                         status: 'no_response',
                         markedNoResponseAt: admin.firestore.FieldValue.serverTimestamp(),
                     });
+                    if (!marked) continue;
 
-                    // Update application record
-                    await updateApplicationVerificationStatus(v, 'No Response (Good Faith Documented)');
+                    // Update application record; a result already on the row stays.
+                    const mirrored = await updateApplicationVerificationStatus(v, 'No Response (Good Faith Documented)');
 
-                    // Notify carrier
-                    await notifyCarrierNoResponse(v);
+                    // Notify carrier, unless the row holds the result
+                    if (mirrored !== 'kept_completed') await notifyCarrierNoResponse(v);
 
                     marked30Day++;
                     continue;
                 }
 
-                if (daysSinceSent >= 20 && v.reminderCount < 3 && v.employerEmail) {
-                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, 'final_notice', v.applicantName, v.requestPdfPath);
-                    await doc.ref.update({ reminderCount: 3, lastReminderAt: admin.firestore.FieldValue.serverTimestamp(), status: 'reminder_sent' });
-                    remindersProcessed++;
-                } else if (daysSinceSent >= 15 && v.reminderCount < 2 && v.employerEmail) {
-                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, 'second_reminder', v.applicantName, v.requestPdfPath);
-                    await doc.ref.update({ reminderCount: 2, lastReminderAt: admin.firestore.FieldValue.serverTimestamp(), status: 'reminder_sent' });
-                    remindersProcessed++;
-                } else if (daysSinceSent >= 5 && v.reminderCount < 1 && v.employerEmail) {
-                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, 'first_reminder', v.applicantName, v.requestPdfPath);
-                    await doc.ref.update({ reminderCount: 1, lastReminderAt: admin.firestore.FieldValue.serverTimestamp(), status: 'reminder_sent' });
+                const reminder = daysSinceSent >= 20 && v.reminderCount < 3 ? { type: 'final_notice', count: 3 }
+                    : daysSinceSent >= 15 && v.reminderCount < 2 ? { type: 'second_reminder', count: 2 }
+                        : daysSinceSent >= 5 && v.reminderCount < 1 ? { type: 'first_reminder', count: 1 }
+                            : null;
+                if (reminder && v.employerEmail) {
+                    await sendReminderEmail(v.companyId, v.employerEmail, emailParams, reminder.type, v.applicantName, v.requestPdfPath);
+                    await updateWhileStatus(doc.ref, LIVE_STATUSES, {
+                        reminderCount: reminder.count,
+                        lastReminderAt: admin.firestore.FieldValue.serverTimestamp(),
+                        status: 'reminder_sent',
+                    });
                     remindersProcessed++;
                 }
             } catch (reminderError) {
@@ -105,46 +112,35 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
 // ============================================================
 // HELPER: Update application verification status
 // ============================================================
+/**
+ * Mirrors a status onto the request's employer row, by identity — see
+ * `shared/employerIdentity.js`. A row that already reads "Completed" keeps it:
+ * its result came in another way (an upload, or a request this one predates).
+ *
+ * @returns {Promise<'mirrored'|'kept_completed'|'not_found'|'failed'>}
+ */
 async function updateApplicationVerificationStatus(verificationData, statusText) {
     try {
-        const appRef = db.collection('companies')
-            .doc(verificationData.companyId)
-            .collection(verificationData.collectionName || 'applications')
-            .doc(verificationData.applicationId);
-
-        const appSnap = await appRef.get();
-        if (!appSnap.exists) return;
-
-        const appData = appSnap.data();
-        const employers = [...(appData.employers || [])];
-        // By identity, never by position — see `responses.js` and
-        // `shared/employerIdentity.js`. A reminder that cannot find its employer
-        // says so and mirrors nothing; the request document still records the
-        // reminder itself, which is what the cycle actually runs on.
-        const target = resolveEmployerTarget(employers, verificationData);
-        if (!target) {
+        const mirrored = await mirrorOntoEmployer(recordRefOf(verificationData), verificationData, (verification) => {
+            if (verification.status === 'Completed') return false;
+            verification.status = statusText;
+            verification.history.push({
+                action: statusText,
+                timestamp: new Date().toISOString(),
+            });
+        });
+        if (!mirrored) {
+            // The request document still records the mark itself, which is what
+            // the cycle actually runs on.
             logger.warn(
                 `[PEV] Reminder for ${verificationData.token || 'a request'} could not be matched `
                 + 'to an employer; the status was not mirrored onto the application.',
             );
-            return;
+            return 'not_found';
         }
-        const idx = target.index;
-
-        if (employers[idx]) {
-            if (!employers[idx].verification) {
-                employers[idx].verification = { history: [] };
-            }
-            employers[idx].verification.status = statusText;
-            employers[idx].verification.history = employers[idx].verification.history || [];
-            employers[idx].verification.history.push({
-                action: statusText,
-                timestamp: new Date().toISOString(),
-            });
-
-            await appRef.update({ employers });
-        }
+        return mirrored.written ? 'mirrored' : 'kept_completed';
     } catch (e) {
         logger.error('[PEV] Failed to update app verification status:', e.message);
+        return 'failed';
     }
 }

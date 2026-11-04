@@ -10,7 +10,7 @@ import { PEVRequestModal } from '../modals/PEVRequestModal';
 import { db, functions } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
 import { Card, MetricCard } from '@/design-system/components';
@@ -39,7 +39,8 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
  * `http(s)`-opens-directly rule; every `window.open(url, '_blank',
  * 'noopener,noreferrer')` call; the clipboard write; the
  * `companies/{companyId}/{collectionName}/{applicationId}/pev_results/{Date.now()}_{name}`
- * Storage path and the `.pdf,image/*` accept list; the `'email' | 'fax' |
+ * Storage path (the file is then recorded by `recordManualVerificationResult`,
+ * which completes the employer's request) and the `.pdf,image/*` accept list; the `'email' | 'fax' |
  * 'manual'` delivery values and their `Email | Fax | Manual` labels; the
  * `'Manual Download'` recipient fallback; and every toast string.
  *
@@ -136,8 +137,8 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
 
     /**
      * Opens a PEV result file. Handles both:
-     *  - Cloud Storage paths (from portal submissions) → calls getSignedPevUrl for a fresh signed URL
-     *  - Full URLs (from manual uploads via getDownloadURL) → opens directly
+     *  - Cloud Storage paths (portal answers and uploaded results) → calls getSignedPevUrl for a fresh signed URL
+     *  - Full URLs (results uploaded before the server recorded them) → opens directly
      */
     const handleViewResult = useCallback(async (urlOrPath, index = null) => {
         if (!urlOrPath) return;
@@ -290,32 +291,19 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
         setUploadingResult(true);
         try {
             const storagePath = `companies/${companyId}/${collectionName}/${applicationId}/pev_results/${Date.now()}_${file.name}`;
-            const fileRefObj = ref(storage, storagePath);
-            await uploadBytes(fileRefObj, file);
-            const downloadUrl = await getDownloadURL(fileRefObj);
+            await uploadBytes(ref(storage, storagePath), file);
 
-            // Update DB, against what is stored rather than a stale snapshot.
-            const written = await writeVerification({
-                employerId: employers[index]?.employerId,
-                index,
-                apply: (verification) => {
-                    verification.status = 'Completed';
-                    verification.resultUrl = downloadUrl;
-                    verification.history = [...(verification.history || []), {
-                        action: 'Result Uploaded',
-                        fileName: file.name,
-                        url: downloadUrl,
-                        timestamp: new Date().toISOString(),
-                    }];
-                },
+            // The server records it: the row and the employer's request are completed,
+            // so its reminders stop (the team cannot write the request).
+            const employer = employers[index] || {};
+            const recordResult = httpsCallable(functions, 'recordManualVerificationResult');
+            const result = await recordResult({
+                companyId, applicationId, collectionName, storagePath, fileName: file.name,
+                employerIndex: index, employerId: employer.employerId || null,
+                employerName: employer.companyName || employer.name || '',
             });
-
-            if (written) {
-                setLocalOverrides(prev => ({
-                    ...prev,
-                    [index]: written,
-                }));
-            }
+            const written = result.data?.verification;
+            if (written) setLocalOverrides(prev => ({ ...prev, [index]: written }));
 
             showSuccess('Verification result uploaded successfully.');
         } catch (error) {

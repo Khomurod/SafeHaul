@@ -36,6 +36,33 @@ const savedStoragePaths = [];
 const dqFileDocs = new Map();
 /** `<company>/<collection>/<record>/submission/<id>` -> a stored submission record. */
 const submissionDocs = new Map();
+/** `<company>/<id>` -> a bell notification. */
+const notificationDocs = new Map();
+/** Storage objects a client uploaded (the server's own saves are `savedStoragePaths`). */
+const uploadedObjects = new Set();
+
+/** Firestore's ALREADY_EXISTS, as `create()` throws it. */
+function alreadyExists() {
+  const error = new Error('6 ALREADY_EXISTS: Document already exists');
+  error.code = 6;
+  return error;
+}
+
+/** The documents a query over `verification_requests` answers: equality and `in` filters. */
+function verificationQuery(filters = []) {
+  const matches = (data) => filters.every(([field, op, value]) => (
+    op === 'in' ? value.includes(data[field]) : data[field] === value
+  ));
+  return {
+    where: jest.fn((field, op, value) => verificationQuery([...filters, [field, op, value]])),
+    get: jest.fn(async () => {
+      const docs = [...verificationDocs]
+        .filter(([, data]) => matches(data))
+        .map(([token, data]) => ({ id: token, data: () => data, ref: verificationDocRef(token) }));
+      return { empty: docs.length === 0, docs };
+    }),
+  };
+}
 
 const createTs = (ms = Date.now()) => ({
   toMillis: () => ms,
@@ -134,7 +161,7 @@ const mockDb = {
     if (name === 'verification_requests') {
       return {
         doc: jest.fn((token) => verificationDocRef(token)),
-        where: jest.fn(() => ({ get: jest.fn(async () => ({ empty: true, docs: [] })) })),
+        where: jest.fn((field, op, value) => verificationQuery([[field, op, value]])),
       };
     }
 
@@ -145,7 +172,15 @@ const mockDb = {
             exists: companyDocs.has(companyId),
             data: () => companyDocs.get(companyId),
           })),
-          collection: jest.fn((subcollection) => ({
+          collection: jest.fn((subcollection) => (subcollection === 'notifications' ? {
+            doc: jest.fn((id) => ({
+              id,
+              create: jest.fn(async (data) => {
+                if (notificationDocs.has(`${companyId}/${id}`)) throw alreadyExists();
+                notificationDocs.set(`${companyId}/${id}`, { ...data });
+              }),
+            })),
+          } : {
             doc: jest.fn((applicationId) => {
               const key = appKey(companyId, subcollection, applicationId);
               return {
@@ -174,6 +209,12 @@ const mockDb = {
                     set: jest.fn(async (data) => {
                       if (name === 'dq_files' && dqFilingFailure) { dqFilingFailure = false; throw new Error('dq_files unavailable'); }
                       if (name === 'dq_files') dqFileDocs.set(`${key}/${id}`, { ...data });
+                    }),
+                    create: jest.fn(async (data) => {
+                      if (name === 'dq_files' && dqFilingFailure) { dqFilingFailure = false; throw new Error('dq_files unavailable'); }
+                      if (name !== 'dq_files') return;
+                      if (dqFileDocs.has(`${key}/${id}`)) throw alreadyExists();
+                      dqFileDocs.set(`${key}/${id}`, { ...data });
                     }),
                   })),
                 })),
@@ -331,6 +372,7 @@ const firebaseAdminMock = () => ({
           savedStoragePaths.push(path);
         }),
         download: jest.fn(async () => [Buffer.from('')]),
+        exists: jest.fn(async () => [savedStoragePaths.includes(path) || uploadedObjects.has(path)]),
       })),
     })),
   },
@@ -352,6 +394,8 @@ function resetPevState() {
   dqFilingFailure = false;
   submissionDocs.clear();
   submissionReadFailure = false;
+  notificationDocs.clear();
+  uploadedObjects.clear();
   mockSendDynamicEmail.mockResolvedValue({ success: true });
   mockCheckRateLimit.mockResolvedValue(true);
   mockAssertCompanyAccessForRequest.mockResolvedValue(undefined);
@@ -372,6 +416,8 @@ module.exports = {
   savedStoragePaths,
   dqFileDocs,
   submissionDocs,
+  notificationDocs,
+  uploadedObjects,
   failNextSubmissionRead,
   verificationDocs,
   mockAssertCompanyAccessForRequest,

@@ -7,6 +7,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("../firebaseAdmin");
 const { checkRateLimit } = require("../shared/rateLimiter");
 const { logger } = require("firebase-functions");
+const { SUPERSEDED_MESSAGE } = require("./requestLifecycle");
 
 // ============================================================
 // 2. GET VERIFICATION (Public endpoint — token-based access)
@@ -33,6 +34,9 @@ exports.getVerificationRequest = onCall({ cors: true }, async (request) => {
         if (data.expiresAt && data.expiresAt.toMillis() < Date.now()) {
             throw new HttpsError('deadline-exceeded', 'This verification request has expired. Please contact the requesting company.');
         }
+
+        // A newer request for this employer replaced it (./requestLifecycle.js).
+        if (data.status === 'superseded') throw new HttpsError('not-found', SUPERSEDED_MESSAGE);
 
         // Check if already completed
         if (data.status === 'completed') {
