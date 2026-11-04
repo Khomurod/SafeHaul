@@ -73,18 +73,6 @@ export const DATA_CLEANUP_ITEMS = Object.freeze([
         leftAlone: [],
     },
     {
-        id: 'dqExpiry',
-        title: 'DQ valid-until dates',
-        description: 'Writes on each application and lead the earliest valid-until date in its DQ file, which the '
-            + 'dashboard’s Needs attention reads, where it is missing or out of date. A DQ file changed since this '
-            + 'release already has it. The DQ records themselves are not changed.',
-        counts: {
-            applications: 'Applications to update',
-            leads: 'Leads to update',
-        },
-        leftAlone: [],
-    },
-    {
         id: 'smtpCopies',
         title: 'Old SMTP password copies',
         description: 'Stores each company’s email password encrypted where email is sent from, then deletes '
@@ -98,5 +86,17 @@ export const DATA_CLEANUP_ITEMS = Object.freeze([
             unverifiable: 'Left alone: could not verify',
         },
         leftAlone: ['unverifiable'],
+    },
+    {
+        id: 'dqExpiry',
+        title: 'DQ valid-until dates',
+        description: 'Writes on each application and lead the earliest valid-until date in its DQ file, which the '
+            + 'dashboard’s Needs attention reads, where it is missing or out of date. A DQ file changed since this '
+            + 'release already has it. The DQ records themselves are not changed.',
+        counts: {
+            applications: 'Applications to update',
+            leads: 'Leads to update',
+        },
+        leftAlone: [],
     },
 ]);
