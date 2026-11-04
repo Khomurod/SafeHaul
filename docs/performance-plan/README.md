@@ -69,10 +69,10 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [x] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
    - [x] **T3 PR 2** · Заглушка страницы заявки водителя · *Driver apply-page placeholder* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
 4. **Лимиты времени для внешних сервисов / Timeouts for external calls (#12)**
-   - [x] **T4.1** · RingCentral: лимит 20 секунд, без повторной отправки SMS · *RingCentral 20-second limit, no resend* → [T4.1](T4.1-ringcentral-timeout.md) · PR: пакет C · Дата: 2026-11-04
-   - [x] **T4.2** · Кампании: «возможно отправлено», без авто-повтора · *Campaigns safe when the SMS provider does not answer* → [T4.2](T4.2-campaign-send-unconfirmed.md) · PR: пакет C · Дата: 2026-11-04
-   - [x] **T4.3** · Лимиты для 8x8 SMS и Facebook · *Time limits for 8x8 SMS and Facebook Graph* → [T4.3](T4.3-8x8-facebook-timeouts.md) · PR: пакет C · Дата: 2026-11-04
-   - [x] **T4.4** · Лимит 15 секунд для чтений GitHub в Releases · *15-second limit on GitHub reads behind Releases* → [T4.4](T4.4-github-release-timeouts.md) · PR: пакет C · Дата: 2026-11-04
+   - [x] **T4.1** · RingCentral: лимит 20 секунд, без повторной отправки SMS · *RingCentral 20-second limit, no resend* → [T4.1](T4.1-ringcentral-timeout.md) · PR: #559 · Дата: 2026-11-04
+   - [x] **T4.2** · Кампании: «возможно отправлено», без авто-повтора · *Campaigns safe when the SMS provider does not answer* → [T4.2](T4.2-campaign-send-unconfirmed.md) · PR: #559 · Дата: 2026-11-04
+   - [x] **T4.3** · Лимиты для 8x8 SMS и Facebook · *Time limits for 8x8 SMS and Facebook Graph* → [T4.3](T4.3-8x8-facebook-timeouts.md) · PR: #559 · Дата: 2026-11-04
+   - [x] **T4.4** · Лимит 15 секунд для чтений GitHub в Releases · *15-second limit on GitHub reads behind Releases* → [T4.4](T4.4-github-release-timeouts.md) · PR: #559 · Дата: 2026-11-04
    - [x] **T4.5** · Импорт Google Sheet и скачивание PDF не крутятся вечно · *Sheet import and envelope PDF download stop spinning forever* → [T4.5](T4.5-browser-fetch-timeouts.md) · PR: #557 · Дата: 2026-11-03
 5. **Скорость у реальных пользователей / Real-user speed monitoring (#30)**
    - [ ] **T5** · Вариант A: Firebase Performance Monitoring · *Option A: Firebase Performance Monitoring* → [T5](T5-firebase-performance.md) · PR: — · Дата: —
@@ -85,13 +85,13 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
 Each can be done on its own, or when someone next changes that part of the app.
 
 - **Лишние и последовательные запросы / Duplicate calls, N+1, parallel requests (#3, #8, #16)**
-  - [x] **M1a** · Кэш команды: имена по общему правилу, одно чтение · *Team cache: shared naming rule, one read* → [M1a](M1a-team-cache-names.md) · PR: пакет C · Дата: 2026-11-04
-  - [x] **M1b** · Assign Leads и Import Leads: команда одним запросом · *Assign/Import Leads read the team in one request* → [M1b](M1b-assign-import-team-read.md) · PR: пакет C · Дата: 2026-11-04
-  - [x] **M1c** · Настройки команды: все дневные цели одним запросом · *Team settings: every daily goal in one request* → [M1c](M1c-team-goals-read.md) · PR: пакет C · Дата: 2026-11-04
+  - [x] **M1a** · Кэш команды: имена по общему правилу, одно чтение · *Team cache: shared naming rule, one read* → [M1a](M1a-team-cache-names.md) · PR: #559 · Дата: 2026-11-04
+  - [x] **M1b** · Assign Leads и Import Leads: команда одним запросом · *Assign/Import Leads read the team in one request* → [M1b](M1b-assign-import-team-read.md) · PR: #559 · Дата: 2026-11-04
+  - [x] **M1c** · Настройки команды: все дневные цели одним запросом · *Team settings: every daily goal in one request* → [M1c](M1c-team-goals-read.md) · PR: #559 · Дата: 2026-11-04
   - [x] **M2a** · Заметки в досье: история из уже загруженной записи · *Dossier Notes reuse the loaded record* → [M2a](M2a-notes-shared-history.md) · PR: #557 · Дата: 2026-11-03
   - [x] **M2b** · Файлы досье: подписанная ссылка живёт 10 минут · *Dossier files reuse a signed link for ten minutes* → [M2b](M2b-signed-link-reuse.md) · PR: #557 · Дата: 2026-11-03
-  - [x] **M3a** · Комната подписи: независимые шаги сервера параллельно · *Signing room: independent server steps in parallel* → [M3a](M3a-signing-room-parallel.md) · PR: пакет C · Дата: 2026-11-04
-  - [x] **M3b** · Запуск кампании: проверки параллельно · *Campaign launch checks in parallel* → [M3b](M3b-campaign-launch-parallel.md) · PR: пакет C · Дата: 2026-11-04
+  - [x] **M3a** · Комната подписи: независимые шаги сервера параллельно · *Signing room: independent server steps in parallel* → [M3a](M3a-signing-room-parallel.md) · PR: #559 · Дата: 2026-11-04
+  - [x] **M3b** · Запуск кампании: проверки параллельно · *Campaign launch checks in parallel* → [M3b](M3b-campaign-launch-parallel.md) · PR: #559 · Дата: 2026-11-04
   - [x] **M-SA** · Поиск Super Admin: показывать только самый свежий ответ · *Super Admin search shows only the newest answer* → [M-SA](M-SA-super-admin-search.md) · PR: #557 · Дата: 2026-11-03
 - **Меньше данных в списке заявок / Select only the columns you need (#24)**: после T1
   - [x] **M4-1** · Поиск по имени с двух букв · *Two-letter minimum for name search* → [M4](M4-applications-list-payload.md) · PR: #557 · Дата: 2026-11-03
