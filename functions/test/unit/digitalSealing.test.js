@@ -22,6 +22,7 @@ const mockUpdate = jest.fn().mockResolvedValue(undefined);
 const mockUpload = jest.fn().mockResolvedValue(undefined);
 const mockDownload = jest.fn();
 const mockFileDelete = jest.fn().mockResolvedValue(undefined);
+const mockLiveGet = jest.fn(async () => ({ exists: true, data: () => ({ status: 'pending_seal' }) }));
 
 jest.mock('../../firebaseAdmin', () => ({
   admin: {
@@ -66,6 +67,7 @@ describe('sealDocument trigger', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUpdate.mockResolvedValue(undefined);
+    mockLiveGet.mockImplementation(async () => ({ exists: true, data: () => ({ status: 'pending_seal' }) }));
   });
 
   it('seals a document with text field values and marks request signed', async () => {
@@ -98,7 +100,7 @@ describe('sealDocument trigger', () => {
           ],
           fieldValues: { name: 'Jane Doe' },
         }),
-        ref: { update: mockUpdate },
+        ref: { update: mockUpdate, get: mockLiveGet },
       },
     };
 
@@ -124,7 +126,7 @@ describe('sealDocument trigger', () => {
       before: { data: () => ({ status: 'sent' }) },
       after: {
         data: () => ({ status: 'sent' }),
-        ref: { update: mockUpdate },
+        ref: { update: mockUpdate, get: mockLiveGet },
       },
     };
     await sealHandler(change, { params: { companyId: 'co1', requestId: 'req2' } });
@@ -168,7 +170,7 @@ describe('sealDocument with text a standard font cannot encode', () => {
             storagePath: 'secure_documents/co1/templates/offer.pdf',
             ...data,
           }),
-          ref: { update: mockUpdate },
+          ref: { update: mockUpdate, get: mockLiveGet },
         },
       }, { params: { companyId: 'co1', requestId } });
     } finally {
@@ -208,5 +210,35 @@ describe('sealDocument with text a standard font cannot encode', () => {
 
     expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: 'signed' }));
     expect(drawn).toContain('Line one\nLine two');
+  });
+});
+
+// A trigger may be delivered again after the document was sealed (Firestore
+// delivers at least once). The signer's images are gone by then, so a second
+// run used to mark the signed document as failed.
+describe('sealDocument delivered again after the document moved on', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUpdate.mockResolvedValue(undefined);
+  });
+
+  it.each(['signed', 'error_sealing', 'voided'])('changes nothing once the document is %s', async (liveStatus) => {
+    mockLiveGet.mockImplementation(async () => ({ exists: true, data: () => ({ status: liveStatus }) }));
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await sealHandler({
+        before: { data: () => ({ status: 'sent' }) },
+        after: {
+          data: () => ({ status: 'pending_seal', storagePath: 'secure_documents/co1/templates/offer.pdf', fields: [] }),
+          ref: { update: mockUpdate, get: mockLiveGet },
+        },
+      }, { params: { companyId: 'co1', requestId: 'req-again' } });
+    } finally {
+      log.mockRestore();
+    }
+    expect(mockDownload).not.toHaveBeenCalled();
+    expect(mockUpload).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockFileDelete).not.toHaveBeenCalled();
   });
 });

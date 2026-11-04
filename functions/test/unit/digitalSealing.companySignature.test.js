@@ -75,7 +75,7 @@ async function seal({ fields, fieldValues = { sig1: SIGNER_IMAGE } }) {
                 fields,
                 fieldValues,
             }),
-            ref: { update: async (patch) => { patches.push(patch); } },
+            ref: { update: async (patch) => { patches.push(patch); }, get: async () => ({ exists: true, data: () => ({ status: 'pending_seal' }) }) },
         },
     }, { params: { companyId: 'co1', requestId: 'req-cs' } });
     return patches;

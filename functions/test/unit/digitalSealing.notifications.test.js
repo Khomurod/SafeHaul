@@ -76,7 +76,7 @@ async function seal(request, requestId = 'req-1') {
         before: { data: () => ({ status: 'sent' }) },
         after: {
             data: () => ({ status: 'pending_seal', storagePath: TEMPLATE_PATH, ...request }),
-            ref: { update: async (patch) => { patches.push(patch); } },
+            ref: { update: async (patch) => { patches.push(patch); }, get: async () => ({ exists: true, data: () => ({ status: 'pending_seal' }) }) },
         },
     }, { params: { companyId: 'co1', requestId } });
 }

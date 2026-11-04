@@ -70,6 +70,12 @@ async function drawCompanySignature(bucket, companyId, pdfDoc, field) {
     }
 }
 
+/** Whether the signing request, as stored now, still waits to be sealed. */
+async function stillAwaitingSeal(ref) {
+    const live = await ref.get();
+    return live.exists && live.data()?.status === 'pending_seal';
+}
+
 exports.sealDocument = functions.runWith({
     memory: '1GB',
     timeoutSeconds: 300
@@ -81,6 +87,15 @@ exports.sealDocument = functions.runWith({
 
         // 1. Only run if status changed to 'pending_seal'
         if (newData.status !== 'pending_seal' || previousData.status === 'pending_seal') {
+            return null;
+        }
+
+        // A trigger can be delivered again after the document was sealed. The
+        // signer's images are deleted once it is sealed, so a second run would
+        // find them missing and mark a signed document as failed: seal only
+        // while the document itself still waits for it.
+        if (!(await stillAwaitingSeal(change.after.ref))) {
+            console.log(`[sealDocument] ${context.params.requestId} no longer awaits sealing; this delivery changes nothing.`);
             return null;
         }
 
