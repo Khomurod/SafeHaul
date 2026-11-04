@@ -397,7 +397,7 @@ describe('connectFacebookPage page claim', () => {
         ]);
     });
 
-    it('keeps the claim pending until the page subscription has succeeded', async () => {
+    it('keeps the claim pending, with the page token, until the page subscription has succeeded', async () => {
         // The finished binding is written only once Facebook has subscribed the
         // page; until then a failure can still be rolled back.
         let storedDuringSubscribe;
@@ -408,8 +408,13 @@ describe('connectFacebookPage page claim', () => {
 
         await call({ roles: { [COMPANY]: 'company_admin' } });
 
-        expect(storedDuringSubscribe).toMatchObject({ companyId: COMPANY, claimPending: true });
-        expect(storedDuringSubscribe.accessToken).toBeUndefined();
+        // The page token is already stored under the pending claim, so a lead
+        // Meta sends while the subscription is answered is not dropped.
+        expect(storedDuringSubscribe).toMatchObject({
+            companyId: COMPANY,
+            claimPending: true,
+            accessToken: 'artificial-page-token',
+        });
         expect(mockStore.get('integrations_index/artificial-page-id')).toMatchObject({
             companyId: COMPANY,
             accessToken: 'artificial-page-token',

@@ -218,6 +218,9 @@ exports.connectFacebookPage = onCall(
             // POST /{page-id}/subscribed_apps
             // Before the claim is completed, so a failed or timed-out subscription
             // still finds the claim pending and the catch below can roll it back.
+            // The page token goes under the pending claim first: a lead Meta sends
+            // while the subscription is answered is then fetched, not dropped.
+            await indexRef.set({ accessToken: pageAccessToken }, { merge: true });
             await axios.post(`https://graph.facebook.com/v19.0/${pageId}/subscribed_apps`, null, {
                 params: {
                     subscribed_fields: 'leadgen',
