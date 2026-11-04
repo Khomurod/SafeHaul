@@ -36,9 +36,30 @@ describe('sendResultOf', () => {
         });
     });
 
+    it('says May have been sent, as a warning with its reason as a note, for a text the SMS provider never answered', () => {
+        const log = {
+            status: 'failed',
+            isSuccess: false,
+            sendUnconfirmed: true,
+            error: 'RingCentral did not answer within 20 seconds, so SafeHaul cannot tell whether this text went out. It was not sent again.',
+        };
+        expect(sendResultOf(log)).toEqual({
+            sent: false,
+            label: 'May have been sent',
+            tone: 'warning',
+            reason: null,
+            note: 'RingCentral did not answer within 20 seconds, so SafeHaul cannot tell whether this text went out. It was not sent again.',
+        });
+        expect(sendResultOf({ status: 'failed', isSuccess: false, sendUnconfirmed: true })).toMatchObject({
+            label: 'May have been sent',
+            reason: null,
+            note: 'The SMS provider did not answer, so this text may have gone out.',
+        });
+    });
+
     it('keeps Not sent for a send that failed outright', () => {
         expect(sendResultOf({ status: 'failed', isSuccess: false, error: 'No valid phone number' }))
-            .toMatchObject({ sent: false, label: 'Not sent', reason: 'No valid phone number' });
+            .toMatchObject({ sent: false, label: 'Not sent', tone: 'danger', reason: 'No valid phone number', note: null });
         expect(sendResultOf({ status: 'failed' }).reason).toBe('No reason was recorded');
     });
 });

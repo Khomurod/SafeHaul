@@ -1062,20 +1062,20 @@ The submit trigger records each event once in `processing_status` (30-day
 ### Bulk campaigns
 
 A launch or retry sends at most **2,000** (`launchLimit.js`), refused before
-writing. A worker sends **50 per batch**, re-checking the session: a cancel
-stops at once. One rule (`recentlyMessaged.js`) leaves out of count, preview
+writing. A worker sends **50 per batch**, re-checking the session: a cancel stops at once, and a batch starts no
+send after 4.5 min (the next carries on). One rule (`recentlyMessaged.js`) leaves out of count, preview
 and launch whom a same-channel campaign reached (its ledger; a call is not a
 message): **7 days** by default for uploads, none for CRM. Limit Volume
 keeps the newest N. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
 and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
 closed on a bad number) and every email with a usable one; no reply fills them (§12).
-An SMS logs as sent once RingCentral accepts it; a check (also
-`checkCampaignDelivery`) reads the line's message store (Read Messages) by id,
-else number and time, and fails an undelivered text (reason, totals).
-The recipient log and the Delivery Report read 200 logs at a time, newest first,
-and say how many exist (a server count); Retry Failed is offered when any log
-failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
+An SMS logs as sent once RingCentral accepts it; a check (also `checkCampaignDelivery`) reads the line's message
+store (Read Messages) by id, else number and time, and fails an undelivered text (reason, totals). A text the
+provider never answered logs `sendUnconfirmed` ("May have been sent"): Retry Failed leaves it out; three with
+no sent text between them, also across batches, pause the campaign. The recipient log and the Delivery Report
+read 200 logs at a time, newest first, and say how many exist (a server count); Retry Failed is offered when any
+log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 
 ---
 

@@ -366,7 +366,9 @@ describe('initBulkSession launch limit', () => {
 // A retry is a launch too: it messages a session's failed recipients again.
 describe('retryFailedAttempts launch limit', () => {
     let failedLogs = [];
-    const failed = (count) => Array.from({ length: count }, (_, i) => ({ id: `lead${i}` }));
+    const failed = (count) => Array.from({ length: count }, (_, i) => ({ id: `lead${i}`, data: () => ({ status: 'failed' }) }));
+    // A text the SMS provider never answered: it may have reached the driver.
+    const mayHaveArrived = (id) => ({ id, data: () => ({ status: 'failed', sendUnconfirmed: true }) });
     const retry = () => sessionController.retryFailedAttempts({
         auth: { uid: 'u1' },
         data: { companyId: 'co1', originalSessionId: 'session-0' },
@@ -374,6 +376,7 @@ describe('retryFailedAttempts launch limit', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        mockBatchWrites.length = 0;
         mockSessionRef.get = jest.fn(async () => ({
             exists: true,
             data: () => ({ name: 'Spring drive', config: { method: 'sms', message: 'Hello there' }, targetIds: [] }),
@@ -398,6 +401,38 @@ describe('retryFailedAttempts launch limit', () => {
         expect(writtenTargets()).toHaveLength(2000);
         expect(mockSessionSet.mock.calls[0][0]).not.toHaveProperty('targetIds');
         expect(mockEnqueueWorker).toHaveBeenCalled();
+    });
+
+    it('leaves out a text the SMS provider may already have delivered', async () => {
+        failedLogs = [mayHaveArrived('leadA'), ...failed(1)];
+
+        const result = await retry();
+
+        expect(result).toMatchObject({ success: true, targetCount: 1 });
+        expect(writtenTargets()).toEqual(['lead0']);
+        expect(mockSessionSet.mock.calls[0][0].progress).toMatchObject({ totalCount: 1, currentPointer: 0 });
+        expect(mockEnqueueWorker).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries nothing, and says why, when every failed text may already have reached the driver', async () => {
+        failedLogs = [mayHaveArrived('leadA'), mayHaveArrived('leadB')];
+
+        const result = await retry();
+
+        expect(result).toEqual({
+            success: false,
+            message: 'Nothing to retry: the 2 failed text(s) may already have reached the driver, so they are not sent again.',
+        });
+        expect(mockSessionSet).not.toHaveBeenCalled();
+        expect(mockBatchWrites).toHaveLength(0);
+        expect(mockEnqueueWorker).not.toHaveBeenCalled();
+    });
+
+    it('still says there is nothing to retry when no log failed', async () => {
+        failedLogs = [];
+
+        await expect(retry()).resolves.toEqual({ success: true, message: 'No failed items to retry.' });
+        expect(mockSessionSet).not.toHaveBeenCalled();
     });
 
     it('gives the retry up when its campaign is deleted while it is written', async () => {

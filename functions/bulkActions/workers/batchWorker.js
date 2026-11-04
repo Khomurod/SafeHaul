@@ -32,6 +32,32 @@ async function senderDisplayName(senderId) {
     }
 }
 
+/**
+ * Pauses a campaign after the SMS provider did not answer three texts in a row
+ * (`sendLoop.js`), so the rest of the list waits for the recruiter's Resume
+ * instead of being sent into a silent provider. Only a session that is still
+ * active, and still this task's worker generation, is paused: a recruiter's
+ * Cancel or Pause, or a newer Resume, is never overwritten. It never throws; the
+ * caller enqueues no next batch either way.
+ */
+async function pauseForSilentProvider(sessionRef, workerGeneration) {
+    try {
+        const paused = await db.runTransaction(async (t) => {
+            const doc = await t.get(sessionRef);
+            if (!doc.exists || doc.data().status !== 'active') return false;
+            const sessionGeneration = doc.data().workerGeneration;
+            if (typeof workerGeneration === 'number' && typeof sessionGeneration === 'number'
+                && workerGeneration !== sessionGeneration) return false;
+            t.update(sessionRef, { status: 'paused', lastUpdateAt: admin.firestore.FieldValue.serverTimestamp() });
+            return true;
+        });
+        if (paused) console.warn(`[BatchWorker] Session ${sessionRef.id} paused: the SMS provider did not answer 3 texts in a row.`);
+        else console.log(`[BatchWorker] Session ${sessionRef.id} was no longer this worker's to pause; left as it is.`);
+    } catch (error) {
+        console.error(`[BatchWorker] Session ${sessionRef.id} could not be paused, so it stays active with no next batch:`, error.message);
+    }
+}
+
 // SMS_ENCRYPTION_KEY: this worker decrypts the company's SMS provider credentials /
 // per-line JWTs (via SMSAdapterFactory) and SMTP passwords for bulk campaigns. Without the
 // secret bound here, process.env.SMS_ENCRYPTION_KEY is undefined inside this function and
@@ -239,6 +265,14 @@ exports.processBulkBatch = onRequest({
         const persistedPointer = postBatch.progress?.currentPointer || 0;
         const currentPointer = Math.max(persistedPointer, claimedStartPointer + pointerAdvanceCount);
         const isKnownLast = (currentPointer >= totalTargets);
+
+        // The SMS provider did not answer 3 texts in a row: no next batch, even if
+        // the pause cannot be written, and a 200 so Cloud Tasks does not run this
+        // task again (a re-run would send from the stored pointer).
+        if (loopResult.silentProvider && !isKnownLast) {
+            await pauseForSilentProvider(sessionRef, workerGeneration);
+            return res.status(200).send('Stopped: the SMS provider did not answer 3 texts.');
+        }
 
         if (isKnownLast && postBatch.status === 'active') {
             await sessionRef.update({

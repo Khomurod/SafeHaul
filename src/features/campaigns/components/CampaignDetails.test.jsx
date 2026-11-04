@@ -235,6 +235,8 @@ describe('CampaignDetails — callables & outcomes', () => {
         renderDetails(failedCampaign());
         fireEvent.click(screen.getByRole('button', { name: 'Retry Failed' }));
         const dialog = await screen.findByRole('dialog', { name: 'Start a new campaign for failed recipients?' });
+        // Retry Failed never texts a driver whose text may already have arrived.
+        expect(dialog).toHaveTextContent('Texts the SMS provider may already have delivered are left out.');
         fireEvent.click(within(dialog).getByRole('button', { name: "Don't retry" }));
         expect(callables.retryFailedAttempts).not.toHaveBeenCalled();
     });

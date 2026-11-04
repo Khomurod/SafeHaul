@@ -148,6 +148,21 @@ describe('CampaignResultsTable', () => {
         expect(screen.getAllByText('No reason was recorded')).toHaveLength(2);
     });
 
+    it('says May have been sent, with a muted note, for a text the SMS provider never answered', async () => {
+        const note = 'RingCentral did not answer within 20 seconds, so SafeHaul cannot tell whether this text went out. It was not sent again.';
+        getDocs.mockResolvedValue(asSnapshot([
+            { id: '1', recipientName: 'Unanswered', recipientIdentity: '555-0100', status: 'failed', isSuccess: false, sendUnconfirmed: true, error: note, timestamp: { toDate: () => new Date() } },
+        ]));
+        render(<CampaignResultsTable companyId="123" campaignId="abc" />);
+        await screen.findByText('Unanswered');
+
+        expect(screen.getByText('May have been sent').closest('.ds-badge')).toHaveAttribute('data-tone', 'warning');
+        expect(screen.queryByText('Not sent')).not.toBeInTheDocument();
+        // A note, not a failure reason in danger red.
+        expect(screen.getByText(note)).toHaveClass('text-ds-content-muted');
+        expect(screen.getByText(note)).not.toHaveClass('text-ds-status-danger-fg');
+    });
+
     it('formats the timestamp and falls back to Pending when absent', async () => {
         const sent = new Date('2026-07-24T15:30:00');
         const expected = sent.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

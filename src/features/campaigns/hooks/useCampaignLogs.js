@@ -29,7 +29,7 @@ function firestoreLogs(companyId, sessionId) {
         },
         // The list's own order, so the count leaves out what the list leaves out (no `timestamp`).
         countAll: async () => countOf(query(logsRef, orderBy('timestamp', 'desc'))),
-        // Exactly the logs `retryFailedAttempts` sends again.
+        // Exactly the logs `retryFailedAttempts` reads; it leaves out a text that may have gone out.
         countFailed: async () => countOf(query(logsRef, where('status', '==', 'failed'))),
     };
 }

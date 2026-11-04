@@ -48,12 +48,23 @@ const DELIVERY_RESULTS = {
  * What a campaign's log says of one recipient. The send loop logs `delivered`
  * when the SMS provider or the mail server took the message: that is "Sent",
  * not proof it arrived, until the delivery check records what RingCentral did.
+ * A send the SMS provider never answered (`sendUnconfirmed`) is "May have been
+ * sent", with the server's explanation as a note: Retry Failed leaves it out.
  * Anything else is "Not sent" ("Not delivered" when RingCentral refused it
  * later), with the reason the server recorded.
  */
 export function sendResultOf(log) {
     const sent = log?.status === 'delivered' || log?.isSuccess === true;
     if (!sent) {
+        if (log?.sendUnconfirmed === true) {
+            return {
+                sent,
+                label: 'May have been sent',
+                tone: 'warning',
+                reason: null,
+                note: log?.error || 'The SMS provider did not answer, so this text may have gone out.',
+            };
+        }
         return {
             sent,
             label: log?.delivery?.state === 'failed' ? 'Not delivered' : 'Not sent',

@@ -263,6 +263,8 @@ describe('DetailedReportModal — retry', () => {
         // The costly nature of the action must be spelled out.
         expect(dialog).toHaveTextContent(/creates a new campaign/i);
         expect(dialog).toHaveTextContent(/permanent errors/i);
+        // Retry Failed never texts a driver whose text may already have arrived.
+        expect(dialog).toHaveTextContent('Texts the SMS provider may already have delivered are left out.');
         expect(confirmMock).not.toHaveBeenCalled();
         expect(retryFn).not.toHaveBeenCalled();
     });

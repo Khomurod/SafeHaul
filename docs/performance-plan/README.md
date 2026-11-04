@@ -70,7 +70,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [x] **T3 PR 2** · Заглушка страницы заявки водителя · *Driver apply-page placeholder* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
 4. **Лимиты времени для внешних сервисов / Timeouts for external calls (#12)**
    - [x] **T4.1** · RingCentral: лимит 20 секунд, без повторной отправки SMS · *RingCentral 20-second limit, no resend* → [T4.1](T4.1-ringcentral-timeout.md) · PR: пакет C · Дата: 2026-11-04
-   - [ ] **T4.2** · Кампании: «возможно отправлено», без авто-повтора · *Campaigns safe when the SMS provider does not answer* → [T4.2](T4.2-campaign-send-unconfirmed.md) · PR: — · Дата: —
+   - [x] **T4.2** · Кампании: «возможно отправлено», без авто-повтора · *Campaigns safe when the SMS provider does not answer* → [T4.2](T4.2-campaign-send-unconfirmed.md) · PR: пакет C · Дата: 2026-11-04
    - [x] **T4.3** · Лимиты для 8x8 SMS и Facebook · *Time limits for 8x8 SMS and Facebook Graph* → [T4.3](T4.3-8x8-facebook-timeouts.md) · PR: пакет C · Дата: 2026-11-04
    - [x] **T4.4** · Лимит 15 секунд для чтений GitHub в Releases · *15-second limit on GitHub reads behind Releases* → [T4.4](T4.4-github-release-timeouts.md) · PR: пакет C · Дата: 2026-11-04
    - [x] **T4.5** · Импорт Google Sheet и скачивание PDF не крутятся вечно · *Sheet import and envelope PDF download stop spinning forever* → [T4.5](T4.5-browser-fetch-timeouts.md) · PR: #557 · Дата: 2026-11-03
@@ -237,10 +237,10 @@ task that waits for it.
 **T4: лимиты времени**
 - **Р10 (T4.2).** SMS-провайдер не ответил вовремя: сообщение могло дойти, а
   могло и нет. Должна ли «Retry Failed» пропускать таких получателей, чтобы
-  водитель не получил одно SMS дважды? *Рекомендую:* да. — Ответ: — · Дата: —
+  водитель не получил одно SMS дважды? *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-04
 - **Р11 (T4.2).** Ставить кампанию на паузу после 3 подряд SMS без ответа
   провайдера? Рекрутёр нажмёт Resume, когда провайдер заработает.
-  *Рекомендую:* да. — Ответ: — · Дата: —
+  *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-04
 - **Р12 (T4.2). По желанию, только чтение.** Посмотрите в Google Cloud console →
   Cloud Tasks → `bulk-actions-queue` значение «Max attempts» и пришлите агенту.
   — Значение: — · Дата: —
@@ -329,7 +329,7 @@ Not part of any task above. Each needs its own task if the owner wants it.
    event was inspected. With option A this stays until T5b. *Recommended:* a
    separate small task soon, independent of this plan.
 2. "Retry Failed" with nothing left to retry shows "Retry session started with
-   undefined targets." (`functions/bulkActions/controllers/sessionController.js:221`).
+   undefined targets." (`functions/bulkActions/controllers/sessionController.js:228`).
 3. The 8x8 connection check reports success on any network error other than
    401/403 (`functions/integrations/adapters/eightbyeight.js:152-162`). T4.3 fixed
    only the timeout case.
@@ -380,3 +380,13 @@ Not part of any task above. Each needs its own task if the owner wants it.
     handles two calls at once (all run below 1 CPU), so it did not happen in
     practice. `createRingCentralSdk` now gives each SDK a store of its own;
     `ringcentralSdk.tokenStore.test.js` failed before the change.
+14. **A Pause and a Resume between two of a worker's status checks can leave
+    two workers sending one campaign** (found during T4.2; checked by reading the
+    code only). Before each recipient the send loop re-reads only the session's
+    status (`sendLoop.js`, the mid-batch check), not its `workerGeneration`, and
+    the checks are 3 s apart, longer while the provider is slow. A worker that
+    missed the Pause keeps sending while the Resume's new worker starts at the
+    stored pointer, which moves only once the first worker logs the text in
+    flight, so both can text that recipient.
+    *Recommended:* a separate small task: the mid-batch check also stops when
+    the session's `workerGeneration` is no longer the task's.

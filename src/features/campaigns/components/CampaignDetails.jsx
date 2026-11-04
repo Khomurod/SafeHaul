@@ -384,7 +384,7 @@ export function CampaignDetails({ campaign, onClose }) {
                 isOpen={pendingRetry}
                 tone="danger"
                 title="Start a new campaign for failed recipients?"
-                description="This creates a new campaign and messages every failed recipient from this run again, including those that failed with permanent errors."
+                description="This creates a new campaign and messages every failed recipient from this run again, including those that failed with permanent errors. Texts the SMS provider may already have delivered are left out."
                 confirmLabel="Start retry campaign"
                 cancelLabel="Don't retry"
                 loading={retrying}

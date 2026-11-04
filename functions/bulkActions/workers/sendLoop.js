@@ -6,15 +6,28 @@
 // dedup ledgers, with the 3-second pacing (`sendPacing.js`). Extracted
 // verbatim from `batchWorker.js` except the seam: the batch counters are
 // locals here and are returned, where the worker used to close over them.
+// The loop starts no send once the batch's send window is used (the next
+// batch carries on), and stops at the third text the SMS provider never
+// answered with no sent text between them (each may have gone out).
 
 const { admin, db } = require("../../firebaseAdmin");
 const { isBlacklisted } = require("../../blacklist");
 const { normalizePhone } = require("../../utils/phoneUtils");
-const { pauseBeforeNextSend } = require("./sendPacing");
+const { pauseBeforeNextSend, SEND_WINDOW_MS } = require("./sendPacing");
+const BaseAdapter = require("../../integrations/adapters/BaseAdapter");
 const { escapeHtml, plainGuestText, plainGuestSmsText } = require("../../shared/plainText");
 const { emailLedgerKey } = require("../helpers/recentlyMessaged");
 
-/** Returns `{ batchSuccessCount, batchFailCount, pointerAdvanceCount }`. */
+// This many texts the SMS provider never answered, with no sent text between
+// them, stop the campaign: the provider is not answering.
+const UNCONFIRMED_PAUSE_AFTER = 3;
+
+/**
+ * Returns `{ batchSuccessCount, batchFailCount, pointerAdvanceCount, silentProvider }`;
+ * `silentProvider` is true when the loop stopped after `UNCONFIRMED_PAUSE_AFTER`
+ * unanswered texts with no sent text between them (`progress.unconfirmedInARow`,
+ * kept across batches).
+ */
 async function runSendLoop({
     batchIds,
     sessionRef,
@@ -41,13 +54,21 @@ async function runSendLoop({
     let batchSuccessCount = 0;
     let batchFailCount = 0;
     let pointerAdvanceCount = 0;
+    let silentProvider = false;
 
 
         try {
 
+            const windowEndsAt = Date.now() + SEND_WINDOW_MS;
             for (let i = 0; i < batchIds.length; i++) {
                 const leadId = batchIds[i];
                 // Note: Lead ID not logged to avoid exposing PII in Cloud Function logs
+
+                // Every batch sends at least one; the next batch carries on from the pointer.
+                if (i > 0 && Date.now() >= windowEndsAt) {
+                    console.log(`[BatchWorker] Send window used at item ${i}/${batchIds.length}; the next batch carries on.`);
+                    break;
+                }
 
                 // Status check before every send (including first) so pause/cancel
                 // cannot slip a message through on batch start.
@@ -68,6 +89,8 @@ async function runSendLoop({
                 let recipientIdentity = "N/A";
                 // RingCentral's id for the text, so the delivery check finds what became of it.
                 let receipt = null;
+                // The SMS provider never answered this send: the text may have gone out.
+                let sendUnconfirmed = false;
 
                 // Declare variables in loop scope
                 let leadData = {};
@@ -165,6 +188,7 @@ async function runSendLoop({
                     console.error(`Error processing lead ${leadId}:`, err);
                     errorMsg = err.message || "Unknown error";
                     success = false;
+                    sendUnconfirmed = err?.code === BaseAdapter.SEND_UNCONFIRMED;
                 }
 
                 // 3. Log result + advance pointer atomically so pause/cancel never skips work.
@@ -177,11 +201,13 @@ async function runSendLoop({
                     timestamp: admin.firestore.FieldValue.serverTimestamp(),
                     isSuccess: success
                 };
+                if (sendUnconfirmed) logPayload.sendUnconfirmed = true;
                 if (success && config.method === 'sms') {
                     // Accepted is not delivered: the check fills in what the carrier did.
                     logPayload.delivery = { state: 'pending', providerStatus: receipt?.providerStatus || null };
                     if (receipt?.providerMessageId) logPayload.providerMessageId = receipt.providerMessageId;
                 }
+                let unconfirmedInARow = 0;
                 try {
                     const applied = await db.runTransaction(async (t) => {
                         const logRef = sessionRef.collection('logs').doc(leadId);
@@ -201,15 +227,21 @@ async function runSendLoop({
                             return { alreadyLogged: true };
                         }
 
+                        // Unanswered texts since the last sent one, across batches. A
+                        // failure of any other kind neither counts nor resets it.
+                        const before = sessionDoc.data().progress?.unconfirmedInARow || 0;
+                        const inARow = success ? 0 : (sendUnconfirmed ? before + 1 : before);
                         t.set(logRef, logPayload);
                         t.update(sessionRef, {
                             ...updates,
                             'progress.processedCount': admin.firestore.FieldValue.increment(1),
                             'progress.successCount': admin.firestore.FieldValue.increment(success ? 1 : 0),
                             'progress.failedCount': admin.firestore.FieldValue.increment(success ? 0 : 1),
+                            ...((success || sendUnconfirmed) ? { 'progress.unconfirmedInARow': inARow } : {}),
                         });
-                        return { alreadyLogged: false };
+                        return { alreadyLogged: false, unconfirmedInARow: inARow };
                     });
+                    unconfirmedInARow = applied?.unconfirmedInARow || 0;
 
                     if (!applied?.alreadyLogged) {
                         if (success) batchSuccessCount++;
@@ -218,6 +250,11 @@ async function runSendLoop({
                     pointerAdvanceCount++;
                 } catch (e) {
                     console.error("Failed to write log + progress transaction:", e);
+                }
+                if (sendUnconfirmed && unconfirmedInARow >= UNCONFIRMED_PAUSE_AFTER) {
+                    console.warn(`[BatchWorker] The SMS provider did not answer ${unconfirmedInARow} texts in a row. Stopping at item ${i + 1}/${batchIds.length}.`);
+                    silentProvider = true;
+                    break;
                 }
 
                 // 4.5 Update Lead Timestamp (Smart Exclusion)
@@ -275,7 +312,7 @@ async function runSendLoop({
             // Fallthrough to save progress
         }
 
-    return { batchSuccessCount, batchFailCount, pointerAdvanceCount };
+    return { batchSuccessCount, batchFailCount, pointerAdvanceCount, silentProvider };
 }
 
 module.exports = { runSendLoop };
