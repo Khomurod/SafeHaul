@@ -1,9 +1,10 @@
 // src/features/company-admin/components/LeadAssignmentModal.jsx
 import React, { useId, useMemo, useRef, useState, useEffect } from 'react';
 import { Icon, X, Users, User, CheckCircle } from '@design-system/icons';
-import { db } from '@lib/firebase';
+import { auth, db } from '@lib/firebase';
 import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { logActivity } from '@shared/utils/activityLogger';
+import { assignmentChangeStamp } from '@shared/utils/changeStamps';
 import {
     Button, Checkbox, FieldMessage, FormField, IconButton, Select,
 } from '@/design-system/components';
@@ -22,7 +23,8 @@ import { useAssignableTeam } from '../hooks/useAssignableTeam';
  * default-select-all round-robin pool; the `'manual'` / `'round_robin'` mode
  * values with `'manual'` initial; the `writeBatch` update payload
  * (`assignedTo`, `assignedToName`, `assignedAt`, `updatedAt` — both
- * `serverTimestamp()`); the `"Unknown"` assignee-name fallback; the
+ * `serverTimestamp()` — and who assigned it, `assignmentChangedBy` and
+ * `assignmentChangedAt`, for the bell); the `"Unknown"` assignee-name fallback; the
  * `rrIndex % distributionPool.length` rotation and the empty-pool skip; the
  * per-lead `logActivity(companyId, 'leads', leadId, 'Lead Assigned', 'Assigned to
  * specific user' | 'Assigned to round-robin pool', 'assignment')` calls; the
@@ -107,6 +109,8 @@ export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuc
         setProcessing(true);
         try {
             const batch = writeBatch(db);
+            // Who assigned them: each new owner is told unless it was them.
+            const stamp = assignmentChangeStamp(auth.currentUser?.uid);
 
             let rrIndex = 0;
 
@@ -137,7 +141,8 @@ export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuc
                     assignedTo: assigneeId,
                     assignedToName: assigneeName,
                     assignedAt: serverTimestamp(),
-                    updatedAt: serverTimestamp()
+                    updatedAt: serverTimestamp(),
+                    ...stamp,
                 });
             });
 

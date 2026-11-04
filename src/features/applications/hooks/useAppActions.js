@@ -3,6 +3,7 @@ import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from '@lib/firebase';
 import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback';
+import { assignmentChangeStamp, statusChangeStamp } from '@shared/utils/changeStamps';
 
 // What `simpleRetry` returns when `shouldRetry` stopped it before a retry.
 const STOPPED = Symbol('stopped');
@@ -60,7 +61,9 @@ export function useAppActions({
       const docRef = getDocRef();
       const outcome = await simpleRetry(() => updateDoc(docRef, {
         assignedTo: newUserId,
-        assignedToName: newOwnerName
+        assignedToName: newOwnerName,
+        // Who assigned it: the new owner is told unless it was them.
+        ...assignmentChangeStamp(auth.currentUser?.uid),
       }), () => pick === saves.latest);
       // A later pick was made before this one could retry: only a retry could
       // land after it (one client's writes stay in order), so this one ends here.
@@ -94,6 +97,8 @@ export function useAppActions({
       await simpleRetry(() => updateDoc(docRef, {
         status: newStatus,
         statusEnteredAt: serverTimestamp(),
+        // Who moved it: the bell does not tell them about it.
+        ...statusChangeStamp(auth.currentUser?.uid),
       }));
 
       await logActivity(companyId, collectionName, applicationId, "Status Changed", `Transitioned from ${oldStatus} to ${newStatus}`);

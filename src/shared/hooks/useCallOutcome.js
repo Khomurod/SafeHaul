@@ -7,6 +7,7 @@ import { isPlaceholderEmail } from '@/config/placeholderDomains';
 import { toIsoDay } from '@/config/applicationDates';
 import { ATS_INTERESTED_STATUS } from '@shared/constants/atsStatus';
 import { normalizeApplicationStatus } from '@shared/utils/applicationStatus';
+import { statusChangeStamp } from '@shared/utils/changeStamps';
 
 const DECLINED = 'Declined';
 
@@ -150,6 +151,8 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
             if (newStage) {
                 updateData.status = newStage;
                 updateData.statusEnteredAt = serverTimestamp();
+                // Who moved it: the bell does not tell them about it.
+                Object.assign(updateData, statusChangeStamp(auth.currentUser.uid));
             }
             // `archived` marks only a record a call declined (no screen reads it yet).
             if (newStage === DECLINED) {
