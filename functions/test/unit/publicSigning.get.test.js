@@ -439,4 +439,98 @@ describe('getPublicEnvelope', () => {
       });
     });
   });
+
+  // The signer sees the company's signature through a short-lived link, as they
+  // see the PDF; the Storage path it lives at never leaves the server, and only
+  // an image in this company's company-signatures folder is ever signed.
+  describe('company signatures', () => {
+    const IMAGE = 'secure_documents/co1/originals/company-signatures/stamp.png';
+    const companyField = (id, companySignaturePath) => ({
+      id,
+      type: 'company_signature',
+      label: 'Company Signature',
+      pageNumber: 1,
+      xPosition: 60,
+      yPosition: 70,
+      width: 30,
+      height: 10,
+      required: false,
+      readOnly: true,
+      prefillPolicy: 'locked',
+      defaultValue: '',
+      companySignaturePath,
+    });
+    let signedPaths;
+
+    beforeEach(() => {
+      signedPaths = [];
+      storage.bucket.mockImplementation(() => ({
+        name: 'test-bucket',
+        file: jest.fn((path) => ({
+          getSignedUrl: jest.fn(async (options) => {
+            signedPaths.push({ path, ...options });
+            return [`https://signed.example/${path}`];
+          }),
+        })),
+      }));
+    });
+
+    const fieldsOf = async (fields) => {
+      mockGet.mockResolvedValue({ exists: true, data: () => baseEnvelope({ fields }) });
+      const result = await getPublicEnvelope(validRequest);
+      return Object.fromEntries(result.fields.map((field) => [field.id, field]));
+    };
+
+    it('returns a short-lived link to the image and never its path', async () => {
+      const before = Date.now();
+      const byId = await fieldsOf([{ id: 'f1', type: 'text', pageNumber: 1 }, companyField('cs1', IMAGE)]);
+
+      expect(byId.cs1.companySignatureUrl).toBe(`https://signed.example/${IMAGE}`);
+      expect(byId.cs1).not.toHaveProperty('companySignaturePath');
+      expect(byId.cs1).toMatchObject({ type: 'company_signature', readOnly: true, xPosition: 60 });
+      expect(byId.f1).not.toHaveProperty('companySignatureUrl');
+
+      const stamp = signedPaths.find((entry) => entry.path === IMAGE);
+      expect(stamp.action).toBe('read');
+      // The PDF's expiry: an hour.
+      expect(stamp.expires - before).toBeGreaterThanOrEqual(60 * 60 * 1000);
+      expect(stamp.expires - before).toBeLessThan(60 * 60 * 1000 + 5000);
+      expect(signedPaths.map((entry) => entry.path).sort()).toEqual([IMAGE, 'secure_documents/co1/templates/form.pdf'].sort());
+    });
+
+    it('signs each document\'s own image', async () => {
+      const other = 'secure_documents/co1/originals/company-signatures/other.jpg';
+      const byId = await fieldsOf([companyField('cs1', IMAGE), companyField('cs2', other)]);
+      expect(byId.cs1.companySignatureUrl).toBe(`https://signed.example/${IMAGE}`);
+      expect(byId.cs2.companySignatureUrl).toBe(`https://signed.example/${other}`);
+    });
+
+    it.each([
+      ['no path', undefined],
+      ['an empty path', ''],
+      ['another company\'s image', 'secure_documents/co2/originals/company-signatures/stamp.png'],
+      ['the PDF itself', 'secure_documents/co1/templates/form.pdf'],
+      ['a signer\'s signature', 'secure_documents/co1/signatures/req1_sig1.png'],
+      ['a path that climbs out of the folder', 'secure_documents/co1/originals/company-signatures/../../completed/req1_signed.pdf'],
+      ['a file that is not an image', 'secure_documents/co1/originals/company-signatures/notes.pdf'],
+    ])('gives no link, and no path, for %s', async (_label, companySignaturePath) => {
+      const byId = await fieldsOf([companyField('cs1', companySignaturePath)]);
+      expect(byId.cs1).not.toHaveProperty('companySignatureUrl');
+      expect(byId.cs1).not.toHaveProperty('companySignaturePath');
+      expect(signedPaths.map((entry) => entry.path)).toEqual(['secure_documents/co1/templates/form.pdf']);
+    });
+
+    it('drops a path or link stored on any other field', async () => {
+      const byId = await fieldsOf([{
+        id: 'f1',
+        type: 'text',
+        pageNumber: 1,
+        companySignaturePath: IMAGE,
+        companySignatureUrl: 'https://elsewhere.example/x.png',
+      }]);
+      expect(byId.f1).not.toHaveProperty('companySignaturePath');
+      expect(byId.f1).not.toHaveProperty('companySignatureUrl');
+      expect(signedPaths.map((entry) => entry.path)).toEqual(['secure_documents/co1/templates/form.pdf']);
+    });
+  });
 });

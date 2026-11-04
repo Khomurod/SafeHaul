@@ -435,6 +435,61 @@ describe('createPostApplicationSigningRequest', () => {
     });
   });
 
+  // A document sent on its own has no step where someone adds the company's
+  // image, so the template must carry it, like a locked required prefill.
+  describe('company signatures', () => {
+    const IMAGE = 'secure_documents/co1/originals/company-signatures/stamp.png';
+    const companyField = (companySignaturePath) => ({
+      id: 'cs1',
+      type: 'company_signature',
+      label: 'Company Signature',
+      pageNumber: 1,
+      xPosition: 60,
+      yPosition: 70,
+      width: 30,
+      height: 10,
+      required: false,
+      readOnly: true,
+      prefillPolicy: 'locked',
+      bindingKey: '',
+      prefillGroupKey: '',
+      defaultValue: '',
+      fontSize: 'Auto',
+      companySignaturePath,
+    });
+    const templateWith = (field) => mockTemplateGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        title: 'Offer Letter',
+        storagePath: 'secure_documents/co1/templates/offer.pdf',
+        fields: [{ id: 'sig', type: 'signature', required: true, defaultValue: '' }, field],
+      }),
+    });
+
+    it.each([
+      ['no image', undefined],
+      ['an empty image path', ''],
+      ['another company\'s image', 'secure_documents/co2/originals/company-signatures/stamp.png'],
+      ['a file outside the company-signatures folder', 'secure_documents/co1/templates/stamp.png'],
+    ])('refuses a template whose company signature has %s, writing nothing', async (_label, path) => {
+      templateWith(companyField(path));
+      await expect(createPostApplicationSigningRequest(baseReq)).rejects.toMatchObject({
+        code: 'failed-precondition',
+        message: 'Template has a company signature with no image: Company Signature',
+      });
+      expect(mockTxnSet).not.toHaveBeenCalled();
+    });
+
+    it('carries the template\'s image to the document, unchanged', async () => {
+      templateWith(companyField(IMAGE));
+      await createPostApplicationSigningRequest(baseReq);
+
+      const requestPayload = requestPayloadFromTxnSet();
+      expect(requestPayload.fields.find((f) => f.id === 'cs1')).toEqual(companyField(IMAGE));
+      expect(requestPayload.fieldValues).not.toHaveProperty('cs1');
+    });
+  });
+
   it('rejects invalid arguments before any writes', async () => {
     await expect(
       createPostApplicationSigningRequest({

@@ -86,7 +86,7 @@ Used by Cloud Functions with Admin SDK:
 
 | Subcollection | Access (summary) | Notes |
 |---------------|------------------|-------|
-| `templates/{id}` | read: team · write: admin | Hiring offer/form templates |
+| `templates/{id}` | read: team · write: admin | Hiring offer/form templates; `fields` as on a signing request (below) |
 | `message_templates/{id}` | read: team · write: admin | Campaign message templates |
 | `bulk_sessions/{id}` | read/write: team | Bulk SMS/email sessions; `progress.unconfirmedInARow` counts texts the SMS provider never answered since the last sent one (3 pause the session) |
 | `bulk_sessions/{id}/logs/{id}` | read: team | Per-message send logs; an SMS keeps RingCentral's `providerMessageId` and its `delivery` state; `sendUnconfirmed: true` marks a failed send the provider never answered (it may have gone out; Retry Failed leaves it out) |
@@ -99,7 +99,7 @@ Used by Cloud Functions with Admin SDK:
 | `feature_alerts/{id}` | read/write: team or super | Scheduled deactivation warning analytics |
 | `system_settings/email_config` | server only | SMTP credentials; the password encrypted (`enc:v1:`) |
 | `settings/{docId}` | read: team · write: admin | Custom questions, ATS SMS templates, etc. |
-| `signing_requests/{id}` | read: team, recipient, super · create: team · update: team or recipient (limited fields) · delete: admin | E-sign envelopes |
+| `signing_requests/{id}` | read: team, recipient, super · create: team · update: team or recipient (limited fields) · delete: admin | E-sign envelopes; company signature and `signedCopy` below |
 | `signing_requests/{id}/secrets/{id}` | create: team · read/update/delete: **denied** | `accessToken`; Functions only after create |
 | `applications/{applicationId}` | see below | Core applicant record |
 | `leads/{leadId}` | team read/write with `companyId` immutability + ATS status enums | CRM leads |
@@ -116,6 +116,16 @@ Used by Cloud Functions with Admin SDK:
 | `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next — **or** one a carrier prepared (`origin: 'company'`, `status: prepared\|sent\|driver_in_progress`, `preparedBy`, `inviteTokenHash`, `inviteClaimedAt`, `lockedEmployers`). See below |
 | `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards, and of a Company Admin's views, edits and deletions; a deleted draft's removal mark; files a deletion has still to remove |
 | `companies/{id}/legal_agreements/{agreementId}` | Company-published agreement wording: `{ activeVersion, versions: { 'c-<hash>': { body, createdAt, createdBy, note } } }`. Callables only; publish/revert is Super Admin only |
+
+### Company signature and the signed copy (`templates`, `signing_requests`)
+
+A `fields` entry of `type: 'company_signature'` places the company's own signature image:
+`{ id, type, label: 'Company Signature', pageNumber, xPosition, yPosition, width, height, required: false, readOnly: true, prefillPolicy: 'locked', bindingKey: '', prefillGroupKey: '', defaultValue: '', fontSize: 'Auto', companySignaturePath }`.
+
+| Field | Notes |
+|-------|-------|
+| `companySignaturePath` | Storage path of the image, `secure_documents/{companyId}/originals/company-signatures/<name>.png\|.jpg\|.jpeg`, uploaded by the team. May be empty on a template (set per document); a sent request needs one, and a template auto-sent after an application is refused without one. Sealing draws it from here only (PNG or JPEG by its bytes) and fails `error_sealing` without a readable image of this company; it never deletes it. `getPublicEnvelope` replaces it with a one-hour `companySignatureUrl`; the path never reaches the signer, and a signer's value for the field is refused |
+| `signedCopy` | Server-written by `sendSignedDocumentCopy`, the team's approval to email the signer the sealed PDF: `{ state: 'sending' \| 'sent' \| 'failed', approvedBy, approvedByName, approvedAt, sentTo, sentAt?, messageId?, error? }` (`approvedAt`, `sentAt`: timestamps). Claimed in a transaction before the one send: `sent` refuses another, `sending` under ten minutes old refuses another, `failed` may be approved again. The record of who approved it; documents have no activity log |
 
 ---
 
