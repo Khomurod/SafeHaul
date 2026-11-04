@@ -4,13 +4,14 @@
  * Employment tab, so opening either one downloaded that tab's PDF tooling too.
  *
  * Notes also takes the record's shared history from the dossier, which has
- * already read the record, so the tab does not read it a second time.
+ * already read the record, so the tab does not read it a second time. The
+ * Documents tab, loaded with the dossier, holds the signing documents too.
  */
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 
-const fx = vi.hoisted(() => ({ loaded: [], notesProps: null }));
+const fx = vi.hoisted(() => ({ loaded: [], notesProps: null, signingProps: null }));
 
 vi.mock('@features/company-admin/components/tabs/PEVTab', () => {
     fx.loaded.push('PEVTab');
@@ -25,13 +26,20 @@ vi.mock('@features/company-admin/components/tabs/NotesTab', () => ({
 }));
 vi.mock('@features/company-admin/components/tabs/DQFileTab', () => ({ DQFileTab: () => null }));
 vi.mock('./tabs/ApplicationTab', () => ({ ApplicationTab: () => null }));
-vi.mock('./tabs/DocumentsTab', () => ({ DocumentsTab: () => null }));
+vi.mock('./tabs/DocumentsTab', () => ({ DocumentsTab: () => <p>Uploaded documents</p> }));
+vi.mock('./tabs/SigningDocumentsSection', () => ({
+    SigningDocumentsSection: (props) => {
+        fx.signingProps = props;
+        return <p>Signing documents</p>;
+    },
+}));
 
 import { DossierContent } from './DossierContent';
 
 afterEach(() => {
     cleanup();
     fx.notesProps = null;
+    fx.signingProps = null;
 });
 
 describe('the dossier tabs that load later', () => {
@@ -66,5 +74,15 @@ describe('the dossier tabs that load later', () => {
 
         expect(await screen.findByText('Previous employment')).toBeInTheDocument();
         expect(fx.loaded).toEqual(['PEVTab']);
+    });
+});
+
+describe('the Documents tab', () => {
+    it('shows the record\'s signing documents above the uploaded documents', () => {
+        render(<DossierContent activeTab="documents" appData={{}} driverId="lead-1" companyId="co-1" collectionName="leads" />);
+
+        const texts = [...document.querySelectorAll('p')].map((p) => p.textContent);
+        expect(texts).toEqual(['Signing documents', 'Uploaded documents']);
+        expect(fx.signingProps).toEqual({ companyId: 'co-1', recordId: 'lead-1', collectionName: 'leads' });
     });
 });
