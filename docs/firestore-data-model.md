@@ -59,7 +59,7 @@ erDiagram
 | `users` | `userId` | **read:** owner, super, staff · **create:** self · **update:** owner (no role/companyId) or super | HR/admin portal user profile |
 | `memberships` | auto | **read:** self, super, company admin of tenant · **create/update:** super only (company admins go through `createPortalUser`) · **delete:** super or company admin of tenant | Links `userId` ↔ `companyId` + role |
 | `notifications` | auto | **read/update/delete:** recipient · **create:** denied (server-only) | Unused: nothing writes or reads it |
-| `verification_requests` | token | **read:** super only · **write:** denied | PEV; all portal access via callables. `attempts[]` is the authoritative log of every attempt (`{ kind, at, ok, by?, step?, method?, note?, recordedAt?, error? }`: sent, send_failed, reminder, opened, response, manual_result, no_response, and the call / fax / note `recordVerificationAttempt` adds, at most 50 of those), appended with `arrayUnion`; `attemptRecordPath` is the day-30 PDF of it (`…/pev_requests/PEV_ATTEMPTS_…`, also `dq_files/pev_attempts_<requestId>`). The employer row's `verification.history` mirrors a short entry (`attempt`, `ok`, `note`, `recordedBy`), never `error`, the token or an address |
+| `verification_requests` | token | **read:** super only · **write:** denied | PEV; all portal access via callables. `attempts[]` is the authoritative log of every attempt (`{ kind, at, ok, by?, step?, method?, note?, recordedAt?, error? }`: sent, send_failed, reminder, opened, response, manual_result, no_response, and the call / fax / note `recordVerificationAttempt` adds, at most 50 of those), appended with `arrayUnion`; `attemptRecordPath` is the day-30 PDF of it (`…/pev_requests/PEV_ATTEMPTS_…`, also `dq_files/pev_attempts_<requestId>`). The employer row's `verification.history` mirrors a short entry (`attempt`, `ok`, `note`, `recordedBy`), never `error`, the token or an address. The dashboard's Needs attention counts a company's live and `no_response` requests on the server (`getDashboardAttention`: `companyId` and `status` equality) |
 | `verification_requests/{token}/responses` | `responseId` | same as parent | PEV responses |
 | `change_reviews` | token | **read:** super only · **write:** denied | The driver's "approve changes" link (`/review-change/:token`, 30-day TTL, newest only: `open`, `completed` or `revoked`), written only by the change-review callables. `delivery` records the server emailing it (`createChangeReview` with `deliver: 'email'`): `{ channel, status: sending\|sent\|failed, to (masked), claimId, claimedAt, by, sentAt, failedAt }` — never the link or the full address |
 | `analytics` | `docId` | **read:** super · **write:** denied | Platform analytics |
@@ -154,6 +154,7 @@ The dossier's Documents tab lists the requests linked to the record it shows, by
 | `expiresAt` | When the link stops working. "Link expired" is derived in the browser (`status: 'sent'` and `expiresAt` past), never stored, so it has no server count or index; the Documents workspace counts it as awaiting a signature. A reminder sets it seven days ahead again |
 | `reminders` | Server-written by `remindSigner` ("Remind"): `{ count, lastAt, lastBy }` (`lastAt`: timestamp; `lastBy`: the team member's uid). Written with the claim, before the link is sent again; a reminder within ten minutes of `lastAt` is refused. The send itself is recorded as every send is (`emailStatus`/`emailSentAt`, `smsStatus`/`smsSentAt`, `linkSentTo`) |
 | `sealAttempts` | Server-written by `retrySealDocument` ("Retry seal"), one entry per retry: `{ at, by, previousStatus: 'error_sealing' \| 'pending_seal', previousError }` (`at`: timestamp; `previousError`: the `errorLog` it cleared, or null). `sealDocument` seals when a request enters `pending_seal`, or when a new entry is added while it is there (a seal left unfinished), and only while the stored request is on that attempt. `errorLog` and `missingFields` are what the last failed seal wrote; a retry clears them |
+| `dq_files/{id}.expirationDate` | A record's valid-until date, `YYYY-MM-DD`, or absent. A driver's synced CDL, medical card or TWIC upload copies the application's `cdlExpiration` / `medCardExpiration` / `twicExpiration` when it is filed, and again when that answer changes (`onApplicationUpdated`, `syncDqExpirations` in `functions/shared/dqUploads.js`); a removed record and a team upload keep theirs. The DQ tab sets it on a team upload of type CDL, Medical Card or MVR (Annual), and sets or clears it on any record of those kinds or a TWIC card (logged `dq_file_updated`). Never written back to the application |
 | `dq_files/signed_{requestId}` | Under the linked application or lead, written by `sealDocument` once the request is `signed` (`functions/sealedDocumentDq.js`): `{ type: 'signed_document', fileType, label, fileName, storagePath: 'secure_documents/{companyId}/completed/{requestId}_signed.pdf', url: null, source: 'signed_document', isSynced: true, signingRequestId, sha256Checksum, uploadedBy: 'e_docs', uploadedAt, createdAt, applicationId, applicantId, driverId, userId, ownerUserIds }`. The path of the one sealed PDF, never a copy. Created once (a repeat or a removed entry changes nothing); removing it on the DQ tab sets `removedAt`. Nothing is filed for a record missing in this company |
 
 ---
@@ -176,6 +177,8 @@ The dossier's Documents tab lists the requests linked to the record it shows, by
 | `pending_changes/{fieldKey}` | read: team, super · **write: denied**. Company-proposed edits awaiting driver approval; written only by the `proposeApplicationChanges` / `submitChangeResolution` callables |
 | `submission/{version}` | read: team, super, owner · **write: denied**. The frozen snapshot of exactly what the driver saw, answered and accepted. Server-only (Admin SDK) — this denial is what makes it immutable rather than merely intended to be |
 
+**Earliest valid-until date:** `dqExpiresNext` (`YYYY-MM-DD`) is the earliest `expirationDate` among the record's `dq_files` that are not removed and have one, absent when none has. Server-written only: `onDqFileWritten` (`functions/dqExpiresNext.js`) recomputes it in a transaction when a DQ write can move it and writes it only when it changes; `syncDqFiles` puts it right when the DQ tab opens and the stored value disagrees with the files (records filed before it existed). Read with a single-field range query; it is not a security boundary (the team may write any application field).
+
 **Link to a lead:** `fromLeadId` names the company's lead the submitted application was matched to (server-written by `onApplicationSubmitted`, `functions/shared/leadApplicationLink.js`); the lead holds the other half (below).
 
 **Deterministic IDs:** doc ID = truncated SHA-256 of `companyId:email:phone` (see [`src/lib/applicationId.js`](../src/lib/applicationId.js)), which makes offline-queue retries idempotent upserts instead of duplicates. **Guest submissions go exclusively through the `submitGuestApplication` callable** (Admin SDK, which bypasses these rules); there is no unauthenticated client-write fallback.
@@ -192,7 +195,7 @@ and the staff-facing `listApplicationDrafts`.
 It is a **separate collection from `applications` on purpose.** Four triggers fire
 on `create` under `companies/{id}/applications/{appId}`:
 `onNewApplicationNotification`, `onNewApplicationEmailConfirmation`,
-`onApplicationSubmitted` (driver sync: a `drivers/{id}/pending_updates` entry) and the stats rollup.
+`onApplicationSubmitted` (driver sync: the company added to a driver profile's `companyIds`) and the stats rollup.
 Writing drafts there would email every half-finished applicant "we received your
 application", and driver sync would mark each unsigned one `validation_error`.
 
@@ -214,7 +217,7 @@ merge idempotently. No new identity scheme was introduced.
 | `priorResumeTokenHashes` | Up to two superseded hashes, so a rotation by a resume lookup is not mistaken for the draft being deleted. Liveness evidence only — never authorization |
 | `companyRevision`, `companyEdits`, `companyEditedAt` | A Company Admin's edits (`saveApplicationDraftEdits`): the latest one's revision (a millisecond time, so always later than the one before, even across a draft deleted and started again), each edited answer's, and when the latest was made. A browser's save or submission from an older revision is refused, and so is a save landing on the same driver's other edited draft (`functions/shared/companyEdits.js`). Absent on a draft nobody edited, and carried to the new id when a corrected email or phone moves the draft |
 | `inviteDelivery` | The last time the server emailed this draft's link to its `contactEmail` (`mintApplicationInvite` with `deliver: 'email'`), written with the new invite hash: `{ channel, status: sending\|sent\|failed, to (masked), claimId, claimedAt, by, sentAt, failedAt }`. A claim being sent or sent less than a minute ago refuses another email. Never the token, the link or the full address. Not carried to a new id |
-| `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json`. When the TTL policy deletes a draft, `deleteExpiredDraftFiles` (`functions/drafts/expired.js`) deletes its uploads by the checks `purgeApplicationDraft` makes, trying twice more within its run when it could not finish; the functions' own deletions (a submission, a superseding save, Start Over) leave them |
+| `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json`, whose override also leaves `expiresAt` unindexed: every write sets it 30 days after `updatedAt`, so expiry is read from `updatedAt` (the Unfinished page's "Removed in", the dashboard's Needs attention count). When the TTL policy deletes a draft, `deleteExpiredDraftFiles` (`functions/drafts/expired.js`) deletes its uploads by the checks `purgeApplicationDraft` makes, trying twice more within its run when it could not finish; the functions' own deletions (a submission, a superseding save, Start Over) leave them |
 
 **The draft never holds an SSN.** It is stripped in three independent places — the
 local browser draft, the client payload, and again on arrival — and the identity
@@ -344,7 +347,7 @@ Two more kinds of entry, written by `purgeApplicationDraft` (the second by `dele
 | **create/update** | Team or super; `companyId` must match path and stay immutable |
 | **delete** | Team or super |
 
-Same activity/DQ/note subcollections as applications (team/super).
+Same activity/DQ/note subcollections as applications (team/super), and the same server-written `dqExpiresNext`.
 
 **Match keys:** `normalizedPhone` (digits, `normalizeSearchPhone`) and `emailNormalized` (the email trimmed and lowercased, `normalizeSearchEmail`; `email` itself stays as typed). Every lead creator writes both; older leads get them from Data cleanup → Old lead fields.
 
@@ -358,6 +361,7 @@ Same activity/DQ/note subcollections as applications (team/super).
 |---------------|--------|
 | `drafts`, `documents` | owner or super |
 | `saved_jobs` | **Retired.** The driver saved-jobs / job-board feature was deleted (commit `5a4c8dd`) and its rule was removed, so the path is now default-deny |
+| `pending_updates` | **Retired.** Driver sync once staged each lead and application here (name, email, phone, licence); nothing read it and nothing writes it now. No rule, so default-deny. Older documents remain: Data cleanup clears only an SSN in them, and deleting them is the owner's decision |
 
 ---
 

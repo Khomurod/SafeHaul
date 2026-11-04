@@ -399,6 +399,20 @@
       ]
     },
     {
+      "collectionGroup": "applications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dqExpiresNext",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "blog_posts",
       "queryScope": "COLLECTION",
       "fields": [

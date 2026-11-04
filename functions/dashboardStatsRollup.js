@@ -10,13 +10,10 @@ const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin, db } = require('./firebaseAdmin');
 const { assertSuperAdminAuth } = require('./shared/superAdmin');
+const { HIRED_STATUSES, isHiredStatus } = require('./shared/applicationStatus');
 
 const INTERNAL_STATS = 'internal_stats';
 const DASHBOARD_DOC_ID = 'dashboard';
-
-function isHiredStatus(status) {
-  return status === 'Hired' || status === 'Approved';
-}
 
 function hiredDeltaForStatusChange(beforeStatus, afterStatus) {
   return (isHiredStatus(afterStatus) ? 1 : 0) - (isHiredStatus(beforeStatus) ? 1 : 0);
@@ -140,7 +137,7 @@ exports.reconcileCompanyDashboardStats = onCall(
     const [appsSnap, leadsSnap, hiredSnap] = await Promise.all([
       appsCol.count().get(),
       leadsCol.count().get(),
-      appsCol.where('status', 'in', ['Hired', 'Approved']).count().get(),
+      appsCol.where('status', 'in', [...HIRED_STATUSES]).count().get(),
     ]);
 
     const applicationsTotal = appsSnap.data().count;

@@ -6,21 +6,28 @@
  * The DQ tab keeps a synced record it was asked to delete, marked `removedAt`, so
  * that the same upload is not filed again. A new upload of that type must show,
  * so filing one clears the mark.
+ *
+ * A synced record copies its valid-until date from the application's own answer
+ * (`cdlExpiration`, `medCardExpiration`, `twicExpiration`); when that answer
+ * changes, the records of that type take the new date. The application is never
+ * written back.
  */
 jest.mock('firebase-functions/v2/firestore', () => ({
     onDocumentCreated: (_opts, fn) => fn,
     onDocumentUpdated: (_opts, fn) => fn,
 }));
 
-// `mock`-prefixed so the jest.mock factory may reference it (jest hoisting rule).
+// `mock`-prefixed so the jest.mock factory may reference them (jest hoisting rule).
 const mockWrites = [];
+const mockDocs = new Map();
+const mockUpdates = [];
 jest.mock('../../firebaseAdmin', () => {
     const docRef = (path) => ({
         path,
         collection: (name) => colRef(`${path}/${name}`),
-        get: async () => ({ exists: false, data: () => ({}) }),
+        get: async () => ({ exists: mockDocs.has(path), data: () => mockDocs.get(path) || {} }),
         set: async (data, options) => { mockWrites.push({ path, data, options }); },
-        update: async () => {},
+        update: async (data) => { mockUpdates.push({ path, data }); },
     });
     const colRef = (path) => ({
         doc: (id) => docRef(`${path}/${id}`),
@@ -58,7 +65,11 @@ const PATH = 'companies/co1/applications/app1/dq_files/license_front';
 const OLD = { name: 'cdl-old.jpg', url: 'https://storage.example.test/old', storagePath: 'companies/co1/applications/app1/cdl-front-old.jpg' };
 const NEW = { name: 'cdl-new.jpg', url: 'https://storage.example.test/new', storagePath: 'companies/co1/applications/app1/cdl-front-new.jpg' };
 
-beforeEach(() => { mockWrites.length = 0; });
+beforeEach(() => {
+    mockWrites.length = 0;
+    mockDocs.clear();
+    mockUpdates.length = 0;
+});
 
 it('files a new upload of a type whose entry was removed, and shows it', async () => {
     await onApplicationUpdated({
@@ -155,4 +166,80 @@ it('takes no other company\'s path for an upload', async () => {
     });
 
     expect(mockWrites).toEqual([]);
+});
+
+describe('the valid-until dates the application\'s answers give its synced records', () => {
+    const DQ = 'companies/co1/applications/app1/dq_files';
+    const update = (before, after) => onApplicationUpdated({
+        params: { companyId: 'co1', applicationId: 'app1' },
+        data: { before: { data: () => before }, after: { data: () => after } },
+    });
+
+    it('moves both CDL records to an approved change of the licence\'s expiration', async () => {
+        mockDocs.set(`${DQ}/license_front`, { isSynced: true, sourceField: 'cdl-front', expirationDate: '2026-03-01' });
+        mockDocs.set(`${DQ}/license_back`, { isSynced: true, sourceField: 'cdl-back', expirationDate: '2026-03-01' });
+        mockDocs.set(`${DQ}/medical_card`, { isSynced: true, sourceField: 'medical-card-upload', expirationDate: '2026-05-01' });
+
+        await update(
+            { 'cdl-front': GUEST, cdlExpiration: '2026-03-01', medCardExpiration: '2026-05-01' },
+            { 'cdl-front': GUEST, cdlExpiration: '2030-03-01', medCardExpiration: '2026-05-01' },
+        );
+
+        expect(mockUpdates).toEqual([
+            { path: `${DQ}/license_front`, data: { expirationDate: '2030-03-01' } },
+            { path: `${DQ}/license_back`, data: { expirationDate: '2030-03-01' } },
+        ]);
+        // Nothing was filed again, and the application itself was not written.
+        expect(mockWrites).toEqual([]);
+    });
+
+    it('moves the medical card and the TWIC card to theirs, and clears a date the answer lost', async () => {
+        mockDocs.set(`${DQ}/medical_card`, { isSynced: true, expirationDate: '2026-05-01' });
+        mockDocs.set(`${DQ}/twic_card`, { isSynced: true, expirationDate: '2027-01-01' });
+
+        await update(
+            { medCardExpiration: '2026-05-01', twicExpiration: '2027-01-01' },
+            { medCardExpiration: '2028-05-01', twicExpiration: '' },
+        );
+
+        expect(mockUpdates).toEqual([
+            { path: `${DQ}/medical_card`, data: { expirationDate: '2028-05-01' } },
+            { path: `${DQ}/twic_card`, data: { expirationDate: 'DELETE_FIELD' } },
+        ]);
+    });
+
+    it('leaves a type with no record, a removed record, a team upload and a record already on the date', async () => {
+        mockDocs.set(`${DQ}/license_back`, { isSynced: true, expirationDate: '2026-03-01', removedAt: 'then' });
+        mockDocs.set(`${DQ}/medical_card`, { fileType: 'Medical Card', expirationDate: '2026-05-01' });
+        mockDocs.set(`${DQ}/twic_card`, { isSynced: true, expirationDate: '2029-01-01' });
+
+        await update(
+            { cdlExpiration: '2026-03-01', medCardExpiration: '2026-05-01', twicExpiration: '2027-01-01' },
+            { cdlExpiration: '2030-03-01', medCardExpiration: '2028-05-01', twicExpiration: '2029-01-01' },
+        );
+
+        expect(mockUpdates).toEqual([]);
+    });
+
+    it('still moves a later type after a type with no record', async () => {
+        mockDocs.set(`${DQ}/medical_card`, { isSynced: true, expirationDate: '2026-05-01' });
+
+        await update(
+            { cdlExpiration: '2026-03-01', medCardExpiration: '2026-05-01' },
+            { cdlExpiration: '2030-03-01', medCardExpiration: '2028-05-01' },
+        );
+
+        expect(mockUpdates).toEqual([
+            { path: `${DQ}/medical_card`, data: { expirationDate: '2028-05-01' } },
+        ]);
+    });
+
+    it('changes nothing when no answer it copies changed, even where the record holds another date', async () => {
+        // A date the team set on the DQ tab stays until the answer itself changes.
+        mockDocs.set(`${DQ}/license_front`, { isSynced: true, expirationDate: '2027-01-01' });
+
+        await update({ cdlExpiration: '2026-03-01', status: 'New Application' }, { cdlExpiration: '2026-03-01', status: 'Hired' });
+
+        expect(mockUpdates).toEqual([]);
+    });
 });

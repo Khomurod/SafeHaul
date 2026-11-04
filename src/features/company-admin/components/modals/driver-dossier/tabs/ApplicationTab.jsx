@@ -7,6 +7,7 @@ import { useSubmissionRecord } from '@features/applications/hooks/useSubmissionR
 import { SubmissionRecordNotice } from '@features/applications/components/SubmissionRecordNotice';
 import { PreservedApplicationView } from '@features/applications/components/PreservedApplicationView';
 import { PreviousEmployersEditor } from '@features/applications/components/PreviousEmployersEditor';
+import { DISPLAY_ONLY_REASON, displayOnlyKeys } from '@features/applications/services/editableFields';
 import { Badge, Button, Card, Notice, SegmentedControl } from '@/design-system/components';
 import {
     IdentityCard,
@@ -41,6 +42,13 @@ import { ReviewLinkActions } from './ReviewLinkActions';
  * The verification mirror on each employer row is never edited or moved: the
  * server strips whatever a client sends and re-attaches it by employer identity
  * (`functions/shared/employerEdits.js`).
+ *
+ * ## Only the fields the server changes have a box
+ *
+ * `proposeApplicationChanges` applies its allowlist and returns the rest as
+ * `skipped`, so every field off that list (`editableFields.js`, the server's own
+ * file) is passed to `SchemaSection` as a locked key, a section with nothing left
+ * to edit says "Display only", and the edit bar says why.
  *
  * Frozen contracts: the SSN masking rule, every `--` / `'A'` / `'Driver'`
  * fallback, the CDL expiry bands and their exact labels, the clean-record copy,
@@ -160,9 +168,13 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
         setEditedData((prev) => ({ ...prev, [key]: value }));
     };
 
+    // `startEdit` gives a record with no employers an empty list to edit: that
+    // list, still empty, is no change.
+    const savedValue = (key) => (key === 'employers' && !Array.isArray(appData.employers) ? [] : appData[key]);
+
     const handlePropose = async () => {
         const changes = Object.keys(editedData)
-            .filter((k) => JSON.stringify(editedData[k]) !== JSON.stringify(appData[k]))
+            .filter((k) => JSON.stringify(editedData[k]) !== JSON.stringify(savedValue(k)))
             .map((k) => ({ fieldKey: k, proposedValue: editedData[k] }));
         if (changes.length === 0) { setEditing(false); return; }
         const ok = await proposeChanges(changes);
@@ -224,7 +236,9 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
                             <Button variant="secondary" size="sm" onClick={() => setEditing(false)}>
                                 Cancel
                             </Button>
-                            <span className="text-ds-xs text-ds-content-secondary">Edits become pending changes the driver must approve.</span>
+                            <span className="text-ds-xs text-ds-content-secondary">
+                                Edits become pending changes the driver must approve. {DISPLAY_ONLY_REASON}
+                            </span>
                         </>
                     )}
                 </div>
@@ -311,31 +325,38 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
                    thing that can happen, so edits necessarily operate here. */
                 <Card padding="lg" className="animate-in fade-in duration-300">
                     <div className="mx-auto max-w-4xl space-y-ds-8">
-                        {APPLICATION_SCHEMA.sections.map(section => (
-                            <div key={section.id} className="border-b border-ds-border-subtle pb-ds-8 last:border-0 last:pb-0">
-                                <h4 className="mb-ds-4 flex items-center gap-ds-2 text-ds-body-lg font-bold text-ds-content">
-                                    {section.title}
-                                </h4>
-                                {editing && section.id === 'employmentHistory' ? (
-                                    /* The one section `SchemaSection` cannot edit —
-                                       see the header. Read-only rendering is still
-                                       its job, so this swap is scoped to editing. */
-                                    <PreviousEmployersEditor
-                                        employers={editedData.employers}
-                                        onChange={(employers) => handleFieldChange('employers', employers)}
-                                    />
-                                ) : (
-                                    <SchemaSection
-                                        sectionId={section.id}
-                                        data={editing ? editedData : appData}
-                                        isEditing={editing}
-                                        onChange={handleFieldChange}
-                                        fileUrls={fileUrls}
-                                        filesPending={filesPending}
-                                    />
-                                )}
-                            </div>
-                        ))}
+                        {APPLICATION_SCHEMA.sections.map((section) => {
+                            const lockedKeys = displayOnlyKeys(section);
+                            const nothingToEdit = editing && section.id !== 'employmentHistory'
+                                && lockedKeys.length === (section.fields || []).length;
+                            return (
+                                <div key={section.id} className="border-b border-ds-border-subtle pb-ds-8 last:border-0 last:pb-0">
+                                    <h4 className="mb-ds-4 flex items-center gap-ds-2 text-ds-body-lg font-bold text-ds-content">
+                                        {section.title}
+                                        {nothingToEdit && <Badge tone="neutral">Display only</Badge>}
+                                    </h4>
+                                    {editing && section.id === 'employmentHistory' ? (
+                                        /* The one section `SchemaSection` cannot edit —
+                                           see the header. Read-only rendering is still
+                                           its job, so this swap is scoped to editing. */
+                                        <PreviousEmployersEditor
+                                            employers={editedData.employers}
+                                            onChange={(employers) => handleFieldChange('employers', employers)}
+                                        />
+                                    ) : (
+                                        <SchemaSection
+                                            sectionId={section.id}
+                                            data={editing ? editedData : appData}
+                                            isEditing={editing}
+                                            onChange={handleFieldChange}
+                                            lockedKeys={lockedKeys}
+                                            fileUrls={fileUrls}
+                                            filesPending={filesPending}
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </Card>
             )}

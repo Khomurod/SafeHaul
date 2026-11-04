@@ -6,24 +6,21 @@
 // form-data fields only (no files, no computed/identity/audit fields). Arrays
 // (employers/violations/accidents/previousAddresses) are replaced wholesale.
 //
-// The KEYS are written here by hand, deliberately: a security boundary should be
-// a list somebody has to edit on purpose, not something derived. The LABELS come
-// from the shared section table, because the driver reading "we would like to
-// change your SSN" on the review portal and the record saying "Social Security
-// Number" are describing the same field, and they used to disagree — this file
-// said SSN / Address / CDL Number where the definition said Social Security
-// Number / Current Street Address / License Number.
+// The KEYS are written by hand in `applicationEditableFields.json`, deliberately:
+// a security boundary should be a list somebody has to edit on purpose, not
+// something derived. It is the ONE list: the dossier's Edit Application reads the
+// same file and shows every other field display-only, so the screen never offers
+// an edit this boundary drops. Never copy it here or into the browser.
+//
+// The LABELS come from the shared section table, because the driver reading "we
+// would like to change your SSN" on the review portal and the record saying
+// "Social Security Number" are describing the same field, and they used to
+// disagree — this file said SSN / Address / CDL Number where the definition said
+// Social Security Number / Current Street Address / License Number.
 
 const { STANDARD_SECTIONS } = require('./applicationDefinition');
 
-const EDITABLE_FIELD_KEYS = Object.freeze([
-    'firstName', 'middleName', 'lastName', 'suffix',
-    'email', 'phone', 'dob', 'ssn',
-    'street', 'city', 'state', 'zip',
-    'cdlNumber', 'cdlState', 'cdlClass', 'cdlExpiration',
-    'experience-years', 'endorsements',
-    'employers', 'violations', 'accidents', 'previousAddresses',
-]);
+const EDITABLE_FIELD_KEYS = Object.freeze([...require('./applicationEditableFields.json')]);
 
 const LABEL_BY_FIELD_ID = new Map(
     STANDARD_SECTIONS.flatMap((section) => section.fields.map((field) => [field.id, field.label])),

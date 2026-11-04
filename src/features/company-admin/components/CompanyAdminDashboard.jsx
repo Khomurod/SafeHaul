@@ -15,6 +15,7 @@ import { useDashboardCounts } from '@features/companies';
 
 import { InlineLeaderboard } from './InlineLeaderboard';
 import { CompanyReadinessCard } from './CompanyReadinessCard';
+import { NeedsAttentionCard } from './NeedsAttentionCard';
 
 import { Icon, FileText, Briefcase, User, CheckCircle } from '@design-system/icons';
 
@@ -122,6 +123,9 @@ export function CompanyAdminDashboard() {
                             />
                         </ResponsiveGrid>
                     </Section>
+
+                    {/* Everyone: what waits on someone, counted by the server once per visit (one calm line when nothing). */}
+                    <NeedsAttentionCard key={companyId} companyId={companyId} />
 
                     {/* Admins only: what the company has not set up, read once (one calm line when ready). */}
                     <CompanyReadinessCard companyId={companyId} />

@@ -6,19 +6,28 @@
  *
  * Out of scope for this campaign (and therefore only smoke-checked here): the
  * full-application `SchemaSection` editing path and the propose/review-link
- * workflow, which belong to the complex-editing campaign.
+ * workflow, which belong to the complex-editing campaign. Pinned here: Edit
+ * Application edits only the fields the server changes (the shared
+ * `applicationEditableFields.json`) and says why the rest has no box.
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { APPLICATION_SCHEMA } from '@/config/applicationSchema';
+import EDITABLE_FIELD_KEYS from '../../../../../../../functions/shared/applicationEditableFields.json';
 
 let changesState;
 vi.mock('@features/applications/hooks/useApplicationChanges', () => ({
   useApplicationChanges: () => changesState,
 }));
 
+/** The props each section was last rendered with, by section id. */
+let schemaProps = {};
 vi.mock('@shared/components/schema/SchemaRenderer', () => ({
-  SchemaSection: ({ sectionId }) => <div data-testid={`schema-${sectionId}`} />,
+  SchemaSection: (props) => {
+    schemaProps[props.sectionId] = props;
+    return <div data-testid={`schema-${props.sectionId}`} />;
+  },
 }));
 
 let submissionRecordState = { record: null, loading: false, error: null };
@@ -127,6 +136,7 @@ const NOT_PRESERVED = {
 
 const renderTab = (appData = APP, props = {}) => {
   resetChanges();
+  schemaProps = {};
   submissionRecordState = props.submissionRecord !== undefined
     ? props.submissionRecord
     : { record: NOT_PRESERVED, loading: false, error: null };
@@ -501,5 +511,58 @@ describe('ApplicationTab — which record it shows', () => {
     expect(screen.getByRole('button', { name: /As Submitted/i })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/Loading the preserved record/i)).toBeInTheDocument();
     expect(screen.queryByText('Maria Elena Garcia')).toBeNull();
+  });
+});
+
+
+describe('ApplicationTab — Edit Application edits only what the server changes', () => {
+  const editable = new Set(EDITABLE_FIELD_KEYS);
+  const sections = APPLICATION_SCHEMA.sections.filter((section) => section.id !== 'employmentHistory');
+  const offList = (section) => (section.fields || []).map((field) => field.key).filter((key) => !editable.has(key));
+  const startEditing = () => {
+    renderTab(APP, { canEdit: true });
+    fireEvent.click(screen.getByRole('button', { name: /edit application/i }));
+  };
+  const literal = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const heading = (section) => screen.getByRole('heading', { level: 4, name: new RegExp(`^${literal(section.title)}`) });
+
+  it('keeps every field off the shared list display-only, in every section', () => {
+    startEditing();
+    for (const section of sections) {
+      expect(schemaProps[section.id], section.id).toMatchObject({ isEditing: true, lockedKeys: offList(section) });
+    }
+    // Spelled out for the section a recruiter edits most: names, SSN, birth
+    // date and contact details stay editable; the rest of the driver's answers do not.
+    expect(schemaProps.personalInfo.lockedKeys).toEqual(['known-by-other-name', 'otherName', 'sms-consent', 'referralSource']);
+  });
+
+  it('says why a field has no box, only while editing', () => {
+    renderTab(APP, { canEdit: true });
+    expect(screen.queryByText(/Fields without a box are display only/)).toBeNull();
+
+    cleanup();
+    startEditing();
+    const reason = screen.getByText(/Fields without a box are display only/);
+    expect(reason).toHaveTextContent("the driver's own answers, documents and signature, which the company can't change");
+    // On the server's list, but this screen has no editor for them: not "can't change".
+    expect(reason).toHaveTextContent('previous addresses, violations and accidents, which this screen cannot edit yet');
+  });
+
+  it('marks a section with nothing to edit as display only, and no other', () => {
+    startEditing();
+    for (const section of APPLICATION_SCHEMA.sections) {
+      const nothingToEdit = section.id !== 'employmentHistory' && offList(section).length === (section.fields || []).length;
+      const badge = within(heading(section)).queryByText('Display only');
+      expect(Boolean(badge), section.id).toBe(nothingToEdit);
+    }
+    expect(within(heading({ title: 'Qualification Information' })).getByText('Display only')).toBeInTheDocument();
+    expect(within(heading({ title: 'Personal Information' })).queryByText('Display only')).toBeNull();
+  });
+
+  it('shows no display-only marks while not editing', () => {
+    renderTab(APP, { canEdit: true });
+    fireEvent.click(screen.getByRole('button', { name: /full application/i }));
+    expect(screen.queryByText('Display only')).toBeNull();
+    expect(schemaProps.qualifications.isEditing).toBe(false);
   });
 });

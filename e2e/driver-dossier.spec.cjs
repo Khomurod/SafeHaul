@@ -13,10 +13,10 @@ const AxeBuilder = require('@axe-core/playwright').default;
  * `useAppFetch` resolves to the dossier's **error** state. That is genuinely
  * useful here (the loading → error page-state transition is real, and the shell,
  * navigation, header actions and responsive layout all render regardless), but
- * it means the application summary, the document gallery and the document
- * preview cannot be exercised end-to-end. Those surfaces are covered by the
- * focused contract tests in
- * `src/features/company-admin/components/modals/driver-dossier/`.
+ * it means the application summary, the signing documents and the DQ file
+ * cannot be exercised end-to-end. Those surfaces are covered by the focused
+ * contract tests in `src/features/company-admin/components/modals/driver-dossier/`
+ * and `src/features/company-admin/components/tabs/`.
  */
 
 const AUTH = '?e2eAuth=company_admin';
@@ -28,7 +28,7 @@ const SECTION_NAV = { name: 'Driver dossier sections' };
 
 const SECTIONS = [
   ['Application', 'Application Review'],
-  ['Documents', 'Document Gallery'],
+  ['Documents to sign', 'Documents to sign'],
   ['DQ File', 'Driver Qualification File'],
   ['Previous Employment', 'Previous Employment Verification'],
   ['Activity', 'Activity Timeline'],
@@ -308,7 +308,7 @@ test.describe('Driver Dossier responsive presentation', () => {
       // The section navigation has to survive the layout change too.
       await expect(page.getByRole('tablist', { name: 'Driver dossier sections' })).toBeVisible();
       await page.getByRole('tab', { name: /^Documents/ }).click();
-      await expect(page.getByRole('heading', { name: 'Document Gallery' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Documents to sign' })).toBeVisible();
       await expectNoHorizontalOverflow(page, `${name} documents`);
     });
   }

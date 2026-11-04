@@ -22,6 +22,12 @@ jest.mock('../../sealedDocumentDq', () => ({
     fileSealedDocumentInDq: (...args) => mockFileSealed(...args),
 }));
 
+const mockRefreshExpiresNext = jest.fn();
+jest.mock('../../shared/dqExpiry', () => ({
+    ...jest.requireActual('../../shared/dqExpiry'),
+    refreshDqExpiresNext: (...args) => mockRefreshExpiresNext(...args),
+}));
+
 // `mock`-prefixed so the jest.mock factory may reference them (jest hoisting rule).
 const mockDocs = new Map();
 const mockWrites = [];
@@ -62,6 +68,7 @@ beforeEach(() => {
     mockDocs.clear();
     mockWrites.length = 0;
     mockFileSealed.mockResolvedValue(true);
+    mockRefreshExpiresNext.mockResolvedValue(true);
 });
 
 it('requires a signed-in caller of the company, and names no other collection', async () => {
@@ -209,6 +216,44 @@ describe('sealed documents linked to the record', () => {
         const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
         mockFileSealed.mockRejectedValue(new Error('unavailable'));
         signed('req-1');
+        try {
+            await expect(ask()).resolves.toEqual({ filed: 1 });
+        } finally {
+            errors.mockRestore();
+        }
+    });
+});
+
+// `dqExpiresNext` (`shared/dqExpiry.js`) is kept by a trigger on every DQ write;
+// a record whose DQ file was filed before it existed has none until the tab
+// opens, which puts it right when it disagrees with the files it read.
+describe('the earliest valid-until date', () => {
+    it('is put right when it disagrees with the DQ file', async () => {
+        mockDocs.set(APP, { status: 'Hired' });
+        mockDocs.set(`${APP}/dq_files/medical_card`, { storagePath: MED.storagePath, expirationDate: '2027-04-30' });
+
+        await expect(ask()).resolves.toEqual({ filed: 0 });
+        expect(mockRefreshExpiresNext).toHaveBeenCalledTimes(1);
+        expect(mockRefreshExpiresNext.mock.calls[0][0].path).toBe(APP);
+    });
+
+    it('is left alone when it agrees, the stored value or its absence', async () => {
+        mockDocs.set(APP, { dqExpiresNext: '2027-04-30' });
+        mockDocs.set(`${APP}/dq_files/medical_card`, { storagePath: MED.storagePath, expirationDate: '2027-04-30' });
+        await ask();
+
+        mockDocs.set(APP, {});
+        mockDocs.set(`${APP}/dq_files/medical_card`, { storagePath: MED.storagePath, expirationDate: '2027-04-30', removedAt: 'then' });
+        await ask();
+
+        expect(mockRefreshExpiresNext).not.toHaveBeenCalled();
+    });
+
+    it('never fails the filing when it cannot be written', async () => {
+        mockDocs.set(APP, { 'cdl-front': CDL });
+        mockDocs.set(`${APP}/dq_files/auto-1`, { fileType: 'Medical Card', expirationDate: '2027-04-30' });
+        mockRefreshExpiresNext.mockRejectedValue(new Error('aborted'));
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
         try {
             await expect(ask()).resolves.toEqual({ filed: 1 });
         } finally {

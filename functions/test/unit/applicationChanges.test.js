@@ -97,12 +97,24 @@ describe('proposeApplicationChanges', () => {
       { fieldKey: 'cdl-front', proposedValue: {} },           // file field -> skipped
     ] } });
     expect(res.applied).toEqual(['firstName']);
-    expect(res.skipped).toEqual(expect.arrayContaining(['lastName', 'status', 'cdl-front']));
+    // Every field left out, in the order sent: the dossier names each one in its
+    // message, telling "no change" from "not editable" by the shared list.
+    expect(res.skipped).toEqual(['lastName', 'status', 'cdl-front']);
     // one pending_changes doc + the app-doc flag both written in the batch
     expect(mockBatch.set).toHaveBeenCalledTimes(2);
     expect(mockBatch.commit).toHaveBeenCalled();
     const flagCall = mockBatch.set.mock.calls.find((c) => c[1] && c[1].hasPendingCompanyChanges === true);
     expect(flagCall).toBeTruthy();
+  });
+
+  it('writes nothing when every field is outside the shared list, and names each one', async () => {
+    const res = await proposeApplicationChanges({ auth, data: { ...target, changes: [
+      { fieldKey: 'sms-consent', proposedValue: 'yes' },
+      { fieldKey: 'military-service', proposedValue: 'no' },
+    ] } });
+    expect(res).toMatchObject({ success: true, applied: [], skipped: ['sms-consent', 'military-service'] });
+    expect(mockBatch.set).not.toHaveBeenCalled();
+    expect(mockBatch.commit).not.toHaveBeenCalled();
   });
 
   it('returns not-found for a missing application', async () => {

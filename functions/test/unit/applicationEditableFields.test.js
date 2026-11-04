@@ -1,3 +1,5 @@
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   EDITABLE_FIELD_KEYS,
   isEditableField,
@@ -18,6 +20,16 @@ describe('applicationEditableFields', () => {
   it('exposes a frozen, non-empty key list', () => {
     expect(EDITABLE_FIELD_KEYS.length).toBeGreaterThan(10);
     expect(Object.isFrozen(EDITABLE_FIELD_KEYS)).toBe(true);
+  });
+
+  it('is the one list in applicationEditableFields.json, which the dossier reads too', () => {
+    // The browser shows every other field display-only while editing, so a key
+    // added here and not there (or the reverse) would offer an edit the server
+    // drops, or hide one it takes. One file, read by both, cannot disagree.
+    const shared = require('../../shared/applicationEditableFields.json');
+    expect(EDITABLE_FIELD_KEYS).toEqual(shared);
+    const source = fs.readFileSync(path.join(__dirname, '../../shared/applicationEditableFields.js'), 'utf8');
+    expect(source).not.toMatch(/'middleName'/);
   });
 
   it('takes its wording from the shared section table, not a second copy', () => {

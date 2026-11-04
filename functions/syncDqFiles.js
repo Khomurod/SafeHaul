@@ -14,6 +14,11 @@
  * were filed. Only a request linked to this record, signed, whose sealed PDF is
  * where the seal puts it; a removed entry stays removed.
  *
+ * And it puts the record's `dqExpiresNext` right (`shared/dqExpiry.js`) when the
+ * stored value disagrees with the DQ files it read: a trigger keeps it on every
+ * DQ write, so this reaches the records filed before the field existed. That
+ * one never fails the call.
+ *
  * Answers `{ filed }`: how many records it wrote. A missing record files nothing.
  */
 
@@ -22,6 +27,7 @@ const { db } = require('./firebaseAdmin');
 const { assertCompanyAccessForRequest } = require('./shared/companyAccess');
 const { fileDqUploads, uploadKeys } = require('./shared/dqUploads');
 const { fileSealedDocumentInDq } = require('./sealedDocumentDq');
+const { earliestExpiration, refreshDqExpiresNext } = require('./shared/dqExpiry');
 
 const LINK_FIELDS = Object.freeze({ applications: 'sourceApplicationId', leads: 'sourceLeadId' });
 
@@ -49,6 +55,16 @@ async function fileMissingSealedDocuments(companyId, collectionName, recordId, f
     }
 }
 
+/** Writes the record's `dqExpiresNext` when the stored one disagrees with `files`; never throws. */
+async function catchUpExpiresNext(recordRef, record, files) {
+    if ((record?.dqExpiresNext ?? null) === earliestExpiration(files)) return;
+    try {
+        await refreshDqExpiresNext(recordRef);
+    } catch (err) {
+        console.error('[syncDqFiles] Could not update the record\'s dqExpiresNext:', err.message);
+    }
+}
+
 const COLLECTIONS = Object.freeze(['applications', 'leads']);
 const isId = (value) => typeof value === 'string' && value.length > 0 && value.length <= 200 && !value.includes('/');
 
@@ -73,5 +89,6 @@ exports.syncDqFiles = onCall({ cors: true }, async (request) => {
     });
     const filedIds = new Set(filedRecords.docs.map((doc) => doc.id));
     const sealed = await fileMissingSealedDocuments(companyId, collectionName, applicationId, filedIds);
+    await catchUpExpiresNext(recordRef, record.data(), filedRecords.docs.map((doc) => doc.data()));
     return { filed: filed + sealed };
 });

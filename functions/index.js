@@ -73,6 +73,8 @@ function exportFunctions(wanted) {
   if (wanted('onApplicationWrittenDashboardRollup')) exports.onApplicationWrittenDashboardRollup = require('./dashboardStatsRollup').onApplicationWrittenDashboardRollup;
   if (wanted('onLeadWrittenDashboardRollup')) exports.onLeadWrittenDashboardRollup = require('./dashboardStatsRollup').onLeadWrittenDashboardRollup;
   if (wanted('reconcileCompanyDashboardStats')) exports.reconcileCompanyDashboardStats = require('./dashboardStatsRollup').reconcileCompanyDashboardStats;
+  // The dashboard's "Needs attention": the company's counts of what waits on someone (team)
+  if (wanted('getDashboardAttention')) exports.getDashboardAttention = require('./dashboardAttention').getDashboardAttention;
 
   // 4. Applications & Driver Sync
   if (wanted('onApplicationSubmitted')) exports.onApplicationSubmitted = require('./driverSync').onApplicationSubmitted;
@@ -238,6 +240,8 @@ function exportFunctions(wanted) {
   if (wanted('getSignedApplicationFileUrl')) exports.getSignedApplicationFileUrl = require('./getSignedApplicationFileUrl').getSignedApplicationFileUrl;
   // The DQ tab, on opening: files the record's uploads no DQ record holds yet.
   if (wanted('syncDqFiles')) exports.syncDqFiles = require('./syncDqFiles').syncDqFiles;
+  // Every DQ write: keeps the record's `dqExpiresNext` (earliest valid-until date) true.
+  if (wanted('onDqFileWritten')) exports.onDqFileWritten = require('./dqExpiresNext').onDqFileWritten;
   // The ONLY way to read a preserved original application PDF. Authorizes the
   // caller and writes an audit record before issuing a short-lived signed URL.
   if (wanted('getApplicationOriginalPdfUrl')) exports.getApplicationOriginalPdfUrl = require('./applicationOriginalPdf').getApplicationOriginalPdfUrl;

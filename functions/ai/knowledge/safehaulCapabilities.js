@@ -32,7 +32,7 @@ const { claimsMade } = require('./claimScope');
  * Bump on any meaningful change to the entries below. Published articles record
  * the version that authorised their claims.
  */
-const KNOWLEDGE_VERSION = '2026-08-13.1';
+const KNOWLEDGE_VERSION = '2026-11-04.1';
 
 /** The commit this package was last verified against. */
 const LAST_VERIFIED_COMMIT = '17f33c978ff876498fdf1b2cfe664b20de0bc306';
@@ -84,17 +84,23 @@ const FEATURES = Object.freeze([
         id: 'document-management',
         name: 'Driver qualification document storage',
         status: STATUS.AVAILABLE,
-        description: 'Per-driver document storage with tenant-isolated access rules, server-issued signed links, and audit records for access.',
+        description: 'Per-driver document storage with tenant-isolated access rules, server-issued signed links, and audit records for access. Each driver\'s DQ file lists which documents it holds and which are missing, and a CDL, medical card or MVR in it can carry a valid-until date.',
         intendedUsers: ['safety teams', 'compliance staff'],
         businessBenefit: 'Driver qualification paperwork is held in one place per driver with controlled access, instead of in shared drives.',
         limitations: [
-            'SafeHaul stores and organises documents. It does not monitor expiry dates or send renewal reminders.',
+            'SafeHaul stores and organises documents and shows the valid-until dates recorded with them when the DQ file is opened. It does not monitor expiry dates on a schedule or send renewal reminders.',
+            'The list of what a DQ file holds is not a compliance check, and it does not decide whether a driver is qualified.',
         ],
-        sourceFiles: ['src/features/documents/', 'functions/storageSecure.js', 'src/storage.rules'],
+        sourceFiles: [
+            'src/features/documents/', 'functions/storageSecure.js', 'src/storage.rules',
+            'src/features/company-admin/utils/dqChecklist.js', 'functions/shared/dqExpiry.js',
+        ],
         documentation: ['docs/firestore-data-model.md', 'docs/security-posture.md'],
         approvedClaims: [
             'Driver documents are stored per driver with access limited to that company\'s team.',
             'Document links are issued by the server and checked against company membership.',
+            'Each driver\'s DQ file lists which documents it holds and which are missing.',
+            'A CDL, medical card or MVR in the DQ file can carry a valid-until date, and the file shows when it has expired or expires within 30 days.',
         ],
     },
     {
@@ -265,7 +271,7 @@ const FEATURES = Object.freeze([
         description: 'A daily monitor for expiring driver qualification documents with automatic 30/60/90-day alerts.',
         intendedUsers: [],
         businessBenefit: '',
-        limitations: ['On the roadmap. Not built. SafeHaul does not currently monitor expiry dates or send renewal reminders.'],
+        limitations: ['On the roadmap. Not built. The DQ file shows the valid-until dates recorded with its documents when it is opened; SafeHaul does not check them on a schedule or send renewal reminders.'],
         sourceFiles: [],
         documentation: ['docs/APP_BRIEF.md — §12 known limitations'],
         approvedClaims: [],

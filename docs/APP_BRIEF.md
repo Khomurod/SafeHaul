@@ -194,7 +194,8 @@ checkboxes (the wizard reads only its exact form, e.g. `H,N`). It never offers
 the SSN or a second medical-card upload (the documents panel owns it). In
 `SchemaRenderer` edit mode, which the dossier's *Edit Application* shares,
 uploads, the signature and the applicant's certification are display-only and
-`proposeApplicationChanges` skips them.
+`proposeApplicationChanges` skips them; the dossier also locks every field off
+the server's allowlist (§5).
 
 **The document reader** extracts text in the recruiter's browser — a PDF's text
 layer, else Tesseract OCR (skipped if it cannot start within a minute), else
@@ -331,7 +332,8 @@ that failed, or has not finished ten minutes after signing or the last retry, ca
 sealed again from the document's details (**Retry seal**, `retrySealDocument`): it
 seals what the signer submitted, records the attempt in `sealAttempts`, never reseals
 a signed document, and the signer's images stay until a seal succeeds.
-**A driver's signing documents** are listed in the dossier's Documents tab: the
+**A driver's signing documents** are listed in the dossier's **Documents to sign** tab
+(id `documents`): the
 requests linked to the record, and each required post-application form no request
 carries yet as *Not started*; *Link expired* is derived (unsigned, `expiresAt` past).
 A post-application form is one document per application and form
@@ -430,6 +432,28 @@ opens: what is not set up, each linking to its page — company email not connec
 not verified, no texting line, no contact email for PEV notices, no post-application
 form, a form whose company signature has no image or whose template was deleted (PEV
 copies are a hint). Ready, it is one line; others see nothing.
+
+**Needs attention (dashboard).** For admins and the team, read once when the dashboard
+opens (kept two minutes) through `getDashboardAttention`: signed documents whose seal
+failed, documents unsigned for more than 7 days, PEV requests still waiting for the
+employer and those marked no response, drivers with company changes to approve
+(applications and leads), unfinished applications removed within 5 days, and hired
+drivers whose DQ documents expire within 30 days or have expired (counted exactly on the
+applications status + `dqExpiresNext` index, the five earliest named, each opening the
+driver's file). Each row links to the page that shows those records where one exists
+(PEV and changes live in each driver's file). Counts only, scoped to the company; rows
+of a feature that is off are left out. A failed count says "could not be checked";
+with nothing to show it is one calm line.
+
+**DQ file: what's in it, valid-until dates.** The DQ tab opens with *What's in the
+file*: the application, CDL, medical card, MVR, the employers of the three years before
+the application (each answered, no answer after the attempts, waiting or not requested),
+road test and full Clearinghouse report; the PSP report and the annual items are
+optional and never counted. It says what the file holds, not whether it is compliant,
+and the sidebar's DQ marker follows it. A CDL, medical card or MVR uploaded by the team
+may carry a valid-until date, and a CDL, medical card, MVR or TWIC record may have it
+set or cleared (logged); expired, or expiring within 30 days, is judged by the UTC day.
+The driver's uploads have one place, the DQ File tab, which lists and opens them.
 
 **Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
 worker (§8); the carrier connects and pays its own messaging provider. No
@@ -932,7 +956,12 @@ The driver approves, rejects or corrects each, none preselected, through a
 token link (`/review-change/:token`, 30-day TTL, newest only; `deliver: 'email'`
 emails it to the application's own `email`);
 `hasPendingCompanyChanges` clears once all are resolved. Only callables
-write `pending_changes`.
+write `pending_changes`. *Edit Application* gives a box only to the fields on the
+server's allowlist (`functions/shared/applicationEditableFields.json`, read by both
+sides): names, date of birth, SSN, contact details, address, licence, experience
+and previous employers. Everything else is display-only, and the edit bar says
+why; the result names each field the server left out (no change, or not the
+company's to change).
 
 **Previous employers are editable there.** `SchemaSection` renders `array`
 sections read-only whatever `isEditing` says (it is shared with the wizard), so
@@ -967,8 +996,11 @@ PEV record.
 
 **ATS statuses are stored strings.** `src/shared/constants/atsStatus.js` holds
 the canonical funnel (`New`, `Contact Attempt 1–3`, `In Process`, `Hired`,
-`Terminated`, `Declined`), plus `Interested` and legacy aliases kept selectable
-so older records stay editable. Creation defaults differ: leads get `New Lead`,
+`Terminated`, `Declined`), plus `Interested`. The dossier's status picker offers
+only those, and the record's own value when it is a legacy one: one that names a
+stage takes its place under the stage's name (`New Lead` and `New Application` read
+New, `Approved` Hired, `Rejected` Declined), any other keeps its stored name.
+Legacy values stay stored and valid in the rules. Creation defaults differ: leads get `New Lead`,
 applications `New Application`. Application lists show one name per group
 (`applicationStatusLabel`: `Approved` reads Hired); the value stays. Rules
 validate transitions and **cannot import JS**: a rename edits them too.
@@ -1144,8 +1176,8 @@ the daily count**; refusing is a recorded outcome.
 ### Firestore triggers
 
 - **Driver sync** — a new lead or signed application (an unsigned one is
-  marked `validation_error`), files its details (no SSN) under `drivers/{id}/pending_updates`,
-  read by nothing, and adds the company to an existing profile (`{id}`: the Auth uid of a known email;
+  marked `validation_error`) adds its company to an existing profile's `companyIds`,
+  copying none of the driver's details (`{id}`: the Auth uid of a known email;
   for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created. A signed application also links its lead (§4).
 - **DQ file** — an application's uploads become `dq_files/{type}` records when it
   arrives or one changes, matched by `storagePath` (a link only without one);
@@ -1155,6 +1187,11 @@ the daily count**; refusing is a recorded outcome.
   `pev_result_<hash of path>`, `pev_attempts_<requestId>`); a sealed signing request
   linked to an application or lead by `sealDocument` (`signed_<requestId>`), and by
   `syncDqFiles` when the tab opens if it is missing (a failed filing, an older seal).
+  A changed `cdlExpiration`, `medCardExpiration` or `twicExpiration` moves the date of
+  the synced records of that type, never the other way. `onDqFileWritten` keeps each
+  application's and lead's `dqExpiresNext` (the earliest valid-until date among records
+  not removed) and writes it only when it changes; `syncDqFiles` corrects it when the
+  tab opens, and Data cleanup → DQ valid-until dates writes it on older records.
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request entering `pending_seal`, or a Retry seal recording a
@@ -1347,7 +1384,10 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   a phrase list read clause by clause: a denial is a limitation, a news article
   counts only where it names SafeHaul (`claimScope.js`), and an overstatement
   slips past it. Never claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks,
-  document-expiry monitoring, a job board, or any named carrier endorsement.
+  document-expiry monitoring, a job board, or any named carrier endorsement. The DQ
+  checklist and dates may be described only as listing what the file holds and
+  showing valid-until dates; never as monitoring, a compliance check or a complete
+  DQ file.
 - **A `web/` change runs the `frontend_unit` CI lane**
   (`src/tests/hostingConfig.test.js`, A5). Its claims check runs in an
   always-required job, blocking and install-free, and refuses nested pages (K4)
@@ -1508,10 +1548,11 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   (`getSignedApplicationFileUrl` refuses paths outside the caller's companies).
   Only custom-question uploads are held to `guest_uploads/`; restricting the
   standard fields needs a survey of every folder a legitimate file can live in.
-- **The dossier's *Edit Application* offers fields the server will not change.**
-  Every schema section is editable, but `proposeApplicationChanges` applies only
-  its allowlist and silently returns the rest as `skipped`: an edit to, say, a
-  qualification answer disappears.
+- **Violations, accidents and previous addresses** are on the server's allowlist,
+  but *Edit Application* has no editor for them (array sections render read-only),
+  so they show display-only.
+- **Older `drivers/{id}/pending_updates` documents remain**; nothing reads or writes
+  them. Data cleanup clears only an SSN in them; deleting them is the owner's call.
 - **HEIC photos cannot be read** (an iPhone's default; browsers cannot decode
   it): the reader refuses it, naming what it takes: PDF, JPG, PNG, WebP.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
@@ -1542,8 +1583,21 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   read state per person. Phone matching links the only lead with the number even when its
   email differs; older mixed-case lead emails match only after Data cleanup → Old lead
   fields. Remind's cooldown guards against mistakes, not a team member editing the
-  database; a failed reminder still counts for the ten minutes. Company setup reads once
+  database; a reminder whose every send failed does not count. Company setup reads once
   per dashboard visit.
+- **Batch 4 limits (2026-11):** the DQ checklist reads the DQ list when the tab opens or
+  after a change made there, and the employers as the dossier loaded them (reopen it after
+  another person's change or a PEV change), while the sidebar's marker follows the DQ list
+  live; `dqExpiresNext` reaches older records on a
+  DQ write, when their DQ tab opens, or through Data cleanup → DQ valid-until dates; an
+  old card left in the file keeps the record's earliest date until it is removed; a date
+  the team set on a synced record gives way to the application's next change of that
+  answer; inquiries uploaded by hand are counted, not matched to employers; the
+  recruiter-attached PSP report is not filed (В2). Needs attention's no-response count
+  includes every request still marked so, even where a newer one for that employer was
+  answered, and its unsigned count includes sends that failed; an unfinished
+  application's removal is read from its last save, and the Unfinished page lists only
+  the 200 most recent drafts.
 - **Batch 2 limits (2026-11):** requests sent before the PEV attempt log show only later
   attempts (their day-30 record notes the gap), and an attempt recorded after day 30 is not
   in the already-filed record; a day-30 record that failed to file is not made again
@@ -1582,7 +1636,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   Super Admin maintenance tools, not dead code; check before removing one.
 - **Maintenance → Data cleanup** (`dataCleanup`) removes leftovers item by item:
   Deep Diagnostic test accounts, SSN copies, stored PEV links, old lead fields,
-  application search fields, SMTP password copies outside `email_config`. Check
+  application search fields, SMTP password copies outside `email_config`, DQ
+  valid-until dates (`dqExpiresNext` on records filed before it). Check
   counts; Run confirms, needs a recent sign-in, is audited, resumes
   (`done: false`). Several-value `driverType` lists are only counted.
 
