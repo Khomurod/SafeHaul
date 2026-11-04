@@ -1,6 +1,6 @@
 /**
- * linkDelivery.js — the server emails a driver their own link, so the team never
- * holds it.
+ * linkDelivery.js — the server emails a driver their own link, so no team
+ * member's screen holds it.
  *
  * Two links a recruiter used to copy by hand can be emailed instead, by passing
  * `deliver: 'email'`: the application link or continuation link
@@ -22,7 +22,9 @@
  *
  * The email goes through the company's own SMTP settings (`emailService.js`),
  * whose password is decrypted in the calling function, so each callable that
- * delivers binds SMS_ENCRYPTION_KEY (`smsSecretBindings.test.js`).
+ * delivers binds SMS_ENCRYPTION_KEY (`smsSecretBindings.test.js`). Being the
+ * company's own account, its mailbox may keep the sent email, link included,
+ * as it does for every signing email.
  */
 const crypto = require('crypto');
 const { HttpsError } = require('firebase-functions/v2/https');

@@ -4,7 +4,9 @@
  * The server mints the link as it always does — the same token, hash, expiry and
  * one live link (`./inviteTokens.js`) — and emails it to the draft's own
  * `contactEmail` instead of handing it back. The caller is told the masked
- * address and never the token, so the carrier never holds this link. Every rule
+ * address and never the token, so no recruiter's screen holds this link (the
+ * company's own mailbox may keep a copy in its Sent folder: the email goes out
+ * through the company's SMTP account). Every rule
  * of the send is `shared/linkDelivery.js`'s; this file is when each one is
  * asked, and what the email says.
  *
