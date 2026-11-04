@@ -48,6 +48,21 @@ describe('what a press of Remind says', () => {
         expect(reminderResultMessage(data)).toEqual({ tone: 'success', text });
     });
 
+    it('says which channel did not go, and never that a failed one went', () => {
+        expect(reminderResultMessage({ channels: { email: true, sms: false }, failed: { email: false, sms: true } })).toEqual({
+            tone: 'warning',
+            text: 'Reminder sent by email. The link works for seven more days. The text message could not be sent: the document\'s details say why.',
+        });
+        expect(reminderResultMessage({ channels: { email: false, sms: false }, failed: { email: true, sms: false } })).toEqual({
+            tone: 'danger',
+            text: 'The reminder could not be sent by email. The document\'s details say why.',
+        });
+        expect(reminderResultMessage({ channels: { email: false, sms: false }, failed: { email: true, sms: true } })).toEqual({
+            tone: 'danger',
+            text: 'The reminder could not be sent by email or text message. The document\'s details say why.',
+        });
+    });
+
     it('passes on the server\'s reason for a refusal, and words anything else plainly', () => {
         const cooldown = Object.assign(
             new Error('A reminder was sent less than ten minutes ago. You can send another in 4 minutes.'),

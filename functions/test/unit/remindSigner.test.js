@@ -260,6 +260,24 @@ describe('a document waiting for its signature', () => {
     });
 });
 
+describe('a send that fails after the claim', () => {
+    it('is recorded on the document and answered as not sent, never as sent', async () => {
+        seed({ ...EMAILED, sendSms: true, deliveryMethod: 'both' });
+        mockSendEmail.mockRejectedValue(new Error('SMTP 535 authentication failed (artificial)'));
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        await expect(remind()).resolves.toEqual({
+            success: true,
+            requestId: REQUEST_ID,
+            channels: { email: false, sms: true },
+            failed: { email: true, sms: false },
+        });
+        expect(current()).toMatchObject({ emailStatus: 'failed', emailError: 'SMTP 535 authentication failed (artificial)', smsStatus: 'sent' });
+        // The claim stands: the link has its seven days, and the next press waits out the ten minutes.
+        expect(current().reminders.count).toBe(1);
+    });
+});
+
 describe('one press is one message', () => {
     it('refuses a second reminder within ten minutes, saying when, and writes nothing', async () => {
         seed();
@@ -316,11 +334,11 @@ describe('texts follow the signing-text rules', () => {
         expectNothingWritten(before);
     });
 
-    it('does not text a number on the opt-out list, and records why', async () => {
+    it('does not text a number on the opt-out list, records why, and says the text did not go', async () => {
         seed({ ...EMAILED, sendSms: true, deliveryMethod: 'both' });
         mockDocs.set(`${COMPANY}/blacklist/+15555550100`, { reason: 'STOP' });
 
-        await expect(remind()).resolves.toMatchObject({ channels: { email: true, sms: true } });
+        await expect(remind()).resolves.toMatchObject({ channels: { email: true, sms: false }, failed: { email: false, sms: true } });
         expect(mockSendSms).not.toHaveBeenCalled();
         expect(current()).toMatchObject({ smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' });
         expect(emailedTo()).toEqual(['dana@example.test']);

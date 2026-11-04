@@ -22,6 +22,10 @@
  * never texted (`textSigningLink` records why). With no channel left the press
  * is refused with the reason (`details.reason: 'no-channel'`), writing nothing.
  *
+ * It answers with what each sender recorded: `channels` that went and, when a
+ * claimed one did not (an SMTP error, an opted-out number), `failed`, whose
+ * reason the document's details show (`emailError`, `smsError`).
+ *
  * Not a security boundary: the team may write any signing-request field (rules).
  */
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
@@ -129,12 +133,18 @@ exports.remindSigner = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'] }, a
     }
     if (claimed.sms) await textSigningLink({ companyId, requestId, ref, data, accessToken, reminder: true });
 
+    // Each sender recorded how its send went: answer that, not the claim.
+    const after = (await ref.get()).data() || {};
+    const went = { email: claimed.email && after.emailStatus === 'sent', sms: claimed.sms && after.smsStatus === 'sent' };
+    const failed = { email: claimed.email && !went.email, sms: claimed.sms && !went.sms };
+
     // Ids only, never tokens or contact details.
-    console.log(`[remindSigner] companyId=${companyId} requestId=${requestId} email=${claimed.email} sms=${claimed.sms}`);
+    console.log(`[remindSigner] companyId=${companyId} requestId=${requestId} email=${went.email} sms=${went.sms}`);
     return {
         success: true,
         requestId,
-        channels: { email: claimed.email, sms: claimed.sms },
+        channels: went,
+        ...((failed.email || failed.sms) && { failed }),
         ...(claimed.textSkipped && { textSkipped: 'no-sms-consent' }),
     };
 });

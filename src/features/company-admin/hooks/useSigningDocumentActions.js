@@ -47,7 +47,7 @@ export function useSigningDocumentActions({ companyId, applicationId }) {
         say(row.key, null);
         try {
             const message = await sendReminder(row.request);
-            if (message) say(row.key, message);
+            if (message) say(row.key, { tone: message.tone, text: message.text });
         } finally {
             setBusyKey(null);
         }

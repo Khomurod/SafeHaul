@@ -27,16 +27,32 @@ const CHANNEL_WORDS = {
     both: 'by email and text message',
 };
 
-/** What a press of Remind did, from the callable's answer. */
+const FAILED_WORDS = { email: 'email', sms: 'text message' };
+
+/**
+ * What a press of Remind did, from the callable's answer: the channels that
+ * went (`channels`) and those that were tried and did not (`failed`, whose
+ * reason the document's details show). Never says a failed send went.
+ */
 export function reminderResultMessage(data) {
     const { email, sms } = data?.channels || {};
+    const failed = Object.keys(FAILED_WORDS).filter((key) => data?.failed?.[key]).map((key) => FAILED_WORDS[key]);
+    if (!email && !sms) {
+        return {
+            tone: 'danger',
+            text: `The reminder could not be sent${failed.length ? ` by ${failed.join(' or ')}` : ''}. The document's details say why.`,
+        };
+    }
     const channel = (email && sms && 'both') || (sms && 'sms') || 'email';
+    const notSent = failed.length
+        ? ` The ${failed.join(' and ')} could not be sent: the document's details say why.`
+        : '';
     const skipped = data?.textSkipped === 'no-sms-consent'
         ? ' Not texted: the driver did not answer Yes to text messages.'
         : '';
     return {
-        tone: 'success',
-        text: `Reminder sent ${CHANNEL_WORDS[channel]}. The link works for seven more days.${skipped}`,
+        tone: failed.length ? 'warning' : 'success',
+        text: `Reminder sent ${CHANNEL_WORDS[channel]}. The link works for seven more days.${notSent}${skipped}`,
     };
 }
 

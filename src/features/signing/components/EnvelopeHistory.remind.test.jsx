@@ -129,6 +129,21 @@ describe('EnvelopeHistory — Remind', () => {
         expect(toast.showSuccess).not.toHaveBeenCalled();
     });
 
+    it('says plainly when the reminder could not be sent, and closes, so the list shows why', async () => {
+        callables.remindSigner.mockResolvedValue({
+            data: { success: true, requestId: 'req-1', channels: { email: false, sms: false }, failed: { email: true, sms: false } },
+        });
+        renderHistory();
+        emit([expired()]);
+        const dialog = await openReview();
+
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Remind' }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(toast.showError).toHaveBeenCalledWith('The reminder could not be sent by email. The document\'s details say why.');
+        expect(toast.showSuccess).not.toHaveBeenCalled();
+    });
+
     it('is offered in the details of a document whose link still works', async () => {
         renderHistory();
         emit([live()]);
