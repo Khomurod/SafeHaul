@@ -48,6 +48,8 @@ const SMTP_PASSWORD_READERS = [
     ['employmentVerification/responses.js', 'submitVerificationResponse'],       // "verification complete" to the carrier
     ['employmentVerification/reminders.js', 'processVerificationReminders'],     // PEV reminders and "no response"
     ['saveEmailSettings.js', 'saveEmailSettings'],                               // verifies the settings it saves
+    ['companyApplications/invite.js', 'mintApplicationInvite'],                  // "Email to driver": the application link
+    ['applicationChanges.js', 'createChangeReview'],                             // "Email review link to driver"
 ];
 
 /** The text from `exports.<name> =` to the function's handler: its options, in every SDK form. */

@@ -10,7 +10,9 @@
  *
  * Callables:
  *  - proposeApplicationChanges  (company_admin)  → writes pending_changes docs
- *  - createChangeReview         (company_admin)  → mints a token review link
+ *  - createChangeReview         (company_admin)  → mints a token review link; with
+ *                                                  `deliver: 'email'` emails it to the
+ *                                                  application's own address instead
  *  - getChangeReview            (public/token)   → driver loads before/after
  *  - submitChangeResolution     (public/token)   → driver approve/reject/edit
  *
@@ -36,9 +38,14 @@ const { isEditableField, fieldLabel, valuesEqual } = require("./shared/applicati
 const {
     describeEmployerEdit, reconcileEmployerEdit,
 } = require("./shared/employerEdits");
+const {
+    appOriginFor, assertEmailAllowed, deliverableEmail, deliveryClaim, deliveryCoolingDown,
+    emailSenderFor, linkEmailHtml, readDeliver, refusal, sendClaimedEmail,
+} = require("./shared/linkDelivery");
 
 const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
-const REVIEW_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const REVIEW_TTL_DAYS = 30;
+const REVIEW_TTL_MS = REVIEW_TTL_DAYS * 24 * 60 * 60 * 1000;
 const REPLACED_LINK = 'This review link was replaced by a newer one. Please use the latest link your recruiter sent.';
 
 /** Every review is written with a status (since the feature began): 'open' until it ends. */
@@ -148,12 +155,65 @@ exports.proposeApplicationChanges = onCall({ cors: true }, async (request) => {
     return { success: true, applied, skipped };
 });
 
+/**
+ * "Email review link to driver": everything asked before a link is made — an
+ * address on the application we may use, company email, the limits — and the
+ * claim to write with it (`shared/linkDelivery.js`). Throws the refusal; nothing
+ * has been written.
+ */
+async function prepareReviewDelivery({ request, companyId, applicationId, collectionName, application }) {
+    const to = deliverableEmail(application.email);
+    if (!to) throw refusal('no-email');
+    const sender = await emailSenderFor(companyId);
+    if (!sender) throw refusal('email-not-configured');
+    await assertEmailAllowed({
+        companyId, uid: request.auth.uid, recordKey: `review_${companyId}_${collectionName}_${applicationId}`,
+    });
+    return {
+        to,
+        origin: appOriginFor(request.data?.appBaseUrl),
+        companyName: sender.companyName,
+        claim: deliveryClaim({ uid: request.auth.uid, to, now: Date.now() }),
+    };
+}
+
+/** The email, and the answer the caller gets: the masked address, never the token. */
+async function emailReview({ delivery, companyId, token, application }) {
+    const { companyName } = delivery;
+    const firstName = typeof application.firstName === 'string' ? application.firstName.trim().slice(0, 80) : '';
+    const html = linkEmailHtml({
+        heading: 'Review changes to your application',
+        greeting: `Hello ${firstName || 'there'},`,
+        paragraphs: [
+            `${companyName} has proposed changes to the application you submitted.`,
+            'Nothing on your application changes until you say so: approve, reject or correct each one.',
+        ],
+        buttonLabel: 'Review the changes',
+        url: `${delivery.origin}/review-change/${token}`,
+        footnote: `This link works for ${REVIEW_TTL_DAYS} days and is meant for you alone. If ${companyName} `
+            + 'sends you a newer link, use that one: this one then stops working.',
+    });
+    const to = await sendClaimedEmail({
+        companyId,
+        ref: db.collection('change_reviews').doc(token),
+        field: 'delivery',
+        claim: delivery.claim,
+        to: delivery.to,
+        subject: `${companyName} asks you to review changes to your application`,
+        html,
+        label: 'createChangeReview',
+    });
+    return { success: true, delivered: { channel: 'email', to }, expiresInDays: REVIEW_TTL_DAYS };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. createChangeReview (company_admin) → token link
+// 2. createChangeReview (company_admin) → token link, or the link emailed
 // ─────────────────────────────────────────────────────────────────────────────
-exports.createChangeReview = onCall({ cors: true }, async (request) => {
+// The secret decrypts the company's SMTP password for `deliver: 'email'` (emailService.js).
+exports.createChangeReview = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'] }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
     const { companyId, applicationId, collectionName } = validateTarget(request.data);
+    const deliver = readDeliver(request.data);
     await assertCompanyAdminStrict(request.auth.uid, companyId);
 
     const ref = appRef(companyId, collectionName, applicationId);
@@ -165,6 +225,9 @@ exports.createChangeReview = onCall({ cors: true }, async (request) => {
     if (pendingSnap.empty) {
         throw new HttpsError('failed-precondition', 'There are no pending changes to review.');
     }
+    const delivery = deliver
+        ? await prepareReviewDelivery({ request, companyId, applicationId, collectionName, application: data })
+        : null;
 
     const token = uuidv4();
     const now = admin.firestore.Timestamp.now();
@@ -179,14 +242,17 @@ exports.createChangeReview = onCall({ cors: true }, async (request) => {
     // transaction, because Firestore runs transactions as if one after another:
     // of two links sent at once (a double click, a retry), the later sees the
     // earlier and revokes it.
-    await db.runTransaction(async (tx) => {
+    const outcome = await db.runTransaction(async (tx) => {
         const openSnap = await tx.get(openReviews);
-        openSnap.docs
-            .filter((d) => {
-                const r = d.data() || {};
-                return r.companyId === companyId && r.collectionName === collectionName;
-            })
-            .forEach((d) => tx.update(d.ref, { status: 'revoked', revokedAt: now }));
+        const open = openSnap.docs.filter((d) => {
+            const r = d.data() || {};
+            return r.companyId === companyId && r.collectionName === collectionName;
+        });
+        // One press, one email: a link emailed a moment ago stands, and nothing is replaced.
+        if (delivery && open.some((d) => deliveryCoolingDown(d.data()?.delivery, now.toMillis()))) {
+            return { refused: 'just-sent' };
+        }
+        open.forEach((d) => tx.update(d.ref, { status: 'revoked', revokedAt: now }));
         tx.set(db.collection('change_reviews').doc(token), {
             token,
             companyId,
@@ -197,10 +263,14 @@ exports.createChangeReview = onCall({ cors: true }, async (request) => {
             createdBy: request.auth.uid,
             createdAt: now,
             expiresAt,
+            ...(delivery ? { delivery: delivery.claim } : {}),
         });
+        return { refused: null };
     });
+    if (outcome.refused) throw refusal(outcome.refused);
 
     logger.info(`[createChangeReview] token created for ${collectionName}/${applicationId} (company ${companyId})`);
+    if (delivery) return emailReview({ delivery, companyId, token, application: data });
     // Frontend builds the full URL from window.location.origin + /review-change/{token}.
     return { success: true, token, path: `/review-change/${token}` };
 });

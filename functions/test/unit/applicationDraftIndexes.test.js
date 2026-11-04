@@ -41,6 +41,7 @@ const callableSource = fs.readFileSync(path.join(REPO_ROOT, 'functions/drafts/re
 const PREPARED_SOURCE_FILES = Object.freeze([
     'functions/companyApplications/read.js',
     'functions/companyApplications/invite.js',
+    'functions/companyApplications/inviteDelivery.js',
     'functions/companyApplications/inviteTokens.js',
     'functions/companyApplications/inviteIdentity.js',
 ]);
