@@ -1,15 +1,18 @@
 /**
  * What the company dashboard reads: its four counts and the signed-in user's
- * name. It shows no list, so it asks for no records, no list counts and no team.
+ * name, and for a company admin the "Company setup" card's few documents and
+ * the email settings, once. It shows no list, so it asks for no records, no list
+ * counts and no team.
  *
  * All names and ids below are artificial.
  */
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 const fx = vi.hoisted(() => ({ reads: [] }));
+const COMPANY_DOC = { contact: { email: 'office@example.com' }, postApplicationTemplates: [{ templateId: 'tpl-1', title: 'W-9' }] };
 
 vi.mock('firebase/firestore', () => {
     const record = (kind) => (...args) => ({ kind, args });
@@ -27,7 +30,7 @@ vi.mock('firebase/firestore', () => {
         documentId: () => '__name__',
         getDoc: async (ref) => {
             fx.reads.push(`doc ${ref.path}`);
-            const data = ref.path === 'users/uid-1' ? { name: 'Ann Admin' } : null;
+            const data = { 'users/uid-1': { name: 'Ann Admin' }, 'companies/co-1': COMPANY_DOC }[ref.path] || null;
             return { exists: () => Boolean(data), data: () => data };
         },
         getDocs: async (q) => {
@@ -46,6 +49,12 @@ vi.mock('firebase/firestore', () => {
         writeBatch: vi.fn(),
     };
 });
+vi.mock('firebase/functions', () => ({
+    httpsCallable: (_functions, name) => async () => {
+        fx.reads.push(`call ${name}`);
+        return { data: { success: true, settings: { isVerified: true } } };
+    },
+}));
 vi.mock('@lib/firebase', () => {
     const user = { uid: 'uid-1', email: 'ann@example.com' };
     return {
@@ -69,31 +78,58 @@ import { DataContext } from '@/context/DataContext';
 import { ToastProvider } from '@shared/components/feedback/ToastProvider';
 import { CompanyAdminDashboard } from './CompanyAdminDashboard';
 
+function renderDashboard(role) {
+    return render(
+        <MemoryRouter>
+            <DataContext.Provider
+                value={{
+                    currentCompanyProfile: { id: 'co-1', companyName: 'Example Freight', teamMembers: [] },
+                    currentUserClaims: { roles: { 'co-1': role } },
+                }}
+            >
+                <ToastProvider>
+                    <CompanyAdminDashboard />
+                </ToastProvider>
+            </DataContext.Provider>
+        </MemoryRouter>,
+    );
+}
+
+const COUNTS_AND_NAME = [
+    'count companies/co-1/applications',
+    'count companies/co-1/applications',
+    'count companies/co-1/leads',
+    'count companies/co-1/leads',
+    'doc users/uid-1',
+];
+
+afterEach(() => { fx.reads = []; });
+
 describe('the company dashboard', () => {
-    it('reads its counts and the user’s name, and no records', async () => {
-        render(
-            <MemoryRouter>
-                <DataContext.Provider
-                    value={{
-                        currentCompanyProfile: { id: 'co-1', companyName: 'Example Freight', teamMembers: [] },
-                        currentUserClaims: { roles: { 'co-1': 'company_admin' } },
-                    }}
-                >
-                    <ToastProvider>
-                        <CompanyAdminDashboard />
-                    </ToastProvider>
-                </DataContext.Provider>
-            </MemoryRouter>,
-        );
+    it('reads its counts, the user’s name and, for an admin, what Company setup needs, and no records', async () => {
+        renderDashboard('company_admin');
 
         expect(await screen.findByRole('heading', { name: 'Welcome back, Ann Admin' })).toBeInTheDocument();
         await waitFor(() => expect(screen.getByRole('button', { name: 'Hired: 3' })).toBeInTheDocument());
+        // The texting set-up is missing here, so the card lists it.
+        expect(await screen.findByRole('heading', { name: 'Company setup' })).toBeInTheDocument();
         expect([...fx.reads].sort()).toEqual([
-            'count companies/co-1/applications',
-            'count companies/co-1/applications',
-            'count companies/co-1/leads',
-            'count companies/co-1/leads',
+            'call getEmailSettingsMeta',
+            ...COUNTS_AND_NAME.slice(0, 4),
+            'doc companies/co-1',
+            'doc companies/co-1/integrations/sms_provider',
+            'doc companies/co-1/templates/tpl-1',
             'doc users/uid-1',
         ]);
+    });
+
+    it('reads only its counts and the user’s name for a recruiter, who sees no Company setup', async () => {
+        renderDashboard('recruiter');
+
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Hired: 3' })).toBeInTheDocument());
+        await act(async () => {});
+        expect(screen.queryByText(/Company setup|Checking company setup/)).toBeNull();
+        // The name was read by the test before: the session keeps it.
+        expect(fx.reads.filter((read) => read !== 'doc users/uid-1').sort()).toEqual(COUNTS_AND_NAME.slice(0, 4));
     });
 });
