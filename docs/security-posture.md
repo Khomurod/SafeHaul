@@ -246,21 +246,17 @@ same headers; `src/tests/hostingConfig.test.js` pins them.
 - **The full policy is report-only.** `Content-Security-Policy-Report-Only`
   allows scripts only from the site itself and `connect.facebook.net`, and lists
   every service the app calls (Firebase and its Performance Monitoring, Cloud
-  Functions, Sentry, Facebook, Google Sheets export, FMCSA Socrata). The
-  browser blocks nothing; each
-  violation fires a `securitypolicyviolation` event, which
-  `src/lib/monitoring/cspViolations.js` sends to Sentry as a warning tagged
-  `csp_directive` / `csp_blocked` (origin only, never a path or query, once per
-  distinct violation, at most 20 per page load; browser extensions' own
-  violations are dropped). What Sentry adds on its own is cut from these
-  reports too: the page URL is reduced to its origin, and the Referer,
-  breadcrumbs and transaction name are removed, because on `/verify/:token` or
-  `/review-change/:token` they carry the token.
-- **Enforcing it is a separate, later change:** after it has run on Testing and
-  Production through normal use (sign-in, applications, uploads, E-Docs signing,
-  the Facebook connection, sheet imports), move the policy from
+  Functions, Facebook, Google Sheets export, FMCSA Socrata). The browser blocks
+  nothing, and nothing collects the violations: the policy names no report
+  endpoint and the app no longer listens for violation events, so a violation
+  shows only in that browser's console.
+- **Enforcing it is a separate, later change, and a report collector comes
+  first** (its own task; a report must never carry the path or query of
+  `/verify/:token` or `/review-change/:token`). After the policy has run with it
+  on Testing and Production through normal use (sign-in, applications, uploads,
+  E-Docs signing, the Facebook connection, sheet imports), move it from
   `Content-Security-Policy-Report-Only` into `Content-Security-Policy` only if
-  Sentry shows no `csp_disposition:report` events other than browser extensions.
+  the collector shows no violations other than browser extensions'.
   A new external service must be added to the policy in the same change that
   calls it; the hosting test reads the hardcoded addresses and fails otherwise.
 

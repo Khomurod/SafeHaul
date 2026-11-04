@@ -955,7 +955,6 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Telegram** | Operator alerts (`watchAiAndBlog`) and release offers (`offerProductionRelease`) in the chat connected in Super Admin → System Health. Marketing-site bot **retired** (`LD-R3`; rollback caveat, token rotation: `docs/FIREBASE_HOSTING_RUNBOOK.md`) | Bot token: Secret Manager `SAFEHAUL_AI_ALERTS_TELEGRAM_BOTTOKEN`; chat, `approverId` (pressed Start; only their release press counts), watcher state: `system_jobs/platformAlerts`. `telegramWebhook` (header = token HMAC; release secrets; 120 s) keeps Starts in `…Inbox` (1-day TTL), runs release presses. Server-only |
 | **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
-| **Sentry** | Error monitoring for the browser app (`@sentry/react`), and its Content Security Policy violations (report-only, §10); Cloud Functions log to Cloud Logging only | DSN |
 | **GitHub API** | Promotion from Super Admin → Releases or the Telegram button (`runPromotion`). Reads and token minting give up after 15 s (shown as GitHub unreachable); the dispatch that starts a release has no limit of its own | GitHub App credential, server-only |
 
 **Hard boundaries:**
@@ -1184,10 +1183,10 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   document is stored or logged; its pages live in memory for one request.
 - **The application sites refuse to be framed by other sites**
   (`frame-ancestors 'self'`, `X-Frame-Options: SAMEORIGIN` in `firebase.json`),
-  and their full Content Security Policy is **report-only**: violations go to
-  Sentry, nothing is blocked. Enforcing it, or letting an outside site embed a
-  page, is a deliberate later change; a new external service joins the policy
-  when introduced. See [`docs/security-posture.md`](./security-posture.md).
+  and their full Content Security Policy is **report-only**: nothing is blocked
+  or collected. Enforcing it (a report collector comes first) or letting an
+  outside site embed a page is a deliberate later change; a new external service
+  joins the policy when introduced. See [`docs/security-posture.md`](./security-posture.md).
 - **Speed data carries no secret.** Firebase Performance gets one `page_load`
   per page load (not per in-app navigation), by route pattern, `site` and
   `release`. Automatic traces are off; `/verify/` and `/review-change/` record
@@ -1256,7 +1255,7 @@ contract (props that would replace it throw); and every glyph comes from
 `@design-system/icons` at a step on the icon scale (`xs`…`3xl`, 12–32px) — the
 registry hands out **tokens**, not components, so `<Trash2 size={13} />` throws
 by name. Such a throw, as every design-system prop check, happens outside a
-production build; a production build reports it to Sentry and draws the default
+production build; a production build logs it to the console and draws the default
 (`src/design-system/contract.js`). A glyph **inside a design-system container
 states no step**: `Button`, `IconButton`, `Tabs`, `Chip`, `SegmentedControl`,
 `FileInput` and `StatusMedallion` size what they hold. The one file that opens a
@@ -1312,6 +1311,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 
 **Current limitations:**
 
+- **Browser errors are not collected anywhere**; users must report them.
 - **Sent Documents search and filters cover the loaded documents** (newest 100,
   more on request), and say so; the server totals refresh when a loaded
   document changes or the page reopens, so a change to an older document shows
@@ -1487,10 +1487,10 @@ desktop Chromium and `@mobile` on an emulated Pixel 7. Runner safety:
 
 **The first download has a budget.** `npm run check:bundle-budget` sums the
 entry, its module preloads (libraries: `vendor`) and stylesheets from
-`dist/index.html`; above **319 kB gzip** it fails `frontend-build`. It refuses a
-pdf.js preload, code that loads later (tracing, Replay, speed monitoring, Storage,
-DOMPurify) in it, and a first download without the offline queue (all pages run
-it), and holds `/apply/:slug` (its chunks, the English font) to **536 kB**.
+`dist/index.html`; above **276 kB gzip** it fails `frontend-build`. It refuses a
+pdf.js preload, code that loads later (speed monitoring, Storage, DOMPurify) in
+it, and a first download without the offline queue (all pages run it), and holds
+`/apply/:slug` (its chunks, the English font) to **492 kB**.
 `npm run test:bundle-budget` drives each refusal in `callable-contract`;
 `check:ci-plan` K1c pins both. Ceilings only move down.
 

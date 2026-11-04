@@ -9,9 +9,6 @@ import React from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }));
-vi.mock('@sentry/react', () => ({ captureException }));
-
 import { Avatar } from '../components/avatar/Avatar';
 import { Button } from '../components/button/Button';
 import { DataTable } from '../components/data-table/DataTable';
@@ -33,10 +30,11 @@ import { PageState } from '../patterns/page-state/PageState';
 
 const cell = (row) => row.name;
 
+let consoleError;
+
 beforeEach(() => {
     vi.stubEnv('PROD', true);
-    captureException.mockReset();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -45,8 +43,10 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-/** What was reported to Sentry while the test ran. */
-const reported = () => captureException.mock.calls.map(([error]) => error.message);
+/** The contract violations logged to the console while the test ran. */
+const reported = () => consoleError.mock.calls
+    .filter(([error]) => error instanceof TypeError)
+    .map(([error]) => error.message);
 
 describe('a production build draws the default after a misused prop', () => {
     it('Avatar: a size that is not a step draws md, and a bad step at sm draws none', () => {
@@ -210,7 +210,7 @@ describe('a production build draws the default after a misused prop', () => {
         expect(screen.getByRole('heading', { level: 2, name: 'Nothing here yet' })).toBeInTheDocument();
     });
 
-    it('reports each misuse to Sentry as it draws the default', () => {
+    it('logs each misuse to the console as it draws the default', () => {
         render(<Notice title="Saved" titleAs="h7">Done.</Notice>);
         expect(reported()).toEqual(['Unsupported Notice titleAs: h7']);
     });

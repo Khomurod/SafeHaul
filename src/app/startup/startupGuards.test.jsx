@@ -12,16 +12,10 @@ import { STARTUP_FAILED_EVENT, announceStartupFailure } from '@lib/runtime/start
 import { StartupErrorScreen } from './StartupErrorScreen';
 
 const mocks = vi.hoisted(() => ({
-  initSentry: vi.fn(),
-  captureException: vi.fn(),
   installStaleBuildReload: vi.fn(),
-  reportCspViolations: vi.fn(),
   keepNonCanonicalHostsOutOfSearch: vi.fn(),
 }));
-vi.mock('@lib/monitoring/sentry', () => ({ initSentry: mocks.initSentry }));
-vi.mock('@lib/monitoring/cspViolations', () => ({ reportCspViolations: mocks.reportCspViolations }));
 vi.mock('./searchIndexing', () => ({ keepNonCanonicalHostsOutOfSearch: mocks.keepNonCanonicalHostsOutOfSearch }));
-vi.mock('@sentry/react', () => ({ captureException: mocks.captureException }));
 vi.mock('./staleBuildReload', () => ({ installStaleBuildReload: mocks.installStaleBuildReload }));
 
 describe('startup guards', () => {
@@ -37,14 +31,7 @@ describe('startup guards', () => {
     expect(mocks.keepNonCanonicalHostsOutOfSearch).toHaveBeenCalledTimes(1);
   });
 
-  it('reports CSP violations from the first module, so the startup error screen is covered', () => {
-    expect(mocks.reportCspViolations).toHaveBeenCalledTimes(1);
-    // One listener only: a second registration would send every violation twice.
-    const main = readFileSync(resolve(process.cwd(), 'src/main.jsx'), 'utf8');
-    expect(main).not.toContain('reportCspViolations');
-  });
-
-  it('shows the startup error screen, and reports the failure, when the config loader announces one', async () => {
+  it('shows the startup error screen, and logs the failure, when the config loader announces one', async () => {
     const root = document.createElement('div');
     root.id = 'root';
     // As the page arrives: `index.html`'s start-up splash fills the root.
@@ -53,6 +40,7 @@ describe('startup guards', () => {
     expect(root.querySelector('#startup-splash')).not.toBeNull();
     document.body.appendChild(root);
     const failure = new Error('[firebase] Firebase Hosting runtime configuration returned HTTP 503.');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     try {
       await act(async () => { announceStartupFailure(failure, window); });
@@ -63,14 +51,15 @@ describe('startup guards', () => {
       expect(root.querySelector('#startup-splash')).toBeNull();
       expect(alert).toHaveTextContent('This page could not load');
       expect(screen.getByRole('button', { name: /reload page/i })).toBeInTheDocument();
-      expect(mocks.initSentry).toHaveBeenCalledTimes(1);
-      expect(mocks.captureException).toHaveBeenCalledWith(failure);
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith('[startup] The app could not start:', failure);
 
       // Once: a second announcement does not mount a second screen.
       await act(async () => { window.dispatchEvent(new CustomEvent(STARTUP_FAILED_EVENT, { detail: { error: failure } })); });
       expect(screen.getAllByRole('alert')).toHaveLength(1);
-      expect(mocks.captureException).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledTimes(1);
     } finally {
+      consoleError.mockRestore();
       // Mounted by the guard, not by `render`, so the shared cleanup misses it.
       root.remove();
     }

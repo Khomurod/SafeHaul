@@ -207,8 +207,6 @@ export const submitRetryMock = (actual) => ({
   waitBeforeRetry: (...a) => retryWaitSpy(...a),
 });
 
-export const sentryMock = () => ({ addBreadcrumb: vi.fn(), captureException: vi.fn() });
-
 export const reactRouterDomMock = (actual) => ({ ...actual, useNavigate: () => navigateSpy });
 
 

@@ -266,6 +266,9 @@ task that waits for it.
 - **Р17 (T5b).** После Sentry отчётам report-only CSP некуда приходить. Убрать
   их сейчас, а сборщик сделать, когда решите включать политику всерьёз?
   *Рекомендую:* да. — Ответ: да (Sentry удаляется полностью) · Дата: 2026-11-03
+- **Решение 3 (T5b).** Секрет `VITE_SENTRY_DSN` в Google Secret Manager и проект
+  в Sentry агент не удаляет. Их удаляете вы, после второго изменения T5b и
+  выпуска на настоящий сайт. — Ответ: да (удалит владелец) · Дата: 2026-11-04
 - **Р18 (только T5-alt, если выбран B).** Session Replay записывает полный адрес
   страницы, в том числе с токеном. Переписывать адрес перед отправкой или не
   записывать повторы на таких страницах? — Не нужен: выбран вариант A · Дата: 2026-11-03
@@ -327,7 +330,9 @@ Not part of any task above. Each needs its own task if the owner wants it.
    redacts sensitive key names and masks SSN, e-mail and phone values, but not
    URL paths or query strings. Checked by reading the code only; no live Sentry
    event was inspected. With option A this stays until T5b. *Recommended:* a
-   separate small task soon, independent of this plan.
+   separate small task soon, independent of this plan. T5b removes Sentry from
+   the app, so this is closed once Production is promoted; until then
+   Production keeps serving the old bundle, which still sends to Sentry.
 2. "Retry Failed" with nothing left to retry shows "Retry session started with
    undefined targets." (`functions/bulkActions/controllers/sessionController.js:228`).
 3. The 8x8 connection check reports success on any network error other than

@@ -5,7 +5,7 @@ import { Card, DataTable } from '@/design-system/components';
 import { PageHeader } from '@/design-system/layouts';
 import { useData } from '@/context/DataContext';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { whenIdle } from '@lib/monitoring/sentry';
+import { whenIdle } from '@lib/runtime/whenIdle';
 
 import { CallOutcomeModal } from '@shared/components/modals/CallOutcomeModal';
 import { LeadAssignmentModal } from '../components/LeadAssignmentModal';

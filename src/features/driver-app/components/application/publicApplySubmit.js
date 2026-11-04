@@ -9,7 +9,6 @@
 // else reads it.
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import * as Sentry from '@sentry/react';
 import { newSubmissionAttemptId } from '@shared/utils/submissionAttemptId';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import {
@@ -206,14 +205,6 @@ export async function submitPublicApplication({
     const email = formData.email || '';
     const phone = formData.phone || '';
 
-    // Sentry breadcrumb
-    Sentry.addBreadcrumb({
-      category: 'submission',
-      message: sandbox ? 'Sandbox guest application submission started' : 'Guest application submission started',
-      data: { companyId: company.id, slug },
-      level: 'info',
-    });
-
     try {
       // 1. Generate deterministic application ID
       let applicationId;
@@ -336,15 +327,6 @@ export async function submitPublicApplication({
           finishDraftLifecycle();
           sessionStorage.removeItem('pending_application_recruiter');
 
-          Sentry.addBreadcrumb({
-            category: 'submission',
-            message: sandbox
-              ? 'Sandbox guest application submitted successfully via Cloud Function'
-              : 'Guest application submitted successfully via Cloud Function',
-            data: { applicationId: serverData.applicationId || applicationId, confirmationNumber: serverData.confirmationNumber || confirmationNumber },
-            level: 'info',
-          });
-
           const finalConfirm = serverData.confirmationNumber || confirmationNumber;
           const finalApplicationId = serverData.applicationId || applicationId;
           sessionStorage.setItem('lastConfirmationNumber', finalConfirm);
@@ -403,10 +385,7 @@ export async function submitPublicApplication({
       }
 
       // All attempts failed
-      Sentry.captureException(lastError, {
-        tags: { flow: 'guest_application', stage: 'submission_failed' },
-        extra: { applicationId, companyId: company.id, queueId },
-      });
+      console.error('[guest application] submission failed', lastError, { stage: 'submission_failed', applicationId, companyId: company.id, queueId });
 
       // Discarded while the last attempt was still out. Without this the applicant is
       // shown "saved, and it will be submitted when the connection returns" for a

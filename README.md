@@ -88,7 +88,6 @@ Brief §12) · payment processing · any named carrier endorsement.
 | React Signature Canvas | 1.1 | Signature capture |
 | React Virtuoso | 4.18 | Virtualized lists |
 | DOMPurify | 3.4 | HTML sanitization |
-| Sentry | 10.32 | Error monitoring (browser) |
 
 ### Backend (Firebase)
 
@@ -109,8 +108,9 @@ Cloud Functions run on **Node 22** (moved from Node 20 on 2026-09-06, ahead of G
 | @google-cloud/secret-manager | 6.1 | AI and integration credentials |
 | @google-cloud/tasks | 6.2 | Bulk campaign worker queue |
 
-> There is **no server-side Sentry**. Only the browser DSN (`VITE_SENTRY_DSN`)
-> is consumed; source maps are neither built nor uploaded.
+> **No error collector runs**, in the browser or on the server: the browser app
+> logs errors to its console, Cloud Functions to Cloud Logging. Source maps are
+> neither built nor uploaded.
 
 ### Testing
 

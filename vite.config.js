@@ -18,8 +18,7 @@ const __dirname = dirname(__filename);
  * Only packages the first screen already loads in full: the bundler moves a
  * group's dependencies into it, so a package with a module that only a later
  * screen needs would put that module into every page's first download. That is
- * why Sentry stays out — its tracing and Replay load later from the same
- * packages — and the icons, which load with the screens that draw them.
+ * why the icons stay out: each loads with the screens that draw it.
  * `check:bundle-budget` refuses the chunk if it imports the entry, whose name
  * changes with every release.
  */
@@ -66,10 +65,6 @@ export default defineConfig({
   // screen carries only the glyphs it draws (the plugin's file says why), and
   // the Firebase config requested with the page.
   plugins: [react(), splitGlyphRegistry(), preloadFirebaseConfig()],
-  // Sentry's own tree-shaking flag: its debug logging leaves the bundle (3 kB of
-  // the first download's gzip). Only `debug: true` in `Sentry.init` used it, and
-  // no build sets that.
-  define: { __SENTRY_DEBUG__: false },
   server: {
     host: '0.0.0.0',
     port: 5000,
@@ -103,8 +98,8 @@ export default defineConfig({
   },
   build: {
     target: 'esnext', // CRITICAL: Ensures production build supports modern JS features
-    // No sourcemaps: nothing uploads them to Sentry, and the deploy would only
-    // delete them (main.yml). Building them cost a fifth of the build time.
+    // No sourcemaps: nothing uses them, and the deploy would only delete them
+    // (main.yml). Building them cost a fifth of the build time.
     sourcemap: false,
     rolldownOptions: {
       input: {

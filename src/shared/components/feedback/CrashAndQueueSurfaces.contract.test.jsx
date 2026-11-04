@@ -18,8 +18,6 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@sentry/react', () => ({ captureException: vi.fn() }));
-
 const queueState = vi.hoisted(() => ({ current: {} }));
 vi.mock('@/hooks/useSubmissionQueue', () => ({
     useSubmissionQueue: () => queueState.current,

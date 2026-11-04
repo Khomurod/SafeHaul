@@ -31,7 +31,6 @@ vi.mock('firebase/functions', () => ({
     },
 }));
 vi.mock('firebase/firestore', () => ({ doc: () => ({}), setDoc: async () => undefined, getDoc: async () => ({ exists: () => false }) }));
-vi.mock('@sentry/react', () => ({ addBreadcrumb: () => {}, captureException: () => {}, captureMessage: () => {} }));
 
 const ENTRY = { id: 'q1', type: 'guest', companyId: 'co-1', applySlug: 'acme', applyDraftId: 'draft-a', applyDiscardMark: null, data: {} };
 

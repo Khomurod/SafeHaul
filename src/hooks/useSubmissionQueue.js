@@ -12,7 +12,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { doc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
-import * as Sentry from '@sentry/react';
 import { mergeApplicationDoc } from '@lib/applicationWrite';
 import { readDiscardMark } from '../features/driver-app/components/application/applicationDraftStorage';
 import { isPermanentRefusal } from '../features/driver-app/components/application/refusalCodes';
@@ -93,12 +92,6 @@ export function useSubmissionQueue() {
             // there is nothing left to deliver.
             if (entry?.applySlug && entry?.applyDiscardMark !== undefined
                 && readDiscardMark(entry.applySlug) !== entry.applyDiscardMark) {
-                Sentry.addBreadcrumb({
-                    category: 'queue',
-                    message: 'Queued guest submission dropped: the application was discarded',
-                    data: { companyId },
-                    level: 'info',
-                });
                 return { dropped: true };
             }
 
@@ -154,12 +147,6 @@ export function useSubmissionQueue() {
                     .catch((loadError) => console.warn('[useSubmissionQueue] Draft close-out not loaded:', loadError));
             }
 
-            Sentry.addBreadcrumb({
-                category: 'queue',
-                message: 'Queued guest submission processed via Cloud Function',
-                data: { companyId },
-                level: 'info',
-            });
             return result;
         }
 
@@ -184,13 +171,6 @@ export function useSubmissionQueue() {
         // application already exists must not rewrite createdAt/status/confirmationNumber
         // (which the driver self-update rules reject / would clobber recruiter status).
         await mergeApplicationDoc(docRef, submissionData);
-
-        Sentry.addBreadcrumb({
-            category: 'queue',
-            message: 'Queued authenticated submission processed successfully',
-            data: { applicationId, companyId },
-            level: 'info',
-        });
     }, []);
 
     // Process queue when online
@@ -228,16 +208,11 @@ export function useSubmissionQueue() {
             const newCount = await getQueueCount();
             setPendingCount(newCount);
 
-            if (results.succeeded > 0) {
-                Sentry.captureMessage(`Queue processed: ${results.succeeded}/${results.processed} succeeded`, 'info');
-            }
-
             return results;
 
         } catch (err) {
             console.error('[useSubmissionQueue] Processing failed:', err);
             setError(err.message);
-            Sentry.captureException(err, { tags: { flow: 'queue_processing' } });
             return { processed: 0, succeeded: 0, failed: 0, error: err.message };
 
         } finally {

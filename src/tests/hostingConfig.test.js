@@ -285,19 +285,20 @@ describe('firebase.json — application sites: framing and Content Security Poli
             'https://firebaseinstallations.googleapis.com',
             'https://firebaseremoteconfig.googleapis.com',
             'https://firebaselogging-pa.googleapis.com',
-            'https://o1.ingest.us.sentry.io',
             // Firestore's WebChannel loads //www.google.com/images/cleardot.gif to
             // tell a dead network from a failed request; seen on the E2E run.
             'https://www.google.com',
         ]) {
             expect(allows(reportOnly['connect-src'], url), url).toBe(true);
         }
+        // Sentry is switched off, so nothing may send to it.
+        expect(reportOnly['connect-src'].filter((source) => /sentry\.io/i.test(source))).toEqual([]);
         // Uploaded documents are previewed in an iframe straight from Storage, or
         // from an object URL when only `getBlob` can read them (`useAppFetch`).
         expect(allows(reportOnly['frame-src'], 'https://firebasestorage.googleapis.com')).toBe(true);
         expect(reportOnly['frame-src']).toContain('blob:');
         expect(reportOnly['connect-src']).toContain('blob:');
-        // pdf.js runs from /pdf.worker.min.mjs; Sentry Replay compresses in a blob worker.
+        // pdf.js runs from /pdf.worker.min.mjs; tesseract.js runs in a blob worker.
         expect(reportOnly['worker-src']).toEqual(["'self'", 'blob:']);
     });
 

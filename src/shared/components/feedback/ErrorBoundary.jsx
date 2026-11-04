@@ -1,15 +1,14 @@
 import React from 'react';
 import { Icon, Home, RefreshCw } from '@design-system/icons';
-import * as Sentry from '@sentry/react';
 import { Button } from '@design-system/components';
 import { ErrorState } from '@design-system/patterns';
 
 /**
  * The top-level crash handler.
  *
- * Presentation is the `ErrorState` pattern; the Sentry capture, the
- * `console.error`, the reload and go-home behaviour, the development-only error
- * text and the `UI_CRASH_HANDLER` code are unchanged.
+ * Presentation is the `ErrorState` pattern; the `console.error`, the reload and
+ * go-home behaviour, the development-only error text and the `UI_CRASH_HANDLER`
+ * code are unchanged.
  *
  * `ErrorState` is `role="alert"`, so the failure is announced the moment it
  * appears — which for the screen that appears *because something broke* is the
@@ -28,7 +27,6 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('Uncaught Error:', error, errorInfo);
-    Sentry.captureException(error, { extra: errorInfo });
     this.setState({ errorInfo });
   }
 
