@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Icon, AlertTriangle, ShieldCheck, FileText, Pencil, Link2 } from '@design-system/icons';
+import { Icon, AlertTriangle, ShieldCheck, FileText, Pencil } from '@design-system/icons';
 import { APPLICATION_SCHEMA } from '@/config/applicationSchema';
 import { SchemaSection } from '@shared/components/schema/SchemaRenderer';
 import { useApplicationChanges } from '@features/applications/hooks/useApplicationChanges';
@@ -15,6 +15,7 @@ import {
     ExperienceTimeline,
     ConsentCard,
 } from './applicationTabCards';
+import { ReviewLinkActions } from './ReviewLinkActions';
 
 /**
  * Dossier Application tab.
@@ -96,8 +97,9 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
     const [editing, setEditing] = useState(false);
     const [editedData, setEditedData] = useState({});
 
-    const { pendingChanges, proposing, linking, proposeChanges, createReviewLink } =
-        useApplicationChanges(companyId, applicationId, collectionName);
+    const {
+        pendingChanges, proposing, linking, emailing, emailedTo, proposeChanges, createReviewLink, emailReviewLink,
+    } = useApplicationChanges(companyId, applicationId, collectionName);
 
     // Provenance of what this tab is showing. Resolved before the `!appData`
     // early return so the hook order stays stable across renders.
@@ -175,16 +177,14 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
                     tone="warning"
                     title={`${pendingChanges.length} field(s) edited by company — pending driver approval`}
                     actions={(
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={createReviewLink}
-                            disabled={linking}
-                            loading={linking}
-                        >
-                            {linking ? null : <Icon icon={Link2} size="sm" />}
-                            Copy driver review link
-                        </Button>
+                        <ReviewLinkActions
+                            email={appData.email}
+                            linking={linking}
+                            emailing={emailing}
+                            emailedTo={emailedTo}
+                            onEmail={emailReviewLink}
+                            onCopy={createReviewLink}
+                        />
                     )}
                 >
                     <ul className="space-y-ds-1">
