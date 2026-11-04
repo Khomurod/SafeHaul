@@ -95,7 +95,7 @@ Used by Cloud Functions with Admin SDK:
 | `segments/{id}/members/{id}` | read: team · write: admin | Segment membership |
 | `stats_daily/{dateId}` | read: team | Aggregated daily stats (server-written) |
 | `internal_stats/{docId}` | read: team · write: **denied** | Dashboard KPI rollups (server-only writes) |
-| `notifications/{id}` | read: team · create: admin · update: team · delete: admin | The bell; one with `recipientId` (a callback reminder) is shown to that person only |
+| `notifications/{id}` | read: team · create: admin · update: team · delete: admin | The bell; one with `recipientId` (a callback reminder; a document's sender told it was signed or failed to seal; the recruiter who prepared an application told it was submitted) is shown to that person only |
 | `feature_alerts/{id}` | read/write: team or super | Scheduled deactivation warning analytics |
 | `system_settings/email_config` | server only | SMTP credentials; the password encrypted (`enc:v1:`) |
 | `settings/{docId}` | read: team · write: admin | Custom questions, ATS SMS templates, etc. |

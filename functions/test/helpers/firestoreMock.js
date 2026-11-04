@@ -3,7 +3,8 @@
  * suites.
  *
  * It implements only what the vault actually uses — document get/update with dot
- * paths and `FieldValue.delete()`, collection and collection-group reads,
+ * paths and `FieldValue.delete()`, `create` (refused when the document exists),
+ * collection and collection-group reads,
  * `add`, `orderBy(...).limit(...)`, `select(...)`, and the transaction shape the
  * shared rate limiter needs. Everything else is deliberately absent so a test
  * that starts depending on unimplemented Firestore behaviour fails loudly rather
@@ -78,6 +79,19 @@ function createFirestoreMock(seed = {}, options = {}) {
                 // one let exactly that defect ship.
                 assertStorableValue(data, path);
                 const next = options && options.merge ? clone(docs.get(path) || {}) : {};
+                for (const [key, value] of Object.entries(data)) setPath(next, key, value);
+                docs.set(path, next);
+            },
+            // Refuses a document that exists, with production's code, as
+            // `createNotification` relies on for once-per-event writes.
+            create: async (data) => {
+                assertStorableValue(data, path);
+                if (docs.has(path)) {
+                    const error = new Error(`6 ALREADY_EXISTS: Document already exists: ${path}`);
+                    error.code = 6;
+                    throw error;
+                }
+                const next = {};
                 for (const [key, value] of Object.entries(data)) setPath(next, key, value);
                 docs.set(path, next);
             },

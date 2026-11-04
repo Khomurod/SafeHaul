@@ -1,7 +1,8 @@
 // functions/bulkActions/workers/sendLoop.js
 //
 // The sequential send loop: one lead at a time — mid-batch cancel check,
-// idempotency check, data fetch, blacklist check, the send itself, the
+// idempotency check, data fetch, blacklist check, an applicant's SMS consent
+// (`shared/smsPermission.js`), the send itself, the
 // atomic log+pointer transaction, the lead timestamp, and the SMS/email
 // dedup ledgers, with the 3-second pacing (`sendPacing.js`). Extracted
 // verbatim from `batchWorker.js` except the seam: the batch counters are
@@ -12,6 +13,7 @@
 
 const { admin, db } = require("../../firebaseAdmin");
 const { isBlacklisted } = require("../../blacklist");
+const { agreedToSms } = require("../../shared/smsPermission");
 const { normalizePhone } = require("../../utils/phoneUtils");
 const { pauseBeforeNextSend, SEND_WINDOW_MS } = require("./sendPacing");
 const BaseAdapter = require("../../integrations/adapters/BaseAdapter");
@@ -95,6 +97,7 @@ async function runSendLoop({
                 // Declare variables in loop scope
                 let leadData = {};
                 let leadDocRef = null;
+                let fromApplications = false;
 
                 try {
                     // Idempotency Check
@@ -123,6 +126,7 @@ async function runSendLoop({
                         if (leadSourceType === 'leads') {
                             leadDocRef = db.collection('companies').doc(companyId).collection('leads').doc(leadId);
                         } else {
+                            fromApplications = true;
                             leadDocRef = db.collection('companies').doc(companyId).collection('applications').doc(leadId);
                         }
                         const lSnap = await leadDocRef.get();
@@ -146,6 +150,10 @@ async function runSendLoop({
                         if (blacklisted) {
                             errorMsg = "Number is blacklisted (Opt-out)";
                             success = false;
+                        } else if (config.method === 'sms' && fromApplications && !agreedToSms(leadData)) {
+                            // An applicant is texted only after an explicit "Yes"
+                            // to the application's SMS question (`smsPermission.js`).
+                            errorMsg = "Driver did not agree to SMS";
                         } else if (config.method === 'sms') {
                             if (!adapter) throw new Error("SMS Configuration Invalid");
                             recipientIdentity = phone || "No Phone";

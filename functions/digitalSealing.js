@@ -17,6 +17,7 @@ const {
     embedImageByBytes,
     isCompanySignatureField,
 } = require('./shared/companySignature');
+const { notifySealOutcome } = require('./sealNotifications');
 
 /** Where `field` sits on its page, in points (it is stored in percent of the page), or null past the last page. */
 function fieldBox(pdfDoc, field) {
@@ -69,6 +70,12 @@ async function drawCompanySignature(bucket, companyId, pdfDoc, field) {
     }
 }
 
+/** Whether the signing request, as stored now, still waits to be sealed. */
+async function stillAwaitingSeal(ref) {
+    const live = await ref.get();
+    return live.exists && live.data()?.status === 'pending_seal';
+}
+
 exports.sealDocument = functions.runWith({
     memory: '1GB',
     timeoutSeconds: 300
@@ -80,6 +87,15 @@ exports.sealDocument = functions.runWith({
 
         // 1. Only run if status changed to 'pending_seal'
         if (newData.status !== 'pending_seal' || previousData.status === 'pending_seal') {
+            return null;
+        }
+
+        // A trigger can be delivered again after the document was sealed. The
+        // signer's images are deleted once it is sealed, so a second run would
+        // find them missing and mark a signed document as failed: seal only
+        // while the document itself still waits for it.
+        if (!(await stillAwaitingSeal(change.after.ref))) {
+            console.log(`[sealDocument] ${context.params.requestId} no longer awaits sealing; this delivery changes nothing.`);
             return null;
         }
 
@@ -236,6 +252,7 @@ exports.sealDocument = functions.runWith({
                     errorLog: problems,
                     missingFields: [...missingRequiredFields, ...missingCompanySignatures],
                 });
+                await notifySealOutcome(db, companyId, requestId, newData, 'error_sealing');
                 return;
             }
 
@@ -317,9 +334,13 @@ exports.sealDocument = functions.runWith({
                 }
             }
 
+            // Last, once the seal is complete; it never throws.
+            await notifySealOutcome(db, companyId, requestId, newData, 'signed');
+
         } catch (err) {
             console.error("Sealing Failed:", err);
             await change.after.ref.update({ status: 'error_sealing', errorLog: err.message });
+            await notifySealOutcome(db, companyId, requestId, newData, 'error_sealing');
         } finally {
             console.log(`[sealDocument] wall_ms=${Date.now() - sealStartedAt} companyId=${context.params.companyId} requestId=${context.params.requestId}`);
             try {

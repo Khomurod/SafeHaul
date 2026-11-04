@@ -1,17 +1,20 @@
 /**
  * PEV — verification response processing.
  * The previous employer submits the FMCSA §391.23 form: atomically claim the
- * token, persist the response + signature, generate the DQ-file PDF, mirror
- * status onto the application's employer entry, and notify the carrier.
+ * token, persist the response + signature, generate the result PDF and file it
+ * in the DQ file, mirror status onto the application's employer entry, and
+ * notify the carrier.
  */
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, storage } = require("../firebaseAdmin");
 const { checkRateLimit } = require("../shared/rateLimiter");
 const { logger } = require("firebase-functions");
-const { resolveEmployerTarget } = require("../shared/employerIdentity");
 const { generateVerificationPDF } = require("./pdf");
-const { notifyCarrierVerificationComplete } = require("./notifications");
+const { notifyCarrierVerificationComplete, notifyRequestSender } = require("./notifications");
 const { normaliseSignature } = require("./signature");
+const { SUPERSEDED_MESSAGE, requestIdOf } = require("./requestLifecycle");
+const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
+const { fileResultInDq, resultPdfFilename } = require("./requestAttachment");
 
 /** The free-text answers, each limited to 2,000 characters. */
 const TEXT_ANSWERS = [
@@ -91,7 +94,7 @@ async function releaseClaim(docRef, previousStatus) {
             if (snap.exists && snap.data().status === 'processing') txn.update(docRef, { status });
         });
     } catch (error) {
-        logger.error(`[PEV] Could not release the claim on ${docRef.id}:`, error);
+        logger.error(`[PEV] Could not release the claim on request ${requestIdOf(null, docRef.id)}:`, error);
     }
 }
 
@@ -126,6 +129,7 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
                 if (data.expiresAt && data.expiresAt.toMillis() < Date.now()) {
                     throw new HttpsError('deadline-exceeded', 'This verification request has expired.');
                 }
+                if (data.status === 'superseded') throw new HttpsError('not-found', SUPERSEDED_MESSAGE);
                 if (data.status === 'completed') {
                     throw new HttpsError('already-exists', 'This verification has already been completed.');
                 }
@@ -220,64 +224,55 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
             logger.error('[PEV] PDF generation failed (non-blocking):', pdfError);
         }
 
+        const appRef = recordRefOf(verificationData);
+
+        // The result PDF in the DQ file, beside the request's (one record per result).
+        const filedInDq = pdfPath ? await fileResultInDq(appRef, {
+            path: pdfPath,
+            employerName: verificationData.employerName,
+            fileName: resultPdfFilename(verificationData.applicantName),
+        }) : false;
+
         // Update the employer's verification status in the application document
         try {
-            const appRef = db.collection('companies')
-                .doc(verificationData.companyId)
-                .collection(verificationData.collectionName || 'applications')
-                .doc(verificationData.applicationId);
-
-            const appSnap = await appRef.get();
-            if (appSnap.exists) {
-                const appData = appSnap.data();
-                const employers = [...(appData.employers || [])];
-                /**
-                 * Which employer this answer belongs to.
-                 *
-                 * `employerIndex` alone used to decide, and it is positional: a
-                 * carrier that deleted or reordered an employer after sending the
-                 * request would have this completed verification — its respondent,
-                 * its signature and its result PDF — filed against a DIFFERENT
-                 * company, silently. `resolveEmployerTarget` answers by
-                 * `employerId`, falls back to the index only for a request that
-                 * predates ids AND still finds the employer it was sent to by name,
-                 * and otherwise answers null. Null is refused below rather than
-                 * guessed at: the response itself is stored on this request document
-                 * and its PDF is generated, so nothing is lost by declining to
-                 * mirror it onto the wrong row.
-                 */
-                const target = resolveEmployerTarget(employers, verificationData);
-                if (!target) {
-                    logger.warn(
-                        `[PEV] Verification ${token} could not be matched to an employer on `
-                        + `${verificationData.collectionName || 'applications'}/${verificationData.applicationId}; `
-                        + 'the response and its PDF are on the request record and were not mirrored.',
-                    );
-                }
-                const idx = target ? target.index : -1;
-
-                if (employers[idx]) {
-                    if (!employers[idx].verification) {
-                        employers[idx].verification = { history: [] };
-                    }
-                    employers[idx].verification.status = 'Completed';
-                    employers[idx].verification.completedAt = new Date().toISOString();
-                    employers[idx].verification.resultUrl = pdfPath || null;
-                    // PEV-SEC-3 FIX: Do NOT store the raw verification token in the application document.
-                    // The application doc is readable by all company team members; storing the token
-                    // here would allow any team member to reuse it to re-submit or tamper with the
-                    // verification response. Reference the verification by the respondent name only.
-                    employers[idx].verification.respondentName = formResponse.respondentName;
-                    employers[idx].verification.history = employers[idx].verification.history || [];
-                    employers[idx].verification.history.push({
-                        action: 'Completed via Portal',
-                        respondent: formResponse.respondentName,
-                        timestamp: new Date().toISOString(),
-                        url: pdfPath || null,
-                    });
-
-                    await appRef.update({ employers });
-                }
+            /**
+             * Which employer this answer belongs to.
+             *
+             * `employerIndex` alone used to decide, and it is positional: a
+             * carrier that deleted or reordered an employer after sending the
+             * request would have this completed verification — its respondent,
+             * its signature and its result PDF — filed against a DIFFERENT
+             * company, silently. `resolveEmployerTarget` (in `mirrorOntoEmployer`)
+             * answers by `employerId`, falls back to the index only for a request
+             * that predates ids AND still finds the employer it was sent to by
+             * name, and otherwise answers null. Null is refused rather than
+             * guessed at: the response itself is stored on this request document
+             * and its PDF is generated, so nothing is lost by declining to mirror
+             * it onto the wrong row.
+             */
+            const mirrored = await mirrorOntoEmployer(appRef, verificationData, (verification) => {
+                const at = new Date().toISOString();
+                verification.status = 'Completed';
+                verification.completedAt = at;
+                verification.resultUrl = pdfPath || null;
+                // PEV-SEC-3 FIX: Do NOT store the raw verification token in the application document.
+                // The application doc is readable by all company team members; storing the token
+                // here would allow any team member to reuse it to re-submit or tamper with the
+                // verification response. Reference the verification by the respondent name only.
+                verification.respondentName = formResponse.respondentName;
+                verification.history.push({
+                    action: 'Completed via Portal',
+                    respondent: formResponse.respondentName,
+                    timestamp: at,
+                    url: pdfPath || null,
+                });
+            });
+            if (!mirrored) {
+                logger.warn(
+                    `[PEV] Verification request ${requestIdOf(verificationData, token)} could not be matched to an employer on `
+                    + `${verificationData.collectionName || 'applications'}/${verificationData.applicationId}; `
+                    + 'the response and its PDF are on the request record and were not mirrored.',
+                );
             }
         } catch (updateError) {
             logger.error('[PEV] Failed to update application (non-blocking):', updateError);
@@ -285,12 +280,18 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
 
         // Notify the requesting company
         try {
-            await notifyCarrierVerificationComplete(verificationData, formResponse);
+            await notifyCarrierVerificationComplete(verificationData, formResponse, { filedInDq });
         } catch (notifyError) {
             logger.error('[PEV] Failed to notify carrier (non-blocking):', notifyError);
         }
+        // And whoever sent the request, in the bell, whether or not email works.
+        try {
+            await notifyRequestSender(verificationData, token, 'completed');
+        } catch (notifyError) {
+            logger.error('[PEV] Failed to notify the sender (non-blocking):', notifyError);
+        }
 
-        logger.info(`[PEV] Verification completed. Token: ${token}, Respondent: ${formResponse.respondentName}`);
+        logger.info(`[PEV] Verification completed for request ${requestIdOf(verificationData, token)}.`);
 
         return {
             success: true,

@@ -1,16 +1,23 @@
 /**
- * Switching company and logging out both leave the page, so while it holds
- * unsaved changes they ask first. All names below are artificial.
+ * Switching company, logging out and opening E-Docs from the bell all leave the
+ * page, so while it holds unsaved changes they ask first. All names below are
+ * artificial.
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataContext } from '@/context/DataContext';
 import { useUnsavedChanges } from '@/design-system/patterns';
 import { UnsavedChangesBoundary } from './UnsavedChangesBoundary';
 
 vi.mock('@features/auth', () => ({ getPortalUser: vi.fn(async () => null) }));
-vi.mock('../components/NotificationDropdown', () => ({ NotificationDropdown: () => null }));
+// The bell, reduced to the one move it makes off the page.
+vi.mock('../components/NotificationDropdown', () => ({
+    NotificationDropdown: ({ onOpenDocuments }) => (
+        <button type="button" onClick={onOpenDocuments}>Bell: open E-Docs</button>
+    ),
+}));
 
 import { CompanyTopbar } from './CompanyTopbar';
 
@@ -34,10 +41,16 @@ function renderTopbar({ unsaved = false } = {}) {
                 returnToCompanyChooser,
             }}
         >
-            <UnsavedChangesBoundary>
-                <CompanyTopbar isNavigationOpen={false} onOpenNavigation={vi.fn()} navigationTriggerRef={{ current: null }} />
-                {unsaved && <UnsavedEdit />}
-            </UnsavedChangesBoundary>
+            <MemoryRouter initialEntries={['/company/dashboard']}>
+                <UnsavedChangesBoundary>
+                    <CompanyTopbar isNavigationOpen={false} onOpenNavigation={vi.fn()} navigationTriggerRef={{ current: null }} />
+                    {unsaved && <UnsavedEdit />}
+                    <Routes>
+                        <Route path="/company/dashboard" element={<p>Dashboard page</p>} />
+                        <Route path="/company/e-docs" element={<p>E-Docs page</p>} />
+                    </Routes>
+                </UnsavedChangesBoundary>
+            </MemoryRouter>
         </DataContext.Provider>,
     );
 }
@@ -74,6 +87,25 @@ describe('CompanyTopbar leaving the page', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
         await waitFor(() => expect(handleLogout).toHaveBeenCalledTimes(1));
+    });
+
+    it('opens E-Docs from the bell at once when nothing is unsaved', () => {
+        renderTopbar();
+        fireEvent.click(screen.getByRole('button', { name: 'Bell: open E-Docs' }));
+        expect(screen.getByText('E-Docs page')).toBeInTheDocument();
+    });
+
+    it('asks before opening E-Docs from the bell, and stays on Keep editing', () => {
+        renderTopbar({ unsaved: true });
+        fireEvent.click(screen.getByRole('button', { name: 'Bell: open E-Docs' }));
+
+        const dialog = screen.getByRole('dialog', { name: 'Leave without saving?' });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
+        expect(screen.getByText('Dashboard page')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Bell: open E-Docs' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+        expect(screen.getByText('E-Docs page')).toBeInTheDocument();
     });
 
     it('guards the page again when logging out fails', async () => {

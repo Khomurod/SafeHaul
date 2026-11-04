@@ -3,13 +3,21 @@
  *
  * Firestore delivers an event at least once, so the trigger can run twice for
  * one request; the screens no longer text the link themselves, so a repeated
- * run must not text it again. All names and numbers are artificial.
+ * run must not text it again. A number on the company's or the global opt-out
+ * list is not texted, and the request says why. All names and numbers are
+ * artificial.
  */
 jest.mock('firebase-functions/v2/firestore', () => ({
     onDocumentCreated: (_opts, fn) => fn,
 }));
 
 const mockRequest = { fields: {}, updates: [] };
+// The opt-out lists, by path: `companies/{id}/blacklist/{phone}` and `blacklist/{phone}`.
+const mockOptOuts = new Set();
+const mockListRef = (path) => ({
+    get: async () => ({ exists: mockOptOuts.has(path) }),
+    collection: (name) => ({ doc: (id) => mockListRef(`${path}/${name}/${id}`) }),
+});
 mockRequest.ref = {
     collection: () => ({
         doc: () => ({ get: async () => ({ exists: true, data: () => ({ accessToken: 'token-1' }) }) }),
@@ -25,10 +33,11 @@ jest.mock('../../firebaseAdmin', () => {
             get: async () => ({ get: (field) => mockRequest.fields[field] }),
             update: (_ref, data) => Object.assign(mockRequest.fields, data),
         }),
+        collection: (name) => ({ doc: (id) => mockListRef(`${name}/${id}`) }),
     };
     const firestore = () => db;
     firestore.FieldValue = { serverTimestamp: () => 'SERVER_TIMESTAMP' };
-    return { admin: { firestore } };
+    return { admin: { firestore }, db };
 });
 const mockSendSms = jest.fn();
 jest.mock('../../integrations/factory', () => ({
@@ -58,6 +67,7 @@ beforeEach(() => {
     mockSendSms.mockResolvedValue(undefined);
     mockRequest.fields = {};
     mockRequest.updates = [];
+    mockOptOuts.clear();
 });
 
 it('texts the link once and records it', async () => {
@@ -110,4 +120,17 @@ it('records a text RingCentral never answered as failed, saying it may have gone
     expect(mockRequest.fields.smsError).toBe(
         'RingCentral did not answer within 20 seconds, so SafeHaul cannot tell whether this text went out. It was not sent again.',
     );
+});
+
+it("texts nothing to a number that opted out, on the company's list or the global one, and records why", async () => {
+    for (const list of ['companies/co-1/blacklist/+15555550100', 'blacklist/+15555550100']) {
+        mockOptOuts.clear();
+        mockRequest.fields = {};
+        mockOptOuts.add(list);
+        await created({ ...REQUEST, recipientPhone: '(555) 555-0100' });
+
+        expect(mockRequest.fields).toMatchObject({ smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' });
+        expect(mockRequest.fields.smsSentAt).toBeUndefined();
+    }
+    expect(mockSendSms).not.toHaveBeenCalled();
 });

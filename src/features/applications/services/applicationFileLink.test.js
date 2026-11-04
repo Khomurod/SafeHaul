@@ -37,7 +37,9 @@ describe('signedApplicationFileUrl', () => {
     it.each([
         'companies/co-1/applications/app-1/pev_requests/PEV_REQUEST_A_abcd1234.pdf',
         'companies/co-1/leads/lead-1/pev_requests/PEV_REQUEST_A_abcd1234.pdf',
-    ])('asks the PEV signer for a verification request PDF: %s', async (path) => {
+        'companies/co-1/applications/app-1/pev_results/PEV_A_abcd1234.pdf',
+        'companies/co-1/leads/lead-1/pev_results/1700000000000_fax.pdf',
+    ])('asks the PEV signer for a verification request or result: %s', async (path) => {
         await expect(signedApplicationFileUrl(path)).resolves.toBe('https://signed.test/pev');
         expect(callables.getSignedPevUrl).toHaveBeenCalledWith({ storagePath: path });
         expect(callables.getSignedApplicationFileUrl).not.toHaveBeenCalled();

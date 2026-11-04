@@ -35,6 +35,7 @@ const { preserveApplicationPdf } = require('./shared/preserveApplicationPdf');
 const { assertCompanyEditsSeen, seenRevisionOf } = require('./shared/companyEdits');
 const { markSubmittedUploads } = require('./shared/guestUploads');
 const { stepLimit, withinStep } = require('./shared/withinStep');
+const { notifyPreparer, preparerAssignment } = require('./shared/preparedApplicationOwner');
 
 /**
  * The submission answers within this, of the function's 30 s. Past the function's
@@ -290,9 +291,11 @@ exports.submitGuestApplication = functions
             storage, companyId, formData: normalizedFormData, applicationConfig, customQuestions,
             HttpsError: functions.https.HttpsError,
         });
+        // The recruiter who prepared it, from the draft, owns it unless someone already does.
+        const preparer = await preparerAssignment(db, companyId, submittedDraft);
 
         try {
-            const result = await upsertApplicationDoc({
+            const { assigned, ...result } = await upsertApplicationDoc({
                 db,
                 companyId,
                 applicationId,
@@ -300,6 +303,7 @@ exports.submitGuestApplication = functions
                 applicationDoc,
                 now,
                 logLabel: 'submitGuestApplication',
+                assignIfUnassigned: preparer,
             });
             // The application exists, so the unfinished draft has served its
             // purpose. Gone now rather than after the PDF: a submission that ran out
@@ -309,6 +313,7 @@ exports.submitGuestApplication = functions
             // `upsertApplicationDoc` can suffix the final id on a hash collision,
             // and the draft was written under the plain applicant key.
             await discardDraftForApplication(companyId, applicationId);
+            await notifyPreparer(db, companyId, { preparer, applicationId: result.applicationId, assigned, formData: normalizedFormData });
             // Freeze exactly what this driver saw, answered, accepted and signed.
             //
             // Built AFTER the upsert so it records the final application id (the

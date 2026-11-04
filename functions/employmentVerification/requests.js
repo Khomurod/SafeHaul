@@ -26,6 +26,7 @@ const { employerNameOf, resolveEmployerTarget, withEmployerIds } = require("../s
 const { fileRequestInDq, requestPdfPath, storeRequestPdf } = require("./requestAttachment");
 const { releaseStatementFor } = require("../shared/employerReleaseAgreement");
 const { isValidEmail } = require("../shared/isValidEmail");
+const { LIVE_STATUSES, closeRequests, requestsForEmployer } = require("./requestLifecycle");
 
 /**
  * The applicant's release naming this employer, from the submission record the
@@ -227,6 +228,8 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
         // Create verification request document
         const verificationData = {
             token,
+            // The request's name in records the team reads; the token never is.
+            requestId,
             companyId,
             applicationId,
             collectionName,
@@ -274,10 +277,36 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             });
 
             const subject = `Previous Employment Verification Request – ${applicantName}`;
-            emailResult = await sendDynamicEmail(companyId, employerEmail, subject, emailHTML, {
-                ...(ccEmails.length > 0 ? { cc: ccEmails } : {}),
-                ...(requestPdf ? { attachments: [requestPdf.attachment] } : {}),
+            try {
+                emailResult = await sendDynamicEmail(companyId, employerEmail, subject, emailHTML, {
+                    ...(ccEmails.length > 0 ? { cc: ccEmails } : {}),
+                    ...(requestPdf ? { attachments: [requestPdf.attachment] } : {}),
+                });
+            } catch (sendError) {
+                // Nothing was attempted, so nothing may be reminded or marked "no
+                // response" later: `send_failed` is outside the live statuses.
+                logger.error('[PEV] The request email did not go out; the request is marked not sent.', sendError);
+                await verificationRef.update({
+                    status: 'send_failed',
+                    sendFailedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    sendError: String(sendError?.message || sendError).slice(0, 300),
+                });
+                return { success: false, error: 'the email to the employer could not be sent' };
+            }
+        }
+
+        // The employer's earlier live requests stop here: they would keep
+        // reminding, and their day-30 mark would overwrite this row.
+        try {
+            const earlier = (await requestsForEmployer({ companyId, collectionName, applicationId }, stamped, target.index))
+                .filter((doc) => doc.id !== token);
+            await closeRequests(earlier, LIVE_STATUSES, {
+                status: 'superseded',
+                supersededAt: now,
+                supersededBy: requestId,
             });
+        } catch (supersedeError) {
+            logger.error('[PEV] Earlier requests for this employer could not be closed.', supersedeError);
         }
 
         // Filed once the request exists and went out, so a failed send leaves no

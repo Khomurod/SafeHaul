@@ -6,19 +6,24 @@
  *
  * All names and numbers below are artificial.
  */
-jest.mock('firebase-functions/v2/firestore', () => ({ onDocumentUpdated: (opts, handler) => handler }));
+jest.mock('firebase-functions/v2/firestore', () => ({
+    onDocumentCreated: (opts, handler) => handler,
+    onDocumentUpdated: (opts, handler) => handler,
+}));
 
 const mockTemplate = { value: 'Hi {driver name}, this is {user name}.' };
+// The company's automated SMS settings hold the template; no number is on an opt-out list.
+const mockMissing = { get: async () => ({ exists: false }) };
 jest.mock('../../firebaseAdmin', () => ({
     db: {
-        collection: () => ({
-            doc: () => ({
-                collection: () => ({
-                    doc: () => ({
+        collection: (name) => ({
+            doc: () => (name === 'blacklist' ? mockMissing : {
+                collection: (sub) => ({
+                    doc: () => (sub === 'settings' ? {
                         async get() {
                             return { exists: true, data: () => ({ templateContactAttempt1: mockTemplate.value }) };
                         },
-                    }),
+                    } : mockMissing),
                 }),
             }),
         }),
@@ -35,7 +40,8 @@ const { sendContactAttemptSmsIfNeeded } = require('../../atsContactSms');
 const attempt = (record) => sendContactAttemptSmsIfNeeded({
     companyId: 'co1',
     beforeData: { status: 'New' },
-    afterData: { status: 'Contact Attempt 1', firstName: 'Bob', lastName: 'Driver', phone: '(555) 123-4567', ...record },
+    afterData: { status: 'Contact Attempt 1', firstName: 'Bob', lastName: 'Driver', phone: '(555) 123-4567', 'sms-consent': 'yes', ...record },
+    recordType: 'application',
 });
 const sentBody = () => mockSendSMS.mock.calls[0][1];
 

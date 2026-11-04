@@ -1,7 +1,8 @@
 /**
  * A notification in the bell opens the record it is about: one naming an
  * application or a lead asks for that record's dossier and closes the panel,
- * and opening one marks it read. One about no record is plain text.
+ * one naming a signing request opens E-Docs, and opening one marks it read.
+ * One about no record is plain text.
  *
  * All names and ids below are artificial.
  */
@@ -34,11 +35,15 @@ const LEAD = {
     relatedId: 'lead-3', relatedType: 'lead', read: true, createdAt: at,
 };
 const PLAIN = { id: 'n-3', type: 'team_activity', title: 'Team update', message: 'A new member joined', read: false, createdAt: at };
+const SIGNED = {
+    id: 'seal_req-4', type: 'document_signed', title: 'Document signed', message: 'Ann Baker signed Offer Letter',
+    relatedId: 'req-4', relatedType: 'signing_request', recipientId: 'user-1', read: false, createdAt: at,
+};
 
-function openBell(notifications) {
+function openBell(notifications, { onOpenDocuments = vi.fn() } = {}) {
     hook.notifications = notifications;
     const onOpenRecord = vi.fn();
-    render(<NotificationDropdown companyId="co-1" onOpenRecord={onOpenRecord} />);
+    render(<NotificationDropdown companyId="co-1" onOpenRecord={onOpenRecord} onOpenDocuments={onOpenDocuments} />);
     return userEvent.click(screen.getByRole('button', { name: 'Notifications' })).then(() => onOpenRecord);
 }
 
@@ -88,6 +93,28 @@ describe('a notification in the bell', () => {
 
         expect(hook.markAllAsRead).toHaveBeenCalledTimes(1);
         expect(onOpenRecord).not.toHaveBeenCalled();
+    });
+
+    it('opens E-Docs for a signing request, marks itself read and closes the panel', async () => {
+        const onOpenDocuments = vi.fn();
+        const onOpenRecord = await openBell([SIGNED], { onOpenDocuments });
+
+        await userEvent.click(screen.getByRole('button', { name: /Document signed.*Open E-Docs/ }));
+
+        expect(onOpenDocuments).toHaveBeenCalledTimes(1);
+        expect(onOpenRecord).not.toHaveBeenCalled();
+        expect(hook.markAsRead).toHaveBeenCalledWith('seal_req-4');
+        expect(screen.queryByRole('heading', { name: 'Notifications' })).not.toBeInTheDocument();
+    });
+
+    it('shows a signing request as plain text where E-Docs cannot be opened', async () => {
+        hook.notifications = [SIGNED];
+        render(<NotificationDropdown companyId="co-1" onOpenRecord={vi.fn()} />);
+        await userEvent.click(screen.getByRole('button', { name: 'Notifications' }));
+
+        expect(screen.getByText(/Ann Baker signed Offer Letter/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Document signed/ })).not.toBeInTheDocument();
+        expect(screen.queryByText('Open E-Docs')).not.toBeInTheDocument();
     });
 
     it('still opens the record when marking it read fails', async () => {

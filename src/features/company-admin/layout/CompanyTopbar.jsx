@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { Icon, LogOut, ArrowLeftRight, Menu } from '@design-system/icons';
 import { Avatar, IconButton } from '@/design-system/components';
@@ -23,8 +24,10 @@ export const CompanyTopbar = ({
     onOpenRecord,
 }) => {
     const { currentUser, handleLogout, currentCompanyProfile, currentUserClaims, returnToCompanyChooser } = useData();
-    // Switching company and logging out both leave the page: unsaved changes ask first.
+    // Switching company, logging out and opening E-Docs from the bell all leave
+    // the page: unsaved changes ask first.
     const guard = useUnsavedChangesGuard();
+    const navigate = useNavigate();
     const companyId = currentCompanyProfile?.id;
 
     const [displayName, setDisplayName] = useState(currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User');
@@ -87,7 +90,11 @@ export const CompanyTopbar = ({
             {/* Right: Actions */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 {/* Notifications */}
-                <NotificationDropdown companyId={companyId} onOpenRecord={onOpenRecord} />
+                <NotificationDropdown
+                    companyId={companyId}
+                    onOpenRecord={onOpenRecord}
+                    onOpenDocuments={() => guard.request(() => navigate('/company/e-docs'))}
+                />
 
                 <div className="h-8 w-px bg-ds-border-subtle mx-1 hidden sm:block" aria-hidden="true" />
 

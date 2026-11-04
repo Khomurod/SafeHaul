@@ -30,7 +30,10 @@ async function chooseRecord(transaction, applications, applicationId, applicantK
 /**
  * Writes a submitted application, or merges a re-submission into the record
  * already there: its confirmation number, first submission time and a status
- * a recruiter has moved on are kept.
+ * a recruiter has moved on are kept. `assignIfUnassigned`
+ * (`{ assignedTo, assignedToName }`) assigns the record in the same write when
+ * nobody is assigned to it yet, so the submit trigger sees it assigned;
+ * `assigned` says whether it was.
  *
  * Read once and written once, in one transaction. Two submissions of the same
  * application at once (a retry, an offline replay) would otherwise both find
@@ -47,6 +50,7 @@ async function upsertApplicationDoc({
     applicationDoc,
     now,
     logLabel = 'submitGuestApplication',
+    assignIfUnassigned = null,
 }) {
     const applications = db.collection('companies').doc(companyId).collection('applications');
 
@@ -88,6 +92,9 @@ async function upsertApplicationDoc({
             }
         }
 
+        const assigned = Boolean(assignIfUnassigned) && !(snap.exists && (snap.data() || {}).assignedTo);
+        if (assigned) Object.assign(doc, assignIfUnassigned);
+
         // Keep id/confirmation-derived search fields in sync with the FINAL values
         // (collision suffixing can change the id; dedup preserves the previous
         // confirmation number).
@@ -97,7 +104,7 @@ async function upsertApplicationDoc({
         }
 
         transaction.set(applications.doc(id), doc, { merge: true });
-        return { id, confirmationNumber: doc.confirmationNumber, existed: snap.exists };
+        return { id, confirmationNumber: doc.confirmationNumber, existed: snap.exists, assigned };
     });
 
     console.log(`[${logLabel}] Upserted application ${outcome.id} for company ${companyId} (existed=${outcome.existed})`);
@@ -107,6 +114,7 @@ async function upsertApplicationDoc({
         applicationId: outcome.id,
         confirmationNumber: outcome.confirmationNumber,
         deduplicated: outcome.existed,
+        assigned: outcome.assigned,
     };
 }
 

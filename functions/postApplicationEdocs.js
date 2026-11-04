@@ -21,15 +21,6 @@ function normalizeTokenKey(value) {
   return normalizeString(value).trim().toLowerCase();
 }
 
-function normalizeContextKey(value) {
-  const source = normalizeString(value);
-  const withSnake = source.replace(/([a-z0-9])([A-Z])/g, '$1_$2');
-  return withSnake
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
-
 function formatDateForPlaceholder(date = new Date()) {
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
@@ -94,45 +85,54 @@ function replaceTokens(template, context) {
   };
 }
 
+/**
+ * The application fields a template token may name: token → application field.
+ * Nothing else reaches a document. A follow-up document is sealed and the whole
+ * team reads it, so the SSN, the signature, the consents, ids, links and file
+ * paths never become tokens; `{{ssn}}` resolves to nothing, like any unknown
+ * token. Covers every binding the editor offers (`shared/edocFieldSemantics.js`).
+ */
+const APPLICATION_TOKEN_FIELDS = Object.freeze({
+  first_name: 'firstName',
+  middle_name: 'middleName',
+  last_name: 'lastName',
+  suffix: 'suffix',
+  email: 'email',
+  address: 'street',
+  street: 'street',
+  city: 'city',
+  state: 'state',
+  zip: 'zip',
+  dob: 'dob',
+  cdl_number: 'cdlNumber',
+  cdl_state: 'cdlState',
+  cdl_class: 'cdlClass',
+  cdl_expiration: 'cdlExpiration',
+  med_card_expiration: 'medCardExpiration',
+});
+
+const scalarText = (value) => (
+  typeof value === 'string' || typeof value === 'number' ? String(value).trim() : ''
+);
+
 function buildPrefillContextFromApplication(application = {}, companyName = '') {
-  const firstName = normalizeString(application.firstName).trim();
-  const lastName = normalizeString(application.lastName).trim();
-  const fullName = normalizeString(`${firstName} ${lastName}`).trim();
-  const email = normalizeString(application.email).trim();
-  const phone = normalizeString(application.phone || application.phoneNumber).trim();
-
-  const context = {
-    full_name: fullName,
-    first_name: firstName,
-    last_name: lastName,
-    name: fullName,
-    email,
-    phone,
-    company_name: normalizeString(companyName).trim(),
-    [SIGNING_DATE_KEY]: DEFERRED_SIGNING_DATE,
-    date: formatDateForPlaceholder(),
-    address: normalizeString(application.street).trim(),
-    city: normalizeString(application.city).trim(),
-    state: normalizeString(application.state).trim(),
-    zip: normalizeString(application.zip).trim(),
-    cdl_number: normalizeString(application.cdlNumber).trim(),
-    cdl_expiration: normalizeString(application.cdlExpiration).trim(),
-    dob: normalizeString(application.dob).trim(),
-  };
-
-  for (const [key, value] of Object.entries(application || {})) {
-    if (value === null || value === undefined) continue;
-    if (typeof value === 'object') continue;
-    const normalized = normalizeContextKey(key);
-    if (!normalized) continue;
-    context[normalized] = normalizeString(value).trim();
+  const source = application || {};
+  const context = {};
+  for (const [token, field] of Object.entries(APPLICATION_TOKEN_FIELDS)) {
+    context[token] = scalarText(source[field]);
   }
+  const fullName = `${context.first_name} ${context.last_name}`.trim();
 
-  // Applied last: an application field whose name normalizes to `current_date`
-  // must not be able to resolve the signing date back to creation time.
-  context[SIGNING_DATE_KEY] = DEFERRED_SIGNING_DATE;
-
-  return context;
+  return {
+    ...context,
+    full_name: fullName,
+    name: fullName,
+    phone: scalarText(source.phone) || scalarText(source.phoneNumber),
+    company_name: normalizeString(companyName).trim(),
+    date: formatDateForPlaceholder(),
+    // Stamped when the driver signs (`submitPublicEnvelope`), not now.
+    [SIGNING_DATE_KEY]: DEFERRED_SIGNING_DATE,
+  };
 }
 
 function resolveFieldForPostSubmit(field = {}, context = {}) {
@@ -445,7 +445,6 @@ exports.createPostApplicationSigningRequest = onCall({ cors: true }, async (requ
 });
 
 exports.__private = {
-  normalizeContextKey,
   buildPrefillContextFromApplication,
   resolveFieldForPostSubmit,
   normalizePostSubmitTemplateConfig,

@@ -108,7 +108,7 @@ describe('the request document', () => {
 
     it('files nothing in the DQ file when the email cannot be sent', async () => {
         mockSendDynamicEmail.mockRejectedValue(new Error('smtp down'));
-        await expect(send()).rejects.toBeTruthy();
+        await expect(send()).resolves.toMatchObject({ success: false });
         expect(dqFileDocs.size).toBe(0);
     });
 

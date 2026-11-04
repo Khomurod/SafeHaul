@@ -283,14 +283,27 @@ offers, in the intake chooser's place, the quick form (names, phone, email,
 required contact consent) or the full application. A quick-form lead
 (`submitReferralInterest`) or an application with `referralCode` carries
 `referral` (shown in the dossier) and goes to the link's creator while on the
-team, who is notified. Name search starts at two letters, in the lists and the
+team, who is notified; a carrier-prepared application goes to its preparer (§5).
+Name search starts at two letters, in the lists and the
 template picker; email, phone, confirmation number and id search stay exact.
+**A call moves the stage only by the owner's table** (`useCallOutcome.js`): Interested →
+`Interested`; Not Interested and Wrong Number → `Declined` (archived); every other result,
+and any hired, terminated or already-declined record, keeps its stage. Every call is kept
+as the last call (`lastCallOutcome`, `lastContactedAt`). Older `Contacted`/`Attempted`/
+`Disqualified` values stay valid.
 
 **E-documents and signing.** Recruiters build envelopes with placed signer
 fields (optionally AI-suggested); recipients sign **with no account** at
 `/sign/:companyId/:requestId`; typed values (no drawn signature) wait in a
 local draft. The server sends the link; a corrected email or phone gets a new
-one, voiding the old. Signed envelopes are sealed into tamper-evident PDFs.
+one, voiding the old; a number on the opt-out list gets no text (shown as failed),
+the email still goes. Signed envelopes are sealed into tamper-evident PDFs, once:
+a delivery that finds the request no longer `pending_seal` changes nothing. The
+bell then tells the sender (a post-application document: its application's
+recruiter, else the team) "Document signed" or "Seal failed", once per request and
+outcome, title and signer name only. A post-application document fills only
+listed application fields (`APPLICATION_TOKEN_FIELDS`, `postApplicationEdocs.js`):
+never SSN, signature, consents, ids, the confirmation number or links.
 A **company signature** (`company_signature`) is an image the team uploads to
 `secure_documents/{companyId}/originals/company-signatures/` and places on a
 template or one document (each may replace its template's); the signer sees it
@@ -331,7 +344,16 @@ SSN last four, no link, a signature only under the release the driver signed (as
 in VOE): the v3 statement naming this employer, from `submissionRecord` with its
 own signature, else the certification's (`previousEmployerRelease.js`; none before
 2026-01-23), dated by the driver's own day (`signatureDay`), else UTC.
-Up to 5 CC (Settings → Email) get it too.
+Up to 5 CC (Settings → Email) get it too. A request whose first email fails is
+`send_failed`, never reminded nor marked no-response; **Resend** supersedes the
+employer's earlier live request (the portal then refuses its link). **Upload
+Result** (any status short of Completed, so also a late answer) records through
+`recordManualVerificationResult`: the row reads Completed, the request is completed
+so reminders stop, the no-response mark stays in history. Every result, from the
+portal or uploaded, is filed once in the DQ file and opens through
+`getSignedPevUrl`; the row shows when the employer first opened the link. On an
+answer and at day 30 the request's sender (`createdBy`, else the team) gets one
+bell notification naming only the employer and the driver.
 
 **Driver-approved corrections.** Company admins cannot silently rewrite a
 submitted application (§5).
@@ -704,6 +726,12 @@ the carrier's editor.
 
 ### Carrier-prepared applications and continuation links
 
+**The preparer owns what the driver submits.** `submitGuestApplication` reads
+`preparedBy.uid` from the draft (never the payload); while that person is on the
+team it writes `assignedTo`/`assignedToName` in the transaction that files the
+application, only if nobody is assigned, and tells them once. A recruiter or
+referral link in the same submission does not reassign it.
+
 **A prepared application is a draft a recruiter stops reading once the driver
 writes.** It has `origin: 'company'` (its creator; never changes) and status
 `prepared` → `sent` → `driver_in_progress`. The carrier may read back the
@@ -1018,7 +1046,7 @@ Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 | `enforceFeatureSchedules` | every 15 min | Auto-disables features whose `featureSchedules` entry has passed |
 | `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger cannot reach (after a projection change) |
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
-| `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response` and notifies the carrier: the good-faith record |
+| `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response`, notifies the sender (bell) and the carrier (email): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
@@ -1044,19 +1072,28 @@ the daily count**; refusing is a recorded outcome.
 - **DQ file** — an application's uploads become `dq_files/{type}` records when it
   arrives or one changes, matched by `storagePath` (a link only without one);
   opening the DQ tab files any still missing (`syncDqFiles`, leads too). A
-  removed entry stays removed.
+  removed entry stays removed. PEV request PDFs and results are filed by the PEV
+  callables, one record each (`pev_request_<id>`, `pev_result_<hash of path>`).
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
-- **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
+- **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing, then
+  one bell notification of the outcome (§4); a notification failure never fails the seal.
 - **Team cache** — a membership write rewrites `companies/{id}.teamMembers` (uid, role, name by `nameFromProfile`
   else `'Unknown'`, email). Team pickers and filters read it; Assign Leads and Import Leads read it fresh on opening.
 - **Notifications** — status changes, lead assignment, new applications, an
   applicant confirmation email. A call with a callback time (or "Remind me in 1
   Hour", still No Answer) reminds only its recruiter (`recipientId`). The bell
   reads the team's newest 20 and the reader's own newest 20 reminders (index in
-  `firestore.indexes.json`), and shows the newest 20 of both.
+  `firestore.indexes.json`), and shows the newest 20 of both. A seal outcome, a
+  prepared application's submission and a PEV answer or no-response notify one
+  person once (`createNotification` with a fixed id).
 - **Automated contact SMS** — moving an application or lead *into* `Contact Attempt 1/2/3` sends the
   matching template from `companies/{id}/settings/automated_sms`; transition-only, so idempotent; no template, no message.
+  An application is texted only after the driver's explicit "Yes" to the optional SMS question (`sms-consent`);
+  leads were never asked and are texted; no number on an opt-out list is texted. Each automatic text (sent, not
+  sent and why, failed) leaves one `Automated SMS` Activity entry, without the message or number (`shared/smsPermission.js`).
+  The entry is written before the provider is called, so a repeated delivery of the same change finds it and sends
+  nothing, even when the first run stopped before recording a result; an entry that cannot be written sends nothing.
 - **Retention** — TTL overrides in `firestore.indexes.json` delete `blog_runs`,
   `application_drafts`, `application_draft_audit` and `rate_limits` at
   `expiresAt` (activity logs carry one). An unfinished application expires
@@ -1078,6 +1115,8 @@ keeps the newest N. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
 and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
 closed on a bad number) and every email with a usable one; no reply fills them (§12).
+An SMS campaign to applicants also skips anyone without an explicit "Yes" to SMS
+("Driver did not agree to SMS" in the report; still counted in preview).
 An SMS logs as sent once RingCentral accepts it; a check (also `checkCampaignDelivery`) reads the line's message
 store (Read Messages) by id, else number and time, and fails an undelivered text (reason, totals). A text the
 provider never answered logs `sendUnconfirmed` ("May have been sent"): Retry Failed leaves it out; three with
@@ -1399,6 +1438,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   accepted gap; see `docs/security-posture.md`. Client writes are named per
   folder in `src/storage.rules`: a PEV result is add-only; PEV signatures,
   request PDFs and sealed copies are server-only.
+- **PEV records before 2026-11 are not backfilled:** earlier results are not in
+  the DQ file and keep a stored download link; requests already live then keep
+  reminding until day 30 (their mark no longer overwrites a Completed row).
 - **`signedCopy` stops accidental and concurrent resends, not a team member
   editing the database:** the rules let the team write any signing-request
   field, so clearing it directly would allow a second approved send.

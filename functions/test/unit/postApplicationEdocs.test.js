@@ -501,6 +501,177 @@ describe('createPostApplicationSigningRequest', () => {
   });
 });
 
+// A follow-up document is sealed and the whole team can read it, so a template
+// token fills only from the application fields listed for it; never from the
+// SSN, the signature, the consents, ids or anything else the application holds.
+// All values below are artificial.
+describe('the application fields a template token may name', () => {
+  const SSN = '123-45-6789';
+  const SIGNATURE = 'TEXT_SIGNATURE:Anthony Collins';
+  const application = {
+    confirmationNumber: 'SAF-2026-ABCDE',
+    firstName: 'Anthony',
+    middleName: 'Lee',
+    lastName: 'Collins',
+    suffix: 'Jr.',
+    email: 'driver@example.com',
+    phone: '5551112222',
+    street: '2221 MEADECROFT RD',
+    city: 'CHARLOTTE',
+    state: 'NC',
+    zip: '28214',
+    dob: '1980-04-02',
+    cdlNumber: 'N1234567',
+    cdlState: 'NC',
+    cdlClass: 'A',
+    cdlExpiration: '2028-05-01',
+    medCardExpiration: '2027-01-15',
+    // Never a token: personal, consent, identity and link data.
+    ssn: SSN,
+    signature: SIGNATURE,
+    signatureType: 'typed',
+    signatureDate: '2026-11-04',
+    'final-certification': 'agreed',
+    'agree-electronic': 'yes',
+    'sms-consent': 'yes',
+    identityKey: 'hmac-abc123',
+    applicantKey: 'key-abc123',
+    applicantId: 'uid-abc123',
+    inviteToken: 'invite-1',
+    agreementVersion: 'v3',
+    status: 'New Application',
+    companyId: 'co1',
+  };
+  const { buildPrefillContextFromApplication } = __private;
+  const { SUPPORTED_BINDING_KEYS } = require('../../shared/edocFieldSemantics');
+
+  const templateWithFields = (fields) => mockTemplateGet.mockResolvedValue({
+    exists: true,
+    data: () => ({ title: 'Release', storagePath: 'secure_documents/co1/templates/release.pdf', fields }),
+  });
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockRequestRef.collection.mockImplementation(() => ({ doc: jest.fn(() => mockTokenRef) }));
+    admin.firestore.FieldValue.serverTimestamp.mockImplementation(() => ({ __ts: true }));
+    admin.firestore.Timestamp.fromMillis.mockImplementation((n) => ({ __millis: n, toMillis: () => n }));
+    db.collection.mockImplementation(mockCollection);
+    db.runTransaction.mockImplementation(mockRunTransaction);
+    checkRateLimit.mockResolvedValue(true);
+    assertCompanyAcceptingIntake.mockResolvedValue({ companyName: 'Demo Co', isActive: true });
+    mockPublicProfileGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ companyName: 'Demo Logistics', postApplicationTemplates: [{ templateId: 'tpl1', enabled: true }] }),
+    });
+    mockApplicationGet.mockResolvedValue({ exists: true, data: () => application });
+    mockRequestTxnGet.mockResolvedValue({ exists: false, data: () => null });
+    mockTokenTxnGet.mockResolvedValue({ exists: false, data: () => null });
+  });
+
+  const req = {
+    data: { companyId: 'co1', applicationId: 'app1', confirmationNumber: 'SAF-2026-ABCDE', templateId: 'tpl1' },
+    rawRequest: { ip: '203.0.113.10' },
+  };
+
+  it.each([
+    'ssn', 'SSN', 'signature', 'signature_type', 'signature_date', 'final_certification',
+    'agree_electronic', 'sms_consent', 'identity_key', 'applicant_key', 'applicant_id',
+    'invite_token', 'confirmation_number', 'agreement_version', 'status', 'company_id',
+  ])('{{%s}} fills nothing, in any spelling or binding, and reaches no stored field', async (token) => {
+    templateWithFields([
+      { id: 'double', type: 'text', required: false, defaultValue: `SSN: {{${token}}}` },
+      { id: 'single', type: 'text', required: false, defaultValue: `{${token}}` },
+      { id: 'bound', type: 'text', required: false, bindingKey: token, defaultValue: '' },
+    ]);
+
+    await createPostApplicationSigningRequest(req);
+    const payload = requestPayloadFromTxnSet();
+    const value = (id) => payload.fields.find((f) => f.id === id).defaultValue;
+
+    expect([value('double'), value('single'), value('bound')]).toEqual(['SSN: ', '', '']);
+    expect(JSON.stringify(payload)).not.toContain(SSN);
+    expect(JSON.stringify(payload)).not.toContain(SIGNATURE);
+  });
+
+  it('refuses a template whose locked required field asks for the SSN, writing nothing', async () => {
+    templateWithFields([{ id: 'ssn', type: 'text', required: true, prefillPolicy: 'locked', bindingKey: 'ssn', defaultValue: '', label: 'SSN' }]);
+
+    await expect(createPostApplicationSigningRequest(req)).rejects.toMatchObject({
+      code: 'failed-precondition',
+      message: 'Template has locked required fields missing prefill values: SSN',
+    });
+    expect(mockTxnSet).not.toHaveBeenCalled();
+  });
+
+  it('every binding the editor offers still fills, by binding and by token', async () => {
+    const expected = {
+      full_name: 'Anthony Collins',
+      first_name: 'Anthony',
+      last_name: 'Collins',
+      email: 'driver@example.com',
+      phone: '5551112222',
+      company_name: 'Demo Logistics',
+      address: '2221 MEADECROFT RD',
+      city: 'CHARLOTTE',
+      state: 'NC',
+      zip: '28214',
+      // Stamped when the driver signs, not now.
+      current_date: '{{current_date}}',
+    };
+    // The list the editor's "Prefill binding" picker offers (mirrored in src/).
+    expect(SUPPORTED_BINDING_KEYS.slice().sort()).toEqual(Object.keys(expected).sort());
+    templateWithFields(SUPPORTED_BINDING_KEYS.flatMap((key) => [
+      { id: `bound_${key}`, type: 'text', required: false, bindingKey: key, defaultValue: '' },
+      { id: `token_${key}`, type: 'text', required: false, defaultValue: `{{${key}}}` },
+    ]));
+
+    await createPostApplicationSigningRequest(req);
+    const payload = requestPayloadFromTxnSet();
+    for (const [key, value] of Object.entries(expected)) {
+      expect([key, payload.fields.find((f) => f.id === `bound_${key}`).defaultValue]).toEqual([key, value]);
+      expect([key, payload.fields.find((f) => f.id === `token_${key}`).defaultValue]).toEqual([key, value]);
+    }
+  });
+
+  it('holds exactly the listed fields, from where the application keeps them', () => {
+    const context = buildPrefillContextFromApplication(application, 'Demo Logistics');
+    const { current_date: signingDate, date, ...rest } = context;
+
+    expect(signingDate).toBe('\u0000signed_date\u0000');
+    expect(date).toEqual(expect.any(String));
+    expect(rest).toEqual({
+      full_name: 'Anthony Collins',
+      name: 'Anthony Collins',
+      first_name: 'Anthony',
+      middle_name: 'Lee',
+      last_name: 'Collins',
+      suffix: 'Jr.',
+      email: 'driver@example.com',
+      phone: '5551112222',
+      company_name: 'Demo Logistics',
+      address: '2221 MEADECROFT RD',
+      street: '2221 MEADECROFT RD',
+      city: 'CHARLOTTE',
+      state: 'NC',
+      zip: '28214',
+      dob: '1980-04-02',
+      cdl_number: 'N1234567',
+      cdl_state: 'NC',
+      cdl_class: 'A',
+      cdl_expiration: '2028-05-01',
+      med_card_expiration: '2027-01-15',
+    });
+  });
+
+  it('reads the phone from phoneNumber when phone is absent, and an absent field as empty', () => {
+    const context = buildPrefillContextFromApplication({ firstName: 'Ana', phoneNumber: '5550001111' });
+
+    expect(context.phone).toBe('5550001111');
+    expect(context.cdl_number).toBe('');
+    expect(context.med_card_expiration).toBe('');
+  });
+});
+
 describe('normalizePostSubmitTemplateConfig — required backward compatibility', () => {
   const { normalizePostSubmitTemplateConfig, buildPostApplicationRequestId } = __private;
 

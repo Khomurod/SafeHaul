@@ -31,6 +31,7 @@ import {
     signedFileUrl,
     SYNCED_DRIVER_UPLOAD,
     FILED_PEV_REQUEST,
+    FILED_PEV_RESULT,
     fileDriverUploads,
 } from './DossierBodies.contract.support';
 
@@ -402,6 +403,19 @@ describe('DQFileTab — a verification request filed by the server', () => {
         expect(fs.deleteDoc).not.toHaveBeenCalled();
         expect(storageMocks.deleteObject).not.toHaveBeenCalled();
         expect(await screen.findByText('No DQ files have been uploaded for this driver.')).toBeInTheDocument();
+    });
+
+    it('opens a verification result from a link signed when it is pressed', async () => {
+        fs.getDocs.mockResolvedValue(snap([['pev_result_r1', FILED_PEV_RESULT]]));
+        renderDq();
+
+        fireEvent.click(await screen.findByRole('button', {
+            name: /^Download PEV Result – Old Carrier: Verification-of-Employment-Response-Jane-Driver\.pdf \(opens in a new tab\)/,
+        }));
+
+        expect(window.open).toHaveBeenCalledWith('', '_blank');
+        await waitFor(() => expect(tab.location.href).toBe('https://signed.test/driver-upload.jpg'));
+        expect(signedFileUrl).toHaveBeenCalledWith(FILED_PEV_RESULT.storagePath);
     });
 });
 

@@ -10,16 +10,16 @@
  */
 import { httpsCallable } from 'firebase/functions';
 import { auth, functions } from '@lib/firebase';
-import { isPevRequestPath } from './pevRequestPath';
+import { isPevFilePath } from './pevFilePath';
 
 /**
  * @param {string} storagePath e.g. `companies/{id}/applications/guest_uploads/…`
  * @returns {Promise<string>} a URL that opens the file
  */
 export async function signedApplicationFileUrl(storagePath) {
-    // The request PDF a verification sent lives in the PEV folders, which `getSignedPevUrl` signs.
+    // A verification's request PDF and its result live in the PEV folders, which `getSignedPevUrl` signs.
     // Both names stay literal: `scripts/check-callable-contract.mjs` finds callables by them.
-    const resign = isPevRequestPath(storagePath)
+    const resign = isPevFilePath(storagePath)
         ? httpsCallable(functions, 'getSignedPevUrl')
         : httpsCallable(functions, 'getSignedApplicationFileUrl');
     const { data } = await resign({ storagePath });

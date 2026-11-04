@@ -1,12 +1,36 @@
 /**
  * PEV — the public portal's read.
  * Token-based access for the previous employer: load the request for the
- * /verify/:token form, and record that it was opened.
+ * /verify/:token form, and record that it was opened (the first open also on
+ * the employer row, where the team sees it).
  */
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("../firebaseAdmin");
 const { checkRateLimit } = require("../shared/rateLimiter");
 const { logger } = require("firebase-functions");
+const { SUPERSEDED_MESSAGE } = require("./requestLifecycle");
+const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
+
+/** The statuses an open moves to `opened`. */
+const OPENABLE = ['sent', 'pending', 'reminder_sent'];
+
+/**
+ * The first open, on the employer row: the team cannot read the request. Once
+ * per request (a resend clears the row's `openedAt`); the form shows whatever
+ * happens here.
+ */
+async function mirrorFirstOpen(request) {
+    const at = new Date().toISOString();
+    try {
+        await mirrorOntoEmployer(recordRefOf(request), request, (verification) => {
+            if (verification.openedAt) return false;
+            verification.openedAt = at;
+            verification.history.push({ action: 'Employer opened the link', timestamp: at });
+        });
+    } catch (error) {
+        logger.error('[PEV] The first open could not be copied onto the employer row.', error);
+    }
+}
 
 // ============================================================
 // 2. GET VERIFICATION (Public endpoint — token-based access)
@@ -34,6 +58,9 @@ exports.getVerificationRequest = onCall({ cors: true }, async (request) => {
             throw new HttpsError('deadline-exceeded', 'This verification request has expired. Please contact the requesting company.');
         }
 
+        // A newer request for this employer replaced it (./requestLifecycle.js).
+        if (data.status === 'superseded') throw new HttpsError('not-found', SUPERSEDED_MESSAGE);
+
         // Check if already completed
         if (data.status === 'completed') {
             return {
@@ -43,12 +70,20 @@ exports.getVerificationRequest = onCall({ cors: true }, async (request) => {
             };
         }
 
-        // Track open (mark as opened if first time)
-        if (['sent', 'pending', 'reminder_sent'].includes(data.status)) {
-            await docRef.update({
-                status: 'opened',
-                openedAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Track open. `openedAt` is the FIRST open: a reminder sets the status
+        // back, and the open after it must not move the date.
+        if (OPENABLE.includes(data.status)) {
+            const firstOpen = await db.runTransaction(async (tx) => {
+                const current = (await tx.get(docRef)).data() || {};
+                if (!OPENABLE.includes(current.status)) return false;
+                const first = !current.openedAt;
+                tx.update(docRef, {
+                    status: 'opened',
+                    ...(first ? { openedAt: admin.firestore.FieldValue.serverTimestamp() } : {}),
+                });
+                return first;
             });
+            if (firstOpen) await mirrorFirstOpen(data);
         }
 
         // Return sanitized data (never expose internal IDs)
