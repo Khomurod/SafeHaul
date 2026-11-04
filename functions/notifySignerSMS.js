@@ -10,7 +10,11 @@ const { admin } = require('./firebaseAdmin');
 const SMSAdapterFactory = require('./integrations/factory');
 const { readSigningToken, signingLinkFor } = require('./notifySigner');
 const { phoneOf } = require('./shared/signingLink');
+const { onOptOutList } = require('./shared/smsPermission');
 const db = admin.firestore();
+
+/** What a request shows (Documents, "Delivery Failed") for a link not texted to an opted-out number. */
+const OPTED_OUT_ERROR = 'Not texted: this number opted out of texts.';
 
 /**
  * Claims a signing request's delivery for one event, in a transaction: true for
@@ -31,6 +35,8 @@ function claimDelivery(ref, field, eventId, record = {}) {
  * Texts a signing request's link to its signer and records on the request how
  * that went. `accessToken` may be a promise of it, and `claim` decides first
  * whether this run sends at all; a failure of either is recorded as a failed send.
+ * A number on the opt-out list is not texted (`shared/smsPermission.js`), which
+ * is recorded as a failed send with the reason.
  */
 async function textSigningLink({ companyId, requestId, ref, data, accessToken: token, claim = async () => true }) {
     try {
@@ -41,6 +47,14 @@ async function textSigningLink({ companyId, requestId, ref, data, accessToken: t
         const accessToken = await token;
         if (!accessToken) {
             console.warn(`[NotifySignerSMS] No accessToken found for ${requestId}`);
+            return;
+        }
+
+        // A number on the opt-out list is not texted. The email goes on its own
+        // (`notifySigner`); the request shows the text as not delivered, and why.
+        if (await onOptOutList(companyId, data.recipientPhone)) {
+            console.log(`[NotifySignerSMS] Not texted: the number of request ${requestId} opted out`);
+            await ref.update({ smsStatus: 'failed', smsError: OPTED_OUT_ERROR });
             return;
         }
 

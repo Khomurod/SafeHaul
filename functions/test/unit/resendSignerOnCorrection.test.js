@@ -38,18 +38,24 @@ function mockUpdate(path, changes) {
     mockDocs.set(path, doc);
 }
 jest.mock('../../firebaseAdmin', () => {
+    // Reads by path, for the opt-out lists (`blacklist.js`).
+    const readRef = (path) => ({
+        get: async () => mockSnapshot(path),
+        collection: (name) => ({ doc: (id) => readRef(`${path}/${name}/${id}`) }),
+    });
     const db = {
         runTransaction: async (fn) => fn({
             get: async (ref) => mockSnapshot(ref.path),
             set: (ref, data) => mockDocs.set(ref.path, structuredClone(data)),
             update: (ref, data) => mockUpdate(ref.path, data),
         }),
+        collection: (name) => ({ doc: (id) => readRef(`${name}/${id}`) }),
     };
     const firestore = Object.assign(() => db, {
         FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' },
         Timestamp: { fromMillis: (ms) => ({ ms }) },
     });
-    return { admin: { firestore } };
+    return { admin: { firestore }, db };
 });
 const mockSendEmail = jest.fn();
 jest.mock('../../emailService', () => ({ sendDynamicEmail: (...args) => mockSendEmail(...args) }));
@@ -61,6 +67,7 @@ jest.mock('../../integrations/factory', () => ({
 const { linkSentTo, linkWork } = require('../../shared/signingLink');
 const { resendSignerOnCorrection } = require('../../resendSignerOnCorrection');
 const { notifySigner } = require('../../notifySigner');
+const { notifySignerSMS } = require('../../notifySignerSMS');
 
 const REQUEST = 'companies/co-1/signing_requests/req-1';
 const TOKEN = `${REQUEST}/secrets/token`;
@@ -289,6 +296,17 @@ describe('resendSignerOnCorrection', () => {
         expect(emailedTo()).toEqual(['dana@example.test']);
         expect(current()).toMatchObject({ smsStatus: 'failed', smsError: 'line unavailable' });
     });
+
+    it('emails the new link but does not text a corrected number that opted out, and records why', async () => {
+        store(BOTH);
+        mockDocs.set('companies/co-1/blacklist/+15555550199', { reason: 'STOP keyword' });
+        await resendSignerOnCorrection(correction({ recipientPhone: '+1 555 555 0199' }));
+
+        expect(mockSendSms).not.toHaveBeenCalled();
+        expect(emailedTo()).toEqual(['dana@wrong.example.test']);
+        expect(mockSendEmail.mock.calls[0][3]).toContain(linkWith(token()));
+        expect(current()).toMatchObject({ emailStatus: 'sent', smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' });
+    });
 });
 
 describe('notifySigner', () => {
@@ -316,5 +334,20 @@ describe('notifySigner', () => {
 
         expect(recordedWhenSent).toEqual({ email: 'dana@wrong.example.test' });
         expect(current().emailStatus).toBe('sent');
+    });
+});
+
+describe('a new Email + SMS request to a number that opted out', () => {
+    it('is emailed and not texted, and the request says why', async () => {
+        const request = unrecorded(BOTH);
+        store(request, 'token-1');
+        mockDocs.set('blacklist/+15555550100', { reason: 'Opt-out via company co-2' });
+        await notifySigner({ data: () => request, ref: refAt(REQUEST) }, { params: { companyId: 'co-1', requestId: 'req-1' } });
+        await notifySignerSMS({ id: 'event-1', params: { companyId: 'co-1', requestId: 'req-1' }, data: { data: () => request, ref: refAt(REQUEST) } });
+
+        expect(emailedTo()).toEqual(['dana@wrong.example.test']);
+        expect(mockSendEmail.mock.calls[0][3]).toContain('?token=token-1');
+        expect(mockSendSms).not.toHaveBeenCalled();
+        expect(current()).toMatchObject({ emailStatus: 'sent', smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' });
     });
 });
