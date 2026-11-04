@@ -301,7 +301,8 @@ export function CampaignDetails({ campaign, onClose }) {
                         />
                         <StatCard
                             icon={AlertCircle}
-                            label="Not sent"
+                            // `failedCount` also holds texts the provider never answered.
+                            label="Not sent or unconfirmed"
                             tone="danger"
                             value={campaign.progress ? campaign.progress.failedCount : 0}
                         />
@@ -384,7 +385,7 @@ export function CampaignDetails({ campaign, onClose }) {
                 isOpen={pendingRetry}
                 tone="danger"
                 title="Start a new campaign for failed recipients?"
-                description="This creates a new campaign and messages every failed recipient from this run again, including those that failed with permanent errors. Texts the SMS provider may already have delivered are left out."
+                description="This creates a new campaign and messages every failed recipient from this run again, including those that failed with permanent errors. Texts the SMS provider never answered are left out, as they may already have been delivered."
                 confirmLabel="Start retry campaign"
                 cancelLabel="Don't retry"
                 loading={retrying}
