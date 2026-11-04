@@ -272,6 +272,16 @@ describe('firebase.json — application sites: framing and Content Security Poli
         expect(reportOnly['frame-ancestors']).toBeUndefined();
     });
 
+    it('lets the OCR engine compile WebAssembly, from this site only', () => {
+        // The OCR blob worker inherits this policy and compiles WebAssembly.
+        // Its files come from /ocr/ on the site itself (`ocrAssets.js`), so no
+        // CDN is allowed to serve scripts or data.
+        expect(reportOnly['script-src']).toContain("'wasm-unsafe-eval'");
+        for (const directive of ['script-src', 'connect-src']) {
+            expect(allows(reportOnly[directive], 'https://cdn.jsdelivr.net'), directive).toBe(false);
+        }
+    });
+
     it('allows the Firebase services the app talks to', () => {
         for (const url of [
             'https://firestore.googleapis.com',

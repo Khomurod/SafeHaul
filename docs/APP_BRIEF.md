@@ -1093,9 +1093,9 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   treating every draft alike would leak a driver's answers to a recruiter or
   refuse the carrier its own.
 - **Text extraction happens in the browser, never the server** — `pdfjs-dist`
-  for a PDF's text layer, a lazily imported `tesseract.js` for OCR. The
-  tesseract chunk must stay lazy: a static import adds ~2MB to the company
-  workspace bundle for every recruiter.
+  for a PDF's text layer, a lazily imported `tesseract.js` for OCR. Keep it
+  lazy; its worker, core and English data come from this site's `/ocr/`
+  (`ocrAssets.js`), never a CDN.
 - **Applications and leads are near-twins.** Most callables accept a
   `collectionName` of `applications` or `leads` (strictly whitelisted against
   path injection); a change to one usually belongs in both.
