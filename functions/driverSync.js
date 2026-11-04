@@ -5,7 +5,7 @@ const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/
 const { admin, db, auth } = require("./firebaseAdmin");
 const { LIFECYCLE_STATUSES } = require("./shared/constants");
 const { isPlaceholderEmail } = require("./shared/placeholderDomains");
-const { fileDqUploads, uploadKeys } = require("./shared/dqUploads");
+const { fileDqUploads, syncDqExpirations, uploadKeys } = require("./shared/dqUploads");
 const { resolveRecruiterAssignment } = require("./shared/recruiterAssignment");
 const { resolveReferralLink } = require("./referrals/referralLinks");
 const { linkApplicantLead } = require("./shared/leadApplicationLink");
@@ -236,6 +236,8 @@ exports.onApplicationSubmitted = onDocumentCreated({
 /**
  * An upload added to, or replaced in, an application after it arrived is filed
  * in its DQ file; the same file, its link signed again, is not (`shared/dqUploads.js`).
+ * A changed licence, medical card or TWIC expiration moves the date of the
+ * synced DQ records of that type; the DQ file never writes the application.
  */
 exports.onApplicationUpdated = onDocumentUpdated({
   document: "companies/{companyId}/applications/{applicationId}",
@@ -253,6 +255,8 @@ exports.onApplicationUpdated = onDocumentUpdated({
     label: 'onApplicationUpdated',
   });
   if (filed > 0) console.log(`[onApplicationUpdated] Filed ${filed} new uploads for application ${appId}`);
+  const dated = await syncDqExpirations(appRef, beforeData, afterData, { applicationId: appId, label: 'onApplicationUpdated' });
+  if (dated > 0) console.log(`[onApplicationUpdated] Moved the valid-until date of ${dated} DQ records for application ${appId}`);
 });
 
 // 4. Sync Driver Log Activity (Fix for Permission Error + Support both 'activities' and 'activity_logs')
