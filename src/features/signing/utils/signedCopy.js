@@ -13,6 +13,13 @@ import { isCompanySignatureField } from './companySignature';
 
 const SIGNER_SIGNATURE_TYPES = new Set(['signature', 'initial']);
 
+/**
+ * How long a `sending` claim holds: after this the server takes it as a crashed
+ * attempt and lets the copy be approved again. Keep in step with
+ * `CLAIM_LIFETIME_MS` in `functions/signedCopyDelivery.js`.
+ */
+export const CLAIM_LIFETIME_MS = 10 * 60 * 1000;
+
 const fieldsOf = (document) => (Array.isArray(document?.fields) ? document.fields : []);
 
 export function hasCompanySignature(document) {
@@ -34,12 +41,29 @@ export function signedCopyRecord(document, sentHere) {
  * signature, the driver's signature or initials and an email to send to, and no
  * copy sent or on its way. After a failed copy it is offered again.
  */
-export function canSendSignedCopy(document, record) {
+export function canSendSignedCopy(document, record, now = Date.now()) {
     return document?.status === 'signed'
         && hasCompanySignature(document)
         && fieldsOf(document).some((field) => SIGNER_SIGNATURE_TYPES.has(field?.type))
         && String(document?.recipientEmail || '').trim() !== ''
-        && !['sending', 'sent'].includes(record?.state);
+        && record?.state !== 'sent'
+        && (record?.state !== 'sending' || isStaleSendingClaim(record, now));
+}
+
+/**
+ * A `sending` claim the server would let go: approved ten minutes ago or more,
+ * or with no approval time, as `sendSignedDocumentCopy` reads it. The attempt
+ * crashed, and it may or may not have reached the driver.
+ */
+export function isStaleSendingClaim(record, now = Date.now()) {
+    if (record?.state !== 'sending') return false;
+    const approvedAt = toMillis(record.approvedAt);
+    return approvedAt === null || now - approvedAt >= CLAIM_LIFETIME_MS;
+}
+
+/** Whether the action reads "Try again": after a failed copy, or one whose send never finished. */
+export function isSignedCopyRetry(record, now = Date.now()) {
+    return record?.state === 'failed' || isStaleSendingClaim(record, now);
 }
 
 const toMillis = (value) => {
@@ -59,12 +83,13 @@ export function formatCopyDate(value) {
 }
 
 /** The line a row and the details show about the copy, with its tone, or null. */
-export function signedCopyLine(record) {
+export function signedCopyLine(record, now = Date.now()) {
     if (record?.state === 'sent') {
         const date = formatCopyDate(record.sentAt);
         const to = record.sentTo ? ` to ${record.sentTo}` : '';
         return { tone: 'success', text: `Copy sent${to}${date ? ` on ${date}` : ''}` };
     }
+    if (isStaleSendingClaim(record, now)) return { tone: 'danger', text: 'Copy may not have been sent' };
     if (record?.state === 'sending') return { tone: 'neutral', text: 'Sending copy…' };
     if (record?.state === 'failed') return { tone: 'danger', text: 'Copy not sent' };
     return null;

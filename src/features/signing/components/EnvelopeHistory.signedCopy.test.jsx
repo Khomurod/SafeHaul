@@ -58,7 +58,7 @@ describe('EnvelopeHistory — when Send signed copy is offered', () => {
         ['no company signature', { fields: [FIELDS[0]] }],
         ['no driver signature', { fields: [FIELDS[1]] }],
         ['no email', { recipientEmail: '', recipientPhone: '(555) 010-0101' }],
-        ['a copy being sent', { signedCopy: { state: 'sending', sentTo: 'pat@example.test' } }],
+        ['a copy being sent', { signedCopy: { state: 'sending', sentTo: 'pat@example.test', approvedAt: new Date() } }],
         ['a copy already sent', { signedCopy: { state: 'sent', sentTo: 'pat@example.test', sentAt: NOV_4 } }],
     ])('does not offer it with %s', (_label, overrides) => {
         renderHistory();
@@ -85,9 +85,20 @@ describe('EnvelopeHistory — what the row says about the copy', () => {
 
     it('says a copy is on its way, and offers no second send', () => {
         renderHistory();
-        emit([signed({ signedCopy: { state: 'sending', sentTo: 'pat@example.test' } })]);
+        emit([signed({ signedCopy: { state: 'sending', sentTo: 'pat@example.test', approvedAt: new Date() } })]);
         expect(screen.getByText('Sending copy…')).toBeInTheDocument();
         expect(sendAction()).not.toBeInTheDocument();
+    });
+
+    it.each([
+        ['approved over ten minutes ago', { approvedAt: new Date(Date.now() - 11 * 60 * 1000) }],
+        ['with no approval time', {}],
+    ])('offers to try again once a send %s never finished, as the server allows', (_label, claim) => {
+        renderHistory();
+        emit([signed({ signedCopy: { state: 'sending', sentTo: 'pat@example.test', ...claim } })]);
+        expect(screen.getByText('Copy may not have been sent')).toBeInTheDocument();
+        expect(screen.queryByText('Sending copy…')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Try again: send signed copy of Offer Letter' })).toHaveTextContent('Try again');
     });
 
     it('says a copy was not sent, and offers to try again', () => {

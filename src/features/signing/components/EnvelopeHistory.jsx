@@ -11,7 +11,7 @@ import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { SentDocumentDetailsDialog } from '@features/company-admin/components/documents/SentDocumentDetailsDialog';
 import { deliveryFailure, hasDeliveryFailure } from '@features/company-admin/utils/documentsWorkspace';
 import { copySigningLink } from '@features/signing/utils/copySigningLink';
-import { canSendSignedCopy, hasCompanySignature } from '@features/signing/utils/signedCopy';
+import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { useSignedCopySend } from '@features/signing/hooks/useSignedCopySend';
 import { SignedCopyButton, SignedCopyDialog, SignedCopyStatus } from './SignedCopy';
 
@@ -263,7 +263,7 @@ export default function EnvelopeHistory({
             action = (
                 <SignedCopyButton
                     title={title}
-                    retry={copyRecord?.state === 'failed'}
+                    retry={isSignedCopyRetry(copyRecord)}
                     size={quickActionSize}
                     onClick={() => signedCopy.request(docItem)}
                 />

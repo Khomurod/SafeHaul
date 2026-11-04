@@ -4,7 +4,7 @@ import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
-import { canSendSignedCopy, hasCompanySignature } from '@features/signing/utils/signedCopy';
+import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { SignedCopyButton, SignedCopyStatus } from '@features/signing/components/SignedCopy';
 
 /**
@@ -129,7 +129,7 @@ export function SentDocumentDetailsDialog({
                         {offersSignedCopy && (
                             <SignedCopyButton
                                 variant="primary"
-                                retry={signedCopyRecord?.state === 'failed'}
+                                retry={isSignedCopyRetry(signedCopyRecord)}
                                 onClick={() => onSendSignedCopy(document)}
                             />
                         )}
