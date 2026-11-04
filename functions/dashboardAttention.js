@@ -10,7 +10,7 @@
  * read on the applications anyway.
  *
  * Each row is a `count()` (billed as one read per 1,000 index entries, at least
- * one), on an index that exists, so nothing waits for a new one:
+ * one), on an index in `firestore.indexes.json`:
  * - `sealFailed`: signing requests `status == 'error_sealing'`;
  * - `awaitingSignature`: `status in ['sent', 'opened']` made more than seven days
  *   ago, newest first: the `signing_requests` status + createdAt (descending)
@@ -25,12 +25,11 @@
  *   in `firestore.indexes.json`), so these are the drafts removed within five
  *   days, as the Unfinished page reads them; one past its date and not yet
  *   deleted by Firestore is counted;
- * - `dqExpiring`: hired drivers whose `dqExpiresNext` (the earliest expiry date
- *   among the record's DQ documents, `'YYYY-MM-DD'`, server-maintained) is in
- *   30 days or past. One read: the 50 latest such dates of any application
- *   (single-field, descending), the hired ones kept here; `more` says all 50
- *   were read, so there may be others. At most five `{ id, name, date }`,
- *   earliest first.
+ * - `dqExpiring`: hired drivers (`status in HIRED_STATUSES`) whose
+ *   `dqExpiresNext` (the earliest expiry date among the record's DQ documents,
+ *   `'YYYY-MM-DD'`, server-maintained) is in 30 days or past: a count, and the
+ *   five earliest `{ id, name, date }` read on the applications status +
+ *   dqExpiresNext composite.
  *
  * Each row settles on its own: one that fails is `{ status: 'failed' }`, logged
  * by its name and error code only, and the rest still answer. Rows of a feature
@@ -40,7 +39,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { db } = require('./firebaseAdmin');
 const { assertCompanyAccessForRequest } = require('./shared/companyAccess');
 const { RETENTION_DAYS } = require('./shared/applicationDraft');
-const { isHiredStatus } = require('./shared/applicationStatus');
+const { HIRED_STATUSES } = require('./shared/applicationStatus');
 const { LIVE_STATUSES } = require('./employmentVerification/requestLifecycle');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -51,8 +50,7 @@ const WINDOWS = Object.freeze({ awaitingDays: 7, draftDays: 5, dqDays: 30 });
 /** Unsigned statuses: `sent`, and the older `opened` the dossier still reads. */
 const AWAITING_STATUSES = Object.freeze(['sent', 'opened']);
 
-/** How many of the latest DQ dates one call reads, and how many drivers it names. */
-const DQ_CANDIDATES = 50;
+/** How many hired drivers the DQ row names. */
 const DQ_NAMED = 5;
 
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -98,21 +96,19 @@ function driverName(data) {
 }
 
 async function dqExpiring(applications, now) {
-    const horizon = isoDay(now + WINDOWS.dqDays * DAY_MS);
-    const snap = await applications
-        .where('dqExpiresNext', '<=', horizon)
-        .orderBy('dqExpiresNext', 'desc')
-        .select('status', 'firstName', 'lastName', 'dqExpiresNext')
-        .limit(DQ_CANDIDATES)
-        .get();
-    const hired = snap.docs
-        .map((doc) => ({ id: doc.id, data: doc.data() || {} }))
-        .filter(({ data }) => isHiredStatus(data.status) && DAY_PATTERN.test(data.dqExpiresNext))
-        .sort((a, b) => a.data.dqExpiresNext.localeCompare(b.data.dqExpiresNext));
+    const due = applications
+        .where('status', 'in', [...HIRED_STATUSES])
+        .where('dqExpiresNext', '<=', isoDay(now + WINDOWS.dqDays * DAY_MS));
+    const [count, earliest] = await Promise.all([
+        countOf(due),
+        due.orderBy('dqExpiresNext', 'asc').select('firstName', 'lastName', 'dqExpiresNext').limit(DQ_NAMED).get(),
+    ]);
     return {
-        count: hired.length,
-        more: snap.size >= DQ_CANDIDATES,
-        drivers: hired.slice(0, DQ_NAMED).map(({ id, data }) => ({ id, name: driverName(data), date: data.dqExpiresNext })),
+        count,
+        drivers: earliest.docs
+            .map((doc) => ({ id: doc.id, data: doc.data() || {} }))
+            .filter(({ data }) => DAY_PATTERN.test(data.dqExpiresNext))
+            .map(({ id, data }) => ({ id, name: driverName(data), date: data.dqExpiresNext })),
     };
 }
 

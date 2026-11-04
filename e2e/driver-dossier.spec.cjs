@@ -28,7 +28,7 @@ const SECTION_NAV = { name: 'Driver dossier sections' };
 
 const SECTIONS = [
   ['Application', 'Application Review'],
-  ['Documents', 'Document Gallery'],
+  ['Documents', 'Documents to sign'],
   ['DQ File', 'Driver Qualification File'],
   ['Previous Employment', 'Previous Employment Verification'],
   ['Activity', 'Activity Timeline'],
@@ -308,7 +308,7 @@ test.describe('Driver Dossier responsive presentation', () => {
       // The section navigation has to survive the layout change too.
       await expect(page.getByRole('tablist', { name: 'Driver dossier sections' })).toBeVisible();
       await page.getByRole('tab', { name: /^Documents/ }).click();
-      await expect(page.getByRole('heading', { name: 'Document Gallery' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Documents to sign' })).toBeVisible();
       await expectNoHorizontalOverflow(page, `${name} documents`);
     });
   }

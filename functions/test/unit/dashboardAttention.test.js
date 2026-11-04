@@ -175,7 +175,7 @@ describe('the counts', () => {
             pevNoResponse: { status: 'ok', count: 0 },
             pendingChanges: { status: 'ok', count: 0 },
             draftsExpiring: { status: 'ok', count: 0 },
-            dqExpiring: { status: 'ok', count: 0, more: false, drivers: [] },
+            dqExpiring: { status: 'ok', count: 0, drivers: [] },
         });
     });
 
@@ -267,7 +267,6 @@ describe('hired drivers whose DQ documents expire', () => {
         expect(rows.dqExpiring).toEqual({
             status: 'ok',
             count: 6,
-            more: false,
             drivers: [
                 { id: 'h2', name: 'Ben Hauler', date: day(-40) },
                 { id: 'h5', name: 'Eve Mile', date: day(-2) },
@@ -286,19 +285,24 @@ describe('hired drivers whose DQ documents expire', () => {
         expect(rows.dqExpiring.drivers).toEqual([{ id: 'h1', name: 'Unnamed driver', date: day(3) }]);
     });
 
-    it('reads a bounded number of the latest dates, and says when there may be more', async () => {
+    it('counts every hired one exactly, however many others have earlier dates', async () => {
+        // Sixty declined or new applicants whose documents expired long ago come
+        // before the hired drivers in date order; they must not crowd them out.
         for (let i = 0; i < 60; i += 1) {
-            put(`${apps}/a${i}`, { status: i % 2 ? 'Hired' : 'Offer Sent', dqExpiresNext: day(-i) });
+            put(`${apps}/o${i}`, { status: i % 2 ? 'Declined' : 'Offer Sent', dqExpiresNext: day(-200 - i) });
+        }
+        for (let i = 0; i < 7; i += 1) {
+            put(`${apps}/h${i}`, { status: 'Hired', firstName: `Driver${i}`, dqExpiresNext: day(-i) });
         }
 
         const { rows } = await call();
 
+        expect(rows.dqExpiring.count).toBe(7);
+        expect(rows.dqExpiring.drivers.map((driver) => driver.id)).toEqual(['h6', 'h5', 'h4', 'h3', 'h2']);
         const read = mockQueries.find((q) => q.kind === 'get' && q.path === apps);
-        expect(read).toMatchObject({ limit: 50, orderBy: [{ field: 'dqExpiresNext', dir: 'desc' }] });
-        expect(read.select).toEqual(expect.arrayContaining(['status', 'firstName', 'lastName', 'dqExpiresNext']));
-        // The 50 latest dates are days 0 to -49; half of them are hired.
-        expect(rows.dqExpiring).toMatchObject({ status: 'ok', count: 25, more: true });
-        expect(rows.dqExpiring.drivers).toHaveLength(5);
+        expect(read).toMatchObject({ limit: 5, orderBy: [{ field: 'dqExpiresNext', dir: 'asc' }] });
+        expect(read.filters).toEqual(expect.arrayContaining([{ field: 'status', op: 'in', value: ['Hired', 'Approved'] }]));
+        expect(read.select).toEqual(expect.arrayContaining(['firstName', 'lastName', 'dqExpiresNext']));
     });
 });
 
@@ -383,7 +387,7 @@ describe('every query', () => {
     it('is a count, but for one bounded read of applications', async () => {
         const reads = (await everyQuery()).filter((q) => q.kind === 'get');
         expect(reads).toHaveLength(1);
-        expect(reads[0].limit).toBeLessThanOrEqual(50);
+        expect(reads[0].limit).toBeLessThanOrEqual(5);
     });
 
     it('is served by an index that exists in firestore.indexes.json', async () => {

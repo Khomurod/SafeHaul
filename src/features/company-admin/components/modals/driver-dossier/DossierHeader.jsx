@@ -85,7 +85,7 @@ export function DossierHeader({
     const getTitle = () => {
         switch (activeTab) {
             case 'application': return 'Application Review';
-            case 'documents': return 'Document Gallery';
+            case 'documents': return 'Documents to sign';
             case 'dq': return 'Driver Qualification File';
             case 'activity': return 'Activity Timeline';
             case 'notes': return 'Internal Notes';

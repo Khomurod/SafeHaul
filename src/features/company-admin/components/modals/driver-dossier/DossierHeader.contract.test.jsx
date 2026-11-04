@@ -53,7 +53,7 @@ const renderHeader = (overrides = {}) => {
 describe('DossierHeader titles', () => {
   it.each([
     ['application', 'Application Review'],
-    ['documents', 'Document Gallery'],
+    ['documents', 'Documents to sign'],
     ['dq', 'Driver Qualification File'],
     ['activity', 'Activity Timeline'],
     ['notes', 'Internal Notes'],

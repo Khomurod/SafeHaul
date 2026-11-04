@@ -17,7 +17,7 @@ const QUIET = {
         pevNoResponse: zero,
         pendingChanges: zero,
         draftsExpiring: zero,
-        dqExpiring: { status: 'ok', count: 0, more: false, drivers: [] },
+        dqExpiring: { status: 'ok', count: 0, drivers: [] },
     },
 };
 const TODAY = '2026-11-04';
@@ -63,7 +63,7 @@ describe('attentionItems', () => {
             pevNoResponse: { status: 'ok', count: 1 },
             pendingChanges: { status: 'ok', count: 1 },
             draftsExpiring: { status: 'ok', count: 1 },
-            dqExpiring: { status: 'ok', count: 1, more: false, drivers: [{ id: 'a1', name: 'Ann Driver', date: '2026-11-20' }] },
+            dqExpiring: { status: 'ok', count: 1, drivers: [{ id: 'a1', name: 'Ann Driver', date: '2026-11-20' }] },
         });
         const links = Object.fromEntries(items.map((item) => [item.id, item.link || null]));
 
@@ -111,7 +111,6 @@ describe('attentionItems', () => {
             dqExpiring: {
                 status: 'ok',
                 count: 7,
-                more: false,
                 drivers: [
                     { id: 'a1', name: 'Ben Hauler', date: '2026-09-25' },
                     { id: 'a2', name: 'Dee Lane', date: '2026-11-04' },
@@ -133,27 +132,13 @@ describe('attentionItems', () => {
         });
     });
 
-    it('says "at least" when the server read only the latest dates', () => {
-        const [item] = itemsOf({
-            dqExpiring: { status: 'ok', count: 1, more: true, drivers: [{ id: 'a1', name: 'Ann Driver', date: '2026-11-20' }] },
-        });
-
-        expect(item.title).toBe('At least 1 hired driver has DQ documents that expire within 30 days or have expired');
-        expect(item.others).toBe('maybe more');
-
-        const [many] = itemsOf({
-            dqExpiring: { status: 'ok', count: 3, more: true, drivers: [{ id: 'a1', name: 'Ann Driver', date: '2026-11-20' }] },
-        });
-        expect(many.others).toBe('at least 2 more');
-    });
-
     it('uses the windows the server counted with', () => {
         const items = attentionItems({
             windows: { awaitingDays: 10, draftDays: 3, dqDays: 60 },
             rows: {
                 awaitingSignature: { status: 'ok', count: 2 },
                 draftsExpiring: { status: 'ok', count: 2 },
-                dqExpiring: { status: 'ok', count: 1, more: false, drivers: [] },
+                dqExpiring: { status: 'ok', count: 1, drivers: [] },
             },
         }, { today: TODAY });
 

@@ -21,7 +21,7 @@ const QUIET = {
         pevNoResponse: zero,
         pendingChanges: zero,
         draftsExpiring: zero,
-        dqExpiring: { status: 'ok', count: 0, more: false, drivers: [] },
+        dqExpiring: { status: 'ok', count: 0, drivers: [] },
     },
 };
 
@@ -185,7 +185,6 @@ describe('the rows', () => {
             dqExpiring: {
                 status: 'ok',
                 count: 3,
-                more: false,
                 drivers: [
                     { id: 'app-1', name: 'Ben Hauler', date: '2020-01-15' },
                     { id: 'app-2', name: 'Ann Driver', date: '2999-02-01' },
@@ -212,7 +211,7 @@ describe('the rows', () => {
         fx.answer = withRows({
             sealFailed: { status: 'failed' },
             pevWaiting: { status: 'ok', count: 2 },
-            dqExpiring: { status: 'ok', count: 1, more: true, drivers: [{ id: 'app-1', name: 'Ann Driver', date: '2999-02-01' }] },
+            dqExpiring: { status: 'ok', count: 1, drivers: [{ id: 'app-1', name: 'Ann Driver', date: '2999-02-01' }] },
         });
         const { container } = renderCard();
 

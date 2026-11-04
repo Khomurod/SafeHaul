@@ -70,7 +70,7 @@ const ROWS = Object.freeze([
     {
         id: 'dqExpiring',
         label: 'Hired drivers’ DQ documents',
-        title: (n, w, row) => `${row.more ? 'At least ' : ''}${counted(n, 'hired driver has', 'hired drivers have')} DQ documents that expire within ${w.dqDays} days or have expired`,
+        title: (n, w) => `${counted(n, 'hired driver has', 'hired drivers have')} DQ documents that expire within ${w.dqDays} days or have expired`,
         text: 'Open a driver to see the DQ file.',
         link: { href: ATTENTION_LINKS.applications, state: { segment: 'hired' }, label: 'Open hired drivers' },
     },
@@ -102,10 +102,7 @@ function driversOf(row, today) {
         .filter((driver) => driver && typeof driver.id === 'string' && DAY.test(driver.date))
         .map((driver) => ({ id: driver.id, name: String(driver.name || 'Unnamed driver'), when: when(driver.date, today) }));
     const rest = row.count - drivers.length;
-    let others = null;
-    if (rest > 0) others = `${row.more ? 'at least ' : ''}${rest} more`;
-    else if (row.more) others = 'maybe more';
-    return { drivers, others };
+    return { drivers, others: rest > 0 ? `${rest} more` : null };
 }
 
 const isCount = (value) => Number.isInteger(value) && value >= 0;
