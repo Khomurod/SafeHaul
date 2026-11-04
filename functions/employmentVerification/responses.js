@@ -94,7 +94,7 @@ async function releaseClaim(docRef, previousStatus) {
             if (snap.exists && snap.data().status === 'processing') txn.update(docRef, { status });
         });
     } catch (error) {
-        logger.error(`[PEV] Could not release the claim on ${docRef.id}:`, error);
+        logger.error(`[PEV] Could not release the claim on request ${requestIdOf(null, docRef.id)}:`, error);
     }
 }
 
@@ -269,7 +269,7 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
             });
             if (!mirrored) {
                 logger.warn(
-                    `[PEV] Verification ${token} could not be matched to an employer on `
+                    `[PEV] Verification request ${requestIdOf(verificationData, token)} could not be matched to an employer on `
                     + `${verificationData.collectionName || 'applications'}/${verificationData.applicationId}; `
                     + 'the response and its PDF are on the request record and were not mirrored.',
                 );

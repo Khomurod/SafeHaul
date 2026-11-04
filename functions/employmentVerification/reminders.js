@@ -75,7 +75,7 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
                     if (!marked) continue;
 
                     // Update application record; a result already on the row stays.
-                    const mirrored = await updateApplicationVerificationStatus(v, 'No Response (Good Faith Documented)');
+                    const mirrored = await updateApplicationVerificationStatus(v, 'No Response (Good Faith Documented)', token);
 
                     // Notify the sender in the bell, then the carrier by email, unless
                     // the row holds the result. The bell first: it needs no email set up.
@@ -125,7 +125,7 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
  *
  * @returns {Promise<'mirrored'|'kept_completed'|'not_found'|'failed'>}
  */
-async function updateApplicationVerificationStatus(verificationData, statusText) {
+async function updateApplicationVerificationStatus(verificationData, statusText, token) {
     try {
         const mirrored = await mirrorOntoEmployer(recordRefOf(verificationData), verificationData, (verification) => {
             if (verification.status === 'Completed') return false;
@@ -139,7 +139,7 @@ async function updateApplicationVerificationStatus(verificationData, statusText)
             // The request document still records the mark itself, which is what
             // the cycle actually runs on.
             logger.warn(
-                `[PEV] Reminder for ${verificationData.token || 'a request'} could not be matched `
+                `[PEV] Reminder for request ${requestIdOf(verificationData, token)} could not be matched `
                 + 'to an employer; the status was not mirrored onto the application.',
             );
             return 'not_found';
