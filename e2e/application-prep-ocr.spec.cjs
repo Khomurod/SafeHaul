@@ -37,7 +37,8 @@ async function artificialScan(context) {
         LINES.map((line) => `<div>${line}</div>`).join('')}</body>`);
     const png = await page.screenshot({ fullPage: true });
     await page.setContent(`<body style="margin:0"><img src="data:image/png;base64,${png.toString('base64')}" style="width:100%"></body>`);
-    // Chromium only, which is why this spec has no @mobile case.
+    // Chromium only: the describe below skips the other browsers, and this spec
+    // has no @mobile case.
     const pdf = await page.pdf({ format: 'Letter' });
     await page.close();
     return { png, pdf };
@@ -62,6 +63,8 @@ async function captureCallable(page) {
 
 test.describe('the document reader recognises a scan in this browser', () => {
     test.describe.configure({ timeout: 90_000 });
+    // `artificialScan` builds its fixture with page.pdf(), which only Chromium has.
+    test.skip(({ browserName }) => browserName !== 'chromium', 'The scan fixture needs page.pdf(), which only Chromium has.');
 
     let fromThisSite;
     let fromJsDelivr;

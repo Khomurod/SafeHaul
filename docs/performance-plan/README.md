@@ -332,7 +332,8 @@ Not part of any task above. Each needs its own task if the owner wants it.
    event was inspected. With option A this stays until T5b. *Recommended:* a
    separate small task soon, independent of this plan. T5b removes Sentry from
    the app, so this is closed once Production is promoted; until then
-   Production keeps serving the old bundle, which still sends to Sentry.
+   Production keeps serving the old bundle, which still sends to Sentry, and so
+   does a tab opened before the promotion until it is reloaded.
 2. "Retry Failed" with nothing left to retry shows "Retry session started with
    undefined targets." (`functions/bulkActions/controllers/sessionController.js:228`).
 3. The 8x8 connection check reports success on any network error other than
