@@ -192,7 +192,7 @@ and the staff-facing `listApplicationDrafts`.
 It is a **separate collection from `applications` on purpose.** Four triggers fire
 on `create` under `companies/{id}/applications/{appId}`:
 `onNewApplicationNotification`, `onNewApplicationEmailConfirmation`,
-`onApplicationSubmitted` (driver sync: a `drivers/{id}/pending_updates` entry) and the stats rollup.
+`onApplicationSubmitted` (driver sync: the company added to a driver profile's `companyIds`) and the stats rollup.
 Writing drafts there would email every half-finished applicant "we received your
 application", and driver sync would mark each unsigned one `validation_error`.
 
@@ -358,6 +358,7 @@ Same activity/DQ/note subcollections as applications (team/super).
 |---------------|--------|
 | `drafts`, `documents` | owner or super |
 | `saved_jobs` | **Retired.** The driver saved-jobs / job-board feature was deleted (commit `5a4c8dd`) and its rule was removed, so the path is now default-deny |
+| `pending_updates` | **Retired.** Driver sync once staged each lead and application here (name, email, phone, licence); nothing read it and nothing writes it now. No rule, so default-deny. Older documents remain: Data cleanup clears only an SSN in them, and deleting them is the owner's decision |
 
 ---
 

@@ -17,8 +17,9 @@ const { linkApplicantLead } = require("./shared/leadApplicationLink");
 const PROCESSING_STATUS_TTL_DAYS = 30;
 
 /**
- * SHARED HELPER: Finds or Creates the Auth User and syncs data to the Master Profile.
- * This is triggered by Lead (unbranded), Application (branded), and Company Lead submissions.
+ * SHARED HELPER: works out which driver profile the person is, and adds the
+ * record's company to that profile's `companyIds` (no Auth user is created).
+ * This is triggered by Application and Company Lead submissions.
  * @param {object} data - The raw data from the submitted lead or application document.
  * @param {string} docId - The ID of the document that triggered the event.
  */
@@ -84,43 +85,10 @@ async function processDriverData(data, docId) {
 
   if (!driverUid) return;
 
-  // 2. Create Staging/Pending Update (Instead of Overwriting Master Profile)
+  // 2. No copy of the person's details goes onto the profile or under it. The
+  // staging copy this used to add (`drivers/{id}/pending_updates`) was read by
+  // nothing, and every copy is one more place the details live.
   const driverDocRef = db.collection("drivers").doc(driverUid);
-
-  // PHASE 2 FIX: STOP AUTO-MERGING
-  // Instead of updating the main profile, we push to a 'pending_updates' subcollection.
-  // The user (Mobile App) or Admin (Dashboard) can approve these changes.
-
-  const stagingData = {
-    source: docId.includes('lead') ? 'lead' : 'application',
-    sourceId: docId,
-    receivedAt: admin.firestore.FieldValue.serverTimestamp(),
-    proposedChanges: {
-      personalInfo: {
-        firstName: data.firstName || "",
-        lastName: data.lastName || "",
-        email: email,
-        phone: data.phone || "",
-        // No SSN, not even encrypted: nothing reads this staging copy, and
-        // every copy is one more place the number lives.
-      },
-      qualifications: {
-        experienceYears: data.experience || data['experience-years'] || "",
-      },
-      // Don't sync matching licenses blindly, put them in staging
-      licenses: data.cdlNumber ? [{
-        state: data.cdlState || "",
-        number: data.cdlNumber || "",
-        expiration: data.cdlExpiration || "",
-        class: data.cdlClass || ""
-      }] : []
-    }
-  };
-
-  // Writing to subcollection
-  await driverDocRef.collection('pending_updates').add(stagingData);
-
-  console.log(`Redirected driver update for ${driverUid} to 'pending_updates'.`);
 
   // SEC-002 follow-up: record which company this driver is connected to so
   // same-company staff can read the global driver profile (firestore.rules
