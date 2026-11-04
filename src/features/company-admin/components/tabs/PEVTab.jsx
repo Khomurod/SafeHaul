@@ -5,11 +5,11 @@ import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useData } from '@/context/DataContext';
 import { requestPdfWarning } from '../../utils/pevRequestPdf';
+import { writeVerificationMirror } from '../../utils/pevVerificationMirror';
 import { VOEPreviewModal } from '../modals/VOEPreviewModal';
 import { PEVRequestModal } from '../modals/PEVRequestModal';
-import { db, functions } from '@lib/firebase';
+import { functions } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
@@ -34,7 +34,7 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
  * `logActivity(companyId, collectionName, applicationId, 'PEV_REQUEST', entry, 'pev')`
  * argument list and the exact log-entry string; the Firestore
  * `updateDoc(companies/{companyId}/{collectionName}/{applicationId}, { employers })`
- * write and the verification/history object shapes; the optimistic
+ * write (`writeVerificationMirror`) and the verification/history object shapes; the optimistic
  * `localOverrides` merge; the `getSignedPevUrl({ storagePath })` payload and the
  * `http(s)`-opens-directly rule; every `window.open(url, '_blank',
  * 'noopener,noreferrer')` call; the clipboard write; the
@@ -100,42 +100,11 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
     const [loadingResultUrl, setLoadingResultUrl] = useState(null); // Track which index is loading a signed URL
 
     const employers = useMemo(() => appData?.employers || [], [appData]);
-
-    /**
-     * Write a verification mirror onto one employer row, without clobbering the rest.
-     *
-     * `[...employers]` from `appData` is a snapshot of whenever the dossier last
-     * read the application, and writing the WHOLE array back would lose anything
-     * that changed on another row in between — including the stable `employerId`
-     * that `sendVerificationRequest` stamps on the rows it resolves, after which
-     * the employer's own answer would have no row it could safely be filed
-     * against.
-     *
-     * So the document is re-read here and the change applied to what is actually
-     * stored — and the row is found by `employerId` when the callable returned one,
-     * because an index is exactly the thing that moves.
-     *
-     * @param {{employerId?: string, index: number, apply: (verification: object) => void}} target
-     * @returns {Promise<object|null>} the verification as written, for the
-     *   optimistic override, or null when the row could not be found.
-     */
-    const writeVerification = useCallback(async ({ employerId, index, apply }) => {
-        const appRef = doc(db, 'companies', companyId, collectionName, applicationId);
-        const snap = await getDoc(appRef);
-        const rows = snap.exists() && Array.isArray(snap.data()?.employers)
-            ? [...snap.data().employers]
-            : [];
-        const found = employerId
-            ? rows.findIndex((row) => row?.employerId === employerId)
-            : index;
-        if (found < 0 || !rows[found]) return null;
-
-        const verification = { history: [], ...(rows[found].verification || {}) };
-        apply(verification);
-        rows[found] = { ...rows[found], verification };
-        await updateDoc(appRef, { employers: rows });
-        return verification;
-    }, [companyId, collectionName, applicationId]);
+    // The record a verification is filed on, for the mirror write and "Record attempt".
+    const record = useMemo(() => ({ companyId, collectionName, applicationId }), [companyId, collectionName, applicationId]);
+    const overrideVerification = useCallback((index, verification) => (
+        setLocalOverrides((prev) => ({ ...prev, [index]: verification }))
+    ), []);
 
     /**
      * Opens a PEV result file. Handles both:
@@ -242,8 +211,8 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 'pev'
             );
 
-            // Written onto the stored row, not a stale snapshot — see `writeVerification`.
-            const written = await writeVerification({
+            // Written onto the stored row, not a stale snapshot — see `writeVerificationMirror`.
+            const written = await writeVerificationMirror(record, {
                 employerId: result.data.employerId,
                 index: emp.index,
                 apply: (verification) => {
@@ -307,7 +276,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 employerName: employer.companyName || employer.name || '',
             });
             const written = result.data?.verification;
-            if (written) setLocalOverrides(prev => ({ ...prev, [index]: written }));
+            if (written) overrideVerification(index, written);
 
             showSuccess('Verification result uploaded successfully.');
             if (result.data?.filedInDq === false) showError(RESULT_NOT_FILED);
@@ -414,6 +383,8 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                                             setHistoryTargetIndex={setHistoryTargetIndex}
                                             fileRef={fileRef}
                                             showSuccess={showSuccess}
+                                            record={record}
+                                            onVerification={overrideVerification}
                                         />
                                     </li>
                                 );

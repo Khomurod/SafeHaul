@@ -4,12 +4,13 @@
  * The request holds the authoritative log, `verification_requests/{token}.attempts`,
  * appended with `arrayUnion` (no read, so no lost update): the request going out
  * or failing to, each reminder and whether it went out, the first open, the
- * answer, an uploaded result and the day-30 mark.
+ * answer, an uploaded result, the day-30 mark, and the calls, faxes and notes a
+ * recruiter records (./manualAttempt.js).
  *
  * The employer row, the copy the team can read, gets a short history entry for
- * the attempts nothing else mirrors: a failed first email and each reminder.
- * The send, the open, the answer, the upload and the mark already have their
- * own row entries.
+ * the attempts nothing else mirrors: a failed first email, each reminder and a
+ * recorded call, fax or note. The send, the open, the answer, the upload and
+ * the mark already have their own row entries.
  *
  * An entry is `{ kind, at, ok, by?, error?, step?, method?, note?, recordedAt? }`.
  * Never the token, an address or an email body. `error` stays on the request,
@@ -64,6 +65,17 @@ function isoOf(at) {
     return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 }
 
+/**
+ * A team member's name from the company's team cache (`teamMembers`, written
+ * by the membership trigger), or null when it has none for them.
+ */
+function teamMemberName(company, uid) {
+    const member = (Array.isArray(company?.teamMembers) ? company.teamMembers : [])
+        .find((entry) => entry?.userId === uid);
+    const name = typeof member?.name === 'string' ? member.name.trim() : '';
+    return name && name !== 'Unknown' ? name.slice(0, 80) : null;
+}
+
 /** What the row's history calls an attempt. */
 function rowAction(entry) {
     if (entry.kind === 'send_failed') return 'Request email could not be sent';
@@ -107,5 +119,5 @@ async function mirrorAttempt(request, entry) {
 }
 
 module.exports = {
-    MANUAL_KINDS, REMINDER_NAMES, attemptEntry, isoOf, mirrorAttempt, recordAttempt, rowEntryOf, withAttempt,
+    MANUAL_KINDS, REMINDER_NAMES, attemptEntry, isoOf, mirrorAttempt, recordAttempt, rowEntryOf, teamMemberName, withAttempt,
 };

@@ -220,6 +220,7 @@ function exportFunctions(wanted) {
   if (wanted('submitVerificationResponse')) exports.submitVerificationResponse = require('./employmentVerification').submitVerificationResponse;
   if (wanted('processVerificationReminders')) exports.processVerificationReminders = require('./employmentVerification').processVerificationReminders;
   if (wanted('recordManualVerificationResult')) exports.recordManualVerificationResult = require('./employmentVerification').recordManualVerificationResult;
+  if (wanted('recordVerificationAttempt')) exports.recordVerificationAttempt = require('./employmentVerification').recordVerificationAttempt;
   // PEV-BRK-3 companion: On-demand signed URL generation for PEV result PDFs
   if (wanted('getSignedPevUrl')) exports.getSignedPevUrl = require('./getSignedPevUrl').getSignedPevUrl;
   // Signed download URLs for secure_documents (e-signature envelopes)

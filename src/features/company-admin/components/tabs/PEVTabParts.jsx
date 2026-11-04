@@ -4,6 +4,9 @@ import { getFieldValue } from '@shared/utils/helpers';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
 import { BLOCKED_TAB_MESSAGE, openApplicationFile } from '@features/applications/services/openApplicationFile';
+import { attemptWhen } from '../../utils/pevAttempts';
+import { PEVAttemptList } from './PEVAttemptList';
+import { PEVRecordAttempt } from './PEVRecordAttempt';
 
 /**
  * The PEV tab's presentational pieces, extracted verbatim from `PEVTab.jsx`:
@@ -52,6 +55,8 @@ export function PEVEmployerCard({
     setHistoryTargetIndex,
     fileRef,
     showSuccess,
+    record,
+    onVerification,
 }) {
         const employerName = getFieldValue(emp.companyName || emp.name);
     return (
@@ -97,6 +102,7 @@ export function PEVEmployerCard({
                                         </span>
                                     )}
                                 </div>
+                                <PEVAttemptList history={vStatus.history} />
                             </div>
                         </div>
 
@@ -150,6 +156,16 @@ export function PEVEmployerCard({
                                             {uploadingResult && uploadTargetIndex === index ? null : <Icon icon={Plus} size="sm" />}
                                             Upload Result
                                         </Button>
+                                    )}
+                                    {/* A request exists and is not answered: a call, fax or note joins its record. */}
+                                    {vStatus.status !== 'Completed' && (
+                                        <PEVRecordAttempt
+                                            record={record}
+                                            emp={emp}
+                                            index={index}
+                                            onVerification={onVerification}
+                                            showSuccess={showSuccess}
+                                        />
                                     )}
                                     <Button
                                         variant="secondary"
@@ -233,8 +249,12 @@ export function PEVHistoryModal({
                             <div className="min-w-0">
                                 <p className="font-bold text-ds-content">{log.action}</p>
                                 <p className="text-ds-xs text-ds-content-secondary">
-                                    {new Date(log.timestamp).toLocaleString()}
+                                    {attemptWhen(log)}
+                                    {log.recordedBy ? ` · recorded by ${log.recordedBy}` : ''}
                                 </p>
+                                {log.note && (
+                                    <p className="mt-ds-1 text-ds-xs text-ds-content [overflow-wrap:anywhere]">{log.note}</p>
+                                )}
                                 {log.recipient && (
                                     <p className="mt-ds-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
                                         Sent to: {log.recipient} ({log.method})
