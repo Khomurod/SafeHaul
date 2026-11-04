@@ -50,12 +50,18 @@ jest.mock('../../shared/rateLimiter', () => ({
 
 const { submitPublicEnvelope } = require('../../publicSigning');
 const firebaseAdmin = require('../../firebaseAdmin');
+const { checkRateLimit } = require('../../shared/rateLimiter');
 
 describe('submitPublicEnvelope', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     firebaseAdmin.mockRunTransaction.mockReset();
     firebaseAdmin.docRefStub.update.mockResolvedValue(undefined);
+    // Clearing keeps implementations, so the recording bucket a case installs is put back here.
+    firebaseAdmin.storage.bucket.mockImplementation(() => ({
+      file: jest.fn(() => ({ save: jest.fn(async () => undefined) })),
+    }));
+    checkRateLimit.mockImplementation(async () => true);
   });
 
   function mockTxnEnvelope({
@@ -503,6 +509,235 @@ describe('submitPublicEnvelope', () => {
       });
 
       expect(lastUpdate()).not.toHaveProperty('fields');
+    });
+  });
+
+  // --- Drawn signatures and initials ---------------------------------------
+  // Every id is checked before any image is saved; the images are then saved
+  // side by side, at most four at a time, and a failure rolls back only once
+  // every save of its wave has settled.
+  describe('signature images', () => {
+    const flush = () => new Promise((resolve) => setImmediate(resolve));
+    const image = (n) => `data:image/png;base64,${Buffer.from(`png-${n}`).toString('base64')}`;
+    const pathOf = (key) => `secure_documents/c1/signatures/r1_${key}.png`;
+    const imageFields = (ids) => ids.map((id) => ({ id, type: 'signature', required: false }));
+
+    function deferred() {
+      let resolve;
+      let reject;
+      const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+      return { promise, resolve, reject };
+    }
+
+    /**
+     * Records every save. A held save waits until the test answers it; `releaseAll`
+     * answers each one and lets any later save through, so no case leaves a
+     * submission pending.
+     */
+    function recordSaves({ held = false } = {}) {
+      const saves = [];
+      let holding = held;
+      firebaseAdmin.storage.bucket.mockImplementation(() => ({
+        file: jest.fn((path) => ({
+          save: jest.fn((buffer, options) => {
+            const answer = deferred();
+            saves.push({ path, buffer, options, ...answer });
+            if (!holding) answer.resolve();
+            return answer.promise;
+          }),
+        })),
+      }));
+      const releaseAll = () => {
+        holding = false;
+        saves.forEach((save) => save.resolve());
+      };
+      return { saves, releaseAll };
+    }
+
+    function submit(fieldValues) {
+      return submitPublicEnvelope({ ...baseReq, data: { ...baseReq.data, fieldValues } });
+    }
+
+    const updatesWith = (status) =>
+      firebaseAdmin.docRefStub.update.mock.calls.filter(([patch]) => patch.status === status);
+
+    it('saves every drawn signature side by side', async () => {
+      mockTxnEnvelope({ fields: imageFields(['sig1', 'sig2']) });
+      const { saves, releaseAll } = recordSaves({ held: true });
+      const call = submit({ sig1: image(1), sig2: image(2) });
+      try {
+        await flush();
+        expect(saves.map((save) => save.path)).toEqual([pathOf('sig1'), pathOf('sig2')]);
+      } finally {
+        releaseAll();
+        await call.catch(() => {});
+      }
+      await expect(call).resolves.toEqual({ success: true });
+    });
+
+    it('saves at most 4 at a time, and stores all six paths in submitted order', async () => {
+      const ids = ['sig1', 'sig2', 'sig3', 'sig4', 'sig5', 'sig6'];
+      mockTxnEnvelope({ fields: imageFields(ids) });
+      const { saves, releaseAll } = recordSaves({ held: true });
+      const call = submit(Object.fromEntries(ids.map((id, n) => [id, image(n)])));
+      try {
+        await flush();
+        expect(saves.map((save) => save.path)).toEqual(ids.slice(0, 4).map(pathOf));
+
+        // The next wave waits for the whole first wave, not for its first answers.
+        saves.slice(0, 3).forEach((save) => save.resolve());
+        await flush();
+        expect(saves).toHaveLength(4);
+
+        saves[3].resolve();
+        await flush();
+        expect(saves.map((save) => save.path)).toEqual(ids.map(pathOf));
+        expect(updatesWith('pending_seal')).toHaveLength(0);
+      } finally {
+        releaseAll();
+        await call.catch(() => {});
+      }
+      await expect(call).resolves.toEqual({ success: true });
+      const [[sealed]] = updatesWith('pending_seal');
+      expect(Object.entries(sealed.fieldValues)).toEqual(ids.map((id) => [id, pathOf(id)]));
+    });
+
+    it('gives the four places of a wave to images only, keeping every value in submitted order', async () => {
+      const submitted = {
+        name: 'Ada Lovelace',
+        sig1: image(1),
+        title: 'Driver',
+        sig2: image(2),
+        sig3: image(3),
+        agree: true,
+        sig4: image(4),
+        init1: image(5),
+      };
+      mockTxnEnvelope({ fields: imageFields(Object.keys(submitted)) });
+      const { saves, releaseAll } = recordSaves({ held: true });
+      const call = submit(submitted);
+      try {
+        await flush();
+        expect(saves.map((save) => save.path)).toEqual(['sig1', 'sig2', 'sig3', 'sig4'].map(pathOf));
+      } finally {
+        releaseAll();
+        await call.catch(() => {});
+      }
+      await expect(call).resolves.toEqual({ success: true });
+      const [[sealed]] = updatesWith('pending_seal');
+      expect(Object.entries(sealed.fieldValues)).toEqual([
+        ['name', 'Ada Lovelace'],
+        ['sig1', pathOf('sig1')],
+        ['title', 'Driver'],
+        ['sig2', pathOf('sig2')],
+        ['sig3', pathOf('sig3')],
+        ['agree', true],
+        ['sig4', pathOf('sig4')],
+        ['init1', pathOf('init1')],
+      ]);
+    });
+
+    it('rolls back only after every save of the failed wave has settled', async () => {
+      mockTxnEnvelope({ fields: imageFields(['sig1', 'sig2']) });
+      const { saves, releaseAll } = recordSaves({ held: true });
+      const call = submit({ sig1: image(1), sig2: image(2) });
+      // Handled at once: it rejects while the case is still looking at the rollback.
+      call.catch(() => {});
+      try {
+        await flush();
+        expect(saves).toHaveLength(2);
+        saves[1].reject(new Error('storage unavailable'));
+        await flush();
+        // sig1 could still land: rolling back now would let it overwrite a retry's image.
+        expect(updatesWith('sent')).toHaveLength(0);
+
+        saves[0].resolve();
+        await flush();
+        expect(updatesWith('sent')).toHaveLength(1);
+        expect(updatesWith('sent')[0][0]).toMatchObject({ lastError: 'storage unavailable' });
+      } finally {
+        releaseAll();
+        await call.catch(() => {});
+      }
+      await expect(call).rejects.toMatchObject({ code: 'internal' });
+      expect(updatesWith('pending_seal')).toHaveLength(0);
+    });
+
+    it('saves nothing when any submitted id is unknown', async () => {
+      mockTxnEnvelope({ fields: imageFields(['sig1']) });
+      const { saves } = recordSaves();
+      await expect(submit({ sig1: image(1), bogus: 'x' })).rejects.toMatchObject({
+        code: 'invalid-argument',
+        message: 'Invalid field id submitted: bogus',
+      });
+      expect(saves).toHaveLength(0);
+      expect(updatesWith('sent')).toHaveLength(1);
+      expect(updatesWith('pending_seal')).toHaveLength(0);
+    });
+
+    it('stores each image\'s path as its value', async () => {
+      mockTxnEnvelope({
+        fields: [...imageFields(['sig1']), { id: 'name', type: 'text', label: 'Name', required: true }],
+      });
+      const { saves } = recordSaves();
+      await expect(submit({ sig1: image(1), name: 'Ada Lovelace' })).resolves.toEqual({ success: true });
+
+      expect(saves).toHaveLength(1);
+      expect(saves[0].path).toBe('secure_documents/c1/signatures/r1_sig1.png');
+      expect(saves[0].buffer.toString()).toBe('png-1');
+      expect(saves[0].options).toEqual({ metadata: { contentType: 'image/png' } });
+      const [[sealed]] = updatesWith('pending_seal');
+      expect(sealed.fieldValues).toEqual({
+        sig1: 'secure_documents/c1/signatures/r1_sig1.png',
+        name: 'Ada Lovelace',
+      });
+    });
+
+    it('rolls back to sent when a save fails', async () => {
+      mockTxnEnvelope({ fields: imageFields(['sig1']) });
+      firebaseAdmin.storage.bucket.mockImplementation(() => ({
+        file: jest.fn(() => ({ save: jest.fn(async () => { throw new Error('storage unavailable'); }) })),
+      }));
+      await expect(submit({ sig1: image(1) })).rejects.toMatchObject({
+        code: 'internal',
+        message: 'An error occurred processing your submission. Please try again.',
+      });
+      expect(updatesWith('sent')).toEqual([[expect.objectContaining({ lastError: 'storage unavailable' })]]);
+      expect(updatesWith('pending_seal')).toHaveLength(0);
+    });
+
+    it('saves nothing and changes nothing when the submission is refused before it is claimed', async () => {
+      const { saves } = recordSaves();
+      const refusals = [
+        ['resource-exhausted', () => checkRateLimit.mockImplementation(async () => false)],
+        ['not-found', () => firebaseAdmin.mockRunTransaction.mockImplementation(async (cb) => cb({
+          get: jest.fn(async () => ({ exists: false, data: () => undefined })),
+          update: jest.fn(),
+        }))],
+        ['permission-denied', () => mockTxnEnvelope({ fields: imageFields(['sig1']), token: 'other-token' })],
+        ['deadline-exceeded', () => mockTxnEnvelope({ fields: imageFields(['sig1']), expired: true })],
+        ['failed-precondition', () => mockTxnEnvelope({ fields: imageFields(['sig1']), status: 'pending_seal' })],
+      ];
+      for (const [code, arrange] of refusals) {
+        checkRateLimit.mockImplementation(async () => true);
+        arrange();
+        await expect(submit({ sig1: image(1) })).rejects.toMatchObject({ code });
+      }
+      expect(saves).toHaveLength(0);
+      expect(firebaseAdmin.docRefStub.update).not.toHaveBeenCalled();
+    });
+
+    it('still refuses a missing required field after the images, and rolls back', async () => {
+      mockTxnEnvelope({
+        fields: [...imageFields(['sig1']), { id: 'name', type: 'text', label: 'Name', required: true }],
+      });
+      recordSaves();
+      await expect(submit({ sig1: image(1) })).rejects.toMatchObject({
+        code: 'failed-precondition',
+        message: 'Required fields missing: Name',
+      });
+      expect(updatesWith('sent')).toHaveLength(1);
+      expect(updatesWith('pending_seal')).toHaveLength(0);
     });
   });
 });
