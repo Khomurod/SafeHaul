@@ -956,7 +956,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Company API** (`companyApi`, read-only) | Another service reads submitted applications with a key made in Settings → API Keys (Company Admin) | Hash in `company_api_keys` (server-only); key shown once |
 | **Socrata / Transportation.gov** | Employer lookup: name, trade name or USDOT, active first | Public app token |
 | **Sentry** | Error monitoring for the browser app (`@sentry/react`), and its Content Security Policy violations (report-only, §10); Cloud Functions log to Cloud Logging only | DSN |
-| **GitHub API** | Promotion from Super Admin → Releases or the Telegram button (`runPromotion`) | GitHub App credential, server-only |
+| **GitHub API** | Promotion from Super Admin → Releases or the Telegram button (`runPromotion`). Reads and token minting give up after 15 s (shown as GitHub unreachable); the dispatch that starts a release has no limit of its own | GitHub App credential, server-only |
 
 **Hard boundaries:**
 

@@ -48,6 +48,15 @@ const { createSign } = require('node:crypto');
 
 const GITHUB_API = 'https://api.github.com';
 
+/**
+ * Token minting and every GET give up after 15 s (reading the body included),
+ * so a slow GitHub shows as unreachable instead of holding the function until
+ * it is killed. The dispatch that starts a release is deliberately unlimited:
+ * `promote.js` treats a failed dispatch as never started and frees the lock,
+ * and a dispatch whose answer was lost may already have started a release.
+ */
+const GITHUB_TIMEOUT_MS = 15000;
+
 /** The one repository this credential is installed on. */
 const RELEASE_REPOSITORY = 'Khomurod/SafeHaul';
 
@@ -165,37 +174,60 @@ function resetTokenCache() {
     cachedToken = null;
 }
 
+/**
+ * Runs `work(signal)` (the fetch and the body read) within GITHUB_TIMEOUT_MS.
+ * Whatever fails because the limit was reached becomes a 504; every other
+ * error, a GitHub refusal included, passes through as it is.
+ */
+async function timedGithubCall(work) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), GITHUB_TIMEOUT_MS);
+    try {
+        return await work(controller.signal);
+    } catch (error) {
+        if (error instanceof GithubRequestError || !controller.signal.aborted) throw error;
+        throw new GithubRequestError(`GitHub did not answer within ${GITHUB_TIMEOUT_MS / 1000} seconds.`, 504);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 async function mintInstallationToken({ fetchImpl = fetch, env = process.env } = {}) {
     const credential = readCredential(env);
     const jwt = createAppJwt(credential);
 
-    const response = await fetchImpl(
-        `${GITHUB_API}/app/installations/${encodeURIComponent(credential.installationId)}/access_tokens`,
-        {
-            method: 'POST',
-            headers: {
-                Accept: 'application/vnd.github+json',
-                Authorization: `Bearer ${jwt}`,
-                'X-GitHub-Api-Version': '2022-11-28',
+    // Limited even though it is a POST: a second token minted after a lost
+    // answer is harmless.
+    return timedGithubCall(async (signal) => {
+        const response = await fetchImpl(
+            `${GITHUB_API}/app/installations/${encodeURIComponent(credential.installationId)}/access_tokens`,
+            {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/vnd.github+json',
+                    Authorization: `Bearer ${jwt}`,
+                    'X-GitHub-Api-Version': '2022-11-28',
+                },
+                signal,
             },
-        },
-    );
-
-    if (!response.ok) {
-        // The body of a failed token exchange can echo the JWT header, so only
-        // the status is surfaced.
-        throw new GithubRequestError(
-            `Could not obtain a GitHub installation token (HTTP ${response.status}).`,
-            response.status,
         );
-    }
 
-    const body = await response.json();
-    if (!body?.token) {
-        throw new GithubRequestError('GitHub returned no installation token.', 502);
-    }
+        if (!response.ok) {
+            // The body of a failed token exchange can echo the JWT header, so only
+            // the status is surfaced.
+            throw new GithubRequestError(
+                `Could not obtain a GitHub installation token (HTTP ${response.status}).`,
+                response.status,
+            );
+        }
 
-    return { token: body.token, expiresAt: Date.parse(body.expires_at) || (Date.now() + 55 * 60000) };
+        const body = await response.json();
+        if (!body?.token) {
+            throw new GithubRequestError('GitHub returned no installation token.', 502);
+        }
+
+        return { token: body.token, expiresAt: Date.parse(body.expires_at) || (Date.now() + 55 * 60000) };
+    });
 }
 
 async function getInstallationToken(options = {}) {
@@ -219,28 +251,34 @@ async function githubRequest(method, path, { body, fetchImpl = fetch, env = proc
         ? `${GITHUB_API}${path}`
         : `${GITHUB_API}/repos/${RELEASE_REPOSITORY}${path}`;
 
-    const response = await fetchImpl(url, {
-        method,
-        headers: {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${token}`,
-            'X-GitHub-Api-Version': '2022-11-28',
-            ...(body ? { 'Content-Type': 'application/json' } : {}),
-        },
-        ...(body ? { body: JSON.stringify(body) } : {}),
-    });
+    const send = async (signal) => {
+        const response = await fetchImpl(url, {
+            method,
+            headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${token}`,
+                'X-GitHub-Api-Version': '2022-11-28',
+                ...(body ? { 'Content-Type': 'application/json' } : {}),
+            },
+            ...(body ? { body: JSON.stringify(body) } : {}),
+            ...(signal ? { signal } : {}),
+        });
 
-    if (!response.ok) {
-        const text = await response.text();
-        throw new GithubRequestError(
-            `GitHub ${method} ${path} failed (HTTP ${response.status}): ${text.slice(0, 300)}`,
-            response.status,
-        );
-    }
+        if (!response.ok) {
+            const text = await response.text();
+            throw new GithubRequestError(
+                `GitHub ${method} ${path} failed (HTTP ${response.status}): ${text.slice(0, 300)}`,
+                response.status,
+            );
+        }
 
-    // 204 No Content — every dispatch endpoint answers this way.
-    if (response.status === 204) return null;
-    return response.json();
+        // 204 No Content — every dispatch endpoint answers this way.
+        if (response.status === 204) return null;
+        return response.json();
+    };
+
+    // Only reads are limited; the dispatch POST is not (see GITHUB_TIMEOUT_MS).
+    return method === 'GET' ? timedGithubCall(send) : send(undefined);
 }
 
 /** A read-only GET in the shape `eligibility.js` expects. */
