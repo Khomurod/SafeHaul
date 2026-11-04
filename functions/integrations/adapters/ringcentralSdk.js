@@ -19,8 +19,42 @@ function isRingCentralTimeout(error) {
     return error?.type === 'request-timeout' || error?.type === 'body-timeout';
 }
 
+/**
+ * One SDK's own token store. Under Node the SDK's default store is a single
+ * module-wide object and every SDK uses the same key in it, so two SDKs alive in
+ * one function instance (two lines, or two companies) would read, refresh or
+ * erase each other's session. Each SDK gets a store of its own, dropped with it.
+ */
+class SessionStore {
+    constructor() {
+        this.items = new Map();
+    }
+
+    getItem(key) {
+        return this.items.has(key) ? this.items.get(key) : null;
+    }
+
+    setItem(key, value) {
+        this.items.set(key, String(value));
+    }
+
+    removeItem(key) {
+        this.items.delete(key);
+    }
+
+    keys() {
+        return [...this.items.keys()];
+    }
+}
+
 function createRingCentralSdk({ server, clientId, clientSecret }, timeoutMs = RINGCENTRAL_TIMEOUT_MS) {
-    return new RC({ server, clientId, clientSecret, defaultRequestInit: { timeout: timeoutMs } });
+    return new RC({
+        server,
+        clientId,
+        clientSecret,
+        defaultRequestInit: { timeout: timeoutMs },
+        localStorage: new SessionStore(),
+    });
 }
 
 module.exports = { RINGCENTRAL_TIMEOUT_MS, createRingCentralSdk, isRingCentralTimeout };

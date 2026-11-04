@@ -94,13 +94,14 @@ describe('testLineConnection', () => {
         expect(mockLogin).toHaveBeenCalledWith({ jwt: 'their-jwt' });
     });
 
-    it('gives every request of the test a 20-second limit', async () => {
+    it('gives every request of the test a 20-second limit and a session store of its own', async () => {
         await expect(call({ roles: { co1: 'company_admin' } }, { companyId: 'co1' })).resolves.toMatchObject({ success: true });
         expect(mockSdkOptions).toEqual([{
             server: 'prod-url',
             clientId: 'plain:enc-id',
             clientSecret: 'plain:enc-secret',
             defaultRequestInit: { timeout: 20000 },
+            localStorage: expect.objectContaining({ getItem: expect.any(Function), setItem: expect.any(Function) }),
         }]);
     });
 });

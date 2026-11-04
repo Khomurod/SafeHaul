@@ -370,3 +370,13 @@ Not part of any task above. Each needs its own task if the owner wants it.
     `vite preview` and a 503 for `init.json` (found during T1-F).
     `startupGuards.test.jsx` checks source order, not the bundled order.
     *Recommended:* a separate small task with a built-app test.
+13. **Every RingCentral SDK in one function instance shared one session store**
+    (found during T4.1; fixed in batch C). Under Node, `@ringcentral/sdk`
+    5.0.11 keeps every instance's tokens in one module-wide store
+    (`lib/index.js:36`) under the same key, so a second SDK alive in the same
+    instance (another line or company) would read, refresh or erase the first
+    one's session, and a text could go out under the other account. Today every
+    SMS path builds one adapter per call and logs in first, and no function
+    handles two calls at once (all run below 1 CPU), so it did not happen in
+    practice. `createRingCentralSdk` now gives each SDK a store of its own;
+    `ringcentralSdk.tokenStore.test.js` failed before the change.
