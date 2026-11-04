@@ -10,6 +10,7 @@ const { isSuperAdminClaims } = require('../../../shared/superAdmin');
 const SMSAdapterFactory = require('../../factory');
 const { decrypt } = require('../../encryption');
 const RC = require('@ringcentral/sdk').SDK;
+const { createRingCentralSdk } = require('../../adapters/ringcentralSdk');
 const { isLikelyValidPhone } = require('../../../utils/phoneUtils');
 
 // Shared options for functions that need encryption capabilities
@@ -85,11 +86,7 @@ exports.testLineConnection = onCall(encryptedCallOptions, async (request) => {
 
     try {
         // Instantiate isolated SDK with the provided credentials
-        const rcsdk = new RC({
-            server: serverUrl,
-            clientId: effectiveClientId,
-            clientSecret: effectiveClientSecret
-        });
+        const rcsdk = createRingCentralSdk({ server: serverUrl, clientId: effectiveClientId, clientSecret: effectiveClientSecret });
 
         // Attempt JWT login
         await rcsdk.login({ jwt: jwt });

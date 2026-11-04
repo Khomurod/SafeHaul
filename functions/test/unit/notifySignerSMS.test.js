@@ -36,6 +36,7 @@ jest.mock('../../integrations/factory', () => ({
 }));
 
 const { notifySignerSMS } = require('../../notifySignerSMS');
+const BaseAdapter = require('../../integrations/adapters/BaseAdapter');
 
 const REQUEST = {
     sendSms: true,
@@ -97,4 +98,16 @@ it('records a failed text', async () => {
     await created();
 
     expect(mockRequest.fields).toMatchObject({ smsStatus: 'failed', smsError: 'line unavailable' });
+});
+
+it('records a text RingCentral never answered as failed, saying it may have gone out', async () => {
+    const unconfirmed = BaseAdapter.sendUnconfirmedError('RingCentral', 20);
+    mockSendSms.mockRejectedValue(unconfirmed);
+    await created();
+
+    expect(mockSendSms).toHaveBeenCalledTimes(1);
+    expect(mockRequest.fields).toMatchObject({ smsStatus: 'failed', smsError: unconfirmed.message });
+    expect(mockRequest.fields.smsError).toBe(
+        'RingCentral did not answer within 20 seconds, so SafeHaul cannot tell whether this text went out. It was not sent again.',
+    );
 });

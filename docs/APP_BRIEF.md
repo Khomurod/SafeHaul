@@ -978,10 +978,10 @@ projection, and `/apply/:slug` is not gated by any flag. See
   on both or one AI entry point reads a credential the other cannot. Super Admin
   → AI Integrations → **Check credential access** asks both, names the account
   in use, and reports a missing secret apart from an unreadable one.
-- **SMS credentials are resolved by a factory, never inline.**
-  `SMSAdapterFactory` fetches, decrypts and instantiates the right adapter. A
-  *keychain* holds each line's JWT under its number (as typed with +, else US
-  +1); `assignments` give recruiters a "From" line, else the main line.
+- **SMS credentials are resolved by a factory, never inline.** `SMSAdapterFactory` fetches, decrypts and
+  instantiates the right adapter. A *keychain* holds each line's JWT under its number (as typed with +, else US +1);
+  `assignments` give recruiters a "From" line, else the main line. Every RingCentral request gives up after 20 s
+  (`ringcentralSdk.js`); a send it never answered may have gone out, so it says so and is never resent automatically.
 - **The company API reads only its key's company and logs each answer.** It
   serves the frozen record, not the live one; files need `documents:read`, the
   full SSN `ssn:read`, the PDF both (it shows the SSN). Each answer is logged in

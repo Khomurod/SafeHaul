@@ -69,7 +69,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [x] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
    - [x] **T3 PR 2** · Заглушка страницы заявки водителя · *Driver apply-page placeholder* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
 4. **Лимиты времени для внешних сервисов / Timeouts for external calls (#12)**
-   - [ ] **T4.1** · RingCentral: лимит 20 секунд, без повторной отправки SMS · *RingCentral 20-second limit, no resend* → [T4.1](T4.1-ringcentral-timeout.md) · PR: — · Дата: —
+   - [x] **T4.1** · RingCentral: лимит 20 секунд, без повторной отправки SMS · *RingCentral 20-second limit, no resend* → [T4.1](T4.1-ringcentral-timeout.md) · PR: пакет C · Дата: 2026-11-04
    - [ ] **T4.2** · Кампании: «возможно отправлено», без авто-повтора · *Campaigns safe when the SMS provider does not answer* → [T4.2](T4.2-campaign-send-unconfirmed.md) · PR: — · Дата: —
    - [ ] **T4.3** · Лимиты для 8x8 SMS и Facebook · *Time limits for 8x8 SMS and Facebook Graph* → [T4.3](T4.3-8x8-facebook-timeouts.md) · PR: — · Дата: —
    - [ ] **T4.4** · Лимит 15 секунд для чтений GitHub в Releases · *15-second limit on GitHub reads behind Releases* → [T4.4](T4.4-github-release-timeouts.md) · PR: — · Дата: —

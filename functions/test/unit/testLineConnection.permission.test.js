@@ -15,8 +15,10 @@ jest.mock('../../integrations/encryption', () => ({ encrypt: jest.fn(), decrypt:
 jest.mock('../../integrations/adapters/ringcentral', () => class {});
 jest.mock('../../integrations/adapters/eightbyeight', () => class {});
 const mockLogin = jest.fn(async () => {});
+const mockSdkOptions = [];
 jest.mock('@ringcentral/sdk', () => ({
     SDK: Object.assign(class {
+        constructor(options) { mockSdkOptions.push(options); }
         login(...a) { return mockLogin(...a); }
         async get() { return { json: async () => ({ id: 'acct', contact: { firstName: 'Ann', lastName: 'Lee' }, records: [] }) }; }
     }, { server: { sandbox: 'sandbox-url', production: 'prod-url' } }),
@@ -56,6 +58,7 @@ beforeEach(() => {
     mockAssertCompanyActive.mockReset().mockResolvedValue(undefined);
     mockDecrypt.mockClear();
     mockLogin.mockClear();
+    mockSdkOptions.length = 0;
 });
 
 describe('testLineConnection', () => {
@@ -89,5 +92,15 @@ describe('testLineConnection', () => {
         await expect(call({ globalRole: 'super_admin' }, { companyId: 'co1' })).resolves.toMatchObject({ success: true });
         expect(mockDecrypt).toHaveBeenCalledWith('enc-secret');
         expect(mockLogin).toHaveBeenCalledWith({ jwt: 'their-jwt' });
+    });
+
+    it('gives every request of the test a 20-second limit', async () => {
+        await expect(call({ roles: { co1: 'company_admin' } }, { companyId: 'co1' })).resolves.toMatchObject({ success: true });
+        expect(mockSdkOptions).toEqual([{
+            server: 'prod-url',
+            clientId: 'plain:enc-id',
+            clientSecret: 'plain:enc-secret',
+            defaultRequestInit: { timeout: 20000 },
+        }]);
     });
 });

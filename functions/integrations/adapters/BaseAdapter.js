@@ -34,4 +34,12 @@ class BaseAdapter {
     }
 }
 
+// The `code` of an error for a send the provider never answered: it may have gone out.
+BaseAdapter.SEND_UNCONFIRMED = 'sms-send-unconfirmed';
+// That error, so every adapter words it the same way (`seconds` is its time limit).
+BaseAdapter.sendUnconfirmedError = (provider, seconds) => Object.assign(
+    new Error(`${provider} did not answer within ${seconds} seconds, so SafeHaul cannot tell whether this text went out. It was not sent again.`),
+    { code: BaseAdapter.SEND_UNCONFIRMED },
+);
+
 module.exports = BaseAdapter;
