@@ -91,6 +91,31 @@ describe('useLiveQueryWindow', () => {
         expect(result.current.hasMore).toBe(false);
     });
 
+    it('keeps hasMore when a later snapshot shrinks a full window', () => {
+        // A delete in a full window is answered from the local cache with one
+        // row fewer before the server refills it; its key leaves the pending
+        // writes with the row, so the snapshot says nothing about a write.
+        const { result } = renderWindow();
+        emit(docs(0, 3));
+        emit(docs(1, 2), { fromCache: false, hasPendingWrites: false });
+        expect(result.current.docs).toHaveLength(2);
+        expect(result.current.hasMore).toBe(true);
+
+        emit(docs(1, 3));
+        expect(result.current.hasMore).toBe(true);
+    });
+
+    it('starts hasMore afresh with each subscription', () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const { result } = renderWindow();
+        emit(docs(0, 3));
+        fail();
+        act(() => { result.current.retry(); });
+        emit(docs(0, 2));
+        expect(result.current.hasMore).toBe(false);
+        consoleError.mockRestore();
+    });
+
     it('does nothing on loadMore while nothing more can exist or a load is pending', () => {
         const { result } = renderWindow();
         act(() => { result.current.loadMore(); });

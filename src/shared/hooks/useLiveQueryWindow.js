@@ -16,7 +16,9 @@ const defaultMapDoc = (docSnap) => ({ id: docSnap.id, ...docSnap.data() });
  *   with no rows, and is `isLoading` in that same render (render-time
  *   adjustment), so a new list never paints its empty state first. Disabled:
  *   no subscription, no rows, not loading.
- * - `hasMore` is true when a snapshot fills the window. During a `loadMore`
+ * - `hasMore` is true when a snapshot fills the window, and stays true for the
+ *   rest of that subscription (a delete shrinks a full window until the
+ *   server refills it); a server count decides completeness. During a `loadMore`
  *   the rows stay on screen; a snapshot from the cache with fewer rows than
  *   are shown is ignored (the memory cache answers a new listen with what it
  *   still holds). A failed `loadMore` sets `loadMoreFailed`, keeps the rows and
@@ -91,7 +93,12 @@ export function useLiveQueryWindow({
                 shownCountRef.current = next.length;
                 lastGoodSizeRef.current = windowSize;
                 setDocs(next);
-                setHasMore(next.length >= windowSize);
+                // Once full, the window stays "maybe more" for this subscription:
+                // a delete is answered from the local cache with a row fewer
+                // before the server refills the window. The caller's server
+                // count says when the list is complete.
+                const later = !first;
+                setHasMore((full) => next.length >= windowSize || (later && full));
                 setIsLoading(false);
                 setIsLoadingMore(false);
                 setError(null);
