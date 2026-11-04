@@ -102,6 +102,35 @@ describe('SchemaSection lockedKeys', () => {
         expect(getByText('dana@example.test')).toBeInTheDocument();
         expect(getByDisplayValue('Dana')).toBeInTheDocument();
     });
+
+    // The dossier's Edit Application locks every field the server will not change
+    // (`applicationEditableFields.json`), whatever its control: a radio, a
+    // checkbox, a select or a date must show its value with no control either.
+    it('holds every kind of control read-only, and leaves the rest editing', () => {
+        const answers = {
+            'sms-consent': 'yes', 'known-by-other-name': 'no', state: 'Texas', zip: '78701',
+            cdlClass: 'A', cdlExpiration: '2027-01-31', endorsements: 'H', cdlNumber: 'D123',
+        };
+        const locked = (sectionId, lockedKeys) => render(
+            <SchemaSection sectionId={sectionId} data={answers} isEditing onChange={() => {}} lockedKeys={lockedKeys} />,
+        );
+
+        const personal = locked('personalInfo', ['sms-consent', 'known-by-other-name']);
+        expect(personal.container.querySelector('input[type="radio"], input[type="checkbox"]')).toBeNull();
+        expect(personal.getByText('Yes')).toBeInTheDocument();
+        personal.unmount();
+
+        const address = locked('currentAddress', ['state', 'residence-3-years']);
+        expect(address.container.querySelector('select, input[type="radio"]')).toBeNull();
+        expect(address.getByText('Texas')).toBeInTheDocument();
+        expect(address.getByDisplayValue('78701')).toBeInTheDocument();
+        address.unmount();
+
+        const license = locked('license', ['cdlClass', 'cdlExpiration', 'endorsements', 'has-other-licenses']);
+        expect(license.container.querySelector('input[type="radio"], input[type="checkbox"], input[type="date"]')).toBeNull();
+        expect(license.getByText('2027-01-31')).toBeInTheDocument();
+        expect(license.getByDisplayValue('D123')).toBeInTheDocument();
+    });
 });
 
 /*

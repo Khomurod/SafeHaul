@@ -3,11 +3,13 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
+import { skippedSummary } from '@features/applications/services/editableFields';
 
 /**
  * Company-side hook for the change-approval workflow:
  *  - live list of pending_changes for an application (team-readable per rules)
- *  - proposeChanges(): writes edits as pending changes (server-validated allowlist)
+ *  - proposeChanges(): writes edits as pending changes (server-validated allowlist),
+ *    and names each field the server left out
  *  - emailReviewLink(): the server emails the review link to the application's
  *    own address; this browser learns only where, masked (`emailedTo`)
  *  - createReviewLink(): mints a token review link and copies it to the clipboard
@@ -43,11 +45,14 @@ export function useApplicationChanges(companyId, applicationId, collectionName =
             const fn = httpsCallable(functions, 'proposeApplicationChanges');
             const res = await fn({ companyId, applicationId, collectionName, changes });
             const applied = res?.data?.applied?.length || 0;
+            // Each field the server left out is named, with why (`skippedSummary`).
+            const leftOut = skippedSummary(res?.data?.skipped);
+            const say = (message) => [message, leftOut].filter(Boolean).join(' ');
             if (applied === 0) {
-                showError('No applicable changes were saved.');
+                showError(say('No applicable changes were saved.'));
                 return false;
             }
-            showSuccess(`${applied} change(s) marked for driver approval.`);
+            showSuccess(say(`${applied} change(s) marked for driver approval.`));
             return true;
         } catch (e) {
             console.error('[useApplicationChanges] propose failed:', e);

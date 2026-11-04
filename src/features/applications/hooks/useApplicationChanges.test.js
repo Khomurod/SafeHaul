@@ -45,6 +45,33 @@ describe('useApplicationChanges', () => {
         let ok;
         await act(async () => { ok = await result.current.proposeChanges([{ fieldKey: 'x', proposedValue: 1 }]); });
         expect(ok).toBe(false);
+        expect(showError).toHaveBeenCalledWith('No applicable changes were saved.');
+    });
+
+    // The server returns every field it left out (`skipped`): one on the shared
+    // list was already that value, one off it is not the company's to change.
+    it('names each field the server left out, and why, beside what it saved', async () => {
+        mockCallable.mockResolvedValueOnce({ data: { applied: ['firstName'], skipped: ['middleName', 'sms-consent'] } });
+        const { result } = renderHook(() => useApplicationChanges(...args));
+        let ok;
+        await act(async () => { ok = await result.current.proposeChanges([{ fieldKey: 'firstName', proposedValue: 'X' }]); });
+
+        expect(ok).toBe(true);
+        expect(showSuccess).toHaveBeenCalledWith(
+            '1 change(s) marked for driver approval. Not sent for approval: Middle Name (no change); '
+            + "Can we send you SMS messages? (can't be changed by the company).",
+        );
+    });
+
+    it('says what was left out when nothing was saved', async () => {
+        mockCallable.mockResolvedValueOnce({ data: { applied: [], skipped: ['employers', 'no-such-field', null] } });
+        const { result } = renderHook(() => useApplicationChanges(...args));
+        await act(async () => { await result.current.proposeChanges([{ fieldKey: 'employers', proposedValue: [] }]); });
+
+        expect(showError).toHaveBeenCalledWith(
+            'No applicable changes were saved. Not sent for approval: Previous Employers (no change); '
+            + "Another field (can't be changed by the company).",
+        );
     });
 
     it('createReviewLink builds the URL from path and copies to clipboard', async () => {
