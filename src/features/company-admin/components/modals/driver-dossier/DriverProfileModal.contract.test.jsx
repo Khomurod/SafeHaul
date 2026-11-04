@@ -34,13 +34,15 @@ vi.mock('@/context/DataContext', () => ({
 
 // The tab bodies are irrelevant here; the shell is under test.
 vi.mock('./DossierContent', () => ({
-  DossierContent: (props) => <div data-testid="content" data-active-tab={props.activeTab} />,
+  DossierContent: (props) => <div data-testid="content" data-active-tab={props.activeTab} data-record={props.driverId} />,
 }));
 vi.mock('./DossierSidebar', () => ({
-  DossierSidebar: ({ activeTab, setActiveTab }) => (
+  DossierSidebar: ({ activeTab, setActiveTab, onOpenRecord, collectionName }) => (
     <div>
       <span data-testid="sidebar-active">{activeTab}</span>
+      <span data-testid="sidebar-collection">{collectionName}</span>
       <button type="button" onClick={() => setActiveTab('documents')}>go-documents</button>
+      <button type="button" onClick={() => onOpenRecord('lead-4')}>open-linked</button>
     </div>
   ),
 }));
@@ -143,6 +145,30 @@ describe('DriverProfileModal data-hook contract', () => {
   it('calls useApplicationView with the company and the record', () => {
     renderModal();
     expect(useApplicationViewSpy).toHaveBeenCalledWith('co-1', 'app-123');
+  });
+
+  it('shows the linked lead or application in the same dossier, on its first tab, and deletes that one', async () => {
+    const { rerender } = renderModal();
+    expect(screen.getByTestId('sidebar-collection')).toHaveTextContent('applications');
+    fireEvent.click(screen.getByText('go-documents'));
+
+    fireEvent.click(screen.getByText('open-linked'));
+
+    expect(useApplicationViewSpy).toHaveBeenLastCalledWith('co-1', 'lead-4');
+    expect(screen.getByTestId('content')).toHaveAttribute('data-record', 'lead-4');
+    expect(screen.getByTestId('content')).toHaveAttribute('data-active-tab', 'application');
+
+    viewState = { ...baseView(), collectionName: 'leads' };
+    deleteApplicationSpy.mockResolvedValue(true);
+    fireEvent.click(screen.getByText('header-delete'));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete permanently' }));
+    await waitFor(() => expect(deleteApplicationSpy).toHaveBeenCalledWith({
+      companyId: 'co-1', applicationId: 'lead-4', collectionName: 'leads',
+    }));
+
+    // Opening another record from the page shows that record.
+    rerender(<DriverProfileModal companyId="co-1" driverId="app-777" isOpen onClose={vi.fn()} />);
+    expect(useApplicationViewSpy).toHaveBeenLastCalledWith('co-1', 'app-777');
   });
 
   // DEFECT-FIX assertion (not a frozen contract): before the design-system

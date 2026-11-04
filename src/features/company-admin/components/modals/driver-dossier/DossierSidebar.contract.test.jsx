@@ -227,3 +227,47 @@ describe('DossierSidebar — a referred driver', () => {
     expect(screen.queryByText(/Referred by/)).toBeNull();
   });
 });
+
+describe('DossierSidebar — a lead and the application it became', () => {
+  afterEach(cleanup);
+
+  it('a lead that applied opens its application', () => {
+    const onOpenRecord = vi.fn();
+    renderSidebar({
+      appData: { firstName: 'Dana', lastName: 'Driver', applicationId: 'app-9' },
+      collectionName: 'leads',
+      onOpenRecord,
+    });
+
+    expect(screen.getByText(/^Applied/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open application' }));
+    expect(onOpenRecord).toHaveBeenCalledWith('app-9');
+  });
+
+  it('an application from a lead opens the lead', () => {
+    const onOpenRecord = vi.fn();
+    renderSidebar({
+      appData: { firstName: 'Dana', lastName: 'Driver', fromLeadId: 'lead-4' },
+      collectionName: 'applications',
+      onOpenRecord,
+    });
+
+    expect(screen.getByText(/^From a lead/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open lead' }));
+    expect(onOpenRecord).toHaveBeenCalledWith('lead-4');
+  });
+
+  it("says nothing for an application's own applicationId, or a record with no link", () => {
+    renderSidebar({
+      appData: { firstName: 'Dana', lastName: 'Driver', applicationId: 'app-9' },
+      collectionName: 'applications',
+      onOpenRecord: vi.fn(),
+    });
+    expect(screen.queryByText(/^Applied/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Open / })).toBeNull();
+
+    cleanup();
+    renderSidebar({ collectionName: 'leads', onOpenRecord: vi.fn() });
+    expect(screen.queryByText(/^Applied|^From a lead/)).toBeNull();
+  });
+});

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon, LayoutDashboard, FileText, ShieldCheck, Activity, StickyNote, Phone, Mail, History } from '@design-system/icons';
-import { Avatar, ButtonLink, TabList } from '@design-system/components';
+import { Avatar, Button, ButtonLink, TabList } from '@design-system/components';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { useCompactViewport } from './useCompactViewport';
 
@@ -46,6 +46,22 @@ const NAV_ITEMS = [
     { id: 'notes', label: 'Notes', icon: StickyNote },
 ];
 
+/**
+ * The record a lead and the application it became name in each other, set by
+ * the server when the lead's driver applied (`functions/shared/leadApplicationLink.js`),
+ * or null. An application holds its own id as `applicationId`: only a lead's
+ * names another record.
+ */
+function linkedRecordOf(appData, collectionName) {
+    if (collectionName === 'leads' && appData?.applicationId) {
+        return { id: appData.applicationId, text: 'Applied', action: 'Open application' };
+    }
+    if (collectionName === 'applications' && appData?.fromLeadId) {
+        return { id: appData.fromLeadId, text: 'From a lead', action: 'Open lead' };
+    }
+    return null;
+}
+
 export function DossierSidebar({
     appData,
     currentStatus,
@@ -53,8 +69,11 @@ export function DossierSidebar({
     setActiveTab,
     dqStatus,
     idBase = 'dossier',
+    collectionName,
+    onOpenRecord,
 }) {
     const isCompact = useCompactViewport();
+    const linked = onOpenRecord ? linkedRecordOf(appData, collectionName) : null;
 
     // Contact Logic
     const email = appData?.email || '';
@@ -93,6 +112,16 @@ export function DossierSidebar({
                         {appData?.referral?.code && (
                             <p className="mt-ds-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
                                 Referred by {appData.referral.referrerName || 'a driver'} · link {appData.referral.code}
+                            </p>
+                        )}
+                        {/* A `link` button: it shows the other record in this
+                            dossier rather than navigating. */}
+                        {linked && (
+                            <p className="mt-ds-1 text-ds-sm text-ds-content-secondary">
+                                {linked.text} ·{' '}
+                                <Button variant="link" size="sm" onClick={() => onOpenRecord(linked.id)}>
+                                    {linked.action}
+                                </Button>
                             </p>
                         )}
                     </div>
