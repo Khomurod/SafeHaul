@@ -14,6 +14,7 @@ const { logger } = require("firebase-functions");
 const {
     sendReminderEmail,
     notifyCarrierNoResponse,
+    notifyRequestSender,
 } = require("./notifications");
 const { LIVE_STATUSES, updateWhileStatus } = require("./requestLifecycle");
 const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
@@ -76,8 +77,13 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
                     // Update application record; a result already on the row stays.
                     const mirrored = await updateApplicationVerificationStatus(v, 'No Response (Good Faith Documented)');
 
-                    // Notify carrier, unless the row holds the result
-                    if (mirrored !== 'kept_completed') await notifyCarrierNoResponse(v);
+                    // Notify the sender in the bell, then the carrier by email, unless
+                    // the row holds the result. The bell first: it needs no email set up.
+                    if (mirrored !== 'kept_completed') {
+                        await notifyRequestSender(v, token, 'no_response')
+                            .catch((error) => logger.error(`[PEV Reminders] The sender was not notified for ${token}:`, error));
+                        await notifyCarrierNoResponse(v);
+                    }
 
                     marked30Day++;
                     continue;

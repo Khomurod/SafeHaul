@@ -10,7 +10,7 @@ const { admin, db, storage } = require("../firebaseAdmin");
 const { checkRateLimit } = require("../shared/rateLimiter");
 const { logger } = require("firebase-functions");
 const { generateVerificationPDF } = require("./pdf");
-const { notifyCarrierVerificationComplete } = require("./notifications");
+const { notifyCarrierVerificationComplete, notifyRequestSender } = require("./notifications");
 const { normaliseSignature } = require("./signature");
 const { SUPERSEDED_MESSAGE } = require("./requestLifecycle");
 const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
@@ -283,6 +283,12 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
             await notifyCarrierVerificationComplete(verificationData, formResponse, { filedInDq });
         } catch (notifyError) {
             logger.error('[PEV] Failed to notify carrier (non-blocking):', notifyError);
+        }
+        // And whoever sent the request, in the bell, whether or not email works.
+        try {
+            await notifyRequestSender(verificationData, token, 'completed');
+        } catch (notifyError) {
+            logger.error('[PEV] Failed to notify the sender (non-blocking):', notifyError);
         }
 
         logger.info(`[PEV] Verification completed. Token: ${token}, Respondent: ${formResponse.respondentName}`);

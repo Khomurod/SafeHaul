@@ -14,6 +14,7 @@
  * A status moves only from the one it was read with, inside a transaction, so a
  * closing write never lands on an answer that arrived a moment earlier.
  */
+const crypto = require('crypto');
 const { db } = require('../firebaseAdmin');
 const { resolveEmployerTarget } = require('../shared/employerIdentity');
 
@@ -21,6 +22,16 @@ const LIVE_STATUSES = Object.freeze(['sent', 'opened', 'reminder_sent']);
 
 /** What the portal answers for a link a newer request replaced, on opening and on submitting. */
 const SUPERSEDED_MESSAGE = 'This request was replaced by a newer one. Please use the most recent email you received.';
+
+/**
+ * The request's name in records the team can read (a notification's id). Never
+ * the portal token, which answers as the employer (PEV-SEC-3): a request sent
+ * before `requestId` was kept is named by a hash of its token instead.
+ */
+function requestIdOf(request, token) {
+    if (typeof request?.requestId === 'string' && request.requestId) return request.requestId;
+    return crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32);
+}
 
 /**
  * Applies `update` when the request's status is still one of `from`.
@@ -64,4 +75,6 @@ async function closeRequests(docs, from, update) {
     return closed;
 }
 
-module.exports = { LIVE_STATUSES, SUPERSEDED_MESSAGE, closeRequests, requestsForEmployer, updateWhileStatus };
+module.exports = {
+    LIVE_STATUSES, SUPERSEDED_MESSAGE, closeRequests, requestIdOf, requestsForEmployer, updateWhileStatus,
+};

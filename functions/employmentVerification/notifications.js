@@ -2,8 +2,8 @@
  * Employment Verification — outbound notification senders
  * =======================================================
  * Extracted verbatim from employmentVerification.js.
- * Reminder emails to previous employers and status notifications
- * to the requesting carrier's admin.
+ * Reminder emails to previous employers, status notifications
+ * to the requesting carrier's admin, and the bell for the request's sender.
  */
 
 const { db } = require("../firebaseAdmin");
@@ -14,6 +14,9 @@ const {
     buildCarrierNoResponseEmailHTML,
 } = require("./emailTemplates");
 const { reminderAttachments } = require("./requestAttachment");
+const { requestIdOf } = require("./requestLifecycle");
+const { createNotification } = require("../shared/createNotification");
+const { plainGuestText } = require("../shared/plainText");
 
 // ============================================================
 // HELPER: Send reminder email
@@ -73,8 +76,50 @@ async function notifyCarrierNoResponse(verificationData) {
     await sendDynamicEmail(verificationData.companyId, adminEmail, `⚠️ PEV No Response (30 days): ${verificationData.applicantName} — ${verificationData.employerName}`, html);
 }
 
+// ============================================================
+// HELPER: Bell notification for whoever sent the request
+// ============================================================
+const SENDER_NOTICES = {
+    completed: {
+        type: 'pev_completed',
+        title: 'Verification answered',
+        message: (employer, applicant) => `${employer} answered the employment verification for ${applicant}`,
+    },
+    no_response: {
+        type: 'pev_no_response',
+        title: 'Verification not answered',
+        message: (employer, applicant) => `${employer} did not answer the employment verification for ${applicant} within 30 days`,
+    },
+};
+
+/**
+ * Tells the request's sender (`createdBy`) in the bell; a request older than
+ * that field tells the team. Created once per event (`pev_<event>_<requestId>`),
+ * so a repeated delivery adds nothing. The whole team can read notifications,
+ * so it names the employer and the driver only, never an answer.
+ *
+ * @param {'completed'|'no_response'} event
+ */
+async function notifyRequestSender(verificationData, token, event) {
+    const notice = SENDER_NOTICES[event];
+    const employer = plainGuestText(verificationData.employerName, 80) || 'The employer';
+    const applicant = plainGuestText(verificationData.applicantName, 80) || 'the applicant';
+    const recipientId = typeof verificationData.createdBy === 'string' && verificationData.createdBy
+        ? verificationData.createdBy
+        : null;
+    return createNotification(db, verificationData.companyId, {
+        type: notice.type,
+        title: notice.title,
+        message: notice.message(employer, applicant),
+        relatedType: verificationData.collectionName === 'leads' ? 'lead' : 'application',
+        relatedId: verificationData.applicationId,
+        ...(recipientId ? { recipientId } : {}),
+    }, { id: `pev_${event}_${requestIdOf(verificationData, token)}` });
+}
+
 module.exports = {
     sendReminderEmail,
     notifyCarrierVerificationComplete,
     notifyCarrierNoResponse,
+    notifyRequestSender,
 };
