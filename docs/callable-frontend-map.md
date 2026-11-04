@@ -35,7 +35,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `deletePortalUser` | [`DeleteUserModal.jsx`](../src/features/super-admin/components/modals/DeleteUserModal.jsx), [`TeamManagementTab.jsx`](../src/features/settings/components/TeamManagementTab.jsx), [`EditUserNameForm.jsx`](../src/features/super-admin/components/users/EditUserNameForm.jsx) | Company admin: remove from the team (login kept) · Super Admin: also delete the login |
 | `deleteEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: delete one configuration field after typed confirmation |
 | `deleteSandboxApplication` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | Sandbox cleanup |
-| `getEmailSettingsMeta` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) | Load SMTP meta (no password) |
+| `getEmailSettingsMeta` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx), [`useCompanyReadiness.js`](../src/features/company-admin/hooks/useCompanyReadiness.js) (the dashboard's **Company setup**, admins only) | Load SMTP meta (no password); the dashboard reads `isVerified` and `smtpHost` once when it opens. Admin-strict |
 | `getFilteredLeadsPage` | [`VirtualLeadList.jsx`](../src/features/campaigns/components/VirtualLeadList.jsx) | Paginated campaign audience |
 | `getFilterCount` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | Audience size preview |
 | `getChangeReview` | [`ReviewChangePortal.jsx`](../src/features/driver-changes/ReviewChangePortal.jsx) | Driver loads company-proposed changes (before/after) |
