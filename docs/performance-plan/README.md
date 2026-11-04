@@ -71,7 +71,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
 4. **Лимиты времени для внешних сервисов / Timeouts for external calls (#12)**
    - [x] **T4.1** · RingCentral: лимит 20 секунд, без повторной отправки SMS · *RingCentral 20-second limit, no resend* → [T4.1](T4.1-ringcentral-timeout.md) · PR: пакет C · Дата: 2026-11-04
    - [ ] **T4.2** · Кампании: «возможно отправлено», без авто-повтора · *Campaigns safe when the SMS provider does not answer* → [T4.2](T4.2-campaign-send-unconfirmed.md) · PR: — · Дата: —
-   - [ ] **T4.3** · Лимиты для 8x8 SMS и Facebook · *Time limits for 8x8 SMS and Facebook Graph* → [T4.3](T4.3-8x8-facebook-timeouts.md) · PR: — · Дата: —
+   - [x] **T4.3** · Лимиты для 8x8 SMS и Facebook · *Time limits for 8x8 SMS and Facebook Graph* → [T4.3](T4.3-8x8-facebook-timeouts.md) · PR: пакет C · Дата: 2026-11-04
    - [x] **T4.4** · Лимит 15 секунд для чтений GitHub в Releases · *15-second limit on GitHub reads behind Releases* → [T4.4](T4.4-github-release-timeouts.md) · PR: пакет C · Дата: 2026-11-04
    - [x] **T4.5** · Импорт Google Sheet и скачивание PDF не крутятся вечно · *Sheet import and envelope PDF download stop spinning forever* → [T4.5](T4.5-browser-fetch-timeouts.md) · PR: #557 · Дата: 2026-11-03
 5. **Скорость у реальных пользователей / Real-user speed monitoring (#30)**
@@ -331,7 +331,7 @@ Not part of any task above. Each needs its own task if the owner wants it.
 2. "Retry Failed" with nothing left to retry shows "Retry session started with
    undefined targets." (`functions/bulkActions/controllers/sessionController.js:221`).
 3. The 8x8 connection check reports success on any network error other than
-   401/403 (`functions/integrations/adapters/eightbyeight.js:143-151`). T4.3 fixes
+   401/403 (`functions/integrations/adapters/eightbyeight.js:152-162`). T4.3 fixed
    only the timeout case.
 4. The envelope PDF download does not check `response.ok`
    (`src/features/signing/utils/envelopePersistence.js:78-79`).

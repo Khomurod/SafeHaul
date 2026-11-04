@@ -12,6 +12,9 @@ const FACEBOOK_APP_ID = defineSecret("FACEBOOK_APP_ID");
 const FACEBOOK_APP_SECRET = defineSecret("FACEBOOK_APP_SECRET");
 const FACEBOOK_VERIFY_TOKEN = defineSecret("FACEBOOK_VERIFY_TOKEN");
 
+// Every Graph call gives up after 15 s: three in a row still leave the 60 s connect time to release its claim.
+const GRAPH_TIMEOUT_MS = 15000;
+
 const db = admin.firestore();
 
 /**
@@ -184,7 +187,8 @@ exports.connectFacebookPage = onCall(
                     client_id: FACEBOOK_APP_ID.value(),
                     client_secret: FACEBOOK_APP_SECRET.value(),
                     fb_exchange_token: shortLivedUserToken
-                }
+                },
+                timeout: GRAPH_TIMEOUT_MS
             });
 
             const longLivedUserToken = exchangeResponse.data.access_token;
@@ -198,7 +202,8 @@ exports.connectFacebookPage = onCall(
                 params: {
                     fields: 'access_token',
                     access_token: longLivedUserToken
-                }
+                },
+                timeout: GRAPH_TIMEOUT_MS
             });
 
             const pageAccessToken = response.data.access_token;
@@ -226,7 +231,8 @@ exports.connectFacebookPage = onCall(
                 params: {
                     subscribed_fields: 'leadgen',
                     access_token: pageAccessToken
-                }
+                },
+                timeout: GRAPH_TIMEOUT_MS
             });
 
             return { success: true, message: `Connected ${pageName} successfully.` };
@@ -378,7 +384,8 @@ async function processLead(value) {
     const leadResponse = await axios.get(`https://graph.facebook.com/v19.0/${leadgen_id}`, {
         params: {
             access_token: accessToken
-        }
+        },
+        timeout: GRAPH_TIMEOUT_MS
     });
 
     const leadData = leadResponse.data;

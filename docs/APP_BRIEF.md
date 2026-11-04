@@ -981,8 +981,8 @@ projection, and `/apply/:slug` is not gated by any flag. See
 - **SMS credentials are resolved by a factory, never inline.** `SMSAdapterFactory` fetches, decrypts and
   instantiates the right adapter. A *keychain* holds each line's JWT under its number (as typed with +, else US +1);
   `assignments` give recruiters a "From" line, else the main line. Every RingCentral request gives up after 20 s
-  (`ringcentralSdk.js`, which also gives each SDK its own session); a send it never answered may have gone out, so
-  it says so and is never resent automatically.
+  (`ringcentralSdk.js`, which also gives each SDK its own session), 8x8 the same; a send it never answered may have
+  gone out, so it says so and is never resent automatically.
 - **The company API reads only its key's company and logs each answer.** It
   serves the frozen record, not the live one; files need `documents:read`, the
   full SSN `ssn:read`, the PDF both (it shows the SSN). Each answer is logged in
@@ -996,8 +996,8 @@ company from the client and authorizes it against the caller's per-company role.
 A page bound to a user id (an old defect) is reclaimed when its admin reconnects
 it; one held by another company is refused. The claim is a Firestore transaction taken *before*
 the Facebook OAuth exchange (two simultaneous connects cannot both pass),
-released if the connect then fails. An event needs Meta's `X-Hub-Signature-256`,
-compared in constant time; SHA-1 alone is refused.
+released if the connect then fails. Graph calls give up after 15 s. An event needs
+Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 
 ---
 

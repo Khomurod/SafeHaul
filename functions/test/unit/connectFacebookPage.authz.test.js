@@ -366,6 +366,46 @@ describe('connectFacebookPage page claim', () => {
         expect(mockStore.has('integrations_index/artificial-page-id')).toBe(false);
     });
 
+    it('gives each of the three Graph calls a 15-second limit, and changes nothing else in them', async () => {
+        // Three calls in a row inside the 60 s callable: 45 s at worst, which
+        // still leaves time to release the claim.
+        await call({ roles: { [COMPANY]: 'company_admin' } });
+
+        expect(axios.get.mock.calls).toEqual([
+            ['https://graph.facebook.com/v19.0/oauth/access_token', {
+                params: {
+                    grant_type: 'fb_exchange_token',
+                    client_id: 'artificial-secret',
+                    client_secret: 'artificial-secret',
+                    fb_exchange_token: 'artificial-short-lived-token',
+                },
+                timeout: 15000,
+            }],
+            ['https://graph.facebook.com/v19.0/artificial-page-id', {
+                params: { fields: 'access_token', access_token: 'artificial-long-lived-user-token' },
+                timeout: 15000,
+            }],
+        ]);
+        expect(axios.post.mock.calls).toEqual([
+            ['https://graph.facebook.com/v19.0/artificial-page-id/subscribed_apps', null, {
+                params: { subscribed_fields: 'leadgen', access_token: 'artificial-page-token' },
+                timeout: 15000,
+            }],
+        ]);
+    });
+
+    it('releases the claim when the Facebook exchange times out', async () => {
+        axios.get.mockReset().mockRejectedValue(
+            Object.assign(new Error('timeout of 15000ms exceeded'), { code: 'ECONNABORTED' }),
+        );
+
+        await expect(call({ roles: { [COMPANY]: 'company_admin' } }))
+            .rejects.toMatchObject({ code: 'internal', message: 'Failed to connect Facebook Page.' });
+
+        expect(mockStore.has('integrations_index/artificial-page-id')).toBe(false);
+        expect(axios.post).not.toHaveBeenCalled();
+    });
+
     it('restores the working connection when a token refresh fails', async () => {
         // The refresh path: the company already had a connected page. A failed
         // refresh must give it back, not delete it.

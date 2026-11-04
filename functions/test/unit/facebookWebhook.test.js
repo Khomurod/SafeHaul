@@ -119,8 +119,10 @@ describe.each([
 
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.send).toHaveBeenCalledWith('EVENT_RECEIVED');
+        // The fetch gives up after 15 s; a failed fetch answers 500 (below), so Meta sends the event again.
         expect(mockAxiosGet).toHaveBeenCalledWith('https://graph.facebook.com/v19.0/lead-1', {
             params: { access_token: 'page-token-1' },
+            timeout: 15000,
         });
         const leads = storedLeads();
         expect(leads).toHaveLength(1);
