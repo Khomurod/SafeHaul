@@ -240,6 +240,17 @@ describe('the employers editor', () => {
     expect(proposeChanges).not.toHaveBeenCalled();
   });
 
+  it('proposes nothing for a record with no employers when none were added', async () => {
+    const { employers: _none, ...noEmployers } = APP;
+    renderTab(noEmployers);
+    propose();
+
+    await waitFor(() => expect(screen.queryByRole('button', {
+      name: /Propose changes for approval/i,
+    })).not.toBeInTheDocument());
+    expect(proposeChanges).not.toHaveBeenCalled();
+  });
+
   it('reads a legacy row’s own field names, and rewrites none of them unasked', async () => {
     const legacy = {
       ...APP,

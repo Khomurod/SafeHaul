@@ -168,9 +168,13 @@ export function ApplicationTab({ appData, fileUrls = {}, filesPending = false, c
         setEditedData((prev) => ({ ...prev, [key]: value }));
     };
 
+    // `startEdit` gives a record with no employers an empty list to edit: that
+    // list, still empty, is no change.
+    const savedValue = (key) => (key === 'employers' && !Array.isArray(appData.employers) ? [] : appData[key]);
+
     const handlePropose = async () => {
         const changes = Object.keys(editedData)
-            .filter((k) => JSON.stringify(editedData[k]) !== JSON.stringify(appData[k]))
+            .filter((k) => JSON.stringify(editedData[k]) !== JSON.stringify(savedValue(k)))
             .map((k) => ({ fieldKey: k, proposedValue: editedData[k] }));
         if (changes.length === 0) { setEditing(false); return; }
         const ok = await proposeChanges(changes);
