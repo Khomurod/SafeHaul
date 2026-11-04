@@ -4,7 +4,7 @@
  * button and the words. All documents and addresses are artificial.
  */
 import { describe, expect, it } from 'vitest';
-import { canRemindSigner, reminderErrorMessage, reminderResultMessage } from './signerReminder';
+import { canRemindSigner, reminderErrorMessage, reminderResultMessage, sharedByCopiedLink } from './signerReminder';
 
 const sent = (overrides = {}) => ({
     id: 'req-1',
@@ -32,6 +32,17 @@ describe('where Remind is offered', () => {
         expect(canRemindSigner(sent({ recipientEmail: '  ', sendSms: false }))).toBe(false);
         expect(canRemindSigner(sent({ sendEmail: false, sendSms: true, recipientPhone: '' }))).toBe(false);
         expect(canRemindSigner(null)).toBe(false);
+    });
+});
+
+describe('a document shared by a copied link', () => {
+    it.each([
+        ['no email or text', { sendEmail: false, sendSms: false }, true],
+        ['text asked for without a number', { sendEmail: false, sendSms: true, recipientPhone: '' }, true],
+        ['an email, whatever its status', { status: 'opened' }, false],
+        ['a text number', { sendEmail: false, sendSms: true, recipientPhone: '(555) 555-0100' }, false],
+    ])('%s', (_label, overrides, expected) => {
+        expect(sharedByCopiedLink(sent(overrides))).toBe(expected);
     });
 });
 

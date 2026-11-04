@@ -293,7 +293,9 @@ lowercased, never a placeholder; leads keep `emailNormalized`), else the one lea
 the same phone digits. One lead at most, never merged; the lead keeps its stage, gets
 `applicationId`/`appliedAt` and an Activity line, the application `fromLeadId`, and an
 unassigned application goes to the lead's recruiter while on the team, who is told
-once. The dossier opens one from the other; deleting either removes the link.
+once (not when it is already theirs). The dossier opens one from the other; deleting
+either removes the link, and a lead whose newest application is deleted points back
+at an earlier one it applied with.
 **The bell.** A status change on an assigned application tells its assignee only (an
 unassigned one, or one whose assignee left, the team); assigning an application or
 lead tells the new owner; an import that creates assigned leads tells each recruiter

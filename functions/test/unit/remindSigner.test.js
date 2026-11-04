@@ -47,6 +47,15 @@ function mockSnapshot(path) {
         get: (field) => data?.[field],
     };
 }
+// What a write stores: a timestamp read back (`toMillis`) is stored as `{ ms }`
+// again, and `FieldValue.delete()` removes the field.
+const mockDeleteField = Symbol('delete');
+function mockStored(value) {
+    if (!value || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(mockStored);
+    if (typeof value.toMillis === 'function') return { ms: value.toMillis() };
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, mockStored(item)]));
+}
 function mockUpdate(path, changes) {
     if (!mockDocs.has(path)) throw new Error(`No document to update: ${path}`);
     const doc = structuredClone(mockDocs.get(path));
@@ -58,7 +67,8 @@ function mockUpdate(path, changes) {
             target[part] = { ...target[part] };
             target = target[part];
         }
-        target[leaf] = value;
+        if (value === mockDeleteField) delete target[leaf];
+        else target[leaf] = mockStored(value);
     }
     mockDocs.set(path, doc);
 }
@@ -88,7 +98,7 @@ jest.mock('../../firebaseAdmin', () => {
         collection: (name) => ({ doc: (id) => mockRef(`${name}/${id}`) }),
     };
     const firestore = Object.assign(() => db, {
-        FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' },
+        FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP', delete: () => mockDeleteField },
         Timestamp: { fromMillis: (ms) => ({ ms }), now: () => ({ ms: Date.now() }) },
     });
     return { admin: { firestore }, db };
@@ -275,6 +285,34 @@ describe('a send that fails after the claim', () => {
         expect(current()).toMatchObject({ emailStatus: 'failed', emailError: 'SMTP 535 authentication failed (artificial)', smsStatus: 'sent' });
         // The claim stands: the link has its seven days, and the next press waits out the ten minutes.
         expect(current().reminders.count).toBe(1);
+    });
+
+    it('that reached no one does not count, so the next press may go at once', async () => {
+        seed();
+        mockSendEmail.mockRejectedValueOnce(new Error('SMTP 535 authentication failed (artificial)'));
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        await expect(remind()).resolves.toEqual({
+            success: true,
+            requestId: REQUEST_ID,
+            channels: { email: false, sms: false },
+            failed: { email: true, sms: false },
+        });
+        expect(current().reminders).toBeUndefined();
+
+        await expect(remind()).resolves.toMatchObject({ channels: { email: true, sms: false } });
+        expect(mockSendEmail).toHaveBeenCalledTimes(2);
+        expect(current().reminders).toMatchObject({ count: 1, lastBy: 'user-1' });
+    });
+
+    it('that reached no one leaves the earlier reminders as they were', async () => {
+        const earlier = { count: 2, lastAt: { ms: Date.now() - 11 * MINUTE }, lastBy: 'user-2' };
+        seed({ ...EMAILED, reminders: earlier });
+        mockSendEmail.mockRejectedValueOnce(new Error('SMTP 535 authentication failed (artificial)'));
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        await expect(remind()).resolves.toMatchObject({ channels: { email: false, sms: false } });
+        expect(current().reminders).toEqual(earlier);
     });
 });
 

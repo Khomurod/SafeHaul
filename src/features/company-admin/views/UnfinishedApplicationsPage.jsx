@@ -195,15 +195,6 @@ export function UnfinishedApplicationsPage() {
     useEffect(() => { load(); }, [load]);
 
     /**
-     * Mint, then copy.
-     *
-     * The raw token exists exactly once — the callable returns it and never can
-     * again — so it is minted at the moment somebody asks for it rather than for
-     * every row on load. A refused clipboard is not a lost link: the hook records
-     * it and the row says so, with the URL selectable beside it. A refused MINT is
-     * a lost link, and the row says that too.
-     */
-    /**
      * What a mint changed server-side (`invite.js`), mirrored rather than
      * reloaded: `load()` swaps the table's body for a skeleton, which would take
      * the just-minted URL, or where it was emailed, off the screen when it is
@@ -221,6 +212,15 @@ export function UnfinishedApplicationsPage() {
         })));
     }, []);
 
+    /**
+     * Mint, then copy.
+     *
+     * The raw token exists exactly once — the callable returns it and never can
+     * again — so it is minted at the moment somebody asks for it rather than for
+     * every row on load. A refused clipboard is not a lost link: the hook records
+     * it and the row says so, with the URL selectable beside it. A refused MINT is
+     * a lost link, and the row says that too.
+     */
     const createLink = useCallback(async (entry) => {
         const key = entry.applicantKey;
         setBusyKey(key);

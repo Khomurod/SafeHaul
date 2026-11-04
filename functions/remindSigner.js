@@ -14,7 +14,8 @@
  * of the last (`details.reason: 'cooldown'`), records this one in `reminders`
  * (`{ count, lastAt, lastBy }`) and claims the channels, all before anything is
  * sent. Nothing it writes changes where the link goes, so the correction trigger
- * sends nothing more.
+ * sends nothing more. A reminder whose every send failed puts `reminders` back
+ * as it was, so it neither counts nor holds up the next press.
  *
  * Texts follow the signing-text rules: a request for an application
  * (`sourceApplicationId`) is texted only after the driver's explicit "Yes" to
@@ -81,6 +82,18 @@ function refuseWithinCooldown(data, now) {
     );
 }
 
+/**
+ * Puts back the reminder record as it was before a claim whose every send
+ * failed. Best effort: a release that fails leaves the ten-minute wait.
+ */
+async function releaseReminder(ref, before, requestId) {
+    try {
+        await ref.update({ reminders: before.reminders ?? admin.firestore.FieldValue.delete() });
+    } catch (error) {
+        console.error(`[remindSigner] requestId=${requestId} could not release the reminder: ${error.message}`);
+    }
+}
+
 /** Whether the request's signer may be texted: an application's driver only after their "Yes". */
 async function textAllowed(tx, companyRef, data) {
     const applicationId = typeof data.sourceApplicationId === 'string' ? data.sourceApplicationId.trim() : '';
@@ -137,6 +150,9 @@ exports.remindSigner = onCall({ cors: true, secrets: ['SMS_ENCRYPTION_KEY'] }, a
     const after = (await ref.get()).data() || {};
     const went = { email: claimed.email && after.emailStatus === 'sent', sms: claimed.sms && after.smsStatus === 'sent' };
     const failed = { email: claimed.email && !went.email, sms: claimed.sms && !went.sms };
+
+    // A reminder that reached no one is not one: the next press may go at once.
+    if (!went.email && !went.sms) await releaseReminder(ref, data, requestId);
 
     // Ids only, never tokens or contact details.
     console.log(`[remindSigner] companyId=${companyId} requestId=${requestId} email=${went.email} sms=${went.sms}`);

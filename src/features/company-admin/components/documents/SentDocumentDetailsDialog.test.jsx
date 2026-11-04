@@ -247,6 +247,14 @@ describe('SentDocumentDetailsDialog — a link that ran out, and Remind', () => 
         expect(within(dialog).getByRole('status')).toHaveTextContent('Correct it to add an email address or a phone number');
     });
 
+    it('calls a document copied-link only when it has no email or text to go by', () => {
+        renderDialog(expired({ status: 'opened', sendEmail: true }), { onRemind: vi.fn() });
+        const notice = within(screen.getByRole('dialog')).getByRole('status');
+
+        expect(notice).toHaveTextContent('Link expired');
+        expect(notice).not.toHaveTextContent('copied link');
+    });
+
     it.each(['signed', 'voided', 'processing', 'error_sealing'])('offers no Remind on a %s document', (status) => {
         renderDialog(expired({ status }), { onRemind: vi.fn() });
         expect(screen.queryByRole('button', { name: /Remind/ })).not.toBeInTheDocument();

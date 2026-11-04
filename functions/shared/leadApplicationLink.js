@@ -129,6 +129,8 @@ async function linkApplicantLead({ companyId, applicationId, application }) {
 
         const recruiterId = ownerName !== null && lead.assignedTo === owner ? owner : null;
         const assigned = Boolean(recruiterId) && !app.assignedTo;
+        // Already theirs (a recruiter link on submission): the assignment notice told them.
+        const alreadyTheirs = Boolean(recruiterId) && app.assignedTo === recruiterId;
         const now = admin.firestore.FieldValue.serverTimestamp();
         transaction.update(leadRef, { applicationId, appliedAt: now });
         transaction.update(appRef, {
@@ -150,20 +152,22 @@ async function linkApplicantLead({ companyId, applicationId, application }) {
             applicationId,
             timestamp: now,
         });
-        return { assigned, recruiterId };
+        return { assigned, recruiterId, alreadyTheirs };
     });
     if (!linked) return null;
 
-    if (linked.recruiterId) {
-        await notifyRecruiter({ companyId, applicationId, recruiterId: linked.recruiterId, assigned: linked.assigned, application });
+    const { assigned, recruiterId, alreadyTheirs } = linked;
+    if (recruiterId && !alreadyTheirs) {
+        await notifyRecruiter({ companyId, applicationId, recruiterId, assigned, application });
     }
-    return { leadId: leadRef.id, by: match.by, ...linked };
+    return { leadId: leadRef.id, by: match.by, assigned, recruiterId };
 }
 
 /**
  * Removes the other record's half of the link after one is deleted: the lead's
  * `applicationId` and `appliedAt`, or the application's `fromLeadId`, while
- * they still name the deleted record.
+ * they still name the deleted record. A lead that applied more than once points
+ * back at an earlier application that still names it, instead.
  *
  * @param {{ companyId: string, collectionName: 'applications'|'leads', recordId: string, data: object }} args
  *   `data` is the deleted record as it was.
@@ -173,14 +177,26 @@ async function unlinkDeletedRecord({ companyId, collectionName, recordId, data }
     const otherId = collectionName === 'applications' ? data?.fromLeadId : data?.applicationId;
     if (typeof otherId !== 'string' || !otherId || (collectionName !== 'applications' && collectionName !== 'leads')) return;
     const toLead = collectionName === 'applications';
-    const otherRef = db.collection('companies').doc(companyId)
-        .collection(toLead ? 'leads' : 'applications').doc(otherId);
+    const company = db.collection('companies').doc(companyId);
+    const otherRef = company.collection(toLead ? 'leads' : 'applications').doc(otherId);
     const remove = admin.firestore.FieldValue.delete();
+    // A driver who applied twice: the lead points at the newest application. When
+    // that one goes, it points back at another that still names the lead.
+    const earlier = toLead
+        ? (await company.collection('applications').where('fromLeadId', '==', otherId).limit(5).get())
+            .docs.map((d) => d.id).find((id) => id !== recordId) || null
+        : null;
     await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(otherRef);
         const other = snap.exists ? snap.data() || {} : null;
         if (!other || (toLead ? other.applicationId : other.fromLeadId) !== recordId) return;
-        transaction.update(otherRef, toLead ? { applicationId: remove, appliedAt: remove } : { fromLeadId: remove });
+        if (!toLead) {
+            transaction.update(otherRef, { fromLeadId: remove });
+        } else if (earlier) {
+            transaction.update(otherRef, { applicationId: earlier });
+        } else {
+            transaction.update(otherRef, { applicationId: remove, appliedAt: remove });
+        }
     });
 }
 

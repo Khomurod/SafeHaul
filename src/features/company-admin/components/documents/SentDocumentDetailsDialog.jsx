@@ -4,7 +4,7 @@ import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { deliveryFailure, formatTimestamp, isLinkExpired } from '@features/company-admin/utils/documentsWorkspace';
-import { canRemindSigner } from '@features/signing/utils/signerReminder';
+import { canRemindSigner, sharedByCopiedLink } from '@features/signing/utils/signerReminder';
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { SignedCopyButton, SignedCopyStatus } from '@features/signing/components/SignedCopy';
 import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
@@ -145,7 +145,7 @@ export function SentDocumentDetailsDialog({
                         <Notice announce="polite" tone="warning" size="sm" title="Link expired" titleAs="h3">
                             The signer&apos;s link stopped working on {formatTimestamp(document.expiresAt)}.{' '}
                             {offersRemind && 'Remind sends it again with seven more days.'}
-                            {!canRemindSigner(document) && 'It was shared by a copied link, so there is nothing to send again. Correct it to add an email address or a phone number.'}
+                            {sharedByCopiedLink(document) && 'It was shared by a copied link, so there is nothing to send again. Correct it to add an email address or a phone number.'}
                         </Notice>
                     )}
                     {offersSealRetry && sealLeftUnfinished(document) && (

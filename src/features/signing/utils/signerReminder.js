@@ -15,10 +15,14 @@ const text = (value) => (typeof value === 'string' ? value.trim() : '');
  * a copied link has nothing to send again.
  */
 export function canRemindSigner(document) {
-    if (text(document?.status).toLowerCase() !== 'sent') return false;
-    const byEmail = document.sendEmail !== false && text(document.recipientEmail) !== '';
-    const byText = Boolean(document.sendSms) && text(document.recipientPhone).replace(/\D/g, '') !== '';
-    return byEmail || byText;
+    return text(document?.status).toLowerCase() === 'sent' && !sharedByCopiedLink(document);
+}
+
+/** Whether the document has no email or text to go by: it was shared by a copied link. */
+export function sharedByCopiedLink(document) {
+    const byEmail = document?.sendEmail !== false && text(document?.recipientEmail) !== '';
+    const byText = Boolean(document?.sendSms) && text(document?.recipientPhone).replace(/\D/g, '') !== '';
+    return !byEmail && !byText;
 }
 
 const CHANNEL_WORDS = {

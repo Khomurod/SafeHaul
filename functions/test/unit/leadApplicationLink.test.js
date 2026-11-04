@@ -183,6 +183,17 @@ describe("the lead's recruiter", () => {
         })]);
     });
 
+    // A recruiter link already gave the application to the lead's own
+    // recruiter, and the assignment trigger told them: not told again.
+    it('is not told again when the application is already theirs', async () => {
+        seed(ASSIGNED_LEAD, { ...APPLICATION, assignedTo: 'rec-1', assignedToName: 'Riley Recruiter' });
+
+        await expect(link()).resolves.toMatchObject({ assigned: false, recruiterId: 'rec-1' });
+
+        expect(doc(APP_PATH)).toEqual(expect.objectContaining({ fromLeadId: 'L1', assignedTo: 'rec-1' }));
+        expect(notifications()).toEqual([]);
+    });
+
     it('neither takes it nor is told once off the team', async () => {
         seed(ASSIGNED_LEAD);
         mock.docs.delete('memberships/m1');
@@ -235,6 +246,22 @@ describe('deleting one end of the link', () => {
         await unlinkDeletedRecord({ companyId: CO, collectionName: 'applications', recordId: APP, data: application });
 
         expect(doc(leadPath('L1'))).toEqual({ email: 'alice.driver@example.com', status: 'New Lead' });
+    });
+
+    // The driver applied twice: the lead points at the newest. Deleting that one
+    // points it back at the other application, which still names the lead.
+    it('an application the lead moved to: the lead points back at its earlier application', async () => {
+        const OLDER = `companies/${CO}/applications/app0`;
+        seed({
+            [leadPath('L1')]: { email: 'alice.driver@example.com', applicationId: APP, appliedAt: 'then' },
+            [OLDER]: { ...APPLICATION, fromLeadId: 'L1' },
+        }, { ...APPLICATION, fromLeadId: 'L1' });
+        const application = doc(APP_PATH);
+        mock.docs.delete(APP_PATH);
+
+        await unlinkDeletedRecord({ companyId: CO, collectionName: 'applications', recordId: APP, data: application });
+
+        expect(doc(leadPath('L1'))).toEqual(expect.objectContaining({ applicationId: 'app0' }));
     });
 
     it('a lead: its application no longer names it', async () => {
