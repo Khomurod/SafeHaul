@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { CampaignsDashboard } from './CampaignsDashboard';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -147,6 +147,7 @@ describe('CampaignsDashboard', () => {
         await React.act(async () => {
             callbacks.drafts({ docs: draftDocs });
             callbacks.history({ docs: sessionDocs });
+            callbacks.live({ docs: [] });
         });
 
         // Check if Drafts are shown by default
@@ -189,6 +190,7 @@ describe('CampaignsDashboard cancel vs delete', () => {
             callbacks.history({
                 docs: sessions.map((s) => ({ id: s.id, data: () => s })),
             });
+            callbacks.live({ docs: [] });
         });
         fireEvent.click(screen.getByText(/Past Sequences/i));
     }
@@ -298,7 +300,8 @@ describe('CampaignsDashboard shell', () => {
         await React.act(async () => {
             callbacks.drafts?.(snapshot(drafts));
             callbacks.history?.(snapshot(sessions));
-            if (live) callbacks.live?.(snapshot(live));
+            // Firestore answers every listener; the live one holds none unless a test says so.
+            callbacks.live?.(snapshot(live ?? []));
         });
     }
 
@@ -547,6 +550,26 @@ describe('CampaignsDashboard shell', () => {
         expect(status).toHaveTextContent(/Synchronizing/i);
     });
 
+    it('keeps Past Sequences synchronizing until its own listeners answer', async () => {
+        const callbacks = {};
+        mockOnSnapshot.mockImplementation((q, cb) => {
+            callbacks[listenerKind(q)] = cb;
+        });
+        render(<CampaignsDashboard companyId="co-1" />);
+
+        await act(async () => { callbacks.drafts({ docs: [] }); });
+        expect(screen.getByRole('heading', { name: 'No Drafts Found' })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+        expect(screen.getByRole('status')).toHaveTextContent(/Synchronizing/i);
+        expect(screen.queryByRole('heading', { name: 'No Campaigns Found' })).not.toBeInTheDocument();
+
+        await act(async () => { callbacks.history({ docs: [] }); });
+        expect(screen.getByRole('status')).toHaveTextContent(/Synchronizing/i);
+        await act(async () => { callbacks.live({ docs: [] }); });
+        expect(screen.getByRole('heading', { name: 'No Campaigns Found' })).toBeInTheDocument();
+    });
+
     it('renders empty-state headings and a create action per tab', async () => {
         await renderReady({ drafts: [], sessions: [] });
 
@@ -615,7 +638,10 @@ describe('CampaignsDashboard campaign details', () => {
     });
     const openDetails = async () => {
         render(<CampaignsDashboard companyId="co1" />);
-        await React.act(async () => { callbacks.drafts({ docs: [] }); });
+        await React.act(async () => {
+            callbacks.drafts({ docs: [] });
+            callbacks.live({ docs: [] });
+        });
         await emit([session(10)]);
         fireEvent.click(screen.getByText(/Past Sequences/i));
         fireEvent.click(screen.getByText('open s1'));
