@@ -107,3 +107,16 @@ describe('dataCleanup', () => {
         expect(world.audit).toEqual([expect.objectContaining({ result: 'failed', item: 'ssnCopies' })]);
     });
 });
+
+// The console's cards (`src/features/super-admin/config/dataCleanupItems.js`)
+// name the items this callable runs: an item on one side only either cannot be
+// pressed or is refused.
+describe('the items the console offers', () => {
+    it('are the items the callable runs', () => {
+        const fs = require('fs');
+        const path = require('path');
+        const source = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'src', 'features', 'super-admin', 'config', 'dataCleanupItems.js'), 'utf8');
+        const offered = [...source.matchAll(/^\s{8}id: '([A-Za-z]+)',$/gm)].map((match) => match[1]);
+        expect(offered.sort()).toEqual(Object.keys(__private.ITEMS).sort());
+    });
+});

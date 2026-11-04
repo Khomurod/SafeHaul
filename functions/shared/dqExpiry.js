@@ -3,13 +3,15 @@
  *
  * Every application and lead may carry it, written by the server alone: the
  * earliest `expirationDate` (`YYYY-MM-DD`) among its `dq_files` records that are
- * not removed and have one, and absent when none has. The dashboard reads it with
- * a single-field range query.
+ * not removed and have one, and absent when none has. The dashboard's Needs
+ * attention reads it for hired drivers (`dashboardAttention.js`, on the
+ * applications status + dqExpiresNext composite).
  *
  * It is recomputed from the record's DQ files when one of them changes in a way
  * that can move it (`dqExpiresNext.js`), and when the DQ tab opens and finds the
- * stored value disagrees with the files (`syncDqFiles.js`), as for a record filed
- * before the field existed. It is written only when it changes, in one
+ * stored value disagrees with the files (`syncDqFiles.js`). A record filed before
+ * the field existed gets it from Data cleanup → DQ valid-until dates
+ * (`maintenance/cleanup/dqExpiry.js`). It is written only when it changes, in one
  * transaction with the reads, so two DQ writes at once cannot leave the older
  * answer behind; a record that no longer exists is never written.
  */
