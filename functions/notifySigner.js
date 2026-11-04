@@ -28,9 +28,10 @@ async function readSigningToken(ref, data) {
  * Emails a signing request's link to its signer and records on the request how
  * that went. `replacesEarlierLink` says the link sent before no longer works;
  * `recordSentTo` records the address in `linkSentTo` first (`shared/signingLink.js`),
- * for a sender that has not claimed it already.
+ * for a sender that has not claimed it already. `reminder` words it as one
+ * (`remindSigner.js`).
  */
-async function emailSigningLink({ companyId, requestId, ref, data, accessToken, replacesEarlierLink = false, recordSentTo = false }) {
+async function emailSigningLink({ companyId, requestId, ref, data, accessToken, replacesEarlierLink = false, recordSentTo = false, reminder = false }) {
     // 1. Validate required fields before proceeding
     if (!data.recipientEmail || !accessToken) {
         console.warn(`[Notify] Skipped: Missing recipientEmail or accessToken for request ${requestId}`);
@@ -43,9 +44,12 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
     const replaced = replacesEarlierLink
         ? '<p style="color: #4b5563;">This link replaces the one sent to you earlier, which no longer works.</p>'
         : '';
+    const reminded = reminder
+        ? '<p style="color: #4b5563;">This is a reminder: the document below is still waiting for your signature.</p>'
+        : '';
 
     // 3. Build professional HTML email body (kept from original)
-    const subject = `Action Required: Please Sign "${data.title || 'Document'}"`;
+    const subject = `${reminder ? 'Reminder' : 'Action Required'}: Please Sign "${data.title || 'Document'}"`;
     const html = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 24px; border-radius: 8px;">
                 <div style="background: white; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
@@ -54,6 +58,7 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
                     </div>
                     <p style="color: #374151; font-size: 16px;">Hello <strong>${escapeHtml(data.recipientName || 'there')}</strong>,</p>
                     <p style="color: #4b5563;">You have a document that requires your signature. Please click the button below to review and sign it securely.</p>
+                    ${reminded}
                     ${replaced}
                     <div style="text-align: center; margin: 32px 0;">
                         <a href="${escapeHtml(signingLink)}"

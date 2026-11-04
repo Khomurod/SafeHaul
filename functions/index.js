@@ -42,6 +42,8 @@ function exportFunctions(wanted) {
   if (wanted('sendSignedDocumentCopy')) exports.sendSignedDocumentCopy = require('./signedCopyDelivery').sendSignedDocumentCopy;
   // "Retry seal": a failed or unfinished seal is sealed again, from what the signer submitted
   if (wanted('retrySealDocument')) exports.retrySealDocument = require('./sealRetry').retrySealDocument;
+  // "Remind": an unsigned document's link is sent again where it went, with seven more days
+  if (wanted('remindSigner')) exports.remindSigner = require('./remindSigner').remindSigner;
 
   // 2. Auth & User Management
   if (wanted('createPortalUser')) exports.createPortalUser = require('./hrAdmin').createPortalUser;

@@ -15,7 +15,8 @@
  * Which of the two, or neither, is decided in one transaction, so one press is
  * one message. A signed form is reported as such and a voided or half-submitted
  * one refused; a link already sent everywhere the driver can be reached is not
- * sent again (`already-sent`).
+ * sent again (`already-sent`): Remind sends it again, expired or not
+ * (`remindSigner.js`).
  *
  * Channels: email to the application's address; a text only after the driver's
  * explicit "Yes" to texts (`sms-consent`), and never to a number on the opt-out
