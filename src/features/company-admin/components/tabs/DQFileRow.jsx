@@ -57,15 +57,29 @@ function ExpiryEditor({ file, onSave, onClose }) {
         }
     };
 
+    // The hint sits under the whole line rather than under the field, so the
+    // buttons line up with the date box.
+    const hintId = `${fieldId}-hint`;
     return (
         <div className="flex w-full flex-wrap items-end gap-ds-3 border-t border-ds-border-subtle pt-ds-3">
-            <FormField id={fieldId} label="Valid until" description="Leave it empty to clear the date.">
-                <Input ref={inputRef} type="date" size="sm" value={value} onChange={(e) => setValue(e.target.value)} disabled={saving} />
+            <FormField id={fieldId} label="Valid until">
+                <Input
+                    ref={inputRef}
+                    type="date"
+                    size="sm"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    disabled={saving}
+                    aria-describedby={hintId}
+                />
             </FormField>
-            <div className="flex gap-ds-2 pb-ds-1">
+            <div className="flex gap-ds-2">
                 <Button variant="primary" size="sm" onClick={save} loading={saving}>Save date</Button>
                 <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>Cancel</Button>
             </div>
+            <p id={hintId} className="w-full text-ds-xs text-ds-content-secondary">
+                The date printed on the document. Leave it empty to clear the date.
+            </p>
             {/* Mounted with the editor, before any message, so it announces. */}
             <div role="alert" className="w-full">
                 {error && <Notice tone="danger" size="sm" announce="off">{error}</Notice>}

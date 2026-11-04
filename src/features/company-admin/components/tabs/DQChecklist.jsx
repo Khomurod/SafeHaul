@@ -1,4 +1,4 @@
-import React, { useId, useMemo } from 'react';
+import React, { useId } from 'react';
 import { Icon, AlertCircle, AlertTriangle, CheckCircle, Circle, Clock, Info, MinusCircle } from '@design-system/icons';
 import { Badge, Card } from '@/design-system/components';
 import { buildDqChecklist } from '../../utils/dqChecklist';
@@ -84,7 +84,7 @@ function ChecklistItem({ item }) {
 
 export function DQChecklist({ files, record }) {
     const headingId = `dq-checklist-${useId().replace(/:/g, '')}`;
-    const checklist = useMemo(() => buildDqChecklist({ files, record }), [files, record]);
+    const checklist = buildDqChecklist({ files, record });
 
     return (
         <Card padding="none" className="overflow-hidden">
