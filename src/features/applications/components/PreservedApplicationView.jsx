@@ -158,14 +158,45 @@ function Section({ title, children }) {
 
 /** The plain-language state of one agreement, with an icon that matches it. */
 const AGREEMENT_PRESENTATION = {
-    accepted: { Icon: ShieldCheck, tone: 'success' },
-    declined: { Icon: ShieldOff, tone: 'danger' },
-    unrecorded: { Icon: ShieldAlert, tone: 'warning' },
+    accepted: { Icon: ShieldCheck, tone: 'success', iconClass: 'text-ds-status-success-fg' },
+    declined: { Icon: ShieldOff, tone: 'danger', iconClass: 'text-ds-status-danger-fg' },
+    unrecorded: { Icon: ShieldAlert, tone: 'warning', iconClass: 'text-ds-status-warning-fg' },
 };
 
-function AgreementRow({ agreement }) {
-    const { Icon, tone } = AGREEMENT_PRESENTATION[agreement.status] || AGREEMENT_PRESENTATION.unrecorded;
+/**
+ * One agreement from `toDisplayAgreements`, as an `<li>`.
+ *
+ * `compact` is the DQ tab's list of consents on the preserved original
+ * (`OriginalApplicationConsents`), a narrow column where nothing may refuse to
+ * wrap. A `Badge` never wraps, so there the state is a line of text and the
+ * icon carries its tone. Both forms say the same words from the same presenter.
+ */
+export function AgreementRow({ agreement, compact = false }) {
+    const { Icon, tone, iconClass } = AGREEMENT_PRESENTATION[agreement.status] || AGREEMENT_PRESENTATION.unrecorded;
     const acceptedAt = formatInstant(agreement.acceptedAt);
+    const evidence = (
+        <p className="mt-ds-1 text-ds-xs text-ds-content-secondary">
+            Version {agreement.version}
+            {acceptedAt ? ` · Accepted ${acceptedAt}` : ''}
+            {/* Stated only where THIS agreement carries its own acceptance
+                evidence. The old PDF stamped one signature onto all four. */}
+            {agreement.hasSignature ? ` · Signed electronically (${agreement.signatureType})` : ''}
+            {agreement.legacyWording ? ' · Wording in force at the time' : ''}
+        </p>
+    );
+
+    if (compact) {
+        return (
+            <li className="min-w-0">
+                <p className="flex min-w-0 items-center gap-ds-2 text-ds-sm font-semibold text-ds-content">
+                    <DsIcon icon={Icon} className={`shrink-0 ${iconClass}`} />
+                    <span className="min-w-0 [overflow-wrap:anywhere]">{agreement.title}</span>
+                </p>
+                <p className="mt-ds-1 text-ds-xs text-ds-content">{agreement.summary}</p>
+                {evidence}
+            </li>
+        );
+    }
 
     return (
         <li className="rounded-ds-md border border-ds-border-subtle p-ds-3">
@@ -181,14 +212,7 @@ function AgreementRow({ agreement }) {
                 </p>
                 <Badge tone={tone}>{agreement.summary}</Badge>
             </div>
-            <p className="mt-ds-1 text-ds-xs text-ds-content-secondary">
-                Version {agreement.version}
-                {acceptedAt ? ` · Accepted ${acceptedAt}` : ''}
-                {/* Stated only where THIS agreement carries its own acceptance
-                    evidence. The old PDF stamped one signature onto all four. */}
-                {agreement.hasSignature ? ` · Signed electronically (${agreement.signatureType})` : ''}
-                {agreement.legacyWording ? ' · Wording in force at the time' : ''}
-            </p>
+            {evidence}
         </li>
     );
 }

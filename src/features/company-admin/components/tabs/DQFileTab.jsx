@@ -10,7 +10,8 @@ import {
   Notice, Select,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { ConfirmDialog } from '@design-system/patterns';
+import { DeleteFileDialog } from './DeleteFileDialog';
+import { OriginalApplicationConsents } from './OriginalApplicationConsents';
 import {
   NoPreservedPdfError,
   downloadPreservedApplicationPdf,
@@ -396,9 +397,9 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
             return (
               <div
                 key={file.id}
-                className="flex items-center justify-between gap-ds-3 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-3"
+                className="flex flex-wrap items-center justify-between gap-ds-3 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-3"
               >
-                <div className="flex min-w-0 items-center gap-ds-3">
+                <div className="flex min-w-0 flex-1 items-center gap-ds-3">
                   <Icon icon={FileText} size="xl" className="shrink-0 text-ds-content-link" />
                   <div className="min-w-0">
                     <p className="truncate text-ds-sm font-medium text-ds-content">{file.fileType}</p>
@@ -471,6 +472,8 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
                     </IconButton>
                   )}
                 </div>
+                {/* The original's consents: a full-width second line, hence `flex-wrap` above and `flex-1` on the name. */}
+                <OriginalApplicationConsents companyId={companyId} applicationId={applicationId} file={file} />
               </div>
             );
           })}
@@ -485,26 +488,5 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
         />
       )}
     </Stack>
-  );
-}
-
-/**
- * Replaces the blocking `window.confirm` that guarded DQ file deletion. The
- * question is preserved verbatim.
- *
- * The approved `ConfirmDialog`, which wraps a long description in
- * `[overflow-wrap:anywhere]` — a DQ file name can be one unbroken string.
- */
-function DeleteFileDialog({ file, onCancel, onConfirm }) {
-  const keeps = file.isSynced ? ' The application keeps its own copy.' : '';
-  return (
-    <ConfirmDialog
-      tone="danger"
-      title="Delete this DQ file?"
-      description={`Are you sure you want to delete "${file.fileName}"?${keeps}`}
-      confirmLabel="Delete file"
-      onCancel={onCancel}
-      onConfirm={onConfirm}
-    />
   );
 }
