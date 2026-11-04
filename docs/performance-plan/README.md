@@ -390,3 +390,12 @@ Not part of any task above. Each needs its own task if the owner wants it.
     flight, so both can text that recipient.
     *Recommended:* a separate small task: the mid-batch check also stops when
     the session's `workerGeneration` is no longer the task's.
+15. **A Facebook lead can be saved twice when Meta resends a webhook batch**
+    (found in review of batch C; not changed there). `processLead` saves each
+    lead with `.add()` (`functions/integrations/facebook.js`), and a batch that
+    fails part-way answers 500, so Meta resends it and the leads already saved
+    are added again. This was so before T4.3 too: any failed Graph read, or a
+    read that hung until the function was killed, ended the same way.
+    *Recommended:* a separate small task: save each lead under a document id
+    derived from `leadgen_id` with `create()`, and treat "already exists" as done,
+    so a resend never duplicates and never overwrites a lead a recruiter edited.

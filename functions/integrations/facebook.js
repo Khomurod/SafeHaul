@@ -14,6 +14,9 @@ const FACEBOOK_VERIFY_TOKEN = defineSecret("FACEBOOK_VERIFY_TOKEN");
 
 // Every Graph call gives up after 15 s: three in a row still leave the 60 s connect time to release its claim.
 const GRAPH_TIMEOUT_MS = 15000;
+// axios's `timeout` covers the wait for an answer and then each pause while it
+// is read; the signal also ends an answer that keeps trickling in, at 15 s in all.
+const graphLimits = () => ({ timeout: GRAPH_TIMEOUT_MS, signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS) });
 
 const db = admin.firestore();
 
@@ -188,7 +191,7 @@ exports.connectFacebookPage = onCall(
                     client_secret: FACEBOOK_APP_SECRET.value(),
                     fb_exchange_token: shortLivedUserToken
                 },
-                timeout: GRAPH_TIMEOUT_MS
+                ...graphLimits()
             });
 
             const longLivedUserToken = exchangeResponse.data.access_token;
@@ -203,7 +206,7 @@ exports.connectFacebookPage = onCall(
                     fields: 'access_token',
                     access_token: longLivedUserToken
                 },
-                timeout: GRAPH_TIMEOUT_MS
+                ...graphLimits()
             });
 
             const pageAccessToken = response.data.access_token;
@@ -211,7 +214,19 @@ exports.connectFacebookPage = onCall(
                 throw new Error("Failed to retrieve Page Access Token.");
             }
 
-            // 3. Complete the claim made above: same document, now with the
+            // 3. Subscribe App to Page Webhooks (leadgen)
+            // POST /{page-id}/subscribed_apps
+            // Before the claim is completed, so a failed or timed-out subscription
+            // still finds the claim pending and the catch below can roll it back.
+            await axios.post(`https://graph.facebook.com/v19.0/${pageId}/subscribed_apps`, null, {
+                params: {
+                    subscribed_fields: 'leadgen',
+                    access_token: pageAccessToken
+                },
+                ...graphLimits()
+            });
+
+            // 4. Complete the claim made above: same document, now with the
             //    token. A plain `.set()` (no merge) clears `claimPending` and
             //    leaves exactly the shape this document has always had. Nothing
             //    can have taken the page in between — the claim refuses every
@@ -223,16 +238,6 @@ exports.connectFacebookPage = onCall(
                 accessToken: pageAccessToken, // Stored securely
                 connectedAt: admin.firestore.FieldValue.serverTimestamp(),
                 platform: 'facebook'
-            });
-
-            // 4. Subscribe App to Page Webhooks (leadgen)
-            // POST /{page-id}/subscribed_apps
-            await axios.post(`https://graph.facebook.com/v19.0/${pageId}/subscribed_apps`, null, {
-                params: {
-                    subscribed_fields: 'leadgen',
-                    access_token: pageAccessToken
-                },
-                timeout: GRAPH_TIMEOUT_MS
             });
 
             return { success: true, message: `Connected ${pageName} successfully.` };
@@ -385,7 +390,7 @@ async function processLead(value) {
         params: {
             access_token: accessToken
         },
-        timeout: GRAPH_TIMEOUT_MS
+        ...graphLimits()
     });
 
     const leadData = leadResponse.data;
