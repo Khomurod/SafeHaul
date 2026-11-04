@@ -85,7 +85,7 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
 Each can be done on its own, or when someone next changes that part of the app.
 
 - **Лишние и последовательные запросы / Duplicate calls, N+1, parallel requests (#3, #8, #16)**
-  - [ ] **M1a** · Кэш команды: имена по общему правилу, одно чтение · *Team cache: shared naming rule, one read* → [M1a](M1a-team-cache-names.md) · PR: — · Дата: —
+  - [x] **M1a** · Кэш команды: имена по общему правилу, одно чтение · *Team cache: shared naming rule, one read* → [M1a](M1a-team-cache-names.md) · PR: пакет C · Дата: 2026-11-04
   - [ ] **M1b** · Assign Leads и Import Leads: команда одним запросом · *Assign/Import Leads read the team in one request* → [M1b](M1b-assign-import-team-read.md) · PR: — · Дата: —
   - [ ] **M1c** · Настройки команды: все дневные цели одним запросом · *Team settings: every daily goal in one request* → [M1c](M1c-team-goals-read.md) · PR: — · Дата: —
   - [x] **M2a** · Заметки в досье: история из уже загруженной записи · *Dossier Notes reuse the loaded record* → [M2a](M2a-notes-shared-history.md) · PR: #557 · Дата: 2026-11-03
@@ -274,7 +274,7 @@ task that waits for it.
 - **Р19 (M1a).** Обновить сохранённые списки команды у всех компаний сразу:
   одна запись поля `teamMembers` в каждой компании? Или ждать, пока каждый
   список обновится сам при следующем изменении команды? *Рекомендую:* ждать:
-  сотрудников без поля имени мало. — Ответ: — · Дата: —
+  сотрудников без поля имени мало. — Ответ: ждать (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-04
 - **Р20 (M4-1).** Одна буква в поиске по имени оставляет полный список, поиск
   начинается с двух букв. Устраивает? *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р21 (M4-2).** Если замер покажет больше 300 KB на страницу или больше 1 MB

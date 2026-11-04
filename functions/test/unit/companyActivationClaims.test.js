@@ -30,6 +30,7 @@ const mockFailMembershipReads = new Set(); // uids whose own memberships cannot 
 const mockOwedWriteFailures = { n: 0 }; // owed records that fail before one is written
 jest.mock('../../firebaseAdmin', () => {
     const db = {
+        getAll: async (...refs) => refs.map((ref) => ({ id: ref.id, exists: false, data: () => undefined })),
         collection: (name) => {
             if (name === 'memberships') {
                 return {
@@ -131,7 +132,7 @@ jest.mock('../../firebaseAdmin', () => {
                     }),
                 };
             }
-            return { doc: () => ({ get: async () => ({ exists: false }), set: async () => {} }) };
+            return { doc: (id) => ({ id, get: async () => ({ exists: false }), set: async () => {} }) };
         },
     };
     return {
