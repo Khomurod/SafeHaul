@@ -4,10 +4,15 @@ import { Icon, Check, Copy, Mail, MessageSquare, Send, User, X } from '@design-s
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, FormField, IconButton, Input, Label } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
+import { recordKind } from '@features/signing/utils/recordPrefill';
 import { WizardCompanySignature } from './WizardCompanySignature';
 
 const slugPrefillGroupId = (groupKey) =>
     String(groupKey).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 96);
+
+/** Whether a picker row is the record the document is linked to. */
+const isLinked = (record, linkedRecord) => Boolean(linkedRecord)
+    && record.collectionName === linkedRecord.collectionName && record.id === linkedRecord.id;
 
 /**
  * Delivery options. The order, the `key` values sent to `setDeliveryMethod`,
@@ -61,12 +66,15 @@ export function SendTemplateWizard({
     companySignature = null,
     sending,
     executeTemplateSend,
+    // The picker's applicants and leads, each with its `collectionName`.
     filteredDrivers,
-    // Whether the leads for the picker are 'loading', 'ready' or 'failed'.
+    // Whether the picker's records are 'loading', 'ready' or 'failed'.
     leadsStatus = 'ready',
     searchQuery,
     setSearchQuery,
     handleQuickSelect,
+    // The applicant or lead the document is linked to and filed under, or null.
+    linkedRecord = null,
 }) {
     const rawId = useId().replace(/:/g, '');
     const titleId = `send-wizard-title-${rawId}`;
@@ -174,13 +182,13 @@ export function SendTemplateWizard({
                                 id={quickSelectLabelId}
                                 className="mb-ds-2 text-ds-xs font-bold uppercase tracking-wide text-ds-content-secondary"
                             >
-                                Or choose an existing driver or lead
+                                Or choose an existing applicant or lead
                             </h3>
                             <div className="mb-ds-2">
-                                <FormField label="Search leads">
+                                <FormField label="Search applicants and leads">
                                     <Input
                                         type="search"
-                                        placeholder="Search leads..."
+                                        placeholder="Search applicants and leads..."
                                         value={searchQuery}
                                         onChange={(event) => setSearchQuery(event.target.value)}
                                     />
@@ -194,30 +202,31 @@ export function SendTemplateWizard({
                             >
                                 {leadsStatus === 'loading' ? (
                                     <p role="status" className="py-ds-6 text-center text-ds-xs italic text-ds-content-muted">
-                                        Loading leads…
+                                        Loading applicants and leads…
                                     </p>
                                 ) : leadsStatus === 'failed' ? (
                                     <p role="alert" className="py-ds-6 text-center text-ds-xs text-ds-status-danger-fg">
-                                        Leads could not be loaded. Enter the recipient above.
+                                        Applicants and leads could not be loaded. Enter the recipient above.
                                     </p>
                                 ) : filteredDrivers.length === 0 ? (
                                     <p className="py-ds-6 text-center text-ds-xs italic text-ds-content-muted">
-                                        No leads found.
+                                        No applicants or leads found.
                                     </p>
                                 ) : (
                                     filteredDrivers.slice(0, 20).map((driver) => (
                                         <Button
-                                            key={driver.id}
+                                            key={`${driver.collectionName}/${driver.id}`}
                                             variant="ghost"
                                             fullWidth
                                             justify="start"
+                                            aria-pressed={isLinked(driver, linkedRecord)}
                                             onClick={() => handleQuickSelect(driver)}
                                         >
                                             <span
                                                 aria-hidden="true"
                                                 className="rounded-ds-md border border-ds-border-subtle bg-ds-surface p-1.5 text-ds-content-secondary"
                                             >
-                                                <Icon icon={User} size="sm" />
+                                                <Icon icon={isLinked(driver, linkedRecord) ? Check : User} size="sm" />
                                             </span>
                                             <span className="min-w-0 flex-1 text-left">
                                                 <span className="block truncate text-ds-xs font-bold text-ds-content">
@@ -227,6 +236,9 @@ export function SendTemplateWizard({
                                                     {driver.email || 'No email'} | {driver.phone || driver.phoneNumber || 'No phone'}
                                                 </span>
                                             </span>
+                                            <Badge tone={driver.collectionName === 'applications' ? 'info' : 'neutral'}>
+                                                {recordKind(driver.collectionName)}
+                                            </Badge>
                                         </Button>
                                     ))
                                 )}
@@ -425,6 +437,15 @@ export function SendTemplateWizard({
                                 <div className="flex justify-between gap-ds-2">
                                     <dt className="text-ds-content-secondary">Link expires</dt>
                                     <dd className="text-right text-ds-content">7 days after sending</dd>
+                                </div>
+                                {/* Where the sealed copy is filed: that record's DQ file. */}
+                                <div className="flex justify-between gap-ds-2">
+                                    <dt className="text-ds-content-secondary">Driver record</dt>
+                                    <dd className="min-w-0 text-right text-ds-content [overflow-wrap:anywhere]">
+                                        {linkedRecord
+                                            ? `${linkedRecord.name} (${recordKind(linkedRecord.collectionName).toLowerCase()})`
+                                            : 'None'}
+                                    </dd>
                                 </div>
                             </dl>
                         </div>

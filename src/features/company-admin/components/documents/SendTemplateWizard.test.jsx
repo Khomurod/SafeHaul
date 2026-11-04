@@ -98,29 +98,50 @@ describe('step 1 — recipient', () => {
         expect(props.setManualPhone).toHaveBeenCalledWith('5550000000');
     });
 
-    it('offers existing drivers and leads with the untouched quick-select callback', () => {
-        const driver = { id: 'lead-1', firstName: 'Artificial', lastName: 'Driver', email: 'lead@example.invalid' };
-        const { props } = renderWizard({ filteredDrivers: [driver] });
+    it('offers existing applicants and leads, each saying which it is, with the untouched quick-select callback', () => {
+        const applicant = { id: 'app-1', collectionName: 'applications', firstName: 'Artificial', lastName: 'Applicant', email: 'app@example.invalid' };
+        const lead = { id: 'lead-1', collectionName: 'leads', firstName: 'Artificial', lastName: 'Driver', email: 'lead@example.invalid' };
+        const { props } = renderWizard({ filteredDrivers: [applicant, lead] });
 
-        fireEvent.click(screen.getByRole('button', { name: /Artificial Driver/ }));
-        expect(props.handleQuickSelect).toHaveBeenCalledWith(driver);
+        expect(screen.getByText('Or choose an existing applicant or lead')).toBeInTheDocument();
+        expect(screen.getByLabelText('Search applicants and leads')).toHaveAttribute('placeholder', 'Search applicants and leads...');
+        const applicantRow = screen.getByRole('button', { name: /Artificial Applicant/ });
+        const leadRow = screen.getByRole('button', { name: /Artificial Driver/ });
+        expect(applicantRow).toHaveTextContent('Applicant');
+        expect(leadRow).toHaveTextContent('Lead');
+
+        fireEvent.click(leadRow);
+        expect(props.handleQuickSelect).toHaveBeenCalledWith(lead);
     });
 
-    it('says so when no lead matches', () => {
+    it('marks the picked record, and only that one', () => {
+        const applicant = { id: 'same-id', collectionName: 'applications', firstName: 'Artificial', lastName: 'Applicant' };
+        const lead = { id: 'same-id', collectionName: 'leads', firstName: 'Artificial', lastName: 'Lead' };
+        renderWizard({
+            manualName: 'Artificial Applicant',
+            filteredDrivers: [applicant, lead],
+            linkedRecord: { collectionName: 'applications', id: 'same-id', name: 'Artificial Applicant', prefill: {} },
+        });
+
+        expect(screen.getByRole('button', { name: /Artificial Applicant/ })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: /Artificial Lead/ })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('says so when nothing matches', () => {
         renderWizard();
-        expect(screen.getByText('No leads found.')).toBeInTheDocument();
+        expect(screen.getByText('No applicants or leads found.')).toBeInTheDocument();
     });
 
-    it('says the leads are loading while they are', () => {
+    it('says they are loading while they are', () => {
         renderWizard({ leadsStatus: 'loading' });
-        expect(screen.getByText('Loading leads…')).toHaveAttribute('role', 'status');
-        expect(screen.queryByText('No leads found.')).not.toBeInTheDocument();
+        expect(screen.getByText('Loading applicants and leads…')).toHaveAttribute('role', 'status');
+        expect(screen.queryByText('No applicants or leads found.')).not.toBeInTheDocument();
     });
 
-    it('says when the leads could not be loaded, rather than that none match', () => {
+    it('says when they could not be loaded, rather than that none match', () => {
         renderWizard({ leadsStatus: 'failed' });
-        expect(screen.getByRole('alert')).toHaveTextContent('Leads could not be loaded.');
-        expect(screen.queryByText('No leads found.')).not.toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent('Applicants and leads could not be loaded.');
+        expect(screen.queryByText('No applicants or leads found.')).not.toBeInTheDocument();
     });
 });
 
@@ -200,6 +221,17 @@ describe('step 3 — delivery and review', () => {
         expect(screen.getByText('nobody@example.invalid')).toBeInTheDocument();
         expect(screen.getByText('5550000000')).toBeInTheDocument();
         expect(screen.getByText('7 days after sending')).toBeInTheDocument();
+        expect(screen.getByText('Driver record').nextSibling).toHaveTextContent('None');
+    });
+
+    it('names the record the signed copy is filed in', () => {
+        renderWizard({
+            manualName: 'Artificial Person',
+            linkedRecord: { collectionName: 'leads', id: 'lead-1', name: 'Artificial Person', prefill: {} },
+        });
+        goToReview();
+
+        expect(screen.getByText('Driver record').nextSibling).toHaveTextContent('Artificial Person (lead)');
     });
 
     it('labels the action Send Document, or Copy Signing Link for the copy method', () => {
