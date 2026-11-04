@@ -299,11 +299,35 @@ local draft. The server sends the link; a corrected email or phone gets a new
 one, voiding the old; a number on the opt-out list gets no text (shown as failed),
 the email still goes. Signed envelopes are sealed into tamper-evident PDFs, once:
 a delivery that finds the request no longer `pending_seal` changes nothing. The
-bell then tells the sender (a post-application document: its application's
+bell then tells the sender (`senderId`; one nobody sent: its application's
 recruiter, else the team) "Document signed" or "Seal failed", once per request and
-outcome, title and signer name only. A post-application document fills only
-listed application fields (`APPLICATION_TOKEN_FIELDS`, `postApplicationEdocs.js`):
+outcome, title and signer name only. A document filled from an application uses only
+listed fields (`APPLICATION_TOKEN_FIELDS` in `functions/shared/postApplicationRequest.js`,
+the browser's copy `src/config/applicationTokenFields.json` held to it by a parity test):
 never SSN, signature, consents, ids, the confirmation number or links.
+The template wizard's picker finds applicants and leads, each labelled. A document
+sent to the one picked is linked to it (`sourceApplicationId` or `sourceLeadId`,
+while the recipient's name is still that record's) and fills those fields from it;
+the email is the one typed. A sealed document linked to a record is filed once in
+its DQ file (`dq_files/signed_<requestId>`: the sealed PDF's path and checksum, never
+a copy), opens through `getSignedDocumentUrl`, and removing it only hides it. A seal
+that failed, or has not finished ten minutes after signing or the last retry, can be
+sealed again from the document's details (**Retry seal**, `retrySealDocument`): it
+seals what the signer submitted, records the attempt in `sealAttempts`, never reseals
+a signed document, and the signer's images stay until a seal succeeds.
+**A driver's signing documents** are listed in the dossier's Documents tab: the
+requests linked to the record, and each required post-application form no request
+carries yet as *Not started*; *Link expired* is derived (unsigned, `expiresAt` past).
+A post-application form is one document per application and form
+(`postapp_<application>_<template>`), made by whichever comes first: the thank-you
+page (it opens the form, never emails or texts it) or a team member's **Send to
+driver** (`sendPostApplicationDocument`). That emails a usable address and texts only
+after the driver's explicit "Yes" (`sms-consent`; the opt-out list as for every
+signing text); with neither it says why and sends nothing. One transaction decides:
+a new request is sent by the creation triggers, one never sent gets its flags turned
+on and the correction trigger sends it with seven more days. A link already sent is
+not sent again, a signed form is reported, a voided one refused. Nothing sends these
+forms automatically after submission (owner question В6).
 A **company signature** (`company_signature`) is an image the team uploads to
 `secure_documents/{companyId}/originals/company-signatures/` and places on a
 template or one document (each may replace its template's); the signer sees it
@@ -322,7 +346,7 @@ document that needs attention (indexes in `firestore.indexes.json`).
 address, date of birth, hire date, licence expiry) resolve at sending; the
 `current_date` binding travels as an unresolved `{{current_date}}`, stamped once
 server-side by `submitPublicEnvelope` — recruiter envelopes, templates and
-post-application documents (`functions/postApplicationEdocs.js`) alike,
+post-application documents (`functions/shared/postApplicationRequest.js`) alike,
 restamping a still-*bound* field even if an older send baked in a date.
 `getPublicEnvelope` stamps the same value for display and returns its instant
 (`serverTime`) and zone: screen and sealed PDF share the server clock, read in
@@ -354,6 +378,22 @@ portal or uploaded, is filed once in the DQ file and opens through
 `getSignedPevUrl`; the row shows when the employer first opened the link. On an
 answer and at day 30 the request's sender (`createdBy`, else the team) gets one
 bell notification naming only the employer and the driver.
+Every attempt is logged on the request (`attempts`): the send or a failed first email,
+each reminder and whether it went out, the first open, the answer, an uploaded result,
+the day-30 mark, and the calls, faxes and notes a recruiter adds with **Record attempt**
+(`recordVerificationAttempt`: a day and a short note, against the employer's newest live
+request, at most 50). Each employer card lists its newest three history entries; View
+History holds them all. At day 30 the log is printed as a one-page record of attempts
+(the parties, dates, each attempt's outcome and who made it; no legal claims), stored
+beside the request PDF, linked from the no-response entry and filed once in the DQ file.
+No PEV PDF prints the portal token; the result names the request by its reference.
+
+**DQ file: the original's consents.** The DQ row of the preserved original
+application lists, on request, each agreement the applicant answered (accepted and
+signed, declined, not recorded, or certified only within a combined acknowledgement),
+with version, time and signature type. It reads the frozen `submission/{snapshotId}`
+once, when first opened, through the Application tab's presenter; the PDF still opens
+only through the audited `getApplicationOriginalPdfUrl`.
 
 **Driver-approved corrections.** Company admins cannot silently rewrite a
 submitted application (§5).
@@ -877,7 +917,8 @@ and moves with a typo fix). Rows are stamped lazily by the change proposal and
 honoured only while that row is still the `employerName` it recorded, else the
 write-back is refused, not guessed. `verification_requests/{token}` permanently
 holds response, signature, method and PDF and is authoritative; the row is a
-mirror.
+mirror. Its `attempts` log is authoritative too; the row's history carries a short entry
+per attempt, never the error text, the token or an address.
 
 **A client never decides which employer owns a verification.**
 `shared/employerEdits.js` strips browser-sent PEV fields and re-attaches them
@@ -955,6 +996,9 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   purpose and checked against company membership (`getSignedDocumentUrl`,
   `getSignedApplicationFileUrl`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
   Stored URLs expire or are absent, so views re-sign at view time.
+- **Send to driver, Retry seal and Record attempt are team actions** (any company
+  team member, `assertCompanyAccessForRequest`): the application or request must be
+  under that company, and Send to driver's template in its post-application list.
 
 **Starting an application for a driver is company-workspace access, not admin.**
 `/company/drivers/unfinished` is deliberately not `adminOnly` — a recruiter
@@ -1046,7 +1090,7 @@ Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 | `enforceFeatureSchedules` | every 15 min | Auto-disables features whose `featureSchedules` entry has passed |
 | `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger cannot reach (after a projection change) |
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
-| `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response`, notifies the sender (bell) and the carrier (email): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
+| `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days, each logged sent or not (a failed one is retried next run); at 30 days marks `no_response`, notifies the sender (bell), files the record of attempts (PDF, DQ file) and notifies the carrier (email): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
@@ -1072,12 +1116,16 @@ the daily count**; refusing is a recorded outcome.
 - **DQ file** — an application's uploads become `dq_files/{type}` records when it
   arrives or one changes, matched by `storagePath` (a link only without one);
   opening the DQ tab files any still missing (`syncDqFiles`, leads too). A
-  removed entry stays removed. PEV request PDFs and results are filed by the PEV
-  callables, one record each (`pev_request_<id>`, `pev_result_<hash of path>`).
+  removed entry stays removed. PEV request PDFs, results and day-30 records of
+  attempts are filed by the PEV callables and job, one record each (`pev_request_<id>`,
+  `pev_result_<hash of path>`, `pev_attempts_<requestId>`); a sealed signing request
+  linked to an application or lead by `sealDocument` (`signed_<requestId>`).
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
-- **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing, then
-  one bell notification of the outcome (§4); a notification failure never fails the seal.
+- **Sealing** — a signing request entering `pending_seal`, or a Retry seal recording a
+  new attempt while it is there, triggers PDF sealing, only while the stored request is
+  still on that attempt; then one bell notification of the outcome (§4) and, for a
+  linked record, its DQ entry. Neither failing fails the seal.
 - **Team cache** — a membership write rewrites `companies/{id}.teamMembers` (uid, role, name by `nameFromProfile`
   else `'Unknown'`, email). Team pickers and filters read it; Assign Leads and Import Leads read it fresh on opening.
 - **Notifications** — status changes, lead assignment, new applications, an
@@ -1441,6 +1489,14 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **PEV records before 2026-11 are not backfilled:** earlier results are not in
   the DQ file and keep a stored download link; requests already live then keep
   reminding until day 30 (their mark no longer overwrites a Completed row).
+- **Batch 2 limits (2026-11):** requests sent before the PEV attempt log show only later
+  attempts (their day-30 record notes the gap), and an attempt recorded after day 30 is not
+  in the already-filed record. Sealed documents from before then, or whose DQ filing failed
+  (logged), are not in the DQ file. Send to driver does not resend a form already sent, even
+  after its link expired; an optional post-application form is listed only once a request
+  for it exists. A retried document's certificate prints the retry time as COMPLETED AT.
+  Retry seal and the record link guard against mistakes, not a team member: the rules let
+  the team write any signing-request field.
 - **`signedCopy` stops accidental and concurrent resends, not a team member
   editing the database:** the rules let the team write any signing-request
   field, so clearing it directly would allow a second approved send.
