@@ -332,7 +332,7 @@ Same activity/DQ/note subcollections as applications (team/super).
 
 **Match keys:** `normalizedPhone` (digits, `normalizeSearchPhone`) and `emailNormalized` (the email trimmed and lowercased, `normalizeSearchEmail`; `email` itself stays as typed). Every lead creator writes both; older leads get them from Data cleanup → Old lead fields.
 
-**Link to an application:** when the lead's driver applies, the server sets `applicationId` (the application's document id) and `appliedAt`, leaves `status` alone, adds an `activity_logs/applied_<applicationId>` entry, and writes `fromLeadId` on the application. Deleting either record (`deleteApplication`) removes the other's half.
+**Link to an application:** when the lead's driver applies, the server sets `applicationId` (the application's document id) and `appliedAt`, leaves `status` alone, adds an `activity_logs/applied_<applicationId>` entry, and writes `fromLeadId` on the application. A lead campaign built from filters (its preview and launch) leaves out a lead with `applicationId`; leads picked by hand stay. Deleting either record (`deleteApplication`) removes the other's half.
 
 ---
 

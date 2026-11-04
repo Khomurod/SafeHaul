@@ -169,6 +169,23 @@ describe('analyticsService phone compatibility', () => {
         expect(result.leads.map((l) => l.id)).toEqual(['lead2']);
     });
 
+    it("a lead campaign's preview leaves out the leads who applied; an applicant campaign's keeps its applications", async () => {
+        const docs = [
+            { id: 'lead1', data: { firstName: 'A', phone: '(555) 000-0001' } },
+            { id: 'lead2', data: { firstName: 'B', phone: '(555) 000-0002', applicationId: 'app-2' } },
+        ];
+        mockBuildLeadQueries.mockReturnValue([makeQueryFromDocs(docs)]);
+        mockLedgerDocs({});
+        const preview = (filters) => analyticsService.getFilteredLeadsPage({
+            auth: { uid: 'u1' },
+            data: { companyId: 'co1', filters, pageSize: 50 },
+        });
+
+        expect((await preview({ leadType: 'leads', excludeRecentDays: 'off' })).leads.map((l) => l.id)).toEqual(['lead1']);
+        expect((await preview({ leadType: 'applications', excludeRecentDays: 'off' })).leads.map((l) => l.id))
+            .toEqual(['lead1', 'lead2']);
+    });
+
     it('non-exclusion path stays unchanged when excludeRecentDays is off', async () => {
         mockBuildLeadQueries.mockReturnValue([
             {

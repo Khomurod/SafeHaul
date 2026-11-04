@@ -272,8 +272,8 @@ describe('gatherIdsFromQueries: the split audience queries run together', () => 
 
         expect(waits).toEqual([2]);
         expect(reads.map((read) => read.fields)).toEqual([
-            ['phone', 'phoneNumber', 'email', 'createdAt'],
-            ['phone', 'phoneNumber', 'email', 'createdAt'],
+            ['phone', 'phoneNumber', 'email', 'createdAt', 'applicationId'],
+            ['phone', 'phoneNumber', 'email', 'createdAt', 'applicationId'],
         ]);
         expect(value).toEqual(['lead-0001', 'lead-0002']);
     });
@@ -353,6 +353,28 @@ describe('gatherIdsFromQueries: the split audience queries run together', () => 
 
         expect(error).toMatchObject({ code: 'internal', message: 'Query execution failed: first query broke' });
         expect(console.error).toHaveBeenCalledWith('[BulkSession] Query #0 failed:', 'first query broke');
+    });
+
+    it('a lead campaign leaves out the leads who applied, before the ledger and Limit Volume', async () => {
+        mockBuildLeadQueries.mockReturnValue([filterQuery(0, () => [
+            doc('lead-0001', { createdAt: created(1) }),
+            doc('lead-0002', { createdAt: created(9), applicationId: 'app-9' }),
+            doc('lead-0003', { createdAt: created(5), applicationId: '' }),
+        ])]);
+
+        const { value } = await gather({ leadType: 'leads', campaignLimit: '2' });
+
+        expect(value).toEqual(['lead-0003', 'lead-0001']);
+        expect(mockRecipientsMessagedWithin.mock.calls[0][0].recipients.map(({ key }) => key))
+            .toEqual(['lead-0001', 'lead-0003']);
+    });
+
+    it('an applicant campaign keeps every application, which carries its own applicationId', async () => {
+        mockBuildLeadQueries.mockReturnValue([filterQuery(0, () => [doc('app-0001', { applicationId: 'app-0001' })])]);
+
+        const { value } = await gather({ leadType: 'applications' });
+
+        expect(value).toEqual(['app-0001']);
     });
 
     it('a single query reads once and returns its ids', async () => {
