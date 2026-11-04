@@ -232,4 +232,20 @@ describe('PEV result PDF', () => {
 
         expect(drawn.map((d) => d.text)).toContain('Would rehire for local routes only.');
     });
+
+    // The token answers as the employer, and this PDF is filed where the whole team reads it.
+    it('never prints the portal token; it names the request by its reference', async () => {
+        await generateVerificationPDF({ ...VERIFICATION, requestId: 'req-0f1e2d3c' }, RESPONSE, 'pev-token-123456');
+
+        expect(valueBeside('Request Reference:')).toBe('req-0f1e2d3c');
+        expect(drawn.map((d) => d.text)).toEqual(expect.arrayContaining([expect.stringMatching(/^Generated: \d{4}-\d\d-\d\dT/)]));
+        expect(drawn.some((d) => d.text.includes('pev-token-123456'))).toBe(false);
+    });
+
+    it('names a request older than its reference by a hash of the token, not the token', async () => {
+        await render({});
+
+        expect(valueBeside('Request Reference:')).toMatch(/^[0-9a-f]{32}$/);
+        expect(drawn.some((d) => d.text.includes('pev-token-123456'))).toBe(false);
+    });
 });
