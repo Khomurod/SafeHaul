@@ -5,14 +5,16 @@
  * The client uploads the file (`pev_results/` is add-only for the team in
  * `storage.rules`) and this callable records it, because the company cannot
  * write `verification_requests`: the row reads Completed with the file's path,
- * and the employer's request is completed too, so its reminders stop and its
- * day-30 mark can no longer overwrite the result.
+ * the employer's request is completed too, so its reminders stop and its day-30
+ * mark can no longer overwrite the result, and the file is filed in the DQ file.
  */
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, storage } = require("../firebaseAdmin");
 const { logger } = require("firebase-functions");
 const { assertCompanyAccessForRequest } = require("../shared/companyAccess");
+const { employerNameOf } = require("../shared/employerIdentity");
 const { mirrorOntoEmployer } = require("./employerMirror");
+const { fileResultInDq } = require("./requestAttachment");
 const { LIVE_STATUSES, closeRequests, requestsForEmployer } = require("./requestLifecycle");
 
 const ALLOWED_COLLECTIONS = ['applications', 'leads'];
@@ -89,5 +91,13 @@ exports.recordManualVerificationResult = onCall({ cors: true }, async (request) 
         logger.error('[PEV] The uploaded result was recorded, but its request could not be closed.', error);
     }
 
-    return { success: true, verification: mirrored.verification, closedRequests };
+    // In the DQ file as the portal's answer is: one record per file.
+    const filedInDq = await fileResultInDq(recordRef, {
+        path: storagePath,
+        employerName: employerNameOf(mirrored.employers[mirrored.index]),
+        fileName: shownName,
+        uploadedBy: request.auth.uid,
+    });
+
+    return { success: true, verification: mirrored.verification, closedRequests, filedInDq };
 });

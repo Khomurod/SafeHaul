@@ -152,6 +152,16 @@ export const FILED_PEV_REQUEST = {
     isSynced: true,
 };
 
+/** A verification result the server filed: a portal answer's PDF or an uploaded result. */
+export const FILED_PEV_RESULT = {
+    type: 'pev_result',
+    fileType: 'PEV Result – Old Carrier',
+    fileName: 'Verification-of-Employment-Response-Jane-Driver.pdf',
+    url: null,
+    storagePath: 'companies/co-1/applications/app-1/pev_results/PEV_Old_Carrier_abcd1234.pdf',
+    isSynced: true,
+};
+
 export const makeRenderDq = (DQFileTab) => (props = {}) =>
     render(<DQFileTab companyId="co-1" applicationId="app-1" {...props} />);
 

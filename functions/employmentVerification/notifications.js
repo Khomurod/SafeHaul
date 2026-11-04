@@ -46,14 +46,14 @@ function carrierEmail(companyData) {
 // ============================================================
 // HELPER: Notify carrier that verification is complete
 // ============================================================
-async function notifyCarrierVerificationComplete(verificationData, formResponse) {
+async function notifyCarrierVerificationComplete(verificationData, formResponse, { filedInDq = false } = {}) {
     const companyDoc = await db.collection('companies').doc(verificationData.companyId).get();
     if (!companyDoc.exists) return;
 
     const adminEmail = carrierEmail(companyDoc.data());
     if (!adminEmail) return;
 
-    const html = buildCarrierCompleteEmailHTML(verificationData, formResponse);
+    const html = buildCarrierCompleteEmailHTML(verificationData, formResponse, { filedInDq });
 
     await sendDynamicEmail(verificationData.companyId, adminEmail, `✅ PEV Complete: ${verificationData.applicantName} — ${verificationData.employerName}`, html);
 }

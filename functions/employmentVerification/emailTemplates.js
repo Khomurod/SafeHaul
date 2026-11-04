@@ -192,7 +192,11 @@ function buildReminderEmailHTML(params) {
 // ============================================================
 // HELPER: Build carrier "verification complete" notification HTML
 // ============================================================
-function buildCarrierCompleteEmailHTML(verificationData, formResponse) {
+/**
+ * `filedInDq` says whether the result PDF is in the applicant's DQ file
+ * (`fileResultInDq`), so the email never claims a filing that did not happen.
+ */
+function buildCarrierCompleteEmailHTML(verificationData, formResponse, { filedInDq = false } = {}) {
     const { applicantName, employerName } = safeRequestText(verificationData);
     // Typed by whoever opened the verification link.
     const positionHeld = escapeHtml(plainGuestText(formResponse.positionHeld, 120)) || 'N/A';
@@ -217,7 +221,9 @@ function buildCarrierCompleteEmailHTML(verificationData, formResponse) {
                 <tr><td style="padding: 8px 12px; border: 1px solid #e2e8f0;"><strong>Accidents (3yr)</strong></td><td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${hadAccidents}</td></tr>
                 <tr style="background: #f8fafc;"><td style="padding: 8px 12px; border: 1px solid #e2e8f0;"><strong>Respondent</strong></td><td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${respondentName} (${respondentTitle})</td></tr>
             </table>
-            <p style="font-size: 13px; color: #666;">Full details and PDF have been automatically added to the applicant's DQ file.</p>
+            <p style="font-size: 13px; color: #666;">${filedInDq
+        ? "Full details and PDF have been automatically added to the applicant's DQ file."
+        : "The full answer is recorded in SafeHaul, but its PDF could not be added to the applicant's DQ file automatically."}</p>
         </div>
     </div>`;
 }

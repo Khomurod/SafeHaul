@@ -167,6 +167,21 @@ describe('PEVTab result upload', () => {
     Date.now.mockRestore();
   });
 
+  it('says when the result could not be filed in the DQ file', async () => {
+    storageMocks.uploadBytes.mockResolvedValue(undefined);
+    fnMocks.callable.mockResolvedValue({ data: { success: true, filedInDq: false, verification: { status: 'Completed', history: [] } } });
+    const { container } = renderTab();
+    fireEvent.click(screen.getByRole('button', { name: /Upload Result/i }));
+    fireEvent.change(container.querySelector('input[type="file"]'), {
+      target: { files: [new File(['x'], 'r.pdf', { type: 'application/pdf' })] },
+    });
+
+    await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith(
+      'The result was recorded, but it could not be filed in the DQ file. It opens from the verification history.',
+    ));
+    expect(toastMocks.showSuccess).toHaveBeenCalledWith('Verification result uploaded successfully.');
+  });
+
   it('reports a result the server could not record', async () => {
     storageMocks.uploadBytes.mockResolvedValue(undefined);
     fnMocks.callable.mockRejectedValue(Object.assign(new Error('gone'), { code: 'functions/not-found' }));

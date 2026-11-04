@@ -64,6 +64,8 @@ import { PEVEmployerCard, PEVHistoryModal } from './PEVTabParts';
  *   is layered over its own text.
  */
 
+const RESULT_NOT_FILED = 'The result was recorded, but it could not be filed in the DQ file. It opens from the verification history.';
+
 export function PEVTab({ companyId, applicationId, appData, collectionName = 'applications' }) {
     const { showSuccess, showError } = useToast();
     const { currentCompanyProfile } = useData();
@@ -306,6 +308,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
             if (written) setLocalOverrides(prev => ({ ...prev, [index]: written }));
 
             showSuccess('Verification result uploaded successfully.');
+            if (result.data?.filedInDq === false) showError(RESULT_NOT_FILED);
         } catch (error) {
             console.error("Upload Error:", error);
             showError("Failed to upload verification result.");

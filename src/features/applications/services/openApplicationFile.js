@@ -11,7 +11,7 @@
  * which is what `noopener` would have done for a URL opened directly.
  */
 import { signedApplicationFileUrl } from './applicationFileLink';
-import { isPevRequestPath } from './pevRequestPath';
+import { isPevFilePath } from './pevFilePath';
 
 export const BLOCKED_TAB_MESSAGE = 'Your browser blocked the new tab. Allow pop-ups for this site, then try again.';
 
@@ -23,9 +23,9 @@ export function isDriverUploadPath(path) {
     return typeof path === 'string' && /^companies\/[^/]+\/(applications|autofill)\/guest_uploads\/./.test(path);
 }
 
-/** Whether a DQ record's file opens from a link signed when pressed: a driver's upload or a verification request's PDF. */
+/** Whether a DQ record's file opens from a link signed when pressed: a driver's upload, or a verification's request PDF or result. */
 export function opensFromSignedLink(path) {
-    return isDriverUploadPath(path) || isPevRequestPath(path);
+    return isDriverUploadPath(path) || isPevFilePath(path);
 }
 
 /**
