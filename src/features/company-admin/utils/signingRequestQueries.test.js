@@ -69,6 +69,15 @@ describe('signing request filters', () => {
         }
     });
 
+    it('never filter on expiresAt: Link expired is the browser\'s, and needs no index', () => {
+        const ref = { path: 'companies/co-1/signing_requests' };
+        const built = [
+            deliveryFailedFilter(), needsAttentionFilter(), awaitingFilter(), awaitingFailedFilter(), completedFilter(),
+            needsAttentionListQuery(ref),
+        ];
+        expect(JSON.stringify(built)).not.toContain('expiresAt');
+    });
+
     it('list what needs attention newest first, without a limit', () => {
         const ref = { path: 'companies/co-1/signing_requests' };
         expect(needsAttentionListQuery(ref)).toEqual({

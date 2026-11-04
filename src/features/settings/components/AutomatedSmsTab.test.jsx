@@ -76,6 +76,15 @@ describe('AutomatedSmsTab compatibility slice', () => {
         expect(firestoreMocks.getDoc).toHaveBeenCalledWith(DOC_PATH);
     });
 
+    it('names every placeholder the texts can use, the application link too', async () => {
+        render(<AutomatedSmsTab companyId="company-1" />);
+
+        await findTextarea('Contact Attempt 1');
+        for (const placeholder of ['{driver name}', '{user name}', '{application link}']) {
+            expect(screen.getByText(placeholder)).toBeInTheDocument();
+        }
+    });
+
     it('falls back to empty strings when the document is missing', async () => {
         firestoreMocks.getDoc.mockResolvedValue(missingDoc());
         render(<AutomatedSmsTab companyId="company-1" />);

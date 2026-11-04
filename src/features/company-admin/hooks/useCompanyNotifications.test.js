@@ -1,17 +1,21 @@
 /**
- * The bell shows the team's notifications, and a reminder only to the person it
- * is for (`recipientId`, written by the server for a callback). It reads twice:
- * the company's newest notifications ("team", filtered here) and the reader's own
- * newest reminders ("own", `where('recipientId', '==', uid)`), so other people's
- * reminders cannot push the reader's own out of the bell. The fake routes each
- * listener by whether its query holds a `where`. All ids below are artificial.
+ * The bell shows the team's notifications, and one addressed to a person
+ * (`recipientId`: a callback reminder, a status change on their record, an
+ * assignment) only to that person. It reads twice: the company's newest
+ * notifications ("team", filtered here) and the reader's own newest ("own",
+ * `where('recipientId', '==', uid)`), so other people's cannot push the
+ * reader's own out of the bell. A team notification about someone's own action
+ * (`actorId`) is not shown to them. Read state is per person: opening one adds
+ * the reader to `readBy`, and an older `read: true` counts as read for everyone.
+ * The fake routes each listener by whether its query holds a `where`. All ids
+ * below are artificial.
  */
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // What each read answers; set in `beforeEach`. `ownLater` holds the own read's
 // answer back until a test calls its listener's `answer`.
-const fb = vi.hoisted(() => ({ listeners: [] }));
+const fb = vi.hoisted(() => ({ listeners: [], updates: [], batches: [] }));
 
 vi.mock('@lib/firebase', () => ({
     db: {},
@@ -23,9 +27,17 @@ vi.mock('firebase/firestore', () => ({
     where: (...a) => ({ __where: a }),
     orderBy: () => ({}),
     limit: () => ({}),
-    doc: () => ({}),
-    updateDoc: vi.fn(),
-    writeBatch: vi.fn(),
+    doc: (_db, ...segments) => ({ path: segments.join('/') }),
+    arrayUnion: (...items) => ({ arrayUnion: items }),
+    updateDoc: async (ref, data) => { fb.updates.push({ path: ref.path, data }); },
+    writeBatch: () => {
+        const batch = { updates: [], committed: false };
+        fb.batches.push(batch);
+        return {
+            update: (ref, data) => batch.updates.push({ path: ref.path, data }),
+            commit: async () => { batch.committed = true; },
+        };
+    },
     onSnapshot: (q, next, fail) => {
         const own = q.__query.some((constraint) => constraint && constraint.__where);
         const listener = {
@@ -51,6 +63,7 @@ const reminder = (id, recipientId, m) => ({
 beforeEach(() => {
     Object.assign(fb, {
         uid: 'recruiter-1', team: [], own: [], teamError: null, ownError: null, ownLater: false, listeners: [],
+        updates: [], batches: [],
     });
 });
 
@@ -173,5 +186,116 @@ describe('the bell', () => {
 
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(result.current.error).toBe('Failed to load notifications');
+    });
+});
+
+describe('who sees a notification', () => {
+    it('hides a team notification about the reader\'s own action, and shows the rest', async () => {
+        fb.team = [
+            { id: 'mine-done', type: 'status_change', actorId: 'recruiter-1', read: false, createdAt: minute(3) },
+            { id: 'theirs-done', type: 'status_change', actorId: 'recruiter-2', read: false, createdAt: minute(2) },
+        ];
+        const { result } = renderHook(() => useCompanyNotifications('co-1'));
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.notifications.map((n) => n.id)).toEqual(['theirs-done']);
+    });
+
+    it('shows a notification addressed to the reader even when it names them as who acted', async () => {
+        // A callback reminder is for the recruiter who logged it.
+        const reminderToSelf = { ...reminder('mine', 'recruiter-1', 3), actorId: 'recruiter-1' };
+        fb.team = [reminderToSelf];
+        fb.own = [reminderToSelf];
+        const { result } = renderHook(() => useCompanyNotifications('co-1'));
+
+        await waitFor(() => expect(result.current.notifications.map((n) => n.id)).toEqual(['mine']));
+    });
+});
+
+describe('read state, per person', () => {
+    it('counts a notification someone else opened as still unread for this reader', async () => {
+        fb.team = [
+            { id: 'opened-by-other', type: 'new_application', readBy: ['recruiter-2'], createdAt: minute(3) },
+            { id: 'opened-by-me', type: 'new_application', readBy: ['recruiter-2', 'recruiter-1'], createdAt: minute(2) },
+        ];
+        const { result } = renderHook(() => useCompanyNotifications('co-1'));
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.notifications.map((n) => [n.id, n.read])).toEqual([
+            ['opened-by-other', false],
+            ['opened-by-me', true],
+        ]);
+        expect(result.current.unreadCount).toBe(1);
+    });
+
+    it('counts an older shared read: true as read for everyone', async () => {
+        fb.team = [{ id: 'legacy', type: 'new_application', read: true, createdAt: minute(3) }];
+        const { result } = renderHook(() => useCompanyNotifications('co-1'));
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.notifications[0].read).toBe(true);
+        expect(result.current.unreadCount).toBe(0);
+    });
+
+    it('marks one read for the reader only, leaving the shared flag alone', async () => {
+        fb.team = [{ id: 'n-1', type: 'new_application', read: false, createdAt: minute(3) }];
+        const { result } = renderHook(() => useCompanyNotifications('co-1'));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        await act(() => result.current.markAsRead('n-1'));
+
+        expect(fb.updates).toEqual([{
+            path: 'companies/co-1/notifications/n-1',
+            data: { readBy: { arrayUnion: ['recruiter-1'] } },
+        }]);
+    });
+
+    it('marks all read for the reader only: each row still unread for them, in one batch', async () => {
+        fb.team = [
+            { id: 'unread', type: 'new_application', read: false, createdAt: minute(5) },
+            { id: 'other-read', type: 'new_application', readBy: ['recruiter-2'], createdAt: minute(4) },
+            { id: 'me-read', type: 'new_application', readBy: ['recruiter-1'], createdAt: minute(3) },
+            { id: 'legacy-read', type: 'new_application', read: true, createdAt: minute(2) },
+        ];
+        fb.own = [reminder('mine', 'recruiter-1', 1)];
+        const { result } = renderHook(() => useCompanyNotifications('co-1'));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        await act(() => result.current.markAllAsRead());
+
+        expect(fb.updates).toEqual([]);
+        expect(fb.batches).toHaveLength(1);
+        expect(fb.batches[0].committed).toBe(true);
+        expect(fb.batches[0].updates).toEqual(['unread', 'other-read', 'mine'].map((id) => ({
+            path: `companies/co-1/notifications/${id}`,
+            data: { readBy: { arrayUnion: ['recruiter-1'] } },
+        })));
+    });
+
+    it('writes nothing when every row is already read for the reader', async () => {
+        fb.team = [{ id: 'me-read', type: 'new_application', readBy: ['recruiter-1'], createdAt: minute(3) }];
+        const { result } = renderHook(() => useCompanyNotifications('co-1'));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        await act(() => result.current.markAllAsRead());
+
+        expect(fb.batches).toEqual([]);
+    });
+
+    it('keeps a row the reader has read in its place among the newest 20', async () => {
+        fb.team = Array.from({ length: 15 }, (_, i) => ({
+            ...reminder(`team-${i}`, undefined, 2 * i + 1), readBy: i % 2 ? ['recruiter-1'] : [],
+        }));
+        fb.own = Array.from({ length: 10 }, (_, i) => ({
+            ...reminder(`mine-${i}`, 'recruiter-1', 2 * i + 2), readBy: ['recruiter-1'],
+        }));
+        const { result } = renderHook(() => useCompanyNotifications('co-1'));
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(result.current.notifications.map((n) => n.createdAt.getUTCMinutes())).toEqual([
+            29, 27, 25, 23, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6,
+        ]);
+        // Unread for this reader: the team's at even indexes, minutes 29, 25, 21, 17, 13, 9.
+        expect(result.current.unreadCount).toBe(6);
     });
 });

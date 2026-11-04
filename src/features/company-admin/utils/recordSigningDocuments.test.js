@@ -138,6 +138,31 @@ describe('the rows of an application', () => {
     });
 });
 
+describe('where Remind is offered', () => {
+    it('on a request waiting for its signature that went by email or text, its link expired or not', () => {
+        const rows = recordDocumentRows({
+            requests: [
+                postapp('tpl-w9', { sendEmail: true, recipientEmail: 'dana@example.test', expiresAt: at(-2) }),
+                postapp('tpl-hb', { sendSms: true, recipientPhone: '555-0100' }),
+                postapp('tpl-dd'),
+                { id: 'wizard-1', templateId: 'tpl-x', title: 'Lease', status: 'signed', sendEmail: true, recipientEmail: 'dana@example.test' },
+            ],
+            forms: FORMS,
+            applicationId: 'app-1',
+            now: NOW,
+        });
+        const remindable = Object.fromEntries(rows.filter((row) => row.kind === 'request').map((row) => [row.key, row.canRemind]));
+        expect(remindable).toEqual({
+            'postapp_app-1_tpl-w9': true,
+            'postapp_app-1_tpl-hb': true,
+            // Nobody sent it: Send to driver is its button, not Remind.
+            'postapp_app-1_tpl-dd': false,
+            'wizard-1': false,
+        });
+        expect(rows.find((row) => row.kind === 'form')).toBeUndefined();
+    });
+});
+
 describe('the rows of a lead', () => {
     it('lists its linked requests only: a lead has no post-application forms', () => {
         const rows = recordDocumentRows({
@@ -156,7 +181,7 @@ describe('what a press of Send to driver says', () => {
         [{ outcome: 'sent', channels: { email: true, sms: false } }, 'success', 'Sent to the driver by email.'],
         [{ outcome: 'sent', channels: { email: false, sms: true } }, 'success', 'Sent to the driver by text message.'],
         [{ outcome: 'sent', channels: { email: true, sms: true } }, 'success', 'Sent to the driver by email and text message.'],
-        [{ outcome: 'already-sent' }, 'info', 'This form was already sent to the driver. Nothing was sent again.'],
+        [{ outcome: 'already-sent' }, 'info', 'This form was already sent to the driver. Nothing was sent again. To send its link again, use Remind.'],
         [{ outcome: 'signed' }, 'info', 'The driver has already signed this form.'],
     ])('%o', (data, tone, text) => {
         expect(sendResultMessage(data)).toEqual({ tone, text });

@@ -1,7 +1,7 @@
-import React, { Suspense, lazy, useState, useEffect, useId, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { Suspense, lazy, useState, useId, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { db, auth } from '@lib/firebase';
-import { collection, query, onSnapshot, orderBy, deleteDoc, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, deleteDoc, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useData } from '@/context/DataContext';
 import { GlobalLoadingState } from '@shared/components/feedback';
 import { Icon, LayoutDashboard, Send, FileText, ClipboardList, ArrowLeft, Plus } from '@design-system/icons';
@@ -14,6 +14,7 @@ import { ApplicationFormsPanel } from '../components/documents/ApplicationFormsP
 import { NewDocumentDialog } from '../components/documents/NewDocumentDialog';
 import { DEFAULT_FILTERS, isTemplateDuplicable, sentHeaderCount } from '../utils/documentsWorkspace';
 import { useDocumentsWorkspaceData } from '../hooks/useDocumentsWorkspaceData';
+import { useCompanyTemplates } from '../hooks/useCompanyTemplates';
 import { useTemplateSendFlow } from '../hooks/useTemplateSendFlow';
 import { usePostSubmitForms } from '../hooks/usePostSubmitForms';
 
@@ -31,7 +32,8 @@ const EnvelopeCreator = lazy(() => import('@features/signing/EnvelopeCreator'));
  * The four Documents workspace views, in tab order.
  *
  * `overview` is the default: the old page opened straight into a tool (the
- * history table) with no sense of what needed doing.
+ * history table) with no sense of what needed doing. `?view=<id>` opens another
+ * (the dashboard's Company setup links to `forms` and `templates`).
  *
  * The design system has no approved Tabs primitive yet (tracked in the
  * roadmap), so this WAI-ARIA tab interface stays feature-owned.
@@ -42,21 +44,21 @@ const DOCUMENT_TABS = [
     { id: 'templates', label: 'Templates', icon: FileText },
     { id: 'forms', label: 'Application Forms', icon: ClipboardList },
 ];
+const viewNamed = (view) => (DOCUMENT_TABS.some((tab) => tab.id === view) ? view : 'overview');
 
 export default function DocumentsManager() {
     const { currentCompanyProfile } = useData();
     const navigate = useNavigate();
     const { showSuccess, showError, showWarning } = useToast();
 
-    const [activeTab, setActiveTab] = useState('overview');
+    const [searchParams] = useSearchParams();
+    const [activeTab, setActiveTab] = useState(() => viewNamed(searchParams.get('view')));
     const [viewMode, setViewMode] = useState('view');
     const [creatorInitialMode, setCreatorInitialMode] = useState('request');
     const [editRequestId, setEditRequestId] = useState(null);
     const [editTemplateId, setEditTemplateId] = useState(null);
     const [showNewDocumentDialog, setShowNewDocumentDialog] = useState(false);
 
-    const [templates, setTemplates] = useState([]);
-    const [templatesLoading, setTemplatesLoading] = useState(true);
     const [templateSearch, setTemplateSearch] = useState('');
     const [templateSort, setTemplateSort] = useState('updated');
     const [duplicatingTemplateId, setDuplicatingTemplateId] = useState(null);
@@ -83,33 +85,7 @@ export default function DocumentsManager() {
     );
     const showSentCount = activeTab === 'sent' && !signingRequestsLoading && !signingRequestsError && sentCount !== undefined;
 
-    // Fetch Templates
-    useEffect(() => {
-        if (!currentCompanyProfile?.id) return;
-        if (isE2EEdocMock) {
-            setTemplates([
-                {
-                    id: 'tpl_e2e_mock',
-                    title: 'E2E Test Document',
-                    storagePath: 'secure_documents/e2e/mock.pdf',
-                    fields: [
-                        { id: 'full_name', label: 'Full Name', type: 'text', required: true, defaultValue: '' },
-                        { id: 'sig1', label: 'Signature', type: 'signature', required: true, defaultValue: '' },
-                    ],
-                },
-            ]);
-            setTemplatesLoading(false);
-            return () => {};
-        }
-        const q = query(collection(db, 'companies', currentCompanyProfile.id, 'templates'), orderBy('updatedAt', 'desc'));
-        return onSnapshot(q, (snap) => {
-            setTemplates(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-            setTemplatesLoading(false);
-        }, (err) => {
-            console.error('[DocumentsManager] templates snapshot', err);
-            setTemplatesLoading(false);
-        });
-    }, [currentCompanyProfile?.id, isE2EEdocMock]);
+    const { templates, templatesLoading } = useCompanyTemplates({ companyId: currentCompanyProfile?.id, isE2EEdocMock });
 
     // The template-send flow (wizard state, the applicant and lead picker,
     // prefill, executeTemplateSend) and the post-application forms configuration

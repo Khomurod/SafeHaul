@@ -80,6 +80,67 @@ describe('the driver link', () => {
         expect(result.current.linkFor(null)).toBeNull();
     });
 
+    it('has the server email it, and never holds the token', async () => {
+        callables.call.mockResolvedValue({
+            data: { delivered: { channel: 'email', to: 'd***@example.test' }, applicantKey: 'key-1', expiresInDays: 14 },
+        });
+        const { result } = renderHook(() => useInviteLink({ companyId: 'co-1', appSlug: 'blue-line' }));
+
+        await act(async () => { await result.current.emailLink('key-1'); });
+
+        expect(callables.httpsCallable).toHaveBeenCalledWith({}, 'mintApplicationInvite');
+        expect(callables.call).toHaveBeenCalledWith({
+            companyId: 'co-1', applicantKey: 'key-1', deliver: 'email', appBaseUrl: window.location.origin,
+        });
+        expect(result.current.deliveredFor('key-1')).toEqual({ applicantKey: 'key-1', to: 'd***@example.test', expiresInDays: 14 });
+        expect(result.current.deliveredFor('key-2')).toBeNull();
+        expect(result.current.link).toBeNull();
+        expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    });
+
+    it('takes a copied link off screen once an email replaced it, and the other way round', async () => {
+        const { result } = renderHook(() => useInviteLink({ companyId: 'co-1', appSlug: 'blue-line' }));
+        await act(async () => { await result.current.mint('key-1'); });
+        expect(result.current.linkFor('key-1')).not.toBeNull();
+
+        callables.call.mockResolvedValueOnce({
+            data: { delivered: { channel: 'email', to: 'd***@example.test' }, applicantKey: 'key-1', expiresInDays: 14 },
+        });
+        await act(async () => { await result.current.emailLink('key-1'); });
+        expect(result.current.linkFor('key-1')).toBeNull();
+
+        await act(async () => { await result.current.mint('key-1'); });
+        expect(result.current.deliveredFor('key-1')).toBeNull();
+        expect(result.current.linkFor('key-1')).not.toBeNull();
+    });
+
+    it('says why an email was not sent, in the server’s words', async () => {
+        const refused = Object.assign(new Error('This driver has no email address we can send to, so nothing was sent.'), {
+            code: 'functions/failed-precondition', details: { reason: 'no-email' },
+        });
+        callables.call.mockRejectedValueOnce(refused);
+        const { result } = renderHook(() => useInviteLink({ companyId: 'co-1', appSlug: 'blue-line' }));
+
+        await act(async () => { await result.current.emailLink('key-1'); });
+
+        expect(result.current.error).toBe('This driver has no email address we can send to, so nothing was sent.');
+        expect(result.current.deliveredFor('key-1')).toBeNull();
+        expect(result.current.emailing).toBe(false);
+    });
+
+    it('takes a copied link off screen when a failed send had already replaced it', async () => {
+        const { result } = renderHook(() => useInviteLink({ companyId: 'co-1', appSlug: 'blue-line' }));
+        await act(async () => { await result.current.mint('key-1'); });
+
+        callables.call.mockRejectedValueOnce(Object.assign(new Error('Nobody received the new link.'), {
+            code: 'functions/unavailable', details: { reason: 'email-failed' },
+        }));
+        await act(async () => { await result.current.emailLink('key-1'); });
+
+        expect(result.current.linkFor('key-1')).toBeNull();
+        expect(result.current.error).toBe('Nobody received the new link.');
+    });
+
     it('reports a failure instead of a half-made link', async () => {
         const denied = new Error('nope');
         denied.code = 'functions/permission-denied';

@@ -14,7 +14,7 @@ import {
 import { useDashboardCounts } from '@features/companies';
 
 import { InlineLeaderboard } from './InlineLeaderboard';
-
+import { CompanyReadinessCard } from './CompanyReadinessCard';
 
 import { Icon, FileText, Briefcase, User, CheckCircle } from '@design-system/icons';
 
@@ -122,6 +122,9 @@ export function CompanyAdminDashboard() {
                             />
                         </ResponsiveGrid>
                     </Section>
+
+                    {/* Admins only: what the company has not set up, read once (one calm line when ready). */}
+                    <CompanyReadinessCard companyId={companyId} />
 
                     <Section aria-label="Team performance">
                         <InlineLeaderboard companyId={companyId} />

@@ -185,16 +185,27 @@ export function ApplicationPrepWorkspace({ companyId, appSlug, openKey = null, o
 
     const saveNow = useCallback(() => attempt(PREP_ACTIONS.SAVE, prep.save), [attempt, prep.save]);
 
-    /** Save, then mint — the one press the "save first" message would otherwise cost. */
-    const saveThenLink = useCallback(async () => {
+    /**
+     * Save, then mint — or have the server email it — the one press the "save
+     * first" message would otherwise cost.
+     */
+    const saveThen = useCallback(async (send) => {
         setActionProblem(null);
         const saved = await prep.save();
         if (!saved?.applicantKey) return;
-        await invite.mint(saved.applicantKey);
-    }, [invite, prep]);
+        await send(saved.applicantKey);
+    }, [prep]);
+    const saveThenLink = useCallback(() => saveThen(invite.mint), [invite.mint, saveThen]);
+    const saveThenEmail = useCallback(() => saveThen(invite.emailLink), [invite.emailLink, saveThen]);
 
     const createLink = useCallback(
         () => attempt(PREP_ACTIONS.LINK, () => invite.mint(prep.applicantKey)),
+        [attempt, invite, prep.applicantKey],
+    );
+
+    // The server emails the link to the saved application's own address.
+    const emailLink = useCallback(
+        () => attempt(PREP_ACTIONS.EMAIL, () => invite.emailLink(prep.applicantKey)),
         [attempt, invite, prep.applicantKey],
     );
 
@@ -227,10 +238,10 @@ export function ApplicationPrepWorkspace({ companyId, appSlug, openKey = null, o
     const updateList = useCallback((key, value) => prep.updateField(key, value), [prep]);
 
     const driverName = [prep.formData.firstName, prep.formData.lastName].filter(Boolean).join(' ');
-    // Once a link exists — minted this session, or a loaded draft already `sent` —
-    // the email and phone that key the draft are fixed: re-keying would strand the
-    // link the driver already has. The editor renders them read-only.
-    const identityLocked = prep.status === 'sent' || Boolean(invite.link);
+    // Once a link exists — minted or emailed this session, or a loaded draft
+    // already `sent` — the email and phone that key the draft are fixed: re-keying
+    // would strand the link the driver already has. The editor renders them read-only.
+    const identityLocked = prep.status === 'sent' || Boolean(invite.link || invite.delivered);
 
     if (view === 'mode') {
         return (
@@ -331,6 +342,11 @@ export function ApplicationPrepWorkspace({ companyId, appSlug, openKey = null, o
                                     <Icon icon={Save} size="sm" /> Save and create the link
                                 </Button>
                             )}
+                            {actionProblem.needsSave && actionProblem.action === PREP_ACTIONS.EMAIL && (
+                                <Button variant="primary" size="sm" onClick={saveThenEmail} loading={prep.busy || invite.emailing}>
+                                    <Icon icon={Save} size="sm" /> Save and email the link
+                                </Button>
+                            )}
                         </div>
                     </Card>
                 )}
@@ -384,6 +400,10 @@ export function ApplicationPrepWorkspace({ companyId, appSlug, openKey = null, o
                     driverStarted={prep.status === 'driver_in_progress'}
                     onMint={createLink}
                     onCopy={copyLink}
+                    email={prep.formData.email}
+                    delivered={invite.deliveredFor(prep.applicantKey)}
+                    emailing={invite.emailing}
+                    onEmail={emailLink}
                 />
                 )}
             </Stack>

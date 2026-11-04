@@ -5,11 +5,16 @@
  * company's required post-application forms that no linked request carries yet,
  * as "Not started".
  *
- * "Link expired" is derived here and never stored: an unsigned request whose
- * `expiresAt` has passed. Who may be sent which form, and on which channel, is
- * the server's to decide (`sendPostApplicationDocument`); this only says where
- * the button is offered and words what the server answered.
+ * "Link expired" is derived and never stored: an unsigned request whose
+ * `expiresAt` has passed (`isLinkExpired`, the Documents workspace's rule). Who
+ * may be sent which form, and on which channel, is the server's to decide
+ * (`sendPostApplicationDocument`, `remindSigner`); this only says where each
+ * button is offered and words what the server answered.
  */
+import { isLinkExpired } from './documentsWorkspace';
+import { canRemindSigner } from '@features/signing/utils/signerReminder';
+
+export { isLinkExpired };
 
 const millisOf = (value) => {
     if (!value) return null;
@@ -29,14 +34,6 @@ export function recordLinkField(collectionName) {
 /** The request id of a post-application form; the same as `buildPostApplicationRequestId` on the server. */
 export function postApplicationRequestId(applicationId, templateId) {
     return `postapp_${applicationId}_${templateId}`;
-}
-
-/** An unsigned request whose link has run out. */
-export function isLinkExpired(request, now = Date.now()) {
-    const status = statusOf(request);
-    if (status !== 'sent' && status !== 'opened') return false;
-    const expires = millisOf(request?.expiresAt);
-    return expires !== null && expires < now;
 }
 
 /** The soonest moment one of `requests` runs out while unsigned, or null. */
@@ -72,8 +69,8 @@ export function signingDocumentState(request, now = Date.now()) {
 /**
  * Send to driver is offered on the form's own request (`postapp_…`) while it
  * waits for a signature and the server has sent it nowhere, its link expired
- * or not. A form already emailed or texted is not offered again: a reminder is
- * another thing.
+ * or not. A form already emailed or texted is offered Remind instead
+ * (`canRemindSigner`), as every request that went by email or text is.
  */
 function canSendRequest(request, applicationId, formIds) {
     return Boolean(applicationId)
@@ -113,15 +110,19 @@ export function recordDocumentRows({ requests = [], forms = [], applicationId = 
 
     const linked = [...requests]
         .sort((a, b) => (millisOf(b.createdAt) ?? 0) - (millisOf(a.createdAt) ?? 0))
-        .map((request) => ({
-            key: request.id,
-            kind: 'request',
-            request,
-            templateId: request.templateId || null,
-            title: request.title || 'Untitled document',
-            state: signingDocumentState(request, now),
-            canSend: canSendRequest(request, applicationId, formIds),
-        }));
+        .map((request) => {
+            const canSend = canSendRequest(request, applicationId, formIds);
+            return {
+                key: request.id,
+                kind: 'request',
+                request,
+                templateId: request.templateId || null,
+                title: request.title || 'Untitled document',
+                state: signingDocumentState(request, now),
+                canSend,
+                canRemind: !canSend && canRemindSigner(request),
+            };
+        });
 
     return [...notStarted, ...linked];
 }
@@ -135,7 +136,10 @@ const CHANNEL_WORDS = {
 /** What a press of Send to driver did, from the callable's answer. */
 export function sendResultMessage(data) {
     if (data?.outcome === 'already-sent') {
-        return { tone: 'info', text: 'This form was already sent to the driver. Nothing was sent again.' };
+        return {
+            tone: 'info',
+            text: 'This form was already sent to the driver. Nothing was sent again. To send its link again, use Remind.',
+        };
     }
     if (data?.outcome === 'signed') {
         return { tone: 'info', text: 'The driver has already signed this form.' };

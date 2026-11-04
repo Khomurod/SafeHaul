@@ -14,10 +14,12 @@ import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/
  * of the list are `useRecordSigningRequests` / `recordSigningDocuments.js`; the
  * actions are `useSigningDocumentActions`.
  *
- * Send to driver is offered on a required form nobody sent; the server decides
- * the channels and refuses with its reason, which stays beside the form in the
- * row's own polite region (always present, so it announces when it fills). A
- * signed copy opens in a new tab through `getSignedDocumentUrl`.
+ * Send to driver is offered on a required form nobody sent, and Remind on a
+ * document waiting for its signer that went by email or text, its link expired
+ * or not; the server decides the channels and refuses with its reason, which
+ * stays beside the document in the row's own polite region (always present, so
+ * it announces when it fills). A signed copy opens in a new tab through
+ * `getSignedDocumentUrl`.
  */
 
 /**
@@ -49,7 +51,7 @@ function rowDates(row) {
     ].filter(Boolean);
 }
 
-function SigningDocumentRow({ row, busy, message, onSend, onOpen }) {
+function SigningDocumentRow({ row, busy, message, onSend, onRemind, onOpen }) {
     const presentation = STATE_PRESENTATION[row.state] || STATE_PRESENTATION.other;
     const failure = row.kind === 'request' ? deliveryFailure(row.request) : null;
     const canOpen = row.state === 'signed' && Boolean(row.request?.signedPdfUrl);
@@ -75,12 +77,18 @@ function SigningDocumentRow({ row, busy, message, onSend, onOpen }) {
                         )}
                     </div>
 
-                    {(row.canSend || canOpen) && (
+                    {(row.canSend || row.canRemind || canOpen) && (
                         <div className="flex flex-wrap items-center gap-ds-2 md:justify-end">
                             {row.canSend && (
                                 <Button variant="primary" size="sm" loading={busy} onClick={() => onSend(row)}>
                                     {!busy && <Icon icon={Send} size="sm" />}
                                     Send to driver<span className="ds-visually-hidden"> — {row.title}</span>
+                                </Button>
+                            )}
+                            {row.canRemind && (
+                                <Button variant="secondary" size="sm" loading={busy} onClick={() => onRemind(row)}>
+                                    {!busy && <Icon icon={Send} size="sm" />}
+                                    Remind<span className="ds-visually-hidden"> — {row.title}</span>
                                 </Button>
                             )}
                             {canOpen && (
@@ -112,7 +120,7 @@ export function SigningDocumentsSection({ companyId, recordId, collectionName })
     const headingId = `signing-documents-${useId().replace(/:/g, '')}`;
     const isApplication = collectionName !== 'leads';
     const { rows, isLoading, error, formsError } = useRecordSigningRequests({ companyId, recordId, collectionName });
-    const { busyKey, messages, sendToDriver, openSigned } = useSigningDocumentActions({
+    const { busyKey, messages, sendToDriver, remind, openSigned } = useSigningDocumentActions({
         companyId,
         applicationId: isApplication ? recordId : null,
     });
@@ -134,6 +142,7 @@ export function SigningDocumentsSection({ companyId, recordId, collectionName })
                         busy={busyKey === row.key}
                         message={messages[row.key]}
                         onSend={sendToDriver}
+                        onRemind={remind}
                         onOpen={openSigned}
                     />
                 ))}

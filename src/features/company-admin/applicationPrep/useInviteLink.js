@@ -13,6 +13,9 @@ import { describeError } from './useApplicationPrepDraft';
  * Everything else `describeError` says is right for both.
  */
 function describeMintError(error) {
+    // A refused email names its reason (`functions/shared/linkDelivery.js`), and
+    // the server's sentence is the one that says what to do.
+    if (error?.details?.reason) return error.message;
     if (error?.code === 'functions/resource-exhausted') {
         return 'Too many links created in a row. Wait a moment and try again.';
     }
@@ -27,10 +30,17 @@ function describeMintError(error) {
  * screen open and nowhere else. Losing it costs a click on "Create a new link",
  * which is the right trade: a token that could be re-read would be a token stored
  * somewhere it could leak from.
+ *
+ * `emailLink` asks the server to email the link to the application's own address
+ * instead: this browser never holds it, and learns only the address, masked
+ * (`delivered`). Either way the newest link is the live one, so each clears the
+ * other.
  */
 export function useInviteLink({ companyId, appSlug }) {
     const [link, setLink] = useState(null);
+    const [delivered, setDelivered] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [emailing, setEmailing] = useState(false);
     const [error, setError] = useState(null);
     const [copied, setCopied] = useState(false);
     /**
@@ -60,6 +70,8 @@ export function useInviteLink({ companyId, appSlug }) {
             // `linkFor`. Showing one driver's link under another driver's name is
             // one Copy away from sending a stranger their application.
             setLink({ url, expiresInDays: data.expiresInDays, applicantKey: data.applicantKey });
+            // The emailed link, if there was one, is the one this replaced.
+            setDelivered(null);
             return url;
         } catch (mintError) {
             setError(describeMintError(mintError));
@@ -68,6 +80,44 @@ export function useInviteLink({ companyId, appSlug }) {
             setBusy(false);
         }
     }, [appSlug, companyId]);
+
+    /**
+     * Have the server email the link to the application's own address.
+     *
+     * Resolves to `{ applicantKey, to, expiresInDays }`, `to` masked, or null when
+     * nothing was sent. A refusal minted nothing, so the link the driver has still
+     * works; a send that failed (`email-failed`) had minted one nobody received,
+     * which retired the link before it, so that one comes off the screen too.
+     * `appBaseUrl` says which site the driver should open; the server keeps it
+     * only when it is one of the app's own.
+     */
+    const emailLink = useCallback(async (applicantKey) => {
+        if (!applicantKey) return null;
+        setEmailing(true);
+        setError(null);
+        setCopied(false);
+        setCopyFailed(false);
+        try {
+            const call = httpsCallable(functions, 'mintApplicationInvite');
+            const { data } = await call({
+                companyId, applicantKey, deliver: 'email', appBaseUrl: window.location.origin,
+            });
+            const sent = { applicantKey: data.applicantKey, to: data.delivered?.to, expiresInDays: data.expiresInDays };
+            // A link on screen was replaced by the one emailed: Copy would copy a retired link.
+            setLink(null);
+            setDelivered(sent);
+            return sent;
+        } catch (emailError) {
+            if (emailError?.details?.reason === 'email-failed') {
+                setLink(null);
+                setDelivered(null);
+            }
+            setError(describeMintError(emailError));
+            return null;
+        } finally {
+            setEmailing(false);
+        }
+    }, [companyId]);
 
     /**
      * Copy a URL that is not necessarily the one in state yet.
@@ -117,7 +167,16 @@ export function useInviteLink({ companyId, appSlug }) {
         [link],
     );
 
-    return { link, linkFor, busy, error, copied, copyFailed, mint, copy, copyUrl };
+    /** Where this applicant's link was emailed, by the same rule as `linkFor`. */
+    const deliveredFor = useCallback(
+        (applicantKey) => (applicantKey && delivered?.applicantKey === applicantKey ? delivered : null),
+        [delivered],
+    );
+
+    return {
+        link, linkFor, delivered, deliveredFor, busy, emailing, error, copied, copyFailed,
+        mint, emailLink, copy, copyUrl,
+    };
 }
 
 export default useInviteLink;

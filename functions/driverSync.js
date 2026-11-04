@@ -8,6 +8,7 @@ const { isPlaceholderEmail } = require("./shared/placeholderDomains");
 const { fileDqUploads, uploadKeys } = require("./shared/dqUploads");
 const { resolveRecruiterAssignment } = require("./shared/recruiterAssignment");
 const { resolveReferralLink } = require("./referrals/referralLinks");
+const { linkApplicantLead } = require("./shared/leadApplicationLink");
 
 // B1 FIX: processing_status is an idempotency ledger that only needs to outlive the longest
 // retry/replay window. Stamp an expiresAt so a Firestore native TTL policy on the
@@ -243,6 +244,16 @@ exports.onApplicationSubmitted = onDocumentCreated({
 
     // Abort Sync - Do not create driver profile for invalid app
     return;
+  }
+
+  // The driver's lead in this company, if any, is linked to the application;
+  // its recruiter takes it while nobody has it (shared/leadApplicationLink.js).
+  // After the link codes, so an assignment they made stands.
+  try {
+    const linked = await linkApplicantLead({ companyId, applicationId: appId, application: data });
+    if (linked) console.log(`[onApplicationSubmitted] Linked app ${appId} to lead ${linked.leadId} by ${linked.by}`);
+  } catch (e) {
+    console.error(`[onApplicationSubmitted] The lead link failed for ${appId}:`, e.message);
   }
 
   // Process the driver data

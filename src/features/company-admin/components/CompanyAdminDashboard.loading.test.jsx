@@ -82,6 +82,8 @@ vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false }));
 vi.mock('@lib/runtime/dashboardRollup', () => ({ shouldPreferDashboardRollup: () => false }));
 // The leaderboard reads its own day of stats, with a suite of its own.
 vi.mock('./InlineLeaderboard', () => ({ InlineLeaderboard: () => null }));
+// So does the Company setup card (`CompanyReadinessCard.test.jsx`).
+vi.mock('./CompanyReadinessCard', () => ({ CompanyReadinessCard: () => null }));
 
 import { DataContext } from '@/context/DataContext';
 import { ToastProvider } from '@shared/components/feedback/ToastProvider';

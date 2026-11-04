@@ -42,6 +42,9 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  *   sidebar would leave about 90 px for the content at 412 px.
  * - Loading and error are announced: `role="status"` / `role="alert"`.
  * - The destructive confirmation opens with focus on Cancel.
+ * - A lead and the application it became open each other here (the sidebar's
+ *   "Open application" / "Open lead"): the dossier shows that record, on its
+ *   first tab, until the page opens another.
  */
 export function DriverProfileModal({
     companyId,
@@ -51,6 +54,13 @@ export function DriverProfileModal({
     onDeleted,
 }) {
     const [activeTab, setActiveTab] = useState('application');
+    // The record shown: the one the page opened, or the one it links to.
+    const [linked, setLinked] = useState(null);
+    const recordId = linked?.from === driverId ? linked.id : driverId;
+    const openLinkedRecord = (id) => {
+        setLinked({ from: driverId, id });
+        setActiveTab('application');
+    };
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const cancelDeleteRef = useRef(null);
     const tabPanelRef = useRef(null);
@@ -82,10 +92,10 @@ export function DriverProfileModal({
         collectionName,
         teamMembers,
         assignedTo,
-    } = useApplicationView(companyId, driverId);
+    } = useApplicationView(companyId, recordId);
 
     const handleConfirmDelete = async () => {
-        const ok = await deleteApplication({ companyId, applicationId: driverId, collectionName });
+        const ok = await deleteApplication({ companyId, applicationId: recordId, collectionName });
         if (ok) {
             setConfirmingDelete(false);
             onDeleted?.();
@@ -138,6 +148,8 @@ export function DriverProfileModal({
                             setActiveTab={setActiveTab}
                             dqStatus={dqStatus}
                             idBase={tabsIdBase}
+                            collectionName={collectionName}
+                            onOpenRecord={openLinkedRecord}
                         />
                     </div>
 
@@ -157,7 +169,7 @@ export function DriverProfileModal({
                             <DossierHeader
                                 activeTab={activeTab}
                                 appData={appData}
-                                recordId={driverId}
+                                recordId={recordId}
                                 currentStatus={currentStatus}
                                 onClose={onClose}
                                 onStatusUpdate={handleStatusUpdate}
@@ -209,7 +221,7 @@ export function DriverProfileModal({
                                 <DossierContent
                                     activeTab={activeTab}
                                     appData={appData}
-                                    driverId={driverId}
+                                    driverId={recordId}
                                     companyId={companyId}
                                     collectionName={collectionName}
                                     fileUrls={fileUrls}

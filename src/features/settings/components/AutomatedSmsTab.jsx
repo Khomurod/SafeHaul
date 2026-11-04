@@ -121,7 +121,11 @@ export function AutomatedSmsTab({ companyId }) {
                         <code className="rounded-ds-sm bg-ds-surface-subtle px-ds-1 text-ds-content">
                             {`{user name}`}
                         </code>{' '}
-                        for the applicant and recruiter names.
+                        for the applicant and recruiter names, and{' '}
+                        <code className="rounded-ds-sm bg-ds-surface-subtle px-ds-1 text-ds-content">
+                            {`{application link}`}
+                        </code>{' '}
+                        for your application page with the recruiter&rsquo;s link.
                     </>
                 )}
             >

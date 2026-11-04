@@ -2,39 +2,22 @@ import React, { useState } from 'react';
 import { db } from '@lib/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Icon, FileText, CheckCircle, Clock, Download, Loader2, AlertCircle, Copy, MessageSquare, Mail, Ban, Info } from '@design-system/icons';
+import { Icon, FileText, Download, AlertCircle, Copy, Info } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { ConfirmDialog } from '@design-system/patterns';
-import { Badge, Button, DataTable, defineTableColumns } from '@/design-system/components';
+import { Button, DataTable, defineTableColumns } from '@/design-system/components';
 import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { SentDocumentDetailsDialog } from '@features/company-admin/components/documents/SentDocumentDetailsDialog';
-import { deliveryFailure, formatSentDate, hasDeliveryFailure } from '@features/company-admin/utils/documentsWorkspace';
+import { formatSentDate, hasDeliveryFailure, isLinkExpired } from '@features/company-admin/utils/documentsWorkspace';
 import { copySigningLink } from '@features/signing/utils/copySigningLink';
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { useSignedCopySend } from '@features/signing/hooks/useSignedCopySend';
 import { useSealRetry } from '@features/signing/hooks/useSealRetry';
+import { useSignerReminder } from '@features/signing/hooks/useSignerReminder';
 import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
 import { SignedCopyButton, SignedCopyDialog, SignedCopyStatus } from './SignedCopy';
-
-/**
- * Feature-owned domain → visual mapping for a signing-request status.
- *
- * The design system only knows generic Badge tones; this feature owns which
- * status maps to which tone, icon and label. Tones preserve the previous
- * appearance: signed=success (green), sent=info (blue), voided/seal-failed=
- * danger (red), sealing/processing=warning (yellow/amber), unknown=neutral.
- * Every badge pairs its tone with an icon and text, so status is never
- * communicated by colour alone.
- */
-const STATUS_PRESENTATION = {
-    signed: { tone: 'success', label: 'Signed', icon: CheckCircle },
-    sent: { tone: 'info', label: 'Sent', icon: Clock },
-    voided: { tone: 'danger', label: 'Voided', icon: Ban },
-    pending_seal: { tone: 'warning', label: 'Sealing...', icon: Loader2, spin: true },
-    error_sealing: { tone: 'danger', label: 'Seal Failed', icon: AlertCircle },
-    processing: { tone: 'warning', label: 'Processing', icon: Loader2, spin: true },
-};
+import { DeliveryMethodBadges, EnvelopeStatusBadge } from './EnvelopeStatus';
 
 /**
  * Rows per page. The list is a live window of the newest documents (100, more
@@ -57,9 +40,12 @@ const PAGE_SIZE = 25;
  * when signed, Copy Link when sent, Review/View details otherwise; a signed
  * document with a company signature offers Send signed copy instead until its
  * copy is sent (`useSignedCopySend`), and says under its status where the copy
- * stands. Correct, Void and Retry seal (`useSealRetry`, after the failure's
+ * stands. A sent document whose link ran out reads "Link expired" and offers
+ * Review, not a link that no longer works. Correct, Void, Remind
+ * (`useSignerReminder`) and Retry seal (`useSealRetry`, after the failure's
  * reason) live in the details dialog, with their callable/Firestore contracts,
- * confirmation dialog, toasts and per-document busy states.
+ * confirmation dialog, toasts and per-document busy states. The status badges
+ * are `EnvelopeStatus.jsx`.
  */
 export default function EnvelopeHistory({
     companyId,
@@ -85,6 +71,7 @@ export default function EnvelopeHistory({
     const quickActionSize = isMobile ? 'lg' : 'sm';
     const signedCopy = useSignedCopySend({ companyId, showSuccess });
     const sealRetry = useSealRetry({ companyId, showSuccess, showError });
+    const reminder = useSignerReminder({ companyId, showSuccess, showError });
 
     // Only subscribes when the parent is not already supplying the data.
     const ownSubscription = useSigningRequests(documents ? null : companyId);
@@ -172,69 +159,6 @@ export default function EnvelopeHistory({
         }
     };
 
-    const renderStatus = (docItem) => {
-        const failure = deliveryFailure(docItem);
-        if (failure) {
-            // Truncate error for operator debugging without exposing sensitive internals
-            const errorDetail = failure.error
-                ? (failure.error.length > 80 ? failure.error.substring(0, 80) + '…' : failure.error)
-                : `${failure.channel} delivery failed`;
-            return (
-                <div className="flex flex-col items-start gap-ds-1">
-                    <span title={failure.error || `${failure.channel} Delivery Failed`}>
-                        <Badge tone="danger" icon={AlertCircle}>Delivery Failed</Badge>
-                    </span>
-                    {/* One clamped line; the complete safe detail lives in the details dialog. */}
-                    <span
-                        className="line-clamp-1 max-w-[220px] text-ds-xs text-ds-status-danger-fg [overflow-wrap:anywhere]"
-                        title={failure.error}
-                    >
-                        {errorDetail}
-                    </span>
-                </div>
-            );
-        }
-
-        const s = (docItem.status || '').toLowerCase();
-        const preset = STATUS_PRESENTATION[s];
-        if (preset) {
-            /*
-             * `Glyph`, not `Icon`: the contract's own component is called `Icon`
-             * and this file imports it, so holding the preset's glyph under that
-             * name would shadow the import — and what the shadow holds is a
-             * token, which throws when rendered.
-             *
-             * `size="xs"` stays explicit: `Badge` sizes the glyph it takes through
-             * its `icon` PROP and has no rule for one passed as a CHILD, which is
-             * the roadmap's open "Badge does not size its glyph" gap. Passing the
-             * glyph as the prop instead would drop the spin class this needs.
-             */
-            const Glyph = preset.icon;
-            const badge = (
-                <Badge tone={preset.tone}>
-                    <Icon icon={Glyph} size="xs" className={preset.spin ? 'animate-spin' : undefined} />
-                    {preset.label}
-                </Badge>
-            );
-            // Preserve the sealing-failure tooltip.
-            return s === 'error_sealing'
-                ? <span title={docItem.errorLog || 'Sealing failed'}>{badge}</span>
-                : badge;
-        }
-        return <Badge tone="neutral">{docItem.status}</Badge>;
-    };
-
-    const renderDeliveryMethods = (docItem) => (
-        <span className="inline-flex flex-wrap items-center gap-ds-1">
-            {/* FEAT-4: Delivery method badge */}
-            {docItem.sendEmail && <Badge tone="info" icon={Mail}>Email</Badge>}
-            {docItem.sendSms && <Badge tone="success" icon={MessageSquare}>SMS</Badge>}
-            {docItem.sendEmail === false && docItem.sendSms !== true && (
-                <Badge tone="neutral">Manual</Badge>
-            )}
-        </span>
-    );
-
     /**
      * Exactly one status-specific quick action per row. The row itself opens the
      * details dialog, where every other permitted operation (Copy Link, Correct,
@@ -245,13 +169,15 @@ export default function EnvelopeHistory({
 
         let action;
         const copyRecord = signedCopy.recordFor(docItem);
-        if (hasDeliveryFailure(docItem) || docItem.status === 'error_sealing') {
+        if (hasDeliveryFailure(docItem) || docItem.status === 'error_sealing' || isLinkExpired(docItem)) {
             action = (
                 <Button
                     variant="secondary"
                     size={quickActionSize}
                     aria-label={`Review details for ${title}`}
-                    title="Review the delivery or sealing failure"
+                    title={isLinkExpired(docItem) && !hasDeliveryFailure(docItem)
+                        ? 'The signing link expired'
+                        : 'Review the delivery or sealing failure'}
                     onClick={() => setDetailsDocument(docItem)}
                 >
                     <Icon icon={AlertCircle} size="sm" /> Review
@@ -363,7 +289,7 @@ export default function EnvelopeHistory({
             header: 'Delivery',
             // 'lg': "Email" and "SMS" side by side on one line.
             width: 'lg',
-            render: renderDeliveryMethods,
+            render: (docItem) => <DeliveryMethodBadges document={docItem} />,
         },
         {
             key: 'status',
@@ -371,10 +297,10 @@ export default function EnvelopeHistory({
             width: 'md',
             render: (docItem) => (hasCompanySignature(docItem) && signedCopy.recordFor(docItem) ? (
                 <div className="flex flex-col items-start gap-ds-1">
-                    {renderStatus(docItem)}
+                    <EnvelopeStatusBadge document={docItem} />
                     <SignedCopyStatus record={signedCopy.recordFor(docItem)} />
                 </div>
-            ) : renderStatus(docItem)),
+            ) : <EnvelopeStatusBadge document={docItem} />),
         },
         {
             key: 'createdAt',
@@ -463,6 +389,7 @@ export default function EnvelopeHistory({
                 signedCopyRecord={detailsDocument ? signedCopy.recordFor(detailsDocument) : null}
                 onSendSignedCopy={(docItem) => { setDetailsDocument(null); signedCopy.request(docItem); }}
                 {...sealRetry.dialogProps(detailsDocument, () => setDetailsDocument(null))}
+                {...reminder.dialogProps(detailsDocument, () => setDetailsDocument(null))}
             />
 
             <SignedCopyDialog

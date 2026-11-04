@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { db, auth } from '@lib/firebase';
 import { writeBatch, collection, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { formatPhoneNumber, normalizePhone } from '@shared/utils/helpers';
+import { normalizeSearchEmail } from '@shared/utils/searchNormalization';
 import { LEAD_IMPORT_PLACEHOLDERS } from '@/config/leadImportPlaceholders';
 import { PLACEHOLDER_DOMAIN } from '@/config/placeholderDomains';
 import { LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
 import { matchExistingLeads } from './leadImportMatches';
 import { useAssignableTeam } from './useAssignableTeam';
+import { noticeImportAssignments } from './importAssignmentNotices';
 
 /**
  * Firestore-backed bulk lead import for a company.
@@ -156,12 +158,21 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
 
         let createdCount = 0;
         let updatedCount = 0;
+        // The new leads each recruiter was given, counted once their batch is
+        // saved: each is told once at the end, even if a later batch fails.
+        const assignedCounts = new Map();
+        let assignedInBatch = new Map();
 
         try {
             const batchLimit = 200;
             let currentBatch = writeBatch(db);
             let opCount = 0;
             let poolIndex = 0;
+            const commitBatch = async () => {
+                await currentBatch.commit();
+                assignedInBatch.forEach((count, uid) => assignedCounts.set(uid, (assignedCounts.get(uid) || 0) + count));
+                assignedInBatch = new Map();
+            };
             const leadsRef = collection(db, "companies", companyId, "leads");
             // The leads the file already matches, looked up in batches before
             // any row is written (`leadImportMatches.js`).
@@ -194,6 +205,9 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                     firstName: data.firstName || '',
                     lastName: data.lastName || '',
                     email: data.email || '',
+                    // The copy an application is matched to its lead by
+                    // (functions/shared/leadApplicationLink.js).
+                    emailNormalized: normalizeSearchEmail(data.email),
                     phone: data.phone || '',
                     normalizedPhone: data.normalizedPhone || '',
                     experience: data.experience || '',
@@ -213,7 +227,7 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                 };
 
                 if (existingDoc && createdInBatch.has(existingDoc.ref.path)) {
-                    await currentBatch.commit();
+                    await commitBatch();
                     currentBatch = writeBatch(db);
                     opCount = 0;
                     createdInBatch = new Set();
@@ -229,6 +243,7 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                         .forEach((key) => { updates[key] = leadPayload[key]; });
                     if (leadPayload.email && !leadPayload.isEmailPlaceholder) {
                         updates.email = leadPayload.email;
+                        updates.emailNormalized = leadPayload.emailNormalized;
                         updates.isEmailPlaceholder = false;
                     }
                     currentBatch.update(existingDoc.ref, updates);
@@ -269,11 +284,12 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
                     existingLeads.remember(data, { id: newLeadRef.id, ref: newLeadRef });
                     createdInBatch.add(newLeadRef.path);
                     createdCount++;
+                    if (assignedTo) assignedInBatch.set(assignedTo, (assignedInBatch.get(assignedTo) || 0) + 1);
                 }
 
                 opCount += 2; // 1 lead write + 1 activity log = 2 ops per lead
                 if (opCount >= batchLimit) {
-                    await currentBatch.commit();
+                    await commitBatch();
                     currentBatch = writeBatch(db);
                     opCount = 0;
                     createdInBatch = new Set();
@@ -281,7 +297,7 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
             }
 
             if (opCount > 0) {
-                await currentBatch.commit();
+                await commitBatch();
             }
 
             setStats({ created: createdCount, updated: updatedCount });
@@ -294,6 +310,8 @@ export function useCompanyLeadUpload(companyId, onUploadComplete, options = {}) 
             console.error("Batch Upload Error:", err);
             throw new Error(err.message || "Upload failed. Check permissions.");
         } finally {
+            // One bell notification per recruiter, not one per lead.
+            await noticeImportAssignments(companyId, assignedCounts, currentUser.uid);
             setUploading(false);
         }
     };

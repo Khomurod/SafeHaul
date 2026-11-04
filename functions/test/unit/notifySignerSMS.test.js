@@ -53,7 +53,7 @@ const REQUEST = {
     senderId: 'user-1',
     senderName: 'Rita Recruiter',
     title: 'Offer Letter',
-    appBaseUrl: 'https://app.example.test',
+    appBaseUrl: 'https://truckerapp-system.web.app',
 };
 
 const created = (data = REQUEST, id = 'event-1') => notifySignerSMS({
@@ -75,7 +75,7 @@ it('texts the link once and records it', async () => {
 
     expect(mockSendSms).toHaveBeenCalledWith(
         '+15555550100',
-        '📄 Rita Recruiter sent you "Offer Letter" to sign. Sign here: https://app.example.test/sign/co-1/req-1?token=token-1',
+        '📄 Rita Recruiter sent you "Offer Letter" to sign. Sign here: https://truckerapp-system.web.app/sign/co-1/req-1?token=token-1',
         'user-1',
     );
     expect(mockRequest.fields).toMatchObject({ smsDeliveryId: 'event-1', smsStatus: 'sent' });

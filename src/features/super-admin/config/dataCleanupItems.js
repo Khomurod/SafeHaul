@@ -50,11 +50,13 @@ export const DATA_CLEANUP_ITEMS = Object.freeze([
         id: 'leadFields',
         title: 'Old lead fields',
         description: 'Unassigned leads get the empty value the Unassigned filter looks for, leads with a phone '
-            + 'get the digits the import’s duplicate check uses, and a driver type stored as a one-item list '
+            + 'get the digits the import’s duplicate check uses, leads with an email get the lowercase copy '
+            + 'an application is matched to its lead by, and a driver type stored as a one-item list '
             + 'becomes plain text. A record with several driver types is only counted.',
         counts: {
             assignedTo: 'Unassigned leads to mark',
             normalizedPhone: 'Leads without the import’s phone digits',
+            emailNormalized: 'Leads without the lowercase email copy',
             driverType: 'Driver types stored as a list',
             driverTypeSeveral: 'Left alone: several driver types',
         },

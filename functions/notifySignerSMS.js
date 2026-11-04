@@ -36,9 +36,10 @@ function claimDelivery(ref, field, eventId, record = {}) {
  * that went. `accessToken` may be a promise of it, and `claim` decides first
  * whether this run sends at all; a failure of either is recorded as a failed send.
  * A number on the opt-out list is not texted (`shared/smsPermission.js`), which
- * is recorded as a failed send with the reason.
+ * is recorded as a failed send with the reason. `reminder` words it as one
+ * (`remindSigner.js`).
  */
-async function textSigningLink({ companyId, requestId, ref, data, accessToken: token, claim = async () => true }) {
+async function textSigningLink({ companyId, requestId, ref, data, accessToken: token, claim = async () => true, reminder = false }) {
     try {
         if (!(await claim())) {
             console.log(`[NotifySignerSMS] Skipped: request ${requestId} is already texted for this event`);
@@ -63,7 +64,7 @@ async function textSigningLink({ companyId, requestId, ref, data, accessToken: t
         // Compose SMS message
         const senderName = data.senderName || 'Your Employer';
         const docTitle = data.title || 'Document';
-        const message = `📄 ${senderName} sent you "${docTitle}" to sign. Sign here: ${signingLink}`;
+        const message = `📄 ${reminder ? 'Reminder: ' : ''}${senderName} sent you "${docTitle}" to sign. Sign here: ${signingLink}`;
 
         // Get SMS adapter using sender's assigned phone number (smart routing)
         const adapter = await SMSAdapterFactory.getAdapterForUser(companyId, data.senderId);

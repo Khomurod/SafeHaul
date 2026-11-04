@@ -1,9 +1,10 @@
 import React, { useId, useRef } from 'react';
-import { Icon, Ban, Copy, Download, Edit3, RefreshCw, X } from '@design-system/icons';
+import { Icon, Ban, Copy, Download, Edit3, Hourglass, RefreshCw, Send, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
+import { deliveryFailure, formatTimestamp, isLinkExpired } from '@features/company-admin/utils/documentsWorkspace';
+import { canRemindSigner, sharedByCopiedLink } from '@features/signing/utils/signerReminder';
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
 import { SignedCopyButton, SignedCopyStatus } from '@features/signing/components/SignedCopy';
 import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
@@ -19,7 +20,9 @@ import { useRerenderAt } from '@shared/hooks/useRerenderAt';
  * (`signedCopyRecord`) and offers Send signed copy where the row does. A
  * document whose seal failed, or was left unfinished for ten minutes, offers
  * Retry seal (`onRetrySeal`, busy while `retryingSeal`): the row's Review opens
- * this dialog, where the reason it failed is shown first.
+ * this dialog, where the reason it failed is shown first. A document waiting
+ * for its signer that went by email or text offers Remind (`onRemind`, busy
+ * while `reminding`); one whose link ran out says so, and what to do.
  *
  * SECURITY: the signing token is never rendered here. "Copy Link" calls the
  * authenticated `getSigningLink` callable exactly as the row action does; the
@@ -57,6 +60,8 @@ export function SentDocumentDetailsDialog({
     onSendSignedCopy,
     onRetrySeal,
     retryingSeal = false,
+    onRemind,
+    reminding = false,
 }) {
     const rawId = useId().replace(/:/g, '');
     const titleId = `sent-document-title-${rawId}`;
@@ -75,6 +80,9 @@ export function SentDocumentDetailsDialog({
     const sealFailed = status === 'error_sealing';
     const offersSignedCopy = Boolean(onSendSignedCopy) && canSendSignedCopy(document, signedCopyRecord);
     const offersSealRetry = Boolean(onRetrySeal) && canRetrySeal(document);
+    const expired = isLinkExpired(document);
+    const offersRemind = Boolean(onRemind) && canRemindSigner(document);
+    const reminderCount = Number(document.reminders?.count) || 0;
 
     return (
         <Modal
@@ -105,8 +113,15 @@ export function SentDocumentDetailsDialog({
                         <DetailRow label="Sent">{formatTimestamp(document.createdAt)}</DetailRow>
                         <DetailRow label="Expires">{formatTimestamp(document.expiresAt)}</DetailRow>
                         <DetailRow label="Status">
-                            <Badge tone={deliveryFailed || sealFailed ? 'danger' : 'neutral'}>{status}</Badge>
+                            {expired && !deliveryFailed
+                                ? <Badge tone="warning" icon={Hourglass}>Link expired</Badge>
+                                : <Badge tone={deliveryFailed || sealFailed ? 'danger' : 'neutral'}>{status}</Badge>}
                         </DetailRow>
+                        {reminderCount > 0 && (
+                            <DetailRow label="Reminders">
+                                {`${reminderCount} sent, the last on ${formatTimestamp(document.reminders.lastAt)}`}
+                            </DetailRow>
+                        )}
                         {hasCompanySignature(document) && (status === 'signed' || signedCopyRecord) && (
                             <DetailRow label="Signed copy">
                                 {signedCopyRecord ? <SignedCopyStatus record={signedCopyRecord} /> : 'Not sent yet'}
@@ -124,6 +139,13 @@ export function SentDocumentDetailsDialog({
                         >
                             {(deliveryFailed ? failure.error : document.errorLog)
                                 || 'No further detail was recorded.'}
+                        </Notice>
+                    )}
+                    {expired && (
+                        <Notice announce="polite" tone="warning" size="sm" title="Link expired" titleAs="h3">
+                            The signer&apos;s link stopped working on {formatTimestamp(document.expiresAt)}.{' '}
+                            {offersRemind && 'Remind sends it again with seven more days.'}
+                            {sharedByCopiedLink(document) && 'It was shared by a copied link, so there is nothing to send again. Correct it to add an email address or a phone number.'}
                         </Notice>
                     )}
                     {offersSealRetry && sealLeftUnfinished(document) && (
@@ -166,6 +188,11 @@ export function SentDocumentDetailsDialog({
                         {status === 'sent' && (
                             <Button variant="danger" onClick={() => onVoid(document)}>
                                 <Icon icon={Ban} size="sm" /> Void
+                            </Button>
+                        )}
+                        {offersRemind && (
+                            <Button variant="primary" loading={reminding} onClick={() => onRemind(document)}>
+                                {!reminding && <Icon icon={Send} size="sm" />} Remind
                             </Button>
                         )}
                         {offersSealRetry && (

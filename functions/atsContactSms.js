@@ -2,7 +2,8 @@ const { onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { admin, db } = require('./firebaseAdmin');
 const SMSAdapterFactory = require('./integrations/factory');
 const BaseAdapter = require('./integrations/adapters/BaseAdapter');
-const { parseAtsSmsTemplate } = require('./shared/atsSmsTemplate');
+const { parseAtsSmsTemplate, mentionsApplicationLink } = require('./shared/atsSmsTemplate');
+const { applicationLinks } = require('./shared/applicationLink');
 const { agreedToSms, onOptOutList } = require('./shared/smsPermission');
 const { isAlreadyExists } = require('./shared/writeSubmissionSnapshot');
 const { normalizePhone } = require('./utils/phoneUtils');
@@ -36,6 +37,22 @@ function shouldFireContactAttemptSms(beforeData, afterData) {
 
 function templateFieldForStatus(status) {
   return STATUS_TO_TEMPLATE_FIELD[status] || null;
+}
+
+/**
+ * What {application link} becomes for the record: the company's apply page
+ * with its assignee's recruiter link (`shared/applicationLink.js`). A company
+ * that cannot be read gives the plain page under its id.
+ */
+async function applicationLinkFor(companyId, assignedTo) {
+  let company = {};
+  try {
+    const snap = await db.collection('companies').doc(companyId).get();
+    company = (snap.exists && snap.data()) || {};
+  } catch (err) {
+    console.warn('[atsContactSms] Could not read the company for the application link:', err.message || err);
+  }
+  return applicationLinks(db, companyId, company)(assignedTo);
 }
 
 function automatedSmsEntry(companyId, status, outcome, detail) {
@@ -136,7 +153,10 @@ async function sendContactAttemptSmsIfNeeded({ companyId, beforeData, afterData,
     afterData.lastModifiedByName ||
     'Your recruiter';
 
-  const body = parseAtsSmsTemplate(rawTemplate, { driverName, userName });
+  const applicationLink = mentionsApplicationLink(rawTemplate)
+    ? await applicationLinkFor(companyId, afterData.assignedTo)
+    : '';
+  const body = parseAtsSmsTemplate(rawTemplate, { driverName, userName, applicationLink });
   if (!body.trim()) return;
 
   const log = automatedSmsLog({ recordRef, eventId, companyId, status });

@@ -173,3 +173,23 @@ describe('a call result and the pipeline stage', () => {
         }
     });
 });
+
+describe('a call that moves the stage says who moved it', () => {
+    // So the bell does not tell the recruiter about their own change
+    // (`functions/shared/notificationAudience.js`).
+    it.each([
+        ['interested', LEAD],
+        ['not_interested', APPLICATION],
+    ])('%s stamps the recruiter in the same write', async (outcome, record) => {
+        const { data } = await logCall(outcome, { record });
+
+        expect(data).toMatchObject({ statusChangedBy: 'recruiter-1', statusChangedAt: 'ts' });
+    });
+
+    it.each(['no_answer', 'callback'])('%s keeps the stage and stamps nothing', async (outcome) => {
+        const { data } = await logCall(outcome, { record: APPLICATION });
+
+        expect(data).not.toHaveProperty('statusChangedBy');
+        expect(data).not.toHaveProperty('statusChangedAt');
+    });
+});

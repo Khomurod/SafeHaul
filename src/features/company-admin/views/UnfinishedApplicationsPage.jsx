@@ -143,8 +143,10 @@ export function UnfinishedApplicationsPage() {
      * application.
      */
     const invite = useInviteLink({ companyId, appSlug });
-    const { mint, copyUrl, linkFor, copied, copyFailed, error: mintError } = invite;
-    const keepKey = invite.link?.applicantKey ?? null;
+    const {
+        mint, emailLink, copyUrl, linkFor, deliveredFor, copied, copyFailed, error: mintError,
+    } = invite;
+    const keepKey = invite.link?.applicantKey ?? invite.delivered?.applicantKey ?? null;
     const shown = useMemo(() => visibleRows(drafts, { filter, query, now, keepKey }), [drafts, filter, query, now, keepKey]);
 
     /**
@@ -155,6 +157,7 @@ export function UnfinishedApplicationsPage() {
      * under every driver.
      */
     const [busyKey, setBusyKey] = useState(null);
+    const [emailKey, setEmailKey] = useState(null);
     const [failedKey, setFailedKey] = useState(null);
 
     const load = useCallback(async () => {
@@ -192,6 +195,24 @@ export function UnfinishedApplicationsPage() {
     useEffect(() => { load(); }, [load]);
 
     /**
+     * What a mint changed server-side (`invite.js`), mirrored rather than
+     * reloaded: `load()` swaps the table's body for a skeleton, which would take
+     * the just-minted URL, or where it was emailed, off the screen when it is
+     * needed. A link now exists, so the row says when it went and reads "New
+     * link" (a press would retire this one), its activity is today, and a
+     * prepared row is sent.
+     */
+    const markMinted = useCallback((key) => {
+        const mintedAt = new Date().toISOString();
+        setDrafts((rows) => rows.map((row) => (row.applicantKey !== key ? row : {
+            ...row,
+            invitedAt: mintedAt,
+            updatedAt: mintedAt,
+            ...(row.origin === 'company' && row.status === 'prepared' ? { status: 'sent' } : {}),
+        })));
+    }, []);
+
+    /**
      * Mint, then copy.
      *
      * The raw token exists exactly once — the callable returns it and never can
@@ -210,21 +231,7 @@ export function UnfinishedApplicationsPage() {
                 setFailedKey(key);
                 return;
             }
-            /**
-             * What the mint changed server-side (`invite.js`), mirrored rather than
-             * reloaded: `load()` swaps the table's body for a skeleton, which would
-             * take the just-minted URL off the screen when it is needed. A link now
-             * exists, so the row says when it went and reads "New link" (a press
-             * would retire this one), its activity is today, and a prepared row is
-             * sent.
-             */
-            const mintedAt = new Date().toISOString();
-            setDrafts((rows) => rows.map((row) => (row.applicantKey !== key ? row : {
-                ...row,
-                invitedAt: mintedAt,
-                updatedAt: mintedAt,
-                ...(row.origin === 'company' && row.status === 'prepared' ? { status: 'sent' } : {}),
-            })));
+            markMinted(key);
             // `copyUrl`, not `copy`: `copy` reads the hook's `link` state as it was
             // captured by THIS render, which is still null at this point. Minting
             // and copying in one press is what makes that difference visible.
@@ -232,7 +239,24 @@ export function UnfinishedApplicationsPage() {
         } finally {
             setBusyKey(null);
         }
-    }, [copyUrl, mint]);
+    }, [copyUrl, markMinted, mint]);
+
+    /**
+     * "Email to driver": the server emails the link to the row's own address and
+     * answers where, masked; nothing reaches the clipboard. A refusal minted
+     * nothing, so the row is left as it was and says why.
+     */
+    const emailRow = useCallback(async (entry) => {
+        const key = entry.applicantKey;
+        setEmailKey(key);
+        setFailedKey(null);
+        try {
+            if (await emailLink(key)) markMinted(key);
+            else setFailedKey(key);
+        } finally {
+            setEmailKey(null);
+        }
+    }, [emailLink, markMinted]);
 
     /**
      * What a deletion left behind: a sentence, focused because the row and its
@@ -389,12 +413,15 @@ export function UnfinishedApplicationsPage() {
                             }}
                         link={{
                             linkFor,
+                            deliveredFor,
                             busyKey,
+                            emailKey,
                             copied,
                             copyFailed,
                             error: mintError,
                             failedKey,
                             onCreate: createLink,
+                            onEmail: emailRow,
                             onCopy: copyUrl,
                         }}
                     />

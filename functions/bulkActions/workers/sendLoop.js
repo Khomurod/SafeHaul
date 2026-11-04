@@ -40,6 +40,7 @@ async function runSendLoop({
     config,
     companyName,
     recruiterName,
+    applicationLinkFor = null,
     senderId,
     adapter,
     emailTransporter,
@@ -47,11 +48,13 @@ async function runSendLoop({
     // A function replacer, so a "$&" in a name is text and not a replacement pattern.
     // The lead's name can come from a public form: it goes out as plain text without
     // its links, as in the other emails a company sends (`shared/plainText.js`), by
-    // the cleaner for the channel it goes out on.
-    const fillPlaceholders = (text, leadData, plainName) => text
+    // the cleaner for the channel it goes out on. The application link is the
+    // company's own address, so it goes out as it is.
+    const fillPlaceholders = (text, leadData, plainName, applicationLink) => text
         .replace(/\[Driver Name\]/g, () => plainName(leadData.firstName, 40) || 'Driver')
         .replace(/\[Company Name\]/g, () => companyName)
-        .replace(/\[Recruiter Name\]/g, () => recruiterName || 'your recruiter');
+        .replace(/\[Recruiter Name\]/g, () => recruiterName || 'your recruiter')
+        .replace(/\[Application Link\]/g, () => applicationLink || '');
 
     let batchSuccessCount = 0;
     let batchFailCount = 0;
@@ -138,6 +141,9 @@ async function runSendLoop({
                     if (!errorMsg) {
                         recipientName = `${leadData.firstName || 'Driver'} ${leadData.lastName || ''}`.trim();
                         const phone = leadData.phone || leadData.phoneNumber;
+                        // Only when the message has [Application Link] (an uploaded
+                        // row has no assignee: the plain apply page).
+                        const applicationLink = applicationLinkFor ? await applicationLinkFor(leadData.assignedTo) : '';
 
                         // 2. Blacklist Check. An opt-out is kept under a phone
                         // number. For SMS the number is the address, so a missing
@@ -159,7 +165,7 @@ async function runSendLoop({
                             recipientIdentity = phone || "No Phone";
 
                             if (recipientIdentity !== "No Phone") {
-                                const finalMsg = fillPlaceholders(config.message, leadData, plainGuestSmsText);
+                                const finalMsg = fillPlaceholders(config.message, leadData, plainGuestSmsText, applicationLink);
 
                                 if (typeof adapter.sendSMSWithReceipt === 'function') {
                                     receipt = await adapter.sendSMSWithReceipt(recipientIdentity, finalMsg, senderId);
@@ -175,13 +181,13 @@ async function runSendLoop({
                             recipientIdentity = leadData.email || "No Email";
 
                             if (recipientIdentity !== "No Email") {
-                                const finalBody = fillPlaceholders(config.message, leadData, plainGuestText);
+                                const finalBody = fillPlaceholders(config.message, leadData, plainGuestText, applicationLink);
 
                                 await emailTransporter.sendMail({
                                     from: `"${companyName}" <${emailTransporter.transporter.options.auth.user}>`,
                                     to: recipientIdentity,
                                     // The composer offers the placeholders in the subject too.
-                                    subject: config.subject ? fillPlaceholders(config.subject, leadData, plainGuestText) : `Update from ${companyName}`,
+                                    subject: config.subject ? fillPlaceholders(config.subject, leadData, plainGuestText, applicationLink) : `Update from ${companyName}`,
                                     text: finalBody,
                                     html: `<p>${escapeHtml(finalBody).replace(/\n/g, '<br>')}</p>`
                                 });

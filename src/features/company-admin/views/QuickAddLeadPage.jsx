@@ -7,6 +7,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Icon, Save, X } from '@design-system/icons';
 import { ATS_STATUS_NEW } from '@shared/constants/atsStatus';
 import { normalizePhone } from '@shared/utils/helpers';
+import { normalizeSearchEmail } from '@shared/utils/searchNormalization';
 import {
     Button, Card, FormField, FormSection, Input, Select, Textarea,
 } from '@/design-system/components';
@@ -123,11 +124,13 @@ export const QuickAddLeadPage = () => {
                 source: 'manual_entry',
                 createdBy: currentUser?.uid || 'unknown',
                 // As the lead import writes them: unassigned as the lists'
-                // Unassigned filter matches it, and the phone key the import
-                // finds a duplicate by.
+                // Unassigned filter matches it, the phone key the import
+                // finds a duplicate by, and the email an application is
+                // matched to its lead by (functions/shared/leadApplicationLink.js).
                 assignedTo: '',
                 assignedToName: '',
                 normalizedPhone: normalizePhone(formData.phone),
+                emailNormalized: normalizeSearchEmail(formData.email),
             };
 
             await addDoc(collection(db, 'companies', companyId, 'leads'), leadData);

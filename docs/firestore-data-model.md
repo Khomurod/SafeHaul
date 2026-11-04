@@ -61,9 +61,10 @@ erDiagram
 | `notifications` | auto | **read/update/delete:** recipient · **create:** denied (server-only) | Unused: nothing writes or reads it |
 | `verification_requests` | token | **read:** super only · **write:** denied | PEV; all portal access via callables. `attempts[]` is the authoritative log of every attempt (`{ kind, at, ok, by?, step?, method?, note?, recordedAt?, error? }`: sent, send_failed, reminder, opened, response, manual_result, no_response, and the call / fax / note `recordVerificationAttempt` adds, at most 50 of those), appended with `arrayUnion`; `attemptRecordPath` is the day-30 PDF of it (`…/pev_requests/PEV_ATTEMPTS_…`, also `dq_files/pev_attempts_<requestId>`). The employer row's `verification.history` mirrors a short entry (`attempt`, `ok`, `note`, `recordedBy`), never `error`, the token or an address |
 | `verification_requests/{token}/responses` | `responseId` | same as parent | PEV responses |
+| `change_reviews` | token | **read:** super only · **write:** denied | The driver's "approve changes" link (`/review-change/:token`, 30-day TTL, newest only: `open`, `completed` or `revoked`), written only by the change-review callables. `delivery` records the server emailing it (`createChangeReview` with `deliver: 'email'`): `{ channel, status: sending\|sent\|failed, to (masked), claimId, claimedAt, by, sentAt, failedAt }` — never the link or the full address |
 | `analytics` | `docId` | **read:** super · **write:** denied | Platform analytics |
 | `system_settings` | `settingId` | **read, write:** super | Global settings |
-| `recruiter_links` | `code` | **read:** public · **create/update:** super, or team **of the company stamped on the link** (`companyId` immutable) · **delete:** super | Recruiter attribution URLs (`?r=<code>`). A new code is 8 characters and never overwrites an existing link. A submitted application is assigned (`assignedTo`, `assignedToName`) only to a member of the application's company: the link's owner, or the user of an older `?recruiter=<uid>` link (`shared/recruiterAssignment.js`). Hold nothing personal here: the collection is publicly readable |
+| `recruiter_links` | `code` | **read:** public · **create/update:** super, or team **of the company stamped on the link** (`companyId` immutable) · **delete:** super | Recruiter attribution URLs (`?r=<code>`). A new code is 8 characters and never overwrites an existing link. A submitted application is assigned (`assignedTo`, `assignedToName`) only to a member of the application's company: the link's owner, or the user of an older `?recruiter=<uid>` link (`shared/recruiterAssignment.js`). A campaign's `[Application Link]` and an automated text's `{application link}` carry the record's assignee's code for that company (`companyId` and `userId` equality, `shared/applicationLink.js`). Hold nothing personal here: the collection is publicly readable |
 | `job_posts` | `postId` | **server** (no rule → default deny) | **Retired.** The public job board was removed (commit `5a4c8dd`) and the former public-read / company-team-write rules were **deleted**. Historical documents are left unreachable rather than deleted. `firestore.rules.security.test.js` has a default-deny regression test |
 
 ### Server-only top-level (no rules → client denied)
@@ -95,7 +96,7 @@ Used by Cloud Functions with Admin SDK:
 | `segments/{id}/members/{id}` | read: team · write: admin | Segment membership |
 | `stats_daily/{dateId}` | read: team | Aggregated daily stats (server-written) |
 | `internal_stats/{docId}` | read: team · write: **denied** | Dashboard KPI rollups (server-only writes) |
-| `notifications/{id}` | read: team · create: admin · update: team · delete: admin | The bell; one with `recipientId` (a callback reminder; a document's sender told it was signed or failed to seal; the recruiter who prepared an application told it was submitted) is shown to that person only |
+| `notifications/{id}` | read: team · create: admin · update: team · delete: admin | The bell; who sees it and who has read it below |
 | `feature_alerts/{id}` | read/write: team or super | Scheduled deactivation warning analytics |
 | `system_settings/email_config` | server only | SMTP credentials; the password encrypted (`enc:v1:`) |
 | `settings/{docId}` | read: team · write: admin | Custom questions, ATS SMS templates, etc. |
@@ -113,7 +114,7 @@ Used by Cloud Functions with Admin SDK:
 |------|---------|
 | `companies/{id}/blacklist/{phone}` | Company opt-out list |
 | `companies/{id}/inbound_messages/{id}` | Inbound SMS (STOP handling trigger) |
-| `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next — **or** one a carrier prepared (`origin: 'company'`, `status: prepared\|sent\|driver_in_progress`, `preparedBy`, `inviteTokenHash`, `inviteClaimedAt`, `lockedEmployers`). See below |
+| `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next — **or** one a carrier prepared (`origin: 'company'`, `status: prepared\|sent\|driver_in_progress`, `preparedBy`, `inviteTokenHash`, `inviteClaimedAt`, `inviteDelivery`, `lockedEmployers`). See below |
 | `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards, and of a Company Admin's views, edits and deletions; a deleted draft's removal mark; files a deletion has still to remove |
 | `companies/{id}/legal_agreements/{agreementId}` | Company-published agreement wording: `{ activeVersion, versions: { 'c-<hash>': { body, createdAt, createdBy, note } } }`. Callables only; publish/revert is Super Admin only |
 
@@ -127,6 +128,19 @@ A `fields` entry of `type: 'company_signature'` places the company's own signatu
 | `companySignaturePath` | Storage path of the image, `secure_documents/{companyId}/originals/company-signatures/<name>.png\|.jpg\|.jpeg`, uploaded by the team. May be empty on a template (set per document); a sent request needs one, and a template auto-sent after an application is refused without one. Sealing draws it from here only (PNG or JPEG by its bytes) and fails `error_sealing` without a readable image of this company; it never deletes it. `getPublicEnvelope` replaces it with a one-hour `companySignatureUrl`; the path never reaches the signer, and a signer's value for the field is refused |
 | `signedCopy` | Server-written by `sendSignedDocumentCopy`, the team's approval to email the signer the sealed PDF: `{ state: 'sending' \| 'sent' \| 'failed', approvedBy, approvedByName, approvedAt, sentTo, sentAt?, messageId?, error? }` (`approvedAt`, `sentAt`: timestamps). Claimed in a transaction before the one send: `sent` refuses another, `sending` under ten minutes old refuses another, `failed` may be approved again. The record of who approved it; documents have no activity log |
 
+### The bell (`notifications`) and who changed a record
+
+The rules let the whole team read and update every notification, so the fields below only decide what each person's bell shows: a notification holds names, stages and counts, never contact details or anything private.
+
+| Field | Notes |
+|-------|-------|
+| `recipientId` | Shown to that person only: a callback reminder; a status change on their assigned application (`onApplicationStatusChanged`); an application or lead assigned to them (`onApplicationAssigned`, `onLeadAssigned`); their import summary (`leads_assigned`, `count`, written by the importing admin's browser); a document's sender told it was signed or failed to seal; a PEV request's sender; the recruiter who prepared an application; a lead's recruiter told the lead applied (`lead_applied_<applicationId>`). Index `recipientId` + `createdAt` serves the bell's own read |
+| `actorId` | The person whose action it reports. A notification without `recipientId` is not shown to them; one that has it is never written for its actor (a callback reminder is for the recruiter who logged it, by design) |
+| `readBy` | The uids who have read it (`arrayUnion` of the reader's uid; "Mark all read" adds only the reader). Unread for a reader means not in `readBy` |
+| `read` | Written `false` at creation for older screens. `true` is from before read state was per person (or an older screen) and counts as read for everyone |
+
+On `applications` and `leads`, the dossier and the call result write `statusChangedBy` (uid) and `statusChangedAt` (server time) with every status they set; the dossier and Assign Leads write `assignmentChangedBy` and `assignmentChangedAt` with every assignment (`src/shared/utils/changeStamps.js`). The triggers trust a stamp only when its time changed in the same write (`functions/shared/notificationAudience.js`), so a later change by a screen or server path that stamps nothing names nobody. Team members may write these fields (the rules check only `status` and `companyId`), so they decide whom the bell tells, never who may do what.
+
 ### A driver record's documents (`signing_requests`, `dq_files`)
 
 The dossier's Documents tab lists the requests linked to the record it shows, by one equality query on its link field (no composite index):
@@ -137,7 +151,8 @@ The dossier's Documents tab lists the requests linked to the record it shows, by
 | `sourceLeadId` | The lead a request is for, when the recruiter picked a lead in the template wizard. A request carries one of the two at most; neither is a security boundary (the team may write any request field) |
 | `templateId` | The template it was made from; a required post-application form with no linked request carrying its template (but for someone's voided copy) shows as *Not started* |
 | id `postapp_<applicationId>_<templateId>` | A post-application form: one document per application and form, whoever makes it first (`functions/shared/postApplicationRequest.js`). `source`: `post_application_success` (thank-you page: `sendEmail`/`sendSms` false, `deliveryMethod: 'in_app_post_submit'`, `senderId: null`) or `post_application_team` (Send to driver: the flags, `deliveryMethod` and `senderId`/`senderName` of the team member). Send to driver on one made by the page turns the flags on and sets `deliveryMethod` and the sender |
-| `expiresAt` | When the link stops working. "Link expired" is derived in the browser (`status: 'sent'` and `expiresAt` past), never stored |
+| `expiresAt` | When the link stops working. "Link expired" is derived in the browser (`status: 'sent'` and `expiresAt` past), never stored, so it has no server count or index; the Documents workspace counts it as awaiting a signature. A reminder sets it seven days ahead again |
+| `reminders` | Server-written by `remindSigner` ("Remind"): `{ count, lastAt, lastBy }` (`lastAt`: timestamp; `lastBy`: the team member's uid). Written with the claim, before the link is sent again; a reminder within ten minutes of `lastAt` is refused. The send itself is recorded as every send is (`emailStatus`/`emailSentAt`, `smsStatus`/`smsSentAt`, `linkSentTo`) |
 | `sealAttempts` | Server-written by `retrySealDocument` ("Retry seal"), one entry per retry: `{ at, by, previousStatus: 'error_sealing' \| 'pending_seal', previousError }` (`at`: timestamp; `previousError`: the `errorLog` it cleared, or null). `sealDocument` seals when a request enters `pending_seal`, or when a new entry is added while it is there (a seal left unfinished), and only while the stored request is on that attempt. `errorLog` and `missingFields` are what the last failed seal wrote; a retry clears them |
 | `dq_files/signed_{requestId}` | Under the linked application or lead, written by `sealDocument` once the request is `signed` (`functions/sealedDocumentDq.js`): `{ type: 'signed_document', fileType, label, fileName, storagePath: 'secure_documents/{companyId}/completed/{requestId}_signed.pdf', url: null, source: 'signed_document', isSynced: true, signingRequestId, sha256Checksum, uploadedBy: 'e_docs', uploadedAt, createdAt, applicationId, applicantId, driverId, userId, ownerUserIds }`. The path of the one sealed PDF, never a copy. Created once (a repeat or a removed entry changes nothing); removing it on the DQ tab sets `removedAt`. Nothing is filed for a record missing in this company |
 
@@ -160,6 +175,8 @@ The dossier's Documents tab lists the requests linked to the record it shows, by
 | `internal_notes`, `activity_logs`, `activities` | read/write: team, super |
 | `pending_changes/{fieldKey}` | read: team, super · **write: denied**. Company-proposed edits awaiting driver approval; written only by the `proposeApplicationChanges` / `submitChangeResolution` callables |
 | `submission/{version}` | read: team, super, owner · **write: denied**. The frozen snapshot of exactly what the driver saw, answered and accepted. Server-only (Admin SDK) — this denial is what makes it immutable rather than merely intended to be |
+
+**Link to a lead:** `fromLeadId` names the company's lead the submitted application was matched to (server-written by `onApplicationSubmitted`, `functions/shared/leadApplicationLink.js`); the lead holds the other half (below).
 
 **Deterministic IDs:** doc ID = truncated SHA-256 of `companyId:email:phone` (see [`src/lib/applicationId.js`](../src/lib/applicationId.js)), which makes offline-queue retries idempotent upserts instead of duplicates. **Guest submissions go exclusively through the `submitGuestApplication` callable** (Admin SDK, which bypasses these rules); there is no unauthenticated client-write fallback.
 
@@ -196,6 +213,7 @@ merge idempotently. No new identity scheme was introduced.
 | `resumeTokenHash` | A hash of the bearer token issued to a browser. Compared in constant time; the token itself is never stored |
 | `priorResumeTokenHashes` | Up to two superseded hashes, so a rotation by a resume lookup is not mistaken for the draft being deleted. Liveness evidence only — never authorization |
 | `companyRevision`, `companyEdits`, `companyEditedAt` | A Company Admin's edits (`saveApplicationDraftEdits`): the latest one's revision (a millisecond time, so always later than the one before, even across a draft deleted and started again), each edited answer's, and when the latest was made. A browser's save or submission from an older revision is refused, and so is a save landing on the same driver's other edited draft (`functions/shared/companyEdits.js`). Absent on a draft nobody edited, and carried to the new id when a corrected email or phone moves the draft |
+| `inviteDelivery` | The last time the server emailed this draft's link to its `contactEmail` (`mintApplicationInvite` with `deliver: 'email'`), written with the new invite hash: `{ channel, status: sending\|sent\|failed, to (masked), claimId, claimedAt, by, sentAt, failedAt }`. A claim being sent or sent less than a minute ago refuses another email. Never the token, the link or the full address. Not carried to a new id |
 | `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json`. When the TTL policy deletes a draft, `deleteExpiredDraftFiles` (`functions/drafts/expired.js`) deletes its uploads by the checks `purgeApplicationDraft` makes, trying twice more within its run when it could not finish; the functions' own deletions (a submission, a superseding save, Start Over) leave them |
 
 **The draft never holds an SSN.** It is stripped in three independent places — the
@@ -327,6 +345,10 @@ Two more kinds of entry, written by `purgeApplicationDraft` (the second by `dele
 | **delete** | Team or super |
 
 Same activity/DQ/note subcollections as applications (team/super).
+
+**Match keys:** `normalizedPhone` (digits, `normalizeSearchPhone`) and `emailNormalized` (the email trimmed and lowercased, `normalizeSearchEmail`; `email` itself stays as typed). Every lead creator writes both; older leads get them from Data cleanup → Old lead fields.
+
+**Link to an application:** when the lead's driver applies, the server sets `applicationId` (the application's document id) and `appliedAt`, leaves `status` alone, adds an `activity_logs/applied_<applicationId>` entry, and writes `fromLeadId` on the application. A lead campaign built from filters (its preview and launch) leaves out a lead with `applicationId`; leads picked by hand stay. Deleting either record (`deleteApplication`) removes the other's half.
 
 ---
 

@@ -6,7 +6,9 @@ import { useCompanyNotifications } from '../hooks/useCompanyNotifications';
 // Icon mapping for notification types
 const getNotificationIcon = (type) => {
     switch (type) {
-        case 'lead_assigned': return <Icon icon={Briefcase} className="text-ds-status-info-fg" />;
+        case 'lead_assigned':
+        case 'leads_assigned':
+        case 'application_assigned': return <Icon icon={Briefcase} className="text-ds-status-info-fg" />;
         case 'status_change': return <Icon icon={FileText} className="text-ds-status-success-fg" />;
         case 'team_activity': return <Icon icon={User} className="text-ds-status-accent-fg" />;
         case 'document_signed': return <Icon icon={FileCheck} className="text-ds-status-success-fg" />;

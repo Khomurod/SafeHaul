@@ -10,6 +10,19 @@ process.env.BULK_WORKER_SECRET = 'unit-test-secret';
 const mockSendSMS = jest.fn();
 const mockSendMail = jest.fn();
 const mockState = {};
+// `recruiter_links` (code → owner), and each query the worker runs on it.
+const mockLinkQueries = [];
+const mockLinkQuery = (filters) => ({
+  where: (field, _op, value) => mockLinkQuery({ ...filters, [field]: value }),
+  limit: () => mockLinkQuery(filters),
+  async get() {
+    mockLinkQueries.push(filters);
+    const docs = Object.entries(mockState.recruiterLinks || {})
+      .filter(([, link]) => Object.entries(filters).every(([field, value]) => link[field] === value))
+      .map(([id]) => ({ id }));
+    return { empty: docs.length === 0, docs };
+  },
+});
 
 const mockSession = () => ({
   __type: 'session',
@@ -50,6 +63,7 @@ jest.mock('../../firebaseAdmin', () => {
         };
       }
       if (name === 'users') return { doc: () => ({ get: async () => mockSnap(mockState.sender) }) };
+      if (name === 'recruiter_links') return mockLinkQuery({});
       return { doc: (id) => ({ id, get: async () => mockSnap(undefined), set: async () => {} }) };
     },
   };
@@ -79,14 +93,14 @@ const { processBulkBatch } = require('../../bulkActions/workers/batchWorker');
 
 const MESSAGE = 'Hi [Driver Name], [Recruiter Name] at [Company Name] here.';
 
-async function runBatch(config) {
+async function runBatch(config, targetIds = ['lead-1']) {
   mockState.session = {
     status: 'active',
     config,
     leadSourceType: 'leads',
     createdBy: 'recruiter-1',
-    targetIds: ['lead-1'],
-    progress: { currentPointer: 0, processedCount: 0, totalCount: 1 },
+    targetIds,
+    progress: { currentPointer: 0, processedCount: 0, totalCount: targetIds.length },
     workerGeneration: 1,
   };
   const res = { status: jest.fn().mockReturnThis(), send: jest.fn() };
@@ -104,6 +118,8 @@ beforeEach(() => {
   mockState.lead = { firstName: 'Alice', phone: '(555) 123-4567', email: 'alice@example.com' };
   mockState.sender = { name: 'Dana Recruiter' };
   mockState.authName = null;
+  mockState.recruiterLinks = {};
+  mockLinkQueries.length = 0;
 });
 
 describe('campaign placeholders', () => {
@@ -186,5 +202,48 @@ describe('campaign placeholders', () => {
     await runBatch({ method: 'sms', message: MESSAGE });
 
     expect(mockSendSMS.mock.calls[0][1]).toBe('Hi Alice, your recruiter at SafeHaul Company here.');
+  });
+});
+
+describe('[Application Link]', () => {
+  const LINK_MESSAGE = 'Hi [Driver Name], apply here: [Application Link]';
+
+  beforeEach(() => {
+    mockState.company = { companyName: 'Artificial Freight LLC', appSlug: 'artificial-freight' };
+    mockState.recruiterLinks = {
+      RIL2345: { userId: 'recruiter-9', companyId: 'co-1' },
+      OTH2345: { userId: 'recruiter-9', companyId: 'co-2' },
+    };
+  });
+
+  it("is the company's apply page with the lead's recruiter's link, in an SMS", async () => {
+    mockState.lead = { firstName: 'Alice', phone: '(555) 123-4567', assignedTo: 'recruiter-9' };
+
+    await runBatch({ method: 'sms', message: LINK_MESSAGE });
+
+    expect(mockSendSMS.mock.calls[0][1]).toBe('Hi Alice, apply here: https://app.safehaul.io/apply/artificial-freight?r=RIL2345');
+  });
+
+  it('is the plain apply page for an unassigned lead, in an email and its subject', async () => {
+    mockState.lead = { firstName: 'Alice', email: 'alice@example.com', assignedTo: '' };
+
+    await runBatch({ method: 'email', message: LINK_MESSAGE, subject: 'Apply: [Application Link]' });
+
+    const sent = mockSendMail.mock.calls[0][0];
+    expect(sent.text).toBe('Hi Alice, apply here: https://app.safehaul.io/apply/artificial-freight');
+    expect(sent.subject).toBe('Apply: https://app.safehaul.io/apply/artificial-freight');
+    expect(mockLinkQueries).toEqual([]);
+  });
+
+  it('looks each recruiter up once a batch, and not at all without the placeholder', async () => {
+    mockState.lead = { firstName: 'Alice', phone: '(555) 123-4567', assignedTo: 'recruiter-9' };
+
+    await runBatch({ method: 'sms', message: LINK_MESSAGE }, ['lead-1', 'lead-2']);
+    expect(mockSendSMS).toHaveBeenCalledTimes(2);
+    expect(mockLinkQueries).toEqual([{ companyId: 'co-1', userId: 'recruiter-9' }]);
+
+    mockLinkQueries.length = 0;
+    await runBatch({ method: 'sms', message: MESSAGE });
+    expect(mockLinkQueries).toEqual([]);
   });
 });

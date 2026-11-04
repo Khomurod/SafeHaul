@@ -1,7 +1,8 @@
 import React from 'react';
-import { Icon, AlertTriangle, Copy, Link2, Pencil, Trash2 } from '@design-system/icons';
+import { Icon, AlertTriangle, Copy, Link2, Mail, Pencil, Trash2 } from '@design-system/icons';
 import { Badge, Button, FieldMessage, Link, ProgressBar } from '@/design-system/components';
 import { formatPhoneNumber } from '@shared/utils/helpers';
+import { canEmailLinkTo } from '@shared/utils/linkEmail';
 import { describeApplicant } from './unfinishedRowActions';
 import { describeActivity, describeSent, progressOf, removalOf } from './unfinishedWorklist';
 
@@ -130,13 +131,22 @@ export function ActivityCell({ entry, now, retentionDays }) {
  *
  * Each name says whose application it acts on, because a list of identical
  * "Open" buttons tells a screen-reader user nothing about the row.
+ *
+ * "Email to driver" has the server email the link to the row's own address; the
+ * row then says where, masked, and holds no link. A row with no usable address
+ * says why instead, and keeps Copy link.
  */
 export function RowActions({ entry, row, link, onOpen, onEdit, onDelete }) {
     const {
-        linkFor, busyKey, copied, copyFailed, error: mintError, failedKey, onCreate, onCopy,
+        linkFor, deliveredFor, busyKey, emailKey, copied, copyFailed, error: mintError, failedKey,
+        onCreate, onEmail, onCopy,
     } = link;
     const { actionName } = describeApplicant(entry);
     const minted = linkFor(entry.applicantKey);
+    const emailed = deliveredFor?.(entry.applicantKey) ?? null;
+    const canEmail = Boolean(onEmail) && canEmailLinkTo(entry.email);
+    const busy = busyKey === entry.applicantKey;
+    const emailing = emailKey === entry.applicantKey;
     return (
         <div className="flex min-w-0 flex-col items-start gap-ds-2">
             <div className="flex flex-wrap gap-ds-2">
@@ -153,13 +163,26 @@ export function RowActions({ entry, row, link, onOpen, onEdit, onDelete }) {
                 <Button
                     variant={minted || row.linkDue ? 'primary' : 'secondary'}
                     size="sm"
-                    loading={busyKey === entry.applicantKey}
+                    loading={busy}
+                    disabled={emailing}
                     aria-label={`${minted ? 'Copy link' : row.mintLabel} for ${actionName}`}
                     onClick={() => (minted ? onCopy(minted.url) : onCreate(entry))}
                 >
                     <Icon icon={minted ? Copy : Link2} size="sm" />
                     {minted ? (copied ? 'Copied' : 'Copy link') : row.mintLabel}
                 </Button>
+                {canEmail && (
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        loading={emailing}
+                        disabled={busy}
+                        aria-label={`Email link to ${actionName}`}
+                        onClick={() => onEmail(entry)}
+                    >
+                        <Icon icon={Mail} size="sm" /> Email link
+                    </Button>
+                )}
                 {row.canEditAnswers && (
                     <Button
                         variant="secondary"
@@ -197,6 +220,17 @@ export function RowActions({ entry, row, link, onOpen, onEdit, onDelete }) {
                             : ' It opens the application you prepared for them.'}
                     </p>
                 </>
+            )}
+            {emailed && (
+                <p className="text-ds-xs text-ds-content-secondary" role="status">
+                    {`Emailed to ${emailed.to}. Works for ${emailed.expiresInDays} days.`}
+                    {row.replacesLink && ' Any link sent before stops working about ten minutes from now.'}
+                </p>
+            )}
+            {onEmail && !canEmail && (
+                <p className="text-ds-xs text-ds-content-muted">
+                    No email address on file, so this link can only be copied.
+                </p>
             )}
             {copyFailed && minted && (
                 <FieldMessage tone="error">

@@ -178,7 +178,9 @@ medical card, PSP report, motor vehicle record; the reader prefills) or **Fill
 in manually** (documents attach unread). In one editable form the recruiter
 enters the driver's email or phone — the identity keying the draft and its
 application; either suffices, each is format-checked — corrects the reader, and
-copies a link. The driver lands in the ordinary wizard with the answers, adds
+has SafeHaul email the driver the link (**Email it to the driver**, to the
+application's own address; the screen shows where, masked, never the link) or
+copies one. The driver lands in the ordinary wizard with the answers, adds
 what only they can (SSN and signature are never in a draft), reviews and signs;
 until then it is only a draft (§5) — nothing filed, emailed or counted. Once a
 link exists (`sent`) email and phone are **read-only** (`identityLocked`;
@@ -253,7 +255,8 @@ pipeline, reads `listApplicationDrafts` alone (one document, one row), and rows
 never carry answers (`toCompanySummary`). A search and counted filters sit above
 it; a row gives its step, status, last activity and days left
 (`unfinishedWorklist.js`), as a card on a phone. **Copy link** makes and copies
-a link, **New link** replaces one sent; on answers the driver owns, its opener
+a link, **New link** replaces one sent, **Email link** has the server email it to
+the row's own address instead (a row without one says so); on answers the driver owns, its opener
 must prove an identity no SafeHaul screen shows a recruiter (§5, §12).
 
 | Started by | Status | A recruiter may… (`unfinishedRowActions.js`) | A Company Admin also may… |
@@ -284,6 +287,19 @@ required contact consent) or the full application. A quick-form lead
 (`submitReferralInterest`) or an application with `referralCode` carries
 `referral` (shown in the dossier) and goes to the link's creator while on the
 team, who is notified; a carrier-prepared application goes to its preparer (§5).
+**A lead who applies is linked to the application** (`onApplicationSubmitted`,
+`shared/leadApplicationLink.js`): the company's lead with the same email (trimmed,
+lowercased, never a placeholder; leads keep `emailNormalized`), else the one lead with
+the same phone digits. One lead at most, never merged; the lead keeps its stage, gets
+`applicationId`/`appliedAt` and an Activity line, the application `fromLeadId`, and an
+unassigned application goes to the lead's recruiter while on the team, who is told
+once (not when it is already theirs). The dossier opens one from the other; deleting
+either removes the link, and a lead whose newest application is deleted points back
+at an earlier one it applied with.
+**The bell.** A status change on an assigned application tells its assignee only (an
+unassigned one, or one whose assignee left, the team); assigning an application or
+lead tells the new owner; an import that creates assigned leads tells each recruiter
+once how many. Nobody is told about their own action, and read state is per person.
 Name search starts at two letters, in the lists and the
 template picker; email, phone, confirmation number and id search stay exact.
 **A call moves the stage only by the owner's table** (`useCallOutcome.js`): Interested →
@@ -328,7 +344,15 @@ and sends nothing. A link the server builds goes only to one of the app's own si
 (`shared/appOrigin.js`), whatever base URL a browser sent. One transaction decides:
 a new request is sent by the creation triggers, one never sent gets its flags turned
 on and the correction trigger sends it with seven more days. A link already sent is
-not sent again, a signed form is reported, a voided one refused. Nothing sends these
+not sent again (Remind does), a signed form is reported, a voided one refused.
+*Link expired* is derived in the browser (`sent`, `expiresAt` past; `isLinkExpired`
+in `documentsWorkspace.js`), never stored, so the Documents numbers count it as
+awaiting. **Remind** (`remindSigner`, from a document's details and the dossier)
+sends an unsigned document's link again on each channel it was sent by, with seven
+more days: one per ten minutes, claimed in a transaction and recorded in `reminders`;
+an application's driver is texted only after "Yes"; the answer names any channel that
+failed. A document shared only by copied link cannot be reminded (Correct adds a
+channel). Nothing reminds automatically (owner question В3). Nothing sends these
 forms automatically after submission (owner question В6).
 A **company signature** (`company_signature`) is an image the team uploads to
 `secure_documents/{companyId}/originals/company-signatures/` and places on a
@@ -398,7 +422,14 @@ once, when first opened, through the Application tab's presenter; the PDF still 
 only through the audited `getApplicationOriginalPdfUrl`.
 
 **Driver-approved corrections.** Company admins cannot silently rewrite a
-submitted application (§5).
+submitted application (§5). The review link is emailed by the server (**Email
+review link to driver**) or copied.
+
+**Company setup (dashboard).** For a company admin, read once when the dashboard
+opens: what is not set up, each linking to its page — company email not connected or
+not verified, no texting line, no contact email for PEV notices, no post-application
+form, a form whose company signature has no image or whose template was deleted (PEV
+copies are a hint). Ready, it is one line; others see nothing.
 
 **Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
 worker (§8); the carrier connects and pays its own messaging provider. No
@@ -898,7 +929,8 @@ carrier's link).
 admin's edits become per-field `pending_changes`; the main document stays the
 **canonical original** until each field resolves, so exports show originals.
 The driver approves, rejects or corrects each, none preselected, through a
-token link (`/review-change/:token`, 30-day TTL, newest only);
+token link (`/review-change/:token`, 30-day TTL, newest only; `deliver: 'email'`
+emails it to the application's own `email`);
 `hasPendingCompanyChanges` clears once all are resolved. Only callables
 write `pending_changes`.
 
@@ -998,7 +1030,7 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   purpose and checked against company membership (`getSignedDocumentUrl`,
   `getSignedApplicationFileUrl`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
   Stored URLs expire or are absent, so views re-sign at view time.
-- **Send to driver, Retry seal and Record attempt are team actions** (any company
+- **Send to driver, Remind, Retry seal and Record attempt are team actions** (any company
   team member, `assertCompanyAccessForRequest`): the application or request must be
   under that company, and Send to driver's template in its post-application list.
 
@@ -1114,7 +1146,7 @@ the daily count**; refusing is a recorded outcome.
 - **Driver sync** — a new lead or signed application (an unsigned one is
   marked `validation_error`), files its details (no SSN) under `drivers/{id}/pending_updates`,
   read by nothing, and adds the company to an existing profile (`{id}`: the Auth uid of a known email;
-  for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created.
+  for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created. A signed application also links its lead (§4).
 - **DQ file** — an application's uploads become `dq_files/{type}` records when it
   arrives or one changes, matched by `storagePath` (a link only without one);
   opening the DQ tab files any still missing (`syncDqFiles`, leads too). A
@@ -1131,13 +1163,20 @@ the daily count**; refusing is a recorded outcome.
   linked record, its DQ entry. Neither failing fails the seal.
 - **Team cache** — a membership write rewrites `companies/{id}.teamMembers` (uid, role, name by `nameFromProfile`
   else `'Unknown'`, email). Team pickers and filters read it; Assign Leads and Import Leads read it fresh on opening.
-- **Notifications** — status changes, lead assignment, new applications, an
-  applicant confirmation email. A call with a callback time (or "Remind me in 1
+- **Notifications** — a status change on an assigned application tells its assignee
+  only (`recipientId`), else the team; an assignment tells the new owner
+  (`onApplicationAssigned`, `onLeadAssigned`), unless the owner made it or a server step
+  that told them itself stamped it (`server:notified`); an import writes one summary per
+  recruiter. Screens stamp who acted (`statusChangedBy`/`assignmentChangedBy` with their
+  times, `shared/utils/changeStamps.js`); a team notice naming its `actorId` is hidden
+  from them, and `readBy` keeps read state per person (an older `read: true` counts for
+  everyone). Also new applications and an applicant confirmation email. A call with a callback time (or "Remind me in 1
   Hour", still No Answer) reminds only its recruiter (`recipientId`). The bell
   reads the team's newest 20 and the reader's own newest 20 reminders (index in
   `firestore.indexes.json`), and shows the newest 20 of both. A seal outcome, a
-  prepared application's submission and a PEV answer or no-response notify one
-  person once (`createNotification` with a fixed id).
+  prepared application's submission, a lead's application, a PEV answer or no-response,
+  a status change and an assignment notify once per event (`createNotification` with a
+  fixed id).
 - **Automated contact SMS** — moving an application or lead *into* `Contact Attempt 1/2/3` sends the
   matching template from `companies/{id}/settings/automated_sms`; transition-only, so idempotent; no template, no message.
   An application is texted only after the driver's explicit "Yes" to the optional SMS question (`sms-consent`);
@@ -1145,6 +1184,8 @@ the daily count**; refusing is a recorded outcome.
   sent and why, failed) leaves one `Automated SMS` Activity entry, without the message or number (`shared/smsPermission.js`).
   The entry is written before the provider is called, so a repeated delivery of the same change finds it and sends
   nothing, even when the first run stopped before recording a result; an entry that cannot be written sends nothing.
+  `{application link}` becomes the company's apply page with the assignee's recruiter link
+  (`?r=`), else the plain page (`shared/applicationLink.js`); campaigns' `[Application Link]` too.
 - **Retention** — TTL overrides in `firestore.indexes.json` delete `blog_runs`,
   `application_drafts`, `application_draft_audit` and `rate_limits` at
   `expiresAt` (activity logs carry one). An unfinished application expires
@@ -1166,6 +1207,8 @@ keeps the newest N. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
 and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
 closed on a bad number) and every email with a usable one; no reply fills them (§12).
+A lead campaign built from filters leaves out leads who applied (`applicationId`;
+the count before launch may still include them; hand-picked leads stay).
 An SMS campaign to applicants also skips anyone without an explicit "Yes" to SMS
 ("Driver did not agree to SMS" in the report; still counted in preview).
 An SMS logs as sent once RingCentral accepts it; a check (also `checkCampaignDelivery`) reads the line's message
@@ -1442,10 +1485,11 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   plainly offered a new application. A carrier-prepared one is refused; the
   driver is told to continue on the device where they started (its resume token
   asks nothing) or start anew, so losing that device means starting over. The
-  fix is out-of-band delivery — minting emails or texts the link to the draft's
-  `contactEmail`/`contactPhone`, returning only a redacted confirmation so the
-  carrier never holds it (DocuSign's Resend model) — which needs per-company
-  email configuration.
+  link can now be emailed by the server (`deliver: 'email'`, `shared/linkDelivery.js`),
+  never shown to the recruiter, though a copy may stay in the company mailbox's Sent
+  folder; the exchange still treats it like a copied one, since a prepared draft's
+  address is one the carrier typed. Letting an emailed link stand in for the identity
+  check is an owner decision; texting the link is not built.
 - **A driver cannot dispute a locked employer that is satisfiable but wrong.** A
   PSP report is an FCRA consumer report with dispute rights, but a locked
   identity is a record to the driver (§5); no lock is unsatisfiable, yet nothing
@@ -1492,11 +1536,19 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **PEV records before 2026-11 are not backfilled:** earlier results are not in
   the DQ file and keep a stored download link; requests already live then keep
   reminding until day 30 (their mark no longer overwrites a Completed row).
+- **Batch 3 limits (2026-11):** a personal bell notice is hidden, not private (the rules
+  let the team read every notification), and others' personal notices take slots in the
+  team read; until Production is promoted its screens neither stamp who acted nor keep
+  read state per person. Phone matching links the only lead with the number even when its
+  email differs; older mixed-case lead emails match only after Data cleanup → Old lead
+  fields. Remind's cooldown guards against mistakes, not a team member editing the
+  database; a failed reminder still counts for the ten minutes. Company setup reads once
+  per dashboard visit.
 - **Batch 2 limits (2026-11):** requests sent before the PEV attempt log show only later
   attempts (their day-30 record notes the gap), and an attempt recorded after day 30 is not
   in the already-filed record; a day-30 record that failed to file is not made again
   (logged). A sealed document missing from the DQ file is filed when its DQ tab opens. Send to driver does not resend a form already sent, even
-  after its link expired; an optional post-application form is listed only once a request
+  after its link expired (Remind does); an optional post-application form is listed only once a request
   for it exists. A retried document's certificate prints the retry time as COMPLETED AT.
   Retry seal and the record link guard against mistakes, not a team member: the rules let
   the team write any signing-request field.

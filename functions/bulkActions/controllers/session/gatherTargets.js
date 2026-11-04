@@ -4,10 +4,12 @@
 // Two of `initBulkSession`'s three ID-gathering branches, extracted from
 // `sessionController.js`. `verifyDirectSelection` is the BULK-2 IDOR
 // gate: caller-provided IDs count only if the company's own collections
-// contain them. `gatherIdsFromQueries` runs the filter queries and applies
-// the recently-messaged exclusion (the campaign channel's ledger,
+// contain them. `gatherIdsFromQueries` runs the filter queries, leaves out
+// the leads who applied (`applicationId`, shared/leadApplicationLink.js), and
+// applies the recently-messaged exclusion (the campaign channel's ledger,
 // sms_sent_phones or email_sent_addresses), by the one rule in
-// `helpers/recentlyMessaged.js`.
+// `helpers/recentlyMessaged.js`. Leads picked by hand are the recruiter's
+// choice and are kept.
 //
 // The import branch does not gather here: its IDs are minted while the
 // import is persisted, in `importTargets.js`.
@@ -88,7 +90,11 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
 
     // Apply .select() to only fetch fields needed for in-memory filtering.
     // This prevents crashes from corrupt Timestamp fields in documents.
-    const fieldsNeeded = ['phone', 'phoneNumber', 'email', 'createdAt'];
+    // `applicationId` is filtered here, not in the query: `== null` would not
+    // match the leads that have no such field at all.
+    const fieldsNeeded = ['phone', 'phoneNumber', 'email', 'createdAt', 'applicationId'];
+    // An application carries its own id as `applicationId`; only a lead's means it applied.
+    const appliedLead = (data) => filters.leadType === 'leads' && Boolean(data.applicationId);
     const selectQueries = queries.map(q => typeof q.select === 'function' ? q.select(...fieldsNeeded) : q);
 
     try {
@@ -111,9 +117,14 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
         // The channel's ledger first; the recruiter's un-ticked leads come off last.
         const window = excludeWindow(filters.excludeRecentDays);
         const candidates = new Map(); // leadId -> { key, phone, email, created }
+        const applied = new Set(); // a lead two split queries both return counts once
         snapshots.forEach(snap => {
             snap.docs.forEach(d => {
                 const data = d.data();
+                if (appliedLead(data)) {
+                    applied.add(d.id);
+                    return;
+                }
                 candidates.set(d.id, {
                     key: d.id,
                     phone: data.phone || data.phoneNumber || '',
@@ -122,6 +133,8 @@ const gatherIdsFromQueries = async ({ companyId, filters, config, authUid }) => 
                 });
             });
         });
+
+        if (applied.size > 0) console.log(`[initBulkSession] Applied: ${applied.size} leads left out`);
 
         const messaged = await recipientsMessagedWithin({
             db,

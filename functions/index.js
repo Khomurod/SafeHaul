@@ -42,6 +42,8 @@ function exportFunctions(wanted) {
   if (wanted('sendSignedDocumentCopy')) exports.sendSignedDocumentCopy = require('./signedCopyDelivery').sendSignedDocumentCopy;
   // "Retry seal": a failed or unfinished seal is sealed again, from what the signer submitted
   if (wanted('retrySealDocument')) exports.retrySealDocument = require('./sealRetry').retrySealDocument;
+  // "Remind": an unsigned document's link is sent again where it went, with seven more days
+  if (wanted('remindSigner')) exports.remindSigner = require('./remindSigner').remindSigner;
 
   // 2. Auth & User Management
   if (wanted('createPortalUser')) exports.createPortalUser = require('./hrAdmin').createPortalUser;
@@ -212,6 +214,7 @@ function exportFunctions(wanted) {
   // 15. In-App Notifications
   if (wanted('onApplicationStatusChanged')) exports.onApplicationStatusChanged = require('./notificationTriggers').onApplicationStatusChanged;
   if (wanted('onLeadAssigned')) exports.onLeadAssigned = require('./notificationTriggers').onLeadAssigned;
+  if (wanted('onApplicationAssigned')) exports.onApplicationAssigned = require('./notificationTriggers').onApplicationAssigned;
   if (wanted('onNewApplicationNotification')) exports.onNewApplicationNotification = require('./notificationTriggers').onNewApplicationNotification;
   if (wanted('onCallbackScheduled')) exports.onCallbackScheduled = require('./notificationTriggers').onCallbackScheduled;
   if (wanted('onLeadCallbackScheduled')) exports.onLeadCallbackScheduled = require('./notificationTriggers').onLeadCallbackScheduled;

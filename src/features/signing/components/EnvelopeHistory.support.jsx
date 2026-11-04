@@ -34,6 +34,7 @@ export const callables = {
     getSignedDocumentUrl: vi.fn(),
     sendSignedDocumentCopy: vi.fn(),
     retrySealDocument: vi.fn(),
+    remindSigner: vi.fn(),
 };
 export const fnMocks = {
     getFunctions: vi.fn(() => ({})),
@@ -45,7 +46,7 @@ export const toast = { showSuccess: vi.fn(), showError: vi.fn() };
 
 export const firebaseFirestoreMock = () => fs;
 export const firebaseFunctionsMock = () => fnMocks;
-export const libFirebaseMock = () => ({ db: {} });
+export const libFirebaseMock = () => ({ db: {}, functions: {} });
 export const feedbackMock = () => ({ useToast: () => toast });
 
 // --- fixtures and helpers, verbatim ----------------------------------------
@@ -119,6 +120,7 @@ export function resetHarness() {
         data: { success: true, sentTo: 'pat@example.test', sentAt: '2026-11-04T15:00:00.000Z' },
     });
     callables.retrySealDocument.mockResolvedValue({ data: { success: true, status: 'pending_seal', attempt: 1 } });
+    callables.remindSigner.mockResolvedValue({ data: { success: true, requestId: 'req-1', channels: { email: true, sms: false } } });
     Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: { writeText: vi.fn().mockResolvedValue() },

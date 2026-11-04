@@ -3,8 +3,9 @@
  *
  * Everything here is derived from data the app already writes: signing-request
  * `status`, the `emailStatus`/`emailError` and `smsStatus`/`smsError` delivery
- * fields, `deliveryMethod`, `createdAt`, and template `fields`. No new business
- * rule is invented, and no metric is shown that the stored data cannot support.
+ * fields, `deliveryMethod`, `createdAt`, `expiresAt`, and template `fields`. No
+ * new business rule is invented, and no metric is shown that the stored data
+ * cannot support.
  */
 
 const toMillis = (value) => {
@@ -23,10 +24,14 @@ export const COMPLETED_STATUSES = Object.freeze(['signed', 'sealed', 'completed'
 /** Statuses that mean the document is still with the signer. */
 export const AWAITING_STATUSES = Object.freeze(['sent', 'processing', 'pending_seal']);
 
-/** Status filter options. Values are the stored `status` values, unchanged. */
+/**
+ * Status filter options. Values are the stored `status` values, unchanged, and
+ * `expired`, a document awaiting signature whose link ran out (`isLinkExpired`).
+ */
 export const STATUS_FILTERS = Object.freeze([
     { value: 'all', label: 'All statuses' },
     { value: 'sent', label: 'Awaiting signature' },
+    { value: 'expired', label: 'Link expired' },
     { value: 'signed', label: 'Signed' },
     { value: 'pending_seal', label: 'Sealing' },
     { value: 'error_sealing', label: 'Seal failed' },
@@ -84,6 +89,19 @@ export function deliveryFailure(document) {
 
 export function hasDeliveryFailure(document) {
     return deliveryFailure(document) !== null;
+}
+
+/**
+ * An unsigned document whose link has run out: derived here, never stored, so
+ * no server count or index knows it, and the numbers count it as awaiting a
+ * signature (`signingRequestQueries.js`). The dossier's list reads it too. Its
+ * 'opened' is a status no writer stores, which the dossier always accepted.
+ */
+export function isLinkExpired(document, now = Date.now()) {
+    const status = normalize(document?.status).trim().toLowerCase();
+    if (status !== 'sent' && status !== 'opened') return false;
+    const expires = toMillis(document?.expiresAt);
+    return expires !== null && expires < now;
 }
 
 export function hasSealingFailure(document) {
@@ -153,7 +171,9 @@ export function filterDocuments(documents = [], filters = DEFAULT_FILTERS, now =
     return documents.filter((document) => {
         if (filters.needsAttention && !needsAttention(document)) return false;
 
-        if (filters.status && filters.status !== 'all') {
+        if (filters.status === 'expired') {
+            if (!isLinkExpired(document, now)) return false;
+        } else if (filters.status && filters.status !== 'all') {
             if (normalize(document.status).toLowerCase() !== filters.status) return false;
         }
 

@@ -125,7 +125,7 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
             await result.current.uploadLeads([{
                 firstName: 'Artificial',
                 lastName: 'Applicant',
-                email: 'artificial@example.test',
+                email: 'Artificial@Example.test',
                 phone: '(555) 123-4567',
                 normalizedPhone: '5551234567',
                 experience: '5',
@@ -141,7 +141,9 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
         expect(leadPayload).toEqual({
             firstName: 'Artificial',
             lastName: 'Applicant',
-            email: 'artificial@example.test',
+            email: 'Artificial@Example.test',
+            // The copy an application is matched to its lead by.
+            emailNormalized: 'artificial@example.test',
             phone: '(555) 123-4567',
             normalizedPhone: '5551234567',
             experience: '5',
@@ -190,7 +192,7 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
         await act(async () => { await result.current.uploadLeads([{}], 'file'); });
 
         expect(fs.set.mock.calls[0][1]).toMatchObject({
-            firstName: '', lastName: '', email: '', phone: '',
+            firstName: '', lastName: '', email: '', emailNormalized: '', phone: '',
             normalizedPhone: '', experience: '', driverType: '',
             city: '', state: '', isEmailPlaceholder: false,
         });

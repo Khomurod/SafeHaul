@@ -380,6 +380,35 @@ describe('ApplicationTab pending changes', () => {
     expect(screen.getByText(`${'y'.repeat(48)}…`)).toBeInTheDocument();
   });
 
+  const PENDING = [{ id: 'c1', fieldLabel: 'Phone', originalValue: '111', proposedValue: '222', status: 'pending' }];
+
+  it('offers to email the review link to the application’s address, beside Copy', () => {
+    const emailReviewLink = vi.fn();
+    renderTab({ ...APP, email: 'maria@example.test' }, { changes: { pendingChanges: PENDING, emailReviewLink } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Email review link to driver/i }));
+    expect(emailReviewLink).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /Copy driver review link/i })).toBeInTheDocument();
+  });
+
+  it('says where it was emailed, masked, and that a copied link would replace it', () => {
+    renderTab({ ...APP, email: 'maria@example.test' }, {
+      changes: { pendingChanges: PENDING, emailReviewLink: vi.fn(), emailedTo: 'm***@example.test' },
+    });
+    expect(screen.getByText(/Emailed to m\*\*\*@example\.test/)).toBeInTheDocument();
+    expect(screen.getByText(/A copied link replaces the emailed one/)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['no email', ''],
+    ['a placeholder email', 'maria@placeholder.safehaulapp.com'],
+  ])('offers no email with %s, says why, and keeps Copy', (_label, email) => {
+    renderTab({ ...APP, email }, { changes: { pendingChanges: PENDING, emailReviewLink: vi.fn() } });
+    expect(screen.queryByRole('button', { name: /Email review link to driver/i })).toBeNull();
+    expect(screen.getByText(/No email address on this application, so the review link can only be copied/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Copy driver review link/i })).toBeInTheDocument();
+  });
+
   it('hides the banner when there are no pending changes', () => {
     renderTab();
     expect(screen.queryByText(/edited by company/)).toBeNull();
