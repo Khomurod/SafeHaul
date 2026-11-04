@@ -5,17 +5,45 @@ import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { isPlaceholderEmail } from '@/config/placeholderDomains';
 import { toIsoDay } from '@/config/applicationDates';
+import { ATS_INTERESTED_STATUS } from '@shared/constants/atsStatus';
+import { normalizeApplicationStatus } from '@shared/utils/applicationStatus';
 
+const DECLINED = 'Declined';
+
+/**
+ * Each call result and the pipeline stage it moves the record to (owner
+ * decision Д3): Interested to `Interested`, Not Interested and Wrong Number to
+ * `Declined`; `stage: null` keeps the stage. The result itself is always kept
+ * as the last call (`lastCallOutcome`), which the list's "Last call" shows.
+ */
 const OUTCOMES = [
-    { id: 'interested', isContact: true, label: 'Connected / Interested', status: 'Contacted', archive: false },
-    { id: 'callback', isContact: true, label: 'Connected / Scheduled Callback', status: 'Contacted', archive: false },
-    { id: 'not_qualified', isContact: true, label: 'Connected / Not Qualified', status: 'Disqualified', archive: true },
-    { id: 'not_interested', isContact: true, label: 'Connected / Not Interested', status: 'Rejected', archive: true },
-    { id: 'hired_elsewhere', isContact: true, label: 'Connected / Hired Elsewhere', status: 'Disqualified', archive: true },
-    { id: 'voicemail', isContact: false, label: 'Left Voicemail', status: 'Attempted', archive: false },
-    { id: 'no_answer', isContact: false, label: 'No Answer', status: 'Attempted', archive: false },
-    { id: 'wrong_number', isContact: false, label: 'Wrong Number', status: 'Disqualified', archive: true }
+    { id: 'interested', isContact: true, label: 'Connected / Interested', stage: ATS_INTERESTED_STATUS },
+    { id: 'callback', isContact: true, label: 'Connected / Scheduled Callback', stage: null },
+    { id: 'not_qualified', isContact: true, label: 'Connected / Not Qualified', stage: null },
+    { id: 'not_interested', isContact: true, label: 'Connected / Not Interested', stage: DECLINED },
+    { id: 'hired_elsewhere', isContact: true, label: 'Connected / Hired Elsewhere', stage: null },
+    { id: 'voicemail', isContact: false, label: 'Left Voicemail', stage: null },
+    { id: 'no_answer', isContact: false, label: 'No Answer', stage: null },
+    { id: 'wrong_number', isContact: false, label: 'Wrong Number', stage: DECLINED }
 ];
+
+/** A hired or terminated record keeps its stage whatever a call says: a call does not undo a hire. */
+const STAGES_A_CALL_KEEPS = new Set(['hired', 'terminated']);
+
+/**
+ * The stage a call moves a record to, or null to leave it: for a result that
+ * keeps the stage, a hired or terminated record, or one already there in any
+ * spelling (`Rejected` is Declined). Writing no change sends no "status
+ * changed" notice (`functions/notificationTriggers.js`).
+ */
+function stageAfterCall(target, currentStatus) {
+    if (!target || currentStatus === target) return null;
+    const current = normalizeApplicationStatus(currentStatus);
+    if (STAGES_A_CALL_KEEPS.has(current)) return null;
+    const targetGroup = normalizeApplicationStatus(target);
+    if (targetGroup !== 'other' && targetGroup === current) return null;
+    return target;
+}
 
 /** "Oct 22 at 3:00 PM": the time as the recruiter chose it, in their own clock. */
 function reminderLabelOf(date, time) {
@@ -97,8 +125,6 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
 
         const outcomeConfig = OUTCOMES.find(o => o.id === outcome) || OUTCOMES[0];
         const outcomeLabel = outcomeConfig.label;
-        const newStatus = outcomeConfig.status;
-        const shouldArchive = outcomeConfig.archive;
 
         const collectionName = (lead.submittedAt || lead.sourceType === 'Company App') ? 'applications' : 'leads';
 
@@ -110,10 +136,19 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
                 lastContactedAt: serverTimestamp(),
                 lastContactedBy: auth.currentUser.uid,
                 lastCallOutcome: outcomeLabel,
-                status: newStatus
             };
 
-            if (shouldArchive) {
+            // The stage as stored now, not as the list row last read it.
+            const newStage = stageAfterCall(
+                outcomeConfig.stage,
+                leadSnap.exists() ? leadSnap.data()?.status : undefined,
+            );
+            if (newStage) {
+                updateData.status = newStage;
+                updateData.statusEnteredAt = serverTimestamp();
+            }
+            // `archived` marks only a record a call declined (no screen reads it yet).
+            if (newStage === DECLINED) {
                 updateData.archived = true;
                 updateData.archivedAt = serverTimestamp();
             }
