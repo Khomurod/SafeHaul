@@ -332,7 +332,8 @@ that failed, or has not finished ten minutes after signing or the last retry, ca
 sealed again from the document's details (**Retry seal**, `retrySealDocument`): it
 seals what the signer submitted, records the attempt in `sealAttempts`, never reseals
 a signed document, and the signer's images stay until a seal succeeds.
-**A driver's signing documents** are listed in the dossier's Documents tab: the
+**A driver's signing documents** are listed in the dossier's **Documents to sign** tab
+(id `documents`): the
 requests linked to the record, and each required post-application form no request
 carries yet as *Not started*; *Link expired* is derived (unsigned, `expiresAt` past).
 A post-application form is one document per application and form
@@ -431,6 +432,28 @@ opens: what is not set up, each linking to its page — company email not connec
 not verified, no texting line, no contact email for PEV notices, no post-application
 form, a form whose company signature has no image or whose template was deleted (PEV
 copies are a hint). Ready, it is one line; others see nothing.
+
+**Needs attention (dashboard).** For admins and the team, read once when the dashboard
+opens (kept two minutes) through `getDashboardAttention`: signed documents whose seal
+failed, documents unsigned for more than 7 days, PEV requests still waiting for the
+employer and those marked no response, drivers with company changes to approve
+(applications and leads), unfinished applications removed within 5 days, and hired
+drivers whose DQ documents expire within 30 days or have expired (counted exactly on the
+applications status + `dqExpiresNext` index, the five earliest named, each opening the
+driver's file). Each row links to the page that shows those records where one exists
+(PEV and changes live in each driver's file). Counts only, scoped to the company; rows
+of a feature that is off are left out. A failed count says "could not be checked";
+with nothing to show it is one calm line.
+
+**DQ file: what's in it, valid-until dates.** The DQ tab opens with *What's in the
+file*: the application, CDL, medical card, MVR, the employers of the three years before
+the application (each answered, no answer after the attempts, waiting or not requested),
+road test and full Clearinghouse report; the PSP report and the annual items are
+optional and never counted. It says what the file holds, not whether it is compliant,
+and the sidebar's DQ marker follows it. A CDL, medical card or MVR uploaded by the team
+may carry a valid-until date, and a CDL, medical card, MVR or TWIC record may have it
+set or cleared (logged); expired, or expiring within 30 days, is judged by the UTC day.
+The driver's uploads have one place, the DQ File tab, which lists and opens them.
 
 **Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
 worker (§8); the carrier connects and pays its own messaging provider. No
@@ -1164,6 +1187,11 @@ the daily count**; refusing is a recorded outcome.
   `pev_result_<hash of path>`, `pev_attempts_<requestId>`); a sealed signing request
   linked to an application or lead by `sealDocument` (`signed_<requestId>`), and by
   `syncDqFiles` when the tab opens if it is missing (a failed filing, an older seal).
+  A changed `cdlExpiration`, `medCardExpiration` or `twicExpiration` moves the date of
+  the synced records of that type, never the other way. `onDqFileWritten` keeps each
+  application's and lead's `dqExpiresNext` (the earliest valid-until date among records
+  not removed) and writes it only when it changes; `syncDqFiles` corrects it when the
+  tab opens, and Data cleanup → DQ valid-until dates writes it on older records.
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
   lead writes roll up dashboard counters into server-write-only `internal_stats`.
 - **Sealing** — a signing request entering `pending_seal`, or a Retry seal recording a
@@ -1356,7 +1384,10 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   a phrase list read clause by clause: a denial is a limitation, a news article
   counts only where it names SafeHaul (`claimScope.js`), and an overstatement
   slips past it. Never claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks,
-  document-expiry monitoring, a job board, or any named carrier endorsement.
+  document-expiry monitoring, a job board, or any named carrier endorsement. The DQ
+  checklist and dates may be described only as listing what the file holds and
+  showing valid-until dates; never as monitoring, a compliance check or a complete
+  DQ file.
 - **A `web/` change runs the `frontend_unit` CI lane**
   (`src/tests/hostingConfig.test.js`, A5). Its claims check runs in an
   always-required job, blocking and install-free, and refuses nested pages (K4)
@@ -1552,8 +1583,19 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   read state per person. Phone matching links the only lead with the number even when its
   email differs; older mixed-case lead emails match only after Data cleanup → Old lead
   fields. Remind's cooldown guards against mistakes, not a team member editing the
-  database; a failed reminder still counts for the ten minutes. Company setup reads once
+  database; a reminder whose every send failed does not count. Company setup reads once
   per dashboard visit.
+- **Batch 4 limits (2026-11):** the DQ checklist reads the employers as the dossier
+  loaded them (reopen it after a PEV change); `dqExpiresNext` reaches older records on a
+  DQ write, when their DQ tab opens, or through Data cleanup → DQ valid-until dates; an
+  old card left in the file keeps the record's earliest date until it is removed; a date
+  the team set on a synced record gives way to the application's next change of that
+  answer; inquiries uploaded by hand are counted, not matched to employers; the
+  recruiter-attached PSP report is not filed (В2). Needs attention's no-response count
+  includes every request still marked so, even where a newer one for that employer was
+  answered, and its unsigned count includes sends that failed; an unfinished
+  application's removal is read from its last save, and the Unfinished page lists only
+  the 200 most recent drafts.
 - **Batch 2 limits (2026-11):** requests sent before the PEV attempt log show only later
   attempts (their day-30 record notes the gap), and an attempt recorded after day 30 is not
   in the already-filed record; a day-30 record that failed to file is not made again
@@ -1592,7 +1634,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   Super Admin maintenance tools, not dead code; check before removing one.
 - **Maintenance → Data cleanup** (`dataCleanup`) removes leftovers item by item:
   Deep Diagnostic test accounts, SSN copies, stored PEV links, old lead fields,
-  application search fields, SMTP password copies outside `email_config`. Check
+  application search fields, SMTP password copies outside `email_config`, DQ
+  valid-until dates (`dqExpiresNext` on records filed before it). Check
   counts; Run confirms, needs a recent sign-in, is audited, resumes
   (`done: false`). Several-value `driverType` lists are only counted.
 

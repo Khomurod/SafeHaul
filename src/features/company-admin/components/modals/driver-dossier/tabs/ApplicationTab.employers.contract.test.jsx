@@ -241,7 +241,8 @@ describe('the employers editor', () => {
   });
 
   it('proposes nothing for a record with no employers when none were added', async () => {
-    const { employers: _none, ...noEmployers } = APP;
+    const noEmployers = { ...APP };
+    delete noEmployers.employers;
     renderTab(noEmployers);
     propose();
 
