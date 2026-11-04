@@ -1,24 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 
 export const DEFAULT_GOALS = { callGoal: 150, contactGoal: 50 };
 const LOAD_ERROR = "We couldn't load your team. Try again.";
 
-async function fetchGoals(companyId, userId) {
+function goalsOf(data) {
+    return {
+        // A goal saved as 0 is a goal of 0, not a missing one.
+        callGoal: data?.callGoal ?? DEFAULT_GOALS.callGoal,
+        contactGoal: data?.contactGoal ?? DEFAULT_GOALS.contactGoal,
+    };
+}
+
+/** Every saved goal of the company, by user id. Never rejects: a failed read gives no goals. */
+async function fetchGoals(companyId) {
     try {
-        const settingsSnap = await getDoc(doc(db, 'companies', companyId, 'team', userId));
-        if (!settingsSnap.exists()) return DEFAULT_GOALS;
-        const data = settingsSnap.data();
-        return {
-            // A goal saved as 0 is a goal of 0, not a missing one.
-            callGoal: data.callGoal ?? DEFAULT_GOALS.callGoal,
-            contactGoal: data.contactGoal ?? DEFAULT_GOALS.contactGoal,
-        };
+        const snapshot = await getDocs(collection(db, 'companies', companyId, 'team'));
+        return new Map(snapshot.docs.map((d) => [d.id, goalsOf(d.data())]));
     } catch (e) {
         console.warn('Error fetching goals:', e);
-        return DEFAULT_GOALS;
+        return new Map();
     }
 }
 
@@ -26,7 +29,8 @@ async function fetchGoals(companyId, userId) {
  * The company's team, as `listCompanyTeam` resolves it (Admin SDK + Firebase
  * Auth fallback, so a member is never reduced to a placeholder because their
  * profile document is absent or unreadable), each with their daily goals from
- * `companies/{id}/team/{uid}`.
+ * `companies/{id}/team`, read in one request beside the roster (150 / 50 where
+ * a member has none saved, or the read fails).
  *
  * It loads at once and again on every change to the company's `memberships`.
  * The listener is only the change signal: if it is denied the roster still
@@ -44,12 +48,14 @@ export function useTeamRoster(companyId) {
         if (!companyId) return;
         const request = ++latestRequest.current;
         try {
-            const { data } = await httpsCallable(functions, 'listCompanyTeam')({ companyId });
+            const [{ data }, goals] = await Promise.all([
+                httpsCallable(functions, 'listCompanyTeam')({ companyId }),
+                fetchGoals(companyId),
+            ]);
             const members = data?.members || [];
-            const goals = await Promise.all(members.map((m) => fetchGoals(companyId, m.id)));
             if (!alive.current || request !== latestRequest.current) return;
             setState({
-                members: members.map((member, i) => ({ ...member, ...goals[i] })),
+                members: members.map((member) => ({ ...member, ...(goals.get(member.id) || DEFAULT_GOALS) })),
                 invalidMemberships: data?.invalidMemberships || [],
                 loading: false,
                 error: null,

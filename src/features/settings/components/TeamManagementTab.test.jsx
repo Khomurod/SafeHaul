@@ -9,7 +9,12 @@ const fs = vi.hoisted(() => ({
     setDoc: vi.fn(),
     unsubscribe: vi.fn(),
     where: vi.fn((...a) => ({ __where: a })),
-    collection: vi.fn((_db, name) => name),
+    collection: vi.fn((_db, ...segs) => segs.join('/')),
+    doc: vi.fn((_db, ...segs) => segs.join('/')),
+    /** The goals collection, answered from `fs.goals`; any other collection is empty. */
+    getDocs: vi.fn(async (path) => (path === 'companies/company-1/team'
+        ? { docs: Object.entries(fs.goals).map(([id, g]) => ({ id, data: () => g })) }
+        : { docs: [] })),
     /** Captured onSnapshot callbacks so tests can push a later membership change. */
     snapshotHandlers: [],
 }));
@@ -22,16 +27,12 @@ const fn = vi.hoisted(() => ({
 }));
 
 vi.mock('firebase/firestore', () => ({
-    doc: (_db, ...segs) => segs.join('/'),
+    doc: (...a) => fs.doc(...a),
     collection: (...a) => fs.collection(...a),
+    getDocs: (...a) => fs.getDocs(...a),
     query: (...a) => ({ __query: a }),
     where: (...a) => fs.where(...a),
     setDoc: (...a) => fs.setDoc(...a),
-    getDoc: async (ref) => {
-        const goal = /^companies\/company-1\/team\/(.+)$/.exec(ref);
-        const g = goal && fs.goals[goal[1]];
-        return g ? { exists: () => true, data: () => g } : { exists: () => false };
-    },
     onSnapshot: (_q, cb, onError) => {
         fs.snapshotHandlers.push({ cb, onError });
         cb({ docs: [] });
@@ -81,6 +82,8 @@ beforeEach(() => {
     fs.unsubscribe.mockReset();
     fs.where.mockClear();
     fs.collection.mockClear();
+    fs.doc.mockClear();
+    fs.getDocs.mockReset();
     fn.deleteFn.mockReset().mockResolvedValue({ data: { success: true } });
     fn.createFn.mockReset().mockResolvedValue({ data: { success: true } });
     fn.listTeamFn.mockReset();
@@ -135,6 +138,41 @@ describe('TeamManagementTab — the page', () => {
         fs.goals = { u1: { callGoal: 0, contactGoal: 0 } };
         await renderLoaded();
         expect(await findRow('Artificial One')).toHaveTextContent('Goals: 0 dials, 0 contacts');
+    });
+
+    it("reads every member's goals in one request, once per load", async () => {
+        await renderLoaded();
+        expect(fs.getDocs).toHaveBeenCalledTimes(1);
+        expect(fs.getDocs).toHaveBeenCalledWith('companies/company-1/team');
+        const memberDocs = fs.doc.mock.results.map((r) => r.value).filter((path) => path.startsWith('companies/company-1/team/'));
+        expect(memberDocs).toEqual([]);
+
+        respondWith([member({ id: 'u3', name: 'Artificial Three', email: 'three@example.test' })]);
+        fs.snapshotHandlers[0].cb({ docs: [] });
+        await findRow('Artificial Three');
+        expect(fs.getDocs).toHaveBeenCalledTimes(2);
+    });
+
+    it('starts reading the goals before the roster answers', async () => {
+        let answerRoster;
+        fn.listTeamFn.mockImplementation(() => new Promise((resolve) => { answerRoster = resolve; }));
+        renderTab();
+        await waitFor(() => expect(fs.getDocs).toHaveBeenCalledWith('companies/company-1/team'));
+        expect(fn.listTeamFn).toHaveBeenCalledTimes(1);
+
+        answerRoster({ data: { companyId: 'company-1', members: [member()], invalidMemberships: [], repairedCount: 0 } });
+        expect(await findRow('Artificial One')).toHaveTextContent('Goals: 200 dials, 80 contacts');
+    });
+
+    it('shows the defaults, and no error, when the goals cannot be read', async () => {
+        fs.getDocs.mockImplementation(async () => { throw new Error('permission-denied'); });
+        const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        await renderLoaded();
+        expect(await findRow('Artificial One')).toHaveTextContent('Goals: 150 dials, 50 contacts');
+        expect(await findRow('Artificial Two')).toHaveTextContent('Goals: 150 dials, 50 contacts');
+        expect(screen.queryByRole('alert')).toBeNull();
+        expect(consoleWarn).toHaveBeenCalledWith('Error fetching goals:', expect.any(Error));
+        consoleWarn.mockRestore();
     });
 
     it('marks the signed-in admin and offers no Remove on their own row', async () => {
