@@ -45,7 +45,7 @@ class ErrorBoundary extends React.Component {
           <div className="w-full max-w-md">
             <ErrorState
               title="Something went wrong"
-              description="We encountered an unexpected error. Our team has been notified. Please try reloading the page."
+              description="We encountered an unexpected error. Please try reloading the page. If it keeps happening, contact support and mention the error code below."
               actions={(
                 <>
                   <Button variant="primary" onClick={this.handleReload}>

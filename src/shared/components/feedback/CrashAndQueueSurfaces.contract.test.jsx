@@ -69,6 +69,14 @@ describe('ErrorBoundary — the top-level crash screen', () => {
         expect(screen.getByText('Error Code: UI_CRASH_HANDLER')).toBeInTheDocument();
     });
 
+    it('does not claim anyone was notified: browser errors are only logged to the console', () => {
+        render(<ErrorBoundary><Exploding /></ErrorBoundary>);
+
+        const alert = screen.getByRole('alert');
+        expect(alert).not.toHaveTextContent(/notified/i);
+        expect(alert).toHaveTextContent('contact support and mention the error code below');
+    });
+
     it('renders its children untouched when nothing throws', () => {
         render(<ErrorBoundary><p>all is well</p></ErrorBoundary>);
 
