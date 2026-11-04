@@ -117,6 +117,25 @@ describe('a notification in the bell', () => {
         expect(screen.queryByText('Open E-Docs')).not.toBeInTheDocument();
     });
 
+    it('opens an application assigned to the reader, and shows an import summary as plain text', async () => {
+        const ASSIGNED = {
+            id: 'n-5', type: 'application_assigned', title: 'Application Assigned', message: 'Ann Baker was assigned to you',
+            relatedId: 'app-9', relatedType: 'application', recipientId: 'user-1', read: false, createdAt: at,
+        };
+        const IMPORTED = {
+            id: 'n-6', type: 'leads_assigned', title: 'Leads Assigned', message: '15 leads assigned to you',
+            recipientId: 'user-1', count: 15, read: false, createdAt: at,
+        };
+        const onOpenRecord = await openBell([ASSIGNED, IMPORTED]);
+
+        expect(screen.getByText('15 leads assigned to you')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Leads Assigned/ })).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /Application Assigned/ }));
+
+        expect(onOpenRecord).toHaveBeenCalledWith('app-9');
+        expect(hook.markAsRead).toHaveBeenCalledWith('n-5');
+    });
+
     it('still opens the record when marking it read fails', async () => {
         hook.markAsRead.mockRejectedValue(new Error('offline'));
         const onOpenRecord = await openBell([STATUS]);
