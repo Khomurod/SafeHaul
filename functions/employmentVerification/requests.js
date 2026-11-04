@@ -27,6 +27,7 @@ const { fileRequestInDq, requestPdfPath, storeRequestPdf } = require("./requestA
 const { releaseStatementFor } = require("../shared/employerReleaseAgreement");
 const { isValidEmail } = require("../shared/isValidEmail");
 const { LIVE_STATUSES, closeRequests, requestsForEmployer } = require("./requestLifecycle");
+const { attemptEntry, mirrorAttempt, recordAttempt, withAttempt } = require("./attemptLog");
 
 /**
  * The applicant's release naming this employer, from the submission record the
@@ -256,6 +257,11 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
             reminderCount: 0,
             lastReminderAt: null,
             createdBy: request.auth.uid,
+            // The attempt log (./attemptLog.js). A request handed over by fax or
+            // by hand is issued now; an emailed one is logged once the email goes.
+            attempts: deliveryMethod === 'email'
+                ? []
+                : [attemptEntry('sent', { at: now, by: request.auth.uid, method: deliveryMethod })],
         };
 
         // Store in verification_requests collection (global, indexed by token)
@@ -286,13 +292,16 @@ exports.sendVerificationRequest = onCall({ cors: true, secrets: ['SMS_ENCRYPTION
                 // Nothing was attempted, so nothing may be reminded or marked "no
                 // response" later: `send_failed` is outside the live statuses.
                 logger.error('[PEV] The request email did not go out; the request is marked not sent.', sendError);
-                await verificationRef.update({
+                const failed = attemptEntry('send_failed', { ok: false, by: request.auth.uid, error: sendError });
+                await verificationRef.update(withAttempt({
                     status: 'send_failed',
                     sendFailedAt: admin.firestore.FieldValue.serverTimestamp(),
                     sendError: String(sendError?.message || sendError).slice(0, 300),
-                });
+                }, failed));
+                await mirrorAttempt(verificationData, failed);
                 return { success: false, error: 'the email to the employer could not be sent' };
             }
+            await recordAttempt(verificationRef, attemptEntry('sent', { by: request.auth.uid, method: 'email' }));
         }
 
         // The employer's earlier live requests stop here: they would keep

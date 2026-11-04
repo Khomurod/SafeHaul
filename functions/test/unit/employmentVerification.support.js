@@ -69,6 +69,30 @@ const createTs = (ms = Date.now()) => ({
   toDate: () => new Date(ms),
 });
 
+/**
+ * An update as Firestore applies it: `arrayUnion` (`{ __arrayUnion: items }`)
+ * appends each item the array does not already hold, by value; everything else
+ * replaces the field. A timestamp compares by its instant.
+ */
+function applyUpdate(current, updates) {
+  const valueKey = (item) => JSON.stringify(item, (_key, value) => (
+    typeof value?.toMillis === 'function' ? { __ms: value.toMillis() } : value
+  ));
+  const next = { ...current };
+  for (const [field, value] of Object.entries(updates)) {
+    if (!value?.__arrayUnion) {
+      next[field] = value;
+      continue;
+    }
+    const array = Array.isArray(current[field]) ? [...current[field]] : [];
+    for (const item of value.__arrayUnion) {
+      if (!array.some((held) => valueKey(held) === valueKey(item))) array.push(item);
+    }
+    next[field] = array;
+  }
+  return next;
+}
+
 function appKey(companyId, collectionName, applicationId) {
   return `${companyId}/${collectionName}/${applicationId}`;
 }
@@ -93,7 +117,7 @@ function verificationDocRef(token) {
         throw new Error('firestore unavailable');
       }
       const current = verificationDocs.get(token) || {};
-      verificationDocs.set(token, { ...current, ...updates });
+      verificationDocs.set(token, applyUpdate(current, updates));
     }),
     collection: jest.fn((subcollection) => {
       if (subcollection !== 'responses') {
@@ -355,6 +379,7 @@ const firebaseAdminMock = () => ({
       },
       FieldValue: {
         serverTimestamp: jest.fn(() => ({ __serverTimestamp: true })),
+        arrayUnion: jest.fn((...items) => ({ __arrayUnion: items })),
       },
     },
   },

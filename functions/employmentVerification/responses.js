@@ -15,6 +15,7 @@ const { normaliseSignature } = require("./signature");
 const { SUPERSEDED_MESSAGE, requestIdOf } = require("./requestLifecycle");
 const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
 const { fileResultInDq, resultPdfFilename } = require("./requestAttachment");
+const { attemptEntry, withAttempt } = require("./attemptLog");
 
 /** The free-text answers, each limited to 2,000 characters. */
 const TEXT_ANSWERS = [
@@ -208,7 +209,7 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
             // no-response mark, and the employer's retry would overwrite it.
             const batch = db.batch();
             batch.set(docRef.collection('responses').doc('submission'), responseData);
-            batch.update(docRef, { status: 'completed', completedAt: now });
+            batch.update(docRef, withAttempt({ status: 'completed', completedAt: now }, attemptEntry('response', { at: now })));
             await batch.commit();
         } catch (claimedStepError) {
             await releaseClaim(docRef, verificationData.status);

@@ -119,7 +119,8 @@ describe('a request whose first email did not go out', () => {
     expect(mockSendDynamicEmail).toHaveBeenCalledTimes(1);
     expect(verificationDocs.get('pev-token-123456').status).toBe('send_failed');
     expect(row().verification.status).toBe('Not Started');
-    expect(row().verification.history).toEqual([]);
+    // The failed email is on the record (pevAttemptLog.test.js); nothing after it.
+    expect(row().verification.history.map((entry) => entry.action)).toEqual(['Request email could not be sent']);
   });
 
   it('leaves the employer\'s earlier request live, since this one replaced nothing', async () => {

@@ -10,6 +10,7 @@ const { checkRateLimit } = require("../shared/rateLimiter");
 const { logger } = require("firebase-functions");
 const { SUPERSEDED_MESSAGE } = require("./requestLifecycle");
 const { mirrorOntoEmployer, recordRefOf } = require("./employerMirror");
+const { attemptEntry } = require("./attemptLog");
 
 /** The statuses an open moves to `opened`. */
 const OPENABLE = ['sent', 'pending', 'reminder_sent'];
@@ -79,7 +80,11 @@ exports.getVerificationRequest = onCall({ cors: true }, async (request) => {
                 const first = !current.openedAt;
                 tx.update(docRef, {
                     status: 'opened',
-                    ...(first ? { openedAt: admin.firestore.FieldValue.serverTimestamp() } : {}),
+                    // The attempt log keeps the first open only (./attemptLog.js).
+                    ...(first ? {
+                        openedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        attempts: admin.firestore.FieldValue.arrayUnion(attemptEntry('opened')),
+                    } : {}),
                 });
                 return first;
             });
