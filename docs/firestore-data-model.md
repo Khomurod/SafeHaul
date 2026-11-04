@@ -95,7 +95,7 @@ Used by Cloud Functions with Admin SDK:
 | `segments/{id}/members/{id}` | read: team · write: admin | Segment membership |
 | `stats_daily/{dateId}` | read: team | Aggregated daily stats (server-written) |
 | `internal_stats/{docId}` | read: team · write: **denied** | Dashboard KPI rollups (server-only writes) |
-| `notifications/{id}` | read: team · create: admin · update: team · delete: admin | The bell; one with `recipientId` (a callback reminder; a document's sender told it was signed or failed to seal; the recruiter who prepared an application told it was submitted) is shown to that person only |
+| `notifications/{id}` | read: team · create: admin · update: team · delete: admin | The bell; one with `recipientId` (a callback reminder; a document's sender told it was signed or failed to seal; the recruiter who prepared an application told it was submitted; a lead's recruiter told the lead applied, `lead_applied_<applicationId>`) is shown to that person only |
 | `feature_alerts/{id}` | read/write: team or super | Scheduled deactivation warning analytics |
 | `system_settings/email_config` | server only | SMTP credentials; the password encrypted (`enc:v1:`) |
 | `settings/{docId}` | read: team · write: admin | Custom questions, ATS SMS templates, etc. |
@@ -160,6 +160,8 @@ The dossier's Documents tab lists the requests linked to the record it shows, by
 | `internal_notes`, `activity_logs`, `activities` | read/write: team, super |
 | `pending_changes/{fieldKey}` | read: team, super · **write: denied**. Company-proposed edits awaiting driver approval; written only by the `proposeApplicationChanges` / `submitChangeResolution` callables |
 | `submission/{version}` | read: team, super, owner · **write: denied**. The frozen snapshot of exactly what the driver saw, answered and accepted. Server-only (Admin SDK) — this denial is what makes it immutable rather than merely intended to be |
+
+**Link to a lead:** `fromLeadId` names the company's lead the submitted application was matched to (server-written by `onApplicationSubmitted`, `functions/shared/leadApplicationLink.js`); the lead holds the other half (below).
 
 **Deterministic IDs:** doc ID = truncated SHA-256 of `companyId:email:phone` (see [`src/lib/applicationId.js`](../src/lib/applicationId.js)), which makes offline-queue retries idempotent upserts instead of duplicates. **Guest submissions go exclusively through the `submitGuestApplication` callable** (Admin SDK, which bypasses these rules); there is no unauthenticated client-write fallback.
 
@@ -327,6 +329,10 @@ Two more kinds of entry, written by `purgeApplicationDraft` (the second by `dele
 | **delete** | Team or super |
 
 Same activity/DQ/note subcollections as applications (team/super).
+
+**Match keys:** `normalizedPhone` (digits, `normalizeSearchPhone`) and `emailNormalized` (the email trimmed and lowercased, `normalizeSearchEmail`; `email` itself stays as typed). Every lead creator writes both; older leads get them from Data cleanup → Old lead fields.
+
+**Link to an application:** when the lead's driver applies, the server sets `applicationId` (the application's document id) and `appliedAt`, leaves `status` alone, adds an `activity_logs/applied_<applicationId>` entry, and writes `fromLeadId` on the application. Deleting either record (`deleteApplication`) removes the other's half.
 
 ---
 
