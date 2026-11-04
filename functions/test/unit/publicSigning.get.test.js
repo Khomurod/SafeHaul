@@ -520,6 +520,28 @@ describe('getPublicEnvelope', () => {
       expect(signedPaths.map((entry) => entry.path)).toEqual(['secure_documents/co1/templates/form.pdf']);
     });
 
+    it('still opens the document when the image link cannot be made, without that link', async () => {
+      storage.bucket.mockImplementation(() => ({
+        name: 'test-bucket',
+        file: jest.fn((path) => ({
+          getSignedUrl: jest.fn(async () => {
+            if (path === IMAGE) throw new Error('signBlob denied');
+            return [`https://signed.example/${path}`];
+          }),
+        })),
+      }));
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        mockGet.mockResolvedValue({ exists: true, data: () => baseEnvelope({ fields: [companyField('cs1', IMAGE)] }) });
+        const result = await getPublicEnvelope(validRequest);
+        expect(result.pdfUrl).toBe('https://signed.example/secure_documents/co1/templates/form.pdf');
+        expect(result.fields[0]).not.toHaveProperty('companySignatureUrl');
+        expect(result.fields[0]).not.toHaveProperty('companySignaturePath');
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
     it('drops a path or link stored on any other field', async () => {
       const byId = await fieldsOf([{
         id: 'f1',

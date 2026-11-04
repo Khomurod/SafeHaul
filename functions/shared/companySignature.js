@@ -62,7 +62,13 @@ async function withCompanySignatureUrls(fields, companyId, signUrl) {
         delete shown.companySignaturePath;
         delete shown.companySignatureUrl;
         const imagePath = isCompanySignatureField(field) ? companySignatureImagePath(companyId, field) : null;
-        if (imagePath) shown.companySignatureUrl = await signUrl(imagePath);
+        if (!imagePath) return shown;
+        // A link that cannot be made hides that image; it never keeps the signer out of the document.
+        try {
+            shown.companySignatureUrl = await signUrl(imagePath);
+        } catch (err) {
+            console.warn(`[companySignature] No link for the company signature ${field.id}:`, err.message);
+        }
         return shown;
     }));
 }
