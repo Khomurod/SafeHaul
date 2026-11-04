@@ -59,7 +59,7 @@ erDiagram
 | `users` | `userId` | **read:** owner, super, staff · **create:** self · **update:** owner (no role/companyId) or super | HR/admin portal user profile |
 | `memberships` | auto | **read:** self, super, company admin of tenant · **create/update:** super only (company admins go through `createPortalUser`) · **delete:** super or company admin of tenant | Links `userId` ↔ `companyId` + role |
 | `notifications` | auto | **read/update/delete:** recipient · **create:** denied (server-only) | Unused: nothing writes or reads it |
-| `verification_requests` | token | **read:** super only · **write:** denied | PEV; all portal access via callables |
+| `verification_requests` | token | **read:** super only · **write:** denied | PEV; all portal access via callables. `attempts[]` is the authoritative log of every attempt (`{ kind, at, ok, by?, step?, method?, note?, recordedAt?, error? }`: sent, send_failed, reminder, opened, response, manual_result, no_response, and the call / fax / note `recordVerificationAttempt` adds, at most 50 of those), appended with `arrayUnion`; `attemptRecordPath` is the day-30 PDF of it (`…/pev_requests/PEV_ATTEMPTS_…`, also `dq_files/pev_attempts_<requestId>`). The employer row's `verification.history` mirrors a short entry (`attempt`, `ok`, `note`, `recordedBy`), never `error`, the token or an address |
 | `verification_requests/{token}/responses` | `responseId` | same as parent | PEV responses |
 | `analytics` | `docId` | **read:** super · **write:** denied | Platform analytics |
 | `system_settings` | `settingId` | **read, write:** super | Global settings |
