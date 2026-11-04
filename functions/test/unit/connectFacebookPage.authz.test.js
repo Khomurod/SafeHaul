@@ -449,6 +449,55 @@ describe('connectFacebookPage page claim', () => {
         expect(mockStore.get('integrations_index/artificial-page-id')).toEqual(working);
     });
 
+    it('does not put its token on a claim another company took meanwhile', async () => {
+        // While this attempt waits on Facebook, its claim is released (say, by a
+        // failed second attempt of the same company) and another company claims
+        // the page. Nothing of this attempt may land on that claim.
+        const otherClaim = { companyId: OTHER_COMPANY, claimPending: true, claimId: 'artificial-other-claim' };
+        axios.get.mockReset().mockImplementation(async (url) => {
+            if (url.includes('oauth/access_token')) {
+                mockStore.set('integrations_index/artificial-page-id', { ...otherClaim });
+                return { data: { access_token: 'artificial-long-lived-user-token' } };
+            }
+            return { data: { access_token: 'artificial-page-token' } };
+        });
+
+        await expect(call({ roles: { [COMPANY]: 'company_admin' } }))
+            .rejects.toMatchObject({ code: 'internal', message: 'Failed to connect Facebook Page.' });
+
+        expect(mockStore.get('integrations_index/artificial-page-id')).toEqual(otherClaim);
+        expect(axios.post).not.toHaveBeenCalled();
+    });
+
+    it('does not complete over a claim another company took during the subscription', async () => {
+        const otherClaim = { companyId: OTHER_COMPANY, claimPending: true, claimId: 'artificial-other-claim' };
+        axios.post.mockReset().mockImplementation(async () => {
+            mockStore.set('integrations_index/artificial-page-id', { ...otherClaim });
+            return { data: {} };
+        });
+
+        await expect(call({ roles: { [COMPANY]: 'company_admin' } }))
+            .rejects.toMatchObject({ code: 'internal', message: 'Failed to connect Facebook Page.' });
+
+        expect(mockStore.get('integrations_index/artificial-page-id')).toEqual(otherClaim);
+    });
+
+    it('does not release the claim of a later attempt of the same company', async () => {
+        // A second attempt of the same company claims the page while this one
+        // waits on Facebook; this one then fails. Its rollback must leave the
+        // later attempt's claim in place.
+        const laterClaim = { companyId: COMPANY, claimPending: true, claimId: 'artificial-later-claim' };
+        axios.get.mockReset().mockImplementation(async () => {
+            mockStore.set('integrations_index/artificial-page-id', { ...laterClaim });
+            throw new Error('artificial Graph failure');
+        });
+
+        await expect(call({ roles: { [COMPANY]: 'company_admin' } }))
+            .rejects.toThrow(/Failed to connect Facebook Page/i);
+
+        expect(mockStore.get('integrations_index/artificial-page-id')).toEqual(laterClaim);
+    });
+
     it('releases the claim when the Facebook exchange times out', async () => {
         axios.get.mockReset().mockRejectedValue(
             Object.assign(new Error('timeout of 15000ms exceeded'), { code: 'ECONNABORTED' }),
