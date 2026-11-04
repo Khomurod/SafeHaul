@@ -194,7 +194,8 @@ checkboxes (the wizard reads only its exact form, e.g. `H,N`). It never offers
 the SSN or a second medical-card upload (the documents panel owns it). In
 `SchemaRenderer` edit mode, which the dossier's *Edit Application* shares,
 uploads, the signature and the applicant's certification are display-only and
-`proposeApplicationChanges` skips them.
+`proposeApplicationChanges` skips them; the dossier also locks every field off
+the server's allowlist (§5).
 
 **The document reader** extracts text in the recruiter's browser — a PDF's text
 layer, else Tesseract OCR (skipped if it cannot start within a minute), else
@@ -932,7 +933,12 @@ The driver approves, rejects or corrects each, none preselected, through a
 token link (`/review-change/:token`, 30-day TTL, newest only; `deliver: 'email'`
 emails it to the application's own `email`);
 `hasPendingCompanyChanges` clears once all are resolved. Only callables
-write `pending_changes`.
+write `pending_changes`. *Edit Application* gives a box only to the fields on the
+server's allowlist (`functions/shared/applicationEditableFields.json`, read by both
+sides): names, date of birth, SSN, contact details, address, licence, experience
+and previous employers. Everything else is display-only, and the edit bar says
+why; the result names each field the server left out (no change, or not the
+company's to change).
 
 **Previous employers are editable there.** `SchemaSection` renders `array`
 sections read-only whatever `isEditing` says (it is shared with the wizard), so
@@ -967,8 +973,11 @@ PEV record.
 
 **ATS statuses are stored strings.** `src/shared/constants/atsStatus.js` holds
 the canonical funnel (`New`, `Contact Attempt 1–3`, `In Process`, `Hired`,
-`Terminated`, `Declined`), plus `Interested` and legacy aliases kept selectable
-so older records stay editable. Creation defaults differ: leads get `New Lead`,
+`Terminated`, `Declined`), plus `Interested`. The dossier's status picker offers
+only those, and the record's own value when it is a legacy one: one that names a
+stage takes its place under the stage's name (`New Lead` and `New Application` read
+New, `Approved` Hired, `Rejected` Declined), any other keeps its stored name.
+Legacy values stay stored and valid in the rules. Creation defaults differ: leads get `New Lead`,
 applications `New Application`. Application lists show one name per group
 (`applicationStatusLabel`: `Approved` reads Hired); the value stays. Rules
 validate transitions and **cannot import JS**: a rename edits them too.
@@ -1144,8 +1153,8 @@ the daily count**; refusing is a recorded outcome.
 ### Firestore triggers
 
 - **Driver sync** — a new lead or signed application (an unsigned one is
-  marked `validation_error`), files its details (no SSN) under `drivers/{id}/pending_updates`,
-  read by nothing, and adds the company to an existing profile (`{id}`: the Auth uid of a known email;
+  marked `validation_error`) adds its company to an existing profile's `companyIds`,
+  copying none of the driver's details (`{id}`: the Auth uid of a known email;
   for a placeholder one, a profile matched by phone; else the document id); call and data-change logs merge into `drivers/{document id}`. No Auth user is created. A signed application also links its lead (§4).
 - **DQ file** — an application's uploads become `dq_files/{type}` records when it
   arrives or one changes, matched by `storagePath` (a link only without one);
@@ -1508,10 +1517,11 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   (`getSignedApplicationFileUrl` refuses paths outside the caller's companies).
   Only custom-question uploads are held to `guest_uploads/`; restricting the
   standard fields needs a survey of every folder a legitimate file can live in.
-- **The dossier's *Edit Application* offers fields the server will not change.**
-  Every schema section is editable, but `proposeApplicationChanges` applies only
-  its allowlist and silently returns the rest as `skipped`: an edit to, say, a
-  qualification answer disappears.
+- **Violations, accidents and previous addresses** are on the server's allowlist,
+  but *Edit Application* has no editor for them (array sections render read-only),
+  so they show display-only.
+- **Older `drivers/{id}/pending_updates` documents remain**; nothing reads or writes
+  them. Data cleanup clears only an SSN in them; deleting them is the owner's call.
 - **HEIC photos cannot be read** (an iPhone's default; browsers cannot decode
   it): the reader refuses it, naming what it takes: PDF, JPG, PNG, WebP.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
