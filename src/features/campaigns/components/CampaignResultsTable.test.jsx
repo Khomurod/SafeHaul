@@ -3,7 +3,7 @@ import { axe } from 'vitest-axe';
 import { CampaignResultsTable } from './CampaignResultsTable';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, getCountFromServer, startAfter } from 'firebase/firestore';
 
 // Mock Firebase. Query builders return inspectable objects so the exact
 // Firestore read (path, order, limit) can be asserted; getDocs is controlled
@@ -17,10 +17,23 @@ vi.mock('firebase/firestore', () => ({
     query: vi.fn((...a) => ({ __query: a })),
     orderBy: vi.fn((...a) => ({ __orderBy: a })),
     limit: vi.fn((...a) => ({ __limit: a })),
-    getDocs: vi.fn()
+    startAfter: vi.fn((...a) => ({ __startAfter: a })),
+    where: vi.fn((...a) => ({ __where: a })),
+    getDocs: vi.fn(),
+    getCountFromServer: vi.fn(async () => ({ data: () => ({ count: 0 }) })),
 }));
 
 const asSnapshot = (rows) => ({ docs: rows.map((data) => ({ id: data.id, data: () => data })) });
+
+/** `n` delivered logs numbered from `from`, with fictional 555-01xx contacts. */
+const recipients = (from, n) => Array.from({ length: n }, (_, i) => ({
+    id: `log-${from + i}`,
+    recipientName: `Recipient ${from + i + 1}`,
+    recipientIdentity: `555-01${String((from + i) % 100).padStart(2, '0')}`,
+    status: 'delivered',
+    timestamp: { toDate: () => new Date() },
+}));
+const countOf = (count) => ({ data: () => ({ count }) });
 
 beforeEach(() => {
     vi.resetAllMocks();
@@ -226,5 +239,63 @@ describe('CampaignResultsTable', () => {
 
         expect(screen.getByText('Delivered')).toBeInTheDocument();
         expect(screen.queryByText('Awaiting delivery')).not.toBeInTheDocument();
+    });
+
+    it('says how many recipients exist and loads the next 200', async () => {
+        const firstPage = asSnapshot(recipients(0, 200));
+        getDocs
+            .mockResolvedValueOnce(firstPage)
+            .mockResolvedValueOnce(asSnapshot(recipients(200, 200)));
+        getCountFromServer.mockResolvedValue(countOf(450));
+        render(<CampaignResultsTable companyId="123" campaignId="abc" />);
+
+        expect(await screen.findByText('Showing the newest 200 of 450 recipients.')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Load more recipients' }));
+
+        expect(await screen.findByRole('rowheader', { name: 'Recipient 201' })).toBeInTheDocument();
+        expect(screen.getByText('Showing the newest 400 of 450 recipients.')).toBeInTheDocument();
+        expect(startAfter).toHaveBeenCalledWith(firstPage.docs[199]);
+        expect(getDocs).toHaveBeenCalledTimes(2);
+    });
+
+    it('says nothing more when every recipient is already shown', async () => {
+        getDocs.mockResolvedValue(asSnapshot(recipients(0, 200)));
+        getCountFromServer.mockResolvedValue(countOf(200));
+        render(<CampaignResultsTable companyId="123" campaignId="abc" />);
+
+        await screen.findByRole('rowheader', { name: 'Recipient 200' });
+        await waitFor(() => expect(getCountFromServer).toHaveBeenCalled());
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(screen.queryByText(/Showing the newest/)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Load more recipients' })).not.toBeInTheDocument();
+    });
+
+    it('says the search looks only at the loaded recipients while a term is typed', async () => {
+        getDocs.mockResolvedValue(asSnapshot(recipients(0, 200)));
+        getCountFromServer.mockResolvedValue(countOf(1200));
+        render(<CampaignResultsTable companyId="123" campaignId="abc" />);
+
+        expect(await screen.findByText('Showing the newest 200 of 1,200 recipients.')).toBeInTheDocument();
+        const search = screen.getByLabelText('Search recipients by name or contact');
+        fireEvent.change(search, { target: { value: 'Recipient 7' } });
+        expect(screen.getByText('Showing the newest 200 of 1,200 recipients. Search looks at these only.')).toBeInTheDocument();
+        fireEvent.change(search, { target: { value: '' } });
+        expect(screen.getByText('Showing the newest 200 of 1,200 recipients.')).toBeInTheDocument();
+    });
+
+    it('keeps the rows and says so when the next recipients cannot be loaded', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        getDocs
+            .mockResolvedValueOnce(asSnapshot(recipients(0, 200)))
+            .mockRejectedValueOnce(new Error('unavailable'));
+        getCountFromServer.mockResolvedValue(countOf(450));
+        render(<CampaignResultsTable companyId="123" campaignId="abc" />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Load more recipients' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('More recipients could not be loaded.');
+        expect(screen.getByRole('rowheader', { name: 'Recipient 200' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Load more recipients' })).toBeEnabled();
+        consoleError.mockRestore();
     });
 });

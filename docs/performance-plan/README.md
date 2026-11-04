@@ -61,10 +61,10 @@ Format: `- [ ] **ID** · Russian name · *English name* → task file · PR: —
    - [x] **T1-F** · Запрашивать код анкеты сразу при запуске (итог T1: GO, около 0,7 с) · *Request the `/apply` route code during start-up* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
    - [x] **T3-static** · Нейтральная заставка в `index.html` вместо белого экрана (итог T1: GO; Р7: да) · *Neutral static placeholder in `index.html`* → [T1 §5](../qa/mobile-speed-baseline.md) · PR: #557 · Дата: 2026-11-03
 2. **Постраничная загрузка / Paginate results (#5)**
-   - [ ] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: — · Дата: —
-   - [ ] **T2b** · E-Docs: грузить только последние конверты, счётчики с сервера · *Load only recent envelopes in E-Docs* → [T2b](T2b-edocs-recent-envelopes.md) · PR: — · Дата: —
-   - [ ] **T2c** · Ограничить списки кампаний, итоги остаются верными · *Limit the Campaigns lists* → [T2c](T2c-campaigns-lists-limit.md) · PR: — · Дата: —
-   - [ ] **T2d** · (необязательно) Свои напоминания не пропадают из колокольчика · *(optional) Keep own reminders in the notification bell* → [T2d](T2d-notification-bell-reminders.md) · PR: — · Дата: —
+   - [x] **T2a** · Постраничный журнал получателей и отчёт кампании · *Page the campaign recipient log and delivery report* → [T2a](T2a-campaign-results-paging.md) · PR: #558 · Дата: 2026-11-03
+   - [x] **T2b** · E-Docs: грузить только последние конверты, счётчики с сервера · *Load only recent envelopes in E-Docs* → [T2b](T2b-edocs-recent-envelopes.md) · PR: #558 · Дата: 2026-11-03
+   - [x] **T2c** · Ограничить списки кампаний, итоги остаются верными · *Limit the Campaigns lists* → [T2c](T2c-campaigns-lists-limit.md) · PR: #558 · Дата: 2026-11-03
+   - [x] **T2d** · (необязательно) Свои напоминания не пропадают из колокольчика · *(optional) Keep own reminders in the notification bell* → [T2d](T2d-notification-bell-reminders.md) · PR: #558 · Дата: 2026-11-03
 3. **Заглушки вместо нулей / Skeleton loading screens (#1)**
    - [x] **T3 PR 1** · Компонент `Skeleton` и счётчики панели компании · *Design-system `Skeleton`, `MetricCard loading`, company dashboard* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
    - [x] **T3 PR 2** · Заглушка страницы заявки водителя · *Driver apply-page placeholder* → [T3](T3-loading-placeholders.md) · PR: #557 · Дата: 2026-11-03
@@ -99,9 +99,9 @@ Each can be done on its own, or when someone next changes that part of the app.
   - [ ] **M4-3a / 3b / 3c** · Только если ворота открыты и вы согласны: серверная функция для списка · *Only if the gate opens and the owner agrees* → [M4](M4-applications-list-payload.md) · PR: — · Дата: —
   - [x] **M4-4** · (необязательно) То же, что M2a: если M2a сделана, отметить «не понадобилось» — не понадобилось, сделано в M2a · *(optional) Same as M2a: not needed, done under M2a* → [M4](M4-applications-list-payload.md) · PR: #557 · Дата: 2026-11-03
 - **Меньше лишних перерисовок / Prevent unnecessary re-renders (#26)**: после T1
-  - [ ] **M5-1** · Записать замер и решение · *Record the measurement and the verdict* → [M5](M5-re-renders.md) · PR: — · Дата: —
-  - [ ] **M5-2** · Список кандидатов: стабильные свойства · *Stable props for the candidate list* → [M5](M5-re-renders.md) · PR: — · Дата: —
-  - [ ] **M5-3** · Анкета водителя: одна правка, только если замер покажет · *One wizard fix, only if its gate opens* → [M5](M5-re-renders.md) · PR: — · Дата: —
+  - [x] **M5-1** · Записать замер и решение (при 4x: анкета W1 88 мс — закрыто, W2 128 мс — наблюдать; список L1 112 мс — делать M5-2) · *Record the measurement and the verdict* → [M5](M5-re-renders.md) · PR: #558 · Дата: 2026-11-03
+  - [x] **M5-2** · Список кандидатов: стабильные свойства (L1 при 4x: 112 → 72 мс) · *Stable props for the candidate list* → [M5](M5-re-renders.md) · PR: #558 · Дата: 2026-11-03
+  - [x] **M5-3** · Анкета водителя: одна правка, только если замер покажет · *One wizard fix, only if its gate opens* → [M5](M5-re-renders.md) · не понадобилось: W2 128 мс при 4x — «наблюдать», а W-a и W-b не S-правки · Дата: 2026-11-03
 - **Обновление экрана до ответа сервера / Optimistic UI (#14)**
   - [x] **M6** · Assign To возвращается к сохранённому, если сохранение не удалось · *Put the Assign To picker back when the save fails* → [M6](M6-assign-picker-rollback.md) · PR: #557 · Дата: 2026-11-03
   - [ ] **M6-opt** · (необязательно) Новая заметка сразу, с пометкой «Saving…» · *(optional) Show a new note at once, marked "Saving…"* → [M6-opt](M6-opt-note-saving-mark.md) · PR: — · Дата: —
@@ -141,8 +141,22 @@ Agents fill this in. Numbers and verdicts only, never personal data.
 - **M4-2, Applications list (owner's DevTools numbers):** date; company size;
   (a) first page, (b) Next page, (c) 3-letter name search, (d) E-Docs; verdict
   OPEN or CLOSED. — *not measured yet*
-- **M5-1, re-renders:** date; harness; median of 3 at 4x CPU for each screen;
-  verdict (act, watch, none). — *not measured yet*
+- **M5-1, re-renders:** 2026-11-03, local harness only (E2E-mode production build,
+  `vite preview` on 127.0.0.1, every other host aborted, CDP CPU throttling, keys 150 ms
+  apart, INP-like as in T1), median (min–max) of 3, in ms
+  ([M5 "As done"](M5-re-renders.md#done-when-acceptance-criteria)):
+  - W1 Personal Information (T1's S1, app code `11626a6`): 88 (80–96) at 4x, 240 (216–336)
+    at 10x. **Closed.**
+  - W2 Employment History with 6 employers (T1's S2): 128 (104–144) at 4x, 408 (304–464) at
+    10x. **Watch**: no S-size fix qualifies, so M5-3 is not done.
+  - L1 Applications search (`maria`, then New and All Applications; the fixture has 8 rows,
+    not 20), app code `66bba0b`: desktop 1440×900 112 (88–120) at 4x, 272 (224–288) at 10x;
+    Pixel 7 96 (88–120) at 4x, 224 (208–256) at 10x. **Act** (100–199 on desktop): M5-2.
+  - L1 after M5-2: desktop 72 (56–104) at 4x, 184 (160–312) at 10x; Pixel 7 72 (56–80) at
+    4x, 176 (168–184) at 10x.
+  - Machine: Lighthouse 13.6.0's `benchmarkIndex` page function, 3 times at 1x before each
+    L1 series: 1,962 (1,878–2,013.5) before, 2,081 (2,006.5–2,089) after. T1's session,
+    where W1 and W2 were measured: 1,572.5.
 - **M7a, submit wait and PDFs (owner's numbers):** date; p50/p95/p99 of
   `submitGuestApplication`; counts (a)–(d) from M7a; decisions for M7b and M7c.
   — *not measured yet*
@@ -172,11 +186,11 @@ answer, and the batch PR says so.
 | Batch PR | What it changes | Items, in order |
 |---|---|---|
 | **A — Экраны / Screens** | browser only | T1 (measured first, as the baseline), T3 (both parts), T1-F, T3-static (only if Р7 is yes), T4.5, M2a, M2b, M-SA, M4-1, M6, X1a (without Sentry: the owner is removing it) |
-| **B — Списки / Lists** | browser and Firestore indexes | T2a, T2b, T2c, T2d, M5 (only where T1's numbers call for it) |
+| **B — Списки / Lists** | browser and Firestore indexes | T2a, T2b, T2c, T2d, M5 (only where the numbers call for it: T1's for the wizard, M5-1's for the list) |
 | **C — Сервер / Server** | Cloud Functions | T4.1, T4.2, T4.3, T4.4, M1a, M1b, M1c, M3a, M3b, M7b PR 1, then M7c (only if M7a's numbers call for it), then M7b PR 2. Without M7a's numbers, M7b PR 2 waits, because it needs M7c merged or ticked "not needed" |
 | **D — Мониторинг / Monitoring** | browser, CI and docs | T5, T5b (both parts), X1b. T5b's wait for Production speed data is waived: the owner asked to remove Sentry outright (Р13), and Sentry's page-load data today is one undifferentiated "Pageload" group |
 | Waits for the owner's numbers | — | M4-2 and M4-3 (Р2), M7a and M7c (Р24) |
-| Not done | — | T5-alt (the owner chose A), M6-opt (recommended no), M4-4 (the same change as M2a) |
+| Not done | — | T5-alt (the owner chose A), M6-opt (recommended no), M4-4 (the same change as M2a), M5-3 (the wizard measured in the watch band) |
 
 ## Решения владельца / Owner decisions
 
@@ -201,10 +215,10 @@ task that waits for it.
   фильтры на Sent Documents ищут среди загруженных: последние 100, ещё по кнопке
   «Load older documents». Экран об этом предупреждает. Цифры на Overview и
   список «Needs attention» остаются полными. Устраивает? *Рекомендую:* да. Поиск
-  по всей истории можно сделать отдельной задачей позже. — Ответ: — · Дата: —
+  по всей истории можно сделать отдельной задачей позже. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р5 (T2d).** Сделать небольшой необязательный фикс: свои напоминания
   рекрутёра не пропадают из колокольчика, даже когда у коллег их много?
-  *Рекомендую:* да. — Ответ: — · Дата: —
+  *Рекомендую:* да. — Ответ: да (рекомендованный ответ; владелец не возражал на момент выполнения) · Дата: 2026-11-03
 - **Р6 (T2b, T2d). Шаг для вас.** T2b и T2d добавляют индексы Firestore. Перед
   продвижением такого релиза проверьте в Firebase console → Firestore →
   Indexes, что новые индексы в статусе «Enabled». — Сделано: — · Дата: —

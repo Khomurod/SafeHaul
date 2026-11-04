@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { CampaignsDashboard } from './CampaignsDashboard';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -18,18 +18,32 @@ vi.mock('@/context/DataContext', () => ({
 
 // Mock Firestore. Returns are opaque objects the tests can inspect: doc() surfaces
 // its path, collection() records its segments, and every onSnapshot hands back a
-// tracked unsubscribe so listener cleanup can be asserted.
+// tracked unsubscribe so listener cleanup can be asserted. The server totals
+// answer from `serverTotals`, which a test may set and `beforeEach` resets.
 const mockOnSnapshot = vi.fn();
 const mockDeleteDoc = vi.fn();
 const mockSetDoc = vi.fn();
 const mockCollection = vi.fn((...a) => ({ __collection: a }));
 const mockUnsubscribes = [];
+const serverTotals = {};
+const resetServerTotals = () => Object.assign(serverTotals, { count: 0, outreach: 0, outreachError: null });
+resetServerTotals();
+const mockGetCountFromServer = vi.fn(async () => ({ data: () => ({ count: serverTotals.count }) }));
+const mockGetAggregateFromServer = vi.fn(async () => {
+    if (serverTotals.outreachError) throw serverTotals.outreachError;
+    return { data: () => ({ outreach: serverTotals.outreach }) };
+});
 vi.mock('firebase/firestore', () => ({
     collection: (...a) => mockCollection(...a),
     query: (...a) => ({ __query: a }),
     orderBy: (...a) => ({ __orderBy: a }),
-    onSnapshot: (q, cb) => {
-        mockOnSnapshot(q, cb);
+    limit: (...a) => ({ __limit: a }),
+    where: (...a) => ({ __where: a }),
+    sum: (...a) => ({ __sum: a }),
+    getCountFromServer: (...a) => mockGetCountFromServer(...a),
+    getAggregateFromServer: (...a) => mockGetAggregateFromServer(...a),
+    onSnapshot: (q, cb, fail) => {
+        mockOnSnapshot(q, cb, fail);
         const unsub = vi.fn();
         mockUnsubscribes.push(unsub);
         return unsub;
@@ -39,6 +53,17 @@ vi.mock('firebase/firestore', () => ({
     deleteDoc: (...args) => mockDeleteDoc(...args),
     serverTimestamp: () => '__serverTimestamp__'
 }));
+
+// Which of the dashboard's listeners a query belongs to: the drafts, the live
+// sessions (the only one filtered by status) or the session history.
+const listenerKind = (q) => {
+    const text = JSON.stringify(q);
+    if (text.includes('campaign_drafts')) return 'drafts';
+    return text.includes('__where') ? 'live' : 'history';
+};
+// The `limit` a listener's query carries, if any.
+const limitOf = (q) => q?.__query.find((part) => part.__limit)?.__limit[0];
+const queriesOf = (kind) => mockOnSnapshot.mock.calls.map(([q]) => q).filter((q) => listenerKind(q) === kind);
 
 const mockCancelCallable = vi.fn().mockResolvedValue({ data: { success: true } });
 vi.mock('firebase/functions', () => ({
@@ -95,26 +120,9 @@ describe('CampaignsDashboard', () => {
     });
 
     it('fetches and displays campaigns and sessions', async () => {
-        // Setup snapshot mock to return different data based on query
-        // Since we can't easily inspect the query object in this mock setup without complex logic,
-        // we'll assume the component registers two listeners.
-        // The first one (drafts) and second one (sessions).
-
-        let draftCallback;
-        let sessionCallback;
-
+        const callbacks = {};
         mockOnSnapshot.mockImplementation((q, cb) => {
-            // Heuristic: drafts query has 'campaign_drafts', sessions has 'bulk_sessions'
-            // But 'q' is an opaque object here.
-            // However, React runs effects in order.
-            // 1. Fetch Drafts
-            // 1b. Fetch Sessions
-            if (!draftCallback) {
-                draftCallback = cb;
-            } else {
-                sessionCallback = cb;
-            }
-            return vi.fn();
+            callbacks[listenerKind(q)] = cb;
         });
 
         render(<CampaignsDashboard companyId="123" />);
@@ -137,8 +145,9 @@ describe('CampaignsDashboard', () => {
 
         // Trigger updates
         await React.act(async () => {
-            if (draftCallback) draftCallback({ docs: draftDocs });
-            if (sessionCallback) sessionCallback({ docs: sessionDocs });
+            callbacks.drafts({ docs: draftDocs });
+            callbacks.history({ docs: sessionDocs });
+            callbacks.live({ docs: [] });
         });
 
         // Check if Drafts are shown by default
@@ -170,20 +179,18 @@ describe('CampaignsDashboard cancel vs delete', () => {
     });
 
     async function renderWithSessions(sessions) {
-        let draftCallback;
-        let sessionCallback;
+        const callbacks = {};
         mockOnSnapshot.mockImplementation((q, cb) => {
-            if (!draftCallback) draftCallback = cb;
-            else sessionCallback = cb;
-            return vi.fn();
+            callbacks[listenerKind(q)] = cb;
         });
 
         render(<CampaignsDashboard companyId="co1" />);
         await React.act(async () => {
-            draftCallback({ docs: [] });
-            sessionCallback({
+            callbacks.drafts({ docs: [] });
+            callbacks.history({
                 docs: sessions.map((s) => ({ id: s.id, data: () => s })),
             });
+            callbacks.live({ docs: [] });
         });
         fireEvent.click(screen.getByText(/Past Sequences/i));
     }
@@ -249,24 +256,35 @@ describe('CampaignsDashboard cancel vs delete', () => {
     });
 });
 
+// Artificial lists for the windowing tests, newest first.
+const completedSessions = (n, { processedCount = 1 } = {}) => Array.from({ length: n }, (_, i) => ({
+    id: `s${i}`,
+    name: `Session ${i}`,
+    status: 'completed',
+    createdAt: { toDate: () => new Date(2026, 0, 1, 0, n - i) },
+    progress: { processedCount, totalCount: processedCount },
+}));
+const draftItems = (n) => Array.from({ length: n }, (_, i) => ({ id: `d${i}`, name: `Draft ${i}`, status: 'draft' }));
+
 // --- Design-system shell migration coverage -------------------------------
 // These tests freeze the migrated presentation shell (header, stat cards,
 // accessible tablist, loading/empty states, card grid) and re-verify the
 // behavioral contracts the migration must preserve.
 describe('CampaignsDashboard shell', () => {
-    let draftCb;
-    let sessionCb;
+    let callbacks;
+    let failures;
 
     beforeEach(() => {
         vi.clearAllMocks();
+        resetServerTotals();
         mockUnsubscribes.length = 0;
         mockCardProps.length = 0;
-        draftCb = undefined;
-        sessionCb = undefined;
-        // Capture the two listener callbacks in effect-registration order.
-        mockOnSnapshot.mockImplementation((q, cb) => {
-            if (!draftCb) draftCb = cb;
-            else sessionCb = cb;
+        // Capture each listener's callbacks by what it listens to; a re-subscription replaces them.
+        callbacks = {};
+        failures = {};
+        mockOnSnapshot.mockImplementation((q, cb, fail) => {
+            callbacks[listenerKind(q)] = cb;
+            failures[listenerKind(q)] = fail;
         });
         // Default to the enabled feature; the paywall test overrides this.
         useData.mockReturnValue({
@@ -275,11 +293,15 @@ describe('CampaignsDashboard shell', () => {
         window.confirm = vi.fn(() => true);
     });
 
-    async function renderReady({ drafts = [], sessions = [], companyId = 'co-1' } = {}) {
+    const snapshot = (items) => ({ docs: items.map((item) => ({ id: item.id, data: () => item })) });
+
+    async function renderReady({ drafts = [], sessions = [], live, companyId = 'co-1' } = {}) {
         render(<CampaignsDashboard companyId={companyId} />);
         await React.act(async () => {
-            draftCb?.({ docs: drafts.map((d) => ({ id: d.id, data: () => d })) });
-            sessionCb?.({ docs: sessions.map((s) => ({ id: s.id, data: () => s })) });
+            callbacks.drafts?.(snapshot(drafts));
+            callbacks.history?.(snapshot(sessions));
+            // Firestore answers every listener; the live one holds none unless a test says so.
+            callbacks.live?.(snapshot(live ?? []));
         });
     }
 
@@ -296,19 +318,136 @@ describe('CampaignsDashboard shell', () => {
         // No dashboard shell, and no Firestore listeners attached.
         expect(screen.queryByRole('heading', { name: 'Campaigns' })).not.toBeInTheDocument();
         expect(mockOnSnapshot).not.toHaveBeenCalled();
+        expect(mockGetCountFromServer).not.toHaveBeenCalled();
+        expect(mockGetAggregateFromServer).not.toHaveBeenCalled();
     });
 
-    it('attaches the drafts and sessions listeners on the exact collections and cleans them up', () => {
+    it('attaches the drafts, sessions and live-sessions listeners on the exact collections and cleans them up', () => {
         const { unmount } = render(<CampaignsDashboard companyId="co-1" />);
 
-        expect(mockOnSnapshot).toHaveBeenCalledTimes(2);
+        expect(mockOnSnapshot).toHaveBeenCalledTimes(3);
+        expect(queriesOf('drafts')).toHaveLength(1);
+        expect(queriesOf('history')).toHaveLength(1);
+        expect(queriesOf('live')).toHaveLength(1);
         expect(mockCollection).toHaveBeenCalledWith(expect.anything(), 'companies', 'co-1', 'campaign_drafts');
         expect(mockCollection).toHaveBeenCalledWith(expect.anything(), 'companies', 'co-1', 'bulk_sessions');
-        expect(mockUnsubscribes).toHaveLength(2);
+        expect(mockUnsubscribes).toHaveLength(3);
 
         unmount();
 
         mockUnsubscribes.forEach((unsub) => expect(unsub).toHaveBeenCalledTimes(1));
+    });
+
+    it('the drafts and sessions lists ask for the newest 50', () => {
+        render(<CampaignsDashboard companyId="co-1" />);
+
+        expect(limitOf(queriesOf('drafts')[0])).toBe(50);
+        expect(limitOf(queriesOf('history')[0])).toBe(50);
+    });
+
+    it('a live session older than the newest 50 is still listed and cancellable', async () => {
+        serverTotals.count = 120;
+        await renderReady({
+            sessions: completedSessions(50),
+            live: [{ id: 'old-live', name: 'Old Live', status: 'paused', createdAt: { toDate: () => new Date(2025, 0, 1) } }],
+        });
+        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+
+        const cards = screen.getAllByTestId('campaign-card');
+        expect(cards).toHaveLength(51);
+        expect(cards.at(-1)).toHaveTextContent('Old Live - paused');
+        fireEvent.click(screen.getByText('cancel old-live'));
+        expect(await screen.findByRole('dialog', { name: 'Cancel "Old Live"?' })).toBeInTheDocument();
+    });
+
+    it('shows the server sum as Total Outreach once the history holds more than one window', async () => {
+        serverTotals.count = 120;
+        serverTotals.outreach = 4321;
+        await renderReady({ sessions: completedSessions(50) });
+
+        const outreach = document.getElementById('campaigns-stat-outreach');
+        await waitFor(() => expect(outreach).toHaveTextContent('4321'));
+        expect(mockGetAggregateFromServer).toHaveBeenCalledWith(
+            { __query: [{ __collection: [expect.anything(), 'companies', 'co-1', 'bulk_sessions'] }] },
+            { outreach: { __sum: ['progress.processedCount'] } },
+        );
+    });
+
+    it('shows — as Total Outreach when the server sum fails, never the sum of the loaded rows', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        serverTotals.count = 120;
+        serverTotals.outreachError = new Error('unavailable');
+        await renderReady({ sessions: completedSessions(50, { processedCount: 10 }) });
+
+        const outreach = document.getElementById('campaigns-stat-outreach');
+        await waitFor(() => expect(outreach).toHaveTextContent('—'));
+        expect(outreach).not.toHaveTextContent('500');
+        consoleError.mockRestore();
+    });
+
+    it('says how many campaigns exist and loads older ones with a window of 100', async () => {
+        serverTotals.count = 120;
+        await renderReady({ sessions: completedSessions(50) });
+        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+
+        expect(
+            await screen.findByText('Showing 50 of 120 campaigns, newest first. Live campaigns are always listed.'),
+        ).toBeInTheDocument();
+        expect(mockGetCountFromServer).toHaveBeenCalledWith({
+            __query: [
+                { __collection: [expect.anything(), 'companies', 'co-1', 'bulk_sessions'] },
+                { __orderBy: ['createdAt', 'desc'] },
+            ],
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Load older campaigns' }));
+
+        expect(queriesOf('history')).toHaveLength(2);
+        expect(limitOf(queriesOf('history').at(-1))).toBe(100);
+    });
+
+    it('says how many drafts exist, loads 50 more and then says all are shown', async () => {
+        serverTotals.count = 60;
+        await renderReady({ drafts: draftItems(50) });
+
+        expect(await screen.findByText('Showing the newest 50 of 60 drafts.')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Load more drafts' }));
+        expect(limitOf(queriesOf('drafts').at(-1))).toBe(100);
+
+        await React.act(async () => { callbacks.drafts(snapshot(draftItems(60))); });
+
+        expect(screen.getAllByTestId('campaign-card')).toHaveLength(60);
+        expect(screen.getByText('All 60 drafts are shown.')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Load more drafts' })).not.toBeInTheDocument();
+    });
+
+    it('shows a danger notice with Try again when the drafts cannot be loaded, not "Synchronizing…" forever', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        render(<CampaignsDashboard companyId="co-1" />);
+        await React.act(async () => { failures.drafts?.(new Error('permission-denied')); });
+
+        expect(screen.queryByText(/Synchronizing/i)).not.toBeInTheDocument();
+        expect(screen.getByText('Campaign drafts could not be loaded.')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+        expect(queriesOf('drafts')).toHaveLength(2);
+        await React.act(async () => { callbacks.drafts(snapshot(draftItems(1))); });
+        expect(screen.getByText('Draft 0 - draft')).toBeInTheDocument();
+        consoleError.mockRestore();
+    });
+
+    it('shows the notice on Past Sequences when the live campaigns cannot be loaded, and retries both reads', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        await renderReady({ sessions: completedSessions(2) });
+        await React.act(async () => { failures.live?.(new Error('unavailable')); });
+        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+
+        expect(screen.getByText('Campaigns could not be loaded.')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+        expect(queriesOf('history')).toHaveLength(2);
+        expect(queriesOf('live')).toHaveLength(2);
+        consoleError.mockRestore();
     });
 
     it('computes live-campaign and total-outreach stats from the sessions', async () => {
@@ -411,6 +550,45 @@ describe('CampaignsDashboard shell', () => {
         expect(status).toHaveTextContent(/Synchronizing/i);
     });
 
+    it('keeps Past Sequences synchronizing until its own listeners answer', async () => {
+        const callbacks = {};
+        mockOnSnapshot.mockImplementation((q, cb) => {
+            callbacks[listenerKind(q)] = cb;
+        });
+        render(<CampaignsDashboard companyId="co-1" />);
+
+        await act(async () => { callbacks.drafts({ docs: [] }); });
+        expect(screen.getByRole('heading', { name: 'No Drafts Found' })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+        expect(screen.getByRole('status')).toHaveTextContent(/Synchronizing/i);
+        expect(screen.queryByRole('heading', { name: 'No Campaigns Found' })).not.toBeInTheDocument();
+
+        await act(async () => { callbacks.history({ docs: [] }); });
+        expect(screen.getByRole('status')).toHaveTextContent(/Synchronizing/i);
+        await act(async () => { callbacks.live({ docs: [] }); });
+        expect(screen.getByRole('heading', { name: 'No Campaigns Found' })).toBeInTheDocument();
+    });
+
+    it('shows a failed Past Sequences listener at once, even while the other is pending', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const callbacks = {};
+        const failures = {};
+        mockOnSnapshot.mockImplementation((q, cb, fail) => {
+            callbacks[listenerKind(q)] = cb;
+            failures[listenerKind(q)] = fail;
+        });
+        render(<CampaignsDashboard companyId="co-1" />);
+        await act(async () => { callbacks.drafts({ docs: [] }); });
+        fireEvent.click(screen.getByRole('tab', { name: /Past Sequences/i }));
+
+        await act(async () => { failures.history(new Error('unavailable')); });
+        expect(screen.queryByText(/Synchronizing/i)).not.toBeInTheDocument();
+        expect(screen.getByText('Campaigns could not be loaded.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+        consoleError.mockRestore();
+    });
+
     it('renders empty-state headings and a create action per tab', async () => {
         await renderReady({ drafts: [], sessions: [] });
 
@@ -456,16 +634,13 @@ describe('CampaignsDashboard shell', () => {
 
 // The details of a sent campaign follow its live session document.
 describe('CampaignsDashboard campaign details', () => {
-    let draftCb;
-    let sessionCb;
+    let callbacks;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        draftCb = undefined;
-        sessionCb = undefined;
+        callbacks = {};
         mockOnSnapshot.mockImplementation((q, cb) => {
-            if (!draftCb) draftCb = cb;
-            else sessionCb = cb;
+            callbacks[listenerKind(q)] = cb;
         });
         useData.mockReturnValue({ currentCompanyProfile: { features: { campaignsEnabled: true } } });
     });
@@ -478,11 +653,14 @@ describe('CampaignsDashboard campaign details', () => {
         progress: { totalCount: 100, processedCount },
     });
     const emit = (sessions) => React.act(async () => {
-        sessionCb({ docs: sessions.map((s) => ({ id: s.id, data: () => s })) });
+        callbacks.history({ docs: sessions.map((s) => ({ id: s.id, data: () => s })) });
     });
     const openDetails = async () => {
         render(<CampaignsDashboard companyId="co1" />);
-        await React.act(async () => { draftCb({ docs: [] }); });
+        await React.act(async () => {
+            callbacks.drafts({ docs: [] });
+            callbacks.live({ docs: [] });
+        });
         await emit([session(10)]);
         fireEvent.click(screen.getByText(/Past Sequences/i));
         fireEvent.click(screen.getByText('open s1'));

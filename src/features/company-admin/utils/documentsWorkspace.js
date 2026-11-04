@@ -180,6 +180,24 @@ export function filterDocuments(documents = [], filters = DEFAULT_FILTERS, now =
     });
 }
 
+/**
+ * The Sent Documents heading count. While the active list (all documents, or
+ * those that need attention) is fully loaded, or a search or filter narrows it,
+ * it counts the loaded rows that match; otherwise the server total, and
+ * `undefined` (no count shown) while that total is unknown or the attention
+ * list is loading or failed. A missing `list` or `attention` means complete.
+ */
+export function sentHeaderCount({ filters = DEFAULT_FILTERS, documents = [], list, attention, summary }) {
+    const useAttention = Boolean(filters.needsAttention);
+    if (useAttention && (attention?.isLoading || attention?.error)) return undefined;
+    const source = useAttention && attention ? attention.documents : documents;
+    const complete = useAttention ? (attention?.complete ?? true) : (list?.complete ?? true);
+    const narrowed = normalize(filters.search).trim() !== ''
+        || ['status', 'delivery', 'date'].some((key) => (filters[key] || 'all') !== 'all');
+    if (complete || narrowed) return filterDocuments(source, filters).length;
+    return (useAttention ? summary?.needsAttention : summary?.total) ?? undefined;
+}
+
 export function isDefaultFilters(filters = DEFAULT_FILTERS) {
     return (
         normalize(filters.search).trim() === '' &&

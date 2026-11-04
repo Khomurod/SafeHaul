@@ -18,9 +18,11 @@
 
 const DAY = 24 * 60 * 60 * 1000;
 
+const sentAgoFrom = (now) => (days) => ({ seconds: Math.floor((now - days * DAY) / 1000), nanoseconds: 0 });
+
 /** The workspace's signing requests as the live listener would read them at `now`. */
 export function mockSigningRequests(now = Date.now()) {
-    const sentAgo = (days) => ({ seconds: Math.floor((now - days * DAY) / 1000), nanoseconds: 0 });
+    const sentAgo = sentAgoFrom(now);
     return [
         {
             id: 'e2e-req-offer',
@@ -95,4 +97,22 @@ export function mockSigningRequests(now = Date.now()) {
             createdAt: sentAgo(20),
         },
     ];
+}
+
+/** How many rows `?e2eEdocSent=many` serves: more than one window of 100. */
+export const MANY_MOCK_SIGNING_REQUESTS = 230;
+
+/*
+ * `?e2eEdoc=mock&e2eEdocSent=many`: a carrier with more documents than the
+ * workspace loads at once. Row `n` copies fixture row `n % 6` with its own id,
+ * sent `n / 2` days ago (rounded down), so the list is already newest first.
+ * Of 230: 39 awaiting a signature, 77 completed, 76 needing attention.
+ */
+export function manyMockSigningRequests(now = Date.now(), count = MANY_MOCK_SIGNING_REQUESTS) {
+    const rows = mockSigningRequests(now);
+    const sentAgo = sentAgoFrom(now);
+    return Array.from({ length: count }, (_, n) => {
+        const row = rows[n % rows.length];
+        return { ...row, id: `${row.id}-${n}`, createdAt: sentAgo(Math.floor(n / 2)) };
+    });
 }

@@ -291,7 +291,10 @@ fields (optionally AI-suggested); recipients sign **with no account** at
 `/sign/:companyId/:requestId`; typed values (no drawn signature) wait in a
 local draft. The server sends the link; a corrected email or phone gets a new
 one, voiding the old. Signed envelopes are sealed into tamper-evident PDFs.
-Signing is unlimited and not billed per envelope.
+Signing is unlimited and not billed per envelope. The Documents workspace keeps
+the newest 100 signing requests live and loads older ones on request. When there
+are more, its numbers are server counts and a second live list holds every
+document that needs attention (indexes in `firestore.indexes.json`).
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
@@ -326,7 +329,10 @@ submitted application (§5).
 
 **Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
 worker (§8); the carrier connects and pays its own messaging provider. No
-two-way threads or drips.
+two-way threads or drips. The Campaigns page lists the newest 50 drafts and
+campaigns (more on request) plus every live one (active, queued, scheduled,
+paused); when the list is incomplete, Total Outreach is a server sum refreshed
+shortly after a change.
 
 **Super admin operations.** Dashboard, companies (features, SMS), features
 overview, users, unified driver DB, environment vault, AI providers, blog,
@@ -1035,7 +1041,9 @@ the daily count**; refusing is a recorded outcome.
 - **Sealing** — a signing request moving to `pending_seal` triggers PDF sealing.
 - **Notifications** — status changes, lead assignment, new applications, an
   applicant confirmation email. A call with a callback time (or "Remind me in 1
-  Hour", still No Answer) reminds only its recruiter (`recipientId`).
+  Hour", still No Answer) reminds only its recruiter (`recipientId`). The bell
+  reads the team's newest 20 and the reader's own newest 20 reminders (index in
+  `firestore.indexes.json`), and shows the newest 20 of both.
 - **Automated contact SMS** — moving an application or lead *into*
   `Contact Attempt 1/2/3` sends the matching template from
   `companies/{id}/settings/automated_sms`. Transition-only, so idempotent; no
@@ -1064,6 +1072,9 @@ closed on a bad number) and every email with a usable one; no reply fills them (
 An SMS logs as sent once RingCentral accepts it; a check (also
 `checkCampaignDelivery`) reads the line's message store (Read Messages) by id,
 else number and time, and fails an undelivered text (reason, totals).
+The recipient log and the Delivery Report read 200 logs at a time, newest first,
+and say how many exist (a server count); Retry Failed is offered when any log
+failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
 
 ---
 
@@ -1297,6 +1308,10 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 
 **Current limitations:**
 
+- **Sent Documents search and filters cover the loaded documents** (newest 100,
+  more on request), and say so; the server totals refresh when a loaded
+  document changes or the page reopens, so a change to an older document shows
+  on the next one.
 - **The unfinished-applications workspace shows the 200 most recently active
   drafts** (`listApplicationDrafts`, by `updatedAt`), and says when there are
   more (`truncated`). No pagination — a second list would break one-query,

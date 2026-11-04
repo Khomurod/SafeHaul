@@ -32,9 +32,9 @@ const STATUS_PRESENTATION = {
 };
 
 /**
- * Rows per page. The live subscription regularly returns 100+ documents; the
- * table stays a single live list, sliced for display only, so real-time
- * updates keep flowing into whichever page is visible.
+ * Rows per page. The list is a live window of the newest documents (100, more
+ * on request); the table stays a single live list, sliced for display only, so
+ * real-time updates keep flowing into whichever page is visible.
  */
 const PAGE_SIZE = 25;
 
@@ -48,8 +48,9 @@ function formatSentDate(createdAt) {
 /**
  * Company-side sent-documents table.
  *
- * The live subscription is unchanged — it lives in `useSigningRequests`,
- * which this component uses when no `documents` prop is supplied. The Documents
+ * The live subscription — a window of the newest documents — lives in
+ * `useSigningRequests`, which this component uses when no `documents` prop is
+ * supplied (without Load older: no in-app caller does that). The Documents
  * workspace passes its already-filtered documents in instead, so the workspace
  * and this table never open two listeners on the same collection.
  *

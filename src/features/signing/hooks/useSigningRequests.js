@@ -1,64 +1,45 @@
-import { useCallback, useEffect, useState } from 'react';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import { collection, orderBy, query } from 'firebase/firestore';
 import { db } from '@lib/firebase';
+import { useLiveQueryWindow } from '@shared/hooks/useLiveQueryWindow';
+
+/** Signing requests kept live at a time: the newest first, more on request. */
+export const SIGNING_REQUESTS_PAGE_SIZE = 100;
 
 /**
- * Live company signing requests.
+ * Live company signing requests: a window of the newest `pageSize` by
+ * `createdAt` desc, growing by `pageSize` on `loadMore`.
  *
- * Extracted verbatim from `EnvelopeHistory` so the Documents workspace can read
- * the same data for its Overview metrics and its Sent Documents table without
- * opening a second subscription. The query, the ordering (`createdAt` desc),
- * the mapped document shape and the error handling are unchanged — this is a
- * move, not a behaviour change.
+ * The Documents workspace reads it once for its Overview and its Sent Documents
+ * table (`useDocumentsWorkspaceData`); `EnvelopeHistory` reads it only when no
+ * `documents` prop is given. Reading the whole history on every visit grew
+ * slower and dearer each month, so only the newest rows are loaded, and every
+ * loaded row stays live (a signature, a seal or a void shows at once).
+ * `hasMore` says the window is full, so older documents may exist.
  *
  * `retry` re-establishes the subscription after a failure without remounting
  * the view.
  */
-export function useSigningRequests(companyId) {
-    const [documents, setDocuments] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [loadError, setLoadError] = useState(null);
-    const [attempt, setAttempt] = useState(0);
+export function useSigningRequests(companyId, { pageSize = SIGNING_REQUESTS_PAGE_SIZE } = {}) {
+    const live = useLiveQueryWindow({
+        buildQuery: () => query(collection(db, 'companies', companyId, 'signing_requests'), orderBy('createdAt', 'desc')),
+        resetKey: companyId,
+        pageSize,
+        enabled: Boolean(companyId),
+        errorMessage: 'Could not load document history. Please try again.',
+        logLabel: 'Error loading history:',
+    });
 
-    const retry = useCallback(() => {
-        setLoadError(null);
-        setIsLoading(true);
-        setAttempt((value) => value + 1);
-    }, []);
-
-    useEffect(() => {
-        // No company (or the caller is supplying data itself): there is nothing
-        // to wait for, so never leave the view stuck in a loading state.
-        if (!companyId) {
-            setDocuments([]);
-            setLoadError(null);
-            setIsLoading(false);
-            return undefined;
-        }
-        setIsLoading(true);
-        // MED-1: onSnapshot for real-time status updates.
-        const q = query(
-            collection(db, 'companies', companyId, 'signing_requests'),
-            orderBy('createdAt', 'desc'),
-        );
-        const unsubscribe = onSnapshot(
-            q,
-            (snapshot) => {
-                setDocuments(snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() })));
-                setLoadError(null);
-                setIsLoading(false);
-            },
-            (error) => {
-                console.error('Error loading history:', error);
-                // Surface the failure visibly instead of showing an empty history.
-                setLoadError('Could not load document history. Please try again.');
-                setIsLoading(false);
-            },
-        );
-        return () => unsubscribe();
-    }, [companyId, attempt]);
-
-    return { documents, isLoading, loadError, retry };
+    return {
+        documents: live.docs,
+        isLoading: live.isLoading,
+        loadError: live.error,
+        retry: live.retry,
+        hasMore: live.hasMore,
+        loadMore: live.loadMore,
+        isLoadingMore: live.isLoadingMore,
+        loadMoreFailed: live.loadMoreFailed,
+        snapshotVersion: live.snapshotVersion,
+    };
 }
 
 export default useSigningRequests;

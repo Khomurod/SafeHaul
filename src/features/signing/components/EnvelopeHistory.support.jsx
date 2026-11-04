@@ -23,6 +23,7 @@ export const fs = {
     collection: vi.fn((_db, ...segments) => ({ __path: segments.join('/') })),
     query: vi.fn((ref, ...constraints) => ({ ref, constraints })),
     orderBy: vi.fn((field, dir) => ({ __orderBy: [field, dir] })),
+    limit: vi.fn((n) => ({ __limit: n })),
     onSnapshot: vi.fn(),
     doc: vi.fn((_db, ...segments) => ({ __docPath: segments.join('/') })),
     updateDoc: vi.fn(),

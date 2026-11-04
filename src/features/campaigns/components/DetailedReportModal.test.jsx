@@ -10,7 +10,10 @@ const fs = vi.hoisted(() => ({
     query: vi.fn((ref, ...constraints) => ({ ref, constraints })),
     orderBy: vi.fn((field, direction) => ({ __orderBy: [field, direction] })),
     limit: vi.fn((n) => ({ __limit: n })),
+    startAfter: vi.fn((cursor) => ({ __startAfter: cursor })),
+    where: vi.fn((field, op, value) => ({ __where: [field, op, value] })),
     getDocs: vi.fn(),
+    getCountFromServer: vi.fn(async () => ({ data: () => ({ count: 0 }) })),
 }));
 const retryFn = vi.hoisted(() => vi.fn());
 const fnMocks = vi.hoisted(() => ({ httpsCallable: vi.fn(() => retryFn) }));
@@ -25,6 +28,22 @@ import DetailedReportModal from './DetailedReportModal';
 
 function logDoc(id, data) {
     return { id, data: () => data };
+}
+
+/** `n` delivered logs numbered from `from`. */
+function deliveredDocs(from, n) {
+    return Array.from({ length: n }, (_, i) => logDoc(`log-${from + i}`, {
+        recipientName: `Test Driver ${from + i + 1}`,
+        recipientIdentity: `redacted-contact-${from + i + 1}`,
+        status: 'delivered',
+    }));
+}
+
+/** Counts `all` logs, of which `failed` have `status == 'failed'`. */
+function countsOf({ all, failed }) {
+    return async (q) => ({
+        data: () => ({ count: q.constraints.some((c) => c.__where) ? failed : all }),
+    });
 }
 
 function renderModal(props = {}) {
@@ -54,6 +73,7 @@ describe('DetailedReportModal — open/closed guards', () => {
         const { container } = renderModal({ isOpen: false });
         expect(container).toBeEmptyDOMElement();
         expect(fs.getDocs).not.toHaveBeenCalled();
+        expect(fs.getCountFromServer).not.toHaveBeenCalled();
     });
 
     it('does not fetch when companyId or sessionId is missing', () => {
@@ -109,6 +129,58 @@ describe('DetailedReportModal — async states', () => {
         expect(within(table).getByRole('rowheader', { name: 'Test Driver Two' })).toBeInTheDocument();
     });
 
+    it('announces how many of all the records loaded when there are more', async () => {
+        fs.getDocs.mockResolvedValue({ docs: deliveredDocs(0, 200) });
+        fs.getCountFromServer.mockImplementation(countsOf({ all: 450, failed: 0 }));
+        renderModal();
+
+        expect(await screen.findByText('200 of 450 delivery records loaded')).toBeInTheDocument();
+        expect(screen.getByText('Showing the newest 200 of 450 delivery records.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Load more records' })).toBeInTheDocument();
+    });
+
+    it('loads the next records on request and says when all are shown', async () => {
+        fs.getDocs
+            .mockResolvedValueOnce({ docs: deliveredDocs(0, 200) })
+            .mockResolvedValueOnce({ docs: deliveredDocs(200, 50) });
+        fs.getCountFromServer.mockImplementation(countsOf({ all: 250, failed: 0 }));
+        renderModal();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Load more records' }));
+
+        expect(await screen.findByText('All 250 delivery records are shown.')).toBeInTheDocument();
+        expect(screen.getByRole('rowheader', { name: 'Test Driver 250' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Load more records' })).not.toBeInTheDocument();
+        expect(screen.getByText('250 delivery records loaded')).toBeInTheDocument();
+    });
+
+    it('shows the busy table, never the empty message, in the first render after it opens', async () => {
+        fs.getDocs.mockResolvedValueOnce({ docs: [] });
+        const props = { companyId: 'company-1', onClose: vi.fn() };
+        const { rerender } = render(<DetailedReportModal {...props} sessionId="session-1" isOpen />);
+        await screen.findByText('No activity logs found. Ensure permissions are set.');
+        rerender(<DetailedReportModal {...props} sessionId={null} isOpen={false} />);
+
+        // Records every change the reopening makes, so text a later render
+        // replaced still shows: in a removed node, or as a text node's old value.
+        let finishRead;
+        fs.getDocs.mockReturnValueOnce(new Promise((resolve) => { finishRead = resolve; }));
+        const observer = new MutationObserver(() => {});
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true, characterDataOldValue: true });
+        rerender(<DetailedReportModal {...props} sessionId="session-2" isOpen />);
+        const painted = observer.takeRecords()
+            .flatMap((record) => [...record.addedNodes, ...record.removedNodes].map((node) => node.textContent).concat(record.oldValue ?? ''))
+            .join(' ');
+        observer.disconnect();
+
+        expect(painted).not.toContain('No activity logs found');
+        const table = screen.getByRole('table', { name: 'Per-recipient delivery results' });
+        expect(table.closest('.ds-data-table')).toHaveAttribute('aria-busy', 'true');
+
+        await React.act(async () => { finishRead({ docs: [] }); });
+        expect(await screen.findByText('No activity logs found. Ensure permissions are set.')).toBeInTheDocument();
+    });
+
     it('shows the exact fetch-error toast', async () => {
         fs.getDocs.mockRejectedValueOnce(new Error('permission-denied'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -158,6 +230,16 @@ describe('DetailedReportModal — retry', () => {
         await screen.findByRole('button', { name: 'Retry Failed Requests' });
         return onClose;
     }
+
+    it('offers Retry when a failure lies beyond the newest 200', async () => {
+        fs.getDocs.mockResolvedValue({ docs: deliveredDocs(0, 200) });
+        fs.getCountFromServer.mockImplementation(countsOf({ all: 203, failed: 3 }));
+        renderModal();
+
+        expect(await screen.findByRole('button', { name: 'Retry Failed Requests' })).toBeInTheDocument();
+        // Exactly the filter retryFailedAttempts reads.
+        expect(fs.where).toHaveBeenCalledWith('status', '==', 'failed');
+    });
 
     it('shows Retry only when there are failures (status failed or isSuccess === false)', async () => {
         fs.getDocs.mockResolvedValue({ docs: [logDoc('a', { recipientName: 'Ok', recipientIdentity: 'redacted-1', status: 'delivered' })] });

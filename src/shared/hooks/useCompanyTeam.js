@@ -7,6 +7,12 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
 const memberName = (name, email) => (name && name !== 'Unknown' ? name : email || 'Unknown');
 
 /**
+ * The empty team, one array for every render, so a memo that takes the team
+ * (the candidate list's columns) holds. Its callers only read it.
+ */
+const NO_TEAM = [];
+
+/**
  * The company's team for its pickers and filters: `{ id, name, email, role }`
  * per member, `id` being the uid that `assignedTo` stores.
  *
@@ -69,7 +75,7 @@ export function useCompanyTeam(companyId, companyProfile) {
     }, [companyId, needsMemberships]);
 
     if (cachedTeam) return { team: cachedTeam, isLoading: false, error: null };
-    if (!needsMemberships) return { team: [], isLoading: false, error: null };
+    if (!needsMemberships) return { team: NO_TEAM, isLoading: false, error: null };
     const settled = fetched.companyId === companyId;
-    return { team: settled ? fetched.team : [], isLoading: !settled, error: settled ? fetched.error : null };
+    return { team: settled ? fetched.team : NO_TEAM, isLoading: !settled, error: settled ? fetched.error : null };
 }

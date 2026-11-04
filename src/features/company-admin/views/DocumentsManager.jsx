@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { db, auth } from '@lib/firebase';
 import { collection, query, onSnapshot, orderBy, deleteDoc, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useData } from '@/context/DataContext';
-import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { GlobalLoadingState } from '@shared/components/feedback';
 import { Icon, LayoutDashboard, Send, FileText, ClipboardList, ArrowLeft, Plus } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
@@ -13,8 +12,8 @@ import { SentDocumentsPanel } from '../components/documents/SentDocumentsPanel';
 import { TemplateLibraryPanel } from '../components/documents/TemplateLibraryPanel';
 import { ApplicationFormsPanel } from '../components/documents/ApplicationFormsPanel';
 import { NewDocumentDialog } from '../components/documents/NewDocumentDialog';
-import { DEFAULT_FILTERS, filterDocuments, isTemplateDuplicable } from '../utils/documentsWorkspace';
-import { mockSigningRequests } from './documentsMock';
+import { DEFAULT_FILTERS, isTemplateDuplicable, sentHeaderCount } from '../utils/documentsWorkspace';
+import { useDocumentsWorkspaceData } from '../hooks/useDocumentsWorkspaceData';
 import { useTemplateSendFlow } from '../hooks/useTemplateSendFlow';
 import { usePostSubmitForms } from '../hooks/usePostSubmitForms';
 
@@ -71,23 +70,18 @@ export default function DocumentsManager() {
 
     const tabsIdBase = `edocs-${useId().replace(/:/g, '')}`;
 
-    // One live subscription for the whole workspace: Overview metrics and the
-    // Sent Documents table read the same documents rather than opening two
-    // listeners on companies/{id}/signing_requests.
-    const {
-        documents: liveSigningRequests,
-        isLoading: signingRequestsLoading,
-        loadError: signingRequestsError,
-        retry: retrySigningRequests,
-    } = useSigningRequests(isE2EEdocMock ? null : currentCompanyProfile?.id);
-    // The harness's made-up sent documents (`documentsMock.js`), only when asked for.
-    const isE2ESentMock = isE2EEdocMock && getE2EQueryParam('e2eEdocSent', '') === 'mock';
-    const mockedSigningRequests = useMemo(() => (isE2ESentMock ? mockSigningRequests() : null), [isE2ESentMock]);
-    const signingRequests = mockedSigningRequests ?? liveSigningRequests;
-    // Sent Documents is a list page in this workspace, so the heading carries its
-    // count once loaded: the documents its search and filters keep.
-    const sentCount = useMemo(() => filterDocuments(signingRequests, sentFilters).length, [signingRequests, sentFilters]);
-    const showSentCount = activeTab === 'sent' && !signingRequestsLoading && !signingRequestsError;
+    // One data hook for Overview and Sent Documents: the live window of the newest
+    // signing requests and, past one window, server counts and a live list of the
+    // documents that need attention (`useDocumentsWorkspaceData`).
+    const workspace = useDocumentsWorkspaceData({ companyId: currentCompanyProfile?.id, isE2EEdocMock });
+    const { documents: signingRequests, isLoading: signingRequestsLoading, loadError: signingRequestsError, retry: retrySigningRequests } = workspace;
+    // The heading counts what Sent Documents lists (`sentHeaderCount`), once known.
+    const { list: sentList, attention, summary } = workspace;
+    const sentCount = useMemo(
+        () => sentHeaderCount({ filters: sentFilters, documents: signingRequests, list: sentList, attention, summary }),
+        [sentFilters, signingRequests, sentList, attention, summary],
+    );
+    const showSentCount = activeTab === 'sent' && !signingRequestsLoading && !signingRequestsError && sentCount !== undefined;
 
     // Fetch Templates
     useEffect(() => {
@@ -372,6 +366,10 @@ export default function DocumentsManager() {
                                 isLoading={signingRequestsLoading}
                                 loadError={signingRequestsError}
                                 onRetry={retrySigningRequests}
+                                summary={summary}
+                                attention={attention}
+                                countsError={workspace.countsError}
+                                onRetryCounts={workspace.retryCounts}
                                 templates={templates}
                                 templatesLoading={templatesLoading}
                                 onViewSentDocuments={() => {
@@ -393,6 +391,8 @@ export default function DocumentsManager() {
                                 isLoading={signingRequestsLoading}
                                 loadError={signingRequestsError}
                                 onRetry={retrySigningRequests}
+                                list={sentList}
+                                attention={attention}
                                 onCorrect={handleCorrect}
                                 filters={sentFilters}
                                 setFilters={setSentFilters}

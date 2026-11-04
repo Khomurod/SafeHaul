@@ -37,11 +37,15 @@ describe('EnvelopeHistory — subscription', () => {
         expect(fs.collection).not.toHaveBeenCalled();
     });
 
-    it('subscribes to the exact ordered signing_requests query and unsubscribes on unmount', () => {
+    it('subscribes to the newest 100 signing requests and unsubscribes on unmount', () => {
         const { unmount } = renderHistory();
         expect(fs.collection).toHaveBeenCalledWith({}, 'companies', 'co-1', 'signing_requests');
         expect(fs.orderBy).toHaveBeenCalledWith('createdAt', 'desc');
         expect(fs.onSnapshot).toHaveBeenCalledTimes(1);
+        // A live window of the newest 100, not the whole history.
+        expect(fs.limit).toHaveBeenCalledWith(100);
+        const [subscribed] = fs.onSnapshot.mock.calls[0];
+        expect(subscribed.constraints).toContainEqual({ __limit: 100 });
         unmount();
         expect(unsubSpy).toHaveBeenCalledTimes(1);
     });

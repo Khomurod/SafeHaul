@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { DashboardToolbar, useCompanyDashboard } from '@features/companies';
 import { Card, DataTable } from '@/design-system/components';
@@ -15,6 +15,23 @@ import { loadDriverDossier } from '../components/modals/driver-dossier/loadDrive
 import { buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_PIPELINE_TABS, LEAD_PIPELINE_TABS } from './candidateListColumns';
 import { UndatedRecordsNotice } from './UndatedRecordsNotice';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
+
+// The table is memoized: what the page hands it is built here, or memoized
+// below, so typing in the search (which changes nothing in the rows until the
+// debounced search answers) does not redraw them.
+function rowTone(item) {
+    const level = staleContactMeta(item);
+    if (!level) return 'neutral';
+    return level === 'severe' ? 'danger' : 'warning';
+}
+
+const dossierRowLabel = (item) => `Open driver dossier for ${getCandidateName(item)}`;
+const selectRowLabel = (item) => `Select ${getCandidateName(item)}`;
+
+const EMPTY_STATE = {
+    title: 'No records found.',
+    description: 'Try adjusting your search or filters.',
+};
 
 export const CompanyCandidatesListPage = ({ scope }) => {
     const { currentCompanyProfile, currentUserClaims } = useData();
@@ -49,6 +66,8 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     // by: newest first by default, oldest first, then newest first again.
     const { dateOrder, setDateOrder } = dashboard;
     const sort = useMemo(() => ({ key: 'addedDate', direction: dateOrder }), [dateOrder]);
+    const handleSortChange = useCallback(({ direction }) => setDateOrder(direction), [setDateOrder]);
+    const { setFilters, refreshData, nextPage, prevPage } = dashboard;
 
     // Force hook to respect the scope prop
     useEffect(() => {
@@ -57,9 +76,10 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         }
     }, [scope, dashboard.activeTab, dashboard.setActiveTab]);
 
-    // Reset selection on data changes
+    // Reset selection on data changes. An empty selection keeps its identity,
+    // so the table's props do not change while the search is typed.
     useEffect(() => {
-        setSelectedRowIds([]);
+        setSelectedRowIds((prev) => (prev.length === 0 ? prev : []));
     }, [
         scope,
         dashboard.currentPage,
@@ -82,22 +102,25 @@ export const CompanyCandidatesListPage = ({ scope }) => {
         }
     };
 
-    const handleOpenAssignment = (selectedIds) => {
-        setAssigningLeads(selectedIds);
-    };
+    const handleAssignLeads = useCallback(() => setAssigningLeads(selectedRowIds), [selectedRowIds]);
+
+    const handleToggleMyAssignments = useCallback(
+        (next) => setFilters((prev) => ({ ...prev, myAssignmentsOnly: next })),
+        [setFilters],
+    );
 
     const handleAssignmentComplete = () => {
         showSuccess("Leads assigned successfully.");
         dashboard.refreshData();
     };
 
-    const toggleRowSelection = (id) => {
+    const toggleRowSelection = useCallback((id) => {
         setSelectedRowIds(prev =>
             prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
         );
-    };
+    }, []);
 
-    const toggleSelectAllPage = () => {
+    const toggleSelectAllPage = useCallback(() => {
         const pageIds = sortedData.map((item) => item.id);
         setSelectedRowIds((current) => {
             const selected = new Set(current);
@@ -112,7 +135,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
 
             return [...selected];
         });
-    };
+    }, [sortedData]);
 
     // ── Modals ──
     const renderSelectedModal = () => {
@@ -150,11 +173,36 @@ export const CompanyCandidatesListPage = ({ scope }) => {
 
     const canAssign = isCompanyAdmin && (scope === 'company_leads');
 
-    const getRowTone = (item) => {
-        const level = staleContactMeta(item);
-        if (!level) return 'neutral';
-        return level === 'severe' ? 'danger' : 'warning';
-    };
+    const selection = useMemo(() => (canAssign ? {
+        selectedIds: selectedRowIds,
+        onToggleRow: toggleRowSelection,
+        onToggleAll: toggleSelectAllPage,
+        selectAllLabel: 'Select all candidates on this page',
+        getRowLabel: selectRowLabel,
+    } : undefined), [canAssign, selectedRowIds, toggleRowSelection, toggleSelectAllPage]);
+
+    const tableError = useMemo(() => ((dashboard.error || dashboard.listCountError)
+        ? {
+            message: dashboard.error || dashboard.listCountError,
+            onRetry: refreshData,
+        }
+        : undefined), [dashboard.error, dashboard.listCountError, refreshData]);
+
+    const pagination = useMemo(() => ({
+        currentPage: dashboard.currentPage,
+        totalPages: dashboard.totalPages,
+        onNext: nextPage,
+        onPrev: prevPage,
+        hasPrev: dashboard.currentPage > 1,
+        hasNext: dashboard.currentPage < dashboard.totalPages,
+        label: `Page ${dashboard.currentPage} of ${dashboard.totalPages || 1} · ${dashboard.totalCount} total`,
+    }), [dashboard.currentPage, dashboard.totalPages, dashboard.totalCount, nextPage, prevPage]);
+
+    const segments = useMemo(() => ({
+        items: pipelineTabs,
+        value: dashboard.pipelineSegment,
+        onChange: dashboard.setPipelineSegment,
+    }), [pipelineTabs, dashboard.pipelineSegment, dashboard.setPipelineSegment]);
 
     // ── Column Config ──
     // The columns rebuild when the list or the team changes. The phone
@@ -183,24 +231,18 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                     that could, and the page would stop scrolling to the rows. */}
                 <Card as="div" padding="none" className="flex flex-auto shrink-0 flex-col overflow-hidden">
                     <DashboardToolbar
-                        segments={{
-                            items: pipelineTabs,
-                            value: dashboard.pipelineSegment,
-                            onChange: dashboard.setPipelineSegment,
-                        }}
+                        segments={segments}
                         searchQuery={dashboard.searchQuery}
                         setSearchQuery={dashboard.setSearchQuery}
                         filters={dashboard.filters}
-                        setFilters={dashboard.setFilters}
+                        setFilters={setFilters}
                         selectedCount={selectedRowIds.length}
                         canAssign={canAssign}
-                        onAssignLeads={() => handleOpenAssignment(selectedRowIds)}
+                        onAssignLeads={handleAssignLeads}
                         teamMembers={dashboard.teamMembers}
                         showMyAssignmentsToggle={scope === 'applications' || scope === 'company_leads'}
                         myAssignmentsOnly={!!dashboard.filters.myAssignmentsOnly}
-                        onToggleMyAssignments={(next) =>
-                            dashboard.setFilters((prev) => ({ ...prev, myAssignmentsOnly: next }))
-                        }
+                        onToggleMyAssignments={handleToggleMyAssignments}
                         myAssignmentsLabel={scope === 'applications' ? 'Only mine' : 'My leads'}
                     />
 
@@ -210,45 +252,23 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                             ariaLabel={`${getPageTitle()} table`}
                             data={sortedData}
                             columns={columns}
-                            getRowTone={getRowTone}
+                            getRowTone={rowTone}
                             sort={sort}
-                            onSortChange={({ direction }) => setDateOrder(direction)}
-                            getRowLabel={(item) => `Open driver dossier for ${getCandidateName(item)}`}
+                            onSortChange={handleSortChange}
+                            getRowLabel={dossierRowLabel}
                             onRowActivate={setSelectedApp}
                             isLoading={dashboard.loading}
                             loadingLabel={`Loading ${getPageTitle().toLowerCase()}`}
-                            empty={{
-                                title: 'No records found.',
-                                description: 'Try adjusting your search or filters.',
-                            }}
-                            error={(dashboard.error || dashboard.listCountError)
-                                ? {
-                                    message: dashboard.error || dashboard.listCountError,
-                                    onRetry: dashboard.refreshData,
-                                }
-                                : undefined}
-                            selection={canAssign ? {
-                                selectedIds: selectedRowIds,
-                                onToggleRow: toggleRowSelection,
-                                onToggleAll: toggleSelectAllPage,
-                                selectAllLabel: 'Select all candidates on this page',
-                                getRowLabel: (item) => `Select ${getCandidateName(item)}`,
-                            } : undefined}
+                            empty={EMPTY_STATE}
+                            error={tableError}
+                            selection={selection}
                             density="compact"
                             minWidth="wide"
                             // A record is worked one at a time, so a phone shows
                             // cards; a list with checkboxes stays a table that
                             // scrolls, as cards take no selection.
                             mobilePresentation={canAssign ? 'scroll' : 'cards'}
-                            pagination={{
-                                currentPage: dashboard.currentPage,
-                                totalPages: dashboard.totalPages,
-                                onNext: dashboard.nextPage,
-                                onPrev: dashboard.prevPage,
-                                hasPrev: dashboard.currentPage > 1,
-                                hasNext: dashboard.currentPage < dashboard.totalPages,
-                                label: `Page ${dashboard.currentPage} of ${dashboard.totalPages || 1} · ${dashboard.totalCount} total`,
-                            }}
+                            pagination={pagination}
                         />
                     </div>
                 </Card>

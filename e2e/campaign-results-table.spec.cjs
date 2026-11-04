@@ -4,14 +4,16 @@
 // guarded E2E seed (artificial recipients + fictional 555-01xx contacts — never
 // real recipient data). Verifies the populated table, status treatment, labelled
 // search filtering, the empty-search state, responsive overflow at 1440/1024/412,
-// and an axe pass scoped to the migrated table.
+// and an axe pass scoped to the migrated table. `e2eCampaignLogs=paged` serves the
+// same 12 rows 5 at a time, for Load more and where it leaves keyboard focus.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 
 const URL = '/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock';
+const PAGED_URL = `${URL}&e2eCampaignLogs=paged`;
 
-async function openResults(page) {
-  await page.goto(URL);
+async function openResults(page, url = URL) {
+  await page.goto(url);
   await expect(page.getByRole('heading', { level: 1, name: 'Campaigns' })).toBeVisible({ timeout: 20_000 });
   await page.getByRole('tab', { name: /Past Sequences/i }).click();
   await expect(page.getByText('E2E Completed Session')).toBeVisible();
@@ -88,5 +90,51 @@ test.describe('Campaign results table slice', () => {
       .map((v) => `${v.id} [${v.impact}] x${v.nodes.length}`);
     expect(serious).toEqual([]);
     expect(violations.filter((v) => v.id === 'color-contrast')).toEqual([]);
+  });
+
+  test('loads the next recipients on request and keeps keyboard focus on the control', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop keyboard behavior.');
+    await openResults(page, PAGED_URL);
+    const table = page.getByRole('table', { name: 'Recipient delivery log' });
+    const loadMore = page.getByRole('button', { name: 'Load more recipients' });
+
+    await expect(page.getByText('Showing the newest 5 of 12 recipients.')).toBeVisible();
+    await expect(table.getByRole('rowheader')).toHaveCount(5);
+    // The last row of the default fixture is not on the first page.
+    await expect(table.getByRole('rowheader', { name: 'E2E Recipient 12' })).toHaveCount(0);
+
+    await loadMore.press('Enter');
+    await expect(table.getByRole('rowheader')).toHaveCount(10);
+    await expect(page.getByText('Showing the newest 10 of 12 recipients.')).toBeVisible();
+    await expect(loadMore).toBeFocused();
+
+    await loadMore.press('Enter');
+    await expect(table.getByRole('rowheader')).toHaveCount(12);
+    await expect(loadMore).toHaveCount(0);
+    const done = page.locator('.ds-notice', { hasText: 'All 12 recipients are shown.' });
+    await expect(done).toBeVisible();
+    await expect(done).toBeFocused();
+
+    const card = '.ds-card[data-padding="none"]';
+    await expect(page.locator(card)).toHaveCount(1);
+    const { violations } = await new AxeBuilder({ page }).include(card).analyze();
+    const serious = violations
+      .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+      .map((v) => `${v.id} [${v.impact}] x${v.nodes.length}`);
+    expect(serious).toEqual([]);
+    expect(violations.filter((v) => v.id === 'color-contrast')).toEqual([]);
+  });
+
+  test('keeps the paged log within a phone viewport @mobile', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile presentation check.');
+    await page.setViewportSize({ width: 412, height: 915 });
+    await openResults(page, PAGED_URL);
+    await expect(page.getByText('Showing the newest 5 of 12 recipients.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Load more recipients' })).toBeVisible();
+    const geometry = await page.evaluate(() => ({
+      viewport: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+    }));
+    expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
   });
 });
