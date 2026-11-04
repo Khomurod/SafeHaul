@@ -12,6 +12,7 @@
  */
 import { signedApplicationFileUrl } from './applicationFileLink';
 import { isPevFilePath } from './pevFilePath';
+import { isSealedDocumentPath } from './sealedDocumentPath';
 
 export const BLOCKED_TAB_MESSAGE = 'Your browser blocked the new tab. Allow pop-ups for this site, then try again.';
 
@@ -23,9 +24,12 @@ export function isDriverUploadPath(path) {
     return typeof path === 'string' && /^companies\/[^/]+\/(applications|autofill)\/guest_uploads\/./.test(path);
 }
 
-/** Whether a DQ record's file opens from a link signed when pressed: a driver's upload, or a verification's request PDF or result. */
+/**
+ * Whether a DQ record's file opens from a link signed when pressed: a driver's
+ * upload, a verification's request PDF or result, or a sealed e-document.
+ */
 export function opensFromSignedLink(path) {
-    return isDriverUploadPath(path) || isPevFilePath(path);
+    return isDriverUploadPath(path) || isPevFilePath(path) || isSealedDocumentPath(path);
 }
 
 /**

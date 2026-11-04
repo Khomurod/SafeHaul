@@ -18,6 +18,7 @@ const {
     isCompanySignatureField,
 } = require('./shared/companySignature');
 const { notifySealOutcome } = require('./sealNotifications');
+const { fileSealedDocumentInDq } = require('./sealedDocumentDq');
 
 /** Where `field` sits on its page, in points (it is stored in percent of the page), or null past the last page. */
 function fieldBox(pdfDoc, field) {
@@ -305,6 +306,9 @@ exports.sealDocument = functions.runWith({
                 sha256Checksum: sha256,
                 completedAt: admin.firestore.FieldValue.serverTimestamp()
             });
+
+            // Into the linked applicant's or lead's DQ file; it never fails the seal.
+            await fileSealedDocumentInDq(companyId, requestId, newData, { storagePath: finalStoragePath, sha256Checksum: sha256 });
 
             // ESIGN-9 FIX: Delete the raw signature PNG files from Cloud Storage after sealing.
             // They are embedded in the sealed PDF and no longer needed as standalone files.
