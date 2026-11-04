@@ -219,14 +219,12 @@ Production reads the six Firebase values from Firebase Hosting's reserved
 | `VITE_FIREBASE_STORAGE_BUCKET` | Cloud Storage bucket |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | FCM sender ID |
 | `VITE_FIREBASE_APP_ID` | Firebase app ID |
-| `VITE_SENTRY_DSN` | Sentry error tracking DSN |
-| `VITE_SENTRY_TRACES_SAMPLE_RATE` | Sentry performance sampling, 0–1 (optional) |
 | `VITE_DRIVER_APP_URL` | Base URL written into driver invite links; defaults to the current origin |
 | `VITE_FACEBOOK_APP_ID` | Facebook Lead Ads integration |
 | `VITE_SOCRATA_APP_TOKEN` | FMCSA carrier autocomplete |
 | `VITE_SUPER_ADMIN_EMAIL` | Super admin fallback email |
 
-The deploy workflow reads the Facebook, Sentry and Socrata browser settings from
+The deploy workflow reads the Facebook and Socrata browser settings from
 Google Secret Manager; they are shared by the test and production builds.
 
 #### Cloud Functions (Google Secret Manager)
