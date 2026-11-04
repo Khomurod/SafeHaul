@@ -3,15 +3,16 @@
  * The first download a driver's phone makes, held to a budget.
  *
  * What keeps it small: the pdf.js worker wiring lives outside the entry and no
- * preload names the pdf.js chunk; Session Replay and tracing attach after load;
- * Storage and DOMPurify load on demand; Auth starts without its popup resolver;
- * each glyph loads with the screens that draw it; and the libraries ride in a
- * chunk of their own. This check keeps it there: it reads `dist/index.html`,
- * sums the gzip size of the entry script, every `modulepreload` and every
- * stylesheet — exactly what the browser must fetch before the first screen —
- * and refuses the build when the sum passes the ceiling, when a preload names
- * the pdf.js chunk, when a script of that set carries one of the pieces that
- * load later, or when none carries one that must not.
+ * preload names the pdf.js chunk; Session Replay, tracing and speed monitoring
+ * attach after load; Storage and DOMPurify load on demand; Auth starts without
+ * its popup resolver; each glyph loads with the screens that draw it; and the
+ * libraries ride in a chunk of their own. This check keeps it there: it reads
+ * `dist/index.html`, sums the gzip size of the entry script, every
+ * `modulepreload` and every stylesheet — exactly what the browser must fetch
+ * before the first screen — and refuses the build when the sum passes the
+ * ceiling, when a preload names the pdf.js chunk, when a script of that set
+ * carries one of the pieces that load later, or when none carries one that must
+ * not.
  *
  * It measures the driver's application page the same way (`measureApplyPage`):
  * the first download, the route's chunk with everything it imports, and the
@@ -46,6 +47,8 @@ export const FIRST_DOWNLOAD_MUST_NOT_CONTAIN = Object.freeze([
     { marker: 'firebasestorage.googleapis.com', why: 'Storage loads with the features that handle files (@lib/firebase/storage), not through @lib/firebase' },
     { marker: '__/auth/handler', why: 'Auth starts without the popup/redirect resolver (initializeAuth in src/lib/firebase/config.js)' },
     { marker: 'DOMPurify', why: 'the sanitizer loads when custom questions are saved, not with the company chooser' },
+    { marker: 'fireperf', why: 'Firebase Performance Monitoring loads once the page is idle (src/app/startup/speedMonitoring.js)' },
+    { marker: 'firebaseinstallations.googleapis.com', why: 'Firebase Installations loads only with Performance Monitoring, after the first screen' },
 ]);
 
 /**

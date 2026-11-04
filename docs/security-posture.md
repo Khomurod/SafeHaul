@@ -245,8 +245,9 @@ same headers; `src/tests/hostingConfig.test.js` pins them.
   that read `frame-ancestors` ignore it, older ones would still refuse the frame.
 - **The full policy is report-only.** `Content-Security-Policy-Report-Only`
   allows scripts only from the site itself and `connect.facebook.net`, and lists
-  every service the app calls (Firebase, Cloud Functions, Sentry, Facebook,
-  Google Sheets export, FMCSA Socrata). The browser blocks nothing; each
+  every service the app calls (Firebase and its Performance Monitoring, Cloud
+  Functions, Sentry, Facebook, Google Sheets export, FMCSA Socrata). The
+  browser blocks nothing; each
   violation fires a `securitypolicyviolation` event, which
   `src/lib/monitoring/cspViolations.js` sends to Sentry as a warning tagged
   `csp_directive` / `csp_blocked` (origin only, never a path or query, once per

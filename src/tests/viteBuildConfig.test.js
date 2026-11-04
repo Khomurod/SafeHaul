@@ -21,10 +21,13 @@ describe('the production build', () => {
     });
 
     it('leaves out what loads later, and the application', () => {
-        // Sentry's tracing and Replay, Storage and the icons load after the first
-        // screen from these packages; in the vendor chunk they would load with it.
+        // Sentry's tracing and Replay, Storage, speed monitoring and the icons load
+        // after the first screen from these packages; in the vendor chunk they
+        // would load with it.
         for (const id of [
             nm('@sentry/core/build/esm/index.js'), nm('@firebase/storage/dist/index.esm2017.js'),
+            nm('@firebase/performance/dist/esm/index.esm2017.js'), nm('@firebase/installations/dist/esm/index.esm2017.js'),
+            nm('web-vitals/dist/web-vitals.attribution.js'),
             nm('lucide-react/dist/esm/icons/trash-2.js'), nm('firebase/storage/dist/esm/index.esm.js'),
             '/home/app/src/App.jsx', '\0virtual:safehaul-glyph/Trash2',
         ]) expect(chunkFor(id), id).toBeUndefined();

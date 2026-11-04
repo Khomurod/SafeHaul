@@ -280,6 +280,11 @@ describe('firebase.json — application sites: framing and Content Security Poli
             'https://firebasestorage.googleapis.com',
             'https://storage.googleapis.com',
             'https://us-central1-truckerapp-system.cloudfunctions.net',
+            // Performance Monitoring: its installation, its settings, and the
+            // log it sends (`src/lib/monitoring/pageLoadTrace.js`).
+            'https://firebaseinstallations.googleapis.com',
+            'https://firebaseremoteconfig.googleapis.com',
+            'https://firebaselogging-pa.googleapis.com',
             'https://o1.ingest.us.sentry.io',
             // Firestore's WebChannel loads //www.google.com/images/cleardot.gif to
             // tell a dead network from a failed request; seen on the E2E run.
