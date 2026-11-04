@@ -28,7 +28,7 @@ const SECTION_NAV = { name: 'Driver dossier sections' };
 
 const SECTIONS = [
   ['Application', 'Application Review'],
-  ['Documents', 'Documents to sign'],
+  ['Documents to sign', 'Documents to sign'],
   ['DQ File', 'Driver Qualification File'],
   ['Previous Employment', 'Previous Employment Verification'],
   ['Activity', 'Activity Timeline'],
