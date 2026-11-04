@@ -13,7 +13,11 @@ export const ATS_PIPELINE_STATUSES = [
 /** Optional CRM bucket for lead tabs (stored as status). */
 export const ATS_INTERESTED_STATUS = 'Interested';
 
-/** Legacy / workflow values kept selectable so older records stay editable. */
+/**
+ * Legacy / workflow values: still valid stored values (the rules accept each),
+ * no longer offered by the status picker. A record holding one shows it there
+ * (`DossierHeader.jsx`).
+ */
 export const ATS_LEGACY_STATUS_ALIASES = [
     'New Application',
     'Approved',
@@ -27,11 +31,10 @@ export const ATS_LEGACY_STATUS_ALIASES = [
     'Offer Declined',
 ];
 
-/** Full dropdown list (deduped). */
+/** What the status picker offers: the funnel and Interested (a record's own legacy value is added by the picker). */
 export const ATS_STATUS_DROPDOWN_OPTIONS = [
     ...ATS_PIPELINE_STATUSES,
     ATS_INTERESTED_STATUS,
-    ...ATS_LEGACY_STATUS_ALIASES,
 ];
 
 export const CONTACT_ATTEMPT_STATUSES = [

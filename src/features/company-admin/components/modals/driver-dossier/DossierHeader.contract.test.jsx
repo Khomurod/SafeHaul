@@ -2,15 +2,27 @@
  * Contract freeze for the Driver Dossier header.
  *
  * Frozen: the per-tab title strings, the App-ID presentation rule, the status
- * option set and its dedupe/`'New'` fallback, the assign option labels and their
+ * option set and its `'New'` fallback, the assign option labels and their
  * fallback chain, the exact single-argument callbacks, the Download forwarding,
  * and the `canEdit` / `canDelete` visibility rules.
+ *
+ * The status option set is the funnel stages and Interested, plus the record's
+ * own value when it is none of those: a legacy value that names a stage stands
+ * in for that stage under its name, any other is kept by its stored name. The
+ * stored value never changes; the legacy values stay valid in the rules
+ * (`src/tests/statusVocabulary.test.js`).
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
-import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
+import {
+  ATS_INTERESTED_STATUS,
+  ATS_LEGACY_STATUS_ALIASES,
+  ATS_PIPELINE_STATUSES,
+  ATS_STATUS_DROPDOWN_OPTIONS,
+  LEAD_DEFAULT_STATUS,
+} from '@shared/constants/atsStatus';
 import { DossierHeader } from './DossierHeader';
 
 afterEach(cleanup);
@@ -71,37 +83,63 @@ describe('DossierHeader application id', () => {
 });
 
 describe('DossierHeader status control', () => {
-  it('offers every ATS dropdown option and defaults the value to New', () => {
+  const STAGES = [...ATS_PIPELINE_STATUSES, ATS_INTERESTED_STATUS];
+  const asOptions = (values) => values.map((value) => ({ value, label: value }));
+  const statusSelect = () => screen.getByRole('combobox', { name: /status/i });
+  const optionsOf = (select) => [...select.querySelectorAll('option')]
+    .map((option) => ({ value: option.value, label: option.textContent }));
+
+  it('offers the funnel stages and Interested, and defaults the value to New', () => {
     renderHeader({ currentStatus: '' });
-    const select = screen.getByRole('combobox', { name: /status/i });
+    const select = statusSelect();
     expect(select).toHaveValue('New');
-    const values = [...select.querySelectorAll('option')].map((o) => o.value);
-    for (const option of ATS_STATUS_DROPDOWN_OPTIONS) {
-      expect(values).toContain(option);
+    expect(optionsOf(select)).toEqual(asOptions(STAGES));
+    expect(ATS_STATUS_DROPDOWN_OPTIONS).toEqual(STAGES);
+  });
+
+  it('offers no legacy value to a record that holds none', () => {
+    renderHeader({ currentStatus: 'In Process' });
+    const values = optionsOf(statusSelect()).map((option) => option.value);
+    for (const legacy of [...ATS_LEGACY_STATUS_ALIASES, LEAD_DEFAULT_STATUS]) {
+      expect(values).not.toContain(legacy);
     }
   });
 
-  it('adds an unknown current status without duplicating it', () => {
-    renderHeader({ currentStatus: 'Bespoke Stage' });
-    const select = screen.getByRole('combobox', { name: /status/i });
-    const values = [...select.querySelectorAll('option')].map((o) => o.value);
-    expect(values.filter((v) => v === 'Bespoke Stage')).toHaveLength(1);
-    expect(select).toHaveValue('Bespoke Stage');
+  it.each([
+    ['New Application', 'New'],
+    [LEAD_DEFAULT_STATUS, 'New'],
+    ['Approved', 'Hired'],
+    ['Rejected', 'Declined'],
+  ])("shows a record's %s as its stage, %s, offered once in the stage's place", (stored, stage) => {
+    renderHeader({ currentStatus: stored });
+    const select = statusSelect();
+    expect(select).toHaveValue(stored);
+    expect(select.selectedOptions[0].textContent).toBe(stage);
+    // The stored value takes the stage's place, so choosing "New" on a
+    // `New Application` record writes nothing, and "New" is not offered twice.
+    const expected = asOptions(STAGES).map((option) => (option.value === stage ? { value: stored, label: stage } : option));
+    expect(optionsOf(select)).toEqual(expected);
   });
 
-  it('does not duplicate a status that is already an ATS option', () => {
-    const existing = ATS_STATUS_DROPDOWN_OPTIONS[0];
-    renderHeader({ currentStatus: existing });
-    const select = screen.getByRole('combobox', { name: /status/i });
-    const values = [...select.querySelectorAll('option')].map((o) => o.value);
-    expect(values.filter((v) => v === existing)).toHaveLength(1);
+  it.each(['Background Check', 'Offer Accepted', 'Contacted', 'Bespoke Stage'])(
+    "keeps a record's own %s, once, by its stored name, after the stages",
+    (stored) => {
+      renderHeader({ currentStatus: stored });
+      const select = statusSelect();
+      expect(select).toHaveValue(stored);
+      expect(optionsOf(select)).toEqual([...asOptions(STAGES), { value: stored, label: stored }]);
+    },
+  );
+
+  it('does not duplicate a status that is already a stage', () => {
+    renderHeader({ currentStatus: 'Hired' });
+    expect(optionsOf(statusSelect())).toEqual(asOptions(STAGES));
   });
 
-  it('calls onStatusUpdate with just the new value', () => {
-    const target = ATS_STATUS_DROPDOWN_OPTIONS[1];
-    const props = renderHeader();
-    fireEvent.change(screen.getByRole('combobox', { name: /status/i }), { target: { value: target } });
-    expect(props.onStatusUpdate).toHaveBeenCalledWith(target);
+  it('calls onStatusUpdate with just the stored value chosen', () => {
+    const props = renderHeader({ currentStatus: 'New Application' });
+    fireEvent.change(statusSelect(), { target: { value: 'Contact Attempt 1' } });
+    expect(props.onStatusUpdate).toHaveBeenCalledWith('Contact Attempt 1');
     expect(props.onStatusUpdate).toHaveBeenCalledTimes(1);
   });
 });

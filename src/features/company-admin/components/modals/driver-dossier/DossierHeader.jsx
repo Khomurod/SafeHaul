@@ -1,7 +1,31 @@
 import React, { useId, useMemo } from 'react';
 import { Icon, X, Download, Trash2 } from '@design-system/icons';
-import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
+import { ATS_STATUS_DROPDOWN_OPTIONS, ATS_STATUS_NEW, LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
+import { applicationStatusLabel } from '@shared/utils/applicationStatus';
 import { Badge, IconButton, Select } from '@/design-system/components';
+
+/** The picker's name for a stored status: its stage's, so a lead's `New Lead` reads New too. */
+const statusLabel = (status) => applicationStatusLabel(status === LEAD_DEFAULT_STATUS ? ATS_STATUS_NEW : status);
+
+/**
+ * What the status picker offers: the funnel stages and Interested, and the
+ * record's own value when it is none of those. A legacy value that names a stage
+ * (`New Application`, `New Lead`, `Approved`, `Rejected`) takes that stage's
+ * place under its name, so the stage is offered once and choosing it writes
+ * nothing; any other keeps its stored name, after the stages. Stored values
+ * never change, and every legacy one stays valid in the rules.
+ */
+function statusOptionsFor(currentStatus) {
+    const options = ATS_STATUS_DROPDOWN_OPTIONS.map((value) => ({ value, label: value }));
+    if (!currentStatus || !String(currentStatus).trim() || ATS_STATUS_DROPDOWN_OPTIONS.includes(currentStatus)) {
+        return options;
+    }
+    const label = statusLabel(currentStatus);
+    const stage = options.findIndex((option) => option.value === label);
+    if (stage >= 0) options[stage] = { value: currentStatus, label };
+    else options.push({ value: currentStatus, label });
+    return options;
+}
 
 /**
  * Dossier header: the current section's title, the application reference, the
@@ -13,7 +37,7 @@ import { Badge, IconButton, Select } from '@/design-system/components';
  * Frozen contracts: every per-tab title string, the `App ID: <first 8 chars>`
  * presentation (of `recordId`, the record's document id: the loaded record
  * holds no `id`) and its `Loading...` placeholder, the status option set
- * (`ATS_STATUS_DROPDOWN_OPTIONS` plus the current status, deduplicated) with its
+ * (`statusOptionsFor`: the funnel, Interested and the record's own value) with its
  * `'New'` fallback, the `onStatusUpdate(value)` and `onAssignChange(value)`
  * single-argument callbacks, the `name || displayName || email || id` assignee
  * label chain, the empty string for "Unassigned", the
@@ -70,13 +94,7 @@ export function DossierHeader({
         }
     };
 
-    const statusOptions = useMemo(() => {
-        const uniq = new Set(ATS_STATUS_DROPDOWN_OPTIONS);
-        if (currentStatus && String(currentStatus).trim()) {
-            uniq.add(currentStatus);
-        }
-        return [...uniq];
-    }, [currentStatus]);
+    const statusOptions = useMemo(() => statusOptionsFor(currentStatus), [currentStatus]);
 
     const statusValue = currentStatus || 'New';
 
@@ -126,8 +144,8 @@ export function DossierHeader({
                                     if (onStatusUpdate) void onStatusUpdate(v);
                                 }}
                             >
-                                {statusOptions.map((s) => (
-                                    <option key={s} value={s}>{s}</option>
+                                {statusOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
                             </Select>
                         </div>
