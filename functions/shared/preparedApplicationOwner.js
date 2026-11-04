@@ -14,6 +14,8 @@ const { isCompanyPrepared } = require('./companyPreparedDraft');
 const { teamMemberName } = require('./recruiterAssignment');
 const { createNotification } = require('./createNotification');
 const { clipText } = require('./plainText');
+const { SERVER_NOTIFIED_ACTOR } = require('./notificationAudience');
+const { admin } = require('../firebaseAdmin');
 
 /** `{ assignedTo, assignedToName }` for the preparer of `draft` while on the team, else null. */
 async function preparerAssignment(db, companyId, draft) {
@@ -21,7 +23,14 @@ async function preparerAssignment(db, companyId, draft) {
     if (typeof uid !== 'string' || !uid) return null;
     try {
         const name = await teamMemberName(db, companyId, uid);
-        return name === null ? null : { assignedTo: uid, assignedToName: name };
+        // The preparer is told "submitted" by `notifyPreparer`: a re-submission
+        // into an existing record does not also send the assignment notice.
+        return name === null ? null : {
+            assignedTo: uid,
+            assignedToName: name,
+            assignmentChangedBy: SERVER_NOTIFIED_ACTOR,
+            assignmentChangedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
     } catch (err) {
         console.error(`[preparedApplication] Could not check the preparer of a draft in ${companyId}; left unassigned:`, err.message);
         return null;

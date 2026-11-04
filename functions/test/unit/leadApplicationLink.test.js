@@ -157,6 +157,8 @@ describe("the lead's recruiter", () => {
 
         expect(doc(APP_PATH)).toEqual(expect.objectContaining({
             fromLeadId: 'L1', assignedTo: 'rec-1', assignedToName: 'Riley Recruiter',
+            // So the assignment trigger does not tell them a second time.
+            assignmentChangedBy: 'server:notified', assignmentChangedAt: expect.anything(),
         }));
         expect(notifications()).toEqual([expect.objectContaining({
             id: `lead_applied_${APP}`,

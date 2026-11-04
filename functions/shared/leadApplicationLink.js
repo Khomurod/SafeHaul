@@ -23,6 +23,7 @@
  * half of the link, so a lead whose application is gone is not left out of
  * campaigns.
  */
+const { SERVER_NOTIFIED_ACTOR } = require('./notificationAudience');
 const { admin, db } = require('../firebaseAdmin');
 const { isPlaceholderEmail } = require('./placeholderDomains');
 const { normalizeSearchEmail, normalizeSearchPhone } = require('./searchNormalization');
@@ -132,7 +133,14 @@ async function linkApplicantLead({ companyId, applicationId, application }) {
         transaction.update(leadRef, { applicationId, appliedAt: now });
         transaction.update(appRef, {
             fromLeadId: leadRef.id,
-            ...(assigned && { assignedTo: recruiterId, assignedToName: ownerName }),
+            // The recruiter is told below, as "your lead applied": the
+            // assignment notice is not sent too (`notificationAudience.js`).
+            ...(assigned && {
+                assignedTo: recruiterId,
+                assignedToName: ownerName,
+                assignmentChangedBy: SERVER_NOTIFIED_ACTOR,
+                assignmentChangedAt: now,
+            }),
         });
         transaction.set(logRef, {
             action: 'Applied',

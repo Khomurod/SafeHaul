@@ -18,6 +18,16 @@
  */
 
 const STATUS_STAMP = Object.freeze({ by: 'statusChangedBy', at: 'statusChangedAt' });
+
+/**
+ * The actor a server step stamps when it assigns a record and tells the new
+ * owner itself, in words of its own: a lead's application going to the lead's
+ * recruiter (`leadApplicationLink.js`), a prepared application to its preparer
+ * (`preparedApplicationOwner.js`). The assignment trigger then sends nothing,
+ * so the owner is told once. A server assignment without it (a recruiter link
+ * on submission) is told by the trigger.
+ */
+const SERVER_NOTIFIED_ACTOR = 'server:notified';
 const ASSIGNMENT_STAMP = Object.freeze({ by: 'assignmentChangedBy', at: 'assignmentChangedAt' });
 
 /** An instant as comparable text: a Firestore Timestamp, a Date or epoch milliseconds; else null. */
@@ -65,4 +75,4 @@ function eventNotificationId(prefix, event) {
     return id ? `${prefix}_${id}` : undefined;
 }
 
-module.exports = { ASSIGNMENT_STAMP, STATUS_STAMP, actorOf, assigneeOnTeam, eventNotificationId };
+module.exports = { ASSIGNMENT_STAMP, SERVER_NOTIFIED_ACTOR, STATUS_STAMP, actorOf, assigneeOnTeam, eventNotificationId };

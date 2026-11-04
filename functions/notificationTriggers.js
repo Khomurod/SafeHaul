@@ -8,7 +8,7 @@ const { db } = require("./firebaseAdmin");
 const { escapeHtml, plainGuestText } = require("./shared/plainText");
 const { createNotification } = require("./shared/createNotification");
 const {
-    ASSIGNMENT_STAMP, STATUS_STAMP, actorOf, assigneeOnTeam, eventNotificationId,
+    ASSIGNMENT_STAMP, SERVER_NOTIFIED_ACTOR, STATUS_STAMP, actorOf, assigneeOnTeam, eventNotificationId,
 } = require("./shared/notificationAudience");
 
 // --- TRIGGER 1: Application Status Changed ---
@@ -61,7 +61,8 @@ async function notifyAssignment(event, relatedType, recordId) {
     const ownerId = typeof after.assignedTo === 'string' ? after.assignedTo : '';
     if (!ownerId) return; // Unassigned
     const actorId = actorOf(before, after, ASSIGNMENT_STAMP);
-    if (actorId === ownerId) return;
+    // Their own action, or a server step that told the owner itself.
+    if (actorId === ownerId || actorId === SERVER_NOTIFIED_ACTOR) return;
 
     const isLead = relatedType === 'lead';
     const name = plainGuestText(

@@ -181,6 +181,17 @@ describe('assigning an application', () => {
         expect(notifications()).toEqual([]);
     });
 
+    // A lead's application given to the lead's recruiter, or a prepared one to
+    // its preparer: the server step tells them itself, in its own words.
+    it('tells nobody when a server step that told the owner itself assigned it', async () => {
+        await appAssignment(before, {
+            ...before, assignedTo: 'rec-ann', assignedToName: 'Ann Baker',
+            assignmentChangedBy: 'server:notified', assignmentChangedAt: at(30),
+        });
+
+        expect(notifications()).toEqual([]);
+    });
+
     it('tells the owner of an assignment nobody stamped, such as a recruiter link on submission', async () => {
         await appAssignment(before, { ...before, assignedTo: 'rec-ann', assignedToName: 'Ann Baker' });
 
