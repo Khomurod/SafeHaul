@@ -1,8 +1,9 @@
 /**
- * What the company dashboard reads: its four counts and the signed-in user's
- * name, and for a company admin the "Company setup" card's few documents and
- * the email settings, once. It shows no list, so it asks for no records, no list
- * counts and no team.
+ * What the company dashboard reads: its four counts, the signed-in user's
+ * name, the server's "Needs attention" counts (one call, for everyone), and for
+ * a company admin the "Company setup" card's few documents and the email
+ * settings, once. It shows no list, so it asks for no records, no list counts
+ * and no team.
  *
  * All names and ids below are artificial.
  */
@@ -49,9 +50,11 @@ vi.mock('firebase/firestore', () => {
         writeBatch: vi.fn(),
     };
 });
+const ATTENTION = { rows: { sealFailed: { status: 'ok', count: 0 } }, windows: {} };
 vi.mock('firebase/functions', () => ({
     httpsCallable: (_functions, name) => async () => {
         fx.reads.push(`call ${name}`);
+        if (name === 'getDashboardAttention') return { data: ATTENTION };
         return { data: { success: true, settings: { isVerified: true } } };
     },
 }));
@@ -77,6 +80,7 @@ vi.mock('./InlineLeaderboard', () => ({ InlineLeaderboard: () => null }));
 import { DataContext } from '@/context/DataContext';
 import { ToastProvider } from '@shared/components/feedback/ToastProvider';
 import { CompanyAdminDashboard } from './CompanyAdminDashboard';
+import { forgetDashboardAttention } from '../hooks/useDashboardAttention';
 
 function renderDashboard(role) {
     return render(
@@ -103,17 +107,22 @@ const COUNTS_AND_NAME = [
     'doc users/uid-1',
 ];
 
-afterEach(() => { fx.reads = []; });
+afterEach(() => {
+    fx.reads = [];
+    forgetDashboardAttention();
+});
 
 describe('the company dashboard', () => {
-    it('reads its counts, the user’s name and, for an admin, what Company setup needs, and no records', async () => {
+    it('reads its counts, the user’s name, what needs attention and, for an admin, what Company setup needs, and no records', async () => {
         renderDashboard('company_admin');
 
         expect(await screen.findByRole('heading', { name: 'Welcome back, Ann Admin' })).toBeInTheDocument();
         await waitFor(() => expect(screen.getByRole('button', { name: 'Hired: 3' })).toBeInTheDocument());
         // The texting set-up is missing here, so the card lists it.
         expect(await screen.findByRole('heading', { name: 'Company setup' })).toBeInTheDocument();
+        expect(await screen.findByText('Nothing needs attention right now.')).toBeInTheDocument();
         expect([...fx.reads].sort()).toEqual([
+            'call getDashboardAttention',
             'call getEmailSettingsMeta',
             ...COUNTS_AND_NAME.slice(0, 4),
             'doc companies/co-1',
@@ -123,13 +132,17 @@ describe('the company dashboard', () => {
         ]);
     });
 
-    it('reads only its counts and the user’s name for a recruiter, who sees no Company setup', async () => {
+    it('reads its counts, the user’s name and what needs attention for a recruiter, who sees no Company setup', async () => {
         renderDashboard('recruiter');
 
         await waitFor(() => expect(screen.getByRole('button', { name: 'Hired: 3' })).toBeInTheDocument());
+        expect(await screen.findByText('Nothing needs attention right now.')).toBeInTheDocument();
         await act(async () => {});
         expect(screen.queryByText(/Company setup|Checking company setup/)).toBeNull();
         // The name was read by the test before: the session keeps it.
-        expect(fx.reads.filter((read) => read !== 'doc users/uid-1').sort()).toEqual(COUNTS_AND_NAME.slice(0, 4));
+        expect(fx.reads.filter((read) => read !== 'doc users/uid-1').sort()).toEqual([
+            'call getDashboardAttention',
+            ...COUNTS_AND_NAME.slice(0, 4),
+        ]);
     });
 });
