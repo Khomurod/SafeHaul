@@ -213,9 +213,11 @@ describe('DriverProfileModal nested delete confirmation', () => {
 });
 
 describe('DriverProfileModal header', () => {
-  it("shows the record's own id, which the loaded record does not hold", () => {
+  it("shows the application's confirmation number, never its document id", () => {
+    viewState = { ...baseView(), appData: { ...baseView().appData, confirmationNumber: 'SAF-2026-AB3CD' } };
     renderFromTrigger();
-    expect(screen.getByText('App ID: app-1234')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation Number: SAF-2026-AB3CD')).toBeInTheDocument();
+    expect(screen.queryByText(/App ID|app-1234/)).toBeNull();
   });
 
   it('downloads through the dossier, which says when there is no file to give', () => {

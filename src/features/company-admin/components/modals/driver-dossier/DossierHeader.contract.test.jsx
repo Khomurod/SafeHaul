@@ -1,7 +1,7 @@
 /**
  * Contract freeze for the Driver Dossier header.
  *
- * Frozen: the per-tab title strings, the App-ID presentation rule, the status
+ * Frozen: the per-tab title strings, the confirmation-number rule, the status
  * option set and its `'New'` fallback, the assign option labels and their
  * fallback chain, the exact single-argument callbacks, the Download forwarding,
  * and the `canEdit` / `canDelete` visibility rules.
@@ -31,7 +31,6 @@ const baseProps = () => ({
   activeTab: 'application',
   // As the dossier loads it: the record's fields, without its document id.
   appData: { firstName: 'Maria' },
-  recordId: 'app12345678',
   currentStatus: 'New',
   onClose: vi.fn(),
   onStatusUpdate: vi.fn(),
@@ -65,10 +64,18 @@ describe('DossierHeader titles', () => {
   });
 });
 
-describe('DossierHeader application id', () => {
-  it("shows the first 8 characters of the record's id on the application tab", () => {
+describe('DossierHeader confirmation number', () => {
+  const withNumber = { firstName: 'Maria', confirmationNumber: 'SAF-2026-AB3CD' };
+
+  it('shows the confirmation number the driver was given, on the application tab', () => {
+    renderHeader({ appData: withNumber });
+    expect(screen.getByText('Confirmation Number: SAF-2026-AB3CD')).toBeInTheDocument();
+  });
+
+  it("never shows the record's document id, and nothing when the record has no number", () => {
     renderHeader();
-    expect(screen.getByText('App ID: app12345')).toBeInTheDocument();
+    expect(screen.queryByText(/Confirmation Number/)).toBeNull();
+    expect(screen.queryByText(/App ID|app12345/)).toBeNull();
   });
 
   it('shows the loading placeholder when there is no appData yet', () => {
@@ -76,9 +83,9 @@ describe('DossierHeader application id', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('does not show the id on other tabs', () => {
-    renderHeader({ activeTab: 'documents' });
-    expect(screen.queryByText(/App ID:/)).toBeNull();
+  it('does not show the number on other tabs', () => {
+    renderHeader({ activeTab: 'documents', appData: withNumber });
+    expect(screen.queryByText(/Confirmation Number/)).toBeNull();
   });
 });
 

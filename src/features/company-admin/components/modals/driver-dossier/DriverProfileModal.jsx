@@ -169,7 +169,6 @@ export function DriverProfileModal({
                             <DossierHeader
                                 activeTab={activeTab}
                                 appData={appData}
-                                recordId={recordId}
                                 currentStatus={currentStatus}
                                 onClose={onClose}
                                 onStatusUpdate={handleStatusUpdate}
