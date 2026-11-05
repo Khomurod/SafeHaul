@@ -1611,7 +1611,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   send is not retried by it (Remind and the day-3 reminder are); a template that cannot be
   filled is skipped and logged on each run in the window; a text can go at night, 30–120
   minutes after the driver's own submission and only after their Yes. The no-response
-  email's DQ-file sentence follows the filing result of that run.
+  email's DQ-file sentence follows the filing result of that run. `notifySigner` claims
+  no event (the text and correction triggers do), so a create event delivered twice
+  emails the same link twice, for every signing request.
 - **Batch 5 limits (2026-11):** the automatic reminder goes only 3–7 days after a
   document was created, so a document corrected to add a channel later, one whose link
   ran out, a run missed four days in a row, or a form sent later through Send to driver
