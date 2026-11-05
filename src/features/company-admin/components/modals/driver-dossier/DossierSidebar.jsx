@@ -3,6 +3,7 @@ import { Icon, LayoutDashboard, FileText, ShieldCheck, Activity, StickyNote, Pho
 import { Avatar, Button, ButtonLink, TabList } from '@design-system/components';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { useCompactViewport } from './useCompactViewport';
+import { dossierStatusLabel } from './dossierStatusLabel';
 
 /**
  * Driver identity block plus the dossier's section navigation.
@@ -109,7 +110,8 @@ export function DossierSidebar({
                         <h2 className="text-ds-body-lg font-bold leading-tight text-ds-content [overflow-wrap:anywhere]">
                             {fullName || 'Driver'}
                         </h2>
-                        <div className="mt-ds-1"><StatusBadge status={currentStatus} /></div>
+                        {/* Named as the header's status picker names it. */}
+                        <div className="mt-ds-1"><StatusBadge status={dossierStatusLabel(currentStatus)} /></div>
                         {/* Set by the server from the link the driver came through. */}
                         {appData?.referral?.code && (
                             <p className="mt-ds-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
