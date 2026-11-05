@@ -9,8 +9,8 @@
  * this record was sent the way the creation triggers send: by email unless that
  * is switched off, by text only when asked for. `correctionDelivery` in
  * `envelopePersistence.js` follows the same rule to word a correction's
- * confirmation: change both. A reminder (`remindSigner.js`) sends the link
- * again where it already went, in resend mode.
+ * confirmation: change both. A reminder (`signerReminder.js`: Remind and the
+ * automatic one) sends the link again where it already went, in resend mode.
  */
 const { randomUUID } = require('crypto');
 const { admin } = require('../firebaseAdmin');

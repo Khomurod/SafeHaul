@@ -44,6 +44,8 @@ function exportFunctions(wanted) {
   if (wanted('retrySealDocument')) exports.retrySealDocument = require('./sealRetry').retrySealDocument;
   // "Remind": an unsigned document's link is sent again where it went, with seven more days
   if (wanted('remindSigner')) exports.remindSigner = require('./remindSigner').remindSigner;
+  // The automatic reminder: once a day, one reminder on day 3 for a document still waiting for its signature
+  if (wanted('remindUnsignedSigners')) exports.remindUnsignedSigners = require('./remindUnsignedSigners').remindUnsignedSigners;
 
   // 2. Auth & User Management
   if (wanted('createPortalUser')) exports.createPortalUser = require('./hrAdmin').createPortalUser;

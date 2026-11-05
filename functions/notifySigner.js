@@ -33,7 +33,7 @@ async function readSigningToken(ref, data) {
  * that went. `replacesEarlierLink` says the link sent before no longer works;
  * `recordSentTo` records the address in `linkSentTo` first (`shared/signingLink.js`),
  * for a sender that has not claimed it already. `reminder` words it as one
- * (`remindSigner.js`).
+ * (`shared/signerReminder.js`).
  */
 async function emailSigningLink({ companyId, requestId, ref, data, accessToken, replacesEarlierLink = false, recordSentTo = false, reminder = false }) {
     // 1. Validate required fields before proceeding

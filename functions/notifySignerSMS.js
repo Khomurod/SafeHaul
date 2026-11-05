@@ -37,7 +37,7 @@ function claimDelivery(ref, field, eventId, record = {}) {
  * whether this run sends at all; a failure of either is recorded as a failed send.
  * A number on the opt-out list is not texted (`shared/smsPermission.js`), which
  * is recorded as a failed send with the reason. `reminder` words it as one
- * (`remindSigner.js`).
+ * (`shared/signerReminder.js`).
  */
 async function textSigningLink({ companyId, requestId, ref, data, accessToken: token, claim = async () => true, reminder = false }) {
     try {
