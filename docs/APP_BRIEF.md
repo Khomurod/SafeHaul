@@ -386,8 +386,8 @@ rewrite a hire date that is today): it seals correctly, only its preview can lag
 a day. One definition in `src/features/signing/utils/signedDate.js` and
 `functions/shared/signedDate.js`: change both.
 
-**Previous employment verification (PEV).** A company admin sends a request to a
-past employer, who answers in a token portal (reminders §8) and signs drawn or
+**Previous employment verification (PEV).** Any member of the company's team sends a
+request to a past employer, who answers in a token portal (reminders §8) and signs drawn or
 typed (`TEXT_SIGNATURE:<name>`; `signature.js` refuses others). Violation details
 are required after a violation; a rehire "No" reason, the follow-up testing plan
 and non-DOT-recordable accidents are optional, kept only after their questions.
