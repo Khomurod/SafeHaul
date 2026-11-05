@@ -1077,7 +1077,7 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   `getSignedApplicationFileUrl`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
   Stored URLs expire or are absent, so views re-sign at view time.
 - **The SMS opt-out list** (`companies/{id}/blacklist`, callables only): any team member lists and adds a
-  number, only a Company Admin removes one, and never from the global list.
+  number, only a Company Admin removes one, and never from the global list. Its screen is in Settings (admins).
 - **Send to driver, Remind, Retry seal and Record attempt are team actions** (any company
   team member, `assertCompanyAccessForRequest`): the application or request must be
   under that company, and Send to driver's template in its post-application list.
@@ -1268,7 +1268,7 @@ message): **7 days** by default for uploads, none for CRM. Limit Volume
 keeps the newest N. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
 and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
-closed on a bad number) and every email with a usable one; no reply fills them (§12).
+closed on a bad number) and every email with a usable one; the team fills the company's by hand (§12).
 A lead campaign built from filters leaves out leads who applied (`applicationId`;
 the count before launch may still include them; hand-picked leads stay).
 An SMS campaign to applicants also skips anyone without an explicit "Yes" to SMS
@@ -1585,11 +1585,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan");
   marketing prices ($199 / $299 a month) are **not** enforced.
-- **Opt-out enforcement works; opt-out *capture* does not.** Sends check the
-  blacklist (§8), but `handleOptOut` (`functions/blacklist.js`) triggers on
-  `companies/{companyId}/inbound_messages/{msgId}`, which **nothing writes** (no
-  inbound SMS webhook): a STOP reply reaches the company's own provider, and a
-  number enters the blacklist only by a direct write (no admin screen).
+- **A STOP reply is not captured automatically:** **nothing writes** the `inbound_messages` that `handleOptOut`
+  (`blacklist.js`) watches (no inbound SMS webhook). The reply reaches the company's own provider, and the
+  team adds the number by hand in Settings → Text messages (`smsOptOuts.js`). Sends check the list (§8).
 - **Frontend coverage thresholds are a ratchet** (`vitest.config.js`), a few
   points under measured coverage: raise them as it improves, never lower them.
 - **Mixed Functions v1/v2 is intentional.** The generations run as different

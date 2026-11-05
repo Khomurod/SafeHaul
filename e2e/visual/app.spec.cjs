@@ -45,7 +45,8 @@
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
 const {
-    AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, TEAM_ROSTER, WEBSITE_LEADS, serveCallables,
+    AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, SMS_OPT_OUTS, TEAM_ROSTER,
+    WEBSITE_LEADS, serveCallables,
 } = require('../helpers/callables.cjs');
 const { uploadLeadFile } = require('../helpers/leadImport.cjs');
 const { APPLY_SCREEN_CODE, holdRequests } = require('../helpers/holdRequest.cjs');
@@ -130,11 +131,18 @@ const SCREENS = [
         callables: { listCompanyTeam: TEAM_ROSTER },
         ready: (page) => page.getByText('Maria-Annunziata Delacroix-Whitfield'),
     },
-    /* SMS before it is set up: the checklist (Firestore is unreachable here). */
+    /*
+     * SMS before it is set up: the checklist (Firestore is unreachable here), and
+     * under it the opted-out numbers, which come from a callable answered here.
+     */
     {
         name: 'company-settings-sms',
         url: '/company/settings?section=sms&e2eAuth=company_admin',
-        ready: (page) => page.getByRole('heading', { level: 2, name: /^Connect RingCentral/ }),
+        callables: { listSmsOptOuts: SMS_OPT_OUTS },
+        ready: (page) => [
+            page.getByRole('heading', { level: 2, name: /^Connect RingCentral/ }),
+            page.getByRole('button', { name: 'Remove (555) 555-0199' }),
+        ],
     },
     {
         name: 'company-campaigns',

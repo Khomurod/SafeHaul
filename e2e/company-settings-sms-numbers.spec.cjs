@@ -5,13 +5,17 @@
 // check/remove/default actions) is covered by the focused unit suites:
 // sms/SmsSettingsPage.contract.test.jsx (the frozen 15-case token suite and
 // more), sms/SmsSettingsPage.a11y.test.jsx, and SMSDiagnosticModal.*.test.jsx.
-// This spec proves the reachable state renders, is accessible, and fits.
+// This spec proves the reachable state renders, is accessible, and fits. The
+// opted-out numbers under it come from `listSmsOptOuts`, answered here as the
+// server would; sms/SmsOptOutSection.test.jsx covers adding and removing.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
+const { SMS_OPT_OUTS, serveCallables } = require('./helpers/callables.cjs');
 
 const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
 async function openSmsTab(page) {
+  await serveCallables(page, { listSmsOptOuts: SMS_OPT_OUTS });
   await page.goto(`${SETTINGS_URL}&section=sms`);
   await expect(page.getByRole('heading', { level: 1, name: 'Text messages (SMS)' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: /^Connect RingCentral/ })).toBeVisible({ timeout: 20_000 });
@@ -71,5 +75,25 @@ test.describe('Company Settings → Text messages (SMS)', () => {
     await openSmsTab(page);
     await expectNoHorizontalOverflow(page, 'mobile SMS settings');
     await expect(page.getByRole('button', { name: 'Add line' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Remove (555) 555-0142' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add number' })).toBeVisible();
+  });
+
+  test('lists the opted-out numbers and asks before removing one', async ({ page }) => {
+    await openSmsTab(page);
+    const section = page.getByRole('region', { name: 'Opted-out numbers' });
+    await expect(section.getByText('From a STOP reply')).toBeVisible();
+    await expect(section.getByText('By Maria-Annunziata Delacroix-Whitfield')).toBeVisible();
+
+    await section.getByRole('button', { name: 'Remove (555) 555-0142' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Remove (555) 555-0142 from the list?' });
+    await expect(dialog.getByText(/only when the driver asked to receive texts again/)).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toBeHidden();
+
+    const { violations } = await new AxeBuilder({ page })
+      .include('[data-testid="sms-opt-outs"]')
+      .analyze();
+    expect(violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id)).toEqual([]);
   });
 });

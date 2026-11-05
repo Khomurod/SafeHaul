@@ -173,7 +173,7 @@ function SettingsShell({ currentCompanyProfile, currentUser, isCompanyAdmin }) {
             case 'email':
                 return <EmailSettingsTab currentCompanyProfile={currentCompanyProfile} />;
             case 'sms':
-                return <SmsSettingsTab currentCompanyProfile={currentCompanyProfile} />;
+                return <SmsSettingsTab currentCompanyProfile={currentCompanyProfile} isCompanyAdmin={isCompanyAdmin} />;
             case 'automated_sms':
                 return <AutomatedSmsTab companyId={currentCompanyProfile.id} />;
             case 'integrations':
