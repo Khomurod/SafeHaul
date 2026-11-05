@@ -269,7 +269,7 @@ const FEATURES = Object.freeze([
         businessBenefit: 'A hired driver\'s CDL, medical card, MVR or TWIC card running out comes to the team\'s attention without anyone opening each DQ file.',
         limitations: [
             'In-app notifications only: SafeHaul does not email or text renewal reminders, and the driver is not told.',
-            'It covers only hired drivers whose DQ file records a valid-until date, from 30 days before that date.',
+            'It covers only hired drivers whose DQ file records a valid-until date, from 30 days before that date until 30 days after it.',
             'It follows the earliest date in the DQ file, so an old card left in the file is reported until it is removed.',
         ],
         sourceFiles: [

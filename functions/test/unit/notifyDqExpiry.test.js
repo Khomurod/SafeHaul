@@ -179,6 +179,16 @@ describe('a hired driver whose earliest DQ date has passed', () => {
         });
     });
 
+    it('is told only within 30 days of the date: an older one stays on Needs attention, so the first run does not flood the bell', async () => {
+        driverDue('app-1', '2026-10-06');
+        driverDue('app-2', '2026-10-05');
+
+        await run();
+
+        expect(ids()).toEqual(['dq_expired_app-1_2026-10-06']);
+        expect(store.queried).not.toContain(`${COMPANY}/applications/app-2/dq_files`);
+    });
+
     it('told it expires soon, is told again when it expires, and a renewed date gets notices of its own', async () => {
         seed();
         await run();

@@ -2,12 +2,14 @@
  * notifyDqExpiry.js — the bell's daily word about a hired driver's DQ deadline:
  * a hired driver whose earliest valid-until date (`dqExpiresNext`,
  * `shared/dqExpiry.js`) is today or within the next 30 days gets one notice that
- * it expires soon, and one that it expired once the date has passed. In the app
- * only: nothing is emailed or texted, and the driver is not told.
+ * it expires soon, and one that it expired once the date has passed, up to 30
+ * days after it: an older one is not told (it stays on Needs attention), so the
+ * first run does not fill the bell with stale records. In the app only: nothing
+ * is emailed or texted, and the driver is not told.
  *
  * Which drivers: per company not deactivated, the applications with a hired
- * status (`HIRED_STATUSES`) whose `dqExpiresNext` is on or before today plus 30
- * days, by the UTC day as the DQ tab judges it: the query the dashboard's Needs
+ * status (`HIRED_STATUSES`) whose `dqExpiresNext` is within 30 days either side
+ * of today, by the UTC day as the DQ tab judges it: the query the dashboard's Needs
  * attention runs (`dashboardAttention.js`), on the applications status +
  * dqExpiresNext composite in `firestore.indexes.json`, earliest first. Leads,
  * and applications not hired, are not read.
@@ -43,7 +45,7 @@ const { clipText } = require('./shared/plainText');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** How far ahead a date expires soon, in days: Needs attention's DQ window. */
+/** How far ahead a date expires soon, and how long after it passed it is still told, in days: Needs attention's DQ window. */
 const WINDOW_DAYS = 30;
 
 /** How long one run writes notices, inside its 540-second timeout. */
@@ -102,6 +104,7 @@ async function dueDrivers(applications, now) {
     const today = isoDay(now);
     const due = await applications
         .where('status', 'in', [...HIRED_STATUSES])
+        .where('dqExpiresNext', '>=', isoDay(now - WINDOW_DAYS * DAY_MS))
         .where('dqExpiresNext', '<=', isoDay(now + WINDOW_DAYS * DAY_MS))
         .orderBy('dqExpiresNext', 'asc')
         .select('firstName', 'lastName', 'assignedTo', 'dqExpiresNext')
