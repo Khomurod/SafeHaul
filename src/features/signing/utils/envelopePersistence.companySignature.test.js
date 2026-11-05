@@ -32,6 +32,7 @@ vi.mock('firebase/firestore', () => ({
     getDoc: (...args) => mocks.getDoc(...args),
     updateDoc: (...args) => mocks.updateDoc(...args),
     serverTimestamp: () => 'SERVER_TIMESTAMP',
+    deleteField: () => 'DELETE_FIELD',
     Timestamp: { fromMillis: (ms) => ({ ms }) },
     writeBatch: () => ({ set: mocks.batchSet, commit: mocks.batchCommit }),
 }));

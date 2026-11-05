@@ -15,7 +15,7 @@
 import { db, auth } from '@lib/firebase';
 import { storage } from '@lib/firebase/storage';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc, deleteField } from 'firebase/firestore';
 import {
     buildPrefillContext,
     normalizePrefillPolicy,
@@ -121,6 +121,20 @@ function correctionDelivery(before, after) {
     const sendsEmail = after.sendEmail !== false && Boolean(email) && (newToken || sentEmail !== email);
     const sendsSms = Boolean(after.sendSms) && Boolean(phone) && (newToken || sentPhone !== phone);
     return newToken || sendsEmail || sendsSms ? { newToken, email: sendsEmail, sms: sendsSms } : null;
+}
+
+/**
+ * The send record a correction drops with each channel it leaves off: the
+ * server sends only on the channels still on (`resendSignerOnCorrection`), so
+ * a turned-off channel's old failure would otherwise stay on the document for
+ * good. A channel left on keeps its record until the server records the new send.
+ */
+function clearedChannelRecords(delivery) {
+    const clear = (fields) => Object.fromEntries(fields.map((field) => [field, deleteField()]));
+    return {
+        ...(!delivery.sendEmail && clear(['emailStatus', 'emailError'])),
+        ...(!delivery.sendSms && clear(['smsStatus', 'smsError', 'smsNote'])),
+    };
 }
 
 /** What a saved correction tells its sender. */
@@ -237,14 +251,16 @@ export async function saveEnvelope({
         if (isEditingRequest) {
             const docRef = doc(db, 'companies', companyId, 'signing_requests', editRequestId);
             const before = (await getDoc(docRef)).data() || {};
+            const delivery = deliveryFields(deliveryMethod);
             await updateDoc(docRef, {
                 ...commonData,
                 recipientEmail: recipientEmail || null,
                 recipientName,
                 recipientPhone: recipientPhone || null,
-                ...deliveryFields(deliveryMethod),
+                ...delivery,
+                ...clearedChannelRecords(delivery),
             });
-            showSuccess(correctionMessage(before, { recipientEmail, recipientPhone, ...deliveryFields(deliveryMethod) }));
+            showSuccess(correctionMessage(before, { recipientEmail, recipientPhone, ...delivery }));
             markSaved();
             if (onClose) onClose();
             return;

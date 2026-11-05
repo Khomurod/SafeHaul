@@ -61,6 +61,7 @@ vi.mock('firebase/firestore', () => ({
     },
     getDoc: async () => ({ exists: () => fx.before !== null, data: () => fx.before }),
     serverTimestamp: () => 'SERVER_TIMESTAMP',
+    deleteField: () => 'DELETE_FIELD',
     Timestamp: { fromMillis: (ms) => ({ ms }) },
 }));
 vi.mock('uuid', () => ({
@@ -345,11 +346,14 @@ describe('a correction of a sent request in the envelope editor', () => {
         recipientPhone: '+15555550100',
         linkSentTo: { email: 'dana@example.test', phone: '' },
     };
+    // A channel the correction leaves off loses its send record (`clearedChannelRecords`).
+    const NO_EMAIL_RECORD = { emailStatus: 'DELETE_FIELD', emailError: 'DELETE_FIELD' };
+    const NO_TEXT_RECORD = { smsStatus: 'DELETE_FIELD', smsError: 'DELETE_FIELD', smsNote: 'DELETE_FIELD' };
     const CORRECTIONS = [
-        { deliveryMethod: 'email', written: { sendEmail: true, sendSms: false, deliveryMethod: 'email' }, message: 'Document updated successfully!' },
-        { deliveryMethod: 'sms', written: { sendEmail: false, sendSms: true, deliveryMethod: 'sms' }, message: 'Document updated. The signing link is on its way by SMS.' },
+        { deliveryMethod: 'email', written: { sendEmail: true, sendSms: false, deliveryMethod: 'email', ...NO_TEXT_RECORD }, message: 'Document updated successfully!' },
+        { deliveryMethod: 'sms', written: { sendEmail: false, sendSms: true, deliveryMethod: 'sms', ...NO_EMAIL_RECORD }, message: 'Document updated. The signing link is on its way by SMS.' },
         { deliveryMethod: 'both', written: { sendEmail: true, sendSms: true, deliveryMethod: 'both' }, message: 'Document updated. The signing link is on its way by SMS.' },
-        { deliveryMethod: 'copy', written: { sendEmail: false, sendSms: false, deliveryMethod: 'copy' }, message: 'Document updated successfully!' },
+        { deliveryMethod: 'copy', written: { sendEmail: false, sendSms: false, deliveryMethod: 'copy', ...NO_EMAIL_RECORD, ...NO_TEXT_RECORD }, message: 'Document updated successfully!' },
     ];
 
     it.each(CORRECTIONS)('records delivery by $deliveryMethod', async ({ deliveryMethod, written, message }) => {

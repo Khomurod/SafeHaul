@@ -32,6 +32,7 @@ vi.mock('firebase/firestore', () => ({
     getDoc: (...args) => mocks.getDoc(...args),
     updateDoc: (...args) => mocks.updateDoc(...args),
     serverTimestamp: () => 'SERVER_TIMESTAMP',
+    deleteField: () => 'DELETE_FIELD',
     Timestamp: { fromMillis: (ms) => ({ ms }) },
     writeBatch: () => ({ set: vi.fn(), commit: vi.fn() }),
 }));
@@ -138,5 +139,60 @@ describe('saveEnvelope correcting a sent request', () => {
 
         expect(saved()).toMatchObject({ recipientName: 'Dana M. Driver' });
         expect(showSuccess).toHaveBeenCalledWith('Document updated successfully!');
+    });
+});
+
+describe('saveEnvelope correcting a request whose send failed', () => {
+    const FAILED_BOTH = {
+        ...SENT,
+        deliveryMethod: 'both',
+        sendSms: true,
+        emailStatus: 'failed',
+        emailError: 'SMTP 550 rejected (artificial)',
+        smsStatus: 'failed',
+        smsError: 'Not texted: this number opted out of texts.',
+    };
+
+    it('clears the failure of the text it turns off, and leaves the email to the server', async () => {
+        mocks.getDoc.mockResolvedValue({ data: () => FAILED_BOTH });
+        await correct({ deliveryMethod: 'email' });
+
+        expect(saved()).toMatchObject({
+            sendEmail: true,
+            sendSms: false,
+            smsStatus: 'DELETE_FIELD',
+            smsError: 'DELETE_FIELD',
+            smsNote: 'DELETE_FIELD',
+        });
+        expect(saved()).not.toHaveProperty('emailStatus');
+        expect(saved()).not.toHaveProperty('emailError');
+    });
+
+    it('clears the failure of the email it turns off', async () => {
+        mocks.getDoc.mockResolvedValue({ data: () => FAILED_BOTH });
+        await correct({ recipientEmail: '', deliveryMethod: 'sms' });
+
+        expect(saved()).toMatchObject({ sendEmail: false, emailStatus: 'DELETE_FIELD', emailError: 'DELETE_FIELD' });
+        expect(saved()).not.toHaveProperty('smsStatus');
+        expect(saved()).not.toHaveProperty('smsError');
+    });
+
+    it('clears both when the correction leaves only a copied link', async () => {
+        mocks.getDoc.mockResolvedValue({ data: () => FAILED_BOTH });
+        await correct({ deliveryMethod: 'copy' });
+
+        expect(saved()).toMatchObject({
+            emailStatus: 'DELETE_FIELD', emailError: 'DELETE_FIELD',
+            smsStatus: 'DELETE_FIELD', smsError: 'DELETE_FIELD', smsNote: 'DELETE_FIELD',
+        });
+    });
+
+    it('keeps the record of every channel it leaves on: the server sends it again and records how', async () => {
+        mocks.getDoc.mockResolvedValue({ data: () => FAILED_BOTH });
+        await correct({ deliveryMethod: 'both' });
+
+        for (const field of ['emailStatus', 'emailError', 'smsStatus', 'smsError', 'smsNote']) {
+            expect(saved()).not.toHaveProperty(field);
+        }
     });
 });
