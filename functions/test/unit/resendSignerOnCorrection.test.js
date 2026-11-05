@@ -297,7 +297,7 @@ describe('resendSignerOnCorrection', () => {
         expect(current()).toMatchObject({ smsStatus: 'failed', smsError: 'line unavailable' });
     });
 
-    it('emails the new link but does not text a corrected number that opted out, and records why', async () => {
+    it('emails the new link but does not text a corrected number that opted out, and notes why', async () => {
         store(BOTH);
         mockDocs.set('companies/co-1/blacklist/+15555550199', { reason: 'STOP keyword' });
         await resendSignerOnCorrection(correction({ recipientPhone: '+1 555 555 0199' }));
@@ -305,7 +305,7 @@ describe('resendSignerOnCorrection', () => {
         expect(mockSendSms).not.toHaveBeenCalled();
         expect(emailedTo()).toEqual(['dana@wrong.example.test']);
         expect(mockSendEmail.mock.calls[0][3]).toContain(linkWith(token()));
-        expect(current()).toMatchObject({ emailStatus: 'sent', smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' });
+        expect(current()).toMatchObject({ emailStatus: 'sent', smsStatus: 'skipped', smsNote: 'Not texted: this number opted out of texts.' });
     });
 });
 
@@ -338,7 +338,7 @@ describe('notifySigner', () => {
 });
 
 describe('a new Email + SMS request to a number that opted out', () => {
-    it('is emailed and not texted, and the request says why', async () => {
+    it('is emailed and not texted, and the request notes why, as no failure', async () => {
         const request = unrecorded(BOTH);
         store(request, 'token-1');
         mockDocs.set('blacklist/+15555550100', { reason: 'Opt-out via company co-2' });
@@ -348,6 +348,6 @@ describe('a new Email + SMS request to a number that opted out', () => {
         expect(emailedTo()).toEqual(['dana@wrong.example.test']);
         expect(mockSendEmail.mock.calls[0][3]).toContain('?token=token-1');
         expect(mockSendSms).not.toHaveBeenCalled();
-        expect(current()).toMatchObject({ emailStatus: 'sent', smsStatus: 'failed', smsError: 'Not texted: this number opted out of texts.' });
+        expect(current()).toMatchObject({ emailStatus: 'sent', smsStatus: 'skipped', smsNote: 'Not texted: this number opted out of texts.' });
     });
 });
