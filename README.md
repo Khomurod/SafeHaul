@@ -62,7 +62,7 @@ always-required `callable-contract` CI job, which every push and pull request
 runs, and as part of `npm run lint`.
 
 Notably absent, and never to be claimed as shipped: document-expiry monitoring
-or renewal reminders · MVR, PSP or FMCSA Clearinghouse **checks** (the
+beyond a daily in-app notice about hired drivers, or renewal reminders · MVR, PSP or FMCSA Clearinghouse **checks** (the
 applicant-facing disclosures exist; the queries do not) · a job board · drip
 campaigns or two-way message threads · **opt-out capture** (the blacklist is
 enforced on every send, but nothing feeds it from a recipient's reply — see App

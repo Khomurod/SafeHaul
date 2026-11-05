@@ -144,10 +144,11 @@ comes round, so every feature comes up in turn.
 `PROHIBITED_CLAIMS` records claims that must never be made, with reasons —
 including several the landing page once made: "free forever" (contradicted by
 the published pricing), Firebase App Check (deliberately removed, risk formally
-accepted), automated DQ expiry monitoring (roadmap), MVR/PSP/Clearinghouse checks
-(roadmap), a job board (does not exist), GDPR data export (not implemented),
-speed-to-lead and drip campaigns (roadmap), lead distribution (removed), Telegram
-intake (retired), guaranteed compliance, and legal advice.
+accepted), complete DQ expiry monitoring (only a daily in-app notice is built),
+MVR/PSP/Clearinghouse checks (roadmap), a job board (does not exist), GDPR data
+export (not implemented), speed-to-lead and drip campaigns (roadmap), lead
+distribution (removed), Telegram intake (retired), guaranteed compliance, and
+legal advice.
 
 A **deterministic pattern check** enforces this on every draft, ahead of the AI
 verification step, because it is free and cannot be talked out of a verdict. It

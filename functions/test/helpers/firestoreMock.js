@@ -5,7 +5,7 @@
  * It implements only what the vault actually uses — document get/update with dot
  * paths, `FieldValue.delete()` and `arrayUnion`, `create` (refused when the document exists),
  * collection and collection-group reads,
- * `add`, `orderBy(...).limit(...)`, `select(...)`, and the transaction shape the
+ * `add`, `orderBy(...).limit(...)`, `count()`, `select(...)`, and the transaction shape the
  * shared rate limiter needs. Everything else is deliberately absent so a test
  * that starts depending on unimplemented Firestore behaviour fails loudly rather
  * than passing against a fiction.
@@ -55,8 +55,11 @@ function setPath(target, dotted, value) {
 
 /**
  * @param {Record<string, object>} seed Document path → document data.
- * @param {{ filters?: boolean }} [options] `filters`: `where(field, '==', value)`
- *   keeps only the matching documents. Off by default, where `where` keeps all.
+ * @param {{ filters?: boolean, ordering?: boolean }} [options] `filters`:
+ *   `where(field, '==', value)` keeps only the matching documents. `ordering`:
+ *   `orderBy(field, direction)` sorts by that field (a Timestamp by its
+ *   `toMillis()`) and, as Firestore does, leaves out documents without it. Both
+ *   off by default, where `where` keeps all and `orderBy` keeps the order.
  */
 function createFirestoreMock(seed = {}, options = {}) {
     /** @type {Map<string, object>} */
@@ -138,7 +141,21 @@ function createFirestoreMock(seed = {}, options = {}) {
             },
             select: () => query,
             limit: (count) => makeQuery(paths.slice(0, count)),
-            orderBy: () => query,
+            count: () => ({ get: async () => ({ data: () => ({ count: paths.length }) }) }),
+            orderBy: (field, direction = 'asc') => {
+                if (!options.ordering) return query;
+                const rank = (path) => {
+                    const value = docs.get(path)?.[field];
+                    return typeof value?.toMillis === 'function' ? value.toMillis() : value;
+                };
+                const held = paths.filter((docPath) => docs.get(docPath)?.[field] !== undefined);
+                const sign = direction === 'desc' ? -1 : 1;
+                return makeQuery([...held].sort((a, b) => {
+                    const x = rank(a);
+                    const y = rank(b);
+                    return sign * (x < y ? -1 : x > y ? 1 : 0);
+                }));
+            },
             where: (field, op, value) => {
                 if (!options.filters) return query;
                 if (op !== '==') throw new Error(`The Firestore mock filters on '==' only, not '${op}'.`);

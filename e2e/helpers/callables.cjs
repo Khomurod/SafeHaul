@@ -56,6 +56,28 @@ const TEAM_ROSTER = Object.freeze({
 });
 
 /**
+ * A company's opted-out numbers as `listSmsOptOuts` returns them: one a
+ * recruiter added with a long reason, one from a STOP reply. Made up, in the
+ * 555-01xx range kept for fiction.
+ */
+const SMS_OPT_OUTS = Object.freeze({
+  entries: [
+    {
+      phone: '+15555550142', reason: 'Asked on a call not to be texted again, and to be called after 5 pm instead',
+      source: 'team', addedBy: 'e2e-recruiter', addedByName: 'Maria-Annunziata Delacroix-Whitfield',
+      addedAt: '2026-10-05T15:00:00.000Z',
+    },
+    {
+      phone: '+15555550199', reason: 'STOP keyword', source: 'reply', addedBy: null, addedByName: null,
+      addedAt: '2026-10-01T12:00:00.000Z',
+    },
+  ],
+  total: 2,
+  limit: 300,
+  hasMore: false,
+});
+
+/**
  * The website-lead archive as `listLandingLeads` returns it: a qualified lead
  * with long names, a contact-only lead whose delivery failed, and one never
  * sent. Every person, company and address is made up.
@@ -188,6 +210,6 @@ const BACKFILL_PREVIEW = Object.freeze({
 });
 
 module.exports = {
-  AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, TEAM_ROSTER, WEBSITE_LEADS,
-  serveCallables,
+  AI_TELEMETRY, API_KEYS, BACKFILL_PREVIEW, BLOG_POSTS, BLOG_RUNS, ENVIRONMENT_INVENTORY, SMS_OPT_OUTS, TEAM_ROSTER,
+  WEBSITE_LEADS, serveCallables,
 };

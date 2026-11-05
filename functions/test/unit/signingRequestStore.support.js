@@ -1,11 +1,14 @@
 /**
  * A small document store for the signing-reminder suites (`remindSigner.test.js`,
- * `remindUnsignedSigners.test.js`) and the automatic post-application send
- * (`autoSendPostApplicationForms.test.js`): Firestore as those functions use
- * it, read and written by path.
+ * `remindUnsignedSigners.test.js`), the automatic post-application send
+ * (`autoSendPostApplicationForms.test.js`) and the DQ deadline notices
+ * (`notifyDqExpiry.test.js`): Firestore as those functions use it, read and
+ * written by path.
  *
  * - A stored timestamp is `{ ms }`, and reads back with the `toMillis` a
  *   Firestore Timestamp has; `FieldValue.delete()` removes a field.
+ * - `create` refuses a document that exists (`ALREADY_EXISTS`, code 6), and
+ *   `getAll` reads several documents at once, as the Admin SDK's do.
  * - A transaction applies its writes only when its function returns, so a
  *   refusal thrown inside writes nothing. One whose documents another write
  *   changed after it read them runs again, as Firestore's do, so two runs that
@@ -77,6 +80,9 @@ function comparable(value) {
     return value;
 }
 
+/** Numbers and strings (a `YYYY-MM-DD` day) in their order. */
+const ascending = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
 const MATCHES = {
     '==': (field, value) => field === value,
     'in': (field, value) => value.includes(field),
@@ -107,7 +113,7 @@ function query(collectionPath, { filters = [], order = null, fields = null, max 
             if (order) {
                 const [field, direction] = order;
                 found = found.filter(({ data }) => data[field] !== undefined)
-                    .sort((a, b) => (comparable(a.data[field]) - comparable(b.data[field])) * (direction === 'desc' ? -1 : 1));
+                    .sort((a, b) => ascending(comparable(a.data[field]), comparable(b.data[field])) * (direction === 'desc' ? -1 : 1));
             }
             if (max !== null) found = found.slice(0, max);
             const results = found.map(({ path, data }) => ({
@@ -132,6 +138,10 @@ function ref(path) {
         collection: (name) => collection(`${path}/${name}`),
         get: async () => snapshot(path),
         set: async (data) => docs.set(path, structuredClone(data)),
+        create: async (data) => {
+            if (docs.has(path)) throw Object.assign(new Error(`6 ALREADY_EXISTS: ${path}`), { code: 6 });
+            docs.set(path, structuredClone(data));
+        },
         update: async (data) => update(path, data),
     };
 }
@@ -158,7 +168,7 @@ async function runTransaction(fn) {
 }
 
 function firebaseAdminMock() {
-    const db = { runTransaction, collection };
+    const db = { runTransaction, collection, getAll: (...refs) => Promise.all(refs.map((doc) => doc.get())) };
     const firestore = Object.assign(() => db, {
         FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP', delete: () => deleteField },
         Timestamp: { fromMillis: (ms) => ({ ms }), now: () => ({ ms: Date.now() }) },

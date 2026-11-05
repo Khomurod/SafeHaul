@@ -300,7 +300,8 @@ at an earlier one it applied with.
 **The bell.** A status change on an assigned application tells its assignee only (an
 unassigned one, or one whose assignee left, the team); assigning an application or
 lead tells the new owner; an import that creates assigned leads tells each recruiter
-once how many. Nobody is told about their own action, and read state is per person.
+once how many; a hired driver's DQ deadline, its assignee or the team (§8). Nobody is
+told about their own action, and read state is per person.
 Name search starts at two letters, in the lists and the
 template picker; email, phone, confirmation number and id search stay exact.
 **A call moves the stage only by the owner's table** (`useCallOutcome.js`): Interested →
@@ -1075,6 +1076,8 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   purpose and checked against company membership (`getSignedDocumentUrl`,
   `getSignedApplicationFileUrl`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
   Stored URLs expire or are absent, so views re-sign at view time.
+- **The SMS opt-out list** (`companies/{id}/blacklist`, callables only): any team member lists and adds a
+  number, only a Company Admin removes one, and never from the global list. Its screen is in Settings (admins).
 - **Send to driver, Remind, Retry seal and Record attempt are team actions** (any company
   team member, `assertCompanyAccessForRequest`): the application or request must be
   under that company, and Send to driver's template in its post-application list.
@@ -1172,6 +1175,7 @@ Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days, each logged sent or not (a failed one is retried next run); at 30 days marks `no_response`, notifies the sender (bell), files the record of attempts (PDF, DQ file) and notifies the carrier (email, citing 49 CFR 391.23(c) and saying the record reached the DQ file only when it did): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
 | `autoSendPostApplicationForms` | every 15 min | For applications submitted through the public form 30 min–2 h ago (`submittedAt`, oldest first), sends each required, enabled post-application form by Send to driver's rules: a new request, or flags on for one the thank-you page opened and the driver did not sign; once per form through the transaction's `already-sent`, nothing written on the application. Skips companies with E-Docs off, deactivated or with no required form; no channel → skipped and logged. Stops after 4 min, and each run starts one company further on; ids-only logs |
 | `remindUnsignedSigners` | daily 11:00, America/Chicago | One reminder for each `sent` signing request created 3–7 days ago (oldest first, its link not run out), once (`autoReminder` claimed in a transaction before sending; `outcome` sent/failed). Skips companies with E-Docs off or deactivated, a request messaged in the last day, and one with no channel or link (not marked; looked at again next run). A failed one is not counted or retried. Ids-only logs |
+| `notifyDqExpiry` | daily 07:00, America/Chicago | For each hired driver whose `dqExpiresNext` is today or within 30 days (UTC day; Needs attention's query and index), one bell notice "expires soon", and one "expired" once the date has passed, until 30 days after it (first seen past it, only "expired"; an older date stays on Needs attention); a new date gets its own. Once each (id `dq_<stage>_<applicationId>_<date>`, looked up before the DQ file is read). Names the driver, the documents holding the date and the date, opens the dossier; for the assignee while on the team, else the team. No email or text. Skips deactivated companies; stops after 7 min, and the next day starts one company further on; ids-only logs |
 | `reconcileDashboardStatsDaily` | every 24 h | Recounts each company's applications, leads and hired applications and sets the dashboard counters, marked `reconciledAt`; one that cannot be counted is logged by id and the rest go on |
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
@@ -1264,7 +1268,7 @@ message): **7 days** by default for uploads, none for CRM. Limit Volume
 keeps the newest N. Recipients: `meta/targets` (older: `targetIds`); a deleted
 record takes `logs`, `meta` and `targets` (`deleteBulkSessionData`). Company
 and global `blacklist`s hold SMS opt-outs, checked before every SMS (failing
-closed on a bad number) and every email with a usable one; no reply fills them (§12).
+closed on a bad number) and every email with a usable one; the team fills the company's by hand (§12).
 A lead campaign built from filters leaves out leads who applied (`applicationId`;
 the count before launch may still include them; hand-picked leads stay).
 An SMS campaign to applicants also skips anyone without an explicit "Yes" to SMS
@@ -1407,8 +1411,9 @@ log failed (a count of `status == 'failed'`, what `retryFailedAttempts` reads).
   slips past it. Never claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks,
   document-expiry monitoring, a job board, or any named carrier endorsement. The DQ
   checklist and dates may be described only as listing what the file holds and
-  showing valid-until dates; never as monitoring, a compliance check or a complete
-  DQ file.
+  showing valid-until dates, and `notifyDqExpiry` only as a daily in-app notice to the
+  team about hired drivers; never as monitoring, renewal reminders, a compliance check
+  or a complete DQ file.
 - **A `web/` change runs the `frontend_unit` CI lane**
   (`src/tests/hostingConfig.test.js`, A5). Its claims check runs in an
   always-required job, blocking and install-free, and refuses nested pages (K4)
@@ -1580,11 +1585,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan");
   marketing prices ($199 / $299 a month) are **not** enforced.
-- **Opt-out enforcement works; opt-out *capture* does not.** Sends check the
-  blacklist (§8), but `handleOptOut` (`functions/blacklist.js`) triggers on
-  `companies/{companyId}/inbound_messages/{msgId}`, which **nothing writes** (no
-  inbound SMS webhook): a STOP reply reaches the company's own provider, and a
-  number enters the blacklist only by a direct write (no admin screen).
+- **A STOP reply is not captured automatically:** **nothing writes** the `inbound_messages` that `handleOptOut`
+  (`blacklist.js`) watches (no inbound SMS webhook). The reply reaches the company's own provider, and the
+  team adds the number by hand in Settings → Text messages (`smsOptOuts.js`). Sends check the list (§8).
 - **Frontend coverage thresholds are a ratchet** (`vitest.config.js`), a few
   points under measured coverage: raise them as it improves, never lower them.
 - **Mixed Functions v1/v2 is intentional.** The generations run as different
@@ -1607,6 +1610,15 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   fields. Remind's cooldown guards against mistakes, not a team member editing the
   database; a reminder whose every send failed does not count. Company setup reads once
   per dashboard visit.
+- **Batch 8 limits (2026-11):** the DQ deadline notice is for hired applications only
+  (not leads), in the bell only (no email or text; the driver is not told); a record none
+  of whose DQ files holds its `dqExpiresNext` gets none until that date is put right; a
+  date more than 30 days past is never told (Needs attention lists it); the first run, and
+  the first after Data cleanup → DQ valid-until dates, tell at once about every hired
+  driver within 30 days either side of their date. A notice goes to the stored assignee
+  when the team roster cannot be read (as other notices do). Settings lists the newest 300
+  opted-out numbers (and says how many there are), so an older one can be removed there
+  only once newer ones are; adding one is never limited.
 - **Batch 6 limits (2026-11):** the automatic post-application send looks only 30
   minutes to 2 hours after the first submission, so an application whose driver later
   gets a usable email or says Yes, a resubmission, one missed during an outage longer than
@@ -1631,7 +1643,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   another person's change or a PEV change), while the sidebar's marker follows the DQ list
   live; `dqExpiresNext` reaches older records on a
   DQ write, when their DQ tab opens, or through Data cleanup → DQ valid-until dates; an
-  old card left in the file keeps the record's earliest date until it is removed; a date
+  old card left in the file keeps the record's earliest date (and the daily notice about
+  it) until it is removed; a date
   the team set on a synced record gives way to the application's next change of that
   answer; inquiries uploaded by hand are counted, not matched to employers. Needs
   attention's no-response count

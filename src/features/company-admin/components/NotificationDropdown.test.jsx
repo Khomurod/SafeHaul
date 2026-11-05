@@ -136,6 +136,28 @@ describe('a notification in the bell', () => {
         expect(hook.markAsRead).toHaveBeenCalledWith('n-5');
     });
 
+    it('opens the driver\'s dossier from a DQ deadline notice, a warning while it expires soon and a danger once expired', async () => {
+        const EXPIRING = {
+            id: 'dq_expiring_app-8_2026-11-20', type: 'dq_expiring', title: 'DQ document expires soon',
+            message: "Ann Baker's medical card is valid until Nov 20, 2026",
+            relatedId: 'app-8', relatedType: 'application', recipientId: 'user-1', read: false, createdAt: at,
+        };
+        const EXPIRED = {
+            ...EXPIRING, id: 'dq_expired_app-8_2026-11-20', type: 'dq_expired', title: 'DQ document expired',
+            message: "Ann Baker's medical card was valid until Nov 20, 2026",
+        };
+        const onOpenRecord = await openBell([EXPIRING, EXPIRED]);
+
+        const expiring = screen.getByRole('button', { name: /DQ document expires soon/ });
+        const expired = screen.getByRole('button', { name: /DQ document expired/ });
+        expect(expiring.querySelector('svg')).toHaveClass('text-ds-status-warning-fg');
+        expect(expired.querySelector('svg')).toHaveClass('text-ds-status-danger-fg');
+        await userEvent.click(expired);
+
+        expect(onOpenRecord).toHaveBeenCalledWith('app-8');
+        expect(hook.markAsRead).toHaveBeenCalledWith('dq_expired_app-8_2026-11-20');
+    });
+
     it('still opens the record when marking it read fails', async () => {
         hook.markAsRead.mockRejectedValue(new Error('offline'));
         const onOpenRecord = await openBell([STATUS]);

@@ -217,6 +217,10 @@ function exportFunctions(wanted) {
   // 14. Compliance (SMS opt-out)
 
   if (wanted('handleOptOut')) exports.handleOptOut = require('./blacklist').handleOptOut;
+  // The company's list as its team keeps it in Settings → Text messages: any member lists and adds, a Company Admin removes.
+  if (wanted('listSmsOptOuts')) exports.listSmsOptOuts = require('./smsOptOuts').listSmsOptOuts;
+  if (wanted('addSmsOptOut')) exports.addSmsOptOut = require('./smsOptOuts').addSmsOptOut;
+  if (wanted('removeSmsOptOut')) exports.removeSmsOptOut = require('./smsOptOuts').removeSmsOptOut;
 
   // 15. In-App Notifications
   if (wanted('onApplicationStatusChanged')) exports.onApplicationStatusChanged = require('./notificationTriggers').onApplicationStatusChanged;
@@ -247,6 +251,8 @@ function exportFunctions(wanted) {
   if (wanted('syncDqFiles')) exports.syncDqFiles = require('./syncDqFiles').syncDqFiles;
   // Every DQ write: keeps the record's `dqExpiresNext` (earliest valid-until date) true.
   if (wanted('onDqFileWritten')) exports.onDqFileWritten = require('./dqExpiresNext').onDqFileWritten;
+  // Once a day: a bell notice for a hired driver whose earliest DQ date expires within 30 days, and when it has expired
+  if (wanted('notifyDqExpiry')) exports.notifyDqExpiry = require('./notifyDqExpiry').notifyDqExpiry;
   // The ONLY way to read a preserved original application PDF. Authorizes the
   // caller and writes an audit record before issuing a short-lived signed URL.
   if (wanted('getApplicationOriginalPdfUrl')) exports.getApplicationOriginalPdfUrl = require('./applicationOriginalPdf').getApplicationOriginalPdfUrl;

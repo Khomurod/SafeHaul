@@ -11,6 +11,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | Callable | Caller file(s) | Typical use |
 |----------|----------------|-------------|
 | `addPhoneLine` | [`AddLineModal.jsx`](../src/features/super-admin/components/integrations/AddLineModal.jsx) | Add SMS line to company inventory |
+| `addSmsOptOut`, `listSmsOptOuts`, `removeSmsOptOut` | [`smsOptOutService.js`](../src/features/settings/components/sms/smsOptOutService.js) | Settings → Text messages → Opted-out numbers: list the company's opt-out list (newest 300 and a count), add a number (any team member; E.164, a listed one keeps its first entry), remove one (Company Admin; the company's entry only, never the global list) ([`smsOptOuts.js`](../functions/smsOptOuts.js)) |
 | `addEnvironmentValue` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: store a value for one supported entry that has none |
 | `analyzeEdocFieldPlacement` | [`useAiFieldAssistant.js`](../src/features/signing/hooks/useAiFieldAssistant.js) | AI Field Assistant: suggest signer-field placement from rendered E-Doc pages (authenticated, company-scoped) |
 | `backfillAllStats` | [`StatsBackfillPanel.jsx`](../src/features/super-admin/components/StatsBackfillPanel.jsx) (Super Admin → Maintenance) | Admin: stats backfill all tenants |
@@ -118,7 +119,7 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 | `telegramWebhook` | HTTP `onRequest` | Telegram, for the alert bot: `POST` with `X-Telegram-Bot-Api-Secret-Token` (an HMAC of the bot token); keeps Start presses for the Connect chat link. Set by `savePlatformAlertToken` and Connect chat |
 | `companyApi` | HTTP `onRequest` | Another service, with a company's API key: `GET https://us-central1-truckerapp-system.cloudfunctions.net/companyApi/v1/...` and `Authorization: Bearer <key>`. Read-only; see [`companyApi/routes.js`](../functions/companyApi/routes.js) |
 | `onApplicationSubmitted`, `onLeadWrittenDashboardRollup`, … | Firestore triggers | Automatic on writes |
-| `enforceFeatureSchedules`, `cleanupOrphanedSignatures`, `processVerificationReminders`, `checkSmsDeliveries`, `remindUnsignedSigners`, `autoSendPostApplicationForms` | Scheduled | Cloud Scheduler |
+| `enforceFeatureSchedules`, `cleanupOrphanedSignatures`, `processVerificationReminders`, `checkSmsDeliveries`, `remindUnsignedSigners`, `autoSendPostApplicationForms`, `notifyDqExpiry` | Scheduled | Cloud Scheduler |
 | `sealDocument`, `notifySigner`, `notifySignerSMS`, `handleOptOut`, … | Triggers | Automatic |
 
 ---

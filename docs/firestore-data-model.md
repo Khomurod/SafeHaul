@@ -112,7 +112,7 @@ Used by Cloud Functions with Admin SDK:
 
 | Path | Purpose |
 |------|---------|
-| `companies/{id}/blacklist/{phone}` | Company opt-out list |
+| `companies/{id}/blacklist/{phone}` | Company opt-out list, keyed by E.164: `reason`, `timestamp`; a STOP reply's `originalMessageId`, a team entry's `addedBy`/`addedByName`/`source: 'team'`. Written by `handleOptOut` and [`smsOptOuts.js`](../functions/smsOptOuts.js) |
 | `companies/{id}/inbound_messages/{id}` | Inbound SMS (STOP handling trigger) |
 | `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next — **or** one a carrier prepared (`origin: 'company'`, `status: prepared\|sent\|driver_in_progress`, `preparedBy`, `inviteTokenHash`, `inviteClaimedAt`, `inviteDelivery`, `lockedEmployers`). See below |
 | `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards, and of a Company Admin's views, edits and deletions; a deleted draft's removal mark; files a deletion has still to remove |
@@ -134,7 +134,7 @@ The rules let the whole team read and update every notification, so the fields b
 
 | Field | Notes |
 |-------|-------|
-| `recipientId` | Shown to that person only: a callback reminder; a status change on their assigned application (`onApplicationStatusChanged`); an application or lead assigned to them (`onApplicationAssigned`, `onLeadAssigned`); their import summary (`leads_assigned`, `count`, written by the importing admin's browser); a document's sender told it was signed or failed to seal; a PEV request's sender; the recruiter who prepared an application; a lead's recruiter told the lead applied (`lead_applied_<applicationId>`). Index `recipientId` + `createdAt` serves the bell's own read |
+| `recipientId` | Shown to that person only: a callback reminder; a status change on their assigned application (`onApplicationStatusChanged`); an application or lead assigned to them (`onApplicationAssigned`, `onLeadAssigned`); their import summary (`leads_assigned`, `count`, written by the importing admin's browser); a document's sender told it was signed or failed to seal; a PEV request's sender; the recruiter who prepared an application; a lead's recruiter told the lead applied (`lead_applied_<applicationId>`); a hired driver's assignee told of a DQ deadline (`dq_expiring_…`, `dq_expired_…`, `notifyDqExpiry`; with no assignee on the team, the team). Index `recipientId` + `createdAt` serves the bell's own read |
 | `actorId` | The person whose action it reports. A notification without `recipientId` is not shown to them; one that has it is never written for its actor (a callback reminder is for the recruiter who logged it, by design) |
 | `readBy` | The uids who have read it (`arrayUnion` of the reader's uid; "Mark all read" adds only the reader). Unread for a reader means not in `readBy` |
 | `read` | Written `false` at creation for older screens. `true` is from before read state was per person (or an older screen) and counts as read for everyone |
