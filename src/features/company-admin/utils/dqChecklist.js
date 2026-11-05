@@ -22,9 +22,8 @@ import { calendarDay, expiryStatus, todayUtc } from './dqExpiry';
  * its row's verification says. Inquiries the team uploaded by hand are counted
  * but cannot be matched to an employer.
  *
- * The PSP report is optional and informational: whether a recruiter-attached PSP
- * report belongs in the DQ file is an open owner question (В2), and nothing
- * files one automatically.
+ * The PSP report is optional and informational: a recruiter-attached one is
+ * filed with the driver's uploads (`psp_report`), a team upload by its type.
  */
 
 const DOCUMENT_ITEMS = Object.freeze([
