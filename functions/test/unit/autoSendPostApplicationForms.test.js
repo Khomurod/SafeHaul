@@ -525,6 +525,37 @@ describe('one run', () => {
         expect(requests().has(REQUEST)).toBe(true);
     });
 
+    it('out of time, reads no further company', async () => {
+        seed();
+        seed({ companyId: 'co-2' });
+        const transaction = db.runTransaction;
+        jest.spyOn(db, 'runTransaction').mockImplementationOnce(async (fn) => {
+            const result = await transaction(fn);
+            later(5 * MINUTE);
+            return result;
+        });
+
+        await run();
+
+        const companiesRead = store.queried.filter((path) => /^companies\/[^/]+\/applications$/.test(path));
+        expect(companiesRead).toHaveLength(1);
+        expect(summary()).toContain('out of time');
+    });
+
+    it('starts each run one company further on, so no company holds the others back every run', async () => {
+        seed();
+        seed({ companyId: 'co-2' });
+        const firstRead = () => store.queried.find((path) => /^companies\/[^/]+\/applications$/.test(path));
+
+        await run();
+        const first = firstRead();
+        store.queried.length = 0;
+        later(15 * MINUTE);
+        await run();
+
+        expect(firstRead()).not.toBe(first);
+    });
+
     it('reads applications on a single field, which Firestore indexes by itself', async () => {
         seed();
 

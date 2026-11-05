@@ -3,7 +3,8 @@
  * be (`'error_sealing'`), for whoever waits on it: the team member who sent it
  * (`senderId`); for a post-application document, which nobody sent (or the
  * system did: a `system:` sender, the automatic send after submission), the
- * recruiter its application is assigned to, else the whole team.
+ * recruiter its application is assigned to while on the team, else the whole
+ * team.
  *
  * One notification per request and outcome (`seal_<id>`, `seal_failed_<id>`),
  * however often the trigger delivers the event; a later successful seal of a
@@ -18,6 +19,7 @@
  */
 const { createNotification } = require('./shared/createNotification');
 const { clipText } = require('./shared/plainText');
+const { assigneeOnTeam } = require('./shared/notificationAudience');
 
 const idOf = (value) => (typeof value === 'string' && value ? value : null);
 
@@ -31,7 +33,8 @@ async function recipientFor(db, companyId, request, applicationId) {
     try {
         const application = await db.collection('companies').doc(companyId)
             .collection('applications').doc(applicationId).get();
-        return idOf(application.exists ? (application.data() || {}).assignedTo : null);
+        // An assignee who has left the team reads nothing: the team is told instead.
+        return assigneeOnTeam(db, companyId, idOf(application.exists ? (application.data() || {}).assignedTo : null));
     } catch (err) {
         console.error(`[Seal] Could not read application ${applicationId} for its assignee; telling the team:`, err.message);
         return null;

@@ -29,7 +29,8 @@
  * (`sealNotifications.js`). A request it makes has `source:
  * 'post_application_auto'`. No usable email and no "Yes" to texts: skipped and
  * logged, and looked at again by the next run in the window. A run stops
- * starting sends after `RUN_BUDGET_MS`; the rest go on the next run.
+ * starting sends, and reading companies, after `RUN_BUDGET_MS`; the rest go on
+ * the next run, which starts one company further on (`inTurn`).
  *
  * Logs carry ids, counts and reasons only, never tokens, addresses or numbers.
  */
@@ -51,6 +52,9 @@ const AUTO_SENDER_ID = 'system:post-application';
 /** What a request this job makes says made it (`source`). */
 const AUTO_SOURCE = 'post_application_auto';
 
+/** How often the job runs, in minutes: the schedule below. */
+const RUN_EVERY_MINUTES = 15;
+
 /** How long one run starts sends, inside its 300-second timeout. */
 const RUN_BUDGET_MS = 4 * MINUTE_MS;
 
@@ -68,6 +72,17 @@ function requiredForms(company) {
 const submittedOnPublicForm = (application) => application.lifecycle?.processedViaFunction === true;
 
 const skip = (counts, why) => { counts.skipped[why] = (counts.skipped[why] || 0) + 1; };
+
+/**
+ * The companies in this run's order: each run starts one company further on,
+ * so a company with many forms to send cannot use the whole budget of every
+ * run while the ones after it wait out their window.
+ */
+function inTurn(docs, now) {
+    if (docs.length < 2) return docs;
+    const start = Math.floor(now / (RUN_EVERY_MINUTES * MINUTE_MS)) % docs.length;
+    return [...docs.slice(start), ...docs.slice(0, start)];
+}
 
 /** Sends one form of one application, and counts and logs how it went. */
 async function sendForm({ companyId, company, applicationId, application, templateId }, counts) {
@@ -127,7 +142,7 @@ async function sendCompany(companyId, company, forms, now, stopAt, counts) {
 }
 
 exports.autoSendPostApplicationForms = onSchedule({
-    schedule: 'every 15 minutes',
+    schedule: `every ${RUN_EVERY_MINUTES} minutes`,
     region: 'us-central1',
     timeoutSeconds: 300,
 }, async () => {
@@ -139,11 +154,13 @@ exports.autoSendPostApplicationForms = onSchedule({
     const companies = await db.collection('companies')
         .select('features', 'isActive', 'status', 'postApplicationTemplates', 'companyName')
         .get();
-    for (const company of companies.docs) {
+    for (const company of inTurn(companies.docs, now)) {
         const data = company.data() || {};
         if (data.features?.eDocs === false || isCompanyDeactivated(data)) continue;
         const forms = requiredForms(data);
         if (!forms.length) continue;
+        // Out of time: no further company is read; the next run, starting one further on, goes on.
+        if (Date.now() >= stopAt) { finished = false; break; }
         counts.companies += 1;
         try {
             finished = await sendCompany(company.id, data, forms, now, stopAt, counts);

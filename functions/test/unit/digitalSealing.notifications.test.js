@@ -187,6 +187,16 @@ describe('a post-application document, which nobody sent', () => {
         expect(notification).not.toHaveProperty('recipientId');
     });
 
+    it('tells the team when the recruiter it is assigned to has left the company', async () => {
+        mock.docs.set('companies/co1', { teamMembers: [{ userId: 'rec-1' }] });
+        mock.docs.set('companies/co1/applications/app-1', { assignedTo: 'rec-9', assignedToName: 'Oleg' });
+
+        await seal(postApplication());
+
+        expect(notifications()['seal_req-1']).toMatchObject({ relatedType: 'application', relatedId: 'app-1' });
+        expect(notifications()['seal_req-1']).not.toHaveProperty('recipientId');
+    });
+
     it('tells the team when the application is gone', async () => {
         await seal(postApplication());
 
