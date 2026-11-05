@@ -1551,8 +1551,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Violations, accidents and previous addresses** are on the server's allowlist,
   but *Edit Application* has no editor for them (array sections render read-only),
   so they show display-only.
-- **Older `drivers/{id}/pending_updates` documents remain**; nothing reads or writes
-  them. Data cleanup clears only an SSN in them; deleting them is the owner's call.
+- **Older `drivers/{id}/pending_updates` documents remain** until the owner runs
+  Data cleanup → Old driver staging copies (В7), which deletes them; nothing reads or
+  writes them.
 - **HEIC photos cannot be read** (an iPhone's default; browsers cannot decode
   it): the reader refuses it, naming what it takes: PDF, JPG, PNG, WebP.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
@@ -1637,7 +1638,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Maintenance → Data cleanup** (`dataCleanup`) removes leftovers item by item:
   Deep Diagnostic test accounts, SSN copies, stored PEV links, old lead fields,
   application search fields, SMTP password copies outside `email_config`, DQ
-  valid-until dates (`dqExpiresNext` on records filed before it). Check
+  valid-until dates (`dqExpiresNext` on records filed before it), old driver
+  staging copies (`drivers/{id}/pending_updates`, deleted whole). Check
   counts; Run confirms, needs a recent sign-in, is audited, resumes
   (`done: false`). Several-value `driverType` lists are only counted.
 
