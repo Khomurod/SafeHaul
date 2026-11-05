@@ -355,7 +355,8 @@ more days: one per ten minutes, claimed in a transaction and recorded in `remind
 an application's driver is texted only after "Yes"; the answer names any channel that
 failed. A document shared only by copied link cannot be reminded (Correct adds a
 channel). Once a day (11:00 Central) **one automatic reminder** goes to a document
-still `sent` 3 to 7 days after it was sent (`remindUnsignedSigners`), by Remind's rules
+still `sent` and created 3 to 7 days ago (`createdAt`, which Send to driver does not
+move; oldest first) whose link has not run out (`remindUnsignedSigners`), by Remind's rules
 (`shared/signerReminder.js`), counted in `reminders` as the system's
 (`lastBy: 'system:auto-reminder'`) and claimed once (`autoReminder`) before anything is
 sent; a document whose signer got a message about it in the last day waits a day, and a
@@ -1162,7 +1163,7 @@ Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 | `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger cannot reach (after a projection change) |
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days, each logged sent or not (a failed one is retried next run); at 30 days marks `no_response`, notifies the sender (bell), files the record of attempts (PDF, DQ file) and notifies the carrier (email): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
-| `remindUnsignedSigners` | daily 11:00, America/Chicago | One reminder for each `sent` signing request made 3–7 days ago, once (`autoReminder` claimed in a transaction before sending; `outcome` sent/failed). Skips companies with E-Docs off or deactivated, a request messaged in the last day, and one with no channel or link (not marked; looked at again next run). A failed one is not counted or retried. Ids-only logs |
+| `remindUnsignedSigners` | daily 11:00, America/Chicago | One reminder for each `sent` signing request created 3–7 days ago (oldest first, its link not run out), once (`autoReminder` claimed in a transaction before sending; `outcome` sent/failed). Skips companies with E-Docs off or deactivated, a request messaged in the last day, and one with no channel or link (not marked; looked at again next run). A failed one is not counted or retried. Ids-only logs |
 | `reconcileDashboardStatsDaily` | every 24 h | Recounts each company's applications, leads and hired applications and sets the dashboard counters, marked `reconciledAt`; one that cannot be counted is logged by id and the rest go on |
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
@@ -1595,14 +1596,15 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   fields. Remind's cooldown guards against mistakes, not a team member editing the
   database; a reminder whose every send failed does not count. Company setup reads once
   per dashboard visit.
-- **Batch 5 limits (2026-11):** the automatic reminder goes only 3–7 days after
-  sending, so a document corrected to add a channel later, a run missed four days in a
-  row, or a form sent later through Send to driver may get none (Remind still works);
+- **Batch 5 limits (2026-11):** the automatic reminder goes only 3–7 days after a
+  document was created, so a document corrected to add a channel later, one whose link
+  ran out, a run missed four days in a row, or a form sent later through Send to driver
+  may get none (Remind still works);
   it is never retried after a failed send, which shows on the document as a delivery
   error, as a failed Remind does; a run stops after seven minutes and leaves the rest to
   the next day, and one cut off between claim and send loses that reminder rather than
   sending twice. Between daily recounts the dashboard counters can be off by a trigger
-  delivered twice or lost. A record without a confirmation number (a lead, an older or
+  delivered twice or lost, or by a record added or removed while the recount ran. A record without a confirmation number (a lead, an older or
   hand-made application) shows none in the dossier, though the applicant's email named
   the first eight characters of its id instead.
 - **Batch 4 limits (2026-11):** the DQ checklist reads the DQ list when the tab opens or
