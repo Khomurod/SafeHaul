@@ -314,8 +314,9 @@ as the last call (`lastCallOutcome`, `lastContactedAt`). Older `Contacted`/`Atte
 fields (optionally AI-suggested); recipients sign **with no account** at
 `/sign/:companyId/:requestId`; typed values (no drawn signature) wait in a
 local draft. The server sends the link; a corrected email or phone gets a new
-one, voiding the old; a number on the opt-out list gets no text (shown as failed),
-the email still goes. Signed envelopes are sealed into tamper-evident PDFs, once:
+one, voiding the old, and a channel Correct turns off loses its send status. An
+opted-out number gets no text: beside an email a note (`smsStatus: 'skipped'`), alone
+a failed send. Signed envelopes are sealed into tamper-evident PDFs, once:
 a delivery that finds the request no longer `pending_seal` changes nothing. The
 bell then tells the sender (`senderId`; one nobody sent: its application's
 recruiter, else the team) "Document signed" or "Seal failed", once per request and
@@ -334,9 +335,9 @@ sealed again from the document's details (**Retry seal**, `retrySealDocument`): 
 seals what the signer submitted, records the attempt in `sealAttempts`, never reseals
 a signed document, and the signer's images stay until a seal succeeds.
 **A driver's signing documents** are listed in the dossier's **Documents to sign** tab
-(id `documents`): the
-requests linked to the record, and each required post-application form no request
-carries yet as *Not started*; *Link expired* is derived (unsigned, `expiresAt` past).
+(id `documents`): the requests linked to the record, and each required post-application
+form no request carries yet as *Not started*; *Link expired* (unsigned, `expiresAt` past)
+and *Not delivered* (unsigned, a send failed; outranks it) are derived.
 A post-application form is one document per application and form
 (`postapp_<application>_<template>`), made by whichever comes first: the thank-you
 page (it opens the form, never emails or texts it) or a team member's **Send to
@@ -354,7 +355,7 @@ awaiting. **Remind** (`remindSigner`, from a document's details and the dossier)
 sends an unsigned document's link again on each channel it was sent by, with seven
 more days: one per ten minutes, claimed in a transaction and recorded in `reminders`;
 an application's driver is texted only after "Yes"; the answer names any channel that
-failed. A document shared only by copied link cannot be reminded (Correct adds a
+failed, a skipped text as a note. A document shared only by copied link cannot be reminded (Correct adds a
 channel). Once a day (11:00 Central) **one automatic reminder** goes to a document
 still `sent` and created 3 to 7 days ago (`createdAt`, which Send to driver does not
 move; oldest first) whose link has not run out (`remindUnsignedSigners`), by Remind's rules
@@ -382,7 +383,9 @@ approval showed, refused if a correction changed it; checksum-checked; company
 SMTP; a failure, or a send unfinished after ten minutes, may be approved again). Signing is unlimited and not billed per envelope. The Documents workspace keeps
 the newest 100 signing requests live and loads older ones on request. When there
 are more, its numbers are server counts and a second live list holds every
-document that needs attention (indexes in `firestore.indexes.json`).
+document that needs attention (indexes in `firestore.indexes.json`): an unsigned document
+(`sent`, or the older `opened`) whose send failed, or a failed seal; a signed or voided
+one leaves by itself, and its details keep the old error.
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
