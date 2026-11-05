@@ -136,6 +136,8 @@ function exportFunctions(wanted) {
   if (wanted('createPostApplicationSigningRequest')) exports.createPostApplicationSigningRequest = require('./postApplicationEdocs').createPostApplicationSigningRequest;
   // Send to driver: a team member sends a post-application form from the dossier (the same document).
   if (wanted('sendPostApplicationDocument')) exports.sendPostApplicationDocument = require('./sendPostApplicationDocument').sendPostApplicationDocument;
+  // Every 15 minutes: the required post-application forms a driver did not deal with on the thank-you page, sent as Send to driver sends them.
+  if (wanted('autoSendPostApplicationForms')) exports.autoSendPostApplicationForms = require('./autoSendPostApplicationForms').autoSendPostApplicationForms;
   // AI Field Assistant: authenticated, company-scoped PDF field-placement suggestions.
   // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).
   if (wanted('analyzeEdocFieldPlacement')) exports.analyzeEdocFieldPlacement = require('./edocFieldPlacement').analyzeEdocFieldPlacement;
