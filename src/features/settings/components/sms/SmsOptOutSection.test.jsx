@@ -4,7 +4,7 @@
  * only behind a question. All numbers and names here are artificial.
  */
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -81,6 +81,12 @@ describe('the list', () => {
         expect(await screen.findByText('No opted-out numbers')).toBeInTheDocument();
     });
 
+    it('tells someone refused the list to ask a Company Admin, not that only an admin may see it', async () => {
+        calls.listSmsOptOuts.mockImplementation(async () => { throw refusal('permission-denied', 'denied'); });
+        render(<SmsOptOutSection companyId={COMPANY} canRemove />);
+        expect(await screen.findByText('You do not have access to this company’s settings. Ask a Company Admin.')).toBeInTheDocument();
+    });
+
     it('says when the list could not load, and tries again', async () => {
         calls.listSmsOptOuts.mockImplementation(async () => { throw refusal('unavailable', 'unavailable'); });
         render(<SmsOptOutSection companyId={COMPANY} canRemove />);
@@ -93,18 +99,62 @@ describe('the list', () => {
 });
 
 describe('adding a number', () => {
-    it('sends the number and the reason, then clears the form and reloads the list', async () => {
+    it('sends the number and the reason, then clears the form and shows the reloaded list', async () => {
         await renderSection();
+        calls.listSmsOptOuts.mockImplementation(async () => listed([
+            entry({ phone: '+15559876543', reason: 'Asked on a call' }), entry(),
+        ]));
         expect(screen.getByText('Add a number when the driver replied STOP or asked not to be texted.')).toBeInTheDocument();
         fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '(555) 987-6543' } });
         fireEvent.change(screen.getByLabelText(/Reason/), { target: { value: 'Asked on a call' } });
         fireEvent.click(screen.getByRole('button', { name: 'Add number' }));
 
-        await waitFor(() => expect(screen.getByLabelText(/Phone number/)).toHaveValue(''));
+        expect(await screen.findByRole('rowheader', { name: '(555) 987-6543' })).toBeInTheDocument();
         expect(calls.addSmsOptOut).toHaveBeenCalledWith({ companyId: COMPANY, phone: '(555) 987-6543', reason: 'Asked on a call' });
+        expect(calls.listSmsOptOuts).toHaveBeenCalledTimes(2);
+        expect(screen.getByLabelText(/Phone number/)).toHaveValue('');
         expect(screen.getByLabelText(/Reason/)).toHaveValue('');
         expect(toast.showSuccess).toHaveBeenCalledWith('(555) 987-6543 is on the list. SafeHaul will not text it.');
-        await waitFor(() => expect(calls.listSmsOptOuts).toHaveBeenCalledTimes(2));
+    });
+
+    it('keeps a number added while the list was still loading: the older answer does not replace the newer', async () => {
+        let firstAnswer;
+        calls.listSmsOptOuts.mockImplementationOnce(() => new Promise((resolve) => { firstAnswer = resolve; }));
+        calls.listSmsOptOuts.mockImplementation(async () => listed([entry({ phone: '+15559876543' })]));
+        render(<SmsOptOutSection companyId={COMPANY} canRemove />);
+        fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '(555) 987-6543' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Add number' }));
+        expect(await screen.findByRole('rowheader', { name: '(555) 987-6543' })).toBeInTheDocument();
+
+        await act(async () => { firstAnswer(listed([entry()])); });
+
+        expect(screen.getByRole('rowheader', { name: '(555) 987-6543' })).toBeInTheDocument();
+        expect(screen.queryByRole('rowheader', { name: '(555) 123-4567' })).not.toBeInTheDocument();
+    });
+
+    it('keeps what was typed while an add was on its way', async () => {
+        let finish;
+        calls.addSmsOptOut.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+        await renderSection();
+        fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '555-987-6543' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Add number' }));
+        fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '555-222-3333' } });
+
+        await act(async () => { finish({ data: { added: true, entry: entry({ phone: '+15559876543' }) } }); });
+
+        expect(screen.getByLabelText(/Phone number/)).toHaveValue('555-222-3333');
+    });
+
+    it('asks before the page is left with a number typed and not added', async () => {
+        const leaving = () => {
+            const event = new Event('beforeunload', { cancelable: true });
+            window.dispatchEvent(event);
+            return event.defaultPrevented;
+        };
+        await renderSection();
+        expect(leaving()).toBe(false);
+        fireEvent.change(screen.getByLabelText(/Phone number/), { target: { value: '555-987' } });
+        expect(leaving()).toBe(true);
     });
 
     it('says so when the number is already listed', async () => {
@@ -170,13 +220,18 @@ describe('removing a number', () => {
         expect(calls.removeSmsOptOut).not.toHaveBeenCalled();
     });
 
-    it('removes the number once confirmed, and reloads the list', async () => {
+    it('removes the number once confirmed, and shows the reloaded list', async () => {
         await renderSection();
+        calls.listSmsOptOuts.mockImplementation(async () => listed([
+            entry({ phone: '+15550000002', reason: 'STOP keyword', source: 'reply' }),
+        ]));
         fireEvent.click(screen.getByRole('button', { name: 'Remove (555) 123-4567' }));
         const confirm = screen.getByRole('dialog', { name: 'Remove (555) 123-4567 from the list?' });
         fireEvent.click(within(confirm).getByRole('button', { name: 'Remove' }));
 
-        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        await waitFor(() => expect(screen.queryByRole('rowheader', { name: '(555) 123-4567' })).not.toBeInTheDocument());
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.getByRole('rowheader', { name: '(555) 000-0002' })).toBeInTheDocument();
         expect(calls.removeSmsOptOut).toHaveBeenCalledWith({ companyId: COMPANY, phone: '+15551234567' });
         expect(calls.listSmsOptOuts).toHaveBeenCalledTimes(2);
         expect(toast.showSuccess).toHaveBeenCalledWith('(555) 123-4567 is off the list.');
@@ -188,7 +243,7 @@ describe('removing a number', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Remove (555) 123-4567' }));
         const confirm = screen.getByRole('dialog', { name: 'Remove (555) 123-4567 from the list?' });
         fireEvent.click(within(confirm).getByRole('button', { name: 'Remove' }));
-        expect(await within(confirm).findByText(/Only a Company Admin can do this/)).toBeInTheDocument();
+        expect(await within(confirm).findByText('Only a Company Admin can remove a number. Ask one of them.')).toBeInTheDocument();
     });
 });
 

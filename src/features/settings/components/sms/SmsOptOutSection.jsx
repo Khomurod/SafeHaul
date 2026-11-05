@@ -1,6 +1,6 @@
 import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { Button, Card, DataTable, FormField, Input, Notice } from '@/design-system/components';
-import { ConfirmDialog } from '@/design-system/patterns';
+import { ConfirmDialog, useUnsavedChanges } from '@/design-system/patterns';
 import { Icon, Plus } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { formatPhoneNumber } from '@shared/utils/helpers';
@@ -44,6 +44,8 @@ export function SmsOptOutSection({ companyId, canRemove = false }) {
     const { entries, total, hasMore, loading, error, reload, add, remove } = useSmsOptOuts(companyId);
     const [phone, setPhone] = useState('');
     const [reason, setReason] = useState('');
+    // A number typed and not added is an unsaved change: leaving Settings asks first.
+    useUnsavedChanges(phone.trim() !== '' || reason.trim() !== '');
     const [adding, setAdding] = useState(false);
     const addingRef = useRef(false);
     const [addError, setAddError] = useState(null);
@@ -65,8 +67,9 @@ export function SmsOptOutSection({ companyId, canRemove = false }) {
             const { added, entry } = (await add({ phone: phone.trim(), reason: reason.trim() })) || {};
             const shown = formatPhoneNumber(entry?.phone || phone);
             showSuccess(added === false ? `${shown} was already on the list.` : `${shown} is on the list. SafeHaul will not text it.`);
-            setPhone('');
-            setReason('');
+            // Only what was sent: anything typed while the request was on its way stays.
+            setPhone((typed) => (typed === phone ? '' : typed));
+            setReason((typed) => (typed === reason ? '' : typed));
         } catch (failure) {
             setAddError(optOutErrorMessage(failure, 'We could not add the number. Try again.'));
         } finally {
@@ -85,7 +88,11 @@ export function SmsOptOutSection({ companyId, canRemove = false }) {
         try {
             await remove(removing.phone);
         } catch (failure) {
-            setRemoveState({ busy: false, error: optOutErrorMessage(failure, 'We could not remove the number. Try again.') });
+            setRemoveState({
+                busy: false,
+                error: optOutErrorMessage(failure, 'We could not remove the number. Try again.',
+                    'Only a Company Admin can remove a number. Ask one of them.'),
+            });
             return;
         }
         showSuccess(`${formatPhoneNumber(removing.phone)} is off the list.`);

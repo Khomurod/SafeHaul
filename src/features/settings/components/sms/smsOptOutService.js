@@ -29,7 +29,7 @@ export async function removeSmsOptOut({ companyId, phone }) {
 }
 
 const PLAIN = {
-    'functions/permission-denied': 'Only a Company Admin can do this. Ask one of them.',
+    'functions/permission-denied': 'You do not have access to this company’s settings. Ask a Company Admin.',
     'functions/unauthenticated': 'Your sign-in has ended. Sign in again and retry.',
     'functions/unavailable': 'We could not reach SafeHaul. Check your connection and try again.',
     'functions/deadline-exceeded': 'That took too long. Try again.',
@@ -38,9 +38,11 @@ const PLAIN = {
 
 /**
  * What to tell the team when a call fails. The server words a number it cannot
- * read for this screen, so that is shown as it is; anything else gets a plain sentence.
+ * read for this screen, so that is shown as it is; anything else gets a plain
+ * sentence. `denied` words a refusal for an action only some may take (removal).
  */
-export function optOutErrorMessage(error, fallback) {
+export function optOutErrorMessage(error, fallback, denied) {
     if (error?.code === 'functions/invalid-argument' && error?.message) return error.message;
+    if (error?.code === 'functions/permission-denied' && denied) return denied;
     return PLAIN[error?.code] || fallback;
 }

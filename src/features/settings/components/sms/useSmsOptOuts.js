@@ -10,15 +10,19 @@ export function useSmsOptOuts(companyId) {
     // A reply for a company the screen has since left is dropped.
     const current = useRef(companyId);
     current.current = companyId;
+    // Only the newest request may write the list: an older answer arriving later is dropped.
+    const latest = useRef(0);
 
     const reload = useCallback(async () => {
         if (!companyId) return;
+        const request = ++latest.current;
+        const stale = () => request !== latest.current || current.current !== companyId;
         setState((previous) => ({ ...previous, loading: true, error: null }));
         try {
             const result = await listSmsOptOuts(companyId);
-            if (current.current === companyId) setState({ ...result, loading: false, error: null });
+            if (!stale()) setState({ ...result, loading: false, error: null });
         } catch (error) {
-            if (current.current !== companyId) return;
+            if (stale()) return;
             setState((previous) => ({
                 ...previous,
                 loading: false,
