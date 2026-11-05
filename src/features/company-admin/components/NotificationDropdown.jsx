@@ -13,6 +13,9 @@ const getNotificationIcon = (type) => {
         case 'team_activity': return <Icon icon={User} className="text-ds-status-accent-fg" />;
         case 'document_signed': return <Icon icon={FileCheck} className="text-ds-status-success-fg" />;
         case 'document_seal_failed': return <Icon icon={AlertTriangle} className="text-ds-status-danger-fg" />;
+        // A hired driver's DQ document (`functions/notifyDqExpiry.js`).
+        case 'dq_expiring': return <Icon icon={AlertTriangle} className="text-ds-status-warning-fg" />;
+        case 'dq_expired': return <Icon icon={AlertTriangle} className="text-ds-status-danger-fg" />;
         default: return <Icon icon={Bell} className="text-ds-content-muted" />;
     }
 };
