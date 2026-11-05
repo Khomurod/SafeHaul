@@ -349,9 +349,8 @@ and sends nothing. A link the server builds goes only to one of the app's own si
 a new request is sent by the creation triggers, one never sent gets its flags turned
 on and the correction trigger sends it with seven more days. A link already sent is
 not sent again (Remind does), a signed form is reported, a voided one refused.
-*Link expired* is derived in the browser (`sent`, `expiresAt` past; `isLinkExpired`
-in `documentsWorkspace.js`), never stored, so the Documents numbers count it as
-awaiting. **Remind** (`remindSigner`, from a document's details and the dossier)
+*Link expired* (`isLinkExpired`) is never stored, so the numbers count it as awaiting.
+**Remind** (`remindSigner`, from a document's details and the dossier)
 sends an unsigned document's link again on each channel it was sent by, with seven
 more days: one per ten minutes, claimed in a transaction and recorded in `reminders`;
 an application's driver is texted only after "Yes"; the answer names any channel that
@@ -381,11 +380,16 @@ one, a team member reviews and approves **Send signed copy**
 (`sendSignedDocumentCopy`, claimed once in `signedCopy`; only to the address the
 approval showed, refused if a correction changed it; checksum-checked; company
 SMTP; a failure, or a send unfinished after ten minutes, may be approved again). Signing is unlimited and not billed per envelope. The Documents workspace keeps
-the newest 100 signing requests live and loads older ones on request. When there
-are more, its numbers are server counts and a second live list holds every
-document that needs attention (indexes in `firestore.indexes.json`): an unsigned document
-(`sent`, or the older `opened`) whose send failed, or a failed seal; a signed or voided
-one leaves by itself, and its details keep the old error.
+the newest 100 requests live, older on request; past that, its numbers are server
+counts and a live list holds those needing attention (`firestore.indexes.json`): an
+unsigned document (`sent`, or the older `opened`) whose send failed, or a failed seal; a
+signed or voided one leaves by itself, and its details keep the old error. Each
+Overview number opens its list; a Needs attention card opens the document: its cause in
+plain words (`deliveryFailureCause.js`) and, while `sent`, **Fix recipient and resend**
+(Correct's `saveEnvelope` write, inline), **Resend** (Remind) and **Void** (records
+`voidedBy`/`voidedByName`, keeps delivery errors, warns a `postapp_…` form is never
+resent; never Delete). Only admins see a template's Delete; the forms tab is
+*After-application forms* (`?view=forms`).
 
 **Date Signed is stamped when the signer submits.** Other prefills (name,
 address, date of birth, hire date, licence expiry) resolve at sending; the
