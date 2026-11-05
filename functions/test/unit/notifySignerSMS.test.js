@@ -150,9 +150,12 @@ describe('the logs', () => {
 
     it('name the request, never the number, whether the text went, failed or was skipped', async () => {
         await created();
+        expect(console.log).toHaveBeenCalledWith('[NotifySignerSMS] SMS sent for request req-1');
         mockSendSms.mockRejectedValue(new Error('Invalid number +15555550100'));
         await created(REQUEST, 'event-2');
+        expect(console.error).toHaveBeenCalledWith('[NotifySignerSMS] Failed to send SMS for req-1: Error');
         await created({ ...REQUEST, sendSms: false }, 'event-3');
+        expect(console.log).toHaveBeenCalledWith('[NotifySignerSMS] Skipped: request req-1 asks for no text or has no number');
 
         expect(logged()).toContain('req-1');
         expect(logged()).not.toMatch(/5555550100/);

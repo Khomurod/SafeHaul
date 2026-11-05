@@ -97,6 +97,15 @@ describe('the daily recount of the dashboard counters', () => {
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('c1'), 'unavailable');
   });
 
+  it('recounts the companies after the first ten, past a failure among them', async () => {
+    mockState.companies = Array.from({ length: 11 }, (_, i) => `c${i + 1}`);
+    mockState.failCompany = 'c1';
+    await reconcileDashboardStatsDaily();
+
+    expect(mockState.writes).toHaveLength(10);
+    expect(mockState.writes.map((write) => write.path)).toContain('companies/c11/internal_stats/dashboard');
+  });
+
   it("is the Super Admin recount's own rule", async () => {
     await expect(reconcileCompanyDashboardStats({ auth: null, data: { companyId: 'c1' } })).rejects.toThrow();
     const result = await reconcileCompanyDashboardStats({

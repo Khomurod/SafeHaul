@@ -94,6 +94,7 @@ describe('the dashboard counts', () => {
     it.each([
         ['was never recounted', { schemaVersion: 1, applicationsTotal: 112, leadsTotal: 40, hiredTotal: 51 }],
         ['holds a number below zero', { ...RECOUNTED, applicationsTotal: 112, leadsTotal: -577, hiredTotal: 51 }],
+        ['holds a number that is no count', { ...RECOUNTED, applicationsTotal: 112, leadsTotal: 1.5, hiredTotal: 51 }],
         ['was last recounted more than a day and a half ago', {
             schemaVersion: 1, applicationsTotal: 112, leadsTotal: 40, hiredTotal: 51,
             reconciledAt: { toMillis: () => Date.now() - 37 * HOUR },
