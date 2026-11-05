@@ -83,6 +83,8 @@ describe('the record of attempts at day 30', () => {
     // The bell and the carrier's email are unchanged.
     expect(notificationDocs.get('co-1/pev_no_response_req-12345678')).toBeDefined();
     expect(carrierEmails()).toHaveLength(1);
+    // The email says the record is in the DQ file only because it is.
+    expect(carrierEmails()[0][3]).toContain("added the record of these attempts to the applicant's DQ file");
   });
 
   it('never names the request by its token', async () => {
@@ -106,6 +108,8 @@ describe('the record of attempts at day 30', () => {
     expect(dqFileDocs.size).toBe(0);
     expect(row().history.at(-1)).toMatchObject({ action: NO_RESPONSE, attemptRecordPath: RECORD_PATH });
     expect(carrierEmails()).toHaveLength(1);
+    expect(carrierEmails()[0][3]).toContain("could not be added to the applicant's DQ file automatically");
+    expect(carrierEmails()[0][3]).not.toContain("added the record of these attempts to the applicant's DQ file");
   });
 
   it('does not stop the job when the PDF cannot be stored', async () => {

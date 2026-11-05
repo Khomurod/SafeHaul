@@ -1,7 +1,8 @@
 /**
  * A small document store for the signing-reminder suites (`remindSigner.test.js`,
- * `remindUnsignedSigners.test.js`): Firestore as those functions use it, read
- * and written by path.
+ * `remindUnsignedSigners.test.js`) and the automatic post-application send
+ * (`autoSendPostApplicationForms.test.js`): Firestore as those functions use
+ * it, read and written by path.
  *
  * - A stored timestamp is `{ ms }`, and reads back with the `toMillis` a
  *   Firestore Timestamp has; `FieldValue.delete()` removes a field.
@@ -11,8 +12,8 @@
  *   overlap see each other's claims.
  * - A collection answers `where` (`==`, `in`, `<`, `<=`, `>`, `>=`), `orderBy`,
  *   `select` and `limit`, leaving out a document without the field, as an
- *   index does. Each query is noted in `queried`; one on a collection in
- *   `failingQueries` fails.
+ *   index does. Each query is noted in `queried`, and the fields it filters and
+ *   orders on in `queries`; one on a collection in `failingQueries` fails.
  *
  * `jest.mock` is hoisted per file, so each suite keeps its own line,
  * `jest.mock('../../firebaseAdmin', () => require('./signingRequestStore.support').firebaseAdminMock())`,
@@ -22,6 +23,7 @@
 
 const docs = new Map();
 const queried = [];
+const queries = [];
 const failingQueries = new Set();
 const deleteField = Symbol('delete');
 
@@ -93,6 +95,7 @@ function query(collectionPath, { filters = [], order = null, fields = null, max 
         limit: (count) => refine({ max: count }),
         get: async () => {
             queried.push(collectionPath);
+            queries.push({ path: collectionPath, fields: [...new Set([...filters.map(([field]) => field), ...(order ? [order[0]] : [])])] });
             if (failingQueries.has(collectionPath)) throw Object.assign(new Error('unavailable (artificial)'), { code: 14 });
             const depth = collectionPath.split('/').length + 1;
             let found = [...docs.keys()]
@@ -166,7 +169,8 @@ function firebaseAdminMock() {
 function reset() {
     docs.clear();
     queried.length = 0;
+    queries.length = 0;
     failingQueries.clear();
 }
 
-module.exports = { docs, queried, failingQueries, revive, ref, update, firebaseAdminMock, reset };
+module.exports = { docs, queried, queries, failingQueries, revive, ref, update, firebaseAdminMock, reset };
