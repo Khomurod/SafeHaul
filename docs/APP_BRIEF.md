@@ -360,8 +360,15 @@ move; oldest first) whose link has not run out (`remindUnsignedSigners`), by Rem
 (`shared/signerReminder.js`), counted in `reminders` as the system's
 (`lastBy: 'system:auto-reminder'`) and claimed once (`autoReminder`) before anything is
 sent; a document whose signer got a message about it in the last day waits a day, and a
-company with E-Docs off or deactivated gets none. Nothing sends these forms
-automatically after submission (owner question В6).
+company with E-Docs off or deactivated gets none. Every 15 minutes **the required
+post-application forms go out by themselves** (`autoSendPostApplicationForms`, owner
+decision В6): for an application the driver submitted through the public form
+(`lifecycle.processedViaFunction`) 30 minutes to 2 hours ago (`submittedAt`), each
+required, enabled form goes by Send to driver's rules and transaction
+(`shared/postApplicationSend.js`), from the company (`senderId: 'system:post-application'`,
+which the bell reads as nobody, so a signed form tells the application's recruiter, else
+the team; `source: 'post_application_auto'`); a form signed, voided, being submitted or
+already sent gets nothing.
 A **company signature** (`company_signature`) is an image the team uploads to
 `secure_documents/{companyId}/originals/company-signatures/` and places on a
 template or one document (each may replace its template's); the signer sees it
@@ -1163,6 +1170,7 @@ Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 | `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger cannot reach (after a projection change) |
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days, each logged sent or not (a failed one is retried next run); at 30 days marks `no_response`, notifies the sender (bell), files the record of attempts (PDF, DQ file) and notifies the carrier (email, citing 49 CFR 391.23(c) and saying the record reached the DQ file only when it did): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
+| `autoSendPostApplicationForms` | every 15 min | For applications submitted through the public form 30 min–2 h ago (`submittedAt`, oldest first), sends each required, enabled post-application form by Send to driver's rules: a new request, or flags on for one the thank-you page opened and the driver did not sign; once per form through the transaction's `already-sent`, nothing written on the application. Skips companies with E-Docs off, deactivated or with no required form; no channel → skipped and logged. Stops after 4 min; ids-only logs |
 | `remindUnsignedSigners` | daily 11:00, America/Chicago | One reminder for each `sent` signing request created 3–7 days ago (oldest first, its link not run out), once (`autoReminder` claimed in a transaction before sending; `outcome` sent/failed). Skips companies with E-Docs off or deactivated, a request messaged in the last day, and one with no channel or link (not marked; looked at again next run). A failed one is not counted or retried. Ids-only logs |
 | `reconcileDashboardStatsDaily` | every 24 h | Recounts each company's applications, leads and hired applications and sets the dashboard counters, marked `reconciledAt`; one that cannot be counted is logged by id and the rest go on |
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
@@ -1596,6 +1604,14 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   fields. Remind's cooldown guards against mistakes, not a team member editing the
   database; a reminder whose every send failed does not count. Company setup reads once
   per dashboard visit.
+- **Batch 6 limits (2026-11):** the automatic post-application send looks only 30
+  minutes to 2 hours after the first submission, so an application whose driver later
+  gets a usable email or says Yes, a resubmission, one missed during an outage longer than
+  that, and an optional form get nothing from it (Send to driver still works); a failed
+  send is not retried by it (Remind and the day-3 reminder are); a template that cannot be
+  filled is skipped and logged on each run in the window; a text can go at night, 30–120
+  minutes after the driver's own submission and only after their Yes. The no-response
+  email's DQ-file sentence follows the filing result of that run.
 - **Batch 5 limits (2026-11):** the automatic reminder goes only 3–7 days after a
   document was created, so a document corrected to add a channel later, one whose link
   ran out, a run missed four days in a row, or a form sent later through Send to driver
