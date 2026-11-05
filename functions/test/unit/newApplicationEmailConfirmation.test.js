@@ -81,4 +81,17 @@ describe('onNewApplicationEmailConfirmation', () => {
     sendDynamicEmail.mockRejectedValueOnce(new Error('SMTP down'));
     await expect(onNewApplicationEmailConfirmation(buildEvent())).resolves.toBeUndefined();
   });
+
+  // A Cloud Functions log is read by everyone who can read the project's logs.
+  it('logs a failed confirmation by its application, without the address the mail server names', async () => {
+    sendDynamicEmail.mockRejectedValue(new Error('Failed to send email: 550 5.1.1 <driver@example.com>: Recipient address rejected'));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await onNewApplicationEmailConfirmation(buildEvent());
+
+    const logged = errorSpy.mock.calls.flat().map(String).join('\n');
+    expect(logged).toContain('app12345');
+    expect(logged).not.toContain('driver@example.com');
+    errorSpy.mockRestore();
+  });
 });

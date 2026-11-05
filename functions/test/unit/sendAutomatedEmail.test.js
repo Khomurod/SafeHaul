@@ -171,3 +171,19 @@ describe('sendAutomatedEmail — the other templates', () => {
         expect(mockSendDynamicEmail).not.toHaveBeenCalled();
     });
 });
+
+// A Cloud Functions log is read by everyone who can read the project's logs.
+describe('sendAutomatedEmail — logs', () => {
+    it('logs a failed email by its company, without the address the mail server names', async () => {
+        mockSendDynamicEmail.mockRejectedValue(new Error('Failed to send email: 550 5.1.1 <driver@example.com>: Recipient address rejected'));
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        const result = await sendAutomatedEmail(noAnswer());
+
+        expect(result.success).toBe(false);
+        const logged = errorSpy.mock.calls.flat().map((v) => (v instanceof Error ? `${v.message} ${v.stack}` : String(v))).join('\n');
+        expect(logged).toContain('co1');
+        expect(logged).not.toContain('driver@example.com');
+        errorSpy.mockRestore();
+    });
+});

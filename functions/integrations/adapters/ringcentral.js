@@ -93,7 +93,8 @@ class RingCentralAdapter extends BaseAdapter {
                     payload.from = { phoneNumber: fromNumber };
                 }
 
-                console.log(`[RC Adapter] Sending SMS | From: ${fromNumber || 'Default'} | To: ${to}`);
+                // The company's line, never the number texted: everyone who can read the project's logs reads this.
+                console.log(`[RC Adapter] Sending SMS | From: ${fromNumber || 'Default'}`);
                 return receiptOf(await this._sendWithRetry('/restapi/v1.0/account/~/extension/~/sms', payload));
 
             } catch (primaryError) {

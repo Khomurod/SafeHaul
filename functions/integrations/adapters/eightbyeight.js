@@ -70,7 +70,8 @@ class EightByEightAdapter extends BaseAdapter {
                 source = source.substring(0, 16);
             }
 
-            console.log(`[8x8] Sending SMS to ${to} from source "${source}" via subaccount "${subAccountId}"`);
+            // The company's line, never the number texted: everyone who can read the project's logs reads this.
+            console.log(`[8x8] Sending SMS from source "${source}" via subaccount "${subAccountId}"`);
 
             const response = await axios.post(
                 `${this.smsBaseUrl}/subaccounts/${subAccountId}/messages`,
