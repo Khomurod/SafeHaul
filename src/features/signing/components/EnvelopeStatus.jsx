@@ -1,7 +1,7 @@
 import React from 'react';
 import { Icon, CheckCircle, Clock, Loader2, AlertCircle, MessageSquare, Mail, Ban, Hourglass } from '@design-system/icons';
 import { Badge } from '@/design-system/components';
-import { deliveryFailure, formatTimestamp, isLinkExpired } from '@features/company-admin/utils/documentsWorkspace';
+import { formatTimestamp, isLinkExpired, openDeliveryFailure } from '@features/company-admin/utils/documentsWorkspace';
 
 /**
  * Feature-owned domain → visual mapping for a signing-request status.
@@ -25,12 +25,14 @@ const STATUS_PRESENTATION = {
 };
 
 /**
- * A sent document's status in the history table: a failed delivery first, with
- * its reason under the badge (the reason explains the status), then a link that
- * ran out, then the stored status.
+ * A sent document's status in the history table: while it is still with its
+ * signer, a failed delivery first, with its reason under the badge (the reason
+ * explains the status), then a link that ran out, then the stored status. Once
+ * it is signed, sealing or voided its own status is what the row says
+ * (`openDeliveryFailure`).
  */
 export function EnvelopeStatusBadge({ document: docItem }) {
-    const failure = deliveryFailure(docItem);
+    const failure = openDeliveryFailure(docItem);
     if (failure) {
         // Truncate error for operator debugging without exposing sensitive internals
         const errorDetail = failure.error

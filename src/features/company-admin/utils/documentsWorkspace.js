@@ -21,8 +21,15 @@ const normalize = (value) => (value === null || value === undefined ? '' : Strin
 /** Statuses that mean the signer has finished. */
 export const COMPLETED_STATUSES = Object.freeze(['signed', 'sealed', 'completed']);
 
-/** Statuses that mean the document is still with the signer. */
-export const AWAITING_STATUSES = Object.freeze(['sent', 'processing', 'pending_seal']);
+/**
+ * Statuses of a document its signer has not signed yet: `sent`, and the older
+ * `opened` the dossier always read (no writer stores it now). A failed send
+ * matters only on these (`openDeliveryFailure`).
+ */
+export const OPEN_STATUSES = Object.freeze(['sent', 'opened']);
+
+/** Statuses counted as awaiting a signature: the open ones, and those being submitted or sealed. */
+export const AWAITING_STATUSES = Object.freeze([...OPEN_STATUSES, 'processing', 'pending_seal']);
 
 /**
  * Status filter options. Values are the stored `status` values, unchanged, and
@@ -77,9 +84,10 @@ export function isAwaitingSignature(document) {
 }
 
 /**
- * The channel whose send failed and the error it recorded, or null. The
- * server's senders record each channel on the request; a text has no other way
- * to tell its sender it did not go out.
+ * The channel whose send failed and the error it recorded, or null, whatever
+ * the status: the record of what happened, kept after a document is signed or
+ * voided. The server's senders record each channel on the request; a text has
+ * no other way to tell its sender it did not go out.
  */
 export function deliveryFailure(document) {
     if (document?.emailStatus === 'failed') return { channel: 'Email', error: document.emailError || '' };
@@ -87,19 +95,30 @@ export function deliveryFailure(document) {
     return null;
 }
 
+const isOpen = (document) => OPEN_STATUSES.includes(normalize(document?.status).trim().toLowerCase());
+
+/**
+ * A failed send that still matters: the document is open (`OPEN_STATUSES`), so
+ * its signer may not have the link. Once it is signed, sealing or voided there
+ * is nothing to deliver, and `deliveryFailure` alone tells what happened.
+ */
+export function openDeliveryFailure(document) {
+    return isOpen(document) ? deliveryFailure(document) : null;
+}
+
+/** Whether an open document's send failed (`openDeliveryFailure`); the server's filters match it. */
 export function hasDeliveryFailure(document) {
-    return deliveryFailure(document) !== null;
+    return openDeliveryFailure(document) !== null;
 }
 
 /**
- * An unsigned document whose link has run out: derived here, never stored, so
- * no server count or index knows it, and the numbers count it as awaiting a
- * signature (`signingRequestQueries.js`). The dossier's list reads it too. Its
- * 'opened' is a status no writer stores, which the dossier always accepted.
+ * An open document (`OPEN_STATUSES`) whose link has run out: derived here,
+ * never stored, so no server count or index knows it, and the numbers count it
+ * as awaiting a signature (`signingRequestQueries.js`). The dossier's list
+ * reads it too.
  */
 export function isLinkExpired(document, now = Date.now()) {
-    const status = normalize(document?.status).trim().toLowerCase();
-    if (status !== 'sent' && status !== 'opened') return false;
+    if (!isOpen(document)) return false;
     const expires = toMillis(document?.expiresAt);
     return expires !== null && expires < now;
 }
@@ -110,7 +129,9 @@ export function hasSealingFailure(document) {
 
 /**
  * "Needs attention" is deliberately narrow: something went wrong that a person
- * has to act on. A document simply waiting for a signature is not a problem.
+ * has to act on, a failed send while the document is open or a failed seal. A
+ * document simply waiting for a signature is not a problem, and one signed or
+ * voided leaves by itself.
  */
 export function needsAttention(document) {
     return hasDeliveryFailure(document) || hasSealingFailure(document);
