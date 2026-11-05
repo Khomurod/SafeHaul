@@ -8,6 +8,7 @@ const { sendDynamicEmail } = require('./emailService');
 const { escapeHtml } = require('./shared/plainText');
 const { emailOf } = require('./shared/signingLink');
 const { trustedAppBaseUrl } = require('./shared/appOrigin');
+const { claimDelivery } = require('./shared/deliveryClaim');
 
 /**
  * The link a signer opens, on the site the request was sent from: the base URL
@@ -32,10 +33,12 @@ async function readSigningToken(ref, data) {
  * Emails a signing request's link to its signer and records on the request how
  * that went. `replacesEarlierLink` says the link sent before no longer works;
  * `recordSentTo` records the address in `linkSentTo` first (`shared/signingLink.js`),
- * for a sender that has not claimed it already. `reminder` words it as one
+ * for a sender that has not claimed it already. `claim` decides first whether
+ * this run sends at all (the creation trigger's one send per event); a failure
+ * of it is recorded as a failed send. `reminder` words it as one
  * (`shared/signerReminder.js`).
  */
-async function emailSigningLink({ companyId, requestId, ref, data, accessToken, replacesEarlierLink = false, recordSentTo = false, reminder = false }) {
+async function emailSigningLink({ companyId, requestId, ref, data, accessToken, replacesEarlierLink = false, recordSentTo = false, reminder = false, claim = async () => true }) {
     // 1. Validate required fields before proceeding
     if (!data.recipientEmail || !accessToken) {
         console.warn(`[Notify] Skipped: Missing recipientEmail or accessToken for request ${requestId}`);
@@ -86,6 +89,10 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
 
     // 4. Send via unified email service (uses company's own SMTP settings)
     try {
+        if (!(await claim())) {
+            console.log(`[Notify] Skipped: request ${requestId} is already emailed for this event`);
+            return;
+        }
         if (recordSentTo) await ref.update({ 'linkSentTo.email': emailOf(data) });
         await sendDynamicEmail(companyId, data.recipientEmail, subject, html);
         // Ids only: a mail address in a log is read by everyone who reads the project's logs.
@@ -121,7 +128,19 @@ exports.notifySigner = functions.runWith({ secrets: ['SMS_ENCRYPTION_KEY'] }).fi
         }
 
         const accessToken = await readSigningToken(snap.ref, data);
-        await emailSigningLink({ companyId, requestId, ref: snap.ref, data, accessToken, recordSentTo: true });
+        const eventId = typeof context.eventId === 'string' && context.eventId ? context.eventId : null;
+        await emailSigningLink({
+            companyId,
+            requestId,
+            ref: snap.ref,
+            data,
+            accessToken,
+            // Firestore delivers an event at least once: the first run claims it,
+            // with the address in `linkSentTo`, before the email is sent.
+            ...(eventId
+                ? { claim: () => claimDelivery(snap.ref, 'emailDeliveryId', eventId, { 'linkSentTo.email': emailOf(data) }) }
+                : { recordSentTo: true }),
+        });
         return null;
     });
 

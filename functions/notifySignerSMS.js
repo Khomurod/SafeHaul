@@ -11,25 +11,10 @@ const SMSAdapterFactory = require('./integrations/factory');
 const { readSigningToken, signingLinkFor } = require('./notifySigner');
 const { phoneOf } = require('./shared/signingLink');
 const { onOptOutList } = require('./shared/smsPermission');
-const db = admin.firestore();
+const { claimDelivery } = require('./shared/deliveryClaim');
 
 /** What a request shows (Documents, "Delivery Failed") for a link not texted to an opted-out number. */
 const OPTED_OUT_ERROR = 'Not texted: this number opted out of texts.';
-
-/**
- * Claims a signing request's delivery for one event, in a transaction: true for
- * the first run that claims it under `field`, false for any other. Firestore
- * delivers an event at least once, so a trigger can run twice for one event.
- * `record` is written with the claim.
- */
-function claimDelivery(ref, field, eventId, record = {}) {
-    return db.runTransaction(async (tx) => {
-        const current = await tx.get(ref);
-        if (current.get(field) === eventId) return false;
-        tx.update(ref, { [field]: eventId, ...record });
-        return true;
-    });
-}
 
 /**
  * Texts a signing request's link to its signer and records on the request how

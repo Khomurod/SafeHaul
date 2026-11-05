@@ -1212,6 +1212,9 @@ the daily count**; refusing is a recorded outcome.
   lead writes roll up dashboard counters into server-write-only `internal_stats`, which
   the daily job recounts. The dashboard shows them only when recounted within 36 hours
   and none is below zero; otherwise it counts the records itself.
+- **Signing links** — a new request's email (`notifySigner`) and text (`notifySignerSMS`)
+  each claim the event on the request (`emailDeliveryId`, `smsDeliveryId`, with the
+  address in `linkSentTo`) before they send, so an event delivered twice sends once.
 - **Sealing** — a signing request entering `pending_seal`, or a Retry seal recording a
   new attempt while it is there, triggers PDF sealing, only while the stored request is
   still on that attempt; then one bell notification of the outcome (§4) and, for a
@@ -1611,9 +1614,7 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   send is not retried by it (Remind and the day-3 reminder are); a template that cannot be
   filled is skipped and logged on each run in the window; a text can go at night, 30–120
   minutes after the driver's own submission and only after their Yes. The no-response
-  email's DQ-file sentence follows the filing result of that run. `notifySigner` claims
-  no event (the text and correction triggers do), so a create event delivered twice
-  emails the same link twice, for every signing request.
+  email's DQ-file sentence follows the filing result of that run.
 - **Batch 5 limits (2026-11):** the automatic reminder goes only 3–7 days after a
   document was created, so a document corrected to add a channel later, one whose link
   ran out, a run missed four days in a row, or a form sent later through Send to driver
