@@ -17,7 +17,6 @@ import {
     isTemplateDuplicable,
     needsAttention,
     openDeliveryFailure,
-    recentDocuments,
     searchTemplates,
     sentHeaderCount,
     sortTemplates,
@@ -194,12 +193,7 @@ describe('summarizeDocuments', () => {
     });
 });
 
-describe('recent and attention lists', () => {
-    it('keeps the query order and caps the list', () => {
-        const documents = Array.from({ length: 9 }, (_, index) => doc({ id: `r-${index}` }));
-        expect(recentDocuments(documents).map((d) => d.id)).toEqual(['r-0', 'r-1', 'r-2', 'r-3', 'r-4']);
-    });
-
+describe('attention list', () => {
     it('lists only documents that actually failed', () => {
         const documents = [doc({ id: 'ok' }), doc({ id: 'bad', emailStatus: 'failed' })];
         expect(attentionDocuments(documents).map((d) => d.id)).toEqual(['bad']);

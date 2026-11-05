@@ -174,7 +174,8 @@ export async function saveEnvelope({
     setSaveState,
     markSaved,
 }) {
-    if (!file || fields.length === 0) {
+    // A correction keeps the request's own PDF and uploads none, so it needs no file.
+    if ((!file && !isEditingRequest) || fields.length === 0) {
         showError('Please upload a file and place at least one field.');
         return;
     }

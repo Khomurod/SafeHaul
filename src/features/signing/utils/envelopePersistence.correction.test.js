@@ -88,6 +88,13 @@ beforeEach(() => {
 });
 
 describe('saveEnvelope correcting a sent request', () => {
+    it('needs no PDF: a correction keeps the request\'s own file and uploads none', async () => {
+        const { showError } = await correct({ file: null, recipientEmail: 'dana@example.test' });
+
+        expect(showError).not.toHaveBeenCalled();
+        expect(saved()).toMatchObject({ recipientEmail: 'dana@example.test' });
+    });
+
     it('says a new link is on its way when the email changed', async () => {
         const { showSuccess, showError } = await correct({ recipientEmail: 'dana@example.test' });
 

@@ -126,9 +126,8 @@ export function useSentDocumentActions({ companyId, companyName = '', onCorrect 
 
     /**
      * Correct Document's save, given what the editor would have loaded: the
-     * stored fields as the editor reads them, and the stored PDF in place of
-     * the copy it downloads (a correction keeps the request's PDF and never
-     * uploads one). It checks the recipient and reports by itself; a success
+     * stored fields as the editor reads them, and no PDF (a correction keeps
+     * the request's PDF and never uploads one). It checks the recipient and reports by itself; a success
      * closes the dialog. Loaded on demand, as the editor is.
      */
     const fixRecipient = async (docItem, recipient) => {
@@ -141,7 +140,7 @@ export function useSentDocumentActions({ companyId, companyName = '', onCorrect 
                 import('@features/signing/utils/templateFieldSerializer'),
             ]);
             await saveEnvelope({
-                file: docItem.storagePath,
+                file: null,
                 fields: (docItem.fields || []).filter((field) => field != null).map(deserializeTemplateField),
                 creatorMode: 'request',
                 isEditingTemplate: false,

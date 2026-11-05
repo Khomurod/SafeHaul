@@ -171,11 +171,6 @@ export function summarizeDocuments(documents = []) {
     return summary;
 }
 
-/** Most recent documents, already ordered by the live query. */
-export function recentDocuments(documents = [], limit = 5) {
-    return documents.slice(0, limit);
-}
-
 export function attentionDocuments(documents = [], limit = 5) {
     return documents.filter(needsAttention).slice(0, limit);
 }

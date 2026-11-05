@@ -78,12 +78,12 @@ describe('EnvelopeHistory — Fix recipient and resend', () => {
             recipientPhone: '',
             deliveryMethod: 'email',
         });
-        // The stored fields, as Correct's editor loads them, and the stored PDF.
+        // The stored fields, as Correct's editor loads them, and no PDF: a correction keeps the request's own.
         expect(call.fields.map((field) => [field.id, field.page, field.x, field.defaultValue])).toEqual([
             ['sig1', 1, 10, ''],
             ['name1', 1, 10, 'Pat Example'],
         ]);
-        expect(call.file).toBeTruthy();
+        expect(call.file).toBeNull();
         expect(toast.showSuccess).toHaveBeenCalledWith(expect.stringMatching(/^Document corrected\./));
         // No Firestore write of its own: the correction is the only one.
         expect(fs.updateDoc).not.toHaveBeenCalled();
