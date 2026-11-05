@@ -112,7 +112,7 @@ Used by Cloud Functions with Admin SDK:
 
 | Path | Purpose |
 |------|---------|
-| `companies/{id}/blacklist/{phone}` | Company opt-out list |
+| `companies/{id}/blacklist/{phone}` | Company opt-out list, keyed by E.164: `reason`, `timestamp`; a STOP reply's `originalMessageId`, a team entry's `addedBy`/`addedByName`/`source: 'team'`. Written by `handleOptOut` and [`smsOptOuts.js`](../functions/smsOptOuts.js) |
 | `companies/{id}/inbound_messages/{id}` | Inbound SMS (STOP handling trigger) |
 | `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next — **or** one a carrier prepared (`origin: 'company'`, `status: prepared\|sent\|driver_in_progress`, `preparedBy`, `inviteTokenHash`, `inviteClaimedAt`, `inviteDelivery`, `lockedEmployers`). See below |
 | `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards, and of a Company Admin's views, edits and deletions; a deleted draft's removal mark; files a deletion has still to remove |

@@ -1076,6 +1076,8 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   purpose and checked against company membership (`getSignedDocumentUrl`,
   `getSignedApplicationFileUrl`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
   Stored URLs expire or are absent, so views re-sign at view time.
+- **The SMS opt-out list** (`companies/{id}/blacklist`, callables only): any team member lists and adds a
+  number, only a Company Admin removes one, and never from the global list.
 - **Send to driver, Remind, Retry seal and Record attempt are team actions** (any company
   team member, `assertCompanyAccessForRequest`): the application or request must be
   under that company, and Send to driver's template in its post-application list.
