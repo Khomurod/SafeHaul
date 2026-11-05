@@ -39,6 +39,7 @@ const KIND_BY_TYPE = Object.freeze({
     mvr_consent: 'mvr_consent',
     drug_test_consent: 'drug_test_consent',
     ssn_card: 'ssn_card',
+    psp_report: 'psp',
     pev_request: 'pev_request',
     pev_result: 'pev_result',
     pev_attempts: 'pev_attempts',

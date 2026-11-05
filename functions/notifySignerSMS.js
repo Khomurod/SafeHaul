@@ -37,7 +37,7 @@ function claimDelivery(ref, field, eventId, record = {}) {
  * whether this run sends at all; a failure of either is recorded as a failed send.
  * A number on the opt-out list is not texted (`shared/smsPermission.js`), which
  * is recorded as a failed send with the reason. `reminder` words it as one
- * (`remindSigner.js`).
+ * (`shared/signerReminder.js`).
  */
 async function textSigningLink({ companyId, requestId, ref, data, accessToken: token, claim = async () => true, reminder = false }) {
     try {
@@ -78,10 +78,11 @@ async function textSigningLink({ companyId, requestId, ref, data, accessToken: t
             smsStatus: 'sent'
         });
 
-        console.log(`[NotifySignerSMS] SMS sent to ${data.recipientPhone} for request ${requestId}`);
+        // Ids only: a phone number in a log is read by everyone who reads the project's logs.
+        console.log(`[NotifySignerSMS] SMS sent for request ${requestId}`);
 
     } catch (error) {
-        console.error(`[NotifySignerSMS] Failed to send SMS for ${requestId}:`, error);
+        console.error(`[NotifySignerSMS] Failed to send SMS for ${requestId}: ${error?.code || error?.name || 'error'}`);
 
         // Log failure but don't crash the function
         try {
@@ -107,7 +108,7 @@ exports.notifySignerSMS = onDocumentCreated(
 
         // Only proceed if SMS delivery was requested
         if (!data.sendSms || !data.recipientPhone) {
-            console.log(`[NotifySignerSMS] Skipped: sendSms=${data.sendSms}, recipientPhone=${data.recipientPhone}`);
+            console.log(`[NotifySignerSMS] Skipped: request ${requestId} asks for no text or has no number`);
             return null;
         }
 

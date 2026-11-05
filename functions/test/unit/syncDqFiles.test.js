@@ -149,6 +149,25 @@ it('takes no path of another company as the upload, and files a lead\'s uploads 
     expect(mockWrites[0].path).toBe('companies/co1/leads/lead1/dq_files/mvr');
 });
 
+it('files the PSP report a recruiter attached, under its own type', async () => {
+    const PSP = { name: 'psp.pdf', storagePath: 'companies/co1/applications/guest_uploads/1760000000002_ij56kl_psp.pdf' };
+    mockDocs.set(APP, { 'psp-report-upload': PSP });
+
+    await expect(ask()).resolves.toEqual({ filed: 1 });
+    expect(mockWrites).toEqual([{
+        path: `${APP}/dq_files/psp_report`,
+        data: expect.objectContaining({
+            type: 'psp_report',
+            fileType: 'PSP Report',
+            fileName: 'psp.pdf',
+            storagePath: PSP.storagePath,
+            expirationDate: 'DELETE_FIELD',
+            sourceField: 'psp-report-upload',
+        }),
+        options: { merge: true },
+    }]);
+});
+
 it('files nothing for a record that is gone', async () => {
     await expect(ask()).resolves.toEqual({ filed: 0 });
     expect(mockWrites).toEqual([]);

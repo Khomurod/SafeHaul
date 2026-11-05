@@ -173,6 +173,17 @@ describe('DossierSidebar identity presentation', () => {
     expect(screen.getByText('In Review')).toBeInTheDocument();
   });
 
+  it.each([
+    ['New Application', 'New'],
+    ['New Lead', 'New'],
+    ['Approved', 'Hired'],
+    ['Rejected', 'Declined'],
+  ])('names a stored %s as the status picker does, %s', (stored, shown) => {
+    renderSidebar({ currentStatus: stored });
+    expect(screen.getByText(shown)).toBeInTheDocument();
+    expect(screen.queryByText(stored)).toBeNull();
+  });
+
   it('renders initials from the first and last name', () => {
     renderSidebar();
     expect(screen.getByText('MG')).toBeInTheDocument();

@@ -31,6 +31,7 @@ describe('the DQ file types', () => {
         expect(dqKindOf({ type: 'mvr', fileType: 'MVR' })).toBe('mvr');
         expect(dqKindOf({ type: 'pev_result', fileType: 'PEV Result – Medical Card Haulers' })).toBe('pev_result');
         expect(dqKindOf({ type: 'mvr_consent', fileType: 'MVR Consent' })).toBe('mvr_consent');
+        expect(dqKindOf({ type: 'psp_report', fileType: 'Recruiter PSP' })).toBe('psp');
         expect(dqKindOf({ fileType: 'MVR (Annual)' })).toBe('mvr');
         expect(dqKindOf({ fileType: 'CDL' })).toBe('cdl');
         expect(dqKindOf({ fileType: 'PSP Report' })).toBe('psp');

@@ -354,8 +354,14 @@ sends an unsigned document's link again on each channel it was sent by, with sev
 more days: one per ten minutes, claimed in a transaction and recorded in `reminders`;
 an application's driver is texted only after "Yes"; the answer names any channel that
 failed. A document shared only by copied link cannot be reminded (Correct adds a
-channel). Nothing reminds automatically (owner question В3). Nothing sends these
-forms automatically after submission (owner question В6).
+channel). Once a day (11:00 Central) **one automatic reminder** goes to a document
+still `sent` and created 3 to 7 days ago (`createdAt`, which Send to driver does not
+move; oldest first) whose link has not run out (`remindUnsignedSigners`), by Remind's rules
+(`shared/signerReminder.js`), counted in `reminders` as the system's
+(`lastBy: 'system:auto-reminder'`) and claimed once (`autoReminder`) before anything is
+sent; a document whose signer got a message about it in the last day waits a day, and a
+company with E-Docs off or deactivated gets none. Nothing sends these forms
+automatically after submission (owner question В6).
 A **company signature** (`company_signature`) is an image the team uploads to
 `secure_documents/{companyId}/originals/company-signatures/` and places on a
 template or one document (each may replace its template's); the signer sees it
@@ -386,8 +392,8 @@ rewrite a hire date that is today): it seals correctly, only its preview can lag
 a day. One definition in `src/features/signing/utils/signedDate.js` and
 `functions/shared/signedDate.js`: change both.
 
-**Previous employment verification (PEV).** A company admin sends a request to a
-past employer, who answers in a token portal (reminders §8) and signs drawn or
+**Previous employment verification (PEV).** Any member of the company's team sends a
+request to a past employer, who answers in a token portal (reminders §8) and signs drawn or
 typed (`TEXT_SIGNATURE:<name>`; `signature.js` refuses others). Violation details
 are required after a violation; a rehire "No" reason, the follow-up testing plan
 and non-DOT-recordable accidents are optional, kept only after their questions.
@@ -1157,6 +1163,8 @@ Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 | `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger cannot reach (after a projection change) |
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days, each logged sent or not (a failed one is retried next run); at 30 days marks `no_response`, notifies the sender (bell), files the record of attempts (PDF, DQ file) and notifies the carrier (email): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
+| `remindUnsignedSigners` | daily 11:00, America/Chicago | One reminder for each `sent` signing request created 3–7 days ago (oldest first, its link not run out), once (`autoReminder` claimed in a transaction before sending; `outcome` sent/failed). Skips companies with E-Docs off or deactivated, a request messaged in the last day, and one with no channel or link (not marked; looked at again next run). A failed one is not counted or retried. Ids-only logs |
+| `reconcileDashboardStatsDaily` | every 24 h | Recounts each company's applications, leads and hired applications and sets the dashboard counters, marked `reconciledAt`; one that cannot be counted is logged by id and the rest go on |
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
@@ -1193,7 +1201,9 @@ the daily count**; refusing is a recorded outcome.
   not removed) and writes it only when it changes; `syncDqFiles` corrects it when the
   tab opens, and Data cleanup → DQ valid-until dates writes it on older records.
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
-  lead writes roll up dashboard counters into server-write-only `internal_stats`.
+  lead writes roll up dashboard counters into server-write-only `internal_stats`, which
+  the daily job recounts. The dashboard shows them only when recounted within 36 hours
+  and none is below zero; otherwise it counts the records itself.
 - **Sealing** — a signing request entering `pending_seal`, or a Retry seal recording a
   new attempt while it is there, triggers PDF sealing, only while the stored request is
   still on that attempt; then one bell notification of the outcome (§4) and, for a
@@ -1551,8 +1561,9 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Violations, accidents and previous addresses** are on the server's allowlist,
   but *Edit Application* has no editor for them (array sections render read-only),
   so they show display-only.
-- **Older `drivers/{id}/pending_updates` documents remain**; nothing reads or writes
-  them. Data cleanup clears only an SSN in them; deleting them is the owner's call.
+- **Older `drivers/{id}/pending_updates` documents remain** until the owner runs
+  Data cleanup → Old driver staging copies (В7), which deletes them; nothing reads or
+  writes them.
 - **HEIC photos cannot be read** (an iPhone's default; browsers cannot decode
   it): the reader refuses it, naming what it takes: PDF, JPG, PNG, WebP.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
@@ -1585,6 +1596,17 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   fields. Remind's cooldown guards against mistakes, not a team member editing the
   database; a reminder whose every send failed does not count. Company setup reads once
   per dashboard visit.
+- **Batch 5 limits (2026-11):** the automatic reminder goes only 3–7 days after a
+  document was created, so a document corrected to add a channel later, one whose link
+  ran out, a run missed four days in a row, or a form sent later through Send to driver
+  may get none (Remind still works);
+  it is never retried after a failed send, which shows on the document as a delivery
+  error, as a failed Remind does; a run stops after seven minutes and leaves the rest to
+  the next day, and one cut off between claim and send loses that reminder rather than
+  sending twice. Between daily recounts the dashboard counters can be off by a trigger
+  delivered twice or lost, or by a record added or removed while the recount ran. A record without a confirmation number (a lead, an older or
+  hand-made application) shows none in the dossier, though the applicant's email named
+  the first eight characters of its id instead.
 - **Batch 4 limits (2026-11):** the DQ checklist reads the DQ list when the tab opens or
   after a change made there, and the employers as the dossier loaded them (reopen it after
   another person's change or a PEV change), while the sidebar's marker follows the DQ list
@@ -1592,8 +1614,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   DQ write, when their DQ tab opens, or through Data cleanup → DQ valid-until dates; an
   old card left in the file keeps the record's earliest date until it is removed; a date
   the team set on a synced record gives way to the application's next change of that
-  answer; inquiries uploaded by hand are counted, not matched to employers; the
-  recruiter-attached PSP report is not filed (В2). Needs attention's no-response count
+  answer; inquiries uploaded by hand are counted, not matched to employers. Needs
+  attention's no-response count
   includes every request still marked so, even where a newer one for that employer was
   answered, and its unsigned count includes sends that failed; an unfinished
   application's removal is read from its last save, and the Unfinished page lists only
@@ -1637,7 +1659,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
 - **Maintenance → Data cleanup** (`dataCleanup`) removes leftovers item by item:
   Deep Diagnostic test accounts, SSN copies, stored PEV links, old lead fields,
   application search fields, SMTP password copies outside `email_config`, DQ
-  valid-until dates (`dqExpiresNext` on records filed before it). Check
+  valid-until dates (`dqExpiresNext` on records filed before it), old driver
+  staging copies (`drivers/{id}/pending_updates`, deleted whole). Check
   counts; Run confirms, needs a recent sign-in, is audited, resumes
   (`done: false`). Several-value `driverType` lists are only counted.
 

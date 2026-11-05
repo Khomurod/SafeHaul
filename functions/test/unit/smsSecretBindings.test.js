@@ -29,6 +29,7 @@ const SENDER_FILES = [
     'notifySignerSMS.js',                      // e-doc signer SMS
     'resendSignerOnCorrection.js',             // e-doc signer SMS after a correction
     'remindSigner.js',                         // e-doc signer SMS when a team member sends a reminder
+    'remindUnsignedSigners.js',                // the same, as the day-3 automatic reminder
     // Super Admin Environment & Integrations vault: reveals decrypt stored
     // company credentials, and the inventory reports whether the Secret
     // Manager-backed keys are configured. Without the binding every one of
@@ -44,6 +45,7 @@ const SMTP_PASSWORD_READERS = [
     ['notifySigner.js', 'notifySigner'],                                         // signing-request email
     ['resendSignerOnCorrection.js', 'resendSignerOnCorrection'],                 // the same, after a correction
     ['remindSigner.js', 'remindSigner'],                                         // the same, as a reminder
+    ['remindUnsignedSigners.js', 'remindUnsignedSigners'],                       // the same, as the automatic reminder
     ['companyAdmin.js', 'sendAutomatedEmail'],                                   // the "no answer" email
     ['notificationTriggers.js', 'onNewApplicationEmailConfirmation'],            // the applicant's confirmation
     ['employmentVerification/requests.js', 'sendVerificationRequest'],           // the PEV request

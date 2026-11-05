@@ -1,7 +1,8 @@
 /**
  * PEV — verification request creation.
- * Company admin triggers a Previous Employment Verification: mints the token,
- * stores the verification_requests doc, and emails the previous employer.
+ * Any member of the company's team (owner decision В4) triggers a Previous
+ * Employment Verification: mints the token, stores the verification_requests
+ * doc, and emails the previous employer.
  *
  * ## The request records WHICH employer, not just where it was
  *

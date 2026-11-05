@@ -34,6 +34,8 @@ const DQ_UPLOADS = Object.freeze([
     { field: 'mvr-consent-upload', type: 'mvr_consent', label: 'MVR Consent' },
     { field: 'drug-test-consent-upload', type: 'drug_test_consent', label: 'Drug Test Consent' },
     { field: 'ssc-upload', type: 'ssn_card', label: 'SSN Card' },
+    // Attached by a recruiter preparing the application; an FCRA consumer report (owner decision В2).
+    { field: 'psp-report-upload', type: 'psp_report', label: 'PSP Report' },
 ]);
 
 /** What names an upload, or a record of one: its path and its link, as it has them. */

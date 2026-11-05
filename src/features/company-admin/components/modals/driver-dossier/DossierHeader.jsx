@@ -1,11 +1,8 @@
 import React, { useId, useMemo } from 'react';
 import { Icon, X, Download, Trash2 } from '@design-system/icons';
-import { ATS_STATUS_DROPDOWN_OPTIONS, ATS_STATUS_NEW, LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
-import { applicationStatusLabel } from '@shared/utils/applicationStatus';
+import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
 import { Badge, IconButton, Select } from '@/design-system/components';
-
-/** The picker's name for a stored status: its stage's, so a lead's `New Lead` reads New too. */
-const statusLabel = (status) => applicationStatusLabel(status === LEAD_DEFAULT_STATUS ? ATS_STATUS_NEW : status);
+import { dossierStatusLabel as statusLabel } from './dossierStatusLabel';
 
 /**
  * What the status picker offers: the funnel stages and Interested, and the
@@ -34,9 +31,11 @@ function statusOptionsFor(currentStatus) {
  * Presentation uses the approved `IconButton`, `Select` and `Badge`
  * primitives with `--ds-*` tokens.
  *
- * Frozen contracts: every per-tab title string, the `App ID: <first 8 chars>`
- * presentation (of `recordId`, the record's document id: the loaded record
- * holds no `id`) and its `Loading...` placeholder, the status option set
+ * Frozen contracts: every per-tab title string, the application tab's
+ * `Confirmation Number: <number>` (the number the driver was given, shown only
+ * when the record on screen has one; the document id means nothing to the
+ * team) and its `Loading...` placeholder while the record loads, the status
+ * option set
  * (`statusOptionsFor`: the funnel, Interested and the record's own value) with its
  * `'New'` fallback, the `onStatusUpdate(value)` and `onAssignChange(value)`
  * single-argument callbacks, the `name || displayName || email || id` assignee
@@ -66,7 +65,7 @@ function statusOptionsFor(currentStatus) {
 export function DossierHeader({
     activeTab,
     appData,
-    recordId,
+    loading = false,
     currentStatus,
     onClose,
     onStatusUpdate,
@@ -98,20 +97,25 @@ export function DossierHeader({
 
     const statusValue = currentStatus || 'New';
 
+    // The number the driver was shown and emailed; a lead or a record made by hand has none.
+    const confirmationNumber = typeof appData?.confirmationNumber === 'string' ? appData.confirmationNumber.trim() : '';
+
     return (
         <>
             {/* `basis-48` keeps the title a readable line: with `flex-1`'s zero
                 basis it absorbed none of the available width and collapsed to
                 nothing behind the action group. */}
-            <div className="flex min-w-0 flex-1 basis-48 items-center gap-ds-3">
+            {/* Wraps, so on a phone the number goes under the title rather than
+                squeezing it to a few letters. */}
+            <div className="flex min-w-0 flex-1 basis-48 flex-wrap items-center gap-x-ds-3 gap-y-ds-1">
                 {/* `<h3>` sits under the identity `<h2>` in the sidebar, which in
                     turn sits under the dialog's own accessible name. */}
-                <h3 className="truncate text-ds-body-lg font-bold text-ds-content">{getTitle()}</h3>
+                <h3 className="max-w-full truncate text-ds-body-lg font-bold text-ds-content">{getTitle()}</h3>
 
-                {activeTab === 'application' && (
+                {activeTab === 'application' && (loading || confirmationNumber) && (
                     <span className="shrink-0">
                         <Badge tone="neutral">
-                            {appData ? `App ID: ${String(recordId ?? '').slice(0, 8)}` : 'Loading...'}
+                            {loading ? 'Loading...' : `Confirmation Number: ${confirmationNumber}`}
                         </Badge>
                     </span>
                 )}

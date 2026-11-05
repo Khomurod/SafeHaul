@@ -3,7 +3,8 @@
  * signer again, from the document's details or the dossier.
  *
  * The callable runs against a small document store whose transactions apply
- * their writes only when they succeed, as Firestore's do; the real senders
+ * their writes only when they succeed, as Firestore's do
+ * (`signingRequestStore.support.js`); the real senders
  * (`emailSigningLink`, `textSigningLink`) and the correction trigger run on
  * what it writes, so "one press is one message" is checked on what is sent.
  * Send to driver and the creation triggers make the request where a test needs
@@ -29,80 +30,10 @@ jest.mock('firebase-functions/v2/firestore', () => ({
     onDocumentUpdated: (_opts, fn) => fn,
 }));
 
-// A small document store, read and written by path. A stored timestamp is
-// `{ ms }`, and reads back with the `toMillis` a Firestore Timestamp has.
-const mockDocs = new Map();
-function mockRevive(value) {
-    if (!value || typeof value !== 'object') return value;
-    if (Array.isArray(value)) return value.map(mockRevive);
-    const keys = Object.keys(value);
-    if (keys.length === 1 && typeof value.ms === 'number') return { ms: value.ms, toMillis: () => value.ms };
-    return Object.fromEntries(keys.map((key) => [key, mockRevive(value[key])]));
-}
-function mockSnapshot(path) {
-    const data = mockDocs.get(path);
-    return {
-        exists: data !== undefined,
-        data: () => (data === undefined ? undefined : mockRevive(structuredClone(data))),
-        get: (field) => data?.[field],
-    };
-}
-// What a write stores: a timestamp read back (`toMillis`) is stored as `{ ms }`
-// again, and `FieldValue.delete()` removes the field.
-const mockDeleteField = Symbol('delete');
-function mockStored(value) {
-    if (!value || typeof value !== 'object') return value;
-    if (Array.isArray(value)) return value.map(mockStored);
-    if (typeof value.toMillis === 'function') return { ms: value.toMillis() };
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, mockStored(item)]));
-}
-function mockUpdate(path, changes) {
-    if (!mockDocs.has(path)) throw new Error(`No document to update: ${path}`);
-    const doc = structuredClone(mockDocs.get(path));
-    for (const [key, value] of Object.entries(changes)) {
-        const parts = key.split('.');
-        const leaf = parts.pop();
-        let target = doc;
-        for (const part of parts) {
-            target[part] = { ...target[part] };
-            target = target[part];
-        }
-        if (value === mockDeleteField) delete target[leaf];
-        else target[leaf] = mockStored(value);
-    }
-    mockDocs.set(path, doc);
-}
-function mockRef(path) {
-    return {
-        path,
-        id: path.split('/').pop(),
-        collection: (name) => ({ doc: (id) => mockRef(`${path}/${name}/${id}`) }),
-        get: async () => mockSnapshot(path),
-        set: async (data) => mockDocs.set(path, structuredClone(data)),
-        update: async (data) => mockUpdate(path, data),
-    };
-}
-jest.mock('../../firebaseAdmin', () => {
-    const db = {
-        // Writes wait for the function to return: a refusal thrown inside writes nothing.
-        runTransaction: async (fn) => {
-            const writes = [];
-            const result = await fn({
-                get: async (ref) => mockSnapshot(ref.path),
-                set: (ref, data) => writes.push(() => mockDocs.set(ref.path, structuredClone(data))),
-                update: (ref, data) => writes.push(() => mockUpdate(ref.path, data)),
-            });
-            writes.forEach((write) => write());
-            return result;
-        },
-        collection: (name) => ({ doc: (id) => mockRef(`${name}/${id}`) }),
-    };
-    const firestore = Object.assign(() => db, {
-        FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP', delete: () => mockDeleteField },
-        Timestamp: { fromMillis: (ms) => ({ ms }), now: () => ({ ms: Date.now() }) },
-    });
-    return { admin: { firestore }, db };
-});
+// The document store (`signingRequestStore.support.js`): read and written by
+// path, a stored timestamp `{ ms }` that reads back with `toMillis`.
+jest.mock('../../firebaseAdmin', () => require('./signingRequestStore.support').firebaseAdminMock());
+const { docs: mockDocs, revive: mockRevive, ref: mockRef, update: mockUpdate } = require('./signingRequestStore.support');
 jest.mock('../../shared/companyAccess', () => ({ assertCompanyAccessForRequest: jest.fn() }));
 const mockSendEmail = jest.fn();
 jest.mock('../../emailService', () => ({ sendDynamicEmail: (...args) => mockSendEmail(...args) }));

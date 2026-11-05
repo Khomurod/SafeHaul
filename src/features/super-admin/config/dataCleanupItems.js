@@ -99,4 +99,15 @@ export const DATA_CLEANUP_ITEMS = Object.freeze([
         },
         leftAlone: [],
     },
+    {
+        id: 'pendingUpdates',
+        title: 'Old driver staging copies',
+        description: 'Deletes the copies of a driver’s details that older versions stored under each driver '
+            + 'for every application and lead. Nothing reads them and nobody can open them. The driver '
+            + 'profiles, applications and leads are not changed.',
+        counts: {
+            pendingUpdates: 'Staging copies to delete',
+        },
+        leftAlone: [],
+    },
 ]);

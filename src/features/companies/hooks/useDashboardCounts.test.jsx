@@ -65,6 +65,10 @@ const STATS_COUNTS = [
     { kind: 'count', path: 'companies/co-1/applications', constraints: [['status', 'in', ['Hired', 'Approved']]] },
 ];
 
+const HOUR = 60 * 60 * 1000;
+/** A rollup the daily job recounted an hour ago, as a Firestore timestamp reads. */
+const RECOUNTED = { schemaVersion: 1, reconciledAt: { toMillis: () => Date.now() - HOUR } };
+
 describe('the dashboard counts', () => {
     it('come from four count queries, and no record is read', async () => {
         const { result } = renderHook(() => useDashboardCounts('co-1'));
@@ -75,9 +79,9 @@ describe('the dashboard counts', () => {
         expect(result.current.statsFetchError).toBe('');
     });
 
-    it('come from the rollup when it is complete, with the recruiter’s own leads counted', async () => {
+    it('come from the rollup when it is complete and was recounted lately, with the recruiter’s own leads counted', async () => {
         fx.preferRollup = true;
-        fx.rollup = { schemaVersion: 1, applicationsTotal: 12, leadsTotal: 30, hiredTotal: 4 };
+        fx.rollup = { ...RECOUNTED, applicationsTotal: 12, leadsTotal: 30, hiredTotal: 4 };
         const { result } = renderHook(() => useDashboardCounts('co-1'));
 
         await waitFor(() => expect(result.current.counts).toEqual({ applications: 12, companyLeads: 30, myLeads: 7, hired: 4 }));
@@ -85,6 +89,23 @@ describe('the dashboard counts', () => {
             { kind: 'count', path: 'companies/co-1/leads', constraints: [['assignedTo', '==', 'uid-1']] },
             { kind: 'doc', path: 'companies/co-1/internal_stats/dashboard' },
         ]);
+    });
+
+    it.each([
+        ['was never recounted', { schemaVersion: 1, applicationsTotal: 112, leadsTotal: 40, hiredTotal: 51 }],
+        ['holds a number below zero', { ...RECOUNTED, applicationsTotal: 112, leadsTotal: -577, hiredTotal: 51 }],
+        ['holds a number that is no count', { ...RECOUNTED, applicationsTotal: 112, leadsTotal: 1.5, hiredTotal: 51 }],
+        ['was last recounted more than a day and a half ago', {
+            schemaVersion: 1, applicationsTotal: 112, leadsTotal: 40, hiredTotal: 51,
+            reconciledAt: { toMillis: () => Date.now() - 37 * HOUR },
+        }],
+    ])('come from count queries when the rollup %s', async (_case, rollup) => {
+        fx.preferRollup = true;
+        fx.rollup = rollup;
+        const { result } = renderHook(() => useDashboardCounts('co-1'));
+
+        await waitFor(() => expect(result.current.counts).toEqual({ applications: 7, companyLeads: 7, myLeads: 7, hired: 7 }));
+        expect(fx.reads).toEqual(expect.arrayContaining(STATS_COUNTS));
     });
 
     it('say what failed, and read again on Retry', async () => {

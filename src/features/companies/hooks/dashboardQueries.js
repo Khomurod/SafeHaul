@@ -128,9 +128,32 @@ export function buildDashboardConstraints({ activeTab, pipelineSegment, filters,
 }
 
 /**
+ * How long a rollup stays trusted after its last recount: the daily job's 24
+ * hours and a margin, so a job that stopped running shows counted numbers.
+ */
+const ROLLUP_TRUSTED_MS = 36 * 60 * 60 * 1000;
+
+const isCount = (value) => Number.isInteger(value) && value >= 0;
+const millisOf = (value) => (typeof value?.toMillis === 'function' ? value.toMillis() : NaN);
+
+/**
+ * Whether the rollup document's numbers can be shown: its three counts are
+ * whole numbers not below zero, and the server recounted it within
+ * `ROLLUP_TRUSTED_MS` (`reconcileDashboardStatsDaily`). Its increments drift,
+ * so a rollup never recounted, or one gone below zero, is counted afresh.
+ */
+function rollupIsTrusted(roll, now = Date.now()) {
+    if (!roll || roll.schemaVersion !== 1) return false;
+    if (![roll.applicationsTotal, roll.leadsTotal, roll.hiredTotal].every(isCount)) return false;
+    const age = now - millisOf(roll.reconciledAt);
+    return age >= 0 && age <= ROLLUP_TRUSTED_MS;
+}
+
+/**
  * The stats counts against live Firestore: rollup document first when the
- * runtime prefers it, count queries otherwise. Returns the stats object; the
- * hook owns setState and the error handling around this call.
+ * runtime prefers it and it is trusted (`rollupIsTrusted`), count queries
+ * otherwise. Returns the stats object; the hook owns setState and the error
+ * handling around this call.
  */
 export async function loadDashboardStats({ companyId }) {
     const appsRef = collection(db, "companies", companyId, "applications");
@@ -143,12 +166,8 @@ export async function loadDashboardStats({ companyId }) {
     if (shouldPreferDashboardRollup()) {
         const rollSnap = await getDoc(doc(db, 'companies', companyId, 'internal_stats', 'dashboard'));
         const roll = rollSnap.exists() ? rollSnap.data() : null;
-        const rollupOk = roll && roll.schemaVersion === 1
-            && typeof roll.applicationsTotal === 'number'
-            && typeof roll.leadsTotal === 'number'
-            && typeof roll.hiredTotal === 'number';
 
-        if (rollupOk) {
+        if (rollupIsTrusted(roll)) {
             const myLeadsSnap = await myLeadsSnapPromise;
             return {
                 applications: roll.applicationsTotal,

@@ -44,6 +44,8 @@ function exportFunctions(wanted) {
   if (wanted('retrySealDocument')) exports.retrySealDocument = require('./sealRetry').retrySealDocument;
   // "Remind": an unsigned document's link is sent again where it went, with seven more days
   if (wanted('remindSigner')) exports.remindSigner = require('./remindSigner').remindSigner;
+  // The automatic reminder: once a day, one reminder on day 3 for a document still waiting for its signature
+  if (wanted('remindUnsignedSigners')) exports.remindUnsignedSigners = require('./remindUnsignedSigners').remindUnsignedSigners;
 
   // 2. Auth & User Management
   if (wanted('createPortalUser')) exports.createPortalUser = require('./hrAdmin').createPortalUser;
@@ -73,6 +75,7 @@ function exportFunctions(wanted) {
   if (wanted('onApplicationWrittenDashboardRollup')) exports.onApplicationWrittenDashboardRollup = require('./dashboardStatsRollup').onApplicationWrittenDashboardRollup;
   if (wanted('onLeadWrittenDashboardRollup')) exports.onLeadWrittenDashboardRollup = require('./dashboardStatsRollup').onLeadWrittenDashboardRollup;
   if (wanted('reconcileCompanyDashboardStats')) exports.reconcileCompanyDashboardStats = require('./dashboardStatsRollup').reconcileCompanyDashboardStats;
+  if (wanted('reconcileDashboardStatsDaily')) exports.reconcileDashboardStatsDaily = require('./dashboardStatsRollup').reconcileDashboardStatsDaily;
   // The dashboard's "Needs attention": the company's counts of what waits on someone (team)
   if (wanted('getDashboardAttention')) exports.getDashboardAttention = require('./dashboardAttention').getDashboardAttention;
 
