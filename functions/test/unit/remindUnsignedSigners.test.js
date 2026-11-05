@@ -244,6 +244,16 @@ describe('a document that is not reminded, and is not marked so', () => {
         expect(everything()).toEqual(before);
     });
 
+    it('one whose link already ran out: reviving it stays the team\'s call (Remind)', async () => {
+        seed({ ...EMAILED, expiresAt: { ms: NOW - HOUR } });
+        const before = everything();
+
+        await run();
+
+        expect(mockSendEmail).not.toHaveBeenCalled();
+        expect(everything()).toEqual(before);
+    });
+
     it('one shared by a copied link, with nothing to send again', async () => {
         seed({ ...EMAILED, sendEmail: false, sendSms: false, deliveryMethod: 'copy', linkSentTo: {} });
         const before = everything();
@@ -353,6 +363,17 @@ describe('texts follow the signing-text rules', () => {
     });
 });
 
+describe('a send that failed is no message', () => {
+    it('a correction whose email failed within the last day does not hold the reminder', async () => {
+        seed({ ...EMAILED, emailStatus: 'failed', emailSentAt: new Date(NOW - 2 * HOUR).toISOString() });
+
+        await run();
+
+        expect(emailedTo()).toEqual(['dana@example.test']);
+        expect(current().autoReminder.outcome).toBe('sent');
+    });
+});
+
 describe('a reminder whose send fails', () => {
     it('is recorded as failed, does not count as a reminder, and is not tried again', async () => {
         seed();
@@ -392,13 +413,23 @@ describe('one run', () => {
 
         expect(mockSendEmail).toHaveBeenCalledTimes(1);
         const untouched = ['req-1', 'req-2'].filter((id) => !current(`${REQUESTS}/${id}`).autoReminder);
-        expect(untouched).toHaveLength(1);
+        // The oldest goes first: it leaves the window soonest.
+        expect(untouched).toEqual(['req-1']);
 
         later(DAY);
         await run();
 
         expect(mockSendEmail).toHaveBeenCalledTimes(2);
         expect(current(`${REQUESTS}/${untouched[0]}`).autoReminder.outcome).toBe('sent');
+    });
+
+    it('reads each company on an index that exists in firestore.indexes.json', () => {
+        const indexes = require('../../../firestore.indexes.json').indexes;
+        expect(indexes).toContainEqual({
+            collectionGroup: 'signing_requests',
+            queryScope: 'COLLECTION',
+            fields: [{ fieldPath: 'status', order: 'ASCENDING' }, { fieldPath: 'createdAt', order: 'ASCENDING' }],
+        });
     });
 
     it('logs ids and counts, never a token, an address or a number', async () => {

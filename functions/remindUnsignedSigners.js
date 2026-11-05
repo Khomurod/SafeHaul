@@ -7,9 +7,10 @@
  * days, recorded in `reminders` with `lastBy` the system (`AUTO_REMINDER_ACTOR`).
  *
  * Which documents: per company, `status == 'sent'` made 3 to 7 days ago
- * (`createdAt`, the `signing_requests` status + createdAt composite in
- * `firestore.indexes.json`), while the link it was sent with still works; a
- * missed run is caught up within the week. A company that turned E-Docs off
+ * (`createdAt`, oldest first, on the `signing_requests` status + createdAt
+ * ascending composite in `firestore.indexes.json`), while the link it was sent
+ * with still works (one that ran out waits for the team's Remind); a missed run
+ * is caught up within the week. A company that turned E-Docs off
  * (`features.eDocs === false`) or that Super Admin deactivated is not read.
  *
  * Once per document: one transaction claims the reminder (`autoReminder:
@@ -51,9 +52,13 @@ const RUN_BUDGET_MS = 7 * 60 * 1000;
 
 const LOG = '[remindUnsignedSigners]';
 
-/** When the signer last got a message about request `data`: a reminder, an email or a text. */
+/**
+ * When the signer last got a message about request `data`: a reminder, an email
+ * or a text. A failed email is none: its sender stamps `emailSentAt` either way.
+ */
 function lastMessageAt(data) {
-    const emailed = typeof data.emailSentAt === 'string' ? Date.parse(data.emailSentAt) : millisOf(data.emailSentAt);
+    const emailed = data.emailStatus === 'failed' ? null
+        : typeof data.emailSentAt === 'string' ? Date.parse(data.emailSentAt) : millisOf(data.emailSentAt);
     const times = [millisOf(data.reminders?.lastAt), millisOf(data.smsSentAt), emailed]
         .filter((time) => Number.isFinite(time));
     return times.length ? Math.max(...times) : null;
@@ -62,6 +67,9 @@ function lastMessageAt(data) {
 /** Why request `data` gets no automatic reminder now, or null when it may. */
 function holdOf(data, now) {
     if (data.autoReminder) return 'done';
+    // Reviving a link that ran out is the team's call (Remind), not the system's.
+    const expires = millisOf(data.expiresAt);
+    if (expires !== null && expires <= now) return 'expired';
     const last = lastMessageAt(data);
     if (last !== null && now - last < RECENT_MESSAGE_MS) return 'recent';
     return null;
@@ -109,7 +117,8 @@ async function remindCompany(companyId, now, stopAt, counts) {
         .where('status', '==', 'sent')
         .where('createdAt', '>=', admin.firestore.Timestamp.fromMillis(now - WINDOW_DAYS.to * DAY_MS))
         .where('createdAt', '<=', admin.firestore.Timestamp.fromMillis(now - WINDOW_DAYS.from * DAY_MS))
-        .orderBy('createdAt', 'desc')
+        // Oldest first: a run out of time leaves the newest, which stay in the window longest.
+        .orderBy('createdAt', 'asc')
         // References only: each document is read, and judged, in its own transaction.
         .select()
         .get();
