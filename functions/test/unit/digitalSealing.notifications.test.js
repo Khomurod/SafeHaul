@@ -193,6 +193,32 @@ describe('a post-application document, which nobody sent', () => {
         expect(notifications()['seal_req-1']).toMatchObject({ relatedType: 'application', relatedId: 'app-1' });
         expect(notifications()['seal_req-1']).not.toHaveProperty('recipientId');
     });
+
+    // The automatic send after submission names the system as its sender, which
+    // is nobody to tell.
+    const sentAutomatically = (extra = {}) => postApplication({
+        senderId: 'system:post-application',
+        senderName: 'Demo Logistics',
+        source: 'post_application_auto',
+        ...extra,
+    });
+
+    it('sent automatically, tells the recruiter its application is assigned to, not the system', async () => {
+        mock.docs.set('companies/co1/applications/app-1', { assignedTo: 'rec-9', assignedToName: 'Oleg' });
+
+        await seal(sentAutomatically());
+
+        expect(notifications()['seal_req-1']).toMatchObject({ recipientId: 'rec-9', relatedType: 'application', relatedId: 'app-1' });
+    });
+
+    it('sent automatically to an unassigned application, tells the team', async () => {
+        mock.docs.set('companies/co1/applications/app-1', { assignedTo: '' });
+
+        await seal(sentAutomatically());
+
+        expect(notifications()['seal_req-1']).toMatchObject({ relatedType: 'application', relatedId: 'app-1' });
+        expect(notifications()['seal_req-1']).not.toHaveProperty('recipientId');
+    });
 });
 
 describe('a notification that cannot be written', () => {

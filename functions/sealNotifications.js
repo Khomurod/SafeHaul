@@ -1,7 +1,8 @@
 /**
  * The bell's word that a signing request was sealed (`'signed'`) or could not
  * be (`'error_sealing'`), for whoever waits on it: the team member who sent it
- * (`senderId`); for a post-application document, which nobody sent, the
+ * (`senderId`); for a post-application document, which nobody sent (or the
+ * system did: a `system:` sender, the automatic send after submission), the
  * recruiter its application is assigned to, else the whole team.
  *
  * One notification per request and outcome (`seal_<id>`, `seal_failed_<id>`),
@@ -20,9 +21,12 @@ const { clipText } = require('./shared/plainText');
 
 const idOf = (value) => (typeof value === 'string' && value ? value : null);
 
+/** A sender that is a person: not the system (`system:…`), which nobody reads as. */
+const personOf = (value) => (idOf(value) && !value.startsWith('system:') ? value : null);
+
 /** Who is told: the sender, else the assignee of the document's application, else nobody in particular (the team). */
 async function recipientFor(db, companyId, request, applicationId) {
-    const senderId = idOf(request.senderId);
+    const senderId = personOf(request.senderId);
     if (senderId || !applicationId) return senderId;
     try {
         const application = await db.collection('companies').doc(companyId)
