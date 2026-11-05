@@ -1,11 +1,11 @@
 import React, { useId } from 'react';
 import {
-    Icon, AlertCircle, Ban, CheckCircle, Circle, Clock, ExternalLink, FileText, Hourglass, Loader2, Send,
+    Icon, AlertCircle, Ban, CheckCircle, Circle, Clock, ExternalLink, FileText, Hourglass, Loader2, MailWarning, Send,
 } from '@design-system/icons';
 import { Badge, Button, Card, Notice } from '@/design-system/components';
 import { useRecordSigningRequests } from '@features/company-admin/hooks/useRecordSigningRequests';
 import { useSigningDocumentActions } from '@features/company-admin/hooks/useSigningDocumentActions';
-import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
+import { deliveryFailure, deliveryNote, formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
 
 /**
  * The driver's signing documents, a section of the dossier's Documents tab: the
@@ -14,9 +14,12 @@ import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/
  * of the list are `useRecordSigningRequests` / `recordSigningDocuments.js`; the
  * actions are `useSigningDocumentActions`.
  *
- * Send to driver is offered on a required form nobody sent, and Remind on a
- * document waiting for its signer that went by email or text, its link expired
- * or not; the server decides the channels and refuses with its reason, which
+ * A document still with its signer whose send failed is *Not delivered*, with
+ * the reason the server recorded; a text skipped for an opted-out number is a
+ * neutral note. Send to driver is offered on a required form nobody sent, and
+ * Remind on a document waiting for its signer that went by email or text, its
+ * link expired or not, delivered or not; the server decides the channels and
+ * refuses with its reason, which
  * stays beside the document in the row's own polite region (always present, so
  * it announces when it fills). A signed copy opens in a new tab through
  * `getSignedDocumentUrl`.
@@ -29,6 +32,7 @@ import { deliveryFailure, formatTimestamp } from '@features/company-admin/utils/
 const STATE_PRESENTATION = {
     not_started: { tone: 'neutral', label: 'Not started', icon: Circle },
     awaiting: { tone: 'info', label: 'Awaiting signature', icon: Clock },
+    not_delivered: { tone: 'danger', label: 'Not delivered', icon: MailWarning },
     link_expired: { tone: 'warning', label: 'Link expired', icon: Hourglass },
     submitting: { tone: 'warning', label: 'Submitting', icon: Loader2 },
     sealing: { tone: 'warning', label: 'Sealing', icon: Loader2 },
@@ -53,7 +57,9 @@ function rowDates(row) {
 
 function SigningDocumentRow({ row, busy, message, onSend, onRemind, onOpen }) {
     const presentation = STATE_PRESENTATION[row.state] || STATE_PRESENTATION.other;
-    const failure = row.kind === 'request' ? deliveryFailure(row.request) : null;
+    // Both only while the document is with its signer; a signed or voided one says just that.
+    const failure = row.state === 'not_delivered' ? deliveryFailure(row.request) : null;
+    const note = ['awaiting', 'link_expired'].includes(row.state) ? deliveryNote(row.request) : null;
     const canOpen = row.state === 'signed' && Boolean(row.request?.signedPdfUrl);
 
     return (
@@ -74,6 +80,9 @@ function SigningDocumentRow({ row, busy, message, onSend, onRemind, onOpen }) {
                             <p className="mt-ds-1 text-ds-xs text-ds-status-danger-fg [overflow-wrap:anywhere]">
                                 {failure.channel} not delivered{failure.error ? `: ${failure.error}` : ''}
                             </p>
+                        )}
+                        {note && (
+                            <p className="mt-ds-1 text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">{note.note}</p>
                         )}
                     </div>
 

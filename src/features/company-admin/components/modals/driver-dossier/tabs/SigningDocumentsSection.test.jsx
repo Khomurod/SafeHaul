@@ -87,6 +87,49 @@ describe('what the section lists', () => {
         expect(rowOf('Offer Letter')).toHaveTextContent(`Signed ${formatTimestamp(at(-19))}`);
     });
 
+    it('says a document still with its signer was not delivered, with the reason, and keeps Remind', () => {
+        withRows({ requests: [{
+            id: 'r-lease', templateId: 'tpl-lease', title: 'Lease', status: 'sent', sendEmail: true,
+            recipientEmail: 'dana@example.test', emailStatus: 'failed', emailError: 'Mailbox unavailable (artificial)',
+            createdAt: at(-2), expiresAt: at(5),
+        }] });
+        renderSection();
+
+        const row = rowOf('Lease');
+        expect(within(row).getByText('Not delivered').closest('.ds-badge')).toHaveAttribute('data-tone', 'danger');
+        expect(row).toHaveTextContent('Email not delivered: Mailbox unavailable (artificial)');
+        expect(row).not.toHaveTextContent('Awaiting signature');
+        expect(within(row).getByRole('button', { name: 'Remind — Lease' })).toBeInTheDocument();
+    });
+
+    it('says what a signed or voided document is, without its old failed send', () => {
+        withRows({ requests: [
+            { id: 'r-void', templateId: 'tpl-a', title: 'Lease', status: 'voided', emailStatus: 'failed', emailError: 'SMTP 550 (artificial)', createdAt: at(-3) },
+            { ...REQUESTS[1], smsStatus: 'failed', smsError: 'Line unavailable (artificial)' },
+        ] });
+        renderSection();
+
+        expect(rowOf('Lease')).toHaveTextContent('Voided');
+        expect(rowOf('Offer Letter')).toHaveTextContent('Signed');
+        expect(screen.queryByText('Not delivered')).toBeNull();
+        expect(screen.queryByText(/not delivered/)).toBeNull();
+    });
+
+    it('notes a text skipped for an opted-out number without calling it a failure', () => {
+        withRows({ requests: [{
+            id: 'r-lease', templateId: 'tpl-lease', title: 'Lease', status: 'sent', sendEmail: true, sendSms: true,
+            recipientEmail: 'dana@example.test', emailStatus: 'sent', smsStatus: 'skipped',
+            smsNote: 'Not texted: this number opted out of texts.', createdAt: at(-2), expiresAt: at(5),
+        }] });
+        renderSection();
+
+        const row = rowOf('Lease');
+        expect(row).toHaveTextContent('Awaiting signature');
+        const note = within(row).getByText('Not texted: this number opted out of texts.');
+        expect(note.className).not.toMatch(/danger/);
+        expect(within(row).queryByText('Not delivered')).toBeNull();
+    });
+
     it('offers Send to driver on the forms nobody sent, named after each form, and on nothing else', () => {
         withRows();
         renderSection();

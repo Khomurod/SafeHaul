@@ -112,6 +112,16 @@ export function hasDeliveryFailure(document) {
 }
 
 /**
+ * A text left out on purpose, or null: the server skips an opted-out number
+ * when the email goes too (`smsStatus: 'skipped'`, the reason in `smsNote`).
+ * A note, never a failure.
+ */
+export function deliveryNote(document) {
+    if (document?.smsStatus !== 'skipped') return null;
+    return { channel: 'SMS', note: normalize(document.smsNote).trim() || 'SMS not sent.' };
+}
+
+/**
  * An open document (`OPEN_STATUSES`) whose link has run out: derived here,
  * never stored, so no server count or index knows it, and the numbers count it
  * as awaiting a signature (`signingRequestQueries.js`). The dossier's list

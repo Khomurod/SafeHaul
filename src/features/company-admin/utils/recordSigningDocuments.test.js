@@ -64,6 +64,29 @@ describe('a request\'s state', () => {
         expect(signingDocumentState(request, NOW)).toBe(state);
     });
 
+    it.each([
+        [{ status: 'sent', expiresAt: at(3), emailStatus: 'failed' }, 'not_delivered'],
+        [{ status: 'sent', expiresAt: at(-1), smsStatus: 'failed' }, 'not_delivered'],
+        [{ status: 'opened', smsStatus: 'failed' }, 'not_delivered'],
+        [{ status: 'sent', expiresAt: at(3), smsStatus: 'skipped' }, 'awaiting'],
+        [{ status: 'signed', emailStatus: 'failed' }, 'signed'],
+        [{ status: 'voided', smsStatus: 'failed' }, 'voided'],
+        [{ status: 'pending_seal', emailStatus: 'failed' }, 'sealing'],
+    ])('%o, whose send failed or was skipped, is %s', (request, state) => {
+        expect(signingDocumentState(request, NOW)).toBe(state);
+    });
+
+    it('keeps Remind on a document that was not delivered', () => {
+        const [row] = recordDocumentRows({
+            requests: [{
+                id: 'r-1', title: 'Lease', status: 'sent', sendEmail: true, recipientEmail: 'dana@example.test',
+                emailStatus: 'failed', emailError: 'SMTP 550 (artificial)', createdAt: at(-1), expiresAt: at(6),
+            }],
+            now: NOW,
+        });
+        expect(row).toMatchObject({ state: 'not_delivered', canRemind: true, canSend: false });
+    });
+
     it('expires only an unsigned link whose time has passed', () => {
         expect(isLinkExpired({ status: 'sent', expiresAt: at(-0.01) }, NOW)).toBe(true);
         expect(isLinkExpired({ status: 'sent', expiresAt: { seconds: (NOW - 1000) / 1000 } }, NOW)).toBe(true);

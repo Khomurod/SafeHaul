@@ -7,6 +7,7 @@ import {
     filterDocuments,
     formatTimestamp,
     deliveryFailure,
+    deliveryNote,
     hasDeliveryFailure,
     hasSealingFailure,
     isAwaitingSignature,
@@ -127,6 +128,13 @@ describe('a text skipped for an opted-out number', () => {
         expect(hasDeliveryFailure(skipped)).toBe(false);
         expect(needsAttention(skipped)).toBe(false);
         expect(isAwaitingSignature(skipped)).toBe(true);
+    });
+
+    it('is a note that says why', () => {
+        expect(deliveryNote(skipped)).toEqual({ channel: 'SMS', note: 'Not texted: this number opted out of texts.' });
+        expect(deliveryNote(doc({ smsStatus: 'skipped' }))).toEqual({ channel: 'SMS', note: 'SMS not sent.' });
+        expect(deliveryNote(doc({ smsStatus: 'failed', smsError: 'line unavailable' }))).toBeNull();
+        expect(deliveryNote(doc({ smsStatus: 'sent' }))).toBeNull();
     });
 });
 
