@@ -220,6 +220,16 @@ describe('DriverProfileModal header', () => {
     expect(screen.queryByText(/App ID|app-1234/)).toBeNull();
   });
 
+  it.each([
+    ['while another record loads', { loading: true, error: '' }],
+    ['after its lookup failed', { loading: false, error: 'Could not find record (ID: lead-1).' }],
+  ])('shows no number of the record shown before, %s', (_when, state) => {
+    // `useAppFetch` keeps the last record's data until the next one arrives.
+    viewState = { ...baseView(), ...state, appData: { ...baseView().appData, confirmationNumber: 'SAF-2026-AB3CD' } };
+    renderFromTrigger();
+    expect(screen.queryByText(/SAF-2026-AB3CD/)).toBeNull();
+  });
+
   it('downloads through the dossier, which says when there is no file to give', () => {
     viewState = { ...baseView(), handleDownloadPdf: vi.fn() };
     renderFromTrigger();

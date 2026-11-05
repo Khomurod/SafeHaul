@@ -168,7 +168,9 @@ export function DriverProfileModal({
                         <div className="z-ds-raised flex shrink-0 flex-wrap items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 sm:min-h-16 sm:px-ds-6">
                             <DossierHeader
                                 activeTab={activeTab}
-                                appData={appData}
+                                // `useAppFetch` keeps the last record's data until the next arrives.
+                                appData={loading || error ? null : appData}
+                                loading={loading}
                                 currentStatus={currentStatus}
                                 onClose={onClose}
                                 onStatusUpdate={handleStatusUpdate}

@@ -73,14 +73,21 @@ describe('DossierHeader confirmation number', () => {
   });
 
   it("never shows the record's document id, and nothing when the record has no number", () => {
-    renderHeader();
+    // A caller handing the header an id must not bring the old chip back.
+    renderHeader({ recordId: 'app12345678' });
     expect(screen.queryByText(/Confirmation Number/)).toBeNull();
     expect(screen.queryByText(/App ID|app12345/)).toBeNull();
   });
 
-  it('shows the loading placeholder when there is no appData yet', () => {
-    renderHeader({ appData: null });
+  it('shows the loading placeholder while the record loads, not a number it had before', () => {
+    renderHeader({ appData: withNumber, loading: true });
     expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.queryByText(/Confirmation Number/)).toBeNull();
+  });
+
+  it('shows nothing when there is no record to show', () => {
+    renderHeader({ appData: null });
+    expect(screen.queryByText(/Loading|Confirmation Number/)).toBeNull();
   });
 
   it('does not show the number on other tabs', () => {
