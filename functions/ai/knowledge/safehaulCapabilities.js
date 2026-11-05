@@ -32,7 +32,7 @@ const { claimsMade } = require('./claimScope');
  * Bump on any meaningful change to the entries below. Published articles record
  * the version that authorised their claims.
  */
-const KNOWLEDGE_VERSION = '2026-11-04.1';
+const KNOWLEDGE_VERSION = '2026-11-05.1';
 
 /** The commit this package was last verified against. */
 const LAST_VERIFIED_COMMIT = '17f33c978ff876498fdf1b2cfe664b20de0bc306';
@@ -88,7 +88,7 @@ const FEATURES = Object.freeze([
         intendedUsers: ['safety teams', 'compliance staff'],
         businessBenefit: 'Driver qualification paperwork is held in one place per driver with controlled access, instead of in shared drives.',
         limitations: [
-            'SafeHaul stores and organises documents and shows the valid-until dates recorded with them when the DQ file is opened. It does not monitor expiry dates on a schedule or send renewal reminders.',
+            'SafeHaul stores and organises documents and shows the valid-until dates recorded with them when the DQ file is opened. Beyond a daily in-app notice about hired drivers, it does not monitor expiry dates or send renewal reminders.',
             'The list of what a DQ file holds is not a compliance check, and it does not decide whether a driver is qualified.',
         ],
         sourceFiles: [
@@ -260,22 +260,31 @@ const FEATURES = Object.freeze([
             'Credential access is audited without recording the credential itself.',
         ],
     },
+    {
+        id: 'dq-expiry-monitoring',
+        name: 'Daily DQ deadline notices',
+        status: STATUS.PARTIAL,
+        description: 'Once a day, SafeHaul reads each hired driver\'s earliest valid-until date recorded in the DQ file and puts a notice in the team\'s in-app notifications when it is within 30 days, and another once it has passed, naming the driver, the documents and the date. The notice goes to the team member the driver is assigned to, or to the whole team.',
+        intendedUsers: ['safety teams', 'compliance staff', 'recruiters'],
+        businessBenefit: 'A hired driver\'s CDL, medical card, MVR or TWIC card running out comes to the team\'s attention without anyone opening each DQ file.',
+        limitations: [
+            'In-app notifications only: SafeHaul does not email or text renewal reminders, and the driver is not told.',
+            'It covers only hired drivers whose DQ file records a valid-until date, from 30 days before that date.',
+            'It follows the earliest date in the DQ file, so an old card left in the file is reported until it is removed.',
+        ],
+        sourceFiles: [
+            'functions/notifyDqExpiry.js', 'functions/shared/dqExpiry.js', 'functions/dqExpiresNext.js',
+            'src/features/company-admin/components/NotificationDropdown.jsx',
+        ],
+        documentation: ['docs/APP_BRIEF.md — §8 scheduled jobs'],
+        approvedClaims: [
+            'Once a day, SafeHaul tells the team in the app when a hired driver\'s earliest DQ valid-until date is within 30 days or has passed.',
+        ],
+    },
 
     // ---------------------------------------------------------------------
     // Not available. Present so the generator can be told what not to say.
     // ---------------------------------------------------------------------
-    {
-        id: 'dq-expiry-monitoring',
-        name: 'Automated document-expiry monitoring and alerts',
-        status: STATUS.PLANNED,
-        description: 'A daily monitor for expiring driver qualification documents with automatic 30/60/90-day alerts.',
-        intendedUsers: [],
-        businessBenefit: '',
-        limitations: ['On the roadmap. Not built. The DQ file shows the valid-until dates recorded with its documents when it is opened; SafeHaul does not check them on a schedule or send renewal reminders.'],
-        sourceFiles: [],
-        documentation: ['docs/APP_BRIEF.md — §12 known limitations'],
-        approvedClaims: [],
-    },
     {
         id: 'background-checks',
         name: 'MVR, PSP and Clearinghouse integrations',
@@ -337,7 +346,7 @@ const FEATURES = Object.freeze([
  */
 const PROHIBITED_CLAIMS = Object.freeze([
     { claim: 'SafeHaul is free forever', reason: 'Contradicted by the published subscription pricing.' },
-    { claim: 'SafeHaul automates DQ file expiry monitoring or sends renewal reminders', reason: 'Roadmap item, not built.' },
+    { claim: 'SafeHaul provides complete DQ file expiry monitoring or sends renewal reminders', reason: 'Only a daily in-app notice to the team about hired drivers\' recorded valid-until dates is built; nothing is emailed or texted, and drivers are not reminded.' },
     { claim: 'SafeHaul runs MVR, PSP or FMCSA Clearinghouse checks', reason: 'Roadmap item, not built.' },
     { claim: 'SafeHaul uses Firebase App Check or reCAPTCHA attestation', reason: 'Deliberately removed; the risk is documented and accepted.' },
     { claim: 'SafeHaul provides a job board', reason: 'No such feature exists in the codebase.' },

@@ -118,7 +118,7 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 | `telegramWebhook` | HTTP `onRequest` | Telegram, for the alert bot: `POST` with `X-Telegram-Bot-Api-Secret-Token` (an HMAC of the bot token); keeps Start presses for the Connect chat link. Set by `savePlatformAlertToken` and Connect chat |
 | `companyApi` | HTTP `onRequest` | Another service, with a company's API key: `GET https://us-central1-truckerapp-system.cloudfunctions.net/companyApi/v1/...` and `Authorization: Bearer <key>`. Read-only; see [`companyApi/routes.js`](../functions/companyApi/routes.js) |
 | `onApplicationSubmitted`, `onLeadWrittenDashboardRollup`, … | Firestore triggers | Automatic on writes |
-| `enforceFeatureSchedules`, `cleanupOrphanedSignatures`, `processVerificationReminders`, `checkSmsDeliveries`, `remindUnsignedSigners`, `autoSendPostApplicationForms` | Scheduled | Cloud Scheduler |
+| `enforceFeatureSchedules`, `cleanupOrphanedSignatures`, `processVerificationReminders`, `checkSmsDeliveries`, `remindUnsignedSigners`, `autoSendPostApplicationForms`, `notifyDqExpiry` | Scheduled | Cloud Scheduler |
 | `sealDocument`, `notifySigner`, `notifySignerSMS`, `handleOptOut`, … | Triggers | Automatic |
 
 ---
