@@ -134,3 +134,27 @@ it("texts nothing to a number that opted out, on the company's list or the globa
     }
     expect(mockSendSms).not.toHaveBeenCalled();
 });
+
+describe('the logs', () => {
+    const logged = () => [console.log, console.warn, console.error]
+        .flatMap((spy) => spy.mock.calls.flat())
+        .map((value) => (value instanceof Error ? `${value.message} ${value.stack}` : String(value)))
+        .join('\n');
+
+    beforeEach(() => {
+        jest.spyOn(console, 'log').mockImplementation(() => {});
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+    afterEach(() => jest.restoreAllMocks());
+
+    it('name the request, never the number, whether the text went, failed or was skipped', async () => {
+        await created();
+        mockSendSms.mockRejectedValue(new Error('Invalid number +15555550100'));
+        await created(REQUEST, 'event-2');
+        await created({ ...REQUEST, sendSms: false }, 'event-3');
+
+        expect(logged()).toContain('req-1');
+        expect(logged()).not.toMatch(/5555550100/);
+    });
+});

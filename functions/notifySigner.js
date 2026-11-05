@@ -88,7 +88,8 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
     try {
         if (recordSentTo) await ref.update({ 'linkSentTo.email': emailOf(data) });
         await sendDynamicEmail(companyId, data.recipientEmail, subject, html);
-        console.log(`[Notify] Signing email sent to ${data.recipientEmail} for request ${requestId}`);
+        // Ids only: a mail address in a log is read by everyone who reads the project's logs.
+        console.log(`[Notify] Signing email sent for request ${requestId}`);
 
         // 5. Update Firestore with sent timestamp
         await ref.update({
@@ -97,7 +98,7 @@ async function emailSigningLink({ companyId, requestId, ref, data, accessToken, 
         });
 
     } catch (err) {
-        console.error(`[Notify] Failed to send signing email for ${requestId}:`, err.message);
+        console.error(`[Notify] Failed to send signing email for ${requestId}: ${err?.code || err?.responseCode || 'error'}`);
         await ref.update({
             emailSentAt: new Date().toISOString(),
             emailStatus: 'failed',
