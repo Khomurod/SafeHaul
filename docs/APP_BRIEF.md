@@ -1157,6 +1157,7 @@ Meta's `X-Hub-Signature-256`, compared in constant time; SHA-1 alone is refused.
 | `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger cannot reach (after a projection change) |
 | `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days, each logged sent or not (a failed one is retried next run); at 30 days marks `no_response`, notifies the sender (bell), files the record of attempts (PDF, DQ file) and notifies the carrier (email): the good-faith record. Only live requests, each moved only while still live; never overwrites a Completed row |
+| `reconcileDashboardStatsDaily` | every 24 h | Recounts each company's applications, leads and hired applications and sets the dashboard counters, marked `reconciledAt`; one that cannot be counted is logged by id and the rest go on |
 | `reconcileCompanyClaims` | every 60 min | Fixes tokens a trigger run missed: removes a deactivated company's role (ending the session), restores an active one's |
 | `checkSmsDeliveries` | every 10 min | Asks RingCentral about queued campaign texts |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing, so signature-image PII does not accumulate |
@@ -1193,7 +1194,9 @@ the daily count**; refusing is a recorded outcome.
   not removed) and writes it only when it changes; `syncDqFiles` corrects it when the
   tab opens, and Data cleanup → DQ valid-until dates writes it on older records.
 - **Stats** — only calls in `activity_logs` roll up into `stats_daily`; application and
-  lead writes roll up dashboard counters into server-write-only `internal_stats`.
+  lead writes roll up dashboard counters into server-write-only `internal_stats`, which
+  the daily job recounts. The dashboard shows them only when recounted within 36 hours
+  and none is below zero; otherwise it counts the records itself.
 - **Sealing** — a signing request entering `pending_seal`, or a Retry seal recording a
   new attempt while it is there, triggers PDF sealing, only while the stored request is
   still on that attempt; then one bell notification of the outcome (§4) and, for a

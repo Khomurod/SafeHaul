@@ -73,6 +73,7 @@ function exportFunctions(wanted) {
   if (wanted('onApplicationWrittenDashboardRollup')) exports.onApplicationWrittenDashboardRollup = require('./dashboardStatsRollup').onApplicationWrittenDashboardRollup;
   if (wanted('onLeadWrittenDashboardRollup')) exports.onLeadWrittenDashboardRollup = require('./dashboardStatsRollup').onLeadWrittenDashboardRollup;
   if (wanted('reconcileCompanyDashboardStats')) exports.reconcileCompanyDashboardStats = require('./dashboardStatsRollup').reconcileCompanyDashboardStats;
+  if (wanted('reconcileDashboardStatsDaily')) exports.reconcileDashboardStatsDaily = require('./dashboardStatsRollup').reconcileDashboardStatsDaily;
   // The dashboard's "Needs attention": the company's counts of what waits on someone (team)
   if (wanted('getDashboardAttention')) exports.getDashboardAttention = require('./dashboardAttention').getDashboardAttention;
 
