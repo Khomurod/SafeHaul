@@ -1,7 +1,8 @@
-// Template library: search, sorting, the shown metadata, the five actions and
-// the schema-safety gate on Duplicate. All templates below are artificial.
+// Template library: New template, search, sorting, the shown metadata, the
+// five actions (Delete for admins only) and the schema-safety gate on
+// Duplicate. All templates below are artificial.
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TemplateLibraryPanel } from './TemplateLibraryPanel';
@@ -28,6 +29,7 @@ const baseProps = () => ({
     onDuplicate: vi.fn(),
     onConfigure: vi.fn(),
     onDelete: vi.fn(),
+    onCreate: vi.fn(),
     duplicatingTemplateId: null,
 });
 
@@ -39,6 +41,13 @@ const renderPanel = (overrides = {}) => {
 beforeEach(() => vi.clearAllMocks());
 
 describe('library controls', () => {
+    it('offers New template beside the library heading, which starts a new template', () => {
+        const { props } = renderPanel();
+        const library = screen.getByRole('region', { name: 'Template library' });
+        fireEvent.click(within(library).getByRole('button', { name: 'New template' }));
+        expect(props.onCreate).toHaveBeenCalledTimes(1);
+    });
+
     it('offers search and sorting', () => {
         const { props } = renderPanel();
         fireEvent.change(screen.getByLabelText('Search templates'), { target: { value: 'offer' } });
@@ -132,6 +141,14 @@ describe('template card', () => {
         renderPanel({ templates: [template({ title: '' })] });
         expect(screen.getByRole('button', { name: 'Send Untitled' })).toBeInTheDocument();
     });
+
+    it('offers no Delete where deleting is not allowed, and every other action still', () => {
+        renderPanel({ onDelete: undefined });
+        expect(screen.queryByRole('button', { name: /^Delete/ })).not.toBeInTheDocument();
+        for (const action of ['Send', 'Edit', 'Duplicate', 'Configure']) {
+            expect(screen.getByRole('button', { name: `${action} Artificial Offer Letter` })).toBeVisible();
+        }
+    });
 });
 
 describe('duplicate safety', () => {
@@ -173,6 +190,20 @@ describe('states', () => {
 
         renderPanel({ search: 'nothing matches this' });
         expect(screen.getByText('No templates match this search.')).toBeInTheDocument();
+        // Only the heading's New template: an empty search is not an empty library.
+        expect(screen.getAllByRole('button', { name: 'New template' })).toHaveLength(1);
+    });
+
+    it('offers New template in an empty library, as New Document promises', () => {
+        const { props, container } = renderPanel({ templates: [] });
+        const empty = within(container).getByText('No templates saved yet.').parentElement;
+        fireEvent.click(within(empty).getByRole('button', { name: 'New template' }));
+        expect(props.onCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('has no accessibility violations when the library is empty', async () => {
+        const { container } = renderPanel({ templates: [] });
+        expect((await axe(container)).violations).toEqual([]);
     });
 
     it('has no accessibility violations', async () => {

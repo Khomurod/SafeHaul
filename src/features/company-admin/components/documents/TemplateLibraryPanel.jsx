@@ -1,5 +1,5 @@
 import React, { useId, useMemo } from 'react';
-import { Icon, Copy, Edit3, FileText, Loader2, Send, Settings, Trash2 } from '@design-system/icons';
+import { Icon, Copy, Edit3, FileText, Loader2, Plus, Send, Settings, Trash2 } from '@design-system/icons';
 import { Badge, Button, Card, FormField, Input, Select } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import {
@@ -14,12 +14,16 @@ import {
  * Documents workspace — Templates.
  *
  * A library, not a settings screen: post-application configuration moved to its
- * own Application Forms view, so this one is only about the templates
- * themselves.
+ * own After-application forms view, so this one is only about the templates
+ * themselves. New template (`onCreate`) starts the editor's template flow, the
+ * one New Document → Create reusable template starts; an empty library offers
+ * it too.
  *
  * Every action is a visible button rather than an overflow menu — the design
  * system has no approved menu primitive yet (tracked in the roadmap), and the
- * previous card already showed its actions inline.
+ * previous card already showed its actions inline. Delete is offered only with
+ * `onDelete`: the rules let a company admin alone delete a template, and the
+ * workspace passes it to admins only.
  */
 export function TemplateLibraryPanel({
     templates,
@@ -34,6 +38,7 @@ export function TemplateLibraryPanel({
     onDuplicate,
     onConfigure,
     onDelete,
+    onCreate,
     duplicatingTemplateId,
 }) {
     const rawId = useId().replace(/:/g, '');
@@ -50,9 +55,14 @@ export function TemplateLibraryPanel({
                 aria-labelledby={controlsHeadingId}
                 className="rounded-ds-xl border border-ds-border bg-ds-surface p-ds-4"
             >
-                <h2 id={controlsHeadingId} className="mb-ds-3 text-ds-body font-bold text-ds-content">
-                    Template library
-                </h2>
+                <div className="mb-ds-3 flex flex-wrap items-center justify-between gap-ds-2">
+                    <h2 id={controlsHeadingId} className="text-ds-body font-bold text-ds-content">
+                        Template library
+                    </h2>
+                    <Button variant="secondary" size="sm" onClick={onCreate}>
+                        <Icon icon={Plus} size="sm" /> New template
+                    </Button>
+                </div>
                 <div className="grid grid-cols-1 gap-ds-3 sm:grid-cols-2">
                     <FormField label="Search templates">
                         <Input
@@ -86,11 +96,18 @@ export function TemplateLibraryPanel({
                     Loading templates
                 </div>
             ) : visibleTemplates.length === 0 ? (
-                <p className="rounded-ds-xl border-2 border-dashed border-ds-border bg-ds-surface p-ds-12 text-center text-ds-body text-ds-content-secondary">
-                    {templates.length === 0
-                        ? 'No templates saved yet.'
-                        : 'No templates match this search.'}
-                </p>
+                <div className="flex flex-col items-center gap-ds-3 rounded-ds-xl border-2 border-dashed border-ds-border bg-ds-surface p-ds-12 text-center">
+                    <p className="text-ds-body text-ds-content-secondary">
+                        {templates.length === 0
+                            ? 'No templates saved yet.'
+                            : 'No templates match this search.'}
+                    </p>
+                    {templates.length === 0 && (
+                        <Button variant="primary" onClick={onCreate}>
+                            <Icon icon={Plus} size="sm" /> New template
+                        </Button>
+                    )}
+                </div>
             ) : (
                 <ResponsiveGrid minItemWidth="320px">
                     {visibleTemplates.map((template) => {
@@ -171,13 +188,15 @@ export function TemplateLibraryPanel({
                                         >
                                             <Icon icon={Settings} size="sm" /> Configure
                                         </Button>
-                                        <Button
-                                            variant="danger"
-                                            aria-label={`Delete ${actionTitle}`}
-                                            onClick={() => onDelete(template.id)}
-                                        >
-                                            <Icon icon={Trash2} size="sm" /> Delete
-                                        </Button>
+                                        {onDelete && (
+                                            <Button
+                                                variant="danger"
+                                                aria-label={`Delete ${actionTitle}`}
+                                                onClick={() => onDelete(template.id)}
+                                            >
+                                                <Icon icon={Trash2} size="sm" /> Delete
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             </Card>

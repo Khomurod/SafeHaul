@@ -14,6 +14,9 @@ import { ApplicationFormsPanel } from '../components/documents/ApplicationFormsP
 import { NewDocumentDialog } from '../components/documents/NewDocumentDialog';
 import { DEFAULT_FILTERS, isTemplateDuplicable, sentHeaderCount } from '../utils/documentsWorkspace';
 import { useDocumentsWorkspaceData } from '../hooks/useDocumentsWorkspaceData';
+import { useSentDocumentActions } from '@features/signing/hooks/useSentDocumentActions';
+import { SentDocumentDialogs } from '@features/signing/components/SentDocumentDialogs';
+import { isCompanyAdminForRoute } from '@app/auth/roles';
 import { useCompanyTemplates } from '../hooks/useCompanyTemplates';
 import { useTemplateSendFlow } from '../hooks/useTemplateSendFlow';
 import { usePostSubmitForms } from '../hooks/usePostSubmitForms';
@@ -22,7 +25,7 @@ import { FeatureLockedModal } from '@shared/components/modals/FeatureLockedModal
 import { ConfirmDialog } from '@design-system/patterns';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button, TabList, TabPanel } from '@/design-system/components';
-import { Inline, PageContainer, PageHeader, Stack } from '@/design-system/layouts';
+import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 
 // The editor (the PDF workbench with pdf.js, and the AI field assistant) loads
 // when a document is created or edited, not with the workspace's lists.
@@ -33,7 +36,9 @@ const EnvelopeCreator = lazy(() => import('@features/signing/EnvelopeCreator'));
  *
  * `overview` is the default: the old page opened straight into a tool (the
  * history table) with no sense of what needed doing. `?view=<id>` opens another
- * (the dashboard's Company setup links to `forms` and `templates`).
+ * (the dashboard's Company setup links to `forms` and `templates`). `forms` is
+ * named for what it holds, the templates sent after an application, apart from
+ * Settings → Application form; its id, and so its address, stays.
  *
  * The design system has no approved Tabs primitive yet (tracked in the
  * roadmap), so this WAI-ARIA tab interface stays feature-owned.
@@ -42,12 +47,14 @@ const DOCUMENT_TABS = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'sent', label: 'Sent Documents', icon: Send },
     { id: 'templates', label: 'Templates', icon: FileText },
-    { id: 'forms', label: 'Application Forms', icon: ClipboardList },
+    { id: 'forms', label: 'After-application forms', icon: ClipboardList },
 ];
 const viewNamed = (view) => (DOCUMENT_TABS.some((tab) => tab.id === view) ? view : 'overview');
 
 export default function DocumentsManager() {
-    const { currentCompanyProfile } = useData();
+    const { currentCompanyProfile, currentUserClaims } = useData();
+    // Only a company admin may delete a template (the rules' `templates` delete).
+    const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, currentCompanyProfile?.id);
     const navigate = useNavigate();
     const { showSuccess, showError, showWarning } = useToast();
 
@@ -133,6 +140,28 @@ export default function DocumentsManager() {
         handleSavePostSubmitTemplates,
     } = usePostSubmitForms({ currentCompanyProfile, templates, showSuccess, showError });
 
+    // PHASE 4: Handle "Correct" action from EnvelopeHistory
+    const handleCorrect = (docItem) => {
+        setEditRequestId(docItem.id);
+        setEditTemplateId(null);
+        setCreatorInitialMode('request');
+        setViewMode('create');
+    };
+
+    // The Overview's Needs attention cards open the details dialog Sent
+    // Documents opens, with the same actions.
+    const overviewDocumentActions = useSentDocumentActions({
+        companyId: currentCompanyProfile?.id,
+        companyName: currentCompanyProfile?.companyName || currentCompanyProfile?.name || '',
+        onCorrect: handleCorrect,
+    });
+
+    /** Sent Documents with only `filters` applied, from an Overview number. */
+    const viewSent = (filters) => {
+        setSentFilters({ ...DEFAULT_FILTERS, ...filters });
+        setActiveTab('sent');
+    };
+
     /**
      * Template deletion used to be guarded by a blocking `window.confirm("Delete
      * template?")` — a question that did not even say *which* template.
@@ -154,12 +183,18 @@ export default function DocumentsManager() {
         });
     };
 
+    // A refused delete keeps the confirmation open and says why.
     const confirmDeleteTemplate = async () => {
         if (!pendingTemplateDelete) return;
         setDeletingTemplate(true);
         try {
             await handleDeleteTemplate(pendingTemplateDelete.id);
             setPendingTemplateDelete(null);
+        } catch (error) {
+            console.error('[DocumentsManager] Failed deleting template:', { code: error?.code });
+            showError(error?.code === 'permission-denied'
+                ? 'Only a company admin can delete templates.'
+                : 'Could not delete this template. Please try again.');
         } finally {
             setDeletingTemplate(false);
         }
@@ -225,7 +260,7 @@ export default function DocumentsManager() {
 
     /**
      * "Configure" is post-application usage — the only per-template
-     * configuration this product has — so it opens the Application Forms view
+     * configuration this product has — so it opens the After-application forms view
      * rather than a second place to set the same thing.
      */
     const handleConfigureTemplate = () => setActiveTab('forms');
@@ -248,14 +283,6 @@ export default function DocumentsManager() {
     };
 
     if (!currentCompanyProfile) { navigate('/company/dashboard'); return null; }
-
-    // PHASE 4: Handle "Correct" action from EnvelopeHistory
-    const handleCorrect = (docItem) => {
-        setEditRequestId(docItem.id);
-        setEditTemplateId(null);
-        setCreatorInitialMode('request');
-        setViewMode('create');
-    };
 
     // BELOW every hook on purpose: returning before any of them changes the hook
     // count when a profile arrives with E-Docs off after the first paint, and
@@ -301,24 +328,18 @@ export default function DocumentsManager() {
                         >
                             <Icon icon={ArrowLeft} /> Back to Dashboard
                         </Button>
-                        {/* The header is allowed to wrap so the two actions drop onto
-                            their own line rather than overflowing at narrow widths;
-                            below the design system's mobile breakpoint it already
-                            stacks the actions under the title. */}
+                        {/* One action: the tabs below are the way to the templates
+                            and the sent documents. Below the design system's mobile
+                            breakpoint the header stacks it under the title. */}
                         <PageHeader
                             title="Documents"
                             count={showSentCount ? sentCount : undefined}
                             countLabel={sentCount === 1 ? 'sent document' : 'sent documents'}
                             description="Create, send, track and manage documents requiring completion or signature."
                             actions={
-                                <Inline gap="sm">
-                                    <Button onClick={() => setActiveTab('templates')}>
-                                        <Icon icon={FileText} size="lg" /> Manage Templates
-                                    </Button>
-                                    <Button variant="primary" onClick={() => setShowNewDocumentDialog(true)}>
-                                        <Icon icon={Plus} size="xl" /> New Document
-                                    </Button>
-                                </Inline>
+                                <Button variant="primary" onClick={() => setShowNewDocumentDialog(true)}>
+                                    <Icon icon={Plus} size="xl" /> New Document
+                                </Button>
                             }
                         />
                     </Stack>
@@ -349,21 +370,18 @@ export default function DocumentsManager() {
                                 onRetryCounts={workspace.retryCounts}
                                 templates={templates}
                                 templatesLoading={templatesLoading}
-                                onViewSentDocuments={() => {
-                                    setSentFilters({ ...DEFAULT_FILTERS });
-                                    setActiveTab('sent');
-                                }}
-                                onViewNeedsAttention={() => {
-                                    setSentFilters({ ...DEFAULT_FILTERS, needsAttention: true });
-                                    setActiveTab('sent');
-                                }}
+                                onViewAwaiting={() => viewSent({ status: 'sent' })}
+                                onViewCompleted={() => viewSent({ status: 'signed' })}
+                                onViewNeedsAttention={() => viewSent({ needsAttention: true })}
                                 onViewTemplates={() => setActiveTab('templates')}
+                                onOpenDocument={overviewDocumentActions.openDetails}
                             />
                         )}
 
                         {activeTab === 'sent' && (
                             <SentDocumentsPanel
                                 companyId={currentCompanyProfile.id}
+                                companyName={currentCompanyProfile.companyName || currentCompanyProfile.name || ''}
                                 documents={signingRequests}
                                 isLoading={signingRequestsLoading}
                                 loadError={signingRequestsError}
@@ -389,7 +407,8 @@ export default function DocumentsManager() {
                                 onEdit={handleEditTemplate}
                                 onDuplicate={handleDuplicateTemplate}
                                 onConfigure={handleConfigureTemplate}
-                                onDelete={requestDeleteTemplate}
+                                onDelete={isCompanyAdmin ? requestDeleteTemplate : undefined}
+                                onCreate={() => handleNewDocumentChoice('create-template')}
                                 duplicatingTemplateId={duplicatingTemplateId}
                             />
                         )}
@@ -411,6 +430,8 @@ export default function DocumentsManager() {
                     </TabPanel>
                 </Stack>
             </PageContainer>
+
+            <SentDocumentDialogs actions={overviewDocumentActions} />
 
             {showNewDocumentDialog && (
                 <NewDocumentDialog

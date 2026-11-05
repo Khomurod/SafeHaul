@@ -4,7 +4,7 @@ import { Button, Card, Checkbox, IconButton } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 
 /**
- * Documents workspace — Application Forms.
+ * Documents workspace — After-application forms.
  *
  * The post-application configuration that used to sit at the top of the
  * Templates tab, now its own view. Every contract is preserved exactly:

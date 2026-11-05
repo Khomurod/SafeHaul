@@ -1,12 +1,10 @@
 import React, { useId, useMemo } from 'react';
 import { Icon, AlertCircle, CheckCircle, Clock, FileText, Loader2, MailWarning } from '@design-system/icons';
-import { Badge, Button, Card, MetricCard, Notice } from '@/design-system/components';
+import { Badge, Button, Card, MetricCard, Notice, SelectableCard } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import {
     attentionDocuments,
-    formatTimestamp,
     hasDeliveryFailure,
-    recentDocuments,
     summarizeDocuments,
 } from '@features/company-admin/utils/documentsWorkspace';
 
@@ -22,7 +20,12 @@ import {
  * them (a company with more documents than are loaded) the numbers are
  * `summary` (null while unknown: '—', and `countsError` says why) and the
  * Needs attention list is `attention.documents`, with its own loading line and
- * failure; Recent stays the newest of `documents`.
+ * failure.
+ *
+ * Each number opens the list it counts (`onViewAwaiting`, `onViewCompleted`,
+ * `onViewNeedsAttention`, `onViewTemplates`); no button under them repeats
+ * that, and no list repeats the newest rows of Sent Documents. Each Needs
+ * attention card opens its document's details (`onOpenDocument`).
  */
 export function DocumentsOverview({
     documents,
@@ -35,20 +38,20 @@ export function DocumentsOverview({
     onRetryCounts,
     templates,
     templatesLoading,
-    onViewSentDocuments,
+    onViewAwaiting,
+    onViewCompleted,
     onViewNeedsAttention,
     onViewTemplates,
+    onOpenDocument,
 }) {
     const rawId = useId().replace(/:/g, '');
     const metricsHeadingId = `documents-overview-metrics-${rawId}`;
-    const recentHeadingId = `documents-overview-recent-${rawId}`;
     const attentionHeadingId = `documents-overview-attention-${rawId}`;
 
     const summary = useMemo(
         () => (summaryProp !== undefined ? summaryProp : summarizeDocuments(documents)),
         [summaryProp, documents],
     );
-    const recent = useMemo(() => recentDocuments(documents), [documents]);
     const attentionSource = attentionProp ? attentionProp.documents : documents;
     const attention = useMemo(() => attentionDocuments(attentionSource), [attentionSource]);
     const count = (key) => (summary ? summary[key] : '—');
@@ -98,13 +101,14 @@ export function DocumentsOverview({
                         value={count('awaitingSignature')}
                         icon={<Icon icon={Clock} size="xl" />}
                         tone="info"
-                        onActivate={onViewSentDocuments}
+                        onActivate={onViewAwaiting}
                     />
                     <MetricCard
                         label="Completed"
                         value={count('completed')}
                         icon={<Icon icon={CheckCircle} size="xl" />}
                         tone="success"
+                        onActivate={onViewCompleted}
                     />
                     <MetricCard
                         label="Needs attention"
@@ -121,17 +125,6 @@ export function DocumentsOverview({
                         onActivate={onViewTemplates}
                     />
                 </ResponsiveGrid>
-                {/* Distinct accessible names from the page header's actions —
-                    two controls whose names differ only in case would be
-                    indistinguishable to anyone navigating by name. */}
-                <div className="mt-ds-3 flex flex-wrap gap-ds-2">
-                    <Button variant="secondary" size="sm" onClick={onViewSentDocuments}>
-                        View sent documents
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={onViewTemplates}>
-                        Browse template library
-                    </Button>
-                </div>
             </section>
 
             <section aria-labelledby={attentionHeadingId}>
@@ -154,33 +147,42 @@ export function DocumentsOverview({
                 ) : attention.length === 0 ? (
                     <Card>
                         <p className="text-ds-sm text-ds-content-secondary">
-                            No delivery or sealing failures. Documents still waiting on a signature are not
-                            counted here.
+                            {summary?.total === 0
+                                ? 'No documents sent yet. Use New Document to send your first one.'
+                                : 'No delivery or sealing failures. Documents still waiting on a signature are not counted here.'}
                         </p>
                     </Card>
                 ) : (
                     <Card>
                         <Stack gap="sm">
+                            {/* Each card is a button that opens the document; its
+                                name is what it shows, the spaces between the
+                                parts keeping them words apart. */}
                             <ul className="flex flex-col gap-ds-2">
                                 {attention.map((document) => (
-                                    <li
-                                        key={document.id}
-                                        className="flex flex-wrap items-start justify-between gap-ds-2 rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg px-ds-3 py-ds-2"
-                                    >
-                                        <span className="min-w-0 flex-1">
-                                            <span className="block font-medium text-ds-content [overflow-wrap:anywhere]">
-                                                {document.title || 'Untitled'}
-                                            </span>
-                                            <span className="block text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
-                                                {document.recipientName || 'Unknown recipient'}
-                                            </span>
-                                        </span>
-                                        <Badge
+                                    <li key={document.id}>
+                                        <SelectableCard
                                             tone="danger"
-                                            icon={hasDeliveryFailure(document) ? MailWarning : AlertCircle}
+                                            className="flex-wrap justify-between"
+                                            onSelect={() => onOpenDocument(document)}
                                         >
-                                            {hasDeliveryFailure(document) ? 'Delivery failed' : 'Seal failed'}
-                                        </Badge>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block font-medium text-ds-content [overflow-wrap:anywhere]">
+                                                    {document.title || 'Untitled'}
+                                                </span>
+                                                {' '}
+                                                <span className="block text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
+                                                    {document.recipientName || 'Unknown recipient'}
+                                                </span>
+                                            </span>
+                                            {' '}
+                                            <Badge
+                                                tone="danger"
+                                                icon={hasDeliveryFailure(document) ? MailWarning : AlertCircle}
+                                            >
+                                                {hasDeliveryFailure(document) ? 'Delivery failed' : 'Seal failed'}
+                                            </Badge>
+                                        </SelectableCard>
                                     </li>
                                 ))}
                             </ul>
@@ -192,38 +194,6 @@ export function DocumentsOverview({
                 )}
             </section>
 
-            <section aria-labelledby={recentHeadingId}>
-                <h2 id={recentHeadingId} className="mb-ds-3 text-ds-body font-bold text-ds-content">
-                    Recent documents
-                </h2>
-                <Card>
-                    {recent.length === 0 ? (
-                        <p className="text-ds-sm text-ds-content-secondary">
-                            No documents sent yet. Use New Document to send your first one.
-                        </p>
-                    ) : (
-                        <ul className="flex flex-col gap-ds-2">
-                            {recent.map((document) => (
-                                <li
-                                    key={document.id}
-                                    className="flex flex-wrap items-start justify-between gap-ds-2 border-b border-ds-border-subtle pb-ds-2 last:border-b-0 last:pb-0"
-                                >
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block font-medium text-ds-content [overflow-wrap:anywhere]">
-                                            {document.title || 'Untitled'}
-                                        </span>
-                                        <span className="block text-ds-xs text-ds-content-secondary [overflow-wrap:anywhere]">
-                                            {document.recipientName || 'Unknown recipient'} ·{' '}
-                                            {formatTimestamp(document.createdAt)}
-                                        </span>
-                                    </span>
-                                    <Badge tone="neutral">{document.status || 'unknown'}</Badge>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </Card>
-            </section>
         </Stack>
     );
 }

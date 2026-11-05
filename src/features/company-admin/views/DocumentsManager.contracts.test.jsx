@@ -4,8 +4,8 @@
 // The shared harness — mock state, factories, fixtures and helpers — lives in
 // `DocumentsManager.support.jsx`; the registrations below delegate to it.
 import React from 'react';
-import { screen, fireEvent } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/context/DataContext', async () => (await import('./DocumentsManager.support')).dataContextMock());
 vi.mock('react-router-dom', async (importOriginal) => (await import('./DocumentsManager.support')).reactRouterMock(importOriginal));
@@ -35,6 +35,8 @@ import {
     formsProps,
     firestoreMocks,
     signingRequestsMock,
+    toastMocks,
+    recruiterClaims,
 } from './DocumentsManager.support';
 
 const renderManager = makeRenderManager(DocumentsManager, MemoryRouter);
@@ -102,12 +104,110 @@ describe('DocumentsManager view contracts', () => {
         expect(sentProps.current.filters.needsAttention).toBe(true);
     });
 
-    it('passes the template library its five actions', () => {
+    it.each([
+        ['onViewAwaiting', { status: 'sent', needsAttention: false }],
+        ['onViewCompleted', { status: 'signed', needsAttention: false }],
+    ])('opens Sent Documents from Overview %s with the list that number counts', (callback, filters) => {
+        renderManager();
+        React.act(() => { overviewProps.current[callback](); });
+
+        expect(tabs().sent).toHaveAttribute('aria-selected', 'true');
+        expect(sentProps.current.filters).toEqual({ search: '', status: filters.status, delivery: 'all', date: 'all', needsAttention: filters.needsAttention });
+    });
+
+    it('opens the Templates tab from Overview Active templates', () => {
+        renderManager();
+        React.act(() => { overviewProps.current.onViewTemplates(); });
+        expect(tabs().templates).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it("opens a Needs attention card's document in its details dialog, over the Overview", async () => {
+        renderManager();
+        React.act(() => {
+            overviewProps.current.onOpenDocument({
+                id: 'req-9',
+                title: 'Artificial Failed Offer',
+                recipientName: 'Artificial Person',
+                recipientEmail: 'artificial.person@example.test',
+                status: 'sent',
+                sendEmail: true,
+                emailStatus: 'failed',
+                emailError: 'Mailbox unavailable',
+            });
+        });
+
+        const dialog = await screen.findByRole('dialog', { name: 'Artificial Failed Offer' });
+        expect(within(dialog).getByRole('alert')).toHaveTextContent('The email address was refused.');
+        for (const name of ['Fix recipient and resend', 'Resend', 'Void']) {
+            expect(within(dialog).getByRole('button', { name })).toBeInTheDocument();
+        }
+        expect(tabs().overview).toHaveAttribute('aria-selected', 'true');
+
+        fireEvent.click(within(dialog).getAllByRole('button', { name: 'Close' })[0]);
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('passes the template library its actions, New template among them', () => {
         renderManager();
         fireEvent.click(tabs().templates);
-        for (const callback of ['onSend', 'onEdit', 'onDuplicate', 'onConfigure', 'onDelete']) {
+        for (const callback of ['onSend', 'onEdit', 'onDuplicate', 'onConfigure', 'onDelete', 'onCreate']) {
             expect(typeof libraryProps.current[callback]).toBe('function');
         }
+    });
+
+    it('starts a new template from the library, as New Document → Create reusable template does', async () => {
+        renderManager();
+        fireEvent.click(tabs().templates);
+        React.act(() => { libraryProps.current.onCreate(); });
+
+        await screen.findByTestId('envelope-creator');
+        expect(creatorProps.current).toMatchObject({ initialMode: 'template', editTemplateId: null, editRequestId: null });
+    });
+
+    it('gives no Delete to a team member who is not an admin: only admins may delete a template', () => {
+        renderManager({ currentUserClaims: recruiterClaims });
+        fireEvent.click(tabs().templates);
+        expect(libraryProps.current.onDelete).toBeUndefined();
+        for (const callback of ['onSend', 'onEdit', 'onDuplicate', 'onConfigure', 'onCreate']) {
+            expect(typeof libraryProps.current[callback]).toBe('function');
+        }
+    });
+
+    describe('a template delete the server refuses', () => {
+        const refusal = Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' });
+        let consoleError;
+
+        beforeEach(() => { consoleError = vi.spyOn(console, 'error').mockImplementation(() => {}); });
+        afterEach(() => {
+            consoleError.mockRestore();
+            firestoreMocks.deleteDoc.mockImplementation(() => undefined);
+        });
+
+        it('says so plainly and keeps the confirmation open, instead of failing silently', async () => {
+            firestoreMocks.deleteDoc.mockImplementation(() => Promise.reject(refusal));
+            renderManager();
+            fireEvent.click(tabs().templates);
+            React.act(() => { libraryProps.current.onDelete('tpl-1'); });
+
+            const confirm = await screen.findByRole('dialog', { name: /^Delete / });
+            fireEvent.click(within(confirm).getByRole('button', { name: 'Delete template' }));
+
+            await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith('Only a company admin can delete templates.'));
+            expect(within(confirm).getByRole('button', { name: 'Delete template' })).toBeEnabled();
+            expect(screen.getByRole('dialog', { name: /^Delete / })).toBeInTheDocument();
+        });
+
+        it('names any other failure as one to try again', async () => {
+            firestoreMocks.deleteDoc.mockImplementation(() => Promise.reject(new Error('offline')));
+            renderManager();
+            fireEvent.click(tabs().templates);
+            React.act(() => { libraryProps.current.onDelete('tpl-1'); });
+
+            const confirm = await screen.findByRole('dialog', { name: /^Delete / });
+            fireEvent.click(within(confirm).getByRole('button', { name: 'Delete template' }));
+
+            await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith('Could not delete this template. Please try again.'));
+        });
     });
 
     it('opens the send wizard from the library Send action', () => {
@@ -132,7 +232,7 @@ describe('DocumentsManager view contracts', () => {
         });
     });
 
-    it('sends Configure to the Application Forms view', () => {
+    it('sends Configure to the After-application forms view', () => {
         renderManager();
         fireEvent.click(tabs().templates);
         React.act(() => { libraryProps.current.onConfigure({ id: 'tpl-1' }); });
@@ -149,7 +249,7 @@ describe('DocumentsManager view contracts', () => {
         expect(firestoreMocks.addDoc).not.toHaveBeenCalled();
     });
 
-    it('passes Application Forms the ordering, required and save contracts', () => {
+    it('passes After-application forms the ordering, required and save contracts', () => {
         renderManager();
         fireEvent.click(tabs().forms);
 
