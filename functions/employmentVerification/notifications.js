@@ -64,16 +64,17 @@ async function notifyCarrierVerificationComplete(verificationData, formResponse,
 // ============================================================
 // HELPER: Notify carrier of no-response (good faith documentation)
 // ============================================================
-async function notifyCarrierNoResponse(verificationData) {
+/** `filedInDq`: whether the record of attempts reached the DQ file, which the email then says. */
+async function notifyCarrierNoResponse(verificationData, { filedInDq = false } = {}) {
     const companyDoc = await db.collection('companies').doc(verificationData.companyId).get();
     if (!companyDoc.exists) return;
 
     const adminEmail = carrierEmail(companyDoc.data());
     if (!adminEmail) return;
 
-    const html = buildCarrierNoResponseEmailHTML(verificationData);
+    const html = buildCarrierNoResponseEmailHTML(verificationData, { filedInDq });
 
-    await sendDynamicEmail(verificationData.companyId, adminEmail, `⚠️ PEV No Response (30 days): ${verificationData.applicantName} — ${verificationData.employerName}`, html);
+    await sendDynamicEmail(verificationData.companyId, adminEmail, `PEV: no response after 30 days: ${verificationData.applicantName} (${verificationData.employerName})`, html);
 }
 
 // ============================================================

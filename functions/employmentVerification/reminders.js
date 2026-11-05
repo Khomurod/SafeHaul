@@ -119,8 +119,8 @@ exports.processVerificationReminders = onSchedule({ schedule: 'every 24 hours', 
                     if (mirrored !== 'kept_completed') {
                         await notifyRequestSender(v, token, 'no_response')
                             .catch((error) => logger.error(`[PEV Reminders] The sender was not notified for request ${requestIdOf(v, token)}:`, error));
-                        await fileAttemptRecord(doc.ref, token, company, NO_RESPONSE_STATUS);
-                        await notifyCarrierNoResponse(v);
+                        const record = await fileAttemptRecord(doc.ref, token, company, NO_RESPONSE_STATUS);
+                        await notifyCarrierNoResponse(v, { filedInDq: Boolean(record?.filedInDq) });
                     }
 
                     marked30Day++;

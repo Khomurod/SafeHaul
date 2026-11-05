@@ -46,7 +46,7 @@ function buildVerificationEmailHTML(params) {
                     <tr>
                         <td style="background: #1a2332; padding: 24px 32px; text-align: center;">
                             <h1 style="color: white; margin: 0; font-size: 20px;">&#128203; Previous Employment Verification Request</h1>
-                            <p style="color: #7eb8da; margin: 4px 0 0; font-size: 13px;">FMCSA 49 CFR Part 391.23 Compliance</p>
+                            <p style="color: #7eb8da; margin: 4px 0 0; font-size: 13px;">Safety performance history request · 49 CFR §391.23</p>
                         </td>
                     </tr>
 
@@ -156,7 +156,7 @@ function buildReminderEmailHTML(params) {
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: ${style.bannerColor}; color: white; padding: 16px 24px; border-radius: 8px 8px 0 0; text-align: center;">
             <h2 style="margin: 0; font-size: 18px;">&#9888;&#65039; ${style.bannerText}: Employment Verification Required</h2>
-            <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">FMCSA 49 CFR Part 391.23 Compliance</p>
+            <p style="margin: 4px 0 0; font-size: 13px; opacity: 0.9;">Safety performance history request · 49 CFR §391.23</p>
         </div>
         <div style="background: white; padding: 24px; border: 1px solid #e2e8f0; border-top: none;">
             <p>Dear <strong>${employerName}</strong>,</p>
@@ -231,21 +231,31 @@ function buildCarrierCompleteEmailHTML(verificationData, formResponse, { filedIn
 // ============================================================
 // HELPER: Build carrier "no response" (good faith) notification HTML
 // ============================================================
-function buildCarrierNoResponseEmailHTML(verificationData) {
+/**
+ * The carrier's day-30 notice. It cites the rule on documenting good-faith
+ * efforts to reach a previous employer, 49 CFR 391.23(c), and says what SafeHaul
+ * did: recorded the request and each reminder, and filed that record in the DQ
+ * file only when `filedInDq` says it was. It claims no compliance.
+ */
+function buildCarrierNoResponseEmailHTML(verificationData, { filedInDq = false } = {}) {
     const { applicantName, employerName } = safeRequestText(verificationData);
+    const reminders = Math.max(0, Number(verificationData.reminderCount) || 0);
+    const reminderText = `${escapeHtml(reminders)} reminder${reminders === 1 ? '' : 's'}`;
+    const filed = filedInDq
+        ? "SafeHaul recorded the request and each reminder, and added the record of these attempts to the applicant's DQ file."
+        : "SafeHaul recorded the request and each reminder. The record of these attempts is in the verification's history, but it could not be added to the applicant's DQ file automatically.";
     return `
     <div style="font-family: Arial, sans-serif; max-width: 600px;">
         <div style="background: #d97706; color: white; padding: 20px 24px; border-radius: 8px 8px 0 0;">
-            <h2 style="margin: 0;">&#9888;&#65039; PEV No Response: Good Faith Effort Documented</h2>
+            <h2 style="margin: 0;">Previous employer did not respond</h2>
         </div>
         <div style="background: white; padding: 24px; border: 1px solid #e2e8f0;">
-            <p>After <strong>30 days</strong> and multiple follow-up attempts, <strong>${employerName}</strong> has not responded to the employment verification request for <strong>${applicantName}</strong>.</p>
-            <p>Per <strong>FMCSA 49 CFR §391.23(j)</strong>, your good-faith effort has been documented. All attempts (initial request + ${escapeHtml(verificationData.reminderCount || 0)} reminders) have been recorded in the system.</p>
-            <p><strong>Recommended next steps:</strong></p>
+            <p><strong>${employerName}</strong> has not responded to the employment verification request for <strong>${applicantName}</strong>, 30 days after it was sent and after ${reminderText}.</p>
+            <p>Under <strong>49 CFR §391.23(c)</strong>, a motor carrier documents its good-faith efforts to obtain this information from previous employers. ${filed}</p>
+            <p><strong>Suggested next steps:</strong></p>
             <ul>
-                <li>Attempt a phone follow-up directly</li>
-                <li>Document the phone attempt in the applicant's DQ file</li>
-                <li>If still no response, document and file as good-faith effort</li>
+                <li>Try the employer once more by phone, and note the call in the applicant's DQ file.</li>
+                <li>You may report the employer's failure to respond to FMCSA and keep a copy of the report in the DQ file (49 CFR §391.23(c)(3)).</li>
             </ul>
         </div>
     </div>`;
