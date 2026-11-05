@@ -1596,8 +1596,8 @@ verification document must carry no `ds-*` class, and `Icon` stamps one.
   DQ write, when their DQ tab opens, or through Data cleanup → DQ valid-until dates; an
   old card left in the file keeps the record's earliest date until it is removed; a date
   the team set on a synced record gives way to the application's next change of that
-  answer; inquiries uploaded by hand are counted, not matched to employers; the
-  recruiter-attached PSP report is not filed (В2). Needs attention's no-response count
+  answer; inquiries uploaded by hand are counted, not matched to employers. Needs
+  attention's no-response count
   includes every request still marked so, even where a newer one for that employer was
   answered, and its unsigned count includes sends that failed; an unfinished
   application's removal is read from its last save, and the Unfinished page lists only
