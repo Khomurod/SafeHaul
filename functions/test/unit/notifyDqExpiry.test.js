@@ -306,6 +306,25 @@ describe('one run', () => {
         expect(ids('companies/co-2')).toEqual(['dq_expiring_app-3_2026-11-20']);
     });
 
+    it('that ran out of time starts the next day with the next company, so a long one cannot keep the rest waiting', async () => {
+        driverDue('app-1', '2026-11-10');
+        driverDue('app-2', '2026-11-20');
+        seed({ path: 'companies/co-2/applications/app-3' });
+        createNotification.mockImplementationOnce(async (...args) => {
+            const id = await realCreateNotification(...args);
+            later(8 * MINUTE);
+            return id;
+        });
+        await run();
+        expect(ids('companies/co-2')).toEqual([]);
+
+        createNotification.mockClear();
+        later(DAY);
+        await run();
+
+        expect(createNotification.mock.calls.map(([, companyId]) => companyId)).toEqual(['co-2', 'co-1']);
+    });
+
     it('logs ids and counts, never a name or a date', async () => {
         seed();
         driverDue('app-2', '2026-11-01', { firstName: 'Eli', lastName: 'Example', assignedTo: 'user-9' });

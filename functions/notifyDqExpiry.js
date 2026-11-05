@@ -29,7 +29,9 @@
  * the whole team.
  *
  * A run stops writing notices, and reading companies, after `RUN_BUDGET_MS`; the
- * next day's run passes over the drivers already told and goes on. A company or a
+ * next day's run starts one company further on (`inTurn`, as
+ * `autoSendPostApplicationForms` does), passes over the drivers already told
+ * and goes on, so one long company cannot keep the rest waiting. A company or a
  * driver that fails is logged and the rest go on.
  *
  * Logs carry ids, stages and counts only, never names or dates.
@@ -77,6 +79,13 @@ const DOCUMENT_NAMES = Object.freeze({
 });
 
 const isoDay = (millis) => new Date(millis).toISOString().slice(0, 10);
+
+/** The companies starting one further on each day, so a run cut short does not starve the last ones. */
+function inTurn(docs, now) {
+    if (docs.length < 2) return docs;
+    const start = Math.floor(now / DAY_MS) % docs.length;
+    return [...docs.slice(start), ...docs.slice(0, start)];
+}
 
 function documentName(file) {
     const chosen = typeof file.fileType === 'string' ? file.fileType.trim() : '';
@@ -193,7 +202,7 @@ exports.notifyDqExpiry = onSchedule({
     let finished = true;
 
     const companies = await db.collection('companies').select('isActive', 'status').get();
-    for (const company of companies.docs) {
+    for (const company of inTurn(companies.docs, now)) {
         if (Date.now() >= stopAt) {
             finished = false;
             break;
