@@ -98,7 +98,7 @@ function LoadedListNotice({ copy, rows, source, focus }) {
  * and sent date. The count is the workspace heading's (`DocumentsManager`). The
  * live listener, the row actions (Copy Link, Correct, Void, Download) and the
  * details dialog stay in `EnvelopeHistory`, so filtering can never change what a
- * row can do.
+ * row can do. `companyName` fills a corrected document as the editor would.
  *
  * The date filter is only offered when the loaded documents actually carry
  * usable `createdAt` timestamps — offering a filter that silently matches
@@ -112,6 +112,7 @@ function LoadedListNotice({ copy, rows, source, focus }) {
  */
 export function SentDocumentsPanel({
     companyId,
+    companyName,
     documents,
     isLoading,
     loadError,
@@ -210,6 +211,7 @@ export function SentDocumentsPanel({
             <EnvelopeHistory
                 embedded
                 companyId={companyId}
+                companyName={companyName}
                 onCorrect={onCorrect}
                 documents={visibleDocuments}
                 // The documents that need attention have their own read once there are more than one window.

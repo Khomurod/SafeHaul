@@ -46,7 +46,11 @@ export const toast = { showSuccess: vi.fn(), showError: vi.fn() };
 
 export const firebaseFirestoreMock = () => fs;
 export const firebaseFunctionsMock = () => fnMocks;
-export const libFirebaseMock = () => ({ db: {}, functions: {} });
+export const libFirebaseMock = () => ({
+    db: {},
+    functions: {},
+    auth: { currentUser: { uid: 'user-1', displayName: 'Dana Admin', email: 'dana.admin@example.test' } },
+});
 export const feedbackMock = () => ({ useToast: () => toast });
 
 // --- fixtures and helpers, verbatim ----------------------------------------
@@ -93,7 +97,7 @@ export const makeRenderHistory = (EnvelopeHistory) => (props = {}) => {
     // `companyId` is only omitted when the key is explicitly absent, so a test
     // can pass `companyId: undefined` to exercise the no-subscription guard.
     const companyId = 'companyId' in props ? props.companyId : 'co-1';
-    const utils = render(<EnvelopeHistory companyId={companyId} onCorrect={onCorrect} />);
+    const utils = render(<EnvelopeHistory companyId={companyId} companyName={props.companyName} onCorrect={onCorrect} />);
     return { onCorrect, ...utils };
 };
 

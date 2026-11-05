@@ -1,23 +1,15 @@
 import React, { useState } from 'react';
-import { db } from '@lib/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Icon, FileText, Download, AlertCircle, Copy, Info } from '@design-system/icons';
-import { useToast } from '@shared/components/feedback';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
-import { ConfirmDialog } from '@design-system/patterns';
 import { Button, DataTable, defineTableColumns } from '@/design-system/components';
 import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
-import { SentDocumentDetailsDialog } from '@features/company-admin/components/documents/SentDocumentDetailsDialog';
 import { formatSentDate, hasDeliveryFailure, isLinkExpired } from '@features/company-admin/utils/documentsWorkspace';
-import { copySigningLink } from '@features/signing/utils/copySigningLink';
 import { canSendSignedCopy, hasCompanySignature, isSignedCopyRetry } from '@features/signing/utils/signedCopy';
-import { useSignedCopySend } from '@features/signing/hooks/useSignedCopySend';
-import { useSealRetry } from '@features/signing/hooks/useSealRetry';
-import { useSignerReminder } from '@features/signing/hooks/useSignerReminder';
+import { useSentDocumentActions } from '@features/signing/hooks/useSentDocumentActions';
 import { useRerenderWhenClaimsExpire } from '@features/signing/hooks/useRerenderWhenClaimsExpire';
-import { SignedCopyButton, SignedCopyDialog, SignedCopyStatus } from './SignedCopy';
+import { SignedCopyButton, SignedCopyStatus } from './SignedCopy';
 import { DeliveryMethodBadges, EnvelopeStatusBadge } from './EnvelopeStatus';
+import { SentDocumentDialogs } from './SentDocumentDialogs';
 
 /**
  * Rows per page. The list is a live window of the newest documents (100, more
@@ -41,14 +33,16 @@ const PAGE_SIZE = 25;
  * document with a company signature offers Send signed copy instead until its
  * copy is sent (`useSignedCopySend`), and says under its status where the copy
  * stands. A sent document whose link ran out reads "Link expired" and offers
- * Review, not a link that no longer works. Correct, Void, Remind
- * (`useSignerReminder`) and Retry seal (`useSealRetry`, after the failure's
- * reason) live in the details dialog, with their callable/Firestore contracts,
- * confirmation dialog, toasts and per-document busy states. The status badges
- * are `EnvelopeStatus.jsx`.
+ * Review, not a link that no longer works. Correct, Void, Remind, Retry seal
+ * and, for a failed send, Fix recipient and resend live in the details dialog;
+ * what each does, with its callable/Firestore contract, confirmation, toasts
+ * and per-document busy state, is `useSentDocumentActions`, which the
+ * Overview's Needs attention cards share (`SentDocumentDialogs`). The status
+ * badges are `EnvelopeStatus.jsx`.
  */
 export default function EnvelopeHistory({
     companyId,
+    companyName,
     onCorrect,
     documents,
     isLoading,
@@ -57,21 +51,14 @@ export default function EnvelopeHistory({
     emptyState,
     embedded = false,
 }) {
-    const [copyingId, setCopyingId] = useState(null);
-    const [voidingId, setVoidingId] = useState(null);
-    // Replaces the blocking `window.confirm` on the destructive void.
-    const [pendingVoid, setPendingVoid] = useState(null);
-    const [detailsDocument, setDetailsDocument] = useState(null);
     const [page, setPage] = useState(1);
-    const { showSuccess, showError } = useToast();
     // Quick actions stay `sm` on desktop for row density but grow to the 44px
     // `lg` control on a phone, where each row is a card and a 36px target is
     // too small.
     const isMobile = useIsMobile();
     const quickActionSize = isMobile ? 'lg' : 'sm';
-    const signedCopy = useSignedCopySend({ companyId, showSuccess });
-    const sealRetry = useSealRetry({ companyId, showSuccess, showError });
-    const reminder = useSignerReminder({ companyId, showSuccess, showError });
+    const actions = useSentDocumentActions({ companyId, companyName, onCorrect });
+    const { copyingId, copyLink: handleCopyLink, download: handleDownload, openDetails: setDetailsDocument, signedCopy } = actions;
 
     // Only subscribes when the parent is not already supplying the data.
     const ownSubscription = useSigningRequests(documents ? null : companyId);
@@ -82,82 +69,6 @@ export default function EnvelopeHistory({
     const retry = documents ? onRetry : ownSubscription.retry;
     // A copy still being sent turns into Try again when its claim lapses.
     useRerenderWhenClaimsExpire(docs.map(signedCopy.recordFor));
-
-    // PHASE 4: Void a signing request
-    /**
-     * The blocking `window.confirm` that guarded this is now the shared accessible
-     * `ConfirmDialog`.
-     *
-     * `pendingVoid` holds the envelope captured when the dialog opened. This list
-     * is driven by a live `onSnapshot`, so re-reading the row at confirm time could
-     * void a *different* envelope if the ordering shifted underneath an open
-     * dialog. The envelope title is interpolated into React text, never markup, so
-     * an untrusted document title cannot inject anything.
-     */
-    const requestVoid = (docItem) => {
-        if (!docItem?.id) return;
-        setPendingVoid({ id: docItem.id, title: docItem.title || 'this document' });
-    };
-
-    const confirmVoid = async () => {
-        if (!pendingVoid) return;
-        setVoidingId(pendingVoid.id);
-        try {
-            await updateDoc(doc(db, 'companies', companyId, 'signing_requests', pendingVoid.id), {
-                status: 'voided',
-                voidedAt: serverTimestamp()
-            });
-            showSuccess('Document voided successfully.');
-            setPendingVoid(null);
-        } catch (err) {
-            console.error('Void error:', err);
-            showError('Failed to void document.');
-        } finally {
-            setVoidingId(null);
-        }
-    };
-
-    // ADV-1 FIX: Use callable Cloud Function to securely retrieve full signing link
-    const handleCopyLink = async (docItem) => {
-        setCopyingId(docItem.id);
-        try {
-            const functions = getFunctions();
-            const getSigningLink = httpsCallable(functions, 'getSigningLink');
-            const result = await getSigningLink({ companyId, requestId: docItem.id });
-            // A refused clipboard is the browser's, not the link's: say so plainly.
-            if (await copySigningLink(result.data.signingLink)) showSuccess('Full signing link copied to clipboard!');
-            else showError('The browser blocked copying the link. Try again.');
-        } catch (err) {
-            console.error('Copy link error:', err);
-            showError(err.message || 'Could not retrieve signing link.');
-        } finally {
-            setCopyingId(null);
-        }
-    };
-
-    // Secure download via Cloud Function signed URL (bypasses Storage rules)
-    const handleDownload = async (storagePath) => {
-        try {
-            // Clean gs:// prefix if present
-            let path = storagePath;
-            if (storagePath.startsWith('gs://')) {
-                const bucketEnd = storagePath.indexOf('/', 5);
-                if (bucketEnd !== -1) path = storagePath.substring(bucketEnd + 1);
-            }
-
-            const functions = getFunctions();
-            const getSignedDocumentUrl = httpsCallable(functions, 'getSignedDocumentUrl');
-            const result = await getSignedDocumentUrl({ storagePath: path });
-            window.open(result.data.url, '_blank');
-        } catch (err) {
-            console.error("Download Error:", err);
-            if (err?.code === 'functions/not-found') {
-                showError("File not found. It may have been deleted or moved.");
-            } else {
-                showError("Could not download file. Please try again.");
-            }
-        }
-    };
 
     /**
      * Exactly one status-specific quick action per row. The row itself opens the
@@ -374,49 +285,11 @@ export default function EnvelopeHistory({
             />
 
             {/*
-              Row-level details. Read-only summary plus every permitted secondary
-              action — the signing token is never rendered, only copied to the
-              clipboard through the authenticated callable.
+              Row-level details and the dialogs their actions open. The signing
+              token is never rendered, only copied to the clipboard through the
+              authenticated callable.
             */}
-            <SentDocumentDetailsDialog
-                document={detailsDocument}
-                copying={Boolean(detailsDocument) && copyingId === detailsDocument.id}
-                onClose={() => setDetailsDocument(null)}
-                onCopyLink={handleCopyLink}
-                onCorrect={onCorrect ? (docItem) => { setDetailsDocument(null); onCorrect(docItem); } : undefined}
-                onVoid={(docItem) => { setDetailsDocument(null); requestVoid(docItem); }}
-                onDownload={(path) => { setDetailsDocument(null); handleDownload(path); }}
-                signedCopyRecord={detailsDocument ? signedCopy.recordFor(detailsDocument) : null}
-                onSendSignedCopy={(docItem) => { setDetailsDocument(null); signedCopy.request(docItem); }}
-                {...sealRetry.dialogProps(detailsDocument, () => setDetailsDocument(null))}
-                {...reminder.dialogProps(detailsDocument, () => setDetailsDocument(null))}
-            />
-
-            <SignedCopyDialog
-                pending={signedCopy.pending}
-                sending={signedCopy.sending}
-                error={signedCopy.error}
-                onApprove={signedCopy.approve}
-                onCancel={signedCopy.cancel}
-                onViewPdf={handleDownload}
-            />
-
-            {/*
-              Replaces `window.confirm('Are you sure you want to void "{title}"?
-              This cannot be undone.')`. The title is rendered as React text, so an
-              untrusted document title cannot inject markup.
-            */}
-            <ConfirmDialog
-                isOpen={!!pendingVoid}
-                tone="danger"
-                title={`Void "${pendingVoid?.title ?? ''}"?`}
-                description="This cannot be undone. The signer will no longer be able to open or complete this document."
-                confirmLabel="Void document"
-                cancelLabel="Keep document"
-                loading={!!pendingVoid && voidingId === pendingVoid.id}
-                onConfirm={confirmVoid}
-                onCancel={() => setPendingVoid(null)}
-            />
+            <SentDocumentDialogs actions={actions} />
         </>
     );
 }
