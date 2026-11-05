@@ -46,8 +46,12 @@ beforeEach(() => {
         listeners.push({ q, next, fail, unsubscribe });
         return unsubscribe;
     });
-    server = { counts: {}, outreach: 0, outreachError: null };
-    fs.getCountFromServer.mockImplementation(async (q) => ({ data: () => ({ count: server.counts[q.ref.path] ?? 0 }) }));
+    server = { counts: {}, launchedDrafts: 0, outreach: 0, outreachError: null };
+    // The count of launched drafts is the one filtered on `launchedAt`; every other count is by path.
+    const countsLaunched = (q) => q.constraints.some((c) => c.kind === 'where' && c.field === 'launchedAt');
+    fs.getCountFromServer.mockImplementation(async (q) => ({
+        data: () => ({ count: countsLaunched(q) ? server.launchedDrafts : (server.counts[q.ref.path] ?? 0) }),
+    }));
     fs.getAggregateFromServer.mockImplementation(async () => {
         if (server.outreachError) throw server.outreachError;
         return { data: () => ({ outreach: server.outreach }) };
@@ -308,7 +312,8 @@ describe('useCampaignLists — totals', () => {
 
         await waitFor(() => expect(result.current.drafts.total).toBe(75));
         expect(result.current.drafts.hasMore).toBe(true);
-        expect(fs.getCountFromServer).toHaveBeenCalledTimes(1);
+        // Only the drafts are counted: all of them, less the launched ones.
+        expect(fs.getCountFromServer.mock.calls.map(([q]) => q.ref.path)).toEqual([DRAFTS_PATH, DRAFTS_PATH]);
         expect(fs.getCountFromServer).toHaveBeenCalledWith({
             ref: { path: DRAFTS_PATH },
             constraints: [{ kind: 'orderBy', field: 'updatedAt', direction: 'desc' }],
@@ -345,6 +350,61 @@ describe('useCampaignLists — totals', () => {
 
         expect(fs.getAggregateFromServer).toHaveBeenCalledTimes(2);
         expect(result.current.totalOutreach).toBe(101);
+    });
+});
+
+// A launched draft is kept as the campaign's record (`launchedAt`, `sessionId`)
+// but is no longer a draft: Drafts leaves it out, and so does its count.
+describe('useCampaignLists — launched drafts', () => {
+    const launched = (id, launchedAt = at(Date.UTC(2026, 10, 1))) => ({
+        id, name: `Artificial Launched ${id}`, status: 'draft', launchedAt, sessionId: `session-${id}`,
+    });
+
+    it('leaves launched drafts out of Drafts, also while the launch time is still pending', async () => {
+        const { result } = renderLists();
+
+        await answer({ draftItems: [drafts(1)[0], launched('sent'), launched('pending', null), drafts(2)[1]] });
+
+        expect(ids(result.current.drafts.items)).toEqual(['d-0', 'd-1']);
+        expect(latest('drafts').q.ref.constraints).toEqual([{ kind: 'orderBy', field: 'updatedAt', direction: 'desc' }]);
+    });
+
+    it('counts Drafts on the server without the launched ones', async () => {
+        server.counts[DRAFTS_PATH] = 75;
+        server.launchedDrafts = 20;
+        const { result } = renderLists();
+
+        await answer({ draftItems: [...drafts(45), ...['a', 'b', 'c', 'd', 'e'].map((id) => launched(id))] });
+
+        await waitFor(() => expect(result.current.drafts.total).toBe(55));
+        expect(result.current.drafts.items).toHaveLength(45);
+        expect(result.current.drafts.hasMore).toBe(true);
+        expect(fs.getCountFromServer).toHaveBeenCalledWith({
+            ref: { path: DRAFTS_PATH },
+            constraints: [{ kind: 'where', field: 'launchedAt', op: '!=', value: null }],
+        });
+    });
+
+    it('offers Load more when the whole window is launched but older drafts remain', async () => {
+        server.counts[DRAFTS_PATH] = 53;
+        server.launchedDrafts = 50;
+        const { result } = renderLists();
+
+        await answer({ draftItems: Array.from({ length: 50 }, (_, i) => launched(`l-${i}`)) });
+
+        await waitFor(() => expect(result.current.drafts.total).toBe(3));
+        expect(result.current.drafts).toMatchObject({ items: [], hasMore: true });
+    });
+
+    it('is complete when every draft beyond the window is launched too', async () => {
+        server.counts[DRAFTS_PATH] = 60;
+        server.launchedDrafts = 60;
+        const { result } = renderLists();
+
+        await answer({ draftItems: Array.from({ length: 50 }, (_, i) => launched(`l-${i}`)) });
+
+        await waitFor(() => expect(result.current.drafts.hasMore).toBe(false));
+        expect(result.current.drafts).toMatchObject({ items: [], total: null });
     });
 });
 

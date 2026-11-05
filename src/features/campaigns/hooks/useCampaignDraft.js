@@ -16,5 +16,12 @@ export function useCampaignDraft(companyId) {
         }
     }, [companyId]);
 
-    return { saveDraft, isSaving: false };
+    // After a launch: the draft is kept as the record and points at its session.
+    const markLaunched = useCallback(async (campaignId, sessionId) => {
+        if (!companyId || !campaignId) return;
+        const { serverTimestamp } = await import('firebase/firestore');
+        await saveDraft(campaignId, { launchedAt: serverTimestamp(), sessionId: sessionId || null });
+    }, [companyId, saveDraft]);
+
+    return { saveDraft, markLaunched, isSaving: false };
 }

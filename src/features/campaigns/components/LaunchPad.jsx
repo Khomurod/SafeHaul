@@ -53,7 +53,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                     ? ` (${result.data.filteredCount} excluded — already messaged)`
                     : '';
                 showSuccess(`Campaign launched! Targeting ${result.data.targetCount} drivers${filteredMsg}. Session: ${result.data.sessionId?.slice(0, 8)}...`);
-                if (onLaunchSuccess) onLaunchSuccess();
+                if (onLaunchSuccess) onLaunchSuccess({ sessionId: result.data.sessionId });
             } else {
                 showError(result.data.message || "Launch failed");
             }

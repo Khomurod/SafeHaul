@@ -7,7 +7,7 @@ const fs = vi.hoisted(() => ({
     doc: vi.fn((_db, ...segments) => segments.join('/')),
     onSnapshot: vi.fn(),
 }));
-const draft = vi.hoisted(() => ({ saveDraft: vi.fn(), isSaving: false }));
+const draft = vi.hoisted(() => ({ saveDraft: vi.fn(), markLaunched: vi.fn(), isSaving: false }));
 const e2e = vi.hoisted(() => ({ enabled: false, param: '' }));
 const captured = vi.hoisted(() => ({ audience: null, content: null, launch: null }));
 
@@ -171,11 +171,12 @@ describe('CampaignEditor — navigation & completion', () => {
         expect(await screen.findByTestId('content')).toBeInTheDocument();
         expect(captured.content.messageConfig).toEqual({ method: 'sms', message: '' });
 
-        // Launch section — onLaunchSuccess is the onClose prop.
+        // Launch section.
         fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
         expect(await screen.findByTestId('launch')).toHaveAttribute('data-company', 'c1');
-        expect(captured.launch.onLaunchSuccess).toBe(onClose);
+        expect(captured.launch.onLaunchSuccess).toBeTypeOf('function');
         expect(captured.launch.campaign.name).toBe('Untitled Campaign');
+        expect(onClose).not.toHaveBeenCalled();
     });
 
     it('marks audience complete when matchCount > 0 and content complete when a message exists', async () => {
@@ -223,6 +224,96 @@ describe('CampaignEditor — E2E mock, shell & a11y', () => {
 
     it('has no accessibility violations', async () => {
         const { container } = await renderEditor();
+        expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+// A launched campaign is a record, not a draft: its document is kept and marked
+// (`launchedAt`, `sessionId`), and the editor no longer offers Launch.
+describe('CampaignEditor — a launched campaign', () => {
+    const LAUNCHED = { name: 'Spring drive', launchedAt: { seconds: 1767225600 }, sessionId: 'session-1' };
+
+    async function openLaunch(props) {
+        const utils = await renderEditor(props);
+        fireEvent.click(screen.getByRole('button', { name: /Launch/ }));
+        await screen.findByTestId('launch');
+        return utils;
+    }
+
+    it('marks the draft launched with the returned session, then closes', async () => {
+        const { onClose } = await openLaunch();
+
+        act(() => { captured.launch.onLaunchSuccess({ sessionId: 'session-1' }); });
+
+        expect(draft.markLaunched).toHaveBeenCalledWith('camp1', 'session-1');
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks nothing in the E2E mock, and still closes', async () => {
+        e2e.enabled = true;
+        e2e.param = 'mock';
+        const { onClose } = await openLaunch();
+
+        act(() => { captured.launch.onLaunchSuccess(); });
+
+        expect(draft.markLaunched).not.toHaveBeenCalled();
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('says it was launched, links its report and offers no Launch, even with Launch open in a stale tab', async () => {
+        const onViewReport = vi.fn();
+        const { onClose } = await openLaunch({ onViewReport });
+
+        await act(async () => { snapCb(snapshot(LAUNCHED)); });
+
+        expect(screen.getByText('This campaign was already launched')).toBeInTheDocument();
+        expect(screen.queryByTestId('launch')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Launch/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('textbox', { name: 'Campaign Name' })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'View report' }));
+        expect(onViewReport).toHaveBeenCalledWith('session-1');
+        fireEvent.click(screen.getByRole('button', { name: 'Exit' }));
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts a launch whose server time is still pending as launched', async () => {
+        await renderEditor({ onViewReport: vi.fn() });
+
+        await act(async () => { snapCb(snapshot({ ...LAUNCHED, launchedAt: null })); });
+
+        expect(screen.getByText('This campaign was already launched')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Launch/ })).not.toBeInTheDocument();
+    });
+
+    it('offers no report link when the launch returned no session', async () => {
+        await renderEditor({ onViewReport: vi.fn() });
+
+        await act(async () => { snapCb(snapshot({ ...LAUNCHED, sessionId: null })); });
+
+        expect(screen.getByText('This campaign was already launched')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'View report' })).not.toBeInTheDocument();
+    });
+
+    it('stops autosaving once the draft is launched, so a stale tab does not rewrite the record', async () => {
+        vi.useFakeTimers();
+        await act(async () => {
+            render(<CampaignEditor companyId="c1" campaignId="camp1" onClose={vi.fn()} />);
+        });
+        await act(async () => { await Promise.resolve(); });
+        act(() => { snapCb(snapshot({ name: 'Doc Name', filters: {} })); });
+        act(() => { fireEvent.click(screen.getByText('emit-audience')); });
+
+        act(() => { snapCb(snapshot(LAUNCHED)); });
+        act(() => { vi.advanceTimersByTime(2500); });
+
+        expect(draft.saveDraft).not.toHaveBeenCalled();
+    });
+
+    it('has no accessibility violations in the launched notice', async () => {
+        const { container } = await renderEditor({ onViewReport: vi.fn() });
+        await act(async () => { snapCb(snapshot(LAUNCHED)); });
+
         expect((await axe(container)).violations).toEqual([]);
     });
 });

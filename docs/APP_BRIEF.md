@@ -474,10 +474,10 @@ The driver's uploads have one place, the DQ File tab, which lists and opens them
 
 **Bulk SMS / email campaigns.** Audiences over leads, sent by a session-based
 worker (§8); the carrier connects and pays its own messaging provider. No
-two-way threads or drips. The Campaigns page lists the newest 50 drafts and
-campaigns (more on request) plus every live one (active, queued, scheduled,
-paused); when the list is incomplete, Total Outreach is a server sum refreshed
-shortly after a change.
+two-way threads or drips. Campaigns lists the newest 50 drafts and campaigns
+(more on request) and every live one (Total Outreach: a server sum once
+incomplete). A launch marks its draft (`launchedAt`, `sessionId`): kept, off
+Drafts; opened, it links its report, not Launch.
 
 **Super admin operations.** Dashboard, companies (features, SMS), features
 overview, users, unified driver DB, environment vault, AI providers, blog,

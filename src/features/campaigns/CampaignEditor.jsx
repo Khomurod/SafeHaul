@@ -3,8 +3,9 @@ import { Icon, ArrowLeft, Save } from '@design-system/icons';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { useCampaignDraft } from './hooks/useCampaignDraft';
+import { isLaunchedDraft } from './constants/campaignConstants';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Button, FormField, Input, SectionNavigation } from '@/design-system/components';
+import { Button, FormField, Input, Notice, SectionNavigation } from '@/design-system/components';
 /*
  * The rail's glyphs come from the registry rather than `lucide-react`, because
  * `SectionNavigation` renders `item.icon` through `Icon` and the registry hands
@@ -24,7 +25,7 @@ const SECTIONS = [
     { id: 'launch', label: 'Launch', icon: Rocket },
 ];
 
-export function CampaignEditor({ companyId, campaignId, onClose }) {
+export function CampaignEditor({ companyId, campaignId, onClose, onViewReport }) {
     const [activeSection, setActiveSection] = useState('audience');
     const [campaignData, setCampaignData] = useState({
         name: 'Untitled Campaign',
@@ -34,7 +35,8 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
     });
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
 
-    const { saveDraft, isSaving } = useCampaignDraft(companyId);
+    const { saveDraft, markLaunched, isSaving } = useCampaignDraft(companyId);
+    const isLaunched = isLaunchedDraft(campaignData);
 
     // #9 FIX: Track whether user has made actual changes — prevents auto-save on mount with defaults
     const [isDirty, setIsDirty] = useState(false);
@@ -76,8 +78,9 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
     // 2. Auto-Save Logic (Write)
     // We debounce the save to avoid thrashing Firestore
     // #9 FIX: Only save when user has actually made changes (isDirty)
+    // A launched draft is a record: a stale tab's edits are not saved over it.
     useEffect(() => {
-        if (!isDirty || !isInitializedRef.current) return;
+        if (!isDirty || !isInitializedRef.current || isLaunched) return;
         const timer = setTimeout(() => {
             if (campaignId) {
                 // Strip rawData before saving — it's a large array that only lives in React state
@@ -87,7 +90,13 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
             }
         }, 2000); // 2 second auto-save delay
         return () => clearTimeout(timer);
-    }, [campaignData, campaignId, saveDraft, isDirty]);
+    }, [campaignData, campaignId, saveDraft, isDirty, isLaunched]);
+
+    // A launch marks the draft, so it leaves Drafts and cannot be launched again.
+    const handleLaunchSuccess = (launch) => {
+        if (!isE2ECampaignMock) markLaunched(campaignId, launch?.sessionId);
+        onClose();
+    };
 
     const updateData = (section, data) => {
         setIsDirty(true);
@@ -117,6 +126,34 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
         if (sectionId === 'content') return !!campaignData.messageConfig?.message;
         return false;
     };
+
+    // Opened after its launch (a stale tab, or the moment before the editor
+    // closes): the notice replaces the editor, so there is no Launch to press.
+    if (isLaunched) {
+        const sessionId = campaignData.sessionId;
+        return (
+            <div className="min-h-full bg-ds-surface-subtle p-ds-6">
+                <div className="mx-auto flex max-w-2xl flex-col items-start gap-ds-4">
+                    <Button variant="ghost" size="sm" onClick={onClose}>
+                        <Icon icon={ArrowLeft} /> Exit
+                    </Button>
+                    <Notice
+                        tone="info"
+                        title="This campaign was already launched"
+                        titleAs="h2"
+                        className="w-full"
+                        actions={sessionId && onViewReport ? (
+                            <Button variant="secondary" size="sm" onClick={() => onViewReport(sessionId)}>
+                                View report
+                            </Button>
+                        ) : undefined}
+                    >
+                        It can&apos;t be launched again. To message people again, create a new campaign.
+                    </Notice>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen flex-col overflow-hidden bg-ds-surface-subtle md:flex-row">
@@ -195,7 +232,7 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
                         <LaunchPad
                             companyId={companyId}
                             campaign={campaignData}
-                            onLaunchSuccess={onClose}
+                            onLaunchSuccess={handleLaunchSuccess}
                         />
                     )}
                 </React.Suspense>

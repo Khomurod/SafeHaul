@@ -4,7 +4,7 @@ import { db } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useLiveQueryWindow } from '@shared/hooks/useLiveQueryWindow';
 import { useServerAggregate } from '@shared/hooks/useServerAggregate';
-import { CANCELLABLE_SESSION_STATUSES } from '../constants/campaignConstants';
+import { CANCELLABLE_SESSION_STATUSES, isLaunchedDraft } from '../constants/campaignConstants';
 import { e2eCampaignLists } from '../components/campaignListsMock';
 
 /** Drafts and campaigns listed at a time: the newest first, more on request. */
@@ -16,7 +16,11 @@ const SESSIONS_ERROR = 'Campaigns could not be loaded.';
 const noop = () => {};
 
 const sessionsRef = (companyId) => collection(db, 'companies', companyId, 'bulk_sessions');
-const draftsQuery = (companyId) => query(collection(db, 'companies', companyId, 'campaign_drafts'), orderBy('updatedAt', 'desc'));
+const draftsRef = (companyId) => collection(db, 'companies', companyId, 'campaign_drafts');
+const draftsQuery = (companyId) => query(draftsRef(companyId), orderBy('updatedAt', 'desc'));
+// An unlaunched draft has no `launchedAt`, which no query can select: the
+// launched ones are counted and left out instead.
+const launchedDraftsQuery = (companyId) => query(draftsRef(companyId), where('launchedAt', '!=', null));
 const historyQuery = (companyId) => query(sessionsRef(companyId), orderBy('createdAt', 'desc'));
 const countOf = async (countQuery) => (await getCountFromServer(countQuery)).data().count;
 
@@ -177,7 +181,8 @@ function useFixtureLists(mode) {
  * The Campaigns dashboard's lists and numbers.
  *
  * - Drafts and the session history are live windows of the newest 50
- *   (`useLiveQueryWindow`), growing by 50 on `loadMore`. A third listener holds
+ *   (`useLiveQueryWindow`), growing by 50 on `loadMore`. Drafts leaves out the
+ *   launched ones (`isLaunchedDraft`), in its rows and its count. A third listener holds
  *   every live session, so one older than the window is still listed (after
  *   the window's rows) with its Cancel control.
  * - `liveCount` counts the merged sessions, which hold every live one: exact.
@@ -218,7 +223,10 @@ export function useCampaignLists({ companyId, enabled }) {
     const draftsTotal = useServerAggregate({
         enabled: drafts.hasMore,
         refreshKey: drafts.snapshotVersion,
-        run: () => countOf(draftsQuery(companyId)),
+        run: async () => {
+            const [all, launched] = await Promise.all([countOf(draftsQuery(companyId)), countOf(launchedDraftsQuery(companyId))]);
+            return all - launched;
+        },
     });
     const sessionsTotal = useServerAggregate({
         enabled: history.hasMore,
@@ -234,6 +242,7 @@ export function useCampaignLists({ companyId, enabled }) {
         },
     });
     const fixture = useFixtureLists(isE2EMock ? (isE2EMany ? 'many' : 'mock') : null);
+    const draftItems = useMemo(() => drafts.docs.filter((draft) => !isLaunchedDraft(draft)), [drafts.docs]);
     const sessions = useMemo(() => mergeSessions(history.docs, live.docs), [history.docs, live.docs]);
     const retryHistory = history.retry;
     const retryLive = live.retry;
@@ -249,7 +258,7 @@ export function useCampaignLists({ companyId, enabled }) {
     else if (history.error) totalOutreach = null;
 
     return {
-        drafts: listOf(drafts, drafts.docs, draftsTotal.value),
+        drafts: listOf(drafts, draftItems, draftsTotal.value),
         sessions: listOf(history, sessions, sessionsTotal.value, {
             isLoading: history.isLoading || live.isLoading,
             error: history.error || live.error,

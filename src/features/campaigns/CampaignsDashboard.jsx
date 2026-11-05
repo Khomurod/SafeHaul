@@ -181,6 +181,11 @@ export function CampaignsDashboard({ companyId }) {
                 companyId={companyId}
                 campaignId={selectedCampaignId}
                 onClose={() => setSelectedCampaignId(null)}
+                // A launched draft's report: the same one View Report opens on Past Sequences.
+                onViewReport={(sessionId) => {
+                    setSelectedCampaignId(null);
+                    setSelectedReportSessionId(sessionId);
+                }}
             />
         );
     }
@@ -260,7 +265,7 @@ export function CampaignsDashboard({ companyId }) {
                                 >
                                     {activeList.error}
                                 </Notice>
-                            ) : visibleCampaigns.length === 0 ? (
+                            ) : visibleCampaigns.length === 0 && !activeList.hasMore ? (
                                 <div className="flex flex-col items-center justify-center gap-ds-4 rounded-ds-lg border-2 border-dashed border-ds-border bg-ds-surface px-ds-6 py-ds-12 text-center">
                                     <span
                                         aria-hidden="true"
