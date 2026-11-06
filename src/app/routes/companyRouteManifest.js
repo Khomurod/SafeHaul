@@ -61,11 +61,13 @@ export const COMPANY_ROUTE_MANIFEST = Object.freeze([
     // The menu's one Leads item. Its address has no screen: it opens the tab a
     // person starts on, All for a company admin and Assigned to me for anyone
     // else (`LeadsRedirect`). Every tab's address sits under this one, so the
-    // menu reads the item as current on each of them.
+    // menu reads the item as current on each of them. It picks by the person's
+    // role in the company they work in, so it waits for that company.
     id: 'leads',
     path: 'drivers/leads',
     screen: 'leadsRedirect',
     featureName: 'Leads',
+    requiresCompanyProfile: true,
     nav: { kind: 'group-item', group: 'applications', label: 'Leads', icon: 'Building2' },
   },
   {
