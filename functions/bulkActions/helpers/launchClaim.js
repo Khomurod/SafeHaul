@@ -10,10 +10,10 @@ const { admin, db } = require("../../firebaseAdmin");
  * - a draft with `launchedAt` is refused (already launched);
  * - a draft whose `launchClaim` is younger than `CLAIM_TTL_MS` is refused (a
  *   launch is running). An older claim belongs to a launch that died, since
- *   the callable stops after 540 seconds. If that launch's session exists and
- *   sent, or may have (it did not fail, or it failed after a message went out),
- *   only its mark was lost: the draft is marked launched with it and refused.
- *   Otherwise the claim is taken over;
+ *   the callable stops after 540 seconds. If that launch's session exists, the
+ *   launch got past its checks and may have sent (a send can land before its
+ *   progress is written), so only its mark was lost: the draft is marked
+ *   launched with it and refused. Otherwise the claim is taken over;
  * - a launch that goes out marks the draft (`launchedAt`, `sessionId`) and
  *   drops the claim; one that fails gives its own claim back.
  *
@@ -40,18 +40,13 @@ function isDraftId(value) {
 }
 
 /**
- * Whether the session a stale claim names may have sent: it exists and did not
- * fail, or it failed after a message went out (a later batch could not be
- * queued). Only a session that failed before sending anything did not.
+ * Whether the session a stale claim names was written. A written session may
+ * have sent whatever its status or progress says, so it is never sent again.
  */
-async function claimedSessionWentOut(tx, companyId, claim) {
+async function claimedSessionWritten(tx, companyId, claim) {
     if (!isDraftId(claim?.sessionId)) return false;
     const sessionRef = db.collection('companies').doc(companyId).collection('bulk_sessions').doc(claim.sessionId);
-    const session = await tx.get(sessionRef);
-    if (!session.exists) return false;
-    const { status, progress } = session.data() || {};
-    if (status !== 'failed') return true;
-    return (progress?.processedCount || 0) > 0 || (progress?.currentPointer || 0) > 0;
+    return (await tx.get(sessionRef)).exists;
 }
 
 function claimedAtMillis(claim) {
@@ -78,7 +73,7 @@ async function claimDraftLaunch({ companyId, campaignId, uid, sessionId, now = D
         if (stale && now - claimedAtMillis(stale) < CLAIM_TTL_MS) {
             throw new HttpsError('failed-precondition', LAUNCH_RUNNING);
         }
-        if (stale && await claimedSessionWentOut(tx, companyId, stale)) {
+        if (stale && await claimedSessionWritten(tx, companyId, stale)) {
             tx.update(draftRef, {
                 launchedAt: admin.firestore.FieldValue.serverTimestamp(),
                 sessionId: stale.sessionId,

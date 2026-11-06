@@ -172,11 +172,16 @@ describe('claimDraftLaunch', () => {
         expect(CLAIM_TTL_MS).toBeGreaterThan(540 * 1000);
     });
 
-    // A launch whose worker started but whose mark failed leaves a stale claim:
-    // its session is the proof the campaign went out, so it is not sent again.
-    it('refuses a stale claim whose session went out, and marks the draft launched with it', async () => {
+    // Any session the claim names was written by a launch that got past its
+    // checks; whether it sent cannot be known for sure (a send can land before
+    // its progress is written), so it counts as sent and is never sent again.
+    it.each([
+        ['active', { status: 'active' }],
+        ['failed after sending', { status: 'failed', progress: { processedCount: 1, currentPointer: 1 } }],
+        ['failed with no progress recorded', { status: 'failed', progress: { processedCount: 0, currentPointer: 0 } }],
+    ])('refuses a stale claim whose session exists (%s), and marks the draft launched', async (_label, session) => {
         await claim();
-        store.set('companies/co-1/bulk_sessions/session-1', { status: 'active' });
+        store.set('companies/co-1/bulk_sessions/session-1', session);
 
         await expect(claim({ uid: 'admin-2', sessionId: 'session-2', now: NOW + CLAIM_TTL_MS + 1 }))
             .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringMatching(/already launched/) });
@@ -185,33 +190,6 @@ describe('claimDraftLaunch', () => {
             launchedAt: SERVER_TIME,
             sessionId: 'session-1',
         });
-    });
-
-    // A session marked failed after a batch went out (a later enqueue failed)
-    // has still sent: its progress says so.
-    it.each([
-        ['processed a message', { processedCount: 1, currentPointer: 0 }],
-        ['moved its pointer', { processedCount: 0, currentPointer: 3 }],
-    ])('refuses a stale claim whose failed session %s', async (_label, progress) => {
-        await claim();
-        store.set('companies/co-1/bulk_sessions/session-1', { status: 'failed', progress });
-
-        await expect(claim({ sessionId: 'session-2', now: NOW + CLAIM_TTL_MS + 1 }))
-            .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringMatching(/already launched/) });
-        expect(store.get(PATH)).toMatchObject({ launchedAt: SERVER_TIME, sessionId: 'session-1' });
-    });
-
-    it('takes over a stale claim whose session failed before sending anything', async () => {
-        await claim();
-        store.set('companies/co-1/bulk_sessions/session-1', {
-            status: 'failed',
-            progress: { processedCount: 0, currentPointer: 0 },
-        });
-
-        await claim({ uid: 'admin-2', sessionId: 'session-2', now: NOW + CLAIM_TTL_MS + 1 });
-
-        expect(store.get(PATH).launchClaim.sessionId).toBe('session-2');
-        expect(store.get(PATH).launchedAt).toBeUndefined();
     });
 
     it('treats a claim without a readable time as stale', async () => {
