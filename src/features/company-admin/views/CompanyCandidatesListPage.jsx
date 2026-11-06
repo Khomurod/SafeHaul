@@ -16,6 +16,7 @@ import { loadDriverDossier } from '../components/modals/driver-dossier/loadDrive
 import { buildCandidateColumns, getCandidateName, staleContactMeta, APPLICATION_PIPELINE_TABS, LEAD_PIPELINE_TABS } from './candidateListColumns';
 import { UndatedRecordsNotice } from './UndatedRecordsNotice';
 import { PeriodNotice } from './PeriodNotice';
+import { LeadsHeaderActions } from './LeadsHeaderActions';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 // The table is memoized: what the page hands it is built here, or memoized
@@ -233,7 +234,12 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                 is lower from lg up, where the toolbar is one row and a desktop
                 window keeps its layout. */}
             <div className="flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-6 flex flex-col gap-ds-4">
-                <PageHeader title={getPageTitle()} count={listCount} countLabel={countLabel} />
+                <PageHeader
+                    title={getPageTitle()}
+                    count={listCount}
+                    countLabel={countLabel}
+                    actions={scope === 'applications' ? undefined : <LeadsHeaderActions />}
+                />
                 <PeriodNotice period={dashboard.filters.period} truncated={dashboard.listTruncated} onShowAll={handleShowAll} />
                 <UndatedRecordsNotice count={dashboard.undatedCount} />
 

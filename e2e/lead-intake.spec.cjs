@@ -4,7 +4,8 @@ const AxeBuilder = require('@axe-core/playwright').default;
 /**
  * Real-browser evidence for the migrated lead-intake surfaces:
  * `/company/import-leads` (ImportLeadsPage + CompanyBulkUpload +
- * BulkUploadLayout) and `/company/quick-add-lead` (QuickAddLeadPage).
+ * BulkUploadLayout) and `/company/quick-add-lead` (QuickAddLeadPage, titled
+ * Add lead), both offered in the Leads page's header rather than the menu.
  *
  * Under `VITE_E2E_TEST_MODE=1` Firestore is unreachable, so everything up to and
  * including the confirm/save attempt is exercised; the committed write itself is
@@ -16,6 +17,7 @@ const AxeBuilder = require('@axe-core/playwright').default;
 
 const IMPORT_URL = '/company/import-leads?e2eAuth=company_admin';
 const QUICK_ADD_URL = '/company/quick-add-lead?e2eAuth=company_admin';
+const COMPANY_LEADS_URL = '/company/drivers/leads/company?e2eAuth=company_admin';
 
 const CSV = [
     'First Name,Last Name,Email,Phone,City,State,Experience,Job Type',
@@ -85,6 +87,19 @@ async function axeViolations(page) {
 
 test.describe('Import Leads', () => {
     test.describe.configure({ timeout: 120_000 });
+
+    test("opens from the Leads page's header, and closing it returns there", async ({ page }) => {
+        await page.goto(COMPANY_LEADS_URL);
+        await page.getByRole('link', { name: 'Import leads' }).click();
+
+        await expect(page).toHaveURL(/\/company\/import-leads/);
+        await expect(page.getByRole('heading', { level: 1, name: 'Import Leads' })).toBeVisible();
+        // Still its own page, not a dialog over the list.
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+
+        await page.getByRole('button', { name: 'Close import' }).click();
+        await expect(page).toHaveURL(/\/company\/drivers\/leads\/company/);
+    });
 
     test('renders the page shell embedded, not behind a modal overlay', async ({ page }) => {
         await openImport(page);
@@ -325,12 +340,20 @@ test.describe('Import Leads', () => {
     });
 });
 
-test.describe('Quick Add Lead', () => {
+test.describe('Add lead', () => {
     test.describe.configure({ timeout: 120_000 });
+
+    test("opens from the Leads page's header", async ({ page }) => {
+        await page.goto(COMPANY_LEADS_URL);
+        await page.getByRole('link', { name: 'Add lead' }).click();
+
+        await expect(page).toHaveURL(/\/company\/quick-add-lead/);
+        await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
+    });
 
     test('labels every field and marks the required ones', async ({ page }) => {
         await page.goto(QUICK_ADD_URL);
-        await expect(page.getByRole('heading', { level: 1, name: 'Quick Add Lead' })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
 
         for (const label of [
             'First Name', 'Last Name', 'Phone', 'Email', 'City', 'State',
@@ -412,15 +435,15 @@ test.describe('Quick Add Lead', () => {
         await expect(page).toHaveURL(/quick-add-lead/);
     });
 
-    test('cancels back to the dashboard', async ({ page }) => {
+    test('cancels back to the leads list', async ({ page }) => {
         await page.goto(QUICK_ADD_URL);
         await page.getByRole('button', { name: 'Cancel' }).click();
-        await expect(page).toHaveURL(/\/company\/dashboard/);
+        await expect(page).toHaveURL(/\/company\/drivers\/leads\/company/);
     });
 
     test('has no axe violations in the default and error states', async ({ page }) => {
         await page.goto(QUICK_ADD_URL);
-        await expect(page.getByRole('heading', { level: 1, name: 'Quick Add Lead' })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
         expect(await axeViolations(page), 'default').toEqual([]);
 
         await page.getByRole('button', { name: 'Save Lead' }).click();
@@ -437,7 +460,7 @@ test.describe('Quick Add Lead', () => {
             test.skip(testInfo.project.name.startsWith('mobile'), 'Explicit viewport sweep runs on the desktop lane.');
             await page.setViewportSize({ width, height });
             await page.goto(QUICK_ADD_URL);
-            await expect(page.getByRole('heading', { level: 1, name: 'Quick Add Lead' })).toBeVisible();
+            await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
 
             await expectNoHorizontalOverflow(page, `${label} quick add`);
             expect(await undersizedText(page), `${label}: text below 12px`).toEqual([]);
@@ -451,7 +474,7 @@ test.describe('Quick Add Lead', () => {
     test('stays usable on a mobile device lane @mobile', async ({ page }, testInfo) => {
         test.skip(!testInfo.project.name.startsWith('mobile'), 'Mobile device lane.');
         await page.goto(QUICK_ADD_URL);
-        await expect(page.getByRole('heading', { level: 1, name: 'Quick Add Lead' })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1, name: 'Add lead' })).toBeVisible();
 
         await expectNoHorizontalOverflow(page, 'mobile quick add');
         expect(await undersizedText(page), 'mobile: text below 12px').toEqual([]);

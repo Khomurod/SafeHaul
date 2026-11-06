@@ -2,7 +2,8 @@
  * Contract freeze for `ImportLeadsPage`.
  *
  * Pins the permission rule, the feature-flag rule, and every navigation
- * destination before the design-system migration touches the shell. The
+ * destination: the leads list, but for the access-denied state's Return to
+ * Dashboard. The
  * bulk-upload component is mocked so this file tests only the page's contract.
  */
 import React from 'react';
@@ -53,16 +54,18 @@ describe('ImportLeadsPage — preserved contracts', () => {
         expect(screen.getByRole('heading', { level: 1, name: 'Import Leads' })).toBeInTheDocument();
     });
 
-    it('passes the company id and both callbacks to the bulk upload', () => {
+    it('passes the company id and both callbacks to the bulk upload, each returning to the leads list', () => {
         render(<ImportLeadsPage />);
 
         expect(bulkUploadProps.value.companyId).toBe(COMPANY_ID);
 
         bulkUploadProps.value.onUploadComplete();
-        expect(navigateMock).toHaveBeenCalledWith('/company/drivers/leads/company');
+        expect(navigateMock).toHaveBeenLastCalledWith('/company/drivers/leads/company');
 
+        // Closing the import, and its Close once done.
         bulkUploadProps.value.onClose();
-        expect(navigateMock).toHaveBeenCalledWith('/company/dashboard');
+        expect(navigateMock).toHaveBeenCalledTimes(2);
+        expect(navigateMock).toHaveBeenLastCalledWith('/company/drivers/leads/company');
     });
 
     it('renders the bulk upload embedded in the page rather than as an overlay', () => {
@@ -131,15 +134,15 @@ describe('ImportLeadsPage — preserved contracts', () => {
         )).toBeInTheDocument();
     });
 
-    it('returns to the dashboard when the feature-locked state is dismissed', () => {
+    it('returns to the leads list when the feature-locked state is dismissed', () => {
         setContext({ features: { importLeads: false } });
         render(<ImportLeadsPage />);
 
         // The shared FeatureLockedModal exposes both an icon close and a text
-        // close; either must return to the dashboard.
+        // close; either must return to the leads list.
         const closeControls = screen.getAllByRole('button', { name: 'Close' });
         expect(closeControls.length).toBeGreaterThan(0);
         fireEvent.click(closeControls[0]);
-        expect(navigateMock).toHaveBeenCalledWith('/company/dashboard');
+        expect(navigateMock).toHaveBeenCalledWith('/company/drivers/leads/company');
     });
 });
