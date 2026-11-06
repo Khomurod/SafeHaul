@@ -294,7 +294,8 @@ export function SubmissionQueuedScreen({ onGoHome }) {
  *     chooser is exactly what it prevents.
  *  6. **A referral link's choice in the chooser's own place**, so everything
  *     that skips the chooser (a restored draft, an opened carrier link, a
- *     confirmed identity) skips the quick interest offer too.
+ *     confirmed identity) skips the quick interest offer too. Its answers fill
+ *     page one's empty name, phone and email (`onQuickInterestPrefill`).
  *
  * Returns `null` when the wizard itself should render.
  */
@@ -306,7 +307,8 @@ export function resolveApplyStatusScreen({
   onGoHome, onStartNewApplication,
   inviteProblem, inviteProblemDismissed, onContinueWithoutInvite,
   identityCheck, onConfirmIdentity,
-  intakeMode, companyId, companyName, referralCode, handleChooseAutoFill, handleChooseManual,
+  intakeMode, companyId, companyName, referralCode, onQuickInterestPrefill,
+  handleChooseAutoFill, handleChooseManual,
   cdlAutoFillInputRef, handleCdlAutoFillFileChange,
 }) {
   if (loading) return <ApplyPagePlaceholder />;
@@ -376,7 +378,12 @@ export function resolveApplyStatusScreen({
     );
     if (!referralCode) return chooser;
     return (
-      <ReferralIntake companyId={companyId} companyName={companyName} referralCode={referralCode}>
+      <ReferralIntake
+        companyId={companyId}
+        companyName={companyName}
+        referralCode={referralCode}
+        onPrefill={onQuickInterestPrefill}
+      >
         {chooser}
       </ReferralIntake>
     );

@@ -65,15 +65,42 @@ export function quickInterestErrorMessage(error) {
   return 'We could not send your details. Please check your connection and try again.';
 }
 
+/** The four answers the quick form sends, as sent. Its consent is not among them. */
+export function quickInterestContact(answers) {
+  return {
+    firstName: String(answers?.firstName || '').trim(),
+    lastName: String(answers?.lastName || '').trim(),
+    phone: String(answers?.phone || '').trim(),
+    email: String(answers?.email || '').trim(),
+  };
+}
+
 export async function sendQuickInterest({ companyId, referralCode, answers }) {
   const send = httpsCallable(functions, 'submitReferralInterest');
   await send({
     companyId,
     referralCode,
-    firstName: answers.firstName.trim(),
-    lastName: answers.lastName.trim(),
-    phone: answers.phone.trim(),
-    email: answers.email.trim(),
+    ...quickInterestContact(answers),
     contactConsent: answers.contactConsent === true,
   });
+}
+
+/**
+ * The application's answers with the quick form's four filled in where page one
+ * is still empty: the driver typed them a moment ago and is not asked twice.
+ *
+ * Only those four keys, which page one uses under the same names. Nothing else the
+ * quick form holds comes across: its consent to be contacted is not the
+ * application's SMS answer or any of its agreements. An answer already there — a
+ * restored copy of an earlier application — is kept, so a saved draft wins.
+ */
+export function prefillFromQuickInterest(previous, contact) {
+  const filled = quickInterestContact(contact);
+  let next = previous;
+  for (const [key, value] of Object.entries(filled)) {
+    const current = previous?.[key];
+    if (!value || (typeof current === 'string' ? current.trim() : current)) continue;
+    next = { ...next, [key]: value };
+  }
+  return next;
 }

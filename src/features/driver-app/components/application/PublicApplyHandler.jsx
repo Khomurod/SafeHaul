@@ -27,7 +27,7 @@ import {
   listenForReconnectFlush,
 } from './publicApplyDraftSync';
 import { INVITE_OUTCOMES } from './publicApplyInvite';
-import { referralCodeFrom } from './referralIntake';
+import { prefillFromQuickInterest, referralCodeFrom } from './referralIntake';
 // And in hooks of their own: the circular discard/resume pair, the draft
 // lifecycle, and the post-submission documents flow.
 import { useDiscardAwareResume } from './useDiscardAwareResume';
@@ -433,6 +433,8 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     companyId: company?.id,
     companyName: company?.companyName,
     referralCode: linkReferralCode,
+    // The referral quick form's answers fill page one where it is still empty.
+    onQuickInterestPrefill: (contact) => setFormData((prev) => prefillFromQuickInterest(prev, contact)),
     handleChooseAutoFill,
     handleChooseManual,
     cdlAutoFillInputRef,
