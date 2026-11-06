@@ -46,14 +46,24 @@ const TOAST_VARIANTS = {
   },
 };
 
+/** How long a success or an information note stays. */
+const NOTE_MS = 4000;
+
+/**
+ * How long an error or a warning stays: long enough to read a sentence and what
+ * to do about it, unless the person closes it first.
+ */
+const PROBLEM_MS = 10000;
+
 /**
  * Global transient-notification surface.
  *
- * Presentation only — the public API (`showSuccess` / `showError` / `showInfo` /
- * `showWarning`), the `addToast(type, message, duration = 4000)` signature, the id
- * shape, the `setTimeout` auto-dismiss, the `role="alert"` announcement and the
+ * The public API (`showSuccess` / `showError` / `showInfo` / `showWarning`), the
+ * `addToast(type, message, duration = 4000)` signature, the id shape, the
+ * `setTimeout` auto-dismiss, the `role="alert"` announcement and the
  * `Dismiss notification: {message}` control name are frozen. No caller needs to
- * change.
+ * change. A success or an information note goes after 4 seconds; an error or a
+ * warning stays 10 seconds, so it is not gone before it is read.
  *
  * Rules it keeps:
  *  1. **Semantic status tokens only**, never legacy palette classes:
@@ -77,7 +87,7 @@ export function ToastProvider({ children }) {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
-  const addToast = useCallback((type, message, duration = 4000) => {
+  const addToast = useCallback((type, message, duration = NOTE_MS) => {
     const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     setToasts((prev) => [...prev, { id, type, message }]);
 
@@ -89,9 +99,9 @@ export function ToastProvider({ children }) {
   }, [removeToast]);
 
   const showSuccess = useCallback((msg) => addToast('success', msg), [addToast]);
-  const showError = useCallback((msg) => addToast('error', msg), [addToast]);
+  const showError = useCallback((msg) => addToast('error', msg, PROBLEM_MS), [addToast]);
   const showInfo = useCallback((msg) => addToast('info', msg), [addToast]);
-  const showWarning = useCallback((msg) => addToast('warning', msg), [addToast]);
+  const showWarning = useCallback((msg) => addToast('warning', msg, PROBLEM_MS), [addToast]);
 
   // One value for the provider's lifetime. Consumers list these helpers in effect
   // dependencies, so a new value on each notification re-ran those effects: a
