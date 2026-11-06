@@ -90,7 +90,9 @@ export function useAppActions({
     }
   };
 
-  const handleStatusUpdate = async (newStatus) => {
+  // `note` ends the confirmation: what else the change set off, such as the
+  // driver's Contact Attempt text (the dossier's `savedTextNote`).
+  const handleStatusUpdate = async (newStatus, { note = '' } = {}) => {
     try {
       const docRef = getDocRef();
       const oldStatus = currentStatus || 'Unknown';
@@ -104,7 +106,7 @@ export function useAppActions({
       await logActivity(companyId, collectionName, applicationId, "Status Changed", `Transitioned from ${oldStatus} to ${newStatus}`);
 
       setCurrentStatus(newStatus);
-      showSuccess(`Status updated to ${newStatus}`);
+      showSuccess(note ? `Status updated to ${newStatus}. ${note}` : `Status updated to ${newStatus}`);
       if (onStatusUpdate) onStatusUpdate();
     } catch (error) {
       console.error("Error updating status:", error);

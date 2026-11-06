@@ -9,6 +9,8 @@ import { DossierHeader } from './DossierHeader';
 import { DossierContent } from './DossierContent';
 import { DossierLogCall } from './DossierLogCall';
 import { useCompactViewport } from './useCompactViewport';
+import { useContactAttemptTexts } from './useContactAttemptTexts';
+import { savedTextNote } from './contactAttemptText';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 /**
@@ -62,6 +64,10 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * - It opens on the `'application'` tab unless the opener names another as
  *   `initialTab` (a bell notice or a Needs attention row opens the tab it is
  *   about).
+ * - **Choosing a Contact Attempt stage says whether the driver is texted**
+ *   (`useContactAttemptTexts`): the picker's option warns, and the saved
+ *   status's confirmation adds that a text is queued, or that the driver may be
+ *   texted. The server alone sends it (`functions/atsContactSms.js`).
  * - A call logged here (`DossierLogCall`) reads the record again, so the stage
  *   it moved and the last call show, and reopens Activity and Notes on their
  *   newest entries; the tab the recruiter is on stays.
@@ -128,6 +134,15 @@ export function DriverProfileModal({
         refreshRecord,
     } = useApplicationView(companyId, recordId);
     const isLead = collectionName === 'leads';
+    // What moving to a Contact Attempt stage does: the text the server sends.
+    const textOutlookFor = useContactAttemptTexts({
+        companyId,
+        enabled: Boolean(isOpen && canEdit),
+        currentStatus,
+        record: loading || error ? null : appData,
+        isLead,
+    });
+    const handleStageChange = (stage) => handleStatusUpdate(stage, { note: savedTextNote(textOutlookFor(stage)) });
 
     const handleCallLogged = () => {
         refreshRecord?.();
@@ -185,7 +200,8 @@ export function DriverProfileModal({
                 loading={loading}
                 currentStatus={currentStatus}
                 onClose={onClose}
-                onStatusUpdate={handleStatusUpdate}
+                onStatusUpdate={handleStageChange}
+                textOutlookFor={textOutlookFor}
                 canEdit={canEdit}
                 teamMembers={teamMembers}
                 assignedTo={assignedTo}

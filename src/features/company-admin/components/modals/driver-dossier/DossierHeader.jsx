@@ -4,6 +4,7 @@ import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
 import { Badge, IconButton, Select } from '@/design-system/components';
 import { dossierStatusLabel as statusLabel } from './dossierStatusLabel';
 import { sectionTitle } from './dossierSections';
+import { stageOptionLabel } from './contactAttemptText';
 
 /**
  * What the status picker offers: the funnel stages and Interested, and the
@@ -71,6 +72,11 @@ function statusOptionsFor(currentStatus) {
  * - **On a phone Close is not here** (`showClose={false}`): it leads the
  *   dossier's one-line identity bar (`DossierIdentityBar`), above everything
  *   that scrolls.
+ * - **A stage that texts the driver says so in the picker** (У5.3):
+ *   `textOutlookFor(value)` (`useContactAttemptTexts`) is `'texts'` or `'may'`
+ *   for a Contact Attempt stage the server would text the driver on, and the
+ *   option reads "Contact Attempt 1 — texts the driver" ("— may text the
+ *   driver" while the dossier cannot know). The stored value is unchanged.
  */
 
 /** The dossier's one way out, the same control wherever it sits. */
@@ -102,6 +108,7 @@ export function DossierHeader({
     onDownload,
     collectionName,
     showClose = true,
+    textOutlookFor,
 }) {
     const rawId = useId().replace(/:/g, '');
     const statusId = `dossier-status-${rawId}`;
@@ -112,7 +119,10 @@ export function DossierHeader({
     // The section's one name, the tab's (У4.7).
     const getTitle = () => sectionTitle(activeTab, { isLead });
 
-    const statusOptions = useMemo(() => statusOptionsFor(currentStatus), [currentStatus]);
+    const statusOptions = useMemo(() => statusOptionsFor(currentStatus).map((option) => ({
+        ...option,
+        label: stageOptionLabel(option.label, textOutlookFor?.(option.value)),
+    })), [currentStatus, textOutlookFor]);
 
     const statusValue = currentStatus || 'New';
 

@@ -39,6 +39,12 @@ vi.mock('./useDoNotText', () => ({
   useDoNotText: () => ({ usable: true, checking: false, listed: false, markDoNotText: async () => ({ added: true }) }),
 }));
 
+// The template read is Firestore's; `useContactAttemptTexts.test.js` covers it.
+let textOutlook = () => null;
+vi.mock('./useContactAttemptTexts', () => ({
+  useContactAttemptTexts: () => textOutlook,
+}));
+
 // The tab bodies are exercised by their own contract tests; the shell's
 // dialog behaviour is what is under test here.
 vi.mock('./DossierContent', () => ({
@@ -107,6 +113,7 @@ function renderFromTrigger(props = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  textOutlook = () => null;
   claims = { roles: { 'co-1': 'company_admin' } };
   viewState = baseView();
   deleting = false;
@@ -300,5 +307,37 @@ describe('Do not text while a record loads', () => {
     viewState = baseView();
     renderFromTrigger();
     expect(screen.getByRole('button', { name: /do not text/i })).toBeInTheDocument();
+  });
+});
+
+describe('DriverProfileModal Contact Attempt texts (У5.3)', () => {
+  const statusPicker = () => screen.getByRole('combobox', { name: 'Status' });
+
+  it('warns in the picker, and confirms the queued text with the saved stage', () => {
+    textOutlook = (stage) => (stage === 'Contact Attempt 1' ? 'texts' : null);
+    renderFromTrigger();
+
+    expect(within(statusPicker()).getByRole('option', { name: 'Contact Attempt 1 — texts the driver' })).toHaveValue('Contact Attempt 1');
+    expect(within(statusPicker()).getByRole('option', { name: 'Contact Attempt 2' })).toBeInTheDocument();
+
+    fireEvent.change(statusPicker(), { target: { value: 'Contact Attempt 1' } });
+    expect(viewState.handleStatusUpdate).toHaveBeenCalledWith('Contact Attempt 1', { note: 'A text to the driver is queued.' });
+  });
+
+  it('says the driver may be texted while the dossier cannot know', () => {
+    textOutlook = (stage) => (stage.startsWith('Contact Attempt') ? 'may' : null);
+    renderFromTrigger();
+
+    expect(within(statusPicker()).getByRole('option', { name: 'Contact Attempt 2 — may text the driver' })).toBeInTheDocument();
+    fireEvent.change(statusPicker(), { target: { value: 'Contact Attempt 2' } });
+    expect(viewState.handleStatusUpdate).toHaveBeenCalledWith('Contact Attempt 2', { note: 'The driver may be texted.' });
+  });
+
+  it('adds nothing for a stage that texts no one', () => {
+    renderFromTrigger();
+
+    expect(within(statusPicker()).getByRole('option', { name: 'Contact Attempt 1' })).toBeInTheDocument();
+    fireEvent.change(statusPicker(), { target: { value: 'Interested' } });
+    expect(viewState.handleStatusUpdate).toHaveBeenCalledWith('Interested', { note: '' });
   });
 });
