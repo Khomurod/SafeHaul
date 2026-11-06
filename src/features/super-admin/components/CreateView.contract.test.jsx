@@ -500,7 +500,7 @@ describe('CreateView — accessibility', () => {
         const { container } = renderView();
         fillCompany();
         submitCompanyForm();
-        await screen.findByText('Error: boom');
+        await screen.findByText('Error: The company could not be created. Please try again. If it keeps happening, contact support.');
         expect((await axe(container)).violations).toEqual([]);
     });
 });

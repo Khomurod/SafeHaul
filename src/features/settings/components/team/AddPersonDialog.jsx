@@ -70,10 +70,11 @@ export function AddPersonDialog({ companyId, onClose, onAdded }) {
                             onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                         />
                     </FormField>
-                    <FormField id="team-new-user-password" label="Password" required>
+                    <FormField id="team-new-user-password" label="Password" description="At least 6 characters." required>
                         <Input
                             type="password"
                             autoComplete="new-password"
+                            minLength={6}
                             value={newUser.password}
                             onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                         />

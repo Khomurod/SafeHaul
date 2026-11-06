@@ -14,6 +14,7 @@ import { Stack } from '@/design-system/layouts';
 import { SUPER_ADMIN_VIEWS } from '../config/views';
 import { CreateCompanyForm } from './create/CreateCompanyForm';
 import { CreateUserForm } from './create/CreateUserForm';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * Create New — Super Admin entity creation.
@@ -175,7 +176,7 @@ export function CreateView({ onDataUpdate, setActiveView }) {
                     setCreatedCompany({ id: companyId, formKey });
                     if (onDataUpdate) onDataUpdate();
                     throw new Error(
-                        `The company was created, but its admin was not: ${adminError.message} `
+                        `The company was created, but its admin was not: ${plainErrorMessage(adminError, 'The admin account could not be created.')} `
                         + 'Correct the admin details and press Create Company again; only the admin will be added.',
                     );
                 }
@@ -189,7 +190,7 @@ export function CreateView({ onDataUpdate, setActiveView }) {
 
         } catch (error) {
             console.error("Creation Error:", error);
-            setOutcome({ tone: 'error', message: `Error: ${error.message}` });
+            setOutcome({ tone: 'error', message: `Error: ${plainErrorMessage(error, 'The company could not be created.')}` });
         } finally {
             submittingRef.current = false;
             setLoading(false);
@@ -220,7 +221,7 @@ export function CreateView({ onDataUpdate, setActiveView }) {
 
         } catch (error) {
             console.error("User Creation Error:", error);
-            setOutcome({ tone: 'error', message: `Failed: ${error.message}` });
+            setOutcome({ tone: 'error', message: `Failed: ${plainErrorMessage(error, 'The user could not be created.')}` });
         } finally {
             submittingRef.current = false;
             setLoading(false);

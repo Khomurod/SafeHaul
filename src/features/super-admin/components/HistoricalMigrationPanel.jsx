@@ -5,6 +5,7 @@ import { Icon, CheckCircle, History, Play, Search } from '@design-system/icons';
 import { Badge, Button, Card, Notice, ProgressBar } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
+import { plainErrorMessage } from '@shared/utils/plainErrorMessage';
 
 /**
  * TEMPORARY operator action: finish the historical application reconstruction.
@@ -113,7 +114,8 @@ export function HistoricalMigrationPanel() {
             if (!activeRef.current) return;
             // A survey that failed is not evidence the work is done, so the
             // panel stays, says why, and offers the check again.
-            setError(err?.message || 'Could not read the historical record counts.');
+            console.error('Historical survey failed:', err);
+            setError(plainErrorMessage(err, 'Could not read the historical record counts.'));
             setPhase('unchecked');
         }
     };
@@ -181,7 +183,8 @@ export function HistoricalMigrationPanel() {
                     }
                 }
             } catch (err) {
-                companyError = err?.message || 'The migration call failed.';
+                console.error('Historical migration failed:', company.companyId, err);
+                companyError = plainErrorMessage(err, 'The migration call failed.');
             }
 
             for (const key of Object.keys(overall)) overall[key] += tally[key];
@@ -205,7 +208,7 @@ export function HistoricalMigrationPanel() {
         } catch (err) {
             if (!activeRef.current) return;
             setError(
-                `${err?.message || 'Verification failed.'} `
+                `${plainErrorMessage(err, 'Verification failed.')} `
                 + 'The migration ran, but completion could not be confirmed, so this panel stays.',
             );
             setPhase('incomplete');

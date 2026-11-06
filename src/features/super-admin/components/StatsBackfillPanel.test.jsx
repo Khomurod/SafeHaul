@@ -227,7 +227,9 @@ describe('StatsBackfillPanel — states are announced (defect)', () => {
         render(<StatsBackfillPanel />);
         fireEvent.click(screen.getByRole('button', { name: /Dry-Run All/ }));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent('Failed to run backfill');
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'The backfill could not run. Please try again. If it keeps happening, contact support.',
+        );
     });
 
     it('announces the result and keeps the dry-run wording', async () => {
