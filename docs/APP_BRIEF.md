@@ -546,7 +546,7 @@ with where they come from, apart from "No … match" with Clear search and filte
 A row or card delete is a small bin icon that asks first. Settings → Email, Automated
 texts and My profile save through the save bar, which warns before leaving with
 unsaved changes (Company profile keeps Edit/Save). Automated texts writes only the
-changed templates and, when they cannot be read, offers Retry rather than blank fields. Email has one Save for what
+changed templates; when they cannot be read it says so above the fields, with Retry. Email has one Save for what
 changed; Test Connection checks what is typed and, if it connects, saves the
 connection; the password field empties after a save. Team's Add person needs a
 password of at least 6 characters.
