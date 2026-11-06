@@ -67,7 +67,24 @@ function statusOptionsFor(currentStatus) {
  *   reads "Delete lead", and it has no application PDF to download. Anything
  *   else, an application or a record not yet loaded, keeps the application's
  *   wording.
+ * - **On a phone Close is not here** (`showClose={false}`): it leads the
+ *   dossier's one-line identity bar (`DossierIdentityBar`), above everything
+ *   that scrolls.
  */
+
+/** The dossier's one way out, the same control wherever it sits. */
+export function DossierCloseButton({ onClose }) {
+    return (
+        <IconButton
+            variant="ghost"
+            label="Close driver dossier"
+            onClick={onClose}
+        >
+            <Icon icon={X} size="2xl" />
+        </IconButton>
+    );
+}
+
 export function DossierHeader({
     activeTab,
     appData,
@@ -83,6 +100,7 @@ export function DossierHeader({
     onDelete,
     onDownload,
     collectionName,
+    showClose = true,
 }) {
     const rawId = useId().replace(/:/g, '');
     const statusId = `dossier-status-${rawId}`;
@@ -212,15 +230,12 @@ export function DossierHeader({
                     </IconButton>
                 )}
 
-                <span aria-hidden="true" className="mx-ds-1 hidden h-6 w-px bg-ds-border-subtle sm:block" />
-
-                <IconButton
-                    variant="ghost"
-                    label="Close driver dossier"
-                    onClick={onClose}
-                >
-                    <Icon icon={X} size="2xl" />
-                </IconButton>
+                {showClose && (
+                    <>
+                        <span aria-hidden="true" className="mx-ds-1 hidden h-6 w-px bg-ds-border-subtle sm:block" />
+                        <DossierCloseButton onClose={onClose} />
+                    </>
+                )}
             </div>
         </>
     );

@@ -238,6 +238,16 @@ describe('DossierHeader for a lead (a lead is not an application)', () => {
   );
 });
 
+describe('DossierHeader on a phone', () => {
+  it('leaves Close to the identity bar when told to, and keeps every other action', () => {
+    renderHeader({ showClose: false, canDelete: true });
+    expect(screen.queryByRole('button', { name: /close/i })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Download application PDF' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete application' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /status/i })).toBeInTheDocument();
+  });
+});
+
 describe('DossierHeader actions', () => {
   it("leaves the download to the dossier's own handler", () => {
     const props = renderHeader();

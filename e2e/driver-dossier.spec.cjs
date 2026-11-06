@@ -324,7 +324,8 @@ test.describe('Driver Dossier on a real mobile device lane', () => {
     await openDossier(page);
 
     // Full-screen sheet below `sm`, and the navigation becomes a horizontal
-    // strip — same DOM order, so the tab sequence never changes.
+    // strip under a one-line bar that starts with Close; the driver's details
+    // and the section's header scroll with the section in the tab panel.
     const layout = await page.evaluate(() => {
       const dlg = document.querySelector('[role="dialog"][aria-label="Driver dossier"]');
       const tablist = dlg.querySelector('[role="tablist"]');

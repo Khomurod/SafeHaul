@@ -5,10 +5,11 @@ import { useApplicationDelete } from '@features/applications/hooks/useApplicatio
 import { useData } from '@/context/DataContext';
 import { Modal } from '@design-system/patterns';
 import { Button, TabPanel } from '@/design-system/components';
-import { DossierSidebar } from './DossierSidebar';
+import { DossierDetails, DossierIdentityBar, DossierSectionTabs, DossierSidebar } from './DossierSidebar';
 import { DossierHeader } from './DossierHeader';
 import { DossierContent } from './DossierContent';
 import { DossierLogCall } from './DossierLogCall';
+import { useCompactViewport } from './useCompactViewport';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 
 /**
@@ -24,9 +25,7 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * fact that Escape closes it (both asserted by
  * `e2e/company-candidate-table.spec.cjs`); the
  * `useApplicationView(companyId, driverId)` argument list;
- * the `'application'` initial tab (unless the opener names another as
- * `initialTab`: a bell notice or a Needs attention row opens the tab it is
- * about) and every tab state value; the
+ * the `'application'` initial tab and every tab state value; the
  * `deleteApplication({ companyId, applicationId, collectionName })` payload and
  * the `onDeleted()` → `onClose()` ordering after a successful delete; the
  * `company_admin`-of-this-company OR `super_admin` delete rule; and every
@@ -43,6 +42,15 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * - The panel is full-screen below `sm` with the navigation as a horizontal
  *   strip, and the three-pane desktop layout from `sm` up; a fixed 280 px
  *   sidebar would leave about 90 px for the content at 412 px.
+ * - **On a phone only two short rows stay put** (`useCompactViewport`, the
+ *   breakpoint the classes switch on): Close, the name and the status on one
+ *   line (`DossierIdentityBar`), then the section strip. Everything else, the
+ *   driver's details, the section's header with its controls and the section
+ *   itself, is in the tab panel and scrolls away together. The fixed name
+ *   block, strip and header used to take about 360 of 915 px, with Close on
+ *   the header's third row. The tab panel stays the one scroll container and
+ *   the first focus on both layouts, at the top of what scrolls, so opening
+ *   the dossier scrolls nothing away.
  * - Loading and error are announced: `role="status"` / `role="alert"`.
  * - The destructive confirmation opens with focus on Cancel, and names what
  *   it deletes: a lead (`collectionName`, the collection the record was found
@@ -50,6 +58,9 @@ import { isCompanyAdminForRoute } from '@app/auth/roles';
  * - A lead and the application it became open each other here (the sidebar's
  *   "Open application" / "Open lead"): the dossier shows that record, on its
  *   first tab, until the page opens another.
+ * - It opens on the `'application'` tab unless the opener names another as
+ *   `initialTab` (a bell notice or a Needs attention row opens the tab it is
+ *   about).
  * - A call logged here (`DossierLogCall`) reads the record again, so the stage
  *   it moved and the last call show, and reopens Activity and Notes on their
  *   newest entries; the tab the recruiter is on stays.
@@ -93,6 +104,7 @@ export function DriverProfileModal({
       primitive's `tabIds` export was written to prevent.
     */
     const tabsIdBase = `dossier-${useId().replace(/:/g, '')}`;
+    const isCompact = useCompactViewport();
 
     const { currentUserClaims } = useData();
     const isCompanyAdmin = isCompanyAdminForRoute(currentUserClaims, companyId);
@@ -133,6 +145,96 @@ export function DriverProfileModal({
 
     if (!isOpen) return null;
 
+    // What the left column shows about the driver, on either layout.
+    const recordProps = {
+        appData,
+        collectionName,
+        onOpenRecord: openLinkedRecord,
+        companyId,
+        canEdit,
+        logCall: (
+            <DossierLogCall
+                companyId={companyId}
+                recordId={recordId}
+                record={appData}
+                canLog={canEdit && !loading && !error}
+                onLogged={handleCallLogged}
+            />
+        ),
+    };
+    const tabsProps = { activeTab, setActiveTab, dqStatus, idBase: tabsIdBase };
+
+    const header = (
+        /*
+          The header wraps at every width and has a minimum height
+          rather than a fixed one. With `sm:flex-nowrap` + `sm:h-16`
+          the section title was squeezed to zero width at 1024 px —
+          it is `truncate`, so it did not ellipsise, it simply
+          vanished while the status/assign controls kept their full
+          width. Wrapping lets the actions drop to a second line
+          instead of eating the title.
+        */
+        <div className="z-ds-raised flex shrink-0 flex-wrap items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 sm:min-h-16 sm:px-ds-6">
+            <DossierHeader
+                activeTab={activeTab}
+                // `useAppFetch` keeps the last record's data until the next arrives.
+                appData={loading || error ? null : appData}
+                loading={loading}
+                currentStatus={currentStatus}
+                onClose={onClose}
+                onStatusUpdate={handleStatusUpdate}
+                canEdit={canEdit}
+                teamMembers={teamMembers}
+                assignedTo={assignedTo}
+                onAssignChange={handleAssignChange}
+                canDelete={isCompanyAdmin}
+                onDelete={() => setConfirmingDelete(true)}
+                onDownload={handleDownloadPdf}
+                collectionName={collectionName}
+                // On a phone, Close leads the identity bar instead.
+                showClose={!isCompact}
+            />
+        </div>
+    );
+
+    const body = loading ? (
+        <div
+            role="status"
+            /*
+             * `raised`, the same layer as the header
+             * above, and it still covers it: the tab
+             * panel sets no z-index of its own, so this
+             * overlay and that header compare directly —
+             * and at equal z-index the later element in
+             * the document wins. It was a bare `z-20`
+             * outranking a bare `z-10`, which is the
+             * same outcome by a route nobody could name.
+             */
+            className="absolute inset-0 z-ds-raised flex flex-col items-center justify-center gap-ds-2 bg-ds-surface/80"
+        >
+            <Icon icon={Loader2} size="3xl" className="animate-spin text-ds-action-primary" />
+            <p className="text-ds-sm font-medium text-ds-content-secondary">Loading driver dossier…</p>
+        </div>
+    ) : error ? (
+        <div role="alert" className="p-ds-8 text-center">
+            <p className="font-medium text-ds-status-danger-fg">Error loading application details.</p>
+            <p className="mt-ds-2 text-ds-sm text-ds-content-secondary [overflow-wrap:anywhere]">{error}</p>
+        </div>
+    ) : (
+        <DossierContent
+            activeTab={activeTab}
+            appData={appData}
+            driverId={recordId}
+            companyId={companyId}
+            collectionName={collectionName}
+            fileUrls={fileUrls}
+            filesPending={filesPending}
+            canEdit={canEdit}
+            refreshKey={callsLogged}
+            onOpenTab={openTab}
+        />
+    );
+
     return (
         <>
             <Modal
@@ -159,122 +261,58 @@ export function DriverProfileModal({
                 fill
                 mobile="fullscreen"
             >
-                {/*
-                  The panel is a column (`scroll="body"`), so the two panes go
-                  side by side inside this one child rather than on the panel.
-
-                  Below `sm` the navigation is a horizontal strip above the
-                  content; from `sm` up it is the fixed-width left pane. Same DOM
-                  order either way, so the tab sequence never changes.
-                */}
-                <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-                    <div className="shrink-0 border-b border-ds-border-subtle bg-ds-surface-subtle sm:h-full sm:w-[280px] sm:border-b-0 sm:border-r">
-                        <DossierSidebar
-                            appData={appData}
-                            currentStatus={currentStatus}
-                            activeTab={activeTab}
-                            setActiveTab={setActiveTab}
-                            dqStatus={dqStatus}
-                            idBase={tabsIdBase}
-                            collectionName={collectionName}
-                            onOpenRecord={openLinkedRecord}
-                            logCall={(
-                                <DossierLogCall
-                                    companyId={companyId}
-                                    recordId={recordId}
-                                    record={appData}
-                                    canLog={canEdit && !loading && !error}
-                                    onLogged={handleCallLogged}
-                                />
-                            )}
-                            companyId={companyId}
-                            canEdit={canEdit}
-                        />
-                    </div>
-
-                    {/* Right Side Container */}
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-ds-surface sm:h-full">
-
-                        {/*
-                          The header wraps at every width and has a minimum height
-                          rather than a fixed one. With `sm:flex-nowrap` + `sm:h-16`
-                          the section title was squeezed to zero width at 1024 px —
-                          it is `truncate`, so it did not ellipsise, it simply
-                          vanished while the status/assign controls kept their full
-                          width. Wrapping lets the actions drop to a second line
-                          instead of eating the title.
-                        */}
-                        <div className="z-ds-raised flex shrink-0 flex-wrap items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 sm:min-h-16 sm:px-ds-6">
-                            <DossierHeader
-                                activeTab={activeTab}
-                                // `useAppFetch` keeps the last record's data until the next arrives.
-                                appData={loading || error ? null : appData}
-                                loading={loading}
-                                currentStatus={currentStatus}
-                                onClose={onClose}
-                                onStatusUpdate={handleStatusUpdate}
-                                canEdit={canEdit}
-                                teamMembers={teamMembers}
-                                assignedTo={assignedTo}
-                                onAssignChange={handleAssignChange}
-                                canDelete={isCompanyAdmin}
-                                onDelete={() => setConfirmingDelete(true)}
-                                onDownload={handleDownloadPdf}
-                                collectionName={collectionName}
-                            />
+                {isCompact ? (
+                    /*
+                      A phone: Close, the name and the strip stay; the driver's
+                      details, the header and the section scroll together in the
+                      tab panel, which is the first focus and already at the top.
+                    */
+                    <div className="flex min-h-0 flex-1 flex-col">
+                        <DossierIdentityBar appData={appData} currentStatus={currentStatus} onClose={onClose} />
+                        <div className="shrink-0 border-b border-ds-border-subtle bg-ds-surface-subtle">
+                            <DossierSectionTabs {...tabsProps} />
                         </div>
-
-                        {/*
-                          The tab panel is the scroll container, and it is
-                          keyboard-focusable so a keyboard user can scroll long tab
-                          content without tabbing through every control inside it.
-                        */}
                         <TabPanel
                             ref={tabPanelRef}
                             idBase={tabsIdBase}
                             tabId={activeTab}
-                            className="relative flex-1 overflow-y-auto overflow-x-hidden bg-ds-surface p-ds-4 sm:p-ds-6"
+                            className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-ds-surface"
                         >
-                            {loading ? (
-                                <div
-                                    role="status"
-                                    /*
-                                     * `raised`, the same layer as the header
-                                     * above, and it still covers it: the tab
-                                     * panel sets no z-index of its own, so this
-                                     * overlay and that header compare directly —
-                                     * and at equal z-index the later element in
-                                     * the document wins. It was a bare `z-20`
-                                     * outranking a bare `z-10`, which is the
-                                     * same outcome by a route nobody could name.
-                                     */
-                                    className="absolute inset-0 z-ds-raised flex flex-col items-center justify-center gap-ds-2 bg-ds-surface/80"
-                                >
-                                    <Icon icon={Loader2} size="3xl" className="animate-spin text-ds-action-primary" />
-                                    <p className="text-ds-sm font-medium text-ds-content-secondary">Loading driver dossier…</p>
-                                </div>
-                            ) : error ? (
-                                <div role="alert" className="p-ds-8 text-center">
-                                    <p className="font-medium text-ds-status-danger-fg">Error loading application details.</p>
-                                    <p className="mt-ds-2 text-ds-sm text-ds-content-secondary [overflow-wrap:anywhere]">{error}</p>
-                                </div>
-                            ) : (
-                                <DossierContent
-                                    activeTab={activeTab}
-                                    appData={appData}
-                                    driverId={recordId}
-                                    companyId={companyId}
-                                    collectionName={collectionName}
-                                    fileUrls={fileUrls}
-                                    filesPending={filesPending}
-                                    canEdit={canEdit}
-                                    refreshKey={callsLogged}
-                                    onOpenTab={openTab}
-                                />
-                            )}
+                            <DossierDetails {...recordProps} />
+                            {header}
+                            <div className="p-ds-4">{body}</div>
                         </TabPanel>
                     </div>
-                </div>
+                ) : (
+                    /*
+                      The panel is a column (`scroll="body"`), so the two panes go
+                      side by side inside this one child rather than on the panel.
+                    */
+                    <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+                        <div className="shrink-0 border-b border-ds-border-subtle bg-ds-surface-subtle sm:h-full sm:w-[280px] sm:border-b-0 sm:border-r">
+                            <DossierSidebar {...recordProps} {...tabsProps} currentStatus={currentStatus} />
+                        </div>
+
+                        {/* Right Side Container */}
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-ds-surface sm:h-full">
+                            {header}
+
+                            {/*
+                              The tab panel is the scroll container, and it is
+                              keyboard-focusable so a keyboard user can scroll long tab
+                              content without tabbing through every control inside it.
+                            */}
+                            <TabPanel
+                                ref={tabPanelRef}
+                                idBase={tabsIdBase}
+                                tabId={activeTab}
+                                className="relative flex-1 overflow-y-auto overflow-x-hidden bg-ds-surface p-ds-4 sm:p-ds-6"
+                            >
+                                {body}
+                            </TabPanel>
+                        </div>
+                    </div>
+                )}
             </Modal>
 
             {confirmingDelete && (
